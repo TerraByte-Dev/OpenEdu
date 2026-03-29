@@ -4,7 +4,7 @@ import {
   getLLMProvider, setLLMProvider, setGenerationModel, setChatModel,
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
 } from "../lib/store";
-import { getOllamaModels } from "../lib/llm";
+import { getOllamaModels, callLLM } from "../lib/llm";
 
 const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] = [
   { id: "ollama", name: "Ollama (Local — Free)", needsKey: false },
@@ -60,6 +60,8 @@ export default function Settings() {
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [ollamaStatus, setOllamaStatus] = useState<"checking" | "connected" | "disconnected">("checking");
   const [saved, setSaved] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -102,6 +104,28 @@ export default function Settings() {
     } else {
       setOllamaModels([]);
       setOllamaStatus("disconnected");
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!apiKeyValue.trim()) {
+      setVerifyResult({ ok: false, msg: "Enter an API key first." });
+      return;
+    }
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      // Save the key first so it persists before we test it
+      await setApiKey(provider, apiKeyValue);
+      const config = provider === "anthropic"
+        ? { provider: "anthropic" as const, model: "claude-haiku-4-5-20251001", apiKey: apiKeyValue.trim() }
+        : { provider: "openai" as const, model: "gpt-4o-mini", apiKey: apiKeyValue.trim() };
+      await callLLM([{ role: "user", content: "Reply with exactly: ok" }], config);
+      setVerifyResult({ ok: true, msg: `${provider === "anthropic" ? "Anthropic" : "OpenAI"} key is valid and working.` });
+    } catch (e) {
+      setVerifyResult({ ok: false, msg: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -189,13 +213,27 @@ export default function Settings() {
         {provider !== "ollama" && (
           <section className="mb-8">
             <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">API Key</h2>
-            <input
-              type="password"
-              value={apiKeyValue}
-              onChange={(e) => setApiKeyValue(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500"
-              placeholder={`Enter your ${provider === "openai" ? "OpenAI" : "Anthropic"} API key`}
-            />
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={apiKeyValue}
+                onChange={(e) => { setApiKeyValue(e.target.value); setVerifyResult(null); }}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500"
+                placeholder={`Enter your ${provider === "openai" ? "OpenAI" : "Anthropic"} API key`}
+              />
+              <button
+                onClick={handleVerify}
+                disabled={verifying || !apiKeyValue.trim()}
+                className="px-4 py-2.5 rounded-lg bg-surface-600 hover:bg-surface-500 text-zinc-200 text-sm font-medium disabled:opacity-50 transition-colors shrink-0"
+              >
+                {verifying ? "Testing..." : "Verify Key"}
+              </button>
+            </div>
+            {verifyResult && (
+              <p className={`mt-2 text-xs font-medium ${verifyResult.ok ? "text-green-400" : "text-red-400"}`}>
+                {verifyResult.ok ? "✓ " : "✗ "}{verifyResult.msg}
+              </p>
+            )}
             <p className="mt-2 text-xs text-zinc-500">
               Stored locally on your machine. Never sent anywhere except the provider's API.
             </p>

@@ -14,7 +14,8 @@ async function getStore(): Promise<Store> {
 export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?: string; ollamaUrl: string }> {
   const s = await getStore();
   const provider = ((await s.get<string>("llm_provider")) ?? "ollama") as LLMProvider;
-  const apiKey = (await s.get<string>(`apikey_${provider}`)) ?? undefined;
+  const rawKey = await s.get<string>(`apikey_${provider}`);
+  const apiKey = rawKey ? rawKey.trim() : undefined;
   const ollamaUrl = (await s.get<string>("ollama_url")) ?? "http://localhost:11434";
   return { provider, apiKey, ollamaUrl };
 }
@@ -66,13 +67,14 @@ export async function setChatModel(model: string): Promise<void> {
 
 export async function setApiKey(provider: LLMProvider, key: string): Promise<void> {
   const s = await getStore();
-  await s.set(`apikey_${provider}`, key);
+  await s.set(`apikey_${provider}`, key.trim());
   await s.save();
 }
 
 export async function getApiKey(provider: LLMProvider): Promise<string | null> {
   const s = await getStore();
-  return (await s.get<string>(`apikey_${provider}`)) ?? null;
+  const key = await s.get<string>(`apikey_${provider}`);
+  return key ? key.trim() : null;
 }
 
 export async function setOllamaUrl(url: string): Promise<void> {
