@@ -123,6 +123,7 @@ async function streamOpenAI(
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${config.apiKey}`,
+        "Origin": "", // suppress tauri-plugin-http injected Origin header
       },
       body: JSON.stringify({ model: config.model, messages, stream: true }),
     });
@@ -203,6 +204,7 @@ async function streamAnthropic(
         "Content-Type": "application/json",
         "x-api-key": config.apiKey,
         "anthropic-version": "2023-06-01",
+        "Origin": "", // suppress tauri-plugin-http injected Origin header
       },
       body: JSON.stringify(body),
     });
@@ -351,6 +353,7 @@ export async function callLLM(
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${config.apiKey}`,
+          "Origin": "",
         },
         body: JSON.stringify({ model: config.model, messages }),
       });
@@ -387,6 +390,7 @@ export async function callLLM(
           "Content-Type": "application/json",
           "x-api-key": config.apiKey,
           "anthropic-version": "2023-06-01",
+          "Origin": "",
         },
         body: JSON.stringify(body),
       });
