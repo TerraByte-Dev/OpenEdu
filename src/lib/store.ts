@@ -16,7 +16,7 @@ export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?
   const provider = ((await s.get<string>("llm_provider")) ?? "ollama") as LLMProvider;
   const rawKey = await s.get<string>(`apikey_${provider}`);
   const apiKey = rawKey ? rawKey.trim() : undefined;
-  const ollamaUrl = (await s.get<string>("ollama_url")) ?? "http://localhost:11434";
+  const ollamaUrl = (await s.get<string>("ollama_url")) ?? "http://127.0.0.1:11434";
   return { provider, apiKey, ollamaUrl };
 }
 

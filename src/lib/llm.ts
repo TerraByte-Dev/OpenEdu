@@ -1,6 +1,12 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import type { LLMConfig } from "../types";
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+// Strip trailing slashes so we never build double-slash paths like /api//tags
+function normalizeBase(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
 // ─── Logger ──────────────────────────────────────────────────────────────────
 // Structured debug log — visible in Tauri's DevTools console and tagged clearly.
 export const log = {
@@ -46,7 +52,7 @@ async function streamOllama(
   onDone: (fullText: string) => void,
   onError: (error: string) => void,
 ) {
-  const baseUrl = config.ollamaUrl || "http://localhost:11434";
+  const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const url = `${baseUrl}/api/chat`;
   log.info("streamOllama", `POST ${url} model=${config.model}`);
 
@@ -54,11 +60,14 @@ async function streamOllama(
   try {
     response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
       body: JSON.stringify({ model: config.model, messages, stream: true }),
     });
   } catch (e) {
-    const msg = `Cannot reach Ollama at ${baseUrl}. Make sure Ollama is running (run: ollama serve).`;
+    const msg = `Cannot reach Ollama at ${baseUrl}. Make sure Ollama is running: open a terminal and run "ollama serve".`;
     log.error("streamOllama", msg, e);
     onError(msg);
     return;
@@ -66,7 +75,12 @@ async function streamOllama(
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    const msg = `Ollama error ${response.status}: ${text || "unknown error"}. Is Ollama running and the model downloaded?`;
+    let msg = `Ollama error ${response.status}: ${text || "unknown"}. `;
+    if (response.status === 404) {
+      msg += `Model "${config.model}" not found — run: ollama pull ${config.model}`;
+    } else {
+      msg += "Is Ollama running? Try clicking Refresh in Settings.";
+    }
     log.error("streamOllama", msg);
     onError(msg);
     return;
@@ -77,24 +91,29 @@ async function streamOllama(
 
   const decoder = new TextDecoder();
   let fullText = "";
+  // Buffer incomplete lines — NDJSON chunks may split across reads
+  let lineBuffer = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n").filter(Boolean)) {
+    lineBuffer += decoder.decode(value, { stream: true });
+    const lines = lineBuffer.split("\n");
+    lineBuffer = lines.pop() ?? ""; // last entry may be incomplete — keep buffered
+    for (const line of lines) {
+      if (!line.trim()) continue;
       try {
         const json = JSON.parse(line);
+        if (json.error) {
+          log.error("streamOllama", "Error in stream", json.error);
+          onError(`Ollama error: ${json.error} — is the model "${config.model}" downloaded?`);
+          return;
+        }
         if (json.message?.content) {
           fullText += json.message.content;
           onToken(json.message.content);
         }
-        if (json.error) {
-          log.error("streamOllama", "Stream error from Ollama", json.error);
-          onError(`Ollama model error: ${json.error}. Try a different model in Settings.`);
-          return;
-        }
-      } catch { /* partial line, skip */ }
+      } catch { /* partial JSON — skip */ }
     }
   }
   log.info("streamOllama", `Done — ${fullText.length} chars`);
@@ -322,21 +341,27 @@ export async function callLLM(
   log.info("callLLM", `provider=${config.provider} model=${config.model}`);
 
   if (config.provider === "ollama") {
-    const baseUrl = config.ollamaUrl || "http://localhost:11434";
+    const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
     const url = `${baseUrl}/api/chat`;
     let response: Awaited<ReturnType<typeof fetch>>;
     try {
       response = await fetchWithRetry(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: JSON.stringify({ model: config.model, messages, stream: false }),
       });
     } catch (e) {
-      throw new Error(`Cannot reach Ollama at ${baseUrl}. Make sure Ollama is running (run: ollama serve). Detail: ${networkAwareMessage(e)}`);
+      throw new Error(`Cannot reach Ollama at ${baseUrl}. Open a terminal and run "ollama serve". Detail: ${networkAwareMessage(e)}`);
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(`Ollama error ${response.status}: ${text || "unknown"}. Is the model "${config.model}" downloaded?`);
+      if (response.status === 404) {
+        throw new Error(`Ollama model "${config.model}" not found — run: ollama pull ${config.model}`);
+      }
+      throw new Error(`Ollama error ${response.status}: ${text || "unknown"}`);
     }
     const json = await response.json();
     const content = json.message?.content ?? "";
@@ -413,12 +438,26 @@ export async function callLLM(
 
 // ─── Fetch available Ollama models ────────────────────────────────────────────
 export async function getOllamaModels(ollamaUrl: string): Promise<string[]> {
+  const base = normalizeBase(ollamaUrl || "http://127.0.0.1:11434");
+  log.info("getOllamaModels", `GET ${base}/api/tags`);
   try {
-    const response = await fetch(`${ollamaUrl}/api/tags`, { method: "GET" });
-    if (!response.ok) return [];
+    const response = await fetch(`${base}/api/tags`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    });
+    if (!response.ok) {
+      log.warn("getOllamaModels", `HTTP ${response.status} from ${base}`);
+      return [];
+    }
     const json = await response.json();
-    return (json.models ?? []).map((m: { name: string }) => m.name);
-  } catch {
+    const models = (json.models ?? []).map((m: { name: string }) => m.name);
+    log.info("getOllamaModels", `Found ${models.length} models`, models);
+    return models;
+  } catch (e) {
+    log.warn("getOllamaModels", "Connection failed", e);
     return [];
   }
 }
