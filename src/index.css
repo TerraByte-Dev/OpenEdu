@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-terra-500: #6d28d9;
-  --color-terra-600: #5b21b6;
-  --color-terra-700: #4c1d95;
-  --color-terra-400: #8b5cf6;
-  --color-terra-300: #a78bfa;
-  --color-surface-900: #0c0a14;
-  --color-surface-800: #141220;
-  --color-surface-700: #1e1b2e;
-  --color-surface-600: #2a2640;
-  --color-surface-500: #3d3858;
+  --color-terra-300: #93c5fd;
+  --color-terra-400: #60a5fa;
+  --color-terra-500: #3b82f6;
+  --color-terra-600: #2563eb;
+  --color-terra-700: #1d4ed8;
+  --color-surface-900: #08111e;
+  --color-surface-800: #0e1d32;
+  --color-surface-700: #16273f;
+  --color-surface-600: #1f3450;
+  --color-surface-500: #2e4d72;
 }
 
 body {
@@ -76,7 +76,7 @@ body {
 .note-prose hr { border: none; border-top: 1px solid var(--color-surface-600); margin: 1rem 0; }
 .note-prose a { color: var(--color-terra-400); text-decoration: underline; }
 .note-prose strong { color: #f4f4f5; font-weight: 600; }
-.note-prose em { color: #c4b5fd; }
+.note-prose em { color: #bfdbfe; }
 .note-prose table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.82rem; }
 .note-prose th, .note-prose td { border: 1px solid var(--color-surface-500); padding: 0.35rem 0.6rem; text-align: left; }
 .note-prose th { background: var(--color-surface-700); font-weight: 600; color: #e4e4e7; }

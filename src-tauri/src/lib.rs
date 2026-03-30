@@ -95,6 +95,15 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 2,
+            description: "add level column to notes and chat_messages for unit-scoped data",
+            sql: "
+                ALTER TABLE notes ADD COLUMN level REAL NOT NULL DEFAULT 0.0;
+                ALTER TABLE chat_messages ADD COLUMN level REAL NOT NULL DEFAULT 0.0;
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
