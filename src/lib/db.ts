@@ -164,21 +164,21 @@ export async function getTutorInstructions(courseId: string): Promise<Record<str
   return result;
 }
 
-// Notes
-export async function getNotes(courseId: string): Promise<Note[]> {
+// Notes (level-scoped per unit)
+export async function getNotes(courseId: string, level: number): Promise<Note[]> {
   const d = await getDb();
   return await d.select(
-    "SELECT * FROM notes WHERE course_id = $1 ORDER BY sort_order ASC",
-    [courseId]
+    "SELECT * FROM notes WHERE course_id = $1 AND level = $2 ORDER BY sort_order ASC",
+    [courseId, level]
   );
 }
 
-export async function createNote(courseId: string, title: string, content: string): Promise<Note> {
+export async function createNote(courseId: string, title: string, content: string, level: number): Promise<Note> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO notes (id, course_id, title, content) VALUES ($1, $2, $3, $4)",
-    [id, courseId, title, content]
+    "INSERT INTO notes (id, course_id, level, title, content) VALUES ($1, $2, $3, $4, $5)",
+    [id, courseId, level, title, content]
   );
   const rows: Note[] = await d.select("SELECT * FROM notes WHERE id = $1", [id]);
   return rows[0];
@@ -197,25 +197,26 @@ export async function deleteNote(id: string): Promise<void> {
   await d.execute("DELETE FROM notes WHERE id = $1", [id]);
 }
 
-// Chat Messages
-export async function getChatMessages(courseId: string): Promise<ChatMessage[]> {
+// Chat Messages (level-scoped per unit)
+export async function getChatMessages(courseId: string, level: number): Promise<ChatMessage[]> {
   const d = await getDb();
   return await d.select(
-    "SELECT * FROM chat_messages WHERE course_id = $1 ORDER BY created_at ASC",
-    [courseId]
+    "SELECT * FROM chat_messages WHERE course_id = $1 AND level = $2 ORDER BY created_at ASC",
+    [courseId, level]
   );
 }
 
 export async function saveChatMessage(
   courseId: string,
   role: "user" | "assistant" | "system",
-  content: string
+  content: string,
+  level: number,
 ): Promise<ChatMessage> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO chat_messages (id, course_id, role, content) VALUES ($1, $2, $3, $4)",
-    [id, courseId, role, content]
+    "INSERT INTO chat_messages (id, course_id, level, role, content) VALUES ($1, $2, $3, $4, $5)",
+    [id, courseId, level, role, content]
   );
   const rows: ChatMessage[] = await d.select("SELECT * FROM chat_messages WHERE id = $1", [id]);
   return rows[0];
@@ -274,6 +275,33 @@ export async function getQuizAttempts(courseId: string): Promise<QuizAttempt[]> 
     "SELECT * FROM quiz_attempts WHERE course_id = $1 ORDER BY started_at DESC",
     [courseId]
   );
+}
+
+// Get the most recent completed promotion test for a given level (for cooldown checks)
+export async function getLastPromotionAttempt(courseId: string, level: number): Promise<QuizAttempt | null> {
+  const d = await getDb();
+  const rows: QuizAttempt[] = await d.select(
+    `SELECT * FROM quiz_attempts WHERE course_id = $1 AND level = $2 AND quiz_type = 'promotion' AND completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 1`,
+    [courseId, level]
+  );
+  return rows[0] ?? null;
+}
+
+export async function createPromotionAttempt(
+  courseId: string,
+  level: number,
+  totalQuestions: number,
+  timeLimitSeconds: number,
+): Promise<QuizAttempt> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute(
+    `INSERT INTO quiz_attempts (id, course_id, quiz_type, level, total_questions, time_limit_seconds)
+     VALUES ($1, $2, 'promotion', $3, $4, $5)`,
+    [id, courseId, level, totalQuestions, timeLimitSeconds]
+  );
+  const rows: QuizAttempt[] = await d.select("SELECT * FROM quiz_attempts WHERE id = $1", [id]);
+  return rows[0];
 }
 
 export async function getQuizQuestions(attemptId: string): Promise<QuizQuestion[]> {

@@ -43,10 +43,10 @@ function buildGraph(notes: Note[]): { nodes: GraphNode[]; links: GraphLink[] } {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-interface NotesTabProps { courseId: string }
+interface NotesTabProps { courseId: string; level: number }
 type PanelView = "note" | "graph";
 
-export default function NotesTab({ courseId }: NotesTabProps) {
+export default function NotesTab({ courseId, level }: NotesTabProps) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -57,7 +57,7 @@ export default function NotesTab({ courseId }: NotesTabProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [graphSize, setGraphSize] = useState({ w: 600, h: 400 });
 
-  useEffect(() => { loadNotes(); }, [courseId]);
+  useEffect(() => { loadNotes(); }, [courseId, level]);
 
   // Resize observer for the graph container
   useEffect(() => {
@@ -71,12 +71,12 @@ export default function NotesTab({ courseId }: NotesTabProps) {
   }, [panelView]); // re-attach when switching to graph
 
   const loadNotes = async () => {
-    const n = await getNotes(courseId);
+    const n = await getNotes(courseId, level);
     setNotes(n);
   };
 
   const handleCreate = async () => {
-    const note = await createNote(courseId, "Untitled Note", "");
+    const note = await createNote(courseId, "Untitled Note", "", level);
     const updated = [...notes, note];
     setNotes(updated);
     selectNote(note, updated);
@@ -133,7 +133,7 @@ export default function NotesTab({ courseId }: NotesTabProps) {
       selectNote(found);
     } else {
       // Create a new note with that title
-      createNote(courseId, title, "").then((newNote) => {
+      createNote(courseId, title, "", level).then((newNote) => {
         setNotes((prev) => [...prev, newNote]);
         selectNote(newNote, [...notes, newNote]);
         setMode("edit");

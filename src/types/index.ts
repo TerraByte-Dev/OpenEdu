@@ -40,6 +40,7 @@ export interface TutorInstruction {
 export interface Note {
   id: string;
   course_id: string;
+  level: number;
   title: string;
   content: string;
   sort_order: number;
@@ -51,6 +52,7 @@ export interface Note {
 export interface ChatMessage {
   id: string;
   course_id: string;
+  level: number;
   role: "user" | "assistant" | "system";
   content: string;
   created_at: string;

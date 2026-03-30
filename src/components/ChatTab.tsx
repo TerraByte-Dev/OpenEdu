@@ -8,10 +8,11 @@ import { getChatConfig } from "../lib/store";
 interface ChatTabProps {
   courseId: string;
   course: Course;
+  level: number;
   currentSyllabus: Syllabus | null;
 }
 
-export default function ChatTab({ courseId, course, currentSyllabus }: ChatTabProps) {
+export default function ChatTab({ courseId, course, level, currentSyllabus }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -21,10 +22,10 @@ export default function ChatTab({ courseId, course, currentSyllabus }: ChatTabPr
 
   useEffect(() => {
     (async () => {
-      const msgs = await getChatMessages(courseId);
+      const msgs = await getChatMessages(courseId, level);
       setMessages(msgs);
     })();
-  }, [courseId]);
+  }, [courseId, level]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,7 +38,7 @@ export default function ChatTab({ courseId, course, currentSyllabus }: ChatTabPr
     const userText = input.trim();
     setInput("");
 
-    const userMsg = await saveChatMessage(courseId, "user", userText);
+    const userMsg = await saveChatMessage(courseId, "user", userText, level);
     setMessages((prev) => [...prev, userMsg]);
 
     // Build system prompt — with fallback if instructions not yet generated
@@ -68,7 +69,7 @@ export default function ChatTab({ courseId, course, currentSyllabus }: ChatTabPr
       },
       onDone: async (fullText) => {
         if (fullText.trim()) {
-          const assistantMsg = await saveChatMessage(courseId, "assistant", fullText);
+          const assistantMsg = await saveChatMessage(courseId, "assistant", fullText, level);
           setMessages((prev) => [...prev, assistantMsg]);
         }
         setStreamingText("");
