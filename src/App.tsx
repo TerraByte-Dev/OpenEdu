@@ -60,7 +60,7 @@ export default function App() {
         onGoHome={() => setCurrentView("dashboard")}
         onGoSettings={() => setCurrentView("settings")}
       />
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden min-h-0">
         {currentView === "dashboard" && (
           <Dashboard
             courses={courses}

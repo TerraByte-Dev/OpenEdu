@@ -74,7 +74,7 @@ export default function CourseView({ courseId, onBack }: CourseViewProps) {
   ];
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Course header */}
       <div className="flex items-center gap-4 px-6 py-3 border-b border-surface-600 bg-surface-800">
         <button
@@ -111,7 +111,7 @@ export default function CourseView({ courseId, onBack }: CourseViewProps) {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {activeTab === "chat" && (
           <ChatTab courseId={courseId} course={course} currentSyllabus={currentSyllabus} />
         )}
@@ -147,7 +147,7 @@ function SyllabusView({
   regenStatus?: string;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-6">
       <div className="max-w-2xl mx-auto space-y-6">
         {syllabuses.map((syllabus) => (
           <div

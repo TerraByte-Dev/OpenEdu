@@ -83,7 +83,7 @@ export default function ChatTab({ courseId, course, currentSyllabus }: ChatTabPr
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && !streaming && (

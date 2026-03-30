@@ -135,7 +135,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 min-h-0 overflow-y-auto p-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-zinc-100 mb-6">Settings</h1>
 
