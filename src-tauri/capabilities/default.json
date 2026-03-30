@@ -16,7 +16,7 @@
     "store:allow-keys",
     "http:default",
     {
-      "identifier": "http:default",
+      "identifier": "http:allow-fetch",
       "allow": [
         { "url": "http://localhost:11434/**" },
         { "url": "http://127.0.0.1:11434/**" },
