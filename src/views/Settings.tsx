@@ -48,7 +48,7 @@ export default function Settings() {
   const [genModel, setGenModel] = useState("llama3");
   const [chatModel, setChatModelState] = useState("llama3");
   const [apiKeyValue, setApiKeyValue] = useState("");
-  const [ollamaUrlValue, setOllamaUrlValue] = useState("http://localhost:11434");
+  const [ollamaUrlValue, setOllamaUrlValue] = useState("http://127.0.0.1:11434");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [ollamaStatus, setOllamaStatus] = useState<"checking" | "connected" | "disconnected">("checking");
   const [saved, setSaved] = useState(false);
