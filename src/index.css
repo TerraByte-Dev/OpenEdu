@@ -27,6 +27,85 @@ body {
   display: flex;
 }
 
+/* ── Markdown prose rendering ──────────────────────────────────────────────── */
+.note-prose {
+  color: #d4d4d8;
+  line-height: 1.7;
+  font-size: 0.875rem;
+}
+.note-prose h1 { font-size: 1.5rem; font-weight: 700; color: #f4f4f5; margin: 1.25rem 0 0.5rem; }
+.note-prose h2 { font-size: 1.2rem; font-weight: 600; color: #e4e4e7; margin: 1rem 0 0.4rem; }
+.note-prose h3 { font-size: 1rem; font-weight: 600; color: #d4d4d8; margin: 0.8rem 0 0.3rem; }
+.note-prose h4, .note-prose h5, .note-prose h6 { font-size: 0.875rem; font-weight: 600; color: #d4d4d8; margin: 0.6rem 0 0.25rem; }
+.note-prose p { margin: 0.5rem 0; }
+.note-prose ul, .note-prose ol { padding-left: 1.4rem; margin: 0.4rem 0; }
+.note-prose li { margin: 0.15rem 0; }
+.note-prose ul li { list-style-type: disc; }
+.note-prose ol li { list-style-type: decimal; }
+.note-prose code {
+  background: var(--color-surface-700);
+  border: 1px solid var(--color-surface-500);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-size: 0.82rem;
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  color: var(--color-terra-300);
+}
+.note-prose pre {
+  background: var(--color-surface-900);
+  border: 1px solid var(--color-surface-600);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0.6rem 0;
+}
+.note-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #d4d4d8;
+  font-size: 0.81rem;
+}
+.note-prose blockquote {
+  border-left: 3px solid var(--color-terra-600);
+  padding-left: 1rem;
+  color: #a1a1aa;
+  margin: 0.5rem 0;
+  font-style: italic;
+}
+.note-prose hr { border: none; border-top: 1px solid var(--color-surface-600); margin: 1rem 0; }
+.note-prose a { color: var(--color-terra-400); text-decoration: underline; }
+.note-prose strong { color: #f4f4f5; font-weight: 600; }
+.note-prose em { color: #c4b5fd; }
+.note-prose table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.82rem; }
+.note-prose th, .note-prose td { border: 1px solid var(--color-surface-500); padding: 0.35rem 0.6rem; text-align: left; }
+.note-prose th { background: var(--color-surface-700); font-weight: 600; color: #e4e4e7; }
+
+/* ── Wiki-link chips ────────────────────────────────────────────────────────── */
+.wiki-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+}
+.wiki-link--exists {
+  background: rgba(109, 40, 217, 0.2);
+  border: 1px solid rgba(109, 40, 217, 0.4);
+  color: var(--color-terra-300);
+}
+.wiki-link--exists:hover { background: rgba(109, 40, 217, 0.35); }
+.wiki-link--missing {
+  background: rgba(113, 113, 122, 0.15);
+  border: 1px dashed rgba(113, 113, 122, 0.4);
+  color: #71717a;
+}
+.wiki-link--missing:hover { border-color: var(--color-terra-500); color: var(--color-terra-400); }
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
