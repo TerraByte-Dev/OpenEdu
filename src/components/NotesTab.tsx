@@ -62,7 +62,7 @@ export default function NotesTab({ courseId }: NotesTabProps) {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0">
       {/* Note list */}
       <div className="w-56 border-r border-surface-600 bg-surface-800 flex flex-col">
         <div className="p-3 border-b border-surface-600">
