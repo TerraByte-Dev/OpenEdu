@@ -43,7 +43,7 @@ const CHAT_MODELS: Record<Exclude<LLMProvider, "ollama">, Array<{ id: string; la
   ],
 };
 
-export default function Settings() {
+export default function Settings({ onSaved }: { onSaved?: () => void }) {
   const [provider, setProvider] = useState<LLMProvider>("ollama");
   const [genModel, setGenModel] = useState("llama3");
   const [chatModel, setChatModelState] = useState("llama3");
@@ -51,6 +51,7 @@ export default function Settings() {
   const [ollamaUrlValue, setOllamaUrlValue] = useState("http://127.0.0.1:11434");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [ollamaStatus, setOllamaStatus] = useState<"checking" | "connected" | "disconnected">("checking");
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -90,13 +91,15 @@ export default function Settings() {
 
   const checkOllama = async () => {
     setOllamaStatus("checking");
-    const models = await getOllamaModels(ollamaUrlValue);
-    if (models.length > 0) {
-      setOllamaModels(models);
+    setOllamaError(null);
+    const result = await getOllamaModels(ollamaUrlValue);
+    if (result.models.length > 0) {
+      setOllamaModels(result.models);
       setOllamaStatus("connected");
     } else {
       setOllamaModels([]);
       setOllamaStatus("disconnected");
+      if (result.error) setOllamaError(result.error);
     }
   };
 
@@ -131,6 +134,7 @@ export default function Settings() {
       await setOllamaUrl(ollamaUrlValue);
     }
     setSaved(true);
+    onSaved?.();
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -187,9 +191,14 @@ export default function Settings() {
               </div>
             </div>
             {ollamaStatus === "disconnected" && (
-              <p className="text-xs text-zinc-500 mb-3">
-                Install from <strong>ollama.com</strong> and run a model: <code className="bg-surface-700 px-1 rounded">ollama run llama3</code>
-              </p>
+              <div className="mb-3 space-y-1">
+                {ollamaError && (
+                  <p className="text-xs text-red-400 font-mono bg-surface-700 px-2 py-1.5 rounded">{ollamaError}</p>
+                )}
+                <p className="text-xs text-zinc-500">
+                  Install from <strong>ollama.com</strong> and run a model: <code className="bg-surface-700 px-1 rounded">ollama run llama3</code>
+                </p>
+              </div>
             )}
           </section>
         )}

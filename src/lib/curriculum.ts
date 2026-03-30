@@ -1,4 +1,4 @@
-import { callLLM, log } from "./llm";
+import { callLLM, callLLMStreaming, log } from "./llm";
 import { saveSyllabus, saveTutorInstruction } from "./db";
 import type { LLMConfig, Syllabus } from "../types";
 
@@ -22,7 +22,7 @@ export function getLevelMeaning(level: number): string {
 
 // Phase 1: Research the topic deeply — this is the triaging step from CONCEPT.md.
 // Produces a rich brief that informs all subsequent generation.
-export async function researchTopic(topic: string, config: LLMConfig): Promise<string> {
+export async function researchTopic(topic: string, config: LLMConfig, onChunk?: (t: string) => void): Promise<string> {
   const prompt = `You are a master curriculum designer with deep knowledge of thousands of textbooks, university courses, professional certifications, and expert learning paths.
 
 Your task: thoroughly research the topic "${topic}" and produce a comprehensive curriculum research brief.
@@ -57,7 +57,9 @@ What should someone ideally know before starting ${topic}?
 Be thorough, specific, and draw on real educational best practices. This brief will be used to generate a full 0.0-5.0 mastery curriculum.`;
 
   log.info("researchTopic", `Researching "${topic}" with ${config.provider}/${config.model}`);
-  const result = await callLLM([{ role: "user", content: prompt }], config);
+  const result = onChunk
+    ? await callLLMStreaming([{ role: "user", content: prompt }], config, onChunk)
+    : await callLLM([{ role: "user", content: prompt }], config);
   if (!result.trim()) {
     throw new Error(`Model returned an empty research brief for "${topic}". Check your API key and model selection in Settings.`);
   }
@@ -71,6 +73,7 @@ export async function generateTutorInstructions(
   topic: string,
   researchBrief: string,
   config: LLMConfig,
+  onChunk?: (t: string) => void,
 ): Promise<void> {
   const contextSnippet = researchBrief.slice(0, 1200); // First 1200 chars for context
 
@@ -86,7 +89,9 @@ Write a tutor identity instruction (2-3 paragraphs) for an AI tutor teaching ${t
 
 Write in second person ("You are..."). Keep it concise and authentic.`;
 
-  const identity = await callLLM([{ role: "user", content: identityPrompt }], config);
+  const identity = onChunk
+    ? await callLLMStreaming([{ role: "user", content: identityPrompt }], config, onChunk)
+    : await callLLM([{ role: "user", content: identityPrompt }], config);
   await saveTutorInstruction(courseId, "identity", identity);
 
   const pedagogyPrompt = `Based on this curriculum research about "${topic}":
@@ -102,7 +107,9 @@ Write a pedagogy instruction (2-3 paragraphs) for a ${topic} tutor. Define:
 
 Write in second person ("You should..."). Keep it actionable.`;
 
-  const pedagogy = await callLLM([{ role: "user", content: pedagogyPrompt }], config);
+  const pedagogy = onChunk
+    ? await callLLMStreaming([{ role: "user", content: pedagogyPrompt }], config, onChunk)
+    : await callLLM([{ role: "user", content: pedagogyPrompt }], config);
   await saveTutorInstruction(courseId, "pedagogy", pedagogy);
 
   const rules = `You are a focused tutor. Follow these rules:
@@ -128,6 +135,7 @@ export async function generateSyllabus(
   level: number,
   config: LLMConfig,
   researchBrief: string = "",
+  onChunk?: (t: string) => void,
 ): Promise<Syllabus> {
   const researchContext = researchBrief
     ? `\nCurriculum Research Context:\n---\n${researchBrief.slice(0, 2000)}\n---\n`
@@ -173,7 +181,9 @@ Rules:
 Respond with ONLY the JSON. No markdown, no explanation.`;
 
   log.info("generateSyllabus", `Requesting level ${level} for "${topic}"`);
-  const response = await callLLM([{ role: "user", content: prompt }], config);
+  const response = onChunk
+    ? await callLLMStreaming([{ role: "user", content: prompt }], config, onChunk)
+    : await callLLM([{ role: "user", content: prompt }], config);
 
   if (!response.trim()) {
     throw new Error(`Model returned an empty response for syllabus level ${level}. Try again or switch models in Settings.`);

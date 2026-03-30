@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Course } from "../types";
 import { createCourse, deleteCourse } from "../lib/db";
 import { researchTopic, generateSyllabus, generateTutorInstructions } from "../lib/curriculum";
@@ -8,29 +8,30 @@ interface DashboardProps {
   courses: Course[];
   onOpenCourse: (id: string) => void;
   onCourseCreated: (courseId: string) => void;
+  onCreationStart?: (topic: string) => void;
+  onCreationEnd?: () => void;
 }
 
 type StepStatus = "pending" | "active" | "done" | "error";
 
 interface Step {
   label: string;
-  detail: string;
   status: StepStatus;
 }
 
 const INITIAL_STEPS: Step[] = [
-  { label: "Create course", detail: "Setting up your learning space", status: "pending" },
-  { label: "Research topic", detail: "Studying traditional curricula and learning paths", status: "pending" },
-  { label: "Design your tutor", detail: "Crafting a personalized teaching persona", status: "pending" },
-  { label: "Build Level 0.0 syllabus", detail: "Mapping your starting point", status: "pending" },
-  { label: "Build Level 0.5 syllabus", detail: "Plotting your first milestone", status: "pending" },
+  { label: "Create course record", status: "pending" },
+  { label: "Research topic & curricula", status: "pending" },
+  { label: "Design tutor persona", status: "pending" },
+  { label: "Build Level 0.0 syllabus", status: "pending" },
+  { label: "Build Level 0.5 syllabus", status: "pending" },
 ];
 
 function StepIcon({ status }: { status: StepStatus }) {
   if (status === "done") {
     return (
-      <span className="w-6 h-6 rounded-full bg-green-500/20 border border-green-500 flex items-center justify-center shrink-0">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3">
+      <span className="w-5 h-5 rounded-full bg-green-500/20 border border-green-500 flex items-center justify-center shrink-0">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3">
           <path d="M20 6L9 17l-5-5" />
         </svg>
       </span>
@@ -38,34 +39,53 @@ function StepIcon({ status }: { status: StepStatus }) {
   }
   if (status === "active") {
     return (
-      <span className="w-6 h-6 rounded-full bg-terra-500/20 border border-terra-400 flex items-center justify-center shrink-0 animate-pulse">
-        <span className="w-2 h-2 rounded-full bg-terra-400" />
+      <span className="w-5 h-5 rounded-full bg-terra-500/20 border border-terra-400 flex items-center justify-center shrink-0 animate-pulse">
+        <span className="w-1.5 h-1.5 rounded-full bg-terra-400" />
       </span>
     );
   }
   if (status === "error") {
     return (
-      <span className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center shrink-0">
-        <span className="text-red-400 text-xs font-bold">!</span>
+      <span className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center shrink-0">
+        <span className="text-red-400 text-[10px] font-bold">✕</span>
       </span>
     );
   }
   return (
-    <span className="w-6 h-6 rounded-full border border-surface-500 flex items-center justify-center shrink-0">
-      <span className="w-2 h-2 rounded-full bg-surface-500" />
+    <span className="w-5 h-5 rounded-full border border-surface-500 flex items-center justify-center shrink-0">
+      <span className="w-1.5 h-1.5 rounded-full bg-surface-600" />
     </span>
   );
 }
 
-export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: DashboardProps) {
+export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCreationStart, onCreationEnd }: DashboardProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [topic, setTopic] = useState("");
   const [creating, setCreating] = useState(false);
   const [steps, setSteps] = useState<Step[]>(INITIAL_STEPS);
   const [error, setError] = useState("");
+  // Streaming thought-process log — live token output from the active LLM call
+  const [streamLog, setStreamLog] = useState("");
+  const streamLogRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll the stream log as tokens arrive
+  useEffect(() => {
+    if (streamLogRef.current) {
+      streamLogRef.current.scrollTop = streamLogRef.current.scrollHeight;
+    }
+  }, [streamLog]);
 
   const setStep = (index: number, status: StepStatus) => {
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status } : s)));
+    if (status === "active") setStreamLog(""); // clear log when a new step starts
+  };
+
+  const appendChunk = (chunk: string) => {
+    setStreamLog((prev) => {
+      const next = prev + chunk;
+      // Cap at 2000 chars to avoid unbounded growth, keep the tail
+      return next.length > 2000 ? next.slice(next.length - 2000) : next;
+    });
   };
 
   const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -74,7 +94,9 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
     if (!topic.trim()) return;
     setCreating(true);
     setError("");
+    setStreamLog("");
     setSteps(INITIAL_STEPS.map((s) => ({ ...s, status: "pending" })));
+    onCreationStart?.(topic.trim());
 
     let courseId: string | null = null;
 
@@ -86,50 +108,46 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
       const course = await createCourse(topic.trim(), topic.trim());
       courseId = course.id;
       setStep(0, "done");
+      await delay(200);
 
+      // Step 2: Research the topic (triaging step from CONCEPT.md) — streams live
+      setStep(1, "active");
+      const researchBrief = await researchTopic(topic.trim(), config, appendChunk);
+      setStep(1, "done");
       await delay(300);
 
-      // Step 2: Research the topic (the triaging process from CONCEPT.md)
-      setStep(1, "active");
-      const researchBrief = await researchTopic(topic.trim(), config);
-      setStep(1, "done");
-
-      await delay(800);
-
-      // Step 3: Generate tutor personality (uses research context)
+      // Step 3: Generate tutor persona — streams live
       setStep(2, "active");
-      await generateTutorInstructions(course.id, topic.trim(), researchBrief, config);
+      await generateTutorInstructions(course.id, topic.trim(), researchBrief, config, appendChunk);
       setStep(2, "done");
+      await delay(300);
 
-      await delay(800);
-
-      // Step 4: Syllabus Level 0.0 (uses research context)
+      // Step 4: Syllabus Level 0.0 — streams live
       setStep(3, "active");
-      await generateSyllabus(course.id, topic.trim(), 0.0, config, researchBrief);
+      await generateSyllabus(course.id, topic.trim(), 0.0, config, researchBrief, appendChunk);
       setStep(3, "done");
+      await delay(300);
 
-      await delay(800);
-
-      // Step 5: Syllabus Level 0.5 (uses research context)
+      // Step 5: Syllabus Level 0.5 — streams live
       setStep(4, "active");
-      await generateSyllabus(course.id, topic.trim(), 0.5, config, researchBrief);
+      await generateSyllabus(course.id, topic.trim(), 0.5, config, researchBrief, appendChunk);
       setStep(4, "done");
-
       await delay(400);
 
+      setStreamLog("");
       setTopic("");
       setShowCreate(false);
       setSteps(INITIAL_STEPS.map((s) => ({ ...s, status: "pending" })));
+      onCreationEnd?.();
       onCourseCreated(course.id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      // Mark the active step as errored
       setSteps((prev) => prev.map((s) => (s.status === "active" ? { ...s, status: "error" } : s)));
-      // Clean up partial course
       if (courseId) {
         try { await deleteCourse(courseId); } catch { /* best effort */ }
       }
+      onCreationEnd?.();
     } finally {
       setCreating(false);
     }
@@ -137,6 +155,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
 
   const completedCount = steps.filter((s) => s.status === "done").length;
   const progress = creating ? Math.round((completedCount / steps.length) * 100) : 0;
+  const activeStep = steps.find((s) => s.status === "active");
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-8">
@@ -148,7 +167,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
         </div>
 
         {/* Create course */}
-        {!showCreate ? (
+        {!showCreate && !creating ? (
           <button
             onClick={() => setShowCreate(true)}
             className="w-full p-4 rounded-xl border-2 border-dashed border-surface-500 hover:border-terra-500 text-zinc-400 hover:text-terra-300 transition-colors text-sm flex items-center justify-center gap-2"
@@ -164,7 +183,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
               <>
                 <h2 className="text-lg font-semibold text-zinc-200 mb-1">What do you want to learn?</h2>
                 <p className="text-xs text-zinc-500 mb-4">
-                  TerraTutor will research your topic and craft a full curriculum — this takes 1-3 minutes.
+                  TerraTutor will research your topic and craft a full curriculum — this takes 1–5 minutes depending on your model.
                 </p>
                 <input
                   type="text"
@@ -176,7 +195,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
                   autoFocus
                 />
                 {error && (
-                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300 font-mono leading-relaxed">
                     {error}
                   </div>
                 )}
@@ -197,22 +216,22 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
                 </div>
               </>
             ) : (
-              /* Creation progress UI */
+              /* ── Creation progress UI ── */
               <div>
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
                     <h2 className="text-base font-semibold text-zinc-200">
-                      Crafting your <span className="text-terra-300">{topic}</span> course
+                      Crafting <span className="text-terra-300">{topic}</span>
                     </h2>
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      Building a personalized curriculum — sit tight, this is worth it.
+                      {activeStep ? activeStep.label + "..." : "Almost done..."}
                     </p>
                   </div>
-                  <span className="text-sm font-bold text-terra-400">{progress}%</span>
+                  <span className="text-sm font-bold text-terra-400 shrink-0 ml-4">{progress}%</span>
                 </div>
 
                 {/* Progress bar */}
-                <div className="h-1.5 rounded-full bg-surface-600 overflow-hidden mb-5">
+                <div className="h-1 rounded-full bg-surface-600 overflow-hidden mb-5">
                   <div
                     className="h-full rounded-full bg-terra-500 transition-all duration-700"
                     style={{ width: `${progress}%` }}
@@ -220,36 +239,45 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
                 </div>
 
                 {/* Steps */}
-                <div className="space-y-3">
+                <div className="space-y-2.5 mb-4">
                   {steps.map((step, i) => (
-                    <div key={i} className={`flex items-start gap-3 transition-opacity ${
-                      step.status === "pending" ? "opacity-40" : "opacity-100"
-                    }`}>
+                    <div
+                      key={i}
+                      className={`flex items-center gap-3 transition-opacity ${
+                        step.status === "pending" ? "opacity-30" : "opacity-100"
+                      }`}
+                    >
                       <StepIcon status={step.status} />
-                      <div className="min-w-0 pt-0.5">
-                        <div className={`text-sm font-medium ${
-                          step.status === "active" ? "text-terra-200" :
-                          step.status === "done" ? "text-zinc-300" :
-                          step.status === "error" ? "text-red-300" :
-                          "text-zinc-500"
-                        }`}>
-                          {step.label}
-                        </div>
-                        {(step.status === "active" || step.status === "error") && (
-                          <div className={`text-xs mt-0.5 ${
-                            step.status === "error" ? "text-red-400" : "text-zinc-500"
-                          }`}>
-                            {step.status === "error" ? error : step.detail}
-                          </div>
-                        )}
-                      </div>
+                      <span className={`text-sm ${
+                        step.status === "active" ? "text-terra-200 font-medium" :
+                        step.status === "done" ? "text-zinc-400" :
+                        step.status === "error" ? "text-red-300 font-medium" :
+                        "text-zinc-600"
+                      }`}>
+                        {step.label}
+                      </span>
                     </div>
                   ))}
                 </div>
 
-                <p className="text-xs text-zinc-600 mt-5 text-center">
-                  Using a capable model for best results — cost ~$0.02-0.10 per course
-                </p>
+                {/* Live streaming thought-process */}
+                {streamLog && (
+                  <div
+                    ref={streamLogRef}
+                    className="rounded-lg bg-surface-900 border border-surface-600 p-3 max-h-32 overflow-y-auto"
+                  >
+                    <pre className="text-[11px] font-mono text-zinc-500 whitespace-pre-wrap leading-relaxed">
+                      {streamLog}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Error */}
+                {error && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-300 font-mono leading-relaxed">
+                    {error}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -281,7 +309,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated }: Da
                     </div>
                   </div>
                   <div className="mt-4">
-                    <div className="h-1.5 rounded-full bg-surface-600 overflow-hidden">
+                    <div className="h-1 rounded-full bg-surface-600 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-terra-500 transition-all"
                         style={{ width: `${(course.current_level / 5.0) * 100}%` }}

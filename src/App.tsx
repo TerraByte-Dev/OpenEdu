@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import type { Course, View } from "./types";
+import type { Course, View, LLMProvider } from "./types";
 import { getCourses, deleteCourse } from "./lib/db";
+import { getLLMProvider } from "./lib/store";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
@@ -16,14 +17,23 @@ export default function App() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<LLMProvider>("ollama");
+  // Track in-progress course creation so the banner persists when navigating away
+  const [craftingTopic, setCraftingTopic] = useState<string | null>(null);
 
   const refreshCourses = async () => {
     const c = await getCourses();
     setCourses(c);
   };
 
+  const refreshProvider = async () => {
+    const cfg = await getLLMProvider();
+    setActiveProvider(cfg.provider);
+  };
+
   useEffect(() => {
     refreshCourses();
+    refreshProvider();
   }, []);
 
   const openCourse = (courseId: string) => {
@@ -32,7 +42,7 @@ export default function App() {
   };
 
   const onCourseCreated = async (courseId: string) => {
-    await refreshCourses(); // Re-fetch from DB so we get accurate data
+    await refreshCourses();
     openCourse(courseId);
   };
 
@@ -57,24 +67,42 @@ export default function App() {
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         onSelectCourse={openCourse}
         onDeleteCourse={handleDeleteCourse}
-        onGoHome={() => setCurrentView("dashboard")}
+        provider={activeProvider}
+        onGoHome={() => { setCurrentView("dashboard"); refreshProvider(); }}
         onGoSettings={() => setCurrentView("settings")}
       />
       <main className="flex-1 flex flex-col overflow-hidden min-h-0">
-        {currentView === "dashboard" && (
+        {/* Persistent "course crafting" banner — shown when building and you navigate away */}
+        {craftingTopic && currentView !== "dashboard" && (
+          <button
+            onClick={() => setCurrentView("dashboard")}
+            className="flex items-center gap-2.5 px-4 py-2 bg-terra-700/30 border-b border-terra-600/30 text-sm text-terra-200 hover:bg-terra-700/50 transition-colors shrink-0"
+          >
+            <span className="w-2 h-2 rounded-full bg-terra-400 animate-pulse shrink-0" />
+            <span>
+              Building <strong>{craftingTopic}</strong> course in the background — click to watch
+            </span>
+          </button>
+        )}
+
+        {/* Dashboard always stays mounted so async creation survives navigation */}
+        <div className={`flex-1 min-h-0 flex flex-col ${currentView !== "dashboard" ? "hidden" : ""}`}>
           <Dashboard
             courses={courses}
             onOpenCourse={openCourse}
             onCourseCreated={onCourseCreated}
+            onCreationStart={(topic) => setCraftingTopic(topic)}
+            onCreationEnd={() => setCraftingTopic(null)}
           />
-        )}
+        </div>
+
         {currentView === "course" && selectedCourseId && (
           <CourseView
             courseId={selectedCourseId}
             onBack={() => setCurrentView("dashboard")}
           />
         )}
-        {currentView === "settings" && <Settings />}
+        {currentView === "settings" && <Settings onSaved={refreshProvider} />}
       </main>
     </div>
   );

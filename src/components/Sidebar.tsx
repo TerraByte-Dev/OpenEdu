@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { Course } from "../types";
+import type { Course, LLMProvider } from "../types";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 
 interface ContextMenuState {
@@ -8,10 +8,27 @@ interface ContextMenuState {
   courseId: string;
 }
 
+const PROVIDER_LABEL: Record<LLMProvider, string> = {
+  ollama: "Ollama",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+};
+const PROVIDER_COLOR: Record<LLMProvider, string> = {
+  ollama: "bg-green-500",
+  openai: "bg-blue-500",
+  anthropic: "bg-purple-500",
+};
+const PROVIDER_TEXT: Record<LLMProvider, string> = {
+  ollama: "text-green-400",
+  openai: "text-blue-400",
+  anthropic: "text-purple-400",
+};
+
 interface SidebarProps {
   courses: Course[];
   selectedCourseId: string | null;
   collapsed: boolean;
+  provider: LLMProvider;
   onToggle: () => void;
   onSelectCourse: (id: string) => void;
   onDeleteCourse: (id: string) => void;
@@ -23,6 +40,7 @@ export default function Sidebar({
   courses,
   selectedCourseId,
   collapsed,
+  provider,
   onToggle,
   onSelectCourse,
   onDeleteCourse,
@@ -153,7 +171,19 @@ export default function Sidebar({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-surface-600 p-2">
+        <div className="border-t border-surface-600 p-2 space-y-1">
+          {/* Active provider indicator */}
+          <div
+            className={`flex items-center gap-2 px-2 py-1.5 rounded ${collapsed ? "justify-center" : ""}`}
+            title={`Active provider: ${PROVIDER_LABEL[provider]}`}
+          >
+            <span className={`w-2 h-2 rounded-full shrink-0 ${PROVIDER_COLOR[provider]}`} />
+            {!collapsed && (
+              <span className={`text-xs font-medium ${PROVIDER_TEXT[provider]}`}>
+                {PROVIDER_LABEL[provider]}
+              </span>
+            )}
+          </div>
           <button
             onClick={onGoSettings}
             className="w-full flex items-center gap-2 px-2 py-2 rounded hover:bg-surface-600 text-zinc-400 hover:text-zinc-200 transition-colors"

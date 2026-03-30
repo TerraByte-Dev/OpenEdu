@@ -63,6 +63,7 @@ async function streamOllama(
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
+        "Origin": "", // suppress tauri-plugin-http injected Origin header (breaks Ollama CORS)
       },
       body: JSON.stringify({ model: config.model, messages, stream: true }),
     });
@@ -333,6 +334,23 @@ async function fetchWithRetry(
   return fetch(url, options);
 }
 
+// ─── Public: streaming with accumulation (for curriculum generation with live output) ─
+export function callLLMStreaming(
+  messages: Array<{ role: string; content: string }>,
+  config: LLMConfig,
+  onChunk: (token: string) => void,
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    streamChat({
+      messages,
+      config,
+      onToken: onChunk,
+      onDone: resolve,
+      onError: (e) => reject(new Error(e)),
+    });
+  });
+}
+
 // ─── Public: non-streaming (for curriculum/quiz generation) ──────────────────
 export async function callLLM(
   messages: Array<{ role: string; content: string }>,
@@ -350,6 +368,7 @@ export async function callLLM(
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
+          "Origin": "", // suppress tauri-plugin-http injected Origin header
         },
         body: JSON.stringify({ model: config.model, messages, stream: false }),
       });
@@ -437,27 +456,33 @@ export async function callLLM(
 }
 
 // ─── Fetch available Ollama models ────────────────────────────────────────────
-export async function getOllamaModels(ollamaUrl: string): Promise<string[]> {
+export async function getOllamaModels(ollamaUrl: string): Promise<{ models: string[]; error?: string }> {
   const base = normalizeBase(ollamaUrl || "http://127.0.0.1:11434");
   log.info("getOllamaModels", `GET ${base}/api/tags`);
   try {
     const response = await fetch(`${base}/api/tags`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
         "Accept": "application/json",
+        "Origin": "", // suppress tauri-plugin-http injected Origin header
       },
     });
     if (!response.ok) {
-      log.warn("getOllamaModels", `HTTP ${response.status} from ${base}`);
-      return [];
+      const text = await response.text().catch(() => "");
+      const error = `HTTP ${response.status}${text ? `: ${text.slice(0, 120)}` : ""}`;
+      log.warn("getOllamaModels", error);
+      return { models: [], error };
     }
     const json = await response.json();
     const models = (json.models ?? []).map((m: { name: string }) => m.name);
     log.info("getOllamaModels", `Found ${models.length} models`, models);
-    return models;
+    return { models };
   } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    const error = raw.includes("connect") || raw.includes("refused") || raw.includes("network") || raw.includes("fetch")
+      ? `Connection refused — is Ollama running? Try: ollama serve`
+      : raw.slice(0, 150);
     log.warn("getOllamaModels", "Connection failed", e);
-    return [];
+    return { models: [], error };
   }
 }
