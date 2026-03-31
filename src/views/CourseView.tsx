@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import type { Course, Syllabus, QuizViewContext } from "../types";
 
 import { getCourse, getSyllabuses } from "../lib/db";
-import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus } from "../lib/curriculum";
+import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus, generateCourseOutline } from "../lib/curriculum";
 import { getGenerationConfig } from "../lib/store";
 import ChatTab from "../components/ChatTab";
 import NotesTab from "../components/NotesTab";
@@ -44,12 +44,14 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
     try {
       const config = await getGenerationConfig();
       const brief = await researchTopic(course.topic, config);
+      setRegenStatus("Planning course structure...");
+      const courseOutline = await generateCourseOutline(course.topic, brief, config, courseId);
       setRegenStatus("Designing tutor...");
       await generateTutorInstructions(courseId, course.topic, brief, config);
       const previousSyllabuses: Syllabus[] = [];
       for (let i = 0; i < ALL_LEVELS.length; i++) {
         setRegenStatus(`Building Level ${ALL_LEVELS[i].toFixed(1)} syllabus...`);
-        const syl = await generateSyllabus(courseId, course.topic, ALL_LEVELS[i], config, brief, undefined, previousSyllabuses);
+        const syl = await generateSyllabus(courseId, course.topic, ALL_LEVELS[i], config, brief, undefined, previousSyllabuses, courseOutline);
         previousSyllabuses.push(syl);
       }
       await loadCourseData();

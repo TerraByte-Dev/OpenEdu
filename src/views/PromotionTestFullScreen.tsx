@@ -44,7 +44,7 @@ interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
 interface Props {
   context: QuizViewContext;
   onClose: () => void;
-  onPassed: () => void;
+  onPassed: (nextLevel: number) => void;
 }
 
 export default function PromotionTestFullScreen({ context, onClose, onPassed }: Props) {
@@ -57,7 +57,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [genLog, setGenLog] = useState("");
+  const [genPhase, setGenPhase] = useState<"current" | "review" | "done">("current");
   const [genError, setGenError] = useState("");
   const [passed, setPassed] = useState(false);
   const [overallScore, setOverallScore] = useState(0);
@@ -66,20 +66,15 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const [generatingPlan, setGeneratingPlan] = useState(false);
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const genLogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     checkCooldown();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  useEffect(() => {
-    if (genLogRef.current) genLogRef.current.scrollTop = genLogRef.current.scrollHeight;
-  }, [genLog]);
-
   const checkCooldown = async () => {
     const last = await getLastPromotionAttempt(courseId, currentLevel);
-    if (last && last.score !== null && last.score < 80 && last.completed_at) {
+    if (last && last.score !== null && last.score < 85 && last.completed_at) {
       const remaining = formatCooldown(last.completed_at);
       if (remaining) {
         setCooldownStr(remaining);
@@ -92,21 +87,18 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
   const startTest = async () => {
     setTestState("generating");
-    setGenLog("");
+    setGenPhase("current");
     setGenError("");
 
     try {
       const cfg = await getGenerationConfig();
       setConfig(cfg);
       const previousSyllabuses = allSyllabuses.filter((s) => s.level < currentLevel);
-      const appendChunk = (t: string) => setGenLog((p) => {
-        const next = p + t;
-        return next.length > 1500 ? next.slice(next.length - 1500) : next;
-      });
 
       const { current, review } = await generatePromotionTestQuestions(
-        currentSyllabus, previousSyllabuses, cfg, appendChunk,
+        currentSyllabus, previousSyllabuses, cfg,
       );
+      setGenPhase("review");
 
       const allQ: ActiveQuestion[] = [
         ...current.map((q) => ({ ...q, user_answer: null, is_correct: null, section: "current" as const })),
@@ -121,8 +113,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       setTimeLeft(limit);
       setQuestions(allQ);
       setCurrentIndex(0);
+      setGenPhase("done");
       setTestState("in_progress");
-      setGenLog("");
 
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
@@ -184,7 +176,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     const reviewCorrect = reviewQs.filter((q) => q.is_correct).length;
     const reviewPct = reviewQs.length > 0 ? (reviewCorrect / reviewQs.length) * 100 : 100;
 
-    const didPass = overall >= 80 && reviewPct >= 60;
+    const didPass = overall >= 85 && reviewPct >= 60;
     const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
 
     await completeQuizAttempt(aid, overall, totalCorrect, timeTaken);
@@ -211,6 +203,12 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       }
       const cfg = await getGenerationConfig();
       await updateKnowledgeAfterQuiz(courseId, overall, answered.length, missedTopics, null, cfg).catch(console.error);
+      setOverallScore(overall);
+      setReviewScore(reviewQs.length > 0 ? reviewPct : null);
+      setPassed(true);
+      setTestState("results");
+      onPassed(nextLevel ?? currentLevel);
+      return;
     } else {
       setGeneratingPlan(true);
       const missed = answered
@@ -236,9 +234,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
     setOverallScore(overall);
     setReviewScore(reviewQs.length > 0 ? reviewPct : null);
-    setPassed(didPass);
+    setPassed(false);
     setTestState("results");
-    if (didPass) onPassed();
   }, [timeLeft, currentLevel, courseId, currentSyllabus, onPassed]);
 
   const question = questions[currentIndex];
@@ -299,7 +296,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="p-4 rounded-xl bg-surface-800 border border-surface-600">
-                <div className="text-2xl font-bold text-zinc-100">~20</div>
+                <div className="text-2xl font-bold text-zinc-100">~45</div>
                 <div className="text-xs text-zinc-500 mt-0.5">Questions</div>
               </div>
               <div className="p-4 rounded-xl bg-surface-800 border border-surface-600">
@@ -307,7 +304,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                 <div className="text-xs text-zinc-500 mt-0.5">Time Limit</div>
               </div>
               <div className="p-4 rounded-xl bg-surface-800 border border-surface-600">
-                <div className="text-2xl font-bold text-zinc-100">80%</div>
+                <div className="text-2xl font-bold text-zinc-100">85%</div>
                 <div className="text-xs text-zinc-500 mt-0.5">To Pass</div>
               </div>
             </div>
@@ -315,7 +312,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
             <div className="p-4 rounded-xl bg-surface-800 border border-surface-600 text-left mb-6 text-sm space-y-2">
               <p className="text-zinc-300 font-medium">What to expect:</p>
               <p className="text-zinc-400">• ~75% current level material + ~25% previous level review</p>
-              <p className="text-zinc-400">• 80% overall and 60% on review questions required to pass</p>
+              <p className="text-zinc-400">• 85% overall and 60% on review questions required to pass</p>
               <p className="text-zinc-400">• Fail = 24-hour cooldown + personalized study plan</p>
             </div>
 
@@ -339,23 +336,35 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
   // ── Generating ──
   if (testState === "generating") {
+    const phaseLabel = genPhase === "current"
+      ? "Building current-level questions..."
+      : genPhase === "review"
+      ? "Building review questions..."
+      : "Finalizing...";
+    const phaseStep = genPhase === "current" ? 1 : genPhase === "review" ? 2 : 3;
     return (
-      <div className="fixed inset-0 z-50 bg-surface-900 flex flex-col">
-        <div className="flex items-center px-6 py-4 border-b border-surface-700 shrink-0">
-          <h1 className="text-base font-semibold text-zinc-100">Generating Test Questions...</h1>
-        </div>
-        <div className="flex-1 flex flex-col p-6 gap-4">
-          <div className="flex items-center gap-3 text-zinc-300">
-            <span className="w-3 h-3 rounded-full bg-terra-400 animate-pulse shrink-0" />
-            <span className="text-sm">Building your promotion test — this may take a minute...</span>
+      <div className="fixed inset-0 z-50 bg-surface-900 flex flex-col items-center justify-center p-8">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full border-2 border-terra-500 border-t-transparent animate-spin mx-auto mb-6" />
+          <h2 className="text-lg font-semibold text-zinc-100 mb-1">Preparing Your Test</h2>
+          <p className="text-sm text-zinc-400 mb-6">{phaseLabel}</p>
+          {/* Progress steps */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            {[1, 2].map((step) => (
+              <div key={step} className="flex items-center gap-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                  phaseStep > step ? "bg-terra-500 text-white" : phaseStep === step ? "bg-terra-500/40 border border-terra-500 text-terra-300 animate-pulse" : "bg-surface-700 text-zinc-500"
+                }`}>
+                  {phaseStep > step ? "✓" : step}
+                </div>
+                <span className="text-xs text-zinc-500">{step === 1 ? "Current level" : "Review"}</span>
+                {step < 2 && <div className="w-8 h-px bg-surface-600 mx-1" />}
+              </div>
+            ))}
           </div>
-          {genLog && (
-            <div ref={genLogRef} className="flex-1 rounded-lg bg-surface-800 border border-surface-600 p-3 overflow-y-auto">
-              <pre className="text-[11px] font-mono text-zinc-500 whitespace-pre-wrap leading-relaxed">{genLog}</pre>
-            </div>
-          )}
+          <p className="text-xs text-zinc-600">45 questions — do not close this window</p>
           {genError && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300 font-mono">{genError}</div>
+            <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">{genError}</div>
           )}
         </div>
       </div>
@@ -469,7 +478,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           ) : (
             <div className="mb-6">
               <p className="text-zinc-400 text-sm mb-4">
-                You need 80% overall and 60% on the review section. A 24-hour cooldown is now active.
+                You need 85% overall and 60% on the review section. A 24-hour cooldown is now active.
               </p>
               <div className="p-4 rounded-xl bg-surface-800 border border-surface-600">
                 <h3 className="text-sm font-semibold text-zinc-200 mb-2 flex items-center gap-2">

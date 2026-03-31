@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Course, Syllabus } from "../types";
 import { createCourse, deleteCourse } from "../lib/db";
-import { researchTopic, generateSyllabus, generateTutorInstructions } from "../lib/curriculum";
+import { researchTopic, generateSyllabus, generateTutorInstructions, generateCourseOutline } from "../lib/curriculum";
 import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
 import { searchTavily, formatSearchResults } from "../lib/web-search";
 import { initKnowledgeFiles } from "../lib/knowledge";
@@ -26,6 +26,7 @@ const ALL_LEVELS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
 const INITIAL_STEPS: Step[] = [
   { label: "Create course record", status: "pending" },
   { label: "Research topic & curricula", status: "pending" },
+  { label: "Plan course structure", status: "pending" },
   { label: "Design tutor persona", status: "pending" },
   ...ALL_LEVELS.map((l) => ({ label: `Build Level ${l.toFixed(1)} syllabus`, status: "pending" as StepStatus })),
 ];
@@ -131,19 +132,25 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
       setStep(1, "done");
       await delay(300);
 
-      // Step 3: Generate tutor persona — streams live
+      // Step 3: Plan strategic course structure
       setStep(2, "active");
-      await generateTutorInstructions(course.id, topic.trim(), researchBrief, config, appendChunk);
+      const courseOutline = await generateCourseOutline(topic.trim(), researchBrief, config, course.id, appendChunk);
       setStep(2, "done");
       await delay(300);
 
-      // Steps 4–14: All 11 syllabus levels in sequence, each informed by prior levels
+      // Step 4: Generate tutor persona — streams live
+      setStep(3, "active");
+      await generateTutorInstructions(course.id, topic.trim(), researchBrief, config, appendChunk);
+      setStep(3, "done");
+      await delay(300);
+
+      // Steps 5–15: All 11 syllabus levels in sequence, each informed by prior levels + outline
       const previousSyllabuses: Syllabus[] = [];
       for (let i = 0; i < ALL_LEVELS.length; i++) {
-        setStep(3 + i, "active");
-        const syl = await generateSyllabus(course.id, topic.trim(), ALL_LEVELS[i], config, researchBrief, appendChunk, previousSyllabuses);
+        setStep(4 + i, "active");
+        const syl = await generateSyllabus(course.id, topic.trim(), ALL_LEVELS[i], config, researchBrief, appendChunk, previousSyllabuses, courseOutline);
         previousSyllabuses.push(syl);
-        setStep(3 + i, "done");
+        setStep(4 + i, "done");
         await delay(200);
       }
 

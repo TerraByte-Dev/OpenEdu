@@ -99,13 +99,8 @@ export default function PromotionTestModal({
     try {
       const config = await getGenerationConfig();
       const previousSyllabuses = allSyllabuses.filter((s) => s.level < currentLevel);
-      const appendChunk = (t: string) => setGenLog((p) => {
-        const next = p + t;
-        return next.length > 1500 ? next.slice(next.length - 1500) : next;
-      });
-
       const { current, review } = await generatePromotionTestQuestions(
-        currentSyllabus, previousSyllabuses, config, appendChunk,
+        currentSyllabus, previousSyllabuses, config,
       );
 
       const allQ: ActiveQuestion[] = [
