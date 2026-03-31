@@ -22,22 +22,24 @@ interface ChatPayload {
   onToken: (token: string) => void;
   onDone: (fullText: string) => void;
   onError: (error: string) => void;
+  signal?: AbortSignal;
 }
 
 // ─── Public: streaming chat ───────────────────────────────────────────────────
-export async function streamChat({ messages, config, onToken, onDone, onError }: ChatPayload) {
+export async function streamChat({ messages, config, onToken, onDone, onError, signal }: ChatPayload) {
   log.info("streamChat", `provider=${config.provider} model=${config.model} msgs=${messages.length}`);
   try {
     if (config.provider === "ollama") {
-      await streamOllama(messages, config, onToken, onDone, onError);
+      await streamOllama(messages, config, onToken, onDone, onError, signal);
     } else if (config.provider === "openai") {
-      await streamOpenAI(messages, config, onToken, onDone, onError);
+      await streamOpenAI(messages, config, onToken, onDone, onError, signal);
     } else if (config.provider === "anthropic") {
-      await streamAnthropic(messages, config, onToken, onDone, onError);
+      await streamAnthropic(messages, config, onToken, onDone, onError, signal);
     } else {
       onError(`Unknown provider "${config.provider}" — check Settings.`);
     }
   } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") return; // user cancelled
     const msg = networkAwareMessage(e);
     log.error("streamChat", "Unhandled exception", e);
     onError(msg);
@@ -51,6 +53,7 @@ async function streamOllama(
   onToken: (token: string) => void,
   onDone: (fullText: string) => void,
   onError: (error: string) => void,
+  signal?: AbortSignal,
 ) {
   const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const url = `${baseUrl}/api/chat`;
@@ -66,8 +69,10 @@ async function streamOllama(
         "Origin": "", // suppress tauri-plugin-http injected Origin header (breaks Ollama CORS)
       },
       body: JSON.stringify({ model: config.model, messages, stream: true }),
+      signal,
     });
   } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") return;
     const msg = `Cannot reach Ollama at ${baseUrl}. Make sure Ollama is running: open a terminal and run "ollama serve".`;
     log.error("streamOllama", msg, e);
     onError(msg);
@@ -96,6 +101,7 @@ async function streamOllama(
   let lineBuffer = "";
 
   while (true) {
+    if (signal?.aborted) { reader.cancel(); return; }
     const { done, value } = await reader.read();
     if (done) break;
     lineBuffer += decoder.decode(value, { stream: true });
@@ -117,6 +123,7 @@ async function streamOllama(
       } catch { /* partial JSON — skip */ }
     }
   }
+  if (signal?.aborted) return;
   log.info("streamOllama", `Done — ${fullText.length} chars`);
   onDone(fullText);
 }
@@ -128,6 +135,7 @@ async function streamOpenAI(
   onToken: (token: string) => void,
   onDone: (fullText: string) => void,
   onError: (error: string) => void,
+  signal?: AbortSignal,
 ) {
   if (!config.apiKey) {
     onError("OpenAI API key not set — go to Settings and add your key.");
@@ -146,8 +154,10 @@ async function streamOpenAI(
         "Origin": "", // suppress tauri-plugin-http injected Origin header
       },
       body: JSON.stringify({ model: config.model, messages, stream: true }),
+      signal,
     });
   } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") return;
     const msg = networkAwareMessage(e);
     log.error("streamOpenAI", "Network error", e);
     onError(msg);
@@ -169,6 +179,7 @@ async function streamOpenAI(
   let fullText = "";
 
   while (true) {
+    if (signal?.aborted) { reader.cancel(); return; }
     const { done, value } = await reader.read();
     if (done) break;
     const chunk = decoder.decode(value, { stream: true });
@@ -186,6 +197,7 @@ async function streamOpenAI(
       } catch { /* partial line */ }
     }
   }
+  if (signal?.aborted) return;
   log.info("streamOpenAI", `Done — ${fullText.length} chars`);
   onDone(fullText);
 }
@@ -197,6 +209,7 @@ async function streamAnthropic(
   onToken: (token: string) => void,
   onDone: (fullText: string) => void,
   onError: (error: string) => void,
+  signal?: AbortSignal,
 ) {
   if (!config.apiKey) {
     onError("Anthropic API key not set — go to Settings and add your key.");
@@ -227,8 +240,10 @@ async function streamAnthropic(
         "Origin": "", // suppress tauri-plugin-http injected Origin header
       },
       body: JSON.stringify(body),
+      signal,
     });
   } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") return;
     const msg = networkAwareMessage(e);
     log.error("streamAnthropic", "Network error", e);
     onError(msg);
@@ -250,6 +265,7 @@ async function streamAnthropic(
   let fullText = "";
 
   while (true) {
+    if (signal?.aborted) { reader.cancel(); return; }
     const { done, value } = await reader.read();
     if (done) break;
     const chunk = decoder.decode(value, { stream: true });
@@ -269,6 +285,7 @@ async function streamAnthropic(
       } catch { /* partial line */ }
     }
   }
+  if (signal?.aborted) return;
   log.info("streamAnthropic", `Done — ${fullText.length} chars`);
   onDone(fullText);
 }

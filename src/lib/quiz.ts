@@ -6,10 +6,11 @@ export async function generateQuizQuestions(
   numQuestions: number,
   config: LLMConfig,
 ): Promise<Array<Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct">>> {
+  const subtopicList = syllabus.subtopics.map((s) => `- id="${s.id}" title="${s.title}": ${s.key_concepts.join(", ")}`).join("\n");
   const prompt = `Generate ${numQuestions} quiz questions for the topic "${syllabus.title}" at level ${syllabus.level}.
 
-The questions should cover these subtopics:
-${syllabus.subtopics.map((s) => `- ${s.title}: ${s.key_concepts.join(", ")}`).join("\n")}
+The questions must cover these subtopics (use the subtopic id in each question):
+${subtopicList}
 
 Return ONLY a JSON array of questions in this exact format:
 [
@@ -19,19 +20,14 @@ Return ONLY a JSON array of questions in this exact format:
     "options": ["A) First option", "B) Second option", "C) Third option", "D) Fourth option"],
     "correct_answer": "A) First option",
     "difficulty_level": ${syllabus.level},
-    "explanation": "Why this answer is correct"
-  },
-  {
-    "question_text": "True or false: statement here",
-    "question_type": "true_false",
-    "options": ["True", "False"],
-    "correct_answer": "True",
-    "difficulty_level": ${syllabus.level},
-    "explanation": "Why this is true/false"
+    "explanation": "Why this answer is correct",
+    "subtopic_id": "${syllabus.subtopics[0]?.id ?? ""}"
   }
 ]
 
 Requirements:
+- Include subtopic_id matching the id field from the subtopic list above
+- Distribute questions across all subtopics
 - Mix question types: mostly multiple_choice, some true_false
 - Each multiple_choice must have exactly 4 options
 - Explanations should be educational, 1-2 sentences
@@ -74,6 +70,7 @@ function parseQuestions(
       correct_answer: String(q.correct_answer ?? ""),
       difficulty_level: Number(q.difficulty_level ?? 1),
       explanation: String(q.explanation ?? ""),
+      subtopic_id: q.subtopic_id ? String(q.subtopic_id) : null,
     };
   });
 }

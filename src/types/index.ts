@@ -83,6 +83,16 @@ export interface QuizQuestion {
   is_correct: boolean | null;
   difficulty_level: number;
   explanation: string;
+  subtopic_id?: string | null;
+}
+
+export interface UserProgress {
+  id: string;
+  course_id: string;
+  knowledge_gaps: string[]; // subtopic IDs where student is weak
+  total_quiz_score_avg: number | null;
+  streak_days: number;
+  last_active_at: string | null;
 }
 
 export type LLMProvider = "ollama" | "openai" | "anthropic";

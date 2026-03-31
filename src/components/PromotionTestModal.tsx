@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Syllabus, QuizQuestion } from "../types";
 import {
   createPromotionAttempt, saveQuizQuestion, completeQuizAttempt, getLastPromotionAttempt,
-  updateCourseLevel,
+  updateCourseLevel, getSyllabus, getTutorInstruction, getSyllabuses,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan } from "../lib/quiz";
 import { getGenerationConfig } from "../lib/store";
-import { getLevelMeaning } from "../lib/curriculum";
+import { getLevelMeaning, generateSyllabus } from "../lib/curriculum";
+import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 
 // Time limits from CONCEPT.md
 function getTimeLimitSeconds(level: number): number {
@@ -138,7 +139,7 @@ export default function PromotionTestModal({
     }
   };
 
-  const submitAnswer = useCallback(() => {
+  const submitAnswer = useCallback(async () => {
     if (selectedAnswer === null || !attemptId) return;
 
     const question = questions[currentIndex];
@@ -149,7 +150,7 @@ export default function PromotionTestModal({
     );
     setQuestions(updatedQuestions);
 
-    saveQuizQuestion({
+    await saveQuizQuestion({
       attempt_id: attemptId,
       question_text: question.question_text,
       question_type: question.question_type,
@@ -159,6 +160,7 @@ export default function PromotionTestModal({
       is_correct: isCorrect,
       difficulty_level: question.difficulty_level,
       explanation: question.explanation,
+      subtopic_id: question.subtopic_id,
     });
 
     if (currentIndex < questions.length - 1) {
@@ -193,11 +195,35 @@ export default function PromotionTestModal({
 
     await completeQuizAttempt(aid, overall, totalCorrect, timeTaken);
 
+    // Update mastery tracking from this test's questions
+    if (currentSyllabus) {
+      const freshSyllabus = await getSyllabus(courseId, currentLevel);
+      if (freshSyllabus) {
+        await updateSubtopicMastery(courseId, freshSyllabus, answered);
+        await updateUserProgress(courseId);
+        await refreshProgressContext(courseId, freshSyllabus);
+      }
+    }
+
     if (didPass) {
       const levels = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
       const idx = levels.indexOf(currentLevel);
       const nextLevel = idx >= 0 && idx < levels.length - 1 ? levels[idx + 1] : null;
-      if (nextLevel !== null) await updateCourseLevel(courseId, nextLevel);
+      if (nextLevel !== null) {
+        await updateCourseLevel(courseId, nextLevel);
+        // Auto-generate the next level's syllabus if it doesn't exist yet
+        const existing = await getSyllabus(courseId, nextLevel);
+        if (!existing) {
+          setGenLog("Preparing your next level...");
+          try {
+            const config = await getGenerationConfig();
+            const researchBrief = await getTutorInstruction(courseId, "research") ?? "";
+            const allSyls = await getSyllabuses(courseId);
+            await generateSyllabus(courseId, currentSyllabus?.title?.split(":")[0]?.trim() ?? "this topic", nextLevel, config, researchBrief, undefined, allSyls);
+          } catch { /* next-level generation failure is non-fatal */ }
+          setGenLog("");
+        }
+      }
     } else {
       // Generate study plan for failed attempt
       setGeneratingPlan(true);
