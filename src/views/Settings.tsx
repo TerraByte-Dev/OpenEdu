@@ -3,6 +3,7 @@ import type { LLMProvider } from "../types";
 import {
   getLLMProvider, setLLMProvider, setGenerationModel, setChatModel,
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
+  setTavilyApiKey, getTavilyApiKey,
 } from "../lib/store";
 import { getOllamaModels, callLLM } from "../lib/llm";
 
@@ -55,6 +56,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
   const [saved, setSaved] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [tavilyKey, setTavilyKey] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -69,6 +71,8 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
         const key = await getApiKey(base.provider);
         setApiKeyValue(key || "");
       }
+      const tk = await getTavilyApiKey();
+      setTavilyKey(tk || "");
     })();
   }, []);
 
@@ -133,6 +137,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
     if (provider === "ollama") {
       await setOllamaUrl(ollamaUrlValue);
     }
+    await setTavilyApiKey(tavilyKey);
     setSaved(true);
     onSaved?.();
     setTimeout(() => setSaved(false), 2000);
@@ -308,6 +313,24 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
             )}
           </div>
         </div>
+
+        {/* Web Search */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-1">Web Search (Optional)</h2>
+          <p className="text-xs text-zinc-500 mb-3">
+            Tavily search grounds curriculum research in real-world data. Free tier: 1,000 searches/month at tavily.com.
+          </p>
+          <input
+            type="password"
+            value={tavilyKey}
+            onChange={(e) => setTavilyKey(e.target.value)}
+            placeholder="Tavily API key (tvly-...)"
+            className="w-full px-4 py-2.5 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500"
+          />
+          {tavilyKey && (
+            <p className="mt-1.5 text-xs text-green-400">Web search enabled — courses will be grounded in current data.</p>
+          )}
+        </section>
 
         <button
           onClick={handleSave}

@@ -32,7 +32,7 @@ export interface Subtopic {
 export interface TutorInstruction {
   id: string;
   course_id: string;
-  instruction_type: "identity" | "pedagogy" | "rules" | "curriculum_context" | "progress_context" | "assessment_mode";
+  instruction_type: "identity" | "pedagogy" | "rules" | "curriculum_context" | "progress_context" | "assessment_mode" | "research" | "knowledge_map" | "misconceptions" | "study_log" | "learning_profile";
   content: string;
   version: number;
 }
@@ -76,7 +76,7 @@ export interface QuizQuestion {
   id: string;
   attempt_id: string;
   question_text: string;
-  question_type: "multiple_choice" | "true_false" | "short_answer";
+  question_type: "multiple_choice" | "true_false" | "short_answer" | "fill_in_blank" | "written_response" | "drag_to_match" | "word_problem";
   options: string[] | null;
   correct_answer: string;
   user_answer: string | null;
@@ -84,6 +84,8 @@ export interface QuizQuestion {
   difficulty_level: number;
   explanation: string;
   subtopic_id?: string | null;
+  matching_pairs?: Array<{ left: string; right: string }> | null;
+  blank_position?: string | null;
 }
 
 export interface UserProgress {
@@ -104,7 +106,15 @@ export interface LLMConfig {
   ollamaUrl?: string;
 }
 
-export type View = "dashboard" | "course" | "settings";
+export type View = "dashboard" | "course" | "settings" | "quiz" | "promotion-test";
+
+export interface QuizViewContext {
+  courseId: string;
+  course: Course;
+  level: number;
+  syllabus: Syllabus;
+  allSyllabuses: Syllabus[];
+}
 
 export interface AppState {
   currentView: View;

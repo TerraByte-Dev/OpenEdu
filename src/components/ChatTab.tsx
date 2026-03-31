@@ -5,6 +5,7 @@ import { getChatMessages, saveChatMessage, getTutorInstructions } from "../lib/d
 import { buildSystemPrompt } from "../lib/curriculum";
 import { streamChat } from "../lib/llm";
 import { getChatConfig } from "../lib/store";
+import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, getTutorModePrompt, type TutorModeId } from "../lib/tutor-modes";
 
 marked.setOptions({ gfm: true, breaks: true });
@@ -63,12 +64,14 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
 
     // Build system prompt — with fallback if instructions not yet generated
     const instructions = await getTutorInstructions(courseId);
+    const knowledgeSummary = await getKnowledgeSummary(courseId);
     const systemPrompt = buildSystemPrompt(
       instructions,
       currentSyllabus,
       course.current_level,
       course.topic,
       getTutorModePrompt(activeMode),
+      knowledgeSummary || undefined,
     );
 
     // Only include system message if it has content
@@ -95,6 +98,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
         if (fullText.trim()) {
           const assistantMsg = await saveChatMessage(courseId, "assistant", fullText, level);
           setMessages((prev) => [...prev, assistantMsg]);
+          // Background knowledge file update — non-blocking, best-effort
+          getChatConfig().then((chatConfig) => {
+            updateKnowledgeFiles(courseId, userText, fullText, chatConfig).catch(() => {});
+          });
         }
         setStreamingText("");
         setStreaming(false);
@@ -137,15 +144,21 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
             <div className="flex-1 p-3 rounded-xl bg-surface-800 text-sm text-zinc-200">
               {streamingText
                 ? (
-                  <div
-                    className="note-prose"
-                    // eslint-disable-next-line react/no-danger
-                    dangerouslySetInnerHTML={{ __html: marked.parse(streamingText) as string }}
-                  />
+                  <div className="note-prose">
+                    <div
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: marked.parse(streamingText) as string }}
+                    />
+                    <span className="inline-block w-1.5 h-4 bg-terra-400 animate-pulse ml-0.5 align-middle" />
+                  </div>
                 )
-                : <span className="text-zinc-500 italic">Thinking...</span>
+                : (
+                  <span className="text-zinc-500 italic">
+                    Thinking...
+                    <span className="inline-block w-1.5 h-4 bg-terra-400 animate-pulse ml-0.5 align-middle" />
+                  </span>
+                )
               }
-              <span className="inline-block w-1.5 h-4 bg-terra-400 animate-pulse ml-0.5 align-middle" />
             </div>
           </div>
         )}

@@ -22,8 +22,12 @@ export function getLevelMeaning(level: number): string {
 
 // Phase 1: Research the topic deeply — this is the triaging step from CONCEPT.md.
 // Produces a rich brief that informs all subsequent generation.
-export async function researchTopic(topic: string, config: LLMConfig, onChunk?: (t: string) => void): Promise<string> {
-  const prompt = `You are a master curriculum designer with deep knowledge of thousands of textbooks, university courses, professional certifications, and expert learning paths.
+export async function researchTopic(topic: string, config: LLMConfig, onChunk?: (t: string) => void, searchContext?: string): Promise<string> {
+  const searchSection = searchContext
+    ? `Here is real-world information gathered from web search about "${topic}":\n---\n${searchContext}\n---\n\nUse this information to ground your curriculum research in real, current data.\n\n`
+    : "";
+
+  const prompt = `${searchSection}You are a master curriculum designer with deep knowledge of thousands of textbooks, university courses, professional certifications, and expert learning paths.
 
 Your task: thoroughly research the topic "${topic}" and produce a comprehensive curriculum research brief.
 
@@ -138,8 +142,9 @@ export async function generateSyllabus(
   onChunk?: (t: string) => void,
   previousSyllabuses?: Syllabus[],
 ): Promise<Syllabus> {
+  const contextLimit = level >= 3.0 ? 3000 : 2000;
   const researchContext = researchBrief
-    ? `\nCurriculum Research Context:\n---\n${researchBrief.slice(0, 2000)}\n---\n`
+    ? `\nCurriculum Research Context:\n---\n${researchBrief.slice(0, contextLimit)}\n---\n`
     : "";
 
   const prevContext = previousSyllabuses && previousSyllabuses.length > 0
@@ -236,6 +241,7 @@ export function buildSystemPrompt(
   courseLevel: number,
   topic: string,
   modePromptSuffix?: string,
+  knowledgeSummary?: string,
 ): string {
   const parts: string[] = [];
 
@@ -265,6 +271,9 @@ Level: ${getLevelMeaning(courseLevel)}`);
   }
   if (instructions.progress_context) {
     parts.push(`## Student Progress\n${instructions.progress_context}`);
+  }
+  if (knowledgeSummary) {
+    parts.push(`## Student Knowledge\n${knowledgeSummary}`);
   }
 
   const base = parts.join("\n\n---\n\n");

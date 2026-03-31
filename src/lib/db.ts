@@ -244,8 +244,8 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<voi
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
     [
       id, q.attempt_id, q.question_text, q.question_type,
       q.options ? JSON.stringify(q.options) : null,
@@ -253,6 +253,8 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<voi
       q.is_correct === null ? null : q.is_correct ? 1 : 0,
       q.difficulty_level, q.explanation,
       q.subtopic_id ?? null,
+      q.matching_pairs ? JSON.stringify(q.matching_pairs) : null,
+      q.blank_position ?? null,
     ]
   );
 }
@@ -315,6 +317,8 @@ export async function getQuizQuestions(attemptId: string): Promise<QuizQuestion[
     ...row,
     options: row.options ? JSON.parse(row.options as string) : null,
     is_correct: row.is_correct === null ? null : row.is_correct === 1,
+    matching_pairs: row.matching_pairs ? JSON.parse(row.matching_pairs as string) : null,
+    blank_position: row.blank_position ?? null,
   })) as QuizQuestion[];
 }
 

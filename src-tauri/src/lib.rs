@@ -112,6 +112,15 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "add matching_pairs and blank_position for diverse question types",
+            sql: "
+                ALTER TABLE quiz_questions ADD COLUMN matching_pairs TEXT;
+                ALTER TABLE quiz_questions ADD COLUMN blank_position TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Syllabus, QuizQuestion } from "../types";
 import {
   createPromotionAttempt, saveQuizQuestion, completeQuizAttempt, getLastPromotionAttempt,
-  updateCourseLevel, getSyllabus, getTutorInstruction, getSyllabuses,
+  updateCourseLevel, getSyllabus,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan } from "../lib/quiz";
 import { getGenerationConfig } from "../lib/store";
-import { getLevelMeaning, generateSyllabus } from "../lib/curriculum";
+
+import { getLevelMeaning } from "../lib/curriculum";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 
 // Time limits from CONCEPT.md
@@ -211,18 +212,6 @@ export default function PromotionTestModal({
       const nextLevel = idx >= 0 && idx < levels.length - 1 ? levels[idx + 1] : null;
       if (nextLevel !== null) {
         await updateCourseLevel(courseId, nextLevel);
-        // Auto-generate the next level's syllabus if it doesn't exist yet
-        const existing = await getSyllabus(courseId, nextLevel);
-        if (!existing) {
-          setGenLog("Preparing your next level...");
-          try {
-            const config = await getGenerationConfig();
-            const researchBrief = await getTutorInstruction(courseId, "research") ?? "";
-            const allSyls = await getSyllabuses(courseId);
-            await generateSyllabus(courseId, currentSyllabus?.title?.split(":")[0]?.trim() ?? "this topic", nextLevel, config, researchBrief, undefined, allSyls);
-          } catch { /* next-level generation failure is non-fatal */ }
-          setGenLog("");
-        }
       }
     } else {
       // Generate study plan for failed attempt

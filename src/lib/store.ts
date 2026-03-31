@@ -82,3 +82,15 @@ export async function setOllamaUrl(url: string): Promise<void> {
   await s.set("ollama_url", url);
   await s.save();
 }
+
+export async function setTavilyApiKey(key: string): Promise<void> {
+  const s = await getStore();
+  await s.set("tavily_api_key", key.trim());
+  await s.save();
+}
+
+export async function getTavilyApiKey(): Promise<string | null> {
+  const s = await getStore();
+  const key = await s.get<string>("tavily_api_key");
+  return key ? key.trim() : null;
+}
