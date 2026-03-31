@@ -23,6 +23,7 @@ export default function App() {
   // Track in-progress course creation so the banner persists when navigating away
   const [craftingTopic, setCraftingTopic] = useState<string | null>(null);
   const [quizContext, setQuizContext] = useState<QuizViewContext | null>(null);
+  const [promotionBanner, setPromotionBanner] = useState<number | null>(null); // next level after pass
 
   const refreshCourses = async () => {
     const c = await getCourses();
@@ -57,6 +58,13 @@ export default function App() {
   const closeQuiz = () => {
     setQuizContext(null);
     setCurrentView("course");
+  };
+
+  const handlePromotionPassed = (nextLevel: number) => {
+    refreshCourses();
+    closeQuiz();
+    setPromotionBanner(nextLevel);
+    setTimeout(() => setPromotionBanner(null), 6000);
   };
 
   const onCourseCreated = async (courseId: string) => {
@@ -94,6 +102,17 @@ export default function App() {
         />
       )}
       <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+        {/* Promotion success banner */}
+        {promotionBanner !== null && (
+          <div className="flex items-center justify-between px-4 py-2 bg-green-600/20 border-b border-green-500/30 text-sm text-green-200 shrink-0">
+            <span className="flex items-center gap-2">
+              <span>🎓</span>
+              <span>Level up! Advanced to <strong>Level {promotionBanner.toFixed(1)}</strong> — keep going.</span>
+            </span>
+            <button onClick={() => setPromotionBanner(null)} className="text-green-400 hover:text-green-200 text-lg leading-none">✕</button>
+          </div>
+        )}
+
         {/* Persistent "course crafting" banner — shown when building and you navigate away */}
         {craftingTopic && currentView !== "dashboard" && !isFullscreenView && (
           <button
@@ -134,7 +153,7 @@ export default function App() {
           <PromotionTestFullScreen
             context={quizContext}
             onClose={closeQuiz}
-            onPassed={() => { refreshCourses(); closeQuiz(); }}
+            onPassed={handlePromotionPassed}
           />
         )}
       </main>

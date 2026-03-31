@@ -132,6 +132,56 @@ Write in second person ("You should..."). Keep it actionable.`;
   await saveTutorInstruction(courseId, "research", researchBrief);
 }
 
+// Phase 2.5: Generate a strategic 11-level course outline before individual syllabuses
+export async function generateCourseOutline(
+  topic: string,
+  researchBrief: string,
+  config: LLMConfig,
+  courseId: string,
+  onChunk?: (t: string) => void,
+): Promise<string> {
+  const researchSnippet = researchBrief.slice(0, 2000);
+
+  const prompt = `You are a master curriculum architect. Based on this research about "${topic}":
+---
+${researchSnippet}
+---
+
+Design a strategic 11-level course outline from Level 0.0 (absolute beginner) to Level 5.0 (mastery exam).
+
+STRUCTURE:
+- Levels 0.0 through 4.5 are LEARNING levels (10 levels total)
+- Level 5.0 is a COMPREHENSIVE MASTERY EXAM — NO new content, purely tests everything learned across all 10 levels
+- Each level must build logically and sequentially on the previous
+- No gaps — complete coverage from zero to mastery
+
+For each level (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5), specify:
+- Title: specific and descriptive (not generic like "Introduction")
+- Focus Areas: 3-5 specific topics or skills exclusive to this level
+- Key Outcomes: 2-3 concrete things the student can DO after this level
+- Bridge: one sentence on how this connects to the next level
+
+For Level 5.0 (Mastery Exam) ONLY:
+- List ALL major domains from all 10 learning levels that must appear in the test
+- Specify 3-4 synthesis skills (combining concepts from multiple levels)
+- Describe 2-3 real-world scenarios used to test application
+
+Be specific. This outline is the architectural blueprint for the entire course — every syllabus must align with it.`;
+
+  log.info("generateCourseOutline", `Planning strategic outline for "${topic}"`);
+  const outline = onChunk
+    ? await callLLMStreaming([{ role: "user", content: prompt }], config, onChunk)
+    : await callLLM([{ role: "user", content: prompt }], config);
+
+  if (!outline.trim()) {
+    throw new Error(`Model returned empty course outline for "${topic}".`);
+  }
+
+  await saveTutorInstruction(courseId, "course_outline", outline);
+  log.info("generateCourseOutline", `Outline generated: ${outline.length} chars`);
+  return outline;
+}
+
 // Phase 4: Generate a syllabus level, informed by the research brief
 export async function generateSyllabus(
   courseId: string,
@@ -141,10 +191,15 @@ export async function generateSyllabus(
   researchBrief: string = "",
   onChunk?: (t: string) => void,
   previousSyllabuses?: Syllabus[],
+  courseOutline?: string,
 ): Promise<Syllabus> {
   const contextLimit = level >= 3.0 ? 3000 : 2000;
   const researchContext = researchBrief
     ? `\nCurriculum Research Context:\n---\n${researchBrief.slice(0, contextLimit)}\n---\n`
+    : "";
+
+  const outlineContext = courseOutline
+    ? `\nStrategic Course Outline (FOLLOW the plan defined for Level ${level}):\n---\n${courseOutline.slice(0, 2500)}\n---\nYour syllabus MUST align with the Focus Areas and Key Outcomes defined for Level ${level} in this outline.\n`
     : "";
 
   const prevContext = previousSyllabuses && previousSyllabuses.length > 0
@@ -152,7 +207,7 @@ export async function generateSyllabus(
     : "";
 
   const prompt = `You are a curriculum designer creating a structured syllabus for "${topic}" at level ${level} (${getLevelMeaning(level)}).
-${researchContext}${prevContext}
+${researchContext}${outlineContext}${prevContext}
 Produce ONLY a valid JSON object in this exact format:
 {
   "level": ${level},
