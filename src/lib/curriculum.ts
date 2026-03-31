@@ -136,13 +136,18 @@ export async function generateSyllabus(
   config: LLMConfig,
   researchBrief: string = "",
   onChunk?: (t: string) => void,
+  previousSyllabuses?: Syllabus[],
 ): Promise<Syllabus> {
   const researchContext = researchBrief
     ? `\nCurriculum Research Context:\n---\n${researchBrief.slice(0, 2000)}\n---\n`
     : "";
 
+  const prevContext = previousSyllabuses && previousSyllabuses.length > 0
+    ? `\nPrevious levels already covered:\n${previousSyllabuses.map((s) => `- Level ${s.level}: ${s.title} (subtopics: ${s.subtopics.map((t) => t.title).join(", ")})`).join("\n")}\nBuild on these — do not repeat covered subtopics.\n`
+    : "";
+
   const prompt = `You are a curriculum designer creating a structured syllabus for "${topic}" at level ${level} (${getLevelMeaning(level)}).
-${researchContext}
+${researchContext}${prevContext}
 Produce ONLY a valid JSON object in this exact format:
 {
   "level": ${level},
@@ -230,6 +235,7 @@ export function buildSystemPrompt(
   syllabus: Syllabus | null,
   courseLevel: number,
   topic: string,
+  modePromptSuffix?: string,
 ): string {
   const parts: string[] = [];
 
@@ -261,5 +267,6 @@ Level: ${getLevelMeaning(courseLevel)}`);
     parts.push(`## Student Progress\n${instructions.progress_context}`);
   }
 
-  return parts.join("\n\n---\n\n");
+  const base = parts.join("\n\n---\n\n");
+  return modePromptSuffix ? base + modePromptSuffix : base;
 }

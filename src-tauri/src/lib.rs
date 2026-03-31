@@ -104,6 +104,14 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "add subtopic_id to quiz_questions for mastery tracking",
+            sql: "
+                ALTER TABLE quiz_questions ADD COLUMN subtopic_id TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

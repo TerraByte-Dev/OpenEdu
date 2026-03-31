@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion } from "../types";
+import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress } from "../types";
 
 let db: Database | null = null;
 
@@ -244,14 +244,15 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<voi
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
       id, q.attempt_id, q.question_text, q.question_type,
       q.options ? JSON.stringify(q.options) : null,
       q.correct_answer, q.user_answer,
       q.is_correct === null ? null : q.is_correct ? 1 : 0,
       q.difficulty_level, q.explanation,
+      q.subtopic_id ?? null,
     ]
   );
 }
@@ -315,4 +316,60 @@ export async function getQuizQuestions(attemptId: string): Promise<QuizQuestion[
     options: row.options ? JSON.parse(row.options as string) : null,
     is_correct: row.is_correct === null ? null : row.is_correct === 1,
   })) as QuizQuestion[];
+}
+
+// User Progress
+export async function getUserProgress(courseId: string): Promise<UserProgress | null> {
+  const d = await getDb();
+  const rows: Array<Record<string, unknown>> = await d.select(
+    "SELECT * FROM user_progress WHERE course_id = $1",
+    [courseId]
+  );
+  if (!rows[0]) return null;
+  const row = rows[0];
+  return {
+    ...row,
+    knowledge_gaps: JSON.parse(row.knowledge_gaps as string || "[]"),
+  } as UserProgress;
+}
+
+export async function upsertUserProgress(
+  courseId: string,
+  data: { knowledge_gaps: string[]; total_quiz_score_avg: number | null },
+): Promise<void> {
+  const d = await getDb();
+  const existing: Array<{ id: string }> = await d.select(
+    "SELECT id FROM user_progress WHERE course_id = $1",
+    [courseId]
+  );
+  const gapsJson = JSON.stringify(data.knowledge_gaps);
+  if (existing.length > 0) {
+    await d.execute(
+      `UPDATE user_progress SET knowledge_gaps = $1, total_quiz_score_avg = $2, last_active_at = datetime('now') WHERE course_id = $3`,
+      [gapsJson, data.total_quiz_score_avg, courseId]
+    );
+  } else {
+    const id = uuid();
+    await d.execute(
+      `INSERT INTO user_progress (id, course_id, knowledge_gaps, total_quiz_score_avg, last_active_at) VALUES ($1, $2, $3, $4, datetime('now'))`,
+      [id, courseId, gapsJson, data.total_quiz_score_avg]
+    );
+  }
+}
+
+export async function updateSyllabusSubtopics(courseId: string, level: number, subtopicsJson: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE syllabuses SET subtopics = $1 WHERE course_id = $2 AND level = $3",
+    [subtopicsJson, courseId, level]
+  );
+}
+
+export async function getTutorInstruction(courseId: string, type: string): Promise<string | null> {
+  const d = await getDb();
+  const rows: Array<{ content: string }> = await d.select(
+    "SELECT content FROM tutor_instructions WHERE course_id = $1 AND instruction_type = $2",
+    [courseId, type]
+  );
+  return rows[0]?.content ?? null;
 }

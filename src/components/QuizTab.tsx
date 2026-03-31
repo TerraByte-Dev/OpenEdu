@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { Syllabus, QuizQuestion } from "../types";
-import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt } from "../lib/db";
+import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus } from "../lib/db";
 import { generateQuizQuestions } from "../lib/quiz";
 import { getLLMConfig } from "../lib/store";
+import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 
 interface QuizTabProps {
   courseId: string;
@@ -52,7 +53,7 @@ export default function QuizTab({ courseId, currentSyllabus }: QuizTabProps) {
     }
   };
 
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     if (selectedAnswer === null) return;
 
     const question = questions[currentIndex];
@@ -64,9 +65,9 @@ export default function QuizTab({ courseId, currentSyllabus }: QuizTabProps) {
       )
     );
 
-    // Save to DB
+    // Save to DB (awaited — no fire-and-forget)
     if (attemptId) {
-      saveQuizQuestion({
+      await saveQuizQuestion({
         attempt_id: attemptId,
         question_text: question.question_text,
         question_type: question.question_type,
@@ -76,6 +77,7 @@ export default function QuizTab({ courseId, currentSyllabus }: QuizTabProps) {
         is_correct: isCorrect,
         difficulty_level: question.difficulty_level,
         explanation: question.explanation,
+        subtopic_id: question.subtopic_id,
       });
     }
 
@@ -91,8 +93,15 @@ export default function QuizTab({ courseId, currentSyllabus }: QuizTabProps) {
       const total = answered.length;
       setScore({ correct, total });
 
-      if (attemptId) {
-        completeQuizAttempt(attemptId, (correct / total) * 100, correct, 0);
+      if (attemptId && currentSyllabus) {
+        await completeQuizAttempt(attemptId, (correct / total) * 100, correct, 0);
+        // Update mastery and progress context in background (non-blocking)
+        const syllabus = await getSyllabus(currentSyllabus.course_id, currentSyllabus.level);
+        if (syllabus) {
+          await updateSubtopicMastery(currentSyllabus.course_id, syllabus, answered);
+          await updateUserProgress(currentSyllabus.course_id);
+          await refreshProgressContext(currentSyllabus.course_id, syllabus);
+        }
       }
 
       setState("reviewing");
