@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import type { Course } from "../types";
+import type { Course, Syllabus } from "../types";
 import { createCourse, deleteCourse } from "../lib/db";
 import { researchTopic, generateSyllabus, generateTutorInstructions } from "../lib/curriculum";
-import { getGenerationConfig } from "../lib/store";
+import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
+import { searchTavily, formatSearchResults } from "../lib/web-search";
+import { initKnowledgeFiles } from "../lib/knowledge";
 
 interface DashboardProps {
   courses: Course[];
@@ -19,12 +21,13 @@ interface Step {
   status: StepStatus;
 }
 
+const ALL_LEVELS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+
 const INITIAL_STEPS: Step[] = [
   { label: "Create course record", status: "pending" },
   { label: "Research topic & curricula", status: "pending" },
   { label: "Design tutor persona", status: "pending" },
-  { label: "Build Level 0.0 syllabus", status: "pending" },
-  { label: "Build Level 0.5 syllabus", status: "pending" },
+  ...ALL_LEVELS.map((l) => ({ label: `Build Level ${l.toFixed(1)} syllabus`, status: "pending" as StepStatus })),
 ];
 
 function StepIcon({ status }: { status: StepStatus }) {
@@ -83,8 +86,8 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
   const appendChunk = (chunk: string) => {
     setStreamLog((prev) => {
       const next = prev + chunk;
-      // Cap at 2000 chars to avoid unbounded growth, keep the tail
-      return next.length > 2000 ? next.slice(next.length - 2000) : next;
+      // Cap at 3000 chars to avoid unbounded growth, keep the tail
+      return next.length > 3000 ? next.slice(next.length - 3000) : next;
     });
   };
 
@@ -110,9 +113,21 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
       setStep(0, "done");
       await delay(200);
 
-      // Step 2: Research the topic (triaging step from CONCEPT.md) — streams live
+      // Step 2: Research the topic (triaging step) — optionally augmented with web search
       setStep(1, "active");
-      const researchBrief = await researchTopic(topic.trim(), config, appendChunk);
+      let searchContext = "";
+      const tavilyKey = await getTavilyApiKey();
+      if (tavilyKey) {
+        try {
+          appendChunk("[Web search] Looking up real-world curricula...\n");
+          const results = await searchTavily(topic.trim(), tavilyKey, 5);
+          searchContext = formatSearchResults(results);
+          appendChunk("[Web search] Done — injecting into research context.\n\n");
+        } catch {
+          // Search failure is non-fatal
+        }
+      }
+      const researchBrief = await researchTopic(topic.trim(), config, appendChunk, searchContext);
       setStep(1, "done");
       await delay(300);
 
@@ -122,17 +137,18 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
       setStep(2, "done");
       await delay(300);
 
-      // Step 4: Syllabus Level 0.0 — streams live
-      setStep(3, "active");
-      await generateSyllabus(course.id, topic.trim(), 0.0, config, researchBrief, appendChunk);
-      setStep(3, "done");
-      await delay(300);
+      // Steps 4–14: All 11 syllabus levels in sequence, each informed by prior levels
+      const previousSyllabuses: Syllabus[] = [];
+      for (let i = 0; i < ALL_LEVELS.length; i++) {
+        setStep(3 + i, "active");
+        const syl = await generateSyllabus(course.id, topic.trim(), ALL_LEVELS[i], config, researchBrief, appendChunk, previousSyllabuses);
+        previousSyllabuses.push(syl);
+        setStep(3 + i, "done");
+        await delay(200);
+      }
 
-      // Step 5: Syllabus Level 0.5 — streams live
-      setStep(4, "active");
-      await generateSyllabus(course.id, topic.trim(), 0.5, config, researchBrief, appendChunk);
-      setStep(4, "done");
-      await delay(400);
+      // Initialize persistent knowledge files for this course
+      await initKnowledgeFiles(course.id);
 
       setStreamLog("");
       setTopic("");
@@ -183,7 +199,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
               <>
                 <h2 className="text-lg font-semibold text-zinc-200 mb-1">What do you want to learn?</h2>
                 <p className="text-xs text-zinc-500 mb-4">
-                  TerraTutor will research your topic and craft a full curriculum — this takes 1–5 minutes depending on your model.
+                  TerraTutor will research your topic and craft a full 11-level curriculum — this takes 3–10 minutes depending on your model.
                 </p>
                 <input
                   type="text"

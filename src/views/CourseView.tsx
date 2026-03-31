@@ -1,26 +1,27 @@
 import { useState, useEffect } from "react";
-import type { Course, Syllabus } from "../types";
+import type { Course, Syllabus, QuizViewContext } from "../types";
+
 import { getCourse, getSyllabuses } from "../lib/db";
 import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus } from "../lib/curriculum";
 import { getGenerationConfig } from "../lib/store";
 import ChatTab from "../components/ChatTab";
 import NotesTab from "../components/NotesTab";
 import QuizTab from "../components/QuizTab";
-import PromotionTestModal from "../components/PromotionTestModal";
 
 type Tab = "chat" | "notes" | "quiz" | "syllabus";
 
 interface CourseViewProps {
   courseId: string;
   onBack: () => void;
+  onOpenQuiz: (ctx: QuizViewContext) => void;
+  onOpenPromotionTest: (ctx: QuizViewContext) => void;
 }
 
-export default function CourseView({ courseId, onBack }: CourseViewProps) {
+export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromotionTest }: CourseViewProps) {
   const [course, setCourse] = useState<Course | null>(null);
   const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [viewingLevel, setViewingLevel] = useState<number | null>(null);
-  const [showTestModal, setShowTestModal] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [regenStatus, setRegenStatus] = useState("");
 
@@ -39,15 +40,18 @@ export default function CourseView({ courseId, onBack }: CourseViewProps) {
     if (!course) return;
     setRegenerating(true);
     setRegenStatus("Researching topic...");
+    const ALL_LEVELS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
     try {
       const config = await getGenerationConfig();
       const brief = await researchTopic(course.topic, config);
       setRegenStatus("Designing tutor...");
       await generateTutorInstructions(courseId, course.topic, brief, config);
-      setRegenStatus("Building Level 0.0 syllabus...");
-      await generateSyllabus(courseId, course.topic, 0.0, config, brief);
-      setRegenStatus("Building Level 0.5 syllabus...");
-      await generateSyllabus(courseId, course.topic, 0.5, config, brief);
+      const previousSyllabuses: Syllabus[] = [];
+      for (let i = 0; i < ALL_LEVELS.length; i++) {
+        setRegenStatus(`Building Level ${ALL_LEVELS[i].toFixed(1)} syllabus...`);
+        const syl = await generateSyllabus(courseId, course.topic, ALL_LEVELS[i], config, brief, undefined, previousSyllabuses);
+        previousSyllabuses.push(syl);
+      }
       await loadCourseData();
       setRegenStatus("");
     } catch (e) {
@@ -137,7 +141,11 @@ export default function CourseView({ courseId, onBack }: CourseViewProps) {
 
           {/* Take Test button */}
           <button
-            onClick={() => setShowTestModal(true)}
+            onClick={() => {
+              if (course && viewingSyllabus) {
+                onOpenPromotionTest({ courseId, course, level: effectiveViewingLevel, syllabus: viewingSyllabus, allSyllabuses: syllabuses });
+              }
+            }}
             disabled={!isCurrentLevel || !viewingSyllabus}
             title={
               !isCurrentLevel
@@ -200,7 +208,11 @@ export default function CourseView({ courseId, onBack }: CourseViewProps) {
           <NotesTab courseId={courseId} level={effectiveViewingLevel} />
         )}
         {activeTab === "quiz" && (
-          <QuizTab courseId={courseId} currentSyllabus={viewingSyllabus} />
+          <QuizTab
+            courseId={courseId}
+            currentSyllabus={viewingSyllabus}
+            onStartQuiz={course && viewingSyllabus ? () => onOpenQuiz({ courseId, course, level: effectiveViewingLevel, syllabus: viewingSyllabus, allSyllabuses: syllabuses }) : undefined}
+          />
         )}
         {activeTab === "syllabus" && (
           <SyllabusView
@@ -214,17 +226,6 @@ export default function CourseView({ courseId, onBack }: CourseViewProps) {
         )}
       </div>
 
-      {/* ── Promotion Test Modal ── */}
-      {showTestModal && (
-        <PromotionTestModal
-          courseId={courseId}
-          currentLevel={course.current_level}
-          currentSyllabus={viewingSyllabus}
-          allSyllabuses={syllabuses}
-          onClose={() => { setShowTestModal(false); loadCourseData(); }}
-          onPassed={() => { loadCourseData(); }}
-        />
-      )}
     </div>
   );
 }

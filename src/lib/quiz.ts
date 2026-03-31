@@ -12,7 +12,15 @@ export async function generateQuizQuestions(
 The questions must cover these subtopics (use the subtopic id in each question):
 ${subtopicList}
 
-Return ONLY a JSON array of questions in this exact format:
+Use a DIVERSE MIX of question types with this approximate distribution:
+- multiple_choice (40%): 4 options labeled A) B) C) D), one correct
+- fill_in_blank (15%): a complete sentence with ___ where the answer goes; blank_position is the full sentence with ___
+- written_response (10%): open-ended question requiring a 1-3 sentence explanation; correct_answer is the ideal answer
+- word_problem (15%): scenario or practical problem requiring applied knowledge; correct_answer is the expected answer
+- drag_to_match (10%): provide matching_pairs as array of {left, right} objects (3-5 pairs); correct_answer is "See matching_pairs"
+- true_false (10%): statement that is true or false
+
+Return ONLY a JSON array in this exact format:
 [
   {
     "question_text": "The question here?",
@@ -21,18 +29,23 @@ Return ONLY a JSON array of questions in this exact format:
     "correct_answer": "A) First option",
     "difficulty_level": ${syllabus.level},
     "explanation": "Why this answer is correct",
-    "subtopic_id": "${syllabus.subtopics[0]?.id ?? ""}"
+    "subtopic_id": "${syllabus.subtopics[0]?.id ?? ""}",
+    "blank_position": null,
+    "matching_pairs": null
   }
 ]
 
 Requirements:
 - Include subtopic_id matching the id field from the subtopic list above
 - Distribute questions across all subtopics
-- Mix question types: mostly multiple_choice, some true_false
 - Each multiple_choice must have exactly 4 options
+- For fill_in_blank: blank_position is the full sentence with ___ inserted (e.g. "The ___ is used to declare variables in JavaScript")
+- For drag_to_match: matching_pairs is an array like [{"left": "term", "right": "definition"}, ...]
 - Explanations should be educational, 1-2 sentences
 - Questions should test understanding, not just memorization
 - Difficulty should match level ${syllabus.level}
+- Set blank_position to null for non-fill_in_blank types
+- Set matching_pairs to null for non-drag_to_match types
 
 Respond with ONLY the JSON array.`;
 
@@ -43,6 +56,11 @@ Respond with ONLY the JSON array.`;
 
   return parseQuestions(response);
 }
+
+const VALID_QUESTION_TYPES = new Set([
+  "multiple_choice", "true_false", "short_answer", "fill_in_blank",
+  "written_response", "drag_to_match", "word_problem",
+]);
 
 function parseQuestions(
   response: string,
@@ -59,9 +77,8 @@ function parseQuestions(
   const parsed = JSON.parse(jsonStr);
   return (parsed as Record<string, unknown>[]).map((q) => {
     const rawType = String(q.question_type ?? "multiple_choice");
-    const question_type: "multiple_choice" | "true_false" | "short_answer" =
-      rawType === "true_false" ? "true_false"
-      : rawType === "short_answer" ? "short_answer"
+    const question_type = VALID_QUESTION_TYPES.has(rawType)
+      ? rawType as QuizQuestion["question_type"]
       : "multiple_choice";
     return {
       question_text: String(q.question_text ?? ""),
@@ -71,8 +88,39 @@ function parseQuestions(
       difficulty_level: Number(q.difficulty_level ?? 1),
       explanation: String(q.explanation ?? ""),
       subtopic_id: q.subtopic_id ? String(q.subtopic_id) : null,
+      blank_position: q.blank_position ? String(q.blank_position) : null,
+      matching_pairs: Array.isArray(q.matching_pairs) ? q.matching_pairs as Array<{ left: string; right: string }> : null,
     };
   });
+}
+
+// Grade a written response or word problem using the LLM
+export async function gradeWrittenResponse(
+  question: string,
+  correctAnswer: string,
+  studentAnswer: string,
+  config: LLMConfig,
+): Promise<{ isCorrect: boolean; feedback: string }> {
+  const prompt = `You are grading a student's written answer. Return a JSON object.
+
+Question: ${question}
+Expected answer: ${correctAnswer}
+Student's answer: ${studentAnswer}
+
+Evaluate if the student demonstrates understanding of the core concept. Allow for different wording as long as the meaning is correct. Be generous with partial credit — if they show understanding, mark correct.
+
+Return ONLY valid JSON: {"correct": true/false, "feedback": "1-2 sentence feedback explaining the evaluation"}`;
+
+  const response = await callLLM([{ role: "user", content: prompt }], config);
+  let jsonStr = response.trim();
+  if (jsonStr.startsWith("```")) {
+    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  }
+  const start = jsonStr.indexOf("{");
+  const end = jsonStr.lastIndexOf("}");
+  if (start !== -1 && end !== -1) jsonStr = jsonStr.slice(start, end + 1);
+  const parsed = JSON.parse(jsonStr) as { correct: boolean; feedback: string };
+  return { isCorrect: Boolean(parsed.correct), feedback: String(parsed.feedback ?? "") };
 }
 
 // Promotion test: two sections (current level + review of previous levels)
