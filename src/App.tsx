@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import { getCourses, deleteCourse } from "./lib/db";
 import { getLLMProvider } from "./lib/store";
+import CRTLayer from "./components/CRTLayer";
+import BootSequence from "./components/BootSequence";
+import Titlebar from "./components/Titlebar";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
@@ -15,15 +18,17 @@ if (typeof document !== "undefined") {
 }
 
 export default function App() {
+  const [booted, setBooted] = useState(false);
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeProvider, setActiveProvider] = useState<LLMProvider>("ollama");
-  // Track in-progress course creation so the banner persists when navigating away
   const [craftingTopic, setCraftingTopic] = useState<string | null>(null);
   const [quizContext, setQuizContext] = useState<QuizViewContext | null>(null);
-  const [promotionBanner, setPromotionBanner] = useState<number | null>(null); // next level after pass
+  const [promotionBanner, setPromotionBanner] = useState<number | null>(null);
+  // Course whose generation needs to resume — Dashboard consumes this once on mount.
+  const [pendingResumeCourse, setPendingResumeCourse] = useState<Course | null>(null);
 
   const refreshCourses = async () => {
     const c = await getCourses();
@@ -38,6 +43,10 @@ export default function App() {
   useEffect(() => {
     refreshCourses();
     refreshProvider();
+  }, []);
+
+  const handleBootComplete = useCallback(() => {
+    setBooted(true);
   }, []);
 
   const openCourse = (courseId: string) => {
@@ -81,82 +90,107 @@ export default function App() {
     }
   };
 
+  const handleResumeCourse = (courseId: string) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+    setPendingResumeCourse(course);
+    setCurrentView("dashboard");
+  };
+
   const isFullscreenView = currentView === "quiz" || currentView === "promotion-test";
 
   return (
     <div
-      className="flex h-screen w-screen bg-surface-900"
+      className="flex flex-col h-screen w-screen bg-bg overflow-hidden"
       onContextMenu={(e) => e.preventDefault()}
     >
-      {!isFullscreenView && (
-        <Sidebar
-          courses={courses}
-          selectedCourseId={selectedCourseId}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onSelectCourse={openCourse}
-          onDeleteCourse={handleDeleteCourse}
-          provider={activeProvider}
-          onGoHome={() => { setCurrentView("dashboard"); refreshProvider(); }}
-          onGoSettings={() => setCurrentView("settings")}
-        />
-      )}
-      <main className="flex-1 flex flex-col overflow-hidden min-h-0">
-        {/* Promotion success banner */}
-        {promotionBanner !== null && (
-          <div className="flex items-center justify-between px-4 py-2 bg-green-600/20 border-b border-green-500/30 text-sm text-green-200 shrink-0">
-            <span className="flex items-center gap-2">
-              <span>🎓</span>
-              <span>Level up! Advanced to <strong>Level {promotionBanner.toFixed(1)}</strong> — keep going.</span>
-            </span>
-            <button onClick={() => setPromotionBanner(null)} className="text-green-400 hover:text-green-200 text-lg leading-none">✕</button>
+      {/* Always-visible CRT overlay */}
+      <CRTLayer />
+
+      {/* Boot sequence — unmounts after splash */}
+      {!booted && <BootSequence onComplete={handleBootComplete} />}
+
+      {/* Main UI */}
+      {booted && (
+        <>
+          {!isFullscreenView && (
+            <Titlebar
+              provider={activeProvider}
+              onGoSettings={() => setCurrentView("settings")}
+            />
+          )}
+
+          <div className="flex flex-1 min-h-0">
+            {!isFullscreenView && (
+              <Sidebar
+                courses={courses}
+                selectedCourseId={selectedCourseId}
+                collapsed={sidebarCollapsed}
+                onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                onSelectCourse={openCourse}
+                onDeleteCourse={handleDeleteCourse}
+                onResumeCourse={handleResumeCourse}
+                onGoHome={() => { setCurrentView("dashboard"); refreshProvider(); }}
+              />
+            )}
+
+            <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+              {promotionBanner !== null && (
+                <div className="flex items-center justify-between px-4 py-2 border-b text-sm text-phosphor-ink shrink-0" style={{ background: "rgb(var(--phosphor-rgb)/0.10)", borderColor: "rgb(var(--phosphor-rgb)/0.30)" }}>
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-phosphor animate-pulse shrink-0" />
+                    <span>Level up! Advanced to <strong>Level {promotionBanner}</strong> — keep going.</span>
+                  </span>
+                  <button onClick={() => setPromotionBanner(null)} className="text-phosphor-bright hover:text-phosphor text-lg leading-none">✕</button>
+                </div>
+              )}
+
+              {craftingTopic && currentView !== "dashboard" && !isFullscreenView && (
+                <button
+                  onClick={() => setCurrentView("dashboard")}
+                  className="flex items-center gap-2.5 px-4 py-2 border-b border-[var(--rule)] text-sm text-phosphor-ink hover:bg-[rgb(var(--phosphor-rgb)/0.06)] transition-colors shrink-0"
+                  style={{ background: "rgb(var(--phosphor-rgb)/0.04)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-phosphor animate-pulse shrink-0" />
+                  <span>Building <strong>{craftingTopic}</strong> — click to watch</span>
+                </button>
+              )}
+
+              <div className={`flex-1 min-h-0 flex flex-col ${currentView !== "dashboard" ? "hidden" : ""}`}>
+                <Dashboard
+                  courses={courses}
+                  onOpenCourse={openCourse}
+                  onCourseCreated={onCourseCreated}
+                  onCreationStart={(topic) => setCraftingTopic(topic)}
+                  onCreationEnd={() => setCraftingTopic(null)}
+                  resumeCourse={pendingResumeCourse}
+                  onResumeConsumed={() => setPendingResumeCourse(null)}
+                />
+              </div>
+
+              {currentView === "course" && selectedCourseId && (
+                <CourseView
+                  courseId={selectedCourseId}
+                  onBack={() => setCurrentView("dashboard")}
+                  onOpenQuiz={openQuiz}
+                  onOpenPromotionTest={openPromotionTest}
+                />
+              )}
+              {currentView === "settings" && <Settings onSaved={refreshProvider} />}
+              {currentView === "quiz" && quizContext && (
+                <QuizFullScreen context={quizContext} onClose={closeQuiz} />
+              )}
+              {currentView === "promotion-test" && quizContext && (
+                <PromotionTestFullScreen
+                  context={quizContext}
+                  onClose={closeQuiz}
+                  onPassed={handlePromotionPassed}
+                />
+              )}
+            </main>
           </div>
-        )}
-
-        {/* Persistent "course crafting" banner — shown when building and you navigate away */}
-        {craftingTopic && currentView !== "dashboard" && !isFullscreenView && (
-          <button
-            onClick={() => setCurrentView("dashboard")}
-            className="flex items-center gap-2.5 px-4 py-2 bg-terra-700/30 border-b border-terra-600/30 text-sm text-terra-200 hover:bg-terra-700/50 transition-colors shrink-0"
-          >
-            <span className="w-2 h-2 rounded-full bg-terra-400 animate-pulse shrink-0" />
-            <span>
-              Building <strong>{craftingTopic}</strong> course in the background — click to watch
-            </span>
-          </button>
-        )}
-
-        {/* Dashboard always stays mounted so async creation survives navigation */}
-        <div className={`flex-1 min-h-0 flex flex-col ${currentView !== "dashboard" ? "hidden" : ""}`}>
-          <Dashboard
-            courses={courses}
-            onOpenCourse={openCourse}
-            onCourseCreated={onCourseCreated}
-            onCreationStart={(topic) => setCraftingTopic(topic)}
-            onCreationEnd={() => setCraftingTopic(null)}
-          />
-        </div>
-
-        {currentView === "course" && selectedCourseId && (
-          <CourseView
-            courseId={selectedCourseId}
-            onBack={() => setCurrentView("dashboard")}
-            onOpenQuiz={openQuiz}
-            onOpenPromotionTest={openPromotionTest}
-          />
-        )}
-        {currentView === "settings" && <Settings onSaved={refreshProvider} />}
-        {currentView === "quiz" && quizContext && (
-          <QuizFullScreen context={quizContext} onClose={closeQuiz} />
-        )}
-        {currentView === "promotion-test" && quizContext && (
-          <PromotionTestFullScreen
-            context={quizContext}
-            onClose={closeQuiz}
-            onPassed={handlePromotionPassed}
-          />
-        )}
-      </main>
+        </>
+      )}
     </div>
   );
 }

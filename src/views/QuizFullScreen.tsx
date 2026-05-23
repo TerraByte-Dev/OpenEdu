@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus } from "../lib/db";
 import { generateQuizQuestions } from "../lib/quiz";
@@ -105,19 +105,19 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
 
   if (state === "generating") {
     return (
-      <div className="fixed inset-0 z-50 bg-surface-900 flex flex-col items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center">
         <div className="text-center">
           {error ? (
             <>
               <p className="text-red-400 text-sm mb-4">{error}</p>
-              <button onClick={onClose} className="px-5 py-2 rounded-lg bg-surface-700 text-zinc-300 text-sm hover:bg-surface-600 transition-colors">
+              <button onClick={onClose} className="px-5 py-2 rounded-lg bg-panel-lite text-[var(--ink-dim)] text-sm hover:bg-lcd transition-colors">
                 Back to Course
               </button>
             </>
           ) : (
             <>
-              <div className="w-8 h-8 rounded-full border-2 border-terra-500 border-t-transparent animate-spin mx-auto mb-4" />
-              <p className="text-zinc-400">Generating quiz questions for {syllabus.title}...</p>
+              <div className="w-8 h-8 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-4" />
+              <p className="text-[var(--ink-faint)]">Generating quiz questions for {syllabus.title}...</p>
             </>
           )}
         </div>
@@ -128,15 +128,15 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   if (state === "results") {
     const pct = score ? (score.correct / score.total) * 100 : 0;
     return (
-      <div className="fixed inset-0 z-50 bg-surface-900 flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-700 shrink-0">
+      <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-zinc-100">{course.title}</h1>
-            <p className="text-xs text-zinc-500">Level {syllabus.level.toFixed(1)} — Quiz Results</p>
+            <h1 className="text-base font-semibold text-ink">{course.title}</h1>
+            <p className="text-xs text-[var(--ink-faint)]">Level {syllabus.level} — Quiz Results</p>
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium transition-colors"
+            className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
           >
             Return to Course
           </button>
@@ -147,8 +147,8 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               <div className={`text-5xl font-bold mb-1 ${pct >= 80 ? "text-green-400" : "text-amber-400"}`}>
                 {score?.correct}/{score?.total}
               </div>
-              <div className="text-zinc-400 text-sm">{Math.round(pct)}% correct</div>
-              <p className="text-zinc-300 text-sm mt-2">
+              <div className="text-[var(--ink-faint)] text-sm">{Math.round(pct)}% correct</div>
+              <p className="text-[var(--ink-dim)] text-sm mt-2">
                 {pct >= 80 ? "Excellent! You have a strong grasp of this material." : "Keep studying — you're making progress."}
               </p>
             </div>
@@ -160,7 +160,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
                     <span className={`text-sm font-bold shrink-0 ${q.is_correct ? "text-green-400" : "text-red-400"}`}>
                       {q.is_correct ? "✓" : "✗"}
                     </span>
-                    <p className="text-sm text-zinc-200">{q.question_text}</p>
+                    <p className="text-sm text-ink">{q.question_text}</p>
                   </div>
                   {!q.is_correct && q.user_answer && (
                     <div className="ml-5 text-xs space-y-0.5">
@@ -168,8 +168,8 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
                       <p className="text-green-400">Correct: {q.correct_answer}</p>
                     </div>
                   )}
-                  {q.explanation && <p className="ml-5 mt-1.5 text-xs text-zinc-500">{q.explanation}</p>}
-                  {q.subtopic_id && <p className="ml-5 mt-1 text-[10px] text-zinc-600">Subtopic: {q.subtopic_id}</p>}
+                  {q.explanation && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)]">{q.explanation}</p>}
+                  {q.subtopic_id && <p className="ml-5 mt-1 text-[10px] text-[var(--ink-faint)]">Subtopic: {q.subtopic_id}</p>}
                 </div>
               ))}
             </div>
@@ -186,21 +186,21 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   const isLastQuestion = currentIndex === questions.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 bg-surface-900 flex flex-col">
+    <div className="fixed inset-0 z-50 bg-bg flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-3 border-b border-surface-700 shrink-0">
+      <div className="flex items-center gap-4 px-6 py-3 border-b border-[var(--rule)] shrink-0">
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-zinc-500 truncate">{course.title} — Level {syllabus.level.toFixed(1)}</p>
+          <p className="text-xs text-[var(--ink-faint)] truncate">{course.title} — Level {syllabus.level}</p>
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs text-zinc-400">{currentIndex + 1} / {questions.length}</span>
-            <div className="flex-1 h-1 rounded-full bg-surface-600 overflow-hidden">
-              <div className="h-full rounded-full bg-terra-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+            <span className="text-xs text-[var(--ink-faint)]">{currentIndex + 1} / {questions.length}</span>
+            <div className="flex-1 h-1 rounded-full bg-lcd overflow-hidden">
+              <div className="h-full rounded-full bg-[rgb(var(--phosphor-rgb)/0.14)] transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-zinc-400 hover:text-zinc-200 text-xs transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-faint)] hover:text-ink text-xs transition-colors shrink-0"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -214,9 +214,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         <div className="w-full max-w-2xl">
           <div className="mb-6">
             {question?.subtopic_id && (
-              <span className="text-[10px] text-zinc-500 mb-2 block">Subtopic: {question.subtopic_id}</span>
+              <span className="text-[10px] text-[var(--ink-faint)] mb-2 block">Subtopic: {question.subtopic_id}</span>
             )}
-            <h2 className="text-lg text-zinc-100 leading-relaxed">{question?.question_text}</h2>
+            <h2 className="text-lg text-ink leading-relaxed">{question?.question_text}</h2>
           </div>
 
           {question && config && (
@@ -234,7 +234,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
             <button
               onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
               disabled={currentIndex === 0}
-              className="px-5 py-2.5 rounded-xl border border-surface-500 text-zinc-300 text-sm font-medium disabled:opacity-30 hover:bg-surface-700 transition-colors"
+              className="px-5 py-2.5 rounded-xl border border-[var(--rule)] text-[var(--ink-dim)] text-sm font-medium disabled:opacity-30 hover:bg-panel-lite transition-colors"
             >
               ← Previous
             </button>
@@ -250,7 +250,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               <button
                 onClick={() => setCurrentIndex((prev) => prev + 1)}
                 disabled={!answeredCurrent}
-                className="px-5 py-2.5 rounded-xl bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium disabled:opacity-40 transition-colors"
+                className="px-5 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-40 transition-colors"
               >
                 Next →
               </button>

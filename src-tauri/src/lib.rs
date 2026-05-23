@@ -121,12 +121,41 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "add generation_state to courses for checkpoint/resume",
+            sql: "
+                ALTER TABLE courses ADD COLUMN generation_state TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "lessons table + quiz self_explanation",
+            sql: "
+                CREATE TABLE IF NOT EXISTS lessons (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL REFERENCES courses(id),
+                    level INTEGER NOT NULL,
+                    subtopic_id TEXT,
+                    topic_string TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    generated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    read_at TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_lessons_course_level ON lessons(course_id, level);
+
+                ALTER TABLE quiz_questions ADD COLUMN self_explanation TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:terraturor.db", migrations)
+                .add_migrations("sqlite:openedu.db", migrations)
                 .build(),
         )
         .plugin(tauri_plugin_http::init())

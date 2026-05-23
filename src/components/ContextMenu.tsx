@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 
 export interface ContextMenuItem {
   label: string;
@@ -47,7 +47,7 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
     <div
       ref={menuRef}
       style={style}
-      className="min-w-[160px] py-1 rounded-lg bg-surface-700 border border-surface-500 shadow-xl shadow-black/40"
+      className="min-w-[160px] py-1 rounded-lg bg-panel-lite border border-[var(--rule)] shadow-xl shadow-black/40"
     >
       {items.map((item, i) => (
         <button
@@ -63,7 +63,7 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
             ${item.disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
             ${item.danger
               ? "text-red-400 hover:bg-red-500/10 hover:text-red-300"
-              : "text-zinc-200 hover:bg-surface-600"
+              : "text-ink hover:bg-lcd"
             }`}
         >
           {item.icon && <span className="shrink-0 opacity-70">{item.icon}</span>}

@@ -1,12 +1,12 @@
 [package]
-name = "terraturor"
+name = "openedu"
 version = "0.1.0"
-description = "TerraTutor - AI-powered personalized learning"
+description = "OpenEdu — AI-powered personalized learning"
 authors = ["TerraByte"]
 edition = "2021"
 
 [lib]
-name = "terraturor_lib"
+name = "openedu_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

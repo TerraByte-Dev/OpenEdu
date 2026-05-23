@@ -1,4 +1,5 @@
-import { callLLM, callLLMStreaming } from "./llm";
+import { callLLM, callLLMStreaming, sanitizeJsonEscapes } from "./llm";
+import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import type { LLMConfig, Syllabus, QuizQuestion } from "../types";
 
 export async function generateQuizQuestions(
@@ -51,6 +52,11 @@ Requirements:
 - Set blank_position to null for non-fill_in_blank types
 - Set matching_pairs to null for non-drag_to_match types
 
+Math/formatting:
+- Use plain-text math only: × ÷ ² ³ π ≤ ≥ √ Δ θ α β.
+- Do NOT use LaTeX, backslash commands, or $...$ delimiters (e.g. write "c × v" not "$\\text{c}\\textbf{v}$").
+- No backslashes anywhere in the JSON strings.
+
 Respond with ONLY the JSON array.`;
 
   const response = await callLLM(
@@ -60,6 +66,7 @@ Respond with ONLY the JSON array.`;
 
   return parseQuestions(response);
 }
+
 
 const VALID_QUESTION_TYPES = new Set([
   "multiple_choice", "true_false", "short_answer", "fill_in_blank",
@@ -131,7 +138,13 @@ function parseQuestions(
   const start = jsonStr.indexOf("[");
   const end = jsonStr.lastIndexOf("]");
   if (start !== -1 && end !== -1) jsonStr = jsonStr.slice(start, end + 1);
-  const parsed = JSON.parse(jsonStr);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    // Retry with stray-backslash repair for LaTeX-leaking small models.
+    parsed = JSON.parse(sanitizeJsonEscapes(jsonStr));
+  }
   return (parsed as Record<string, unknown>[]).map((q) => {
     const rawType = String(q.question_type ?? "multiple_choice");
     const question_type = VALID_QUESTION_TYPES.has(rawType)
@@ -157,7 +170,9 @@ Student's answer: ${studentAnswer}
 
 Evaluate if the student demonstrates understanding of the core concept. Allow for different wording as long as the meaning is correct. Be generous with partial credit — if they show understanding, mark correct.
 
-Return ONLY valid JSON: {"correct": true/false, "feedback": "1-2 sentence feedback explaining the evaluation"}`;
+Return ONLY valid JSON: {"correct": true/false, "feedback": "1-2 sentence feedback explaining the evaluation"}
+
+${MATH_FORMATTING_RULES}`;
 
   const response = await callLLM([{ role: "user", content: prompt }], config);
   let jsonStr = response.trim();
@@ -167,7 +182,12 @@ Return ONLY valid JSON: {"correct": true/false, "feedback": "1-2 sentence feedba
   const s = jsonStr.indexOf("{");
   const e = jsonStr.lastIndexOf("}");
   if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e + 1);
-  const result = JSON.parse(jsonStr) as { correct: boolean; feedback: string };
+  let result: { correct: boolean; feedback: string };
+  try {
+    result = JSON.parse(jsonStr) as { correct: boolean; feedback: string };
+  } catch {
+    result = JSON.parse(sanitizeJsonEscapes(jsonStr)) as { correct: boolean; feedback: string };
+  }
   return { isCorrect: Boolean(result.correct), feedback: String(result.feedback ?? "") };
 }
 
@@ -208,6 +228,9 @@ For true_false questions, correct_answer must be exactly "True" or "False".
 
 Mix question types: multiple_choice (75%) and true_false (25%).
 
+Math/formatting:
+- Use plain-text math only (× ÷ ² ³ π ≤ ≥ √ Δ θ α β); no LaTeX, no backslashes, no $...$ delimiters.
+
 Return ONLY a JSON array:
 [{"question_text":"...","question_type":"multiple_choice","options":["A) ...","B) ...","C) ...","D) ..."],"correct_answer":"C) ...","difficulty_level":${currentSyllabus.level},"explanation":"...","subtopic_id":"...","blank_position":null,"matching_pairs":null}]
 
@@ -234,6 +257,9 @@ Slightly easier than the current level.
 
 CRITICAL: Distribute correct answers randomly across A, B, C, D positions for multiple_choice.
 For true_false, correct_answer must be exactly "True" or "False".
+
+Math/formatting:
+- Use plain-text math only (× ÷ ² ³ π ≤ ≥ √ Δ θ α β); no LaTeX, no backslashes, no $...$ delimiters.
 
 Return ONLY a JSON array:
 [{"question_text":"...","question_type":"multiple_choice","options":["A) ...","B) ...","C) ...","D) ..."],"correct_answer":"B) ...","difficulty_level":${Math.max(0, currentSyllabus.level - 0.5)},"explanation":"...","subtopic_id":null,"blank_position":null,"matching_pairs":null}]
@@ -264,7 +290,9 @@ export async function generateStudyPlan(
 Missed questions:
 ${missedQuestions.slice(0, 10).map((q, i) => `${i + 1}. ${q.question_text}\n   Correct answer: ${q.correct_answer}\n   Why: ${q.explanation}`).join("\n\n")}
 
-Write a focused, actionable study plan (3-5 bullet points) that tells them exactly what to review and practice before retaking the test. Be specific, direct, and encouraging. Use plain text — no markdown headers.`;
+Write a focused, actionable study plan (3-5 bullet points) that tells them exactly what to review and practice before retaking the test. Be specific, direct, and encouraging. Use plain text — no markdown headers.
+
+${MATH_FORMATTING_RULES_PROSE}`;
 
   return onChunk
     ? await callLLMStreaming([{ role: "user", content: prompt }], config, onChunk)

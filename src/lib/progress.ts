@@ -50,18 +50,26 @@ export async function updateSubtopicMastery(
     }
   }
 
-  // Mark subtopic as mastered if >= 80% correct on its questions (min 1 question)
+  // - Mark `practiced` if >= 1 tagged question was seen (sticky).
+  // - Mark `mastered` if >= 90% correct on its questions (Kulik et al. 1990).
   let changed = false;
   const updatedSubtopics = syllabus.subtopics.map((sub) => {
     const s = scores.get(sub.id);
-    if (s && s.total >= 1) {
-      const pct = s.correct / s.total;
-      if (pct >= 0.8 && !sub.mastered) {
-        changed = true;
-        return { ...sub, mastered: true };
-      }
+    if (!s || s.total < 1) return sub;
+
+    let next = sub;
+    if (!next.practiced) {
+      next = { ...next, practiced: true };
+      changed = true;
     }
-    return sub;
+
+    const pct = s.correct / s.total;
+    if (pct >= 0.9 && !next.mastered) {
+      next = { ...next, mastered: true };
+      changed = true;
+    }
+
+    return next;
   });
 
   if (changed) {
@@ -85,8 +93,8 @@ export async function updateUserProgress(courseId: string): Promise<void> {
   const avg = completed.length > 0 ? totalScore / completed.length : null;
 
   // Collect knowledge gaps from all syllabuses: subtopics still not mastered
-  // We load syllabuses lazily via db — check common levels 0.0-5.0
-  const knownLevels = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+  // We load syllabuses lazily via db — check the 6 integer levels (1..6, 6 = mastery exam)
+  const knownLevels = [1, 2, 3, 4, 5, 6];
   const gaps: string[] = [];
   for (const level of knownLevels) {
     const syl = await getSyllabus(courseId, level);
