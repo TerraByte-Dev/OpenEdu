@@ -1,9 +1,13 @@
 {
   "identifier": "default",
-  "description": "Default capabilities for TerraTutor",
+  "description": "Default capabilities for OpenEdu",
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
     "sql:default",
     "sql:allow-execute",
     "sql:allow-select",

@@ -1,14 +1,19 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import type { Course, Syllabus, QuizViewContext } from "../types";
 
 import { getCourse, getSyllabuses } from "../lib/db";
-import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus, generateCourseOutline } from "../lib/curriculum";
+import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus, generateCourseOutline, recordLedgerEntry } from "../lib/curriculum";
 import { getGenerationConfig } from "../lib/store";
 import ChatTab from "../components/ChatTab";
 import NotesTab from "../components/NotesTab";
 import QuizTab from "../components/QuizTab";
+import OverviewTab from "../components/OverviewTab";
 
-type Tab = "chat" | "notes" | "quiz" | "syllabus";
+export type Tab = "overview" | "chat" | "notes" | "quiz" | "syllabus";
+
+export interface SwitchTabOpts {
+  seedTopic?: string;
+}
 
 interface CourseViewProps {
   courseId: string;
@@ -20,10 +25,18 @@ interface CourseViewProps {
 export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromotionTest }: CourseViewProps) {
   const [course, setCourse] = useState<Course | null>(null);
   const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
-  const [activeTab, setActiveTab] = useState<Tab>("chat");
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [viewingLevel, setViewingLevel] = useState<number | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [regenStatus, setRegenStatus] = useState("");
+  const [chatSeedTopic, setChatSeedTopic] = useState<string | undefined>(undefined);
+
+  const switchTab = (tab: Tab, opts?: SwitchTabOpts) => {
+    if (tab === "chat" && opts?.seedTopic) {
+      setChatSeedTopic(opts.seedTopic);
+    }
+    setActiveTab(tab);
+  };
 
   const loadCourseData = async () => {
     const c = await getCourse(courseId);
@@ -31,7 +44,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
     setCourse(c);
     setSyllabuses(s);
     // On initial load, set viewing level to the course's active level
-    setViewingLevel((prev) => prev ?? (c?.current_level ?? 0));
+    setViewingLevel((prev) => prev ?? (c?.current_level ?? 1));
   };
 
   useEffect(() => { loadCourseData(); }, [courseId]);
@@ -40,7 +53,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
     if (!course) return;
     setRegenerating(true);
     setRegenStatus("Researching topic...");
-    const ALL_LEVELS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+    const ALL_LEVELS = [1, 2, 3, 4, 5, 6];
     try {
       const config = await getGenerationConfig();
       const brief = await researchTopic(course.topic, config);
@@ -50,8 +63,9 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
       await generateTutorInstructions(courseId, course.topic, brief, config);
       const previousSyllabuses: Syllabus[] = [];
       for (let i = 0; i < ALL_LEVELS.length; i++) {
-        setRegenStatus(`Building Level ${ALL_LEVELS[i].toFixed(1)} syllabus...`);
+        setRegenStatus(`Building Level ${ALL_LEVELS[i]} syllabus...`);
         const syl = await generateSyllabus(courseId, course.topic, ALL_LEVELS[i], config, brief, undefined, previousSyllabuses, courseOutline);
+        await recordLedgerEntry(courseId, syl);
         previousSyllabuses.push(syl);
       }
       await loadCourseData();
@@ -64,7 +78,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   };
 
   if (!course) {
-    return <div className="flex-1 flex items-center justify-center text-zinc-500">Loading...</div>;
+    return <div className="flex-1 flex items-center justify-center text-[var(--ink-faint)]">Loading...</div>;
   }
 
   // Sorted list of generated level numbers
@@ -86,6 +100,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   const isCurrentLevel = effectiveViewingLevel === course.current_level;
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: "overview", label: "Overview" },
     { id: "chat", label: "Chat" },
     { id: "notes", label: "Notes" },
     { id: "quiz", label: "Quiz" },
@@ -95,20 +110,20 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* ── Top header bar ── */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-surface-600 bg-surface-800 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--rule)] bg-panel shrink-0">
         {/* Left: back + title */}
         <button
           onClick={onBack}
-          className="p-1.5 rounded-lg hover:bg-surface-600 text-zinc-400 hover:text-zinc-200 transition-colors shrink-0"
+          className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink transition-colors shrink-0"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-sm font-semibold text-zinc-100 truncate leading-tight">{course.title}</h1>
-          <p className="text-[11px] text-zinc-500 leading-tight">
-            Active: Level {course.current_level.toFixed(1)} — {getLevelMeaning(course.current_level)}
+          <h1 className="text-sm font-semibold text-ink truncate leading-tight">{course.title}</h1>
+          <p className="text-[11px] text-[var(--ink-faint)] leading-tight">
+            Active: Level {course.current_level} — {getLevelMeaning(course.current_level)}
           </p>
         </div>
 
@@ -119,20 +134,20 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             <button
               onClick={() => navigateLevel(-1)}
               disabled={!canGoBack}
-              className="p-1.5 rounded-lg hover:bg-surface-600 text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Previous unit"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </button>
-            <span className="text-xs font-mono font-semibold text-zinc-300 min-w-[32px] text-center">
-              {effectiveViewingLevel.toFixed(1)}
+            <span className="text-xs font-mono font-semibold text-[var(--ink-dim)] min-w-[32px] text-center">
+              {effectiveViewingLevel}
             </span>
             <button
               onClick={() => navigateLevel(1)}
               disabled={!canGoForward}
-              className="p-1.5 rounded-lg hover:bg-surface-600 text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Next unit"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -158,8 +173,8 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             }
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
               isCurrentLevel && viewingSyllabus
-                ? "bg-terra-600 hover:bg-terra-500 text-white"
-                : "bg-surface-700 text-zinc-500 cursor-not-allowed"
+                ? "btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white"
+                : "bg-panel-lite text-[var(--ink-faint)] cursor-not-allowed"
             }`}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -171,16 +186,16 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
       </div>
 
       {/* ── Tabs row ── */}
-      <div className="flex items-center px-4 pt-1.5 bg-surface-800 border-b border-surface-600 shrink-0">
+      <div className="flex items-center px-4 pt-1.5 bg-panel border-b border-[var(--rule)] shrink-0">
         <div className="flex gap-0.5">
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => switchTab(tab.id)}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
                 activeTab === tab.id
-                  ? "bg-surface-900 text-terra-300 border-b-2 border-terra-500"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-surface-700/50"
+                  ? "bg-bg text-phosphor-bright border-b-2 border-phosphor"
+                  : "text-[var(--ink-faint)] hover:text-ink hover:bg-panel-lite/50"
               }`}
             >
               {tab.label}
@@ -191,19 +206,45 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
         {!isCurrentLevel && (
           <span className="ml-auto text-[10px] text-amber-400/80 flex items-center gap-1 pb-1.5">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            Viewing Level {effectiveViewingLevel.toFixed(1)} — {getLevelMeaning(effectiveViewingLevel)}
+            Viewing Level {effectiveViewingLevel} — {getLevelMeaning(effectiveViewingLevel)}
           </span>
         )}
       </div>
 
       {/* ── Tab content ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        {activeTab === "overview" && (
+          <OverviewTab
+            courseId={courseId}
+            course={course}
+            level={effectiveViewingLevel}
+            currentSyllabus={viewingSyllabus}
+            onRegenerate={syllabuses.length === 0 ? handleRegenerate : undefined}
+            regenerating={regenerating}
+            regenStatus={regenStatus}
+            switchTab={switchTab}
+            onOpenPromotionTest={
+              viewingSyllabus && isCurrentLevel
+                ? () =>
+                    onOpenPromotionTest({
+                      courseId,
+                      course,
+                      level: effectiveViewingLevel,
+                      syllabus: viewingSyllabus,
+                      allSyllabuses: syllabuses,
+                    })
+                : undefined
+            }
+          />
+        )}
         {activeTab === "chat" && (
           <ChatTab
             courseId={courseId}
             course={course}
             level={effectiveViewingLevel}
             currentSyllabus={viewingSyllabus}
+            seedTopic={chatSeedTopic}
+            onSeedConsumed={() => setChatSeedTopic(undefined)}
           />
         )}
         {activeTab === "notes" && (
@@ -251,43 +292,43 @@ function SyllabusView({
             key={syllabus.id || syllabus.level}
             className={`p-5 rounded-xl border ${
               syllabus.level === viewingLevel
-                ? "bg-surface-800 border-terra-500/50"
-                : "bg-surface-800/50 border-surface-600"
+                ? "bg-panel border-phosphor/50"
+                : "bg-panel/50 border-[var(--rule)]"
             }`}
           >
             <div className="flex items-center gap-3 mb-3">
               <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                 syllabus.level === currentLevel
-                  ? "bg-terra-600 text-white"
+                  ? "btn-primary text-white"
                   : syllabus.level < currentLevel
                   ? "bg-green-700/40 text-green-300"
-                  : "bg-surface-600 text-zinc-400"
+                  : "bg-lcd text-[var(--ink-faint)]"
               }`}>
-                {syllabus.level.toFixed(1)}
+                {syllabus.level}
               </span>
-              <h3 className="text-zinc-100 font-semibold">{syllabus.title}</h3>
+              <h3 className="text-ink font-semibold">{syllabus.title}</h3>
               {syllabus.level < currentLevel && (
                 <span className="text-xs text-green-400 ml-auto">Completed ✓</span>
               )}
             </div>
-            <p className="text-sm text-zinc-400 mb-4">{syllabus.description}</p>
+            <p className="text-sm text-[var(--ink-faint)] mb-4">{syllabus.description}</p>
             <div className="mb-4">
-              <h4 className="text-xs uppercase tracking-wider text-zinc-500 font-semibold mb-2">Learning Objectives</h4>
+              <h4 className="text-xs uppercase tracking-wider text-[var(--ink-faint)] font-semibold mb-2">Learning Objectives</h4>
               <ul className="space-y-1">
                 {syllabus.learning_objectives.map((obj, i) => (
-                  <li key={i} className="text-sm text-zinc-300 flex gap-2">
-                    <span className="text-terra-400 shrink-0">–</span>{obj}
+                  <li key={i} className="text-sm text-[var(--ink-dim)] flex gap-2">
+                    <span className="text-phosphor-ink shrink-0">–</span>{obj}
                   </li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="text-xs uppercase tracking-wider text-zinc-500 font-semibold mb-2">Subtopics</h4>
+              <h4 className="text-xs uppercase tracking-wider text-[var(--ink-faint)] font-semibold mb-2">Subtopics</h4>
               <div className="space-y-1.5">
                 {syllabus.subtopics.map((sub) => (
-                  <div key={sub.id} className="flex items-center gap-3 p-2 rounded-lg bg-surface-700/40">
+                  <div key={sub.id} className="flex items-center gap-3 p-2 rounded-lg bg-panel-lite/40">
                     <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      sub.mastered ? "border-green-500 bg-green-500/20" : "border-surface-500"
+                      sub.mastered ? "border-green-500 bg-green-500/20" : "border-[var(--rule)]"
                     }`}>
                       {sub.mastered && (
                         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3">
@@ -296,30 +337,30 @@ function SyllabusView({
                       )}
                     </span>
                     <div className="min-w-0">
-                      <div className="text-sm text-zinc-200">{sub.title}</div>
-                      <div className="text-[10px] text-zinc-500">{sub.key_concepts.join(" · ")}</div>
+                      <div className="text-sm text-ink">{sub.title}</div>
+                      <div className="text-[10px] text-[var(--ink-faint)]">{sub.key_concepts.join(" · ")}</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="mt-3 text-xs text-zinc-500">~{syllabus.estimated_hours}h estimated</div>
+            <div className="mt-3 text-xs text-[var(--ink-faint)]">~{syllabus.estimated_hours}h estimated</div>
           </div>
         ))}
         {syllabuses.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-zinc-500 mb-4">No syllabus generated yet.</p>
+            <p className="text-[var(--ink-faint)] mb-4">No syllabus generated yet.</p>
             {onRegenerate && (
               <div>
                 {regenStatus && (
-                  <p className={`text-sm mb-3 ${regenStatus.startsWith("Error") ? "text-red-400" : "text-terra-300"}`}>
+                  <p className={`text-sm mb-3 ${regenStatus.startsWith("Error") ? "text-red-400" : "text-phosphor-bright"}`}>
                     {regenStatus}
                   </p>
                 )}
                 <button
                   onClick={onRegenerate}
                   disabled={regenerating}
-                  className="px-5 py-2 rounded-lg bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+                  className="px-5 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
                 >
                   {regenerating ? "Generating..." : "Generate Syllabus Now"}
                 </button>

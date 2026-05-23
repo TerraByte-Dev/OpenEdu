@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import type { Syllabus, QuizQuestion } from "../types";
 import {
   createPromotionAttempt, saveQuizQuestion, completeQuizAttempt, getLastPromotionAttempt,
@@ -240,11 +240,11 @@ export default function PromotionTestModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-surface-800 border border-surface-600 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="w-full max-w-2xl bg-panel border border-[var(--rule)] rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
 
         {/* ── Checking ── */}
         {modalState === "checking" && (
-          <div className="flex-1 flex items-center justify-center p-12 text-zinc-400">
+          <div className="flex-1 flex items-center justify-center p-12 text-[var(--ink-faint)]">
             Checking eligibility...
           </div>
         )}
@@ -255,11 +255,11 @@ export default function PromotionTestModal({
             <ModalHeader title="Promotion Test" onClose={onClose} />
             <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
               <div className="text-5xl mb-4">⏳</div>
-              <h2 className="text-xl font-bold text-zinc-100 mb-2">Cooldown Active</h2>
-              <p className="text-zinc-400 mb-1">You need to wait before retaking this test.</p>
-              <p className="text-terra-300 font-semibold text-lg">{cooldownStr} remaining</p>
-              <p className="text-xs text-zinc-500 mt-4">Use this time to review the study plan from your last attempt and practice weak areas.</p>
-              <button onClick={onClose} className="mt-8 px-6 py-2.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-zinc-300 text-sm transition-colors">Close</button>
+              <h2 className="text-xl font-bold text-ink mb-2">Cooldown Active</h2>
+              <p className="text-[var(--ink-faint)] mb-1">You need to wait before retaking this test.</p>
+              <p className="text-phosphor-bright font-semibold text-lg">{cooldownStr} remaining</p>
+              <p className="text-xs text-[var(--ink-faint)] mt-4">Use this time to review the study plan from your last attempt and practice weak areas.</p>
+              <button onClick={onClose} className="mt-8 px-6 py-2.5 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-dim)] text-sm transition-colors">Close</button>
             </div>
           </>
         )}
@@ -270,34 +270,34 @@ export default function PromotionTestModal({
             <ModalHeader title="Promotion Test" onClose={onClose} />
             <div className="flex-1 overflow-y-auto p-8">
               <div className="max-w-lg mx-auto text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-terra-600/20 border border-terra-500/30 rounded-full text-terra-300 text-sm font-medium mb-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 btn-primary/20 border border-phosphor/30 rounded-full text-phosphor-bright text-sm font-medium mb-4">
                   Level {currentLevel.toFixed(1)} — {getLevelMeaning(currentLevel)}
                 </div>
-                <h2 className="text-2xl font-bold text-zinc-100 mb-2">
+                <h2 className="text-2xl font-bold text-ink mb-2">
                   {currentSyllabus?.title ?? `Level ${currentLevel}`}
                 </h2>
-                <p className="text-zinc-400 text-sm mb-6">Pass this test to advance to the next level.</p>
+                <p className="text-[var(--ink-faint)] text-sm mb-6">Pass this test to advance to the next level.</p>
 
                 <div className="grid grid-cols-3 gap-4 mb-8 text-center">
-                  <div className="p-4 rounded-xl bg-surface-700/60 border border-surface-500">
-                    <div className="text-2xl font-bold text-zinc-100">~{questions.length || "20"}</div>
-                    <div className="text-xs text-zinc-500 mt-0.5">Questions</div>
+                  <div className="p-4 rounded-xl bg-panel-lite/60 border border-[var(--rule)]">
+                    <div className="text-2xl font-bold text-ink">~{questions.length || "20"}</div>
+                    <div className="text-xs text-[var(--ink-faint)] mt-0.5">Questions</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-surface-700/60 border border-surface-500">
-                    <div className="text-2xl font-bold text-zinc-100">{formatTime(getTimeLimitSeconds(currentLevel))}</div>
-                    <div className="text-xs text-zinc-500 mt-0.5">Time Limit</div>
+                  <div className="p-4 rounded-xl bg-panel-lite/60 border border-[var(--rule)]">
+                    <div className="text-2xl font-bold text-ink">{formatTime(getTimeLimitSeconds(currentLevel))}</div>
+                    <div className="text-xs text-[var(--ink-faint)] mt-0.5">Time Limit</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-surface-700/60 border border-surface-500">
-                    <div className="text-2xl font-bold text-zinc-100">80%</div>
-                    <div className="text-xs text-zinc-500 mt-0.5">To Pass</div>
+                  <div className="p-4 rounded-xl bg-panel-lite/60 border border-[var(--rule)]">
+                    <div className="text-2xl font-bold text-ink">80%</div>
+                    <div className="text-xs text-[var(--ink-faint)] mt-0.5">To Pass</div>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-surface-700/40 border border-surface-600 text-left mb-6 text-sm space-y-2">
-                  <p className="text-zinc-300 font-medium">What to expect:</p>
-                  <p className="text-zinc-400">• Questions on this level's material (~75%) + previous levels (~25%)</p>
-                  <p className="text-zinc-400">• You need 80% overall and 60% on review questions to pass</p>
-                  <p className="text-zinc-400">• If you fail, a study plan is generated and a 24-hour cooldown applies</p>
+                <div className="p-4 rounded-xl bg-panel-lite/40 border border-[var(--rule)] text-left mb-6 text-sm space-y-2">
+                  <p className="text-[var(--ink-dim)] font-medium">What to expect:</p>
+                  <p className="text-[var(--ink-faint)]">• Questions on this level's material (~75%) + previous levels (~25%)</p>
+                  <p className="text-[var(--ink-faint)]">• You need 80% overall and 60% on review questions to pass</p>
+                  <p className="text-[var(--ink-faint)]">• If you fail, a study plan is generated and a 24-hour cooldown applies</p>
                 </div>
 
                 {genError && (
@@ -309,7 +309,7 @@ export default function PromotionTestModal({
                 <button
                   onClick={startTest}
                   disabled={!currentSyllabus}
-                  className="w-full px-6 py-3.5 rounded-xl bg-terra-600 hover:bg-terra-500 text-white font-semibold text-base disabled:opacity-50 transition-colors"
+                  className="w-full px-6 py-3.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white font-semibold text-base disabled:opacity-50 transition-colors"
                 >
                   Begin Test
                 </button>
@@ -323,13 +323,13 @@ export default function PromotionTestModal({
           <>
             <ModalHeader title="Generating Test Questions" />
             <div className="flex-1 flex flex-col p-6 gap-4">
-              <div className="flex items-center gap-3 text-zinc-300">
-                <span className="w-3 h-3 rounded-full bg-terra-400 animate-pulse shrink-0" />
+              <div className="flex items-center gap-3 text-[var(--ink-dim)]">
+                <span className="w-3 h-3 rounded-full bg-phosphor-ink animate-pulse shrink-0" />
                 <span className="text-sm">Building your promotion test — this may take a minute...</span>
               </div>
               {genLog && (
-                <div ref={genLogRef} className="flex-1 rounded-lg bg-surface-900 border border-surface-600 p-3 overflow-y-auto">
-                  <pre className="text-[11px] font-mono text-zinc-500 whitespace-pre-wrap leading-relaxed">{genLog}</pre>
+                <div ref={genLogRef} className="flex-1 rounded-lg bg-bg border border-[var(--rule)] p-3 overflow-y-auto">
+                  <pre className="text-[11px] font-mono text-[var(--ink-faint)] whitespace-pre-wrap leading-relaxed">{genLog}</pre>
                 </div>
               )}
               {genError && (
@@ -343,26 +343,26 @@ export default function PromotionTestModal({
         {modalState === "in_progress" && question && (
           <>
             {/* Test header with timer */}
-            <div className="flex items-center gap-4 px-5 py-3 border-b border-surface-600 shrink-0">
+            <div className="flex items-center gap-4 px-5 py-3 border-b border-[var(--rule)] shrink-0">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-zinc-500">{currentIndex + 1} / {questions.length}</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-surface-700 text-zinc-400">
+                  <span className="text-xs text-[var(--ink-faint)]">{currentIndex + 1} / {questions.length}</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-panel-lite text-[var(--ink-faint)]">
                     {question.section === "review" ? "Review" : "Current Level"}
                   </span>
                 </div>
-                <div className="h-1.5 rounded-full bg-surface-600 overflow-hidden">
-                  <div className="h-full rounded-full bg-terra-500 transition-all" style={{ width: `${progress}%` }} />
+                <div className="h-1.5 rounded-full bg-lcd overflow-hidden">
+                  <div className="h-full rounded-full bg-[rgb(var(--phosphor-rgb)/0.14)] transition-all" style={{ width: `${progress}%` }} />
                 </div>
               </div>
-              <div className={`text-lg font-mono font-bold shrink-0 ${timeLeft < 300 ? "text-red-400" : "text-zinc-200"}`}>
+              <div className={`text-lg font-mono font-bold shrink-0 ${timeLeft < 300 ? "text-red-400" : "text-ink"}`}>
                 {formatTime(timeLeft)}
               </div>
             </div>
 
             {/* Question */}
             <div className="flex-1 overflow-y-auto p-6">
-              <h3 className="text-base text-zinc-100 mb-5 leading-relaxed">{question.question_text}</h3>
+              <h3 className="text-base text-ink mb-5 leading-relaxed">{question.question_text}</h3>
               <div className="space-y-3">
                 {(question.options ?? ["True", "False"]).map((option) => (
                   <button
@@ -370,8 +370,8 @@ export default function PromotionTestModal({
                     onClick={() => setSelectedAnswer(option)}
                     className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
                       selectedAnswer === option
-                        ? "border-terra-500 bg-terra-500/10 text-zinc-100"
-                        : "border-surface-500 bg-surface-700/50 text-zinc-300 hover:border-terra-500/50"
+                        ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.14)]/10 text-ink"
+                        : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-dim)] hover:border-phosphor/50"
                     }`}
                   >
                     {option}
@@ -380,11 +380,11 @@ export default function PromotionTestModal({
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-surface-600 shrink-0">
+            <div className="px-6 py-4 border-t border-[var(--rule)] shrink-0">
               <button
                 onClick={submitAnswer}
                 disabled={selectedAnswer === null}
-                className="w-full px-6 py-3 rounded-xl bg-terra-600 hover:bg-terra-500 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full px-6 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {currentIndex < questions.length - 1 ? "Next Question" : "Submit Test"}
               </button>
@@ -405,7 +405,7 @@ export default function PromotionTestModal({
                   <div className={`text-5xl font-bold mb-1 ${passed ? "text-green-400" : "text-red-400"}`}>
                     {Math.round(overallScore)}%
                   </div>
-                  <div className="text-zinc-400 text-sm">Overall Score</div>
+                  <div className="text-[var(--ink-faint)] text-sm">Overall Score</div>
                   {reviewScore !== null && (
                     <div className={`mt-2 text-sm ${reviewScore >= 60 ? "text-green-400" : "text-red-400"}`}>
                       Review section: {Math.round(reviewScore)}% {reviewScore >= 60 ? "✓" : "✗ (need 60%)"}
@@ -415,37 +415,37 @@ export default function PromotionTestModal({
 
                 {passed ? (
                   <div className="text-center">
-                    <p className="text-zinc-300 mb-2">You've advanced to Level {(currentLevel + 0.5).toFixed(1)}!</p>
-                    <p className="text-zinc-500 text-sm">Your new unit has been unlocked. Keep going.</p>
+                    <p className="text-[var(--ink-dim)] mb-2">You've advanced to Level {(currentLevel + 0.5).toFixed(1)}!</p>
+                    <p className="text-[var(--ink-faint)] text-sm">Your new unit has been unlocked. Keep going.</p>
                     <button
                       onClick={onClose}
-                      className="mt-6 px-6 py-2.5 rounded-lg bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium transition-colors"
+                      className="mt-6 px-6 py-2.5 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
                     >
                       Continue Learning
                     </button>
                   </div>
                 ) : (
                   <div>
-                    <p className="text-zinc-400 text-sm mb-4">
+                    <p className="text-[var(--ink-faint)] text-sm mb-4">
                       You need 80% overall and 60% on the review section to advance. A 24-hour cooldown is now active.
                     </p>
 
                     {/* Study plan */}
-                    <div className="p-4 rounded-xl bg-surface-700/60 border border-surface-600">
-                      <h3 className="text-sm font-semibold text-zinc-200 mb-2 flex items-center gap-2">
+                    <div className="p-4 rounded-xl bg-panel-lite/60 border border-[var(--rule)]">
+                      <h3 className="text-sm font-semibold text-ink mb-2 flex items-center gap-2">
                         📋 Study Plan
-                        {generatingPlan && <span className="text-[10px] text-zinc-500 font-normal animate-pulse">Generating...</span>}
+                        {generatingPlan && <span className="text-[10px] text-[var(--ink-faint)] font-normal animate-pulse">Generating...</span>}
                       </h3>
                       {studyPlan ? (
-                        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{studyPlan}</p>
+                        <p className="text-sm text-[var(--ink-dim)] whitespace-pre-wrap leading-relaxed">{studyPlan}</p>
                       ) : (
-                        !generatingPlan && <p className="text-zinc-500 text-sm">No study plan available.</p>
+                        !generatingPlan && <p className="text-[var(--ink-faint)] text-sm">No study plan available.</p>
                       )}
                     </div>
 
                     <button
                       onClick={onClose}
-                      className="mt-5 w-full px-6 py-2.5 rounded-lg bg-surface-700 hover:bg-surface-600 text-zinc-300 text-sm transition-colors"
+                      className="mt-5 w-full px-6 py-2.5 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-dim)] text-sm transition-colors"
                     >
                       Back to Course
                     </button>
@@ -462,12 +462,12 @@ export default function PromotionTestModal({
 
 function ModalHeader({ title, onClose }: { title: string; onClose?: () => void }) {
   return (
-    <div className="flex items-center justify-between px-5 py-4 border-b border-surface-600 shrink-0">
-      <h2 className="text-base font-semibold text-zinc-100">{title}</h2>
+    <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--rule)] shrink-0">
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
       {onClose && (
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-surface-600 text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />

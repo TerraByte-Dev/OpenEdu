@@ -1,10 +1,25 @@
 import { fetch } from "@tauri-apps/plugin-http";
-import type { LLMConfig } from "../types";
+import type { LLMConfig, ModelTier } from "../types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // Strip trailing slashes so we never build double-slash paths like /api//tags
 function normalizeBase(url: string): string {
   return url.replace(/\/+$/, "");
+}
+
+// Small Ollama models often emit raw LaTeX (\alpha, \frac, \pi, \sum, ...) inside
+// JSON string values without doubling the backslash. JSON.parse rejects those as
+// "Bad escaped character", and even when grammar-constrained sampling lets them
+// through, \t / \b / \n get silently decoded into control characters that corrupt
+// stored content. Double any backslash that isn't followed by a valid JSON escape.
+export function sanitizeJsonEscapes(s: string): string {
+  return s.replace(/\\(?!["\\\/bfnrtu])/g, "\\\\");
+}
+
+// Try JSON.parse, with a stray-backslash repair retry as a fallback.
+function tryParseJsonLenient(raw: string): unknown {
+  try { return JSON.parse(raw); }
+  catch { return JSON.parse(sanitizeJsonEscapes(raw)); }
 }
 
 // ─── Logger ──────────────────────────────────────────────────────────────────
@@ -470,6 +485,703 @@ export async function callLLM(
   }
 
   throw new Error(`Unknown provider "${config.provider}" — check Settings.`);
+}
+
+// ─── Ollama version probe (cached per baseUrl) ────────────────────────────────
+const ollamaVersionCache = new Map<string, string | null>();
+
+export async function getOllamaVersion(ollamaUrl: string): Promise<string | null> {
+  const base = normalizeBase(ollamaUrl || "http://127.0.0.1:11434");
+  if (ollamaVersionCache.has(base)) return ollamaVersionCache.get(base)!;
+  try {
+    const response = await fetch(`${base}/api/version`, {
+      method: "GET",
+      headers: { "Accept": "application/json", "Origin": "" },
+    });
+    if (!response.ok) { ollamaVersionCache.set(base, null); return null; }
+    const json = await response.json();
+    const version = (typeof json.version === "string" ? json.version : null);
+    ollamaVersionCache.set(base, version);
+    log.info("getOllamaVersion", `Ollama ${base} → ${version ?? "unknown"}`);
+    return version;
+  } catch (e) {
+    log.warn("getOllamaVersion", "probe failed", e);
+    ollamaVersionCache.set(base, null);
+    return null;
+  }
+}
+
+function ollamaSupportsSchemaFormat(version: string | null): boolean {
+  // Schema-as-format introduced in Ollama 0.5.0
+  if (!version) return false;
+  const parts = version.split(".").map((p) => parseInt(p, 10));
+  if (Number.isNaN(parts[0])) return false;
+  if (parts[0] > 0) return true;
+  if (parts[0] === 0 && (parts[1] ?? 0) >= 5) return true;
+  return false;
+}
+
+// ─── Model tier detection ─────────────────────────────────────────────────────
+// The harness adapts to the chosen model's capability tier — tiny/small models
+// get shorter prompts, looser schemas, sequential calls, longer timeouts. Tier is
+// auto-detected (Ollama via /api/show parameter_size; cloud via a static map).
+// Users never pick a tier directly.
+
+// Per-session cache; keyed by "provider:model". Cleared on app restart.
+const tierCache = new Map<string, ModelTier>();
+
+// Tier budgets — knobs the rest of the harness reads to adapt behavior.
+//   promptCharCap        — soft cap on per-call prompt size (research/topic-list/etc.)
+//   expansionParallelism — max concurrent subtopic-expansion calls in Stage B
+//   minLengthScale       — schema minLength constraints multiplied by this before send/validate
+//   perCallTimeoutMs     — abort a single LLM call after this long. Generous because the harness
+//                          runs many calls; one slow one stalling for ~3min is better UX than
+//                          a fast abort that breaks the whole pipeline. Ollama is the slow path —
+//                          a 7B model on a modest GPU/CPU can take 60–120s for a single structured
+//                          call. The per-provider multiplier below tightens this for cloud APIs.
+//   fewShot              — inject one worked example into prompts that support it
+export const TIER_BUDGETS: Record<ModelTier, {
+  promptCharCap: number;
+  expansionParallelism: number;
+  minLengthScale: number;
+  perCallTimeoutMs: number;
+  fewShot: boolean;
+}> = {
+  tiny:   { promptCharCap: 1500, expansionParallelism: 1, minLengthScale: 0.5, perCallTimeoutMs: 180_000, fewShot: true  },
+  small:  { promptCharCap: 2500, expansionParallelism: 1, minLengthScale: 0.5, perCallTimeoutMs: 150_000, fewShot: true  },
+  medium: { promptCharCap: 4000, expansionParallelism: 4, minLengthScale: 1.0, perCallTimeoutMs: 120_000, fewShot: false },
+  large:  { promptCharCap: 6000, expansionParallelism: 8, minLengthScale: 1.0, perCallTimeoutMs: 90_000,  fewShot: false },
+};
+
+// Cloud APIs (OpenAI/Anthropic) are reliable and fast — tighten their effective timeout
+// to half the tier value. This keeps the safety net for stuck local models while
+// catching real cloud-side hangs quickly.
+function effectivePerCallTimeoutMs(provider: string, tier: ModelTier | undefined): number {
+  const base = tier ? TIER_BUDGETS[tier].perCallTimeoutMs : 120_000;
+  if (provider === "openai" || provider === "anthropic") return Math.round(base / 2);
+  return base;
+}
+
+// Static cloud-model tier map. Substring match — covers versioned variants like
+// "claude-sonnet-4-6-20250101" without needing an entry per snapshot.
+function cloudModelTier(provider: "openai" | "anthropic", model: string): ModelTier {
+  const m = model.toLowerCase();
+  if (provider === "openai") {
+    if (m.includes("gpt-4") && !m.includes("mini") && !m.includes("nano")) return "large";
+    if (m.includes("gpt-5")) return "large";
+    if (m.includes("o3") || m.includes("o4")) return "large";
+    if (m.includes("mini") || m.includes("nano")) return "medium";
+    return "medium";
+  }
+  // anthropic
+  if (m.includes("opus")) return "large";
+  if (m.includes("sonnet")) return "large";
+  if (m.includes("haiku")) return "medium";
+  return "medium";
+}
+
+// Parse Ollama's parameter_size string like "3.8B", "7B", "1.5B", "70B".
+// Returns number of parameters in billions, or null on parse failure.
+function parseParamBillions(s: string | undefined | null): number | null {
+  if (!s) return null;
+  const match = /^([\d.]+)\s*([BMK])$/i.exec(s.trim());
+  if (!match) return null;
+  const n = parseFloat(match[1]);
+  if (!Number.isFinite(n)) return null;
+  const unit = match[2].toUpperCase();
+  if (unit === "B") return n;
+  if (unit === "M") return n / 1000;
+  if (unit === "K") return n / 1_000_000;
+  return null;
+}
+
+function tierFromBillions(b: number | null): ModelTier {
+  if (b === null) return "small"; // safe default for unknown Ollama models
+  if (b < 3) return "tiny";
+  if (b < 6) return "small";
+  if (b < 20) return "medium";
+  return "large";
+}
+
+// Name-based tier override for Ollama models where the actual parameter count
+// doesn't reflect effective/active params at inference (e.g., Gemma 3n's
+// Matformer architecture: "e4b" has 4B *effective* params but Ollama's
+// /api/show reports the ~7-8B total). Without this, gemma3n:e4b mis-tiers as
+// "medium" (with a tight timeout) when it behaves like a 4B model at runtime.
+// Returns null when no override applies — caller falls back to parameter_size mapping.
+function ollamaNameTierOverride(model: string): ModelTier | null {
+  // Match e2b / e4b suffixes used by Gemma 3n / gemma4 aliases.
+  const m = model.toLowerCase();
+  if (/(?:^|[-:_])e2b(?:[-:_]|$)/.test(m)) return "tiny";
+  if (/(?:^|[-:_])e4b(?:[-:_]|$)/.test(m)) return "small";
+  return null;
+}
+
+export async function detectModelTier(config: LLMConfig): Promise<ModelTier> {
+  const cacheKey = `${config.provider}:${config.model}`;
+  const hit = tierCache.get(cacheKey);
+  if (hit) return hit;
+
+  let tier: ModelTier;
+  if (config.provider === "openai" || config.provider === "anthropic") {
+    tier = cloudModelTier(config.provider, config.model);
+  } else {
+    // Ollama — check name overrides first (for Matformer / "effective param" models
+    // whose actual /api/show parameter count is misleading), then fall back to /api/show.
+    const nameOverride = ollamaNameTierOverride(config.model);
+    if (nameOverride) {
+      tier = nameOverride;
+      log.info("detectModelTier", `${config.model} → name-override → ${tier}`);
+    } else {
+      const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+      try {
+        const response = await fetch(`${baseUrl}/api/show`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+          body: JSON.stringify({ name: config.model }),
+        });
+        if (!response.ok) {
+          log.warn("detectModelTier", `Ollama /api/show ${response.status} for ${config.model} — defaulting to small`);
+          tier = "small";
+        } else {
+          const json = await response.json();
+          const sizeStr: string | undefined = json?.details?.parameter_size;
+          const billions = parseParamBillions(sizeStr);
+          tier = tierFromBillions(billions);
+          log.info("detectModelTier", `${config.model} → ${sizeStr ?? "?"} → ${tier}`);
+        }
+      } catch (e) {
+        log.warn("detectModelTier", "probe failed — defaulting to small", e);
+        tier = "small";
+      }
+    }
+  }
+
+  tierCache.set(cacheKey, tier);
+  return tier;
+}
+
+// ─── Structured output: schema-enforced JSON with repair-retry ────────────────
+// Goal: reliable JSON from small local models (gemma4:e4b) and from cloud APIs alike.
+// Strategy: provider-native enforcement first (Ollama format-schema, OpenAI json_schema strict,
+// Anthropic forced tool_use), validate against schema in TS, repair-retry on failure.
+
+export interface StructuredOpts<T = unknown> {
+  schema: object;             // JSON Schema (subset: type/required/additionalProperties/properties/items/enum/pattern/min*/max*)
+  toolName?: string;          // Anthropic tool name + OpenAI json_schema name (default "Output")
+  maxRepairAttempts?: number; // default 2
+  temperature?: number;       // default 0.2 (low — schema mode plus low temp = stable output)
+  signal?: AbortSignal;
+  onProgress?: (msg: string) => void;
+  // Caller-supplied semantic validation that runs after structural schema validation.
+  // Use this for cross-field constraints schema can't express (uniqueness, completeness, etc.).
+  // Return [] when valid; return human-readable issue strings to trigger repair-retry.
+  validate?: (parsed: T) => string[];
+  // When set to tiny/small, the schema's minLength constraints are halved before being
+  // sent to the provider AND used for local validation. Small models often produce
+  // technically-valid content that misses minLength by a character or two; this prevents
+  // pointless repair-retry rejections without accepting genuinely empty fields.
+  tier?: ModelTier;
+}
+
+// Deep-clone a JSON schema and scale every minLength / minItems found within by `scale`.
+// Walks objects (properties), arrays (items), and is safe on the JSON-Schema subset we use.
+// Returns a fresh schema — the input is not mutated.
+function scaleSchemaMinima(schema: object, scale: number): object {
+  if (scale === 1.0) return schema;
+  const walk = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (node !== null && typeof node === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if ((k === "minLength" || k === "minItems") && typeof v === "number") {
+          out[k] = Math.max(1, Math.floor(v * scale));
+        } else {
+          out[k] = walk(v);
+        }
+      }
+      return out;
+    }
+    return node;
+  };
+  return walk(schema) as object;
+}
+
+// Schema validator — supports the subset of JSON Schema we actually use.
+// Returns an array of human-readable issues; empty array means valid.
+function validateAgainstSchema(value: unknown, schema: Record<string, unknown>, path = "$"): string[] {
+  const issues: string[] = [];
+  const s = schema as Record<string, unknown>;
+  const t = s.type as string | undefined;
+
+  if (t === "object") {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      issues.push(`${path}: expected object`);
+      return issues;
+    }
+    const v = value as Record<string, unknown>;
+    const required = (s.required as string[] | undefined) ?? [];
+    for (const key of required) if (!(key in v)) issues.push(`${path}.${key}: missing required field`);
+    const props = (s.properties as Record<string, Record<string, unknown>> | undefined) ?? {};
+    if (s.additionalProperties === false) {
+      for (const key of Object.keys(v)) if (!(key in props)) issues.push(`${path}.${key}: not allowed by schema`);
+    }
+    for (const key of Object.keys(props)) {
+      if (key in v) issues.push(...validateAgainstSchema(v[key], props[key], `${path}.${key}`));
+    }
+    return issues;
+  }
+
+  if (t === "array") {
+    if (!Array.isArray(value)) { issues.push(`${path}: expected array`); return issues; }
+    const min = s.minItems as number | undefined;
+    const max = s.maxItems as number | undefined;
+    if (min !== undefined && value.length < min) issues.push(`${path}: expected ≥${min} items, got ${value.length}`);
+    if (max !== undefined && value.length > max) issues.push(`${path}: expected ≤${max} items, got ${value.length}`);
+    const items = s.items as Record<string, unknown> | undefined;
+    if (items) {
+      for (let i = 0; i < value.length; i++) issues.push(...validateAgainstSchema(value[i], items, `${path}[${i}]`));
+    }
+    return issues;
+  }
+
+  if (t === "string") {
+    if (typeof value !== "string") { issues.push(`${path}: expected string`); return issues; }
+    const min = s.minLength as number | undefined;
+    const max = s.maxLength as number | undefined;
+    if (min !== undefined && value.length < min) issues.push(`${path}: string too short (${value.length} < ${min})`);
+    if (max !== undefined && value.length > max) issues.push(`${path}: string too long (${value.length} > ${max})`);
+    if (typeof s.pattern === "string" && !new RegExp(s.pattern).test(value)) issues.push(`${path}: does not match pattern ${s.pattern}`);
+    if (Array.isArray(s.enum) && !s.enum.includes(value)) issues.push(`${path}: "${value}" not in enum`);
+    return issues;
+  }
+
+  if (t === "number" || t === "integer") {
+    if (typeof value !== "number" || Number.isNaN(value)) { issues.push(`${path}: expected number`); return issues; }
+    if (t === "integer" && !Number.isInteger(value)) issues.push(`${path}: expected integer`);
+    const min = s.minimum as number | undefined;
+    const max = s.maximum as number | undefined;
+    if (min !== undefined && value < min) issues.push(`${path}: ${value} < minimum ${min}`);
+    if (max !== undefined && value > max) issues.push(`${path}: ${value} > maximum ${max}`);
+    if (Array.isArray(s.enum) && !s.enum.includes(value)) issues.push(`${path}: ${value} not in enum`);
+    return issues;
+  }
+
+  if (t === "boolean") {
+    if (typeof value !== "boolean") issues.push(`${path}: expected boolean`);
+    return issues;
+  }
+
+  return issues;
+}
+
+interface ProviderResult { raw: string; parsed: unknown }
+
+async function callOllamaStructured(
+  messages: Array<{ role: string; content: string }>,
+  config: LLMConfig,
+  schema: object,
+  temperature: number,
+  signal?: AbortSignal,
+): Promise<ProviderResult> {
+  const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+  const version = await getOllamaVersion(baseUrl);
+  const supportsSchema = ollamaSupportsSchemaFormat(version);
+
+  const body: Record<string, unknown> = {
+    model: config.model,
+    messages,
+    stream: false,
+    options: { temperature },
+    format: supportsSchema ? schema : "json",
+  };
+
+  log.info("callOllamaStructured", `POST ${baseUrl}/api/chat schema=${supportsSchema ? "yes" : "json-loose"} v=${version ?? "?"}`);
+
+  let response: Awaited<ReturnType<typeof fetch>>;
+  try {
+    response = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") throw e;
+    throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e)}`);
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    if (response.status === 404) throw new Error(`Ollama model "${config.model}" not found — run: ollama pull ${config.model}`);
+    throw new Error(`Ollama error ${response.status}: ${text || "unknown"}`);
+  }
+
+  const json = await response.json();
+  const raw: string = json.message?.content ?? "";
+
+  let parsed: unknown = null;
+  try { parsed = tryParseJsonLenient(raw); }
+  catch {
+    // Last-ditch brace extraction in case model wrapped output in prose
+    const first = raw.indexOf("{"), last = raw.lastIndexOf("}");
+    if (first !== -1 && last > first) {
+      try { parsed = tryParseJsonLenient(raw.slice(first, last + 1)); } catch { parsed = null; }
+    }
+  }
+  return { raw, parsed };
+}
+
+async function callOpenAIStructured(
+  messages: Array<{ role: string; content: string }>,
+  config: LLMConfig,
+  schema: object,
+  toolName: string,
+  temperature: number,
+  signal?: AbortSignal,
+): Promise<ProviderResult> {
+  if (!config.apiKey) throw new Error("OpenAI API key not set — go to Settings to add your key.");
+
+  const body = {
+    model: config.model,
+    messages,
+    temperature,
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: toolName, strict: true, schema },
+    },
+  };
+
+  log.info("callOpenAIStructured", `model=${config.model} toolName=${toolName}`);
+
+  let response: Awaited<ReturnType<typeof fetch>>;
+  try {
+    response = await fetchWithRetry("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${config.apiKey}`,
+        "Origin": "",
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") throw e;
+    throw new Error(`Network error connecting to OpenAI: ${networkAwareMessage(e)}`);
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw friendlyHttpError("OpenAI", response.status, text);
+  }
+
+  const json = await response.json();
+  const raw: string = json.choices?.[0]?.message?.content ?? "";
+  let parsed: unknown = null;
+  try { parsed = tryParseJsonLenient(raw); } catch { parsed = null; }
+  return { raw, parsed };
+}
+
+async function callAnthropicStructured(
+  messages: Array<{ role: string; content: string }>,
+  config: LLMConfig,
+  schema: object,
+  toolName: string,
+  temperature: number,
+  signal?: AbortSignal,
+): Promise<ProviderResult> {
+  if (!config.apiKey) throw new Error("Anthropic API key not set — go to Settings to add your key.");
+
+  const systemMsg = messages.find((m) => m.role === "system");
+  const chatMsgs = messages.filter((m) => m.role !== "system");
+
+  const body: Record<string, unknown> = {
+    model: config.model,
+    max_tokens: 8096,
+    temperature,
+    messages: chatMsgs,
+    tools: [{
+      name: toolName,
+      description: "Emit structured output matching the provided JSON schema.",
+      input_schema: schema,
+    }],
+    tool_choice: { type: "tool", name: toolName },
+  };
+  if (systemMsg) body.system = systemMsg.content;
+
+  log.info("callAnthropicStructured", `model=${config.model} toolName=${toolName}`);
+
+  let response: Awaited<ReturnType<typeof fetch>>;
+  try {
+    response = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": config.apiKey,
+        "anthropic-version": "2023-06-01",
+        "Origin": "",
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") throw e;
+    throw new Error(`Network error connecting to Anthropic: ${networkAwareMessage(e)}`);
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw friendlyHttpError("Anthropic", response.status, text);
+  }
+
+  const json = await response.json();
+  const blocks = (json.content ?? []) as Array<{ type: string; text?: string; input?: unknown }>;
+  const toolUse = blocks.find((b) => b.type === "tool_use");
+  if (toolUse && toolUse.input !== undefined) {
+    return { raw: JSON.stringify(toolUse.input), parsed: toolUse.input };
+  }
+  const raw = blocks.map((b) => b.text ?? "").join("\n");
+  return { raw, parsed: null };
+}
+
+/**
+ * Schema-enforced structured output across providers.
+ * Validates against the schema in TypeScript after API-native enforcement; repair-retries
+ * up to `maxRepairAttempts` times on validation failure.
+ */
+export async function callLLMStructured<T>(
+  messages: Array<{ role: string; content: string }>,
+  config: LLMConfig,
+  opts: StructuredOpts<T>,
+): Promise<T> {
+  const toolName = opts.toolName ?? "Output";
+  const maxRepair = opts.maxRepairAttempts ?? 2;
+  const temperature = opts.temperature ?? 0.2;
+
+  // Tier-aware schema relaxation: scale minLength/minItems by the tier's minLengthScale.
+  // The SAME relaxed schema is sent to the provider AND used for validation, so we can't
+  // accept loose output we'd then reject locally.
+  const tierScale = opts.tier ? TIER_BUDGETS[opts.tier].minLengthScale : 1.0;
+  const effectiveSchema = scaleSchemaMinima(opts.schema, tierScale);
+
+  // Per-call timeout from tier budget, halved for fast cloud APIs.
+  // A single hung call shouldn't be allowed to stall a 5–10 min pipeline forever,
+  // but local Ollama models can legitimately take 60–120s per structured call.
+  const perCallTimeoutMs = effectivePerCallTimeoutMs(config.provider, opts.tier);
+
+  let workingMessages = [...messages];
+  let lastRaw = "";
+  let lastIssues: string[] = [];
+
+  for (let attempt = 0; attempt <= maxRepair; attempt++) {
+    if (opts.signal?.aborted) throw new Error("Aborted");
+
+    // Fresh per-attempt AbortController. Links to caller's signal (if any) AND a timer
+    // bounded by perCallTimeoutMs. Either side firing aborts the provider call.
+    const attemptController = new AbortController();
+    const timer = setTimeout(() => attemptController.abort(), perCallTimeoutMs);
+    const onParentAbort = () => attemptController.abort();
+    if (opts.signal) {
+      if (opts.signal.aborted) attemptController.abort();
+      else opts.signal.addEventListener("abort", onParentAbort, { once: true });
+    }
+
+    let result: ProviderResult;
+    try {
+      if (config.provider === "ollama") {
+        result = await callOllamaStructured(workingMessages, config, effectiveSchema, temperature, attemptController.signal);
+      } else if (config.provider === "openai") {
+        result = await callOpenAIStructured(workingMessages, config, effectiveSchema, toolName, temperature, attemptController.signal);
+      } else if (config.provider === "anthropic") {
+        result = await callAnthropicStructured(workingMessages, config, effectiveSchema, toolName, temperature, attemptController.signal);
+      } else {
+        throw new Error(`Unknown provider "${config.provider}"`);
+      }
+    } catch (e) {
+      // Surface a clear timeout message; otherwise propagate.
+      const wasTimeout = attemptController.signal.aborted && !opts.signal?.aborted;
+      const wasUserAbort = opts.signal?.aborted ?? false;
+      if (wasUserAbort) throw new Error("Aborted");
+      if (wasTimeout) {
+        throw new Error(
+          `LLM call timed out after ${perCallTimeoutMs / 1000}s (tier=${opts.tier ?? "default"}). ` +
+          `The model may be too slow or hung; try a smaller model or check your Ollama server.`
+        );
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      if (opts.signal) opts.signal.removeEventListener("abort", onParentAbort);
+    }
+
+    lastRaw = result.raw;
+
+    let issues: string[];
+    if (result.parsed === null || result.parsed === undefined) {
+      issues = ["response did not contain valid JSON"];
+    } else {
+      issues = validateAgainstSchema(result.parsed, effectiveSchema as Record<string, unknown>);
+      // Semantic validation runs only after structural schema passes — repair-retry handles both.
+      if (issues.length === 0 && opts.validate) {
+        try {
+          issues = opts.validate(result.parsed as T);
+        } catch (e) {
+          issues = [`validator threw: ${e instanceof Error ? e.message : String(e)}`];
+        }
+      }
+    }
+
+    if (issues.length === 0) {
+      log.info("callLLMStructured", `OK on attempt ${attempt + 1}/${maxRepair + 1}`);
+      return result.parsed as T;
+    }
+
+    lastIssues = issues;
+
+    if (attempt < maxRepair) {
+      opts.onProgress?.(`[repair ${attempt + 1}/${maxRepair}] ${lastIssues.slice(0, 2).join("; ")}`);
+      log.warn("callLLMStructured", `Validation failed (attempt ${attempt + 1})`, lastIssues);
+      workingMessages = [
+        ...messages,
+        { role: "assistant", content: lastRaw },
+        { role: "user", content: `That output was invalid: ${lastIssues.slice(0, 5).join("; ")}. Re-emit ONLY valid JSON matching the schema and all stated requirements. No prose, no markdown fences.` },
+      ];
+    }
+  }
+
+  throw new Error(
+    `Structured output failed after ${maxRepair + 1} attempts. Issues: ${lastIssues.join("; ")}. ` +
+    `Last response (first 200 chars): "${lastRaw.slice(0, 200)}"`,
+  );
+}
+
+// ─── Preflight: prove the model can emit structured JSON ─────────────────────
+// Tiny probe call (name + age) used as step 0 of course generation. Hard-blocks
+// the pipeline when the chosen model can't satisfy the schema reliably — so a
+// user picking, say, a too-small Ollama model finds out in seconds instead of
+// 5–20 minutes into a doomed run.
+
+export interface PreflightResult {
+  ok: boolean;
+  reason?: string;
+  suggestion?: string;
+  detectedTier?: ModelTier;
+}
+
+const PREFLIGHT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "age"],
+  properties: {
+    name: { type: "string", minLength: 1, maxLength: 40 },
+    age: { type: "integer", minimum: 0, maximum: 150 },
+  },
+} as const;
+
+// 90s ceiling — Ollama cold-loading a 4B model into RAM on a CPU box routinely
+// takes 30–60s on the first call. 30s used to false-positive as a model-capability
+// failure. Aligns with the per-call timeouts CLAUDE.md notes for this tier.
+const PREFLIGHT_TIMEOUT_MS = 90_000;
+
+const SUGGESTION_STRUCTURED_FAIL =
+  "The selected model can't reliably emit structured JSON. " +
+  "Try gemma3:4b (or a similarly sized model) for local Ollama, or a cloud model from Settings.";
+
+export async function preflightStructuredOutput(config: LLMConfig): Promise<PreflightResult> {
+  const tier = await detectModelTier(config).catch(() => undefined);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PREFLIGHT_TIMEOUT_MS);
+
+  try {
+    log.info("preflight", `Probing ${config.provider}/${config.model}...`);
+    const result = await callLLMStructured<{ name: string; age: number }>(
+      [{ role: "user", content: "Emit a JSON object with the name and age of a fictional person. Name must be 1+ characters, age must be an integer 0-150." }],
+      config,
+      {
+        schema: PREFLIGHT_SCHEMA,
+        toolName: "person",
+        maxRepairAttempts: 1, // tight — don't burn budget here; we're just checking capability
+        signal: controller.signal,
+      },
+    );
+    log.info("preflight", `OK — model returned ${JSON.stringify(result)}`);
+    return { ok: true, detectedTier: tier };
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    const isAbort = raw.toLowerCase().includes("abort");
+    log.warn("preflight", `Failed: ${raw}`);
+    return {
+      ok: false,
+      reason: isAbort
+        ? `Model did not respond within ${PREFLIGHT_TIMEOUT_MS / 1000}s — it may be too slow or offline.`
+        : raw,
+      suggestion: SUGGESTION_STRUCTURED_FAIL,
+      detectedTier: tier,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ─── Dev-only smoke test: window.__testStructured(provider, model) ────────────
+// Temporary harness for verifying the structured-output plumbing per provider.
+// Remove in Commit 5 cleanup.
+if (typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).__testStructured = async (
+    provider: "ollama" | "openai" | "anthropic",
+    model: string,
+    apiKey?: string,
+    ollamaUrl?: string,
+  ) => {
+    const config: LLMConfig = { provider, model, apiKey, ollamaUrl };
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      required: ["name", "age"],
+      properties: {
+        name: { type: "string", minLength: 1, maxLength: 40 },
+        age: { type: "integer", minimum: 0, maximum: 150 },
+      },
+    };
+    try {
+      const result = await callLLMStructured<{ name: string; age: number }>(
+        [{ role: "user", content: "Emit a JSON object with the name and age of a fictional person." }],
+        config,
+        { schema, toolName: "person", onProgress: (m) => console.log(`[smoke] ${m}`) },
+      );
+      console.log(`[smoke] ✓ ${provider}/${model}:`, result);
+      return result;
+    } catch (e) {
+      console.error(`[smoke] ✗ ${provider}/${model}:`, e);
+      throw e;
+    }
+  };
+
+  // ─── Dev-only smoke test: window.__testSanitize() ─────────────────────────
+  // Regression check for sanitizeJsonEscapes — the four known-broken inputs
+  // small models emit (\alpha, \frac, \text{c}, \sum) plus two valid-escape
+  // cases that must round-trip untouched. Asserts idempotency on every case.
+  (window as unknown as Record<string, unknown>).__testSanitize = () => {
+    const cases: Array<[string, string]> = [
+      [String.raw`{"x":"\alpha"}`,        String.raw`{"x":"\\alpha"}`],
+      [String.raw`{"x":"\frac{1}{2}"}`,   String.raw`{"x":"\\frac{1}{2}"}`],
+      [String.raw`{"x":"\text{c}"}`,      String.raw`{"x":"\\text{c}"}`],
+      [String.raw`{"x":"\sum_i x_i"}`,    String.raw`{"x":"\\sum_i x_i"}`],
+      [String.raw`{"x":"line\nbreak"}`,   String.raw`{"x":"line\nbreak"}`],
+      [String.raw`{"x":"quote\"inside"}`, String.raw`{"x":"quote\"inside"}`],
+    ];
+    const results = cases.map(([input, expected]) => {
+      const got = sanitizeJsonEscapes(input);
+      const idempotent = sanitizeJsonEscapes(got) === got;
+      return { input, expected, got, ok: got === expected && idempotent };
+    });
+    console.table(results);
+    const allOk = results.every((r) => r.ok);
+    console.log(allOk ? "[sanitize] ✓ all cases pass" : "[sanitize] ✗ failures above");
+    return allOk;
+  };
 }
 
 // ─── Fetch available Ollama models ────────────────────────────────────────────

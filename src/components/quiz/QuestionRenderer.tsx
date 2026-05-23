@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import type { QuizQuestion, LLMConfig } from "../../types";
 import { gradeWrittenResponse } from "../../lib/quiz";
 
@@ -95,7 +95,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
             Correct answer: {question.correct_answer}
           </p>
         )}
-        {question.explanation && <p className="text-zinc-400 text-xs">{question.explanation}</p>}
+        {question.explanation && <p className="text-[var(--ink-faint)] text-xs">{question.explanation}</p>}
       </div>
     );
   }
@@ -120,8 +120,8 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
               disabled={disabled || submitted}
               className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
                 selected === option
-                  ? "border-terra-500 bg-terra-500/10 text-zinc-100"
-                  : "border-surface-500 bg-surface-700/50 text-zinc-300 hover:border-terra-500/50 disabled:opacity-50"
+                  ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.14)]/10 text-ink"
+                  : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-dim)] hover:border-phosphor/50 disabled:opacity-50"
               }`}
             >
               {option}
@@ -136,7 +136,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
       const parts = sentence.split("___");
       return (
         <div className="space-y-4">
-          <p className="text-sm text-zinc-300 leading-relaxed">
+          <p className="text-sm text-[var(--ink-dim)] leading-relaxed">
             {parts[0]}
             <input
               type="text"
@@ -145,18 +145,18 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
               onKeyDown={(e) => { if (e.key === "Enter" && selected.trim() && !submitted) handleAIGrade(); }}
               disabled={disabled || submitted || grading}
               placeholder="your answer"
-              className="inline-block mx-2 px-3 py-1.5 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500 w-44"
+              className="inline-block mx-2 px-3 py-1.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor w-44"
             />
             {parts[1] ?? ""}
           </p>
           {gradeFeedback && (
-            <p className="text-sm text-zinc-400 italic">{gradeFeedback}</p>
+            <p className="text-sm text-[var(--ink-faint)] italic">{gradeFeedback}</p>
           )}
           {!submitted && (
             <button
               onClick={handleAIGrade}
               disabled={!selected.trim() || disabled || grading}
-              className="px-5 py-2 rounded-xl bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {grading ? "Grading..." : "Check Answer"}
             </button>
@@ -176,16 +176,16 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
             disabled={disabled || submitted || grading}
             placeholder="Write your answer here..."
             rows={4}
-            className="w-full px-4 py-3 rounded-xl bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500 resize-none"
+            className="w-full px-4 py-3 rounded-xl bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor resize-none"
           />
           {gradeFeedback && (
-            <p className="text-sm text-zinc-400 italic">{gradeFeedback}</p>
+            <p className="text-sm text-[var(--ink-faint)] italic">{gradeFeedback}</p>
           )}
           {!submitted && (
             <button
               onClick={handleAIGrade}
               disabled={!selected.trim() || disabled || grading}
-              className="px-5 py-2 rounded-xl bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {grading ? "Grading..." : "Submit Answer"}
             </button>
@@ -200,7 +200,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
       const allMatched = Object.keys(matchPairs).length === pairs.length;
       return (
         <div className="space-y-3">
-          <p className="text-xs text-zinc-500 mb-2">Click a left item, then its match on the right. Click a paired item again to unmatch.</p>
+          <p className="text-xs text-[var(--ink-faint)] mb-2">Click a left item, then its match on the right. Click a paired item again to unmatch.</p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               {leftItems.map((item) => {
@@ -213,15 +213,15 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
                     disabled={disabled || submitted}
                     className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                       isSelected
-                        ? "border-terra-500 bg-terra-500/15 text-zinc-100"
+                        ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.14)]/15 text-ink"
                         : isPaired
-                        ? "border-terra-400/40 bg-terra-500/10 text-zinc-200"
-                        : "border-surface-500 bg-surface-700/50 text-zinc-300 hover:border-terra-400/50"
+                        ? "border-phosphor-ink/40 bg-[rgb(var(--phosphor-rgb)/0.14)]/10 text-ink"
+                        : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-dim)] hover:border-phosphor-ink/50"
                     }`}
                   >
                     <span>{item}</span>
                     {isPaired && (
-                      <span className="ml-2 text-xs text-terra-300">→ {matchPairs[item]}</span>
+                      <span className="ml-2 text-xs text-phosphor-bright">→ {matchPairs[item]}</span>
                     )}
                   </button>
                 );
@@ -237,10 +237,10 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
                     disabled={disabled || submitted || selectedLeft === null}
                     className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                       isMatched
-                        ? "border-terra-400/40 bg-terra-500/10 text-zinc-300"
+                        ? "border-phosphor-ink/40 bg-[rgb(var(--phosphor-rgb)/0.14)]/10 text-[var(--ink-dim)]"
                         : selectedLeft !== null
-                        ? "border-surface-400 bg-surface-700 text-zinc-200 hover:border-terra-400"
-                        : "border-surface-500 bg-surface-700/50 text-zinc-500"
+                        ? "border-[var(--rule)] bg-panel-lite text-ink hover:border-phosphor-ink"
+                        : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-faint)]"
                     }`}
                   >
                     {item}
@@ -252,7 +252,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
           {allMatched && !submitted && (
             <button
               onClick={handleSubmitMatch}
-              className="mt-2 px-5 py-2 rounded-xl bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium transition-colors"
+              className="mt-2 px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
             >
               Submit Matches
             </button>
@@ -267,6 +267,6 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config 
     }
 
     default:
-      return <p className="text-zinc-400 text-sm">Unknown question type.</p>;
+      return <p className="text-[var(--ink-faint)] text-sm">Unknown question type.</p>;
   }
 }

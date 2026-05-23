@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/nicegui/static/tauri_conf_schema.json",
-  "productName": "TerraTutor",
+  "productName": "OpenEdu",
   "version": "0.1.0",
-  "identifier": "com.terrabyte.terraturor",
+  "identifier": "com.terrabyte.openedu",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,13 +12,15 @@
   "app": {
     "windows": [
       {
-        "title": "TerraTutor",
+        "title": "OpenEdu",
         "width": 1200,
         "height": 800,
         "resizable": true,
         "fullscreen": false,
         "minWidth": 900,
-        "minHeight": 600
+        "minHeight": 600,
+        "decorations": false,
+        "backgroundColor": "#000000"
       }
     ],
     "security": {
