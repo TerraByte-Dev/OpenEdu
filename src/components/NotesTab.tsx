@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { marked } from "marked";
 import ForceGraph2D from "react-force-graph-2d";
 import type { Note } from "../types";
@@ -151,11 +151,11 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   return (
     <div className="flex h-full min-h-0">
       {/* ── Note list sidebar ── */}
-      <div className="w-52 border-r border-surface-600 bg-surface-800 flex flex-col shrink-0">
-        <div className="p-2.5 border-b border-surface-600 flex gap-2">
+      <div className="w-52 border-r border-[var(--rule)] bg-panel flex flex-col shrink-0">
+        <div className="p-2.5 border-b border-[var(--rule)] flex gap-2">
           <button
             onClick={handleCreate}
-            className="flex-1 px-2.5 py-1.5 rounded-lg bg-terra-600 hover:bg-terra-500 text-white text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            className="flex-1 px-2.5 py-1.5 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
@@ -167,8 +167,8 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             title="Toggle graph view"
             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               panelView === "graph"
-                ? "bg-terra-600 text-white"
-                : "bg-surface-600 hover:bg-surface-500 text-zinc-400"
+                ? "btn-primary text-white"
+                : "bg-lcd hover:bg-panel text-[var(--ink-faint)]"
             }`}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -185,18 +185,18 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             <button
               key={note.id}
               onClick={() => selectNote(note)}
-              className={`w-full text-left px-3 py-2.5 border-b border-surface-700 hover:bg-surface-700 transition-colors ${
-                selectedNote?.id === note.id && panelView === "note" ? "bg-surface-700 border-l-2 border-l-terra-500" : ""
+              className={`w-full text-left px-3 py-2.5 border-b border-[var(--rule)] hover:bg-panel-lite transition-colors ${
+                selectedNote?.id === note.id && panelView === "note" ? "bg-panel-lite border-l-2 border-l-phosphor" : ""
               }`}
             >
-              <div className="text-sm text-zinc-200 truncate">{note.title}</div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">
+              <div className="text-sm text-ink truncate">{note.title}</div>
+              <div className="text-[10px] text-[var(--ink-faint)] mt-0.5">
                 {new Date(note.updated_at).toLocaleDateString()}
               </div>
             </button>
           ))}
           {notes.length === 0 && (
-            <div className="p-4 text-xs text-zinc-500 text-center">No notes yet</div>
+            <div className="p-4 text-xs text-[var(--ink-faint)] text-center">No notes yet</div>
           )}
         </div>
       </div>
@@ -204,11 +204,11 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
       {/* ── Main panel ── */}
       {panelView === "graph" ? (
         /* Graph view */
-        <div ref={graphContainerRef} className="flex-1 min-h-0 bg-surface-900 relative overflow-hidden">
+        <div ref={graphContainerRef} className="flex-1 min-h-0 bg-bg relative overflow-hidden">
           {notes.length < 2 ? (
-            <div className="flex-1 flex items-center justify-center h-full text-zinc-500 text-sm">
+            <div className="flex-1 flex items-center justify-center h-full text-[var(--ink-faint)] text-sm">
               Create at least 2 notes and link them with{" "}
-              <code className="mx-1 px-1 bg-surface-700 rounded text-terra-300">[[Note Title]]</code>{" "}
+              <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code>{" "}
               to see the graph
             </div>
           ) : (
@@ -244,7 +244,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               }}
             />
           )}
-          <div className="absolute top-3 right-3 text-[10px] text-zinc-600">
+          <div className="absolute top-3 right-3 text-[10px] text-[var(--ink-faint)]">
             {graph.nodes.length} notes · {graph.links.length} links
           </div>
         </div>
@@ -254,22 +254,22 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           {selectedNote ? (
             <>
               {/* Toolbar */}
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-surface-600 shrink-0">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--rule)] shrink-0">
                 <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   onBlur={handleBlur}
-                  className="flex-1 bg-transparent text-zinc-100 font-semibold focus:outline-none min-w-0"
+                  className="flex-1 bg-transparent text-ink font-semibold focus:outline-none min-w-0"
                   placeholder="Note title..."
                 />
-                {saving && <span className="text-[10px] text-zinc-500 shrink-0">Saving...</span>}
+                {saving && <span className="text-[10px] text-[var(--ink-faint)] shrink-0">Saving...</span>}
                 {/* Edit / Preview toggle */}
-                <div className="flex rounded-lg overflow-hidden border border-surface-500 shrink-0">
+                <div className="flex rounded-lg overflow-hidden border border-[var(--rule)] shrink-0">
                   <button
                     onClick={() => setMode("edit")}
                     className={`px-3 py-1 text-xs font-medium transition-colors ${
-                      mode === "edit" ? "bg-terra-600 text-white" : "bg-surface-700 text-zinc-400 hover:text-zinc-200"
+                      mode === "edit" ? "btn-primary text-white" : "bg-panel-lite text-[var(--ink-faint)] hover:text-ink"
                     }`}
                   >
                     Edit
@@ -277,7 +277,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   <button
                     onClick={handleSwitchToPreview}
                     className={`px-3 py-1 text-xs font-medium transition-colors ${
-                      mode === "preview" ? "bg-terra-600 text-white" : "bg-surface-700 text-zinc-400 hover:text-zinc-200"
+                      mode === "preview" ? "btn-primary text-white" : "bg-panel-lite text-[var(--ink-faint)] hover:text-ink"
                     }`}
                   >
                     Preview
@@ -285,7 +285,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 </div>
                 <button
                   onClick={handleDelete}
-                  className="p-1.5 rounded hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition-colors shrink-0"
+                  className="p-1.5 rounded hover:bg-red-500/20 text-[var(--ink-faint)] hover:text-red-400 transition-colors shrink-0"
                   title="Delete note"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -300,7 +300,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   onBlur={handleBlur}
-                  className="flex-1 p-4 bg-transparent text-zinc-200 text-sm resize-none focus:outline-none font-mono leading-relaxed"
+                  className="flex-1 p-4 bg-transparent text-ink text-sm resize-none focus:outline-none font-mono leading-relaxed"
                   placeholder={"Start writing in Markdown...\n\nUse [[Note Title]] to link to another note."}
                 />
               ) : (
@@ -317,14 +317,14 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               )}
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500">
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[var(--ink-faint)]">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
               </svg>
               <span className="text-sm">Select a note or create a new one</span>
-              <p className="text-xs text-zinc-600 text-center max-w-xs">
-                Use <code className="px-1 bg-surface-700 rounded text-terra-300">[[Note Title]]</code> to link notes together
+              <p className="text-xs text-[var(--ink-faint)] text-center max-w-xs">
+                Use <code className="px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code> to link notes together
               </p>
             </div>
           )}

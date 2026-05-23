@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { marked } from "marked";
 import type { Course, ChatMessage, Syllabus } from "../types";
 import { getChatMessages, saveChatMessage, getTutorInstructions } from "../lib/db";
@@ -15,9 +15,11 @@ interface ChatTabProps {
   course: Course;
   level: number;
   currentSyllabus: Syllabus | null;
+  seedTopic?: string;
+  onSeedConsumed?: () => void;
 }
 
-export default function ChatTab({ courseId, course, level, currentSyllabus }: ChatTabProps) {
+export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -26,6 +28,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
   const [activeMode, setActiveMode] = useState<TutorModeId>("explain");
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -33,6 +36,15 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
       setMessages(msgs);
     })();
   }, [courseId, level]);
+
+  // Deep-link from OverviewTab / NextStepCard: pre-fill the input with a topic
+  // prompt and let the user edit or send. Consumed once.
+  useEffect(() => {
+    if (!seedTopic) return;
+    setInput(`Help me with ${seedTopic}.`);
+    inputRef.current?.focus();
+    onSeedConsumed?.();
+  }, [seedTopic, onSeedConsumed]);
 
   // Abort any in-flight stream on unmount or when level/course changes
   useEffect(() => {
@@ -121,10 +133,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && !streaming && (
-          <div className="text-center text-zinc-500 py-12">
+          <div className="text-center text-[var(--ink-faint)] py-12">
             <p className="text-lg mb-2">Start chatting with your tutor</p>
             <p className="text-sm">
-              Ask about <span className="text-terra-400">{course.topic}</span> and your tutor will guide you through the curriculum.
+              Ask about <span className="text-phosphor-ink">{course.topic}</span> and your tutor will guide you through the curriculum.
             </p>
             {!currentSyllabus && (
               <p className="text-xs text-amber-500/70 mt-3">
@@ -138,10 +150,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
         ))}
         {streaming && (
           <div className="flex gap-3">
-            <span className="w-8 h-8 rounded-lg bg-terra-700/40 text-terra-300 flex items-center justify-center text-xs font-bold shrink-0">
+            <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
               AI
             </span>
-            <div className="flex-1 p-3 rounded-xl bg-surface-800 text-sm text-zinc-200">
+            <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
               {streamingText
                 ? (
                   <div className="note-prose">
@@ -149,13 +161,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
                       // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: marked.parse(streamingText) as string }}
                     />
-                    <span className="inline-block w-1.5 h-4 bg-terra-400 animate-pulse ml-0.5 align-middle" />
+                    <span className="inline-block w-1.5 h-4 bg-phosphor-ink animate-pulse ml-0.5 align-middle" />
                   </div>
                 )
                 : (
-                  <span className="text-zinc-500 italic">
+                  <span className="text-[var(--ink-faint)] italic">
                     Thinking...
-                    <span className="inline-block w-1.5 h-4 bg-terra-400 animate-pulse ml-0.5 align-middle" />
+                    <span className="inline-block w-1.5 h-4 bg-phosphor-ink animate-pulse ml-0.5 align-middle" />
                   </span>
                 )
               }
@@ -171,7 +183,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-surface-600 bg-surface-800">
+      <div className="p-4 border-t border-[var(--rule)] bg-panel">
         {/* Mode selector */}
         <div className="flex gap-1 max-w-3xl mx-auto mb-2.5">
           {TUTOR_MODES.map((mode) => (
@@ -181,8 +193,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
               title={mode.title}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
                 activeMode === mode.id
-                  ? "bg-terra-600/30 text-terra-300 border border-terra-500/40"
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-surface-700"
+                  ? "btn-primary/30 text-phosphor-bright border border-phosphor/40"
+                  : "text-[var(--ink-faint)] hover:text-[var(--ink-dim)] hover:bg-panel-lite"
               }`}
             >
               <span>{mode.icon}</span>
@@ -192,6 +204,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
         </div>
         <div className="flex gap-3 max-w-3xl mx-auto">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -202,14 +215,14 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
               }
             }}
             placeholder="Ask your tutor anything..."
-            className="flex-1 px-4 py-3 rounded-xl bg-surface-700 border border-surface-500 text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none focus:border-terra-500"
+            className="flex-1 px-4 py-3 rounded-xl bg-panel-lite border border-[var(--rule)] text-ink placeholder-[var(--ink-faint)] text-sm focus:outline-none focus:border-phosphor"
             disabled={streaming}
           />
           {streaming ? (
             <button
               onClick={cancelStream}
               title="Stop generating"
-              className="px-4 py-3 rounded-xl bg-surface-600 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 transition-colors"
+              className="px-4 py-3 rounded-xl bg-lcd hover:bg-red-500/20 text-[var(--ink-faint)] hover:text-red-400 transition-colors"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="6" width="12" height="12" rx="1" />
@@ -219,7 +232,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus }: Ch
             <button
               onClick={sendMessage}
               disabled={!input.trim()}
-              className="px-4 py-3 rounded-xl bg-terra-600 hover:bg-terra-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
@@ -237,12 +250,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-        isUser ? "bg-surface-600 text-zinc-300" : "bg-terra-700/40 text-terra-300"
+        isUser ? "bg-lcd text-[var(--ink-dim)]" : "bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright"
       }`}>
         {isUser ? "You" : "AI"}
       </span>
       <div className={`max-w-[75%] p-3 rounded-xl text-sm leading-relaxed ${
-        isUser ? "bg-terra-600/20 text-zinc-200 whitespace-pre-wrap" : "bg-surface-800 text-zinc-200"
+        isUser ? "btn-primary/20 text-ink whitespace-pre-wrap" : "bg-panel text-ink"
       }`}>
         {isUser ? message.content : (
           <div

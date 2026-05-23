@@ -1,11 +1,11 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress } from "../types";
+import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson } from "../types";
 
 let db: Database | null = null;
 
 export async function getDb(): Promise<Database> {
   if (!db) {
-    db = await Database.load("sqlite:terraturor.db");
+    db = await Database.load("sqlite:openedu.db");
   }
   return db;
 }
@@ -29,8 +29,11 @@ export async function getCourse(id: string): Promise<Course | null> {
 export async function createCourse(title: string, topic: string): Promise<Course> {
   const d = await getDb();
   const id = uuid();
+  // current_level defaults to 1.0 (the first learning level in the new 1..6 scheme).
+  // We set it explicitly here rather than via the migration 1 default (which would
+  // change a previously-applied migration and trip the plugin's hash check).
   await d.execute(
-    "INSERT INTO courses (id, title, topic) VALUES ($1, $2, $3)",
+    "INSERT INTO courses (id, title, topic, current_level) VALUES ($1, $2, $3, 1.0)",
     [id, title, topic]
   );
   return (await getCourse(id))!;
@@ -54,6 +57,22 @@ export async function updateCourseLevel(id: string, level: number): Promise<void
   await d.execute(
     "UPDATE courses SET current_level = $1, updated_at = datetime('now') WHERE id = $2",
     [level, id]
+  );
+}
+
+export async function updateGenerationState(id: string, state: string | null): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE courses SET generation_state = $1, updated_at = datetime('now') WHERE id = $2",
+    [state, id]
+  );
+}
+
+export async function updateCourseStatus(id: string, status: "active" | "completed" | "archived"): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE courses SET status = $1, updated_at = datetime('now') WHERE id = $2",
+    [status, id]
   );
 }
 
@@ -376,4 +395,58 @@ export async function getTutorInstruction(courseId: string, type: string): Promi
     [courseId, type]
   );
   return rows[0]?.content ?? null;
+}
+
+// Lessons (user-pulled, lazy-generated, cached forever)
+export async function createLesson(
+  courseId: string,
+  level: number,
+  topic: string,
+  content: string,
+  subtopicId: string | null,
+): Promise<Lesson> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute(
+    "INSERT INTO lessons (id, course_id, level, subtopic_id, topic_string, content) VALUES ($1, $2, $3, $4, $5, $6)",
+    [id, courseId, level, subtopicId, topic, content]
+  );
+  const rows: Lesson[] = await d.select("SELECT * FROM lessons WHERE id = $1", [id]);
+  return rows[0];
+}
+
+export async function getLessons(courseId: string, level?: number): Promise<Lesson[]> {
+  const d = await getDb();
+  if (level === undefined) {
+    return await d.select(
+      "SELECT * FROM lessons WHERE course_id = $1 ORDER BY generated_at DESC",
+      [courseId]
+    );
+  }
+  return await d.select(
+    "SELECT * FROM lessons WHERE course_id = $1 AND level = $2 ORDER BY generated_at DESC",
+    [courseId, level]
+  );
+}
+
+export async function getLesson(id: string): Promise<Lesson | null> {
+  const d = await getDb();
+  const rows: Lesson[] = await d.select("SELECT * FROM lessons WHERE id = $1", [id]);
+  return rows[0] ?? null;
+}
+
+export async function markLessonRead(id: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE lessons SET read_at = datetime('now') WHERE id = $1 AND read_at IS NULL",
+    [id]
+  );
+}
+
+export async function saveSelfExplanation(questionId: string, text: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE quiz_questions SET self_explanation = $1 WHERE id = $2",
+    [text, questionId]
+  );
 }

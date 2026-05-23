@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import type { LLMProvider } from "../types";
 import {
   getLLMProvider, setLLMProvider, setGenerationModel, setChatModel,
@@ -146,18 +146,18 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-zinc-100 mb-6">Settings</h1>
+        <h1 className="text-2xl font-bold text-ink mb-6">Settings</h1>
 
         {/* Provider */}
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">LLM Provider</h2>
+          <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-3">LLM Provider</h2>
           <div className="flex gap-3 flex-wrap">
             {PROVIDERS.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setProvider(p.id)}
                 className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  provider === p.id ? "bg-terra-600 text-white" : "bg-surface-700 text-zinc-300 hover:bg-surface-600"
+                  provider === p.id ? "btn-primary text-white" : "bg-panel-lite text-[var(--ink-dim)] hover:bg-lcd"
                 }`}
               >
                 {p.name}
@@ -169,27 +169,27 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
         {/* Ollama */}
         {provider === "ollama" && (
           <section className="mb-8">
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">Ollama Connection</h2>
+            <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-3">Ollama Connection</h2>
             <div className="flex gap-3 items-center mb-3">
               <input
                 type="text"
                 value={ollamaUrlValue}
                 onChange={(e) => setOllamaUrlValue(e.target.value)}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor"
               />
               <button
                 onClick={checkOllama}
-                className="px-3 py-2.5 rounded-lg bg-surface-600 hover:bg-surface-500 text-zinc-300 text-sm transition-colors shrink-0"
+                className="px-3 py-2.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-dim)] text-sm transition-colors shrink-0"
               >
                 Refresh
               </button>
               <div className={`flex items-center gap-2 text-sm shrink-0 ${
                 ollamaStatus === "connected" ? "text-green-400" :
-                ollamaStatus === "disconnected" ? "text-red-400" : "text-zinc-500"
+                ollamaStatus === "disconnected" ? "text-red-400" : "text-[var(--ink-faint)]"
               }`}>
                 <span className={`w-2 h-2 rounded-full ${
                   ollamaStatus === "connected" ? "bg-green-400" :
-                  ollamaStatus === "disconnected" ? "bg-red-400" : "bg-zinc-500 animate-pulse"
+                  ollamaStatus === "disconnected" ? "bg-red-400" : "bg-[var(--ink-faint)] animate-pulse"
                 }`} />
                 {ollamaStatus === "connected" ? `${ollamaModels.length} models` :
                  ollamaStatus === "disconnected" ? "Offline" : "Checking..."}
@@ -198,10 +198,10 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
             {ollamaStatus === "disconnected" && (
               <div className="mb-3 space-y-1">
                 {ollamaError && (
-                  <p className="text-xs text-red-400 font-mono bg-surface-700 px-2 py-1.5 rounded">{ollamaError}</p>
+                  <p className="text-xs text-red-400 font-mono bg-panel-lite px-2 py-1.5 rounded">{ollamaError}</p>
                 )}
-                <p className="text-xs text-zinc-500">
-                  Install from <strong>ollama.com</strong> and run a model: <code className="bg-surface-700 px-1 rounded">ollama run llama3</code>
+                <p className="text-xs text-[var(--ink-faint)]">
+                  Install from <strong>ollama.com</strong> and run a model: <code className="bg-panel-lite px-1 rounded">ollama run llama3</code>
                 </p>
               </div>
             )}
@@ -211,19 +211,19 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
         {/* API Key */}
         {provider !== "ollama" && (
           <section className="mb-8">
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">API Key</h2>
+            <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-3">API Key</h2>
             <div className="flex gap-2">
               <input
                 type="password"
                 value={apiKeyValue}
                 onChange={(e) => { setApiKeyValue(e.target.value); setVerifyResult(null); }}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor"
                 placeholder={`Enter your ${provider === "openai" ? "OpenAI" : "Anthropic"} API key`}
               />
               <button
                 onClick={handleVerify}
                 disabled={verifying || !apiKeyValue.trim()}
-                className="px-4 py-2.5 rounded-lg bg-surface-600 hover:bg-surface-500 text-zinc-200 text-sm font-medium disabled:opacity-50 transition-colors shrink-0"
+                className="px-4 py-2.5 rounded-lg bg-lcd hover:bg-panel text-ink text-sm font-medium disabled:opacity-50 transition-colors shrink-0"
               >
                 {verifying ? "Testing..." : "Verify Key"}
               </button>
@@ -233,7 +233,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
                 {verifyResult.ok ? "✓ " : "✗ "}{verifyResult.msg}
               </p>
             )}
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-[var(--ink-faint)]">
               Stored locally. Never sent anywhere except the provider's API.
             </p>
           </section>
@@ -243,8 +243,8 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           {/* Generation model */}
           <div>
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-1">Course Generation Model</h2>
-            <p className="text-xs text-zinc-600 mb-3">Used for research & syllabus creation. Bigger = better curricula.</p>
+            <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-1">Course Generation Model</h2>
+            <p className="text-xs text-[var(--ink-faint)] mb-3">Used for research & syllabus creation. Bigger = better curricula.</p>
 
             {provider === "ollama" ? (
               <OllamaModelPicker
@@ -262,12 +262,12 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
                     key={m.id}
                     onClick={() => setGenModel(m.id)}
                     className={`px-3 py-2 rounded-lg text-sm text-left flex items-center gap-2 transition-colors ${
-                      genModel === m.id ? "bg-terra-600 text-white" : "bg-surface-700 text-zinc-300 hover:bg-surface-600"
+                      genModel === m.id ? "btn-primary text-white" : "bg-panel-lite text-[var(--ink-dim)] hover:bg-lcd"
                     }`}
                   >
                     <span className="flex-1">{m.label}</span>
                     {m.recommended && (
-                      <span className="text-[10px] font-semibold bg-terra-400/20 text-terra-300 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-semibold bg-phosphor-ink/20 text-phosphor-bright px-1.5 py-0.5 rounded">
                         RECOMMENDED
                       </span>
                     )}
@@ -279,8 +279,8 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
 
           {/* Chat model */}
           <div>
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-1">Tutor Chat Model</h2>
-            <p className="text-xs text-zinc-600 mb-3">Used for live tutoring. Faster = better response times.</p>
+            <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-1">Tutor Chat Model</h2>
+            <p className="text-xs text-[var(--ink-faint)] mb-3">Used for live tutoring. Faster = better response times.</p>
 
             {provider === "ollama" ? (
               <OllamaModelPicker
@@ -298,12 +298,12 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
                     key={m.id}
                     onClick={() => setChatModelState(m.id)}
                     className={`px-3 py-2 rounded-lg text-sm text-left flex items-center gap-2 transition-colors ${
-                      chatModel === m.id ? "bg-terra-600 text-white" : "bg-surface-700 text-zinc-300 hover:bg-surface-600"
+                      chatModel === m.id ? "btn-primary text-white" : "bg-panel-lite text-[var(--ink-dim)] hover:bg-lcd"
                     }`}
                   >
                     <span className="flex-1">{m.label}</span>
                     {m.recommended && (
-                      <span className="text-[10px] font-semibold bg-terra-400/20 text-terra-300 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-semibold bg-phosphor-ink/20 text-phosphor-bright px-1.5 py-0.5 rounded">
                         RECOMMENDED
                       </span>
                     )}
@@ -316,8 +316,8 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
 
         {/* Web Search */}
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-1">Web Search (Optional)</h2>
-          <p className="text-xs text-zinc-500 mb-3">
+          <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-1">Web Search (Optional)</h2>
+          <p className="text-xs text-[var(--ink-faint)] mb-3">
             Tavily search grounds curriculum research in real-world data. Free tier: 1,000 searches/month at tavily.com.
           </p>
           <input
@@ -325,7 +325,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
             value={tavilyKey}
             onChange={(e) => setTavilyKey(e.target.value)}
             placeholder="Tavily API key (tvly-...)"
-            className="w-full px-4 py-2.5 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500"
+            className="w-full px-4 py-2.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor"
           />
           {tavilyKey && (
             <p className="mt-1.5 text-xs text-green-400">Web search enabled — courses will be grounded in current data.</p>
@@ -334,7 +334,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
 
         <button
           onClick={handleSave}
-          className="px-6 py-2.5 rounded-lg bg-terra-600 hover:bg-terra-500 text-white text-sm font-medium transition-colors"
+          className="px-6 py-2.5 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
         >
           {saved ? "Saved!" : "Save Settings"}
         </button>
@@ -367,7 +367,7 @@ function OllamaModelPicker({ label, value, onChange, discoveredModels, suggestio
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={`e.g. llama3, qwen2.5:7b, phi3:mini`}
-          className="w-full px-3 py-2 rounded-lg bg-surface-700 border border-surface-500 text-zinc-100 text-sm focus:outline-none focus:border-terra-500 placeholder-zinc-600"
+          className="w-full px-3 py-2 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor placeholder-[var(--ink-faint)]"
         />
       </div>
 
@@ -380,10 +380,10 @@ function OllamaModelPicker({ label, value, onChange, discoveredModels, suggestio
             title={isDiscovered ? `Use ${m}` : `Not installed — run: ollama pull ${m}`}
             className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
               value === m
-                ? "bg-terra-600 text-white"
+                ? "btn-primary text-white"
                 : isDiscovered
-                ? "bg-surface-600 text-zinc-300 hover:bg-surface-500"
-                : "bg-surface-700 text-zinc-500 border border-surface-600"
+                ? "bg-lcd text-[var(--ink-dim)] hover:bg-panel"
+                : "bg-panel-lite text-[var(--ink-faint)] border border-[var(--rule)]"
             }`}
           >
             {m}
@@ -392,12 +392,12 @@ function OllamaModelPicker({ label, value, onChange, discoveredModels, suggestio
       </div>
 
       {ollamaStatus === "connected" && (
-        <p className="text-[10px] text-zinc-600">
+        <p className="text-[10px] text-[var(--ink-faint)]">
           {discoveredModels.length} installed model{discoveredModels.length !== 1 ? "s" : ""} · type any name or click a chip
         </p>
       )}
       {ollamaStatus === "disconnected" && (
-        <p className="text-[10px] text-zinc-600">
+        <p className="text-[10px] text-[var(--ink-faint)]">
           Suggestions shown — connect Ollama to see installed models
         </p>
       )}
