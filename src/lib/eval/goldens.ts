@@ -141,8 +141,11 @@ export const GOLDENS: Golden[] = [
     topic: "Python Programming",
     useTools: true,
     syllabus: evalToolSyllabus(),
+    // Runs under the `assess` skill — the only skill that exposes progress.mark_mastered after
+    // Phase 2 gating. Proves "assess marks mastery" (the gating golden's positive half).
     turns: [{
       user: "I fully understand list comprehensions now — they completely click for me. Please record that I've mastered this subtopic.",
+      mode: "assess",
     }],
     // Validates tool SELECTION + well-formed args (the spike measured arg fidelity; this adds
     // "picks the right tool"). Exact subtopic_id matching depends on the prompt surfacing ids, so
@@ -156,6 +159,28 @@ export const GOLDENS: Golden[] = [
       if (typeof input?.subtopic_id !== "string" || !input.subtopic_id) reasons.push("missing/empty subtopic_id");
       if (input?.status !== "mastered") reasons.push(`expected status "mastered", got "${String(input?.status)}"`);
       return { pass: reasons.length === 0, reasons };
+    },
+  },
+  {
+    id: "explain-no-action-tools",
+    title: "Skill gating — Explain offers no action tools",
+    topic: "Python Programming",
+    useTools: true,
+    syllabus: evalToolSyllabus(),
+    // Same tempting prompt as the assess golden, but under the default "explain" skill
+    // (tools_required: []). Proves gating's negative half: with no tools offered, the model cannot
+    // call an action tool — even when the user explicitly asks it to record mastery.
+    turns: [{
+      user: "I fully understand list comprehensions now — they completely click for me. Please record that I've mastered this subtopic.",
+      mode: "explain",
+    }],
+    success: (t) => {
+      const calls = t.flatMap((e) => e.toolCalls ?? []);
+      const actions = calls.filter((c) => c.name === "progress.mark_mastered" || c.name === "knowledge.update_map");
+      return {
+        pass: actions.length === 0,
+        reasons: actions.length ? [`Explain exposed an action tool (called: ${actions.map((c) => c.name).join(", ")})`] : [],
+      };
     },
   },
 ];
