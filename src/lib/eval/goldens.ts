@@ -6,7 +6,8 @@
 // and more numerous as phases land. Phase 0 ships 5 to establish a baseline against v1.
 
 import type { TutorModeId } from "../tutor-modes";
-import type { Syllabus } from "../../types";
+import type { Syllabus, LLMConfig } from "../../types";
+import { ingestDocument } from "../notebook";
 
 export interface GoldenTurn {
   user: string;
@@ -39,6 +40,8 @@ export interface Golden {
   useTools?: boolean;
   // Optional seeded syllabus for tool goldens that need real subtopic ids (e.g. mark_mastered).
   syllabus?: Syllabus;
+  // Optional async setup run once before the turns (tool goldens only) — e.g. seed notebook docs.
+  setup?: (config: LLMConfig) => Promise<void>;
 }
 
 // A minimal in-memory syllabus for tool goldens. Its course_id doubles as the eval sentinel
@@ -181,6 +184,35 @@ export const GOLDENS: Golden[] = [
         pass: actions.length === 0,
         reasons: actions.length ? [`Explain exposed an action tool (called: ${actions.map((c) => c.name).join(", ")})`] : [],
       };
+    },
+  },
+  {
+    id: "notebook-retrieval-citation",
+    title: "Notebook RAG — retrieves a fact from the student's note and answers from it",
+    topic: "Python Programming",
+    useTools: true,
+    syllabus: evalToolSyllabus(), // course_id __eval_tooluse__ — searchNotebook scopes to it
+    // Seed a note with a fact the model can't know otherwise, then ask for it. Idempotent: ingest
+    // dedupes by sha256, so reruns reuse the same doc. Requires the embedding model to be available.
+    setup: async () => {
+      await ingestDocument({
+        courseId: "__eval_tooluse__",
+        title: "Project Glossary",
+        sourceType: "note",
+        text: "Project note: the internal codename for our capstone build is Zorblax, and the Zorblax constant is exactly 42.7. Keep this value handy for the final project.",
+      });
+    },
+    turns: [{ user: "According to my notes, what is the value of the Zorblax constant?", mode: "explain" }],
+    // Proves the RAG loop end-to-end: the tutor consults the notebook (tool call) and surfaces the
+    // retrieved value. The "📓 Source:" chip is a UI concern, not in the transcript.
+    success: (t) => {
+      const calls = t.flatMap((e) => e.toolCalls ?? []);
+      const reasons: string[] = [];
+      if (!calls.some((c) => c.name === "notebook.search")) {
+        reasons.push(`did not call notebook.search (called: ${calls.map((c) => c.name).join(", ") || "nothing"})`);
+      }
+      if (!/42\.7/.test(allAssistant(t))) reasons.push("answer did not include 42.7 from the seeded note");
+      return { pass: reasons.length === 0, reasons };
     },
   },
 ];
