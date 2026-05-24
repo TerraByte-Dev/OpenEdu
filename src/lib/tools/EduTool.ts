@@ -6,6 +6,7 @@
 import type { z } from "zod";
 import type { ReactNode } from "react";
 import type { LLMConfig, ModelTier, Syllabus } from "../../types";
+import type { Skill } from "../dsl/skill";
 
 // Permission mode for a turn. "exam" hard-denies model help during promotion tests;
 // "bypass" is the escape hatch. Wired to the permission layer in Phase 2 (V2 §7).
@@ -39,6 +40,14 @@ export interface ToolContext {
   // Present only when the turn can round-trip to the user (chat). Absent in headless
   // contexts (eval); ask_user.question requires it. (Phase 1 addition.)
   askUser?: AskUserFn;
+  // The skill driving this turn, selected via the chat mode bar (Phase 2). selectTools exposes only
+  // this skill's tools_required, and the <skill_bundle> layer injects its rules. Absent in legacy /
+  // headless callers (then selectTools falls back to all permitted tools).
+  activeSkill?: Skill | null;
+  // Permission round-trip for "ask" tools (Phase 2, V2 §7): the kernel calls this before running a
+  // tool whose permission decision is "ask" and runs it only on `true`. Mirrors askUser; absent in
+  // headless contexts (where "ask" then proceeds so eval tool goldens still exercise).
+  confirmTool?: (toolName: string, summary: string) => Promise<boolean>;
 }
 
 // Tools are generators so long-running work (web fetch, quiz authoring, notebook indexing)

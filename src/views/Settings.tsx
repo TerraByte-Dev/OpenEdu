@@ -6,6 +6,12 @@ import {
   setTavilyApiKey, getTavilyApiKey,
 } from "../lib/store";
 import { getOllamaModels, callLLM } from "../lib/llm";
+import {
+  loadPermissionRules, savePermissionRules,
+  PERMISSION_ROWS, PERMISSION_EDITABLE_MODES, DEFAULT_PERMISSION_RULES,
+  type PermissionRules, type PermissionDecision,
+} from "../lib/permissions";
+import type { PermissionMode } from "../lib/tools";
 
 const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] = [
   { id: "ollama", name: "Ollama (Local — Free)", needsKey: false },
@@ -57,6 +63,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [tavilyKey, setTavilyKey] = useState("");
+  const [permRules, setPermRules] = useState<PermissionRules>(DEFAULT_PERMISSION_RULES);
 
   useEffect(() => {
     (async () => {
@@ -73,6 +80,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
       }
       const tk = await getTavilyApiKey();
       setTavilyKey(tk || "");
+      setPermRules(await loadPermissionRules());
     })();
   }, []);
 
@@ -127,6 +135,10 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
     }
   };
 
+  const setPermCell = (tool: string, mode: PermissionMode, decision: PermissionDecision) => {
+    setPermRules((prev) => ({ ...prev, [tool]: { ...prev[tool], [mode]: decision } }));
+  };
+
   const handleSave = async () => {
     await setLLMProvider(provider);
     await setGenerationModel(genModel);
@@ -138,6 +150,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
       await setOllamaUrl(ollamaUrlValue);
     }
     await setTavilyApiKey(tavilyKey);
+    await savePermissionRules(permRules);
     setSaved(true);
     onSaved?.();
     setTimeout(() => setSaved(false), 2000);
@@ -330,6 +343,48 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
           {tavilyKey && (
             <p className="mt-1.5 text-xs text-green-400">Web search enabled — courses will be grounded in current data.</p>
           )}
+        </section>
+
+        {/* Tutor Permissions */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-1">Tutor Permissions</h2>
+          <p className="text-xs text-[var(--ink-faint)] mb-3">
+            What the tutor may do on its own, per mode. <span className="text-phosphor-ink">allow</span> runs automatically,{" "}
+            <span className="text-phosphor-ink">ask</span> prompts you first, <span className="text-phosphor-ink">deny</span> blocks it.
+          </p>
+          <div className="rounded-lg border border-[var(--rule)] overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-panel-lite text-[var(--ink-faint)] text-xs uppercase tracking-wider">
+                  <th className="text-left font-semibold px-3 py-2">Tool</th>
+                  {PERMISSION_EDITABLE_MODES.map((m) => (
+                    <th key={m} className="text-left font-semibold px-3 py-2 capitalize">{m}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PERMISSION_ROWS.map((tool) => (
+                  <tr key={tool} className="border-t border-[var(--rule)]">
+                    <td className="px-3 py-1.5 font-mono text-[12px] text-[var(--ink-dim)]">{tool}</td>
+                    {PERMISSION_EDITABLE_MODES.map((mode) => (
+                      <td key={mode} className="px-3 py-1.5">
+                        <select
+                          value={permRules[tool]?.[mode] ?? "ask"}
+                          onChange={(e) => setPermCell(tool, mode, e.target.value as PermissionDecision)}
+                          className="bg-panel-lite border border-[var(--rule)] rounded-md px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-phosphor"
+                        >
+                          <option value="allow">allow</option>
+                          <option value="ask">ask</option>
+                          <option value="deny">deny</option>
+                        </select>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-[var(--ink-faint)]">Saved with the button below. Exam mode applies during promotion tests (wiring lands in a later phase).</p>
         </section>
 
         <button
