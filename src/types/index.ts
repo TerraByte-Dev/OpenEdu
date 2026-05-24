@@ -102,6 +102,42 @@ export interface Note {
   updated_at: string;
 }
 
+// ── Notebook RAG (Phase 3) ──────────────────────────────────────────────────
+// Ingested student material (notes / dropped .md/.txt) chunked + embedded for retrieval.
+// Vectors are stored brute-force as JSON-array TEXT in notebook_embeddings.vec — see
+// V2_ARCHITECTURE.md §6.3 and the Phase 3 plan (sqlite-vec deferred; schema is vec0-compatible).
+export type NotebookSourceType = "text" | "md" | "note" | "pdf" | "url";
+
+export interface NotebookDocument {
+  id: string;
+  course_id: string;
+  title: string;
+  source_type: NotebookSourceType;
+  source_uri: string | null;
+  sha256: string | null;
+  embedding_model: string; // model the chunks were embedded with (search compares same-model only)
+  dim: number;
+  ingested_at: string;
+}
+
+export interface NotebookChunk {
+  id: string;
+  document_id: string;
+  ord: number;
+  text: string;
+  token_count: number;
+}
+
+// A retrieval hit returned by searchNotebook / the notebook.search tool.
+export interface NotebookSearchResult {
+  chunk_id: string;
+  document_id: string;
+  document_title: string;
+  ord: number;
+  text: string;
+  score: number; // cosine similarity, 0..1
+}
+
 export interface ChatMessage {
   id: string;
   course_id: string;
