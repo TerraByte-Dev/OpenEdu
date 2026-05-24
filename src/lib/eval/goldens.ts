@@ -7,7 +7,8 @@
 
 import type { TutorModeId } from "../tutor-modes";
 import type { Syllabus, LLMConfig } from "../../types";
-import { ingestDocument } from "../notebook";
+import { importTextAsNote } from "../notebook";
+import { ensureCourse, deleteCourse } from "../db";
 
 export interface GoldenTurn {
   user: string;
@@ -42,6 +43,8 @@ export interface Golden {
   syllabus?: Syllabus;
   // Optional async setup run once before the turns (tool goldens only) — e.g. seed notebook docs.
   setup?: (config: LLMConfig) => Promise<void>;
+  // Optional cleanup run after the turns (always, even on error) — e.g. remove a sentinel course.
+  teardown?: (config: LLMConfig) => Promise<void>;
 }
 
 // A minimal in-memory syllabus for tool goldens. Its course_id doubles as the eval sentinel
@@ -192,16 +195,20 @@ export const GOLDENS: Golden[] = [
     topic: "Python Programming",
     useTools: true,
     syllabus: evalToolSyllabus(), // course_id __eval_tooluse__ — searchNotebook scopes to it
-    // Seed a note with a fact the model can't know otherwise, then ask for it. Idempotent: ingest
-    // dedupes by sha256, so reruns reuse the same doc. Requires the embedding model to be available.
+    // Seed a real sentinel course (notes + notebook_documents FK to courses(id), so a fake id throws
+    // 787) plus a note with a fact the model can't know otherwise. Clean slate each run; teardown
+    // removes it. Requires the embedding model to be available.
     setup: async () => {
-      await ingestDocument({
+      await deleteCourse("__eval_tooluse__"); // clear leftovers from any crashed run
+      await ensureCourse("__eval_tooluse__", "Eval (tooluse)", "Eval");
+      await importTextAsNote({
         courseId: "__eval_tooluse__",
         title: "Project Glossary",
         sourceType: "note",
         text: "Project note: the internal codename for our capstone build is Zorblax, and the Zorblax constant is exactly 42.7. Keep this value handy for the final project.",
       });
     },
+    teardown: async () => { await deleteCourse("__eval_tooluse__"); },
     turns: [{ user: "According to my notes, what is the value of the Zorblax constant?", mode: "explain" }],
     // Proves the RAG loop end-to-end: the tutor consults the notebook (tool call) and surfaces the
     // retrieved value. The "📓 Source:" chip is a UI concern, not in the transcript.
