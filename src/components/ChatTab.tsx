@@ -382,14 +382,13 @@ function ToolChip({ ev }: { ev: ToolUIEvent }) {
         </div>
       );
     }
-    // notebook.ingest → "📓 N chunks added from …" (or a dedupe note).
+    // notebook.ingest → "📓 Saved 'title' (N chunks)".
     if (ev.name === "notebook.ingest") {
-      const v = ev.value as { chunkCount?: number; title?: string; deduped?: boolean } | undefined;
+      const v = ev.value as { chunkCount?: number; title?: string } | undefined;
       const n = v?.chunkCount ?? 0;
-      const verb = v?.deduped ? "already in notebook" : `${n} chunk${n === 1 ? "" : "s"} added`;
       return (
         <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
-          📓 {verb}{v?.title ? ` from "${v.title}"` : ""}
+          📓 Saved{v?.title ? ` "${v.title}"` : ""} ({n} chunk{n === 1 ? "" : "s"})
         </div>
       );
     }

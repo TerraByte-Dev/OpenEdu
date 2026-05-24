@@ -1,7 +1,7 @@
 // Notebook RAG layer (Phase 3, V2_ARCHITECTURE.md §6.3).
 //
 // Pure-ish lib functions that the notebook.* EduTools and the NotebookTab UI both call:
-//   - ingestDocument: chunk → embed → store (sha256-deduped, idempotent)
+//   - indexNote / importTextAsNote: chunk → embed → store a note's content (re-index on save)
 //   - searchNotebook:  embed the query → brute-force cosine over the course's chunk vectors → top-k
 //
 // Vectors are stored as JSON-array TEXT (see db.ts / migration v7). Brute-force cosine is fine for a
@@ -12,13 +12,14 @@
 import { embed } from "./llm";
 import { getEmbeddingConfig } from "./store";
 import {
-  findNotebookDocumentBySha,
+  createNote,
+  findNotebookDocumentByNote,
+  deleteNotebookDocumentByNote,
   createNotebookDocument,
   createNotebookChunk,
-  getNotebookDocuments,
   loadNotebookVectors,
 } from "./db";
-import type { NotebookSearchResult, NotebookSourceType } from "../types";
+import type { Note, NotebookSearchResult, NotebookSourceType } from "../types";
 
 // ── Text utilities ───────────────────────────────────────────────────────────
 
@@ -73,62 +74,80 @@ async function sha256Hex(text: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ── Ingestion ────────────────────────────────────────────────────────────────
+// ── Ingestion (unified vault: every note is searchable) ──────────────────────
 
-export interface IngestResult {
-  documentId: string;
+export interface IndexResult {
+  documentId: string | null;
   chunkCount: number;
-  deduped: boolean; // true = identical content already ingested; we returned the existing doc
+  skipped: boolean; // true = content unchanged since last index (same model) → nothing re-embedded
 }
 
-// Chunk + embed + persist a document. Idempotent: identical content (same sha256) in the same
-// course returns the existing document instead of re-embedding.
-export async function ingestDocument(args: {
+// (Re)build a note's search index. sha-skips when the text is unchanged and the embedding model is
+// the same. Callers on the save path (embed-on-save) should catch errors — a failed/absent embedder
+// must never block saving a note.
+export async function indexNote(args: {
   courseId: string;
+  noteId: string;
   title: string;
-  sourceType: NotebookSourceType;
   text: string;
-  sourceUri?: string | null;
-}): Promise<IngestResult> {
-  const sha = await sha256Hex(args.text);
-  const existing = await findNotebookDocumentBySha(args.courseId, sha);
-  if (existing) {
-    const docs = await getNotebookDocuments(args.courseId);
-    const found = docs.find((d) => d.id === existing.id);
-    return { documentId: existing.id, chunkCount: found?.chunk_count ?? 0, deduped: true };
+  sourceType?: NotebookSourceType;
+}): Promise<IndexResult> {
+  const text = args.text.trim();
+  const existing = await findNotebookDocumentByNote(args.noteId);
+
+  if (!text) {
+    if (existing) await deleteNotebookDocumentByNote(args.noteId); // empty note → drop stale index
+    return { documentId: null, chunkCount: 0, skipped: false };
   }
 
-  const chunks = chunkText(args.text);
-  if (chunks.length === 0) throw new Error("Nothing to ingest — the document is empty.");
-
+  const sha = await sha256Hex(text);
   const cfg = await getEmbeddingConfig();
+  if (existing && existing.sha256 === sha && existing.embedding_model === cfg.model) {
+    return { documentId: existing.id, chunkCount: 0, skipped: true };
+  }
+
+  const chunks = chunkText(text);
   const vectors = await embed(chunks, cfg);
   if (vectors.length !== chunks.length) {
     throw new Error(`Embedding count mismatch: ${vectors.length} vectors for ${chunks.length} chunks.`);
   }
   const dim = vectors[0]?.length ?? 0;
 
+  await deleteNotebookDocumentByNote(args.noteId); // replace any prior index for this note
   const documentId = await createNotebookDocument({
     courseId: args.courseId,
+    noteId: args.noteId,
     title: args.title,
-    sourceType: args.sourceType,
-    sourceUri: args.sourceUri ?? null,
+    sourceType: args.sourceType ?? "note",
     sha256: sha,
     embeddingModel: cfg.model,
     dim,
   });
-
   for (let i = 0; i < chunks.length; i++) {
-    await createNotebookChunk({
-      documentId,
-      ord: i,
-      text: chunks[i],
-      tokenCount: estTokens(chunks[i]),
-      vec: JSON.stringify(vectors[i]),
-    });
+    await createNotebookChunk({ documentId, ord: i, text: chunks[i], tokenCount: estTokens(chunks[i]), vec: JSON.stringify(vectors[i]) });
   }
+  return { documentId, chunkCount: chunks.length, skipped: false };
+}
 
-  return { documentId, chunkCount: chunks.length, deduped: false };
+// Create a visible note from imported/provided text and index it for search. The single entry point
+// for "bring material into the vault" — used by the NotebookTab drop/picker and the notebook.ingest
+// tool, so everything the student or tutor adds shows up as a real note.
+export async function importTextAsNote(args: {
+  courseId: string;
+  title: string;
+  text: string;
+  sourceType?: NotebookSourceType;
+  folderId?: string | null;
+}): Promise<{ note: Note; chunkCount: number }> {
+  const note = await createNote(args.courseId, args.title, args.text, 0, args.folderId ?? null);
+  const res = await indexNote({
+    courseId: args.courseId,
+    noteId: note.id,
+    title: args.title,
+    text: args.text,
+    sourceType: args.sourceType ?? "note",
+  });
+  return { note, chunkCount: res.chunkCount };
 }
 
 // ── Retrieval ────────────────────────────────────────────────────────────────

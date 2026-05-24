@@ -11,9 +11,10 @@ import type { NotebookSearchResult } from "../../../types";
 export const searchTool = defineTool({
   name: "notebook.search",
   description:
-    "Search the student's own notebook — their notes and any documents they've added — for passages " +
-    "relevant to a query. Use it to ground your answer in the student's material and cite the source. " +
-    "Returns the most relevant passages with their document titles.",
+    "Search the student's own notebook — their notes and imported documents. CALL THIS whenever the " +
+    "student refers to their notes/notebook/documents, asks what they wrote or saved, or asks anything " +
+    "their own material would answer: search BEFORE answering, then cite the source. Returns the most " +
+    "relevant passages with their note titles.",
   inputSchema: z.object({
     query: z.string().min(1).describe("What to look for, in natural language."),
     top_k: z.number().int().min(1).max(10).optional().describe("How many passages to return (default 5)."),

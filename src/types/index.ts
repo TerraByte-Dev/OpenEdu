@@ -98,8 +98,18 @@ export interface Note {
   content: string;
   sort_order: number;
   parent_id: string | null;
+  folder_id: string | null; // which notebook_folders row this note lives in; null = vault root
   created_at: string;
   updated_at: string;
+}
+
+export interface NotebookFolder {
+  id: string;
+  course_id: string;
+  name: string;
+  parent_id: string | null; // nested folders; null = root
+  sort_order: number;
+  created_at: string;
 }
 
 // ── Notebook RAG (Phase 3) ──────────────────────────────────────────────────
@@ -111,6 +121,7 @@ export type NotebookSourceType = "text" | "md" | "note" | "pdf" | "url";
 export interface NotebookDocument {
   id: string;
   course_id: string;
+  note_id: string | null; // the note this index entry belongs to (unified vault); null = legacy standalone
   title: string;
   source_type: NotebookSourceType;
   source_uri: string | null;
