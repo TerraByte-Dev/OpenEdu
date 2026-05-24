@@ -249,6 +249,7 @@ Skills get auto-loaded based on `trigger.course_subject` (matched against the co
 - `code-tutor` — CS courses, owns `code.run`
 - `language-tutor` — owns flashcards + SRS
 - `socratic` — replaces the v1 mode suffix
+- `assess` — mastery-check mode; confirms readiness and marks subtopics via `progress.mark_mastered` (see §9 Phase 2)
 - `exam-prep` — promotion-test rehearsal
 - `sprite-persona-<id>` — see §6.5
 
@@ -391,6 +392,8 @@ Each phase ships independently. None require an `npm run tauri dev` marathon. Ea
 - Skill loader, frontmatter parser, trigger matcher.
 - Convert `tutor-modes.ts` entries into skills (`socratic.md`, `quiz-mode.md`, `review.md`, `hint-only.md`).
 - Permission layer scaffold + Settings UI page for editing rules.
+- **Assess / mastery-check skill (idea captured after Phase 1).** A tutor mode/skill dedicated to "am I ready?", replacing the awkward free-text "mark X off my syllabus." It runs a short readiness check over the current level's *unmastered* subtopics and, when the student demonstrates one, calls `progress.mark_mastered` (Phase 1 tool; resolves a subtopic by **title or id**), using `ask_user.question` to let the student pick which subtopic to check. Frontmatter: `tools_required: [progress.mark_mastered, ask_user.question]`. Motivation: the v1 mode bar (Explain/Socratic/Quiz/Review/Hint) is just prompt-suffixes — this makes a mode actually *do* something.
+- **Realize mode/skill-gated tool exposure here.** Phase 1 deliberately left `selectTools(ctx)` (`src/lib/kernel/toolDispatch.ts`) returning *all* enabled tools behind a documented routing seam. Phase 2 threads the active skill/mode into `ToolContext` so each skill exposes only its `tools_required` — e.g. plain "Explain" offers no action-tools. Bonus: curbs the floor model's stray/hallucinated tool calls seen in Phase 1 testing (gemma4:e4b invented a fake "✓ Concept Map Update" in prose, and passed a subtopic *title* where an id was expected — the latter already handled by title-or-id resolution).
 
 **Phase 3 — Notebook 2.0.** ~10–12 days. (Original estimate was 7; padded for the four things that are first-time work in this codebase: loading `sqlite-vec` through `tauri-plugin-sql`'s extension hook on Windows + macOS + Linux, PDF text extraction, chunking-strategy iteration on real student docs, and the NotebookTab UI rebuild. Text-only ingestion alone is closer to ~5 days — cut PDFs and the estimate halves.)
 - Migration v7: `notebook_documents`, `notebook_chunks`, `notebook_embeddings`. Add `sqlite-vec` extension load to Rust side.
