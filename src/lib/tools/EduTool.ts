@@ -5,11 +5,24 @@
 
 import type { z } from "zod";
 import type { ReactNode } from "react";
-import type { ModelTier, Syllabus } from "../../types";
+import type { LLMConfig, ModelTier, Syllabus } from "../../types";
 
 // Permission mode for a turn. "exam" hard-denies model help during promotion tests;
 // "bypass" is the escape hatch. Wired to the permission layer in Phase 2 (V2 §7).
 export type PermissionMode = "default" | "study" | "exam" | "bypass";
+
+// A single choice offered by ask_user.question. `label` is shown on the button,
+// `value` is fed back to the model as the tool result.
+export interface AskChoice {
+  label: string;
+  value: string;
+}
+
+// Kernel-mediated UI round-trip. The kernel injects this so a tool (ask_user.question)
+// can suspend the turn awaiting a user selection, then resume with their choice. It is a
+// Promise the UI resolves on click — NOT direct UI access, so the "tools never touch UI"
+// discipline holds.
+export type AskUserFn = (question: string, choices: AskChoice[]) => Promise<string>;
 
 // Everything a tool needs about the turn it runs in. Tools never reach into the UI or the
 // provider layer — they get this and nothing more.
@@ -19,7 +32,13 @@ export interface ToolContext {
   syllabus: Syllabus | null;
   modelTier: ModelTier;
   permissionMode: PermissionMode;
+  // The active LLM config — tools that make their own model calls (knowledge reflection,
+  // quiz authoring) read it here rather than re-fetching it. (Phase 1 addition.)
+  config: LLMConfig;
   abort: AbortSignal;
+  // Present only when the turn can round-trip to the user (chat). Absent in headless
+  // contexts (eval); ask_user.question requires it. (Phase 1 addition.)
+  askUser?: AskUserFn;
 }
 
 // Tools are generators so long-running work (web fetch, quiz authoring, notebook indexing)
