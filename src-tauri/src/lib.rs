@@ -184,6 +184,28 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "notebook folders (nested) + link index entries to notes (unified vault)",
+            sql: "
+                CREATE TABLE IF NOT EXISTS notebook_folders (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL REFERENCES courses(id),
+                    name TEXT NOT NULL,
+                    parent_id TEXT,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                ALTER TABLE notes ADD COLUMN folder_id TEXT;
+                ALTER TABLE notebook_documents ADD COLUMN note_id TEXT;
+
+                CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id);
+                CREATE INDEX IF NOT EXISTS idx_nb_docs_note ON notebook_documents(note_id);
+                CREATE INDEX IF NOT EXISTS idx_nb_folders_course ON notebook_folders(course_id);
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

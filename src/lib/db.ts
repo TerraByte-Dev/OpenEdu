@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, NotebookDocument } from "../types";
+import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, NotebookDocument, NotebookFolder } from "../types";
 
 let db: Database | null = null;
 
@@ -39,6 +39,16 @@ export async function createCourse(title: string, topic: string): Promise<Course
   return (await getCourse(id))!;
 }
 
+// Insert a course only if absent (idempotent). Used by the eval harness to satisfy the course_id
+// foreign keys when seeding its sentinel course — a fake course_id otherwise throws FK 787.
+export async function ensureCourse(id: string, title: string, topic: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "INSERT OR IGNORE INTO courses (id, title, topic, current_level) VALUES ($1, $2, $3, 1.0)",
+    [id, title, topic]
+  );
+}
+
 export async function deleteCourse(id: string): Promise<void> {
   const d = await getDb();
   // Delete in dependency order
@@ -49,6 +59,7 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM notebook_embeddings WHERE chunk_id IN (SELECT c.id FROM notebook_chunks c JOIN notebook_documents nd ON c.document_id = nd.id WHERE nd.course_id = $1)", [id]);
   await d.execute("DELETE FROM notebook_chunks WHERE document_id IN (SELECT id FROM notebook_documents WHERE course_id = $1)", [id]);
   await d.execute("DELETE FROM notebook_documents WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM notebook_folders WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM tutor_instructions WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM syllabuses WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM user_progress WHERE course_id = $1", [id]);
@@ -203,12 +214,12 @@ export async function getNotes(courseId: string, level?: number): Promise<Note[]
   );
 }
 
-export async function createNote(courseId: string, title: string, content: string, level: number): Promise<Note> {
+export async function createNote(courseId: string, title: string, content: string, level: number, folderId: string | null = null): Promise<Note> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO notes (id, course_id, level, title, content) VALUES ($1, $2, $3, $4, $5)",
-    [id, courseId, level, title, content]
+    "INSERT INTO notes (id, course_id, level, title, content, folder_id) VALUES ($1, $2, $3, $4, $5, $6)",
+    [id, courseId, level, title, content, folderId]
   );
   const rows: Note[] = await d.select("SELECT * FROM notes WHERE id = $1", [id]);
   return rows[0];
@@ -224,7 +235,49 @@ export async function updateNote(id: string, title: string, content: string): Pr
 
 export async function deleteNote(id: string): Promise<void> {
   const d = await getDb();
+  await deleteNotebookDocumentByNote(id); // unified vault: a note owns its search-index entry
   await d.execute("DELETE FROM notes WHERE id = $1", [id]);
+}
+
+export async function moveNoteToFolder(noteId: string, folderId: string | null): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE notes SET folder_id = $1, updated_at = datetime('now') WHERE id = $2", [folderId, noteId]);
+}
+
+// ── Notebook folders (Phase 3 — nested vault tree) ──────────────────────────
+export async function getFolders(courseId: string): Promise<NotebookFolder[]> {
+  const d = await getDb();
+  return await d.select(
+    "SELECT * FROM notebook_folders WHERE course_id = $1 ORDER BY sort_order ASC, name ASC",
+    [courseId]
+  );
+}
+
+export async function createFolder(courseId: string, name: string, parentId: string | null = null): Promise<NotebookFolder> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute(
+    "INSERT INTO notebook_folders (id, course_id, name, parent_id) VALUES ($1, $2, $3, $4)",
+    [id, courseId, name, parentId]
+  );
+  const rows: NotebookFolder[] = await d.select("SELECT * FROM notebook_folders WHERE id = $1", [id]);
+  return rows[0];
+}
+
+export async function renameFolder(id: string, name: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE notebook_folders SET name = $1 WHERE id = $2", [name, id]);
+}
+
+// Delete a folder, reparenting its child folders + notes to its own parent (never cascade-delete
+// the student's notes).
+export async function deleteFolder(id: string): Promise<void> {
+  const d = await getDb();
+  const rows: NotebookFolder[] = await d.select("SELECT * FROM notebook_folders WHERE id = $1", [id]);
+  const parent = rows[0]?.parent_id ?? null;
+  await d.execute("UPDATE notebook_folders SET parent_id = $1 WHERE parent_id = $2", [parent, id]);
+  await d.execute("UPDATE notes SET folder_id = $1 WHERE folder_id = $2", [parent, id]);
+  await d.execute("DELETE FROM notebook_folders WHERE id = $1", [id]);
 }
 
 // ── Notebook RAG (Phase 3) ──────────────────────────────────────────────────
@@ -253,6 +306,7 @@ export async function findNotebookDocumentBySha(courseId: string, sha256: string
 
 export async function createNotebookDocument(doc: {
   courseId: string;
+  noteId?: string | null;
   title: string;
   sourceType: string;
   sourceUri?: string | null;
@@ -263,8 +317,8 @@ export async function createNotebookDocument(doc: {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO notebook_documents (id, course_id, title, source_type, source_uri, sha256, embedding_model, dim) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-    [id, doc.courseId, doc.title, doc.sourceType, doc.sourceUri ?? null, doc.sha256 ?? null, doc.embeddingModel, doc.dim]
+    "INSERT INTO notebook_documents (id, course_id, note_id, title, source_type, source_uri, sha256, embedding_model, dim) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    [id, doc.courseId, doc.noteId ?? null, doc.title, doc.sourceType, doc.sourceUri ?? null, doc.sha256 ?? null, doc.embeddingModel, doc.dim]
   );
   return id;
 }
@@ -316,6 +370,18 @@ export async function deleteNotebookDocument(documentId: string): Promise<void> 
   await d.execute("DELETE FROM notebook_embeddings WHERE chunk_id IN (SELECT id FROM notebook_chunks WHERE document_id = $1)", [documentId]);
   await d.execute("DELETE FROM notebook_chunks WHERE document_id = $1", [documentId]);
   await d.execute("DELETE FROM notebook_documents WHERE id = $1", [documentId]);
+}
+
+// A note's index entry (unified vault) — used to re-index on save (delete then recreate).
+export async function findNotebookDocumentByNote(noteId: string): Promise<NotebookDocument | null> {
+  const d = await getDb();
+  const rows: NotebookDocument[] = await d.select("SELECT * FROM notebook_documents WHERE note_id = $1 LIMIT 1", [noteId]);
+  return rows[0] ?? null;
+}
+
+export async function deleteNotebookDocumentByNote(noteId: string): Promise<void> {
+  const doc = await findNotebookDocumentByNote(noteId);
+  if (doc) await deleteNotebookDocument(doc.id);
 }
 
 // Chat Messages (level-scoped per unit)
