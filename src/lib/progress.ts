@@ -78,6 +78,40 @@ export async function updateSubtopicMastery(
   }
 }
 
+/**
+ * Directly set one subtopic's mastery status by id — the conversation-driven path the tutor uses
+ * via the progress.mark_mastered tool (vs the quiz-driven updateSubtopicMastery above). "mastered"
+ * implies "practiced". Writes only when something actually changed. Returns whether the id was
+ * found and the subtopic's title for a friendly tool result. Subtopic-level only — never touches
+ * course.current_level (integer levels 1–6 stay under the promotion-test logic).
+ */
+export async function setSubtopicStatus(
+  courseId: string,
+  syllabus: Syllabus,
+  subtopicId: string,
+  status: "mastered" | "practiced",
+): Promise<{ found: boolean; changed: boolean; title?: string }> {
+  let found = false;
+  let changed = false;
+  let title: string | undefined;
+
+  const updated = syllabus.subtopics.map((sub) => {
+    if (sub.id !== subtopicId) return sub;
+    found = true;
+    title = sub.title;
+    let next = sub;
+    if (!next.practiced) { next = { ...next, practiced: true }; changed = true; }
+    if (status === "mastered" && !next.mastered) { next = { ...next, mastered: true }; changed = true; }
+    return next;
+  });
+
+  if (changed) {
+    await updateSyllabusSubtopics(courseId, syllabus.level, JSON.stringify(updated));
+    log.info("progress", `Set subtopic ${subtopicId} → ${status} (course ${courseId} L${syllabus.level})`);
+  }
+  return { found, changed, title };
+}
+
 // ─── User Progress ────────────────────────────────────────────────────────────
 
 /**
