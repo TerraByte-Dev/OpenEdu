@@ -8,10 +8,12 @@
 //     await window.__runEvals()                 // all goldens
 //     await window.__runEvals({ only: "math-word-problem" })
 
-import { callLLMStreaming } from "../llm";
+import { callLLMStreaming, detectModelTier } from "../llm";
 import { buildSystemPrompt } from "../curriculum";
 import { getChatConfig } from "../store";
 import { getTutorModePrompt } from "../tutor-modes";
+import { tutorEngine, type TutorTurn } from "../kernel";
+import { registerBuiltinTools, type ToolContext } from "../tools";
 import { GOLDENS, type Golden, type GoldenTranscriptEntry } from "./goldens";
 
 // Eval-only stand-in for a generated course's tutor instructions. The math rule is inlined
@@ -32,6 +34,8 @@ interface GoldenRun {
 }
 
 async function runGolden(g: Golden, config: Awaited<ReturnType<typeof getChatConfig>>): Promise<GoldenRun> {
+  if (g.useTools) return runGoldenWithTools(g, config);
+
   const transcript: GoldenTranscriptEntry[] = [];
   const history: Array<{ role: string; content: string }> = [];
 
@@ -49,6 +53,51 @@ async function runGolden(g: Golden, config: Awaited<ReturnType<typeof getChatCon
     history.push({ role: "assistant", content: out });
     transcript.push({ role: "user", content: turn.user, mode: turn.mode });
     transcript.push({ role: "assistant", content: out, mode: turn.mode });
+  }
+
+  const res = g.success(transcript);
+  return { id: g.id, title: g.title, pass: res.pass, reasons: res.reasons, transcript };
+}
+
+// Tool goldens run through the REAL kernel (TutorEngine + registered tools) so we exercise the
+// full Phase 1 path and capture tool_calls. The 5 baseline goldens stay on the v1 path above,
+// byte-identical. Tool DB writes target the seeded syllabus's sentinel course (harmless no-ops).
+async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof getChatConfig>>): Promise<GoldenRun> {
+  registerBuiltinTools();
+  const transcript: GoldenTranscriptEntry[] = [];
+  const history: Array<{ role: string; content: string }> = [];
+  const modelTier = await detectModelTier(config);
+
+  for (const turn of g.turns) {
+    const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined);
+    const messages = [
+      ...(system.trim() ? [{ role: "system", content: system }] : []),
+      ...history,
+      { role: "user", content: turn.user },
+    ];
+
+    const ctx: ToolContext = {
+      courseId: g.syllabus?.course_id ?? "__eval__",
+      level: g.syllabus?.level ?? 1,
+      syllabus: g.syllabus ?? null,
+      modelTier,
+      permissionMode: "default",
+      config,
+      abort: new AbortController().signal,
+      // No askUser in the headless eval — ask_user.question would return an error the model recovers from.
+    };
+    const tt: TutorTurn = { messages, config, onText: () => {} };
+    const result = await tutorEngine.run(tt, ctx);
+
+    history.push({ role: "user", content: turn.user });
+    history.push({ role: "assistant", content: result.text });
+    transcript.push({ role: "user", content: turn.user, mode: turn.mode });
+    transcript.push({
+      role: "assistant",
+      content: result.text,
+      mode: turn.mode,
+      toolCalls: result.toolCalls.map((tc) => ({ name: tc.name, input: tc.args })),
+    });
   }
 
   const res = g.success(transcript);

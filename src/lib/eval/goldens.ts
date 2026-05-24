@@ -6,6 +6,7 @@
 // and more numerous as phases land. Phase 0 ships 5 to establish a baseline against v1.
 
 import type { TutorModeId } from "../tutor-modes";
+import type { Syllabus } from "../../types";
 
 export interface GoldenTurn {
   user: string;
@@ -16,6 +17,9 @@ export interface GoldenTranscriptEntry {
   role: "user" | "assistant";
   content: string;
   mode?: TutorModeId;
+  // Tool calls the assistant made this turn (Phase 1). Only populated for tool goldens, which
+  // run through TutorEngine; text-only goldens leave this undefined.
+  toolCalls?: Array<{ name: string; input: unknown }>;
 }
 
 export interface GoldenResult {
@@ -29,6 +33,32 @@ export interface Golden {
   topic: string; // course topic, fed to the system prompt
   turns: GoldenTurn[];
   success: (transcript: GoldenTranscriptEntry[]) => GoldenResult;
+  // Phase 1: when true, the runner drives this golden through TutorEngine with tools enabled
+  // (and captures tool_calls). Omitted/false → the byte-identical v1 streaming path, so the
+  // 5 baseline goldens are unaffected.
+  useTools?: boolean;
+  // Optional seeded syllabus for tool goldens that need real subtopic ids (e.g. mark_mastered).
+  syllabus?: Syllabus;
+}
+
+// A minimal in-memory syllabus for tool goldens. Its course_id doubles as the eval sentinel
+// course for any DB writes the tools attempt (harmless no-ops against a course that doesn't exist).
+export function evalToolSyllabus(): Syllabus {
+  return {
+    id: "eval-syl-1",
+    course_id: "__eval_tooluse__",
+    level: 1,
+    title: "Python Basics",
+    description: "Eval-only syllabus for tool goldens.",
+    learning_objectives: ["Understand list comprehensions and loops"],
+    subtopics: [
+      { id: "py-listcomp", title: "List Comprehensions", key_concepts: ["comprehension", "iterable"], practice_type: "exercises", mastered: false, practiced: false },
+      { id: "py-loops", title: "Loops", key_concepts: ["for", "while"], practice_type: "exercises", mastered: false, practiced: false },
+    ],
+    assessment_criteria: ["Can write a list comprehension"],
+    estimated_hours: 2,
+    generated_at: new Date().toISOString(),
+  };
 }
 
 // ── transcript helpers ──
@@ -102,6 +132,29 @@ export const GOLDENS: Golden[] = [
       const reasons: string[] = [];
       if (!a.includes("atom")) reasons.push("did not address the corrected question");
       if (!/(smallest|element|proton|electron|nucleus|particle)/.test(a)) reasons.push("did not actually define an atom");
+      return { pass: reasons.length === 0, reasons };
+    },
+  },
+  {
+    id: "tool-mark-mastered",
+    title: "Tool use — marks a subtopic mastered",
+    topic: "Python Programming",
+    useTools: true,
+    syllabus: evalToolSyllabus(),
+    turns: [{
+      user: "I fully understand list comprehensions now — they completely click for me. Please record that I've mastered this subtopic.",
+    }],
+    // Validates tool SELECTION + well-formed args (the spike measured arg fidelity; this adds
+    // "picks the right tool"). Exact subtopic_id matching depends on the prompt surfacing ids, so
+    // we assert the core: the right tool, a non-empty subtopic_id, and status "mastered".
+    success: (t) => {
+      const calls = t.flatMap((e) => e.toolCalls ?? []);
+      const marked = calls.find((c) => c.name === "progress.mark_mastered");
+      if (!marked) return { pass: false, reasons: [`did not call progress.mark_mastered (called: ${calls.map((c) => c.name).join(", ") || "nothing"})`] };
+      const input = marked.input as { subtopic_id?: unknown; status?: unknown };
+      const reasons: string[] = [];
+      if (typeof input?.subtopic_id !== "string" || !input.subtopic_id) reasons.push("missing/empty subtopic_id");
+      if (input?.status !== "mastered") reasons.push(`expected status "mastered", got "${String(input?.status)}"`);
       return { pass: reasons.length === 0, reasons };
     },
   },

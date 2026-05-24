@@ -69,3 +69,24 @@ Native `tools` enforced the same nested parameter schemas correctly on every cal
 - **n=8, single model.** A large gap (0.98 vs 0.40) makes the call safe at this sample, but it's one model. Re-run `window.__spikeToolCalling()` (or the node twin) against any new floor candidate.
 - **Single-tool offered.** This measured argument fidelity, not tool *selection* among many — a separate Phase 1 question (V2 §11.3 leans toward code-routing skills/tools for tier ≤ small).
 - **Ollama version-sensitive.** `format` nested-enforcement behavior may change across Ollama releases; native tool-calling is the safer bet regardless.
+
+## Phase 1 update — streaming + tools confirmed (2026-05-23)
+
+The original spike ran **non-streaming**. Phase 1 ships unified streaming-with-tools (`callLLMTurn`
+streams text + tool calls from one generator), so we re-spiked the same five shapes **streamed**
+through the real `callLLMTurn` path against `gemma4:e4b` (`window.__spikeToolStreaming()`, n=5/shape):
+
+| Tool shape | emit | **compliance** | avg ms |
+|---|---|---|---|
+| progress_read (no-arg) | 1.00 | **1.00** | 6340 |
+| notebook_search (1 string) | 1.00 | **1.00** | 3018 |
+| study_plan_create (multi-field, int-bounded) | 1.00 | **1.00** | 3999 |
+| progress_mark (enum) | 1.00 | **1.00** | 4936 |
+| knowledge_update_map (nested object) | 1.00 | **1.00** | 7951 |
+
+**Aggregate streamed: emit 1.00 / compliance 1.00** (vs the non-streaming baseline 0.98). Latency is
+in the same band as non-streaming (≈3–8s). **Conclusion:** streaming native tool-calling is reliable
+on the floor model — the unified-streaming decision holds, and the contemplated Ollama
+non-streaming internal fallback is **not needed**. Eval harness corroborates end-to-end: the
+`tool-mark-mastered` golden (full kernel + real `progress.mark_mastered` + DB write) passes, and the
+overall run is 5/6 (the only failure remains `math-word-problem`'s backslash-LaTeX — Phase 4's `math.render`).
