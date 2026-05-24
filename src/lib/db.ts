@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson } from "../types";
+import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, NotebookDocument } from "../types";
 
 let db: Database | null = null;
 
@@ -46,6 +46,9 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM quiz_attempts WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM chat_messages WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM notes WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM notebook_embeddings WHERE chunk_id IN (SELECT c.id FROM notebook_chunks c JOIN notebook_documents nd ON c.document_id = nd.id WHERE nd.course_id = $1)", [id]);
+  await d.execute("DELETE FROM notebook_chunks WHERE document_id IN (SELECT id FROM notebook_documents WHERE course_id = $1)", [id]);
+  await d.execute("DELETE FROM notebook_documents WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM tutor_instructions WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM syllabuses WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM user_progress WHERE course_id = $1", [id]);
@@ -183,9 +186,17 @@ export async function getTutorInstructions(courseId: string): Promise<Record<str
   return result;
 }
 
-// Notes (level-scoped per unit)
-export async function getNotes(courseId: string, level: number): Promise<Note[]> {
+// Notes. Phase 3 widened the vault to course-wide: omit `level` to get every note in the
+// course (the default for the Obsidian-like NotebookTab); pass `level` for the legacy
+// per-unit view. Existing callers that pass a level keep working unchanged.
+export async function getNotes(courseId: string, level?: number): Promise<Note[]> {
   const d = await getDb();
+  if (level === undefined) {
+    return await d.select(
+      "SELECT * FROM notes WHERE course_id = $1 ORDER BY sort_order ASC, updated_at DESC",
+      [courseId]
+    );
+  }
   return await d.select(
     "SELECT * FROM notes WHERE course_id = $1 AND level = $2 ORDER BY sort_order ASC",
     [courseId, level]
@@ -214,6 +225,97 @@ export async function updateNote(id: string, title: string, content: string): Pr
 export async function deleteNote(id: string): Promise<void> {
   const d = await getDb();
   await d.execute("DELETE FROM notes WHERE id = $1", [id]);
+}
+
+// ── Notebook RAG (Phase 3) ──────────────────────────────────────────────────
+// Storage for ingested student material. Vectors live in notebook_embeddings.vec as a
+// JSON-array string (brute-force; see notebook.ts for cosine search). All CRUD goes through
+// tauri-plugin-sql like the rest of this module — no native extension.
+
+// One chunk's stored vector joined back to its document, for brute-force search.
+export interface NotebookVecRow {
+  chunk_id: string;
+  document_id: string;
+  document_title: string;
+  ord: number;
+  text: string;
+  vec: string; // JSON-array string, parsed by searchNotebook
+}
+
+export async function findNotebookDocumentBySha(courseId: string, sha256: string): Promise<NotebookDocument | null> {
+  const d = await getDb();
+  const rows: NotebookDocument[] = await d.select(
+    "SELECT * FROM notebook_documents WHERE course_id = $1 AND sha256 = $2 LIMIT 1",
+    [courseId, sha256]
+  );
+  return rows[0] ?? null;
+}
+
+export async function createNotebookDocument(doc: {
+  courseId: string;
+  title: string;
+  sourceType: string;
+  sourceUri?: string | null;
+  sha256?: string | null;
+  embeddingModel: string;
+  dim: number;
+}): Promise<string> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute(
+    "INSERT INTO notebook_documents (id, course_id, title, source_type, source_uri, sha256, embedding_model, dim) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    [id, doc.courseId, doc.title, doc.sourceType, doc.sourceUri ?? null, doc.sha256 ?? null, doc.embeddingModel, doc.dim]
+  );
+  return id;
+}
+
+// Insert one chunk plus its embedding (vec already JSON-stringified by the caller).
+export async function createNotebookChunk(chunk: {
+  documentId: string;
+  ord: number;
+  text: string;
+  tokenCount: number;
+  vec: string;
+}): Promise<string> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute(
+    "INSERT INTO notebook_chunks (id, document_id, ord, text, token_count) VALUES ($1, $2, $3, $4, $5)",
+    [id, chunk.documentId, chunk.ord, chunk.text, chunk.tokenCount]
+  );
+  await d.execute("INSERT INTO notebook_embeddings (chunk_id, vec) VALUES ($1, $2)", [id, chunk.vec]);
+  return id;
+}
+
+// Documents in a course with their chunk counts — drives the NotebookTab source list.
+export async function getNotebookDocuments(courseId: string): Promise<Array<NotebookDocument & { chunk_count: number }>> {
+  const d = await getDb();
+  return await d.select(
+    "SELECT d.*, (SELECT COUNT(*) FROM notebook_chunks c WHERE c.document_id = d.id) AS chunk_count " +
+      "FROM notebook_documents d WHERE d.course_id = $1 ORDER BY d.ingested_at DESC",
+    [courseId]
+  );
+}
+
+// Load every chunk vector in a course for a given embedding model (brute-force search input).
+// Filtering by model keeps cosine comparisons dimensionally consistent across re-embeds.
+export async function loadNotebookVectors(courseId: string, embeddingModel: string): Promise<NotebookVecRow[]> {
+  const d = await getDb();
+  return await d.select(
+    "SELECT e.chunk_id AS chunk_id, c.document_id AS document_id, d.title AS document_title, c.ord AS ord, c.text AS text, e.vec AS vec " +
+      "FROM notebook_embeddings e " +
+      "JOIN notebook_chunks c ON e.chunk_id = c.id " +
+      "JOIN notebook_documents d ON c.document_id = d.id " +
+      "WHERE d.course_id = $1 AND d.embedding_model = $2",
+    [courseId, embeddingModel]
+  );
+}
+
+export async function deleteNotebookDocument(documentId: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("DELETE FROM notebook_embeddings WHERE chunk_id IN (SELECT id FROM notebook_chunks WHERE document_id = $1)", [documentId]);
+  await d.execute("DELETE FROM notebook_chunks WHERE document_id = $1", [documentId]);
+  await d.execute("DELETE FROM notebook_documents WHERE id = $1", [documentId]);
 }
 
 // Chat Messages (level-scoped per unit)

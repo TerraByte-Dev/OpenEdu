@@ -1,7 +1,7 @@
 ---
 name: review
 description: Summarize what's been learned and surface shaky areas.
-tools_required: []
+tools_required: [notebook.search]
 model_tier_min: tiny
 ---
 

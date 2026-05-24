@@ -1,7 +1,7 @@
 ---
 name: socratic
 description: Guide with questions — never give direct answers.
-tools_required: []
+tools_required: [notebook.search]
 model_tier_min: tiny
 ---
 
