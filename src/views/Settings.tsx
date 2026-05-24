@@ -3,7 +3,7 @@ import type { LLMProvider } from "../types";
 import {
   getLLMProvider, setLLMProvider, setGenerationModel, setChatModel,
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
-  setTavilyApiKey, getTavilyApiKey,
+  setTavilyApiKey, getTavilyApiKey, getEmbeddingConfig, setEmbeddingModel,
 } from "../lib/store";
 import { getOllamaModels, callLLM } from "../lib/llm";
 import {
@@ -54,6 +54,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
   const [provider, setProvider] = useState<LLMProvider>("ollama");
   const [genModel, setGenModel] = useState("llama3");
   const [chatModel, setChatModelState] = useState("llama3");
+  const [embeddingModel, setEmbeddingModelState] = useState("nomic-embed-text");
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [ollamaUrlValue, setOllamaUrlValue] = useState("http://127.0.0.1:11434");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
@@ -74,6 +75,8 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
       setGenModel(gc.model);
       const cc = await getChatConfig();
       setChatModelState(cc.model);
+      const ec = await getEmbeddingConfig();
+      setEmbeddingModelState(ec.model);
       if (base.provider !== "ollama") {
         const key = await getApiKey(base.provider);
         setApiKeyValue(key || "");
@@ -143,6 +146,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
     await setLLMProvider(provider);
     await setGenerationModel(genModel);
     await setChatModel(chatModel);
+    await setEmbeddingModel(embeddingModel.trim() || "nomic-embed-text");
     if (provider !== "ollama" && apiKeyValue) {
       await setApiKey(provider, apiKeyValue);
     }
@@ -326,6 +330,24 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
             )}
           </div>
         </div>
+
+        {/* Embedding model (notebook search) */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-1">Embedding Model (Notebook)</h2>
+          <p className="text-xs text-[var(--ink-faint)] mb-3">
+            Embeds your notebook documents so the tutor can search and cite them. Runs locally on Ollama —
+            default <span className="text-phosphor-ink">nomic-embed-text</span> (~274MB). Lighter option:{" "}
+            <span className="text-phosphor-ink">all-minilm</span>. Run{" "}
+            <span className="text-phosphor-ink">ollama pull &lt;model&gt;</span> first.
+          </p>
+          <input
+            type="text"
+            value={embeddingModel}
+            onChange={(e) => setEmbeddingModelState(e.target.value)}
+            placeholder="nomic-embed-text"
+            className="w-full px-4 py-2.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor"
+          />
+        </section>
 
         {/* Web Search */}
         <section className="mb-8">

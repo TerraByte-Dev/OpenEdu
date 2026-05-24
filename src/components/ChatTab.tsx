@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { marked } from "marked";
-import type { Course, ChatMessage, Syllabus } from "../types";
+import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
 import { getChatMessages, saveChatMessage, getTutorInstructions } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelTier } from "../lib/llm";
@@ -359,6 +359,40 @@ function ToolChip({ ev }: { ev: ToolUIEvent }) {
     return <div className={`${base} bg-red-500/10 border-red-500/30 text-red-300`}>⚠ {ev.name}: {ev.error}</div>;
   }
   if (ev.kind === "result") {
+    // notebook.search → a ✓ summary plus a "📓 Source: …" chip per cited document.
+    if (ev.name === "notebook.search") {
+      const results = (ev.value as { results?: NotebookSearchResult[] } | undefined)?.results ?? [];
+      const sources: string[] = [];
+      for (const r of results) if (!sources.includes(r.document_title)) sources.push(r.document_title);
+      if (sources.length === 0) {
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>📓 notebook.search — no matching notes</div>;
+      }
+      return (
+        <div className="flex flex-col items-start gap-1.5">
+          <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
+            ✓ notebook.search — {results.length} passage{results.length === 1 ? "" : "s"}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {sources.map((title) => (
+              <span key={title} title="Cited from your notebook" className={`${base} bg-lcd border-phosphor/20 text-phosphor-ink`}>
+                📓 Source: {title}
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    // notebook.ingest → "📓 N chunks added from …" (or a dedupe note).
+    if (ev.name === "notebook.ingest") {
+      const v = ev.value as { chunkCount?: number; title?: string; deduped?: boolean } | undefined;
+      const n = v?.chunkCount ?? 0;
+      const verb = v?.deduped ? "already in notebook" : `${n} chunk${n === 1 ? "" : "s"} added`;
+      return (
+        <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
+          📓 {verb}{v?.title ? ` from "${v.title}"` : ""}
+        </div>
+      );
+    }
     return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {ev.name}</div>;
   }
   const msg = ev.kind === "progress" ? ev.message : "running…";
