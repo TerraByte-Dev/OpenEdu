@@ -1,12 +1,14 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { marked } from "marked";
 import type { Course, ChatMessage, Syllabus } from "../types";
 import { getChatMessages, saveChatMessage, getTutorInstructions } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
-import { streamChat } from "../lib/llm";
+import { detectModelTier } from "../lib/llm";
 import { getChatConfig } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, getTutorModePrompt, type TutorModeId } from "../lib/tutor-modes";
+import { tutorEngine, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
+import type { ToolContext, AskChoice } from "../lib/tools";
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -26,6 +28,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const [streamingText, setStreamingText] = useState("");
   const [chatError, setChatError] = useState("");
   const [activeMode, setActiveMode] = useState<TutorModeId>("explain");
+  // Live tool activity for the current/just-finished turn (session-only; not persisted).
+  const [toolEvents, setToolEvents] = useState<ToolUIEvent[]>([]);
+  // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
+  const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
+  const askResolverRef = useRef<((value: string) => void) | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,13 +62,24 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText]);
+  }, [messages, streamingText, toolEvents, askPending]);
 
   const cancelStream = () => {
     abortRef.current?.abort();
     abortRef.current = null;
+    // Unblock any pending ask_user so the suspended turn can unwind and stop.
+    askResolverRef.current?.("");
+    askResolverRef.current = null;
+    setAskPending(null);
     setStreaming(false);
     setStreamingText("");
+  };
+
+  const handleAskChoice = (value: string) => {
+    setAskPending(null);
+    const resolve = askResolverRef.current;
+    askResolverRef.current = null;
+    resolve?.(value);
   };
 
   const sendMessage = async () => {
@@ -74,7 +92,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const userMsg = await saveChatMessage(courseId, "user", userText, level);
     setMessages((prev) => [...prev, userMsg]);
 
-    // Build system prompt — with fallback if instructions not yet generated
+    // Build system prompt — with fallback if instructions not yet generated. The kernel appends
+    // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     const instructions = await getTutorInstructions(courseId);
     const knowledgeSummary = await getKnowledgeSummary(courseId);
     const systemPrompt = buildSystemPrompt(
@@ -94,38 +113,56 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     ];
 
     const config = await getChatConfig();
+    const modelTier = await detectModelTier(config);
     const controller = new AbortController();
     abortRef.current = controller;
     setStreaming(true);
     setStreamingText("");
+    setToolEvents([]);
 
-    await streamChat({
+    const turn: TutorTurn = {
       messages: llmMessages,
       config,
-      signal: controller.signal,
-      onToken: (token) => {
-        setStreamingText((prev) => prev + token);
-      },
-      onDone: async (fullText) => {
-        if (fullText.trim()) {
-          const assistantMsg = await saveChatMessage(courseId, "assistant", fullText, level);
-          setMessages((prev) => [...prev, assistantMsg]);
-          // Background knowledge file update — non-blocking, best-effort
-          getChatConfig().then((chatConfig) => {
-            updateKnowledgeFiles(courseId, userText, fullText, chatConfig).catch(() => {});
-          });
+      onText: (chunk) => setStreamingText((prev) => prev + chunk),
+      onToolEvent: (ev) => setToolEvents((prev) => [...prev.filter((e) => e.id !== ev.id), ev]),
+    };
+
+    const ctx: ToolContext = {
+      courseId,
+      level,
+      syllabus: currentSyllabus,
+      modelTier,
+      permissionMode: "default", // Phase 1 = allow-all; real permission layer is Phase 2
+      config,
+      abort: controller.signal,
+      askUser: (question, choices) =>
+        new Promise<string>((resolve) => {
+          askResolverRef.current = resolve;
+          setAskPending({ question, choices });
+        }),
+    };
+
+    try {
+      const result = await tutorEngine.run(turn, ctx);
+      if (!controller.signal.aborted && result.text.trim()) {
+        const assistantMsg = await saveChatMessage(courseId, "assistant", result.text, level);
+        setMessages((prev) => [...prev, assistantMsg]);
+        // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
+        // knowledge.update_map already wrote this turn so there's exactly one writer.
+        if (!result.usedKnowledgeUpdate) {
+          updateKnowledgeFiles(courseId, userText, result.text, config).catch(() => {});
         }
-        setStreamingText("");
-        setStreaming(false);
-        abortRef.current = null;
-      },
-      onError: (error) => {
-        setChatError(error);
-        setStreamingText("");
-        setStreaming(false);
-        abortRef.current = null;
-      },
-    });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/abort/i.test(msg)) setChatError(msg);
+    } finally {
+      setStreamingText("");
+      setStreaming(false);
+      abortRef.current = null;
+      setAskPending(null);
+      askResolverRef.current = null;
+    }
   };
 
   return (
@@ -173,6 +210,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               }
             </div>
           </div>
+        )}
+        {toolEvents.length > 0 && <ToolActivity events={toolEvents} />}
+        {askPending && (
+          <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
         )}
         {chatError && (
           <div className="mx-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">
@@ -264,6 +305,63 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             dangerouslySetInnerHTML={{ __html: marked.parse(message.content) as string }}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+// Inline tool activity — progress chips that become result / error cards. Identity is the
+// tool_call id, so a chip transitions in place. Session-only (not persisted in Phase 1).
+function ToolActivity({ events }: { events: ToolUIEvent[] }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-8 h-8 shrink-0" />
+      <div className="flex-1 flex flex-col items-start gap-1.5">
+        {events.map((ev) => (
+          <ToolChip key={ev.id} ev={ev} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ToolChip({ ev }: { ev: ToolUIEvent }) {
+  const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-mono border w-fit max-w-full";
+  if (ev.kind === "error") {
+    return <div className={`${base} bg-red-500/10 border-red-500/30 text-red-300`}>⚠ {ev.name}: {ev.error}</div>;
+  }
+  if (ev.kind === "result") {
+    return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {ev.name}</div>;
+  }
+  const msg = ev.kind === "progress" ? ev.message : "running…";
+  return (
+    <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>
+      <span>🔧 {ev.name} — {msg}</span>
+      <span className="inline-block w-1.5 h-3 bg-phosphor-ink animate-pulse" />
+    </div>
+  );
+}
+
+// ask_user.question — choice buttons that resolve the suspended turn on click.
+function AskUserChoices({ question, choices, onPick }: { question: string; choices: AskChoice[]; onPick: (value: string) => void }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
+        AI
+      </span>
+      <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
+        <p className="mb-2.5">{question}</p>
+        <div className="flex flex-wrap gap-2">
+          {choices.map((c) => (
+            <button
+              key={c.value}
+              onClick={() => onPick(c.value)}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium btn-primary/30 text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

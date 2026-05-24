@@ -73,6 +73,19 @@ export async function getKnowledgeSummary(courseId: string): Promise<string> {
   return sections.join("\n\n");
 }
 
+// Merge a concise note into the knowledge_map file (append + tail-cap to its budget). This is the
+// explicit, mid-conversation path the tutor uses via the knowledge.update_map tool — the model
+// supplies the already-distilled note, so no second LLM call is needed (unlike the holistic
+// post-turn reflection in updateKnowledgeFiles below).
+export async function recordKnowledgeNote(courseId: string, note: string): Promise<void> {
+  const trimmed = note.trim();
+  if (!trimmed) return;
+  const instructions = await getTutorInstructions(courseId);
+  const current = (instructions["knowledge_map"] ?? "").trim();
+  const merged = current ? `${current}\n${trimmed}` : trimmed;
+  await saveTutorInstruction(courseId, "knowledge_map", merged.slice(-BUDGETS.knowledge_map));
+}
+
 // Background reflection: update knowledge files after a chat exchange
 export async function updateKnowledgeFiles(
   courseId: string,
