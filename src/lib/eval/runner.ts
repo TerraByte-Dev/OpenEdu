@@ -66,6 +66,7 @@ async function runGolden(g: Golden, config: Awaited<ReturnType<typeof getChatCon
 async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof getChatConfig>>): Promise<GoldenRun> {
   registerBuiltinTools();
   loadBuiltinSkills();
+  if (g.setup) await g.setup(config); // seed fixtures (e.g. notebook docs) before the turns
   const transcript: GoldenTranscriptEntry[] = [];
   const history: Array<{ role: string; content: string }> = [];
   const modelTier = await detectModelTier(config);
