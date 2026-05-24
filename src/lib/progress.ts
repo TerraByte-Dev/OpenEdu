@@ -79,26 +79,33 @@ export async function updateSubtopicMastery(
 }
 
 /**
- * Directly set one subtopic's mastery status by id — the conversation-driven path the tutor uses
- * via the progress.mark_mastered tool (vs the quiz-driven updateSubtopicMastery above). "mastered"
- * implies "practiced". Writes only when something actually changed. Returns whether the id was
- * found and the subtopic's title for a friendly tool result. Subtopic-level only — never touches
- * course.current_level (integer levels 1–6 stay under the promotion-test logic).
+ * Directly set one subtopic's mastery status by id OR title — the conversation-driven path the
+ * tutor uses via the progress.mark_mastered tool (vs the quiz-driven updateSubtopicMastery above).
+ * Small models naturally reference the human-readable title ("Introduction to Python and Basic
+ * Output") rather than the internal id ("1.1"), so we resolve either. "mastered" implies
+ * "practiced". Writes only when something changed. Returns whether a subtopic was found and its
+ * title. Subtopic-level only — never touches course.current_level (integer levels 1–6 stay under
+ * the promotion-test logic).
  */
 export async function setSubtopicStatus(
   courseId: string,
   syllabus: Syllabus,
-  subtopicId: string,
+  idOrTitle: string,
   status: "mastered" | "practiced",
 ): Promise<{ found: boolean; changed: boolean; title?: string }> {
-  let found = false;
-  let changed = false;
-  let title: string | undefined;
+  // Resolve by exact id, then exact title, then a loose title contains-match.
+  const norm = (s: string) => s.trim().toLowerCase();
+  const target = norm(idOrTitle);
+  const match =
+    syllabus.subtopics.find((s) => s.id === idOrTitle) ??
+    syllabus.subtopics.find((s) => norm(s.title) === target) ??
+    syllabus.subtopics.find((s) => norm(s.title).includes(target) || target.includes(norm(s.title)));
 
+  if (!match) return { found: false, changed: false };
+
+  let changed = false;
   const updated = syllabus.subtopics.map((sub) => {
-    if (sub.id !== subtopicId) return sub;
-    found = true;
-    title = sub.title;
+    if (sub.id !== match.id) return sub;
     let next = sub;
     if (!next.practiced) { next = { ...next, practiced: true }; changed = true; }
     if (status === "mastered" && !next.mastered) { next = { ...next, mastered: true }; changed = true; }
@@ -107,9 +114,9 @@ export async function setSubtopicStatus(
 
   if (changed) {
     await updateSyllabusSubtopics(courseId, syllabus.level, JSON.stringify(updated));
-    log.info("progress", `Set subtopic ${subtopicId} → ${status} (course ${courseId} L${syllabus.level})`);
+    log.info("progress", `Set subtopic ${match.id} (${match.title}) → ${status} (course ${courseId} L${syllabus.level})`);
   }
-  return { found, changed, title };
+  return { found: true, changed, title: match.title };
 }
 
 // ─── User Progress ────────────────────────────────────────────────────────────

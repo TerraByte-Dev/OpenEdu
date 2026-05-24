@@ -14,7 +14,10 @@ export const markMasteredTool = defineTool({
     "Mark a subtopic in the current level as mastered or practiced when the student demonstrates it " +
     "in conversation. subtopic_id MUST be an id from the current level's syllabus.",
   inputSchema: z.object({
-    subtopic_id: z.string().min(1).describe("The id of the subtopic, taken from the current level's syllabus."),
+    subtopic_id: z
+      .string()
+      .min(1)
+      .describe("Which subtopic — its id (e.g. \"1.1\") OR its title (e.g. \"Introduction to Python and Basic Output\") from the current level's syllabus."),
     status: z
       .enum(["mastered", "practiced"])
       .describe("mastered = clearly demonstrated ~90%+ understanding; practiced = has worked on it but not yet mastered."),
@@ -31,8 +34,8 @@ export const markMasteredTool = defineTool({
     yield { kind: "progress", message: `marking "${input.subtopic_id}" as ${input.status}…` };
     const res = await setSubtopicStatus(ctx.courseId, syllabus, input.subtopic_id, input.status);
     if (!res.found) {
-      const ids = syllabus.subtopics.map((s) => s.id).join(", ");
-      yield { kind: "error", error: `subtopic_id "${input.subtopic_id}" not found in level ${ctx.level}. Valid ids: ${ids}.` };
+      const valid = syllabus.subtopics.map((s) => `${s.id} ("${s.title}")`).join("; ");
+      yield { kind: "error", error: `No subtopic matched "${input.subtopic_id}" in level ${ctx.level}. Valid subtopics: ${valid}.` };
       return;
     }
 
