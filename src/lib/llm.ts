@@ -1056,6 +1056,374 @@ export async function callLLMStructured<T>(
   );
 }
 
+// ─── Native tool-calling turn (v2 Phase 1) ────────────────────────────────────
+// The kernel (TutorEngine) consumes ONE provider-agnostic event stream and never
+// cares whether a provider truly streamed token-by-token or assembled a single
+// response. This is the keystone of the v2 turn loop: text deltas and tool calls
+// interleave from the same generator. A turn offered NO tools and NO temperature
+// builds a request body byte-identical to streamChat's — so plain chat is unchanged
+// (and the eval baseline holds when goldens opt out of tools).
+//
+// Decision: native provider tool-calling is PRIMARY (V2_DECISION_TOOLCALL.md, 0.98
+// arg-compliance on gemma4:e4b). Schemas are zod in the tool layer; the kernel
+// converts to JSON Schema via the dsl layer and hands us ProviderToolDef[], so
+// llm.ts stays agnostic of the tool/UI layers above it.
+
+// A tool as the provider sees it. `parameters` is already provider-ready JSON Schema
+// (zod → toProviderJsonSchema, done by the caller).
+export interface ProviderToolDef {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+// The neutral message shape the kernel works in. Each provider adapter translates it
+// to that provider's wire format — reinjection of tool results differs by provider
+// (OpenAI: `tool` role + tool_call_id; Anthropic: `user` msg w/ tool_result blocks;
+// Ollama: `tool` role).
+export interface NeutralMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string;
+  tool_calls?: Array<{ id: string; name: string; args: unknown }>; // assistant turns that called tools
+  tool_call_id?: string; // tool-result turns
+  name?: string;         // tool name on tool-result turns
+}
+
+export type LLMTurnEvent =
+  | { type: "text"; delta: string }
+  | { type: "tool_call"; id: string; name: string; args: unknown }
+  | { type: "done"; finishReason: "stop" | "tool_calls" | "length" | "aborted" };
+
+export interface TurnOpts {
+  tools?: ProviderToolDef[];
+  tier?: ModelTier;
+  temperature?: number; // omitted from the request when undefined — keeps plain turns identical
+  signal?: AbortSignal;
+}
+
+// Combine the caller's AbortSignal with a per-call timeout, mirroring callLLMStructured.
+// Bounds a single model HTTP call (not tool execution — that's the kernel's concern).
+function withTimeoutSignal(signal: AbortSignal | undefined, timeoutMs: number) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const onAbort = () => ctrl.abort();
+  if (signal) {
+    if (signal.aborted) ctrl.abort();
+    else signal.addEventListener("abort", onAbort, { once: true });
+  }
+  return {
+    signal: ctrl.signal,
+    cleanup: () => { clearTimeout(timer); if (signal) signal.removeEventListener("abort", onAbort); },
+  };
+}
+
+// ── Minimal stream-chunk shapes (typed parsing, no `any`) ──
+interface OllamaTurnChunk {
+  error?: string;
+  done?: boolean;
+  message?: { content?: string; tool_calls?: Array<{ function?: { name?: string; arguments?: unknown } }> };
+}
+interface OpenAITurnChunk {
+  choices?: Array<{
+    delta?: { content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> };
+    finish_reason?: string | null;
+  }>;
+}
+interface AnthropicTurnEvent {
+  type?: string;
+  index?: number;
+  content_block?: { type?: string; id?: string; name?: string };
+  delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string };
+  error?: { message?: string };
+}
+
+// ── Message translators (neutral → provider wire format) ──
+function toOllamaTurnMessage(m: NeutralMessage): Record<string, unknown> {
+  if (m.role === "assistant" && m.tool_calls?.length) {
+    return {
+      role: "assistant",
+      content: m.content ?? "",
+      tool_calls: m.tool_calls.map((tc) => ({ function: { name: tc.name, arguments: tc.args ?? {} } })),
+    };
+  }
+  if (m.role === "tool") {
+    return { role: "tool", content: m.content, ...(m.name ? { tool_name: m.name } : {}) };
+  }
+  return { role: m.role, content: m.content };
+}
+
+function toOpenAITurnMessage(m: NeutralMessage): Record<string, unknown> {
+  if (m.role === "assistant" && m.tool_calls?.length) {
+    return {
+      role: "assistant",
+      content: m.content || null,
+      tool_calls: m.tool_calls.map((tc) => ({
+        id: tc.id,
+        type: "function",
+        function: { name: tc.name, arguments: JSON.stringify(tc.args ?? {}) },
+      })),
+    };
+  }
+  if (m.role === "tool") {
+    return { role: "tool", tool_call_id: m.tool_call_id, content: m.content };
+  }
+  return { role: m.role, content: m.content };
+}
+
+// Anthropic: content-block translation + tool_results grouped into one user message
+// (Anthropic expects all tool_results for a turn together).
+function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string; messages: Array<Record<string, unknown>> } {
+  const system = messages.find((m) => m.role === "system")?.content;
+  const out: Array<Record<string, unknown>> = [];
+  let pendingToolResults: Array<Record<string, unknown>> = [];
+  const flush = () => {
+    if (pendingToolResults.length) {
+      out.push({ role: "user", content: pendingToolResults });
+      pendingToolResults = [];
+    }
+  };
+  for (const m of messages) {
+    if (m.role === "system") continue;
+    if (m.role === "tool") {
+      pendingToolResults.push({ type: "tool_result", tool_use_id: m.tool_call_id, content: m.content });
+      continue;
+    }
+    flush();
+    if (m.role === "assistant" && m.tool_calls?.length) {
+      const content: Array<Record<string, unknown>> = [];
+      if (m.content) content.push({ type: "text", text: m.content });
+      for (const tc of m.tool_calls) content.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.args ?? {} });
+      out.push({ role: "assistant", content });
+    } else {
+      out.push({ role: m.role, content: m.content });
+    }
+  }
+  flush();
+  return { system, messages: out };
+}
+
+// ── Tool-def builders (one per provider envelope) ──
+function ollamaToolDefs(tools?: ProviderToolDef[]) {
+  return tools?.length ? tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })) : undefined;
+}
+function anthropicToolDefs(tools?: ProviderToolDef[]) {
+  return tools?.length ? tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })) : undefined;
+}
+
+// ── The public entry point ──
+export async function* callLLMTurn(
+  messages: NeutralMessage[],
+  config: LLMConfig,
+  opts: TurnOpts = {},
+): AsyncGenerator<LLMTurnEvent> {
+  log.info("callLLMTurn", `provider=${config.provider} model=${config.model} tools=${opts.tools?.length ?? 0}`);
+  if (config.provider === "ollama") yield* streamOllamaTurn(messages, config, opts);
+  else if (config.provider === "openai") yield* streamOpenAITurn(messages, config, opts);
+  else if (config.provider === "anthropic") yield* streamAnthropicTurn(messages, config, opts);
+  else throw new Error(`Unknown provider "${config.provider}" — check Settings.`);
+}
+
+async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, opts: TurnOpts): AsyncGenerator<LLMTurnEvent> {
+  const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOllamaTurnMessage), stream: true };
+  if (opts.temperature !== undefined) body.options = { temperature: opts.temperature };
+  const tools = ollamaToolDefs(opts.tools);
+  if (tools) body.tools = tools;
+
+  const { signal, cleanup } = withTimeoutSignal(opts.signal, effectivePerCallTimeoutMs(config.provider, opts.tier));
+  try {
+    let response: Awaited<ReturnType<typeof fetch>>;
+    try {
+      response = await fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") { yield { type: "done", finishReason: "aborted" }; return; }
+      throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e)}`);
+    }
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      if (response.status === 404) throw new Error(`Ollama model "${config.model}" not found — run: ollama pull ${config.model}`);
+      throw new Error(`Ollama error ${response.status}: ${text || "unknown"}`);
+    }
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Ollama returned no response stream.");
+    const decoder = new TextDecoder();
+    let lineBuffer = "";
+    let sawToolCall = false;
+    let callIdx = 0;
+    while (true) {
+      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: "aborted" }; return; }
+      const { done, value } = await reader.read();
+      if (done) break;
+      lineBuffer += decoder.decode(value, { stream: true });
+      const lines = lineBuffer.split("\n");
+      lineBuffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let json: OllamaTurnChunk;
+        try { json = JSON.parse(line) as OllamaTurnChunk; } catch { continue; }
+        if (json.error) throw new Error(`Ollama error: ${json.error}`);
+        if (json.message?.content) yield { type: "text", delta: json.message.content };
+        if (Array.isArray(json.message?.tool_calls)) {
+          for (const tc of json.message.tool_calls) {
+            sawToolCall = true;
+            let args: unknown = tc.function?.arguments ?? {};
+            if (typeof args === "string") { try { args = JSON.parse(args); } catch { /* keep raw string */ } }
+            yield { type: "tool_call", id: `call_${callIdx++}`, name: tc.function?.name ?? "", args };
+          }
+        }
+      }
+    }
+    if (signal.aborted) { yield { type: "done", finishReason: "aborted" }; return; }
+    yield { type: "done", finishReason: sawToolCall ? "tool_calls" : "stop" };
+  } finally { cleanup(); }
+}
+
+async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, opts: TurnOpts): AsyncGenerator<LLMTurnEvent> {
+  if (!config.apiKey) throw new Error("OpenAI API key not set — go to Settings and add your key.");
+  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOpenAITurnMessage), stream: true };
+  if (opts.temperature !== undefined) body.temperature = opts.temperature;
+  const tools = ollamaToolDefs(opts.tools); // identical {type:function,function:{…}} envelope as Ollama/OpenAI
+  if (tools) { body.tools = tools; body.tool_choice = "auto"; }
+
+  const { signal, cleanup } = withTimeoutSignal(opts.signal, effectivePerCallTimeoutMs(config.provider, opts.tier));
+  try {
+    let response: Awaited<ReturnType<typeof fetch>>;
+    try {
+      response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${config.apiKey}`, "Origin": "" },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") { yield { type: "done", finishReason: "aborted" }; return; }
+      throw new Error(networkAwareMessage(e));
+    }
+    if (!response.ok) { const text = await response.text().catch(() => ""); throw friendlyHttpError("OpenAI", response.status, text); }
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("OpenAI returned no response stream.");
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const toolAcc = new Map<number, { id: string; name: string; args: string }>();
+    let finishReason: "stop" | "tool_calls" | "length" = "stop";
+    while (true) {
+      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: "aborted" }; return; }
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const data = trimmed.slice(5).trim();
+        if (data === "[DONE]") continue;
+        let json: OpenAITurnChunk;
+        try { json = JSON.parse(data) as OpenAITurnChunk; } catch { continue; }
+        const choice = json.choices?.[0];
+        if (!choice) continue;
+        if (choice.delta?.content) yield { type: "text", delta: choice.delta.content };
+        if (Array.isArray(choice.delta?.tool_calls)) {
+          for (const tc of choice.delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            const cur = toolAcc.get(idx) ?? { id: "", name: "", args: "" };
+            if (tc.id) cur.id = tc.id;
+            if (tc.function?.name) cur.name = tc.function.name;
+            if (tc.function?.arguments) cur.args += tc.function.arguments;
+            toolAcc.set(idx, cur);
+          }
+        }
+        if (choice.finish_reason === "tool_calls" || choice.finish_reason === "length") finishReason = choice.finish_reason;
+      }
+    }
+    if (signal.aborted) { yield { type: "done", finishReason: "aborted" }; return; }
+    let fallbackIdx = 0;
+    for (const [, c] of toolAcc) {
+      let parsed: unknown = {};
+      if (c.args) {
+        try { parsed = JSON.parse(c.args); }
+        catch { try { parsed = JSON.parse(sanitizeJsonEscapes(c.args)); } catch { parsed = {}; } }
+      }
+      yield { type: "tool_call", id: c.id || `call_${fallbackIdx++}`, name: c.name, args: parsed };
+    }
+    yield { type: "done", finishReason: toolAcc.size > 0 && finishReason === "stop" ? "tool_calls" : finishReason };
+  } finally { cleanup(); }
+}
+
+async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfig, opts: TurnOpts): AsyncGenerator<LLMTurnEvent> {
+  if (!config.apiKey) throw new Error("Anthropic API key not set — go to Settings and add your key.");
+  const { system, messages: amsgs } = toAnthropicTurnMessages(messages);
+  const body: Record<string, unknown> = { model: config.model, max_tokens: 8096, stream: true, messages: amsgs };
+  if (system) body.system = system;
+  if (opts.temperature !== undefined) body.temperature = opts.temperature;
+  const tools = anthropicToolDefs(opts.tools);
+  if (tools) body.tools = tools;
+
+  const { signal, cleanup } = withTimeoutSignal(opts.signal, effectivePerCallTimeoutMs(config.provider, opts.tier));
+  try {
+    let response: Awaited<ReturnType<typeof fetch>>;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": config.apiKey, "anthropic-version": "2023-06-01", "Origin": "" },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") { yield { type: "done", finishReason: "aborted" }; return; }
+      throw new Error(networkAwareMessage(e));
+    }
+    if (!response.ok) { const text = await response.text().catch(() => ""); throw friendlyHttpError("Anthropic", response.status, text); }
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Anthropic returned no response stream.");
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const toolBlocks = new Map<number, { id: string; name: string; json: string }>();
+    let finishReason: "stop" | "tool_calls" | "length" = "stop";
+    while (true) {
+      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: "aborted" }; return; }
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        let evt: AnthropicTurnEvent;
+        try { evt = JSON.parse(trimmed.slice(5).trim()) as AnthropicTurnEvent; } catch { continue; }
+        if (evt.type === "error") throw new Error(`Anthropic stream error: ${evt.error?.message ?? "unknown"}`);
+        if (evt.type === "content_block_start" && evt.content_block?.type === "tool_use" && evt.index !== undefined) {
+          toolBlocks.set(evt.index, { id: evt.content_block.id ?? `call_${evt.index}`, name: evt.content_block.name ?? "", json: "" });
+        } else if (evt.type === "content_block_delta" && evt.index !== undefined) {
+          if (evt.delta?.type === "text_delta" && evt.delta.text) yield { type: "text", delta: evt.delta.text };
+          if (evt.delta?.type === "input_json_delta" && evt.delta.partial_json !== undefined) {
+            const b = toolBlocks.get(evt.index);
+            if (b) b.json += evt.delta.partial_json;
+          }
+        } else if (evt.type === "content_block_stop" && evt.index !== undefined) {
+          const b = toolBlocks.get(evt.index);
+          if (b) {
+            let parsed: unknown = {};
+            if (b.json) { try { parsed = JSON.parse(b.json); } catch { parsed = {}; } }
+            yield { type: "tool_call", id: b.id, name: b.name, args: parsed };
+          }
+        } else if (evt.type === "message_delta" && evt.delta?.stop_reason) {
+          const sr = evt.delta.stop_reason;
+          finishReason = sr === "tool_use" ? "tool_calls" : sr === "max_tokens" ? "length" : "stop";
+        }
+      }
+    }
+    if (signal.aborted) { yield { type: "done", finishReason: "aborted" }; return; }
+    yield { type: "done", finishReason };
+  } finally { cleanup(); }
+}
+
 // ─── Preflight: prove the model can emit structured JSON ─────────────────────
 // Tiny probe call (name + age) used as step 0 of course generation. Hard-blocks
 // the pipeline when the chosen model can't satisfy the schema reliably — so a
