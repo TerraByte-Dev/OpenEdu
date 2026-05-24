@@ -8,6 +8,7 @@
 import { buildSystemPrompt } from "../curriculum";
 import type { Syllabus } from "../../types";
 import type { EduTool } from "../tools/EduTool";
+import type { Skill } from "../dsl/skill";
 
 export interface SystemPromptInput {
   instructions: Record<string, string>;
@@ -29,6 +30,17 @@ export function assembleSystemPrompt(input: SystemPromptInput): string {
     input.modeSuffix,
     input.knowledgeSummary,
   );
+}
+
+// The <skill_bundle> layer (V2 §5 #3). Returns the active skill's persona/rules text to inject into
+// the system prompt. For the Phase 2 pedagogical skills this is the mode-rule body (e.g. Socratic's
+// "ask, don't tell"), carried as the skill's `promptSuffix` — leading "\n\n" + the .md body. It is
+// routed into buildSystemPrompt's `modeSuffix` slot (the same late position the v1 mode suffix
+// occupied), so the assembled prompt stays byte-identical to v1 and the eval baseline holds.
+// Returns null for the default "explain" skill (empty body) and when no skill is active. Phase 4
+// character/persona skills will compose their early-position persona here too.
+export function skillBundleLayer(skill: Skill | null | undefined): string | null {
+  return skill?.promptSuffix ? skill.promptSuffix : null;
 }
 
 // The <tools> layer (V2 §5.8). Returns a manifest of the tools offered this turn, or null when

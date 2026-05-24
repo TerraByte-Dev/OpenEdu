@@ -10,6 +10,8 @@
 import type { EduTool, ToolContext } from "../tools/EduTool";
 import { toolRegistry } from "../tools/registry";
 import { toProviderJsonSchema } from "../dsl/jsonSchema";
+import { evaluatePermission } from "../permissions/evaluate";
+import { loadPermissionRules } from "../permissions/store";
 import type { ProviderToolDef } from "../llm";
 
 // What the chat surface renders for an in-flight / finished tool call: a progress chip
@@ -37,11 +39,18 @@ export function buildProviderToolDefs(tools: EduTool[]): ProviderToolDef[] {
   }));
 }
 
-// The tools offered this turn. Phase 1: every enabled tool (the registry already filters by
-// isEnabled / permission). Routing seam (V2 §11.3): for tier ≤ small, code-route by course
-// subject to a smaller subset; tier ≥ medium chooses freely. Trivial with only 3 tools today.
-export function selectTools(ctx: ToolContext): Promise<EduTool[]> {
-  return toolRegistry.list(ctx);
+// The tools offered this turn (V2 §6.1 skill gating + §7 permissions). Pipeline:
+//   isEnabled (registry) → permission "deny" filter → active-skill tools_required filter.
+// When a skill is active, only its tools_required are exposed — e.g. plain "Explain"
+// (tools_required: []) offers no action tools, which also curbs the floor model's stray tool
+// calls. No active skill → all permitted tools (defensive back-compat; ChatTab + eval always set it).
+export async function selectTools(ctx: ToolContext): Promise<EduTool[]> {
+  const enabled = await toolRegistry.list(ctx);
+  const rules = await loadPermissionRules();
+  const permitted = enabled.filter((t) => evaluatePermission(t, ctx.permissionMode, rules) !== "deny");
+  if (!ctx.activeSkill) return permitted;
+  const allowed = new Set(ctx.activeSkill.tools_required);
+  return permitted.filter((t) => allowed.has(t.name));
 }
 
 export async function dispatchToolCall(
@@ -64,6 +73,25 @@ export async function dispatchToolCall(
     const error = `Invalid arguments for ${call.name}: ${issues}. Call it again with arguments that match the schema.`;
     onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });
     return { name: call.name, ok: false, error };
+  }
+
+  // Permission gate (V2 §7). "deny" is already filtered out of selectTools, but a tool can still be
+  // dispatched outside selection (e.g. a hallucinated call), so re-check here. "ask" requires a user
+  // confirm when the turn can round-trip (ctx.confirmTool); headless contexts (eval) proceed.
+  const rules = await loadPermissionRules();
+  const decision = evaluatePermission(tool, ctx.permissionMode, rules);
+  if (decision === "deny") {
+    const error = `${call.name} is not permitted in ${ctx.permissionMode} mode.`;
+    onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });
+    return { name: call.name, ok: false, error };
+  }
+  if (decision === "ask" && ctx.confirmTool) {
+    const approved = await ctx.confirmTool(call.name, tool.description);
+    if (!approved) {
+      const error = `The student declined to let ${call.name} run.`;
+      onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });
+      return { name: call.name, ok: false, error };
+    }
   }
 
   onUIEvent?.({ kind: "start", id: call.id, name: call.name });

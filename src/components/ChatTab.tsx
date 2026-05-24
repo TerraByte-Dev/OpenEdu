@@ -6,8 +6,9 @@ import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelTier } from "../lib/llm";
 import { getChatConfig } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
-import { TUTOR_MODES, getTutorModePrompt, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
+import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
+import { tutorEngine, skillBundleLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
+import { resolveSkill } from "../lib/skills";
 import type { ToolContext, AskChoice } from "../lib/tools";
 
 marked.setOptions({ gfm: true, breaks: true });
@@ -33,6 +34,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
   const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
   const askResolverRef = useRef<((value: string) => void) | null>(null);
+  // A pending permission "ask" — renders an Allow / Don't allow card and suspends until the choice.
+  const [confirmPending, setConfirmPending] = useState<{ toolName: string; summary: string } | null>(null);
+  const confirmResolverRef = useRef<((ok: boolean) => void) | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -62,7 +66,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText, toolEvents, askPending]);
+  }, [messages, streamingText, toolEvents, askPending, confirmPending]);
 
   const cancelStream = () => {
     abortRef.current?.abort();
@@ -71,6 +75,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     askResolverRef.current?.("");
     askResolverRef.current = null;
     setAskPending(null);
+    // Unblock any pending permission confirm as a decline so the suspended turn can unwind.
+    confirmResolverRef.current?.(false);
+    confirmResolverRef.current = null;
+    setConfirmPending(null);
     setStreaming(false);
     setStreamingText("");
   };
@@ -80,6 +88,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const resolve = askResolverRef.current;
     askResolverRef.current = null;
     resolve?.(value);
+  };
+
+  const handleConfirm = (ok: boolean) => {
+    setConfirmPending(null);
+    const resolve = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    resolve?.(ok);
   };
 
   const sendMessage = async () => {
@@ -96,12 +111,14 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     const instructions = await getTutorInstructions(courseId);
     const knowledgeSummary = await getKnowledgeSummary(courseId);
+    // The active skill (selected via the mode bar) gates tools + supplies the <skill_bundle> rules.
+    const activeSkill = resolveSkill(activeMode) ?? null;
     const systemPrompt = buildSystemPrompt(
       instructions,
       currentSyllabus,
       course.current_level,
       course.topic,
-      getTutorModePrompt(activeMode),
+      skillBundleLayer(activeSkill) ?? "",
       knowledgeSummary || undefined,
     );
 
@@ -132,13 +149,19 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       level,
       syllabus: currentSyllabus,
       modelTier,
-      permissionMode: "default", // Phase 1 = allow-all; real permission layer is Phase 2
+      permissionMode: "default", // Phase 2: rules live in permissions.json; "default" asks before writes
       config,
       abort: controller.signal,
+      activeSkill,
       askUser: (question, choices) =>
         new Promise<string>((resolve) => {
           askResolverRef.current = resolve;
           setAskPending({ question, choices });
+        }),
+      confirmTool: (toolName, summary) =>
+        new Promise<boolean>((resolve) => {
+          confirmResolverRef.current = resolve;
+          setConfirmPending({ toolName, summary });
         }),
     };
 
@@ -162,6 +185,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       abortRef.current = null;
       setAskPending(null);
       askResolverRef.current = null;
+      setConfirmPending(null);
+      confirmResolverRef.current = null;
     }
   };
 
@@ -214,6 +239,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         {toolEvents.length > 0 && <ToolActivity events={toolEvents} />}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
+        )}
+        {confirmPending && (
+          <ConfirmToolCard toolName={confirmPending.toolName} summary={confirmPending.summary} onChoose={handleConfirm} />
         )}
         {chatError && (
           <div className="mx-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">
@@ -338,6 +366,36 @@ function ToolChip({ ev }: { ev: ToolUIEvent }) {
     <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>
       <span>🔧 {ev.name} — {msg}</span>
       <span className="inline-block w-1.5 h-3 bg-phosphor-ink animate-pulse" />
+    </div>
+  );
+}
+
+// Permission "ask" (V2 §7) — Allow / Don't allow buttons that resolve the suspended turn. Reuses
+// the ask_user choice-card look; declining feeds the model a "student declined" tool result.
+function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; summary: string; onChoose: (ok: boolean) => void }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
+        AI
+      </span>
+      <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
+        <p className="mb-1">Allow the tutor to run <span className="font-mono text-phosphor-ink">{toolName}</span>?</p>
+        <p className="mb-2.5 text-[var(--ink-dim)] text-[13px]">{summary}</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onChoose(true)}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-medium btn-primary/30 text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+          >
+            Allow
+          </button>
+          <button
+            onClick={() => onChoose(false)}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-red-300 hover:border-red-500/30 transition-colors"
+          >
+            Don't allow
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

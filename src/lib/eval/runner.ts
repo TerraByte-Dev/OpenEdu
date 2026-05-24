@@ -14,6 +14,7 @@ import { getChatConfig } from "../store";
 import { getTutorModePrompt } from "../tutor-modes";
 import { tutorEngine, type TutorTurn } from "../kernel";
 import { registerBuiltinTools, type ToolContext } from "../tools";
+import { loadBuiltinSkills, resolveSkill } from "../skills";
 import { GOLDENS, type Golden, type GoldenTranscriptEntry } from "./goldens";
 
 // Eval-only stand-in for a generated course's tutor instructions. The math rule is inlined
@@ -64,6 +65,7 @@ async function runGolden(g: Golden, config: Awaited<ReturnType<typeof getChatCon
 // byte-identical. Tool DB writes target the seeded syllabus's sentinel course (harmless no-ops).
 async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof getChatConfig>>): Promise<GoldenRun> {
   registerBuiltinTools();
+  loadBuiltinSkills();
   const transcript: GoldenTranscriptEntry[] = [];
   const history: Array<{ role: string; content: string }> = [];
   const modelTier = await detectModelTier(config);
@@ -84,7 +86,12 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
       permissionMode: "default",
       config,
       abort: new AbortController().signal,
-      // No askUser in the headless eval — ask_user.question would return an error the model recovers from.
+      // The active skill gates which tools are offered this turn (Phase 2) — assess exposes
+      // progress.mark_mastered; explain exposes none.
+      activeSkill: resolveSkill(turn.mode ?? "explain") ?? null,
+      // No askUser in the headless eval — ask_user.question would return an error the model recovers
+      // from. confirmTool auto-approves so a "default"-mode write (which is "ask") still runs end-to-end.
+      confirmTool: async () => true,
     };
     const tt: TutorTurn = { messages, config, onText: () => {} };
     const result = await tutorEngine.run(tt, ctx);

@@ -4,4 +4,6 @@ export { SubtopicSchema, SyllabusSchema } from "./syllabus";
 export type { SubtopicDSL, SyllabusDSL } from "./syllabus";
 export { OutlineLevelSchema, CourseOutlineSchema } from "./course";
 export type { OutlineLevelDSL, CourseOutlineDSL } from "./course";
+export { SkillFrontmatterSchema } from "./skill";
+export type { SkillFrontmatter, Skill } from "./skill";
 export { verifyDslRoundTrip } from "./_roundTripCheck";
