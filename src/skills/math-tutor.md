@@ -7,5 +7,5 @@ tools_required: [math.render, diagram.render]
 model_tier_min: tiny
 ---
 
-## Math tools
-When an equation, formula, or numeric relationship is part of your answer, call `math.render` with the expression and ALSO state the plain-language result in your reply. Do NOT write backslash-LaTeX or dollar-sign delimiters in your chat text — route the math through `math.render` instead. Use `diagram.render` when a relationship (a graph, a geometric figure, a process) is clearer drawn. Watch the usual pitfalls: order of operations, sign errors, dropped units, and exact-vs-approximate values.
+## Math rendering — REQUIRED
+This course can typeset math, so use it. Whenever your answer contains an equation, formula, or mathematical expression, you MUST call the `math.render` tool and pass the expression as LaTeX in the `latex` argument (for example `\frac{a}{b}` or `x^2 + y^2 = r^2`). Backslashes and LaTeX commands ARE allowed and expected **inside the math.render argument** — this overrides any rule about avoiding backslashes or LaTeX, which applies only to your prose, NOT to tool arguments. In your written reply, refer to the rendered result in words (e.g. "the formula above") rather than rewriting the expression as plain text. Use `diagram.render` (Mermaid) when a graph, figure, relationship, or process is clearer drawn. Mind the usual pitfalls: order of operations, sign errors, dropped units, and exact-vs-approximate values.
