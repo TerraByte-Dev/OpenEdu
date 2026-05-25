@@ -952,11 +952,17 @@ export function buildSystemPrompt(
   topic: string,
   modePromptSuffix?: string,
   knowledgeSummary?: string,
+  personaIdentity?: string,
 ): string {
   const parts: string[] = [];
 
-  if (instructions.identity) {
-    parts.push(`## Tutor Identity\n${instructions.identity}`);
+  // Phase 4b: a chosen persona overrides ONLY this identity slot (name + tone). Pedagogy, rules,
+  // progress, and the syllabus still come from the generated tutor_instructions — keeping the WHO
+  // axis orthogonal to HOW/WHAT. No persona (legacy course / skipped pick) falls back to the
+  // generated identity, so existing courses render byte-identical.
+  const identity = personaIdentity ?? instructions.identity;
+  if (identity) {
+    parts.push(`## Tutor Identity\n${identity}`);
   }
   if (instructions.pedagogy) {
     parts.push(`## Teaching Approach\n${instructions.pedagogy}`);

@@ -43,6 +43,15 @@ export function skillBundleLayer(skill: Skill | null | undefined): string | null
   return skill?.promptSuffix ? skill.promptSuffix : null;
 }
 
+// The <persona> layer (V2 §5 #2) — the WHO axis (Phase 4b). A persona is a curated sprite tutor
+// whose short voice/identity body overrides ONLY buildSystemPrompt's identity slot (passed as its
+// `personaIdentity` argument). Returns the persona skill's body, or undefined when no persona is
+// active → buildSystemPrompt falls back to the generated identity. Pedagogy/rules/progress are
+// untouched, so persona stays orthogonal to mode (HOW) and domain (WHAT).
+export function personaIdentityLayer(persona: Skill | null | undefined): string | undefined {
+  return persona?.body || undefined;
+}
+
 // The <tools> layer (V2 §5.8). Returns a manifest of the tools offered this turn, or null when
 // none — so a no-tool turn's system prompt is byte-identical to v1. The kernel appends this to
 // the system message AFTER tool selection, guaranteeing the manifest matches what's actually
