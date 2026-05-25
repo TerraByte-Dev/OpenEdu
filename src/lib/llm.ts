@@ -1071,6 +1071,67 @@ export async function callLLMStructured<T>(
 
 // A tool as the provider sees it. `parameters` is already provider-ready JSON Schema
 // (zod → toProviderJsonSchema, done by the caller).
+// ─── Public: embeddings (notebook RAG, Phase 3) ──────────────────────────────
+// One vector per input string, input order preserved. Embeddings are local-first: `config`
+// comes from getEmbeddingConfig() (its provider/model ARE the embedding ones), independent of
+// the chat model. Ollama and OpenAI expose batch endpoints; Anthropic has none, so the embedding
+// provider defaults to Ollama (nomic-embed-text).
+export async function embed(texts: string[], config: LLMConfig): Promise<number[][]> {
+  if (texts.length === 0) return [];
+
+  if (config.provider === "ollama") {
+    const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+    const url = `${baseUrl}/api/embed`;
+    let response: Awaited<ReturnType<typeof fetch>>;
+    try {
+      response = await fetchWithRetry(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+        body: JSON.stringify({ model: config.model, input: texts }),
+      });
+    } catch (e) {
+      throw new Error(`Cannot reach Ollama at ${baseUrl} to embed. Run "ollama serve" and "ollama pull ${config.model}". Detail: ${networkAwareMessage(e)}`);
+    }
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      if (response.status === 404) throw new Error(`Ollama embedding model "${config.model}" not found — run: ollama pull ${config.model}`);
+      throw new Error(`Ollama embed error ${response.status}: ${text || "unknown"}`);
+    }
+    const json = await response.json();
+    // /api/embed returns { embeddings: number[][] }; tolerate the legacy single { embedding }.
+    const embeddings: number[][] = json.embeddings ?? (json.embedding ? [json.embedding] : []);
+    if (!embeddings.length) throw new Error(`Ollama returned no embeddings for model "${config.model}".`);
+    log.info("embed", `ollama ${config.model}: ${embeddings.length}×${embeddings[0]?.length ?? 0}`);
+    return embeddings;
+  }
+
+  if (config.provider === "openai") {
+    if (!config.apiKey) throw new Error("OpenAI API key not set — add it in Settings to use OpenAI embeddings.");
+    let response: Awaited<ReturnType<typeof fetch>>;
+    try {
+      response = await fetchWithRetry("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${config.apiKey}` },
+        body: JSON.stringify({ model: config.model, input: texts }),
+      });
+    } catch (e) {
+      throw new Error(`Cannot reach OpenAI to embed: ${networkAwareMessage(e)}`);
+    }
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`OpenAI embed error ${response.status}: ${text || "unknown"}`);
+    }
+    const json = await response.json();
+    const data: Array<{ embedding: number[]; index: number }> = json.data ?? [];
+    return [...data].sort((a, b) => a.index - b.index).map((d) => d.embedding); // preserve input order
+  }
+
+  // Anthropic has no embeddings endpoint.
+  throw new Error(
+    `Provider "${config.provider}" has no embeddings endpoint. Set the embedding provider to Ollama (nomic-embed-text) or OpenAI in Settings.`,
+  );
+}
+
 export interface ProviderToolDef {
   name: string;
   description: string;

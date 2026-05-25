@@ -150,6 +150,62 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "notebook RAG: documents, chunks, embeddings (brute-force; vec as JSON-array TEXT)",
+            sql: "
+                CREATE TABLE IF NOT EXISTS notebook_documents (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL REFERENCES courses(id),
+                    title TEXT NOT NULL,
+                    source_type TEXT NOT NULL DEFAULT 'text',
+                    source_uri TEXT,
+                    sha256 TEXT,
+                    embedding_model TEXT NOT NULL,
+                    dim INTEGER NOT NULL DEFAULT 0,
+                    ingested_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS notebook_chunks (
+                    id TEXT PRIMARY KEY,
+                    document_id TEXT NOT NULL REFERENCES notebook_documents(id),
+                    ord INTEGER NOT NULL DEFAULT 0,
+                    text TEXT NOT NULL,
+                    token_count INTEGER NOT NULL DEFAULT 0
+                );
+
+                CREATE TABLE IF NOT EXISTS notebook_embeddings (
+                    chunk_id TEXT PRIMARY KEY REFERENCES notebook_chunks(id),
+                    vec TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_nb_docs_course ON notebook_documents(course_id);
+                CREATE INDEX IF NOT EXISTS idx_nb_chunks_doc ON notebook_chunks(document_id);
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 8,
+            description: "notebook folders (nested) + link index entries to notes (unified vault)",
+            sql: "
+                CREATE TABLE IF NOT EXISTS notebook_folders (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL REFERENCES courses(id),
+                    name TEXT NOT NULL,
+                    parent_id TEXT,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                ALTER TABLE notes ADD COLUMN folder_id TEXT;
+                ALTER TABLE notebook_documents ADD COLUMN note_id TEXT;
+
+                CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id);
+                CREATE INDEX IF NOT EXISTS idx_nb_docs_note ON notebook_documents(note_id);
+                CREATE INDEX IF NOT EXISTS idx_nb_folders_course ON notebook_folders(course_id);
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

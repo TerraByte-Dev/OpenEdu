@@ -66,49 +66,54 @@ async function runGolden(g: Golden, config: Awaited<ReturnType<typeof getChatCon
 async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof getChatConfig>>): Promise<GoldenRun> {
   registerBuiltinTools();
   loadBuiltinSkills();
-  const transcript: GoldenTranscriptEntry[] = [];
-  const history: Array<{ role: string; content: string }> = [];
-  const modelTier = await detectModelTier(config);
+  if (g.setup) await g.setup(config); // seed fixtures (e.g. a sentinel course + notebook note)
+  try {
+    const transcript: GoldenTranscriptEntry[] = [];
+    const history: Array<{ role: string; content: string }> = [];
+    const modelTier = await detectModelTier(config);
 
-  for (const turn of g.turns) {
-    const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined);
-    const messages = [
-      ...(system.trim() ? [{ role: "system", content: system }] : []),
-      ...history,
-      { role: "user", content: turn.user },
-    ];
+    for (const turn of g.turns) {
+      const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined);
+      const messages = [
+        ...(system.trim() ? [{ role: "system", content: system }] : []),
+        ...history,
+        { role: "user", content: turn.user },
+      ];
 
-    const ctx: ToolContext = {
-      courseId: g.syllabus?.course_id ?? "__eval__",
-      level: g.syllabus?.level ?? 1,
-      syllabus: g.syllabus ?? null,
-      modelTier,
-      permissionMode: "default",
-      config,
-      abort: new AbortController().signal,
-      // The active skill gates which tools are offered this turn (Phase 2) — assess exposes
-      // progress.mark_mastered; explain exposes none.
-      activeSkill: resolveSkill(turn.mode ?? "explain") ?? null,
-      // No askUser in the headless eval — ask_user.question would return an error the model recovers
-      // from. confirmTool auto-approves so a "default"-mode write (which is "ask") still runs end-to-end.
-      confirmTool: async () => true,
-    };
-    const tt: TutorTurn = { messages, config, onText: () => {} };
-    const result = await tutorEngine.run(tt, ctx);
+      const ctx: ToolContext = {
+        courseId: g.syllabus?.course_id ?? "__eval__",
+        level: g.syllabus?.level ?? 1,
+        syllabus: g.syllabus ?? null,
+        modelTier,
+        permissionMode: "default",
+        config,
+        abort: new AbortController().signal,
+        // The active skill gates which tools are offered this turn (Phase 2) — assess exposes
+        // progress.mark_mastered; explain exposes none.
+        activeSkill: resolveSkill(turn.mode ?? "explain") ?? null,
+        // No askUser in the headless eval — ask_user.question would return an error the model recovers
+        // from. confirmTool auto-approves so a "default"-mode write (which is "ask") still runs end-to-end.
+        confirmTool: async () => true,
+      };
+      const tt: TutorTurn = { messages, config, onText: () => {} };
+      const result = await tutorEngine.run(tt, ctx);
 
-    history.push({ role: "user", content: turn.user });
-    history.push({ role: "assistant", content: result.text });
-    transcript.push({ role: "user", content: turn.user, mode: turn.mode });
-    transcript.push({
-      role: "assistant",
-      content: result.text,
-      mode: turn.mode,
-      toolCalls: result.toolCalls.map((tc) => ({ name: tc.name, input: tc.args })),
-    });
+      history.push({ role: "user", content: turn.user });
+      history.push({ role: "assistant", content: result.text });
+      transcript.push({ role: "user", content: turn.user, mode: turn.mode });
+      transcript.push({
+        role: "assistant",
+        content: result.text,
+        mode: turn.mode,
+        toolCalls: result.toolCalls.map((tc) => ({ name: tc.name, input: tc.args })),
+      });
+    }
+
+    const res = g.success(transcript);
+    return { id: g.id, title: g.title, pass: res.pass, reasons: res.reasons, transcript };
+  } finally {
+    if (g.teardown) await g.teardown(config).catch(() => {}); // always clean up, even on throw
   }
-
-  const res = g.success(transcript);
-  return { id: g.id, title: g.title, pass: res.pass, reasons: res.reasons, transcript };
 }
 
 export interface EvalReport {
