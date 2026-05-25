@@ -1,5 +1,5 @@
 // Public surface of the skill layer.
-export { skillRegistry, loadBuiltinSkills, buildSkill, resolveSkill } from "./registry";
+export { skillRegistry, loadBuiltinSkills, buildSkill, resolveSkill, resolvePersona } from "./registry";
 export type { SkillRegistry } from "./registry";
 export { parseSkillFile } from "./parse";
 export type { ParsedSkillFile } from "./parse";
