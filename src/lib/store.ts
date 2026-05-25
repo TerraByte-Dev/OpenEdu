@@ -47,6 +47,33 @@ export async function getLLMConfig(): Promise<LLMConfig> {
   return getGenerationConfig();
 }
 
+// Embedding model (notebook RAG, Phase 3). Local-first and independent of the chat provider so a
+// cloud chat user can still embed offline (Anthropic has no embeddings endpoint). Returns an
+// LLMConfig whose provider/model ARE the embedding ones — fed straight to llm.ts `embed()`.
+export async function getEmbeddingConfig(): Promise<LLMConfig> {
+  const s = await getStore();
+  const provider = ((await s.get<string>("embedding_provider")) ?? "ollama") as LLMProvider;
+  const model =
+    (await s.get<string>("embedding_model")) ??
+    (provider === "openai" ? "text-embedding-3-small" : "nomic-embed-text");
+  const rawKey = await s.get<string>(`apikey_${provider}`);
+  const apiKey = rawKey ? rawKey.trim() : undefined;
+  const ollamaUrl = (await s.get<string>("ollama_url")) ?? "http://127.0.0.1:11434";
+  return { provider, model, apiKey, ollamaUrl };
+}
+
+export async function setEmbeddingProvider(provider: LLMProvider): Promise<void> {
+  const s = await getStore();
+  await s.set("embedding_provider", provider);
+  await s.save();
+}
+
+export async function setEmbeddingModel(model: string): Promise<void> {
+  const s = await getStore();
+  await s.set("embedding_model", model);
+  await s.save();
+}
+
 export async function setLLMProvider(provider: LLMProvider): Promise<void> {
   const s = await getStore();
   await s.set("llm_provider", provider);

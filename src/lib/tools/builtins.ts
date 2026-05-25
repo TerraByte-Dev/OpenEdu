@@ -5,6 +5,8 @@ import { toolRegistry } from "./registry";
 import { updateMapTool } from "./knowledge/UpdateMapTool";
 import { markMasteredTool } from "./progress/MarkMasteredTool";
 import { questionTool } from "./ask_user/QuestionTool";
+import { searchTool } from "./notebook/SearchTool";
+import { ingestTool } from "./notebook/IngestTool";
 
 let registered = false;
 
@@ -14,4 +16,6 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(updateMapTool);
   toolRegistry.register(markMasteredTool);
   toolRegistry.register(questionTool);
+  toolRegistry.register(searchTool);
+  toolRegistry.register(ingestTool);
 }
