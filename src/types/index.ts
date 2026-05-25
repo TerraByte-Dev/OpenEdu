@@ -7,6 +7,9 @@ export interface Course {
   // null = fully generated (legacy or finished). Values:
   // "researching" | "outlining" | "instructions" | "syllabus_L1".."syllabus_L5" | "mastery" | "completed" | "failed:<step>"
   generation_state: string | null;
+  // Phase 4b persona (sprite tutor). NULL on legacy courses / when the picker is skipped →
+  // buildSystemPrompt falls back to the generated tutor_instructions.identity.
+  sprite_id?: string | null;
   created_at: string;
   updated_at: string;
 }

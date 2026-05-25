@@ -1,6 +1,8 @@
 ﻿import { useState, useRef, useEffect } from "react";
 import type { Course } from "../types";
 import { createCourse } from "../lib/db";
+import { CompanionSprite } from "../components/CompanionSprite";
+import { SPRITE_PERSONAS, DEFAULT_SPRITE_ID, suggestSpriteForTopic } from "../lib/sprites/registry";
 import { runGenerationPipeline } from "../lib/curriculum";
 import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
 import { searchTavily, formatSearchResults } from "../lib/web-search";
@@ -31,7 +33,7 @@ const INITIAL_STEPS: Step[] = [
   { label: "Create course record", status: "pending" },
   { label: "Research topic & curricula", status: "pending" },
   { label: "Plan course structure", status: "pending" },
-  { label: "Design tutor persona", status: "pending" },
+  { label: "Design teaching approach", status: "pending" },
   ...ALL_LEVELS.map((l) => ({ label: `Build Level ${l} syllabus`, status: "pending" as StepStatus })),
 ];
 
@@ -69,6 +71,8 @@ function StepIcon({ status }: { status: StepStatus }) {
 export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCreationStart, onCreationEnd, resumeCourse, onResumeConsumed }: DashboardProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [topic, setTopic] = useState("");
+  // Phase 4b: chosen persona for the new course (SAGE default → skippable picker).
+  const [selectedSprite, setSelectedSprite] = useState<string>(DEFAULT_SPRITE_ID);
   const [creating, setCreating] = useState(false);
   const [steps, setSteps] = useState<Step[]>(INITIAL_STEPS);
   const [error, setError] = useState("");
@@ -149,7 +153,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
       if (isResume) {
         appendChunk(`[resume] Continuing course "${existingCourse!.title}" from state: ${existingCourse!.generation_state ?? "(unknown — restarting pipeline)"}\n`);
       } else {
-        const course = await createCourse(effectiveTopic, effectiveTopic);
+        const course = await createCourse(effectiveTopic, effectiveTopic, selectedSprite);
         courseId = course.id;
       }
       setStep(1, "done");
@@ -184,6 +188,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
 
       setStreamLog("");
       setTopic("");
+      setSelectedSprite(DEFAULT_SPRITE_ID);
       setShowCreate(false);
       setSteps(INITIAL_STEPS.map((s) => ({ ...s, status: "pending" })));
       onCreationEnd?.();
@@ -279,6 +284,31 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     className="cf-input mb-4"
                     autoFocus
                   />
+                  {/* Persona picker (Phase 4b) — SAGE default; the ★ suggestion is a non-binding hint. */}
+                  <div className="mb-4">
+                    <div className="text-[10px] uppercase tracking-widest text-[var(--ink-faint)] mb-2">Tutor persona</div>
+                    <div className="flex gap-2 flex-wrap">
+                      {SPRITE_PERSONAS.map((p) => {
+                        const active = selectedSprite === p.id;
+                        const isSuggested = !!topic.trim() && suggestSpriteForTopic(topic)?.id === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setSelectedSprite(p.id)}
+                            title={`${p.displayName} — ${p.blurb}`}
+                            className={`relative flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${active ? "border-phosphor bg-panel-lite" : "border-[var(--rule)] hover:border-phosphor/40"}`}
+                          >
+                            <CompanionSprite spriteId={p.id} size={44} />
+                            <span className={`text-[9px] ${active ? "text-phosphor-bright" : "text-[var(--ink-faint)]"}`}>{p.displayName}</span>
+                            {isSuggested && !active && (
+                              <span className="absolute -top-1.5 -right-1.5 text-[8px] leading-none px-1 py-0.5 rounded bg-[rgb(var(--phosphor-rgb)/0.2)] text-phosphor-bright border border-phosphor/40">★</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   {error && (
                     <div className="mb-4 p-3 border border-red-500/30 text-sm text-red-300 font-mono leading-relaxed"
                          style={{ background: "rgba(239,68,68,0.06)" }}>
@@ -289,7 +319,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     <button onClick={handleCreate} disabled={!topic.trim()} className="btn btn-primary disabled:opacity-40">
                       EXECUTE
                     </button>
-                    <button onClick={() => { setShowCreate(false); setTopic(""); setError(""); }} className="btn">
+                    <button onClick={() => { setShowCreate(false); setTopic(""); setSelectedSprite(DEFAULT_SPRITE_ID); setError(""); }} className="btn">
                       ABORT
                     </button>
                   </div>
