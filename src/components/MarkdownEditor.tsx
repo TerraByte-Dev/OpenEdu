@@ -1,0 +1,178 @@
+// Obsidian-style "live preview" markdown editor (Phase 3). A single editable CodeMirror 6 pane —
+// no Edit/Preview toggle. Headings render at heading size, bold/italic/code/quote style inline, and
+// syntax markers (##, **, `, >) hide on lines the cursor isn't on (reveal-on-active-line, like
+// Obsidian). [[wikilinks]] are styled + clickable; #tags are styled. The document stays plain
+// markdown, so the notes table, graph, #tag parsing, and RAG indexing are all unchanged.
+
+import { useEffect, useRef } from "react";
+import { EditorView, keymap, ViewPlugin, Decoration, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { EditorState, type Range } from "@codemirror/state";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { markdown } from "@codemirror/lang-markdown";
+import { syntaxTree, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
+
+const WIKI = /\[\[([^\]]+)\]\]/g;
+const TAG = /(?:^|\s)#([A-Za-z][\w-]*)/g;
+
+// Syntax markers we hide on inactive lines (revealed when the cursor is on that line).
+const HIDE_MARKS = new Set(["HeaderMark", "EmphasisMark", "CodeMark", "QuoteMark", "StrikethroughMark", "LinkMark"]);
+
+// Inline emphasis styling (block/heading sizing is done with line decorations + theme below).
+const mdHighlight = HighlightStyle.define([
+  { tag: tags.strong, fontWeight: "700" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+  { tag: tags.monospace, fontFamily: "'Share Tech Mono', monospace", color: "var(--phosphor-ink)" },
+  { tag: tags.link, color: "var(--phosphor-bright)" },
+  { tag: tags.url, color: "var(--ink-dim)" },
+  { tag: tags.quote, color: "var(--ink-dim)", fontStyle: "italic" },
+  { tag: tags.list, color: "var(--phosphor-ink)" },
+]);
+
+function buildDecorations(view: EditorView): DecorationSet {
+  const decos: Range<Decoration>[] = [];
+  const { state } = view;
+
+  const activeLines = new Set<number>();
+  for (const r of state.selection.ranges) {
+    const a = state.doc.lineAt(r.from).number;
+    const b = state.doc.lineAt(r.to).number;
+    for (let l = a; l <= b; l++) activeLines.add(l);
+  }
+
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        const h = /^ATXHeading(\d)$/.exec(node.name);
+        if (h) {
+          const line = state.doc.lineAt(node.from);
+          decos.push(Decoration.line({ class: `cm-h${h[1]}` }).range(line.from));
+          return;
+        }
+        if (HIDE_MARKS.has(node.name)) {
+          const line = state.doc.lineAt(node.from);
+          if (activeLines.has(line.number)) return; // editing this line → show raw markers
+          let end = node.to;
+          // For headings, also swallow the space(s) after "##" so the text isn't left-indented.
+          if (node.name === "HeaderMark") {
+            while (end < line.to && state.doc.sliceString(end, end + 1) === " ") end++;
+          }
+          if (end > node.from) decos.push(Decoration.replace({}).range(node.from, end));
+        }
+      },
+    });
+
+    const text = state.doc.sliceString(from, to);
+    for (let m = WIKI.exec(text); m; m = WIKI.exec(text)) {
+      decos.push(Decoration.mark({ class: "cm-wikilink" }).range(from + m.index, from + m.index + m[0].length));
+    }
+    WIKI.lastIndex = 0;
+    for (let m = TAG.exec(text); m; m = TAG.exec(text)) {
+      const hash = m[0].indexOf("#");
+      decos.push(Decoration.mark({ class: "cm-tag" }).range(from + m.index + hash, from + m.index + m[0].length));
+    }
+    TAG.lastIndex = 0;
+  }
+
+  return Decoration.set(decos, true); // true = sort (line + mark + replace can interleave)
+}
+
+const livePreview = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) { this.decorations = buildDecorations(view); }
+    update(u: ViewUpdate) {
+      if (u.docChanged || u.selectionSet || u.viewportChanged) this.decorations = buildDecorations(u.view);
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
+const theme = EditorView.theme({
+  "&": { backgroundColor: "transparent", color: "var(--ink)", height: "100%", fontSize: "14px" },
+  "&.cm-focused": { outline: "none" },
+  ".cm-scroller": { fontFamily: "Inter, system-ui, sans-serif", lineHeight: "1.65", overflow: "auto" },
+  ".cm-content": { padding: "16px 20px", caretColor: "var(--phosphor)" },
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--phosphor)" },
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "rgb(var(--phosphor-rgb)/0.20)" },
+  ".cm-h1": { fontSize: "1.7em", fontWeight: "700", color: "var(--phosphor-bright)", lineHeight: "1.35" },
+  ".cm-h2": { fontSize: "1.45em", fontWeight: "700", color: "var(--phosphor-bright)", lineHeight: "1.35" },
+  ".cm-h3": { fontSize: "1.25em", fontWeight: "600", color: "var(--phosphor-ink)" },
+  ".cm-h4": { fontSize: "1.1em", fontWeight: "600", color: "var(--phosphor-ink)" },
+  ".cm-h5": { fontSize: "1em", fontWeight: "600", color: "var(--phosphor-ink)" },
+  ".cm-h6": { fontSize: "0.9em", fontWeight: "600", color: "var(--ink-dim)" },
+  ".cm-wikilink": { color: "var(--phosphor-bright)", textDecoration: "underline", cursor: "pointer" },
+  ".cm-tag": { color: "var(--phosphor-ink)", backgroundColor: "rgb(var(--phosphor-rgb)/0.12)", borderRadius: "4px", padding: "0 4px" },
+});
+
+interface Props {
+  doc: string;
+  noteId: string;                       // resets the editor's content when the selected note changes
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+  onWikiLinkClick: (title: string) => void;
+}
+
+export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick }: Props) {
+  const host = useRef<HTMLDivElement>(null);
+  const view = useRef<EditorView | null>(null);
+  // Latest callbacks in a ref so the editor (created once) always calls the current ones.
+  const cb = useRef({ onChange, onBlur, onWikiLinkClick });
+  cb.current = { onChange, onBlur, onWikiLinkClick };
+
+  useEffect(() => {
+    if (!host.current) return;
+    const state = EditorState.create({
+      doc,
+      extensions: [
+        history(),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        markdown(),
+        syntaxHighlighting(mdHighlight),
+        livePreview,
+        EditorView.lineWrapping,
+        theme,
+        EditorView.updateListener.of((u) => { if (u.docChanged) cb.current.onChange(u.state.doc.toString()); }),
+        EditorView.domEventHandlers({
+          blur: () => { cb.current.onBlur?.(); },
+          mousedown: (e, v) => {
+            const pos = v.posAtCoords({ x: e.clientX, y: e.clientY });
+            if (pos == null) return false;
+            const line = v.state.doc.lineAt(pos);
+            // Don't hijack clicks on the line you're already editing (cursor there = raw text).
+            if (v.state.selection.ranges.some((r) => v.state.doc.lineAt(r.from).number === line.number)) return false;
+            const rel = pos - line.from;
+            for (let m = WIKI.exec(line.text); m; m = WIKI.exec(line.text)) {
+              if (rel >= m.index && rel <= m.index + m[0].length) {
+                WIKI.lastIndex = 0;
+                e.preventDefault();
+                cb.current.onWikiLinkClick(m[1].trim());
+                return true;
+              }
+            }
+            WIKI.lastIndex = 0;
+            return false;
+          },
+        }),
+      ],
+    });
+    const v = new EditorView({ state, parent: host.current });
+    view.current = v;
+    return () => { v.destroy(); view.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Switching notes → swap the document (typing changes `doc` too, but noteId stays, so no churn).
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const cur = v.state.doc.toString();
+    if (cur !== doc) v.dispatch({ changes: { from: 0, to: cur.length, insert: doc }, selection: { anchor: 0 } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId]);
+
+  return <div ref={host} className="flex-1 min-h-0 overflow-hidden" />;
+}
