@@ -78,13 +78,23 @@ const hasLatex = (t: GoldenTranscriptEntry[]) => assistantTurns(t).some((c) => /
 export const GOLDENS: Golden[] = [
   {
     id: "math-word-problem",
-    title: "Math word problem — correct answer, no LaTeX",
+    title: "Math word problem — correct answer, math routed through math.render (no chat LaTeX)",
     topic: "Introductory Algebra",
+    // Phase 4a: the topic routes the math-tutor domain skill, so math.render is offered. The answer
+    // (40) may land in the chat text OR inside a math.render latex arg — both pass. Backslash-LaTeX in
+    // the CHAT text still fails (hasLatex checks assistant content, not tool args), so routing the math
+    // through the tool is exactly what flips this golden from the v1 baseline failure.
+    useTools: true,
     turns: [{ user: "A train travels 60 miles in 1.5 hours. What is its average speed in miles per hour? Give the number." }],
     success: (t) => {
       const reasons: string[] = [];
-      if (!/\b40\b/.test(allAssistant(t))) reasons.push("expected answer 40 (mph) not found");
-      if (hasLatex(t)) reasons.push("contains backslash-LaTeX — violates the plain-text-math lock");
+      const mathArgs = t
+        .flatMap((e) => e.toolCalls ?? [])
+        .filter((c) => c.name === "math.render")
+        .map((c) => String((c.input as { latex?: unknown })?.latex ?? ""))
+        .join(" ");
+      if (!/\b40\b/.test(allAssistant(t) + " " + mathArgs)) reasons.push("expected answer 40 (mph) not found in reply or math.render");
+      if (hasLatex(t)) reasons.push("contains backslash-LaTeX in chat text — violates the plain-text-math lock");
       return { pass: reasons.length === 0, reasons };
     },
   },
@@ -220,6 +230,41 @@ export const GOLDENS: Golden[] = [
       }
       if (!/42\.7/.test(allAssistant(t))) reasons.push("answer did not include 42.7 from the seeded note");
       return { pass: reasons.length === 0, reasons };
+    },
+  },
+  {
+    id: "math-render",
+    title: "Math rendering — routes an equation through math.render, no chat LaTeX",
+    topic: "Introductory Algebra", // → math-tutor domain skill offers math.render
+    useTools: true,
+    turns: [{ user: "Show me the quadratic formula as a rendered equation, and say what it solves.", mode: "explain" }],
+    // Proves the §6.4 path: the equation rides in a math.render arg (backslashes allowed there), and
+    // the chat text stays free of backslash-LaTeX.
+    success: (t) => {
+      const reasons: string[] = [];
+      const calls = t.flatMap((e) => e.toolCalls ?? []);
+      const math = calls.find((c) => c.name === "math.render");
+      if (!math) reasons.push(`did not call math.render (called: ${calls.map((c) => c.name).join(", ") || "nothing"})`);
+      else if (typeof (math.input as { latex?: unknown }).latex !== "string" || !(math.input as { latex?: string }).latex) {
+        reasons.push("math.render called with empty/invalid latex");
+      }
+      if (hasLatex(t)) reasons.push("backslash-LaTeX leaked into chat text instead of math.render");
+      return { pass: reasons.length === 0, reasons };
+    },
+  },
+  {
+    id: "diagram-render",
+    title: "Diagram rendering — routes a flowchart through diagram.render",
+    topic: "Python Programming", // → code-tutor domain skill offers diagram.render
+    useTools: true,
+    turns: [{ user: "Draw a simple flowchart of an if/else decision as a diagram." }],
+    success: (t) => {
+      const calls = t.flatMap((e) => e.toolCalls ?? []);
+      const d = calls.find((c) => c.name === "diagram.render");
+      if (!d) return { pass: false, reasons: [`did not call diagram.render (called: ${calls.map((c) => c.name).join(", ") || "nothing"})`] };
+      const mermaid = (d.input as { mermaid?: unknown }).mermaid;
+      const ok = typeof mermaid === "string" && mermaid.length > 0;
+      return { pass: ok, reasons: ok ? [] : ["diagram.render called with empty/invalid mermaid"] };
     },
   },
 ];
