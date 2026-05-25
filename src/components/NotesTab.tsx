@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { marked } from "marked";
 import ForceGraph2D from "react-force-graph-2d";
+import MarkdownEditor from "./MarkdownEditor";
 import type { Note, NotebookFolder, NotebookSearchResult } from "../types";
 import {
   getNotes, createNote, updateNote, deleteNote,
@@ -8,25 +8,11 @@ import {
 } from "../lib/db";
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
 
-// ── Markdown config ───────────────────────────────────────────────────────────
-marked.setOptions({ gfm: true, breaks: true });
-
 // Phosphor palette for the canvas graph (hex — the canvas API can't read CSS vars).
 const G = { node: "#00C6FF", nodeDim: "#0a4654", stroke: "#44D8FF", label: "#6DD4EE", link: "#14323a", linkHot: "#44D8FF" };
 
 const WIKI_RE = /\[\[([^\]]+)\]\]/g;
 const TAG_RE = /(?:^|\s)#([A-Za-z][\w-]*)/g;
-
-function renderMarkdown(content: string, notes: Note[]): string {
-  const noteTitles = new Set(notes.map((n) => n.title.toLowerCase()));
-  const withWikiLinks = content.replace(WIKI_RE, (_, title: string) => {
-    const exists = noteTitles.has(title.toLowerCase());
-    const cls = exists ? "wiki-link wiki-link--exists" : "wiki-link wiki-link--missing";
-    const escaped = title.replace(/"/g, "&quot;");
-    return `<span class="${cls}" data-wiki-title="${escaped}">${title}</span>`;
-  });
-  return marked.parse(withWikiLinks) as string;
-}
 
 function extractTags(content: string): string[] {
   const tags: string[] = [];
@@ -63,6 +49,29 @@ function buildGraph(notes: Note[]): { nodes: GraphNode[]; links: GraphLink[]; ad
   return { nodes, links, adjacency };
 }
 
+// Line-art folder glyphs — monochrome (stroke=currentColor) so they sit on the phosphor theme like
+// the note file icon, instead of the off-theme 📁 emoji.
+function FolderGlyph({ open = false, size = 13, className = "text-phosphor-ink" }: { open?: boolean; size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
+      {open ? (
+        <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2" />
+      ) : (
+        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+      )}
+    </svg>
+  );
+}
+
+function FolderPlusGlyph({ size = 13, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
+      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+      <path d="M12 11v6M9 14h6" />
+    </svg>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 // Course-wide Obsidian-like vault (Phase 3): one note tree per course, organized into nested
 // folders. Every note is searchable — imported files become notes, and notes re-index on save.
@@ -79,7 +88,6 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [indexing, setIndexing] = useState(false);
-  const [mode, setMode] = useState<"edit" | "preview">("preview");
   const [panelView, setPanelView] = useState<PanelView>("note");
 
   const [query, setQuery] = useState("");
@@ -123,7 +131,6 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     setSelectedNote(note);
     setEditTitle(note.title);
     setEditContent(note.content);
-    setMode(note.content.trim() ? "preview" : "edit");
     setPanelView("note");
   };
 
@@ -157,22 +164,15 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   };
 
   const handleBlur = () => saveIfDirty();
-  const handleSwitchToPreview = () => { saveIfDirty(); setMode("preview"); };
 
-  const handlePreviewClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = (e.target as HTMLElement).closest("[data-wiki-title]") as HTMLElement | null;
-    if (!target) return;
-    const title = target.dataset.wikiTitle ?? "";
+  // Clicking a [[wikilink]] in the editor: open the note, or create it (in the current folder) if new.
+  const handleWikiLinkNav = (title: string) => {
     const found = notes.find((n) => n.title.toLowerCase() === title.toLowerCase());
-    if (found) {
-      selectNote(found);
-    } else {
-      createNote(courseId, title, "", level, selectedNote?.folder_id ?? null).then((n) => {
-        setNotes((prev) => [...prev, n]);
-        selectNote(n);
-        setMode("edit");
-      });
-    }
+    if (found) { selectNote(found); return; }
+    createNote(courseId, title, "", level, selectedNote?.folder_id ?? null).then((n) => {
+      setNotes((prev) => [...prev, n]);
+      selectNote(n);
+    });
   };
 
   // ── Folder ops ──
@@ -204,7 +204,6 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     await loadNotes();
     if (folderId) setExpanded((s) => new Set(s).add(folderId));
     selectNote(n);
-    setMode("edit");
   };
 
   // ── Import (files → notes) ──
@@ -324,7 +323,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           onClick={() => toggleExpand(folder.id)}
         >
           <span className="text-[var(--ink-faint)] text-[10px] w-3 shrink-0">{isOpen ? "▾" : "▸"}</span>
-          <span className="shrink-0">{isOpen ? "📂" : "📁"}</span>
+          <FolderGlyph open={isOpen} />
           {renamingId === folder.id ? (
             <input
               autoFocus
@@ -342,7 +341,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           )}
           <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
             <button title="New note here" onClick={() => handleNewNote(folder.id)} className="px-1 text-[var(--ink-faint)] hover:text-phosphor-bright text-xs">＋</button>
-            <button title="New subfolder" onClick={() => handleNewFolder(folder.id)} className="px-1 text-[var(--ink-faint)] hover:text-phosphor-bright text-[11px]">📁</button>
+            <button title="New subfolder" onClick={() => handleNewFolder(folder.id)} className="px-1 text-[var(--ink-faint)] hover:text-phosphor-bright flex items-center"><FolderPlusGlyph size={12} /></button>
             <button title="Rename" onClick={() => { setRenamingId(folder.id); setRenameValue(folder.name); }} className="px-1 text-[var(--ink-faint)] hover:text-phosphor-bright text-[11px]">✎</button>
             <button title="Delete folder (keeps notes)" onClick={() => handleDeleteFolder(folder.id)} className="px-1 text-[var(--ink-faint)] hover:text-red-400 text-[11px]">✕</button>
           </span>
@@ -366,7 +365,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
             Note
           </button>
-          <button onClick={() => handleNewFolder(null)} title="New folder" className="px-2 py-1.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-faint)] text-xs font-medium transition-colors">📁＋</button>
+          <button onClick={() => handleNewFolder(null)} title="New folder" className="px-2 py-1.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors flex items-center"><FolderPlusGlyph size={15} /></button>
           <button onClick={() => fileInputRef.current?.click()} disabled={ingesting} title="Import .md/.txt as notes" className="px-2 py-1.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-faint)] text-xs font-medium transition-colors disabled:opacity-50">{ingesting ? "…" : "⬆"}</button>
           <button
             onClick={() => { saveIfDirty(); setPanelView(panelView === "graph" ? "note" : "graph"); }}
@@ -494,28 +493,24 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleBlur} className="flex-1 bg-transparent text-ink font-semibold focus:outline-none min-w-0" placeholder="Note title..." />
                 {saving && <span className="text-[10px] text-[var(--ink-faint)] shrink-0">Saving…</span>}
                 {indexing && !saving && <span className="text-[10px] text-[var(--ink-faint)] shrink-0">Indexing…</span>}
-                <div className="flex rounded-lg overflow-hidden border border-[var(--rule)] shrink-0">
-                  <button onClick={() => setMode("edit")} className={`px-3 py-1 text-xs font-medium transition-colors ${mode === "edit" ? "btn-primary text-white" : "bg-panel-lite text-[var(--ink-faint)] hover:text-ink"}`}>Edit</button>
-                  <button onClick={handleSwitchToPreview} className={`px-3 py-1 text-xs font-medium transition-colors ${mode === "preview" ? "btn-primary text-white" : "bg-panel-lite text-[var(--ink-faint)] hover:text-ink"}`}>Preview</button>
-                </div>
                 <button onClick={handleDeleteNote} className="p-1.5 rounded hover:bg-red-500/20 text-[var(--ink-faint)] hover:text-red-400 transition-colors shrink-0" title="Delete note">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /></svg>
                 </button>
               </div>
 
-              {mode === "edit" ? (
-                <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} onBlur={handleBlur} className="flex-1 p-4 bg-transparent text-ink text-sm resize-none focus:outline-none font-mono leading-relaxed" placeholder={"Start writing in Markdown...\n\nUse [[Note Title]] to link notes, #tags to organize."} />
-              ) : (
-                <div className="flex-1 overflow-y-auto">
-                  <div className="p-5 note-prose" onClick={handlePreviewClick} dangerouslySetInnerHTML={{ __html: editContent.trim() ? renderMarkdown(editContent, notes) : '<p style="color:#52525b;font-style:italic">Nothing here yet — switch to Edit to start writing.</p>' }} />
-                  {backlinks.length > 0 && (
-                    <div className="border-t border-[var(--rule)] px-5 py-3">
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] mb-1.5">{backlinks.length} linked mention{backlinks.length === 1 ? "" : "s"}</div>
-                      <div className="flex flex-col gap-1">
-                        {backlinks.map((b) => (<button key={b.id} onClick={() => selectNote(b)} className="text-left text-xs text-phosphor-ink hover:text-phosphor-bright truncate">← {b.title}</button>))}
-                      </div>
-                    </div>
-                  )}
+              <MarkdownEditor
+                doc={editContent}
+                noteId={selectedNote.id}
+                onChange={setEditContent}
+                onBlur={handleBlur}
+                onWikiLinkClick={handleWikiLinkNav}
+              />
+              {backlinks.length > 0 && (
+                <div className="border-t border-[var(--rule)] px-5 py-3 shrink-0">
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] mb-1.5">{backlinks.length} linked mention{backlinks.length === 1 ? "" : "s"}</div>
+                  <div className="flex flex-col gap-1">
+                    {backlinks.map((b) => (<button key={b.id} onClick={() => selectNote(b)} className="text-left text-xs text-phosphor-ink hover:text-phosphor-bright truncate">← {b.title}</button>))}
+                  </div>
                 </div>
               )}
             </>
