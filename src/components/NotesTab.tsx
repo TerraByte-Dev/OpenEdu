@@ -9,7 +9,7 @@ import {
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
 
 // Phosphor palette for the canvas graph (hex — the canvas API can't read CSS vars).
-const G = { node: "#00C6FF", nodeDim: "#0a4654", stroke: "#44D8FF", label: "#6DD4EE", link: "#14323a", linkHot: "#44D8FF" };
+const G = { node: "#00C6FF", nodeDim: "#0a4654", stroke: "#44D8FF", label: "#6DD4EE", link: "#14323a", linkHot: "#44D8FF", folder: "#44D8FF" };
 
 const WIKI_RE = /\[\[([^\]]+)\]\]/g;
 const TAG_RE = /(?:^|\s)#([A-Za-z][\w-]*)/g;
@@ -21,31 +21,43 @@ function extractTags(content: string): string[] {
 }
 
 // ── Graph ───────────────────────────────────────────────────────────────────
-interface GraphNode { id: string; title: string; degree: number; x?: number; y?: number }
+interface GraphNode { id: string; title: string; degree: number; kind: "note" | "folder"; x?: number; y?: number }
 interface GraphLink { source: string; target: string }
 
-function buildGraph(notes: Note[]): { nodes: GraphNode[]; links: GraphLink[]; adjacency: Map<string, Set<string>> } {
-  const titleToId = new Map(notes.map((n) => [n.title.toLowerCase(), n.id]));
+// Vault map: folders are hub nodes, each note hangs off its folder (folders off their parent), and
+// [[wikilinks]] add note↔note edges. So the graph mirrors the tree and is never just disconnected dots.
+function buildGraph(notes: Note[], folders: NotebookFolder[]): { nodes: GraphNode[]; links: GraphLink[]; adjacency: Map<string, Set<string>> } {
+  const nodes: GraphNode[] = [];
+  const links: GraphLink[] = [];
   const degree = new Map<string, number>();
   const adjacency = new Map<string, Set<string>>();
-  const links: GraphLink[] = [];
+  const fid = (id: string) => `folder:${id}`;
   const link = (a: string, b: string) => {
+    links.push({ source: a, target: b });
+    degree.set(a, (degree.get(a) ?? 0) + 1);
+    degree.set(b, (degree.get(b) ?? 0) + 1);
     (adjacency.get(a) ?? adjacency.set(a, new Set()).get(a)!).add(b);
     (adjacency.get(b) ?? adjacency.set(b, new Set()).get(b)!).add(a);
   };
+
+  const folderIds = new Set(folders.map((f) => f.id));
+  for (const f of folders) nodes.push({ id: fid(f.id), title: f.name, degree: 0, kind: "folder" });
+  for (const f of folders) if (f.parent_id && folderIds.has(f.parent_id)) link(fid(f.id), fid(f.parent_id));
+
+  for (const n of notes) {
+    nodes.push({ id: n.id, title: n.title, degree: 0, kind: "note" });
+    if (n.folder_id && folderIds.has(n.folder_id)) link(n.id, fid(n.folder_id));
+  }
+
+  const titleToId = new Map(notes.map((n) => [n.title.toLowerCase(), n.id]));
   for (const note of notes) {
-    const refs = [...note.content.matchAll(WIKI_RE)].map((m) => m[1]);
-    for (const ref of refs) {
-      const targetId = titleToId.get(ref.toLowerCase());
-      if (targetId && targetId !== note.id) {
-        links.push({ source: note.id, target: targetId });
-        degree.set(note.id, (degree.get(note.id) ?? 0) + 1);
-        degree.set(targetId, (degree.get(targetId) ?? 0) + 1);
-        link(note.id, targetId);
-      }
+    for (const m of note.content.matchAll(WIKI_RE)) {
+      const targetId = titleToId.get(m[1].toLowerCase());
+      if (targetId && targetId !== note.id) link(note.id, targetId);
     }
   }
-  const nodes: GraphNode[] = notes.map((n) => ({ id: n.id, title: n.title, degree: degree.get(n.id) ?? 0 }));
+
+  for (const nd of nodes) nd.degree = degree.get(nd.id) ?? 0;
   return { nodes, links, adjacency };
 }
 
@@ -284,7 +296,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     return notes.filter((n) => n.id !== selectedNote.id && [...n.content.matchAll(WIKI_RE)].some((m) => m[1].toLowerCase() === title));
   }, [notes, selectedNote]);
 
-  const graph = useMemo(() => buildGraph(notes), [notes]);
+  const graph = useMemo(() => buildGraph(notes, folders), [notes, folders]);
 
   const childFolders = (parentId: string | null) => folders.filter((f) => (f.parent_id ?? null) === parentId);
   const childNotes = (folderId: string | null) => notes.filter((n) => (n.folder_id ?? null) === folderId);
@@ -439,9 +451,9 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
       {/* ── Main panel ── */}
       {panelView === "graph" ? (
         <div ref={graphContainerRef} className="flex-1 min-h-0 bg-bg relative overflow-hidden">
-          {notes.length < 2 ? (
-            <div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm">
-              Create at least 2 notes and link them with <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code> to see the graph
+          {graph.nodes.length < 2 ? (
+            <div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm px-6 text-center">
+              Add a few notes and folders (or link notes with <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code>) to see your vault graph
             </div>
           ) : (
             <ForceGraph2D
@@ -462,28 +474,43 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 return hoverId && (s === hoverId || t === hoverId) ? 2.5 : 1.5;
               }}
               onNodeHover={(node) => setHoverId(node ? (node as GraphNode).id : null)}
-              onNodeClick={(node) => { const n = notes.find((x) => x.id === (node as GraphNode).id); if (n) selectNote(n); }}
+              onNodeClick={(node) => {
+                const gn = node as GraphNode;
+                if (gn.kind === "folder") { setExpanded((s) => new Set(s).add(gn.id.replace(/^folder:/, ""))); setPanelView("note"); return; }
+                const n = notes.find((x) => x.id === gn.id);
+                if (n) selectNote(n);
+              }}
               nodeCanvasObject={(node, ctx, globalScale) => {
                 const gn = node as GraphNode & { x: number; y: number };
                 const active = hoverId === null || gn.id === hoverId || (graph.adjacency.get(hoverId)?.has(gn.id) ?? false);
-                const r = 4 + Math.min(gn.degree, 6);
-                ctx.beginPath();
-                ctx.arc(gn.x, gn.y, r, 0, 2 * Math.PI);
-                ctx.fillStyle = active ? G.node : G.nodeDim;
-                ctx.fill();
-                ctx.strokeStyle = G.stroke;
+                const isFolder = gn.kind === "folder";
+                const r = (isFolder ? 5 : 3.5) + Math.min(gn.degree, isFolder ? 9 : 6);
+                ctx.globalAlpha = active ? 1 : 0.35;
                 ctx.lineWidth = gn.id === hoverId ? 2 : 1;
-                ctx.globalAlpha = active ? 1 : 0.4;
-                ctx.stroke();
-                ctx.font = `${Math.max(10, 12 / globalScale)}px Inter, system-ui, sans-serif`;
-                ctx.fillStyle = G.label;
+                if (isFolder) {
+                  ctx.fillStyle = active ? G.folder : G.nodeDim;
+                  ctx.strokeStyle = G.folder;
+                  ctx.beginPath();
+                  ctx.rect(gn.x - r, gn.y - r, r * 2, r * 2);
+                  ctx.fill();
+                  ctx.stroke();
+                } else {
+                  ctx.fillStyle = active ? G.node : G.nodeDim;
+                  ctx.strokeStyle = G.stroke;
+                  ctx.beginPath();
+                  ctx.arc(gn.x, gn.y, r, 0, 2 * Math.PI);
+                  ctx.fill();
+                  ctx.stroke();
+                }
+                ctx.font = `${isFolder ? "700 " : ""}${Math.max(10, 12 / globalScale)}px Inter, system-ui, sans-serif`;
+                ctx.fillStyle = isFolder ? G.folder : G.label;
                 ctx.textAlign = "center";
-                ctx.fillText(gn.title, gn.x, gn.y + r + 6);
+                ctx.fillText(gn.title, gn.x, gn.y + r + 7);
                 ctx.globalAlpha = 1;
               }}
             />
           )}
-          <div className="absolute top-3 right-3 text-[10px] text-[var(--ink-faint)]">{graph.nodes.length} notes · {graph.links.length} links</div>
+          <div className="absolute top-3 right-3 text-[10px] text-[var(--ink-faint)]">{graph.nodes.filter((n) => n.kind === "note").length} notes · {folders.length} folders · {graph.links.length} links</div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
