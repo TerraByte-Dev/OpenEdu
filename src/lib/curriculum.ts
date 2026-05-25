@@ -518,7 +518,8 @@ ${MATH_FORMATTING_RULES}` }],
   return brief;
 }
 
-// Phase 2-3: Generate tutor identity + pedagogy informed by research
+// Generate tutor pedagogy + rules informed by research. (Phase 4b: tutor IDENTITY is no longer
+// generated here — it now comes from the chosen sprite persona via buildSystemPrompt's identity slot.)
 export async function generateTutorInstructions(
   courseId: string,
   topic: string,
@@ -528,25 +529,9 @@ export async function generateTutorInstructions(
 ): Promise<void> {
   const contextSnippet = researchBrief.slice(0, 1200); // First 1200 chars for context
 
-  const identityPrompt = `Based on this curriculum research about "${topic}":
----
-${contextSnippet}
----
-
-Write a tutor identity instruction (2-3 paragraphs) for an AI tutor teaching ${topic}. Define:
-- A fitting name and personality for this tutor
-- Their teaching style and what makes them great at this subject
-- How they address the student (warm but focused)
-
-Write in second person ("You are..."). Keep it concise and authentic.
-
-${MATH_FORMATTING_RULES_PROSE}`;
-
-  const identity = onChunk
-    ? await callLLMStreaming([{ role: "user", content: identityPrompt }], config, onChunk)
-    : await callLLM([{ role: "user", content: identityPrompt }], config);
-  await saveTutorInstruction(courseId, "identity", identity);
-
+  // Phase 4b: identity (name + personality) is supplied by the chosen sprite persona and overrides the
+  // identity slot in buildSystemPrompt. Generating one here was redundant (always overridden) + an extra
+  // LLM call, so it's removed. We still generate persona-independent pedagogy + rules below.
   const pedagogyPrompt = `Based on this curriculum research about "${topic}":
 ---
 ${contextSnippet}
@@ -945,6 +930,12 @@ async function expandSubtopics(
   return results;
 }
 
+// Static fallback identity for the rare course with neither a sprite persona nor a stored generated
+// identity (Phase 4b stopped generating the latter). New courses always have a sprite; legacy courses
+// keep their stored identity — so this is purely defensive, never an LLM call.
+const DEFAULT_TUTOR_IDENTITY =
+  "You are a knowledgeable, encouraging tutor. Explain clearly, adapt to the student's level, and keep them motivated.";
+
 export function buildSystemPrompt(
   instructions: Record<string, string>,
   syllabus: Syllabus | null,
@@ -960,7 +951,7 @@ export function buildSystemPrompt(
   // progress, and the syllabus still come from the generated tutor_instructions — keeping the WHO
   // axis orthogonal to HOW/WHAT. No persona (legacy course / skipped pick) falls back to the
   // generated identity, so existing courses render byte-identical.
-  const identity = personaIdentity ?? instructions.identity;
+  const identity = personaIdentity ?? instructions.identity ?? DEFAULT_TUTOR_IDENTITY;
   if (identity) {
     parts.push(`## Tutor Identity\n${identity}`);
   }

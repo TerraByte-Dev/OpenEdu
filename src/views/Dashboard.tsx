@@ -33,7 +33,7 @@ const INITIAL_STEPS: Step[] = [
   { label: "Create course record", status: "pending" },
   { label: "Research topic & curricula", status: "pending" },
   { label: "Plan course structure", status: "pending" },
-  { label: "Design tutor persona", status: "pending" },
+  { label: "Design teaching approach", status: "pending" },
   ...ALL_LEVELS.map((l) => ({ label: `Build Level ${l} syllabus`, status: "pending" as StepStatus })),
 ];
 
