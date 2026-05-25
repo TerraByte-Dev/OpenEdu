@@ -125,7 +125,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // skill (math-tutor/code-tutor, code-routed from the topic). Both gate tools (selectTools unions
     // their tools_required) and contribute <skill_bundle> rules. domainSkill is null off-subject.
     const activeSkill = resolveSkill(activeMode) ?? null;
-    const domainSkill = resolveDomainSkill(course.topic, modelTier) ?? null;
+    // Domain skills (math-tutor/code-tutor) compose with TEACHING modes, but not with the focused
+    // "assess" mastery-check — adding its render tools + pedagogy there destabilizes the 4B model's
+    // tool selection (it stopped calling progress.mark_mastered). Keep assess to its Phase-2 tool set.
+    const domainSkill = activeSkill?.name === "assess" ? null : (resolveDomainSkill(course.topic, modelTier) ?? null);
     const skillSuffix = (skillBundleLayer(activeSkill) ?? "") + (skillBundleLayer(domainSkill) ?? "");
     const systemPrompt = buildSystemPrompt(
       instructions,
