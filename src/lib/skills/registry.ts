@@ -64,3 +64,13 @@ export function resolveSkill(name: string): Skill | undefined {
   loadBuiltinSkills();
   return skillRegistry.get(name);
 }
+
+// Resolve a persona skill (Phase 4b) by sprite id → the sprite-persona-<id> bundle, or undefined
+// when no persona is set (legacy NULL) or the id is unknown. Persona skills load via the same glob
+// as mode/domain skills but are addressed ONLY here: they never appear in the mode bar (fixed
+// TUTOR_MODES list) and are excluded from domain routing (trigger.ts), preserving the WHO axis.
+export function resolvePersona(spriteId: string | null | undefined): Skill | undefined {
+  if (!spriteId) return undefined;
+  loadBuiltinSkills();
+  return skillRegistry.get("sprite-persona-" + spriteId);
+}
