@@ -12,9 +12,9 @@ import { callLLMStreaming, detectModelTier } from "../llm";
 import { buildSystemPrompt } from "../curriculum";
 import { getChatConfig } from "../store";
 import { getTutorModePrompt } from "../tutor-modes";
-import { tutorEngine, type TutorTurn } from "../kernel";
+import { tutorEngine, personaIdentityLayer, type TutorTurn } from "../kernel";
 import { registerBuiltinTools, type ToolContext } from "../tools";
-import { loadBuiltinSkills, resolveSkill, resolveDomainSkill } from "../skills";
+import { loadBuiltinSkills, resolveSkill, resolveDomainSkill, resolvePersona } from "../skills";
 import { GOLDENS, type Golden, type GoldenTranscriptEntry } from "./goldens";
 
 // Eval-only stand-in for a generated course's tutor instructions. The math rule is inlined
@@ -39,9 +39,13 @@ async function runGolden(g: Golden, config: Awaited<ReturnType<typeof getChatCon
 
   const transcript: GoldenTranscriptEntry[] = [];
   const history: Array<{ role: string; content: string }> = [];
+  // Phase 4b: when a golden sets spriteId, resolve its persona and feed the identity-slot override —
+  // the same <persona> path ChatTab uses. null/undefined for every other golden → unchanged behavior.
+  const persona = g.spriteId ? (resolvePersona(g.spriteId) ?? null) : null;
+  const personaIdentity = personaIdentityLayer(persona);
 
   for (const turn of g.turns) {
-    const system = buildSystemPrompt(EVAL_INSTRUCTIONS, null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined);
+    const system = buildSystemPrompt(EVAL_INSTRUCTIONS, null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined, personaIdentity);
     const messages = [
       ...(system.trim() ? [{ role: "system", content: system }] : []),
       ...history,
@@ -71,6 +75,9 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
     const transcript: GoldenTranscriptEntry[] = [];
     const history: Array<{ role: string; content: string }> = [];
     const modelTier = await detectModelTier(config);
+    // Phase 4b: persona identity override (see runGolden). Most tool goldens leave spriteId unset.
+    const persona = g.spriteId ? (resolvePersona(g.spriteId) ?? null) : null;
+    const personaIdentity = personaIdentityLayer(persona);
 
     for (const turn of g.turns) {
       const modeSkill = resolveSkill(turn.mode ?? "explain") ?? null;
@@ -78,7 +85,7 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
       // with teaching modes but NOT the focused "assess" check (keeps its Phase-2 tool set stable).
       const domainSkill = modeSkill?.name === "assess" ? null : (resolveDomainSkill(g.topic, modelTier) ?? null);
       const suffix = getTutorModePrompt(turn.mode ?? "explain") + (domainSkill?.promptSuffix ?? "");
-      const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, suffix, undefined);
+      const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, suffix, undefined, personaIdentity);
       const messages = [
         ...(system.trim() ? [{ role: "system", content: system }] : []),
         ...history,
