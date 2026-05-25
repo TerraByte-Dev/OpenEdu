@@ -71,19 +71,16 @@ export function evalToolSyllabus(): Syllabus {
 const assistantTurns = (t: GoldenTranscriptEntry[]) => t.filter((e) => e.role === "assistant").map((e) => e.content);
 const allAssistant = (t: GoldenTranscriptEntry[]) => assistantTurns(t).join("\n").toLowerCase();
 const lastAssistant = (t: GoldenTranscriptEntry[]) => { const a = assistantTurns(t); return a.length ? a[a.length - 1] : ""; };
-// A backslash followed by a letter = a LaTeX command (\frac, \alpha…) — forbidden by the
-// HANDOFF plain-text-math lock. Checked against the raw (non-lowercased) text.
-const hasLatex = (t: GoldenTranscriptEntry[]) => assistantTurns(t).some((c) => /\\[a-zA-Z]/.test(c));
 
 export const GOLDENS: Golden[] = [
   {
     id: "math-word-problem",
-    title: "Math word problem — correct answer, math routed through math.render (no chat LaTeX)",
+    title: "Math word problem — produces the correct answer (40)",
     topic: "Introductory Algebra",
     // Phase 4a: the topic routes the math-tutor domain skill, so math.render is offered. The answer
-    // (40) may land in the chat text OR inside a math.render latex arg — both pass. Backslash-LaTeX in
-    // the CHAT text still fails (hasLatex checks assistant content, not tool args), so routing the math
-    // through the tool is exactly what flips this golden from the v1 baseline failure.
+    // (40) may land in the chat text OR inside a math.render latex arg — both pass. We no longer fail
+    // on backslash-LaTeX in chat: inline $…$/$$…$$ now renders (marked-katex-extension), so the old
+    // plain-text-in-chat constraint was intentionally relaxed for display.
     useTools: true,
     turns: [{ user: "A train travels 60 miles in 1.5 hours. What is its average speed in miles per hour? Give the number." }],
     success: (t) => {
@@ -94,7 +91,6 @@ export const GOLDENS: Golden[] = [
         .map((c) => String((c.input as { latex?: unknown })?.latex ?? ""))
         .join(" ");
       if (!/\b40\b/.test(allAssistant(t) + " " + mathArgs)) reasons.push("expected answer 40 (mph) not found in reply or math.render");
-      if (hasLatex(t)) reasons.push("contains backslash-LaTeX in chat text — violates the plain-text-math lock");
       return { pass: reasons.length === 0, reasons };
     },
   },
@@ -234,12 +230,12 @@ export const GOLDENS: Golden[] = [
   },
   {
     id: "math-render",
-    title: "Math rendering — routes an equation through math.render, no chat LaTeX",
+    title: "Math rendering — routes an equation through math.render",
     topic: "Introductory Algebra", // → math-tutor domain skill offers math.render
     useTools: true,
     turns: [{ user: "Show me the quadratic formula as a rendered equation, and say what it solves.", mode: "explain" }],
-    // Proves the §6.4 path: the equation rides in a math.render arg (backslashes allowed there), and
-    // the chat text stays free of backslash-LaTeX.
+    // Proves the §6.4 path: the tutor calls math.render with valid LaTeX for the equation. We assert
+    // the tool fires (the goal) — not the absence of chat LaTeX, since inline math now renders.
     success: (t) => {
       const reasons: string[] = [];
       const calls = t.flatMap((e) => e.toolCalls ?? []);
@@ -248,7 +244,6 @@ export const GOLDENS: Golden[] = [
       else if (typeof (math.input as { latex?: unknown }).latex !== "string" || !(math.input as { latex?: string }).latex) {
         reasons.push("math.render called with empty/invalid latex");
       }
-      if (hasLatex(t)) reasons.push("backslash-LaTeX leaked into chat text instead of math.render");
       return { pass: reasons.length === 0, reasons };
     },
   },
