@@ -45,6 +45,9 @@ export interface Golden {
   setup?: (config: LLMConfig) => Promise<void>;
   // Optional cleanup run after the turns (always, even on error) — e.g. remove a sentinel course.
   teardown?: (config: LLMConfig) => Promise<void>;
+  // Phase 4b: when set, the runner resolves this sprite's persona and overrides the identity slot
+  // (the <persona> path). Proves persona is prompt-only and doesn't change correctness.
+  spriteId?: string;
 }
 
 // A minimal in-memory syllabus for tool goldens. Its course_id doubles as the eval sentinel
@@ -260,6 +263,20 @@ export const GOLDENS: Golden[] = [
       const mermaid = (d.input as { mermaid?: unknown }).mermaid;
       const ok = typeof mermaid === "string" && mermaid.length > 0;
       return { pass: ok, reasons: ok ? [] : ["diagram.render called with empty/invalid mermaid"] };
+    },
+  },
+  {
+    id: "persona-no-regression",
+    title: "Persona — an active persona identity doesn't break a correct answer",
+    topic: "General Knowledge",
+    // Phase 4b: the SAGE persona is active (it overrides the identity slot). Persona is prompt-only,
+    // so a dead-simple factual turn must still answer correctly — a pure no-regression guard on the
+    // <persona> layer. Runs on the byte-identical non-tool path (no tools needed).
+    spriteId: "sage",
+    turns: [{ user: "What is the capital of France? Give just the name.", mode: "explain" }],
+    success: (t) => {
+      const ok = /\bparis\b/i.test(allAssistant(t));
+      return { pass: ok, reasons: ok ? [] : ["expected 'Paris' with persona active — the persona layer may have broken the answer"] };
     },
   },
 ];
