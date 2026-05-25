@@ -206,6 +206,12 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 9,
+            description: "course persona: sprite_id (Phase 4b; append-only, never edit v1-v8)",
+            sql: "ALTER TABLE courses ADD COLUMN sprite_id TEXT;",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

@@ -3,17 +3,19 @@ import { Marked } from "marked";
 import markedKatex from "marked-katex-extension";
 import "katex/dist/katex.min.css";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
-import { getChatMessages, saveChatMessage, getTutorInstructions } from "../lib/db";
+import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelTier } from "../lib/llm";
 import { getChatConfig } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
-import { resolveSkill, resolveDomainSkill } from "../lib/skills";
+import { tutorEngine, skillBundleLayer, personaIdentityLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
+import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
+import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import MathBlock from "./MathBlock";
 import MermaidBlock from "./MermaidBlock";
+import { CompanionSprite } from "./CompanionSprite";
 
 // Dedicated marked instance for chat: the KaTeX extension renders $…$ / $$…$$ in the tutor's prose
 // (a safety net for math gemma writes inline instead of via math.render). Scoped here so it does NOT
@@ -37,6 +39,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const [streamingText, setStreamingText] = useState("");
   const [chatError, setChatError] = useState("");
   const [activeMode, setActiveMode] = useState<TutorModeId>("explain");
+  // Phase 4b persona (WHO axis). Local mirror of course.sprite_id so a mid-course switch reflects
+  // immediately; written through to the DB on switch. resolvePersona maps it to a persona skill.
+  const [spriteId, setSpriteId] = useState<string | null>(course.sprite_id ?? null);
+  const [personaPickerOpen, setPersonaPickerOpen] = useState(false);
   // Live tool activity for the current/just-finished turn (session-only; not persisted).
   const [toolEvents, setToolEvents] = useState<ToolUIEvent[]>([]);
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
@@ -55,6 +61,15 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       setMessages(msgs);
     })();
   }, [courseId, level]);
+
+  // Keep the local persona in sync if the course (or its persisted sprite) changes under us.
+  useEffect(() => { setSpriteId(course.sprite_id ?? null); }, [course.id, course.sprite_id]);
+
+  const switchPersona = async (id: string) => {
+    setSpriteId(id);
+    setPersonaPickerOpen(false);
+    try { await setCourseSprite(courseId, id); } catch (e) { console.error("[persona] failed to persist sprite", e); }
+  };
 
   // Deep-link from OverviewTab / NextStepCard: pre-fill the input with a topic
   // prompt and let the user edit or send. Consumed once.
@@ -130,6 +145,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // tool selection (it stopped calling progress.mark_mastered). Keep assess to its Phase-2 tool set.
     const domainSkill = activeSkill?.name === "assess" ? null : (resolveDomainSkill(course.topic, modelTier) ?? null);
     const skillSuffix = (skillBundleLayer(activeSkill) ?? "") + (skillBundleLayer(domainSkill) ?? "");
+    // Phase 4b: the chosen persona (WHO) overrides only the identity slot; mode/domain stay as-is.
+    const persona = resolvePersona(spriteId) ?? null;
     const systemPrompt = buildSystemPrompt(
       instructions,
       currentSyllabus,
@@ -137,6 +154,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       course.topic,
       skillSuffix,
       knowledgeSummary || undefined,
+      personaIdentityLayer(persona),
     );
 
     // Only include system message if it has content
@@ -208,6 +226,42 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* Persona header (Phase 4b) — active tutor's headshot + name; click to switch mid-course. */}
+      <div className="relative flex items-center px-4 py-2 border-b border-[var(--rule)] bg-panel">
+        <button
+          type="button"
+          onClick={() => setPersonaPickerOpen((o) => !o)}
+          className="flex items-center gap-2 group"
+          title="Switch tutor persona"
+        >
+          <CompanionSprite spriteId={spriteId} size={32} />
+          <span className="text-xs text-[var(--ink-dim)] group-hover:text-phosphor-bright">
+            {getSpritePersona(spriteId)?.displayName ?? "Choose a tutor"}
+          </span>
+          <span className="text-[var(--ink-faint)] text-[10px]">▾</span>
+        </button>
+        {personaPickerOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setPersonaPickerOpen(false)} />
+            <div className="absolute left-3 top-full z-20 mt-1 w-64 rounded-lg border border-[var(--rule)] bg-panel-lite shadow-xl p-1.5">
+              {SPRITE_PERSONAS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => switchPersona(p.id)}
+                  className={`flex items-start gap-2 w-full text-left p-1.5 rounded-md hover:bg-panel ${spriteId === p.id ? "bg-panel" : ""}`}
+                >
+                  <CompanionSprite spriteId={p.id} size={36} />
+                  <span className="min-w-0">
+                    <span className="block text-xs text-phosphor-bright">{p.displayName}</span>
+                    <span className="block text-[10px] text-[var(--ink-faint)] leading-snug">{p.blurb}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && !streaming && (
