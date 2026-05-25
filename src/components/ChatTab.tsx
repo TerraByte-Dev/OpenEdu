@@ -8,8 +8,10 @@ import { getChatConfig } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, skillBundleLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
-import { resolveSkill } from "../lib/skills";
+import { resolveSkill, resolveDomainSkill } from "../lib/skills";
 import type { ToolContext, AskChoice } from "../lib/tools";
+import MathBlock from "./MathBlock";
+import MermaidBlock from "./MermaidBlock";
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -111,14 +113,20 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     const instructions = await getTutorInstructions(courseId);
     const knowledgeSummary = await getKnowledgeSummary(courseId);
-    // The active skill (selected via the mode bar) gates tools + supplies the <skill_bundle> rules.
+    const config = await getChatConfig();
+    const modelTier = await detectModelTier(config);
+    // Two orthogonal skill axes feed the turn: the mode skill (from the bar) and the course's domain
+    // skill (math-tutor/code-tutor, code-routed from the topic). Both gate tools (selectTools unions
+    // their tools_required) and contribute <skill_bundle> rules. domainSkill is null off-subject.
     const activeSkill = resolveSkill(activeMode) ?? null;
+    const domainSkill = resolveDomainSkill(course.topic, modelTier) ?? null;
+    const skillSuffix = (skillBundleLayer(activeSkill) ?? "") + (skillBundleLayer(domainSkill) ?? "");
     const systemPrompt = buildSystemPrompt(
       instructions,
       currentSyllabus,
       course.current_level,
       course.topic,
-      skillBundleLayer(activeSkill) ?? "",
+      skillSuffix,
       knowledgeSummary || undefined,
     );
 
@@ -129,8 +137,6 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       { role: "user", content: userText },
     ];
 
-    const config = await getChatConfig();
-    const modelTier = await detectModelTier(config);
     const controller = new AbortController();
     abortRef.current = controller;
     setStreaming(true);
@@ -153,6 +159,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       config,
       abort: controller.signal,
       activeSkill,
+      domainSkill,
       askUser: (question, choices) =>
         new Promise<string>((resolve) => {
           askResolverRef.current = resolve;
@@ -391,6 +398,16 @@ function ToolChip({ ev }: { ev: ToolUIEvent }) {
           📓 Saved{v?.title ? ` "${v.title}"` : ""} ({n} chunk{n === 1 ? "" : "s"})
         </div>
       );
+    }
+    // math.render → a typeset KaTeX card; diagram.render → a Mermaid card (the §6.4 render tools).
+    // The source rode in the tool-call args, never a chat string. Render the card directly (no chip).
+    if (ev.name === "math.render") {
+      const latex = (ev.value as { latex?: string } | undefined)?.latex ?? "";
+      return latex ? <MathBlock latex={latex} /> : null;
+    }
+    if (ev.name === "diagram.render") {
+      const code = (ev.value as { mermaid?: string } | undefined)?.mermaid ?? "";
+      return code ? <MermaidBlock code={code} /> : null;
     }
     return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {ev.name}</div>;
   }

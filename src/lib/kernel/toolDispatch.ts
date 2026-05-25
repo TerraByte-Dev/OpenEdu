@@ -40,16 +40,21 @@ export function buildProviderToolDefs(tools: EduTool[]): ProviderToolDef[] {
 }
 
 // The tools offered this turn (V2 §6.1 skill gating + §7 permissions). Pipeline:
-//   isEnabled (registry) → permission "deny" filter → active-skill tools_required filter.
-// When a skill is active, only its tools_required are exposed — e.g. plain "Explain"
-// (tools_required: []) offers no action tools, which also curbs the floor model's stray tool
-// calls. No active skill → all permitted tools (defensive back-compat; ChatTab + eval always set it).
+//   isEnabled (registry) → permission "deny" filter → skill tools_required filter.
+// Tools are gated to the UNION of the active mode skill's and the domain skill's tools_required
+// (Phase 4a's orthogonal axes) — e.g. plain "Explain" on a math course exposes notebook.search
+// (mode) ∪ math.render/diagram.render (domain). "Explain" alone (tools_required: []) still offers no
+// action tools, curbing the floor model's stray calls. Neither skill set → all permitted tools
+// (defensive back-compat; ChatTab + eval always set at least the mode skill).
 export async function selectTools(ctx: ToolContext): Promise<EduTool[]> {
   const enabled = await toolRegistry.list(ctx);
   const rules = await loadPermissionRules();
   const permitted = enabled.filter((t) => evaluatePermission(t, ctx.permissionMode, rules) !== "deny");
-  if (!ctx.activeSkill) return permitted;
-  const allowed = new Set(ctx.activeSkill.tools_required);
+  if (!ctx.activeSkill && !ctx.domainSkill) return permitted;
+  const allowed = new Set<string>([
+    ...(ctx.activeSkill?.tools_required ?? []),
+    ...(ctx.domainSkill?.tools_required ?? []),
+  ]);
   return permitted.filter((t) => allowed.has(t.name));
 }
 
