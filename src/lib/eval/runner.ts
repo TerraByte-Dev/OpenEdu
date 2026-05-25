@@ -14,7 +14,7 @@ import { getChatConfig } from "../store";
 import { getTutorModePrompt } from "../tutor-modes";
 import { tutorEngine, type TutorTurn } from "../kernel";
 import { registerBuiltinTools, type ToolContext } from "../tools";
-import { loadBuiltinSkills, resolveSkill } from "../skills";
+import { loadBuiltinSkills, resolveSkill, resolveDomainSkill } from "../skills";
 import { GOLDENS, type Golden, type GoldenTranscriptEntry } from "./goldens";
 
 // Eval-only stand-in for a generated course's tutor instructions. The math rule is inlined
@@ -73,7 +73,12 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
     const modelTier = await detectModelTier(config);
 
     for (const turn of g.turns) {
-      const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined);
+      const modeSkill = resolveSkill(turn.mode ?? "explain") ?? null;
+      // Domain skill (math-tutor/code-tutor), code-routed from the topic — mirrors ChatTab. Composes
+      // with teaching modes but NOT the focused "assess" check (keeps its Phase-2 tool set stable).
+      const domainSkill = modeSkill?.name === "assess" ? null : (resolveDomainSkill(g.topic, modelTier) ?? null);
+      const suffix = getTutorModePrompt(turn.mode ?? "explain") + (domainSkill?.promptSuffix ?? "");
+      const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, suffix, undefined);
       const messages = [
         ...(system.trim() ? [{ role: "system", content: system }] : []),
         ...history,
@@ -90,7 +95,8 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
         abort: new AbortController().signal,
         // The active skill gates which tools are offered this turn (Phase 2) — assess exposes
         // progress.mark_mastered; explain exposes none.
-        activeSkill: resolveSkill(turn.mode ?? "explain") ?? null,
+        activeSkill: modeSkill,
+        domainSkill,
         // No askUser in the headless eval — ask_user.question would return an error the model recovers
         // from. confirmTool auto-approves so a "default"-mode write (which is "ask") still runs end-to-end.
         confirmTool: async () => true,

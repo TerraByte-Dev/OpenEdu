@@ -7,6 +7,8 @@ import { markMasteredTool } from "./progress/MarkMasteredTool";
 import { questionTool } from "./ask_user/QuestionTool";
 import { searchTool } from "./notebook/SearchTool";
 import { ingestTool } from "./notebook/IngestTool";
+import { mathRenderTool } from "./math/RenderTool";
+import { diagramRenderTool } from "./diagram/RenderTool";
 
 let registered = false;
 
@@ -18,4 +20,6 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(questionTool);
   toolRegistry.register(searchTool);
   toolRegistry.register(ingestTool);
+  toolRegistry.register(mathRenderTool);
+  toolRegistry.register(diagramRenderTool);
 }

@@ -44,6 +44,11 @@ export interface ToolContext {
   // this skill's tools_required, and the <skill_bundle> layer injects its rules. Absent in legacy /
   // headless callers (then selectTools falls back to all permitted tools).
   activeSkill?: Skill | null;
+  // The domain skill for the course's subject — math-tutor / code-tutor (Phase 4a), resolved
+  // code-routed from course.topic. Orthogonal to activeSkill (the mode): selectTools exposes the
+  // UNION of both skills' tools_required, so e.g. a math course exposes math.render under any mode.
+  // Absent for non-domain courses / headless callers.
+  domainSkill?: Skill | null;
   // Permission round-trip for "ask" tools (Phase 2, V2 §7): the kernel calls this before running a
   // tool whose permission decision is "ask" and runs it only on `true`. Mirrors askUser; absent in
   // headless contexts (where "ask" then proceeds so eval tool goldens still exercise).
