@@ -26,17 +26,28 @@ export async function getCourse(id: string): Promise<Course | null> {
   return rows[0] ?? null;
 }
 
-export async function createCourse(title: string, topic: string): Promise<Course> {
+export async function createCourse(title: string, topic: string, spriteId?: string | null): Promise<Course> {
   const d = await getDb();
   const id = uuid();
   // current_level defaults to 1.0 (the first learning level in the new 1..6 scheme).
   // We set it explicitly here rather than via the migration 1 default (which would
   // change a previously-applied migration and trip the plugin's hash check).
+  // sprite_id (Phase 4b) is the chosen persona; NULL when no persona is picked.
   await d.execute(
-    "INSERT INTO courses (id, title, topic, current_level) VALUES ($1, $2, $3, 1.0)",
-    [id, title, topic]
+    "INSERT INTO courses (id, title, topic, current_level, sprite_id) VALUES ($1, $2, $3, 1.0, $4)",
+    [id, title, topic, spriteId ?? null]
   );
   return (await getCourse(id))!;
+}
+
+// Mid-course persona switch (Phase 4b). Persona is orthogonal to progress/knowledge — switching
+// only changes the <persona> identity slot, never the concept ledger or learning profile.
+export async function setCourseSprite(courseId: string, spriteId: string | null): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE courses SET sprite_id = $1, updated_at = datetime('now') WHERE id = $2",
+    [spriteId, courseId],
+  );
 }
 
 // Insert a course only if absent (idempotent). Used by the eval harness to satisfy the course_id
