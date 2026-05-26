@@ -14,10 +14,12 @@ loadBuiltinSkills();
 //   __runEvals()           — golden-conversation eval (src/lib/eval/runner.ts)
 //   __testDsl()            — zod→JSON-Schema round-trip (src/lib/dsl/_roundTripCheck.ts)
 //   __spikeToolStreaming() — streaming+tools floor-model probe (src/lib/spike/toolStreamSpike.ts)
+//   __testQuizValidate()   — quiz question-validator self-test (src/lib/quiz.selftest.ts)
 if (import.meta.env.DEV) {
   void import("./lib/dsl/_roundTripCheck");
   void import("./lib/eval/runner");
   void import("./lib/spike/toolStreamSpike");
+  void import("./lib/quiz.selftest");
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
