@@ -1,7 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Marked } from "marked";
-import markedKatex from "marked-katex-extension";
-import "katex/dist/katex.min.css";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
 import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
@@ -13,15 +10,10 @@ import { tutorEngine, skillBundleLayer, personaIdentityLayer, type TutorTurn, ty
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
+import { renderChatMarkdown } from "../lib/chat-markdown";
 import MathBlock from "./MathBlock";
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
-
-// Dedicated marked instance for chat: the KaTeX extension renders $…$ / $$…$$ in the tutor's prose
-// (a safety net for math gemma writes inline instead of via math.render). Scoped here so it does NOT
-// touch NotesTab's global `marked`, where a stray "$" in a note shouldn't be parsed as math.
-const chatMarked = new Marked({ gfm: true, breaks: true });
-chatMarked.use(markedKatex({ throwOnError: false }));
 
 interface ChatTabProps {
   courseId: string;
@@ -291,7 +283,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                   <div className="note-prose">
                     <div
                       // eslint-disable-next-line react/no-danger
-                      dangerouslySetInnerHTML={{ __html: chatMarked.parse(streamingText) as string }}
+                      dangerouslySetInnerHTML={{ __html: renderChatMarkdown(streamingText) }}
                     />
                     <span className="inline-block w-1.5 h-4 bg-phosphor-ink animate-pulse ml-0.5 align-middle" />
                   </div>
@@ -400,7 +392,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <div
             className="note-prose"
             // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: chatMarked.parse(message.content) as string }}
+            dangerouslySetInnerHTML={{ __html: renderChatMarkdown(message.content) }}
           />
         )}
       </div>
