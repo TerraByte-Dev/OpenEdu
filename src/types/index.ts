@@ -152,6 +152,29 @@ export interface NotebookSearchResult {
   score: number; // cosine similarity, 0..1
 }
 
+// One entry in the OpenEdu Library manifest (index.json hosted on the static site). The app fetches
+// the manifest, matches a query against these fields (lexical), then fetches the resource body by
+// `path`. Kept small so the manifest stays a few KB even with a large library.
+export interface LibraryEntry {
+  id: string;          // stable id, e.g. "chemistry/periodic-table"
+  title: string;       // human title, shown in the source chip
+  aliases: string[];   // alternate names the lexical matcher scores against
+  tags: string[];      // topic keywords
+  subject: string;     // coarse subject bucket
+  summary: string;     // one-line description
+  path: string;        // relative path to the resource body, e.g. "resources/chemistry/periodic-table.md"
+}
+
+// The result the library.search tool yields. `text` is the matched resource's cleaned, capped body;
+// `related` lists titles of near-matches so the tutor can mention alternatives without a second hop.
+export interface LibrarySearchResult {
+  found: boolean;
+  title: string;
+  source_url: string;
+  text: string;
+  related: string[];
+}
+
 export interface ChatMessage {
   id: string;
   course_id: string;

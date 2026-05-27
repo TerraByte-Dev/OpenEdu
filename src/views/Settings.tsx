@@ -4,6 +4,7 @@ import {
   getLLMProvider, setLLMProvider, setGenerationModel, setChatModel,
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
   setTavilyApiKey, getTavilyApiKey, getEmbeddingConfig, setEmbeddingModel,
+  getLibraryEnabled, setLibraryEnabled,
 } from "../lib/store";
 import { getOllamaModels, callLLM } from "../lib/llm";
 import {
@@ -64,6 +65,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [tavilyKey, setTavilyKey] = useState("");
+  const [libraryEnabled, setLibraryEnabledState] = useState(true);
   const [permRules, setPermRules] = useState<PermissionRules>(DEFAULT_PERMISSION_RULES);
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
       }
       const tk = await getTavilyApiKey();
       setTavilyKey(tk || "");
+      setLibraryEnabledState(await getLibraryEnabled());
       setPermRules(await loadPermissionRules());
     })();
   }, []);
@@ -154,6 +157,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
       await setOllamaUrl(ollamaUrlValue);
     }
     await setTavilyApiKey(tavilyKey);
+    await setLibraryEnabled(libraryEnabled);
     await savePermissionRules(permRules);
     setSaved(true);
     onSaved?.();
@@ -364,6 +368,27 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
           />
           {tavilyKey && (
             <p className="mt-1.5 text-xs text-green-400">Web search enabled — courses will be grounded in current data.</p>
+          )}
+        </section>
+
+        {/* OpenEdu Library */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-1">OpenEdu Library</h2>
+          <p className="text-xs text-[var(--ink-faint)] mb-3">
+            A curated, TerraByte-hosted reference library (periodic table, formulas, definitions…) the tutor can consult
+            mid-lesson. Clean, trusted text — no third-party key needed. Turn off for a strictly offline / no-network app.
+          </p>
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={libraryEnabled}
+              onChange={(e) => setLibraryEnabledState(e.target.checked)}
+              className="w-4 h-4 accent-[var(--phosphor)]"
+            />
+            <span className="text-sm text-ink">Let the tutor consult the OpenEdu Library</span>
+          </label>
+          {libraryEnabled && (
+            <p className="mt-1.5 text-xs text-green-400">Library enabled — available when online; cited as a source in chat.</p>
           )}
         </section>
 

@@ -452,6 +452,23 @@ function ToolChip({ ev }: { ev: ToolUIEvent }) {
         </div>
       );
     }
+    // library.search → a ✓ summary plus a "🔗 OpenEdu Library: …" source chip for the cited card.
+    if (ev.name === "library.search") {
+      const v = ev.value as { found?: boolean; title?: string } | undefined;
+      if (!v?.found || !v.title) {
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔗 OpenEdu Library — no matching reference</div>;
+      }
+      return (
+        <div className="flex flex-col items-start gap-1.5">
+          <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
+            ✓ library.search — found a reference
+          </div>
+          <span title="Cited from the OpenEdu Library" className={`${base} bg-lcd border-phosphor/20 text-phosphor-ink`}>
+            🔗 OpenEdu Library: {v.title}
+          </span>
+        </div>
+      );
+    }
     // notebook.ingest → "📓 Saved 'title' (N chunks)".
     if (ev.name === "notebook.ingest") {
       const v = ev.value as { chunkCount?: number; title?: string } | undefined;
