@@ -22,9 +22,11 @@ interface ChatTabProps {
   currentSyllabus: Syllabus | null;
   seedTopic?: string;
   onSeedConsumed?: () => void;
+  // Deep-link a library citation chip → open that card in the Resources tab (handled by CourseView).
+  onOpenResource?: (id: string) => void;
 }
 
-export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed }: ChatTabProps) {
+export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -298,7 +300,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             </div>
           </div>
         )}
-        {toolEvents.length > 0 && <ToolActivity events={toolEvents} />}
+        {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} />}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
         )}
@@ -402,20 +404,20 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 // Inline tool activity — progress chips that become result / error cards. Identity is the
 // tool_call id, so a chip transitions in place. Session-only (not persisted in Phase 1).
-function ToolActivity({ events }: { events: ToolUIEvent[] }) {
+function ToolActivity({ events, onOpenResource }: { events: ToolUIEvent[]; onOpenResource?: (id: string) => void }) {
   return (
     <div className="flex gap-3">
       <span className="w-8 h-8 shrink-0" />
       <div className="flex-1 flex flex-col items-start gap-1.5">
         {events.map((ev) => (
-          <ToolChip key={ev.id} ev={ev} />
+          <ToolChip key={ev.id} ev={ev} onOpenResource={onOpenResource} />
         ))}
       </div>
     </div>
   );
 }
 
-function ToolChip({ ev }: { ev: ToolUIEvent }) {
+function ToolChip({ ev, onOpenResource }: { ev: ToolUIEvent; onOpenResource?: (id: string) => void }) {
   const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-mono border w-fit max-w-full";
   if (ev.kind === "error") {
     return <div className={`${base} bg-red-500/10 border-red-500/30 text-red-300`}>⚠ {ev.name}: {ev.error}</div>;
@@ -444,20 +446,30 @@ function ToolChip({ ev }: { ev: ToolUIEvent }) {
         </div>
       );
     }
-    // library.search → a ✓ summary plus a "🔗 OpenEdu Library: …" source chip for the cited card.
+    // library.search → a ✓ summary + a clickable "🔗 OpenEdu Library: …" citation chip. Clicking it
+    // deep-links to the Resources tab and opens the cited card there — the full reference lives in that
+    // tab, not in the chat stream. Mirrors the notebook.search citation shape.
     if (ev.name === "library.search") {
-      const v = ev.value as { found?: boolean; title?: string } | undefined;
+      const v = ev.value as { found?: boolean; id?: string; title?: string } | undefined;
       if (!v?.found || !v.title) {
         return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔗 OpenEdu Library — no matching reference</div>;
       }
+      const clickable = !!(onOpenResource && v.id);
+      const chipClass = `${base} bg-lcd border-phosphor/20 text-phosphor-ink ${clickable ? "cursor-pointer hover:border-phosphor/50 hover:text-phosphor-bright transition-colors" : ""}`;
       return (
         <div className="flex flex-col items-start gap-1.5">
           <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
             ✓ library.search — found a reference
           </div>
-          <span title="Cited from the OpenEdu Library" className={`${base} bg-lcd border-phosphor/20 text-phosphor-ink`}>
-            🔗 OpenEdu Library: {v.title}
-          </span>
+          {clickable ? (
+            <button type="button" onClick={() => onOpenResource!(v.id!)} title="Open in Resources" className={chipClass}>
+              🔗 OpenEdu Library: {v.title}
+            </button>
+          ) : (
+            <span title="Cited from the OpenEdu Library" className={chipClass}>
+              🔗 OpenEdu Library: {v.title}
+            </span>
+          )}
         </div>
       );
     }

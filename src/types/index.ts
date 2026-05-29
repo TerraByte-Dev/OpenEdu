@@ -169,6 +169,7 @@ export interface LibraryEntry {
 // `related` lists titles of near-matches so the tutor can mention alternatives without a second hop.
 export interface LibrarySearchResult {
   found: boolean;
+  id: string; // the matched card's stable id (e.g. "chemistry/periodic-table") — deep-link target for the Resources tab
   title: string;
   source_url: string;
   text: string;

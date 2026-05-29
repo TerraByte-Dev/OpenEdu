@@ -3,13 +3,15 @@ import type { Course, Syllabus, QuizViewContext } from "../types";
 
 import { getCourse, getSyllabuses } from "../lib/db";
 import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus, generateCourseOutline, recordLedgerEntry } from "../lib/curriculum";
-import { getGenerationConfig } from "../lib/store";
+import { getGenerationConfig, getLibraryEnabled } from "../lib/store";
+import { getManifest, isLibraryAvailable } from "../lib/library";
 import ChatTab from "../components/ChatTab";
 import NotesTab from "../components/NotesTab";
 import QuizTab from "../components/QuizTab";
 import OverviewTab from "../components/OverviewTab";
+import ResourcesTab from "../components/ResourcesTab";
 
-export type Tab = "overview" | "chat" | "notes" | "quiz" | "syllabus";
+export type Tab = "overview" | "chat" | "notes" | "quiz" | "syllabus" | "resources";
 
 export interface SwitchTabOpts {
   seedTopic?: string;
@@ -30,6 +32,10 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   const [regenerating, setRegenerating] = useState(false);
   const [regenStatus, setRegenStatus] = useState("");
   const [chatSeedTopic, setChatSeedTopic] = useState<string | undefined>(undefined);
+  // Resources tab (the curated Library). Shown only when the library is reachable + enabled, mirroring
+  // the offline-first hiding everywhere else. `pendingResource` carries a deep-link from a chat chip.
+  const [libReady, setLibReady] = useState(false);
+  const [pendingResource, setPendingResource] = useState<string | null>(null);
 
   const switchTab = (tab: Tab, opts?: SwitchTabOpts) => {
     if (tab === "chat" && opts?.seedTopic) {
@@ -48,6 +54,29 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   };
 
   useEffect(() => { loadCourseData(); }, [courseId]);
+
+  // Gate the Resources tab on library availability (enabled + a cached manifest). The manifest is
+  // warmed at app init (main.tsx → refreshManifest); getManifest is cache-first + offline-safe.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const enabled = await getLibraryEnabled();
+        if (!enabled) { if (alive) setLibReady(false); return; }
+        const m = await getManifest();
+        if (alive) setLibReady(m.length > 0);
+      } catch {
+        if (alive) setLibReady(isLibraryAvailable());
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Deep-link from a chat library citation chip → open that card in the Resources tab.
+  const openResource = (id: string) => {
+    setPendingResource(id);
+    setActiveTab("resources");
+  };
 
   const handleRegenerate = async () => {
     if (!course) return;
@@ -105,6 +134,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
     { id: "notes", label: "Notes" },
     { id: "quiz", label: "Quiz" },
     { id: "syllabus", label: "Syllabus" },
+    ...(libReady ? [{ id: "resources" as Tab, label: "Resources" }] : []),
   ];
 
   return (
@@ -245,6 +275,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             currentSyllabus={viewingSyllabus}
             seedTopic={chatSeedTopic}
             onSeedConsumed={() => setChatSeedTopic(undefined)}
+            onOpenResource={openResource}
           />
         )}
         {activeTab === "notes" && (
@@ -265,6 +296,14 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             onRegenerate={syllabuses.length === 0 ? handleRegenerate : undefined}
             regenerating={regenerating}
             regenStatus={regenStatus}
+          />
+        )}
+        {activeTab === "resources" && (
+          <ResourcesTab
+            course={course}
+            currentSyllabus={viewingSyllabus}
+            pendingResourceId={pendingResource}
+            onPendingConsumed={() => setPendingResource(null)}
           />
         )}
       </div>
