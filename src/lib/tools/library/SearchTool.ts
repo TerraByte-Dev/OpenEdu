@@ -29,7 +29,7 @@ export const librarySearchTool = defineTool({
     const manifest = await getManifest();
     const matches = matchResources(input.query, manifest, 3);
     if (matches.length === 0) {
-      yield { kind: "result", value: { found: false, title: "", source_url: "", text: "", related: [] } };
+      yield { kind: "result", value: { found: false, id: "", title: "", source_url: "", text: "", related: [] } };
       return;
     }
     // Tier-aware cap (mirrors researchTopic's searchCap): keep payloads lean for small local models.
@@ -40,6 +40,7 @@ export const librarySearchTool = defineTool({
       kind: "result",
       value: {
         found: true,
+        id: best.id,
         title: best.title,
         source_url: url,
         text,
