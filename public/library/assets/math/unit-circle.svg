@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 616" role="img" aria-label="Unit Circle">
+<title>Unit Circle</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="880" height="616"/>
+<text x="24" y="36" font-size="26" font-weight="700">Unit Circle</text>
+<circle cx="300" cy="356" r="220" class="rule"/>
+<line x1="56" y1="356" x2="544" y2="356" class="rule-faint"/>
+<line x1="300" y1="112" x2="300" y2="600" class="rule-faint"/>
+<line x1="300" y1="356" x2="520" y2="356" class="rule-faint"/>
+<circle cx="520" cy="356" r="4" class="fill-faint"/>
+<text x="536" y="360" font-size="11" text-anchor="start">0° 0</text>
+<line x1="300" y1="356" x2="490.5" y2="246" class="rule-faint"/>
+<circle cx="490.5" cy="246" r="4" class="fill-faint"/>
+<text x="504.4" y="236" font-size="11" text-anchor="start">30° π/6</text>
+<line x1="300" y1="356" x2="455.6" y2="200.4" class="rule-faint"/>
+<circle cx="455.6" cy="200.4" r="4" class="fill-faint"/>
+<text x="466.9" y="187.1" font-size="11" text-anchor="start">45° π/4</text>
+<line x1="300" y1="356" x2="410" y2="165.5" class="rule-faint"/>
+<circle cx="410" cy="165.5" r="4" class="fill-faint"/>
+<text x="418" y="149.6" font-size="11" text-anchor="start">60° π/3</text>
+<line x1="300" y1="356" x2="300" y2="136" class="rule-faint"/>
+<circle cx="300" cy="136" r="4" class="fill-faint"/>
+<text x="300" y="118" font-size="11" text-anchor="middle">90° π/2</text>
+<line x1="300" y1="356" x2="190" y2="165.5" class="rule-faint"/>
+<circle cx="190" cy="165.5" r="4" class="fill-faint"/>
+<text x="182" y="149.6" font-size="11" text-anchor="end">120° 2π/3</text>
+<line x1="300" y1="356" x2="144.4" y2="200.4" class="rule-faint"/>
+<circle cx="144.4" cy="200.4" r="4" class="fill-faint"/>
+<text x="133.1" y="187.1" font-size="11" text-anchor="end">135° 3π/4</text>
+<line x1="300" y1="356" x2="109.5" y2="246" class="rule-faint"/>
+<circle cx="109.5" cy="246" r="4" class="fill-faint"/>
+<text x="95.6" y="236" font-size="11" text-anchor="end">150° 5π/6</text>
+<line x1="300" y1="356" x2="80" y2="356" class="rule-faint"/>
+<circle cx="80" cy="356" r="4" class="fill-faint"/>
+<text x="64" y="360" font-size="11" text-anchor="end">180° π</text>
+<line x1="300" y1="356" x2="109.5" y2="466" class="rule-faint"/>
+<circle cx="109.5" cy="466" r="4" class="fill-faint"/>
+<text x="95.6" y="486" font-size="11" text-anchor="end">210° 7π/6</text>
+<line x1="300" y1="356" x2="144.4" y2="511.6" class="rule-faint"/>
+<circle cx="144.4" cy="511.6" r="4" class="fill-faint"/>
+<text x="133.1" y="534.9" font-size="11" text-anchor="end">225° 5π/4</text>
+<line x1="300" y1="356" x2="190" y2="546.5" class="rule-faint"/>
+<circle cx="190" cy="546.5" r="4" class="fill-faint"/>
+<text x="182" y="572.4" font-size="11" text-anchor="end">240° 4π/3</text>
+<line x1="300" y1="356" x2="300" y2="576" class="rule-faint"/>
+<circle cx="300" cy="576" r="4" class="fill-faint"/>
+<text x="300" y="604" font-size="11" text-anchor="middle">270° 3π/2</text>
+<line x1="300" y1="356" x2="410" y2="546.5" class="rule-faint"/>
+<circle cx="410" cy="546.5" r="4" class="fill-faint"/>
+<text x="418" y="572.4" font-size="11" text-anchor="start">300° 5π/3</text>
+<line x1="300" y1="356" x2="455.6" y2="511.6" class="rule-faint"/>
+<circle cx="455.6" cy="511.6" r="4" class="fill-faint"/>
+<text x="466.9" y="534.9" font-size="11" text-anchor="start">315° 7π/4</text>
+<line x1="300" y1="356" x2="490.5" y2="466" class="rule-faint"/>
+<circle cx="490.5" cy="466" r="4" class="fill-faint"/>
+<text x="504.4" y="486" font-size="11" text-anchor="start">330° 11π/6</text>
+<text x="300" y="246" font-size="12" text-anchor="middle" class="faint">(cos θ, sin θ)</text>
+<text x="590" y="80" font-size="13" font-weight="700" xml:space="preserve">θ        cos      sin      tan</text>
+<line x1="590" y1="86" x2="824" y2="86" class="rule-faint"/>
+<text x="590" y="108" font-size="13" xml:space="preserve">0°       1        0        0</text>
+<text x="590" y="130" font-size="13" xml:space="preserve">30°      √3/2     1/2      √3/3</text>
+<text x="590" y="152" font-size="13" xml:space="preserve">45°      √2/2     √2/2     1</text>
+<text x="590" y="174" font-size="13" xml:space="preserve">60°      1/2      √3/2     √3</text>
+<text x="590" y="196" font-size="13" xml:space="preserve">90°      0        1        undef</text>
+<text x="590" y="218" font-size="13" xml:space="preserve">120°     −1/2     √3/2     −√3</text>
+<text x="590" y="240" font-size="13" xml:space="preserve">135°     −√2/2    √2/2     −1</text>
+<text x="590" y="262" font-size="13" xml:space="preserve">150°     −√3/2    1/2      −√3/3</text>
+<text x="590" y="284" font-size="13" xml:space="preserve">180°     −1       0        0</text>
+<text x="590" y="306" font-size="13" xml:space="preserve">210°     −√3/2    −1/2     √3/3</text>
+<text x="590" y="328" font-size="13" xml:space="preserve">225°     −√2/2    −√2/2    1</text>
+<text x="590" y="350" font-size="13" xml:space="preserve">240°     −1/2     −√3/2    √3</text>
+<text x="590" y="372" font-size="13" xml:space="preserve">270°     0        −1       undef</text>
+<text x="590" y="394" font-size="13" xml:space="preserve">300°     1/2      −√3/2    −√3</text>
+<text x="590" y="416" font-size="13" xml:space="preserve">315°     √2/2     −√2/2    −1</text>
+<text x="590" y="438" font-size="13" xml:space="preserve">330°     √3/2     −1/2     −√3/3</text>
+</svg>

@@ -1,24 +1,29 @@
-// OpenEdu Library — a curated, self-hosted educational corpus the live tutor can consult mid-lesson
-// (periodic table, unit circle, formulas, definitions…). It replaces "scrape the open web" with
-// "fetch a clean, pre-formatted reference card we author and control": no HTML noise, no prompt-
-// injection surface, no per-search cost. The library is hosted as a static site (Cloudflare Pages):
-// an `index.json` manifest the app fetches once, plus resource bodies fetched on demand by path.
+// OpenEdu Library — a curated educational corpus the live tutor can consult mid-lesson (periodic table,
+// unit circle, formulas, definitions…) and the student can browse in the Resources tab. It replaces
+// "scrape the open web" with "read a clean, pre-formatted reference card we author and control": no HTML
+// noise, no prompt-injection surface, no per-search cost.
 //
-// Retrieval is CLIENT-SIDE and LEXICAL for v1 (no embedding-model coupling, deterministic): the app
-// scores a query against curated titles/aliases/tags/summary. Semantic rerank (reusing embed() +
-// cosineSim) is a deferred upgrade.
+// SOURCE: the library is BUNDLED with the app (public/library/ → /library/* at the app origin), so it
+// works fully offline with zero deploy. A Settings `library_url` override points at a remote static host
+// (e.g. https://library.openedu.app) to fetch a larger/updated corpus when desired. Bundled assets use
+// the standard same-origin fetch (CSP is null); the remote override uses @tauri-apps/plugin-http (the
+// host must be allow-listed in src-tauri/capabilities/default.json).
 //
-// Offline-first: availability is driven by an in-memory manifest cache that `refreshManifest()`
-// hydrates at app init (from the persisted last-good copy first, then a network update). No manifest
-// cached ⇒ `isLibraryAvailable()` is false ⇒ the library.search tool is hidden ⇒ the app is unchanged.
+// Retrieval is CLIENT-SIDE and LEXICAL for v1 (deterministic, no embedding coupling): score a query
+// against curated titles/aliases/tags/summary. Availability is an in-memory manifest cache loaded at app
+// init; isLibraryAvailable() === false ⇒ the library.search tool is hidden ⇒ the app is unchanged.
 
-import { fetch } from "@tauri-apps/plugin-http";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import type { LibraryEntry } from "../types";
 import { getLibraryEnabled, getLibraryUrl, getLibraryManifestCache, setLibraryManifestCache } from "./store";
 
-// Baked-in default host (also allow-listed in src-tauri/capabilities/default.json). A Settings
-// override (getLibraryUrl) wins when set — but it must be allow-listed too, or fetch is blocked.
+// Canonical remote host for the optional Settings `library_url` override (must also be allow-listed in
+// src-tauri/capabilities/default.json). NOT the default source — the bundled copy below is.
 export const LIBRARY_DEFAULT_BASE = "https://library.openedu.app";
+
+// The bundled library, served at the app origin (Vite copies public/ → dist root). BASE_URL is "/" by
+// default, so this resolves to "/library".
+const BUNDLED_BASE = `${import.meta.env.BASE_URL}library`.replace(/\/+$/, "");
 
 // In-memory manifest cache. Populated by refreshManifest()/getManifest(); the single source of truth
 // for isLibraryAvailable(). Module-level so it survives across turns within a session.
@@ -33,9 +38,22 @@ export function setLibraryEnabledForTesting(enabled: boolean): void {
   disabledForTesting = !enabled;
 }
 
-async function resolveBase(): Promise<string> {
+// Where the library loads from: the bundled copy by default; a Settings `library_url` override switches
+// to a remote host. `remote` selects the transport (plugin-http cross-origin vs same-origin fetch).
+async function resolveSource(): Promise<{ base: string; remote: boolean }> {
   const override = await getLibraryUrl();
-  return (override || LIBRARY_DEFAULT_BASE).replace(/\/+$/, "");
+  if (override) return { base: override.replace(/\/+$/, ""), remote: true };
+  return { base: BUNDLED_BASE, remote: false };
+}
+
+// Fetch a library file as text. Bundled = same-origin app asset (standard fetch; no capability needed,
+// CSP is null). Remote override = plugin-http (cross-origin; the Origin:"" header mirrors llm.ts).
+async function fetchLibText(url: string, remote: boolean): Promise<string> {
+  const res = remote
+    ? await tauriFetch(url, { method: "GET", headers: { "Origin": "" } })
+    : await fetch(url, { method: "GET" });
+  if (!res.ok) throw new Error(`library fetch failed (${res.status}): ${url}`);
+  return res.text();
 }
 
 // Defensive: the manifest is our own, but coerce/validate so a malformed deploy can't crash the tutor.
@@ -64,44 +82,41 @@ function normalizeManifest(data: unknown): LibraryEntry[] {
   return out;
 }
 
-async function fetchManifestFromNetwork(): Promise<LibraryEntry[]> {
-  const base = await resolveBase();
-  const res = await fetch(`${base}/index.json`, { method: "GET", headers: { "Origin": "" } });
-  if (!res.ok) throw new Error(`library manifest fetch failed: ${res.status}`);
-  const entries = normalizeManifest(await res.json());
+// Load the manifest from the active source (bundled by default; remote override otherwise) into memory.
+async function loadManifest(): Promise<LibraryEntry[]> {
+  const { base, remote } = await resolveSource();
+  const entries = normalizeManifest(JSON.parse(await fetchLibText(`${base}/index.json`, remote)));
   memManifest = entries;
-  await setLibraryManifestCache(entries).catch(() => {}); // persistence is best-effort
+  // Persist only for the remote override (offline survival). The bundled copy is always reachable, so its
+  // cache is never read back — skip the redundant per-launch disk write.
+  if (remote) await setLibraryManifestCache(entries).catch(() => {});
   return entries;
 }
 
-// Return the manifest, preferring the warm in-memory copy, then the persisted last-good copy, then a
-// live fetch. The tool path uses this so a lookup never blocks on the network when already synced.
+// Return the manifest, preferring the warm in-memory copy. Bundled loads succeed immediately; a remote
+// override that's offline falls back to the last-good persisted copy.
 export async function getManifest(): Promise<LibraryEntry[]> {
   if (memManifest) return memManifest;
-  const cached = await getLibraryManifestCache().catch(() => null);
-  if (cached) {
-    const e = normalizeManifest(cached);
-    if (e.length) { memManifest = e; return e; }
+  try {
+    return await loadManifest();
+  } catch {
+    const cached = normalizeManifest((await getLibraryManifestCache().catch(() => null)) ?? []);
+    if (cached.length) { memManifest = cached; return cached; }
+    throw new Error("library manifest unavailable");
   }
-  return fetchManifestFromNetwork();
 }
 
-// App-init warm-up (called from main.tsx). Hydrate from the persisted cache first so the library is
-// available offline after one prior sync, then try a network update. Swallows network failure (not
-// deployed yet / offline) — the cached copy, if any, stands.
+// App-init warm-up (called from main.tsx). Loads the bundled manifest (always present) or, with a remote
+// override, fetches it — falling back to the last-good persisted copy if the remote is offline.
 export async function refreshManifest(): Promise<void> {
   if (!(await getLibraryEnabled())) return;
-  if (!memManifest) {
-    const cached = await getLibraryManifestCache().catch(() => null);
-    if (cached) {
-      const e = normalizeManifest(cached);
-      if (e.length) memManifest = e;
-    }
-  }
   try {
-    await fetchManifestFromNetwork();
+    await loadManifest();
   } catch {
-    /* offline or library not deployed — keep whatever cached copy we have */
+    if (!memManifest) {
+      const cached = normalizeManifest((await getLibraryManifestCache().catch(() => null)) ?? []);
+      if (cached.length) memManifest = cached;
+    }
   }
 }
 
@@ -177,11 +192,9 @@ export function resourceUrl(base: string, entry: LibraryEntry): string {
 
 // Fetch a resource body, strip frontmatter, hard-cap the length to protect a small model's context.
 export async function fetchResource(entry: LibraryEntry, maxChars = 2500): Promise<{ text: string; url: string }> {
-  const base = await resolveBase();
+  const { base, remote } = await resolveSource();
   const url = resourceUrl(base, entry);
-  const res = await fetch(url, { method: "GET", headers: { "Origin": "" } });
-  if (!res.ok) throw new Error(`library resource fetch failed: ${res.status}`);
-  let text = stripFrontmatter(await res.text()).trim();
+  let text = stripFrontmatter(await fetchLibText(url, remote)).trim();
   if (text.length > maxChars) text = text.slice(0, maxChars).trimEnd() + "\n\n…(truncated — ask for more if needed)";
   return { text, url };
 }
@@ -207,12 +220,10 @@ export function sanitizeSvg(svg: string): string {
 
 // Fetch a card's authored SVG "raw form" (human-facing, Resources tab). Unlike fetchResource: no
 // frontmatter strip, no length cap (the SVG is a whole document), returns sanitized markup. null when
-// the card has no asset. Same allow-listed host + fetch path as the body.
+// the card has no asset. Same source + fetch path as the body.
 export async function fetchAsset(entry: LibraryEntry): Promise<string | null> {
   if (!entry.asset) return null;
-  const base = await resolveBase();
+  const { base, remote } = await resolveSource();
   const url = assetUrl(base, entry.asset);
-  const res = await fetch(url, { method: "GET", headers: { "Origin": "" } });
-  if (!res.ok) throw new Error(`library asset fetch failed: ${res.status}`);
-  return sanitizeSvg(await res.text());
+  return sanitizeSvg(await fetchLibText(url, remote));
 }

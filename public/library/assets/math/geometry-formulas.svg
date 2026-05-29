@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 611" role="img" aria-label="Geometry Formulas">
+<title>Geometry Formulas</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="611"/>
+<text x="28" y="50" font-size="26" font-weight="700">Geometry Formulas</text>
+<text x="28" y="72" font-size="13" class="faint">s=side, l=length, w=width, b=base, h=height, r=radius, π≈3.14159</text>
+<text x="28" y="113" font-size="17" font-weight="700">2D shapes — area (A), perimeter (P)</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">Square         A = s²            P = 4s</text>
+<text x="28" y="167" font-size="15" xml:space="preserve">Rectangle      A = l × w         P = 2(l + w)</text>
+<text x="28" y="192" font-size="15" xml:space="preserve">Triangle       A = ½ × b × h</text>
+<text x="28" y="217" font-size="15" xml:space="preserve">Circle         A = πr²           C = 2πr</text>
+<text x="28" y="242" font-size="15" xml:space="preserve">Parallelogram  A = b × h</text>
+<text x="28" y="267" font-size="15" xml:space="preserve">Trapezoid      A = ½ × (a + b) × h   (a, b = parallel sides)</text>
+<text x="28" y="304" font-size="17" font-weight="700">3D solids — volume (V), surface area (SA)</text>
+<text x="28" y="333" font-size="15" xml:space="preserve">Cube                V = s³            SA = 6s²</text>
+<text x="28" y="358" font-size="15" xml:space="preserve">Rectangular prism   V = l × w × h</text>
+<text x="28" y="383" font-size="15" xml:space="preserve">Sphere              V = (4/3)πr³      SA = 4πr²</text>
+<text x="28" y="408" font-size="15" xml:space="preserve">Cylinder            V = πr²h          SA = 2πr² + 2πrh</text>
+<text x="28" y="433" font-size="15" xml:space="preserve">Cone                V = (1/3)πr²h</text>
+<text x="28" y="458" font-size="15" xml:space="preserve">Pyramid             V = (1/3) × (base area) × h</text>
+<text x="28" y="495" font-size="17" font-weight="700">Right triangles</text>
+<text x="28" y="523" font-size="14">Pythagorean theorem: a² + b² = c² (c is the hypotenuse, opposite the right</text>
+<text x="28" y="547" font-size="14">angle).</text>
+<text x="28" y="577" font-size="14">Angles in any triangle sum to 180°; angles in a quadrilateral sum to 360°.</text>
+</svg>

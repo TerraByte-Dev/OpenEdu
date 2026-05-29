@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 828" role="img" aria-label="Common Polyatomic Ions">
+<title>Common Polyatomic Ions</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="828"/>
+<text x="28" y="50" font-size="26" font-weight="700">Common Polyatomic Ions</text>
+<text x="28" y="72" font-size="13" class="faint">name — formula — charge</text>
+<text x="28" y="113" font-size="17" font-weight="700">Positive (cation)</text>
+<text x="28" y="142" font-size="15">Ammonium</text>
+<text x="127" y="142" font-size="15">NH4</text>
+<text x="181" y="142" font-size="15">+1</text>
+<text x="28" y="179" font-size="17" font-weight="700">Charge −1</text>
+<text x="28" y="208" font-size="15">Hydroxide</text>
+<text x="163" y="208" font-size="15">OH</text>
+<text x="244" y="208" font-size="15">−1</text>
+<text x="28" y="233" font-size="15">Nitrate</text>
+<text x="163" y="233" font-size="15">NO3</text>
+<text x="244" y="233" font-size="15">−1</text>
+<text x="28" y="258" font-size="15">Nitrite</text>
+<text x="163" y="258" font-size="15">NO2</text>
+<text x="244" y="258" font-size="15">−1</text>
+<text x="28" y="283" font-size="15">Bicarbonate</text>
+<text x="163" y="283" font-size="15">HCO3</text>
+<text x="244" y="283" font-size="15">−1</text>
+<text x="28" y="308" font-size="15">Acetate</text>
+<text x="163" y="308" font-size="15">C2H3O2</text>
+<text x="244" y="308" font-size="15">−1</text>
+<text x="28" y="333" font-size="15">Cyanide</text>
+<text x="163" y="333" font-size="15">CN</text>
+<text x="244" y="333" font-size="15">−1</text>
+<text x="28" y="358" font-size="15">Permanganate</text>
+<text x="163" y="358" font-size="15">MnO4</text>
+<text x="244" y="358" font-size="15">−1</text>
+<text x="28" y="383" font-size="15">Hypochlorite</text>
+<text x="163" y="383" font-size="15">ClO</text>
+<text x="244" y="383" font-size="15">−1</text>
+<text x="28" y="408" font-size="15">Chlorite</text>
+<text x="163" y="408" font-size="15">ClO2</text>
+<text x="244" y="408" font-size="15">−1</text>
+<text x="28" y="433" font-size="15">Chlorate</text>
+<text x="163" y="433" font-size="15">ClO3</text>
+<text x="244" y="433" font-size="15">−1</text>
+<text x="28" y="458" font-size="15">Perchlorate</text>
+<text x="163" y="458" font-size="15">ClO4</text>
+<text x="244" y="458" font-size="15">−1</text>
+<text x="28" y="495" font-size="17" font-weight="700">Charge −2</text>
+<text x="28" y="524" font-size="15">Carbonate</text>
+<text x="145" y="524" font-size="15">CO3</text>
+<text x="217" y="524" font-size="15">−2</text>
+<text x="28" y="549" font-size="15">Sulfate</text>
+<text x="145" y="549" font-size="15">SO4</text>
+<text x="217" y="549" font-size="15">−2</text>
+<text x="28" y="574" font-size="15">Sulfite</text>
+<text x="145" y="574" font-size="15">SO3</text>
+<text x="217" y="574" font-size="15">−2</text>
+<text x="28" y="599" font-size="15">Chromate</text>
+<text x="145" y="599" font-size="15">CrO4</text>
+<text x="217" y="599" font-size="15">−2</text>
+<text x="28" y="624" font-size="15">Dichromate</text>
+<text x="145" y="624" font-size="15">Cr2O7</text>
+<text x="217" y="624" font-size="15">−2</text>
+<text x="28" y="649" font-size="15">Peroxide</text>
+<text x="145" y="649" font-size="15">O2</text>
+<text x="217" y="649" font-size="15">−2</text>
+<text x="28" y="686" font-size="17" font-weight="700">Charge −3</text>
+<text x="28" y="715" font-size="15">Phosphate</text>
+<text x="136" y="715" font-size="15">PO4</text>
+<text x="190" y="715" font-size="15">−3</text>
+<text x="28" y="740" font-size="15">Phosphite</text>
+<text x="136" y="740" font-size="15">PO3</text>
+<text x="190" y="740" font-size="15">−3</text>
+<text x="28" y="770" font-size="14">Oxyanions: the “-ate” ion has one more oxygen than the “-ite” (sulfate SO4</text>
+<text x="28" y="794" font-size="14">vs sulfite SO3); the charge stays the same across the set.</text>
+</svg>

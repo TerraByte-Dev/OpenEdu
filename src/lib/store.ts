@@ -122,9 +122,9 @@ export async function getTavilyApiKey(): Promise<string | null> {
   return key ? key.trim() : null;
 }
 
-// ── OpenEdu Library (curated self-hosted reference) ──
-// On by default — it's a TerraByte-hosted capability, not a BYO-key one. Users who want a strictly
-// offline / no-network app can turn it off; then the library.search tool is hidden entirely.
+// ── OpenEdu Library (curated reference, bundled with the app) ──
+// On by default — it ships inside the app (public/library/) and works fully offline, no key needed.
+// Turning it off hides the library.search tool and the Resources tab entirely.
 export async function getLibraryEnabled(): Promise<boolean> {
   const s = await getStore();
   const v = await s.get<boolean>("library_enabled");
@@ -137,8 +137,8 @@ export async function setLibraryEnabled(enabled: boolean): Promise<void> {
   await s.save();
 }
 
-// Optional advanced override of the library base URL (must also be allow-listed in capabilities to
-// be reachable). Empty/unset → library.ts falls back to the baked-in default host.
+// Optional advanced override of the library base URL — point at a remote static host to fetch a larger/
+// updated corpus (must also be allow-listed in capabilities). Empty/unset → library.ts uses the BUNDLED copy.
 export async function getLibraryUrl(): Promise<string | null> {
   const s = await getStore();
   const url = await s.get<string>("library_url");

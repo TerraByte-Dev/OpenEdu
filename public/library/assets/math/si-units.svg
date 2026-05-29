@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 462 986" role="img" aria-label="SI Units &amp; Metric Prefixes">
+<title>SI Units &amp; Metric Prefixes</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="462" height="986"/>
+<text x="28" y="50" font-size="26" font-weight="700">SI Units &amp; Metric Prefixes</text>
+<text x="28" y="91" font-size="17" font-weight="700">7 SI base units</text>
+<text x="28" y="120" font-size="15" font-weight="700">Quantity</text>
+<text x="226" y="120" font-size="15" font-weight="700">Unit</text>
+<text x="325" y="120" font-size="15" font-weight="700">Symbol</text>
+<line x1="28" y1="126" x2="379" y2="126" class="rule-faint"/>
+<text x="28" y="145" font-size="15">Length</text>
+<text x="226" y="145" font-size="15">metre</text>
+<text x="325" y="145" font-size="15">m</text>
+<text x="28" y="170" font-size="15">Mass</text>
+<text x="226" y="170" font-size="15">kilogram</text>
+<text x="325" y="170" font-size="15">kg</text>
+<text x="28" y="195" font-size="15">Time</text>
+<text x="226" y="195" font-size="15">second</text>
+<text x="325" y="195" font-size="15">s</text>
+<text x="28" y="220" font-size="15">Electric current</text>
+<text x="226" y="220" font-size="15">ampere</text>
+<text x="325" y="220" font-size="15">A</text>
+<text x="28" y="245" font-size="15">Temperature</text>
+<text x="226" y="245" font-size="15">kelvin</text>
+<text x="325" y="245" font-size="15">K</text>
+<text x="28" y="270" font-size="15">Amount of substance</text>
+<text x="226" y="270" font-size="15">mole</text>
+<text x="325" y="270" font-size="15">mol</text>
+<text x="28" y="295" font-size="15">Luminous intensity</text>
+<text x="226" y="295" font-size="15">candela</text>
+<text x="325" y="295" font-size="15">cd</text>
+<text x="28" y="332" font-size="17" font-weight="700">Metric prefixes (× the base unit)</text>
+<text x="28" y="361" font-size="15" font-weight="700">Prefix</text>
+<text x="109" y="361" font-size="15" font-weight="700">Sym</text>
+<text x="163" y="361" font-size="15" font-weight="700">Factor</text>
+<line x1="28" y1="367" x2="217" y2="367" class="rule-faint"/>
+<text x="28" y="386" font-size="15">tera</text>
+<text x="109" y="386" font-size="15">T</text>
+<text x="163" y="386" font-size="15">10^12</text>
+<text x="28" y="411" font-size="15">giga</text>
+<text x="109" y="411" font-size="15">G</text>
+<text x="163" y="411" font-size="15">10^9</text>
+<text x="28" y="436" font-size="15">mega</text>
+<text x="109" y="436" font-size="15">M</text>
+<text x="163" y="436" font-size="15">10^6</text>
+<text x="28" y="461" font-size="15">kilo</text>
+<text x="109" y="461" font-size="15">k</text>
+<text x="163" y="461" font-size="15">10^3</text>
+<text x="28" y="486" font-size="15">hecto</text>
+<text x="109" y="486" font-size="15">h</text>
+<text x="163" y="486" font-size="15">10^2</text>
+<text x="28" y="511" font-size="15">deca</text>
+<text x="109" y="511" font-size="15">da</text>
+<text x="163" y="511" font-size="15">10^1</text>
+<text x="28" y="536" font-size="15">(base)</text>
+<text x="109" y="536" font-size="15"></text>
+<text x="163" y="536" font-size="15">10^0</text>
+<text x="28" y="561" font-size="15">deci</text>
+<text x="109" y="561" font-size="15">d</text>
+<text x="163" y="561" font-size="15">10^−1</text>
+<text x="28" y="586" font-size="15">centi</text>
+<text x="109" y="586" font-size="15">c</text>
+<text x="163" y="586" font-size="15">10^−2</text>
+<text x="28" y="611" font-size="15">milli</text>
+<text x="109" y="611" font-size="15">m</text>
+<text x="163" y="611" font-size="15">10^−3</text>
+<text x="28" y="636" font-size="15">micro</text>
+<text x="109" y="636" font-size="15">µ</text>
+<text x="163" y="636" font-size="15">10^−6</text>
+<text x="28" y="661" font-size="15">nano</text>
+<text x="109" y="661" font-size="15">n</text>
+<text x="163" y="661" font-size="15">10^−9</text>
+<text x="28" y="686" font-size="15">pico</text>
+<text x="109" y="686" font-size="15">p</text>
+<text x="163" y="686" font-size="15">10^−12</text>
+<text x="28" y="723" font-size="17" font-weight="700">Common derived units</text>
+<text x="28" y="752" font-size="15" font-weight="700">Quantity</text>
+<text x="145" y="752" font-size="15" font-weight="700">Unit</text>
+<text x="271" y="752" font-size="15" font-weight="700">Definition</text>
+<line x1="28" y1="758" x2="361" y2="758" class="rule-faint"/>
+<text x="28" y="777" font-size="15">Force</text>
+<text x="145" y="777" font-size="15">newton (N)</text>
+<text x="271" y="777" font-size="15">kg·m/s²</text>
+<text x="28" y="802" font-size="15">Energy</text>
+<text x="145" y="802" font-size="15">joule (J)</text>
+<text x="271" y="802" font-size="15">N·m</text>
+<text x="28" y="827" font-size="15">Power</text>
+<text x="145" y="827" font-size="15">watt (W)</text>
+<text x="271" y="827" font-size="15">J/s</text>
+<text x="28" y="852" font-size="15">Pressure</text>
+<text x="145" y="852" font-size="15">pascal (Pa)</text>
+<text x="271" y="852" font-size="15">N/m²</text>
+<text x="28" y="877" font-size="15">Frequency</text>
+<text x="145" y="877" font-size="15">hertz (Hz)</text>
+<text x="271" y="877" font-size="15">1/s</text>
+<text x="28" y="902" font-size="15">Charge</text>
+<text x="145" y="902" font-size="15">coulomb (C)</text>
+<text x="271" y="902" font-size="15">A·s</text>
+<text x="28" y="927" font-size="15">Voltage</text>
+<text x="145" y="927" font-size="15">volt (V)</text>
+<text x="271" y="927" font-size="15">J/C</text>
+<text x="28" y="952" font-size="15">Resistance</text>
+<text x="145" y="952" font-size="15">ohm (Ω)</text>
+<text x="271" y="952" font-size="15">V/A</text>
+</svg>
