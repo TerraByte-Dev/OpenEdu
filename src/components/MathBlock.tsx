@@ -6,6 +6,9 @@
 import { useMemo } from "react";
 import katex from "katex";
 import "katex/dist/katex.min.css";
+// Register mhchem (\ce{}) on the shared KaTeX singleton. Idempotent + import-order-independent:
+// chat-markdown.ts imports it too, but a math.render result can mount before any chat prose does.
+import "katex/contrib/mhchem";
 
 export default function MathBlock({ latex }: { latex: string }) {
   const html = useMemo(() => {

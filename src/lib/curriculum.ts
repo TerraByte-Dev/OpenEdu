@@ -561,7 +561,7 @@ ${MATH_FORMATTING_RULES_PROSE}`;
 - Celebrate genuine understanding, not just completion.
 - When you see the student has mastered a subtopic, say so explicitly.
 - Never give answers during quiz/assessment mode.
-- Format all math as plain text (× ÷ ² ³ π ≤ ≥ √ Δ θ α β μ σ Σ ∫ ∂). No LaTeX, no \\frac / \\vec / \\mathbb / \\langle / \\sum / etc., no $...$ or $$...$$ delimiters, no backslashes anywhere in your replies.`;
+- Math formatting: simple symbols can be written as plain text (× ÷ ² ³ π ≤ ≥ √ Δ θ α). For fractions, exponents, roots, sums, integrals, or vectors, write LaTeX inside math delimiters — inline $...$ or block $$...$$ (both render for the student). When a math.render tool is available, prefer it for a standalone equation. Always close every $ you open; never leave a half-open $ or a bare backslash command sitting outside delimiters.`;
 
   await saveTutorInstruction(courseId, "rules", rules);
 
