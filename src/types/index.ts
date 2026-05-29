@@ -163,6 +163,7 @@ export interface LibraryEntry {
   subject: string;     // coarse subject bucket
   summary: string;     // one-line description
   path: string;        // relative path to the resource body, e.g. "resources/chemistry/periodic-table.md"
+  asset?: string;      // OPTIONAL relative path to an authored SVG "raw form", e.g. "assets/chemistry/periodic-table.svg"
 }
 
 // The result the library.search tool yields. `text` is the matched resource's cleaned, capped body;
