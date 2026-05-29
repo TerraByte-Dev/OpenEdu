@@ -121,3 +121,45 @@ export async function getTavilyApiKey(): Promise<string | null> {
   const key = await s.get<string>("tavily_api_key");
   return key ? key.trim() : null;
 }
+
+// ── OpenEdu Library (curated self-hosted reference) ──
+// On by default — it's a TerraByte-hosted capability, not a BYO-key one. Users who want a strictly
+// offline / no-network app can turn it off; then the library.search tool is hidden entirely.
+export async function getLibraryEnabled(): Promise<boolean> {
+  const s = await getStore();
+  const v = await s.get<boolean>("library_enabled");
+  return v ?? true;
+}
+
+export async function setLibraryEnabled(enabled: boolean): Promise<void> {
+  const s = await getStore();
+  await s.set("library_enabled", enabled);
+  await s.save();
+}
+
+// Optional advanced override of the library base URL (must also be allow-listed in capabilities to
+// be reachable). Empty/unset → library.ts falls back to the baked-in default host.
+export async function getLibraryUrl(): Promise<string | null> {
+  const s = await getStore();
+  const url = await s.get<string>("library_url");
+  return url ? url.trim() : null;
+}
+
+export async function setLibraryUrl(url: string): Promise<void> {
+  const s = await getStore();
+  await s.set("library_url", url.trim());
+  await s.save();
+}
+
+// Last-good manifest, persisted so the library survives offline windows / restarts after one sync.
+export async function getLibraryManifestCache(): Promise<unknown | null> {
+  const s = await getStore();
+  return (await s.get("library_manifest_cache")) ?? null;
+}
+
+export async function setLibraryManifestCache(manifest: unknown): Promise<void> {
+  const s = await getStore();
+  await s.set("library_manifest_cache", manifest);
+  await s.set("library_manifest_cache_at", new Date().toISOString());
+  await s.save();
+}

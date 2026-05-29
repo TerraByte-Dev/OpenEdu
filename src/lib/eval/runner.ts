@@ -15,6 +15,7 @@ import { getTutorModePrompt } from "../tutor-modes";
 import { tutorEngine, personaIdentityLayer, type TutorTurn } from "../kernel";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill, resolveDomainSkill, resolvePersona } from "../skills";
+import { setLibraryEnabledForTesting } from "../library";
 import { GOLDENS, type Golden, type GoldenTranscriptEntry } from "./goldens";
 
 // Eval-only stand-in for a generated course's tutor instructions. The math rule is inlined
@@ -142,18 +143,26 @@ export async function runEvals(opts?: { only?: string }): Promise<EvalReport> {
   const goldens = opts?.only ? GOLDENS.filter((g) => g.id === opts.only) : GOLDENS;
   console.log(`[eval] model=${config.provider}/${config.model} — running ${goldens.length} golden(s)`);
 
+  // Run the baseline with the OpenEdu Library suppressed so goldens (authored before it existed) stay
+  // apples-to-apples — an optional, network-gated tool must not perturb the regression bar. Restored
+  // after the run so a manual eval doesn't disable the library for the rest of the app session.
+  setLibraryEnabledForTesting(false);
   const runs: GoldenRun[] = [];
-  for (const g of goldens) {
-    console.log(`[eval] → ${g.id}…`);
-    try {
-      const r = await runGolden(g, config);
-      console.log(`[eval] ${r.pass ? "✓" : "✗"} ${g.id}${r.reasons.length ? " — " + r.reasons.join("; ") : ""}`);
-      runs.push(r);
-    } catch (e) {
-      const reason = e instanceof Error ? e.message : String(e);
-      console.error(`[eval] ✗ ${g.id} threw: ${reason}`);
-      runs.push({ id: g.id, title: g.title, pass: false, reasons: [`threw: ${reason}`], transcript: [] });
+  try {
+    for (const g of goldens) {
+      console.log(`[eval] → ${g.id}…`);
+      try {
+        const r = await runGolden(g, config);
+        console.log(`[eval] ${r.pass ? "✓" : "✗"} ${g.id}${r.reasons.length ? " — " + r.reasons.join("; ") : ""}`);
+        runs.push(r);
+      } catch (e) {
+        const reason = e instanceof Error ? e.message : String(e);
+        console.error(`[eval] ✗ ${g.id} threw: ${reason}`);
+        runs.push({ id: g.id, title: g.title, pass: false, reasons: [`threw: ${reason}`], transcript: [] });
+      }
     }
+  } finally {
+    setLibraryEnabledForTesting(true);
   }
 
   const rows = runs.map((r) => ({ id: r.id, pass: r.pass, reasons: r.reasons.join("; ") }));

@@ -26,7 +26,8 @@
         { "url": "http://127.0.0.1:11434/**" },
         { "url": "https://api.openai.com/**" },
         { "url": "https://api.anthropic.com/**" },
-        { "url": "https://api.tavily.com/**" }
+        { "url": "https://api.tavily.com/**" },
+        { "url": "https://library.openedu.app/**" }
       ]
     }
   ]
