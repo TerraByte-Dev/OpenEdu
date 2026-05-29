@@ -12,11 +12,13 @@ loadBuiltinSkills();
 
 // Dev-only harnesses — registered only in `tauri dev`, tree-shaken from production builds.
 //   __runEvals()           — golden-conversation eval (src/lib/eval/runner.ts)
+//   __testMathRender()     — deterministic chat math render-check (src/lib/eval/render-check.ts)
 //   __testDsl()            — zod→JSON-Schema round-trip (src/lib/dsl/_roundTripCheck.ts)
 //   __spikeToolStreaming() — streaming+tools floor-model probe (src/lib/spike/toolStreamSpike.ts)
 if (import.meta.env.DEV) {
   void import("./lib/dsl/_roundTripCheck");
   void import("./lib/eval/runner");
+  void import("./lib/eval/render-check");
   void import("./lib/spike/toolStreamSpike");
 }
 
