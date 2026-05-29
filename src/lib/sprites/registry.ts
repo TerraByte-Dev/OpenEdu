@@ -14,6 +14,7 @@ import eulerUrl from "../../assets/sprites/euler.png";
 import adaUrl from "../../assets/sprites/ada.png";
 import lingoUrl from "../../assets/sprites/lingo.png";
 import novaUrl from "../../assets/sprites/nova.png";
+import musicUrl from "../../assets/sprites/music.png";
 
 export interface SpritePersona {
   id: string;
@@ -63,6 +64,13 @@ export const SPRITE_PERSONAS: SpritePersona[] = [
     imagePath: novaUrl,
     blurb: "Curious and experimental — excited by phenomena. Chemistry, biology & science.",
     domainHints: ["science", "chemistry", "biology", "astronomy", "geology", "ecology", "anatomy"],
+  },
+  {
+    id: "music",
+    displayName: "TEMPO",
+    imagePath: musicUrl,
+    blurb: "Encouraging and rhythmic — hears the patterns in everything. Music theory, instruments & ear training.",
+    domainHints: ["music", "instrument", "piano", "guitar", "violin", "drums", "percussion", "singing", "choir", "chorus", "vocal", "band", "orchestra", "songwriting", "melody", "harmony", "rhythm"],
   },
 ];
 
