@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 868 483" role="img" aria-label="Continents and Oceans">
+<title>Continents and Oceans</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="868" height="483"/>
+<text x="28" y="40" font-size="26" font-weight="700">Continents &amp; Oceans</text>
+<text x="28" y="64" font-size="13" class="faint">Earth has 7 continents and 5 oceans. Circles are scaled to area (million km²).</text>
+<circle cx="98" cy="174" r="70" class="rule" fill="var(--oe-svg-faint,#777)" fill-opacity="0.10"/>
+<text x="98" y="178" font-size="11" text-anchor="middle" font-weight="700">Asia</text>
+<text x="98" y="260" font-size="11" text-anchor="middle" class="faint">44.6M km²</text>
+<circle cx="251.7" cy="174" r="57.7" class="rule" fill="var(--oe-svg-faint,#777)" fill-opacity="0.10"/>
+<text x="251.7" y="178" font-size="11" text-anchor="middle" font-weight="700">Africa</text>
+<text x="251.7" y="247.7" font-size="11" text-anchor="middle" class="faint">30.3M km²</text>
+<circle cx="387.5" cy="174" r="52.1" class="rule" fill="var(--oe-svg-faint,#777)" fill-opacity="0.10"/>
+<text x="387.5" y="178" font-size="11" text-anchor="middle" font-weight="700">North America</text>
+<text x="387.5" y="242.1" font-size="11" text-anchor="middle" class="faint">24.7M km²</text>
+<circle cx="509.8" cy="174" r="44.2" class="rule" fill="var(--oe-svg-faint,#777)" fill-opacity="0.10"/>
+<text x="509.8" y="178" font-size="11" text-anchor="middle" font-weight="700">South America</text>
+<text x="509.8" y="234.2" font-size="11" text-anchor="middle" class="faint">17.8M km²</text>
+<circle cx="619.5" cy="174" r="39.5" class="rule" fill="var(--oe-svg-faint,#777)" fill-opacity="0.10"/>
+<text x="619.5" y="178" font-size="11" text-anchor="middle" font-weight="700">Antarctica</text>
+<text x="619.5" y="229.5" font-size="11" text-anchor="middle" class="faint">14.2M km²</text>
+<circle cx="718.5" cy="174" r="33.5" class="rule" fill="var(--oe-svg-faint,#777)" fill-opacity="0.10"/>
+<text x="718.5" y="178" font-size="11" text-anchor="middle" font-weight="700">Europe</text>
+<text x="718.5" y="223.5" font-size="11" text-anchor="middle" class="faint">10.2M km²</text>
+<circle cx="808.7" cy="174" r="30.7" class="rule" fill="var(--oe-svg-faint,#777)" fill-opacity="0.10"/>
+<text x="808.7" y="178" font-size="11" text-anchor="middle" font-weight="700">Australia</text>
+<text x="808.7" y="220.7" font-size="11" text-anchor="middle" class="faint">8.6M km²</text>
+<text x="28" y="294" font-size="17" font-weight="700">The 5 oceans (largest to smallest)</text>
+<text x="28" y="325" font-size="14" xml:space="preserve">• Pacific — largest &amp; deepest (Mariana Trench ~10,935 m)</text>
+<text x="28" y="350" font-size="14" xml:space="preserve">• Atlantic — 2nd largest; separates Americas from Europe/Africa</text>
+<text x="28" y="375" font-size="14" xml:space="preserve">• Indian — 3rd largest; warmest</text>
+<text x="28" y="400" font-size="14" xml:space="preserve">• Southern — surrounds Antarctica (distinct since 2000)</text>
+<text x="28" y="425" font-size="14" xml:space="preserve">• Arctic — smallest &amp; shallowest; mostly ice-covered</text>
+<text x="28" y="455" font-size="13" class="faint">Oceans cover ~71% of Earth's surface; all connect into one global ocean.</text>
+</svg>

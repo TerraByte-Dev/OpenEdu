@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 564 594" role="img" aria-label="Circle of Fifths">
+<title>Circle of Fifths</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="564" height="594"/>
+<text x="24" y="36" font-size="26" font-weight="700">Circle of Fifths</text>
+<circle cx="290" cy="320" r="250" class="rule"/>
+<circle cx="290" cy="320" r="195" class="rule-faint"/>
+<circle cx="290" cy="320" r="120" class="rule-faint"/>
+<line x1="290" y1="320" x2="225.3" y2="78.5" class="rule-faint"/>
+<text x="290" y="111" font-size="19" text-anchor="middle" font-weight="700">C</text>
+<text x="290" y="165" font-size="13" text-anchor="middle">Am</text>
+<line x1="290" y1="320" x2="354.7" y2="78.5" class="rule-faint"/>
+<text x="397.5" y="139.8" font-size="19" text-anchor="middle" font-weight="700">G</text>
+<text x="370" y="186.4" font-size="13" text-anchor="middle">Em</text>
+<text x="410" y="116.2" font-size="11" text-anchor="middle" class="faint">1♯</text>
+<line x1="290" y1="320" x2="466.8" y2="143.2" class="rule-faint"/>
+<text x="476.2" y="218.5" font-size="19" text-anchor="middle" font-weight="700">D</text>
+<text x="428.6" y="245" font-size="13" text-anchor="middle">Bm</text>
+<text x="497.8" y="204" font-size="11" text-anchor="middle" class="faint">2♯</text>
+<line x1="290" y1="320" x2="531.5" y2="255.3" class="rule-faint"/>
+<text x="505" y="326" font-size="19" text-anchor="middle" font-weight="700">A</text>
+<text x="450" y="325" font-size="13" text-anchor="middle">F♯m</text>
+<text x="530" y="324" font-size="11" text-anchor="middle" class="faint">3♯</text>
+<line x1="290" y1="320" x2="531.5" y2="384.7" class="rule-faint"/>
+<text x="476.2" y="433.5" font-size="19" text-anchor="middle" font-weight="700">E</text>
+<text x="428.6" y="405" font-size="13" text-anchor="middle">C♯m</text>
+<text x="497.8" y="444" font-size="11" text-anchor="middle" class="faint">4♯</text>
+<line x1="290" y1="320" x2="466.8" y2="496.8" class="rule-faint"/>
+<text x="397.5" y="512.2" font-size="19" text-anchor="middle" font-weight="700">B</text>
+<text x="370" y="463.6" font-size="13" text-anchor="middle">G♯m</text>
+<text x="410" y="531.8" font-size="11" text-anchor="middle" class="faint">5♯</text>
+<line x1="290" y1="320" x2="354.7" y2="561.5" class="rule-faint"/>
+<text x="290" y="541" font-size="19" text-anchor="middle" font-weight="700">F♯/G♭</text>
+<text x="290" y="485" font-size="13" text-anchor="middle">D♯m/E♭m</text>
+<text x="290" y="564" font-size="11" text-anchor="middle" class="faint">6♯/6♭</text>
+<line x1="290" y1="320" x2="225.3" y2="561.5" class="rule-faint"/>
+<text x="182.5" y="512.2" font-size="19" text-anchor="middle" font-weight="700">D♭</text>
+<text x="210" y="463.6" font-size="13" text-anchor="middle">B♭m</text>
+<text x="170" y="531.8" font-size="11" text-anchor="middle" class="faint">5♭</text>
+<line x1="290" y1="320" x2="113.2" y2="496.8" class="rule-faint"/>
+<text x="103.8" y="433.5" font-size="19" text-anchor="middle" font-weight="700">A♭</text>
+<text x="151.4" y="405" font-size="13" text-anchor="middle">Fm</text>
+<text x="82.2" y="444" font-size="11" text-anchor="middle" class="faint">4♭</text>
+<line x1="290" y1="320" x2="48.5" y2="384.7" class="rule-faint"/>
+<text x="75" y="326" font-size="19" text-anchor="middle" font-weight="700">E♭</text>
+<text x="130" y="325" font-size="13" text-anchor="middle">Cm</text>
+<text x="50" y="324" font-size="11" text-anchor="middle" class="faint">3♭</text>
+<line x1="290" y1="320" x2="48.5" y2="255.3" class="rule-faint"/>
+<text x="103.8" y="218.5" font-size="19" text-anchor="middle" font-weight="700">B♭</text>
+<text x="151.4" y="245" font-size="13" text-anchor="middle">Gm</text>
+<text x="82.2" y="204" font-size="11" text-anchor="middle" class="faint">2♭</text>
+<line x1="290" y1="320" x2="113.2" y2="143.2" class="rule-faint"/>
+<text x="182.5" y="139.8" font-size="19" text-anchor="middle" font-weight="700">F</text>
+<text x="210" y="186.4" font-size="13" text-anchor="middle">Dm</text>
+<text x="170" y="116.2" font-size="11" text-anchor="middle" class="faint">1♭</text>
+<text x="290" y="314" font-size="12" text-anchor="middle" class="faint">major</text>
+<text x="290" y="332" font-size="12" text-anchor="middle" class="faint">/ minor</text>
+<text x="380" y="68" font-size="12" text-anchor="start" class="faint">→ sharps (clockwise)</text>
+<text x="200" y="68" font-size="12" text-anchor="end" class="faint">flats (ccw) ←</text>
+</svg>

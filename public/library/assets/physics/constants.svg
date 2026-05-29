@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 653 545" role="img" aria-label="Physics Constants">
+<title>Physics Constants</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="653" height="545"/>
+<text x="28" y="50" font-size="26" font-weight="700">Physics Constants</text>
+<text x="28" y="72" font-size="13" class="faint">name — symbol = value (units)</text>
+<text x="28" y="107" font-size="15" font-weight="700">Constant</text>
+<text x="235" y="107" font-size="15" font-weight="700">Sym</text>
+<text x="289" y="107" font-size="15" font-weight="700">Value</text>
+<text x="442" y="107" font-size="15" font-weight="700">Units</text>
+<line x1="28" y1="113" x2="523" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Speed of light</text>
+<text x="235" y="132" font-size="15">c</text>
+<text x="289" y="132" font-size="15">2.998 × 10^8</text>
+<text x="442" y="132" font-size="15">m/s</text>
+<text x="28" y="157" font-size="15">Standard gravity</text>
+<text x="235" y="157" font-size="15">g</text>
+<text x="289" y="157" font-size="15">9.81</text>
+<text x="442" y="157" font-size="15">m/s²</text>
+<text x="28" y="182" font-size="15">Gravitational const.</text>
+<text x="235" y="182" font-size="15">G</text>
+<text x="289" y="182" font-size="15">6.674 × 10^−11</text>
+<text x="442" y="182" font-size="15">N·m²/kg²</text>
+<text x="28" y="207" font-size="15">Planck constant</text>
+<text x="235" y="207" font-size="15">h</text>
+<text x="289" y="207" font-size="15">6.626 × 10^−34</text>
+<text x="442" y="207" font-size="15">J·s</text>
+<text x="28" y="232" font-size="15">Elementary charge</text>
+<text x="235" y="232" font-size="15">e</text>
+<text x="289" y="232" font-size="15">1.602 × 10^−19</text>
+<text x="442" y="232" font-size="15">C</text>
+<text x="28" y="257" font-size="15">Electron mass</text>
+<text x="235" y="257" font-size="15">m_e</text>
+<text x="289" y="257" font-size="15">9.109 × 10^−31</text>
+<text x="442" y="257" font-size="15">kg</text>
+<text x="28" y="282" font-size="15">Proton mass</text>
+<text x="235" y="282" font-size="15">m_p</text>
+<text x="289" y="282" font-size="15">1.673 × 10^−27</text>
+<text x="442" y="282" font-size="15">kg</text>
+<text x="28" y="307" font-size="15">Boltzmann constant</text>
+<text x="235" y="307" font-size="15">k_B</text>
+<text x="289" y="307" font-size="15">1.381 × 10^−23</text>
+<text x="442" y="307" font-size="15">J/K</text>
+<text x="28" y="332" font-size="15">Avogadro number</text>
+<text x="235" y="332" font-size="15">N_A</text>
+<text x="289" y="332" font-size="15">6.022 × 10^23</text>
+<text x="442" y="332" font-size="15">/mol</text>
+<text x="28" y="357" font-size="15">Molar gas constant</text>
+<text x="235" y="357" font-size="15">R</text>
+<text x="289" y="357" font-size="15">8.314</text>
+<text x="442" y="357" font-size="15">J/(mol·K)</text>
+<text x="28" y="382" font-size="15">Coulomb constant</text>
+<text x="235" y="382" font-size="15">k</text>
+<text x="289" y="382" font-size="15">8.988 × 10^9</text>
+<text x="442" y="382" font-size="15">N·m²/C²</text>
+<text x="28" y="407" font-size="15">Vacuum permittivity</text>
+<text x="235" y="407" font-size="15">ε0</text>
+<text x="289" y="407" font-size="15">8.854 × 10^−12</text>
+<text x="442" y="407" font-size="15">F/m</text>
+<text x="28" y="432" font-size="15">Vacuum permeability</text>
+<text x="235" y="432" font-size="15">µ0</text>
+<text x="289" y="432" font-size="15">1.257 × 10^−6</text>
+<text x="442" y="432" font-size="15">T·m/A</text>
+<text x="28" y="457" font-size="15">Atomic mass unit</text>
+<text x="235" y="457" font-size="15">u</text>
+<text x="289" y="457" font-size="15">1.661 × 10^−27</text>
+<text x="442" y="457" font-size="15">kg</text>
+<text x="28" y="487" font-size="14">g is the acceleration of gravity at Earth's surface; G is the universal</text>
+<text x="28" y="511" font-size="14">constant in Newton's law of gravitation.</text>
+</svg>

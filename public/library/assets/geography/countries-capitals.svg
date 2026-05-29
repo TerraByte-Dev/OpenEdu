@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 571 1281" role="img" aria-label="Countries and Capitals">
+<title>Countries and Capitals</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="571" height="1281"/>
+<text x="28" y="50" font-size="26" font-weight="700">Countries and Capitals</text>
+<text x="28" y="72" font-size="13" class="faint">a selection of major countries by continent (~195 exist worldwide)</text>
+<text x="28" y="113" font-size="17" font-weight="700">Africa</text>
+<text x="28" y="142" font-size="15">Egypt</text>
+<text x="163" y="142" font-size="15">Cairo</text>
+<text x="28" y="167" font-size="15">Nigeria</text>
+<text x="163" y="167" font-size="15">Abuja</text>
+<text x="28" y="192" font-size="15">South Africa</text>
+<text x="163" y="192" font-size="15">Pretoria (admin.)</text>
+<text x="28" y="217" font-size="15">Kenya</text>
+<text x="163" y="217" font-size="15">Nairobi</text>
+<text x="28" y="242" font-size="15">Ethiopia</text>
+<text x="163" y="242" font-size="15">Addis Ababa</text>
+<text x="28" y="267" font-size="15">Morocco</text>
+<text x="163" y="267" font-size="15">Rabat</text>
+<text x="28" y="292" font-size="15">Ghana</text>
+<text x="163" y="292" font-size="15">Accra</text>
+<text x="28" y="329" font-size="17" font-weight="700">Asia</text>
+<text x="28" y="358" font-size="15">China</text>
+<text x="163" y="358" font-size="15">Beijing</text>
+<text x="28" y="383" font-size="15">India</text>
+<text x="163" y="383" font-size="15">New Delhi</text>
+<text x="28" y="408" font-size="15">Japan</text>
+<text x="163" y="408" font-size="15">Tokyo</text>
+<text x="28" y="433" font-size="15">Indonesia</text>
+<text x="163" y="433" font-size="15">Jakarta</text>
+<text x="28" y="458" font-size="15">South Korea</text>
+<text x="163" y="458" font-size="15">Seoul</text>
+<text x="28" y="483" font-size="15">Saudi Arabia</text>
+<text x="163" y="483" font-size="15">Riyadh</text>
+<text x="28" y="508" font-size="15">Thailand</text>
+<text x="163" y="508" font-size="15">Bangkok</text>
+<text x="28" y="533" font-size="15">Vietnam</text>
+<text x="163" y="533" font-size="15">Hanoi</text>
+<text x="28" y="570" font-size="17" font-weight="700">Europe</text>
+<text x="28" y="599" font-size="15">United Kingdom</text>
+<text x="181" y="599" font-size="15">London</text>
+<text x="28" y="624" font-size="15">France</text>
+<text x="181" y="624" font-size="15">Paris</text>
+<text x="28" y="649" font-size="15">Germany</text>
+<text x="181" y="649" font-size="15">Berlin</text>
+<text x="28" y="674" font-size="15">Italy</text>
+<text x="181" y="674" font-size="15">Rome</text>
+<text x="28" y="699" font-size="15">Spain</text>
+<text x="181" y="699" font-size="15">Madrid</text>
+<text x="28" y="724" font-size="15">Russia</text>
+<text x="181" y="724" font-size="15">Moscow</text>
+<text x="28" y="749" font-size="15">Poland</text>
+<text x="181" y="749" font-size="15">Warsaw</text>
+<text x="28" y="774" font-size="15">Greece</text>
+<text x="181" y="774" font-size="15">Athens</text>
+<text x="28" y="811" font-size="17" font-weight="700">North America</text>
+<text x="28" y="840" font-size="15">United States</text>
+<text x="172" y="840" font-size="15">Washington D.C.</text>
+<text x="28" y="865" font-size="15">Canada</text>
+<text x="172" y="865" font-size="15">Ottawa</text>
+<text x="28" y="890" font-size="15">Mexico</text>
+<text x="172" y="890" font-size="15">Mexico City</text>
+<text x="28" y="915" font-size="15">Cuba</text>
+<text x="172" y="915" font-size="15">Havana</text>
+<text x="28" y="940" font-size="15">Guatemala</text>
+<text x="172" y="940" font-size="15">Guatemala City</text>
+<text x="28" y="977" font-size="17" font-weight="700">South America</text>
+<text x="28" y="1006" font-size="15">Brazil</text>
+<text x="136" y="1006" font-size="15">Brasília</text>
+<text x="28" y="1031" font-size="15">Argentina</text>
+<text x="136" y="1031" font-size="15">Buenos Aires</text>
+<text x="28" y="1056" font-size="15">Colombia</text>
+<text x="136" y="1056" font-size="15">Bogotá</text>
+<text x="28" y="1081" font-size="15">Peru</text>
+<text x="136" y="1081" font-size="15">Lima</text>
+<text x="28" y="1106" font-size="15">Chile</text>
+<text x="136" y="1106" font-size="15">Santiago</text>
+<text x="28" y="1143" font-size="17" font-weight="700">Oceania</text>
+<text x="28" y="1172" font-size="15">Australia</text>
+<text x="199" y="1172" font-size="15">Canberra</text>
+<text x="28" y="1197" font-size="15">New Zealand</text>
+<text x="199" y="1197" font-size="15">Wellington</text>
+<text x="28" y="1222" font-size="15">Fiji</text>
+<text x="199" y="1222" font-size="15">Suva</text>
+<text x="28" y="1247" font-size="15">Papua New Guinea</text>
+<text x="199" y="1247" font-size="15">Port Moresby</text>
+</svg>

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "sync:library": "node scripts/sync-library.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
