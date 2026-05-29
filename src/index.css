@@ -606,6 +606,16 @@ body {
 .fade-in.d4 { animation-delay: 0.28s; }
 
 /* ═══════════════════════════════════════════════════════════════
+   LIBRARY VISUAL "RAW FORM" — inlined SVG diagrams (.oe-svg)
+   The SVG carries only a viewBox (no width/height), so size it to the
+   container, preserving aspect ratio. The diagrams render white-bg/
+   black-text today via CSS-var fallbacks; define --oe-svg-bg / --oe-svg-ink
+   / --oe-svg-rule / --oe-svg-faint here (or on .oe-svg) later to re-theme
+   every diagram to the phosphor aesthetic with ZERO regeneration.
+═══════════════════════════════════════════════════════════════ */
+.oe-svg svg { width: 100%; height: auto; display: block; }
+
+/* ═══════════════════════════════════════════════════════════════
    MARKDOWN PROSE — .note-prose (Inter for body readability)
 ═══════════════════════════════════════════════════════════════ */
 

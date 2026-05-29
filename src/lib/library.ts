@@ -58,6 +58,7 @@ function normalizeManifest(data: unknown): LibraryEntry[] {
       tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === "string") : [],
       subject: typeof r.subject === "string" ? r.subject : "",
       summary: typeof r.summary === "string" ? r.summary : "",
+      asset: typeof r.asset === "string" ? r.asset : undefined,
     });
   }
   return out;
@@ -183,4 +184,35 @@ export async function fetchResource(entry: LibraryEntry, maxChars = 2500): Promi
   let text = stripFrontmatter(await res.text()).trim();
   if (text.length > maxChars) text = text.slice(0, maxChars).trimEnd() + "\n\n…(truncated — ask for more if needed)";
   return { text, url };
+}
+
+export function assetUrl(base: string, asset: string): string {
+  return `${base}/${asset.replace(/^\/+/, "")}`;
+}
+
+// Minimal, additive SVG sanitizer. These SVGs are first-party (our repo, our generator, our host) — the
+// same trust level as the markdown bodies we already inline — but strip the obvious script vectors as
+// cheap defense-in-depth before inlining via dangerouslySetInnerHTML. Regex, not a parser: it can miss
+// exotic vectors (javascript: in xlink:href, CSS url() in <style>); acceptable only because the content
+// is first-party + deterministically generated. Swap to DOMPurify if third-party SVGs ever arrive.
+// <style> is intentionally kept — the generator uses it for (future) theming.
+export function sanitizeSvg(svg: string): string {
+  return svg
+    .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, "")
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "");
+}
+
+// Fetch a card's authored SVG "raw form" (human-facing, Resources tab). Unlike fetchResource: no
+// frontmatter strip, no length cap (the SVG is a whole document), returns sanitized markup. null when
+// the card has no asset. Same allow-listed host + fetch path as the body.
+export async function fetchAsset(entry: LibraryEntry): Promise<string | null> {
+  if (!entry.asset) return null;
+  const base = await resolveBase();
+  const url = assetUrl(base, entry.asset);
+  const res = await fetch(url, { method: "GET", headers: { "Origin": "" } });
+  if (!res.ok) throw new Error(`library asset fetch failed: ${res.status}`);
+  return sanitizeSvg(await res.text());
 }
