@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { Course, Syllabus, LibraryEntry } from "../types";
-import { getManifest, matchResources, fetchResource } from "../lib/library";
+import { getManifest, matchResources, fetchResource, fetchAsset } from "../lib/library";
 import { renderChatMarkdown } from "../lib/chat-markdown";
 
 // Resources tab — the curated OpenEdu Library, browsable by the STUDENT (not just fuel for the
@@ -26,6 +26,9 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
   const [body, setBody] = useState<{ text: string; url: string } | null>(null);
   const [loadingBody, setLoadingBody] = useState(false);
   const [bodyError, setBodyError] = useState("");
+  // The authored SVG "raw form" (when the card has one) + which view the reader is showing.
+  const [assetSvg, setAssetSvg] = useState<string | null>(null);
+  const [view, setView] = useState<"diagram" | "text">("text");
 
   // Load the manifest once (cached + offline-safe after main.tsx's init warm-up).
   useEffect(() => {
@@ -66,15 +69,19 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
     setSelected(entry);
     setBody(null);
     setBodyError("");
+    setAssetSvg(null);
+    setView(entry.asset ? "diagram" : "text"); // lead with the visual when a card has one
     setLoadingBody(true);
-    try {
-      const r = await fetchResource(entry, FULL_CARD);
-      setBody(r);
-    } catch (e) {
-      setBodyError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoadingBody(false);
+    // Fetch the model-readable body (text view) and the optional SVG "raw form" (diagram view) together.
+    const tasks: Promise<unknown>[] = [
+      fetchResource(entry, FULL_CARD).then(setBody, (e) => setBodyError(e instanceof Error ? e.message : String(e))),
+    ];
+    if (entry.asset) {
+      // Graceful: a missing/failed asset (e.g. partial deploy 404) just falls back to the text view.
+      tasks.push(fetchAsset(entry).then(setAssetSvg, () => { setAssetSvg(null); setView("text"); }));
     }
+    await Promise.all(tasks);
+    setLoadingBody(false);
   }, []);
 
   // Deep-link: a chip in chat set pendingResourceId — open that card, then consume the request.
@@ -97,7 +104,7 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-2xl mx-auto p-6">
           <button
-            onClick={() => { setSelected(null); setBody(null); setBodyError(""); }}
+            onClick={() => { setSelected(null); setBody(null); setBodyError(""); setAssetSvg(null); setView("text"); }}
             className="flex items-center gap-1.5 text-xs font-mono text-[var(--ink-faint)] hover:text-phosphor-bright transition-colors mb-4"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
@@ -108,33 +115,56 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
           <h2 className="font-display text-2xl text-phosphor uppercase tracking-wide mb-1">{selected.title}</h2>
           <div className="glow-line mb-4" />
 
-          {loadingBody && <div className="text-sm text-[var(--ink-faint)] font-mono">Loading reference…</div>}
-          {bodyError && <div className="text-sm text-red-400">Couldn't load this resource: {bodyError}</div>}
+          {/* Diagram | Text toggle — only when the card has an SVG that loaded; defaults to Diagram. */}
+          {selected.asset && assetSvg && (
+            <div className="inline-flex rounded-lg border border-[var(--rule)] overflow-hidden mb-4 text-xs font-mono">
+              <button
+                onClick={() => setView("diagram")}
+                className={`px-3 py-1.5 transition-colors ${view === "diagram" ? "bg-phosphor/15 text-phosphor-bright" : "text-[var(--ink-faint)] hover:text-phosphor-bright"}`}
+              >
+                Diagram
+              </button>
+              <button
+                onClick={() => setView("text")}
+                className={`px-3 py-1.5 border-l border-[var(--rule)] transition-colors ${view === "text" ? "bg-phosphor/15 text-phosphor-bright" : "text-[var(--ink-faint)] hover:text-phosphor-bright"}`}
+              >
+                Text
+              </button>
+            </div>
+          )}
 
-          {body && (
-            <>
-              <div
-                className="note-prose"
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: renderChatMarkdown(body.text) }}
-              />
-              {related.length > 0 && (
-                <div className="mt-8 pt-4 border-t border-[var(--rule)]">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] font-semibold mb-2">Related</div>
-                  <div className="flex flex-wrap gap-2">
-                    {related.map((e) => (
-                      <button
-                        key={e.id}
-                        onClick={() => void openCard(e)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-mono bg-lcd border border-phosphor/20 text-phosphor-ink hover:border-phosphor/50 hover:text-phosphor-bright transition-colors"
-                      >
-                        {e.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
+          {loadingBody && !body && !assetSvg && <div className="text-sm text-[var(--ink-faint)] font-mono">Loading reference…</div>}
+          {bodyError && view === "text" && <div className="text-sm text-red-400">Couldn't load this resource: {bodyError}</div>}
+
+          {view === "diagram" && assetSvg ? (
+            <div
+              className="oe-svg w-full overflow-x-auto rounded-lg border border-[var(--rule)] bg-white p-3"
+              // eslint-disable-next-line react/no-danger
+              dangerouslySetInnerHTML={{ __html: assetSvg }}
+            />
+          ) : body ? (
+            <div
+              className="note-prose"
+              // eslint-disable-next-line react/no-danger
+              dangerouslySetInnerHTML={{ __html: renderChatMarkdown(body.text) }}
+            />
+          ) : null}
+
+          {body && related.length > 0 && (
+            <div className="mt-8 pt-4 border-t border-[var(--rule)]">
+              <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] font-semibold mb-2">Related</div>
+              <div className="flex flex-wrap gap-2">
+                {related.map((e) => (
+                  <button
+                    key={e.id}
+                    onClick={() => void openCard(e)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-mono bg-lcd border border-phosphor/20 text-phosphor-ink hover:border-phosphor/50 hover:text-phosphor-bright transition-colors"
+                  >
+                    {e.title}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>

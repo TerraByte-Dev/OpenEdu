@@ -144,8 +144,8 @@ export async function runEvals(opts?: { only?: string }): Promise<EvalReport> {
   console.log(`[eval] model=${config.provider}/${config.model} — running ${goldens.length} golden(s)`);
 
   // Run the baseline with the OpenEdu Library suppressed so goldens (authored before it existed) stay
-  // apples-to-apples — an optional, network-gated tool must not perturb the regression bar. Restored
-  // after the run so a manual eval doesn't disable the library for the rest of the app session.
+  // apples-to-apples — an optional bundled tool must not perturb the regression bar. Restored after the
+  // run so a manual eval doesn't disable the library for the rest of the app session.
   setLibraryEnabledForTesting(false);
   const runs: GoldenRun[] = [];
   try {

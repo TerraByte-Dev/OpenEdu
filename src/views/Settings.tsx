@@ -375,8 +375,9 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-[var(--ink-faint)] uppercase tracking-wider mb-1">OpenEdu Library</h2>
           <p className="text-xs text-[var(--ink-faint)] mb-3">
-            A curated, TerraByte-hosted reference library (periodic table, formulas, definitions…) the tutor can consult
-            mid-lesson. Clean, trusted text — no third-party key needed. Turn off for a strictly offline / no-network app.
+            A curated reference library (periodic table, formulas, definitions…) bundled with the app — works fully
+            offline, no key or network needed. The tutor can consult it mid-lesson, and you can browse it in a course's
+            Resources tab. Turn off to hide it from the tutor.
           </p>
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
@@ -388,7 +389,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
             <span className="text-sm text-ink">Let the tutor consult the OpenEdu Library</span>
           </label>
           {libraryEnabled && (
-            <p className="mt-1.5 text-xs text-green-400">Library enabled — available when online; cited as a source in chat.</p>
+            <p className="mt-1.5 text-xs text-green-400">Library enabled — works offline; cited as a source in chat.</p>
           )}
         </section>
 

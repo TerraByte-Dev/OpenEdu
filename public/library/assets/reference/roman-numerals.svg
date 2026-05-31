@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 663" role="img" aria-label="Roman Numerals">
+<title>Roman Numerals</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="663"/>
+<text x="28" y="50" font-size="26" font-weight="700">Roman Numerals</text>
+<text x="28" y="91" font-size="17" font-weight="700">Symbols</text>
+<text x="28" y="120" font-size="15">I = 1</text>
+<text x="118" y="120" font-size="15">V = 5</text>
+<text x="208" y="120" font-size="15">X = 10</text>
+<text x="307" y="120" font-size="15">L = 50</text>
+<text x="28" y="145" font-size="15">C = 100</text>
+<text x="118" y="145" font-size="15">D = 500</text>
+<text x="208" y="145" font-size="15">M = 1000</text>
+<text x="28" y="182" font-size="17" font-weight="700">1 to 20</text>
+<text x="28" y="211" font-size="15">1 I</text>
+<text x="109" y="211" font-size="15">2 II</text>
+<text x="199" y="211" font-size="15">3 III</text>
+<text x="298" y="211" font-size="15">4 IV</text>
+<text x="379" y="211" font-size="15">5 V</text>
+<text x="28" y="236" font-size="15">6 VI</text>
+<text x="109" y="236" font-size="15">7 VII</text>
+<text x="199" y="236" font-size="15">8 VIII</text>
+<text x="298" y="236" font-size="15">9 IX</text>
+<text x="379" y="236" font-size="15">10 X</text>
+<text x="28" y="261" font-size="15">11 XI</text>
+<text x="109" y="261" font-size="15">12 XII</text>
+<text x="199" y="261" font-size="15">13 XIII</text>
+<text x="298" y="261" font-size="15">14 XIV</text>
+<text x="379" y="261" font-size="15">15 XV</text>
+<text x="28" y="286" font-size="15">16 XVI</text>
+<text x="109" y="286" font-size="15">17 XVII</text>
+<text x="199" y="286" font-size="15">18 XVIII</text>
+<text x="298" y="286" font-size="15">19 XIX</text>
+<text x="379" y="286" font-size="15">20 XX</text>
+<text x="28" y="323" font-size="17" font-weight="700">Tens</text>
+<text x="28" y="352" font-size="15">10 X</text>
+<text x="100" y="352" font-size="15">20 XX</text>
+<text x="181" y="352" font-size="15">30 XXX</text>
+<text x="271" y="352" font-size="15">40 XL</text>
+<text x="343" y="352" font-size="15">50 L</text>
+<text x="28" y="377" font-size="15">60 LX</text>
+<text x="100" y="377" font-size="15">70 LXX</text>
+<text x="181" y="377" font-size="15">80 LXXX</text>
+<text x="271" y="377" font-size="15">90 XC</text>
+<text x="343" y="377" font-size="15">100 C</text>
+<text x="28" y="414" font-size="17" font-weight="700">Hundreds</text>
+<text x="28" y="443" font-size="15">100 C</text>
+<text x="109" y="443" font-size="15">200 CC</text>
+<text x="199" y="443" font-size="15">300 CCC</text>
+<text x="298" y="443" font-size="15">400 CD</text>
+<text x="379" y="443" font-size="15">500 D</text>
+<text x="28" y="468" font-size="15">600 DC</text>
+<text x="109" y="468" font-size="15">700 DCC</text>
+<text x="199" y="468" font-size="15">800 DCCC</text>
+<text x="298" y="468" font-size="15">900 CM</text>
+<text x="379" y="468" font-size="15">1000 M</text>
+<text x="28" y="505" font-size="17" font-weight="700">Rules</text>
+<text x="28" y="533" font-size="14" xml:space="preserve">• Add left→right when symbols are larger or equal: VI = 5 + 1 = 6.</text>
+<text x="28" y="557" font-size="14" xml:space="preserve">• A smaller symbol before a larger one is subtracted: IV = 4, IX = 9, XL =</text>
+<text x="28" y="581" font-size="14" xml:space="preserve">  40, XC = 90, CD = 400, CM = 900.</text>
+<text x="28" y="605" font-size="14" xml:space="preserve">• Don't repeat a symbol more than three times in a row.</text>
+<text x="28" y="629" font-size="14" xml:space="preserve">• Examples: 2024 = MMXXIV, 49 = XLIX, 1999 = MCMXCIX, 444 = CDXLIV.</text>
+</svg>
