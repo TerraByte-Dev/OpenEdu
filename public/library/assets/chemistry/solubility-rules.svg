@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 521" role="img" aria-label="Solubility Rules">
+<title>Solubility Rules</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="521"/>
+<text x="28" y="50" font-size="26" font-weight="700">Solubility Rules</text>
+<text x="28" y="72" font-size="13" class="faint">in water (aqueous) — apply soluble rules first; exceptions override</text>
+<text x="28" y="113" font-size="17" font-weight="700">Generally SOLUBLE</text>
+<text x="28" y="141" font-size="14" xml:space="preserve">• All salts of Group 1 metals (Li, Na, K, …) and ammonium (NH4+).</text>
+<text x="28" y="165" font-size="14" xml:space="preserve">• All nitrates (NO3−), acetates (C2H3O2−), and chlorates (ClO3−).</text>
+<text x="28" y="189" font-size="14" xml:space="preserve">• Chlorides, bromides, iodides — EXCEPT those of Ag+, Pb2+, and Hg2(2+).</text>
+<text x="28" y="213" font-size="14" xml:space="preserve">• Sulfates (SO4 2−) — EXCEPT those of Ba2+, Pb2+, Ca2+, Sr2+, and Ag+.</text>
+<text x="28" y="250" font-size="17" font-weight="700">Generally INSOLUBLE</text>
+<text x="28" y="278" font-size="14" xml:space="preserve">• Carbonates (CO3 2−), phosphates (PO4 3−), sulfides (S2−) — EXCEPT with</text>
+<text x="28" y="302" font-size="14" xml:space="preserve">  Group 1 metals and ammonium.</text>
+<text x="28" y="326" font-size="14" xml:space="preserve">• Hydroxides (OH−) — EXCEPT Group 1 (soluble); Ca2+, Sr2+, Ba2+ are slightly</text>
+<text x="28" y="350" font-size="14" xml:space="preserve">  soluble.</text>
+<text x="28" y="374" font-size="14" xml:space="preserve">• Most oxides — EXCEPT with Group 1 metals.</text>
+<text x="28" y="411" font-size="17" font-weight="700">How to use</text>
+<text x="28" y="439" font-size="14">Mix two soluble solutions and swap the ions: if a new pair is insoluble it</text>
+<text x="28" y="463" font-size="14">forms a solid precipitate. Example: AgNO3 + NaCl → AgCl, a white precipitate</text>
+<text x="28" y="487" font-size="14">(silver chloride is insoluble).</text>
+</svg>

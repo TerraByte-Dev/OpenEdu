@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 389 316" role="img" aria-label="Greek Alphabet">
+<title>Greek Alphabet</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="389" height="316"/>
+<text x="28" y="50" font-size="26" font-weight="700">Greek Alphabet</text>
+<text x="28" y="72" font-size="13" class="faint">24 letters — uppercase lowercase name</text>
+<text x="28" y="107" font-size="15">Α α Alpha</text>
+<text x="136" y="107" font-size="15">Β β Beta</text>
+<text x="262" y="107" font-size="15">Γ γ Gamma</text>
+<text x="28" y="132" font-size="15">Δ δ Delta</text>
+<text x="136" y="132" font-size="15">Ε ε Epsilon</text>
+<text x="262" y="132" font-size="15">Ζ ζ Zeta</text>
+<text x="28" y="157" font-size="15">Η η Eta</text>
+<text x="136" y="157" font-size="15">Θ θ Theta</text>
+<text x="262" y="157" font-size="15">Ι ι Iota</text>
+<text x="28" y="182" font-size="15">Κ κ Kappa</text>
+<text x="136" y="182" font-size="15">Λ λ Lambda</text>
+<text x="262" y="182" font-size="15">Μ μ Mu</text>
+<text x="28" y="207" font-size="15">Ν ν Nu</text>
+<text x="136" y="207" font-size="15">Ξ ξ Xi</text>
+<text x="262" y="207" font-size="15">Ο ο Omicron</text>
+<text x="28" y="232" font-size="15">Π π Pi</text>
+<text x="136" y="232" font-size="15">Ρ ρ Rho</text>
+<text x="262" y="232" font-size="15">Σ σ Sigma</text>
+<text x="28" y="257" font-size="15">Τ τ Tau</text>
+<text x="136" y="257" font-size="15">Υ υ Upsilon</text>
+<text x="262" y="257" font-size="15">Φ φ Phi</text>
+<text x="28" y="282" font-size="15">Χ χ Chi</text>
+<text x="136" y="282" font-size="15">Ψ ψ Psi</text>
+<text x="262" y="282" font-size="15">Ω ω Omega</text>
+</svg>
