@@ -21,6 +21,9 @@ export const DEFAULT_PERMISSION_RULES: PermissionRules = {
   // curated, trusted reference (OpenEdu Library) — free during normal study; exam asks so surfacing
   // a reference during a promotion test is a conscious choice (softer than the open-web web.* deny).
   "library.search":         { default: "allow", study: "allow", exam: "ask" },
+  // deterministic single-record lookups (presidents, capitals, formulas, base conversions) — same
+  // curated/offline trust class as library.search, so the same allow/allow/ask policy.
+  "library.lookup":         { default: "allow", study: "allow", exam: "ask" },
   "knowledge.read":         { default: "allow", study: "allow", exam: "allow" },
   "progress.read":          { default: "allow", study: "allow", exam: "allow" },
   "study_plan.*":           { default: "allow", study: "allow", exam: "allow" },

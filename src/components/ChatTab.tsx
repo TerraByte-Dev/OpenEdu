@@ -473,6 +473,29 @@ function ToolChip({ ev, onOpenResource }: { ev: ToolUIEvent; onOpenResource?: (i
         </div>
       );
     }
+    // library.lookup → a single deterministic record (or computed value). DATA results can deep-link to
+    // a companion browse card (card_id); computed results (base/ASCII/conjugation) show a 🧮 chip, no link.
+    if (ev.name === "library.lookup") {
+      const v = ev.value as { found?: boolean; dataset?: string; title?: string; computed?: boolean; card_id?: string } | undefined;
+      if (!v?.found || !v.title) {
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔎 OpenEdu Library — no matching record</div>;
+      }
+      const linkable = !!(onOpenResource && v.card_id);
+      const lbl = `${v.computed ? "🧮 Computed" : "🔗 OpenEdu Library"}: ${v.title}`;
+      const cls = `${base} bg-lcd border-phosphor/20 text-phosphor-ink ${linkable ? "cursor-pointer hover:border-phosphor/50 hover:text-phosphor-bright transition-colors" : ""}`;
+      return (
+        <div className="flex flex-col items-start gap-1.5">
+          <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
+            ✓ library.lookup — {v.dataset}
+          </div>
+          {linkable ? (
+            <button type="button" onClick={() => onOpenResource!(v.card_id!)} title="Open in Resources" className={cls}>{lbl}</button>
+          ) : (
+            <span title="From the OpenEdu Library" className={cls}>{lbl}</span>
+          )}
+        </div>
+      );
+    }
     // notebook.ingest → "📓 Saved 'title' (N chunks)".
     if (ev.name === "notebook.ingest") {
       const v = ev.value as { chunkCount?: number; title?: string } | undefined;
