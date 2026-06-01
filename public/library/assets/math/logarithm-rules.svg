@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 636 320" role="img" aria-label="Logarithm Rules">
+<title>Logarithm Rules</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="636" height="320"/>
+<text x="28" y="50" font-size="26" font-weight="700">Logarithm Rules</text>
+<text x="28" y="72" font-size="13" class="faint">logₐ x asks: a to what power gives x?  (a &gt; 0, a ≠ 1, x &gt; 0)</text>
+<text x="28" y="107" font-size="15" xml:space="preserve">Definition       logₐ x = y  ⇔  aʸ = x</text>
+<text x="28" y="132" font-size="15" xml:space="preserve">Product rule     logₐ(xy) = logₐ x + logₐ y</text>
+<text x="28" y="157" font-size="15" xml:space="preserve">Quotient rule    logₐ(x/y) = logₐ x − logₐ y</text>
+<text x="28" y="182" font-size="15" xml:space="preserve">Power rule       logₐ(xⁿ) = n · logₐ x</text>
+<text x="28" y="207" font-size="15" xml:space="preserve">Change of base   logₐ x = (ln x)/(ln a) = (log x)/(log a)</text>
+<text x="28" y="232" font-size="15" xml:space="preserve">Identities       logₐ 1 = 0    logₐ a = 1    a^(logₐ x) = x</text>
+<text x="28" y="262" font-size="14">ln x = logₑ x (natural log, e ≈ 2.718); log x = log₁₀ x (common log).</text>
+<text x="28" y="286" font-size="14">Example: log₂ 8 = 3 because 2³ = 8.</text>
+</svg>

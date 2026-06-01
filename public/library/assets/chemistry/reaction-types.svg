@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 749 322" role="img" aria-label="Types of Chemical Reactions">
+<title>Types of Chemical Reactions</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="749" height="322"/>
+<text x="28" y="50" font-size="26" font-weight="700">Types of Chemical Reactions</text>
+<text x="28" y="85" font-size="15" font-weight="700">Type</text>
+<text x="262" y="85" font-size="15" font-weight="700">General form</text>
+<text x="478" y="85" font-size="15" font-weight="700">Example</text>
+<line x1="28" y1="91" x2="721" y2="91" class="rule-faint"/>
+<text x="28" y="110" font-size="15">Synthesis (combination)</text>
+<text x="262" y="110" font-size="15">A + B → AB</text>
+<text x="478" y="110" font-size="15">2H₂ + O₂ → 2H₂O</text>
+<text x="28" y="135" font-size="15">Decomposition</text>
+<text x="262" y="135" font-size="15">AB → A + B</text>
+<text x="478" y="135" font-size="15">2H₂O → 2H₂ + O₂</text>
+<text x="28" y="160" font-size="15">Single replacement</text>
+<text x="262" y="160" font-size="15">A + BC → AC + B</text>
+<text x="478" y="160" font-size="15">Zn + 2HCl → ZnCl₂ + H₂</text>
+<text x="28" y="185" font-size="15">Double replacement</text>
+<text x="262" y="185" font-size="15">AB + CD → AD + CB</text>
+<text x="478" y="185" font-size="15">AgNO₃ + NaCl → AgCl + NaNO₃</text>
+<text x="28" y="210" font-size="15">Combustion</text>
+<text x="262" y="210" font-size="15">fuel + O₂ → CO₂ + H₂O</text>
+<text x="478" y="210" font-size="15">CH₄ + 2O₂ → CO₂ + 2H₂O</text>
+<text x="28" y="240" font-size="14">Balance every equation so each element has equal atoms on both sides (mass</text>
+<text x="28" y="264" font-size="14">is conserved). Combustion of a hydrocarbon always yields carbon dioxide and</text>
+<text x="28" y="288" font-size="14">water.</text>
+</svg>

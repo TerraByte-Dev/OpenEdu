@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 524 568" role="img" aria-label="Trigonometric Identities">
+<title>Trigonometric Identities</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="524" height="568"/>
+<text x="28" y="50" font-size="26" font-weight="700">Trigonometric Identities</text>
+<text x="28" y="91" font-size="17" font-weight="700">Pythagorean</text>
+<text x="28" y="120" font-size="15" xml:space="preserve">sin²θ + cos²θ = 1</text>
+<text x="28" y="145" font-size="15" xml:space="preserve">1 + tan²θ = sec²θ</text>
+<text x="28" y="170" font-size="15" xml:space="preserve">1 + cot²θ = csc²θ</text>
+<text x="28" y="207" font-size="17" font-weight="700">Reciprocal &amp; quotient</text>
+<text x="28" y="236" font-size="15" xml:space="preserve">cscθ = 1/sinθ    secθ = 1/cosθ    cotθ = 1/tanθ</text>
+<text x="28" y="261" font-size="15" xml:space="preserve">tanθ = sinθ/cosθ            cotθ = cosθ/sinθ</text>
+<text x="28" y="298" font-size="17" font-weight="700">Even / odd</text>
+<text x="28" y="327" font-size="15" xml:space="preserve">sin(−θ) = −sinθ    cos(−θ) = cosθ    tan(−θ) = −tanθ</text>
+<text x="28" y="364" font-size="17" font-weight="700">Sum &amp; difference</text>
+<text x="28" y="393" font-size="15" xml:space="preserve">sin(A±B) = sinA cosB ± cosA sinB</text>
+<text x="28" y="418" font-size="15" xml:space="preserve">cos(A±B) = cosA cosB ∓ sinA sinB</text>
+<text x="28" y="443" font-size="15" xml:space="preserve">tan(A±B) = (tanA ± tanB)/(1 ∓ tanA tanB)</text>
+<text x="28" y="480" font-size="17" font-weight="700">Double angle</text>
+<text x="28" y="509" font-size="15" xml:space="preserve">sin2θ = 2 sinθ cosθ</text>
+<text x="28" y="534" font-size="15" xml:space="preserve">cos2θ = cos²θ − sin²θ = 2cos²θ − 1 = 1 − 2sin²θ</text>
+</svg>

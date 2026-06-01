@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 815 286" role="img" aria-label="The Electromagnetic Spectrum">
+<title>The Electromagnetic Spectrum</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="815" height="286"/>
+<text x="28" y="40" font-size="26" font-weight="700">The Electromagnetic Spectrum</text>
+<text x="28" y="66" font-size="13" class="faint">bands of EM radiation by wavelength (λ)</text>
+<rect x="28" y="96" width="96" height="70" class="cell"/>
+<text x="76" y="136" font-size="15" text-anchor="middle" font-weight="700">Radio</text>
+<text x="76" y="184" font-size="11" text-anchor="middle" class="faint">λ &gt; 1 m</text>
+<rect x="124" y="96" width="99" height="70" class="cell"/>
+<text x="173.5" y="136" font-size="15" text-anchor="middle" font-weight="700">Microwave</text>
+<text x="173.5" y="184" font-size="11" text-anchor="middle" class="faint">1 m – 1 mm</text>
+<rect x="223" y="96" width="126" height="70" class="cell"/>
+<text x="286" y="136" font-size="15" text-anchor="middle" font-weight="700">Infrared</text>
+<text x="286" y="184" font-size="11" text-anchor="middle" class="faint">1 mm – 700 nm</text>
+<rect x="349" y="96" width="117" height="70" class="cell"/>
+<text x="407.5" y="136" font-size="15" text-anchor="middle" font-weight="700">Visible</text>
+<text x="407.5" y="184" font-size="11" text-anchor="middle" class="faint">700 – 400 nm</text>
+<rect x="466" y="96" width="108" height="70" class="cell"/>
+<text x="520" y="136" font-size="15" text-anchor="middle" font-weight="700">Ultraviolet</text>
+<text x="520" y="184" font-size="11" text-anchor="middle" class="faint">400 – 10 nm</text>
+<rect x="574" y="96" width="117" height="70" class="cell"/>
+<text x="632.5" y="136" font-size="15" text-anchor="middle" font-weight="700">X-ray</text>
+<text x="632.5" y="184" font-size="11" text-anchor="middle" class="faint">10 – 0.01 nm</text>
+<rect x="691" y="96" width="96" height="70" class="cell"/>
+<text x="739" y="136" font-size="15" text-anchor="middle" font-weight="700">Gamma</text>
+<text x="739" y="184" font-size="11" text-anchor="middle" class="faint">&lt; 0.01 nm</text>
+<text x="28" y="242" font-size="12" class="faint">← longer wavelength · lower frequency · lower energy</text>
+<text x="787" y="242" font-size="12" text-anchor="end" class="faint">shorter wavelength · higher frequency · higher energy →</text>
+<text x="28" y="262" font-size="12" class="faint">Visible light (ROYGBIV): red ~700 nm → violet ~400 nm. All EM waves travel at c ≈ 3×10⁸ m/s; c = λf.</text>
+</svg>

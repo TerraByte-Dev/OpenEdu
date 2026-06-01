@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 670 319" role="img" aria-label="Energy &amp; Work Equations">
+<title>Energy &amp; Work Equations</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="670" height="319"/>
+<text x="28" y="50" font-size="26" font-weight="700">Energy &amp; Work Equations</text>
+<text x="28" y="72" font-size="13" class="faint">SI units: work/energy in joules (J), power in watts (W)</text>
+<text x="28" y="107" font-size="15" xml:space="preserve">Work             W = F·d·cosθ</text>
+<text x="28" y="132" font-size="15" xml:space="preserve">Kinetic energy   KE = ½·m·v²</text>
+<text x="28" y="157" font-size="15" xml:space="preserve">Gravitational PE PE = m·g·h</text>
+<text x="28" y="182" font-size="15" xml:space="preserve">Power            P = W / t = F·v</text>
+<text x="28" y="207" font-size="15" xml:space="preserve">Work–energy thm  W_net = ΔKE</text>
+<text x="28" y="237" font-size="14">Conservation of energy: with no friction, total mechanical energy KE + PE</text>
+<text x="28" y="261" font-size="14">stays constant. Energy is never created or destroyed, only transferred or</text>
+<text x="28" y="285" font-size="14">transformed.</text>
+</svg>

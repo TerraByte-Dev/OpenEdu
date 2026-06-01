@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 930 700" role="img" aria-label="The Solar System">
+<title>The Solar System</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="930" height="700"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">The Solar System</text>
+<text x="28" y="66" font-size="13" class="faint">the 8 planets in order from the Sun (orbits not to scale)</text>
+<circle cx="306" cy="374" r="28" class="fill-faint"/>
+<text x="306" y="378" font-size="12" text-anchor="middle" font-weight="700">Sun</text>
+<circle cx="306" cy="374" r="64" class="rule-faint"/>
+<circle cx="351.3" cy="328.7" r="4" class="fill-faint"/>
+<line x1="355.3" y1="328.7" x2="604" y2="116" class="rule-faint"/>
+<text x="610" y="120" font-size="12">Mercury  —  0.39 AU · 88-day year</text>
+<circle cx="306" cy="374" r="94" class="rule-faint"/>
+<circle cx="372.5" cy="307.5" r="4" class="fill-faint"/>
+<line x1="376.5" y1="307.5" x2="604" y2="146" class="rule-faint"/>
+<text x="610" y="150" font-size="12">Venus  —  0.72 AU · 225-day year</text>
+<circle cx="306" cy="374" r="124" class="rule-faint"/>
+<circle cx="393.7" cy="286.3" r="4" class="fill-faint"/>
+<line x1="397.7" y1="286.3" x2="604" y2="176" class="rule-faint"/>
+<text x="610" y="180" font-size="12">Earth  —  1.00 AU · 365 days · 1 moon</text>
+<circle cx="306" cy="374" r="154" class="rule-faint"/>
+<circle cx="414.9" cy="265.1" r="4" class="fill-faint"/>
+<line x1="418.9" y1="265.1" x2="604" y2="206" class="rule-faint"/>
+<text x="610" y="210" font-size="12">Mars  —  1.52 AU · 687 days · 2 moons</text>
+<circle cx="306" cy="374" r="184" class="rule-faint"/>
+<circle cx="436.1" cy="243.9" r="4" class="fill-faint"/>
+<line x1="440.1" y1="243.9" x2="604" y2="236" class="rule-faint"/>
+<text x="610" y="240" font-size="12">Jupiter  —  5.20 AU · 12 years · largest planet</text>
+<circle cx="306" cy="374" r="214" class="rule-faint"/>
+<circle cx="457.3" cy="222.7" r="4" class="fill-faint"/>
+<line x1="461.3" y1="222.7" x2="604" y2="266" class="rule-faint"/>
+<text x="610" y="270" font-size="12">Saturn  —  9.58 AU · 29 years · ring system</text>
+<circle cx="306" cy="374" r="244" class="rule-faint"/>
+<circle cx="478.5" cy="201.5" r="4" class="fill-faint"/>
+<line x1="482.5" y1="201.5" x2="604" y2="296" class="rule-faint"/>
+<text x="610" y="300" font-size="12">Uranus  —  19.2 AU · 84 years · tilted on its side</text>
+<circle cx="306" cy="374" r="274" class="rule-faint"/>
+<circle cx="499.7" cy="180.3" r="4" class="fill-faint"/>
+<line x1="503.7" y1="180.3" x2="604" y2="326" class="rule-faint"/>
+<text x="610" y="330" font-size="12">Neptune  —  30.1 AU · 165 years · farthest planet</text>
+<text x="28" y="688" font-size="12" class="faint">1 AU = Earth–Sun distance ≈ 150 million km. Order mnemonic: 'My Very Educated Mother Just Served Us Nachos.' (Pluto is a dwarf planet.)</text>
+</svg>

@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 684 600" role="img" aria-label="Genetic Code (mRNA Codon Table)">
+<title>Genetic Code (mRNA Codon Table)</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="684" height="600"/>
+<text x="28" y="40" font-size="26" font-weight="700">Genetic Code (mRNA Codon Table)</text>
+<text x="28" y="66" font-size="13" class="faint">Each mRNA codon (read 5'→3') → amino acid. 64 codons; AUG = START/Met; UAA/UAG/UGA = STOP.</text>
+<text x="131" y="116" font-size="13" text-anchor="middle" font-weight="700">2nd: U</text>
+<text x="281" y="116" font-size="13" text-anchor="middle" font-weight="700">2nd: C</text>
+<text x="431" y="116" font-size="13" text-anchor="middle" font-weight="700">2nd: A</text>
+<text x="581" y="116" font-size="13" text-anchor="middle" font-weight="700">2nd: G</text>
+<rect x="56" y="124" width="150" height="26" class="cell"/>
+<text x="62" y="142" font-size="11.5">UUU Phe (F)</text>
+<rect x="206" y="124" width="150" height="26" class="cell"/>
+<text x="212" y="142" font-size="11.5">UCU Ser (S)</text>
+<rect x="356" y="124" width="150" height="26" class="cell"/>
+<text x="362" y="142" font-size="11.5">UAU Tyr (Y)</text>
+<rect x="506" y="124" width="150" height="26" class="cell"/>
+<text x="512" y="142" font-size="11.5">UGU Cys (C)</text>
+<text x="34" y="168" font-size="13" font-weight="700">1st: U</text>
+<rect x="56" y="150" width="150" height="26" class="cell"/>
+<text x="62" y="168" font-size="11.5">UUC Phe (F)</text>
+<rect x="206" y="150" width="150" height="26" class="cell"/>
+<text x="212" y="168" font-size="11.5">UCC Ser (S)</text>
+<rect x="356" y="150" width="150" height="26" class="cell"/>
+<text x="362" y="168" font-size="11.5">UAC Tyr (Y)</text>
+<rect x="506" y="150" width="150" height="26" class="cell"/>
+<text x="512" y="168" font-size="11.5">UGC Cys (C)</text>
+<rect x="56" y="176" width="150" height="26" class="cell"/>
+<text x="62" y="194" font-size="11.5">UUA Leu (L)</text>
+<rect x="206" y="176" width="150" height="26" class="cell"/>
+<text x="212" y="194" font-size="11.5">UCA Ser (S)</text>
+<rect x="356" y="176" width="150" height="26" class="cell"/>
+<text x="362" y="194" font-size="11.5">UAA STOP</text>
+<rect x="506" y="176" width="150" height="26" class="cell"/>
+<text x="512" y="194" font-size="11.5">UGA STOP</text>
+<rect x="56" y="202" width="150" height="26" class="cell"/>
+<text x="62" y="220" font-size="11.5">UUG Leu (L)</text>
+<rect x="206" y="202" width="150" height="26" class="cell"/>
+<text x="212" y="220" font-size="11.5">UCG Ser (S)</text>
+<rect x="356" y="202" width="150" height="26" class="cell"/>
+<text x="362" y="220" font-size="11.5">UAG STOP</text>
+<rect x="506" y="202" width="150" height="26" class="cell"/>
+<text x="512" y="220" font-size="11.5">UGG Trp (W)</text>
+<line x1="56" y1="228" x2="656" y2="228" class="rule"/>
+<rect x="56" y="228" width="150" height="26" class="cell"/>
+<text x="62" y="246" font-size="11.5">CUU Leu (L)</text>
+<rect x="206" y="228" width="150" height="26" class="cell"/>
+<text x="212" y="246" font-size="11.5">CCU Pro (P)</text>
+<rect x="356" y="228" width="150" height="26" class="cell"/>
+<text x="362" y="246" font-size="11.5">CAU His (H)</text>
+<rect x="506" y="228" width="150" height="26" class="cell"/>
+<text x="512" y="246" font-size="11.5">CGU Arg (R)</text>
+<text x="34" y="272" font-size="13" font-weight="700">1st: C</text>
+<rect x="56" y="254" width="150" height="26" class="cell"/>
+<text x="62" y="272" font-size="11.5">CUC Leu (L)</text>
+<rect x="206" y="254" width="150" height="26" class="cell"/>
+<text x="212" y="272" font-size="11.5">CCC Pro (P)</text>
+<rect x="356" y="254" width="150" height="26" class="cell"/>
+<text x="362" y="272" font-size="11.5">CAC His (H)</text>
+<rect x="506" y="254" width="150" height="26" class="cell"/>
+<text x="512" y="272" font-size="11.5">CGC Arg (R)</text>
+<rect x="56" y="280" width="150" height="26" class="cell"/>
+<text x="62" y="298" font-size="11.5">CUA Leu (L)</text>
+<rect x="206" y="280" width="150" height="26" class="cell"/>
+<text x="212" y="298" font-size="11.5">CCA Pro (P)</text>
+<rect x="356" y="280" width="150" height="26" class="cell"/>
+<text x="362" y="298" font-size="11.5">CAA Gln (Q)</text>
+<rect x="506" y="280" width="150" height="26" class="cell"/>
+<text x="512" y="298" font-size="11.5">CGA Arg (R)</text>
+<rect x="56" y="306" width="150" height="26" class="cell"/>
+<text x="62" y="324" font-size="11.5">CUG Leu (L)</text>
+<rect x="206" y="306" width="150" height="26" class="cell"/>
+<text x="212" y="324" font-size="11.5">CCG Pro (P)</text>
+<rect x="356" y="306" width="150" height="26" class="cell"/>
+<text x="362" y="324" font-size="11.5">CAG Gln (Q)</text>
+<rect x="506" y="306" width="150" height="26" class="cell"/>
+<text x="512" y="324" font-size="11.5">CGG Arg (R)</text>
+<line x1="56" y1="332" x2="656" y2="332" class="rule"/>
+<rect x="56" y="332" width="150" height="26" class="cell"/>
+<text x="62" y="350" font-size="11.5">AUU Ile (I)</text>
+<rect x="206" y="332" width="150" height="26" class="cell"/>
+<text x="212" y="350" font-size="11.5">ACU Thr (T)</text>
+<rect x="356" y="332" width="150" height="26" class="cell"/>
+<text x="362" y="350" font-size="11.5">AAU Asn (N)</text>
+<rect x="506" y="332" width="150" height="26" class="cell"/>
+<text x="512" y="350" font-size="11.5">AGU Ser (S)</text>
+<text x="34" y="376" font-size="13" font-weight="700">1st: A</text>
+<rect x="56" y="358" width="150" height="26" class="cell"/>
+<text x="62" y="376" font-size="11.5">AUC Ile (I)</text>
+<rect x="206" y="358" width="150" height="26" class="cell"/>
+<text x="212" y="376" font-size="11.5">ACC Thr (T)</text>
+<rect x="356" y="358" width="150" height="26" class="cell"/>
+<text x="362" y="376" font-size="11.5">AAC Asn (N)</text>
+<rect x="506" y="358" width="150" height="26" class="cell"/>
+<text x="512" y="376" font-size="11.5">AGC Ser (S)</text>
+<rect x="56" y="384" width="150" height="26" class="cell"/>
+<text x="62" y="402" font-size="11.5">AUA Ile (I)</text>
+<rect x="206" y="384" width="150" height="26" class="cell"/>
+<text x="212" y="402" font-size="11.5">ACA Thr (T)</text>
+<rect x="356" y="384" width="150" height="26" class="cell"/>
+<text x="362" y="402" font-size="11.5">AAA Lys (K)</text>
+<rect x="506" y="384" width="150" height="26" class="cell"/>
+<text x="512" y="402" font-size="11.5">AGA Arg (R)</text>
+<rect x="56" y="410" width="150" height="26" class="cell"/>
+<text x="62" y="428" font-size="11.5">AUG Met (M) START</text>
+<rect x="206" y="410" width="150" height="26" class="cell"/>
+<text x="212" y="428" font-size="11.5">ACG Thr (T)</text>
+<rect x="356" y="410" width="150" height="26" class="cell"/>
+<text x="362" y="428" font-size="11.5">AAG Lys (K)</text>
+<rect x="506" y="410" width="150" height="26" class="cell"/>
+<text x="512" y="428" font-size="11.5">AGG Arg (R)</text>
+<line x1="56" y1="436" x2="656" y2="436" class="rule"/>
+<rect x="56" y="436" width="150" height="26" class="cell"/>
+<text x="62" y="454" font-size="11.5">GUU Val (V)</text>
+<rect x="206" y="436" width="150" height="26" class="cell"/>
+<text x="212" y="454" font-size="11.5">GCU Ala (A)</text>
+<rect x="356" y="436" width="150" height="26" class="cell"/>
+<text x="362" y="454" font-size="11.5">GAU Asp (D)</text>
+<rect x="506" y="436" width="150" height="26" class="cell"/>
+<text x="512" y="454" font-size="11.5">GGU Gly (G)</text>
+<text x="34" y="480" font-size="13" font-weight="700">1st: G</text>
+<rect x="56" y="462" width="150" height="26" class="cell"/>
+<text x="62" y="480" font-size="11.5">GUC Val (V)</text>
+<rect x="206" y="462" width="150" height="26" class="cell"/>
+<text x="212" y="480" font-size="11.5">GCC Ala (A)</text>
+<rect x="356" y="462" width="150" height="26" class="cell"/>
+<text x="362" y="480" font-size="11.5">GAC Asp (D)</text>
+<rect x="506" y="462" width="150" height="26" class="cell"/>
+<text x="512" y="480" font-size="11.5">GGC Gly (G)</text>
+<rect x="56" y="488" width="150" height="26" class="cell"/>
+<text x="62" y="506" font-size="11.5">GUA Val (V)</text>
+<rect x="206" y="488" width="150" height="26" class="cell"/>
+<text x="212" y="506" font-size="11.5">GCA Ala (A)</text>
+<rect x="356" y="488" width="150" height="26" class="cell"/>
+<text x="362" y="506" font-size="11.5">GAA Glu (E)</text>
+<rect x="506" y="488" width="150" height="26" class="cell"/>
+<text x="512" y="506" font-size="11.5">GGA Gly (G)</text>
+<rect x="56" y="514" width="150" height="26" class="cell"/>
+<text x="62" y="532" font-size="11.5">GUG Val (V)</text>
+<rect x="206" y="514" width="150" height="26" class="cell"/>
+<text x="212" y="532" font-size="11.5">GCG Ala (A)</text>
+<rect x="356" y="514" width="150" height="26" class="cell"/>
+<text x="362" y="532" font-size="11.5">GAG Glu (E)</text>
+<rect x="506" y="514" width="150" height="26" class="cell"/>
+<text x="512" y="532" font-size="11.5">GGG Gly (G)</text>
+<line x1="56" y1="540" x2="656" y2="540" class="rule"/>
+<text x="28" y="584" font-size="12" class="faint">3rd base advances within each first-base block (top→bottom: U, C, A, G).</text>
+</svg>
