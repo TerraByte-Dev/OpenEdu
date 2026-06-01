@@ -177,6 +177,22 @@ export interface LibrarySearchResult {
   related: string[];
 }
 
+// The result the library.lookup tool yields — ONE deterministic record (or a computed value) from a
+// structured dataset that's too big for a card. `computed` true ⇒ a pure local calc (base conversion,
+// ASCII, regular-verb conjugation) with no `verified` date; `card_id` deep-links the chip to a companion
+// browse card when one exists. Distinct from LibrarySearchResult (which returns a whole card body).
+export interface LibraryLookupResult {
+  found: boolean;
+  dataset: string;     // echoes the queried dataset enum value (chip label + eval assertions)
+  title: string;       // human label of the matched record
+  text: string;        // the deterministic answer body the model grounds in
+  computed: boolean;   // true for number_base / ascii_table / verb_conjugation
+  source: string;      // citation ("US Presidents dataset, OpenEdu Library" / "computed locally")
+  verified?: string;   // "as of" YYYY-MM for DATA datasets (omitted for computed)
+  card_id?: string;    // OPTIONAL manifest id for a companion browse card → enables the deep-link chip
+  related: string[];   // near-miss record labels (mirrors LibrarySearchResult.related)
+}
+
 export interface ChatMessage {
   id: string;
   course_id: string;

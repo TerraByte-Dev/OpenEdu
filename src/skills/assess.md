@@ -1,7 +1,7 @@
 ---
 name: assess
 description: Mastery check — verify readiness and mark subtopics mastered.
-tools_required: [progress.mark_mastered, ask_user.question]
+tools_required: [progress.mark_mastered, ask_user.question, library.lookup]
 model_tier_min: tiny
 ---
 
