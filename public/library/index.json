@@ -1,5 +1,165 @@
 [
   {
+    "id": "arts-music-cs/logic-gate-truth-tables",
+    "title": "Logic Gates & Truth Tables",
+    "aliases": [
+      "logic gates",
+      "truth tables",
+      "AND OR NOT",
+      "boolean logic",
+      "NAND NOR XOR"
+    ],
+    "tags": [
+      "computer science",
+      "logic",
+      "boolean",
+      "gates",
+      "digital"
+    ],
+    "subject": "arts-music-cs",
+    "summary": "The seven basic logic gates with their boolean expressions and truth tables.",
+    "path": "resources/arts-music-cs/logic-gate-truth-tables.md",
+    "asset": "assets/arts-music-cs/logic-gate-truth-tables.svg"
+  },
+  {
+    "id": "biology/animal-plant-cell",
+    "title": "Animal vs Plant Cell",
+    "aliases": [
+      "animal cell",
+      "plant cell",
+      "cell organelles",
+      "eukaryotic cell",
+      "cell diagram",
+      "organelles"
+    ],
+    "tags": [
+      "biology",
+      "cells",
+      "organelles",
+      "plant",
+      "animal"
+    ],
+    "subject": "biology",
+    "summary": "The main organelles of animal and plant cells and how the two differ.",
+    "path": "resources/biology/animal-plant-cell.md",
+    "asset": "assets/biology/animal-plant-cell.svg"
+  },
+  {
+    "id": "biology/dna-rna-base-pairing",
+    "title": "DNA / RNA Base Pairing",
+    "aliases": [
+      "base pairing",
+      "dna structure",
+      "complementary bases",
+      "purines pyrimidines",
+      "dna vs rna"
+    ],
+    "tags": [
+      "biology",
+      "genetics",
+      "dna",
+      "rna",
+      "base pairs",
+      "double helix"
+    ],
+    "subject": "biology",
+    "summary": "The four bases, their complementary pairs, and the differences between DNA and RNA.",
+    "path": "resources/biology/dna-rna-base-pairing.md",
+    "asset": "assets/biology/dna-rna-base-pairing.svg"
+  },
+  {
+    "id": "biology/genetic-code-codons",
+    "title": "Genetic Code (Codon Table)",
+    "aliases": [
+      "codon table",
+      "genetic code",
+      "codons",
+      "mRNA codons",
+      "start codon",
+      "stop codon",
+      "amino acid code"
+    ],
+    "tags": [
+      "biology",
+      "genetics",
+      "dna",
+      "rna",
+      "codons",
+      "protein synthesis"
+    ],
+    "subject": "biology",
+    "summary": "How the 64 mRNA codons map to amino acids, including START and STOP.",
+    "path": "resources/biology/genetic-code-codons.md",
+    "asset": "assets/biology/genetic-code-codons.svg"
+  },
+  {
+    "id": "biology/photosynthesis-respiration",
+    "title": "Photosynthesis vs Cellular Respiration",
+    "aliases": [
+      "photosynthesis",
+      "cellular respiration",
+      "photosynthesis equation",
+      "respiration equation",
+      "light reactions"
+    ],
+    "tags": [
+      "biology",
+      "photosynthesis",
+      "respiration",
+      "energy",
+      "cells"
+    ],
+    "subject": "biology",
+    "summary": "The two balanced equations side by side, with location and energy direction.",
+    "path": "resources/biology/photosynthesis-respiration.md",
+    "asset": "assets/biology/photosynthesis-respiration.svg"
+  },
+  {
+    "id": "chemistry/electron-configuration",
+    "title": "Electron Configuration & Shells",
+    "aliases": [
+      "electron configuration",
+      "aufbau",
+      "orbital filling",
+      "electron shells",
+      "subshells"
+    ],
+    "tags": [
+      "chemistry",
+      "atoms",
+      "electrons",
+      "orbitals",
+      "aufbau"
+    ],
+    "subject": "chemistry",
+    "summary": "The aufbau filling order, subshell capacities, and how to write electron configurations.",
+    "path": "resources/chemistry/electron-configuration.md",
+    "asset": "assets/chemistry/electron-configuration.svg"
+  },
+  {
+    "id": "chemistry/gas-laws",
+    "title": "Gas Laws",
+    "aliases": [
+      "gas laws",
+      "boyle's law",
+      "charles's law",
+      "ideal gas law",
+      "PV=nRT",
+      "combined gas law"
+    ],
+    "tags": [
+      "chemistry",
+      "gases",
+      "pressure",
+      "volume",
+      "temperature"
+    ],
+    "subject": "chemistry",
+    "summary": "Boyle's, Charles's, Gay-Lussac's, combined, and ideal gas laws.",
+    "path": "resources/chemistry/gas-laws.md",
+    "asset": "assets/chemistry/gas-laws.svg"
+  },
+  {
     "id": "chemistry/periodic-table",
     "title": "Periodic Table of the Elements",
     "aliases": [
@@ -19,6 +179,29 @@
     "summary": "Elements with their symbol, atomic number, and atomic mass; plus how the table is organized.",
     "path": "resources/chemistry/periodic-table.md",
     "asset": "assets/chemistry/periodic-table.svg"
+  },
+  {
+    "id": "chemistry/ph-scale",
+    "title": "The pH Scale",
+    "aliases": [
+      "ph scale",
+      "ph",
+      "acids and bases",
+      "acidity",
+      "alkaline",
+      "pOH"
+    ],
+    "tags": [
+      "chemistry",
+      "acids",
+      "bases",
+      "ph",
+      "hydrogen ion"
+    ],
+    "subject": "chemistry",
+    "summary": "The 0–14 pH scale, the pH = −log[H⁺] relationship, and common examples.",
+    "path": "resources/chemistry/ph-scale.md",
+    "asset": "assets/chemistry/ph-scale.svg"
   },
   {
     "id": "chemistry/polyatomic-ions",
@@ -44,6 +227,29 @@
     "asset": "assets/chemistry/polyatomic-ions.svg"
   },
   {
+    "id": "chemistry/reaction-types",
+    "title": "Types of Chemical Reactions",
+    "aliases": [
+      "reaction types",
+      "types of reactions",
+      "synthesis decomposition",
+      "single replacement",
+      "double replacement",
+      "combustion"
+    ],
+    "tags": [
+      "chemistry",
+      "reactions",
+      "synthesis",
+      "combustion",
+      "equations"
+    ],
+    "subject": "chemistry",
+    "summary": "The five core reaction patterns with general forms and examples.",
+    "path": "resources/chemistry/reaction-types.md",
+    "asset": "assets/chemistry/reaction-types.svg"
+  },
+  {
     "id": "chemistry/solubility-rules",
     "title": "Solubility Rules",
     "aliases": [
@@ -65,6 +271,50 @@
     "summary": "Which ionic compounds dissolve in water, with the main exceptions.",
     "path": "resources/chemistry/solubility-rules.md",
     "asset": "assets/chemistry/solubility-rules.svg"
+  },
+  {
+    "id": "earth-space/hr-diagram",
+    "title": "The H-R Diagram & Star Life Cycle",
+    "aliases": [
+      "hr diagram",
+      "hertzsprung russell",
+      "main sequence",
+      "star life cycle",
+      "stellar classification"
+    ],
+    "tags": [
+      "earth-space",
+      "astronomy",
+      "stars",
+      "hr diagram",
+      "luminosity"
+    ],
+    "subject": "earth-space",
+    "summary": "The Hertzsprung–Russell diagram (luminosity vs temperature) and where stars live and die.",
+    "path": "resources/earth-space/hr-diagram.md",
+    "asset": "assets/earth-space/hr-diagram.svg"
+  },
+  {
+    "id": "earth-space/solar-system-planets",
+    "title": "The Solar System & Planet Data",
+    "aliases": [
+      "solar system",
+      "planets",
+      "planet order",
+      "planet data",
+      "planets from the sun"
+    ],
+    "tags": [
+      "earth-space",
+      "astronomy",
+      "planets",
+      "solar system",
+      "space"
+    ],
+    "subject": "earth-space",
+    "summary": "The 8 planets in order from the Sun with distance, year length, and type.",
+    "path": "resources/earth-space/solar-system-planets.md",
+    "asset": "assets/earth-space/solar-system-planets.svg"
   },
   {
     "id": "geography/continents-oceans",
@@ -134,6 +384,72 @@
     "asset": "assets/math/geometry-formulas.svg"
   },
   {
+    "id": "math/laws-of-exponents",
+    "title": "Laws of Exponents",
+    "aliases": [
+      "exponent rules",
+      "laws of exponents",
+      "power rules",
+      "exponent laws",
+      "rules of exponents"
+    ],
+    "tags": [
+      "math",
+      "algebra",
+      "exponents",
+      "powers",
+      "indices"
+    ],
+    "subject": "math",
+    "summary": "The product, quotient, power, zero, negative, and fractional exponent rules.",
+    "path": "resources/math/laws-of-exponents.md",
+    "asset": "assets/math/laws-of-exponents.svg"
+  },
+  {
+    "id": "math/linear-equation-forms",
+    "title": "Linear Equations & Slope",
+    "aliases": [
+      "slope intercept",
+      "point slope",
+      "slope formula",
+      "linear equations",
+      "equation of a line"
+    ],
+    "tags": [
+      "math",
+      "algebra",
+      "linear",
+      "slope",
+      "graphing"
+    ],
+    "subject": "math",
+    "summary": "Slope-intercept, point-slope, and standard forms of a line, plus the slope formula.",
+    "path": "resources/math/linear-equation-forms.md",
+    "asset": "assets/math/linear-equation-forms.svg"
+  },
+  {
+    "id": "math/logarithm-rules",
+    "title": "Logarithm Rules",
+    "aliases": [
+      "log rules",
+      "logarithm rules",
+      "log laws",
+      "change of base",
+      "logarithm properties"
+    ],
+    "tags": [
+      "math",
+      "algebra",
+      "logarithms",
+      "exponents",
+      "precalculus"
+    ],
+    "subject": "math",
+    "summary": "Product, quotient, power, and change-of-base log rules plus the log↔exponent link.",
+    "path": "resources/math/logarithm-rules.md",
+    "asset": "assets/math/logarithm-rules.svg"
+  },
+  {
     "id": "math/multiplication-table",
     "title": "Multiplication Table",
     "aliases": [
@@ -154,6 +470,72 @@
     "summary": "Multiplication facts from 1x1 to 12x12.",
     "path": "resources/math/multiplication-table.md",
     "asset": "assets/math/multiplication-table.svg"
+  },
+  {
+    "id": "math/parent-functions",
+    "title": "Parent Functions & Their Graphs",
+    "aliases": [
+      "parent functions",
+      "basic functions",
+      "function families",
+      "parent graphs",
+      "common graphs"
+    ],
+    "tags": [
+      "math",
+      "algebra",
+      "functions",
+      "graphs",
+      "precalculus"
+    ],
+    "subject": "math",
+    "summary": "The basic graph shapes (linear, quadratic, cubic, root, reciprocal, exponential, log) functions are built from.",
+    "path": "resources/math/parent-functions.md",
+    "asset": "assets/math/parent-functions.svg"
+  },
+  {
+    "id": "math/probability-statistics-sheet",
+    "title": "Probability & Statistics Formula Sheet",
+    "aliases": [
+      "statistics formulas",
+      "probability formulas",
+      "mean median mode",
+      "standard deviation",
+      "permutations combinations"
+    ],
+    "tags": [
+      "math",
+      "statistics",
+      "probability",
+      "mean",
+      "standard deviation"
+    ],
+    "subject": "math",
+    "summary": "Center and spread measures, probability rules, and counting formulas.",
+    "path": "resources/math/probability-statistics-sheet.md",
+    "asset": "assets/math/probability-statistics-sheet.svg"
+  },
+  {
+    "id": "math/quadratic-reference",
+    "title": "Quadratic Reference",
+    "aliases": [
+      "quadratic formula",
+      "quadratic equation",
+      "parabola",
+      "vertex form",
+      "discriminant"
+    ],
+    "tags": [
+      "math",
+      "algebra",
+      "quadratics",
+      "parabola",
+      "roots"
+    ],
+    "subject": "math",
+    "summary": "The quadratic formula, discriminant, vertex, and the forms of a parabola y = ax² + bx + c.",
+    "path": "resources/math/quadratic-reference.md",
+    "asset": "assets/math/quadratic-reference.svg"
   },
   {
     "id": "math/si-units",
@@ -178,6 +560,28 @@
     "summary": "The 7 SI base units, common derived units, and the metric prefix ladder.",
     "path": "resources/math/si-units.md",
     "asset": "assets/math/si-units.svg"
+  },
+  {
+    "id": "math/trig-identities",
+    "title": "Trigonometric Identities",
+    "aliases": [
+      "trig identities",
+      "trigonometric identities",
+      "pythagorean identity",
+      "double angle",
+      "sum and difference"
+    ],
+    "tags": [
+      "math",
+      "trigonometry",
+      "identities",
+      "precalculus",
+      "sine cosine tangent"
+    ],
+    "subject": "math",
+    "summary": "Pythagorean, reciprocal, quotient, even/odd, sum/difference, and double-angle identities.",
+    "path": "resources/math/trig-identities.md",
+    "asset": "assets/math/trig-identities.svg"
   },
   {
     "id": "math/unit-circle",
@@ -246,6 +650,116 @@
     "summary": "Common fundamental physics constants with their symbols, values, and units.",
     "path": "resources/physics/constants.md",
     "asset": "assets/physics/constants.svg"
+  },
+  {
+    "id": "physics/electromagnetic-spectrum",
+    "title": "The Electromagnetic Spectrum",
+    "aliases": [
+      "em spectrum",
+      "electromagnetic spectrum",
+      "light spectrum",
+      "radio to gamma",
+      "wavelength frequency"
+    ],
+    "tags": [
+      "physics",
+      "waves",
+      "light",
+      "electromagnetic",
+      "radiation"
+    ],
+    "subject": "physics",
+    "summary": "The bands of EM radiation from radio to gamma, ordered by wavelength and frequency.",
+    "path": "resources/physics/electromagnetic-spectrum.md",
+    "asset": "assets/physics/electromagnetic-spectrum.svg"
+  },
+  {
+    "id": "physics/energy-work",
+    "title": "Energy & Work Equations",
+    "aliases": [
+      "work energy",
+      "kinetic energy",
+      "potential energy",
+      "power",
+      "conservation of energy"
+    ],
+    "tags": [
+      "physics",
+      "energy",
+      "work",
+      "power",
+      "mechanics"
+    ],
+    "subject": "physics",
+    "summary": "Work, kinetic and potential energy, power, and conservation of energy.",
+    "path": "resources/physics/energy-work.md",
+    "asset": "assets/physics/energy-work.svg"
+  },
+  {
+    "id": "physics/kinematics-equations",
+    "title": "Kinematics Equations (1-D Motion)",
+    "aliases": [
+      "kinematics",
+      "suvat",
+      "equations of motion",
+      "constant acceleration",
+      "motion equations"
+    ],
+    "tags": [
+      "physics",
+      "motion",
+      "kinematics",
+      "acceleration",
+      "velocity"
+    ],
+    "subject": "physics",
+    "summary": "The four constant-acceleration (SUVAT) equations of straight-line motion.",
+    "path": "resources/physics/kinematics-equations.md",
+    "asset": "assets/physics/kinematics-equations.svg"
+  },
+  {
+    "id": "physics/newtons-laws-forces",
+    "title": "Newton's Laws & Forces",
+    "aliases": [
+      "newtons laws",
+      "laws of motion",
+      "f equals ma",
+      "force equations",
+      "newton's three laws"
+    ],
+    "tags": [
+      "physics",
+      "forces",
+      "newton",
+      "motion",
+      "dynamics"
+    ],
+    "subject": "physics",
+    "summary": "Newton's three laws of motion and the common force equations.",
+    "path": "resources/physics/newtons-laws-forces.md",
+    "asset": "assets/physics/newtons-laws-forces.svg"
+  },
+  {
+    "id": "physics/ohms-law-circuits",
+    "title": "Ohm's Law & Circuit Equations",
+    "aliases": [
+      "ohms law",
+      "v equals ir",
+      "electric power",
+      "series parallel",
+      "resistance"
+    ],
+    "tags": [
+      "physics",
+      "electricity",
+      "circuits",
+      "ohm",
+      "resistance"
+    ],
+    "subject": "physics",
+    "summary": "Ohm's law, electric power, and the rules for series and parallel resistors.",
+    "path": "resources/physics/ohms-law-circuits.md",
+    "asset": "assets/physics/ohms-law-circuits.svg"
   },
   {
     "id": "reference/greek-alphabet",
@@ -334,5 +848,49 @@
     "summary": "Roman numeral symbols, values 1–20 and tens/hundreds, and the rules for reading them.",
     "path": "resources/reference/roman-numerals.md",
     "asset": "assets/reference/roman-numerals.svg"
+  },
+  {
+    "id": "us-history-civics/constitutional-amendments",
+    "title": "The Constitutional Amendments",
+    "aliases": [
+      "bill of rights",
+      "constitutional amendments",
+      "27 amendments",
+      "first amendment",
+      "amendments"
+    ],
+    "tags": [
+      "civics",
+      "constitution",
+      "bill of rights",
+      "amendments",
+      "rights"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The Bill of Rights (1–10) plus the key later amendments, through the 27th.",
+    "path": "resources/us-history-civics/constitutional-amendments.md",
+    "asset": "assets/us-history-civics/constitutional-amendments.svg"
+  },
+  {
+    "id": "us-history-civics/three-branches-government",
+    "title": "The Three Branches of Government",
+    "aliases": [
+      "three branches",
+      "branches of government",
+      "separation of powers",
+      "checks and balances",
+      "legislative executive judicial"
+    ],
+    "tags": [
+      "civics",
+      "government",
+      "constitution",
+      "separation of powers",
+      "checks and balances"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The legislative, executive, and judicial branches and the checks they hold on each other.",
+    "path": "resources/us-history-civics/three-branches-government.md",
+    "asset": "assets/us-history-civics/three-branches-government.svg"
   }
 ]

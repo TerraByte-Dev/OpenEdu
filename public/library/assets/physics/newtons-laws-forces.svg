@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 366" role="img" aria-label="Newton's Laws &amp; Forces">
+<title>Newton's Laws &amp; Forces</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="366"/>
+<text x="28" y="50" font-size="26" font-weight="700">Newton's Laws &amp; Forces</text>
+<text x="28" y="91" font-size="17" font-weight="700">Newton's three laws</text>
+<text x="28" y="119" font-size="14" xml:space="preserve">• 1st (inertia): an object stays at rest or in uniform motion unless acted</text>
+<text x="28" y="143" font-size="14" xml:space="preserve">  on by a net force.</text>
+<text x="28" y="167" font-size="14" xml:space="preserve">• 2nd: net force = mass × acceleration, F = m·a (newtons, N).</text>
+<text x="28" y="191" font-size="14" xml:space="preserve">• 3rd: for every action there is an equal and opposite reaction.</text>
+<text x="28" y="228" font-size="17" font-weight="700">Common forces</text>
+<text x="28" y="257" font-size="15" xml:space="preserve">Weight        W = m·g     (g ≈ 9.81 m/s²)</text>
+<text x="28" y="282" font-size="15" xml:space="preserve">Friction      f = μ·N     (μ = coefficient, N = normal force)</text>
+<text x="28" y="307" font-size="15" xml:space="preserve">Spring (Hooke) F = k·x</text>
+<text x="28" y="332" font-size="15" xml:space="preserve">Centripetal   F = m·v² / r</text>
+</svg>
