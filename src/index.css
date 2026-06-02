@@ -140,6 +140,77 @@ html[data-theme="synthwave"] {
   --panel-lite:     #16042a;
   --lcd:            #0b0118;
 }
+html[data-theme="ice"] {
+  --phosphor:       #6FE6FF;
+  --phosphor-bright:#A8F2FF;
+  --phosphor-dim:   #08303f;
+  --phosphor-ink:   #BFEFFF;
+  --phosphor-rgb:   111 230 255;
+  --ink-rgb:        191 239 255;
+  --ink:            #BFEFFF;
+  --ink-em:         #EAFBFF;
+  --bg:             #03070f;
+  --panel:          #07121c;
+  --panel-lite:     #0a1622;
+  --lcd:            #040910;
+}
+html[data-theme="tangerine"] {
+  --phosphor:       #FF7A18;
+  --phosphor-bright:#FFA24D;
+  --phosphor-dim:   #2a1303;
+  --phosphor-ink:   #FFC089;
+  --phosphor-rgb:   255 122 24;
+  --ink-rgb:        255 192 137;
+  --ink:            #FFC089;
+  --ink-em:         #FFE9D3;
+  --bg:             #120701;
+  --panel:          #1d0d03;
+  --panel-lite:     #221004;
+  --lcd:            #140802;
+}
+html[data-theme="crimson"] {
+  --phosphor:       #FF2E4D;
+  --phosphor-bright:#FF6477;
+  --phosphor-dim:   #2a0610;
+  --phosphor-ink:   #FF94A2;
+  --phosphor-rgb:   255 46 77;
+  --ink-rgb:        255 148 162;
+  --ink:            #FF94A2;
+  --ink-em:         #FFDCE1;
+  --bg:             #100308;
+  --panel:          #1b0510;
+  --panel-lite:     #200713;
+  --lcd:            #12030a;
+}
+html[data-theme="vapor"] {
+  /* Duotone: pink accent (--phosphor) + cyan body ink (--ink) — classic vaporwave. */
+  --phosphor:       #FF8AD8;
+  --phosphor-bright:#FFB3E6;
+  --phosphor-dim:   #2a0a28;
+  --phosphor-ink:   #93E6FF;
+  --phosphor-rgb:   255 138 216;
+  --ink-rgb:        147 230 255;
+  --ink:            #93E6FF;
+  --ink-em:         #DEFAFF;
+  --bg:             #160428;
+  --panel:          #200a38;
+  --panel-lite:     #260d40;
+  --lcd:            #170530;
+}
+html[data-theme="ultraviolet"] {
+  --phosphor:       #A06BFF;
+  --phosphor-bright:#C2A0FF;
+  --phosphor-dim:   #1a0d3a;
+  --phosphor-ink:   #C9B0FF;
+  --phosphor-rgb:   160 107 255;
+  --ink-rgb:        201 176 255;
+  --ink:            #C9B0FF;
+  --ink-em:         #ECE3FF;
+  --bg:             #0a0420;
+  --panel:          #140a30;
+  --panel-lite:     #180d38;
+  --lcd:            #0b0526;
+}
 
 /* ── Universal themes (neutral palette, sans fonts; CRT overlay dropped via crt-off) ── */
 html[data-theme="dark"] {

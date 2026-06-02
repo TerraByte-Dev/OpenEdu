@@ -20,12 +20,19 @@ export interface Theme {
 }
 
 export const THEMES: Theme[] = [
-  { id: "openedu",   name: "OpenEdu",   blurb: "Blue phosphor CRT — the original.", family: "crt",       swatch: { bg: "#000000", accent: "#00C6FF", ink: "#6DD4EE" } },
-  { id: "amber",     name: "Amber",     blurb: "Warm amber terminal glow.",         family: "crt",       swatch: { bg: "#000000", accent: "#FFB000", ink: "#FFD074" } },
-  { id: "green",     name: "Green",     blurb: "Classic P1 green phosphor.",        family: "crt",       swatch: { bg: "#000000", accent: "#2BFF88", ink: "#8FFFC0" } },
-  { id: "synthwave", name: "Synthwave", blurb: "Magenta neon on deep violet.",      family: "crt",       swatch: { bg: "#0a0014", accent: "#FF3AC8", ink: "#FF9CE6" } },
-  { id: "dark",      name: "Dark",      blurb: "Clean neutral dark — no CRT.",       family: "universal", swatch: { bg: "#0d1117", accent: "#4493f8", ink: "#c9d1d9" } },
-  { id: "light",     name: "Light",     blurb: "Bright neutral light — no CRT.",     family: "universal", swatch: { bg: "#ffffff", accent: "#0969da", ink: "#1f2328" } },
+  // CRT family — ordered around the color wheel. Most carry a tinted background (synthwave-style) for flair.
+  { id: "openedu",     name: "OpenEdu",     blurb: "Blue phosphor CRT — the original.",     family: "crt",       swatch: { bg: "#000000", accent: "#00C6FF", ink: "#6DD4EE" } },
+  { id: "ice",         name: "Ice",         blurb: "Cool cyan-white on deep navy.",          family: "crt",       swatch: { bg: "#03070f", accent: "#6FE6FF", ink: "#BFEFFF" } },
+  { id: "green",       name: "Green",       blurb: "Classic P1 green phosphor.",             family: "crt",       swatch: { bg: "#000000", accent: "#2BFF88", ink: "#8FFFC0" } },
+  { id: "amber",       name: "Amber",       blurb: "Warm amber terminal glow.",              family: "crt",       swatch: { bg: "#000000", accent: "#FFB000", ink: "#FFD074" } },
+  { id: "tangerine",   name: "Tangerine",   blurb: "Hot orange on charred black.",           family: "crt",       swatch: { bg: "#120701", accent: "#FF7A18", ink: "#FFC089" } },
+  { id: "crimson",     name: "Crimson",     blurb: "Blood-red neon on deep maroon.",         family: "crt",       swatch: { bg: "#100308", accent: "#FF2E4D", ink: "#FF94A2" } },
+  { id: "vapor",       name: "Vapor",       blurb: "Vaporwave pink + cyan duotone.",         family: "crt",       swatch: { bg: "#160428", accent: "#FF8AD8", ink: "#93E6FF" } },
+  { id: "synthwave",   name: "Synthwave",   blurb: "Magenta neon on deep violet.",           family: "crt",       swatch: { bg: "#0a0014", accent: "#FF3AC8", ink: "#FF9CE6" } },
+  { id: "ultraviolet", name: "Ultraviolet", blurb: "Electric violet on midnight indigo.",    family: "crt",       swatch: { bg: "#0a0420", accent: "#A06BFF", ink: "#C9B0FF" } },
+  // Universal family — neutral, no CRT, clean sans fonts.
+  { id: "dark",        name: "Dark",        blurb: "Clean neutral dark — no CRT.",           family: "universal", swatch: { bg: "#0d1117", accent: "#4493f8", ink: "#c9d1d9" } },
+  { id: "light",       name: "Light",       blurb: "Bright neutral light — no CRT.",         family: "universal", swatch: { bg: "#ffffff", accent: "#0969da", ink: "#1f2328" } },
 ];
 
 export const DEFAULT_THEME_ID = "openedu";
