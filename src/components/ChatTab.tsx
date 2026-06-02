@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
 import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
@@ -10,8 +10,10 @@ import { tutorEngine, skillBundleLayer, personaIdentityLayer, type TutorTurn, ty
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
-import { renderChatMarkdown } from "../lib/chat-markdown";
-import MathBlock from "./MathBlock";
+import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
+// MathBlock pulls KaTeX (~258 KB); lazy-load it so KaTeX leaves the eager bundle and only loads when
+// a math.render card actually mounts.
+const MathBlock = lazy(() => import("./MathBlock"));
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
 
@@ -37,6 +39,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // immediately; written through to the DB on switch. resolvePersona maps it to a persona skill.
   const [spriteId, setSpriteId] = useState<string | null>(course.sprite_id ?? null);
   const [personaPickerOpen, setPersonaPickerOpen] = useState(false);
+  // KaTeX is lazy-loaded (chat-markdown). Kick it off on mount and re-render once ready so any inline
+  // math in already-rendered messages typesets (until then it shows as plain $…$ text).
+  const [, setKatexTick] = useState(0);
+  useEffect(() => { ensureChatKatex().then(() => setKatexTick((t) => t + 1)); }, []);
   // Live tool activity for the current/just-finished turn (session-only; not persisted).
   const [toolEvents, setToolEvents] = useState<ToolUIEvent[]>([]);
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
@@ -510,7 +516,7 @@ function ToolChip({ ev, onOpenResource }: { ev: ToolUIEvent; onOpenResource?: (i
     // The source rode in the tool-call args, never a chat string. Render the card directly (no chip).
     if (ev.name === "math.render") {
       const latex = (ev.value as { latex?: string } | undefined)?.latex ?? "";
-      return latex ? <MathBlock latex={latex} /> : null;
+      return latex ? <Suspense fallback={null}><MathBlock latex={latex} /></Suspense> : null;
     }
     if (ev.name === "diagram.render") {
       const code = (ev.value as { mermaid?: string } | undefined)?.mermaid ?? "";
