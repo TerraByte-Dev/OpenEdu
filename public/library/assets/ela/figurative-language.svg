@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 420" role="img" aria-label="Figurative Language">
+<title>Figurative Language</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="420"/>
+<text x="28" y="50" font-size="26" font-weight="700">Figurative Language</text>
+<text x="28" y="72" font-size="13" class="faint">non-literal language — figure: example</text>
+<text x="28" y="107" font-size="15">Simile</text>
+<text x="190" y="107" font-size="15">compares with like/as: brave as a lion</text>
+<text x="28" y="132" font-size="15">Metaphor</text>
+<text x="190" y="132" font-size="15">says one thing IS another: time is money</text>
+<text x="28" y="157" font-size="15">Personification</text>
+<text x="190" y="157" font-size="15">human traits to non-human: the wind whispered</text>
+<text x="28" y="182" font-size="15">Hyperbole</text>
+<text x="190" y="182" font-size="15">extreme exaggeration: told you a million times</text>
+<text x="28" y="207" font-size="15">Idiom</text>
+<text x="190" y="207" font-size="15">non-literal phrase: break a leg</text>
+<text x="28" y="232" font-size="15">Onomatopoeia</text>
+<text x="190" y="232" font-size="15">imitates a sound: buzz, splash, clang</text>
+<text x="28" y="257" font-size="15">Alliteration</text>
+<text x="190" y="257" font-size="15">repeated initial sounds: Peter Piper picked</text>
+<text x="28" y="282" font-size="15">Oxymoron</text>
+<text x="190" y="282" font-size="15">contradictory pair: bittersweet</text>
+<text x="28" y="307" font-size="15">Pun</text>
+<text x="190" y="307" font-size="15">play on a word's two meanings</text>
+<text x="28" y="332" font-size="15">Allusion</text>
+<text x="190" y="332" font-size="15">reference to a known work/person/event</text>
+<text x="28" y="362" font-size="14">Simile and metaphor are both comparisons: a simile says like/as, a metaphor</text>
+<text x="28" y="386" font-size="14">says is.</text>
+</svg>

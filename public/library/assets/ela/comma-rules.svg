@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 421" role="img" aria-label="Comma Rules">
+<title>Comma Rules</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="421"/>
+<text x="28" y="50" font-size="26" font-weight="700">Comma Rules</text>
+<text x="28" y="72" font-size="13" class="faint">when a comma is required</text>
+<text x="28" y="106" font-size="14" xml:space="preserve">• Series: red, white, and blue. (The Oxford comma before 'and' is standard</text>
+<text x="28" y="130" font-size="14" xml:space="preserve">  in US writing.)</text>
+<text x="28" y="154" font-size="14" xml:space="preserve">• Join two independent clauses with FANBOYS: I ran, but I was late.</text>
+<text x="28" y="178" font-size="14" xml:space="preserve">• After an introductory word/phrase/clause: After the game, we ate.</text>
+<text x="28" y="202" font-size="14" xml:space="preserve">• Set off nonrestrictive (extra) info: My brother, who lives in Ohio,</text>
+<text x="28" y="226" font-size="14" xml:space="preserve">  called.</text>
+<text x="28" y="250" font-size="14" xml:space="preserve">• Between coordinate adjectives: a long, winding road.</text>
+<text x="28" y="274" font-size="14" xml:space="preserve">• Dates, addresses, big numbers: July 4, 1776; Atlanta, Georgia; 1,000,000.</text>
+<text x="28" y="298" font-size="14" xml:space="preserve">• Direct address and dialogue tags: Maria, come here. She said, 'Hello.'</text>
+<text x="28" y="335" font-size="17" font-weight="700">Comma splice (error)</text>
+<text x="28" y="363" font-size="14">Two complete sentences joined by only a comma (It rained, we left.) — fix</text>
+<text x="28" y="387" font-size="14">with a conjunction, a semicolon, or a period.</text>
+</svg>

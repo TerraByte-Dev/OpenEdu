@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 614 568" role="img" aria-label="The Water Cycle">
+<title>The Water Cycle</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="614" height="568"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">The Water Cycle</text>
+<text x="28" y="66" font-size="13" class="faint">the Sun's energy and gravity move water between ocean, air, and land</text>
+<line x1="378.8" y1="204.8" x2="470.2" y2="296.2" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="441.5" y="233.5" font-size="11" text-anchor="middle" class="faint">rising vapor cools</text>
+<line x1="470.2" y1="369.8" x2="378.8" y2="461.2" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="441.5" y="432.5" font-size="11" text-anchor="middle" class="faint">droplets combine</text>
+<line x1="305.2" y1="461.2" x2="213.8" y2="369.8" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="242.5" y="432.5" font-size="11" text-anchor="middle" class="faint">falls to the</text>
+<text x="242.5" y="445.5" font-size="11" text-anchor="middle" class="faint">surface</text>
+<line x1="213.8" y1="296.2" x2="305.2" y2="204.8" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="242.5" y="233.5" font-size="11" text-anchor="middle" class="faint">Sun heats the</text>
+<text x="242.5" y="246.5" font-size="11" text-anchor="middle" class="faint">water</text>
+<rect x="263" y="140" width="158" height="56" class="cell"/>
+<text x="342" y="165" font-size="14" text-anchor="middle" font-weight="700">Evaporation</text>
+<text x="342" y="183" font-size="10.5" text-anchor="middle" class="faint">liquid → vapor</text>
+<rect x="428" y="305" width="158" height="56" class="cell"/>
+<text x="507" y="330" font-size="14" text-anchor="middle" font-weight="700">Condensation</text>
+<text x="507" y="348" font-size="10.5" text-anchor="middle" class="faint">vapor → clouds</text>
+<rect x="263" y="470" width="158" height="56" class="cell"/>
+<text x="342" y="495" font-size="14" text-anchor="middle" font-weight="700">Precipitation</text>
+<text x="342" y="513" font-size="10.5" text-anchor="middle" class="faint">rain / snow / hail</text>
+<rect x="98" y="305" width="158" height="56" class="cell"/>
+<text x="177" y="330" font-size="14" text-anchor="middle" font-weight="700">Collection</text>
+<text x="177" y="348" font-size="10.5" text-anchor="middle" class="faint">oceans, lakes, runoff</text>
+<text x="28" y="554" font-size="12" class="faint">Also: transpiration (plants release vapor) and infiltration (water soaks into groundwater). ~97% of Earth's water is in the oceans.</text>
+</svg>

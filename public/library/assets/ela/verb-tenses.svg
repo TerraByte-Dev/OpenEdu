@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 749 295" role="img" aria-label="Verb Tenses">
+<title>Verb Tenses</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="749" height="295"/>
+<text x="28" y="50" font-size="26" font-weight="700">Verb Tenses</text>
+<text x="28" y="72" font-size="13" class="faint">12 tenses — shown with the verb 'walk'</text>
+<text x="28" y="107" font-size="15" font-weight="700">Aspect</text>
+<text x="172" y="107" font-size="15" font-weight="700">Past</text>
+<text x="343" y="107" font-size="15" font-weight="700">Present</text>
+<text x="523" y="107" font-size="15" font-weight="700">Future</text>
+<line x1="28" y1="113" x2="721" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Simple</text>
+<text x="172" y="132" font-size="15">walked</text>
+<text x="343" y="132" font-size="15">walk(s)</text>
+<text x="523" y="132" font-size="15">will walk</text>
+<text x="28" y="157" font-size="15">Progressive</text>
+<text x="172" y="157" font-size="15">was walking</text>
+<text x="343" y="157" font-size="15">am/is/are walking</text>
+<text x="523" y="157" font-size="15">will be walking</text>
+<text x="28" y="182" font-size="15">Perfect</text>
+<text x="172" y="182" font-size="15">had walked</text>
+<text x="343" y="182" font-size="15">have/has walked</text>
+<text x="523" y="182" font-size="15">will have walked</text>
+<text x="28" y="207" font-size="15">Perfect prog.</text>
+<text x="172" y="207" font-size="15">had been walking</text>
+<text x="343" y="207" font-size="15">have been walking</text>
+<text x="523" y="207" font-size="15">will have been walking</text>
+<text x="28" y="237" font-size="14">Progressive = be + -ing (in progress). Perfect = have + past participle</text>
+<text x="28" y="261" font-size="14">(completed/linked to now). Perfect progressive combines both.</text>
+</svg>

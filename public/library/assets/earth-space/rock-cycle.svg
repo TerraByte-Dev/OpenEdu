@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 544 498" role="img" aria-label="The Rock Cycle">
+<title>The Rock Cycle</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="544" height="498"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">The Rock Cycle</text>
+<text x="28" y="66" font-size="13" class="faint">the three rock types transform via heat, pressure, melting, and weathering</text>
+<line x1="333" y1="213" x2="393.6" y2="318" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="384.1" y="253.5" font-size="11" text-anchor="middle" class="faint">weathering &amp;</text>
+<text x="384.1" y="266.5" font-size="11" text-anchor="middle" class="faint">erosion →</text>
+<text x="384.1" y="279.5" font-size="11" text-anchor="middle" class="faint">sediment, then</text>
+<text x="384.1" y="292.5" font-size="11" text-anchor="middle" class="faint">compaction</text>
+<line x1="367.6" y1="363" x2="246.4" y2="363" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="307" y="387" font-size="11" text-anchor="middle" class="faint">heat &amp; pressure</text>
+<line x1="220.4" y1="318" x2="281" y2="213" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="229.9" y="253.5" font-size="11" text-anchor="middle" class="faint">melting → magma,</text>
+<text x="229.9" y="266.5" font-size="11" text-anchor="middle" class="faint">then cooling</text>
+<rect x="228" y="140" width="158" height="56" class="cell"/>
+<text x="307" y="165" font-size="14" text-anchor="middle" font-weight="700">Igneous</text>
+<text x="307" y="183" font-size="10.5" text-anchor="middle" class="faint">cooled magma/lava</text>
+<rect x="340.6" y="335" width="158" height="56" class="cell"/>
+<text x="419.6" y="360" font-size="14" text-anchor="middle" font-weight="700">Sedimentary</text>
+<text x="419.6" y="378" font-size="10.5" text-anchor="middle" class="faint">compacted sediment</text>
+<rect x="115.4" y="335" width="158" height="56" class="cell"/>
+<text x="194.4" y="360" font-size="14" text-anchor="middle" font-weight="700">Metamorphic</text>
+<text x="194.4" y="378" font-size="10.5" text-anchor="middle" class="faint">heat + pressure</text>
+<text x="28" y="484" font-size="12" class="faint">Any rock can become any other; there is no fixed start. Driven by Earth's internal heat and surface processes.</text>
+</svg>

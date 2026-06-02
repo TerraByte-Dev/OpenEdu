@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 785 503" role="img" aria-label="Greek &amp; Latin Roots">
+<title>Greek &amp; Latin Roots</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="785" height="503"/>
+<text x="28" y="50" font-size="26" font-weight="700">Greek &amp; Latin Roots</text>
+<text x="28" y="72" font-size="13" class="faint">root = meaning (example)</text>
+<text x="28" y="113" font-size="17" font-weight="700">Roots</text>
+<text x="28" y="142" font-size="15">bio = life (biology)</text>
+<text x="280" y="142" font-size="15">geo = earth (geography)</text>
+<text x="523" y="142" font-size="15">photo = light (photo)</text>
+<text x="28" y="167" font-size="15">graph = write (paragraph)</text>
+<text x="280" y="167" font-size="15">scrib = write (describe)</text>
+<text x="523" y="167" font-size="15">port = carry (transport)</text>
+<text x="28" y="192" font-size="15">dict = say (predict)</text>
+<text x="280" y="192" font-size="15">spect = look (inspect)</text>
+<text x="523" y="192" font-size="15">struct = build (construct)</text>
+<text x="28" y="217" font-size="15">aud = hear (audible)</text>
+<text x="280" y="217" font-size="15">vis/vid = see (visible)</text>
+<text x="523" y="217" font-size="15">tele = far (telephone)</text>
+<text x="28" y="242" font-size="15">chrono = time</text>
+<text x="280" y="242" font-size="15">therm = heat</text>
+<text x="523" y="242" font-size="15">aqua/hydro = water</text>
+<text x="28" y="267" font-size="15">phil = love (philo-)</text>
+<text x="280" y="267" font-size="15">-logy = study of</text>
+<text x="523" y="267" font-size="15">bene = good / mal = bad</text>
+<text x="28" y="304" font-size="17" font-weight="700">Prefixes</text>
+<text x="28" y="332" font-size="14">un-/in-/non- (not), re- (again), pre- (before), dis- (opposite), sub-</text>
+<text x="28" y="356" font-size="14">(under), inter- (between), trans- (across), anti- (against), super- (above),</text>
+<text x="28" y="380" font-size="14">mis- (wrong).</text>
+<text x="28" y="417" font-size="17" font-weight="700">Suffixes</text>
+<text x="28" y="445" font-size="14">-tion/-sion (act/state), -able/-ible (capable of), -ous (full of), -ist (one</text>
+<text x="28" y="469" font-size="14">who), -ment (result), -ize (make), -ology (study of).</text>
+</svg>

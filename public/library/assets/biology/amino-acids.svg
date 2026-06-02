@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 503" role="img" aria-label="The 20 Standard Amino Acids">
+<title>The 20 Standard Amino Acids</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="503"/>
+<text x="28" y="50" font-size="26" font-weight="700">The 20 Standard Amino Acids</text>
+<text x="28" y="72" font-size="13" class="faint">name (3-letter, 1-letter), grouped by side chain</text>
+<text x="28" y="113" font-size="17" font-weight="700">Nonpolar / hydrophobic (9)</text>
+<text x="28" y="142" font-size="15">Glycine (Gly, G)</text>
+<text x="226" y="142" font-size="15">Alanine (Ala, A)</text>
+<text x="451" y="142" font-size="15">Valine (Val, V)</text>
+<text x="28" y="167" font-size="15">Leucine (Leu, L)</text>
+<text x="226" y="167" font-size="15">Isoleucine (Ile, I)</text>
+<text x="451" y="167" font-size="15">Proline (Pro, P)</text>
+<text x="28" y="192" font-size="15">Methionine (Met, M)</text>
+<text x="226" y="192" font-size="15">Phenylalanine (Phe, F)</text>
+<text x="451" y="192" font-size="15">Tryptophan (Trp, W)</text>
+<text x="28" y="229" font-size="17" font-weight="700">Polar uncharged (6)</text>
+<text x="28" y="258" font-size="15">Serine (Ser, S)</text>
+<text x="208" y="258" font-size="15">Threonine (Thr, T)</text>
+<text x="406" y="258" font-size="15">Cysteine (Cys, C)</text>
+<text x="28" y="283" font-size="15">Tyrosine (Tyr, Y)</text>
+<text x="208" y="283" font-size="15">Asparagine (Asn, N)</text>
+<text x="406" y="283" font-size="15">Glutamine (Gln, Q)</text>
+<text x="28" y="320" font-size="17" font-weight="700">Acidic / negative (2)</text>
+<text x="28" y="349" font-size="15">Aspartate (Asp, D)</text>
+<text x="217" y="349" font-size="15">Glutamate (Glu, E)</text>
+<text x="28" y="386" font-size="17" font-weight="700">Basic / positive (3)</text>
+<text x="28" y="415" font-size="15">Lysine (Lys, K)</text>
+<text x="190" y="415" font-size="15">Arginine (Arg, R)</text>
+<text x="370" y="415" font-size="15">Histidine (His, H)</text>
+<text x="28" y="445" font-size="14">Met (AUG) is the start codon. 9 essential in the diet: His, Ile, Leu, Lys,</text>
+<text x="28" y="469" font-size="14">Met, Phe, Thr, Trp, Val.</text>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 628 421" role="img" aria-label="Literary Devices">
+<title>Literary Devices</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="628" height="421"/>
+<text x="28" y="50" font-size="26" font-weight="700">Literary Devices</text>
+<text x="28" y="72" font-size="13" class="faint">narrative &amp; structural devices (see also figurative language)</text>
+<text x="28" y="107" font-size="15">Imagery</text>
+<text x="199" y="107" font-size="15">vivid sensory description</text>
+<text x="28" y="132" font-size="15">Symbolism</text>
+<text x="199" y="132" font-size="15">an object stands for a bigger idea</text>
+<text x="28" y="157" font-size="15">Irony</text>
+<text x="199" y="157" font-size="15">verbal / situational / dramatic</text>
+<text x="28" y="182" font-size="15">Foreshadowing</text>
+<text x="199" y="182" font-size="15">hints at what comes later</text>
+<text x="28" y="207" font-size="15">Flashback</text>
+<text x="199" y="207" font-size="15">shows an earlier event</text>
+<text x="28" y="232" font-size="15">Allusion</text>
+<text x="199" y="232" font-size="15">reference to another work/person/event</text>
+<text x="28" y="257" font-size="15">Motif</text>
+<text x="199" y="257" font-size="15">a recurring image supporting the theme</text>
+<text x="28" y="282" font-size="15">Theme</text>
+<text x="199" y="282" font-size="15">the central message about life</text>
+<text x="28" y="307" font-size="15">Tone / Mood</text>
+<text x="199" y="307" font-size="15">author's attitude / reader's feeling</text>
+<text x="28" y="332" font-size="15">Characterization</text>
+<text x="199" y="332" font-size="15">how a character is revealed</text>
+<text x="28" y="357" font-size="15">Point of view</text>
+<text x="199" y="357" font-size="15">1st (I), 2nd (you), 3rd (he/she/they)</text>
+<text x="28" y="387" font-size="14">Theme and tone are inferred from the other devices working together.</text>
+</svg>
