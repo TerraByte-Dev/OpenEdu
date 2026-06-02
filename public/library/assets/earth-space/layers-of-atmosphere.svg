@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 398" role="img" aria-label="Layers of the Atmosphere">
+<title>Layers of the Atmosphere</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="496" height="398"/>
+<text x="28" y="40" font-size="26" font-weight="700">Layers of the Atmosphere</text>
+<text x="28" y="66" font-size="13" class="faint">surface (bottom) to space (top); boundaries are approximate</text>
+<rect x="28" y="304" width="440" height="46" class="cell"/>
+<text x="42" y="332" font-size="15" font-weight="700">Troposphere</text>
+<text x="454" y="332" font-size="12" text-anchor="end" class="faint">0–12 km · weather, most air</text>
+<rect x="28" y="252" width="440" height="46" class="cell"/>
+<text x="42" y="280" font-size="15" font-weight="700">Stratosphere</text>
+<text x="454" y="280" font-size="12" text-anchor="end" class="faint">12–50 km · ozone layer; jets</text>
+<rect x="28" y="200" width="440" height="46" class="cell"/>
+<text x="42" y="228" font-size="15" font-weight="700">Mesosphere</text>
+<text x="454" y="228" font-size="12" text-anchor="end" class="faint">50–85 km · meteors burn up; coldest</text>
+<rect x="28" y="148" width="440" height="46" class="cell"/>
+<text x="42" y="176" font-size="15" font-weight="700">Thermosphere</text>
+<text x="454" y="176" font-size="12" text-anchor="end" class="faint">85–600 km · auroras, ISS; very hot</text>
+<rect x="28" y="96" width="440" height="46" class="cell"/>
+<text x="42" y="124" font-size="15" font-weight="700">Exosphere</text>
+<text x="454" y="124" font-size="12" text-anchor="end" class="faint">600–10,000 km · fades into space</text>
+<text x="28" y="384" font-size="12" class="faint">Temperature falls in the troposphere, rises in the stratosphere (ozone), falls in the mesosphere, rises in the thermosphere.</text>
+</svg>

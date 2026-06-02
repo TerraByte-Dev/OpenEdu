@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 449" role="img" aria-label="Special Products &amp; Factoring">
+<title>Special Products &amp; Factoring</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="449"/>
+<text x="28" y="50" font-size="26" font-weight="700">Special Products &amp; Factoring</text>
+<text x="28" y="91" font-size="17" font-weight="700">Special products (multiply out)</text>
+<text x="28" y="120" font-size="15" xml:space="preserve">FOIL              (a+b)(c+d) = ac+ad+bc+bd</text>
+<text x="28" y="145" font-size="15" xml:space="preserve">Difference of sq. (a+b)(a−b) = a² − b²</text>
+<text x="28" y="170" font-size="15" xml:space="preserve">Perfect square    (a±b)² = a² ± 2ab + b²</text>
+<text x="28" y="207" font-size="17" font-weight="700">Factoring patterns</text>
+<text x="28" y="236" font-size="15" xml:space="preserve">GCF first     6x² + 9x = 3x(2x + 3)</text>
+<text x="28" y="261" font-size="15" xml:space="preserve">Diff of sq.   x² − 25 = (x+5)(x−5)</text>
+<text x="28" y="286" font-size="15" xml:space="preserve">Perf. square  x² + 6x + 9 = (x+3)²</text>
+<text x="28" y="311" font-size="15" xml:space="preserve">Sum of cubes  a³+b³ = (a+b)(a²−ab+b²)</text>
+<text x="28" y="336" font-size="15" xml:space="preserve">Diff of cubes a³−b³ = (a−b)(a²+ab+b²)</text>
+<text x="28" y="361" font-size="15" xml:space="preserve">Trinomial     x²+5x+6 = (x+2)(x+3)</text>
+<text x="28" y="391" font-size="14">Trinomial x²+bx+c: find two numbers that multiply to c and add to b. A sum</text>
+<text x="28" y="415" font-size="14">of squares a²+b² does not factor over the reals.</text>
+</svg>

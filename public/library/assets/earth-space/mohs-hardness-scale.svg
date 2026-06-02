@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 582" role="img" aria-label="Mohs Hardness Scale">
+<title>Mohs Hardness Scale</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="582"/>
+<text x="28" y="50" font-size="26" font-weight="700">Mohs Hardness Scale</text>
+<text x="28" y="72" font-size="13" class="faint">scratch hardness 1 (softest) → 10 (hardest); ordinal, not linear</text>
+<text x="28" y="107" font-size="15" font-weight="700">#</text>
+<text x="73" y="107" font-size="15" font-weight="700">Reference mineral</text>
+<line x1="28" y1="113" x2="298" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">1</text>
+<text x="73" y="132" font-size="15">Talc (softest)</text>
+<text x="28" y="157" font-size="15">2</text>
+<text x="73" y="157" font-size="15">Gypsum</text>
+<text x="28" y="182" font-size="15">3</text>
+<text x="73" y="182" font-size="15">Calcite</text>
+<text x="28" y="207" font-size="15">4</text>
+<text x="73" y="207" font-size="15">Fluorite</text>
+<text x="28" y="232" font-size="15">5</text>
+<text x="73" y="232" font-size="15">Apatite</text>
+<text x="28" y="257" font-size="15">6</text>
+<text x="73" y="257" font-size="15">Orthoclase feldspar</text>
+<text x="28" y="282" font-size="15">7</text>
+<text x="73" y="282" font-size="15">Quartz</text>
+<text x="28" y="307" font-size="15">8</text>
+<text x="73" y="307" font-size="15">Topaz</text>
+<text x="28" y="332" font-size="15">9</text>
+<text x="73" y="332" font-size="15">Corundum (ruby, sapphire)</text>
+<text x="28" y="357" font-size="15">10</text>
+<text x="73" y="357" font-size="15">Diamond (hardest)</text>
+<text x="28" y="394" font-size="17" font-weight="700">Field scratch tools</text>
+<text x="28" y="422" font-size="14" xml:space="preserve">• fingernail ≈ 2.5</text>
+<text x="28" y="446" font-size="14" xml:space="preserve">• copper penny ≈ 3.5</text>
+<text x="28" y="470" font-size="14" xml:space="preserve">• steel knife / glass ≈ 5.5</text>
+<text x="28" y="494" font-size="14" xml:space="preserve">• steel file ≈ 6.5</text>
+<text x="28" y="524" font-size="14">A mineral scratches anything softer than itself. Quartz (7) scratches glass;</text>
+<text x="28" y="548" font-size="14">calcite (3) does not.</text>
+</svg>

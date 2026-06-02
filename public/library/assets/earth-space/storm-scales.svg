@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 653 623" role="img" aria-label="Storm &amp; Magnitude Scales">
+<title>Storm &amp; Magnitude Scales</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="653" height="623"/>
+<text x="28" y="50" font-size="26" font-weight="700">Storm &amp; Magnitude Scales</text>
+<text x="28" y="91" font-size="17" font-weight="700">Saffir–Simpson Hurricane (sustained wind)</text>
+<text x="28" y="120" font-size="15">Cat 1</text>
+<text x="100" y="120" font-size="15">74–95 mph</text>
+<text x="28" y="145" font-size="15">Cat 2</text>
+<text x="100" y="145" font-size="15">96–110</text>
+<text x="28" y="170" font-size="15">Cat 3</text>
+<text x="100" y="170" font-size="15">111–129 (major)</text>
+<text x="28" y="195" font-size="15">Cat 4</text>
+<text x="100" y="195" font-size="15">130–156</text>
+<text x="28" y="220" font-size="15">Cat 5</text>
+<text x="100" y="220" font-size="15">≥157 (catastrophic)</text>
+<text x="28" y="257" font-size="17" font-weight="700">Enhanced Fujita Tornado (from damage)</text>
+<text x="28" y="286" font-size="15">EF0</text>
+<text x="82" y="286" font-size="15">65–85 mph</text>
+<text x="28" y="311" font-size="15">EF1</text>
+<text x="82" y="311" font-size="15">86–110</text>
+<text x="28" y="336" font-size="15">EF2</text>
+<text x="82" y="336" font-size="15">111–135</text>
+<text x="28" y="361" font-size="15">EF3</text>
+<text x="82" y="361" font-size="15">136–165</text>
+<text x="28" y="386" font-size="15">EF4</text>
+<text x="82" y="386" font-size="15">166–200</text>
+<text x="28" y="411" font-size="15">EF5</text>
+<text x="82" y="411" font-size="15">&gt;200</text>
+<text x="28" y="448" font-size="17" font-weight="700">Earthquake magnitude (moment / Richter)</text>
+<text x="28" y="476" font-size="14">Logarithmic: each whole step = 10× ground shaking and ~31.6× energy. &lt;3</text>
+<text x="28" y="500" font-size="14">barely felt; 5–6 moderate; 7+ major; 8+ great.</text>
+<text x="28" y="537" font-size="17" font-weight="700">Beaufort wind (0–12)</text>
+<text x="28" y="565" font-size="14">0 calm · 3 gentle breeze · 6 strong breeze · 8 gale · 10 storm · 12</text>
+<text x="28" y="589" font-size="14">hurricane-force (≥73 mph).</text>
+</svg>

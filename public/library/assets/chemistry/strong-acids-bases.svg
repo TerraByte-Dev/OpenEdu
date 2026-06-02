@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 469" role="img" aria-label="Strong Acids &amp; Strong Bases">
+<title>Strong Acids &amp; Strong Bases</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="469"/>
+<text x="28" y="50" font-size="26" font-weight="700">Strong Acids &amp; Strong Bases</text>
+<text x="28" y="72" font-size="13" class="faint">ionize ~100% in water — memorize; assume all others are weak</text>
+<text x="28" y="113" font-size="17" font-weight="700">The 7 strong acids</text>
+<text x="28" y="142" font-size="15">HCl</text>
+<text x="100" y="142" font-size="15">hydrochloric</text>
+<text x="28" y="167" font-size="15">HBr</text>
+<text x="100" y="167" font-size="15">hydrobromic</text>
+<text x="28" y="192" font-size="15">HI</text>
+<text x="100" y="192" font-size="15">hydroiodic</text>
+<text x="28" y="217" font-size="15">HNO₃</text>
+<text x="100" y="217" font-size="15">nitric</text>
+<text x="28" y="242" font-size="15">H₂SO₄</text>
+<text x="100" y="242" font-size="15">sulfuric</text>
+<text x="28" y="267" font-size="15">HClO₄</text>
+<text x="100" y="267" font-size="15">perchloric</text>
+<text x="28" y="292" font-size="15">HClO₃</text>
+<text x="100" y="292" font-size="15">chloric</text>
+<text x="28" y="329" font-size="17" font-weight="700">Strong bases (soluble metal hydroxides)</text>
+<text x="28" y="357" font-size="14" xml:space="preserve">• Group 1: LiOH, NaOH, KOH, RbOH, CsOH</text>
+<text x="28" y="381" font-size="14" xml:space="preserve">• Heavy Group 2: Ca(OH)₂, Sr(OH)₂, Ba(OH)₂</text>
+<text x="28" y="411" font-size="14">Strong ≠ concentrated. 'Strong' = how completely it ionizes; 'concentrated'</text>
+<text x="28" y="435" font-size="14">= how much is dissolved. Weak examples: acetic acid, H₂CO₃, H₃PO₄, HF, NH₃.</text>
+</svg>

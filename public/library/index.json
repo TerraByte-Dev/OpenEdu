@@ -22,6 +22,28 @@
     "asset": "assets/arts-music-cs/logic-gate-truth-tables.svg"
   },
   {
+    "id": "biology/amino-acids",
+    "title": "The 20 Standard Amino Acids",
+    "aliases": [
+      "amino acids",
+      "20 amino acids",
+      "three letter codes",
+      "one letter codes",
+      "protein building blocks"
+    ],
+    "tags": [
+      "biology",
+      "biochemistry",
+      "amino acids",
+      "proteins",
+      "codons"
+    ],
+    "subject": "biology",
+    "summary": "The 20 protein-building amino acids with three- and one-letter codes and side-chain class.",
+    "path": "resources/biology/amino-acids.md",
+    "asset": "assets/biology/amino-acids.svg"
+  },
+  {
     "id": "biology/animal-plant-cell",
     "title": "Animal vs Plant Cell",
     "aliases": [
@@ -93,6 +115,90 @@
     "asset": "assets/biology/genetic-code-codons.svg"
   },
   {
+    "id": "biology/human-body-systems",
+    "title": "Human Body Systems",
+    "aliases": [
+      "human body systems",
+      "organ systems",
+      "eleven organ systems",
+      "body systems and functions"
+    ],
+    "tags": [
+      "biology",
+      "anatomy",
+      "physiology",
+      "organ systems",
+      "human body"
+    ],
+    "subject": "biology",
+    "summary": "The 11 human organ systems with their main organs and primary function.",
+    "path": "resources/biology/human-body-systems.md",
+    "asset": "assets/biology/human-body-systems.svg"
+  },
+  {
+    "id": "biology/levels-of-organization",
+    "title": "Levels of Biological Organization",
+    "aliases": [
+      "levels of organization",
+      "biological hierarchy",
+      "atom to biosphere",
+      "organization of life"
+    ],
+    "tags": [
+      "biology",
+      "organization",
+      "hierarchy",
+      "cells",
+      "ecology"
+    ],
+    "subject": "biology",
+    "summary": "The ordered hierarchy of life from atom up to the biosphere, with an example at each level.",
+    "path": "resources/biology/levels-of-organization.md",
+    "asset": "assets/biology/levels-of-organization.svg"
+  },
+  {
+    "id": "biology/macromolecules",
+    "title": "Biological Macromolecules",
+    "aliases": [
+      "macromolecules",
+      "biomolecules",
+      "carbohydrates lipids proteins nucleic acids",
+      "monomers polymers"
+    ],
+    "tags": [
+      "biology",
+      "biochemistry",
+      "macromolecules",
+      "carbohydrates",
+      "proteins"
+    ],
+    "subject": "biology",
+    "summary": "The four classes of biological macromolecules with monomer, elements, and function.",
+    "path": "resources/biology/macromolecules.md",
+    "asset": "assets/biology/macromolecules.svg"
+  },
+  {
+    "id": "biology/organelle-functions",
+    "title": "Organelle Functions",
+    "aliases": [
+      "organelle functions",
+      "cell organelles",
+      "what organelles do",
+      "nucleus mitochondria ribosome"
+    ],
+    "tags": [
+      "biology",
+      "cells",
+      "organelles",
+      "cell biology",
+      "eukaryotic"
+    ],
+    "subject": "biology",
+    "summary": "Each cell organelle with its one-line function and which cells have it.",
+    "path": "resources/biology/organelle-functions.md",
+    "asset": "assets/biology/organelle-functions.svg"
+  },
+  {
     "id": "biology/photosynthesis-respiration",
     "title": "Photosynthesis vs Cellular Respiration",
     "aliases": [
@@ -113,6 +219,72 @@
     "summary": "The two balanced equations side by side, with location and energy direction.",
     "path": "resources/biology/photosynthesis-respiration.md",
     "asset": "assets/biology/photosynthesis-respiration.svg"
+  },
+  {
+    "id": "biology/taxonomy-ranks",
+    "title": "Taxonomic Ranks (Linnaean Classification)",
+    "aliases": [
+      "taxonomy",
+      "taxonomic ranks",
+      "linnaean classification",
+      "domain kingdom phylum",
+      "binomial nomenclature"
+    ],
+    "tags": [
+      "biology",
+      "taxonomy",
+      "classification",
+      "species",
+      "linnaeus"
+    ],
+    "subject": "biology",
+    "summary": "The eight Linnaean classification ranks from domain to species, with the human example.",
+    "path": "resources/biology/taxonomy-ranks.md",
+    "asset": "assets/biology/taxonomy-ranks.svg"
+  },
+  {
+    "id": "chemistry/activity-series",
+    "title": "Activity Series of Metals",
+    "aliases": [
+      "activity series",
+      "reactivity series",
+      "metal reactivity",
+      "single replacement",
+      "displacement reactions"
+    ],
+    "tags": [
+      "chemistry",
+      "reactivity",
+      "metals",
+      "single replacement",
+      "redox"
+    ],
+    "subject": "chemistry",
+    "summary": "Metals ranked most-to-least reactive, used to predict single-replacement reactions.",
+    "path": "resources/chemistry/activity-series.md",
+    "asset": "assets/chemistry/activity-series.svg"
+  },
+  {
+    "id": "chemistry/common-acids",
+    "title": "Common Acids & Their Formulas",
+    "aliases": [
+      "common acids",
+      "acid formulas",
+      "naming acids",
+      "hydrochloric sulfuric nitric",
+      "acid nomenclature"
+    ],
+    "tags": [
+      "chemistry",
+      "acids",
+      "formulas",
+      "nomenclature",
+      "naming"
+    ],
+    "subject": "chemistry",
+    "summary": "The acids that appear constantly, their formulas, and the acid-naming rules.",
+    "path": "resources/chemistry/common-acids.md",
+    "asset": "assets/chemistry/common-acids.svg"
   },
   {
     "id": "chemistry/electron-configuration",
@@ -158,6 +330,50 @@
     "summary": "Boyle's, Charles's, Gay-Lussac's, combined, and ideal gas laws.",
     "path": "resources/chemistry/gas-laws.md",
     "asset": "assets/chemistry/gas-laws.svg"
+  },
+  {
+    "id": "chemistry/intermolecular-forces",
+    "title": "Intermolecular Forces (IMFs)",
+    "aliases": [
+      "intermolecular forces",
+      "imfs",
+      "hydrogen bonding",
+      "london dispersion",
+      "dipole dipole",
+      "van der waals"
+    ],
+    "tags": [
+      "chemistry",
+      "bonding",
+      "intermolecular forces",
+      "hydrogen bonding",
+      "polarity"
+    ],
+    "subject": "chemistry",
+    "summary": "The three intermolecular forces ranked by strength, what causes each, and their effects.",
+    "path": "resources/chemistry/intermolecular-forces.md",
+    "asset": "assets/chemistry/intermolecular-forces.svg"
+  },
+  {
+    "id": "chemistry/oxidation-rules",
+    "title": "Oxidation Number Rules",
+    "aliases": [
+      "oxidation numbers",
+      "oxidation states",
+      "assigning oxidation numbers",
+      "redox rules"
+    ],
+    "tags": [
+      "chemistry",
+      "redox",
+      "oxidation number",
+      "oxidation state",
+      "electrons"
+    ],
+    "subject": "chemistry",
+    "summary": "The priority-ordered rules for assigning oxidation numbers, with the common fixed values.",
+    "path": "resources/chemistry/oxidation-rules.md",
+    "asset": "assets/chemistry/oxidation-rules.svg"
   },
   {
     "id": "chemistry/periodic-table",
@@ -273,6 +489,49 @@
     "asset": "assets/chemistry/solubility-rules.svg"
   },
   {
+    "id": "chemistry/strong-acids-bases",
+    "title": "Strong Acids & Strong Bases",
+    "aliases": [
+      "strong acids",
+      "strong bases",
+      "strong acid list",
+      "strong base list",
+      "acid base strength"
+    ],
+    "tags": [
+      "chemistry",
+      "acids",
+      "bases",
+      "strong acids",
+      "dissociation"
+    ],
+    "subject": "chemistry",
+    "summary": "The short memorize-list of strong acids and strong bases — everything else is weak.",
+    "path": "resources/chemistry/strong-acids-bases.md",
+    "asset": "assets/chemistry/strong-acids-bases.svg"
+  },
+  {
+    "id": "earth-space/geologic-time-scale",
+    "title": "The Geologic Time Scale",
+    "aliases": [
+      "geologic time scale",
+      "eons eras periods",
+      "paleozoic mesozoic cenozoic",
+      "history of earth"
+    ],
+    "tags": [
+      "earth science",
+      "geology",
+      "geologic time",
+      "eras",
+      "fossils"
+    ],
+    "subject": "earth-space",
+    "summary": "Earth's history divided into eons and eras with approximate dates and defining events.",
+    "path": "resources/earth-space/geologic-time-scale.md",
+    "asset": "assets/earth-space/geologic-time-scale.svg"
+  },
+  {
     "id": "earth-space/hr-diagram",
     "title": "The H-R Diagram & Star Life Cycle",
     "aliases": [
@@ -295,6 +554,90 @@
     "asset": "assets/earth-space/hr-diagram.svg"
   },
   {
+    "id": "earth-space/layers-of-atmosphere",
+    "title": "Layers of the Atmosphere",
+    "aliases": [
+      "layers of the atmosphere",
+      "troposphere stratosphere",
+      "mesosphere thermosphere",
+      "ozone layer"
+    ],
+    "tags": [
+      "earth science",
+      "atmosphere",
+      "weather",
+      "troposphere",
+      "ozone"
+    ],
+    "subject": "earth-space",
+    "summary": "The five atmospheric layers from the surface up, with altitude and key features.",
+    "path": "resources/earth-space/layers-of-atmosphere.md",
+    "asset": "assets/earth-space/layers-of-atmosphere.svg"
+  },
+  {
+    "id": "earth-space/layers-of-earth",
+    "title": "Layers of the Earth",
+    "aliases": [
+      "layers of the earth",
+      "earth's interior",
+      "crust mantle core",
+      "inner core outer core"
+    ],
+    "tags": [
+      "earth science",
+      "geology",
+      "earth structure",
+      "crust mantle core",
+      "interior"
+    ],
+    "subject": "earth-space",
+    "summary": "Earth's interior layers — crust, mantle, outer core, inner core — with depth, state, and makeup.",
+    "path": "resources/earth-space/layers-of-earth.md",
+    "asset": "assets/earth-space/layers-of-earth.svg"
+  },
+  {
+    "id": "earth-space/mohs-hardness-scale",
+    "title": "Mohs Hardness Scale",
+    "aliases": [
+      "mohs hardness scale",
+      "mineral hardness",
+      "scratch test",
+      "talc to diamond"
+    ],
+    "tags": [
+      "earth science",
+      "geology",
+      "minerals",
+      "hardness",
+      "mohs"
+    ],
+    "subject": "earth-space",
+    "summary": "The 1–10 mineral hardness scale with reference minerals and common scratch tests.",
+    "path": "resources/earth-space/mohs-hardness-scale.md",
+    "asset": "assets/earth-space/mohs-hardness-scale.svg"
+  },
+  {
+    "id": "earth-space/rock-cycle",
+    "title": "The Rock Cycle",
+    "aliases": [
+      "rock cycle",
+      "igneous sedimentary metamorphic",
+      "how rocks form",
+      "rock types"
+    ],
+    "tags": [
+      "earth science",
+      "geology",
+      "rocks",
+      "rock cycle",
+      "minerals"
+    ],
+    "subject": "earth-space",
+    "summary": "How igneous, sedimentary, and metamorphic rocks transform into one another.",
+    "path": "resources/earth-space/rock-cycle.md",
+    "asset": "assets/earth-space/rock-cycle.svg"
+  },
+  {
     "id": "earth-space/solar-system-planets",
     "title": "The Solar System & Planet Data",
     "aliases": [
@@ -315,6 +658,226 @@
     "summary": "The 8 planets in order from the Sun with distance, year length, and type.",
     "path": "resources/earth-space/solar-system-planets.md",
     "asset": "assets/earth-space/solar-system-planets.svg"
+  },
+  {
+    "id": "earth-space/storm-scales",
+    "title": "Storm & Magnitude Scales",
+    "aliases": [
+      "hurricane scale",
+      "saffir simpson",
+      "tornado scale",
+      "EF scale",
+      "richter scale",
+      "beaufort scale"
+    ],
+    "tags": [
+      "earth science",
+      "weather",
+      "hurricanes",
+      "tornadoes",
+      "earthquakes"
+    ],
+    "subject": "earth-space",
+    "summary": "The hurricane, tornado, earthquake, and wind scales with their ranges.",
+    "path": "resources/earth-space/storm-scales.md",
+    "asset": "assets/earth-space/storm-scales.svg"
+  },
+  {
+    "id": "earth-space/water-cycle",
+    "title": "The Water Cycle",
+    "aliases": [
+      "water cycle",
+      "hydrologic cycle",
+      "evaporation condensation precipitation",
+      "how rain forms"
+    ],
+    "tags": [
+      "earth science",
+      "water cycle",
+      "weather",
+      "hydrology",
+      "evaporation"
+    ],
+    "subject": "earth-space",
+    "summary": "The continuous movement of water through evaporation, condensation, precipitation, and collection.",
+    "path": "resources/earth-space/water-cycle.md",
+    "asset": "assets/earth-space/water-cycle.svg"
+  },
+  {
+    "id": "ela/comma-rules",
+    "title": "Comma Rules",
+    "aliases": [
+      "comma rules",
+      "when to use a comma",
+      "oxford comma",
+      "comma splice",
+      "fanboys comma"
+    ],
+    "tags": [
+      "ela",
+      "grammar",
+      "punctuation",
+      "comma",
+      "writing"
+    ],
+    "subject": "ela",
+    "summary": "The main rules for when a comma is required, with examples.",
+    "path": "resources/ela/comma-rules.md",
+    "asset": "assets/ela/comma-rules.svg"
+  },
+  {
+    "id": "ela/commonly-confused-words",
+    "title": "Commonly Confused Words",
+    "aliases": [
+      "commonly confused words",
+      "your youre",
+      "their there theyre",
+      "affect effect",
+      "its its"
+    ],
+    "tags": [
+      "ela",
+      "grammar",
+      "usage",
+      "homophones",
+      "spelling"
+    ],
+    "subject": "ela",
+    "summary": "Frequently mixed-up word pairs with the quick rule that tells them apart.",
+    "path": "resources/ela/commonly-confused-words.md",
+    "asset": "assets/ela/commonly-confused-words.svg"
+  },
+  {
+    "id": "ela/figurative-language",
+    "title": "Figurative Language",
+    "aliases": [
+      "figurative language",
+      "figures of speech",
+      "simile metaphor",
+      "hyperbole",
+      "personification"
+    ],
+    "tags": [
+      "ela",
+      "figurative language",
+      "simile",
+      "metaphor",
+      "poetry"
+    ],
+    "subject": "ela",
+    "summary": "The major figures of speech — non-literal language — with a clear example of each.",
+    "path": "resources/ela/figurative-language.md",
+    "asset": "assets/ela/figurative-language.svg"
+  },
+  {
+    "id": "ela/greek-latin-roots",
+    "title": "Greek and Latin Roots",
+    "aliases": [
+      "greek and latin roots",
+      "word roots",
+      "prefixes and suffixes",
+      "root words",
+      "etymology"
+    ],
+    "tags": [
+      "ela",
+      "vocabulary",
+      "roots",
+      "prefixes",
+      "suffixes"
+    ],
+    "subject": "ela",
+    "summary": "High-frequency Greek/Latin roots plus common prefixes and suffixes with meanings.",
+    "path": "resources/ela/greek-latin-roots.md",
+    "asset": "assets/ela/greek-latin-roots.svg"
+  },
+  {
+    "id": "ela/literary-devices",
+    "title": "Literary Devices",
+    "aliases": [
+      "literary devices",
+      "literary terms",
+      "irony",
+      "foreshadowing",
+      "symbolism",
+      "tone and mood"
+    ],
+    "tags": [
+      "ela",
+      "literature",
+      "literary devices",
+      "analysis",
+      "reading"
+    ],
+    "subject": "ela",
+    "summary": "A glossary of narrative and structural literary devices used in analyzing texts.",
+    "path": "resources/ela/literary-devices.md",
+    "asset": "assets/ela/literary-devices.svg"
+  },
+  {
+    "id": "ela/parts-of-speech",
+    "title": "Parts of Speech",
+    "aliases": [
+      "parts of speech",
+      "eight parts of speech",
+      "noun verb adjective adverb",
+      "word classes"
+    ],
+    "tags": [
+      "ela",
+      "grammar",
+      "parts of speech",
+      "nouns",
+      "verbs"
+    ],
+    "subject": "ela",
+    "summary": "The eight parts of speech with each one's job and example words.",
+    "path": "resources/ela/parts-of-speech.md",
+    "asset": "assets/ela/parts-of-speech.svg"
+  },
+  {
+    "id": "ela/punctuation-marks",
+    "title": "Punctuation Marks",
+    "aliases": [
+      "punctuation",
+      "punctuation marks",
+      "semicolon colon",
+      "apostrophe",
+      "when to use punctuation"
+    ],
+    "tags": [
+      "ela",
+      "grammar",
+      "punctuation",
+      "writing",
+      "mechanics"
+    ],
+    "subject": "ela",
+    "summary": "Each common punctuation mark with its name and core rule for use.",
+    "path": "resources/ela/punctuation-marks.md",
+    "asset": "assets/ela/punctuation-marks.svg"
+  },
+  {
+    "id": "ela/verb-tenses",
+    "title": "Verb Tenses",
+    "aliases": [
+      "verb tenses",
+      "twelve tenses",
+      "english tenses",
+      "past present future tense",
+      "perfect progressive"
+    ],
+    "tags": [
+      "ela",
+      "grammar",
+      "verbs",
+      "tenses",
+      "conjugation"
+    ],
+    "subject": "ela",
+    "summary": "The 12 English verb tenses across past, present, and future, shown with \"to walk.",
+    "path": "resources/ela/verb-tenses.md",
+    "asset": "assets/ela/verb-tenses.svg"
   },
   {
     "id": "geography/continents-oceans",
@@ -359,6 +922,51 @@
     "summary": "Capital cities of major countries grouped by continent.",
     "path": "resources/geography/countries-capitals.md",
     "asset": "assets/geography/countries-capitals.svg"
+  },
+  {
+    "id": "math/coordinate-plane",
+    "title": "The Coordinate Plane",
+    "aliases": [
+      "coordinate plane",
+      "cartesian plane",
+      "x axis y axis",
+      "quadrants",
+      "ordered pairs",
+      "plotting points"
+    ],
+    "tags": [
+      "math",
+      "geometry",
+      "coordinate plane",
+      "graphing",
+      "quadrants"
+    ],
+    "subject": "math",
+    "summary": "The axes, origin, four quadrants, and the (x, y) ordered-pair convention for plotting points.",
+    "path": "resources/math/coordinate-plane.md",
+    "asset": "assets/math/coordinate-plane.svg"
+  },
+  {
+    "id": "math/factoring-special-products",
+    "title": "Special Products & Factoring",
+    "aliases": [
+      "factoring",
+      "special products",
+      "difference of squares",
+      "perfect square trinomial",
+      "foil"
+    ],
+    "tags": [
+      "math",
+      "algebra",
+      "factoring",
+      "polynomials",
+      "special products"
+    ],
+    "subject": "math",
+    "summary": "The key factoring patterns — difference of squares, perfect-square trinomials, cubes, FOIL.",
+    "path": "resources/math/factoring-special-products.md",
+    "asset": "assets/math/factoring-special-products.svg"
   },
   {
     "id": "math/geometry-formulas",
@@ -472,6 +1080,28 @@
     "asset": "assets/math/multiplication-table.svg"
   },
   {
+    "id": "math/order-of-operations",
+    "title": "Order of Operations & Properties",
+    "aliases": [
+      "order of operations",
+      "pemdas",
+      "gems",
+      "bodmas",
+      "properties of operations"
+    ],
+    "tags": [
+      "math",
+      "arithmetic",
+      "order of operations",
+      "pemdas",
+      "properties"
+    ],
+    "subject": "math",
+    "summary": "PEMDAS evaluation order plus the commutative, associative, distributive, and identity properties.",
+    "path": "resources/math/order-of-operations.md",
+    "asset": "assets/math/order-of-operations.svg"
+  },
+  {
     "id": "math/parent-functions",
     "title": "Parent Functions & Their Graphs",
     "aliases": [
@@ -560,6 +1190,28 @@
     "summary": "The 7 SI base units, common derived units, and the metric prefix ladder.",
     "path": "resources/math/si-units.md",
     "asset": "assets/math/si-units.svg"
+  },
+  {
+    "id": "math/squares-cubes-roots",
+    "title": "Squares, Cubes & Roots",
+    "aliases": [
+      "perfect squares",
+      "perfect cubes",
+      "squares and cubes table",
+      "square roots",
+      "common roots"
+    ],
+    "tags": [
+      "math",
+      "squares",
+      "cubes",
+      "roots",
+      "perfect squares"
+    ],
+    "subject": "math",
+    "summary": "Perfect squares and cubes with their roots, plus common irrational approximations.",
+    "path": "resources/math/squares-cubes-roots.md",
+    "asset": "assets/math/squares-cubes-roots.svg"
   },
   {
     "id": "math/trig-identities",
