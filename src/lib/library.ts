@@ -38,9 +38,15 @@ export function setLibraryEnabledForTesting(enabled: boolean): void {
   disabledForTesting = !enabled;
 }
 
+// Shared with library-datasets.ts so the lookup layer honors the SAME eval-suppression flag — one
+// setLibraryEnabledForTesting(false) in the eval runner hides both library.search and library.lookup.
+export function isLibraryTestingDisabled(): boolean {
+  return disabledForTesting;
+}
+
 // Where the library loads from: the bundled copy by default; a Settings `library_url` override switches
 // to a remote host. `remote` selects the transport (plugin-http cross-origin vs same-origin fetch).
-async function resolveSource(): Promise<{ base: string; remote: boolean }> {
+export async function resolveSource(): Promise<{ base: string; remote: boolean }> {
   const override = await getLibraryUrl();
   if (override) return { base: override.replace(/\/+$/, ""), remote: true };
   return { base: BUNDLED_BASE, remote: false };
@@ -48,7 +54,7 @@ async function resolveSource(): Promise<{ base: string; remote: boolean }> {
 
 // Fetch a library file as text. Bundled = same-origin app asset (standard fetch; no capability needed,
 // CSP is null). Remote override = plugin-http (cross-origin; the Origin:"" header mirrors llm.ts).
-async function fetchLibText(url: string, remote: boolean): Promise<string> {
+export async function fetchLibText(url: string, remote: boolean): Promise<string> {
   const res = remote
     ? await tauriFetch(url, { method: "GET", headers: { "Origin": "" } })
     : await fetch(url, { method: "GET" });

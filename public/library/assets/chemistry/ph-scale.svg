@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1553 286" role="img" aria-label="The pH Scale">
+<title>The pH Scale</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="1553" height="286"/>
+<text x="28" y="40" font-size="26" font-weight="700">The pH Scale</text>
+<text x="28" y="66" font-size="13" class="faint">0–14: acidity/alkalinity of a solution</text>
+<rect x="28" y="96" width="117" height="70" class="cell"/>
+<text x="86.5" y="136" font-size="15" text-anchor="middle" font-weight="700">0</text>
+<text x="86.5" y="184" font-size="11" text-anchor="middle" class="faint">battery acid</text>
+<rect x="145" y="96" width="117" height="70" class="cell"/>
+<text x="203.5" y="136" font-size="15" text-anchor="middle" font-weight="700">1</text>
+<text x="203.5" y="184" font-size="11" text-anchor="middle" class="faint">stomach acid</text>
+<rect x="262" y="96" width="96" height="70" class="cell"/>
+<text x="310" y="136" font-size="15" text-anchor="middle" font-weight="700">2</text>
+<text x="310" y="184" font-size="11" text-anchor="middle" class="faint">lemon</text>
+<rect x="358" y="96" width="96" height="70" class="cell"/>
+<text x="406" y="136" font-size="15" text-anchor="middle" font-weight="700">3</text>
+<text x="406" y="184" font-size="11" text-anchor="middle" class="faint">vinegar</text>
+<rect x="454" y="96" width="96" height="70" class="cell"/>
+<text x="502" y="136" font-size="15" text-anchor="middle" font-weight="700">4</text>
+<text x="502" y="184" font-size="11" text-anchor="middle" class="faint"></text>
+<rect x="550" y="96" width="96" height="70" class="cell"/>
+<text x="598" y="136" font-size="15" text-anchor="middle" font-weight="700">5</text>
+<text x="598" y="184" font-size="11" text-anchor="middle" class="faint">coffee</text>
+<rect x="646" y="96" width="96" height="70" class="cell"/>
+<text x="694" y="136" font-size="15" text-anchor="middle" font-weight="700">6</text>
+<text x="694" y="184" font-size="11" text-anchor="middle" class="faint">milk</text>
+<rect x="742" y="96" width="99" height="70" class="cell"/>
+<text x="791.5" y="136" font-size="15" text-anchor="middle" font-weight="700">7</text>
+<text x="791.5" y="184" font-size="11" text-anchor="middle" class="faint">pure water</text>
+<rect x="841" y="96" width="96" height="70" class="cell"/>
+<text x="889" y="136" font-size="15" text-anchor="middle" font-weight="700">8</text>
+<text x="889" y="184" font-size="11" text-anchor="middle" class="faint">seawater</text>
+<rect x="937" y="96" width="108" height="70" class="cell"/>
+<text x="991" y="136" font-size="15" text-anchor="middle" font-weight="700">9</text>
+<text x="991" y="184" font-size="11" text-anchor="middle" class="faint">baking soda</text>
+<rect x="1045" y="96" width="96" height="70" class="cell"/>
+<text x="1093" y="136" font-size="15" text-anchor="middle" font-weight="700">10</text>
+<text x="1093" y="184" font-size="11" text-anchor="middle" class="faint"></text>
+<rect x="1141" y="96" width="96" height="70" class="cell"/>
+<text x="1189" y="136" font-size="15" text-anchor="middle" font-weight="700">11</text>
+<text x="1189" y="184" font-size="11" text-anchor="middle" class="faint">ammonia</text>
+<rect x="1237" y="96" width="96" height="70" class="cell"/>
+<text x="1285" y="136" font-size="15" text-anchor="middle" font-weight="700">12</text>
+<text x="1285" y="184" font-size="11" text-anchor="middle" class="faint"></text>
+<rect x="1333" y="96" width="96" height="70" class="cell"/>
+<text x="1381" y="136" font-size="15" text-anchor="middle" font-weight="700">13</text>
+<text x="1381" y="184" font-size="11" text-anchor="middle" class="faint">bleach</text>
+<rect x="1429" y="96" width="96" height="70" class="cell"/>
+<text x="1477" y="136" font-size="15" text-anchor="middle" font-weight="700">14</text>
+<text x="1477" y="184" font-size="11" text-anchor="middle" class="faint">lye</text>
+<text x="28" y="242" font-size="12" class="faint">← acidic — more H⁺</text>
+<text x="1525" y="242" font-size="12" text-anchor="end" class="faint">basic / alkaline — more OH⁻ →</text>
+<text x="28" y="262" font-size="12" class="faint">pH = −log[H⁺]. 7 is neutral. Each step is 10×: pH 4 is 10× more acidic than pH 5, and 100× more than pH 6.</text>
+</svg>

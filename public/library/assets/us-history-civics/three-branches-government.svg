@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 886 396" role="img" aria-label="The Three Branches of Government">
+<title>The Three Branches of Government</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="886" height="396"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">The Three Branches of Government</text>
+<text x="28" y="66" font-size="13" class="faint">Separation of powers under the U.S. Constitution, with checks and balances.</text>
+<rect x="28" y="116" width="250" height="150" class="cell"/>
+<text x="153" y="140" font-size="16" text-anchor="middle" font-weight="700">LEGISLATIVE</text>
+<text x="153" y="160" font-size="12" text-anchor="middle" class="faint">Congress: Senate + House</text>
+<text x="42" y="184" font-size="12">• Makes laws</text>
+<text x="42" y="202" font-size="12">• Controls the budget</text>
+<text x="42" y="220" font-size="12">• Declares war</text>
+<text x="42" y="238" font-size="12">• Confirms / impeaches</text>
+<rect x="318" y="116" width="250" height="150" class="cell"/>
+<text x="443" y="140" font-size="16" text-anchor="middle" font-weight="700">EXECUTIVE</text>
+<text x="443" y="160" font-size="12" text-anchor="middle" class="faint">President + Cabinet</text>
+<text x="332" y="184" font-size="12">• Enforces laws</text>
+<text x="332" y="202" font-size="12">• Commander-in-chief</text>
+<text x="332" y="220" font-size="12">• Vetoes bills</text>
+<text x="332" y="238" font-size="12">• Appoints judges</text>
+<rect x="608" y="116" width="250" height="150" class="cell"/>
+<text x="733" y="140" font-size="16" text-anchor="middle" font-weight="700">JUDICIAL</text>
+<text x="733" y="160" font-size="12" text-anchor="middle" class="faint">Supreme Court + courts</text>
+<text x="622" y="184" font-size="12">• Interprets laws</text>
+<text x="622" y="202" font-size="12">• Judicial review</text>
+<text x="622" y="220" font-size="12">• Can rule acts</text>
+<text x="622" y="238" font-size="12">• unconstitutional</text>
+<text x="28" y="306" font-size="14" font-weight="700">Checks &amp; balances:</text>
+<text x="28" y="330" font-size="12">• Congress passes laws → President can veto → Congress can override with 2/3 vote.</text>
+<text x="28" y="350" font-size="12">• President appoints judges → Senate must confirm them.</text>
+<text x="28" y="370" font-size="12">• Courts can declare a law (Congress) or action (President) unconstitutional.</text>
+</svg>

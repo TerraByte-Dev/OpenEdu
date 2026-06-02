@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 670 320" role="img" aria-label="Gas Laws">
+<title>Gas Laws</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="670" height="320"/>
+<text x="28" y="50" font-size="26" font-weight="700">Gas Laws</text>
+<text x="28" y="72" font-size="13" class="faint">T must be in kelvin (K = °C + 273.15)</text>
+<text x="28" y="107" font-size="15" font-weight="700">Law</text>
+<text x="163" y="107" font-size="15" font-weight="700">Relationship</text>
+<text x="343" y="107" font-size="15" font-weight="700">Held constant</text>
+<line x1="28" y1="113" x2="514" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Boyle's</text>
+<text x="163" y="132" font-size="15">P₁V₁ = P₂V₂</text>
+<text x="343" y="132" font-size="15">T, n</text>
+<text x="28" y="157" font-size="15">Charles's</text>
+<text x="163" y="157" font-size="15">V₁/T₁ = V₂/T₂</text>
+<text x="343" y="157" font-size="15">P, n</text>
+<text x="28" y="182" font-size="15">Gay-Lussac's</text>
+<text x="163" y="182" font-size="15">P₁/T₁ = P₂/T₂</text>
+<text x="343" y="182" font-size="15">V, n</text>
+<text x="28" y="207" font-size="15">Combined</text>
+<text x="163" y="207" font-size="15">P₁V₁/T₁ = P₂V₂/T₂</text>
+<text x="343" y="207" font-size="15">n</text>
+<text x="28" y="232" font-size="15">Ideal gas</text>
+<text x="163" y="232" font-size="15">PV = nRT</text>
+<text x="343" y="232" font-size="15">R = 8.314 J/(mol·K)</text>
+<text x="28" y="262" font-size="14">P = pressure, V = volume, n = moles, T = temperature. Boyle: pressure and</text>
+<text x="28" y="286" font-size="14">volume are inversely related; Charles: volume rises with temperature.</text>
+</svg>

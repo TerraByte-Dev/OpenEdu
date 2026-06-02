@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 522" role="img" aria-label="Linear Equations &amp; Slope">
+<title>Linear Equations &amp; Slope</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="560" height="522"/>
+<text x="28" y="40" font-size="26" font-weight="700">Linear Equations &amp; Slope</text>
+<text x="28" y="66" font-size="13" class="faint">a line: y = ½x + 1 (slope ½, y-intercept 1)</text>
+<rect x="28" y="92" width="504" height="360" class="cell"/>
+<line x1="28" y1="92" x2="28" y2="452" class="rule-faint"/>
+<line x1="78.4" y1="92" x2="78.4" y2="452" class="rule-faint"/>
+<line x1="128.8" y1="92" x2="128.8" y2="452" class="rule-faint"/>
+<line x1="179.2" y1="92" x2="179.2" y2="452" class="rule-faint"/>
+<line x1="280" y1="92" x2="280" y2="452" class="rule-faint"/>
+<line x1="330.4" y1="92" x2="330.4" y2="452" class="rule-faint"/>
+<line x1="380.8" y1="92" x2="380.8" y2="452" class="rule-faint"/>
+<line x1="431.2" y1="92" x2="431.2" y2="452" class="rule-faint"/>
+<line x1="481.6" y1="92" x2="481.6" y2="452" class="rule-faint"/>
+<line x1="532" y1="92" x2="532" y2="452" class="rule-faint"/>
+<line x1="28" y1="452" x2="532" y2="452" class="rule-faint"/>
+<line x1="28" y1="407" x2="532" y2="407" class="rule-faint"/>
+<line x1="28" y1="362" x2="532" y2="362" class="rule-faint"/>
+<line x1="28" y1="272" x2="532" y2="272" class="rule-faint"/>
+<line x1="28" y1="227" x2="532" y2="227" class="rule-faint"/>
+<line x1="28" y1="182" x2="532" y2="182" class="rule-faint"/>
+<line x1="28" y1="137" x2="532" y2="137" class="rule-faint"/>
+<line x1="28" y1="92" x2="532" y2="92" class="rule-faint"/>
+<line x1="229.6" y1="92" x2="229.6" y2="452" class="rule"/>
+<line x1="28" y1="317" x2="532" y2="317" class="rule"/>
+<polyline points="28,362 532,137" fill="none" stroke="var(--oe-svg-ink,#111)" stroke-width="2"/>
+<circle cx="229.6" cy="272" r="4" class="fill-faint"/>
+<text x="236.6" y="268" font-size="10">(0, 1)</text>
+<text x="28" y="492" font-size="12" class="faint">Slope-intercept: y = mx + b.  Point-slope: y − y₁ = m(x − x₁).  Standard: Ax + By = C.  Slope m = (y₂−y₁)/(x₂−x₁).  Parallel: equal slopes; perpendicular: slopes multiply to −1.</text>
+</svg>

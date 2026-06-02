@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 649 461" role="img" aria-label="Probability &amp; Statistics Formula Sheet">
+<title>Probability &amp; Statistics Formula Sheet</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="649" height="461"/>
+<text x="28" y="50" font-size="26" font-weight="700">Probability &amp; Statistics Formula Sheet</text>
+<text x="28" y="91" font-size="17" font-weight="700">Measures of center &amp; spread</text>
+<text x="28" y="120" font-size="15" xml:space="preserve">Mean   x̄ = (Σx) / n</text>
+<text x="28" y="145" font-size="15" xml:space="preserve">Median = middle value (mean of two middles if n is even)</text>
+<text x="28" y="170" font-size="15" xml:space="preserve">Mode   = most frequent value     Range = max − min</text>
+<text x="28" y="195" font-size="15" xml:space="preserve">Variance  σ² = Σ(x − μ)² / N      Std. dev.  σ = √σ²</text>
+<text x="28" y="232" font-size="17" font-weight="700">Probability</text>
+<text x="28" y="261" font-size="15" xml:space="preserve">P(event) = favorable outcomes / total outcomes,  0 ≤ P ≤ 1</text>
+<text x="28" y="286" font-size="15" xml:space="preserve">Complement   P(not A) = 1 − P(A)</text>
+<text x="28" y="311" font-size="15" xml:space="preserve">Addition     P(A or B) = P(A) + P(B) − P(A and B)</text>
+<text x="28" y="336" font-size="15" xml:space="preserve">Multiplication (independent)  P(A and B) = P(A)·P(B)</text>
+<text x="28" y="373" font-size="17" font-weight="700">Counting</text>
+<text x="28" y="402" font-size="15" xml:space="preserve">Permutations  ₙPᵣ = n!/(n−r)!</text>
+<text x="28" y="427" font-size="15" xml:space="preserve">Combinations  ₙCᵣ = n!/(r!(n−r)!)</text>
+</svg>

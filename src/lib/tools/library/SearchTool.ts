@@ -14,10 +14,12 @@ import type { LibrarySearchResult } from "../../../types";
 export const librarySearchTool = defineTool({
   name: "library.search",
   description:
-    "Look up a curated educational reference from the OpenEdu Library — canonical facts and reference " +
-    "a textbook would contain (periodic table, unit circle, formulas, constants, definitions, verb " +
-    "tables…). CALL THIS before answering a factual/reference question, then ground your answer in the " +
-    "returned card and cite it. Not for the student's own notes (use notebook.search for those).",
+    "Search the OpenEdu Library for a curated reference CARD on a TOPIC — a whole sheet you read " +
+    "(periodic table, the unit circle, a formula sheet, a labeled diagram, a concept definition). CALL " +
+    "THIS before answering a factual/reference question, then ground your answer in the returned card " +
+    "and cite it. For a single precise fact from a structured dataset (a specific president, country, " +
+    "currency, chemical formula, base conversion, or verb conjugation), use library.lookup instead. " +
+    "Not for the student's own notes (use notebook.search for those).",
   inputSchema: z.object({
     query: z.string().min(1).describe("The reference to look up, in natural language (e.g. 'periodic table')."),
   }),
