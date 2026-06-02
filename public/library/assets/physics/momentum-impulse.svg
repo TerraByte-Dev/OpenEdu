@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 393" role="img" aria-label="Momentum &amp; Impulse">
+<title>Momentum &amp; Impulse</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="393"/>
+<text x="28" y="50" font-size="26" font-weight="700">Momentum &amp; Impulse</text>
+<text x="28" y="72" font-size="13" class="faint">p = momentum (kg·m/s), J = impulse (N·s)</text>
+<text x="28" y="107" font-size="15" xml:space="preserve">Momentum      p = m·v</text>
+<text x="28" y="132" font-size="15" xml:space="preserve">Impulse       J = F·Δt = Δp = m·Δv</text>
+<text x="28" y="157" font-size="15" xml:space="preserve">Newton's 2nd  F = Δp / Δt</text>
+<text x="28" y="194" font-size="17" font-weight="700">Conservation of momentum</text>
+<text x="28" y="222" font-size="14">In an isolated system (no external net force), total momentum is conserved:</text>
+<text x="28" y="246" font-size="14">Σp before = Σp after. For two bodies: m₁u₁ + m₂u₂ = m₁v₁ + m₂v₂.</text>
+<text x="28" y="283" font-size="17" font-weight="700">Collisions</text>
+<text x="28" y="311" font-size="14" xml:space="preserve">• Elastic: momentum AND kinetic energy conserved (objects bounce apart).</text>
+<text x="28" y="335" font-size="14" xml:space="preserve">• Inelastic: momentum conserved; kinetic energy is not (some → heat/sound).</text>
+<text x="28" y="359" font-size="14" xml:space="preserve">• Perfectly inelastic: objects stick together and move as one.</text>
+</svg>
