@@ -79,8 +79,9 @@
   --rule:           rgb(var(--phosphor-rgb) / 0.18);
   --rule-dim:       rgb(var(--phosphor-rgb) / 0.08);
   --ink:            #6DD4EE;
+  --ink-em:         #EAF4F9; /* off-white for emphasis (italics) — readable against the cyan body text */
   --ink-dim:        rgb(var(--ink-rgb) / 0.55);
-  --ink-faint:      rgb(var(--ink-rgb) / 0.30);
+  --ink-faint:      rgb(var(--ink-rgb) / 0.42); /* subtitles/captions — lightened a touch for readability */
   --crt-scanline-opacity: 0.06;
   --crt-vignette-opacity: 0.35;
   --crt-aberration: 0.4px;
@@ -194,6 +195,11 @@ body {
   animation: flicker 6s steps(60) infinite;
   mix-blend-mode: screen;
 }
+
+/* "CRT Off" — toggling .crt-off on <html> (persisted via the titlebar button) hides the scanlines,
+   grid, vignette, noise, and flicker for maximum readability when the lines feel overbearing. */
+html.crt-off .crt-stack,
+html.crt-off .term-grid-bg { display: none; }
 
 /* ═══════════════════════════════════════════════════════════════
    KEYFRAME ANIMATIONS
@@ -713,7 +719,7 @@ body {
 }
 .note-prose a:hover { color: var(--phosphor-bright); }
 .note-prose strong { color: var(--phosphor-ink); font-weight: 600; }
-.note-prose em     { color: var(--phosphor-dim); font-style: italic; }
+.note-prose em     { color: var(--ink-em); font-style: italic; }
 .note-prose table {
   border-collapse: collapse;
   width: 100%;
