@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 677 320" role="img" aria-label="Major World Religions">
+<title>Major World Religions</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="677" height="320"/>
+<text x="28" y="50" font-size="26" font-weight="700">Major World Religions</text>
+<text x="28" y="72" font-size="13" class="faint">origin — text — size (recent estimates)</text>
+<text x="28" y="107" font-size="15" font-weight="700">Religion</text>
+<text x="163" y="107" font-size="15" font-weight="700">Founder/Origin</text>
+<text x="316" y="107" font-size="15" font-weight="700">Began</text>
+<text x="433" y="107" font-size="15" font-weight="700">Text</text>
+<text x="541" y="107" font-size="15" font-weight="700">Adherents</text>
+<line x1="28" y1="113" x2="649" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Judaism</text>
+<text x="163" y="132" font-size="15">Abraham</text>
+<text x="316" y="132" font-size="15">c.1800 BCE</text>
+<text x="433" y="132" font-size="15">Torah</text>
+<text x="541" y="132" font-size="15">~15 million</text>
+<text x="28" y="157" font-size="15">Christianity</text>
+<text x="163" y="157" font-size="15">Jesus</text>
+<text x="316" y="157" font-size="15">c.30 CE</text>
+<text x="433" y="157" font-size="15">Bible</text>
+<text x="541" y="157" font-size="15">~2.4 billion</text>
+<text x="28" y="182" font-size="15">Islam</text>
+<text x="163" y="182" font-size="15">Muhammad</text>
+<text x="316" y="182" font-size="15">c.610 CE</text>
+<text x="433" y="182" font-size="15">Qur'an</text>
+<text x="541" y="182" font-size="15">~1.9 billion</text>
+<text x="28" y="207" font-size="15">Hinduism</text>
+<text x="163" y="207" font-size="15">(no founder)</text>
+<text x="316" y="207" font-size="15">c.1500 BCE</text>
+<text x="433" y="207" font-size="15">Vedas</text>
+<text x="541" y="207" font-size="15">~1.2 billion</text>
+<text x="28" y="232" font-size="15">Buddhism</text>
+<text x="163" y="232" font-size="15">the Buddha</text>
+<text x="316" y="232" font-size="15">c.500 BCE</text>
+<text x="433" y="232" font-size="15">Tripitaka</text>
+<text x="541" y="232" font-size="15">~500 million</text>
+<text x="28" y="262" font-size="14">Abrahamic (one God): Judaism, Christianity, Islam. Dharmic (India):</text>
+<text x="28" y="286" font-size="14">Hinduism, Buddhism. Largest: Christianity, then Islam.</text>
+</svg>

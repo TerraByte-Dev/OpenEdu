@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 661 431" role="img" aria-label="Federalism — Who Holds Which Powers">
+<title>Federalism — Who Holds Which Powers</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="661" height="431"/>
+<text x="28" y="50" font-size="26" font-weight="700">Federalism — Who Holds Which Powers</text>
+<text x="28" y="72" font-size="13" class="faint">national · shared · state</text>
+<text x="28" y="113" font-size="17" font-weight="700">Federal only (delegated)</text>
+<text x="28" y="141" font-size="14" xml:space="preserve">• Coin money · declare war · raise armed forces</text>
+<text x="28" y="165" font-size="14" xml:space="preserve">• Regulate interstate &amp; foreign commerce · make treaties</text>
+<text x="28" y="189" font-size="14" xml:space="preserve">• Postal system · immigration/naturalization · admit new states</text>
+<text x="28" y="226" font-size="17" font-weight="700">Shared (concurrent)</text>
+<text x="28" y="254" font-size="14" xml:space="preserve">• Tax · borrow · build roads · establish courts</text>
+<text x="28" y="278" font-size="14" xml:space="preserve">• Make &amp; enforce laws · charter banks</text>
+<text x="28" y="315" font-size="17" font-weight="700">State only (reserved — 10th Amendment)</text>
+<text x="28" y="343" font-size="14" xml:space="preserve">• Public schools · run elections · licenses (driver, marriage)</text>
+<text x="28" y="367" font-size="14" xml:space="preserve">• Commerce within the state · local government · police powers</text>
+<text x="28" y="397" font-size="14">Supremacy Clause (Art. VI): federal law overrides conflicting state law.</text>
+</svg>

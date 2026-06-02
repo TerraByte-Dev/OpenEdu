@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 395" role="img" aria-label="Causes of the American Revolution">
+<title>Causes of the American Revolution</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="830" height="395"/>
+<text x="28" y="50" font-size="26" font-weight="700">Causes of the American Revolution</text>
+<text x="28" y="72" font-size="13" class="faint">from war debt to independence</text>
+<text x="28" y="107" font-size="15">1763</text>
+<text x="91" y="107" font-size="15">Proclamation of 1763</text>
+<text x="361" y="107" font-size="15">no settling west of the Appalachians</text>
+<text x="28" y="132" font-size="15">1764</text>
+<text x="91" y="132" font-size="15">Sugar Act</text>
+<text x="361" y="132" font-size="15">tax on sugar / molasses</text>
+<text x="28" y="157" font-size="15">1765</text>
+<text x="91" y="157" font-size="15">Stamp Act</text>
+<text x="361" y="157" font-size="15">direct tax → 'no taxation without representation'</text>
+<text x="28" y="182" font-size="15">1767</text>
+<text x="91" y="182" font-size="15">Townshend Acts</text>
+<text x="361" y="182" font-size="15">import taxes; boycotts grow</text>
+<text x="28" y="207" font-size="15">1770</text>
+<text x="91" y="207" font-size="15">Boston Massacre</text>
+<text x="361" y="207" font-size="15">British troops kill 5 colonists</text>
+<text x="28" y="232" font-size="15">1773</text>
+<text x="91" y="232" font-size="15">Boston Tea Party</text>
+<text x="361" y="232" font-size="15">protest of the Tea Act</text>
+<text x="28" y="257" font-size="15">1774</text>
+<text x="91" y="257" font-size="15">Intolerable Acts</text>
+<text x="361" y="257" font-size="15">punish Boston → First Continental Congress</text>
+<text x="28" y="282" font-size="15">1775</text>
+<text x="91" y="282" font-size="15">Lexington &amp; Concord</text>
+<text x="361" y="282" font-size="15">first battles of the war</text>
+<text x="28" y="307" font-size="15">1776</text>
+<text x="91" y="307" font-size="15">Declaration of Independence</text>
+<text x="361" y="307" font-size="15">colonies break from Britain (July 4)</text>
+<text x="28" y="337" font-size="14">Root cause: Britain taxed the colonies to pay French &amp; Indian War (1754–63)</text>
+<text x="28" y="361" font-size="14">debt, without colonial representation in Parliament.</text>
+</svg>

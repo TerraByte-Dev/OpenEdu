@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 785 295" role="img" aria-label="Classical Civilizations">
+<title>Classical Civilizations</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="785" height="295"/>
+<text x="28" y="50" font-size="26" font-weight="700">Classical Civilizations</text>
+<text x="28" y="72" font-size="13" class="faint">c. 800 BCE – 500 CE</text>
+<text x="28" y="107" font-size="15" font-weight="700">Civilization</text>
+<text x="235" y="107" font-size="15" font-weight="700">Dates</text>
+<text x="388" y="107" font-size="15" font-weight="700">Known for</text>
+<line x1="28" y1="113" x2="757" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Greece</text>
+<text x="235" y="132" font-size="15">800–146 BCE</text>
+<text x="388" y="132" font-size="15">democracy, philosophy, the Olympics</text>
+<text x="28" y="157" font-size="15">Rome</text>
+<text x="235" y="157" font-size="15">509 BCE–476 CE</text>
+<text x="388" y="157" font-size="15">law, roads, Latin, spread of Christianity</text>
+<text x="28" y="182" font-size="15">Han China</text>
+<text x="235" y="182" font-size="15">206 BCE–220 CE</text>
+<text x="388" y="182" font-size="15">the Silk Road, paper, Confucianism</text>
+<text x="28" y="207" font-size="15">India (Maurya/Gupta)</text>
+<text x="235" y="207" font-size="15">322 BCE–550 CE</text>
+<text x="388" y="207" font-size="15">zero &amp; decimals; Buddhism &amp; Hinduism</text>
+<text x="28" y="237" font-size="14">Greece gave democracy; Rome gave republics and law; Han China centralized</text>
+<text x="28" y="261" font-size="14">bureaucracy; India advanced mathematics.</text>
+</svg>
