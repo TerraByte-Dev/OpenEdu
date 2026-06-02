@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 690 460" role="img" aria-label="Electron Configuration &amp; Shells">
+<title>Electron Configuration &amp; Shells</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="690" height="460"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">Electron Configuration &amp; Shells</text>
+<text x="28" y="66" font-size="13" class="faint">electron shells around the nucleus (Bohr view)</text>
+<circle cx="186" cy="254" r="28" class="fill-faint"/>
+<text x="186" y="258" font-size="12" text-anchor="middle" font-weight="700">nucleus +</text>
+<circle cx="186" cy="254" r="64" class="rule-faint"/>
+<circle cx="231.3" cy="208.7" r="4" class="fill-faint"/>
+<line x1="235.3" y1="208.7" x2="364" y2="116" class="rule-faint"/>
+<text x="370" y="120" font-size="12">n = 1  —  1s — holds up to 2 e⁻</text>
+<circle cx="186" cy="254" r="94" class="rule-faint"/>
+<circle cx="252.5" cy="187.5" r="4" class="fill-faint"/>
+<line x1="256.5" y1="187.5" x2="364" y2="146" class="rule-faint"/>
+<text x="370" y="150" font-size="12">n = 2  —  2s 2p — holds up to 8 e⁻</text>
+<circle cx="186" cy="254" r="124" class="rule-faint"/>
+<circle cx="273.7" cy="166.3" r="4" class="fill-faint"/>
+<line x1="277.7" y1="166.3" x2="364" y2="176" class="rule-faint"/>
+<text x="370" y="180" font-size="12">n = 3  —  3s 3p 3d — holds up to 18 e⁻</text>
+<circle cx="186" cy="254" r="154" class="rule-faint"/>
+<circle cx="294.9" cy="145.1" r="4" class="fill-faint"/>
+<line x1="298.9" y1="145.1" x2="364" y2="206" class="rule-faint"/>
+<text x="370" y="210" font-size="12">n = 4  —  4s 4p 4d 4f — holds up to 32 e⁻</text>
+<text x="28" y="448" font-size="12" class="faint">Aufbau order: 1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s. Subshell caps s=2, p=6, d=10, f=14. Shell n holds 2n² electrons.</text>
+</svg>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 346" role="img" aria-label="Laws of Exponents">
+<title>Laws of Exponents</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="346"/>
+<text x="28" y="50" font-size="26" font-weight="700">Laws of Exponents</text>
+<text x="28" y="72" font-size="13" class="faint">a, b ≠ 0; m, n are integers (or rationals)</text>
+<text x="28" y="107" font-size="15" xml:space="preserve">Product rule        aᵐ · aⁿ = aᵐ⁺ⁿ</text>
+<text x="28" y="132" font-size="15" xml:space="preserve">Quotient rule       aᵐ ÷ aⁿ = aᵐ⁻ⁿ</text>
+<text x="28" y="157" font-size="15" xml:space="preserve">Power of a power    (aᵐ)ⁿ = aᵐⁿ</text>
+<text x="28" y="182" font-size="15" xml:space="preserve">Power of a product  (ab)ⁿ = aⁿ·bⁿ</text>
+<text x="28" y="207" font-size="15" xml:space="preserve">Power of a quotient (a/b)ⁿ = aⁿ / bⁿ</text>
+<text x="28" y="232" font-size="15" xml:space="preserve">Zero exponent       a⁰ = 1</text>
+<text x="28" y="257" font-size="15" xml:space="preserve">Negative exponent   a⁻ⁿ = 1 / aⁿ</text>
+<text x="28" y="282" font-size="15" xml:space="preserve">Fractional exponent  a^(m/n) = ⁿ√(aᵐ) = (ⁿ√a)ᵐ</text>
+<text x="28" y="312" font-size="14">Examples: 2³·2⁴ = 2⁷ = 128; x⁵/x² = x³; (3²)³ = 3⁶; 5⁻² = 1/25; 8^(1/3) = 2.</text>
+</svg>

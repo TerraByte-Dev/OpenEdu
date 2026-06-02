@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 614 282" role="img" aria-label="Ohm's Law &amp; Circuit Equations">
+<title>Ohm's Law &amp; Circuit Equations</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="614" height="282"/>
+<text x="28" y="50" font-size="26" font-weight="700">Ohm's Law &amp; Circuit Equations</text>
+<text x="28" y="72" font-size="13" class="faint">V = voltage (V), I = current (A), R = resistance (Ω)</text>
+<text x="28" y="107" font-size="15" xml:space="preserve">Ohm's law   V = I·R</text>
+<text x="28" y="132" font-size="15" xml:space="preserve">Power       P = V·I = I²·R = V²/R</text>
+<text x="28" y="157" font-size="15" xml:space="preserve">Charge      Q = I·t</text>
+<text x="28" y="194" font-size="17" font-weight="700">Combining resistors</text>
+<text x="28" y="223" font-size="15" xml:space="preserve">Series     R = R₁ + R₂ + …    (same current; voltages add)</text>
+<text x="28" y="248" font-size="15" xml:space="preserve">Parallel   1/R = 1/R₁ + 1/R₂ + …  (same voltage; currents add)</text>
+</svg>

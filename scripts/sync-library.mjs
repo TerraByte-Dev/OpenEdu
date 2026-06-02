@@ -24,7 +24,7 @@ try {
 
 await rm(DEST, { recursive: true, force: true });
 await mkdir(DEST, { recursive: true });
-for (const item of ["index.json", "resources", "assets"]) {
+for (const item of ["index.json", "resources", "assets", "datasets"]) {
   await cp(join(SRC, item), join(DEST, item), { recursive: true });
 }
 console.log(`sync-library: refreshed public/library/ from ${SRC}`);

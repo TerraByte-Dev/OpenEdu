@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 722 820" role="img" aria-label="The 27 Constitutional Amendments">
+<title>The 27 Constitutional Amendments</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="722" height="820"/>
+<text x="28" y="50" font-size="26" font-weight="700">The 27 Constitutional Amendments</text>
+<text x="28" y="72" font-size="13" class="faint">Amendments 1–10 are the Bill of Rights (ratified 1791)</text>
+<text x="28" y="113" font-size="17" font-weight="700">Bill of Rights (1–10, 1791)</text>
+<text x="28" y="142" font-size="15">1</text>
+<text x="73" y="142" font-size="15">Freedom of religion, speech, press, assembly, and petition</text>
+<text x="28" y="167" font-size="15">2</text>
+<text x="73" y="167" font-size="15">Right to keep and bear arms</text>
+<text x="28" y="192" font-size="15">3</text>
+<text x="73" y="192" font-size="15">No forced quartering of soldiers in homes</text>
+<text x="28" y="217" font-size="15">4</text>
+<text x="73" y="217" font-size="15">No unreasonable searches or seizures (warrants need probable cause)</text>
+<text x="28" y="242" font-size="15">5</text>
+<text x="73" y="242" font-size="15">Due process; no double jeopardy or self-incrimination; eminent domain</text>
+<text x="28" y="267" font-size="15">6</text>
+<text x="73" y="267" font-size="15">Speedy, public jury trial; right to counsel and to confront witnesses</text>
+<text x="28" y="292" font-size="15">7</text>
+<text x="73" y="292" font-size="15">Right to a jury trial in civil cases</text>
+<text x="28" y="317" font-size="15">8</text>
+<text x="73" y="317" font-size="15">No excessive bail or fines; no cruel and unusual punishment</text>
+<text x="28" y="342" font-size="15">9</text>
+<text x="73" y="342" font-size="15">Rights not listed are still retained by the people</text>
+<text x="28" y="367" font-size="15">10</text>
+<text x="73" y="367" font-size="15">Powers not given to the U.S. are reserved to the states or the people</text>
+<text x="28" y="404" font-size="17" font-weight="700">Later amendments (11–27)</text>
+<text x="28" y="433" font-size="15">13 (1865)</text>
+<text x="136" y="433" font-size="15">Abolished slavery</text>
+<text x="28" y="458" font-size="15">14 (1868)</text>
+<text x="136" y="458" font-size="15">Citizenship; equal protection; due process applied to states</text>
+<text x="28" y="483" font-size="15">15 (1870)</text>
+<text x="136" y="483" font-size="15">Vote cannot be denied by race</text>
+<text x="28" y="508" font-size="15">16 (1913)</text>
+<text x="136" y="508" font-size="15">Federal income tax</text>
+<text x="28" y="533" font-size="15">17 (1913)</text>
+<text x="136" y="533" font-size="15">Direct election of U.S. senators</text>
+<text x="28" y="558" font-size="15">18 (1919)</text>
+<text x="136" y="558" font-size="15">Prohibition of alcohol (repealed by the 21st)</text>
+<text x="28" y="583" font-size="15">19 (1920)</text>
+<text x="136" y="583" font-size="15">Women's right to vote</text>
+<text x="28" y="608" font-size="15">21 (1933)</text>
+<text x="136" y="608" font-size="15">Repealed Prohibition (the 18th)</text>
+<text x="28" y="633" font-size="15">22 (1951)</text>
+<text x="136" y="633" font-size="15">President limited to two terms</text>
+<text x="28" y="658" font-size="15">24 (1964)</text>
+<text x="136" y="658" font-size="15">Banned poll taxes</text>
+<text x="28" y="683" font-size="15">25 (1967)</text>
+<text x="136" y="683" font-size="15">Presidential succession and disability</text>
+<text x="28" y="708" font-size="15">26 (1971)</text>
+<text x="136" y="708" font-size="15">Voting age lowered to 18</text>
+<text x="28" y="738" font-size="14">Amendments 11, 12, 20, 23, 27 cover suits against states, the Electoral</text>
+<text x="28" y="762" font-size="14">College, terms of office, D.C. electors, and congressional pay. There are 27</text>
+<text x="28" y="786" font-size="14">amendments in total.</text>
+</svg>

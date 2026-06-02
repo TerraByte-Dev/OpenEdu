@@ -1,0 +1,110 @@
+[
+  {
+    "id": "country-profiles",
+    "title": "Country Profiles",
+    "summary": "Every country with its capital, continent, and currency (ISO 4217 code).",
+    "file": "datasets/country-profiles.json",
+    "rows": 197,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "currencies",
+    "title": "World Currencies",
+    "summary": "Major world currencies with their ISO 4217 code, symbol, and where they are used.",
+    "file": "datasets/currencies.json",
+    "rows": 49,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "nomenclature",
+    "title": "Chemical Nomenclature (Name ↔ Formula)",
+    "summary": "Common compounds with their chemical formula and bond type. A curated common-compound set.",
+    "file": "datasets/nomenclature.json",
+    "rows": 63,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "rulers-dynasties",
+    "title": "Rulers, Dynasties & Empires",
+    "summary": "A curated selection of major world rulers, dynasties, and empires with reign span and realm.",
+    "file": "datasets/rulers-dynasties.json",
+    "rows": 36,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "scotus-cases",
+    "title": "Landmark Supreme Court Cases",
+    "summary": "A curated selection of landmark U.S. Supreme Court decisions with the question and holding.",
+    "file": "datasets/scotus-cases.json",
+    "rows": 32,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "us-presidents",
+    "title": "US Presidents",
+    "summary": "Every U.S. president in order with term, party, and a one-line note.",
+    "file": "datasets/us-presidents.json",
+    "rows": 47,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "us-states",
+    "title": "US States",
+    "summary": "All 50 states (plus DC) with postal abbreviation, capital, statehood year, and region.",
+    "file": "datasets/us-states.json",
+    "rows": 51,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "verbs.es",
+    "title": "Spanish Verb Conjugations (present tense)",
+    "summary": "Present-tense conjugations of the most common Spanish verbs (irregular + model regular verbs).",
+    "file": "datasets/verbs.es.json",
+    "rows": 27,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "verbs.fr",
+    "title": "French Verb Conjugations (present tense)",
+    "summary": "Present-tense conjugations of the most common French verbs (irregular + model regular verbs).",
+    "file": "datasets/verbs.fr.json",
+    "rows": 24,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "vocabulary.es",
+    "title": "Spanish Core Vocabulary",
+    "summary": "High-frequency Spanish words by theme (numbers, colors, family, food, days, months, greetings).",
+    "file": "datasets/vocabulary.es.json",
+    "rows": 85,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "vocabulary.fr",
+    "title": "French Core Vocabulary",
+    "summary": "High-frequency French words by theme (numbers, colors, family, food, days, months, greetings).",
+    "file": "datasets/vocabulary.fr.json",
+    "rows": 84,
+    "verified": "2026-06",
+    "computed": false
+  },
+  {
+    "id": "wars-treaties",
+    "title": "Wars & Treaties",
+    "summary": "A curated selection of major wars and the treaties that ended them, with parties and outcomes.",
+    "file": "datasets/wars-treaties.json",
+    "rows": 26,
+    "verified": "2026-06",
+    "computed": false
+  }
+]

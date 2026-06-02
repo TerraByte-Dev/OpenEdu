@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 666 366" role="img" aria-label="Photosynthesis vs Cellular Respiration">
+<title>Photosynthesis vs Cellular Respiration</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="666" height="366"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">Photosynthesis vs Cellular Respiration</text>
+<text x="28" y="66" font-size="13" class="faint">two mirror processes that cycle carbon and energy</text>
+<rect x="28" y="126" width="230" height="120" class="cell"/>
+<text x="143" y="150" font-size="15" text-anchor="middle" font-weight="700">6 CO₂ + 6 H₂O</text>
+<text x="143" y="176" font-size="13" text-anchor="middle">carbon dioxide</text>
+<text x="143" y="198" font-size="13" text-anchor="middle">+ water</text>
+<text x="143" y="220" font-size="13" text-anchor="middle">(+ light energy)</text>
+<rect x="408" y="126" width="230" height="120" class="cell"/>
+<text x="523" y="150" font-size="15" text-anchor="middle" font-weight="700">C₆H₁₂O₆ + 6 O₂</text>
+<text x="523" y="176" font-size="13" text-anchor="middle">glucose</text>
+<text x="523" y="198" font-size="13" text-anchor="middle">+ oxygen</text>
+<line x1="264" y1="154" x2="402" y2="154" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="333" y="144" font-size="12" text-anchor="middle" font-weight="700">Photosynthesis (chloroplasts) →</text>
+<line x1="402" y1="218" x2="264" y2="218" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="333" y="236" font-size="12" text-anchor="middle" font-weight="700">← Cellular respiration (mitochondria)</text>
+<text x="28" y="296" font-size="12" class="faint">Photosynthesis stores light energy in glucose (plants, algae). Respiration releases it as ATP (nearly all living cells). The products of one are the reactants of the other.</text>
+</svg>
