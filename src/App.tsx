@@ -8,7 +8,7 @@ import Titlebar from "./components/Titlebar";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
-import Settings from "./views/Settings";
+import Settings from "./views/settings/Settings";
 import QuizFullScreen from "./views/QuizFullScreen";
 import PromotionTestFullScreen from "./views/PromotionTestFullScreen";
 

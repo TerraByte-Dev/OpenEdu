@@ -1,6 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LLMProvider } from "../types";
+import { getCrtOff, setCrtOff, getThemeId, themeSupportsCrt } from "../lib/theme";
 
 const PROVIDER_LABEL: Record<LLMProvider, string> = {
   ollama: "Ollama",
@@ -22,17 +23,20 @@ interface TitlebarProps {
 export default function Titlebar({ provider, onGoSettings }: TitlebarProps) {
   const win = getCurrentWindow();
 
-  // "CRT Off" toggle — flips .crt-off on <html> (hides the scanlines/grid/vignette via CSS) and
-  // persists the choice. Initialized from the class main.tsx applied at boot from localStorage.
-  const [crtOff, setCrtOff] = useState(() =>
-    typeof document !== "undefined" && document.documentElement.classList.contains("crt-off"),
-  );
-  const toggleCrt = () => {
-    const next = !crtOff;
-    setCrtOff(next);
-    document.documentElement.classList.toggle("crt-off", next);
-    try { localStorage.setItem("oe-crt-off", next ? "1" : "0"); } catch { /* ignore */ }
-  };
+  // "CRT Off" toggle — shares state with the Appearance tab via src/lib/theme.ts (persists oe-crt-off +
+  // broadcasts oe-crt-change). The button is hidden on universal (Dark/Light) themes, where the CRT
+  // overlay is intrinsically off. Tracks the active theme so it appears/disappears as the theme changes.
+  const [crtOff, setCrtOffState] = useState(getCrtOff);
+  const [themeId, setThemeId] = useState(getThemeId);
+  useEffect(() => {
+    const onCrt = () => setCrtOffState(getCrtOff());
+    const onTheme = () => setThemeId(getThemeId());
+    window.addEventListener("oe-crt-change", onCrt);
+    window.addEventListener("oe-theme-change", onTheme);
+    return () => { window.removeEventListener("oe-crt-change", onCrt); window.removeEventListener("oe-theme-change", onTheme); };
+  }, []);
+  const toggleCrt = () => setCrtOff(!crtOff);
+  const showCrtToggle = themeSupportsCrt(themeId);
 
   return (
     <div
@@ -67,22 +71,24 @@ export default function Titlebar({ provider, onGoSettings }: TitlebarProps) {
             {PROVIDER_LABEL[provider]}
           </span>
         </span>
-        <button
-          onClick={toggleCrt}
-          className="p-0.5 text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors"
-          title={crtOff ? "CRT effect off — click to enable" : "CRT effect on — click to disable"}
-          aria-pressed={!crtOff}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="2.5" y="3.5" width="19" height="13" rx="1.5" />
-            <path d="M9 20.5h6M12 16.5v4" />
-            {crtOff ? (
-              <path d="M4 5l16 11" strokeWidth="1.5" />
-            ) : (
-              <path d="M3 8h18M3 11h18M3 14h18" strokeWidth="0.7" opacity="0.6" />
-            )}
-          </svg>
-        </button>
+        {showCrtToggle && (
+          <button
+            onClick={toggleCrt}
+            className="p-0.5 text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors"
+            title={crtOff ? "CRT effect off — click to enable" : "CRT effect on — click to disable"}
+            aria-pressed={!crtOff}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="2.5" y="3.5" width="19" height="13" rx="1.5" />
+              <path d="M9 20.5h6M12 16.5v4" />
+              {crtOff ? (
+                <path d="M4 5l16 11" strokeWidth="1.5" />
+              ) : (
+                <path d="M3 8h18M3 11h18M3 14h18" strokeWidth="0.7" opacity="0.6" />
+              )}
+            </svg>
+          </button>
+        )}
         <button
           onClick={onGoSettings}
           className="p-0.5 text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors"
