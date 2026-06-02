@@ -22,8 +22,7 @@ const FULL_CARD = 100_000;
 
 // Browse-grid tuning.
 const PAGE_SIZE = 24;        // tiles per page (fills a 3-col grid × 8 rows)
-const REC = "__rec__";       // pseudo-filter: cards recommended for this course
-const ALL = "__all__";       // pseudo-filter: the whole library, A–Z
+const ALL = "__all__";       // browse pseudo-filter: the whole library, A–Z (vs. a specific subject)
 
 // Pretty names for the coarse `subject` slugs used as category chips. Unknown slugs fall back to a
 // title-cased form, so new subjects (batch 4/5: economics, world-history…) surface automatically.
@@ -51,7 +50,10 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
   const [manifest, setManifest] = useState<LibraryEntry[]>([]);
   const [loadingManifest, setLoadingManifest] = useState(true);
   const [query, setQuery] = useState("");
-  const [activeSubject, setActiveSubject] = useState<string>(REC); // chip selection (REC | ALL | <subject>)
+  // Home shows the course-recommended grid; "View library" flips `browsing` on to reveal the full
+  // corpus with subject-filter chips. `activeSubject` (ALL | <subject>) only matters while browsing.
+  const [browsing, setBrowsing] = useState(false);
+  const [activeSubject, setActiveSubject] = useState<string>(ALL);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<LibraryEntry | null>(null);
   const [body, setBody] = useState<{ text: string; url: string } | null>(null);
@@ -103,28 +105,22 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
     [manifest, courseQuery],
   );
 
-  // No recommendations for this course (e.g. sparse manifest) ⇒ land on "All" instead of an empty ★.
-  useEffect(() => {
-    if (manifest.length && !recommended.length && activeSubject === REC) setActiveSubject(ALL);
-  }, [manifest, recommended, activeSubject]);
-
-  // The full result set for the current chip + search — NOT capped to a handful, so it paginates.
+  // The result set for the current mode + search — NOT capped to a handful, so it paginates.
   const results = useMemo(() => {
     if (!manifest.length) return [];
     const q = query.trim();
     if (q) {
-      // Search composes with the active subject: a real subject narrows the scope; REC/ALL search all.
-      const scope =
-        activeSubject !== REC && activeSubject !== ALL ? manifest.filter((e) => e.subject === activeSubject) : manifest;
+      // Search composes with the active subject while browsing; otherwise it spans the whole library.
+      const scope = browsing && activeSubject !== ALL ? manifest.filter((e) => e.subject === activeSubject) : manifest;
       return matchResources(q, scope, scope.length);
     }
-    if (activeSubject === REC) return recommended.length ? recommended : [...manifest].sort(byTitle);
+    if (!browsing) return recommended.length ? recommended : [...manifest].sort(byTitle);
     if (activeSubject === ALL) return [...manifest].sort(byTitle);
     return manifest.filter((e) => e.subject === activeSubject).sort(byTitle);
-  }, [manifest, query, activeSubject, recommended]);
+  }, [manifest, query, browsing, activeSubject, recommended]);
 
   // Reset to page 1 whenever the filtered set changes under us.
-  useEffect(() => { setPage(1); }, [query, activeSubject]);
+  useEffect(() => { setPage(1); }, [query, browsing, activeSubject]);
 
   const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -264,9 +260,11 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
   const q = query.trim();
   const countLabel = q
     ? `${results.length} result${results.length === 1 ? "" : "s"} for “${q}”`
-    : activeSubject === REC && recommended.length
-      ? `${results.length} recommended for this course`
-      : activeSubject === ALL || activeSubject === REC
+    : !browsing
+      ? recommended.length
+        ? `${results.length} recommended for this course`
+        : `${results.length} resources`
+      : activeSubject === ALL
         ? `${results.length} resources`
         : `${results.length} in ${subjectLabel(activeSubject)}`;
 
@@ -279,12 +277,18 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the library…"
+            placeholder={browsing ? "Search the library…" : "Search all resources…"}
             className="cf-input w-full max-w-xl rounded-lg block"
           />
-          {manifest.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {recommended.length > 0 && chip(REC, "★ Recommended", null, activeSubject === REC)}
+          {/* Subject-filter chips appear only in library-browse mode; the leading chip returns home. */}
+          {manifest.length > 0 && browsing && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <button
+                onClick={() => { setBrowsing(false); setActiveSubject(ALL); }}
+                className="px-2.5 py-1 rounded-lg text-xs font-mono whitespace-nowrap border border-[var(--rule)] text-[var(--ink-faint)] hover:border-phosphor/40 hover:text-phosphor-bright transition-colors"
+              >
+                ← Recommended
+              </button>
               {chip(ALL, "All", manifest.length, activeSubject === ALL)}
               {subjects.map((s) => chip(s.id, s.label, s.count, activeSubject === s.id))}
             </div>
@@ -303,7 +307,20 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
             </div>
           ) : (
             <>
-              <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] font-semibold mb-3">{countLabel}</div>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] font-semibold">{countLabel}</div>
+                {!browsing && (
+                  <button
+                    onClick={() => { setBrowsing(true); setActiveSubject(ALL); }}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border border-phosphor/30 bg-lcd text-phosphor-ink hover:border-phosphor/60 hover:text-phosphor-bright transition-colors"
+                    title="Browse every resource by subject"
+                  >
+                    View library
+                    <span className="opacity-60">{manifest.length}</span>
+                    <span aria-hidden>→</span>
+                  </button>
+                )}
+              </div>
 
               {results.length === 0 ? (
                 <div className="text-sm text-[var(--ink-faint)] py-6">No matching resources. Try a different search or category.</div>
@@ -320,8 +337,12 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
                           {subjectLabel(entry.subject)}
                         </span>
                         {entry.asset && (
-                          <span className="ml-auto text-phosphor-ink/70 group-hover:text-phosphor-bright shrink-0" title="Has a diagram" aria-label="Has a diagram">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 15l5-5 4 4 5-6 4 5" /></svg>
+                          <span
+                            className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider border border-phosphor/30 text-phosphor-ink/80 group-hover:text-phosphor-bright group-hover:border-phosphor/50 transition-colors"
+                            title="This card has a diagram"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 15l5-5 4 4 5-6 4 5" /></svg>
+                            Diagram
                           </span>
                         )}
                       </div>
