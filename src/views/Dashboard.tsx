@@ -417,18 +417,18 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     <span className="window-dot min" />
                     <span className="window-dot max" />
                     <span className="ml-2 uppercase tracking-widest text-[10px] group-hover:text-phosphor-ink transition-colors truncate flex-1">
-                      {course.title}
+                      COURSE
                     </span>
                   </div>
                   <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <span
-                        className="text-phosphor phosphor-glow"
-                        style={{ fontFamily: "var(--font-display)", fontSize: "1.8rem" }}
+                        className="text-phosphor phosphor-glow uppercase leading-tight line-clamp-2"
+                        style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", letterSpacing: "0.02em" }}
                       >
-                        {course.title.charAt(0).toUpperCase()}
+                        {course.title}
                       </span>
-                      <span className="text-xs font-mono text-[var(--ink-faint)]">
+                      <span className="text-xs font-mono text-[var(--ink-faint)] shrink-0 mt-1">
                         LVL {course.current_level}
                       </span>
                     </div>
