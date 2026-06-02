@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 803 471" role="img" aria-label="Major U.S. Wars">
+<title>Major U.S. Wars</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="803" height="471"/>
+<text x="28" y="50" font-size="26" font-weight="700">Major U.S. Wars</text>
+<text x="28" y="72" font-size="13" class="faint">war — years — opponent — outcome</text>
+<text x="28" y="107" font-size="15" font-weight="700">War</text>
+<text x="226" y="107" font-size="15" font-weight="700">Years</text>
+<text x="343" y="107" font-size="15" font-weight="700">Opponent</text>
+<text x="523" y="107" font-size="15" font-weight="700">Outcome</text>
+<line x1="28" y1="113" x2="775" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">American Revolution</text>
+<text x="226" y="132" font-size="15">1775–1783</text>
+<text x="343" y="132" font-size="15">Britain</text>
+<text x="523" y="132" font-size="15">U.S. independence</text>
+<text x="28" y="157" font-size="15">War of 1812</text>
+<text x="226" y="157" font-size="15">1812–1815</text>
+<text x="343" y="157" font-size="15">Britain</text>
+<text x="523" y="157" font-size="15">stalemate; nationalism</text>
+<text x="28" y="182" font-size="15">Mexican–American</text>
+<text x="226" y="182" font-size="15">1846–1848</text>
+<text x="343" y="182" font-size="15">Mexico</text>
+<text x="523" y="182" font-size="15">U.S. win; SW territory</text>
+<text x="28" y="207" font-size="15">Civil War</text>
+<text x="226" y="207" font-size="15">1861–1865</text>
+<text x="343" y="207" font-size="15">Confederacy</text>
+<text x="523" y="207" font-size="15">Union saved; slavery ended</text>
+<text x="28" y="232" font-size="15">Spanish–American</text>
+<text x="226" y="232" font-size="15">1898</text>
+<text x="343" y="232" font-size="15">Spain</text>
+<text x="523" y="232" font-size="15">U.S. win; overseas territory</text>
+<text x="28" y="257" font-size="15">World War I</text>
+<text x="226" y="257" font-size="15">1917–1918*</text>
+<text x="343" y="257" font-size="15">Central Powers</text>
+<text x="523" y="257" font-size="15">Allied victory</text>
+<text x="28" y="282" font-size="15">World War II</text>
+<text x="226" y="282" font-size="15">1941–1945*</text>
+<text x="343" y="282" font-size="15">Axis</text>
+<text x="523" y="282" font-size="15">Allied victory</text>
+<text x="28" y="307" font-size="15">Korean War</text>
+<text x="226" y="307" font-size="15">1950–1953</text>
+<text x="343" y="307" font-size="15">N. Korea, China</text>
+<text x="523" y="307" font-size="15">armistice (stalemate)</text>
+<text x="28" y="332" font-size="15">Vietnam War</text>
+<text x="226" y="332" font-size="15">1965–1973*</text>
+<text x="343" y="332" font-size="15">N. Vietnam</text>
+<text x="523" y="332" font-size="15">U.S. withdrawal</text>
+<text x="28" y="357" font-size="15">Persian Gulf</text>
+<text x="226" y="357" font-size="15">1990–1991</text>
+<text x="343" y="357" font-size="15">Iraq</text>
+<text x="523" y="357" font-size="15">coalition victory</text>
+<text x="28" y="382" font-size="15">Afghanistan</text>
+<text x="226" y="382" font-size="15">2001–2021</text>
+<text x="343" y="382" font-size="15">Taliban, al-Qaeda</text>
+<text x="523" y="382" font-size="15">U.S. withdrawal</text>
+<text x="28" y="407" font-size="15">Iraq War</text>
+<text x="226" y="407" font-size="15">2003–2011</text>
+<text x="343" y="407" font-size="15">Iraq</text>
+<text x="523" y="407" font-size="15">regime toppled</text>
+<text x="28" y="437" font-size="14">* U.S. involvement (WWI began 1914; WWII began 1939; Vietnam War 1955–1975).</text>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 812 295" role="img" aria-label="Ancient River-Valley Civilizations">
+<title>Ancient River-Valley Civilizations</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="812" height="295"/>
+<text x="28" y="50" font-size="26" font-weight="700">Ancient River-Valley Civilizations</text>
+<text x="28" y="72" font-size="13" class="faint">the first cities grew in fertile river valleys</text>
+<text x="28" y="107" font-size="15" font-weight="700">Civilization</text>
+<text x="172" y="107" font-size="15" font-weight="700">River(s)</text>
+<text x="361" y="107" font-size="15" font-weight="700">Began</text>
+<text x="478" y="107" font-size="15" font-weight="700">Known for</text>
+<line x1="28" y1="113" x2="784" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Mesopotamia</text>
+<text x="172" y="132" font-size="15">Tigris &amp; Euphrates</text>
+<text x="361" y="132" font-size="15">c.3500 BCE</text>
+<text x="478" y="132" font-size="15">first cities, cuneiform, the wheel</text>
+<text x="28" y="157" font-size="15">Egypt</text>
+<text x="172" y="157" font-size="15">Nile</text>
+<text x="361" y="157" font-size="15">c.3100 BCE</text>
+<text x="478" y="157" font-size="15">pharaohs, pyramids, hieroglyphics</text>
+<text x="28" y="182" font-size="15">Indus Valley</text>
+<text x="172" y="182" font-size="15">Indus</text>
+<text x="361" y="182" font-size="15">c.2500 BCE</text>
+<text x="478" y="182" font-size="15">planned brick cities, drainage</text>
+<text x="28" y="207" font-size="15">China (Shang)</text>
+<text x="172" y="207" font-size="15">Huang He (Yellow)</text>
+<text x="361" y="207" font-size="15">c.1600 BCE</text>
+<text x="478" y="207" font-size="15">bronze, oracle-bone writing</text>
+<text x="28" y="237" font-size="14">Shared traits: a flooding river, surplus food, cities, writing, religion,</text>
+<text x="28" y="261" font-size="14">social classes, and central government.</text>
+</svg>

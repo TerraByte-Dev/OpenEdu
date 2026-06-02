@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 343" role="img" aria-label="Qualifications &amp; Terms of Federal Office">
+<title>Qualifications &amp; Terms of Federal Office</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="680" height="343"/>
+<text x="28" y="50" font-size="26" font-weight="700">Qualifications &amp; Terms of Federal Office</text>
+<text x="28" y="72" font-size="13" class="faint">age · citizenship · term</text>
+<text x="28" y="107" font-size="15" font-weight="700">Office</text>
+<text x="181" y="107" font-size="15" font-weight="700">Min age</text>
+<text x="271" y="107" font-size="15" font-weight="700">Citizen</text>
+<text x="406" y="107" font-size="15" font-weight="700">Term</text>
+<line x1="28" y1="113" x2="523" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Representative</text>
+<text x="181" y="132" font-size="15">25</text>
+<text x="271" y="132" font-size="15">7 yrs</text>
+<text x="406" y="132" font-size="15">2 years</text>
+<text x="28" y="157" font-size="15">Senator</text>
+<text x="181" y="157" font-size="15">30</text>
+<text x="271" y="157" font-size="15">9 yrs</text>
+<text x="406" y="157" font-size="15">6 years</text>
+<text x="28" y="182" font-size="15">President</text>
+<text x="181" y="182" font-size="15">35</text>
+<text x="271" y="182" font-size="15">natural-born</text>
+<text x="406" y="182" font-size="15">4 yrs (max 2)</text>
+<text x="28" y="207" font-size="15">Vice President</text>
+<text x="181" y="207" font-size="15">35</text>
+<text x="271" y="207" font-size="15">natural-born</text>
+<text x="406" y="207" font-size="15">4 years</text>
+<text x="28" y="237" font-size="14">Members of Congress must live in their state. President: 14 yrs a U.S.</text>
+<text x="28" y="261" font-size="14">resident; 2-term limit (22nd Amendment). Federal judges: no set</text>
+<text x="28" y="285" font-size="14">qualifications; appointed + Senate-confirmed; serve for life ('good</text>
+<text x="28" y="309" font-size="14">behaviour').</text>
+</svg>
