@@ -6,13 +6,15 @@ import { registerBuiltinTools } from "./lib/tools";
 import { loadBuiltinSkills } from "./lib/skills";
 import { refreshManifest } from "./lib/library";
 import { refreshDatasetManifest } from "./lib/library-datasets";
+import { applyTheme, getThemeId } from "./lib/theme";
 import "./index.css";
 
-// Apply the saved "CRT off" preference before first paint, so the scanlines never flash on for users
-// who turned them off. The titlebar button toggles + persists this; the CSS lives in index.css.
+// Apply the saved color theme before first paint, so neither the default palette nor the scanlines flash
+// for users on a recolor / universal theme. applyTheme() also reconciles the "CRT off" preference
+// (universal themes force it off; CRT themes honor the titlebar toggle). CSS lives in index.css.
 try {
-  if (localStorage.getItem("oe-crt-off") === "1") document.documentElement.classList.add("crt-off");
-} catch { /* ignore */ }
+  applyTheme(getThemeId());
+} catch { /* ignore — falls back to the default :root (OpenEdu) theme */ }
 
 // Register the kernel's built-in tools + skills once, before anything renders (Phase 1 / Phase 2).
 registerBuiltinTools();

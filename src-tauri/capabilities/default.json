@@ -27,7 +27,8 @@
         { "url": "https://api.openai.com/**" },
         { "url": "https://api.anthropic.com/**" },
         { "url": "https://api.tavily.com/**" },
-        { "url": "https://library.openedu.app/**" }
+        { "url": "https://library.openedu.app/**" },
+        { "url": "https://api.github.com/**" }
       ]
     }
   ]

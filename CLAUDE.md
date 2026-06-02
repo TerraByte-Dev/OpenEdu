@@ -103,4 +103,4 @@ Lives in `src/index.css`. Blue phosphor CRT aesthetic.
 
 Key classes: `.window`, `.btn`, `.btn-primary`, `.cf-input`, `.lcd`, `.tag`, `.glow-line`, `.readout-val`, `.phosphor-glow`, `.crt-aberrate`.
 
-Fonts: VT323 (display headings), IBM Plex Mono (UI), Share Tech Mono (LCD / inputs), Inter (prose body).
+Fonts: Lexend (display headings + prose body — chosen for reading comprehension; variable weight), IBM Plex Mono (UI chrome), Share Tech Mono (LCD / inputs). Inter is the sans fallback. Color themes live in `src/lib/theme.ts` + `html[data-theme="…"]` blocks in `index.css`, applied pre-paint in `main.tsx`.
