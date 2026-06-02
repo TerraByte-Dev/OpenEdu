@@ -9,7 +9,7 @@
 // single katex span inside a `katex-display` wrapper, which is `class="katex-display"` — it does NOT
 // match the bare `class="katex"` token), so this regex count == number of rendered formulas.
 
-import { renderChatMarkdown } from "../chat-markdown";
+import { renderChatMarkdown, ensureChatKatex } from "../chat-markdown";
 
 function countKatex(html: string): number {
   return (html.match(/class="katex"/g) ?? []).length;
@@ -43,7 +43,8 @@ const CASES: RenderCase[] = [
   { name: "currency tradeoff ($5 … $10)", input: "$5 apples for $10", expect: 1, info: true },
 ];
 
-export function testMathRender(): { passed: number; total: number; allPass: boolean; rows: Array<{ name: string; expect: number; got: number; pass: boolean; info: boolean }> } {
+export async function testMathRender(): Promise<{ passed: number; total: number; allPass: boolean; rows: Array<{ name: string; expect: number; got: number; pass: boolean; info: boolean }> }> {
+  await ensureChatKatex(); // KaTeX is lazy-loaded now; make sure it's registered before asserting renders
   const rows = CASES.map((c) => {
     const got = countKatex(renderChatMarkdown(c.input));
     return { name: c.name, expect: c.expect, got, pass: got === c.expect, info: !!c.info };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import type { Course, Syllabus, LibraryEntry } from "../types";
 import { getManifest, matchResources, fetchResource, fetchAsset } from "../lib/library";
-import { renderChatMarkdown } from "../lib/chat-markdown";
+import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 
 // Resources tab — the curated OpenEdu Library, browsable by the STUDENT (not just fuel for the
 // tutor's answer). The list view is a paginated grid: it defaults to cards recommended for this
@@ -62,6 +62,9 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
   // The authored SVG "raw form" (when the card has one) + which view the reader is showing.
   const [assetSvg, setAssetSvg] = useState<string | null>(null);
   const [view, setView] = useState<"diagram" | "text">("text");
+  // KaTeX is lazy-loaded (chat-markdown); load it on mount and re-render so card-body math typesets.
+  const [, setKatexTick] = useState(0);
+  useEffect(() => { ensureChatKatex().then(() => setKatexTick((t) => t + 1)); }, []);
 
   // Load the manifest once (cached + offline-safe after main.tsx's init warm-up).
   useEffect(() => {
