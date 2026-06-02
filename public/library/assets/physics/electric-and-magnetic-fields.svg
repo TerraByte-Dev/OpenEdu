@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 396" role="img" aria-label="Electric &amp; Magnetic Fields">
+<title>Electric &amp; Magnetic Fields</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="396"/>
+<text x="28" y="50" font-size="26" font-weight="700">Electric &amp; Magnetic Fields</text>
+<text x="28" y="72" font-size="13" class="faint">k = 8.99×10⁹ N·m²/C²; charge q in coulombs (C)</text>
+<text x="28" y="113" font-size="17" font-weight="700">Electric</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">Coulomb's law     F = k·q₁·q₂ / r²</text>
+<text x="28" y="167" font-size="15" xml:space="preserve">Electric field    E = F / q = k·Q / r²   (N/C)</text>
+<text x="28" y="192" font-size="15" xml:space="preserve">Force on a charge F = q·E</text>
+<text x="28" y="217" font-size="15" xml:space="preserve">Work / energy     W = q·V</text>
+<text x="28" y="254" font-size="17" font-weight="700">Magnetic</text>
+<text x="28" y="283" font-size="15" xml:space="preserve">Moving charge     F = q·v·B·sinθ</text>
+<text x="28" y="308" font-size="15" xml:space="preserve">Current-carrying wire  F = B·I·L·sinθ</text>
+<text x="28" y="338" font-size="14">B = magnetic field (tesla, T). A charge feels a magnetic force only when</text>
+<text x="28" y="362" font-size="14">MOVING and not parallel to B; the direction is given by the right-hand rule.</text>
+</svg>
