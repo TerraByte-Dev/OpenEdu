@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 658 620" role="img" aria-label="Nutrition Facts Label">
+<title>Nutrition Facts Label</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="658" height="620"/>
+<rect x="28" y="40" width="300" height="566" fill="#fff" stroke="#000" stroke-width="2"/>
+<text x="34" y="74" font-size="30" font-weight="800" fill="#000">Nutrition Facts</text>
+<line x1="28" y1="82" x2="328" y2="82" stroke="#000" stroke-width="1"/>
+<text x="34" y="104" font-size="13" font-weight="400" fill="#000">8 servings per container</text>
+<text x="34" y="124" font-size="13" font-weight="700" fill="#000">Serving size</text>
+<text x="322" y="124" font-size="13" font-weight="700" text-anchor="end" fill="#000">2/3 cup (55g)</text>
+<line x1="28" y1="134" x2="328" y2="134" stroke="#000" stroke-width="6"/>
+<text x="34" y="158" font-size="11" font-weight="700" fill="#000">Amount per serving</text>
+<text x="34" y="188" font-size="24" font-weight="800" fill="#000">Calories</text>
+<text x="322" y="188" font-size="30" font-weight="800" text-anchor="end" fill="#000">230</text>
+<line x1="28" y1="200" x2="328" y2="200" stroke="#000" stroke-width="6"/>
+<text x="322" y="218" font-size="13" font-weight="700" text-anchor="end" fill="#000">% Daily Value*</text>
+<line x1="28" y1="224" x2="328" y2="224" stroke="#000" stroke-width="1"/>
+<text x="34" y="240" font-size="13" font-weight="700" fill="#000">Total Fat 8g</text>
+<text x="322" y="240" font-size="13" font-weight="700" text-anchor="end" fill="#000">10%</text>
+<line x1="28" y1="246" x2="328" y2="246" stroke="#000" stroke-width="1"/>
+<text x="34" y="262" font-size="13" font-weight="400" fill="#000">  Saturated Fat 1g</text>
+<text x="322" y="262" font-size="13" font-weight="700" text-anchor="end" fill="#000">5%</text>
+<line x1="28" y1="268" x2="328" y2="268" stroke="#000" stroke-width="1"/>
+<text x="34" y="284" font-size="13" font-weight="400" fill="#000">  Trans Fat 0g</text>
+<line x1="28" y1="290" x2="328" y2="290" stroke="#000" stroke-width="1"/>
+<text x="34" y="306" font-size="13" font-weight="700" fill="#000">Cholesterol 0mg</text>
+<text x="322" y="306" font-size="13" font-weight="700" text-anchor="end" fill="#000">0%</text>
+<line x1="28" y1="312" x2="328" y2="312" stroke="#000" stroke-width="1"/>
+<text x="34" y="328" font-size="13" font-weight="700" fill="#000">Sodium 160mg</text>
+<text x="322" y="328" font-size="13" font-weight="700" text-anchor="end" fill="#000">7%</text>
+<line x1="28" y1="334" x2="328" y2="334" stroke="#000" stroke-width="1"/>
+<text x="34" y="350" font-size="13" font-weight="700" fill="#000">Total Carbohydrate 37g</text>
+<text x="322" y="350" font-size="13" font-weight="700" text-anchor="end" fill="#000">13%</text>
+<line x1="28" y1="356" x2="328" y2="356" stroke="#000" stroke-width="1"/>
+<text x="34" y="372" font-size="13" font-weight="400" fill="#000">  Dietary Fiber 4g</text>
+<text x="322" y="372" font-size="13" font-weight="700" text-anchor="end" fill="#000">14%</text>
+<line x1="28" y1="378" x2="328" y2="378" stroke="#000" stroke-width="1"/>
+<text x="34" y="394" font-size="13" font-weight="400" fill="#000">  Total Sugars 12g</text>
+<line x1="28" y1="400" x2="328" y2="400" stroke="#000" stroke-width="1"/>
+<text x="34" y="416" font-size="13" font-weight="400" fill="#000">    Incl. 10g Added Sugars</text>
+<text x="322" y="416" font-size="13" font-weight="700" text-anchor="end" fill="#000">20%</text>
+<line x1="28" y1="422" x2="328" y2="422" stroke="#000" stroke-width="1"/>
+<text x="34" y="438" font-size="13" font-weight="700" fill="#000">Protein 3g</text>
+<line x1="28" y1="446" x2="328" y2="446" stroke="#000" stroke-width="6"/>
+<line x1="28" y1="452" x2="328" y2="452" stroke="#000" stroke-width="1"/>
+<text x="34" y="468" font-size="13" font-weight="400" fill="#000">Vitamin D 2mcg</text>
+<text x="322" y="468" font-size="13" font-weight="700" text-anchor="end" fill="#000">10%</text>
+<line x1="28" y1="474" x2="328" y2="474" stroke="#000" stroke-width="1"/>
+<text x="34" y="490" font-size="13" font-weight="400" fill="#000">Calcium 260mg</text>
+<text x="322" y="490" font-size="13" font-weight="700" text-anchor="end" fill="#000">20%</text>
+<line x1="28" y1="496" x2="328" y2="496" stroke="#000" stroke-width="1"/>
+<text x="34" y="512" font-size="13" font-weight="400" fill="#000">Iron 8mg</text>
+<text x="322" y="512" font-size="13" font-weight="700" text-anchor="end" fill="#000">45%</text>
+<line x1="28" y1="518" x2="328" y2="518" stroke="#000" stroke-width="1"/>
+<text x="34" y="534" font-size="13" font-weight="400" fill="#000">Potassium 240mg</text>
+<text x="322" y="534" font-size="13" font-weight="700" text-anchor="end" fill="#000">6%</text>
+<line x1="28" y1="538" x2="328" y2="538" stroke="#000" stroke-width="1"/>
+<text x="34" y="550" font-size="10" fill="#000">* %DV = how much a nutrient in a serving adds to a daily diet</text>
+<text x="34" y="564" font-size="10" fill="#000">  (2,000 calories/day used for general advice).</text>
+<text x="358" y="56" font-size="18" font-weight="700">How to read it</text>
+<text x="358" y="90" font-size="14" font-weight="700">Read it in order:</text>
+<text x="358" y="112" font-size="12" font-weight="400" class="faint">1. Serving size — every number below</text>
+<text x="358" y="130" font-size="12" font-weight="400" class="faint">   is PER serving, not per package.</text>
+<text x="358" y="148" font-size="12" font-weight="400" class="faint">2. Servings/container — eat 2 servings</text>
+<text x="358" y="166" font-size="12" font-weight="400" class="faint">   → double everything.</text>
+<text x="358" y="184" font-size="12" font-weight="400" class="faint">3. Calories — energy per serving.</text>
+<text x="358" y="210" font-size="14" font-weight="700">Limit: saturated/trans fat, sodium,</text>
+<text x="358" y="232" font-size="12" font-weight="400" class="faint">   cholesterol, added sugars.</text>
+<text x="358" y="250" font-size="14" font-weight="700">Get enough: fiber, vitamin D,</text>
+<text x="358" y="272" font-size="12" font-weight="400" class="faint">   calcium, iron, potassium.</text>
+<text x="358" y="298" font-size="14" font-weight="700">% Daily Value rule of thumb:</text>
+<text x="358" y="320" font-size="12" font-weight="400" class="faint">   5% or less = LOW</text>
+<text x="358" y="338" font-size="12" font-weight="400" class="faint">   20% or more = HIGH</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 866 476" role="img" aria-label="APA Citation (7th ed.)">
+<title>APA Citation (7th ed.)</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="866" height="476"/>
+<text x="28" y="50" font-size="26" font-weight="700">APA Citation (7th ed.)</text>
+<text x="28" y="72" font-size="13" class="faint">author–date; References — alphabetical, hanging indent</text>
+<text x="28" y="113" font-size="17" font-weight="700">In-text (author, year)</text>
+<text x="28" y="141" font-size="14" xml:space="preserve">• Parenthetical: (Smith, 2020). With a quote: (Smith, 2020, p. 42).</text>
+<text x="28" y="165" font-size="14" xml:space="preserve">• Narrative: Smith (2020) found …</text>
+<text x="28" y="189" font-size="14" xml:space="preserve">• Two authors: (Smith &amp; Jones, 2020). Three or more: (Smith et al., 2020).</text>
+<text x="28" y="226" font-size="17" font-weight="700">Reference templates</text>
+<text x="28" y="255" font-size="15" xml:space="preserve">Book:    Author, A. A. (Year). Title of the work (ed.). Publisher.</text>
+<text x="28" y="280" font-size="15" xml:space="preserve">Journal: Author, A. A. (Year). Article title. Journal, Vol(Issue), pp.  https://doi.org/xx</text>
+<text x="28" y="305" font-size="15" xml:space="preserve">Web:     Author, A. A. (Year, Month Day). Title of page. Site Name. URL</text>
+<text x="28" y="342" font-size="17" font-weight="700">Style rules</text>
+<text x="28" y="370" font-size="14" xml:space="preserve">• Sentence case for article/book titles; italicize book + journal titles.</text>
+<text x="28" y="394" font-size="14" xml:space="preserve">• List up to 20 authors; the publisher location is NOT included (a 7th-ed.</text>
+<text x="28" y="418" font-size="14" xml:space="preserve">  change).</text>
+<text x="28" y="442" font-size="14" xml:space="preserve">• Use p./pp. for pages; treat a DOI as a URL (https://doi.org/…).</text>
+</svg>

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 581" role="img" aria-label="Dynamics, Tempo &amp; Articulation">
+<title>Dynamics, Tempo &amp; Articulation</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="581"/>
+<text x="28" y="50" font-size="26" font-weight="700">Dynamics, Tempo &amp; Articulation</text>
+<text x="28" y="72" font-size="13" class="faint">most expression markings are Italian</text>
+<text x="28" y="113" font-size="17" font-weight="700">Dynamics (volume) — soft → loud</text>
+<text x="28" y="142" font-size="15">pp</text>
+<text x="73" y="142" font-size="15">pianissimo</text>
+<text x="199" y="142" font-size="15">very soft</text>
+<text x="28" y="167" font-size="15">p</text>
+<text x="73" y="167" font-size="15">piano</text>
+<text x="199" y="167" font-size="15">soft</text>
+<text x="28" y="192" font-size="15">mp</text>
+<text x="73" y="192" font-size="15">mezzo-piano</text>
+<text x="199" y="192" font-size="15">medium soft</text>
+<text x="28" y="217" font-size="15">mf</text>
+<text x="73" y="217" font-size="15">mezzo-forte</text>
+<text x="199" y="217" font-size="15">medium loud</text>
+<text x="28" y="242" font-size="15">f</text>
+<text x="73" y="242" font-size="15">forte</text>
+<text x="199" y="242" font-size="15">loud</text>
+<text x="28" y="267" font-size="15">ff</text>
+<text x="73" y="267" font-size="15">fortissimo</text>
+<text x="199" y="267" font-size="15">very loud</text>
+<text x="28" y="297" font-size="14" xml:space="preserve">• crescendo (cresc., &lt;) = gradually louder; decrescendo / diminuendo (&gt;) =</text>
+<text x="28" y="321" font-size="14" xml:space="preserve">  gradually softer.</text>
+<text x="28" y="358" font-size="17" font-weight="700">Tempo (speed) — approx. BPM</text>
+<text x="28" y="386" font-size="14" xml:space="preserve">• Largo 40–60 · Adagio 66–76 · Andante 76–108 · Moderato 108–120 · Allegro</text>
+<text x="28" y="410" font-size="14" xml:space="preserve">  120–168 · Presto 168–200.</text>
+<text x="28" y="434" font-size="14" xml:space="preserve">• ritardando (rit.) = slowing; accelerando (accel.) = speeding up; a tempo =</text>
+<text x="28" y="458" font-size="14" xml:space="preserve">  back to original.</text>
+<text x="28" y="495" font-size="17" font-weight="700">Articulation</text>
+<text x="28" y="523" font-size="14" xml:space="preserve">• Staccato = short/detached · Legato = smooth · Accent (&gt;) = emphasize ·</text>
+<text x="28" y="547" font-size="14" xml:space="preserve">  Fermata = hold longer.</text>
+</svg>

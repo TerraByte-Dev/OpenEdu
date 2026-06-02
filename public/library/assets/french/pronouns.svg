@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 452" role="img" aria-label="French Pronouns">
+<title>French Pronouns</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="452"/>
+<text x="28" y="50" font-size="26" font-weight="700">French Pronouns</text>
+<text x="28" y="72" font-size="13" class="faint">subject, object, reflexive, and stressed sets</text>
+<text x="28" y="107" font-size="15" font-weight="700"></text>
+<text x="82" y="107" font-size="15" font-weight="700">Subj.</text>
+<text x="199" y="107" font-size="15" font-weight="700">Dir.</text>
+<text x="271" y="107" font-size="15" font-weight="700">Ind.</text>
+<text x="334" y="107" font-size="15" font-weight="700">Refl.</text>
+<text x="406" y="107" font-size="15" font-weight="700">Stressed</text>
+<line x1="28" y1="113" x2="487" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">1s</text>
+<text x="82" y="132" font-size="15">je</text>
+<text x="199" y="132" font-size="15">me</text>
+<text x="271" y="132" font-size="15">me</text>
+<text x="334" y="132" font-size="15">me</text>
+<text x="406" y="132" font-size="15">moi</text>
+<text x="28" y="157" font-size="15">2s</text>
+<text x="82" y="157" font-size="15">tu</text>
+<text x="199" y="157" font-size="15">te</text>
+<text x="271" y="157" font-size="15">te</text>
+<text x="334" y="157" font-size="15">te</text>
+<text x="406" y="157" font-size="15">toi</text>
+<text x="28" y="182" font-size="15">3s</text>
+<text x="82" y="182" font-size="15">il/elle/on</text>
+<text x="199" y="182" font-size="15">le/la</text>
+<text x="271" y="182" font-size="15">lui</text>
+<text x="334" y="182" font-size="15">se</text>
+<text x="406" y="182" font-size="15">lui/elle</text>
+<text x="28" y="207" font-size="15">1pl</text>
+<text x="82" y="207" font-size="15">nous</text>
+<text x="199" y="207" font-size="15">nous</text>
+<text x="271" y="207" font-size="15">nous</text>
+<text x="334" y="207" font-size="15">nous</text>
+<text x="406" y="207" font-size="15">nous</text>
+<text x="28" y="232" font-size="15">2pl</text>
+<text x="82" y="232" font-size="15">vous</text>
+<text x="199" y="232" font-size="15">vous</text>
+<text x="271" y="232" font-size="15">vous</text>
+<text x="334" y="232" font-size="15">vous</text>
+<text x="406" y="232" font-size="15">vous</text>
+<text x="28" y="257" font-size="15">3pl</text>
+<text x="82" y="257" font-size="15">ils/elles</text>
+<text x="199" y="257" font-size="15">les</text>
+<text x="271" y="257" font-size="15">leur</text>
+<text x="334" y="257" font-size="15">se</text>
+<text x="406" y="257" font-size="15">eux/elles</text>
+<text x="28" y="294" font-size="17" font-weight="700">Notes</text>
+<text x="28" y="322" font-size="14" xml:space="preserve">• Subject pronouns are required; on = one/we (takes 3rd-sing.).</text>
+<text x="28" y="346" font-size="14" xml:space="preserve">• Direct: Je le vois. Indirect (to a person): Je lui parle.</text>
+<text x="28" y="370" font-size="14" xml:space="preserve">• Reflexive with reflexive verbs: je me lave.</text>
+<text x="28" y="394" font-size="14" xml:space="preserve">• Stressed pronouns stand alone / after prepositions: avec moi.</text>
+<text x="28" y="418" font-size="14" xml:space="preserve">• Order before the verb: me/te/se/nous/vous → le/la/les → lui/leur → y → en.</text>
+</svg>

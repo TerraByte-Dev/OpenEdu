@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 587 502" role="img" aria-label="Spanish Question Words &amp; Greetings">
+<title>Spanish Question Words &amp; Greetings</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="587" height="502"/>
+<text x="28" y="50" font-size="26" font-weight="700">Spanish Question Words &amp; Greetings</text>
+<text x="28" y="72" font-size="13" class="faint">interrogatives all carry a written accent</text>
+<text x="28" y="107" font-size="15" font-weight="700">Spanish</text>
+<text x="226" y="107" font-size="15" font-weight="700">English</text>
+<line x1="28" y1="113" x2="433" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">¿qué?</text>
+<text x="226" y="132" font-size="15">what?</text>
+<text x="28" y="157" font-size="15">¿quién? / ¿quiénes?</text>
+<text x="226" y="157" font-size="15">who?</text>
+<text x="28" y="182" font-size="15">¿dónde? / ¿adónde?</text>
+<text x="226" y="182" font-size="15">where? / (to) where?</text>
+<text x="28" y="207" font-size="15">¿cuándo?</text>
+<text x="226" y="207" font-size="15">when?</text>
+<text x="28" y="232" font-size="15">¿por qué?</text>
+<text x="226" y="232" font-size="15">why? (porque = because)</text>
+<text x="28" y="257" font-size="15">¿cómo?</text>
+<text x="226" y="257" font-size="15">how?</text>
+<text x="28" y="282" font-size="15">¿cuánto/-a/-os/-as?</text>
+<text x="226" y="282" font-size="15">how much / how many?</text>
+<text x="28" y="307" font-size="15">¿cuál? / ¿cuáles?</text>
+<text x="226" y="307" font-size="15">which? / what?</text>
+<text x="28" y="344" font-size="17" font-weight="700">Greetings &amp; courtesy</text>
+<text x="28" y="372" font-size="14" xml:space="preserve">• hola; buenos días; buenas tardes; buenas noches.</text>
+<text x="28" y="396" font-size="14" xml:space="preserve">• ¿cómo estás? / ¿qué tal? — (estoy) bien, gracias.</text>
+<text x="28" y="420" font-size="14" xml:space="preserve">• ¿cómo te llamas? — me llamo…</text>
+<text x="28" y="444" font-size="14" xml:space="preserve">• adiós; hasta luego; hasta mañana.</text>
+<text x="28" y="468" font-size="14" xml:space="preserve">• por favor; gracias; de nada; perdón / lo siento; sí / no.</text>
+</svg>

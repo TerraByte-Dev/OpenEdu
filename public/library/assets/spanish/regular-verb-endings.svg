@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 461" role="img" aria-label="Spanish Regular Verb Endings">
+<title>Spanish Regular Verb Endings</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="461"/>
+<text x="28" y="50" font-size="26" font-weight="700">Spanish Regular Verb Endings</text>
+<text x="28" y="72" font-size="13" class="faint">present tense — hablar, comer, vivir</text>
+<text x="28" y="107" font-size="15" font-weight="700"></text>
+<text x="154" y="107" font-size="15" font-weight="700">-ar hablar</text>
+<text x="271" y="107" font-size="15" font-weight="700">-er comer</text>
+<text x="379" y="107" font-size="15" font-weight="700">-ir vivir</text>
+<line x1="28" y1="113" x2="460" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">yo</text>
+<text x="154" y="132" font-size="15">hablo</text>
+<text x="271" y="132" font-size="15">como</text>
+<text x="379" y="132" font-size="15">vivo</text>
+<text x="28" y="157" font-size="15">tú</text>
+<text x="154" y="157" font-size="15">hablas</text>
+<text x="271" y="157" font-size="15">comes</text>
+<text x="379" y="157" font-size="15">vives</text>
+<text x="28" y="182" font-size="15">él/ella/Ud.</text>
+<text x="154" y="182" font-size="15">habla</text>
+<text x="271" y="182" font-size="15">come</text>
+<text x="379" y="182" font-size="15">vive</text>
+<text x="28" y="207" font-size="15">nosotros</text>
+<text x="154" y="207" font-size="15">hablamos</text>
+<text x="271" y="207" font-size="15">comemos</text>
+<text x="379" y="207" font-size="15">vivimos</text>
+<text x="28" y="232" font-size="15">vosotros</text>
+<text x="154" y="232" font-size="15">habláis</text>
+<text x="271" y="232" font-size="15">coméis</text>
+<text x="379" y="232" font-size="15">vivís</text>
+<text x="28" y="257" font-size="15">ellos/Uds.</text>
+<text x="154" y="257" font-size="15">hablan</text>
+<text x="271" y="257" font-size="15">comen</text>
+<text x="379" y="257" font-size="15">viven</text>
+<text x="28" y="294" font-size="17" font-weight="700">Bare endings</text>
+<text x="28" y="323" font-size="15" xml:space="preserve">-ar   -o  -as  -a   -amos  -áis  -an</text>
+<text x="28" y="348" font-size="15" xml:space="preserve">-er   -o  -es  -e   -emos  -éis  -en</text>
+<text x="28" y="373" font-size="15" xml:space="preserve">-ir   -o  -es  -e   -imos  -ís   -en</text>
+<text x="28" y="403" font-size="14">-er and -ir differ only in the nosotros/vosotros forms. Subject pronouns are</text>
+<text x="28" y="427" font-size="14">usually dropped — the ending shows the person.</text>
+</svg>

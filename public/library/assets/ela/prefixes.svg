@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 587 566" role="img" aria-label="Common Prefixes">
+<title>Common Prefixes</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="587" height="566"/>
+<text x="28" y="50" font-size="26" font-weight="700">Common Prefixes</text>
+<text x="28" y="72" font-size="13" class="faint">a word part added to the FRONT of a root</text>
+<text x="28" y="107" font-size="15" font-weight="700">Prefix</text>
+<text x="190" y="107" font-size="15" font-weight="700">Meaning</text>
+<text x="388" y="107" font-size="15" font-weight="700">Example</text>
+<line x1="28" y1="113" x2="559" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">un-</text>
+<text x="190" y="132" font-size="15">not, opposite</text>
+<text x="388" y="132" font-size="15">unhappy</text>
+<text x="28" y="157" font-size="15">re-</text>
+<text x="190" y="157" font-size="15">again, back</text>
+<text x="388" y="157" font-size="15">redo, return</text>
+<text x="28" y="182" font-size="15">dis-</text>
+<text x="190" y="182" font-size="15">not, opposite</text>
+<text x="388" y="182" font-size="15">disagree</text>
+<text x="28" y="207" font-size="15">in-/im-/il-/ir-</text>
+<text x="190" y="207" font-size="15">not</text>
+<text x="388" y="207" font-size="15">invisible, illegal</text>
+<text x="28" y="232" font-size="15">pre-</text>
+<text x="190" y="232" font-size="15">before</text>
+<text x="388" y="232" font-size="15">preview</text>
+<text x="28" y="257" font-size="15">mis-</text>
+<text x="190" y="257" font-size="15">wrong, badly</text>
+<text x="388" y="257" font-size="15">misspell</text>
+<text x="28" y="282" font-size="15">non-</text>
+<text x="190" y="282" font-size="15">not</text>
+<text x="388" y="282" font-size="15">nonfiction</text>
+<text x="28" y="307" font-size="15">sub-</text>
+<text x="190" y="307" font-size="15">under, below</text>
+<text x="388" y="307" font-size="15">submarine</text>
+<text x="28" y="332" font-size="15">inter-</text>
+<text x="190" y="332" font-size="15">between, among</text>
+<text x="388" y="332" font-size="15">interact</text>
+<text x="28" y="357" font-size="15">anti-</text>
+<text x="190" y="357" font-size="15">against</text>
+<text x="388" y="357" font-size="15">antifreeze</text>
+<text x="28" y="382" font-size="15">super-</text>
+<text x="190" y="382" font-size="15">above, beyond</text>
+<text x="388" y="382" font-size="15">superhero</text>
+<text x="28" y="407" font-size="15">trans-</text>
+<text x="190" y="407" font-size="15">across</text>
+<text x="388" y="407" font-size="15">transport</text>
+<text x="28" y="432" font-size="15">over-</text>
+<text x="190" y="432" font-size="15">too much</text>
+<text x="388" y="432" font-size="15">overflow</text>
+<text x="28" y="457" font-size="15">under-</text>
+<text x="190" y="457" font-size="15">too little, beneath</text>
+<text x="388" y="457" font-size="15">underground</text>
+<text x="28" y="482" font-size="15">bi- / tri-</text>
+<text x="190" y="482" font-size="15">two / three</text>
+<text x="388" y="482" font-size="15">bicycle / triangle</text>
+<text x="28" y="507" font-size="15">uni- / mono-</text>
+<text x="190" y="507" font-size="15">one</text>
+<text x="388" y="507" font-size="15">unicycle / monorail</text>
+<text x="28" y="532" font-size="15">auto-</text>
+<text x="190" y="532" font-size="15">self</text>
+<text x="388" y="532" font-size="15">automatic</text>
+</svg>

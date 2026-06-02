@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 704 525" role="img" aria-label="Rhetorical Appeals &amp; Devices">
+<title>Rhetorical Appeals &amp; Devices</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="704" height="525"/>
+<text x="28" y="50" font-size="26" font-weight="700">Rhetorical Appeals &amp; Devices</text>
+<text x="28" y="72" font-size="13" class="faint">Aristotle's modes of persuasion</text>
+<text x="28" y="113" font-size="17" font-weight="700">The three appeals (+ kairos)</text>
+<text x="28" y="142" font-size="15">Ethos</text>
+<text x="109" y="142" font-size="15">credibility / character — the speaker is trustworthy, qualified</text>
+<text x="28" y="167" font-size="15">Pathos</text>
+<text x="109" y="167" font-size="15">emotion — stirs pity, fear, anger, hope</text>
+<text x="28" y="192" font-size="15">Logos</text>
+<text x="109" y="192" font-size="15">logic / reason — facts, data, evidence, sound reasoning</text>
+<text x="28" y="217" font-size="15">Kairos</text>
+<text x="109" y="217" font-size="15">timeliness — the right argument at the right moment</text>
+<text x="28" y="254" font-size="17" font-weight="700">Common devices</text>
+<text x="28" y="282" font-size="14" xml:space="preserve">• Anaphora — repeat a phrase at the start of clauses ('I have a dream…').</text>
+<text x="28" y="306" font-size="14" xml:space="preserve">• Antithesis — contrasting ideas in parallel form.</text>
+<text x="28" y="330" font-size="14" xml:space="preserve">• Parallelism — repeated grammatical structure for rhythm.</text>
+<text x="28" y="354" font-size="14" xml:space="preserve">• Rhetorical question — asked for effect, not an answer.</text>
+<text x="28" y="378" font-size="14" xml:space="preserve">• Allusion — a reference to a known person, place, or work.</text>
+<text x="28" y="402" font-size="14" xml:space="preserve">• Hyperbole — deliberate exaggeration for emphasis.</text>
+<text x="28" y="439" font-size="17" font-weight="700">Logical fallacies (weak arguments)</text>
+<text x="28" y="467" font-size="14" xml:space="preserve">• Ad hominem · straw man · slippery slope · bandwagon · false dilemma ·</text>
+<text x="28" y="491" font-size="14" xml:space="preserve">  hasty generalization.</text>
+</svg>

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 684 600" role="img" aria-label="Genetic Code (mRNA Codon Table)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 736 600" role="img" aria-label="Genetic Code (mRNA Codon Table)">
 <title>Genetic Code (mRNA Codon Table)</title>
 <style>
   text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
@@ -10,7 +10,7 @@
   .fill-faint{fill:var(--oe-svg-faint,#777);}
   .b{font-weight:700;}
 </style>
-<rect class="oe-bg" x="0" y="0" width="684" height="600"/>
+<rect class="oe-bg" x="0" y="0" width="736" height="600"/>
 <text x="28" y="40" font-size="26" font-weight="700">Genetic Code (mRNA Codon Table)</text>
 <text x="28" y="66" font-size="13" class="faint">Each mRNA codon (read 5'→3') → amino acid. 64 codons; AUG = START/Met; UAA/UAG/UGA = STOP.</text>
 <text x="131" y="116" font-size="13" text-anchor="middle" font-weight="700">2nd: U</text>

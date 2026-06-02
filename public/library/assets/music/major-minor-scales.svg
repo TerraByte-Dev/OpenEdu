@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 454" role="img" aria-label="Major &amp; Minor Scale Patterns">
+<title>Major &amp; Minor Scale Patterns</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="454"/>
+<text x="28" y="50" font-size="26" font-weight="700">Major &amp; Minor Scale Patterns</text>
+<text x="28" y="72" font-size="13" class="faint">W = whole step (2 half steps), H = half step</text>
+<text x="28" y="113" font-size="17" font-weight="700">Major scale</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">Pattern:  W – W – H – W – W – W – H</text>
+<text x="28" y="167" font-size="15" xml:space="preserve">C major:  C  D  E  F  G  A  B  C   (half steps E–F, B–C)</text>
+<text x="28" y="204" font-size="17" font-weight="700">Minor scales (three forms)</text>
+<text x="28" y="233" font-size="15" xml:space="preserve">Natural:   W – H – W – W – H – W – W    A minor: A B C D E F G A</text>
+<text x="28" y="258" font-size="15" xml:space="preserve">Harmonic:  natural minor + raised 7th     (A: … F G♯ A)</text>
+<text x="28" y="283" font-size="15" xml:space="preserve">Melodic:   raised 6th &amp; 7th going UP, natural coming DOWN</text>
+<text x="28" y="320" font-size="17" font-weight="700">Key relationships</text>
+<text x="28" y="348" font-size="14" xml:space="preserve">• Relative minor = 6th degree of a major scale; shares its key signature (C</text>
+<text x="28" y="372" font-size="14" xml:space="preserve">  major ↔ A minor).</text>
+<text x="28" y="396" font-size="14" xml:space="preserve">• Parallel minor = same starting note (C major ↔ C minor).</text>
+<text x="28" y="420" font-size="14" xml:space="preserve">• A major key and its relative minor are a minor 3rd (3 half steps) apart.</text>
+</svg>

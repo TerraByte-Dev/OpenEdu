@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 606 648" role="img" aria-label="Multiplication Table (1–12)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 612 648" role="img" aria-label="Multiplication Table (1–12)">
 <title>Multiplication Table (1–12)</title>
 <style>
   text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
@@ -10,7 +10,7 @@
   .fill-faint{fill:var(--oe-svg-faint,#777);}
   .b{font-weight:700;}
 </style>
-<rect class="oe-bg" x="0" y="0" width="606" height="648"/>
+<rect class="oe-bg" x="0" y="0" width="612" height="648"/>
 <text x="30" y="40" font-size="26" font-weight="700">Multiplication Table (1–12)</text>
 <rect x="30" y="64" width="42" height="42" class="cell" fill="var(--oe-svg-faint,#777)" fill-opacity="0.30"/>
 <text x="51" y="90" font-size="15" text-anchor="middle" font-weight="700">×</text>

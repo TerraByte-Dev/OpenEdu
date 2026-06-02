@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 619 446" role="img" aria-label="Spanish Days, Months &amp; Seasons">
+<title>Spanish Days, Months &amp; Seasons</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="619" height="446"/>
+<text x="28" y="50" font-size="26" font-weight="700">Spanish Days, Months &amp; Seasons</text>
+<text x="28" y="72" font-size="13" class="faint">lowercase and masculine in Spanish</text>
+<text x="28" y="113" font-size="17" font-weight="700">Days (la semana) — starts Monday</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">lunes  martes  miércoles  jueves  viernes  sábado  domingo</text>
+<text x="28" y="179" font-size="17" font-weight="700">Months (los meses)</text>
+<text x="28" y="208" font-size="15" xml:space="preserve">enero  febrero  marzo  abril  mayo  junio</text>
+<text x="28" y="233" font-size="15" xml:space="preserve">julio  agosto  septiembre  octubre  noviembre  diciembre</text>
+<text x="28" y="270" font-size="17" font-weight="700">Seasons (las estaciones)</text>
+<text x="28" y="299" font-size="15" xml:space="preserve">la primavera   el verano   el otoño   el invierno</text>
+<text x="28" y="336" font-size="17" font-weight="700">Dates</text>
+<text x="28" y="364" font-size="14" xml:space="preserve">• Format: el + number + de + month — el 5 de mayo.</text>
+<text x="28" y="388" font-size="14" xml:space="preserve">• Cardinal numbers, except the first: el primero de (or el uno de).</text>
+<text x="28" y="412" font-size="14" xml:space="preserve">• 'on Monday' = el lunes; 'on Mondays' = los lunes.</text>
+</svg>

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 614 568" role="img" aria-label="The Water Cycle">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 614 592" role="img" aria-label="The Water Cycle">
 <title>The Water Cycle</title>
 <style>
   text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
@@ -10,7 +10,7 @@
   .fill-faint{fill:var(--oe-svg-faint,#777);}
   .b{font-weight:700;}
 </style>
-<rect class="oe-bg" x="0" y="0" width="614" height="568"/>
+<rect class="oe-bg" x="0" y="0" width="614" height="592"/>
 <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
 <text x="28" y="40" font-size="26" font-weight="700">The Water Cycle</text>
 <text x="28" y="66" font-size="13" class="faint">the Sun's energy and gravity move water between ocean, air, and land</text>
@@ -36,5 +36,6 @@
 <rect x="98" y="305" width="158" height="56" class="cell"/>
 <text x="177" y="330" font-size="14" text-anchor="middle" font-weight="700">Collection</text>
 <text x="177" y="348" font-size="10.5" text-anchor="middle" class="faint">oceans, lakes, runoff</text>
-<text x="28" y="554" font-size="12" class="faint">Also: transpiration (plants release vapor) and infiltration (water soaks into groundwater). ~97% of Earth's water is in the oceans.</text>
+<text x="28" y="562" font-size="12" class="faint">Also: transpiration (plants release vapor) and infiltration (water soaks into</text>
+<text x="28" y="578" font-size="12" class="faint">groundwater). ~97% of Earth's water is in the oceans.</text>
 </svg>

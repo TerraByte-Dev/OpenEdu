@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 713 509" role="img" aria-label="MLA Citation (9th ed.)">
+<title>MLA Citation (9th ed.)</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="713" height="509"/>
+<text x="28" y="50" font-size="26" font-weight="700">MLA Citation (9th ed.)</text>
+<text x="28" y="72" font-size="13" class="faint">Works Cited — alphabetical, hanging indent</text>
+<text x="28" y="113" font-size="17" font-weight="700">Nine core elements (in order)</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">1 Author.   2 &quot;Title of source.&quot;   3 Title of container,</text>
+<text x="28" y="167" font-size="15" xml:space="preserve">4 Other contributors,   5 Version,   6 Number,</text>
+<text x="28" y="192" font-size="15" xml:space="preserve">7 Publisher,   8 Publication date,   9 Location (pp. / URL).</text>
+<text x="28" y="229" font-size="17" font-weight="700">In-text</text>
+<text x="28" y="257" font-size="14" xml:space="preserve">• (Author Page) — no comma: (Smith 42).</text>
+<text x="28" y="281" font-size="14" xml:space="preserve">• Author named in the sentence → page only: Smith argues … (42).</text>
+<text x="28" y="305" font-size="14" xml:space="preserve">• No author → shortened title: (&quot;Climate Report&quot; 7).</text>
+<text x="28" y="342" font-size="17" font-weight="700">Works Cited templates</text>
+<text x="28" y="371" font-size="15" xml:space="preserve">Book:    Last, First. Title of Book. Publisher, Year.</text>
+<text x="28" y="396" font-size="15" xml:space="preserve">Journal: Last, First. &quot;Article.&quot; Journal, vol. #, no. #, Year, pp. ##–##.</text>
+<text x="28" y="421" font-size="15" xml:space="preserve">Web:     Last, First. &quot;Page.&quot; Website, Publisher, Day Month Year, URL.</text>
+<text x="28" y="451" font-size="14">Give the URL without 'https://'. Add 'Accessed Day Month Year.' for undated</text>
+<text x="28" y="475" font-size="14">sources. Abbreviate months except May, June, July.</text>
+</svg>
