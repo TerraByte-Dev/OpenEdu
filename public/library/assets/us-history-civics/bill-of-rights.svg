@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 420" role="img" aria-label="The Bill of Rights">
+<title>The Bill of Rights</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="420"/>
+<text x="28" y="50" font-size="26" font-weight="700">The Bill of Rights</text>
+<text x="28" y="72" font-size="13" class="faint">the first 10 amendments — ratified Dec 15, 1791</text>
+<text x="28" y="107" font-size="15">1</text>
+<text x="73" y="107" font-size="15">Speech, religion, press, assembly, petition</text>
+<text x="28" y="132" font-size="15">2</text>
+<text x="73" y="132" font-size="15">Right to keep and bear arms</text>
+<text x="28" y="157" font-size="15">3</text>
+<text x="73" y="157" font-size="15">No quartering of soldiers in peacetime</text>
+<text x="28" y="182" font-size="15">4</text>
+<text x="73" y="182" font-size="15">No unreasonable searches; warrants need probable cause</text>
+<text x="28" y="207" font-size="15">5</text>
+<text x="73" y="207" font-size="15">Due process; grand jury; no double jeopardy; no self-incrimination</text>
+<text x="28" y="232" font-size="15">6</text>
+<text x="73" y="232" font-size="15">Speedy public jury trial; a lawyer; confront witnesses</text>
+<text x="28" y="257" font-size="15">7</text>
+<text x="73" y="257" font-size="15">Jury trial in federal civil cases</text>
+<text x="28" y="282" font-size="15">8</text>
+<text x="73" y="282" font-size="15">No excessive bail/fines; no cruel &amp; unusual punishment</text>
+<text x="28" y="307" font-size="15">9</text>
+<text x="73" y="307" font-size="15">Rights not listed are still kept by the people</text>
+<text x="28" y="332" font-size="15">10</text>
+<text x="73" y="332" font-size="15">Powers not given to the U.S. are reserved to the states/people</text>
+<text x="28" y="362" font-size="14">All 27 amendments (including these 10) are on the Constitutional Amendments</text>
+<text x="28" y="386" font-size="14">card.</text>
+</svg>

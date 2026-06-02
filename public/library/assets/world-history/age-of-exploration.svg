@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 370" role="img" aria-label="Age of Exploration">
+<title>Age of Exploration</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="370"/>
+<text x="28" y="50" font-size="26" font-weight="700">Age of Exploration</text>
+<text x="28" y="72" font-size="13" class="faint">explorer — sponsor — date — achievement</text>
+<text x="28" y="107" font-size="15" font-weight="700">Explorer</text>
+<text x="127" y="107" font-size="15" font-weight="700">Sponsor</text>
+<text x="226" y="107" font-size="15" font-weight="700">Date</text>
+<text x="316" y="107" font-size="15" font-weight="700">Achievement</text>
+<line x1="28" y1="113" x2="622" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Dias</text>
+<text x="127" y="132" font-size="15">Portugal</text>
+<text x="226" y="132" font-size="15">1488</text>
+<text x="316" y="132" font-size="15">rounded the Cape of Good Hope</text>
+<text x="28" y="157" font-size="15">Columbus</text>
+<text x="127" y="157" font-size="15">Spain</text>
+<text x="226" y="157" font-size="15">1492</text>
+<text x="316" y="157" font-size="15">reached the Caribbean</text>
+<text x="28" y="182" font-size="15">Cabot</text>
+<text x="127" y="182" font-size="15">England</text>
+<text x="226" y="182" font-size="15">1497</text>
+<text x="316" y="182" font-size="15">North American coast</text>
+<text x="28" y="207" font-size="15">da Gama</text>
+<text x="127" y="207" font-size="15">Portugal</text>
+<text x="226" y="207" font-size="15">1498</text>
+<text x="316" y="207" font-size="15">sea route to India</text>
+<text x="28" y="232" font-size="15">Magellan</text>
+<text x="127" y="232" font-size="15">Spain</text>
+<text x="226" y="232" font-size="15">1519–22</text>
+<text x="316" y="232" font-size="15">first to circumnavigate (his crew)</text>
+<text x="28" y="257" font-size="15">Cortés</text>
+<text x="127" y="257" font-size="15">Spain</text>
+<text x="226" y="257" font-size="15">1519–21</text>
+<text x="316" y="257" font-size="15">conquered the Aztec Empire</text>
+<text x="28" y="282" font-size="15">Pizarro</text>
+<text x="127" y="282" font-size="15">Spain</text>
+<text x="226" y="282" font-size="15">1532</text>
+<text x="316" y="282" font-size="15">conquered the Inca Empire</text>
+<text x="28" y="312" font-size="14">Motives: 'God, Gold, Glory' + new tech (caravel, compass, astrolabe). Led to</text>
+<text x="28" y="336" font-size="14">the Columbian Exchange and colonial empires.</text>
+</svg>

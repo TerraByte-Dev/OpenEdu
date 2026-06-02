@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 677 344" role="img" aria-label="Economic Indicators Glossary">
+<title>Economic Indicators Glossary</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="677" height="344"/>
+<text x="28" y="50" font-size="26" font-weight="700">Economic Indicators Glossary</text>
+<text x="28" y="72" font-size="13" class="faint">the numbers that gauge an economy</text>
+<text x="28" y="107" font-size="15">GDP</text>
+<text x="190" y="107" font-size="15">value of goods/services made IN a country per year</text>
+<text x="28" y="132" font-size="15">GNP</text>
+<text x="190" y="132" font-size="15">output by a country's residents, anywhere</text>
+<text x="28" y="157" font-size="15">Inflation / CPI</text>
+<text x="190" y="157" font-size="15">rising prices; CPI tracks a basket of goods</text>
+<text x="28" y="182" font-size="15">Unemployment</text>
+<text x="190" y="182" font-size="15">% of the labor force jobless but job-seeking</text>
+<text x="28" y="207" font-size="15">Interest rate</text>
+<text x="190" y="207" font-size="15">the cost of borrowing money</text>
+<text x="28" y="232" font-size="15">Recession</text>
+<text x="190" y="232" font-size="15">sustained decline (often 2 quarters of falling GDP)</text>
+<text x="28" y="262" font-size="14">Fiscal policy = government taxing &amp; spending. Monetary policy = a central</text>
+<text x="28" y="286" font-size="14">bank adjusting the money supply &amp; interest rates. GDP per capita = GDP ÷</text>
+<text x="28" y="310" font-size="14">population.</text>
+</svg>

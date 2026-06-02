@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 598 382" role="img" aria-label="Map Symbols &amp; Legend">
+<title>Map Symbols &amp; Legend</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="598" height="382"/>
+<text x="28" y="40" font-size="26" font-weight="700">Map Symbols &amp; Legend</text>
+<text x="28" y="64" font-size="13" class="faint">the standard marks on a topographic / road map</text>
+<circle cx="114" cy="170" r="64" class="rule"/>
+<path d="M 114 106 L 125 159 L 178 170 L 125 181 L 114 234 L 103 181 L 50 170 L 103 159 Z" fill="var(--oe-svg-faint,#777)" stroke="var(--oe-svg-rule,#333)" stroke-width="1"/>
+<text x="114" y="99" font-size="14" text-anchor="middle" font-weight="700">N</text>
+<text x="114" y="251" font-size="14" text-anchor="middle" font-weight="700">S</text>
+<text x="189" y="175" font-size="14" font-weight="700">E</text>
+<text x="39" y="175" font-size="14" text-anchor="end" font-weight="700">W</text>
+<text x="114" y="274" font-size="11" text-anchor="middle" class="faint">Compass rose</text>
+<rect x="28" y="294" width="38" height="12" class="fill-faint"/>
+<rect x="66" y="294" width="38" height="12" class="cell"/>
+<rect x="104" y="294" width="38" height="12" class="fill-faint"/>
+<rect x="142" y="294" width="38" height="12" class="cell"/>
+<text x="28" y="320" font-size="9" text-anchor="middle" class="faint">0</text>
+<text x="66" y="320" font-size="9" text-anchor="middle" class="faint">100</text>
+<text x="104" y="320" font-size="9" text-anchor="middle" class="faint">200</text>
+<text x="142" y="320" font-size="9" text-anchor="middle" class="faint">300</text>
+<text x="180" y="320" font-size="9" text-anchor="middle" class="faint">400</text>
+<text x="188" y="305" font-size="10">km</text>
+<text x="28" y="338" font-size="11" class="faint">Scale bar — map distance ↔ real distance</text>
+<path d="M 278 98 h 44" fill="none" stroke="var(--oe-svg-ink,#111)" stroke-width="3"/>
+<text x="336" y="103" font-size="13">Highway / major road</text>
+<line x1="278" y1="128" x2="322" y2="128" class="rule"/><line x1="286" y1="124" x2="286" y2="132" class="rule"/><line x1="296" y1="124" x2="296" y2="132" class="rule"/><line x1="306" y1="124" x2="306" y2="132" class="rule"/><line x1="316" y1="124" x2="316" y2="132" class="rule"/>
+<text x="336" y="133" font-size="13">Railroad</text>
+<path d="M 278 154 q 11 8 22 0 q 11 -8 22 0" fill="none" stroke="var(--oe-svg-faint,#777)" stroke-width="2"/>
+<text x="336" y="163" font-size="13">River / stream</text>
+<rect x="278" y="181" width="44" height="14" class="fill-faint"/>
+<text x="336" y="193" font-size="13">Lake / water body</text>
+<line x1="278" y1="218" x2="322" y2="218" class="rule" stroke-dasharray="6 3 2 3"/>
+<text x="336" y="223" font-size="13">Border / boundary</text>
+<path d="M 300 240 L 311 255 L 289 255 Z" fill="var(--oe-svg-faint,#777)" stroke="var(--oe-svg-rule,#333)" stroke-width="1"/>
+<text x="336" y="253" font-size="13">Mountain peak</text>
+<path d="M 292 269 L 300 277 L 286 277 Z M 292 274 L 301 283 L 283 283 Z" fill="var(--oe-svg-faint,#777)" stroke="var(--oe-svg-rule,#333)" stroke-width="0.8"/>
+<text x="336" y="283" font-size="13">Forest / park</text>
+<circle cx="292" cy="308" r="6" class="cell"/><circle cx="292" cy="308" r="2.5" class="fill-faint"/>
+<text x="336" y="313" font-size="13">City / town</text>
+<path d="M 292 330 l 2.8 5.6 l 6.2 0.9 l -4.5 4.4 l 1.1 6.2 l -5.6 -2.9 l -5.6 2.9 l 1.1 -6.2 l -4.5 -4.4 l 6.2 -0.9 Z" fill="var(--oe-svg-faint,#777)" stroke="var(--oe-svg-rule,#333)" stroke-width="0.8"/>
+<text x="336" y="343" font-size="13">Capital city (★ in a circle)</text>
+</svg>

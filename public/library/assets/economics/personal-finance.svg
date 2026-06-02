@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 577 404" role="img" aria-label="Personal Finance Basics">
+<title>Personal Finance Basics</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="577" height="404"/>
+<text x="28" y="50" font-size="26" font-weight="700">Personal Finance Basics</text>
+<text x="28" y="72" font-size="13" class="faint">interest · budgeting · credit</text>
+<text x="28" y="113" font-size="17" font-weight="700">Interest</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">Simple:     I = P × r × t</text>
+<text x="28" y="167" font-size="15" xml:space="preserve">Compound:   A = P(1 + r/n)^(n·t)</text>
+<text x="28" y="192" font-size="15" xml:space="preserve">Rule of 72: years to double ≈ 72 / rate%</text>
+<text x="28" y="229" font-size="17" font-weight="700">Budget — the 50/30/20 rule</text>
+<text x="28" y="257" font-size="14" xml:space="preserve">• 50% needs · 30% wants · 20% savings &amp; debt payoff</text>
+<text x="28" y="294" font-size="17" font-weight="700">Credit &amp; accounts</text>
+<text x="28" y="322" font-size="14" xml:space="preserve">• Credit score (FICO 300–850): pay on time, keep balances low.</text>
+<text x="28" y="346" font-size="14" xml:space="preserve">• Emergency fund = 3–6 months of expenses.</text>
+<text x="28" y="370" font-size="14" xml:space="preserve">• Gross pay = before taxes; net pay = take-home.</text>
+</svg>

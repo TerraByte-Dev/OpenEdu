@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 749 345" role="img" aria-label="Major Political Revolutions">
+<title>Major Political Revolutions</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="749" height="345"/>
+<text x="28" y="50" font-size="26" font-weight="700">Major Political Revolutions</text>
+<text x="28" y="72" font-size="13" class="faint">the Enlightenment-era 'Age of Revolutions'</text>
+<text x="28" y="107" font-size="15" font-weight="700">Revolution</text>
+<text x="217" y="107" font-size="15" font-weight="700">Dates</text>
+<text x="325" y="107" font-size="15" font-weight="700">Result</text>
+<line x1="28" y1="113" x2="721" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Glorious (England)</text>
+<text x="217" y="132" font-size="15">1688</text>
+<text x="325" y="132" font-size="15">constitutional monarchy; Bill of Rights 1689</text>
+<text x="28" y="157" font-size="15">American</text>
+<text x="217" y="157" font-size="15">1775–1783</text>
+<text x="325" y="157" font-size="15">an independent U.S. republic</text>
+<text x="28" y="182" font-size="15">French</text>
+<text x="217" y="182" font-size="15">1789–1799</text>
+<text x="325" y="182" font-size="15">a republic; led to Napoleon</text>
+<text x="28" y="207" font-size="15">Haitian</text>
+<text x="217" y="207" font-size="15">1791–1804</text>
+<text x="325" y="207" font-size="15">first Black republic; ended slavery there</text>
+<text x="28" y="232" font-size="15">Latin American</text>
+<text x="217" y="232" font-size="15">1808–1826</text>
+<text x="325" y="232" font-size="15">independence from Spain &amp; Portugal</text>
+<text x="28" y="257" font-size="15">Russian</text>
+<text x="217" y="257" font-size="15">1917</text>
+<text x="325" y="257" font-size="15">the communist USSR (Lenin)</text>
+<text x="28" y="287" font-size="14">Common roots: Enlightenment ideas of natural rights and popular sovereignty;</text>
+<text x="28" y="311" font-size="14">anger at unequal rule and taxes.</text>
+</svg>

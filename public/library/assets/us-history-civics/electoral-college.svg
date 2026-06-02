@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 431" role="img" aria-label="The Electoral College">
+<title>The Electoral College</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="431"/>
+<text x="28" y="50" font-size="26" font-weight="700">The Electoral College</text>
+<text x="28" y="72" font-size="13" class="faint">538 electors — a majority of 270 wins</text>
+<text x="28" y="107" font-size="15">435</text>
+<text x="82" y="107" font-size="15">House members</text>
+<text x="28" y="132" font-size="15">100</text>
+<text x="82" y="132" font-size="15">Senators</text>
+<text x="28" y="157" font-size="15">+3</text>
+<text x="82" y="157" font-size="15">Washington, D.C. (23rd Amendment)</text>
+<text x="28" y="182" font-size="15">538</text>
+<text x="82" y="182" font-size="15">total electors → 270 to win</text>
+<text x="28" y="219" font-size="17" font-weight="700">How it works</text>
+<text x="28" y="247" font-size="14" xml:space="preserve">• Each state's electors = its Representatives + 2 Senators (minimum 3).</text>
+<text x="28" y="271" font-size="14" xml:space="preserve">• Winner-take-all in 48 states + D.C.; Maine &amp; Nebraska split by district.</text>
+<text x="28" y="295" font-size="14" xml:space="preserve">• Electors vote in December; Congress counts them on January 6.</text>
+<text x="28" y="319" font-size="14" xml:space="preserve">• No majority → the House picks, one vote per state delegation (12th</text>
+<text x="28" y="343" font-size="14" xml:space="preserve">  Amendment).</text>
+<text x="28" y="373" font-size="14">A candidate can win the presidency while losing the national popular vote</text>
+<text x="28" y="397" font-size="14">(1876, 1888, 2000, 2016).</text>
+</svg>

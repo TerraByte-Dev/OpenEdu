@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 794 295" role="img" aria-label="Types of Economic Systems">
+<title>Types of Economic Systems</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="794" height="295"/>
+<text x="28" y="50" font-size="26" font-weight="700">Types of Economic Systems</text>
+<text x="28" y="72" font-size="13" class="faint">who decides what to produce</text>
+<text x="28" y="107" font-size="15" font-weight="700">System</text>
+<text x="154" y="107" font-size="15" font-weight="700">Who decides</text>
+<text x="361" y="107" font-size="15" font-weight="700">Owns resources</text>
+<text x="559" y="107" font-size="15" font-weight="700">Example</text>
+<line x1="28" y1="113" x2="766" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Traditional</text>
+<text x="154" y="132" font-size="15">custom &amp; habit</text>
+<text x="361" y="132" font-size="15">family/community</text>
+<text x="559" y="132" font-size="15">subsistence farming</text>
+<text x="28" y="157" font-size="15">Command</text>
+<text x="154" y="157" font-size="15">central government</text>
+<text x="361" y="157" font-size="15">the state</text>
+<text x="559" y="157" font-size="15">former USSR, N. Korea</text>
+<text x="28" y="182" font-size="15">Market</text>
+<text x="154" y="182" font-size="15">buyers &amp; sellers</text>
+<text x="361" y="182" font-size="15">private individuals</text>
+<text x="559" y="182" font-size="15">the free market (ideal)</text>
+<text x="28" y="207" font-size="15">Mixed</text>
+<text x="154" y="207" font-size="15">markets + government</text>
+<text x="361" y="207" font-size="15">private &amp; public</text>
+<text x="559" y="207" font-size="15">most countries today</text>
+<text x="28" y="237" font-size="14">Every system answers: what to produce, how, and for whom. Mixed economies</text>
+<text x="28" y="261" font-size="14">(markets + government) are the real-world norm.</text>
+</svg>

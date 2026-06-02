@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 653 309" role="img" aria-label="World War I at a Glance">
+<title>World War I at a Glance</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="653" height="309"/>
+<text x="28" y="50" font-size="26" font-weight="700">World War I at a Glance</text>
+<text x="28" y="72" font-size="13" class="faint">1914–1918</text>
+<text x="28" y="107" font-size="15">Allies</text>
+<text x="181" y="107" font-size="15">Britain, France, Russia, Italy, U.S. (1917)</text>
+<text x="28" y="132" font-size="15">Central Powers</text>
+<text x="181" y="132" font-size="15">Germany, Austria-Hungary, Ottomans, Bulgaria</text>
+<text x="28" y="169" font-size="17" font-weight="700">Causes — M.A.I.N.</text>
+<text x="28" y="197" font-size="14" xml:space="preserve">• Militarism · Alliances · Imperialism · Nationalism</text>
+<text x="28" y="227" font-size="14">Spark: assassination of Archduke Franz Ferdinand, June 28, 1914. Trench</text>
+<text x="28" y="251" font-size="14">warfare. Armistice Nov 11, 1918. The Treaty of Versailles (1919) blamed</text>
+<text x="28" y="275" font-size="14">Germany. ~17 million dead; the League of Nations formed.</text>
+</svg>
