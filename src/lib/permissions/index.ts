@@ -7,3 +7,5 @@ export {
   PERMISSION_EDITABLE_MODES,
 } from "./rules";
 export type { PermissionDecision, PermissionRules } from "./rules";
+export { PERMISSION_PRESETS, detectPreset } from "./presets";
+export type { PermissionPreset } from "./presets";

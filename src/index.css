@@ -94,7 +94,100 @@
   --font-body:      'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Blue is the universal default — no theme-swap override needed. */
+/* Blue is the universal default (data-theme="openedu" or unset) — no override needed. */
+
+/* ═══════════════════════════════════════════════════════════════
+   COLOR THEMES — html[data-theme="…"] (src/lib/theme.ts)
+   Because the derived tokens (--rule, --phosphor-faint/-veil, --ink-dim/-faint)
+   resolve var(--phosphor-rgb)/var(--ink-rgb) lazily at use-time on this same
+   <html> element, the CRT recolors only need to swap the base tokens — the rest
+   cascades for free. Universal themes additionally neutralize the palette + fonts
+   and rely on applyTheme() adding `crt-off` to drop the scanline overlay.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── CRT recolors (keep scanlines + VT323/mono fonts) ── */
+html[data-theme="amber"] {
+  --phosphor:       #FFB000;
+  --phosphor-bright:#FFC940;
+  --phosphor-dim:   #3a2600;
+  --phosphor-ink:   #FFD074;
+  --phosphor-rgb:   255 176 0;
+  --ink-rgb:        255 208 116;
+  --ink:            #FFD074;
+  --ink-em:         #FFF3DC;
+}
+html[data-theme="green"] {
+  --phosphor:       #2BFF88;
+  --phosphor-bright:#74FFB0;
+  --phosphor-dim:   #04210f;
+  --phosphor-ink:   #8FFFC0;
+  --phosphor-rgb:   43 255 136;
+  --ink-rgb:        143 255 192;
+  --ink:            #8FFFC0;
+  --ink-em:         #E9FFF2;
+}
+html[data-theme="synthwave"] {
+  --phosphor:       #FF3AC8;
+  --phosphor-bright:#FF7BDD;
+  --phosphor-dim:   #2a0a28;
+  --phosphor-ink:   #FF9CE6;
+  --phosphor-rgb:   255 58 200;
+  --ink-rgb:        255 156 230;
+  --ink:            #FF9CE6;
+  --ink-em:         #FFE3F7;
+  --bg:             #0a0014;
+  --panel:          #120322;
+  --panel-lite:     #16042a;
+  --lcd:            #0b0118;
+}
+
+/* ── Universal themes (neutral palette, sans fonts; CRT overlay dropped via crt-off) ── */
+html[data-theme="dark"] {
+  --phosphor:       #4493f8;
+  --phosphor-bright:#6aa9ff;
+  --phosphor-dim:   #11233f;
+  --phosphor-ink:   #adbac7;
+  --phosphor-rgb:   68 147 248;
+  --ink-rgb:        201 209 217;
+  --ink:            #c9d1d9;
+  --ink-em:         #f0f3f6;
+  --bg:             #0d1117;
+  --panel:          #11161d;
+  --panel-lite:     #161b22;
+  --lcd:            #0b0f14;
+  --rule:           #2a313a;
+  --rule-dim:       #20262d;
+  --font-display:   'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:      'IBM Plex Mono', ui-monospace, monospace;
+  --font-lcd:       'IBM Plex Mono', ui-monospace, monospace;
+}
+html[data-theme="light"] {
+  --phosphor:       #0969da;
+  --phosphor-bright:#0a5cc2;
+  --phosphor-dim:   #ddf4ff;
+  --phosphor-ink:   #4a5560;
+  --phosphor-rgb:   9 105 218;
+  --ink-rgb:        31 35 40;
+  --ink:            #1f2328;
+  --ink-em:         #0b0c0e;
+  --bg:             #ffffff;
+  --panel:          #f6f8fa;
+  --panel-lite:     #eef1f4;
+  --lcd:            #f3f6f9;
+  --rule:           #d0d7de;
+  --rule-dim:       #e6eaef;
+  --font-display:   'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:      'IBM Plex Mono', ui-monospace, monospace;
+  --font-lcd:       'IBM Plex Mono', ui-monospace, monospace;
+}
+
+/* Readability in universal themes: kill the phosphor text-glows + chromatic aberration. */
+html[data-theme="dark"] .phosphor-glow,    html[data-theme="light"] .phosphor-glow,
+html[data-theme="dark"] .phosphor-glow-lg, html[data-theme="light"] .phosphor-glow-lg,
+html[data-theme="dark"] .phosphor-glow-xl, html[data-theme="light"] .phosphor-glow-xl,
+html[data-theme="dark"] .crt-aberrate,     html[data-theme="light"] .crt-aberrate {
+  text-shadow: none;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    TAILWIND V4 @THEME
