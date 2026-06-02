@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 435" role="img" aria-label="Index of Refraction">
+<title>Index of Refraction</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="435"/>
+<text x="28" y="50" font-size="26" font-weight="700">Index of Refraction</text>
+<text x="28" y="72" font-size="13" class="faint">n = c / v  (c = 3.00×10⁸ m/s; n ≥ 1, no units)</text>
+<text x="28" y="107" font-size="15" font-weight="700">Medium</text>
+<text x="172" y="107" font-size="15" font-weight="700">n</text>
+<line x1="28" y1="113" x2="226" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Vacuum</text>
+<text x="172" y="132" font-size="15">1.0000</text>
+<text x="28" y="157" font-size="15">Air</text>
+<text x="172" y="157" font-size="15">1.0003</text>
+<text x="28" y="182" font-size="15">Water (20 °C)</text>
+<text x="172" y="182" font-size="15">1.33</text>
+<text x="28" y="207" font-size="15">Ethanol</text>
+<text x="172" y="207" font-size="15">1.36</text>
+<text x="28" y="232" font-size="15">Glass (crown)</text>
+<text x="172" y="232" font-size="15">1.52</text>
+<text x="28" y="257" font-size="15">Diamond</text>
+<text x="172" y="257" font-size="15">2.42</text>
+<text x="28" y="294" font-size="17" font-weight="700">Snell's law</text>
+<text x="28" y="323" font-size="15" xml:space="preserve">n₁·sin θ₁ = n₂·sin θ₂</text>
+<text x="28" y="353" font-size="14">Light slows and bends TOWARD the normal entering a denser (higher-n) medium.</text>
+<text x="28" y="377" font-size="14">Past the critical angle θ_c — where sin θ_c = n₂/n₁ (n₁ &gt; n₂) — it totally</text>
+<text x="28" y="401" font-size="14">internally reflects.</text>
+</svg>

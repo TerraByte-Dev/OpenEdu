@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 598 324" role="img" aria-label="Vectors &amp; Trigonometry">
+<title>Vectors &amp; Trigonometry</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="598" height="324"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">Vectors &amp; Trigonometry</text>
+<text x="28" y="64" font-size="13" class="faint">resolve a vector into perpendicular components</text>
+<line x1="48" y1="284" x2="328" y2="284" class="rule-faint"/>
+<line x1="48" y1="284" x2="48" y2="74" class="rule-faint"/>
+<line x1="48" y1="284" x2="278" y2="284" class="rule-faint" stroke-dasharray="5 4"/>
+<line x1="278" y1="284" x2="278" y2="134" class="rule-faint" stroke-dasharray="5 4"/>
+<line x1="48" y1="284" x2="278" y2="134" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<line x1="266" y1="284" x2="266" y2="272" class="rule"/>
+<line x1="266" y1="272" x2="278" y2="272" class="rule"/>
+<path d="M 94 284 A 46 46 0 0 0 86.53008745457626 258.87168209484156" fill="none" stroke="var(--oe-svg-ink,#111)" stroke-width="1.2"/>
+<text x="104" y="268" font-size="15" font-weight="700">θ</text>
+<text x="133" y="201" font-size="15" font-weight="700">|V|</text>
+<text x="163" y="302" font-size="12" text-anchor="middle" class="faint">Vₓ = |V| cos θ</text>
+<text x="288" y="213" font-size="13" font-weight="700">V_y</text>
+<text x="368" y="100" font-size="14" xml:space="preserve">sin θ = opp / hyp</text>
+<text x="368" y="126" font-size="14" xml:space="preserve">cos θ = adj / hyp</text>
+<text x="368" y="152" font-size="14" xml:space="preserve">tan θ = opp / adj</text>
+<text x="368" y="178" font-size="14" xml:space="preserve"></text>
+<text x="368" y="204" font-size="14" xml:space="preserve">|V| = √(Vₓ² + V_y²)</text>
+<text x="368" y="230" font-size="14" xml:space="preserve">θ = tan⁻¹(V_y / Vₓ)</text>
+</svg>

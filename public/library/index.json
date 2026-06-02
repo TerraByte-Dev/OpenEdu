@@ -1462,6 +1462,29 @@
     "asset": "assets/music/circle-of-fifths.svg"
   },
   {
+    "id": "physics/circular-and-rotational-motion",
+    "title": "Circular & Rotational Motion",
+    "aliases": [
+      "circular motion",
+      "rotational motion",
+      "centripetal force",
+      "torque",
+      "angular velocity",
+      "moment of inertia"
+    ],
+    "tags": [
+      "physics",
+      "circular motion",
+      "rotation",
+      "centripetal",
+      "torque"
+    ],
+    "subject": "physics",
+    "summary": "Uniform circular motion (centripetal force/acceleration) and the rotational analogs of linear motion.",
+    "path": "resources/physics/circular-and-rotational-motion.md",
+    "asset": "assets/physics/circular-and-rotational-motion.svg"
+  },
+  {
     "id": "physics/constants",
     "title": "Physics Constants",
     "aliases": [
@@ -1482,6 +1505,29 @@
     "summary": "Common fundamental physics constants with their symbols, values, and units.",
     "path": "resources/physics/constants.md",
     "asset": "assets/physics/constants.svg"
+  },
+  {
+    "id": "physics/electric-and-magnetic-fields",
+    "title": "Electric & Magnetic Fields",
+    "aliases": [
+      "electric field",
+      "magnetic field",
+      "coulombs law",
+      "electromagnetism",
+      "lorentz force",
+      "right hand rule"
+    ],
+    "tags": [
+      "physics",
+      "electricity",
+      "magnetism",
+      "fields",
+      "coulombs law"
+    ],
+    "subject": "physics",
+    "summary": "Coulomb's law, electric field and force, and the magnetic force on charges and wires.",
+    "path": "resources/physics/electric-and-magnetic-fields.md",
+    "asset": "assets/physics/electric-and-magnetic-fields.svg"
   },
   {
     "id": "physics/electromagnetic-spectrum",
@@ -1506,6 +1552,27 @@
     "asset": "assets/physics/electromagnetic-spectrum.svg"
   },
   {
+    "id": "physics/electronic-component-symbols",
+    "title": "Electronic Component Symbols",
+    "aliases": [
+      "electronic component symbols",
+      "schematic symbols",
+      "circuit symbols",
+      "resistor capacitor symbol"
+    ],
+    "tags": [
+      "physics",
+      "electronics",
+      "circuits",
+      "schematic",
+      "symbols"
+    ],
+    "subject": "physics",
+    "summary": "The standard schematic symbols for common circuit components and what each does.",
+    "path": "resources/physics/electronic-component-symbols.md",
+    "asset": "assets/physics/electronic-component-symbols.svg"
+  },
+  {
     "id": "physics/energy-work",
     "title": "Energy & Work Equations",
     "aliases": [
@@ -1528,6 +1595,28 @@
     "asset": "assets/physics/energy-work.svg"
   },
   {
+    "id": "physics/index-of-refraction",
+    "title": "Index of Refraction",
+    "aliases": [
+      "index of refraction",
+      "refractive index",
+      "snells law",
+      "critical angle",
+      "total internal reflection"
+    ],
+    "tags": [
+      "physics",
+      "optics",
+      "refraction",
+      "light",
+      "snells law"
+    ],
+    "subject": "physics",
+    "summary": "The refractive index of common media, Snell's law, and the critical angle.",
+    "path": "resources/physics/index-of-refraction.md",
+    "asset": "assets/physics/index-of-refraction.svg"
+  },
+  {
     "id": "physics/kinematics-equations",
     "title": "Kinematics Equations (1-D Motion)",
     "aliases": [
@@ -1548,6 +1637,52 @@
     "summary": "The four constant-acceleration (SUVAT) equations of straight-line motion.",
     "path": "resources/physics/kinematics-equations.md",
     "asset": "assets/physics/kinematics-equations.svg"
+  },
+  {
+    "id": "physics/kirchhoffs-laws",
+    "title": "Kirchhoff's Laws",
+    "aliases": [
+      "kirchhoffs laws",
+      "kirchhoff",
+      "junction rule",
+      "loop rule",
+      "KCL",
+      "KVL",
+      "circuit analysis"
+    ],
+    "tags": [
+      "physics",
+      "circuits",
+      "kirchhoff",
+      "current",
+      "voltage"
+    ],
+    "subject": "physics",
+    "summary": "Kirchhoff's current (junction) and voltage (loop) laws for analyzing circuits.",
+    "path": "resources/physics/kirchhoffs-laws.md",
+    "asset": "assets/physics/kirchhoffs-laws.svg"
+  },
+  {
+    "id": "physics/momentum-impulse",
+    "title": "Momentum & Impulse",
+    "aliases": [
+      "momentum",
+      "impulse",
+      "conservation of momentum",
+      "collisions",
+      "elastic inelastic"
+    ],
+    "tags": [
+      "physics",
+      "momentum",
+      "impulse",
+      "collisions",
+      "conservation"
+    ],
+    "subject": "physics",
+    "summary": "Momentum, impulse, conservation of momentum, and elastic vs inelastic collisions.",
+    "path": "resources/physics/momentum-impulse.md",
+    "asset": "assets/physics/momentum-impulse.svg"
   },
   {
     "id": "physics/newtons-laws-forces",
@@ -1592,6 +1727,126 @@
     "summary": "Ohm's law, electric power, and the rules for series and parallel resistors.",
     "path": "resources/physics/ohms-law-circuits.md",
     "asset": "assets/physics/ohms-law-circuits.svg"
+  },
+  {
+    "id": "physics/optics",
+    "title": "Optics — Reflection, Refraction & Lenses",
+    "aliases": [
+      "optics",
+      "reflection",
+      "refraction",
+      "snells law",
+      "lenses",
+      "mirrors",
+      "thin lens equation"
+    ],
+    "tags": [
+      "physics",
+      "optics",
+      "light",
+      "lenses",
+      "mirrors",
+      "refraction"
+    ],
+    "subject": "physics",
+    "summary": "Law of reflection, Snell's law, the thin-lens/mirror equation, and image rules.",
+    "path": "resources/physics/optics.md",
+    "asset": "assets/physics/optics.svg"
+  },
+  {
+    "id": "physics/projectile-motion",
+    "title": "Projectile Motion",
+    "aliases": [
+      "projectile motion",
+      "projectile",
+      "range",
+      "trajectory",
+      "parabolic motion",
+      "time of flight"
+    ],
+    "tags": [
+      "physics",
+      "motion",
+      "projectile",
+      "kinematics",
+      "gravity"
+    ],
+    "subject": "physics",
+    "summary": "Independent x/y motion of a projectile, the parabolic path, range, and max height.",
+    "path": "resources/physics/projectile-motion.md",
+    "asset": "assets/physics/projectile-motion.svg"
+  },
+  {
+    "id": "physics/thermodynamics",
+    "title": "Thermodynamics",
+    "aliases": [
+      "thermodynamics",
+      "laws of thermodynamics",
+      "heat",
+      "entropy",
+      "specific heat",
+      "temperature scales"
+    ],
+    "tags": [
+      "physics",
+      "thermodynamics",
+      "heat",
+      "entropy",
+      "temperature",
+      "energy"
+    ],
+    "subject": "physics",
+    "summary": "The four laws of thermodynamics, heat equations, temperature scales, and heat transfer.",
+    "path": "resources/physics/thermodynamics.md",
+    "asset": "assets/physics/thermodynamics.svg"
+  },
+  {
+    "id": "physics/vectors-and-trig-for-physics",
+    "title": "Vectors & Trigonometry for Physics",
+    "aliases": [
+      "vectors",
+      "vector components",
+      "trig for physics",
+      "soh cah toa",
+      "resolving vectors",
+      "scalar vector"
+    ],
+    "tags": [
+      "physics",
+      "vectors",
+      "trigonometry",
+      "components",
+      "forces"
+    ],
+    "subject": "physics",
+    "summary": "Resolving vectors into components, recombining them, and the SOH-CAH-TOA relations.",
+    "path": "resources/physics/vectors-and-trig-for-physics.md",
+    "asset": "assets/physics/vectors-and-trig-for-physics.svg"
+  },
+  {
+    "id": "physics/waves-and-sound",
+    "title": "Waves & Sound",
+    "aliases": [
+      "waves",
+      "sound",
+      "wavelength",
+      "frequency",
+      "wave speed",
+      "doppler",
+      "transverse longitudinal"
+    ],
+    "tags": [
+      "physics",
+      "waves",
+      "sound",
+      "frequency",
+      "wavelength",
+      "doppler"
+    ],
+    "subject": "physics",
+    "summary": "Wave types and parts, the wave-speed relation v = f·λ, and the basics of sound.",
+    "path": "resources/physics/waves-and-sound.md",
+    "asset": "assets/physics/waves-and-sound.svg"
   },
   {
     "id": "reference/greek-alphabet",

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 670 496" role="img" aria-label="Circular &amp; Rotational Motion">
+<title>Circular &amp; Rotational Motion</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="670" height="496"/>
+<text x="28" y="50" font-size="26" font-weight="700">Circular &amp; Rotational Motion</text>
+<text x="28" y="72" font-size="13" class="faint">uniform circular motion + the rotational analogs</text>
+<text x="28" y="113" font-size="17" font-weight="700">Uniform circular motion</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">Centripetal accel.  a_c = v² / r = ω²·r</text>
+<text x="28" y="167" font-size="15" xml:space="preserve">Centripetal force   F_c = m·v² / r</text>
+<text x="28" y="192" font-size="15" xml:space="preserve">Period              T = 2π·r / v</text>
+<text x="28" y="229" font-size="17" font-weight="700">Linear → rotational analogs</text>
+<text x="28" y="258" font-size="15" font-weight="700">Linear</text>
+<text x="181" y="258" font-size="15" font-weight="700">Rotational</text>
+<line x1="28" y1="264" x2="352" y2="264" class="rule-faint"/>
+<text x="28" y="283" font-size="15">displacement x</text>
+<text x="181" y="283" font-size="15">angle θ (rad)</text>
+<text x="28" y="308" font-size="15">velocity v</text>
+<text x="181" y="308" font-size="15">angular velocity ω</text>
+<text x="28" y="333" font-size="15">acceleration a</text>
+<text x="181" y="333" font-size="15">angular accel. α</text>
+<text x="28" y="358" font-size="15">force F</text>
+<text x="181" y="358" font-size="15">torque τ = r·F·sinφ</text>
+<text x="28" y="383" font-size="15">mass m</text>
+<text x="181" y="383" font-size="15">moment of inertia I</text>
+<text x="28" y="408" font-size="15">F = m·a</text>
+<text x="181" y="408" font-size="15">τ = I·α</text>
+<text x="28" y="438" font-size="14">φ = angle between r and F (torque is max when F ⊥ r). Links (θ = rotation</text>
+<text x="28" y="462" font-size="14">angle, in radians): s = r·θ, v = r·ω, a = r·α.</text>
+</svg>
