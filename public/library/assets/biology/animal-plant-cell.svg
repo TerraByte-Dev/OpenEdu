@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 748 592" role="img" aria-label="Animal vs Plant Cell">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 748 606" role="img" aria-label="Animal vs Plant Cell">
 <title>Animal vs Plant Cell</title>
 <style>
   text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
@@ -10,7 +10,7 @@
   .fill-faint{fill:var(--oe-svg-faint,#777);}
   .b{font-weight:700;}
 </style>
-<rect class="oe-bg" x="0" y="0" width="748" height="592"/>
+<rect class="oe-bg" x="0" y="0" width="748" height="606"/>
 <text x="28" y="40" font-size="26" font-weight="700">Animal vs Plant Cell</text>
 <text x="28" y="66" font-size="13" class="faint">the main organelles of eukaryotic cells</text>
 <text x="178" y="114" font-size="15" text-anchor="middle" font-weight="700">Animal cell</text>
@@ -64,5 +64,6 @@
 <text x="388" y="492" font-size="12">10 Cell wall — rigid support (plant only)</text>
 <text x="388" y="514" font-size="12">11 Chloroplast — photosynthesis (plant only)</text>
 <text x="388" y="536" font-size="12">12 Central vacuole — stores water (plant only)</text>
-<text x="28" y="582" font-size="12" class="faint">Both are eukaryotic (membrane-bound nucleus). Plant cells add a cell wall, chloroplasts, and a large central vacuole; animal cells have lysosomes and a round shape.</text>
+<text x="28" y="576" font-size="12" class="faint">Both are eukaryotic (membrane-bound nucleus). Plant cells add a cell wall, chloroplasts, and a</text>
+<text x="28" y="592" font-size="12" class="faint">large central vacuole; animal cells have lysosomes and a round shape.</text>
 </svg>

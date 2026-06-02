@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 644 540" role="img" aria-label="Time Signatures">
+<title>Time Signatures</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="644" height="540"/>
+<text x="28" y="50" font-size="26" font-weight="700">Time Signatures</text>
+<text x="28" y="72" font-size="13" class="faint">two stacked numbers that define the meter</text>
+<text x="28" y="106" font-size="14" xml:space="preserve">• Top number = beats per measure.</text>
+<text x="28" y="130" font-size="14" xml:space="preserve">• Bottom number = which note gets one beat: 2 = half, 4 = quarter, 8 =</text>
+<text x="28" y="154" font-size="14" xml:space="preserve">  eighth.</text>
+<text x="28" y="178" font-size="14" xml:space="preserve">• So 3/4 = three quarter-note beats per measure.</text>
+<text x="28" y="215" font-size="17" font-weight="700">Common meters</text>
+<text x="28" y="244" font-size="15" font-weight="700">Signature</text>
+<text x="136" y="244" font-size="15" font-weight="700">Means</text>
+<text x="343" y="244" font-size="15" font-weight="700">Feel</text>
+<line x1="28" y1="250" x2="532" y2="250" class="rule-faint"/>
+<text x="28" y="269" font-size="15">4/4 (C)</text>
+<text x="136" y="269" font-size="15">4 quarter beats</text>
+<text x="343" y="269" font-size="15">common time; pop/rock</text>
+<text x="28" y="294" font-size="15">3/4</text>
+<text x="136" y="294" font-size="15">3 quarter beats</text>
+<text x="343" y="294" font-size="15">waltz</text>
+<text x="28" y="319" font-size="15">2/4</text>
+<text x="136" y="319" font-size="15">2 quarter beats</text>
+<text x="343" y="319" font-size="15">march, polka</text>
+<text x="28" y="344" font-size="15">2/2 (¢)</text>
+<text x="136" y="344" font-size="15">2 half beats</text>
+<text x="343" y="344" font-size="15">cut time; fast 2</text>
+<text x="28" y="369" font-size="15">6/8</text>
+<text x="136" y="369" font-size="15">6 eighths, felt in 2</text>
+<text x="343" y="369" font-size="15">compound; lilting</text>
+<text x="28" y="406" font-size="17" font-weight="700">Simple vs compound</text>
+<text x="28" y="434" font-size="14" xml:space="preserve">• Simple (2/4, 3/4, 4/4): each beat divides into 2.</text>
+<text x="28" y="458" font-size="14" xml:space="preserve">• Compound (6/8, 9/8, 12/8): each beat divides into 3 (6/8 = two</text>
+<text x="28" y="482" font-size="14" xml:space="preserve">  dotted-quarter beats).</text>
+<text x="28" y="506" font-size="14" xml:space="preserve">• C = common time (4/4); ¢ = cut time (2/2).</text>
+</svg>

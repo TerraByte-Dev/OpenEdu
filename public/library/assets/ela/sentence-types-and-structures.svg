@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 537" role="img" aria-label="Sentence Types &amp; Structures">
+<title>Sentence Types &amp; Structures</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="537"/>
+<text x="28" y="50" font-size="26" font-weight="700">Sentence Types &amp; Structures</text>
+<text x="28" y="91" font-size="17" font-weight="700">By purpose (and end mark)</text>
+<text x="28" y="120" font-size="15">Declarative</text>
+<text x="172" y="120" font-size="15">makes a statement</text>
+<text x="424" y="120" font-size="15">.</text>
+<text x="28" y="145" font-size="15">Interrogative</text>
+<text x="172" y="145" font-size="15">asks a question</text>
+<text x="424" y="145" font-size="15">?</text>
+<text x="28" y="170" font-size="15">Imperative</text>
+<text x="172" y="170" font-size="15">gives a command / request</text>
+<text x="424" y="170" font-size="15">. or !</text>
+<text x="28" y="195" font-size="15">Exclamatory</text>
+<text x="172" y="195" font-size="15">shows strong emotion</text>
+<text x="424" y="195" font-size="15">!</text>
+<text x="28" y="232" font-size="17" font-weight="700">Clauses (the building blocks)</text>
+<text x="28" y="260" font-size="14" xml:space="preserve">• Independent clause — a complete thought; stands alone (The dog barked).</text>
+<text x="28" y="284" font-size="14" xml:space="preserve">• Dependent (subordinate) clause — cannot stand alone (because the dog</text>
+<text x="28" y="308" font-size="14" xml:space="preserve">  barked).</text>
+<text x="28" y="345" font-size="17" font-weight="700">By structure</text>
+<text x="28" y="374" font-size="15">Simple</text>
+<text x="199" y="374" font-size="15">one independent clause</text>
+<text x="28" y="399" font-size="15">Compound</text>
+<text x="199" y="399" font-size="15">2+ independent, joined by , + FANBOYS or a semicolon</text>
+<text x="28" y="424" font-size="15">Complex</text>
+<text x="199" y="424" font-size="15">one independent + one or more dependent</text>
+<text x="28" y="449" font-size="15">Compound-complex</text>
+<text x="199" y="449" font-size="15">2+ independent + one or more dependent</text>
+<text x="28" y="479" font-size="14">FANBOYS = for, and, nor, but, or, yet, so. Complex: When the bell rang, she</text>
+<text x="28" y="503" font-size="14">ran.</text>
+</svg>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 530" role="img" aria-label="Être &amp; Avoir">
+<title>Être &amp; Avoir</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="530"/>
+<text x="28" y="50" font-size="26" font-weight="700">Être &amp; Avoir</text>
+<text x="28" y="72" font-size="13" class="faint">the two French auxiliaries — present indicative</text>
+<text x="28" y="107" font-size="15" font-weight="700"></text>
+<text x="145" y="107" font-size="15" font-weight="700">être (be)</text>
+<text x="253" y="107" font-size="15" font-weight="700">avoir (have)</text>
+<line x1="28" y1="113" x2="361" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">je / j'</text>
+<text x="145" y="132" font-size="15">suis</text>
+<text x="253" y="132" font-size="15">ai</text>
+<text x="28" y="157" font-size="15">tu</text>
+<text x="145" y="157" font-size="15">es</text>
+<text x="253" y="157" font-size="15">as</text>
+<text x="28" y="182" font-size="15">il/elle/on</text>
+<text x="145" y="182" font-size="15">est</text>
+<text x="253" y="182" font-size="15">a</text>
+<text x="28" y="207" font-size="15">nous</text>
+<text x="145" y="207" font-size="15">sommes</text>
+<text x="253" y="207" font-size="15">avons</text>
+<text x="28" y="232" font-size="15">vous</text>
+<text x="145" y="232" font-size="15">êtes</text>
+<text x="253" y="232" font-size="15">avez</text>
+<text x="28" y="257" font-size="15">ils/elles</text>
+<text x="145" y="257" font-size="15">sont</text>
+<text x="253" y="257" font-size="15">ont</text>
+<text x="28" y="294" font-size="17" font-weight="700">avoir idioms (English uses 'to be')</text>
+<text x="28" y="322" font-size="14" xml:space="preserve">• avoir faim / soif — to be hungry / thirsty</text>
+<text x="28" y="346" font-size="14" xml:space="preserve">• avoir chaud / froid — to be hot / cold</text>
+<text x="28" y="370" font-size="14" xml:space="preserve">• avoir … ans — to be … years old</text>
+<text x="28" y="394" font-size="14" xml:space="preserve">• avoir raison / tort — to be right / wrong</text>
+<text x="28" y="418" font-size="14" xml:space="preserve">• avoir peur / besoin de — to be afraid / to need</text>
+<text x="28" y="448" font-size="14">Both are passé-composé auxiliaries: most verbs take avoir (j'ai mangé);</text>
+<text x="28" y="472" font-size="14">motion/state verbs + reflexives take être (je suis allé·e), with participle</text>
+<text x="28" y="496" font-size="14">agreement.</text>
+</svg>

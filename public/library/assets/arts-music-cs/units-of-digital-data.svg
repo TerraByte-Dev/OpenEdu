@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 495" role="img" aria-label="Units of Digital Data">
+<title>Units of Digital Data</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="495"/>
+<text x="28" y="50" font-size="26" font-weight="700">Units of Digital Data</text>
+<text x="28" y="72" font-size="13" class="faint">bit (b) = 0/1; byte (B) = 8 bits; nibble = 4 bits</text>
+<text x="28" y="113" font-size="17" font-weight="700">Decimal (SI) — powers of 1000</text>
+<text x="28" y="142" font-size="15">kilobyte (KB)</text>
+<text x="172" y="142" font-size="15">1,000 B = 10³</text>
+<text x="28" y="167" font-size="15">megabyte (MB)</text>
+<text x="172" y="167" font-size="15">10⁶ B</text>
+<text x="28" y="192" font-size="15">gigabyte (GB)</text>
+<text x="172" y="192" font-size="15">10⁹ B</text>
+<text x="28" y="217" font-size="15">terabyte (TB)</text>
+<text x="172" y="217" font-size="15">10¹² B</text>
+<text x="28" y="242" font-size="15">petabyte (PB)</text>
+<text x="172" y="242" font-size="15">10¹⁵ B</text>
+<text x="28" y="279" font-size="17" font-weight="700">Binary (IEC) — powers of 1024</text>
+<text x="28" y="308" font-size="15">kibibyte (KiB)</text>
+<text x="181" y="308" font-size="15">1,024 B = 2¹⁰</text>
+<text x="28" y="333" font-size="15">mebibyte (MiB)</text>
+<text x="181" y="333" font-size="15">2²⁰ B</text>
+<text x="28" y="358" font-size="15">gibibyte (GiB)</text>
+<text x="181" y="358" font-size="15">2³⁰ B</text>
+<text x="28" y="383" font-size="15">tebibyte (TiB)</text>
+<text x="181" y="383" font-size="15">2⁴⁰ B</text>
+<text x="28" y="413" font-size="14">Storage is sold in decimal (a '1 TB' drive = 10¹² B) but OSes often measure</text>
+<text x="28" y="437" font-size="14">binary, so it shows as ~931 GiB. Capital B = byte, lowercase b = bit (100</text>
+<text x="28" y="461" font-size="14">Mb/s ≈ 12.5 MB/s).</text>
+</svg>

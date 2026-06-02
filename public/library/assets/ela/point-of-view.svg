@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 803 403" role="img" aria-label="Point of View (POV)">
+<title>Point of View (POV)</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="803" height="403"/>
+<text x="28" y="50" font-size="26" font-weight="700">Point of View (POV)</text>
+<text x="28" y="72" font-size="13" class="faint">the perspective a story is told from</text>
+<text x="28" y="107" font-size="15" font-weight="700">POV</text>
+<text x="199" y="107" font-size="15" font-weight="700">Pronouns</text>
+<text x="343" y="107" font-size="15" font-weight="700">The narrator…</text>
+<line x1="28" y1="113" x2="775" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">First person</text>
+<text x="199" y="132" font-size="15">I, me, we</text>
+<text x="343" y="132" font-size="15">is a character; we see only what they know</text>
+<text x="28" y="157" font-size="15">Second person</text>
+<text x="199" y="157" font-size="15">you</text>
+<text x="343" y="157" font-size="15">addresses the reader as 'you' (rare)</text>
+<text x="28" y="182" font-size="15">Third limited</text>
+<text x="199" y="182" font-size="15">he, she, they</text>
+<text x="343" y="182" font-size="15">follows ONE character's thoughts</text>
+<text x="28" y="207" font-size="15">Third omniscient</text>
+<text x="199" y="207" font-size="15">he, she, they</text>
+<text x="343" y="207" font-size="15">all-knowing; any character's thoughts</text>
+<text x="28" y="232" font-size="15">Third objective</text>
+<text x="199" y="232" font-size="15">he, she, they</text>
+<text x="343" y="232" font-size="15">observable actions &amp; dialogue only — no thoughts</text>
+<text x="28" y="269" font-size="17" font-weight="700">Why it matters</text>
+<text x="28" y="297" font-size="14" xml:space="preserve">• POV controls what the reader knows and whom they trust.</text>
+<text x="28" y="321" font-size="14" xml:space="preserve">• A reliable narrator can be believed; an unreliable one (often 1st person)</text>
+<text x="28" y="345" font-size="14" xml:space="preserve">  misleads.</text>
+<text x="28" y="369" font-size="14" xml:space="preserve">• Don't confuse POV with verb tense, or the narrator with the author.</text>
+</svg>

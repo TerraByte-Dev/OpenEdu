@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 469" role="img" aria-label="Powers of Two">
+<title>Powers of Two</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="488" height="469"/>
+<text x="28" y="50" font-size="26" font-weight="700">Powers of Two</text>
+<text x="28" y="72" font-size="13" class="faint">2ⁿ — everywhere in computing</text>
+<text x="28" y="107" font-size="15" font-weight="700">n</text>
+<text x="73" y="107" font-size="15" font-weight="700">2ⁿ</text>
+<text x="217" y="107" font-size="15" font-weight="700">Landmark</text>
+<line x1="28" y1="113" x2="460" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">3</text>
+<text x="73" y="132" font-size="15">8</text>
+<text x="217" y="132" font-size="15">bits in a byte</text>
+<text x="28" y="157" font-size="15">4</text>
+<text x="73" y="157" font-size="15">16</text>
+<text x="217" y="157" font-size="15">one hex digit</text>
+<text x="28" y="182" font-size="15">8</text>
+<text x="73" y="182" font-size="15">256</text>
+<text x="217" y="182" font-size="15">values in 1 byte (0–255)</text>
+<text x="28" y="207" font-size="15">10</text>
+<text x="73" y="207" font-size="15">1,024</text>
+<text x="217" y="207" font-size="15">1 KiB</text>
+<text x="28" y="232" font-size="15">12</text>
+<text x="73" y="232" font-size="15">4,096</text>
+<text x="217" y="232" font-size="15">a 4 KiB memory page</text>
+<text x="28" y="257" font-size="15">16</text>
+<text x="73" y="257" font-size="15">65,536</text>
+<text x="217" y="257" font-size="15">16-bit range; 2-byte values</text>
+<text x="28" y="282" font-size="15">20</text>
+<text x="73" y="282" font-size="15">1,048,576</text>
+<text x="217" y="282" font-size="15">1 MiB</text>
+<text x="28" y="307" font-size="15">24</text>
+<text x="73" y="307" font-size="15">16,777,216</text>
+<text x="217" y="307" font-size="15">24-bit true color (~16.7M)</text>
+<text x="28" y="332" font-size="15">30</text>
+<text x="73" y="332" font-size="15">1,073,741,824</text>
+<text x="217" y="332" font-size="15">1 GiB</text>
+<text x="28" y="357" font-size="15">32</text>
+<text x="73" y="357" font-size="15">4,294,967,296</text>
+<text x="217" y="357" font-size="15">32-bit range (~4.3 billion)</text>
+<text x="28" y="387" font-size="14" xml:space="preserve">• Each step doubles: 2ⁿ⁺¹ = 2 × 2ⁿ.</text>
+<text x="28" y="411" font-size="14" xml:space="preserve">• An n-bit number holds 2ⁿ values (0 to 2ⁿ − 1).</text>
+<text x="28" y="435" font-size="14" xml:space="preserve">• 2¹⁰ ≈ 10³, 2²⁰ ≈ 10⁶, 2³⁰ ≈ 10⁹.</text>
+</svg>

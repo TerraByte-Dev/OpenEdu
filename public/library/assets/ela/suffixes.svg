@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 713 595" role="img" aria-label="Common Suffixes">
+<title>Common Suffixes</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="713" height="595"/>
+<text x="28" y="50" font-size="26" font-weight="700">Common Suffixes</text>
+<text x="28" y="72" font-size="13" class="faint">added to the END of a root — often changes the part of speech</text>
+<text x="28" y="113" font-size="17" font-weight="700">Inflectional (grammar) endings</text>
+<text x="28" y="142" font-size="15">-s / -es</text>
+<text x="145" y="142" font-size="15">plural / present verb</text>
+<text x="397" y="142" font-size="15">cats, wishes</text>
+<text x="28" y="167" font-size="15">-ed</text>
+<text x="145" y="167" font-size="15">past tense</text>
+<text x="397" y="167" font-size="15">walked</text>
+<text x="28" y="192" font-size="15">-ing</text>
+<text x="145" y="192" font-size="15">participle / gerund</text>
+<text x="397" y="192" font-size="15">running</text>
+<text x="28" y="217" font-size="15">-er / -est</text>
+<text x="145" y="217" font-size="15">comparative / superlative</text>
+<text x="397" y="217" font-size="15">faster, fastest</text>
+<text x="28" y="254" font-size="17" font-weight="700">Derivational (meaning) suffixes</text>
+<text x="28" y="283" font-size="15">-ly</text>
+<text x="208" y="283" font-size="15">manner → adverb</text>
+<text x="451" y="283" font-size="15">quickly</text>
+<text x="28" y="308" font-size="15">-ness</text>
+<text x="208" y="308" font-size="15">state → noun</text>
+<text x="451" y="308" font-size="15">kindness</text>
+<text x="28" y="333" font-size="15">-ment</text>
+<text x="208" y="333" font-size="15">action/result → noun</text>
+<text x="451" y="333" font-size="15">movement</text>
+<text x="28" y="358" font-size="15">-tion / -sion</text>
+<text x="208" y="358" font-size="15">act/state → noun</text>
+<text x="451" y="358" font-size="15">action, tension</text>
+<text x="28" y="383" font-size="15">-er / -or / -ist</text>
+<text x="208" y="383" font-size="15">one who → noun</text>
+<text x="451" y="383" font-size="15">teacher, artist</text>
+<text x="28" y="408" font-size="15">-able / -ible</text>
+<text x="208" y="408" font-size="15">able to be → adj.</text>
+<text x="451" y="408" font-size="15">readable, visible</text>
+<text x="28" y="433" font-size="15">-ful / -less</text>
+<text x="208" y="433" font-size="15">full of / without → adj.</text>
+<text x="451" y="433" font-size="15">hopeful / hopeless</text>
+<text x="28" y="458" font-size="15">-ous / -ive / -al</text>
+<text x="208" y="458" font-size="15">→ adjective</text>
+<text x="451" y="458" font-size="15">dangerous, active, natural</text>
+<text x="28" y="483" font-size="15">-y</text>
+<text x="208" y="483" font-size="15">characterized by → adj.</text>
+<text x="451" y="483" font-size="15">cloudy</text>
+<text x="28" y="513" font-size="14">Spelling: drop silent e before a vowel suffix (make→making); y→i before most</text>
+<text x="28" y="537" font-size="14">suffixes (happy→happiness); double a final consonant after a short vowel</text>
+<text x="28" y="561" font-size="14">(run→running).</text>
+</svg>

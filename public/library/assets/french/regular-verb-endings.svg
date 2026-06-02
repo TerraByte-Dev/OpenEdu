@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 461" role="img" aria-label="French Regular Verb Endings">
+<title>French Regular Verb Endings</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="461"/>
+<text x="28" y="50" font-size="26" font-weight="700">French Regular Verb Endings</text>
+<text x="28" y="72" font-size="13" class="faint">present tense — parler, finir, vendre</text>
+<text x="28" y="107" font-size="15" font-weight="700"></text>
+<text x="145" y="107" font-size="15" font-weight="700">-er parler</text>
+<text x="262" y="107" font-size="15" font-weight="700">-ir finir</text>
+<text x="370" y="107" font-size="15" font-weight="700">-re vendre</text>
+<line x1="28" y1="113" x2="460" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">je</text>
+<text x="145" y="132" font-size="15">parle</text>
+<text x="262" y="132" font-size="15">finis</text>
+<text x="370" y="132" font-size="15">vends</text>
+<text x="28" y="157" font-size="15">tu</text>
+<text x="145" y="157" font-size="15">parles</text>
+<text x="262" y="157" font-size="15">finis</text>
+<text x="370" y="157" font-size="15">vends</text>
+<text x="28" y="182" font-size="15">il/elle/on</text>
+<text x="145" y="182" font-size="15">parle</text>
+<text x="262" y="182" font-size="15">finit</text>
+<text x="370" y="182" font-size="15">vend</text>
+<text x="28" y="207" font-size="15">nous</text>
+<text x="145" y="207" font-size="15">parlons</text>
+<text x="262" y="207" font-size="15">finissons</text>
+<text x="370" y="207" font-size="15">vendons</text>
+<text x="28" y="232" font-size="15">vous</text>
+<text x="145" y="232" font-size="15">parlez</text>
+<text x="262" y="232" font-size="15">finissez</text>
+<text x="370" y="232" font-size="15">vendez</text>
+<text x="28" y="257" font-size="15">ils/elles</text>
+<text x="145" y="257" font-size="15">parlent</text>
+<text x="262" y="257" font-size="15">finissent</text>
+<text x="370" y="257" font-size="15">vendent</text>
+<text x="28" y="294" font-size="17" font-weight="700">Bare endings</text>
+<text x="28" y="323" font-size="15" xml:space="preserve">-er   -e   -es  -e   -ons     -ez     -ent</text>
+<text x="28" y="348" font-size="15" xml:space="preserve">-ir   -is  -is  -it  -issons  -issez  -issent</text>
+<text x="28" y="373" font-size="15" xml:space="preserve">-re   -s   -s   —    -ons     -ez     -ent</text>
+<text x="28" y="403" font-size="14">-er verbs are ~90% of all French verbs. The -e/-es/-ent endings are silent:</text>
+<text x="28" y="427" font-size="14">je parle, tu parles, ils parlent sound the same.</text>
+</svg>

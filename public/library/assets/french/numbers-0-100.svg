@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 546" role="img" aria-label="French Numbers 0–100">
+<title>French Numbers 0–100</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="546"/>
+<text x="28" y="50" font-size="26" font-weight="700">French Numbers 0–100</text>
+<text x="28" y="72" font-size="13" class="faint">watch the base-20 forms 70–99</text>
+<text x="28" y="113" font-size="17" font-weight="700">0–16 (unique words)</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">0 zéro  1 un  2 deux  3 trois  4 quatre  5 cinq  6 six</text>
+<text x="28" y="167" font-size="15" xml:space="preserve">7 sept  8 huit  9 neuf  10 dix  11 onze  12 douze</text>
+<text x="28" y="192" font-size="15" xml:space="preserve">13 treize  14 quatorze  15 quinze  16 seize</text>
+<text x="28" y="229" font-size="17" font-weight="700">17–69 (regular)</text>
+<text x="28" y="258" font-size="15" xml:space="preserve">17 dix-sept  18 dix-huit  19 dix-neuf  20 vingt  21 vingt et un</text>
+<text x="28" y="283" font-size="15" xml:space="preserve">30 trente  40 quarante  50 cinquante  60 soixante</text>
+<text x="28" y="320" font-size="17" font-weight="700">70–100 (base-20)</text>
+<text x="28" y="349" font-size="15" xml:space="preserve">70 soixante-dix (60+10)   71 soixante et onze   72 soixante-douze</text>
+<text x="28" y="374" font-size="15" xml:space="preserve">80 quatre-vingts (4×20)   81 quatre-vingt-un</text>
+<text x="28" y="399" font-size="15" xml:space="preserve">90 quatre-vingt-dix       91 quatre-vingt-onze   100 cent</text>
+<text x="28" y="436" font-size="17" font-weight="700">Rules</text>
+<text x="28" y="464" font-size="14" xml:space="preserve">• et (no hyphen) only in 21, 31, 41, 51, 61, 71; all others hyphenate.</text>
+<text x="28" y="488" font-size="14" xml:space="preserve">• quatre-vingts / cents drop the -s before another number: quatre-vingt-un,</text>
+<text x="28" y="512" font-size="14" xml:space="preserve">  deux cent cinq.</text>
+</svg>
