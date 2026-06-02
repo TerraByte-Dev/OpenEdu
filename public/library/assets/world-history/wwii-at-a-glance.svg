@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 678 410" role="img" aria-label="World War II at a Glance">
+<title>World War II at a Glance</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="678" height="410"/>
+<text x="28" y="50" font-size="26" font-weight="700">World War II at a Glance</text>
+<text x="28" y="72" font-size="13" class="faint">1939–1945</text>
+<text x="28" y="107" font-size="15">Allies</text>
+<text x="109" y="107" font-size="15">U.S., U.K., USSR, France, China</text>
+<text x="28" y="132" font-size="15">Axis</text>
+<text x="109" y="132" font-size="15">Germany, Italy, Japan</text>
+<text x="28" y="169" font-size="17" font-weight="700">Key dates</text>
+<text x="28" y="198" font-size="15">Sep 1, 1939</text>
+<text x="154" y="198" font-size="15">Germany invades Poland — war begins</text>
+<text x="28" y="223" font-size="15">Dec 7, 1941</text>
+<text x="154" y="223" font-size="15">Pearl Harbor — the U.S. enters</text>
+<text x="28" y="248" font-size="15">Jun 6, 1944</text>
+<text x="154" y="248" font-size="15">D-Day (Normandy)</text>
+<text x="28" y="273" font-size="15">May 8, 1945</text>
+<text x="154" y="273" font-size="15">V-E Day — Germany surrenders</text>
+<text x="28" y="298" font-size="15">Aug 1945</text>
+<text x="154" y="298" font-size="15">atomic bombs; Japan surrenders (V-J Day)</text>
+<text x="28" y="328" font-size="14">Causes: Versailles resentment, the Great Depression, fascism, appeasement.</text>
+<text x="28" y="352" font-size="14">The Holocaust murdered ~6 million Jews. ~70–85 million died; the UN was</text>
+<text x="28" y="376" font-size="14">founded (1945).</text>
+</svg>

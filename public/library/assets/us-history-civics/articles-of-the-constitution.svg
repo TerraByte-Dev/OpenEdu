@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 345" role="img" aria-label="The Seven Articles of the Constitution">
+<title>The Seven Articles of the Constitution</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="345"/>
+<text x="28" y="50" font-size="26" font-weight="700">The Seven Articles of the Constitution</text>
+<text x="28" y="72" font-size="13" class="faint">what each article establishes</text>
+<text x="28" y="107" font-size="15">I</text>
+<text x="82" y="107" font-size="15">Legislative</text>
+<text x="217" y="107" font-size="15">Congress (House + Senate) and its powers</text>
+<text x="28" y="132" font-size="15">II</text>
+<text x="82" y="132" font-size="15">Executive</text>
+<text x="217" y="132" font-size="15">the President and Vice President</text>
+<text x="28" y="157" font-size="15">III</text>
+<text x="82" y="157" font-size="15">Judicial</text>
+<text x="217" y="157" font-size="15">the Supreme Court and federal courts</text>
+<text x="28" y="182" font-size="15">IV</text>
+<text x="82" y="182" font-size="15">States</text>
+<text x="217" y="182" font-size="15">relations among states; admitting new states</text>
+<text x="28" y="207" font-size="15">V</text>
+<text x="82" y="207" font-size="15">Amendment</text>
+<text x="217" y="207" font-size="15">how to amend the Constitution</text>
+<text x="28" y="232" font-size="15">VI</text>
+<text x="82" y="232" font-size="15">Supremacy</text>
+<text x="217" y="232" font-size="15">federal law is the supreme law of the land</text>
+<text x="28" y="257" font-size="15">VII</text>
+<text x="82" y="257" font-size="15">Ratification</text>
+<text x="217" y="257" font-size="15">9 of 13 states would establish it</text>
+<text x="28" y="287" font-size="14">Memory aid: Legislative, Executive, Judicial, States, Amendment, Supremacy,</text>
+<text x="28" y="311" font-size="14">Ratification.</text>
+</svg>

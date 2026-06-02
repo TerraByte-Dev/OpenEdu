@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 421" role="img" aria-label="Preamble to the Constitution">
+<title>Preamble to the Constitution</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="421"/>
+<text x="28" y="50" font-size="26" font-weight="700">Preamble to the Constitution</text>
+<text x="28" y="72" font-size="13" class="faint">the introduction — it states why, but grants no powers</text>
+<text x="28" y="106" font-size="14">“We the People of the United States, in Order to form a more perfect Union,</text>
+<text x="28" y="130" font-size="14">establish Justice, insure domestic Tranquility, provide for the common</text>
+<text x="28" y="154" font-size="14">defence, promote the general Welfare, and secure the Blessings of Liberty to</text>
+<text x="28" y="178" font-size="14">ourselves and our Posterity, do ordain and establish this Constitution for</text>
+<text x="28" y="202" font-size="14">the United States of America.”</text>
+<text x="28" y="239" font-size="17" font-weight="700">The six purposes</text>
+<text x="28" y="267" font-size="14" xml:space="preserve">• Form a more perfect Union — unite the states.</text>
+<text x="28" y="291" font-size="14" xml:space="preserve">• Establish Justice — fair, equal laws.</text>
+<text x="28" y="315" font-size="14" xml:space="preserve">• Insure domestic Tranquility — peace at home.</text>
+<text x="28" y="339" font-size="14" xml:space="preserve">• Provide for the common defence — protect the nation.</text>
+<text x="28" y="363" font-size="14" xml:space="preserve">• Promote the general Welfare — the people's well-being.</text>
+<text x="28" y="387" font-size="14" xml:space="preserve">• Secure the Blessings of Liberty — freedom now and for posterity.</text>
+</svg>

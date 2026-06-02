@@ -704,6 +704,118 @@
     "asset": "assets/earth-space/water-cycle.svg"
   },
   {
+    "id": "economics/economic-indicators-glossary",
+    "title": "Economic Indicators Glossary",
+    "aliases": [
+      "economic indicators",
+      "gdp inflation unemployment",
+      "macroeconomic terms",
+      "gdp gnp cpi"
+    ],
+    "tags": [
+      "economics",
+      "gdp",
+      "inflation",
+      "unemployment",
+      "recession",
+      "indicators"
+    ],
+    "subject": "economics",
+    "summary": "Key macroeconomic terms — GDP, GNP, inflation/CPI, unemployment, interest rates, recession.",
+    "path": "resources/economics/economic-indicators-glossary.md",
+    "asset": "assets/economics/economic-indicators-glossary.svg"
+  },
+  {
+    "id": "economics/economic-systems",
+    "title": "Types of Economic Systems",
+    "aliases": [
+      "economic systems",
+      "traditional command market mixed",
+      "types of economies",
+      "market vs command"
+    ],
+    "tags": [
+      "economics",
+      "economic systems",
+      "capitalism",
+      "socialism",
+      "market",
+      "command"
+    ],
+    "subject": "economics",
+    "summary": "Traditional, command, market, and mixed economies compared on who decides and who owns.",
+    "path": "resources/economics/economic-systems.md",
+    "asset": "assets/economics/economic-systems.svg"
+  },
+  {
+    "id": "economics/factors-of-production",
+    "title": "The Four Factors of Production",
+    "aliases": [
+      "factors of production",
+      "land labor capital entrepreneurship",
+      "resources of production"
+    ],
+    "tags": [
+      "economics",
+      "factors of production",
+      "land",
+      "labor",
+      "capital",
+      "entrepreneurship"
+    ],
+    "subject": "economics",
+    "summary": "The four economic resources used to produce goods and services, with examples and their income.",
+    "path": "resources/economics/factors-of-production.md",
+    "asset": "assets/economics/factors-of-production.svg"
+  },
+  {
+    "id": "economics/personal-finance",
+    "title": "Personal Finance Basics",
+    "aliases": [
+      "personal finance",
+      "simple and compound interest",
+      "budgeting",
+      "50/30/20",
+      "credit score",
+      "financial literacy"
+    ],
+    "tags": [
+      "economics",
+      "personal finance",
+      "interest",
+      "budgeting",
+      "credit",
+      "saving"
+    ],
+    "subject": "economics",
+    "summary": "Core financial-literacy figures — interest formulas, the 50/30/20 budget, credit, and accounts.",
+    "path": "resources/economics/personal-finance.md",
+    "asset": "assets/economics/personal-finance.svg"
+  },
+  {
+    "id": "economics/supply-and-demand",
+    "title": "Supply and Demand",
+    "aliases": [
+      "supply and demand",
+      "supply demand curve",
+      "equilibrium price",
+      "law of demand",
+      "law of supply"
+    ],
+    "tags": [
+      "economics",
+      "supply",
+      "demand",
+      "equilibrium",
+      "markets",
+      "price"
+    ],
+    "subject": "economics",
+    "summary": "The supply and demand curves, market equilibrium, surplus vs shortage, and what shifts each curve.",
+    "path": "resources/economics/supply-and-demand.md",
+    "asset": "assets/economics/supply-and-demand.svg"
+  },
+  {
     "id": "ela/comma-rules",
     "title": "Comma Rules",
     "aliases": [
@@ -922,6 +1034,74 @@
     "summary": "Capital cities of major countries grouped by continent.",
     "path": "resources/geography/countries-capitals.md",
     "asset": "assets/geography/countries-capitals.svg"
+  },
+  {
+    "id": "geography/landform-glossary",
+    "title": "Landform Glossary",
+    "aliases": [
+      "landforms",
+      "landform glossary",
+      "types of landforms",
+      "peninsula isthmus plateau",
+      "geography terms"
+    ],
+    "tags": [
+      "geography",
+      "landforms",
+      "physical geography",
+      "terrain"
+    ],
+    "subject": "geography",
+    "summary": "The common landforms and water features, each with a one-line definition.",
+    "path": "resources/geography/landform-glossary.md",
+    "asset": "assets/geography/landform-glossary.svg"
+  },
+  {
+    "id": "geography/latitude-and-longitude",
+    "title": "Latitude and Longitude",
+    "aliases": [
+      "latitude and longitude",
+      "coordinates",
+      "parallels and meridians",
+      "equator prime meridian",
+      "graticule"
+    ],
+    "tags": [
+      "geography",
+      "latitude",
+      "longitude",
+      "coordinates",
+      "equator",
+      "hemispheres"
+    ],
+    "subject": "geography",
+    "summary": "The graticule — parallels and meridians, the key reference lines, hemispheres, and coordinates.",
+    "path": "resources/geography/latitude-and-longitude.md",
+    "asset": "assets/geography/latitude-and-longitude.svg"
+  },
+  {
+    "id": "geography/map-symbols-and-legend",
+    "title": "Map Symbols and Legend",
+    "aliases": [
+      "map symbols",
+      "map legend",
+      "map key",
+      "compass rose",
+      "map scale",
+      "how to read a map"
+    ],
+    "tags": [
+      "geography",
+      "maps",
+      "legend",
+      "compass rose",
+      "scale",
+      "symbols"
+    ],
+    "subject": "geography",
+    "summary": "How to read a map — the legend, compass rose, scale, and the common map symbols.",
+    "path": "resources/geography/map-symbols-and-legend.md",
+    "asset": "assets/geography/map-symbols-and-legend.svg"
   },
   {
     "id": "math/coordinate-plane",
@@ -1502,6 +1682,93 @@
     "asset": "assets/reference/roman-numerals.svg"
   },
   {
+    "id": "us-history-civics/articles-of-the-constitution",
+    "title": "The Seven Articles of the Constitution",
+    "aliases": [
+      "articles of the constitution",
+      "seven articles",
+      "constitution articles",
+      "article 1 2 3"
+    ],
+    "tags": [
+      "civics",
+      "constitution",
+      "articles",
+      "separation of powers",
+      "ratification"
+    ],
+    "subject": "us-history-civics",
+    "summary": "What each of the Constitution's seven original articles establishes.",
+    "path": "resources/us-history-civics/articles-of-the-constitution.md",
+    "asset": "assets/us-history-civics/articles-of-the-constitution.svg"
+  },
+  {
+    "id": "us-history-civics/bill-of-rights",
+    "title": "The Bill of Rights (First 10 Amendments)",
+    "aliases": [
+      "bill of rights",
+      "first ten amendments",
+      "first 10 amendments",
+      "amendments 1 to 10"
+    ],
+    "tags": [
+      "civics",
+      "constitution",
+      "amendments",
+      "rights",
+      "first amendment",
+      "due process"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The ten 1791 amendments and the right each protects, in plain language.",
+    "path": "resources/us-history-civics/bill-of-rights.md",
+    "asset": "assets/us-history-civics/bill-of-rights.svg"
+  },
+  {
+    "id": "us-history-civics/causes-of-the-american-revolution",
+    "title": "Causes of the American Revolution",
+    "aliases": [
+      "causes of the american revolution",
+      "road to revolution",
+      "intolerable acts",
+      "stamp act",
+      "boston tea party"
+    ],
+    "tags": [
+      "us history",
+      "american revolution",
+      "taxation",
+      "colonies",
+      "britain"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The chain from the French and Indian War debt through the taxes and protests to war in 1775.",
+    "path": "resources/us-history-civics/causes-of-the-american-revolution.md",
+    "asset": "assets/us-history-civics/causes-of-the-american-revolution.svg"
+  },
+  {
+    "id": "us-history-civics/civil-war-and-reconstruction",
+    "title": "Civil War & Reconstruction Timeline",
+    "aliases": [
+      "civil war timeline",
+      "reconstruction",
+      "civil war and reconstruction",
+      "reconstruction amendments"
+    ],
+    "tags": [
+      "us history",
+      "civil war",
+      "reconstruction",
+      "slavery",
+      "amendments",
+      "lincoln"
+    ],
+    "subject": "us-history-civics",
+    "summary": "Key dates from secession through the Civil War to the end of Reconstruction in 1877.",
+    "path": "resources/us-history-civics/civil-war-and-reconstruction.md",
+    "asset": "assets/us-history-civics/civil-war-and-reconstruction.svg"
+  },
+  {
     "id": "us-history-civics/constitutional-amendments",
     "title": "The Constitutional Amendments",
     "aliases": [
@@ -1524,6 +1791,159 @@
     "asset": "assets/us-history-civics/constitutional-amendments.svg"
   },
   {
+    "id": "us-history-civics/electoral-college",
+    "title": "The Electoral College",
+    "aliases": [
+      "electoral college",
+      "electors",
+      "270 to win",
+      "how presidents are elected",
+      "electoral votes"
+    ],
+    "tags": [
+      "civics",
+      "elections",
+      "president",
+      "electors",
+      "electoral college"
+    ],
+    "subject": "us-history-civics",
+    "summary": "How 538 electors choose the President and why 270 is the winning number.",
+    "path": "resources/us-history-civics/electoral-college.md",
+    "asset": "assets/us-history-civics/electoral-college.svg"
+  },
+  {
+    "id": "us-history-civics/federalism",
+    "title": "Federalism — Federal, Shared & State Powers",
+    "aliases": [
+      "federalism",
+      "division of powers",
+      "delegated powers",
+      "reserved powers",
+      "concurrent powers",
+      "state vs federal"
+    ],
+    "tags": [
+      "civics",
+      "government",
+      "federalism",
+      "powers",
+      "tenth amendment",
+      "supremacy clause"
+    ],
+    "subject": "us-history-civics",
+    "summary": "Which powers belong to the federal government, which to the states, and which are shared.",
+    "path": "resources/us-history-civics/federalism.md",
+    "asset": "assets/us-history-civics/federalism.svg"
+  },
+  {
+    "id": "us-history-civics/founding-documents-comparison",
+    "title": "Founding Documents Compared",
+    "aliases": [
+      "founding documents",
+      "magna carta declaration articles constitution",
+      "founding documents comparison"
+    ],
+    "tags": [
+      "civics",
+      "history",
+      "magna carta",
+      "declaration of independence",
+      "articles of confederation",
+      "constitution"
+    ],
+    "subject": "us-history-civics",
+    "summary": "Magna Carta, Declaration, Articles of Confederation, and the Constitution — year, purpose, legacy.",
+    "path": "resources/us-history-civics/founding-documents-comparison.md",
+    "asset": "assets/us-history-civics/founding-documents-comparison.svg"
+  },
+  {
+    "id": "us-history-civics/how-a-bill-becomes-law",
+    "title": "How a Bill Becomes a Law",
+    "aliases": [
+      "how a bill becomes a law",
+      "bill to law",
+      "legislative process",
+      "lawmaking process",
+      "federal legislation"
+    ],
+    "tags": [
+      "civics",
+      "government",
+      "congress",
+      "legislation",
+      "veto",
+      "committee"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The path of a federal bill from introduction through both chambers to the President's signature.",
+    "path": "resources/us-history-civics/how-a-bill-becomes-law.md",
+    "asset": "assets/us-history-civics/how-a-bill-becomes-law.svg"
+  },
+  {
+    "id": "us-history-civics/major-us-wars",
+    "title": "Major U.S. Wars",
+    "aliases": [
+      "major us wars",
+      "american wars",
+      "list of us wars",
+      "wars the united states fought"
+    ],
+    "tags": [
+      "us history",
+      "wars",
+      "military",
+      "conflicts"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The principal wars the United States has fought, with dates, opponents, and outcomes.",
+    "path": "resources/us-history-civics/major-us-wars.md",
+    "asset": "assets/us-history-civics/major-us-wars.svg"
+  },
+  {
+    "id": "us-history-civics/preamble",
+    "title": "Preamble to the Constitution",
+    "aliases": [
+      "preamble",
+      "we the people",
+      "preamble to the constitution",
+      "six purposes of government"
+    ],
+    "tags": [
+      "civics",
+      "constitution",
+      "preamble",
+      "we the people",
+      "purposes of government"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The 52-word Preamble and its six stated purposes of government.",
+    "path": "resources/us-history-civics/preamble.md",
+    "asset": "assets/us-history-civics/preamble.svg"
+  },
+  {
+    "id": "us-history-civics/qualifications-and-terms",
+    "title": "Qualifications & Terms of Federal Office",
+    "aliases": [
+      "qualifications and terms",
+      "age requirements president senator",
+      "term lengths",
+      "how long is a term"
+    ],
+    "tags": [
+      "civics",
+      "constitution",
+      "congress",
+      "president",
+      "terms",
+      "qualifications"
+    ],
+    "subject": "us-history-civics",
+    "summary": "Constitutional age, citizenship, and residency requirements and term lengths for federal office.",
+    "path": "resources/us-history-civics/qualifications-and-terms.md",
+    "asset": "assets/us-history-civics/qualifications-and-terms.svg"
+  },
+  {
     "id": "us-history-civics/three-branches-government",
     "title": "The Three Branches of Government",
     "aliases": [
@@ -1544,5 +1964,251 @@
     "summary": "The legislative, executive, and judicial branches and the checks they hold on each other.",
     "path": "resources/us-history-civics/three-branches-government.md",
     "asset": "assets/us-history-civics/three-branches-government.svg"
+  },
+  {
+    "id": "us-history-civics/us-history-eras-timeline",
+    "title": "U.S. History Eras Timeline",
+    "aliases": [
+      "us history eras",
+      "american history timeline",
+      "periods of us history",
+      "us history timeline"
+    ],
+    "tags": [
+      "us history",
+      "timeline",
+      "eras",
+      "colonial",
+      "civil war",
+      "cold war"
+    ],
+    "subject": "us-history-civics",
+    "summary": "The major eras of U.S. history from colonization to today, with date ranges and key events.",
+    "path": "resources/us-history-civics/us-history-eras-timeline.md",
+    "asset": "assets/us-history-civics/us-history-eras-timeline.svg"
+  },
+  {
+    "id": "world-history/age-of-exploration",
+    "title": "Age of Exploration — Explorers & Routes",
+    "aliases": [
+      "age of exploration",
+      "explorers",
+      "columbus magellan da gama",
+      "european exploration"
+    ],
+    "tags": [
+      "world history",
+      "exploration",
+      "columbus",
+      "magellan",
+      "explorers",
+      "colonization"
+    ],
+    "subject": "world-history",
+    "summary": "Major European explorers, their sponsor country, dates, and what they achieved.",
+    "path": "resources/world-history/age-of-exploration.md",
+    "asset": "assets/world-history/age-of-exploration.svg"
+  },
+  {
+    "id": "world-history/classical-civilizations",
+    "title": "Classical Civilizations Compared",
+    "aliases": [
+      "classical civilizations",
+      "greece rome han china india",
+      "classical era",
+      "ancient greece and rome"
+    ],
+    "tags": [
+      "world history",
+      "greece",
+      "rome",
+      "han china",
+      "india",
+      "classical"
+    ],
+    "subject": "world-history",
+    "summary": "Greece, Rome, Han China, and classical India — dates, government, and lasting contributions.",
+    "path": "resources/world-history/classical-civilizations.md",
+    "asset": "assets/world-history/classical-civilizations.svg"
+  },
+  {
+    "id": "world-history/cold-war-timeline",
+    "title": "Cold War Timeline",
+    "aliases": [
+      "cold war",
+      "cold war timeline",
+      "us vs ussr",
+      "iron curtain",
+      "cuban missile crisis"
+    ],
+    "tags": [
+      "world history",
+      "cold war",
+      "ussr",
+      "containment",
+      "nato",
+      "berlin wall"
+    ],
+    "subject": "world-history",
+    "summary": "The U.S.–USSR Cold War from 1947 to 1991, with its defining crises and the Soviet collapse.",
+    "path": "resources/world-history/cold-war-timeline.md",
+    "asset": "assets/world-history/cold-war-timeline.svg"
+  },
+  {
+    "id": "world-history/columbian-exchange",
+    "title": "The Columbian Exchange",
+    "aliases": [
+      "columbian exchange",
+      "old world new world exchange",
+      "columbus exchange",
+      "food and disease exchange"
+    ],
+    "tags": [
+      "world history",
+      "columbian exchange",
+      "columbus",
+      "crops",
+      "disease",
+      "trade"
+    ],
+    "subject": "world-history",
+    "summary": "What crossed the Atlantic after 1492 — crops, animals, and diseases between Old and New Worlds.",
+    "path": "resources/world-history/columbian-exchange.md",
+    "asset": "assets/world-history/columbian-exchange.svg"
+  },
+  {
+    "id": "world-history/major-revolutions",
+    "title": "Major Political Revolutions",
+    "aliases": [
+      "major revolutions",
+      "political revolutions",
+      "french revolution",
+      "haitian revolution",
+      "age of revolutions"
+    ],
+    "tags": [
+      "world history",
+      "revolutions",
+      "french revolution",
+      "enlightenment",
+      "independence"
+    ],
+    "subject": "world-history",
+    "summary": "The great political revolutions — dates, what they overthrew, and their results.",
+    "path": "resources/world-history/major-revolutions.md",
+    "asset": "assets/world-history/major-revolutions.svg"
+  },
+  {
+    "id": "world-history/river-valley-civilizations",
+    "title": "Ancient River-Valley Civilizations",
+    "aliases": [
+      "river valley civilizations",
+      "mesopotamia egypt indus china",
+      "first civilizations",
+      "ancient civilizations"
+    ],
+    "tags": [
+      "world history",
+      "mesopotamia",
+      "egypt",
+      "indus valley",
+      "china",
+      "ancient"
+    ],
+    "subject": "world-history",
+    "summary": "The four foundational river-valley civilizations — river, region, dates, writing, and achievements.",
+    "path": "resources/world-history/river-valley-civilizations.md",
+    "asset": "assets/world-history/river-valley-civilizations.svg"
+  },
+  {
+    "id": "world-history/world-history-timeline",
+    "title": "World History Timeline (Eras at a Glance)",
+    "aliases": [
+      "world history timeline",
+      "world history eras",
+      "periods of world history",
+      "history eras"
+    ],
+    "tags": [
+      "world history",
+      "timeline",
+      "eras",
+      "classical",
+      "middle ages",
+      "modern"
+    ],
+    "subject": "world-history",
+    "summary": "The major periods of world history from the first civilizations to today, with date ranges.",
+    "path": "resources/world-history/world-history-timeline.md",
+    "asset": "assets/world-history/world-history-timeline.svg"
+  },
+  {
+    "id": "world-history/world-religions",
+    "title": "Major World Religions",
+    "aliases": [
+      "world religions",
+      "major religions",
+      "judaism christianity islam hinduism buddhism",
+      "abrahamic religions"
+    ],
+    "tags": [
+      "world history",
+      "religion",
+      "judaism",
+      "christianity",
+      "islam",
+      "hinduism",
+      "buddhism"
+    ],
+    "subject": "world-history",
+    "summary": "The five major world religions — origin, sacred text, core belief, and approximate size.",
+    "path": "resources/world-history/world-religions.md",
+    "asset": "assets/world-history/world-religions.svg"
+  },
+  {
+    "id": "world-history/wwi-at-a-glance",
+    "title": "World War I at a Glance",
+    "aliases": [
+      "world war 1",
+      "wwi",
+      "ww1",
+      "the great war",
+      "world war one"
+    ],
+    "tags": [
+      "world history",
+      "world war 1",
+      "wwi",
+      "alliances",
+      "trench warfare",
+      "versailles"
+    ],
+    "subject": "world-history",
+    "summary": "WWI — dates, the two alliance blocs, the M.A.I.N. causes, and the outcome.",
+    "path": "resources/world-history/wwi-at-a-glance.md",
+    "asset": "assets/world-history/wwi-at-a-glance.svg"
+  },
+  {
+    "id": "world-history/wwii-at-a-glance",
+    "title": "World War II at a Glance",
+    "aliases": [
+      "world war 2",
+      "wwii",
+      "ww2",
+      "world war two",
+      "axis and allies"
+    ],
+    "tags": [
+      "world history",
+      "world war 2",
+      "wwii",
+      "holocaust",
+      "d-day",
+      "pearl harbor"
+    ],
+    "subject": "world-history",
+    "summary": "WWII — dates, Allied vs Axis powers, major turning points, and the outcome.",
+    "path": "resources/world-history/wwii-at-a-glance.md",
+    "asset": "assets/world-history/wwii-at-a-glance.svg"
   }
 ]

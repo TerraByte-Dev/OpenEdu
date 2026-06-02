@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 803 369" role="img" aria-label="How a Bill Becomes a Law">
+<title>How a Bill Becomes a Law</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="803" height="369"/>
+<text x="28" y="50" font-size="26" font-weight="700">How a Bill Becomes a Law</text>
+<text x="28" y="72" font-size="13" class="faint">federal — must pass both chambers, then the President</text>
+<text x="28" y="107" font-size="15">1</text>
+<text x="64" y="107" font-size="15">Introduction</text>
+<text x="208" y="107" font-size="15">filed in the House or Senate (revenue bills start in the House)</text>
+<text x="28" y="132" font-size="15">2</text>
+<text x="64" y="132" font-size="15">Committee</text>
+<text x="208" y="132" font-size="15">hearings, markup, report — or it dies here</text>
+<text x="28" y="157" font-size="15">3</text>
+<text x="64" y="157" font-size="15">Floor vote</text>
+<text x="208" y="157" font-size="15">the chamber debates and passes by simple majority</text>
+<text x="28" y="182" font-size="15">4</text>
+<text x="64" y="182" font-size="15">Other chamber</text>
+<text x="208" y="182" font-size="15">the second chamber repeats; it may amend</text>
+<text x="28" y="207" font-size="15">5</text>
+<text x="64" y="207" font-size="15">Conference</text>
+<text x="208" y="207" font-size="15">merge differing versions; both pass identical text</text>
+<text x="28" y="232" font-size="15">6</text>
+<text x="64" y="232" font-size="15">President</text>
+<text x="208" y="232" font-size="15">sign → law · veto → back to Congress · pocket veto</text>
+<text x="28" y="257" font-size="15">7</text>
+<text x="64" y="257" font-size="15">Override</text>
+<text x="208" y="257" font-size="15">Congress can override a veto with 2/3 of both chambers</text>
+<text x="28" y="287" font-size="14">No action for 10 days (Sundays excepted): becomes law if Congress is in</text>
+<text x="28" y="311" font-size="14">session; a pocket veto kills it if Congress has adjourned. Most bills die in</text>
+<text x="28" y="335" font-size="14">committee.</text>
+</svg>

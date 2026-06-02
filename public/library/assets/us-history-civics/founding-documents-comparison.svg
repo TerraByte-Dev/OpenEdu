@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 295" role="img" aria-label="Founding Documents Compared">
+<title>Founding Documents Compared</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="295"/>
+<text x="28" y="50" font-size="26" font-weight="700">Founding Documents Compared</text>
+<text x="28" y="72" font-size="13" class="faint">year — purpose</text>
+<text x="28" y="107" font-size="15" font-weight="700">Document</text>
+<text x="298" y="107" font-size="15" font-weight="700">Year</text>
+<text x="361" y="107" font-size="15" font-weight="700">Purpose</text>
+<line x1="28" y1="113" x2="658" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Magna Carta</text>
+<text x="298" y="132" font-size="15">1215</text>
+<text x="361" y="132" font-size="15">limit the king's power</text>
+<text x="28" y="157" font-size="15">Declaration of Independence</text>
+<text x="298" y="157" font-size="15">1776</text>
+<text x="361" y="157" font-size="15">declare independence from Britain</text>
+<text x="28" y="182" font-size="15">Articles of Confederation</text>
+<text x="298" y="182" font-size="15">1781</text>
+<text x="361" y="182" font-size="15">first U.S. government (too weak)</text>
+<text x="28" y="207" font-size="15">U.S. Constitution</text>
+<text x="298" y="207" font-size="15">1787</text>
+<text x="361" y="207" font-size="15">a stronger federal government</text>
+<text x="28" y="237" font-size="14">The Articles failed (no power to tax or regulate trade) and were replaced by</text>
+<text x="28" y="261" font-size="14">the Constitution — ratified 1788, effective 1789.</text>
+</svg>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 524 583" role="img" aria-label="Landform Glossary">
+<title>Landform Glossary</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="524" height="583"/>
+<text x="28" y="50" font-size="26" font-weight="700">Landform Glossary</text>
+<text x="28" y="72" font-size="13" class="faint">common landforms &amp; water features</text>
+<text x="28" y="113" font-size="17" font-weight="700">Land</text>
+<text x="28" y="142" font-size="15">Mountain</text>
+<text x="127" y="142" font-size="15">a high, steep rise of land</text>
+<text x="28" y="167" font-size="15">Hill</text>
+<text x="127" y="167" font-size="15">raised land, lower than a mountain</text>
+<text x="28" y="192" font-size="15">Plateau</text>
+<text x="127" y="192" font-size="15">flat, elevated land (tableland)</text>
+<text x="28" y="217" font-size="15">Plain</text>
+<text x="127" y="217" font-size="15">flat or gently rolling lowland</text>
+<text x="28" y="242" font-size="15">Valley</text>
+<text x="127" y="242" font-size="15">low land between hills/mountains</text>
+<text x="28" y="267" font-size="15">Canyon</text>
+<text x="127" y="267" font-size="15">a deep, narrow, steep-sided valley</text>
+<text x="28" y="292" font-size="15">Basin</text>
+<text x="127" y="292" font-size="15">a low area ringed by higher land</text>
+<text x="28" y="329" font-size="17" font-weight="700">Land meeting water</text>
+<text x="28" y="358" font-size="15">Peninsula</text>
+<text x="136" y="358" font-size="15">land with water on three sides</text>
+<text x="28" y="383" font-size="15">Island</text>
+<text x="136" y="383" font-size="15">land with water on all sides</text>
+<text x="28" y="408" font-size="15">Isthmus</text>
+<text x="136" y="408" font-size="15">narrow land joining two areas (Panama)</text>
+<text x="28" y="433" font-size="15">Delta</text>
+<text x="136" y="433" font-size="15">soil deposit where a river meets the sea</text>
+<text x="28" y="470" font-size="17" font-weight="700">Water</text>
+<text x="28" y="499" font-size="15">Strait</text>
+<text x="145" y="499" font-size="15">a narrow link between two larger waters</text>
+<text x="28" y="524" font-size="15">Bay / Gulf</text>
+<text x="145" y="524" font-size="15">water partly enclosed by land</text>
+<text x="28" y="549" font-size="15">Tributary</text>
+<text x="145" y="549" font-size="15">a stream flowing into a larger river</text>
+</svg>
