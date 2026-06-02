@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 653 470" role="img" aria-label="Commonly Confused Words">
+<title>Commonly Confused Words</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="653" height="470"/>
+<text x="28" y="50" font-size="26" font-weight="700">Commonly Confused Words</text>
+<text x="28" y="72" font-size="13" class="faint">pair — the quick distinction</text>
+<text x="28" y="107" font-size="15">their / there / they're</text>
+<text x="262" y="107" font-size="15">possessive / place / they are</text>
+<text x="28" y="132" font-size="15">your / you're</text>
+<text x="262" y="132" font-size="15">possessive / you are</text>
+<text x="28" y="157" font-size="15">its / it's</text>
+<text x="262" y="157" font-size="15">possessive / it is</text>
+<text x="28" y="182" font-size="15">to / too / two</text>
+<text x="262" y="182" font-size="15">toward / also-or-excessive / 2</text>
+<text x="28" y="207" font-size="15">then / than</text>
+<text x="262" y="207" font-size="15">time, next / comparison</text>
+<text x="28" y="232" font-size="15">affect / effect</text>
+<text x="262" y="232" font-size="15">verb: influence / noun: a result</text>
+<text x="28" y="257" font-size="15">accept / except</text>
+<text x="262" y="257" font-size="15">to receive / excluding</text>
+<text x="28" y="282" font-size="15">lose / loose</text>
+<text x="262" y="282" font-size="15">to misplace / not tight</text>
+<text x="28" y="307" font-size="15">who's / whose</text>
+<text x="262" y="307" font-size="15">who is / possessive</text>
+<text x="28" y="332" font-size="15">principal / principle</text>
+<text x="262" y="332" font-size="15">chief, main / a rule or belief</text>
+<text x="28" y="357" font-size="15">complement / compliment</text>
+<text x="262" y="357" font-size="15">completes / praises</text>
+<text x="28" y="382" font-size="15">fewer / less</text>
+<text x="262" y="382" font-size="15">countable items / uncountable amount</text>
+<text x="28" y="412" font-size="14">If 'it's' can be replaced by 'it is', use the apostrophe; otherwise use</text>
+<text x="28" y="436" font-size="14">'its'.</text>
+</svg>

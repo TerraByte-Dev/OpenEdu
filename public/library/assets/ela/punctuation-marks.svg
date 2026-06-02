@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 632 470" role="img" aria-label="Punctuation Marks">
+<title>Punctuation Marks</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="632" height="470"/>
+<text x="28" y="50" font-size="26" font-weight="700">Punctuation Marks</text>
+<text x="28" y="72" font-size="13" class="faint">mark — core rule</text>
+<text x="28" y="107" font-size="15">.  Period</text>
+<text x="199" y="107" font-size="15">ends a statement or command</text>
+<text x="28" y="132" font-size="15">?  Question mark</text>
+<text x="199" y="132" font-size="15">ends a direct question</text>
+<text x="28" y="157" font-size="15">!  Exclamation</text>
+<text x="199" y="157" font-size="15">ends an emphatic statement</text>
+<text x="28" y="182" font-size="15">,  Comma</text>
+<text x="199" y="182" font-size="15">separates series, clauses, nonessential parts</text>
+<text x="28" y="207" font-size="15">;  Semicolon</text>
+<text x="199" y="207" font-size="15">joins two related independent clauses</text>
+<text x="28" y="232" font-size="15">:  Colon</text>
+<text x="199" y="232" font-size="15">introduces a list, explanation, or quote</text>
+<text x="28" y="257" font-size="15">'  Apostrophe</text>
+<text x="199" y="257" font-size="15">possession (dog's) or contraction (can't)</text>
+<text x="28" y="282" font-size="15">&quot;  Quotation</text>
+<text x="199" y="282" font-size="15">encloses speech or a quoted title</text>
+<text x="28" y="307" font-size="15">( )  Parentheses</text>
+<text x="199" y="307" font-size="15">adds nonessential information</text>
+<text x="28" y="332" font-size="15">—  Dash</text>
+<text x="199" y="332" font-size="15">marks an abrupt break or emphasis</text>
+<text x="28" y="357" font-size="15">-  Hyphen</text>
+<text x="199" y="357" font-size="15">joins compound words (well-known)</text>
+<text x="28" y="382" font-size="15">…  Ellipsis</text>
+<text x="199" y="382" font-size="15">marks an omission or trailing off</text>
+<text x="28" y="412" font-size="14">Use a semicolon (not a comma) to join two complete sentences without</text>
+<text x="28" y="436" font-size="14">and/but/or — this avoids a comma splice.</text>
+</svg>

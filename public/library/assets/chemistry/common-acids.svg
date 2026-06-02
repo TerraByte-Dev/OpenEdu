@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 569 379" role="img" aria-label="Common Acids &amp; Formulas">
+<title>Common Acids &amp; Formulas</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="569" height="379"/>
+<text x="28" y="50" font-size="26" font-weight="700">Common Acids &amp; Formulas</text>
+<text x="28" y="72" font-size="13" class="faint">name — formula</text>
+<text x="28" y="107" font-size="15">Hydrochloric — HCl</text>
+<text x="217" y="107" font-size="15">Sulfuric — H₂SO₄</text>
+<text x="28" y="132" font-size="15">Nitric — HNO₃</text>
+<text x="217" y="132" font-size="15">Phosphoric — H₃PO₄</text>
+<text x="28" y="157" font-size="15">Acetic — CH₃COOH</text>
+<text x="217" y="157" font-size="15">Carbonic — H₂CO₃</text>
+<text x="28" y="182" font-size="15">Hydrofluoric — HF</text>
+<text x="217" y="182" font-size="15">Hydrobromic — HBr</text>
+<text x="28" y="207" font-size="15">Hydroiodic — HI</text>
+<text x="217" y="207" font-size="15">Nitrous — HNO₂</text>
+<text x="28" y="232" font-size="15">Sulfurous — H₂SO₃</text>
+<text x="217" y="232" font-size="15">Hypochlorous — HClO</text>
+<text x="28" y="269" font-size="17" font-weight="700">Naming rules</text>
+<text x="28" y="297" font-size="14" xml:space="preserve">• anion -ide → hydro-…-ic acid: chloride → hydrochloric (HCl)</text>
+<text x="28" y="321" font-size="14" xml:space="preserve">• anion -ate → -ic acid: sulfate → sulfuric (H₂SO₄)</text>
+<text x="28" y="345" font-size="14" xml:space="preserve">• anion -ite → -ous acid: nitrite → nitrous (HNO₂)</text>
+</svg>

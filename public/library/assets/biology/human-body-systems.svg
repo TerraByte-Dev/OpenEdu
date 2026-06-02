@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 767 470" role="img" aria-label="Human Body Systems">
+<title>Human Body Systems</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="767" height="470"/>
+<text x="28" y="50" font-size="26" font-weight="700">Human Body Systems</text>
+<text x="28" y="72" font-size="13" class="faint">the 11 organ systems</text>
+<text x="28" y="107" font-size="15" font-weight="700">System</text>
+<text x="226" y="107" font-size="15" font-weight="700">Main organs</text>
+<text x="487" y="107" font-size="15" font-weight="700">Function</text>
+<line x1="28" y1="113" x2="739" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Integumentary</text>
+<text x="226" y="132" font-size="15">skin, hair, nails</text>
+<text x="487" y="132" font-size="15">protection, temperature</text>
+<text x="28" y="157" font-size="15">Skeletal</text>
+<text x="226" y="157" font-size="15">bones, joints</text>
+<text x="487" y="157" font-size="15">support; makes blood cells</text>
+<text x="28" y="182" font-size="15">Muscular</text>
+<text x="226" y="182" font-size="15">muscles</text>
+<text x="487" y="182" font-size="15">movement, posture, heat</text>
+<text x="28" y="207" font-size="15">Nervous</text>
+<text x="226" y="207" font-size="15">brain, cord, nerves</text>
+<text x="487" y="207" font-size="15">senses and controls the body</text>
+<text x="28" y="232" font-size="15">Endocrine</text>
+<text x="226" y="232" font-size="15">glands (thyroid, pancreas)</text>
+<text x="487" y="232" font-size="15">hormone signaling</text>
+<text x="28" y="257" font-size="15">Circulatory</text>
+<text x="226" y="257" font-size="15">heart, blood, vessels</text>
+<text x="487" y="257" font-size="15">transports O₂ &amp; nutrients</text>
+<text x="28" y="282" font-size="15">Respiratory</text>
+<text x="226" y="282" font-size="15">lungs, trachea</text>
+<text x="487" y="282" font-size="15">gas exchange (O₂ / CO₂)</text>
+<text x="28" y="307" font-size="15">Digestive</text>
+<text x="226" y="307" font-size="15">stomach, intestines</text>
+<text x="487" y="307" font-size="15">breaks down food</text>
+<text x="28" y="332" font-size="15">Excretory / Urinary</text>
+<text x="226" y="332" font-size="15">kidneys, bladder</text>
+<text x="487" y="332" font-size="15">filters blood, removes waste</text>
+<text x="28" y="357" font-size="15">Immune / Lymphatic</text>
+<text x="226" y="357" font-size="15">lymph nodes, spleen</text>
+<text x="487" y="357" font-size="15">fights infection</text>
+<text x="28" y="382" font-size="15">Reproductive</text>
+<text x="226" y="382" font-size="15">ovaries / testes</text>
+<text x="487" y="382" font-size="15">produces offspring</text>
+<text x="28" y="412" font-size="14">Nervous + endocrine coordinate the others; the circulatory system connects</text>
+<text x="28" y="436" font-size="14">them all.</text>
+</svg>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 320" role="img" aria-label="Oxidation Number Rules">
+<title>Oxidation Number Rules</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="320"/>
+<text x="28" y="50" font-size="26" font-weight="700">Oxidation Number Rules</text>
+<text x="28" y="72" font-size="13" class="faint">apply in priority order (a higher rule wins a conflict)</text>
+<text x="28" y="107" font-size="15">1</text>
+<text x="64" y="107" font-size="15">free element = 0 (Na, O₂, Cl₂)</text>
+<text x="28" y="132" font-size="15">2</text>
+<text x="64" y="132" font-size="15">monatomic ion = its charge (S²⁻ = −2)</text>
+<text x="28" y="157" font-size="15">3</text>
+<text x="64" y="157" font-size="15">Group 1 = +1; Group 2 = +2; F = −1</text>
+<text x="28" y="182" font-size="15">4</text>
+<text x="64" y="182" font-size="15">H = +1 (−1 with a metal, NaH)</text>
+<text x="28" y="207" font-size="15">5</text>
+<text x="64" y="207" font-size="15">O = −2 (−1 in peroxides; +2 in OF₂)</text>
+<text x="28" y="232" font-size="15">6</text>
+<text x="64" y="232" font-size="15">sum = 0 (neutral) or the ion's charge</text>
+<text x="28" y="262" font-size="14">Example — S in H₂SO₄: H(+1)×2 = +2, O(−2)×4 = −8, total 0 → S = +6. OIL RIG:</text>
+<text x="28" y="286" font-size="14">Oxidation Is Loss, Reduction Is Gain of electrons.</text>
+</svg>

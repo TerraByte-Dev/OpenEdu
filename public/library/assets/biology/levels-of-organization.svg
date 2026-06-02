@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 762" role="img" aria-label="Levels of Biological Organization">
+<title>Levels of Biological Organization</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="496" height="762"/>
+<text x="28" y="40" font-size="26" font-weight="700">Levels of Biological Organization</text>
+<text x="28" y="66" font-size="13" class="faint">smallest (bottom) to largest (top); each level builds the next</text>
+<rect x="28" y="668" width="440" height="46" class="cell"/>
+<text x="42" y="696" font-size="15" font-weight="700">1 Atom</text>
+<text x="454" y="696" font-size="12" text-anchor="end" class="faint">carbon, oxygen</text>
+<rect x="28" y="616" width="440" height="46" class="cell"/>
+<text x="42" y="644" font-size="15" font-weight="700">2 Molecule</text>
+<text x="454" y="644" font-size="12" text-anchor="end" class="faint">water, DNA, glucose</text>
+<rect x="28" y="564" width="440" height="46" class="cell"/>
+<text x="42" y="592" font-size="15" font-weight="700">3 Organelle</text>
+<text x="454" y="592" font-size="12" text-anchor="end" class="faint">nucleus, mitochondrion</text>
+<rect x="28" y="512" width="440" height="46" class="cell"/>
+<text x="42" y="540" font-size="15" font-weight="700">4 Cell</text>
+<text x="454" y="540" font-size="12" text-anchor="end" class="faint">smallest unit of life</text>
+<rect x="28" y="460" width="440" height="46" class="cell"/>
+<text x="42" y="488" font-size="15" font-weight="700">5 Tissue</text>
+<text x="454" y="488" font-size="12" text-anchor="end" class="faint">similar cells together</text>
+<rect x="28" y="408" width="440" height="46" class="cell"/>
+<text x="42" y="436" font-size="15" font-weight="700">6 Organ</text>
+<text x="454" y="436" font-size="12" text-anchor="end" class="faint">the heart</text>
+<rect x="28" y="356" width="440" height="46" class="cell"/>
+<text x="42" y="384" font-size="15" font-weight="700">7 Organ system</text>
+<text x="454" y="384" font-size="12" text-anchor="end" class="faint">the circulatory system</text>
+<rect x="28" y="304" width="440" height="46" class="cell"/>
+<text x="42" y="332" font-size="15" font-weight="700">8 Organism</text>
+<text x="454" y="332" font-size="12" text-anchor="end" class="faint">one wolf</text>
+<rect x="28" y="252" width="440" height="46" class="cell"/>
+<text x="42" y="280" font-size="15" font-weight="700">9 Population</text>
+<text x="454" y="280" font-size="12" text-anchor="end" class="faint">a wolf pack</text>
+<rect x="28" y="200" width="440" height="46" class="cell"/>
+<text x="42" y="228" font-size="15" font-weight="700">10 Community</text>
+<text x="454" y="228" font-size="12" text-anchor="end" class="faint">all interacting populations</text>
+<rect x="28" y="148" width="440" height="46" class="cell"/>
+<text x="42" y="176" font-size="15" font-weight="700">11 Ecosystem</text>
+<text x="454" y="176" font-size="12" text-anchor="end" class="faint">community + nonliving environment</text>
+<rect x="28" y="96" width="440" height="46" class="cell"/>
+<text x="42" y="124" font-size="15" font-weight="700">12 Biosphere</text>
+<text x="454" y="124" font-size="12" text-anchor="end" class="faint">all of Earth's ecosystems</text>
+<text x="28" y="748" font-size="12" class="faint">Levels 1–8 go chemical → whole organism; 9–12 are the ecological levels, scaling to all life on Earth.</text>
+</svg>

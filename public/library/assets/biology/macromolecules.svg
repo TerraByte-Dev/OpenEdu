@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 812 295" role="img" aria-label="Biological Macromolecules">
+<title>Biological Macromolecules</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="812" height="295"/>
+<text x="28" y="50" font-size="26" font-weight="700">Biological Macromolecules</text>
+<text x="28" y="72" font-size="13" class="faint">the four classes of life's large molecules</text>
+<text x="28" y="107" font-size="15" font-weight="700">Class</text>
+<text x="172" y="107" font-size="15" font-weight="700">Monomer</text>
+<text x="397" y="107" font-size="15" font-weight="700">Elements</text>
+<text x="523" y="107" font-size="15" font-weight="700">Function</text>
+<line x1="28" y1="113" x2="784" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Carbohydrates</text>
+<text x="172" y="132" font-size="15">monosaccharide</text>
+<text x="397" y="132" font-size="15">C H O</text>
+<text x="523" y="132" font-size="15">quick energy; structure</text>
+<text x="28" y="157" font-size="15">Lipids</text>
+<text x="172" y="157" font-size="15">glycerol + fatty acids</text>
+<text x="397" y="157" font-size="15">C H O</text>
+<text x="523" y="157" font-size="15">energy storage; membranes</text>
+<text x="28" y="182" font-size="15">Proteins</text>
+<text x="172" y="182" font-size="15">amino acid</text>
+<text x="397" y="182" font-size="15">C H O N (S)</text>
+<text x="523" y="182" font-size="15">enzymes, structure, transport</text>
+<text x="28" y="207" font-size="15">Nucleic acids</text>
+<text x="172" y="207" font-size="15">nucleotide</text>
+<text x="397" y="207" font-size="15">C H O N P</text>
+<text x="523" y="207" font-size="15">store/transmit genetic info</text>
+<text x="28" y="237" font-size="14">Monomers link by dehydration synthesis (remove water); break by hydrolysis</text>
+<text x="28" y="261" font-size="14">(add water). Lipids are nonpolar and are not true polymers.</text>
+</svg>

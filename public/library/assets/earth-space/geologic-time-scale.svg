@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 713 471" role="img" aria-label="The Geologic Time Scale">
+<title>The Geologic Time Scale</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="713" height="471"/>
+<text x="28" y="50" font-size="26" font-weight="700">The Geologic Time Scale</text>
+<text x="28" y="72" font-size="13" class="faint">Ma = millions of years ago</text>
+<text x="28" y="113" font-size="17" font-weight="700">Eons</text>
+<text x="28" y="142" font-size="15" font-weight="700">Eon</text>
+<text x="154" y="142" font-size="15" font-weight="700">Span (Ma)</text>
+<text x="262" y="142" font-size="15" font-weight="700">Highlight</text>
+<line x1="28" y1="148" x2="478" y2="148" class="rule-faint"/>
+<text x="28" y="167" font-size="15">Hadean</text>
+<text x="154" y="167" font-size="15">4600–4000</text>
+<text x="262" y="167" font-size="15">molten early Earth</text>
+<text x="28" y="192" font-size="15">Archean</text>
+<text x="154" y="192" font-size="15">4000–2500</text>
+<text x="262" y="192" font-size="15">first single-celled life</text>
+<text x="28" y="217" font-size="15">Proterozoic</text>
+<text x="154" y="217" font-size="15">2500–541</text>
+<text x="262" y="217" font-size="15">oxygen rises; eukaryotes</text>
+<text x="28" y="242" font-size="15">Phanerozoic</text>
+<text x="154" y="242" font-size="15">541–today</text>
+<text x="262" y="242" font-size="15">abundant complex life</text>
+<text x="28" y="279" font-size="17" font-weight="700">Eras of the Phanerozoic</text>
+<text x="28" y="308" font-size="15" font-weight="700">Era</text>
+<text x="136" y="308" font-size="15" font-weight="700">Span (Ma)</text>
+<text x="244" y="308" font-size="15" font-weight="700">Known for</text>
+<line x1="28" y1="314" x2="685" y2="314" class="rule-faint"/>
+<text x="28" y="333" font-size="15">Paleozoic</text>
+<text x="136" y="333" font-size="15">541–252</text>
+<text x="244" y="333" font-size="15">fish, plants, amphibians; ends Permian extinction</text>
+<text x="28" y="358" font-size="15">Mesozoic</text>
+<text x="136" y="358" font-size="15">252–66</text>
+<text x="244" y="358" font-size="15">dinosaurs; ends K–Pg extinction</text>
+<text x="28" y="383" font-size="15">Cenozoic</text>
+<text x="136" y="383" font-size="15">66–today</text>
+<text x="244" y="383" font-size="15">mammals, birds, humans</text>
+<text x="28" y="413" font-size="14">Order: Eon → Era → Period → Epoch. Boundaries are set by fossil and rock</text>
+<text x="28" y="437" font-size="14">evidence.</text>
+</svg>

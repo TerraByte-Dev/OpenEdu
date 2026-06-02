@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 670 419" role="img" aria-label="Taxonomic Ranks">
+<title>Taxonomic Ranks</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="670" height="419"/>
+<text x="28" y="50" font-size="26" font-weight="700">Taxonomic Ranks</text>
+<text x="28" y="72" font-size="13" class="faint">Domain → Kingdom → Phylum → Class → Order → Family → Genus → Species</text>
+<text x="28" y="107" font-size="15" font-weight="700">Rank</text>
+<text x="118" y="107" font-size="15" font-weight="700">Human example</text>
+<line x1="28" y1="113" x2="235" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Domain</text>
+<text x="118" y="132" font-size="15">Eukarya</text>
+<text x="28" y="157" font-size="15">Kingdom</text>
+<text x="118" y="157" font-size="15">Animalia</text>
+<text x="28" y="182" font-size="15">Phylum</text>
+<text x="118" y="182" font-size="15">Chordata</text>
+<text x="28" y="207" font-size="15">Class</text>
+<text x="118" y="207" font-size="15">Mammalia</text>
+<text x="28" y="232" font-size="15">Order</text>
+<text x="118" y="232" font-size="15">Primates</text>
+<text x="28" y="257" font-size="15">Family</text>
+<text x="118" y="257" font-size="15">Hominidae</text>
+<text x="28" y="282" font-size="15">Genus</text>
+<text x="118" y="282" font-size="15">Homo</text>
+<text x="28" y="307" font-size="15">Species</text>
+<text x="118" y="307" font-size="15">sapiens</text>
+<text x="28" y="337" font-size="14">Mnemonic: Dear King Philip Came Over For Good Soup. Binomial name = Genus</text>
+<text x="28" y="361" font-size="14">species, italicized (Homo sapiens). The 3 domains: Bacteria, Archaea,</text>
+<text x="28" y="385" font-size="14">Eukarya.</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 661 466" role="img" aria-label="Order of Operations &amp; Properties">
+<title>Order of Operations &amp; Properties</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="661" height="466"/>
+<text x="28" y="50" font-size="26" font-weight="700">Order of Operations &amp; Properties</text>
+<text x="28" y="72" font-size="13" class="faint">PEMDAS — left to right within a level</text>
+<text x="28" y="107" font-size="15" xml:space="preserve">P   Parentheses / grouping</text>
+<text x="28" y="132" font-size="15" xml:space="preserve">E   Exponents and roots</text>
+<text x="28" y="157" font-size="15" xml:space="preserve">MD  Multiply &amp; Divide  (left→right, equal rank)</text>
+<text x="28" y="182" font-size="15" xml:space="preserve">AS  Add &amp; Subtract     (left→right, equal rank)</text>
+<text x="28" y="212" font-size="14">Example: 2 + 3 × (4² − 6) = 2 + 3 × 10 = 32. Note 8 − 3 + 2 = 7 (left to</text>
+<text x="28" y="236" font-size="14">right).</text>
+<text x="28" y="273" font-size="17" font-weight="700">Properties of operations</text>
+<text x="28" y="302" font-size="15" xml:space="preserve">Commutative   a+b = b+a      a·b = b·a</text>
+<text x="28" y="327" font-size="15" xml:space="preserve">Associative   (a+b)+c = a+(b+c)</text>
+<text x="28" y="352" font-size="15" xml:space="preserve">Distributive  a(b+c) = ab + ac</text>
+<text x="28" y="377" font-size="15" xml:space="preserve">Identity      a+0 = a        a·1 = a</text>
+<text x="28" y="402" font-size="15" xml:space="preserve">Inverse       a+(−a) = 0     a·(1/a) = 1</text>
+<text x="28" y="432" font-size="14">Subtraction and division are NOT commutative or associative.</text>
+</svg>
