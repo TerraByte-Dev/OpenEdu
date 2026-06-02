@@ -5,17 +5,6 @@
 ═══════════════════════════════════════════════════════════════ */
 
 @font-face {
-  font-family: 'VT323';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('./assets/fonts/VT323-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
   font-family: 'IBM Plex Mono';
   font-style: normal;
   font-weight: 400;
@@ -59,6 +48,20 @@
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Lexend — variable weight. Designed around reading-proficiency research (word-shape spacing tuned to
+   measurably improve reading speed + comprehension). Used for headings/titles + body prose, replacing the
+   blocky VT323 display font. Bundled locally for offline use. */
+@font-face {
+  font-family: 'Lexend';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./assets/fonts/Lexend-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    CSS CUSTOM PROPERTIES — GREEN PHOSPHOR (boot sequence default)
 ═══════════════════════════════════════════════════════════════ */
@@ -88,10 +91,11 @@
   --crt-noise-opacity: 0.02;
   --cursor-blink:   0.8s;
   --rule-w:         1px;
-  --font-display:   'VT323', 'Share Tech Mono', monospace;
+  /* Lexend (research-backed for reading comprehension) for display + body; mono kept for UI chrome/LCD. */
+  --font-display:   'Lexend', 'Inter', system-ui, sans-serif;
   --font-mono:      'IBM Plex Mono', 'Share Tech Mono', monospace;
-  --font-lcd:       'Share Tech Mono', 'VT323', monospace;
-  --font-body:      'Inter', system-ui, -apple-system, sans-serif;
+  --font-lcd:       'Share Tech Mono', 'IBM Plex Mono', monospace;
+  --font-body:      'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* Blue is the universal default (data-theme="openedu" or unset) — no override needed. */
@@ -105,7 +109,7 @@
    and rely on applyTheme() adding `crt-off` to drop the scanline overlay.
 ═══════════════════════════════════════════════════════════════ */
 
-/* ── CRT recolors (keep scanlines + VT323/mono fonts) ── */
+/* ── CRT recolors (keep scanlines + mono UI chrome; display/body use Lexend) ── */
 html[data-theme="amber"] {
   --phosphor:       #FFB000;
   --phosphor-bright:#FFC940;
@@ -135,10 +139,10 @@ html[data-theme="synthwave"] {
   --ink-rgb:        255 156 230;
   --ink:            #FF9CE6;
   --ink-em:         #FFE3F7;
-  --bg:             #0a0014;
-  --panel:          #120322;
-  --panel-lite:     #16042a;
-  --lcd:            #0b0118;
+  --bg:             #05000c;
+  --panel:          #0b0316;
+  --panel-lite:     #0f051c;
+  --lcd:            #050010;
 }
 html[data-theme="ice"] {
   --phosphor:       #6FE6FF;
@@ -149,10 +153,10 @@ html[data-theme="ice"] {
   --ink-rgb:        191 239 255;
   --ink:            #BFEFFF;
   --ink-em:         #EAFBFF;
-  --bg:             #03070f;
-  --panel:          #07121c;
-  --panel-lite:     #0a1622;
-  --lcd:            #040910;
+  --bg:             #02040c;
+  --panel:          #070d16;
+  --panel-lite:     #0b121d;
+  --lcd:            #03060d;
 }
 html[data-theme="tangerine"] {
   --phosphor:       #FF7A18;
@@ -163,10 +167,10 @@ html[data-theme="tangerine"] {
   --ink-rgb:        255 192 137;
   --ink:            #FFC089;
   --ink-em:         #FFE9D3;
-  --bg:             #120701;
-  --panel:          #1d0d03;
-  --panel-lite:     #221004;
-  --lcd:            #140802;
+  --bg:             #060300;
+  --panel:          #0c0601;
+  --panel-lite:     #110802;
+  --lcd:            #070300;
 }
 html[data-theme="crimson"] {
   --phosphor:       #FF2E4D;
@@ -177,10 +181,10 @@ html[data-theme="crimson"] {
   --ink-rgb:        255 148 162;
   --ink:            #FF94A2;
   --ink-em:         #FFDCE1;
-  --bg:             #100308;
-  --panel:          #1b0510;
-  --panel-lite:     #200713;
-  --lcd:            #12030a;
+  --bg:             #060102;
+  --panel:          #0c0305;
+  --panel-lite:     #110407;
+  --lcd:            #070203;
 }
 html[data-theme="vapor"] {
   /* Duotone: pink accent (--phosphor) + cyan body ink (--ink) — classic vaporwave. */
@@ -192,10 +196,10 @@ html[data-theme="vapor"] {
   --ink-rgb:        147 230 255;
   --ink:            #93E6FF;
   --ink-em:         #DEFAFF;
-  --bg:             #160428;
-  --panel:          #200a38;
-  --panel-lite:     #260d40;
-  --lcd:            #170530;
+  --bg:             #070213;
+  --panel:          #0d051c;
+  --panel-lite:     #110823;
+  --lcd:            #080214;
 }
 html[data-theme="ultraviolet"] {
   --phosphor:       #A06BFF;
@@ -206,10 +210,10 @@ html[data-theme="ultraviolet"] {
   --ink-rgb:        201 176 255;
   --ink:            #C9B0FF;
   --ink-em:         #ECE3FF;
-  --bg:             #0a0420;
-  --panel:          #140a30;
-  --panel-lite:     #180d38;
-  --lcd:            #0b0526;
+  --bg:             #050316;
+  --panel:          #0b071e;
+  --panel-lite:     #0f0a25;
+  --lcd:            #06040f;
 }
 
 /* ── Universal themes (neutral palette, sans fonts; CRT overlay dropped via crt-off) ── */
@@ -228,7 +232,7 @@ html[data-theme="dark"] {
   --lcd:            #0b0f14;
   --rule:           #2a313a;
   --rule-dim:       #20262d;
-  --font-display:   'Inter', system-ui, -apple-system, sans-serif;
+  --font-display:   'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono:      'IBM Plex Mono', ui-monospace, monospace;
   --font-lcd:       'IBM Plex Mono', ui-monospace, monospace;
 }
@@ -247,7 +251,7 @@ html[data-theme="light"] {
   --lcd:            #f3f6f9;
   --rule:           #d0d7de;
   --rule-dim:       #e6eaef;
-  --font-display:   'Inter', system-ui, -apple-system, sans-serif;
+  --font-display:   'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono:      'IBM Plex Mono', ui-monospace, monospace;
   --font-lcd:       'IBM Plex Mono', ui-monospace, monospace;
 }
