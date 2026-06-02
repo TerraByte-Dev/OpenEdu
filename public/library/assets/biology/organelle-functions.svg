@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 653 495" role="img" aria-label="Organelle Functions">
+<title>Organelle Functions</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="653" height="495"/>
+<text x="28" y="50" font-size="26" font-weight="700">Organelle Functions</text>
+<text x="28" y="72" font-size="13" class="faint">structure — function — found in</text>
+<text x="28" y="107" font-size="15" font-weight="700">Organelle</text>
+<text x="190" y="107" font-size="15" font-weight="700">Function</text>
+<text x="469" y="107" font-size="15" font-weight="700">In</text>
+<line x1="28" y1="113" x2="586" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Nucleus</text>
+<text x="190" y="132" font-size="15">holds DNA; controls the cell</text>
+<text x="469" y="132" font-size="15">both</text>
+<text x="28" y="157" font-size="15">Nucleolus</text>
+<text x="190" y="157" font-size="15">makes ribosomes</text>
+<text x="469" y="157" font-size="15">both</text>
+<text x="28" y="182" font-size="15">Ribosome</text>
+<text x="190" y="182" font-size="15">builds proteins</text>
+<text x="469" y="182" font-size="15">both</text>
+<text x="28" y="207" font-size="15">Rough ER</text>
+<text x="190" y="207" font-size="15">makes/transports proteins</text>
+<text x="469" y="207" font-size="15">both</text>
+<text x="28" y="232" font-size="15">Smooth ER</text>
+<text x="190" y="232" font-size="15">makes lipids; detoxifies</text>
+<text x="469" y="232" font-size="15">both</text>
+<text x="28" y="257" font-size="15">Golgi apparatus</text>
+<text x="190" y="257" font-size="15">packages &amp; ships proteins</text>
+<text x="469" y="257" font-size="15">both</text>
+<text x="28" y="282" font-size="15">Mitochondrion</text>
+<text x="190" y="282" font-size="15">releases energy (ATP)</text>
+<text x="469" y="282" font-size="15">both</text>
+<text x="28" y="307" font-size="15">Chloroplast</text>
+<text x="190" y="307" font-size="15">photosynthesis</text>
+<text x="469" y="307" font-size="15">plant</text>
+<text x="28" y="332" font-size="15">Central vacuole</text>
+<text x="190" y="332" font-size="15">stores water; turgor</text>
+<text x="469" y="332" font-size="15">plant</text>
+<text x="28" y="357" font-size="15">Lysosome</text>
+<text x="190" y="357" font-size="15">digests waste</text>
+<text x="469" y="357" font-size="15">mainly animal</text>
+<text x="28" y="382" font-size="15">Cell membrane</text>
+<text x="190" y="382" font-size="15">controls what enters/leaves</text>
+<text x="469" y="382" font-size="15">both</text>
+<text x="28" y="407" font-size="15">Cell wall</text>
+<text x="190" y="407" font-size="15">rigid support &amp; shape</text>
+<text x="469" y="407" font-size="15">plant</text>
+<text x="28" y="437" font-size="14">Plant-only: cell wall, chloroplasts, large central vacuole. Prokaryotes</text>
+<text x="28" y="461" font-size="14">(bacteria) have no membrane-bound organelles.</text>
+</svg>

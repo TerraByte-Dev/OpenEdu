@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 395" role="img" aria-label="Parts of Speech">
+<title>Parts of Speech</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="740" height="395"/>
+<text x="28" y="50" font-size="26" font-weight="700">Parts of Speech</text>
+<text x="28" y="72" font-size="13" class="faint">the eight word classes — job and examples</text>
+<text x="28" y="107" font-size="15" font-weight="700">Part</text>
+<text x="163" y="107" font-size="15" font-weight="700">Job</text>
+<text x="469" y="107" font-size="15" font-weight="700">Examples</text>
+<line x1="28" y1="113" x2="712" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Noun</text>
+<text x="163" y="132" font-size="15">names a person/place/thing/idea</text>
+<text x="469" y="132" font-size="15">dog, Maria, city, freedom</text>
+<text x="28" y="157" font-size="15">Pronoun</text>
+<text x="163" y="157" font-size="15">replaces a noun</text>
+<text x="469" y="157" font-size="15">I, you, he, she, they, who</text>
+<text x="28" y="182" font-size="15">Verb</text>
+<text x="163" y="182" font-size="15">action or state of being</text>
+<text x="469" y="182" font-size="15">run, think, is, become</text>
+<text x="28" y="207" font-size="15">Adjective</text>
+<text x="163" y="207" font-size="15">describes a noun</text>
+<text x="469" y="207" font-size="15">red, tall, three, happy</text>
+<text x="28" y="232" font-size="15">Adverb</text>
+<text x="163" y="232" font-size="15">describes verb/adj/adverb</text>
+<text x="469" y="232" font-size="15">quickly, very, here, soon</text>
+<text x="28" y="257" font-size="15">Preposition</text>
+<text x="163" y="257" font-size="15">shows place/time relation</text>
+<text x="469" y="257" font-size="15">in, on, under, before, with</text>
+<text x="28" y="282" font-size="15">Conjunction</text>
+<text x="163" y="282" font-size="15">joins words or clauses</text>
+<text x="469" y="282" font-size="15">and, but, or, so, because</text>
+<text x="28" y="307" font-size="15">Interjection</text>
+<text x="163" y="307" font-size="15">expresses emotion</text>
+<text x="469" y="307" font-size="15">oh!, wow!, ouch!, hey!</text>
+<text x="28" y="337" font-size="14">FANBOYS conjunctions: for, and, nor, but, or, yet, so. A word's class can</text>
+<text x="28" y="361" font-size="14">change with use: 'book a flight' (verb) vs 'read a book' (noun).</text>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 294" role="img" aria-label="Intermolecular Forces (IMFs)">
+<title>Intermolecular Forces (IMFs)</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="294"/>
+<text x="28" y="50" font-size="26" font-weight="700">Intermolecular Forces (IMFs)</text>
+<text x="28" y="72" font-size="13" class="faint">attractions between molecules — weakest to strongest</text>
+<text x="28" y="107" font-size="15" font-weight="700">Force</text>
+<text x="208" y="107" font-size="15" font-weight="700">In which molecules</text>
+<text x="469" y="107" font-size="15" font-weight="700">Strength</text>
+<line x1="28" y1="113" x2="550" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">London dispersion</text>
+<text x="208" y="132" font-size="15">all (only IMF in nonpolar)</text>
+<text x="469" y="132" font-size="15">weakest</text>
+<text x="28" y="157" font-size="15">Dipole–dipole</text>
+<text x="208" y="157" font-size="15">polar molecules</text>
+<text x="469" y="157" font-size="15">medium</text>
+<text x="28" y="182" font-size="15">Hydrogen bond</text>
+<text x="208" y="182" font-size="15">H bonded to N, O, or F</text>
+<text x="469" y="182" font-size="15">strongest</text>
+<text x="28" y="212" font-size="14">Stronger IMFs → higher boiling point. Hydrogen bonding makes water boil</text>
+<text x="28" y="236" font-size="14">high, gives high surface tension, and lets ice float. Ion–dipole (dissolving</text>
+<text x="28" y="260" font-size="14">salts) is stronger but involves ions.</text>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 329" role="img" aria-label="Activity Series of Metals">
+<title>Activity Series of Metals</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="329"/>
+<text x="28" y="50" font-size="26" font-weight="700">Activity Series of Metals</text>
+<text x="28" y="72" font-size="13" class="faint">most reactive (top) → least reactive (bottom)</text>
+<text x="28" y="107" font-size="15" xml:space="preserve">Li  K  Ba  Sr  Ca  Na      ← react even with cold water</text>
+<text x="28" y="132" font-size="15" xml:space="preserve">Mg  Al  Zn  Fe  Ni  Sn  Pb  ← react with acids (above H)</text>
+<text x="28" y="157" font-size="15" xml:space="preserve">( H )</text>
+<text x="28" y="182" font-size="15" xml:space="preserve">Cu  Hg  Ag  Pt  Au          ← unreactive (below H)</text>
+<text x="28" y="219" font-size="17" font-weight="700">How to use it</text>
+<text x="28" y="247" font-size="14" xml:space="preserve">• A metal displaces the ion of any metal below it: Zn + CuSO₄ → ZnSO₄ + Cu.</text>
+<text x="28" y="271" font-size="14" xml:space="preserve">• Metals above H release H₂ gas from acids; metals below H do not.</text>
+<text x="28" y="295" font-size="14" xml:space="preserve">• Halogen activity: F₂ &gt; Cl₂ &gt; Br₂ &gt; I₂.</text>
+</svg>
