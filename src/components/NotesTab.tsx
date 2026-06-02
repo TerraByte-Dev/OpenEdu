@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import ForceGraph2D from "react-force-graph-2d";
-import MarkdownEditor from "./MarkdownEditor";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
+// Heavy, view-gated components are lazy-loaded so they leave the eager main bundle: ForceGraph2D
+// (react-force-graph-2d) mounts only in the vault-graph view; MarkdownEditor (CodeMirror) only when
+// a note is open. Both are code-split into their own chunks fetched on first use.
+const ForceGraph2D = lazy(() => import("react-force-graph-2d"));
+const MarkdownEditor = lazy(() => import("./MarkdownEditor"));
 import type { Note, NotebookFolder, NotebookSearchResult } from "../types";
 import {
   getNotes, createNote, updateNote, deleteNote,
@@ -456,6 +459,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               Add a few notes and folders (or link notes with <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code>) to see your vault graph
             </div>
           ) : (
+            <Suspense fallback={<div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm">Loading graph…</div>}>
             <ForceGraph2D
               graphData={graph}
               width={graphSize.w || 600}
@@ -509,6 +513,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 ctx.globalAlpha = 1;
               }}
             />
+            </Suspense>
           )}
           <div className="absolute top-3 right-3 text-[10px] text-[var(--ink-faint)]">{graph.nodes.filter((n) => n.kind === "note").length} notes · {folders.length} folders · {graph.links.length} links</div>
         </div>
@@ -525,13 +530,15 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 </button>
               </div>
 
-              <MarkdownEditor
-                doc={editContent}
-                noteId={selectedNote.id}
-                onChange={setEditContent}
-                onBlur={handleBlur}
-                onWikiLinkClick={handleWikiLinkNav}
-              />
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[var(--ink-faint)] text-sm">Loading editor…</div>}>
+                <MarkdownEditor
+                  doc={editContent}
+                  noteId={selectedNote.id}
+                  onChange={setEditContent}
+                  onBlur={handleBlur}
+                  onWikiLinkClick={handleWikiLinkNav}
+                />
+              </Suspense>
               {backlinks.length > 0 && (
                 <div className="border-t border-[var(--rule)] px-5 py-3 shrink-0">
                   <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] mb-1.5">{backlinks.length} linked mention{backlinks.length === 1 ? "" : "s"}</div>

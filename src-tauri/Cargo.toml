@@ -19,3 +19,12 @@ tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 tauri-plugin-store = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Size-optimized release profile for the shipped desktop binary. Trades compile time for a much
+# smaller binary; panic=abort is safe for a Tauri app (no unwinding across the FFI boundary).
+[profile.release]
+opt-level = "z"      # optimize for binary size
+lto = true           # link-time optimization across crates
+codegen-units = 1    # maximize optimization (slower build)
+strip = true         # strip debug symbols from the binary
+panic = "abort"      # drop unwinding tables
