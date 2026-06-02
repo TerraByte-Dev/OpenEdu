@@ -8,6 +8,12 @@ import { refreshManifest } from "./lib/library";
 import { refreshDatasetManifest } from "./lib/library-datasets";
 import "./index.css";
 
+// Apply the saved "CRT off" preference before first paint, so the scanlines never flash on for users
+// who turned them off. The titlebar button toggles + persists this; the CSS lives in index.css.
+try {
+  if (localStorage.getItem("oe-crt-off") === "1") document.documentElement.classList.add("crt-off");
+} catch { /* ignore */ }
+
 // Register the kernel's built-in tools + skills once, before anything renders (Phase 1 / Phase 2).
 registerBuiltinTools();
 loadBuiltinSkills();
