@@ -8,14 +8,15 @@
 // Not wired into prebuild on purpose — the committed copy is the source of truth at build time, so CI /
 // other machines don't need the sibling repo present.
 //
-// IN-PLACE refresh (no `rm -rf DEST`): we copy/overwrite each managed item and then prune files that no
-// longer exist in SRC. Why it matters: when a Vite dev server is running, deleting + recreating the whole
-// publicDir makes Vite lose track of it — newly-added subdirectories then 404 to the SPA fallback (cards
-// render blank) until the dev server restarts, and the delete/recreate churn can fire a reload storm.
-// An in-place update keeps existing directories stable, so a simple in-app reload picks up the changes.
-// (public/library is also excluded from Vite's watcher in vite.config.ts so a sync never reload-storms.)
-import { cp, rm, mkdir, access, readdir } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+// INCREMENTAL, IN-PLACE refresh: we copy a file ONLY when its bytes actually differ from the bundled copy,
+// then prune files that no longer exist in SRC. Two reasons this matters with a running Vite dev server:
+//   1. Never `rm -rf` the publicDir — deleting + recreating a watched folder corrupts Vite's view (new
+//      subdirs 404 to the SPA fallback → blank cards) and can fire a reload storm.
+//   2. Only rewrite changed files — Vite watches public/library, so a touched file triggers a full-page
+//      reload. Writing only real changes means a no-op sync reloads nothing, and a content sync reloads
+//      just the cards that changed (which are then served live; an in-app reload shows them).
+import { rm, mkdir, access, readdir, readFile, writeFile, stat } from "node:fs/promises";
+import { join, relative, sep, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const APP_ROOT = join(fileURLToPath(import.meta.url), "..", "..");
@@ -30,7 +31,7 @@ try {
   process.exit(1);
 }
 
-// Recursively list files under `root` as POSIX-relative paths (dirs themselves are implied by their files).
+// Recursively list files under `root` as POSIX-relative paths.
 async function listFiles(root) {
   const out = [];
   async function walk(dir) {
@@ -50,15 +51,34 @@ async function listFiles(root) {
   return out;
 }
 
-await mkdir(DEST, { recursive: true });
-
-// 1. Copy/overwrite every managed item from SRC over DEST (creates new files/dirs in place; never nukes DEST).
-for (const item of ITEMS) {
-  await cp(join(SRC, item), join(DEST, item), { recursive: true, force: true });
+// Copy src → dest only if the bytes differ (or dest is missing). Returns true if it wrote.
+async function copyIfChanged(src, dest) {
+  const srcBuf = await readFile(src);
+  try {
+    const destBuf = await readFile(dest);
+    if (srcBuf.equals(destBuf)) return false; // identical — leave it (no spurious reload)
+  } catch { /* dest missing → write it */ }
+  await mkdir(dirname(dest), { recursive: true });
+  await writeFile(dest, srcBuf);
+  return true;
 }
 
-// 2. Prune DEST files that no longer exist in SRC (so renames/removals propagate), scoped to the managed
-//    directories. index.json is a single file that's always overwritten in step 1.
+await mkdir(DEST, { recursive: true });
+
+// 1. Copy changed files in place (creates new files/dirs; never nukes DEST).
+let written = 0;
+for (const item of ITEMS) {
+  const srcItem = join(SRC, item);
+  if ((await stat(srcItem)).isFile()) {
+    if (await copyIfChanged(srcItem, join(DEST, item))) written++;
+    continue;
+  }
+  for (const rel of await listFiles(srcItem)) {
+    if (await copyIfChanged(join(srcItem, rel), join(DEST, item, rel))) written++;
+  }
+}
+
+// 2. Prune DEST files that no longer exist in SRC (propagate renames/removals), scoped to the managed dirs.
 let pruned = 0;
 for (const item of ITEMS) {
   if (item === "index.json") continue;
@@ -71,5 +91,5 @@ for (const item of ITEMS) {
   }
 }
 
-console.log(`sync-library: refreshed public/library/ from ${SRC}${pruned ? ` (pruned ${pruned} stale file(s))` : ""}`);
-console.log("  ↳ dev server running? reload the app (Ctrl+R) to see it; restart the dev server if you ADDED a new subject folder.");
+console.log(`sync-library: ${written} file(s) updated, ${pruned} pruned — in place, from ${SRC}`);
+console.log("  ↳ dev server running? changes are picked up live (reload with Ctrl+R); restart only if you added a NEW subject folder.");

@@ -19,11 +19,9 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // src-tauri: Rust side, rebuilt by tauri, not Vite.
-      // public/library: the bundled corpus is refreshed wholesale by `npm run sync:library`; watching it
-      // makes a sync fire a full-page reload per file (a storm) and can corrupt Vite's publicDir view.
-      // It's still SERVED (sirv) — just not watched; reload the app manually to pick up a fresh sync.
-      ignored: ["**/src-tauri/**", "**/public/library/**"],
+      // src-tauri is the Rust side — rebuilt by tauri, not Vite. (public/library IS watched, so a
+      // `sync:library` refresh is picked up live; the sync is incremental, so only changed files reload.)
+      ignored: ["**/src-tauri/**"],
     },
   },
 }));
