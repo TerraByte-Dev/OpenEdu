@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 614 542" role="img" aria-label="Elements &amp; Principles of Art">
+<title>Elements &amp; Principles of Art</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="614" height="542"/>
+<text x="28" y="50" font-size="26" font-weight="700">Elements &amp; Principles of Art</text>
+<text x="28" y="72" font-size="13" class="faint">the building blocks (elements) + how they're arranged (principles)</text>
+<text x="28" y="113" font-size="17" font-weight="700">The 7 Elements of Art</text>
+<text x="28" y="142" font-size="15">Line</text>
+<text x="118" y="142" font-size="15">a path between two points</text>
+<text x="28" y="167" font-size="15">Shape</text>
+<text x="118" y="167" font-size="15">a flat, enclosed 2-D area</text>
+<text x="28" y="192" font-size="15">Form</text>
+<text x="118" y="192" font-size="15">a 3-D shape with volume</text>
+<text x="28" y="217" font-size="15">Space</text>
+<text x="118" y="217" font-size="15">area around / between / within (positive &amp; negative)</text>
+<text x="28" y="242" font-size="15">Value</text>
+<text x="118" y="242" font-size="15">lightness or darkness of a tone</text>
+<text x="28" y="267" font-size="15">Color</text>
+<text x="118" y="267" font-size="15">hue, value, and intensity</text>
+<text x="28" y="292" font-size="15">Texture</text>
+<text x="118" y="292" font-size="15">how a surface looks or feels</text>
+<text x="28" y="329" font-size="17" font-weight="700">The Principles of Design</text>
+<text x="28" y="358" font-size="15">Balance</text>
+<text x="217" y="358" font-size="15">visual weight evenly distributed</text>
+<text x="28" y="383" font-size="15">Contrast</text>
+<text x="217" y="383" font-size="15">differences that create interest</text>
+<text x="28" y="408" font-size="15">Emphasis</text>
+<text x="217" y="408" font-size="15">a focal point that draws the eye</text>
+<text x="28" y="433" font-size="15">Movement</text>
+<text x="217" y="433" font-size="15">the path the eye travels</text>
+<text x="28" y="458" font-size="15">Pattern / Rhythm</text>
+<text x="217" y="458" font-size="15">repeated elements creating a beat</text>
+<text x="28" y="483" font-size="15">Proportion / Scale</text>
+<text x="217" y="483" font-size="15">size relationships between parts</text>
+<text x="28" y="508" font-size="15">Unity / Harmony</text>
+<text x="217" y="508" font-size="15">all parts feel like they belong</text>
+</svg>

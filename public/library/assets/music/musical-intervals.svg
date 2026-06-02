@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 670 592" role="img" aria-label="Musical Intervals">
+<title>Musical Intervals</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="670" height="592"/>
+<text x="28" y="50" font-size="26" font-weight="700">Musical Intervals</text>
+<text x="28" y="72" font-size="13" class="faint">distance between two pitches, in half steps (within an octave)</text>
+<text x="28" y="107" font-size="15" font-weight="700">Half steps</text>
+<text x="145" y="107" font-size="15" font-weight="700">Interval</text>
+<text x="379" y="107" font-size="15" font-weight="700">Short</text>
+<line x1="28" y1="113" x2="424" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">0</text>
+<text x="145" y="132" font-size="15">Perfect unison</text>
+<text x="379" y="132" font-size="15">P1</text>
+<text x="28" y="157" font-size="15">1</text>
+<text x="145" y="157" font-size="15">Minor 2nd</text>
+<text x="379" y="157" font-size="15">m2</text>
+<text x="28" y="182" font-size="15">2</text>
+<text x="145" y="182" font-size="15">Major 2nd</text>
+<text x="379" y="182" font-size="15">M2</text>
+<text x="28" y="207" font-size="15">3</text>
+<text x="145" y="207" font-size="15">Minor 3rd</text>
+<text x="379" y="207" font-size="15">m3</text>
+<text x="28" y="232" font-size="15">4</text>
+<text x="145" y="232" font-size="15">Major 3rd</text>
+<text x="379" y="232" font-size="15">M3</text>
+<text x="28" y="257" font-size="15">5</text>
+<text x="145" y="257" font-size="15">Perfect 4th</text>
+<text x="379" y="257" font-size="15">P4</text>
+<text x="28" y="282" font-size="15">6</text>
+<text x="145" y="282" font-size="15">Tritone (aug 4 / dim 5)</text>
+<text x="379" y="282" font-size="15">TT</text>
+<text x="28" y="307" font-size="15">7</text>
+<text x="145" y="307" font-size="15">Perfect 5th</text>
+<text x="379" y="307" font-size="15">P5</text>
+<text x="28" y="332" font-size="15">8</text>
+<text x="145" y="332" font-size="15">Minor 6th</text>
+<text x="379" y="332" font-size="15">m6</text>
+<text x="28" y="357" font-size="15">9</text>
+<text x="145" y="357" font-size="15">Major 6th</text>
+<text x="379" y="357" font-size="15">M6</text>
+<text x="28" y="382" font-size="15">10</text>
+<text x="145" y="382" font-size="15">Minor 7th</text>
+<text x="379" y="382" font-size="15">m7</text>
+<text x="28" y="407" font-size="15">11</text>
+<text x="145" y="407" font-size="15">Major 7th</text>
+<text x="379" y="407" font-size="15">M7</text>
+<text x="28" y="432" font-size="15">12</text>
+<text x="145" y="432" font-size="15">Perfect octave</text>
+<text x="379" y="432" font-size="15">P8</text>
+<text x="28" y="462" font-size="14" xml:space="preserve">• Perfect: unison, 4th, 5th, octave. Major/minor: 2nd, 3rd, 6th, 7th.</text>
+<text x="28" y="486" font-size="14" xml:space="preserve">• Half step = closest two notes; whole step = 2 half steps.</text>
+<text x="28" y="510" font-size="14" xml:space="preserve">• Augmented = +½ step above a major/perfect; diminished = −½ step below a</text>
+<text x="28" y="534" font-size="14" xml:space="preserve">  perfect/minor (major −½ step = minor).</text>
+<text x="28" y="558" font-size="14" xml:space="preserve">• Consonant: 3rds, 5ths, 6ths, octaves. Dissonant: 2nds, 7ths, tritone.</text>
+</svg>

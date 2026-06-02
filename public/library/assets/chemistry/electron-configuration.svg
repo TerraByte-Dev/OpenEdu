@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 690 460" role="img" aria-label="Electron Configuration &amp; Shells">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 690 480" role="img" aria-label="Electron Configuration &amp; Shells">
 <title>Electron Configuration &amp; Shells</title>
 <style>
   text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
@@ -10,7 +10,7 @@
   .fill-faint{fill:var(--oe-svg-faint,#777);}
   .b{font-weight:700;}
 </style>
-<rect class="oe-bg" x="0" y="0" width="690" height="460"/>
+<rect class="oe-bg" x="0" y="0" width="690" height="480"/>
 <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
 <text x="28" y="40" font-size="26" font-weight="700">Electron Configuration &amp; Shells</text>
 <text x="28" y="66" font-size="13" class="faint">electron shells around the nucleus (Bohr view)</text>
@@ -32,5 +32,6 @@
 <circle cx="294.9" cy="145.1" r="4" class="fill-faint"/>
 <line x1="298.9" y1="145.1" x2="364" y2="206" class="rule-faint"/>
 <text x="370" y="210" font-size="12">n = 4  —  4s 4p 4d 4f — holds up to 32 e⁻</text>
-<text x="28" y="448" font-size="12" class="faint">Aufbau order: 1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s. Subshell caps s=2, p=6, d=10, f=14. Shell n holds 2n² electrons.</text>
+<text x="28" y="450" font-size="12" class="faint">Aufbau order: 1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s. Subshell caps s=2, p=6,</text>
+<text x="28" y="466" font-size="12" class="faint">d=10, f=14. Shell n holds 2n² electrons.</text>
 </svg>

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 838 560" role="img" aria-label="Plot Diagram (Freytag's Pyramid)">
+<title>Plot Diagram (Freytag's Pyramid)</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="838" height="560"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">Plot Diagram (Freytag's Pyramid)</text>
+<text x="28" y="66" font-size="13" class="faint">the five stages of a story's plot</text>
+<line x1="70" y1="330" x2="810" y2="330" class="rule-faint"/>
+<polyline points="70,330 440,108 810,330" fill="none" stroke="var(--oe-svg-ink,#111)" stroke-width="2.5"/>
+<circle cx="70" cy="330" r="5" fill="var(--oe-svg-ink,#111)" stroke="var(--oe-svg-ink,#111)" stroke-width="1"/>
+<circle cx="440" cy="108" r="5" fill="var(--oe-svg-ink,#111)" stroke="var(--oe-svg-ink,#111)" stroke-width="1"/>
+<circle cx="810" cy="330" r="5" fill="var(--oe-svg-ink,#111)" stroke="var(--oe-svg-ink,#111)" stroke-width="1"/>
+<circle cx="188.4" cy="259" r="5" fill="var(--oe-svg-ink,#111)" stroke="var(--oe-svg-ink,#111)" stroke-width="1"/>
+<text x="196.4" y="263" font-size="11" class="faint">inciting incident</text>
+<text x="70" y="352" font-size="14" font-weight="700">1 Exposition</text>
+<text x="203.5" y="197.9" font-size="14" text-anchor="middle" font-weight="700">2 Rising Action</text>
+<text x="440" y="96" font-size="15" text-anchor="middle" font-weight="700">3 Climax</text>
+<text x="695" y="209" font-size="14" text-anchor="middle" font-weight="700">4 Falling Action</text>
+<text x="810" y="352" font-size="14" text-anchor="end" font-weight="700">5 Resolution</text>
+<text x="810" y="370" font-size="12" text-anchor="end" class="faint">(Dénouement)</text>
+<text x="28" y="408" font-size="13" xml:space="preserve">1 Exposition — setting, characters, situation; the inciting incident starts the conflict.</text>
+<text x="28" y="432" font-size="13" xml:space="preserve">2 Rising Action — complications build the central conflict and increase tension.</text>
+<text x="28" y="456" font-size="13" xml:space="preserve">3 Climax — the turning point and moment of greatest tension; the protagonist faces the conflict.</text>
+<text x="28" y="480" font-size="13" xml:space="preserve">4 Falling Action — events after the climax as the conflict begins to unwind.</text>
+<text x="28" y="504" font-size="13" xml:space="preserve">5 Resolution (Dénouement) — the conflict is settled and the story reaches its outcome.</text>
+<text x="28" y="532" font-size="12" class="faint">Conflict types: character vs. self · vs. character · vs. nature · vs. society · vs. fate.</text>
+</svg>

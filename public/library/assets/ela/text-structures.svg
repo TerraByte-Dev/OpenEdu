@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 731 457" role="img" aria-label="Informational Text Structures">
+<title>Informational Text Structures</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="731" height="457"/>
+<text x="28" y="50" font-size="26" font-weight="700">Informational Text Structures</text>
+<text x="28" y="72" font-size="13" class="faint">how nonfiction is organized + signal words</text>
+<text x="28" y="107" font-size="15" font-weight="700">Structure</text>
+<text x="271" y="107" font-size="15" font-weight="700">Signal words</text>
+<line x1="28" y1="113" x2="703" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">Description</text>
+<text x="271" y="132" font-size="15">for example, such as, characteristics, including</text>
+<text x="28" y="157" font-size="15">Sequence / chronological</text>
+<text x="271" y="157" font-size="15">first, next, then, after, finally, dates</text>
+<text x="28" y="182" font-size="15">Compare &amp; contrast</text>
+<text x="271" y="182" font-size="15">similarly, both, in contrast, however, unlike</text>
+<text x="28" y="207" font-size="15">Cause &amp; effect</text>
+<text x="271" y="207" font-size="15">because, since, therefore, as a result, due to</text>
+<text x="28" y="232" font-size="15">Problem &amp; solution</text>
+<text x="271" y="232" font-size="15">problem, issue, solve, solution, in response</text>
+<text x="28" y="269" font-size="17" font-weight="700">How to identify it</text>
+<text x="28" y="297" font-size="14" xml:space="preserve">• Look for the signal words above.</text>
+<text x="28" y="321" font-size="14" xml:space="preserve">• Ask what the author is doing: describing, ordering, comparing, explaining</text>
+<text x="28" y="345" font-size="14" xml:space="preserve">  causes, or solving.</text>
+<text x="28" y="369" font-size="14" xml:space="preserve">• Long texts mix structures — name the dominant one per section.</text>
+<text x="28" y="399" font-size="14">Match an organizer: timeline (sequence), Venn diagram (compare/contrast),</text>
+<text x="28" y="423" font-size="14">cause→effect chain, web (description).</text>
+</svg>

@@ -1,5 +1,52 @@
 [
   {
+    "id": "arts-music-cs/boolean-and-de-morgan",
+    "title": "Boolean Logic & De Morgan's Laws",
+    "aliases": [
+      "boolean logic",
+      "de morgan's laws",
+      "and or not xor",
+      "boolean algebra",
+      "logical operators",
+      "truth table"
+    ],
+    "tags": [
+      "computer science",
+      "logic",
+      "boolean",
+      "de morgan",
+      "operators",
+      "math"
+    ],
+    "subject": "computer-science",
+    "summary": "The boolean operators, their truth tables, precedence, and De Morgan's laws.",
+    "path": "resources/arts-music-cs/boolean-and-de-morgan.md",
+    "asset": "assets/arts-music-cs/boolean-and-de-morgan.svg"
+  },
+  {
+    "id": "arts-music-cs/flowchart-symbols",
+    "title": "Flowchart Symbols",
+    "aliases": [
+      "flowchart symbols",
+      "flowchart shapes",
+      "flowchart",
+      "terminator process decision",
+      "algorithm diagram"
+    ],
+    "tags": [
+      "computer science",
+      "flowchart",
+      "algorithm",
+      "programming",
+      "diagram",
+      "symbols"
+    ],
+    "subject": "computer-science",
+    "summary": "The standard flowchart symbols and what each one represents.",
+    "path": "resources/arts-music-cs/flowchart-symbols.md",
+    "asset": "assets/arts-music-cs/flowchart-symbols.svg"
+  },
+  {
     "id": "arts-music-cs/logic-gate-truth-tables",
     "title": "Logic Gates & Truth Tables",
     "aliases": [
@@ -20,6 +67,53 @@
     "summary": "The seven basic logic gates with their boolean expressions and truth tables.",
     "path": "resources/arts-music-cs/logic-gate-truth-tables.md",
     "asset": "assets/arts-music-cs/logic-gate-truth-tables.svg"
+  },
+  {
+    "id": "arts-music-cs/powers-of-two",
+    "title": "Powers of Two",
+    "aliases": [
+      "powers of two",
+      "powers of 2",
+      "binary values",
+      "2 to the n",
+      "1024",
+      "256"
+    ],
+    "tags": [
+      "computer science",
+      "binary",
+      "powers of two",
+      "math",
+      "place value"
+    ],
+    "subject": "computer-science",
+    "summary": "Powers of two from 2⁰ to 2³² with decimal values and computing landmarks.",
+    "path": "resources/arts-music-cs/powers-of-two.md",
+    "asset": "assets/arts-music-cs/powers-of-two.svg"
+  },
+  {
+    "id": "arts-music-cs/units-of-digital-data",
+    "title": "Units of Digital Data",
+    "aliases": [
+      "units of digital data",
+      "bit byte kilobyte",
+      "data units",
+      "KB MB GB TB",
+      "KiB vs KB",
+      "file sizes"
+    ],
+    "tags": [
+      "computer science",
+      "data",
+      "units",
+      "bit",
+      "byte",
+      "storage"
+    ],
+    "subject": "computer-science",
+    "summary": "From bit to petabyte, plus the powers-of-2 (KiB) vs powers-of-10 (KB) distinction.",
+    "path": "resources/arts-music-cs/units-of-digital-data.md",
+    "asset": "assets/arts-music-cs/units-of-digital-data.svg"
   },
   {
     "id": "biology/amino-acids",
@@ -816,6 +910,30 @@
     "asset": "assets/economics/supply-and-demand.svg"
   },
   {
+    "id": "ela/apa-citation",
+    "title": "APA Citation Format (7th ed.)",
+    "aliases": [
+      "apa citation",
+      "apa format",
+      "apa 7",
+      "references apa",
+      "in-text citation apa",
+      "reference list"
+    ],
+    "tags": [
+      "ela",
+      "citation",
+      "apa",
+      "research",
+      "references",
+      "writing"
+    ],
+    "subject": "ela",
+    "summary": "APA 7th-edition reference-list templates and (Author, Year) in-text patterns.",
+    "path": "resources/ela/apa-citation.md",
+    "asset": "assets/ela/apa-citation.svg"
+  },
+  {
     "id": "ela/comma-rules",
     "title": "Comma Rules",
     "aliases": [
@@ -927,6 +1045,30 @@
     "asset": "assets/ela/literary-devices.svg"
   },
   {
+    "id": "ela/mla-citation",
+    "title": "MLA Citation Format (9th ed.)",
+    "aliases": [
+      "mla citation",
+      "mla format",
+      "works cited",
+      "mla 9",
+      "in-text citation mla",
+      "mla works cited"
+    ],
+    "tags": [
+      "ela",
+      "citation",
+      "mla",
+      "research",
+      "works cited",
+      "writing"
+    ],
+    "subject": "ela",
+    "summary": "MLA 9th-edition Works Cited templates and in-text citation patterns.",
+    "path": "resources/ela/mla-citation.md",
+    "asset": "assets/ela/mla-citation.svg"
+  },
+  {
     "id": "ela/parts-of-speech",
     "title": "Parts of Speech",
     "aliases": [
@@ -946,6 +1088,76 @@
     "summary": "The eight parts of speech with each one's job and example words.",
     "path": "resources/ela/parts-of-speech.md",
     "asset": "assets/ela/parts-of-speech.svg"
+  },
+  {
+    "id": "ela/plot-diagram",
+    "title": "Plot Diagram (Freytag's Pyramid)",
+    "aliases": [
+      "plot diagram",
+      "freytag's pyramid",
+      "narrative arc",
+      "story structure",
+      "plot structure",
+      "dramatic structure"
+    ],
+    "tags": [
+      "ela",
+      "literature",
+      "plot",
+      "narrative",
+      "story elements",
+      "freytag"
+    ],
+    "subject": "ela",
+    "summary": "The five stages of a story's plot — exposition, rising action, climax, falling action, resolution.",
+    "path": "resources/ela/plot-diagram.md",
+    "asset": "assets/ela/plot-diagram.svg"
+  },
+  {
+    "id": "ela/point-of-view",
+    "title": "Point of View",
+    "aliases": [
+      "point of view",
+      "pov",
+      "narrative perspective",
+      "first person",
+      "third person omniscient",
+      "narrator"
+    ],
+    "tags": [
+      "ela",
+      "literature",
+      "point of view",
+      "narration",
+      "perspective"
+    ],
+    "subject": "ela",
+    "summary": "The narrative points of view — first, second, and the three third-person modes.",
+    "path": "resources/ela/point-of-view.md",
+    "asset": "assets/ela/point-of-view.svg"
+  },
+  {
+    "id": "ela/prefixes",
+    "title": "Common Prefixes",
+    "aliases": [
+      "prefixes",
+      "prefix list",
+      "word parts",
+      "affixes",
+      "prefix meanings"
+    ],
+    "tags": [
+      "ela",
+      "vocabulary",
+      "morphology",
+      "prefixes",
+      "affixes",
+      "word parts"
+    ],
+    "subject": "ela",
+    "summary": "High-frequency English prefixes with their meaning and an example word.",
+    "path": "resources/ela/prefixes.md",
+    "asset": "assets/ela/prefixes.svg"
   },
   {
     "id": "ela/punctuation-marks",
@@ -970,6 +1182,101 @@
     "asset": "assets/ela/punctuation-marks.svg"
   },
   {
+    "id": "ela/rhetorical-appeals",
+    "title": "Rhetorical Appeals & Devices",
+    "aliases": [
+      "rhetorical appeals",
+      "ethos pathos logos",
+      "modes of persuasion",
+      "rhetorical devices",
+      "persuasion"
+    ],
+    "tags": [
+      "ela",
+      "rhetoric",
+      "persuasion",
+      "ethos",
+      "pathos",
+      "logos",
+      "argument"
+    ],
+    "subject": "ela",
+    "summary": "Aristotle's three appeals (ethos, pathos, logos) plus kairos and common rhetorical devices.",
+    "path": "resources/ela/rhetorical-appeals.md",
+    "asset": "assets/ela/rhetorical-appeals.svg"
+  },
+  {
+    "id": "ela/sentence-types-and-structures",
+    "title": "Sentence Types & Structures",
+    "aliases": [
+      "sentence types",
+      "sentence structures",
+      "simple compound complex",
+      "declarative interrogative",
+      "kinds of sentences",
+      "clauses"
+    ],
+    "tags": [
+      "ela",
+      "grammar",
+      "sentences",
+      "clauses",
+      "syntax",
+      "punctuation"
+    ],
+    "subject": "ela",
+    "summary": "The four sentence purposes and the four clause structures, with clause basics.",
+    "path": "resources/ela/sentence-types-and-structures.md",
+    "asset": "assets/ela/sentence-types-and-structures.svg"
+  },
+  {
+    "id": "ela/suffixes",
+    "title": "Common Suffixes",
+    "aliases": [
+      "suffixes",
+      "suffix list",
+      "word endings",
+      "affixes",
+      "suffix meanings"
+    ],
+    "tags": [
+      "ela",
+      "vocabulary",
+      "morphology",
+      "suffixes",
+      "affixes",
+      "word parts"
+    ],
+    "subject": "ela",
+    "summary": "High-frequency English suffixes with their meaning / part of speech and an example.",
+    "path": "resources/ela/suffixes.md",
+    "asset": "assets/ela/suffixes.svg"
+  },
+  {
+    "id": "ela/text-structures",
+    "title": "Informational Text Structures",
+    "aliases": [
+      "text structures",
+      "informational text structure",
+      "cause and effect",
+      "compare and contrast",
+      "problem and solution",
+      "signal words"
+    ],
+    "tags": [
+      "ela",
+      "reading",
+      "nonfiction",
+      "text structure",
+      "signal words",
+      "comprehension"
+    ],
+    "subject": "ela",
+    "summary": "The five ways nonfiction text is organized, each with its signal words.",
+    "path": "resources/ela/text-structures.md",
+    "asset": "assets/ela/text-structures.svg"
+  },
+  {
     "id": "ela/verb-tenses",
     "title": "Verb Tenses",
     "aliases": [
@@ -990,6 +1297,179 @@
     "summary": "The 12 English verb tenses across past, present, and future, shown with \"to walk.",
     "path": "resources/ela/verb-tenses.md",
     "asset": "assets/ela/verb-tenses.svg"
+  },
+  {
+    "id": "french/articles-and-noun-gender",
+    "title": "French — Articles & Noun Gender",
+    "aliases": [
+      "french articles",
+      "le la les",
+      "un une des",
+      "partitive article",
+      "du de la",
+      "noun gender french"
+    ],
+    "tags": [
+      "french",
+      "articles",
+      "gender",
+      "nouns",
+      "partitive",
+      "grammar",
+      "agreement"
+    ],
+    "subject": "french",
+    "summary": "French definite, indefinite, and partitive articles plus noun-gender hints.",
+    "path": "resources/french/articles-and-noun-gender.md",
+    "asset": "assets/french/articles-and-noun-gender.svg"
+  },
+  {
+    "id": "french/days-months-seasons",
+    "title": "French — Days, Months & Seasons",
+    "aliases": [
+      "french days",
+      "jours de la semaine",
+      "french months",
+      "mois de l'annee",
+      "french seasons",
+      "saisons",
+      "calendar french"
+    ],
+    "tags": [
+      "french",
+      "calendar",
+      "days",
+      "months",
+      "seasons",
+      "dates",
+      "vocabulary"
+    ],
+    "subject": "french",
+    "summary": "The days, months, and seasons in French plus the date format.",
+    "path": "resources/french/days-months-seasons.md",
+    "asset": "assets/french/days-months-seasons.svg"
+  },
+  {
+    "id": "french/etre-and-avoir",
+    "title": "French — Être & Avoir",
+    "aliases": [
+      "etre avoir",
+      "être avoir",
+      "to be to have french",
+      "etre conjugation",
+      "avoir conjugation",
+      "french auxiliary verbs"
+    ],
+    "tags": [
+      "french",
+      "verbs",
+      "etre",
+      "avoir",
+      "to be",
+      "to have",
+      "conjugation",
+      "grammar"
+    ],
+    "subject": "french",
+    "summary": "Present-tense être and avoir side by side — the two French auxiliary verbs.",
+    "path": "resources/french/etre-and-avoir.md",
+    "asset": "assets/french/etre-and-avoir.svg"
+  },
+  {
+    "id": "french/numbers-0-100",
+    "title": "French — Numbers 0 to 100",
+    "aliases": [
+      "french numbers",
+      "nombres en francais",
+      "count in french",
+      "soixante-dix quatre-vingts",
+      "cardinal numbers french"
+    ],
+    "tags": [
+      "french",
+      "numbers",
+      "counting",
+      "cardinals",
+      "vocabulary"
+    ],
+    "subject": "french",
+    "summary": "French cardinal numbers 0-100, including the soixante-dix / quatre-vingts quirks.",
+    "path": "resources/french/numbers-0-100.md",
+    "asset": "assets/french/numbers-0-100.svg"
+  },
+  {
+    "id": "french/pronouns",
+    "title": "French — Subject & Object Pronouns",
+    "aliases": [
+      "french pronouns",
+      "subject pronouns french",
+      "direct object french",
+      "indirect object french",
+      "stressed pronouns",
+      "je tu il"
+    ],
+    "tags": [
+      "french",
+      "pronouns",
+      "subject",
+      "object",
+      "reflexive",
+      "stressed",
+      "grammar"
+    ],
+    "subject": "french",
+    "summary": "French subject, direct-object, indirect-object, reflexive, and stressed pronoun sets.",
+    "path": "resources/french/pronouns.md",
+    "asset": "assets/french/pronouns.svg"
+  },
+  {
+    "id": "french/question-words-and-greetings",
+    "title": "French — Question Words & Greetings",
+    "aliases": [
+      "french question words",
+      "interrogatives french",
+      "qui que ou",
+      "french greetings",
+      "salutations",
+      "bonjour merci"
+    ],
+    "tags": [
+      "french",
+      "questions",
+      "interrogatives",
+      "greetings",
+      "courtesy",
+      "vocabulary"
+    ],
+    "subject": "french",
+    "summary": "French interrogatives, the three ways to form questions, and core greetings.",
+    "path": "resources/french/question-words-and-greetings.md",
+    "asset": "assets/french/question-words-and-greetings.svg"
+  },
+  {
+    "id": "french/regular-verb-endings",
+    "title": "French — Regular Verb Endings (-er / -ir / -re)",
+    "aliases": [
+      "french regular verbs",
+      "er ir re endings",
+      "parler finir vendre",
+      "french conjugation endings",
+      "present tense french"
+    ],
+    "tags": [
+      "french",
+      "verbs",
+      "conjugation",
+      "present tense",
+      "er",
+      "ir",
+      "re",
+      "grammar"
+    ],
+    "subject": "french",
+    "summary": "Present-tense endings for the three regular French verb classes with a model verb each.",
+    "path": "resources/french/regular-verb-endings.md",
+    "asset": "assets/french/regular-verb-endings.svg"
   },
   {
     "id": "geography/continents-oceans",
@@ -1102,6 +1582,152 @@
     "summary": "How to read a map — the legend, compass rose, scale, and the common map symbols.",
     "path": "resources/geography/map-symbols-and-legend.md",
     "asset": "assets/geography/map-symbols-and-legend.svg"
+  },
+  {
+    "id": "geography/us-states-map",
+    "title": "United States Map (50 States)",
+    "aliases": [
+      "us map",
+      "united states map",
+      "50 states map",
+      "state map",
+      "us states",
+      "postal abbreviations map"
+    ],
+    "tags": [
+      "geography",
+      "map",
+      "united states",
+      "states",
+      "postal codes",
+      "regions"
+    ],
+    "subject": "geography",
+    "summary": "A map of the 50 US states with two-letter postal codes (Albers USA projection).",
+    "path": "resources/geography/us-states-map.md",
+    "asset": "assets/geography/us-states-map.svg"
+  },
+  {
+    "id": "geography/world-physical-map",
+    "title": "World Physical Map",
+    "aliases": [
+      "world physical map",
+      "physical map",
+      "mountain ranges",
+      "major rivers",
+      "deserts",
+      "landforms map",
+      "relief map"
+    ],
+    "tags": [
+      "geography",
+      "map",
+      "physical",
+      "mountains",
+      "rivers",
+      "deserts"
+    ],
+    "subject": "geography",
+    "summary": "The world's major mountain ranges, rivers, and deserts on a labeled physical map.",
+    "path": "resources/geography/world-physical-map.md",
+    "asset": "assets/geography/world-physical-map.svg"
+  },
+  {
+    "id": "geography/world-political-map",
+    "title": "World Political Map",
+    "aliases": [
+      "world political map",
+      "world map",
+      "countries map",
+      "map of the world",
+      "world countries",
+      "continents map"
+    ],
+    "tags": [
+      "geography",
+      "map",
+      "world",
+      "countries",
+      "continents",
+      "political"
+    ],
+    "subject": "geography",
+    "summary": "A labeled world map of countries and continents (equirectangular projection).",
+    "path": "resources/geography/world-political-map.md",
+    "asset": "assets/geography/world-political-map.svg"
+  },
+  {
+    "id": "health-pe/fitness-and-target-heart-rate",
+    "title": "Fitness Components & Target Heart Rate",
+    "aliases": [
+      "fitness components",
+      "target heart rate",
+      "max heart rate",
+      "health-related fitness",
+      "FITT principle",
+      "220 minus age"
+    ],
+    "tags": [
+      "health",
+      "fitness",
+      "exercise",
+      "heart rate",
+      "PE",
+      "wellness"
+    ],
+    "subject": "health-pe",
+    "summary": "The 5 health-related fitness components, the max-HR formula, and target training zones.",
+    "path": "resources/health-pe/fitness-and-target-heart-rate.md",
+    "asset": "assets/health-pe/fitness-and-target-heart-rate.svg"
+  },
+  {
+    "id": "health-pe/myplate",
+    "title": "MyPlate Food Groups",
+    "aliases": [
+      "myplate",
+      "food groups",
+      "balanced meal",
+      "usda myplate",
+      "healthy plate",
+      "nutrition groups"
+    ],
+    "tags": [
+      "health",
+      "nutrition",
+      "food groups",
+      "myplate",
+      "diet",
+      "wellness"
+    ],
+    "subject": "health-pe",
+    "summary": "USDA MyPlate's five food groups and how to build a balanced meal.",
+    "path": "resources/health-pe/myplate.md",
+    "asset": "assets/health-pe/myplate.svg"
+  },
+  {
+    "id": "health-pe/nutrition-facts-label",
+    "title": "Nutrition Facts Label",
+    "aliases": [
+      "nutrition facts label",
+      "food label",
+      "serving size",
+      "percent daily value",
+      "%DV",
+      "calories",
+      "reading a label"
+    ],
+    "tags": [
+      "health",
+      "nutrition",
+      "food label",
+      "daily value",
+      "calories",
+      "diet"
+    ],
+    "subject": "health-pe",
+    "summary": "How to read the FDA Nutrition Facts label — serving size, calories, nutrients, and %DV.",
+    "path": "resources/health-pe/nutrition-facts-label.md",
+    "asset": "assets/health-pe/nutrition-facts-label.svg"
   },
   {
     "id": "math/coordinate-plane",
@@ -1460,6 +2086,150 @@
     "summary": "Major and minor keys arranged by fifths with their sharp/flat counts and relative minors.",
     "path": "resources/music/circle-of-fifths.md",
     "asset": "assets/music/circle-of-fifths.svg"
+  },
+  {
+    "id": "music/dynamics-and-tempo",
+    "title": "Dynamics, Tempo & Articulation",
+    "aliases": [
+      "dynamics",
+      "tempo markings",
+      "forte piano",
+      "allegro adagio",
+      "crescendo",
+      "articulation",
+      "music terms"
+    ],
+    "tags": [
+      "music",
+      "dynamics",
+      "tempo",
+      "articulation",
+      "italian terms",
+      "expression"
+    ],
+    "subject": "music",
+    "summary": "Italian markings for volume (dynamics), speed (tempo), and articulation.",
+    "path": "resources/music/dynamics-and-tempo.md",
+    "asset": "assets/music/dynamics-and-tempo.svg"
+  },
+  {
+    "id": "music/grand-staff-and-clefs",
+    "title": "The Grand Staff & Clefs",
+    "aliases": [
+      "grand staff",
+      "treble clef",
+      "bass clef",
+      "note names",
+      "middle c",
+      "staff lines and spaces",
+      "clefs"
+    ],
+    "tags": [
+      "music",
+      "staff",
+      "clef",
+      "treble",
+      "bass",
+      "note names",
+      "middle c"
+    ],
+    "subject": "music",
+    "summary": "Treble and bass clef note names (lines & spaces), middle C, and the grand staff.",
+    "path": "resources/music/grand-staff-and-clefs.md",
+    "asset": "assets/music/grand-staff-and-clefs.svg"
+  },
+  {
+    "id": "music/major-minor-scales",
+    "title": "Major & Minor Scale Patterns",
+    "aliases": [
+      "major scale",
+      "minor scale",
+      "scale patterns",
+      "whole half steps",
+      "natural harmonic melodic minor"
+    ],
+    "tags": [
+      "music",
+      "theory",
+      "scales",
+      "major",
+      "minor",
+      "steps"
+    ],
+    "subject": "music",
+    "summary": "The whole/half-step formulas for major and the three minor scales.",
+    "path": "resources/music/major-minor-scales.md",
+    "asset": "assets/music/major-minor-scales.svg"
+  },
+  {
+    "id": "music/musical-intervals",
+    "title": "Musical Intervals",
+    "aliases": [
+      "musical intervals",
+      "intervals",
+      "perfect fifth",
+      "major third",
+      "octave",
+      "half steps"
+    ],
+    "tags": [
+      "music",
+      "theory",
+      "intervals",
+      "half steps",
+      "harmony"
+    ],
+    "subject": "music",
+    "summary": "The intervals within an octave by half-step count, with quality names.",
+    "path": "resources/music/musical-intervals.md",
+    "asset": "assets/music/musical-intervals.svg"
+  },
+  {
+    "id": "music/note-and-rest-values",
+    "title": "Note & Rest Values",
+    "aliases": [
+      "note values",
+      "rest values",
+      "note durations",
+      "whole half quarter eighth note",
+      "rhythm values"
+    ],
+    "tags": [
+      "music",
+      "rhythm",
+      "notes",
+      "rests",
+      "duration",
+      "beats"
+    ],
+    "subject": "music",
+    "summary": "The duration of each note and its matching rest, counted in 4/4 time.",
+    "path": "resources/music/note-and-rest-values.md",
+    "asset": "assets/music/note-and-rest-values.svg"
+  },
+  {
+    "id": "music/time-signatures",
+    "title": "Time Signatures",
+    "aliases": [
+      "time signatures",
+      "time signature",
+      "meter",
+      "4/4 time",
+      "3/4 time",
+      "6/8 time",
+      "common time"
+    ],
+    "tags": [
+      "music",
+      "rhythm",
+      "meter",
+      "time signature",
+      "beats"
+    ],
+    "subject": "music",
+    "summary": "What the top and bottom numbers mean, plus common simple and compound meters.",
+    "path": "resources/music/time-signatures.md",
+    "asset": "assets/music/time-signatures.svg"
   },
   {
     "id": "physics/circular-and-rotational-motion",
@@ -1937,6 +2707,175 @@
     "asset": "assets/reference/roman-numerals.svg"
   },
   {
+    "id": "spanish/articles-and-noun-gender",
+    "title": "Spanish — Articles & Noun Gender",
+    "aliases": [
+      "spanish articles",
+      "el la los las",
+      "un una unos unas",
+      "noun gender spanish",
+      "definite indefinite articles"
+    ],
+    "tags": [
+      "spanish",
+      "articles",
+      "gender",
+      "nouns",
+      "grammar",
+      "agreement"
+    ],
+    "subject": "spanish",
+    "summary": "Spanish definite/indefinite articles and the rules for masculine/feminine noun gender.",
+    "path": "resources/spanish/articles-and-noun-gender.md",
+    "asset": "assets/spanish/articles-and-noun-gender.svg"
+  },
+  {
+    "id": "spanish/days-months-seasons",
+    "title": "Spanish — Days, Months & Seasons",
+    "aliases": [
+      "spanish days",
+      "dias de la semana",
+      "spanish months",
+      "meses del ano",
+      "spanish seasons",
+      "estaciones",
+      "calendar spanish"
+    ],
+    "tags": [
+      "spanish",
+      "calendar",
+      "days",
+      "months",
+      "seasons",
+      "dates",
+      "vocabulary"
+    ],
+    "subject": "spanish",
+    "summary": "The days, months, and seasons in Spanish plus the date format.",
+    "path": "resources/spanish/days-months-seasons.md",
+    "asset": "assets/spanish/days-months-seasons.svg"
+  },
+  {
+    "id": "spanish/numbers-0-100",
+    "title": "Spanish — Numbers 0 to 100",
+    "aliases": [
+      "spanish numbers",
+      "numeros en espanol",
+      "count in spanish",
+      "cardinal numbers spanish",
+      "uno dos tres"
+    ],
+    "tags": [
+      "spanish",
+      "numbers",
+      "counting",
+      "cardinals",
+      "vocabulary"
+    ],
+    "subject": "spanish",
+    "summary": "Spanish cardinal numbers 0-100 with the spelling and combining rules.",
+    "path": "resources/spanish/numbers-0-100.md",
+    "asset": "assets/spanish/numbers-0-100.svg"
+  },
+  {
+    "id": "spanish/question-words-and-greetings",
+    "title": "Spanish — Question Words & Greetings",
+    "aliases": [
+      "spanish question words",
+      "interrogatives spanish",
+      "que quien donde",
+      "spanish greetings",
+      "saludos",
+      "hola gracias"
+    ],
+    "tags": [
+      "spanish",
+      "questions",
+      "interrogatives",
+      "greetings",
+      "courtesy",
+      "vocabulary"
+    ],
+    "subject": "spanish",
+    "summary": "Spanish interrogatives (all accented) plus the core greetings and courtesy phrases.",
+    "path": "resources/spanish/question-words-and-greetings.md",
+    "asset": "assets/spanish/question-words-and-greetings.svg"
+  },
+  {
+    "id": "spanish/regular-verb-endings",
+    "title": "Spanish — Regular Verb Endings (-ar / -er / -ir)",
+    "aliases": [
+      "spanish regular verbs",
+      "ar er ir endings",
+      "present tense spanish",
+      "hablar comer vivir",
+      "spanish conjugation endings"
+    ],
+    "tags": [
+      "spanish",
+      "verbs",
+      "conjugation",
+      "present tense",
+      "ar",
+      "er",
+      "ir",
+      "grammar"
+    ],
+    "subject": "spanish",
+    "summary": "Present-tense endings for the three regular Spanish verb classes with a model verb each.",
+    "path": "resources/spanish/regular-verb-endings.md",
+    "asset": "assets/spanish/regular-verb-endings.svg"
+  },
+  {
+    "id": "spanish/ser-vs-estar",
+    "title": "Spanish — Ser vs Estar",
+    "aliases": [
+      "ser vs estar",
+      "ser estar",
+      "to be in spanish",
+      "ser conjugation",
+      "estar conjugation",
+      "when to use ser"
+    ],
+    "tags": [
+      "spanish",
+      "verbs",
+      "ser",
+      "estar",
+      "to be",
+      "conjugation",
+      "grammar"
+    ],
+    "subject": "spanish",
+    "summary": "Present-tense ser and estar side by side, plus the rules for which \"to be\" to use.",
+    "path": "resources/spanish/ser-vs-estar.md",
+    "asset": "assets/spanish/ser-vs-estar.svg"
+  },
+  {
+    "id": "spanish/subject-and-object-pronouns",
+    "title": "Spanish — Subject & Object Pronouns",
+    "aliases": [
+      "spanish pronouns",
+      "subject pronouns spanish",
+      "direct object pronouns",
+      "indirect object pronouns",
+      "reflexive pronouns",
+      "yo tu el"
+    ],
+    "tags": [
+      "spanish",
+      "pronouns",
+      "subject",
+      "object",
+      "reflexive",
+      "grammar"
+    ],
+    "subject": "spanish",
+    "summary": "Spanish subject, direct-object, indirect-object, and reflexive pronoun sets in one chart.",
+    "path": "resources/spanish/subject-and-object-pronouns.md",
+    "asset": "assets/spanish/subject-and-object-pronouns.svg"
+  },
+  {
     "id": "us-history-civics/articles-of-the-constitution",
     "title": "The Seven Articles of the Constitution",
     "aliases": [
@@ -2243,6 +3182,76 @@
     "asset": "assets/us-history-civics/us-history-eras-timeline.svg"
   },
   {
+    "id": "visual-art/color-models-rgb-cmyk",
+    "title": "Color Models — RGB vs CMYK",
+    "aliases": [
+      "rgb vs cmyk",
+      "additive subtractive color",
+      "rgb cmyk",
+      "color models",
+      "screen vs print color"
+    ],
+    "tags": [
+      "visual art",
+      "color",
+      "rgb",
+      "cmyk",
+      "additive",
+      "subtractive",
+      "design"
+    ],
+    "subject": "visual-art",
+    "summary": "Additive (RGB, light/screens) vs subtractive (CMYK, ink/print) color and how each combines.",
+    "path": "resources/visual-art/color-models-rgb-cmyk.md",
+    "asset": "assets/visual-art/color-models-rgb-cmyk.svg"
+  },
+  {
+    "id": "visual-art/color-wheel",
+    "title": "Color Wheel",
+    "aliases": [
+      "color wheel",
+      "colour wheel",
+      "primary secondary colors",
+      "complementary colors",
+      "analogous colors",
+      "color theory"
+    ],
+    "tags": [
+      "visual art",
+      "color",
+      "color theory",
+      "primary",
+      "secondary",
+      "complementary"
+    ],
+    "subject": "visual-art",
+    "summary": "The 12-hue artist's (RYB) color wheel with primary, secondary, tertiary, and color relationships.",
+    "path": "resources/visual-art/color-wheel.md",
+    "asset": "assets/visual-art/color-wheel.svg"
+  },
+  {
+    "id": "visual-art/elements-and-principles-of-art",
+    "title": "Elements & Principles of Art",
+    "aliases": [
+      "elements of art",
+      "principles of design",
+      "principles of art",
+      "art elements",
+      "line shape form"
+    ],
+    "tags": [
+      "visual art",
+      "design",
+      "elements of art",
+      "principles of design",
+      "composition"
+    ],
+    "subject": "visual-art",
+    "summary": "The 7 elements of art (the tools) and the principles of design (how they're arranged).",
+    "path": "resources/visual-art/elements-and-principles-of-art.md",
+    "asset": "assets/visual-art/elements-and-principles-of-art.svg"
+  },
+  {
     "id": "world-history/age-of-exploration",
     "title": "Age of Exploration — Explorers & Routes",
     "aliases": [
@@ -2374,6 +3383,30 @@
     "summary": "The four foundational river-valley civilizations — river, region, dates, writing, and achievements.",
     "path": "resources/world-history/river-valley-civilizations.md",
     "asset": "assets/world-history/river-valley-civilizations.svg"
+  },
+  {
+    "id": "world-history/silk-road",
+    "title": "The Silk Road & Trade Routes",
+    "aliases": [
+      "silk road",
+      "trade routes",
+      "spice route",
+      "silk road map",
+      "overland trade",
+      "maritime trade"
+    ],
+    "tags": [
+      "world history",
+      "silk road",
+      "trade",
+      "routes",
+      "exchange",
+      "eurasia"
+    ],
+    "subject": "world-history",
+    "summary": "The overland Silk Road and maritime spice route linking China to the Mediterranean, with key cities and goods.",
+    "path": "resources/world-history/silk-road.md",
+    "asset": "assets/world-history/silk-road.svg"
   },
   {
     "id": "world-history/world-history-timeline",

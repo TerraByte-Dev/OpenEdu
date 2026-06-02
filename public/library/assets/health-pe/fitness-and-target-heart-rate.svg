@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 661 531" role="img" aria-label="Fitness Components &amp; Target Heart Rate">
+<title>Fitness Components &amp; Target Heart Rate</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="661" height="531"/>
+<text x="28" y="50" font-size="26" font-weight="700">Fitness Components &amp; Target Heart Rate</text>
+<text x="28" y="91" font-size="17" font-weight="700">5 health-related fitness components</text>
+<text x="28" y="120" font-size="15">Cardiovascular endurance</text>
+<text x="271" y="120" font-size="15">heart &amp; lungs during sustained activity</text>
+<text x="28" y="145" font-size="15">Muscular strength</text>
+<text x="271" y="145" font-size="15">most force a muscle can exert at once</text>
+<text x="28" y="170" font-size="15">Muscular endurance</text>
+<text x="271" y="170" font-size="15">repeating/holding effort over time</text>
+<text x="28" y="195" font-size="15">Flexibility</text>
+<text x="271" y="195" font-size="15">range of motion at a joint</text>
+<text x="28" y="220" font-size="15">Body composition</text>
+<text x="271" y="220" font-size="15">ratio of fat to lean mass</text>
+<text x="28" y="257" font-size="17" font-weight="700">Target heart rate</text>
+<text x="28" y="286" font-size="15" xml:space="preserve">Max heart rate (MHR) ≈ 220 − age   (bpm)</text>
+<text x="28" y="311" font-size="15" xml:space="preserve">Target zone = 50–85% of MHR   (moderate 50–70%, vigorous 70–85%)</text>
+<text x="28" y="336" font-size="15" xml:space="preserve">Age 15 → MHR ≈ 205 → target ≈ 103–174 bpm</text>
+<text x="28" y="373" font-size="17" font-weight="700">FITT principle</text>
+<text x="28" y="401" font-size="14" xml:space="preserve">• Frequency (how often) · Intensity (how hard) · Time (how long) · Type</text>
+<text x="28" y="425" font-size="14" xml:space="preserve">  (what activity).</text>
+<text x="28" y="449" font-size="14" xml:space="preserve">• Teens: aim for ~60 minutes of moderate-to-vigorous activity most days.</text>
+<text x="28" y="473" font-size="14" xml:space="preserve">• Skill-related fitness: agility, balance, coordination, power, reaction</text>
+<text x="28" y="497" font-size="14" xml:space="preserve">  time, speed.</text>
+</svg>

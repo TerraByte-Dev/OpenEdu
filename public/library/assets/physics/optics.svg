@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 526 406" role="img" aria-label="Optics: Converging Lens">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 675 406" role="img" aria-label="Optics: Converging Lens">
 <title>Optics: Converging Lens</title>
 <style>
   text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
@@ -10,7 +10,7 @@
   .fill-faint{fill:var(--oe-svg-faint,#777);}
   .b{font-weight:700;}
 </style>
-<rect class="oe-bg" x="0" y="0" width="526" height="406"/>
+<rect class="oe-bg" x="0" y="0" width="675" height="406"/>
 <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
 <text x="28" y="40" font-size="26" font-weight="700">Optics: Converging Lens</text>
 <text x="28" y="64" font-size="13" class="faint">object beyond 2F → a real, inverted, smaller image</text>

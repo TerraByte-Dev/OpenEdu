@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 468" role="img" aria-label="The Grand Staff and Clefs">
+<title>The Grand Staff and Clefs</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="720" height="468"/>
+<text x="28" y="40" font-size="24" font-weight="700">The Grand Staff &amp; Clefs</text>
+<path d="M94,92 q -16,123 0,254" fill="none" stroke="var(--oe-svg-ink,#111)" stroke-width="3"/>
+<line x1="120" y1="96" x2="590" y2="96" class="rule"/>
+<line x1="120" y1="118" x2="590" y2="118" class="rule"/>
+<line x1="120" y1="140" x2="590" y2="140" class="rule"/>
+<line x1="120" y1="162" x2="590" y2="162" class="rule"/>
+<line x1="120" y1="184" x2="590" y2="184" class="rule"/>
+<text x="110" y="189" font-size="12" text-anchor="end" font-weight="700">treble (G)</text>
+<text x="604" y="189" font-size="13" font-weight="700">E</text>
+<text x="604" y="167" font-size="13" font-weight="700">G</text>
+<text x="604" y="145" font-size="13" font-weight="700">B</text>
+<text x="604" y="123" font-size="13" font-weight="700">D</text>
+<text x="604" y="101" font-size="13" font-weight="700">F</text>
+<text x="634" y="178" font-size="12" class="faint">F</text>
+<text x="634" y="156" font-size="12" class="faint">A</text>
+<text x="634" y="134" font-size="12" class="faint">C</text>
+<text x="634" y="112" font-size="12" class="faint">E</text>
+<line x1="120" y1="254" x2="590" y2="254" class="rule"/>
+<line x1="120" y1="276" x2="590" y2="276" class="rule"/>
+<line x1="120" y1="298" x2="590" y2="298" class="rule"/>
+<line x1="120" y1="320" x2="590" y2="320" class="rule"/>
+<line x1="120" y1="342" x2="590" y2="342" class="rule"/>
+<text x="110" y="347" font-size="12" text-anchor="end" font-weight="700">bass (F)</text>
+<text x="604" y="347" font-size="13" font-weight="700">G</text>
+<text x="604" y="325" font-size="13" font-weight="700">B</text>
+<text x="604" y="303" font-size="13" font-weight="700">D</text>
+<text x="604" y="281" font-size="13" font-weight="700">F</text>
+<text x="604" y="259" font-size="13" font-weight="700">A</text>
+<text x="634" y="336" font-size="12" class="faint">A</text>
+<text x="634" y="314" font-size="12" class="faint">C</text>
+<text x="634" y="292" font-size="12" class="faint">E</text>
+<text x="634" y="270" font-size="12" class="faint">G</text>
+<text x="604" y="82" font-size="10" class="faint">lines</text>
+<text x="634" y="82" font-size="10" class="faint">spaces</text>
+<line x1="160" y1="219" x2="210" y2="219" class="rule"/>
+<ellipse cx="185" cy="219" rx="11" ry="8" fill="#fff" stroke="var(--oe-svg-ink,#111)" stroke-width="2"/>
+<text x="220" y="224" font-size="13" font-weight="700">middle C</text>
+<text x="28" y="392" font-size="13" class="faint">Treble lines: E G B D F ('Every Good Boy Does Fine'); spaces: F A C E.</text>
+<text x="28" y="414" font-size="13" class="faint">Bass lines: G B D F A ('Good Boys Do Fine Always'); spaces: A C E G.</text>
+<text x="28" y="436" font-size="13" class="faint">Middle C sits 1 ledger line below treble / above bass — it links the two staves.</text>
+</svg>

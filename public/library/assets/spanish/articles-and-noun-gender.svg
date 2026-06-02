@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 686 458" role="img" aria-label="Spanish Articles &amp; Noun Gender">
+<title>Spanish Articles &amp; Noun Gender</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="686" height="458"/>
+<text x="28" y="50" font-size="26" font-weight="700">Spanish Articles &amp; Noun Gender</text>
+<text x="28" y="72" font-size="13" class="faint">articles agree in gender and number</text>
+<text x="28" y="107" font-size="15" font-weight="700"></text>
+<text x="181" y="107" font-size="15" font-weight="700">masc. sing.</text>
+<text x="307" y="107" font-size="15" font-weight="700">fem. sing.</text>
+<text x="424" y="107" font-size="15" font-weight="700">masc. pl.</text>
+<text x="532" y="107" font-size="15" font-weight="700">fem. pl.</text>
+<line x1="28" y1="113" x2="604" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">definite (the)</text>
+<text x="181" y="132" font-size="15">el</text>
+<text x="307" y="132" font-size="15">la</text>
+<text x="424" y="132" font-size="15">los</text>
+<text x="532" y="132" font-size="15">las</text>
+<text x="28" y="157" font-size="15">indefinite (a)</text>
+<text x="181" y="157" font-size="15">un</text>
+<text x="307" y="157" font-size="15">una</text>
+<text x="424" y="157" font-size="15">unos</text>
+<text x="532" y="157" font-size="15">unas</text>
+<text x="28" y="194" font-size="17" font-weight="700">Gender from the ending</text>
+<text x="28" y="222" font-size="14" xml:space="preserve">• Usually masculine: -o (el libro); also -or, -aje, -ma.</text>
+<text x="28" y="246" font-size="14" xml:space="preserve">• Usually feminine: -a (la casa); also -ción, -sión, -dad, -tad, -umbre.</text>
+<text x="28" y="283" font-size="17" font-weight="700">Common exceptions</text>
+<text x="28" y="311" font-size="14" xml:space="preserve">• Masculine despite -a: el día, el mapa, el problema, el clima, el planeta.</text>
+<text x="28" y="335" font-size="14" xml:space="preserve">• Feminine despite -o: la mano, la foto, la moto, la radio.</text>
+<text x="28" y="372" font-size="17" font-weight="700">Plurals</text>
+<text x="28" y="400" font-size="14" xml:space="preserve">• Vowel ending → add -s: casa → casas.</text>
+<text x="28" y="424" font-size="14" xml:space="preserve">• Consonant ending → add -es: papel → papeles (lápiz → lápices).</text>
+</svg>

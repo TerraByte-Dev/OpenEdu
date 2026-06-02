@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 653 667" role="img" aria-label="Ser vs Estar">
+<title>Ser vs Estar</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="653" height="667"/>
+<text x="28" y="50" font-size="26" font-weight="700">Ser vs Estar</text>
+<text x="28" y="72" font-size="13" class="faint">the two Spanish 'to be' verbs — present indicative</text>
+<text x="28" y="107" font-size="15" font-weight="700"></text>
+<text x="154" y="107" font-size="15" font-weight="700">ser</text>
+<text x="226" y="107" font-size="15" font-weight="700">estar</text>
+<line x1="28" y1="113" x2="289" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">yo</text>
+<text x="154" y="132" font-size="15">soy</text>
+<text x="226" y="132" font-size="15">estoy</text>
+<text x="28" y="157" font-size="15">tú</text>
+<text x="154" y="157" font-size="15">eres</text>
+<text x="226" y="157" font-size="15">estás</text>
+<text x="28" y="182" font-size="15">él/ella/Ud.</text>
+<text x="154" y="182" font-size="15">es</text>
+<text x="226" y="182" font-size="15">está</text>
+<text x="28" y="207" font-size="15">nosotros</text>
+<text x="154" y="207" font-size="15">somos</text>
+<text x="226" y="207" font-size="15">estamos</text>
+<text x="28" y="232" font-size="15">vosotros</text>
+<text x="154" y="232" font-size="15">sois</text>
+<text x="226" y="232" font-size="15">estáis</text>
+<text x="28" y="257" font-size="15">ellos/Uds.</text>
+<text x="154" y="257" font-size="15">son</text>
+<text x="226" y="257" font-size="15">están</text>
+<text x="28" y="294" font-size="17" font-weight="700">Use SER — mnemonic DOCTOR</text>
+<text x="28" y="322" font-size="14" xml:space="preserve">• Description (lasting traits): Ella es alta.</text>
+<text x="28" y="346" font-size="14" xml:space="preserve">• Occupation: Soy profesor.</text>
+<text x="28" y="370" font-size="14" xml:space="preserve">• Characteristic / personality: Eres amable.</text>
+<text x="28" y="394" font-size="14" xml:space="preserve">• Time, date, day: Son las dos. Hoy es lunes.</text>
+<text x="28" y="418" font-size="14" xml:space="preserve">• Origin / material: Soy de México. Es de madera.</text>
+<text x="28" y="442" font-size="14" xml:space="preserve">• Relationship: Es mi hermano.</text>
+<text x="28" y="479" font-size="17" font-weight="700">Use ESTAR — mnemonic PLACE</text>
+<text x="28" y="507" font-size="14" xml:space="preserve">• Position / Location: Estoy en casa. Madrid está en España.</text>
+<text x="28" y="531" font-size="14" xml:space="preserve">• Action (progressive, -ndo): Estoy comiendo.</text>
+<text x="28" y="555" font-size="14" xml:space="preserve">• Condition (temporary): La sopa está caliente.</text>
+<text x="28" y="579" font-size="14" xml:space="preserve">• Emotion / health: Estoy cansado. ¿Cómo estás?</text>
+<text x="28" y="609" font-size="14">Meaning shifts: es aburrido (boring) vs está aburrido (bored); es listo</text>
+<text x="28" y="633" font-size="14">(clever) vs está listo (ready).</text>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 440" role="img" aria-label="Color Models RGB vs CMYK">
+<title>Color Models RGB vs CMYK</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="546" height="440"/>
+<text x="28" y="40" font-size="24" font-weight="700">Color Models — RGB vs CMYK</text>
+<rect x="28" y="80" width="220" height="210" fill="#000" stroke="var(--oe-svg-ink,#111)"/><g style="isolation:isolate"><circle cx="138" cy="139" r="78" fill="#FF0000" style="mix-blend-mode:screen"/><circle cx="177.8" cy="208" r="78" fill="#00FF00" style="mix-blend-mode:screen"/><circle cx="98.2" cy="208" r="78" fill="#0000FF" style="mix-blend-mode:screen"/></g>
+<text x="138" y="76" font-size="13" text-anchor="middle" font-weight="700">RGB — additive (light)</text>
+<rect x="298" y="80" width="220" height="210" fill="#fff" stroke="var(--oe-svg-ink,#111)"/><g style="isolation:isolate"><circle cx="408" cy="139" r="78" fill="#00FFFF" style="mix-blend-mode:multiply"/><circle cx="447.8" cy="208" r="78" fill="#FF00FF" style="mix-blend-mode:multiply"/><circle cx="368.2" cy="208" r="78" fill="#FFFF00" style="mix-blend-mode:multiply"/></g>
+<text x="408" y="76" font-size="13" text-anchor="middle" font-weight="700">CMYK — subtractive (ink)</text>
+<text x="28" y="320" font-size="13" xml:space="preserve">RGB (screens emit light): start from BLACK, add light.</text>
+<text x="28" y="342" font-size="13" xml:space="preserve">   R+G=yellow · G+B=cyan · R+B=magenta · R+G+B=WHITE.</text>
+<text x="28" y="364" font-size="13" xml:space="preserve">CMYK (ink reflects light): start from WHITE, ink subtracts.</text>
+<text x="28" y="386" font-size="13" xml:space="preserve">   C+M=blue · M+Y=red · C+Y=green · C+M+Y≈black → add K.</text>
+<text x="28" y="408" font-size="13" xml:space="preserve">Primary sets are complements; RGB's gamut is wider than CMYK's.</text>
+</svg>
