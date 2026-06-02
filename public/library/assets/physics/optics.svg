@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 526 406" role="img" aria-label="Optics: Converging Lens">
+<title>Optics: Converging Lens</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="526" height="406"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">Optics: Converging Lens</text>
+<text x="28" y="64" font-size="13" class="faint">object beyond 2F → a real, inverted, smaller image</text>
+<line x1="28" y1="214" x2="506" y2="214" class="rule"/>
+<line x1="318" y1="124" x2="318" y2="304" class="rule"/>
+<line x1="318" y1="136" x2="309" y2="124" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<line x1="318" y1="136" x2="327" y2="124" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<line x1="318" y1="292" x2="309" y2="304" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<line x1="318" y1="292" x2="327" y2="304" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="318" y="318" font-size="11" text-anchor="middle" class="faint">lens</text>
+<line x1="234" y1="209" x2="234" y2="219" class="rule"/><text x="234" y="204" font-size="11" text-anchor="middle" class="faint">F</text>
+<line x1="402" y1="209" x2="402" y2="219" class="rule"/><text x="402" y="204" font-size="11" text-anchor="middle" class="faint">F'</text>
+<line x1="150" y1="209" x2="150" y2="219" class="rule"/><text x="150" y="204" font-size="11" text-anchor="middle" class="faint">2F</text>
+<line x1="486" y1="209" x2="486" y2="219" class="rule"/><text x="486" y="204" font-size="11" text-anchor="middle" class="faint">2F'</text>
+<line x1="66" y1="214" x2="66" y2="150" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="66" y="142" font-size="11" text-anchor="middle" font-weight="700">object</text>
+<line x1="444" y1="214" x2="444" y2="246" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="444" y="262" font-size="11" text-anchor="middle" font-weight="700">image</text>
+<line x1="66" y1="150" x2="318" y2="150" class="rule"/>
+<line x1="318" y1="150" x2="486" y2="278" class="rule"/>
+<line x1="66" y1="150" x2="486" y2="256.7" class="rule"/>
+<line x1="66" y1="150" x2="318" y2="246" class="rule"/>
+<line x1="318" y1="246" x2="486" y2="246" class="rule"/>
+<text x="28" y="342" font-size="13" xml:space="preserve">Thin-lens equation:   1/f = 1/dₒ + 1/dᵢ</text>
+<text x="28" y="364" font-size="13" xml:space="preserve">Magnification:        m = −dᵢ/dₒ = hᵢ/hₒ</text>
+<text x="28" y="386" font-size="12" class="faint">Real image: dᵢ &gt; 0 (opposite side, inverted). Virtual (object within F): dᵢ &lt; 0, upright.</text>
+</svg>
