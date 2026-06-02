@@ -1,12 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import type { Course, Syllabus, LibraryEntry } from "../types";
 import { getManifest, matchResources, fetchResource, fetchAsset } from "../lib/library";
 import { renderChatMarkdown } from "../lib/chat-markdown";
 
 // Resources tab — the curated OpenEdu Library, browsable by the STUDENT (not just fuel for the
-// tutor's answer). Default view recommends cards relevant to this course; the search box reaches any
-// card; clicking one renders its full body. A chat 🔗 citation chip deep-links here via
-// `pendingResourceId` (consumed once, mirroring ChatTab's seedTopic pattern).
+// tutor's answer). The list view is a paginated grid: it defaults to cards recommended for this
+// course, but a subject-filter chip bar + numbered pagination let the reader walk the WHOLE corpus
+// (every subject, every page). The search box reaches any card; clicking one renders its full body.
+// A chat 🔗 citation chip deep-links here via `pendingResourceId` (consumed once, mirroring
+// ChatTab's seedTopic pattern).
 interface ResourcesTabProps {
   course: Course;
   currentSyllabus: Syllabus | null;
@@ -18,10 +20,41 @@ interface ResourcesTabProps {
 // Human-facing view shows the WHOLE card — not the model-capped slice the library.search tool uses.
 const FULL_CARD = 100_000;
 
+// Browse-grid tuning.
+const PAGE_SIZE = 24;        // tiles per page (fills a 3-col grid × 8 rows)
+const ALL = "__all__";       // browse pseudo-filter: the whole library, A–Z (vs. a specific subject)
+
+// Pretty names for the coarse `subject` slugs used as category chips. Unknown slugs fall back to a
+// title-cased form, so new subjects (batch 4/5: economics, world-history…) surface automatically.
+const SUBJECT_LABELS: Record<string, string> = {
+  math: "Mathematics",
+  chemistry: "Chemistry",
+  biology: "Biology",
+  "earth-space": "Earth & Space",
+  ela: "English / ELA",
+  physics: "Physics",
+  "us-history-civics": "History & Civics",
+  geography: "Geography",
+  economics: "Economics",
+  "world-history": "World History",
+  music: "Music",
+  "arts-music-cs": "Arts & CS",
+  reference: "Reference",
+};
+const subjectLabel = (s: string) =>
+  SUBJECT_LABELS[s] ?? (s || "Other").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+const byTitle = (a: LibraryEntry, b: LibraryEntry) => a.title.localeCompare(b.title);
+
 export default function ResourcesTab({ course, currentSyllabus, pendingResourceId, onPendingConsumed }: ResourcesTabProps) {
   const [manifest, setManifest] = useState<LibraryEntry[]>([]);
   const [loadingManifest, setLoadingManifest] = useState(true);
   const [query, setQuery] = useState("");
+  // Home shows the course-recommended grid; "View library" flips `browsing` on to reveal the full
+  // corpus with subject-filter chips. `activeSubject` (ALL | <subject>) only matters while browsing.
+  const [browsing, setBrowsing] = useState(false);
+  const [activeSubject, setActiveSubject] = useState<string>(ALL);
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<LibraryEntry | null>(null);
   const [body, setBody] = useState<{ text: string; url: string } | null>(null);
   const [loadingBody, setLoadingBody] = useState(false);
@@ -57,13 +90,48 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
     return parts.join(" ");
   }, [course.topic, currentSyllabus]);
 
-  // The list to render: search hits when querying, else course-recommended (fall back to all A–Z).
-  const list = useMemo(() => {
+  // Subject buckets (the category chips), with counts, most-stocked first.
+  const subjects = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of manifest) counts.set(e.subject || "other", (counts.get(e.subject || "other") ?? 0) + 1);
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([id, count]) => ({ id, count, label: subjectLabel(id) }));
+  }, [manifest]);
+
+  // Course-recommended shortlist (the default landing). Empty ⇒ the ★ chip hides and we fall to ALL.
+  const recommended = useMemo(
+    () => (manifest.length ? matchResources(courseQuery, manifest, 36) : []),
+    [manifest, courseQuery],
+  );
+
+  // The result set for the current mode + search — NOT capped to a handful, so it paginates.
+  const results = useMemo(() => {
     if (!manifest.length) return [];
-    if (query.trim()) return matchResources(query, manifest, 20);
-    const recommended = matchResources(courseQuery, manifest, 12);
-    return recommended.length ? recommended : [...manifest].sort((a, b) => a.title.localeCompare(b.title));
-  }, [manifest, query, courseQuery]);
+    const q = query.trim();
+    if (q) {
+      // Search composes with the active subject while browsing; otherwise it spans the whole library.
+      const scope = browsing && activeSubject !== ALL ? manifest.filter((e) => e.subject === activeSubject) : manifest;
+      return matchResources(q, scope, scope.length);
+    }
+    if (!browsing) return recommended.length ? recommended : [...manifest].sort(byTitle);
+    if (activeSubject === ALL) return [...manifest].sort(byTitle);
+    return manifest.filter((e) => e.subject === activeSubject).sort(byTitle);
+  }, [manifest, query, browsing, activeSubject, recommended]);
+
+  // Reset to page 1 whenever the filtered set changes under us.
+  useEffect(() => { setPage(1); }, [query, browsing, activeSubject]);
+
+  const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // Compact, scalable page window: first, last, and a ±2 band around the current page (gaps → "…").
+  const pageNumbers = useMemo(() => {
+    const set = new Set<number>([1, pageCount]);
+    for (let p = safePage - 2; p <= safePage + 2; p++) if (p >= 1 && p <= pageCount) set.add(p);
+    return [...set].sort((a, b) => a - b);
+  }, [pageCount, safePage]);
 
   const openCard = useCallback(async (entry: LibraryEntry) => {
     setSelected(entry);
@@ -171,20 +239,65 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
     );
   }
 
-  // ── List view ──
+  // Category chip — shared style for the ★ Recommended / All / per-subject filters.
+  const chip = (key: string, label: string, count: number | null, active: boolean) => (
+    <button
+      key={key}
+      onClick={() => setActiveSubject(key)}
+      aria-pressed={active}
+      className={`px-2.5 py-1 rounded-lg text-xs font-mono whitespace-nowrap border transition-colors ${
+        active
+          ? "bg-phosphor/15 border-phosphor/60 text-phosphor-bright"
+          : "bg-lcd border-[var(--rule)] text-phosphor-ink hover:border-phosphor/40 hover:text-phosphor-bright"
+      }`}
+    >
+      {label}
+      {count != null && <span className="ml-1.5 opacity-60">{count}</span>}
+    </button>
+  );
+
+  // Result-count caption above the grid.
+  const q = query.trim();
+  const countLabel = q
+    ? `${results.length} result${results.length === 1 ? "" : "s"} for “${q}”`
+    : !browsing
+      ? recommended.length
+        ? `${results.length} recommended for this course`
+        : `${results.length} resources`
+      : activeSubject === ALL
+        ? `${results.length} resources`
+        : `${results.length} in ${subjectLabel(activeSubject)}`;
+
+  // ── List / browse view ──
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="p-4 border-b border-[var(--rule)] bg-panel shrink-0">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search the library…"
-          className="cf-input w-full rounded-lg max-w-2xl mx-auto block"
-        />
+        <div className="max-w-5xl mx-auto space-y-3">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={browsing ? "Search the library…" : "Search all resources…"}
+            className="cf-input w-full max-w-xl rounded-lg block"
+          />
+          {/* Subject-filter chips appear only in library-browse mode; the leading chip returns home. */}
+          {manifest.length > 0 && browsing && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <button
+                onClick={() => { setBrowsing(false); setActiveSubject(ALL); }}
+                className="px-2.5 py-1 rounded-lg text-xs font-mono whitespace-nowrap border border-[var(--rule)] text-[var(--ink-faint)] hover:border-phosphor/40 hover:text-phosphor-bright transition-colors"
+              >
+                ← Recommended
+              </button>
+              {chip(ALL, "All", manifest.length, activeSubject === ALL)}
+              {subjects.map((s) => chip(s.id, s.label, s.count, activeSubject === s.id))}
+            </div>
+          )}
+        </div>
       </div>
+
       <div className="flex-1 overflow-y-auto p-4 min-h-0">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {loadingManifest ? (
             <div className="text-center py-12 text-sm text-[var(--ink-faint)] font-mono">Loading library…</div>
           ) : !manifest.length ? (
@@ -194,27 +307,86 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
             </div>
           ) : (
             <>
-              <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] font-semibold mb-3">
-                {query.trim() ? "Search results" : "Recommended for this course"}
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] font-semibold">{countLabel}</div>
+                {!browsing && (
+                  <button
+                    onClick={() => { setBrowsing(true); setActiveSubject(ALL); }}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border border-phosphor/30 bg-lcd text-phosphor-ink hover:border-phosphor/60 hover:text-phosphor-bright transition-colors"
+                    title="Browse every resource by subject"
+                  >
+                    View library
+                    <span className="opacity-60">{manifest.length}</span>
+                    <span aria-hidden>→</span>
+                  </button>
+                )}
               </div>
-              {list.length === 0 ? (
-                <div className="text-sm text-[var(--ink-faint)] py-6">No matching resources. Try a different search.</div>
+
+              {results.length === 0 ? (
+                <div className="text-sm text-[var(--ink-faint)] py-6">No matching resources. Try a different search or category.</div>
               ) : (
-                <div className="space-y-2">
-                  {list.map((entry) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {pageItems.map((entry) => (
                     <button
                       key={entry.id}
                       onClick={() => void openCard(entry)}
-                      className="w-full text-left p-3 rounded-xl bg-panel-lite/50 border border-[var(--rule)] hover:border-phosphor/40 hover:bg-panel-lite transition-colors group"
+                      className="flex flex-col text-left h-full p-3.5 rounded-xl bg-panel-lite/50 border border-[var(--rule)] hover:border-phosphor/50 hover:bg-panel-lite transition-colors group"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-phosphor-ink group-hover:text-phosphor-bright shrink-0">🔗</span>
-                        <span className="text-sm text-ink font-medium">{entry.title}</span>
-                        {entry.subject && <span className="ml-auto text-[10px] font-mono text-[var(--ink-faint)] uppercase shrink-0">{entry.subject}</span>}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-mono text-[var(--ink-faint)] uppercase tracking-wider truncate">
+                          {subjectLabel(entry.subject)}
+                        </span>
+                        {entry.asset && (
+                          <span
+                            className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider border border-phosphor/30 text-phosphor-ink/80 group-hover:text-phosphor-bright group-hover:border-phosphor/50 transition-colors"
+                            title="This card has a diagram"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 15l5-5 4 4 5-6 4 5" /></svg>
+                            Diagram
+                          </span>
+                        )}
                       </div>
-                      {entry.summary && <p className="text-xs text-[var(--ink-faint)] mt-1 pl-6">{entry.summary}</p>}
+                      <div className="text-sm text-ink font-medium leading-snug group-hover:text-phosphor-bright transition-colors line-clamp-2">
+                        {entry.title}
+                      </div>
+                      {entry.summary && <p className="text-xs text-[var(--ink-faint)] mt-1.5 line-clamp-3">{entry.summary}</p>}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {pageCount > 1 && (
+                <div className="flex items-center justify-center flex-wrap gap-1.5 mt-6 pt-4 border-t border-[var(--rule)]">
+                  <button
+                    onClick={() => setPage(safePage - 1)}
+                    disabled={safePage <= 1}
+                    className="px-3 py-1.5 rounded-lg text-xs font-mono border border-[var(--rule)] text-phosphor-ink enabled:hover:border-phosphor/50 enabled:hover:text-phosphor-bright disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ‹ Prev
+                  </button>
+                  {pageNumbers.map((p, i) => (
+                    <Fragment key={p}>
+                      {i > 0 && p - pageNumbers[i - 1] > 1 && <span className="px-1 text-[var(--ink-faint)]">…</span>}
+                      <button
+                        onClick={() => setPage(p)}
+                        aria-current={p === safePage}
+                        className={`min-w-[2rem] px-2 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
+                          p === safePage
+                            ? "bg-phosphor/15 border-phosphor/60 text-phosphor-bright"
+                            : "border-[var(--rule)] text-phosphor-ink hover:border-phosphor/50 hover:text-phosphor-bright"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </Fragment>
+                  ))}
+                  <button
+                    onClick={() => setPage(safePage + 1)}
+                    disabled={safePage >= pageCount}
+                    className="px-3 py-1.5 rounded-lg text-xs font-mono border border-[var(--rule)] text-phosphor-ink enabled:hover:border-phosphor/50 enabled:hover:text-phosphor-bright disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next ›
+                  </button>
                 </div>
               )}
             </>
