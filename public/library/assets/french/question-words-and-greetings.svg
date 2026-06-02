@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 695 593" role="img" aria-label="French Question Words &amp; Greetings">
+<title>French Question Words &amp; Greetings</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="695" height="593"/>
+<text x="28" y="50" font-size="26" font-weight="700">French Question Words &amp; Greetings</text>
+<text x="28" y="85" font-size="15" font-weight="700">French</text>
+<text x="280" y="85" font-size="15" font-weight="700">English</text>
+<line x1="28" y1="91" x2="541" y2="91" class="rule-faint"/>
+<text x="28" y="110" font-size="15">qui</text>
+<text x="280" y="110" font-size="15">who?</text>
+<text x="28" y="135" font-size="15">que / qu'est-ce que</text>
+<text x="280" y="135" font-size="15">what?</text>
+<text x="28" y="160" font-size="15">où</text>
+<text x="280" y="160" font-size="15">where?</text>
+<text x="28" y="185" font-size="15">quand</text>
+<text x="280" y="185" font-size="15">when?</text>
+<text x="28" y="210" font-size="15">pourquoi</text>
+<text x="280" y="210" font-size="15">why? (parce que = because)</text>
+<text x="28" y="235" font-size="15">comment</text>
+<text x="280" y="235" font-size="15">how?</text>
+<text x="28" y="260" font-size="15">combien (de)</text>
+<text x="280" y="260" font-size="15">how much / how many?</text>
+<text x="28" y="285" font-size="15">quel/quelle/quels/quelles</text>
+<text x="280" y="285" font-size="15">which? (agrees with its noun)</text>
+<text x="28" y="322" font-size="17" font-weight="700">Three ways to ask a yes/no question</text>
+<text x="28" y="350" font-size="14" xml:space="preserve">• Intonation: Tu viens ?</text>
+<text x="28" y="374" font-size="14" xml:space="preserve">• Est-ce que: Est-ce que tu viens ?</text>
+<text x="28" y="398" font-size="14" xml:space="preserve">• Inversion (formal): Viens-tu ? — insert -t- only before il/elle/on after a</text>
+<text x="28" y="422" font-size="14" xml:space="preserve">  vowel: parle-t-il, a-t-elle.</text>
+<text x="28" y="459" font-size="17" font-weight="700">Greetings &amp; courtesy</text>
+<text x="28" y="487" font-size="14" xml:space="preserve">• bonjour; bonsoir; salut (informal).</text>
+<text x="28" y="511" font-size="14" xml:space="preserve">• comment allez-vous? / ça va? — ça va bien, merci.</text>
+<text x="28" y="535" font-size="14" xml:space="preserve">• au revoir; à bientôt; à demain.</text>
+<text x="28" y="559" font-size="14" xml:space="preserve">• s'il vous plaît; merci; de rien; pardon / désolé·e; oui / non.</text>
+</svg>

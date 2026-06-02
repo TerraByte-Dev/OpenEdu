@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 785 572" role="img" aria-label="Spanish Numbers 0–100">
+<title>Spanish Numbers 0–100</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="785" height="572"/>
+<text x="28" y="50" font-size="26" font-weight="700">Spanish Numbers 0–100</text>
+<text x="28" y="91" font-size="17" font-weight="700">0–15 (unique words)</text>
+<text x="28" y="120" font-size="15" xml:space="preserve">0 cero   1 uno    2 dos    3 tres    4 cuatro</text>
+<text x="28" y="145" font-size="15" xml:space="preserve">5 cinco  6 seis   7 siete  8 ocho    9 nueve</text>
+<text x="28" y="170" font-size="15" xml:space="preserve">10 diez  11 once  12 doce  13 trece  14 catorce  15 quince</text>
+<text x="28" y="207" font-size="17" font-weight="700">16–29 (one contracted word)</text>
+<text x="28" y="236" font-size="15" xml:space="preserve">16 dieciséis    17 diecisiete   18 dieciocho     19 diecinueve</text>
+<text x="28" y="261" font-size="15" xml:space="preserve">20 veinte       21 veintiuno    22 veintidós     23 veintitrés    24 veinticuatro</text>
+<text x="28" y="286" font-size="15" xml:space="preserve">25 veinticinco  26 veintiséis   27 veintisiete   28 veintiocho    29 veintinueve</text>
+<text x="28" y="323" font-size="17" font-weight="700">Tens</text>
+<text x="28" y="352" font-size="15" xml:space="preserve">30 treinta  40 cuarenta  50 cincuenta</text>
+<text x="28" y="377" font-size="15" xml:space="preserve">60 sesenta  70 setenta   80 ochenta   90 noventa   100 cien</text>
+<text x="28" y="414" font-size="17" font-weight="700">Rules</text>
+<text x="28" y="442" font-size="14" xml:space="preserve">• 31–99 use y: treinta y uno, cuarenta y cinco.</text>
+<text x="28" y="466" font-size="14" xml:space="preserve">• uno → un before a masc. noun (un libro, veintiún años); → una (fem.).</text>
+<text x="28" y="490" font-size="14" xml:space="preserve">• cien = exactly 100; ciento before a smaller number (ciento uno).</text>
+<text x="28" y="514" font-size="14" xml:space="preserve">• Exactly four numbers 0–100 take a written accent: dieciséis, veintidós,</text>
+<text x="28" y="538" font-size="14" xml:space="preserve">  veintitrés, veintiséis.</text>
+</svg>

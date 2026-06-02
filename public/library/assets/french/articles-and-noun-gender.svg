@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 586 418" role="img" aria-label="French Articles &amp; Noun Gender">
+<title>French Articles &amp; Noun Gender</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="586" height="418"/>
+<text x="28" y="50" font-size="26" font-weight="700">French Articles &amp; Noun Gender</text>
+<text x="28" y="72" font-size="13" class="faint">definite, indefinite, and partitive</text>
+<text x="28" y="107" font-size="15" font-weight="700"></text>
+<text x="226" y="107" font-size="15" font-weight="700">masc.</text>
+<text x="298" y="107" font-size="15" font-weight="700">fem.</text>
+<text x="370" y="107" font-size="15" font-weight="700">vowel/h</text>
+<text x="460" y="107" font-size="15" font-weight="700">plural</text>
+<line x1="28" y1="113" x2="514" y2="113" class="rule-faint"/>
+<text x="28" y="132" font-size="15">definite (the)</text>
+<text x="226" y="132" font-size="15">le</text>
+<text x="298" y="132" font-size="15">la</text>
+<text x="370" y="132" font-size="15">l'</text>
+<text x="460" y="132" font-size="15">les</text>
+<text x="28" y="157" font-size="15">indefinite (a/some)</text>
+<text x="226" y="157" font-size="15">un</text>
+<text x="298" y="157" font-size="15">une</text>
+<text x="370" y="157" font-size="15">—</text>
+<text x="460" y="157" font-size="15">des</text>
+<text x="28" y="182" font-size="15">partitive (some)</text>
+<text x="226" y="182" font-size="15">du</text>
+<text x="298" y="182" font-size="15">de la</text>
+<text x="370" y="182" font-size="15">de l'</text>
+<text x="460" y="182" font-size="15">des</text>
+<text x="28" y="219" font-size="17" font-weight="700">Gender from the ending (tendencies)</text>
+<text x="28" y="247" font-size="14" xml:space="preserve">• Often masculine: -age, -ment, -eau, -isme (le fromage).</text>
+<text x="28" y="271" font-size="14" xml:space="preserve">• Often feminine: -tion, -sion, -té, -ette, -ence (la liberté).</text>
+<text x="28" y="295" font-size="14" xml:space="preserve">• Learn each noun WITH its article — exceptions abound.</text>
+<text x="28" y="332" font-size="17" font-weight="700">Key rules</text>
+<text x="28" y="360" font-size="14" xml:space="preserve">• After a negative, un/une/du/de la → de / d': pas de pomme.</text>
+<text x="28" y="384" font-size="14" xml:space="preserve">• de + le → du; de + les → des; à + le → au; à + les → aux.</text>
+</svg>

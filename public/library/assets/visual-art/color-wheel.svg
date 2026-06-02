@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 480" role="img" aria-label="Color Wheel">
+<title>Color Wheel</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="750" height="480"/>
+<text x="28" y="40" font-size="26" font-weight="700">Color Wheel</text>
+<text x="28" y="64" font-size="13" class="faint">the 12-hue artist's (RYB) wheel</text>
+<path d="M178.2,56.8 A200,200 0 0 1 281.8,56.8 L254.8,157.3 A96,96 0 0 0 205.2,157.3 Z" fill="#ED1C24" stroke="#fff" stroke-width="2"/>
+<text x="230" y="107" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">P</text>
+<path d="M281.8,56.8 A200,200 0 0 1 371.4,108.6 L297.9,182.1 A96,96 0 0 0 254.8,157.3 Z" fill="#F26522" stroke="#fff" stroke-width="2"/>
+<text x="304" y="126.8" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">T</text>
+<path d="M371.4,108.6 A200,200 0 0 1 423.2,198.2 L322.7,225.2 A96,96 0 0 0 297.9,182.1 Z" fill="#F7941E" stroke="#fff" stroke-width="2"/>
+<text x="358.2" y="181" font-size="15" font-weight="700" text-anchor="middle" fill="#111">S</text>
+<path d="M423.2,198.2 A200,200 0 0 1 423.2,301.8 L322.7,274.8 A96,96 0 0 0 322.7,225.2 Z" fill="#FCB814" stroke="#fff" stroke-width="2"/>
+<text x="378" y="255" font-size="15" font-weight="700" text-anchor="middle" fill="#111">T</text>
+<path d="M423.2,301.8 A200,200 0 0 1 371.4,391.4 L297.9,317.9 A96,96 0 0 0 322.7,274.8 Z" fill="#FFF200" stroke="#fff" stroke-width="2"/>
+<text x="358.2" y="329" font-size="15" font-weight="700" text-anchor="middle" fill="#111">P</text>
+<path d="M371.4,391.4 A200,200 0 0 1 281.8,443.2 L254.8,342.7 A96,96 0 0 0 297.9,317.9 Z" fill="#8DC63F" stroke="#fff" stroke-width="2"/>
+<text x="304" y="383.2" font-size="15" font-weight="700" text-anchor="middle" fill="#111">T</text>
+<path d="M281.8,443.2 A200,200 0 0 1 178.2,443.2 L205.2,342.7 A96,96 0 0 0 254.8,342.7 Z" fill="#00A651" stroke="#fff" stroke-width="2"/>
+<text x="230" y="403" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">S</text>
+<path d="M178.2,443.2 A200,200 0 0 1 88.6,391.4 L162.1,317.9 A96,96 0 0 0 205.2,342.7 Z" fill="#00A99D" stroke="#fff" stroke-width="2"/>
+<text x="156" y="383.2" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">T</text>
+<path d="M88.6,391.4 A200,200 0 0 1 36.8,301.8 L137.3,274.8 A96,96 0 0 0 162.1,317.9 Z" fill="#0054A6" stroke="#fff" stroke-width="2"/>
+<text x="101.8" y="329" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">P</text>
+<path d="M36.8,301.8 A200,200 0 0 1 36.8,198.2 L137.3,225.2 A96,96 0 0 0 137.3,274.8 Z" fill="#2E3192" stroke="#fff" stroke-width="2"/>
+<text x="82" y="255" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">T</text>
+<path d="M36.8,198.2 A200,200 0 0 1 88.6,108.6 L162.1,182.1 A96,96 0 0 0 137.3,225.2 Z" fill="#92278F" stroke="#fff" stroke-width="2"/>
+<text x="101.8" y="181" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">S</text>
+<path d="M88.6,108.6 A200,200 0 0 1 178.2,56.8 L205.2,157.3 A96,96 0 0 0 162.1,182.1 Z" fill="#ED1E79" stroke="#fff" stroke-width="2"/>
+<text x="156" y="126.8" font-size="15" font-weight="700" text-anchor="middle" fill="#fff">T</text>
+<circle cx="230" cy="250" r="96" fill="#fff" stroke="var(--oe-svg-ink,#111)"/>
+<text x="230" y="246" font-size="18" text-anchor="middle" font-weight="700">RYB</text>
+<text x="230" y="266" font-size="10" text-anchor="middle" class="faint">P primary</text>
+<text x="230" y="280" font-size="10" text-anchor="middle" class="faint">S secondary · T tertiary</text>
+<text x="460" y="110" font-size="14" font-weight="700">Primary</text>
+<text x="460" y="128" font-size="12" class="faint">red · yellow · blue</text>
+<text x="460" y="150" font-size="14" font-weight="700">Secondary</text>
+<text x="460" y="168" font-size="12" class="faint">orange · green · violet</text>
+<text x="460" y="190" font-size="14" font-weight="700">Tertiary</text>
+<text x="460" y="208" font-size="12" class="faint">the 6 primary+secondary mixes</text>
+<text x="460" y="230" font-size="14" font-weight="700">Complementary</text>
+<text x="460" y="248" font-size="12" class="faint">opposite: red↔green, yellow↔violet,</text>
+<text x="460" y="264" font-size="12" class="faint">blue↔orange</text>
+<text x="460" y="286" font-size="14" font-weight="700">Analogous</text>
+<text x="460" y="304" font-size="12" class="faint">neighbors (e.g. yellow, yellow-green,</text>
+<text x="460" y="320" font-size="12" class="faint">green)</text>
+<text x="460" y="342" font-size="14" font-weight="700">Warm</text>
+<text x="460" y="360" font-size="12" class="faint">red, orange, yellow</text>
+<text x="460" y="382" font-size="14" font-weight="700">Cool</text>
+<text x="460" y="400" font-size="12" class="faint">green, blue, violet</text>
+</svg>

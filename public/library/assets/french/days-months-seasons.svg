@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 611 446" role="img" aria-label="French Days, Months &amp; Seasons">
+<title>French Days, Months &amp; Seasons</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="611" height="446"/>
+<text x="28" y="50" font-size="26" font-weight="700">French Days, Months &amp; Seasons</text>
+<text x="28" y="72" font-size="13" class="faint">lowercase and masculine in French</text>
+<text x="28" y="113" font-size="17" font-weight="700">Days (la semaine) — starts Monday</text>
+<text x="28" y="142" font-size="15" xml:space="preserve">lundi  mardi  mercredi  jeudi  vendredi  samedi  dimanche</text>
+<text x="28" y="179" font-size="17" font-weight="700">Months (les mois)</text>
+<text x="28" y="208" font-size="15" xml:space="preserve">janvier  février  mars  avril  mai  juin</text>
+<text x="28" y="233" font-size="15" xml:space="preserve">juillet  août  septembre  octobre  novembre  décembre</text>
+<text x="28" y="270" font-size="17" font-weight="700">Seasons (les saisons)</text>
+<text x="28" y="299" font-size="15" xml:space="preserve">le printemps   l'été   l'automne   l'hiver</text>
+<text x="28" y="336" font-size="17" font-weight="700">Dates</text>
+<text x="28" y="364" font-size="14" xml:space="preserve">• Format: le + number + month — le 14 juillet.</text>
+<text x="28" y="388" font-size="14" xml:space="preserve">• Cardinal numbers, except the first: le premier (1er).</text>
+<text x="28" y="412" font-size="14" xml:space="preserve">• 'in' a season: au printemps, but en été / en automne / en hiver.</text>
+</svg>

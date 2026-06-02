@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 523 514" role="img" aria-label="Flowchart Symbols">
+<title>Flowchart Symbols</title>
+<style>
+  text{font-family:'IBM Plex Mono','Consolas','Courier New',monospace;fill:var(--oe-svg-ink,#111);}
+  .oe-bg{fill:var(--oe-svg-bg,#ffffff);}
+  .faint{fill:var(--oe-svg-faint,#777);}
+  .rule{stroke:var(--oe-svg-rule,#333);fill:none;stroke-width:1;}
+  .rule-faint{stroke:var(--oe-svg-faint,#bbb);fill:none;stroke-width:1;}
+  .cell{fill:var(--oe-svg-bg,#ffffff);stroke:var(--oe-svg-rule,#333);stroke-width:1;}
+  .fill-faint{fill:var(--oe-svg-faint,#777);}
+  .b{font-weight:700;}
+</style>
+<rect class="oe-bg" x="0" y="0" width="523" height="514"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--oe-svg-ink,#111)"/></marker></defs>
+<text x="28" y="40" font-size="26" font-weight="700">Flowchart Symbols</text>
+<text x="28" y="64" font-size="13" class="faint">standard shapes for diagramming an algorithm</text>
+<rect x="53" y="94" width="150" height="44" rx="22" class="cell"/><text x="128" y="121" font-size="13" text-anchor="middle">Start / End</text>
+<text x="233" y="112" font-size="15" font-weight="700">Terminator (oval)</text>
+<text x="233" y="132" font-size="12" class="faint">start or end of the process</text>
+<rect x="53" y="172" width="150" height="44" class="cell"/><text x="128" y="199" font-size="13" text-anchor="middle">do a step</text>
+<text x="233" y="190" font-size="15" font-weight="700">Process (rectangle)</text>
+<text x="233" y="210" font-size="12" class="faint">an action or calculation</text>
+<polygon points="71,250 203,250 185,294 53,294" class="cell"/><text x="128" y="277" font-size="13" text-anchor="middle">read / print</text>
+<text x="233" y="268" font-size="15" font-weight="700">Input / Output (parallelogram)</text>
+<text x="233" y="288" font-size="12" class="faint">read input or show output</text>
+<polygon points="128,322 209,350 128,378 47,350" class="cell"/><text x="128" y="355" font-size="13" text-anchor="middle">yes / no?</text>
+<text x="233" y="346" font-size="15" font-weight="700">Decision (diamond)</text>
+<text x="233" y="366" font-size="12" class="faint">a yes/no branch: 1 in, 2 out</text>
+<line x1="53" y1="428" x2="203" y2="428" stroke="var(--oe-svg-ink,#111)" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="233" y="424" font-size="15" font-weight="700">Flow line (arrow)</text>
+<text x="233" y="444" font-size="12" class="faint">direction of flow (top→bottom)</text>
+<text x="28" y="476" font-size="12" class="faint">Also: cylinder = database · document shape = a report</text>
+<text x="28" y="494" font-size="12" class="faint">· double-struck rectangle = a predefined process / subroutine.</text>
+</svg>
