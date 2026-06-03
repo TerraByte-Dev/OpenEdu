@@ -18,6 +18,8 @@
     "store:allow-load",
     "store:allow-delete",
     "store:allow-keys",
+    "updater:default",
+    "process:default",
     "http:default",
     {
       "identifier": "http:allow-fetch",
