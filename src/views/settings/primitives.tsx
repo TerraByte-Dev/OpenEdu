@@ -3,6 +3,7 @@
 // tokens from src/index.css, so every primitive re-themes for free under the color themes.
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { matchText } from "../../lib/text-match";
 
 // ── Shared context: live search query + a "something just saved" pulse ──────────────────────────────────
 export interface SettingsCtx {
@@ -15,13 +16,9 @@ export function useSettings(): SettingsCtx {
   return useContext(SettingsContext);
 }
 
-// AND-match: every whitespace-separated term in the query must appear in the haystack.
-export function matchText(haystack: string, query: string): boolean {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return true;
-  const h = haystack.toLowerCase();
-  return terms.every((t) => h.includes(t));
-}
+// matchText (Settings search filter) lives in lib/text-match.ts as the single source; re-exported here so
+// Section/SettingRow and the shell keep importing it from one place.
+export { matchText };
 
 // Shared input styling (text/password/url).
 export const INPUT_CLS =
@@ -159,18 +156,25 @@ export function SecretField({
 
   // Reseed the draft when the persisted value loads/changes — but don't clobber an in-progress edit.
   // Adopt the new value only if the draft was still showing the *previous* persisted value (untouched).
+  // Also clear any stale verify result, so e.g. a "key is valid" message can't linger across a provider
+  // switch where the same SecretField instance is reused with a different key.
   useEffect(() => {
     if (lastValue.current !== value) {
       const prev = lastValue.current;
       lastValue.current = value;
       setDraft((d) => (d === prev ? value : d));
+      setResult(null);
     }
   }, [value]);
 
-  const dirty = draft !== value;
+  // Compare on the trimmed draft: persisted secrets are stored trimmed, so surrounding whitespace must not
+  // leave the field looking permanently unsaved.
+  const dirty = draft.trim() !== value;
 
   const handleSave = async () => {
-    await onSave(draft.trim());
+    const trimmed = draft.trim();
+    await onSave(trimmed);
+    setDraft(trimmed); // normalize the visible field to what was actually persisted
     setSaved(true);
     setResult(null);
     setTimeout(() => setSaved(false), 1800);
@@ -178,12 +182,13 @@ export function SecretField({
 
   const handleVerify = async () => {
     if (!onVerify) return;
+    const trimmed = draft.trim();
     setVerifying(true);
     setResult(null);
     try {
       // Persist first so the probe uses what the user typed.
-      if (dirty) await onSave(draft.trim());
-      setResult(await onVerify(draft.trim()));
+      if (dirty) { await onSave(trimmed); setDraft(trimmed); }
+      setResult(await onVerify(trimmed));
     } finally {
       setVerifying(false);
     }

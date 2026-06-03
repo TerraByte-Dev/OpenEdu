@@ -5,6 +5,7 @@ TerraByte's AI-powered tutoring app. Tauri v2 + React 19 + TypeScript + SQLite. 
 The repo is on GitHub under `TerraByte-Dev`.
 
 **Dev:** `npm run tauri dev` from project root.
+**Test:** `npm test` (vitest) — fast unit tests over the pure logic modules (no DOM/Tauri). DOM-coupled UI is verified live in the dev app.
 
 For current work-in-progress, see `HANDOFF.md`.
 
@@ -17,9 +18,16 @@ For current work-in-progress, see `HANDOFF.md`.
 - `src/lib/curriculum.ts` — the agent harness. Research → outline → tutor instructions → 6 syllabuses. All schema-enforced. Entry point: `runGenerationPipeline`.
 - `src/lib/knowledge.ts` — persistent per-course knowledge files (`knowledge_map`, `misconceptions`, `study_log`, `learning_profile`) used as tutor context.
 - `src/lib/progress.ts` — subtopic mastery tracking and progress-context generation for the tutor.
-- `src/views/` — top-level views (Dashboard, CourseView, Settings, full-screen quiz / promotion-test).
+- `src/views/settings/` — the Settings view (tabbed left-rail shell + declarative section registry + primitives). See `src/views/settings/README.md`.
+- `src/lib/store.ts` / `store-keys.ts` — settings persistence (plugin-store). `store-keys.ts` is the single source of truth for key names + the secret/import-allow-list (also consumed by `settings-io.ts`).
+- `src/lib/models.ts` — model catalog + recommended-derived defaults (one source for the Settings pickers AND the store defaults; closes issue #2's drift).
+- `src/lib/theme.ts` (+ `useTheme.ts`) — color-theme registry, `applyTheme`/`getCrtOff`/`setCrtOff`, CSS-var `[data-theme]` themes; applied pre-paint in `main.tsx`.
+- `src/lib/settings-schema.ts` / `settings-io.ts` — pure parse/validate for the settings export/import + the Tauri-side gather/apply. `version.ts` (`compareVersions` for the update check) and `text-match.ts` (search filter) are the other pure helpers.
+- `src/views/` — other top-level views (Dashboard, CourseView, full-screen quiz / promotion-test).
 - `src/components/` — shared widgets, including `terminal/*` primitives.
 - `src-tauri/` — Rust backend, SQLite migrations, plugin config.
+
+The pure modules above (`store-keys`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
 DB lives at `%APPDATA%/com.terrabyte.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 

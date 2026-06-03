@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { appDataDir } from "@tauri-apps/api/path";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -12,6 +12,8 @@ import { applyTheme, setCrtOff, DEFAULT_THEME_ID } from "../../../lib/theme";
 import {
   gatherSettings, downloadSettingsFile, serializeSettings, parseSettingsFile, applyImportedSettings,
 } from "../../../lib/settings-io";
+import { compareVersions } from "../../../lib/version";
+import { STORE_FILE, STORE_KEYS } from "../../../lib/store-keys";
 import { Section, SettingRow, ActionButton, Toggle, INPUT_CLS, useSettings } from "../primitives";
 import type { SectionProps } from "../types";
 
@@ -28,30 +30,25 @@ interface Diag {
   dbPath: string;
 }
 
-// Compare two dotted numeric versions; +1 if a>b, -1 if a<b, 0 if equal.
-function cmpVersion(a: string, b: string): number {
-  const pa = a.replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
-  const pb = b.replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (d) return d > 0 ? 1 : -1;
-  }
-  return 0;
-}
+type UpdateState = { kind: "idle" | "checking" | "current" | "available" | "error"; msg?: string; tag?: string; url?: string };
 
 export default function About({ onProviderChanged }: SectionProps) {
   const { markSaved } = useSettings();
   const [version, setVersion] = useState("…");
-  const [update, setUpdate] = useState<{ kind: "idle" | "checking" | "current" | "available" | "error"; msg?: string; tag?: string; url?: string }>({ kind: "idle" });
+  const [update, setUpdate] = useState<UpdateState>({ kind: "idle" });
   const [diag, setDiag] = useState<Diag | null>(null);
   const [selfCheck, setSelfCheck] = useState<{ ok: boolean; msg: string } | null>(null);
   const [includeSecrets, setIncludeSecrets] = useState(false);
   const [importMsg, setImportMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [importText, setImportText] = useState("");
 
+  // Guard async setState against an unmount mid-flight (these probes can take seconds).
+  const mounted = useRef(true);
   useEffect(() => {
-    getVersion().then(setVersion).catch(() => setVersion("0.1.0"));
+    mounted.current = true;
+    getVersion().then((v) => { if (mounted.current) setVersion(v); }).catch(() => { if (mounted.current) setVersion("0.1.0"); });
     void loadDiag();
+    return () => { mounted.current = false; };
   }, []);
 
   const loadDiag = async () => {
@@ -68,33 +65,38 @@ export default function About({ onProviderChanged }: SectionProps) {
     try { const m = await getManifest(); library = m.length > 0 ? `${m.length} entries` : "empty"; } catch { /* ignore */ }
     let dbPath = `…/${APP_IDENTIFIER}/openedu.db`;
     try { const dir = await appDataDir(); dbPath = `${dir.replace(/[\\/]$/, "")}/openedu.db`; } catch { /* ignore */ }
-    setDiag({ provider: base.provider, genModel: gen.model, chatModel: chat.model, tier: tier ?? "—", ollama, library, dbPath });
+    if (mounted.current) setDiag({ provider: base.provider, genModel: gen.model, chatModel: chat.model, tier: tier ?? "—", ollama, library, dbPath });
   };
 
   const checkUpdates = async () => {
-    setUpdate({ kind: "checking" });
+    const set = (u: UpdateState) => { if (mounted.current) setUpdate(u); };
+    set({ kind: "checking" });
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 10000);
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         method: "GET",
-        headers: { Accept: "application/vnd.github+json" },
+        // GitHub's REST API rejects requests with no User-Agent (403); plugin-http (reqwest) sends none.
+        headers: { Accept: "application/vnd.github+json", "User-Agent": "OpenEdu", "X-GitHub-Api-Version": "2022-11-28" },
         signal: controller.signal,
       });
       clearTimeout(timer);
-      if (res.status === 404) { setUpdate({ kind: "current", msg: "No published releases yet — you're on the latest build." }); return; }
-      if (!res.ok) { setUpdate({ kind: "error", msg: `GitHub returned ${res.status}.` }); return; }
+      if (res.status === 404) { set({ kind: "current", msg: "No published releases yet — you're on the latest build." }); return; }
+      if (!res.ok) { set({ kind: "error", msg: `GitHub returned ${res.status}.` }); return; }
       const data = await res.json() as { tag_name?: string; html_url?: string };
       const tag = data.tag_name ?? "";
-      if (!tag) { setUpdate({ kind: "error", msg: "No release tag found." }); return; }
+      if (!tag) { set({ kind: "error", msg: "No release tag found." }); return; }
       const current = await getVersion().catch(() => version);
-      if (cmpVersion(tag, current) > 0) {
-        setUpdate({ kind: "available", tag, url: data.html_url, msg: `Version ${tag.replace(/^v/, "")} is available (you have ${current}).` });
+      if (compareVersions(tag, current) > 0) {
+        set({ kind: "available", tag, url: data.html_url, msg: `Version ${tag.replace(/^v/i, "")} is available (you have ${current}).` });
       } else {
-        setUpdate({ kind: "current", msg: `You're up to date (${current}).` });
+        set({ kind: "current", msg: `You're up to date (${current}).` });
       }
     } catch (e) {
-      setUpdate({ kind: "error", msg: e instanceof Error ? `Couldn't reach GitHub: ${e.message}` : "Update check failed." });
+      clearTimeout(timer);
+      if (timedOut) set({ kind: "error", msg: "Update check timed out (10s). Check your connection and try again." });
+      else set({ kind: "error", msg: e instanceof Error ? `Couldn't reach GitHub: ${e.message}` : "Update check failed." });
     }
   };
 
@@ -103,9 +105,9 @@ export default function About({ onProviderChanged }: SectionProps) {
     try {
       const cfg = await getGenerationConfig();
       const r = await preflightStructuredOutput(cfg);
-      setSelfCheck({ ok: r.ok, msg: r.ok ? `Model is compatible${r.detectedTier ? ` · tier: ${r.detectedTier}` : ""}.` : `${r.reason ?? "Incompatible"}${r.suggestion ? ` — ${r.suggestion}` : ""}` });
+      if (mounted.current) setSelfCheck({ ok: r.ok, msg: r.ok ? `Model is compatible${r.detectedTier ? ` · tier: ${r.detectedTier}` : ""}.` : `${r.reason ?? "Incompatible"}${r.suggestion ? ` — ${r.suggestion}` : ""}` });
     } catch (e) {
-      setSelfCheck({ ok: false, msg: e instanceof Error ? e.message : String(e) });
+      if (mounted.current) setSelfCheck({ ok: false, msg: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -121,7 +123,7 @@ export default function About({ onProviderChanged }: SectionProps) {
       const summary = await applyImportedSettings(parseSettingsFile(text));
       onProviderChanged?.();
       markSaved();
-      setImportMsg({ ok: true, msg: `Imported ${summary.settingsApplied} setting(s)${summary.themeApplied ? " + theme" : ""}${summary.permissionsApplied ? " + permissions" : ""}. Reopen Settings to see every field refresh.` });
+      setImportMsg({ ok: true, msg: `Imported ${summary.settingsApplied} setting(s)${summary.themeApplied ? " + theme" : ""}${summary.permissionsApplied ? " + permissions" : ""}${summary.themeSkipped ? " (unknown theme in file — skipped)" : ""}. Reopen Settings to see every field refresh.` });
       void loadDiag();
     } catch (e) {
       setImportMsg({ ok: false, msg: e instanceof Error ? e.message : "Import failed." });
@@ -141,9 +143,9 @@ export default function About({ onProviderChanged }: SectionProps) {
     setCrtOff(false);
     await savePermissionRules({ ...DEFAULT_PERMISSION_RULES });
     try {
-      const store = await Store.load("settings.json");
-      for (const k of ["gen_model", "chat_model", "embedding_model", "embedding_provider", "library_url"]) await store.delete(k);
-      await store.set("library_enabled", true);
+      const store = await Store.load(STORE_FILE);
+      for (const k of [STORE_KEYS.genModel, STORE_KEYS.chatModel, STORE_KEYS.embeddingModel, STORE_KEYS.embeddingProvider, STORE_KEYS.libraryUrl]) await store.delete(k);
+      await store.set(STORE_KEYS.libraryEnabled, true);
       await store.save();
     } catch { /* ignore */ }
     onProviderChanged?.();

@@ -1,24 +1,14 @@
-import { useEffect, useState } from "react";
-import { THEMES, getThemeId, applyTheme, getCrtOff, setCrtOff, themeSupportsCrt } from "../../../lib/theme";
+import { THEMES, applyTheme, setCrtOff, themeSupportsCrt } from "../../../lib/theme";
+import { useThemeState } from "../../../lib/useTheme";
 import { Section, SettingRow, Toggle, useSettings } from "../primitives";
 
 export default function Appearance() {
   const { markSaved } = useSettings();
-  const [themeId, setThemeId] = useState(getThemeId());
-  const [crtOff, setCrtOffState] = useState(getCrtOff());
-
-  // Stay in sync if CRT/theme is changed elsewhere (titlebar toggle).
-  useEffect(() => {
-    const onCrt = () => setCrtOffState(getCrtOff());
-    const onTheme = () => setThemeId(getThemeId());
-    window.addEventListener("oe-crt-change", onCrt);
-    window.addEventListener("oe-theme-change", onTheme);
-    return () => { window.removeEventListener("oe-crt-change", onCrt); window.removeEventListener("oe-theme-change", onTheme); };
-  }, []);
+  // Live theme/CRT state via the shared hook (stays in sync when the titlebar toggles CRT, etc.).
+  const { themeId, crtOff } = useThemeState();
 
   const pickTheme = (id: string) => {
-    applyTheme(id);
-    setThemeId(id);
+    applyTheme(id); // dispatches oe-theme-change → useThemeState updates themeId
     markSaved();
   };
 
@@ -76,7 +66,7 @@ export default function Appearance() {
         <SettingRow label="Scanline overlay" help={crtTheme ? "Toggle the retro CRT overlay for the current theme." : "The current theme is a clean theme — the CRT overlay is off."}>
           <Toggle
             checked={crtTheme ? !crtOff : false}
-            onChange={(on) => { if (!crtTheme) return; setCrtOff(!on); setCrtOffState(!on); markSaved(); }}
+            onChange={(on) => { if (!crtTheme) return; setCrtOff(!on); markSaved(); }}
             labelOn="On — full scanlines + glow"
             labelOff={crtTheme ? "Off — flat, maximum readability" : "Off (clean theme)"}
           />
