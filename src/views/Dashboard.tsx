@@ -2,6 +2,7 @@
 import type { Course } from "../types";
 import { createCourse } from "../lib/db";
 import { CompanionSprite } from "../components/CompanionSprite";
+import { BrandMark } from "../components/BrandMark";
 import { SPRITE_PERSONAS, DEFAULT_SPRITE_ID, suggestSpriteForTopic } from "../lib/sprites/registry";
 import { runGenerationPipeline } from "../lib/curriculum";
 import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
@@ -227,18 +228,21 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1
-            className="phosphor-glow-xl crt-aberrate mb-2"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(2.4rem, 6vw, 4rem)",
-              color: "var(--phosphor)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            OpenEdu
-          </h1>
+          <div className="flex items-center gap-4 mb-2">
+            <BrandMark size={52} glow title="TerraByte Solutions LLC" />
+            <h1
+              className="phosphor-glow-xl crt-aberrate"
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(2.4rem, 6vw, 4rem)",
+                color: "var(--phosphor)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              OpenEdu
+            </h1>
+          </div>
           <div className="flex items-center gap-3 mb-1">
             <div className="glow-line" />
             <span className="text-xs font-mono text-[var(--ink-faint)] uppercase tracking-widest">

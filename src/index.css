@@ -740,6 +740,18 @@ html.crt-off .term-grid-bg { display: none; }
   flex-shrink: 0;
 }
 
+/* Brand mark — the TerraByte emblem painted with the active theme accent. The logo ships as a transparent
+   monochrome mask; `background-color: var(--phosphor)` recolors the shape, so it adapts to every theme
+   (CRT recolors + universal Dark/Light) with zero per-theme work. See components/BrandMark.tsx. */
+.tb-logo {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: var(--phosphor);
+  -webkit-mask: url('./assets/brand/terrabyte-globe.png') center / contain no-repeat;
+  mask: url('./assets/brand/terrabyte-globe.png') center / contain no-repeat;
+}
+.tb-logo--glow { filter: drop-shadow(0 0 5px var(--phosphor-faint)); }
+
 /* Text input — terminal LCD style */
 .cf-input {
   background: var(--panel-lite);
