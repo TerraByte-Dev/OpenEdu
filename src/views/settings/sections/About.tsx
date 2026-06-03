@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { appDataDir } from "@tauri-apps/api/path";
-import { fetch } from "@tauri-apps/plugin-http";
 import { Store } from "@tauri-apps/plugin-store";
 import type { LLMProvider, ModelTier } from "../../../types";
 import { getLLMProvider, getGenerationConfig, getChatConfig } from "../../../lib/store";
@@ -12,13 +11,12 @@ import { applyTheme, setCrtOff, DEFAULT_THEME_ID } from "../../../lib/theme";
 import {
   gatherSettings, downloadSettingsFile, serializeSettings, parseSettingsFile, applyImportedSettings,
 } from "../../../lib/settings-io";
-import { compareVersions } from "../../../lib/version";
+import { checkForUpdate, installUpdate, type Update } from "../../../lib/updater";
 import { STORE_FILE, STORE_KEYS } from "../../../lib/store-keys";
 import { Section, SettingRow, ActionButton, Toggle, INPUT_CLS, useSettings } from "../primitives";
 import { BrandMark } from "../../../components/BrandMark";
 import type { SectionProps } from "../types";
 
-const REPO = "TerraByte-Dev/OpenEdu";
 const APP_IDENTIFIER = "com.terrabyte.openedu";
 
 interface Diag {
@@ -31,7 +29,7 @@ interface Diag {
   dbPath: string;
 }
 
-type UpdateState = { kind: "idle" | "checking" | "current" | "available" | "error"; msg?: string; tag?: string; url?: string };
+type UpdateState = { kind: "idle" | "checking" | "current" | "available" | "installing" | "error"; msg?: string; version?: string; notes?: string; pct?: number | null };
 
 export default function About({ onProviderChanged }: SectionProps) {
   const { markSaved } = useSettings();
@@ -69,35 +67,36 @@ export default function About({ onProviderChanged }: SectionProps) {
     if (mounted.current) setDiag({ provider: base.provider, genModel: gen.model, chatModel: chat.model, tier: tier ?? "—", ollama, library, dbPath });
   };
 
+  // The Tauri updater checks the signed GitHub release feed; if a newer version is found it's downloaded,
+  // signature-verified, installed, and the app relaunches into it.
+  const updateRef = useRef<Update | null>(null);
+
   const checkUpdates = async () => {
     const set = (u: UpdateState) => { if (mounted.current) setUpdate(u); };
     set({ kind: "checking" });
-    const controller = new AbortController();
-    let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 10000);
     try {
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-        method: "GET",
-        // GitHub's REST API rejects requests with no User-Agent (403); plugin-http (reqwest) sends none.
-        headers: { Accept: "application/vnd.github+json", "User-Agent": "OpenEdu", "X-GitHub-Api-Version": "2022-11-28" },
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (res.status === 404) { set({ kind: "current", msg: "No published releases yet — you're on the latest build." }); return; }
-      if (!res.ok) { set({ kind: "error", msg: `GitHub returned ${res.status}.` }); return; }
-      const data = await res.json() as { tag_name?: string; html_url?: string };
-      const tag = data.tag_name ?? "";
-      if (!tag) { set({ kind: "error", msg: "No release tag found." }); return; }
-      const current = await getVersion().catch(() => version);
-      if (compareVersions(tag, current) > 0) {
-        set({ kind: "available", tag, url: data.html_url, msg: `Version ${tag.replace(/^v/i, "")} is available (you have ${current}).` });
+      const upd = await checkForUpdate();
+      if (upd) {
+        updateRef.current = upd;
+        set({ kind: "available", version: upd.version, notes: upd.body });
       } else {
-        set({ kind: "current", msg: `You're up to date (${current}).` });
+        set({ kind: "current", msg: `You're up to date (${version}).` });
       }
     } catch (e) {
-      clearTimeout(timer);
-      if (timedOut) set({ kind: "error", msg: "Update check timed out (10s). Check your connection and try again." });
-      else set({ kind: "error", msg: e instanceof Error ? `Couldn't reach GitHub: ${e.message}` : "Update check failed." });
+      set({ kind: "error", msg: e instanceof Error ? e.message : "Update check failed." });
+    }
+  };
+
+  const installNow = async () => {
+    const upd = updateRef.current;
+    if (!upd) return;
+    const set = (u: UpdateState) => { if (mounted.current) setUpdate(u); };
+    set({ kind: "installing", version: upd.version, pct: null });
+    try {
+      await installUpdate(upd, (pct) => set({ kind: "installing", version: upd.version, pct }));
+      // On success the app relaunches into the new version; nothing more to do here.
+    } catch (e) {
+      set({ kind: "error", msg: e instanceof Error ? e.message : "Install failed." });
     }
   };
 
@@ -160,16 +159,24 @@ export default function About({ onProviderChanged }: SectionProps) {
         <SettingRow label="Version" help={`Identifier: ${APP_IDENTIFIER}`}>
           <div className="flex items-center gap-3 flex-wrap">
             <span className="lcd px-3 py-1.5 rounded-md text-sm">v{version}</span>
-            <ActionButton onClick={checkUpdates} busyLabel="Checking…">Check for updates</ActionButton>
-            {update.kind === "checking" && <span className="text-xs text-[var(--ink-faint)]">Checking GitHub…</span>}
+            {(update.kind === "idle" || update.kind === "current" || update.kind === "error") && (
+              <ActionButton onClick={checkUpdates} busyLabel="Checking…">Check for updates</ActionButton>
+            )}
+            {update.kind === "checking" && <span className="text-xs text-[var(--ink-faint)]">Checking for updates…</span>}
             {update.kind === "current" && <span className="text-xs text-emerald-400">✓ {update.msg}</span>}
             {update.kind === "available" && (
-              <span className="text-xs text-amber-400">
-                ↑ {update.msg}{update.url ? <> · <span className="font-mono break-all select-all">{update.url}</span></> : null}
+              <ActionButton primary onClick={installNow} busyLabel="Starting…">Install v{update.version} &amp; restart</ActionButton>
+            )}
+            {update.kind === "installing" && (
+              <span className="text-xs text-phosphor-bright">
+                {update.pct == null ? "Downloading…" : update.pct < 100 ? `Downloading… ${update.pct}%` : "Installing &amp; restarting…"}
               </span>
             )}
             {update.kind === "error" && <span className="text-xs text-red-400">{update.msg}</span>}
           </div>
+          {update.kind === "available" && update.notes && (
+            <p className="mt-2 text-xs text-[var(--ink-faint)] whitespace-pre-wrap max-w-prose">{update.notes}</p>
+          )}
         </SettingRow>
       </Section>
 
