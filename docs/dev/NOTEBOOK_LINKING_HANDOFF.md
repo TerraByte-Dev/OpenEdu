@@ -1,79 +1,56 @@
 # Notebook linking — refinement handoff
 
-**Goal of the next session:** refine the notebook's linking UX. Make it easy to **hyperlink topics/tags
-without spawning a note**. Today, linking is note-only and a clicked link to a non-existent name *creates a
-note* — the major UX flaw to fix.
-
-The app is in great shape otherwise (public, MIT, CI-gated, in-app auto-update live at v0.1.3). This is a
-focused feature pass on one subsystem.
+**Status: ✅ RESOLVED in v0.1.4** (issue #63, branch `feat/63-notebook-tags`). `#tags` are now a
+first-class, note-FREE linking primitive and missing `[[links]]` no longer auto-create. This file is
+kept as the design record for the subsystem.
 
 ---
 
-## The flaw, precisely
+## What was broken (the original flaw)
 
-- **`src/components/NotesTab.tsx` → `handleWikiLinkNav` (~L183–191):** clicking a `[[wikilink]]` finds a note
-  by title, else **`createNote(...)`** — so every clicked link to a new name materializes a phantom note.
-  ```ts
-  const handleWikiLinkNav = (title: string) => {
-    const found = notes.find((n) => n.title.toLowerCase() === title.toLowerCase());
-    if (found) { selectNote(found); return; }
-    createNote(courseId, title, "", level, selectedNote?.folder_id ?? null).then(...); // ← creates a note
-  };
-  ```
-- **`#tags` are styled but inert.** `src/components/MarkdownEditor.tsx` decorates `#tag` as `.cm-tag` (L73–76)
-  but only `[[wikilinks]]` (`.cm-wikilink`) get a click handler → `onWikiLinkClick` (L148–156). Tags do
-  nothing: no click, no index, no view, no graph edge.
+- **`NotesTab.handleWikiLinkNav`** opened a note by title, else **`createNote(...)`** — so every
+  clicked `[[wikilink]]` to a new name materialized a phantom note.
+- **`#tags` were styled but inert** — decorated `.cm-tag` in the editor, but no click, index, view,
+  or graph edge. There was **no way to reference a topic/tag without creating a note.**
 
-Net: there is **no way to reference a topic/tag without creating a note.**
+## What shipped
 
-## Current implementation map
+1. **`src/lib/notebook-links.ts`** — a pure, Tauri-free module that is now the single source of truth
+   for both `NotesTab.tsx` and `MarkdownEditor.tsx`:
+   - `WIKI_LINK_RE` / `TAG_RE`, plus `findWikiLinks` / `findTags` (offset-aware spans for the editor),
+     `extractTags`, `extractWikiTitles`, `linkKey`, `resolveWikiLink`, `buildTagIndex`.
+   - `buildVaultGraph(notes, folders)` — moved out of `NotesTab` and extended with **tag hub nodes**
+     (`kind: "tag"`, one per distinct tag) and note→tag edges. Tags connect the graph without being notes.
+   - Fully unit-tested in `src/lib/notebook-links.test.ts` (22 cases — tag/link parsing edge cases,
+     resolution, tag index, graph shape). `npm test`.
+2. **`#tags` are clickable + first-class** (note-free):
+   - Clickable in the live-preview editor (`MarkdownEditor` `onTagClick`) → opens a **tag view**:
+     a main-panel list of every note carrying that tag (title + snippet + its other tags). It never
+     creates a note.
+   - Sidebar tag chips open the same tag view (active chip toggles it closed); each chip shows a count.
+   - The vault graph renders tags as a **distinct node kind** — an amber **diamond** (vs. blue note
+     circles / folder squares) — with note→tag edges; clicking a tag node opens the tag view.
+3. **Missing `[[links]]` no longer auto-create.** A clicked link to a non-existent note shows an
+   explicit **"Create note / Dismiss"** strip above the editor; only the explicit action creates it.
+   In the editor, links to missing notes render dashed/faint (`.cm-wikilink--missing`); links that
+   resolve render solid. Existence is recomputed from the live vault (`existingTitles`) and the editor
+   re-decorates when notes are added/renamed/deleted.
+
+No DB migration — tags are derived from `note.content`. The agent harness, RAG/embedding path, and
+migrations 1–9 were untouched.
+
+## Where it lives
 
 | File | Role |
 |---|---|
-| `src/components/NotesTab.tsx` | Vault UI (tree + folders + editor + graph). `WIKI_RE = /\[\[([^\]]+)\]\]/g` (L17). Wiki-link nav = `handleWikiLinkNav` (the flaw). Graph "related notes" + edges derive from `WIKI_RE` (L57, L299). Note/folder CRUD via `src/lib/db.ts`. |
-| `src/components/MarkdownEditor.tsx` | CodeMirror 6 live-preview editor. `WIKI` + a tag regex → decorations `cm-wikilink` (clickable) and `cm-tag` (styled only). Click → `onWikiLinkClick(title)` (L148–156). Theme/styles ~L100–110. |
-| `src/lib/notebook.ts` | RAG (chunk/embed/search), `importTextAsNote`, and the vault-graph build (note↔note edges from `[[links]]`). |
-| `src/lib/db.ts` | `notes` + `notebook_folders` + `notebook_documents/chunks/embeddings` CRUD. `createNote`, `createFolder`, etc. **No `tags` column** — tags are content-derived only. |
-| `src/index.css` | `.wiki-link--exists` / `.wiki-link--missing` (read/preview render path), `.cm-wikilink` / `.cm-tag` (editor). The "missing" style already exists but the click still creates. |
-| DB migrations | `src-tauri/src/lib.rs` (v1–v9). v8 = unified vault/folders, v9 = sprite_id. **Migrations 1–9 are shipped — never edit; append v10 if a schema change is truly needed.** |
+| `src/lib/notebook-links.ts` | **Pure** parsing/resolution/graph (the source of truth). Unit-tested. |
+| `src/components/MarkdownEditor.tsx` | CM6 editor: `cm-wikilink` / `cm-wikilink--missing` / `cm-tag` decorations + click routing (`onWikiLinkClick`, `onTagClick`); re-decorates on `existingTitles` change. |
+| `src/components/NotesTab.tsx` | Vault UI: tag view (`panelView: "tag"`), `openTagView` / `clearTag`, `pendingLink` create affordance, tag nodes in the graph, sidebar chips. |
+| `src/index.css` | `.wiki-link--exists/--missing` chip tokens (legacy read-render styles). Editor styling is inline in `MarkdownEditor`'s theme. |
 
-## Recommended direction
+## Possible follow-ups (not built)
 
-Two changes fully resolve the flaw:
-
-1. **Make `#tags` a first-class, note-free primitive** (the syntax + styling already exist — lowest friction):
-   - Parse `#tags` across all notes into a derived index (no migration needed — derive from `note.content`).
-   - Make `#tag` **clickable** in the editor (extend the `onWikiLinkClick` mechanism, or add `onTagClick`) →
-     opens a **tag view**: a filtered list of all notes containing that tag. **Never creates a note.**
-   - Surface tags in the **vault graph** as a distinct node type (different shape/color from notes), with
-     note→tag edges. Tags connect the graph without being notes.
-   - Nice-to-haves: a tag browser/sidebar, `#` autocomplete in the editor.
-2. **Stop auto-creating notes for missing `[[links]]`.** Render an unresolved `[[X]]` as "missing" (the
-   `.wiki-link--missing` dashed style already exists) and only create the note via an **explicit** affordance
-   (e.g. a small "＋ create note" action), matching Obsidian. Change `handleWikiLinkNav` so a missing link
-   does NOT silently create.
-
-Optional, if useful: a **topic link** that resolves to a *curriculum* subtopic (from the course outline /
-syllabus) rather than a note — opens the lesson/topic, not a note. (`src/lib/curriculum.ts` has the outline.)
-
-## Constraints / DON'Ts
-
-- **Don't edit shipped migrations.** Prefer deriving tags from content (zero schema change). If you want a
-  persisted tag index, add **migration v10** (append-only) in `src-tauri/src/lib.rs`.
-- Don't touch the agent harness, the RAG/embedding path, or `evaluate.ts`/permissions.
-- Follow the **CRT design system** (CSS-var tokens; `.cm-tag` / `.wiki-link` already exist to build on).
-- Add **vitest** unit tests for any pure logic (tag parsing/extraction, link resolution) — `npm test`.
-
-## Verify (in `npm run tauri dev`)
-
-- Type `#topic` in a note → it's clickable → opens a tag view listing every note with `#topic`; **no note is
-  created**. Type `[[Nonexistent]]` and click it → it does **not** create a phantom note (shows missing +
-  explicit create). The vault graph shows tag nodes distinct from note nodes. `__runEvals()` shows no new
-  failure (notebook changes shouldn't touch it, but confirm).
-
-## Process
-
-Issue-first → branch `feat/<issue>-notebook-tags` → PR → green CI (`Typecheck · test · build`) → merge. If you
-want it in the installed app, **bump the version** (`src-tauri/tauri.conf.json` + `package.json` + `Cargo.toml`)
-and `git tag v0.1.4 && git push origin v0.1.4` → the Release workflow builds, signs, and publishes; installed
-apps auto-update. (See `project_openedu` memory / the auto-update setup for the full release loop.)
+- `#`/`[[` autocomplete in the editor (CM6 autocompletion source over the existing tag set + note titles).
+- A **topic link** that resolves to a *curriculum* subtopic (course outline / syllabus) and opens the
+  lesson rather than a note. (`src/lib/curriculum.ts` has the outline.)
+- Tag rename / merge across the vault (content rewrite).
