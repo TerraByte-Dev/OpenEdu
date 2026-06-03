@@ -10,59 +10,23 @@ import {
   getFolders, createFolder, renameFolder, deleteFolder, moveNoteToFolder,
 } from "../lib/db";
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
+import {
+  extractTags, findWikiLinks, resolveWikiLink, linkKey,
+  buildVaultGraph, buildTagIndex,
+  type GraphNode,
+} from "../lib/notebook-links";
 
-// Phosphor palette for the canvas graph (hex — the canvas API can't read CSS vars).
-const G = { node: "#00C6FF", nodeDim: "#0a4654", stroke: "#44D8FF", label: "#6DD4EE", link: "#14323a", linkHot: "#44D8FF", folder: "#44D8FF" };
+// Phosphor palette for the canvas graph (hex — the canvas API can't read CSS vars). Tag nodes use a
+// warm amber so they read as a distinct, note-free node kind across all color themes.
+const G = {
+  node: "#00C6FF", nodeDim: "#0a4654", stroke: "#44D8FF", label: "#6DD4EE",
+  link: "#14323a", linkHot: "#44D8FF", folder: "#44D8FF",
+  tag: "#FFB454", tagDim: "#5a4326", tagStroke: "#FFCF87",
+};
 
-const WIKI_RE = /\[\[([^\]]+)\]\]/g;
-const TAG_RE = /(?:^|\s)#([A-Za-z][\w-]*)/g;
-
-function extractTags(content: string): string[] {
-  const tags: string[] = [];
-  for (const m of content.matchAll(TAG_RE)) if (!tags.includes(m[1])) tags.push(m[1]);
-  return tags;
-}
-
-// ── Graph ───────────────────────────────────────────────────────────────────
-interface GraphNode { id: string; title: string; degree: number; kind: "note" | "folder"; x?: number; y?: number }
-interface GraphLink { source: string; target: string }
-
-// Vault map: folders are hub nodes, each note hangs off its folder (folders off their parent), and
-// [[wikilinks]] add note↔note edges. So the graph mirrors the tree and is never just disconnected dots.
-function buildGraph(notes: Note[], folders: NotebookFolder[]): { nodes: GraphNode[]; links: GraphLink[]; adjacency: Map<string, Set<string>> } {
-  const nodes: GraphNode[] = [];
-  const links: GraphLink[] = [];
-  const degree = new Map<string, number>();
-  const adjacency = new Map<string, Set<string>>();
-  const fid = (id: string) => `folder:${id}`;
-  const link = (a: string, b: string) => {
-    links.push({ source: a, target: b });
-    degree.set(a, (degree.get(a) ?? 0) + 1);
-    degree.set(b, (degree.get(b) ?? 0) + 1);
-    (adjacency.get(a) ?? adjacency.set(a, new Set()).get(a)!).add(b);
-    (adjacency.get(b) ?? adjacency.set(b, new Set()).get(b)!).add(a);
-  };
-
-  const folderIds = new Set(folders.map((f) => f.id));
-  for (const f of folders) nodes.push({ id: fid(f.id), title: f.name, degree: 0, kind: "folder" });
-  for (const f of folders) if (f.parent_id && folderIds.has(f.parent_id)) link(fid(f.id), fid(f.parent_id));
-
-  for (const n of notes) {
-    nodes.push({ id: n.id, title: n.title, degree: 0, kind: "note" });
-    if (n.folder_id && folderIds.has(n.folder_id)) link(n.id, fid(n.folder_id));
-  }
-
-  const titleToId = new Map(notes.map((n) => [n.title.toLowerCase(), n.id]));
-  for (const note of notes) {
-    for (const m of note.content.matchAll(WIKI_RE)) {
-      const targetId = titleToId.get(m[1].toLowerCase());
-      if (targetId && targetId !== note.id) link(note.id, targetId);
-    }
-  }
-
-  for (const nd of nodes) nd.degree = degree.get(nd.id) ?? 0;
-  return { nodes, links, adjacency };
-}
+// A one-line plain-text preview of a note's body for the tag-view cards (strips light markdown).
+const snippet = (content: string) =>
+  content.replace(/^#{1,6}\s+/gm, "").replace(/[#>*`_~[\]]/g, "").replace(/\s+/g, " ").trim().slice(0, 140);
 
 // Line-art folder glyphs — monochrome (stroke=currentColor) so they sit on the phosphor theme like
 // the note file icon, instead of the off-theme 📁 emoji.
@@ -91,7 +55,7 @@ function FolderPlusGlyph({ size = 13, className = "" }: { size?: number; classNa
 // Course-wide Obsidian-like vault (Phase 3): one note tree per course, organized into nested
 // folders. Every note is searchable — imported files become notes, and notes re-index on save.
 interface NotesTabProps { courseId: string; level: number }
-type PanelView = "note" | "graph";
+type PanelView = "note" | "graph" | "tag";
 
 export default function NotesTab({ courseId, level }: NotesTabProps) {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -107,6 +71,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [pendingLink, setPendingLink] = useState<string | null>(null); // missing [[link]] awaiting explicit create
   const [docResults, setDocResults] = useState<NotebookSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
 
@@ -146,7 +111,22 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     setSelectedNote(note);
     setEditTitle(note.title);
     setEditContent(note.content);
+    setPendingLink(null);
     setPanelView("note");
+  };
+
+  // Open the note-free tag view: every note carrying #tag, listed (never creates a note).
+  const openTagView = (tag: string) => {
+    saveIfDirty();
+    setPendingLink(null);
+    setActiveTag(tag);
+    setPanelView("tag");
+  };
+
+  // Leave the tag view / clear the sidebar tag filter, back to the normal note panel + full tree.
+  const clearTag = () => {
+    setActiveTag(null);
+    if (panelView === "tag") setPanelView("note");
   };
 
   const saveIfDirty = useCallback(() => {
@@ -180,14 +160,21 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   const handleBlur = () => saveIfDirty();
 
-  // Clicking a [[wikilink]] in the editor: open the note, or create it (in the current folder) if new.
+  // Clicking a [[wikilink]] in the editor: open the note if it exists; if it's missing, surface an
+  // explicit "create note" affordance instead of silently materializing a phantom note (Obsidian-like).
   const handleWikiLinkNav = (title: string) => {
-    const found = notes.find((n) => n.title.toLowerCase() === title.toLowerCase());
+    const found = resolveWikiLink(title, notes);
     if (found) { selectNote(found); return; }
-    createNote(courseId, title, "", level, selectedNote?.folder_id ?? null).then((n) => {
-      setNotes((prev) => [...prev, n]);
-      selectNote(n);
-    });
+    setPendingLink(title);
+  };
+
+  // Explicit create for a missing [[link]] — only ever called from the create affordance.
+  const createPendingNote = async () => {
+    const title = pendingLink;
+    if (!title) return;
+    const n = await createNote(courseId, title, "", level, selectedNote?.folder_id ?? null);
+    setNotes((prev) => [...prev, n]);
+    selectNote(n);
   };
 
   // ── Folder ops ──
@@ -278,11 +265,13 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   };
 
   // ── Derived ──
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    for (const n of notes) for (const t of extractTags(n.content)) set.add(t);
-    return [...set].sort();
-  }, [notes]);
+  // tag → notes carrying it (content-derived; no DB column). Drives the chips, the tag view, and counts.
+  const tagIndex = useMemo(() => buildTagIndex(notes), [notes]);
+  const allTags = useMemo(() => [...tagIndex.keys()].sort((a, b) => a.localeCompare(b)), [tagIndex]);
+  const taggedNotes = useMemo(() => (activeTag ? tagIndex.get(activeTag) ?? [] : []), [tagIndex, activeTag]);
+
+  // Normalized titles of every note — lets the editor style [[links]] to missing notes as "missing".
+  const existingTitles = useMemo(() => new Set(notes.map((n) => linkKey(n.title))), [notes]);
 
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -295,11 +284,11 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   const backlinks = useMemo(() => {
     if (!selectedNote) return [];
-    const title = selectedNote.title.toLowerCase();
-    return notes.filter((n) => n.id !== selectedNote.id && [...n.content.matchAll(WIKI_RE)].some((m) => m[1].toLowerCase() === title));
+    const key = linkKey(selectedNote.title);
+    return notes.filter((n) => n.id !== selectedNote.id && findWikiLinks(n.content).some((l) => linkKey(l.title) === key));
   }, [notes, selectedNote]);
 
-  const graph = useMemo(() => buildGraph(notes, folders), [notes, folders]);
+  const graph = useMemo(() => buildVaultGraph(notes, folders), [notes, folders]);
 
   const childFolders = (parentId: string | null) => folders.filter((f) => (f.parent_id ?? null) === parentId);
   const childNotes = (folderId: string | null) => notes.filter((n) => (n.folder_id ?? null) === folderId);
@@ -383,7 +372,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           <button onClick={() => handleNewFolder(null)} title="New folder" className="px-2 py-1.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors flex items-center"><FolderPlusGlyph size={15} /></button>
           <button onClick={() => fileInputRef.current?.click()} disabled={ingesting} title="Import .md/.txt as notes" className="px-2 py-1.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-faint)] text-xs font-medium transition-colors disabled:opacity-50">{ingesting ? "…" : "⬆"}</button>
           <button
-            onClick={() => { saveIfDirty(); setPanelView(panelView === "graph" ? "note" : "graph"); }}
+            onClick={() => { saveIfDirty(); setPendingLink(null); setPanelView(panelView === "graph" ? "note" : "graph"); }}
             title="Toggle graph view"
             className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${panelView === "graph" ? "btn-primary text-white" : "bg-lcd hover:bg-panel text-[var(--ink-faint)]"}`}
           >
@@ -407,9 +396,19 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           </div>
           {allTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
-              {allTags.map((t) => (
-                <button key={t} onClick={() => setActiveTag(activeTag === t ? null : t)} className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors ${activeTag === t ? "bg-phosphor-ink/25 text-phosphor-bright" : "bg-lcd text-[var(--ink-faint)] hover:text-phosphor-ink"}`}>#{t}</button>
-              ))}
+              {allTags.map((t) => {
+                const isActive = activeTag === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => (isActive ? clearTag() : openTagView(t))}
+                    title={`${tagIndex.get(t)?.length ?? 0} note${tagIndex.get(t)?.length === 1 ? "" : "s"}`}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors ${isActive ? "bg-phosphor-ink/25 text-phosphor-bright" : "bg-lcd text-[var(--ink-faint)] hover:text-phosphor-ink"}`}
+                  >
+                    #{t}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -456,7 +455,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
         <div ref={graphContainerRef} className="flex-1 min-h-0 bg-bg relative overflow-hidden">
           {graph.nodes.length < 2 ? (
             <div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm px-6 text-center">
-              Add a few notes and folders (or link notes with <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code>) to see your vault graph
+              Add a few notes and folders (link notes with <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code> or label them with <code className="mx-1 px-1 bg-panel-lite rounded text-[#FFB454]">#tags</code>) to see your vault graph
             </div>
           ) : (
             <Suspense fallback={<div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm">Loading graph…</div>}>
@@ -481,6 +480,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               onNodeClick={(node) => {
                 const gn = node as GraphNode;
                 if (gn.kind === "folder") { setExpanded((s) => new Set(s).add(gn.id.replace(/^folder:/, ""))); setPanelView("note"); return; }
+                if (gn.kind === "tag") { openTagView(gn.title.replace(/^#/, "")); return; }
                 const n = notes.find((x) => x.id === gn.id);
                 if (n) selectNote(n);
               }}
@@ -488,7 +488,8 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 const gn = node as GraphNode & { x: number; y: number };
                 const active = hoverId === null || gn.id === hoverId || (graph.adjacency.get(hoverId)?.has(gn.id) ?? false);
                 const isFolder = gn.kind === "folder";
-                const r = (isFolder ? 5 : 3.5) + Math.min(gn.degree, isFolder ? 9 : 6);
+                const isTag = gn.kind === "tag";
+                const r = (isFolder ? 5 : isTag ? 4 : 3.5) + Math.min(gn.degree, isFolder ? 9 : isTag ? 8 : 6);
                 ctx.globalAlpha = active ? 1 : 0.35;
                 ctx.lineWidth = gn.id === hoverId ? 2 : 1;
                 if (isFolder) {
@@ -496,6 +497,18 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   ctx.strokeStyle = G.folder;
                   ctx.beginPath();
                   ctx.rect(gn.x - r, gn.y - r, r * 2, r * 2);
+                  ctx.fill();
+                  ctx.stroke();
+                } else if (isTag) {
+                  // Diamond — a distinct, note-free node kind (warm amber, set apart from blue notes).
+                  ctx.fillStyle = active ? G.tag : G.tagDim;
+                  ctx.strokeStyle = G.tagStroke;
+                  ctx.beginPath();
+                  ctx.moveTo(gn.x, gn.y - r);
+                  ctx.lineTo(gn.x + r, gn.y);
+                  ctx.lineTo(gn.x, gn.y + r);
+                  ctx.lineTo(gn.x - r, gn.y);
+                  ctx.closePath();
                   ctx.fill();
                   ctx.stroke();
                 } else {
@@ -507,7 +520,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   ctx.stroke();
                 }
                 ctx.font = `${isFolder ? "700 " : ""}${Math.max(10, 12 / globalScale)}px Inter, system-ui, sans-serif`;
-                ctx.fillStyle = isFolder ? G.folder : G.label;
+                ctx.fillStyle = isFolder ? G.folder : isTag ? G.tag : G.label;
                 ctx.textAlign = "center";
                 ctx.fillText(gn.title, gn.x, gn.y + r + 7);
                 ctx.globalAlpha = 1;
@@ -515,7 +528,41 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             />
             </Suspense>
           )}
-          <div className="absolute top-3 right-3 text-[10px] text-[var(--ink-faint)]">{graph.nodes.filter((n) => n.kind === "note").length} notes · {folders.length} folders · {graph.links.length} links</div>
+          <div className="absolute top-3 right-3 text-[10px] text-[var(--ink-faint)]">{graph.nodes.filter((n) => n.kind === "note").length} notes · {graph.nodes.filter((n) => n.kind === "tag").length} tags · {folders.length} folders · {graph.links.length} links</div>
+        </div>
+      ) : panelView === "tag" ? (
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--rule)] shrink-0">
+            <span className="px-2 py-0.5 rounded text-sm font-mono bg-[rgb(var(--phosphor-rgb)/0.18)] text-phosphor-bright">#{activeTag}</span>
+            <span className="text-[11px] text-[var(--ink-faint)]">{taggedNotes.length} note{taggedNotes.length === 1 ? "" : "s"}</span>
+            <div className="flex-1" />
+            <button onClick={clearTag} title="Close tag view" className="px-2 py-1 rounded bg-lcd text-[var(--ink-faint)] hover:text-ink text-[11px]">✕ Close</button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {taggedNotes.length === 0 ? (
+              <div className="p-8 text-center text-[var(--ink-faint)] text-sm">
+                No notes carry <span className="font-mono text-[#FFB454]">#{activeTag}</span> anymore.
+              </div>
+            ) : (
+              taggedNotes.map((n) => (
+                <button key={n.id} onClick={() => selectNote(n)} className="w-full text-left px-4 py-3 border-b border-[var(--rule)] hover:bg-panel-lite transition-colors">
+                  <div className="text-sm text-ink font-medium truncate">{n.title}</div>
+                  {snippet(n.content) && <div className="text-xs text-[var(--ink-dim)] line-clamp-2 mt-0.5">{snippet(n.content)}</div>}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {extractTags(n.content).map((t) => (
+                      <span
+                        key={t}
+                        onClick={(e) => { e.stopPropagation(); openTagView(t); }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${t === activeTag ? "bg-phosphor-ink/25 text-phosphor-bright" : "bg-lcd text-[var(--ink-faint)] hover:text-phosphor-ink"}`}
+                      >
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
@@ -530,6 +577,21 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 </button>
               </div>
 
+              {/* Explicit create affordance for a clicked [[link]] whose note doesn't exist — never auto-creates. */}
+              {pendingLink && (
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--rule)] bg-[rgb(var(--phosphor-rgb)/0.06)] shrink-0">
+                  <span className="text-xs text-[var(--ink-dim)] min-w-0 truncate">
+                    No note titled <span className="font-mono text-phosphor-ink">“{pendingLink}”</span> yet.
+                  </span>
+                  <div className="flex-1" />
+                  <button onClick={createPendingNote} className="px-2 py-1 rounded btn-primary text-white text-[11px] font-medium shrink-0 flex items-center gap-1">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
+                    Create note
+                  </button>
+                  <button onClick={() => setPendingLink(null)} className="px-2 py-1 rounded bg-lcd text-[var(--ink-faint)] hover:text-ink text-[11px] shrink-0">Dismiss</button>
+                </div>
+              )}
+
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[var(--ink-faint)] text-sm">Loading editor…</div>}>
                 <MarkdownEditor
                   doc={editContent}
@@ -537,6 +599,8 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   onChange={setEditContent}
                   onBlur={handleBlur}
                   onWikiLinkClick={handleWikiLinkNav}
+                  onTagClick={openTagView}
+                  existingTitles={existingTitles}
                 />
               </Suspense>
               {backlinks.length > 0 && (
