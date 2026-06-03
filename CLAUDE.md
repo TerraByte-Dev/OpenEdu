@@ -18,6 +18,7 @@ For current work-in-progress, see `docs/dev/HANDOFF.md`. (Internal dev notes/han
 - `src/lib/curriculum.ts` — the agent harness. Research → outline → tutor instructions → 6 syllabuses. All schema-enforced. Entry point: `runGenerationPipeline`.
 - `src/lib/knowledge.ts` — persistent per-course knowledge files (`knowledge_map`, `misconceptions`, `study_log`, `learning_profile`) used as tutor context.
 - `src/lib/progress.ts` — subtopic mastery tracking and progress-context generation for the tutor.
+- `src/lib/notebook.ts` — notebook RAG (chunk/embed/cosine search) + `importTextAsNote`. `src/lib/notebook-links.ts` — pure `[[wiki link]]` / `#tag` parsing, resolution, tag index, and the vault-graph builder (note/folder/tag nodes); the source of truth for `NotesTab.tsx` + `MarkdownEditor.tsx`. Tags are content-derived (no DB column); `#tags` are a note-free link primitive (click → filtered tag view, distinct graph node); missing `[[links]]` never auto-create.
 - `src/views/settings/` — the Settings view (tabbed left-rail shell + declarative section registry + primitives). See `src/views/settings/README.md`.
 - `src/lib/store.ts` / `store-keys.ts` — settings persistence (plugin-store). `store-keys.ts` is the single source of truth for key names + the secret/import-allow-list (also consumed by `settings-io.ts`).
 - `src/lib/models.ts` — model catalog + recommended-derived defaults (one source for the Settings pickers AND the store defaults; closes issue #2's drift).
@@ -27,7 +28,7 @@ For current work-in-progress, see `docs/dev/HANDOFF.md`. (Internal dev notes/han
 - `src/components/` — shared widgets, including `terminal/*` primitives.
 - `src-tauri/` — Rust backend, SQLite migrations, plugin config.
 
-The pure modules above (`store-keys`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`) are Tauri-free and unit-tested in `*.test.ts` next to them.
+The pure modules above (`store-keys`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
 DB lives at `%APPDATA%/com.terrabyte.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 
