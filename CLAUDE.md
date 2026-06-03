@@ -7,7 +7,7 @@ The repo is on GitHub under `TerraByte-Dev`.
 **Dev:** `npm run tauri dev` from project root.
 **Test:** `npm test` (vitest) — fast unit tests over the pure logic modules (no DOM/Tauri). DOM-coupled UI is verified live in the dev app.
 
-For current work-in-progress, see `HANDOFF.md`.
+For current work-in-progress, see `docs/dev/HANDOFF.md`. (Internal dev notes/handoffs live under `docs/dev/`.)
 
 ---
 
