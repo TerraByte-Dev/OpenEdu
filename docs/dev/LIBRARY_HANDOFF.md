@@ -119,6 +119,6 @@ wants the real artifact — a periodic-table grid, a times-table grid, the circl
   — but still confirm before deleting branches / closing PRs / merging to master.
 
 ## Pointers
-- Prior (text-form) plan: `C:\Users\tatew\.claude\plans\okay-lets-do-your-shiny-grove.md`.
+- Prior (text-form) plan: a local Claude Code plan file (not in the repo).
 - Content repo: `../openedu-library` (private, `TerraByte-Dev/openedu-library`).
 - `WEB_TOOLS_HANDOFF.md` = the superseded Tavily-first plan (historical only).
