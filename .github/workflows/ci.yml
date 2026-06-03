@@ -1,0 +1,38 @@
+name: CI
+
+# Frontend checks for every PR into master (and pushes to master). Intentionally Node-only — the React/TS
+# frontend type-checks, unit-tests, and bundles without the Rust/Tauri toolchain, so this stays fast
+# (~1-2 min). The Tauri desktop build is not exercised here.
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+# Cancel an in-progress run when new commits land on the same ref (e.g. rapid pushes to a PR branch).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Typecheck + build
+        run: npm run build
