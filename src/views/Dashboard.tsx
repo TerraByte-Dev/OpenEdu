@@ -231,7 +231,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
           <div className="flex items-center gap-4 mb-2">
             <BrandMark size={52} glow title="TerraByte Solutions LLC" />
             <h1
-              className="phosphor-glow-xl crt-aberrate"
+              className="wordmark-glow"
               style={{
                 fontFamily: "'VT323', var(--font-mono)",
                 fontSize: "clamp(2.4rem, 6vw, 4rem)",
