@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useState } from "react";
 import type { LLMProvider } from "../types";
-import { getCrtOff, setCrtOff, getThemeId, themeSupportsCrt } from "../lib/theme";
+import { setCrtOff, themeSupportsCrt } from "../lib/theme";
+import { useThemeState } from "../lib/useTheme";
 
 const PROVIDER_LABEL: Record<LLMProvider, string> = {
   ollama: "Ollama",
@@ -23,18 +23,10 @@ interface TitlebarProps {
 export default function Titlebar({ provider, onGoSettings }: TitlebarProps) {
   const win = getCurrentWindow();
 
-  // "CRT Off" toggle — shares state with the Appearance tab via src/lib/theme.ts (persists oe-crt-off +
-  // broadcasts oe-crt-change). The button is hidden on universal (Dark/Light) themes, where the CRT
-  // overlay is intrinsically off. Tracks the active theme so it appears/disappears as the theme changes.
-  const [crtOff, setCrtOffState] = useState(getCrtOff);
-  const [themeId, setThemeId] = useState(getThemeId);
-  useEffect(() => {
-    const onCrt = () => setCrtOffState(getCrtOff());
-    const onTheme = () => setThemeId(getThemeId());
-    window.addEventListener("oe-crt-change", onCrt);
-    window.addEventListener("oe-theme-change", onTheme);
-    return () => { window.removeEventListener("oe-crt-change", onCrt); window.removeEventListener("oe-theme-change", onTheme); };
-  }, []);
+  // "CRT Off" toggle — shares state with the Appearance tab via the useThemeState hook (which listens to
+  // the oe-crt-change / oe-theme-change events that theme.ts broadcasts). The button is hidden on universal
+  // (Dark/Light) themes, where the CRT overlay is intrinsically off.
+  const { themeId, crtOff } = useThemeState();
   const toggleCrt = () => setCrtOff(!crtOff);
   const showCrtToggle = themeSupportsCrt(themeId);
 
