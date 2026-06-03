@@ -1,50 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LLMProvider } from "../../../types";
 import {
   getLLMProvider, setLLMProvider, setGenerationModel, setChatModel,
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
   getEmbeddingConfig, setEmbeddingModel,
 } from "../../../lib/store";
+import {
+  PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, type ModelOption,
+} from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
 import { Section, SettingRow, SecretField, INPUT_CLS, useSettings } from "../primitives";
 import type { SectionProps } from "../types";
-
-const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] = [
-  { id: "ollama", name: "Ollama (Local — Free)", needsKey: false },
-  { id: "openai", name: "OpenAI", needsKey: true },
-  { id: "anthropic", name: "Anthropic", needsKey: true },
-];
-
-// Curated fallback lists (shown when Ollama is not connected).
-const OLLAMA_GEN_SUGGESTIONS = ["llama3:70b", "qwen2.5:72b", "mistral-large", "llama3"];
-const OLLAMA_CHAT_SUGGESTIONS = ["llama3", "phi3", "gemma2", "mistral"];
-
-const GENERATION_MODELS: Record<Exclude<LLMProvider, "ollama">, Array<{ id: string; label: string; recommended?: boolean }>> = {
-  openai: [
-    { id: "gpt-5.4", label: "GPT-5.4", recommended: true },
-    { id: "gpt-4.1", label: "GPT-4.1" },
-    { id: "gpt-4o", label: "GPT-4o" },
-  ],
-  anthropic: [
-    { id: "claude-opus-4-6", label: "Claude Opus 4.6", recommended: true },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
-  ],
-};
-
-const CHAT_MODELS: Record<Exclude<LLMProvider, "ollama">, Array<{ id: string; label: string; recommended?: boolean }>> = {
-  openai: [
-    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", recommended: true },
-    { id: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-    { id: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { id: "gpt-4o", label: "GPT-4o" },
-  ],
-  anthropic: [
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", recommended: true },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
-  ],
-};
 
 export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const { markSaved } = useSettings();
@@ -58,6 +25,11 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const [ollamaStatus, setOllamaStatus] = useState<"checking" | "connected" | "disconnected">("checking");
   const [ollamaError, setOllamaError] = useState<string | null>(null);
 
+  // Initial load probes Ollama exactly once with the persisted URL; the effect below re-probes only when the
+  // PROVIDER changes — NOT on every keystroke in the URL field (that fired a network probe per character and
+  // could turn the status dot green for a URL that was never saved). Intentional URL edits re-probe via the
+  // explicit "Save & Check" button / Enter, which also persists.
+  const didInit = useRef(false);
   useEffect(() => {
     (async () => {
       const base = await getLLMProvider();
@@ -67,19 +39,22 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
       setChatModelState((await getChatConfig()).model);
       setEmbeddingModelState((await getEmbeddingConfig()).model);
       if (base.provider !== "ollama") setApiKeyValue((await getApiKey(base.provider)) || "");
+      if (base.provider === "ollama") void checkOllama(base.ollamaUrl);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (provider === "ollama") checkOllama();
+    if (!didInit.current) { didInit.current = true; return; } // initial probe handled by the load effect
+    if (provider === "ollama") void checkOllama();
     else setOllamaStatus("disconnected");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider, ollamaUrlValue]);
+  }, [provider]);
 
-  const checkOllama = async () => {
+  const checkOllama = async (url: string = ollamaUrlValue) => {
     setOllamaStatus("checking");
     setOllamaError(null);
-    const result = await getOllamaModels(ollamaUrlValue);
+    const result = await getOllamaModels(url);
     if (result.models.length > 0) {
       setOllamaModels(result.models);
       setOllamaStatus("connected");
@@ -88,6 +63,14 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
       setOllamaStatus("disconnected");
       if (result.error) setOllamaError(result.error);
     }
+  };
+
+  // Persist the typed Ollama URL, then probe it. The green/red status only updates here (and on
+  // provider/mount), so a connected dot always reflects a URL that was actually saved.
+  const saveAndCheckOllama = async () => {
+    await setOllamaUrl(ollamaUrlValue);
+    markSaved();
+    void checkOllama(ollamaUrlValue);
   };
 
   const pickProvider = async (p: LLMProvider) => {
@@ -146,11 +129,12 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
                 type="text"
                 value={ollamaUrlValue}
                 onChange={(e) => setOllamaUrlValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void saveAndCheckOllama(); }}
                 className={INPUT_CLS}
                 spellCheck={false}
               />
               <button
-                onClick={async () => { await setOllamaUrl(ollamaUrlValue); markSaved(); checkOllama(); }}
+                onClick={saveAndCheckOllama}
                 className="btn shrink-0"
               >
                 Save &amp; Check
@@ -228,6 +212,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             value={embeddingModel}
             onChange={(e) => setEmbeddingModelState(e.target.value)}
             onBlur={commitEmbedding}
+            onKeyDown={(e) => { if (e.key === "Enter") void commitEmbedding(); }}
             placeholder="nomic-embed-text"
             className={INPUT_CLS}
             spellCheck={false}
@@ -239,7 +224,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 }
 
 // ── Cloud model chips ───────────────────────────────────────────────────────────────────────────────────
-function CloudModelChips({ models, value, onChange }: { models: Array<{ id: string; label: string; recommended?: boolean }>; value: string; onChange: (id: string) => void }) {
+function CloudModelChips({ models, value, onChange }: { models: ModelOption[]; value: string; onChange: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-2">
       {models.map((m) => (
@@ -279,6 +264,7 @@ function OllamaModelPicker({ label, value, onChange, onCommit, discoveredModels,
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => onCommit(value)}
+        onKeyDown={(e) => { if (e.key === "Enter") onCommit(value); }}
         placeholder="e.g. llama3, qwen2.5:7b, phi3:mini"
         className={INPUT_CLS}
         spellCheck={false}
