@@ -69,6 +69,12 @@ export function setCrtOff(off: boolean): void {
   try { window.dispatchEvent(new CustomEvent("oe-crt-change", { detail: off })); } catch { /* ignore */ }
 }
 
+// Pure decision: should the CRT overlay be OFF for this theme? Universal themes force it off; CRT themes
+// honor the user's manual preference. Extracted so the reconciliation is unit-testable without the DOM.
+export function resolveCrtOff(theme: Theme, manualCrtOff: boolean): boolean {
+  return theme.family === "universal" ? true : manualCrtOff;
+}
+
 // Apply (and persist) a theme: set data-theme on <html>, and reconcile the CRT overlay —
 //   • universal theme → force the overlay off (the CSS hides scanlines/grid/vignette), WITHOUT touching the
 //     stored manual preference, so returning to a CRT theme restores whatever the user last chose;
@@ -78,7 +84,7 @@ export function applyTheme(id: string): Theme {
   const theme = getTheme(id);
   const root = document.documentElement;
   root.dataset.theme = theme.id;
-  root.classList.toggle("crt-off", theme.family === "universal" ? true : getCrtOff());
+  root.classList.toggle("crt-off", resolveCrtOff(theme, getCrtOff()));
   try { localStorage.setItem(STORAGE_KEY, theme.id); } catch { /* ignore */ }
   try { window.dispatchEvent(new CustomEvent("oe-theme-change", { detail: theme.id })); } catch { /* ignore */ }
   return theme;
