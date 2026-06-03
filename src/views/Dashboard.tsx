@@ -233,7 +233,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
             <h1
               className="phosphor-glow-xl crt-aberrate"
               style={{
-                fontFamily: "var(--font-display)",
+                fontFamily: "'VT323', var(--font-mono)",
                 fontSize: "clamp(2.4rem, 6vw, 4rem)",
                 color: "var(--phosphor)",
                 textTransform: "uppercase",
