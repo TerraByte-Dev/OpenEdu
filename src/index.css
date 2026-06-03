@@ -611,6 +611,16 @@ html.crt-off .term-grid-bg { display: none; }
     0 0 60px var(--phosphor-faint);
 }
 
+/* Brand wordmark glow — same idea as phosphor-glow-xl but intentionally KEPT on every theme, including the
+   universal Dark/Light ones that flatten the other glows for readability. Theme-colored via var(--phosphor),
+   so it blooms in the active accent on all themes. */
+.wordmark-glow {
+  text-shadow:
+    0 0 8px  var(--phosphor),
+    0 0 20px var(--phosphor-faint),
+    0 0 48px var(--phosphor-faint);
+}
+
 /* RGB chromatic-aberration opt-in */
 .crt-aberrate {
   text-shadow:
