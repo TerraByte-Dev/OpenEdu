@@ -15,6 +15,7 @@ import {
 import { compareVersions } from "../../../lib/version";
 import { STORE_FILE, STORE_KEYS } from "../../../lib/store-keys";
 import { Section, SettingRow, ActionButton, Toggle, INPUT_CLS, useSettings } from "../primitives";
+import { BrandMark } from "../../../components/BrandMark";
 import type { SectionProps } from "../types";
 
 const REPO = "TerraByte-Dev/OpenEdu";
@@ -228,6 +229,16 @@ export default function About({ onProviderChanged }: SectionProps) {
           <ConfirmButton onConfirm={resetDefaults} label="Reset to defaults" confirmLabel="Click again to confirm" />
         </SettingRow>
       </Section>
+
+      {/* Brand attribution — the emblem tints to the active theme via BrandMark. */}
+      <div className="mt-10 pt-6 border-t border-[var(--rule)] flex items-center gap-3">
+        <BrandMark size={40} glow title="TerraByte Solutions LLC" />
+        <div className="min-w-0">
+          <div className="text-sm text-ink font-medium leading-tight">OpenEdu</div>
+          <div className="text-xs text-[var(--ink-faint)] leading-tight">by TerraByte Solutions LLC · free &amp; open source</div>
+        </div>
+        <span className="ml-auto text-xs font-mono text-[var(--ink-faint)] select-all shrink-0">github.com/TerraByte-Dev/OpenEdu</span>
+      </div>
     </>
   );
 }
