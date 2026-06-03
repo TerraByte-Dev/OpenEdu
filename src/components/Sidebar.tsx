@@ -115,7 +115,7 @@ export default function Sidebar({
             <button onClick={onGoHome} className="flex items-center gap-1.5 hover:opacity-90 group">
               <span
                 className="phosphor-glow text-phosphor"
-                style={{ fontFamily: "var(--font-display)", fontSize: "1.4rem", lineHeight: 1 }}
+                style={{ fontFamily: "'VT323', var(--font-mono)", fontSize: "1.4rem", lineHeight: 1 }}
               >
                 OE
               </span>
