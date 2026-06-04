@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 // a note is open. Both are code-split into their own chunks fetched on first use.
 const ForceGraph2D = lazy(() => import("react-force-graph-2d"));
 const MarkdownEditor = lazy(() => import("./MarkdownEditor"));
+import { forceCollide } from "d3-force";
 import type { Note, NotebookFolder, NotebookSearchResult } from "../types";
 import {
   getNotes, createNote, updateNote, deleteNote,
@@ -13,7 +14,7 @@ import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
 import {
   extractTags, findWikiLinks, resolveWikiLink, linkKey,
   buildVaultGraph, buildTagIndex,
-  type GraphNode,
+  type GraphNode, type GraphNodeKind,
 } from "../lib/notebook-links";
 
 // Phosphor palette for the canvas graph (hex — the canvas API can't read CSS vars). Tag nodes use a
@@ -27,6 +28,14 @@ const G = {
 // A one-line plain-text preview of a note's body for the tag-view cards (strips light markdown).
 const snippet = (content: string) =>
   content.replace(/^#{1,6}\s+/gm, "").replace(/[#>*`_~[\]]/g, "").replace(/\s+/g, " ").trim().slice(0, 140);
+
+// Graph node radius (world units) — small, with a gentle degree-driven bump so hubs read bigger
+// without dominating. Shared by the canvas painter and the collision spacing so they agree.
+function nodeRadius(gn: { kind: GraphNodeKind; degree: number }): number {
+  const base = gn.kind === "folder" ? 3.5 : gn.kind === "tag" ? 3 : 2.6;
+  const cap = gn.kind === "folder" ? 7 : gn.kind === "tag" ? 6 : 4;
+  return base + Math.min(gn.degree, cap) * 0.6;
+}
 
 // Line-art folder glyphs — monochrome (stroke=currentColor) so they sit on the phosphor theme like
 // the note file icon, instead of the off-theme 📁 emoji.
@@ -88,6 +97,9 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [graphSize, setGraphSize] = useState({ w: 600, h: 400 });
   const [hoverId, setHoverId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fgRef = useRef<any>(null);        // react-force-graph instance (imperative handle)
+  const didFitRef = useRef(false);        // zoom-to-fit only once per time the graph opens
 
   useEffect(() => { loadAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [courseId]);
 
@@ -100,6 +112,34 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     ro.observe(graphContainerRef.current);
     return () => ro.disconnect();
   }, [panelView]);
+
+  // Airy, Obsidian-style layout: strong charge repulsion + roomy links + collision so notes float
+  // apart and the connections are legible. The graph component is lazy-loaded, so poll (rAF) for its
+  // imperative handle before configuring the d3 forces, then reheat. Re-fit the view once it settles.
+  useEffect(() => {
+    if (panelView !== "graph") return;
+    didFitRef.current = false;
+    let raf = 0;
+    let tries = 0;
+    const apply = () => {
+      const fg = fgRef.current;
+      const charge = fg?.d3Force?.("charge");
+      if (charge?.strength) {
+        charge.strength(-260).distanceMax?.(420);
+        const link = fg.d3Force("link");
+        if (link?.distance) link.distance(58).strength(0.45);
+        const center = fg.d3Force("center");
+        if (center?.strength) center.strength(0.02);
+        // Collision keeps even dense hubs from overlapping, so labels and links stay legible.
+        fg.d3Force("collide", forceCollide((n: GraphNode) => nodeRadius(n) + 7).strength(0.9));
+        fg.d3ReheatSimulation?.();
+        return;
+      }
+      if (tries++ < 90) raf = requestAnimationFrame(apply);
+    };
+    apply();
+    return () => cancelAnimationFrame(raf);
+  }, [panelView, notes, folders]);
 
   const loadAll = async () => { setNotes(await getNotes(courseId)); setFolders(await getFolders(courseId)); };
   const loadNotes = async () => setNotes(await getNotes(courseId));
@@ -460,12 +500,21 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           ) : (
             <Suspense fallback={<div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm">Loading graph…</div>}>
             <ForceGraph2D
+              ref={fgRef}
               graphData={graph}
               width={graphSize.w || 600}
               height={graphSize.h || 400}
               backgroundColor="transparent"
               nodeLabel="title"
               nodeRelSize={5}
+              d3VelocityDecay={0.3}
+              d3AlphaDecay={0.018}
+              cooldownTicks={140}
+              onEngineStop={() => {
+                if (didFitRef.current) return;
+                didFitRef.current = true;
+                fgRef.current?.zoomToFit(450, 60);
+              }}
               linkColor={(l) => {
                 const s = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
                 const t = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
@@ -489,7 +538,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 const active = hoverId === null || gn.id === hoverId || (graph.adjacency.get(hoverId)?.has(gn.id) ?? false);
                 const isFolder = gn.kind === "folder";
                 const isTag = gn.kind === "tag";
-                const r = (isFolder ? 5 : isTag ? 4 : 3.5) + Math.min(gn.degree, isFolder ? 9 : isTag ? 8 : 6);
+                const r = nodeRadius(gn);
                 ctx.globalAlpha = active ? 1 : 0.35;
                 ctx.lineWidth = gn.id === hoverId ? 2 : 1;
                 if (isFolder) {
@@ -519,10 +568,16 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   ctx.fill();
                   ctx.stroke();
                 }
-                ctx.font = `${isFolder ? "700 " : ""}${Math.max(10, 12 / globalScale)}px Inter, system-ui, sans-serif`;
-                ctx.fillStyle = isFolder ? G.folder : isTag ? G.tag : G.label;
-                ctx.textAlign = "center";
-                ctx.fillText(gn.title, gn.x, gn.y + r + 7);
+                // Labels stay a constant ~size on screen (no min-clamp that ballooned them when zoomed
+                // in), and fade out when zoomed far out so the airy overview reads as dots + links.
+                if (globalScale > 0.5) {
+                  const fontSize = 11 / globalScale;
+                  ctx.font = `${isFolder ? "700 " : ""}${fontSize}px Inter, system-ui, sans-serif`;
+                  ctx.fillStyle = isFolder ? G.folder : isTag ? G.tag : G.label;
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "top";
+                  ctx.fillText(gn.title, gn.x, gn.y + r + fontSize * 0.5);
+                }
                 ctx.globalAlpha = 1;
               }}
             />
