@@ -2,7 +2,9 @@
 
 | File | Used by | How it's made |
 |---|---|---|
-| `openedu-wordmark.png` | README hero | Generated (Images 2.0 / gpt-image). Prompt below. |
+| `openedu-wordmark.png` | README hero (black-bg CRT wordmark) | Generated (Images 2.0 / gpt-image). Prompt below. |
+| `openedu-wordmark-transparent.png` | Alternate hero (transparent bg) — swap into the README `<img>` if preferred | Generated. Transparent variant of the hero. |
+| `social-preview.png` | Repo **Settings → General → Social preview** (1280×640) | Generated. Not referenced by the README body. |
 | `terrabyte-logo.png` | README "brought to you by" + footer | Existing TerraByte Solutions mark. |
 | `screenshots/*.png` | README screenshots grid | Captured live — see [`screenshots/README.md`](screenshots/README.md). |
 
