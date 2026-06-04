@@ -51,6 +51,13 @@ provider you choose.
 
 > Captured live in `npm run tauri dev`. See [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md) for the shot list + capture settings.
 
+<p align="center">
+  <img src="docs/assets/screenshots/notebook.png" alt="Notebook vault graph — note circles, amber #tag diamonds, and [[link]] edges" width="100%" />
+</p>
+<p align="center">
+  <sub><b>Notebook vault graph</b> — your notes (circles), <code>#tags</code> (amber diamonds), and folders, woven together by <code>[[wiki-link]]</code> edges.</sub>
+</p>
+
 <table>
   <tr>
     <td width="50%" valign="top">

@@ -17,19 +17,10 @@ desktop app (`npm run tauri dev`) so they show real data and the app's own CRT w
 
 | File | View | Shows |
 |---|---|---|
+| `notebook.png` | Course → Notebook → graph | **Featured shot.** The airy vault graph: note circles + amber `#tag` diamonds + folders, with `[[link]]` edges. |
 | `course.png` | Course → Overview | A generated 6-level curriculum with mastery tracking. |
 | `library.png` | Resources / Library | The curated, offline reference library. |
 | `themes.png` | Settings → Appearance | The CRT theme picker (recolors + Dark/Light). |
 | `settings.png` | Settings → Provider & Models | Bring-your-own-key provider/model selection. |
-
-## Wanted next (the two showpieces still missing)
-
-Capture these at 1440 × 900, default blue-phosphor theme, then drop them in — the README will be
-expanded to feature them:
-
-| File | View | Shows |
-|---|---|---|
-| `notebook.png` | Course → Notebook → graph | The airy vault graph: note circles + amber `#tag` diamonds + folders, with `[[link]]` edges. (Import the sample Chemistry vault first.) |
-| `course-chat.png` | Course → Chat | A tutoring exchange with **rendered math and/or a diagram**, ideally with a Library citation chip visible. |
 
 Once a PNG is in this folder with the right name, wiring it into the grid is a one-line change.
