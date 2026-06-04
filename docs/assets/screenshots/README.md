@@ -1,28 +1,35 @@
 # README screenshots — shot list & capture guide
 
-The README's **Screenshots** grid pulls these four files from this folder. Capture them live from the
-running desktop app (`npm run tauri dev`) so they show real data and the app's own CRT window chrome.
+The README's **Screenshots** grid pulls PNGs from this folder. Capture them live from the running
+desktop app (`npm run tauri dev`) so they show real data and the app's own CRT window chrome.
 
 ## Capture settings (keep them consistent)
 
 - **Window size:** resize the app to **1440 × 900** before capturing (a clean 16:10). Capture the whole
   app window *including* its frameless titlebar — that titlebar is part of the look.
-- **Theme:** default **blue phosphor** (`#00C6FF`) for all four, so the set is cohesive. (A second
-  theme can be shown once, in `course-chat`, if you like.)
+- **Theme:** default **blue phosphor** (`#00C6FF`) so the set is cohesive (the `themes` shot is the
+  intentional exception — it shows the picker).
 - **Format:** PNG. Don't upscale — capture at native resolution and let the README size them.
 - **Content:** use a real, finished course with a few notes — empty states photograph poorly.
 - **Tip (Windows):** `Alt + PrintScreen` grabs just the focused window; or Snipping Tool → Window mode.
 
-## The four shots
+## In the README now
 
-| File | View | What to show |
+| File | View | Shows |
 |---|---|---|
-| `dashboard.png` | Dashboard | The glowing **OPENEDU** wordmark header + a couple of generated course cards (or the "INIT NEW_COURSE" panel mid-generation). |
+| `course.png` | Course → Overview | A generated 6-level curriculum with mastery tracking. |
+| `library.png` | Resources / Library | The curated, offline reference library. |
+| `themes.png` | Settings → Appearance | The CRT theme picker (recolors + Dark/Light). |
+| `settings.png` | Settings → Provider & Models | Bring-your-own-key provider/model selection. |
+
+## Wanted next (the two showpieces still missing)
+
+Capture these at 1440 × 900, default blue-phosphor theme, then drop them in — the README will be
+expanded to feature them:
+
+| File | View | Shows |
+|---|---|---|
+| `notebook.png` | Course → Notebook → graph | The airy vault graph: note circles + amber `#tag` diamonds + folders, with `[[link]]` edges. (Import the sample Chemistry vault first.) |
 | `course-chat.png` | Course → Chat | A tutoring exchange with **rendered math and/or a diagram**, ideally with a Library citation chip visible. |
-| `notebook.png` | Course → Notebook | A note open in the live-preview editor showing `[[wiki-links]]` and `#tags`, **or** the vault graph view (note circles + amber tag diamonds). |
-| `library.png` | Resources / Library | The curated Library browser — a subject open with a few reference cards. |
 
-Optional extras (not referenced by the README yet — add rows if you want them):
-`quiz.png` (a quiz / promotion test), `settings.png` (the themed Settings), `themes.png` (a theme montage).
-
-Once the four PNGs are in this folder, the README grid renders automatically — no markup changes needed.
+Once a PNG is in this folder with the right name, wiring it into the grid is a one-line change.

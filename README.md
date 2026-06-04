@@ -54,22 +54,22 @@ provider you choose.
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/dashboard.png" alt="Dashboard — generate a course for any topic" /><br/>
-      <sub><b>Dashboard</b> — spin up a 6-level course for any topic.</sub>
+      <img src="docs/assets/screenshots/course.png" alt="Course view — a generated 6-level curriculum with mastery tracking" /><br/>
+      <sub><b>Course view</b> — a generated 6-level curriculum with mastery tracking, chat, notes, quizzes &amp; a promotion test.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/course-chat.png" alt="Tutor chat with rendered math and diagrams" /><br/>
-      <sub><b>Tutor chat</b> — streamed lessons with rendered math &amp; diagrams.</sub>
+      <img src="docs/assets/screenshots/library.png" alt="Curated offline Library" /><br/>
+      <sub><b>Offline Library</b> — a curated 154-card K-12 reference set the tutor can cite, fully offline.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/notebook.png" alt="Notebook vault with wiki-links, tags, and graph" /><br/>
-      <sub><b>Notebook</b> — an Obsidian-style vault with <code>[[links]]</code>, <code>#tags</code> &amp; a graph.</sub>
+      <img src="docs/assets/screenshots/themes.png" alt="CRT theme picker" /><br/>
+      <sub><b>Themes</b> — a CRT "blue phosphor" look with recolors plus clean Dark/Light, all CSS-variable driven.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/library.png" alt="Curated offline Library" /><br/>
-      <sub><b>Library</b> — a curated, offline K-12 reference set the tutor can cite.</sub>
+      <img src="docs/assets/screenshots/settings.png" alt="Provider & model settings — bring your own key" /><br/>
+      <sub><b>Bring your own key</b> — local Ollama (free), or OpenAI / Anthropic; a separate model per job.</sub>
     </td>
   </tr>
 </table>
