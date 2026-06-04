@@ -1,6 +1,6 @@
 [package]
 name = "openedu"
-version = "0.1.4"
+version = "0.1.5"
 description = "OpenEdu — AI-powered personalized learning"
 authors = ["TerraByte"]
 edition = "2021"
