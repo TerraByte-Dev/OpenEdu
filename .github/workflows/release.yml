@@ -33,6 +33,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Pull the tagged version's section out of CHANGELOG.md so the GitHub Release notes AND the
+      # in-app updater prompt (latest.json `notes`) show real patch notes — not a generic blurb.
+      - name: Build release notes from CHANGELOG
+        id: notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          section="$(awk -v ver="## [$version]" '
+            /^## \[/ { if (found) exit; if (index($0, ver) == 1) { found = 1; next } }
+            found && /^\[[^]]+\]: http/ { exit }
+            found { print }
+          ' CHANGELOG.md | sed -e '/./,$!d')"
+          delim="CHANGELOG_EOF_${RANDOM}${RANDOM}"
+          {
+            echo "body<<${delim}"
+            if [ -n "$(printf '%s' "$section" | tr -d '[:space:]')" ]; then
+              printf '%s\n\n' "$section"
+            fi
+            echo "Download and run **OpenEdu_*_x64-setup.exe** (or the .msi) below to install."
+            echo "Already installed? OpenEdu updates itself automatically."
+            echo "${delim}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build, sign & publish release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -43,9 +66,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: OpenEdu ${{ github.ref_name }}
-          releaseBody: |
-            Download and run **OpenEdu_*_x64-setup.exe** (or the .msi) below to install.
-            Already installed? OpenEdu updates itself automatically.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
