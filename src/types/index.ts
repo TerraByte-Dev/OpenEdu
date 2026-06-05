@@ -253,6 +253,29 @@ export interface UserProgress {
   last_active_at: string | null;
 }
 
+// A spaced-repetition flashcard (migration v10). Scheduling fields are SM-2-lite (see src/lib/srs.ts):
+// `ease` (factor, floor 1.3), `interval_days`, `reps`, `lapses`, `due_at`. `source` records how the
+// card was minted — manual (student), tutor (flashcard.create tool), or quiz_miss (auto-mint).
+export type FlashcardSource = "manual" | "tutor" | "quiz_miss";
+
+export interface Flashcard {
+  id: string;
+  course_id: string;
+  subtopic_id: string | null;
+  level: number | null;
+  front: string;
+  back: string;
+  source: FlashcardSource;
+  ease: number;
+  interval_days: number;
+  reps: number;
+  lapses: number;
+  due_at: string;
+  last_reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type LLMProvider = "ollama" | "openai" | "anthropic";
 
 export type ModelTier = "tiny" | "small" | "medium" | "large";

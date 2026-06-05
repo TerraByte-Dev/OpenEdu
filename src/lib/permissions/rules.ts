@@ -28,6 +28,8 @@ export const DEFAULT_PERMISSION_RULES: PermissionRules = {
   "progress.read":          { default: "allow", study: "allow", exam: "allow" },
   "study_plan.*":           { default: "allow", study: "allow", exam: "allow" },
   "flashcard.review_due":   { default: "allow", study: "allow", exam: "allow" },
+  // minting a card is a write to the student's record — ask by default, free while studying, no help in an exam
+  "flashcard.create":       { default: "ask", study: "allow", exam: "deny" },
   // model help — denied during an exam
   "quiz.generate":          { default: "allow", study: "allow", exam: "deny" },
   "math.render":            { default: "allow", study: "allow", exam: "deny" },

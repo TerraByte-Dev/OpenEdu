@@ -10,8 +10,9 @@ import NotesTab from "../components/NotesTab";
 import QuizTab from "../components/QuizTab";
 import OverviewTab from "../components/OverviewTab";
 import ResourcesTab from "../components/ResourcesTab";
+import ReviewTab from "../components/ReviewTab";
 
-export type Tab = "overview" | "chat" | "notes" | "quiz" | "syllabus" | "resources";
+export type Tab = "overview" | "chat" | "notes" | "quiz" | "review" | "syllabus" | "resources";
 
 export interface SwitchTabOpts {
   seedTopic?: string;
@@ -133,6 +134,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
     { id: "chat", label: "Chat" },
     { id: "notes", label: "Notes" },
     { id: "quiz", label: "Quiz" },
+    { id: "review", label: "Review" },
     { id: "syllabus", label: "Syllabus" },
     ...(libReady ? [{ id: "resources" as Tab, label: "Resources" }] : []),
   ];
@@ -276,10 +278,14 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             seedTopic={chatSeedTopic}
             onSeedConsumed={() => setChatSeedTopic(undefined)}
             onOpenResource={openResource}
+            onOpenReview={() => switchTab("review")}
           />
         )}
         {activeTab === "notes" && (
           <NotesTab courseId={courseId} level={effectiveViewingLevel} />
+        )}
+        {activeTab === "review" && (
+          <ReviewTab courseId={courseId} level={effectiveViewingLevel} />
         )}
         {activeTab === "quiz" && (
           <QuizTab
