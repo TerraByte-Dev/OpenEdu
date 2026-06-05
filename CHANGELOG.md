@@ -8,6 +8,11 @@ Installed apps auto-update; the section for each release also shows up in the in
 
 ## [Unreleased]
 
+### Fixed
+- **Settings "Provider & Models" icon renders cleanly.** Seven of the icon's chip "spoke" path segments
+  were missing their SVG `moveto` (`M`) command, so the spokes silently failed and the dev console logged
+  a `<path> attribute d` error for each on every launch. Prefixed them; no more console noise.
+
 ## [0.2.0] - 2026-06-05
 
 _"Close the Learning Loop" — the pedagogy that turns a chat app into a tutor that makes learning stick:

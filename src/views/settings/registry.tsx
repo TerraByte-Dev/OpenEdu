@@ -19,7 +19,7 @@ export const SECTIONS: SectionDef[] = [
     id: "provider",
     label: "Provider & Models",
     keywords: "provider ollama openai anthropic cloud local model llm generation chat embedding api key connection url verify tier nomic",
-    icon: <Icon d="M9 3v2|15 3v2|9 19v2|15 19v2|3 9h2|3 15h2|19 9h2|19 15h2|M7 7h10v10H7z|M10 10h4v4h-4z" />,
+    icon: <Icon d="M9 3v2|M15 3v2|M9 19v2|M15 19v2|M3 9h2|M3 15h2|M19 9h2|M19 15h2|M7 7h10v10H7z|M10 10h4v4h-4z" />,
     Component: ProviderModels,
   },
   {
