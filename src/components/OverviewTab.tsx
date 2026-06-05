@@ -2,6 +2,7 @@ import type { Course, Syllabus, Subtopic } from "../types";
 import { getLevelMeaning } from "../lib/curriculum";
 import type { SwitchTabOpts, Tab } from "../views/CourseView";
 import NextStepCard from "./NextStepCard";
+import ProgressDashboard from "./ProgressDashboard";
 
 interface OverviewTabProps {
   courseId: string;
@@ -105,6 +106,11 @@ export default function OverviewTab({
             syllabus={currentSyllabus}
             onSubtopicChat={(title) => switchTab("chat", { seedTopic: title })}
           />
+        )}
+
+        {/* Progress dashboard (trends from existing data) */}
+        {currentSyllabus && (
+          <ProgressDashboard courseId={courseId} currentSyllabus={currentSyllabus} />
         )}
 
         {/* Next step card */}

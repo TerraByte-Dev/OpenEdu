@@ -1,6 +1,7 @@
 import { getSyllabus, getQuizAttempts, upsertUserProgress, getUserProgress, updateSyllabusSubtopics, saveTutorInstruction } from "./db";
 import { log } from "./llm";
 import { applySubtopicScore } from "./mastery";
+import { computeStreak } from "./analytics";
 import type { Syllabus, QuizQuestion } from "../types";
 
 // ─── Mastery Tracking ─────────────────────────────────────────────────────────
@@ -135,8 +136,11 @@ export async function updateUserProgress(courseId: string): Promise<void> {
     }
   }
 
-  await upsertUserProgress(courseId, { knowledge_gaps: gaps, total_quiz_score_avg: avg });
-  log.info("progress", `User progress updated: avg=${avg?.toFixed(1)} gaps=${gaps.length}`);
+  // Activity streak: consecutive days with any quiz attempt (formerly a never-written zombie column).
+  const streak = computeStreak(attempts.map((a) => a.started_at), new Date());
+
+  await upsertUserProgress(courseId, { knowledge_gaps: gaps, total_quiz_score_avg: avg, streak_days: streak });
+  log.info("progress", `User progress updated: avg=${avg?.toFixed(1)} gaps=${gaps.length} streak=${streak}`);
 }
 
 // ─── Progress Context ─────────────────────────────────────────────────────────
