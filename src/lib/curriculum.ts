@@ -1,8 +1,9 @@
 import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } from "./llm";
-import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState } from "./db";
+import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson } from "./db";
 import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
-import type { LLMConfig, ModelTier, Syllabus, Subtopic, CourseOutline, OutlineLevel, ConceptLedger, LevelLedgerEntry } from "../types";
+import { assembleLessonMarkdown, type LessonContent } from "./lesson-format";
+import type { LLMConfig, ModelTier, Syllabus, Subtopic, Lesson, CourseOutline, OutlineLevel, ConceptLedger, LevelLedgerEntry } from "../types";
 
 // ─── JSON Schemas for structured pipeline stages ──────────────────────────────
 // Kept inline so they live next to the prompts that reference them.
@@ -768,6 +769,80 @@ export async function generateSyllabus(
   log.info("generateSyllabus", `L${level} saved: ${subtopics.length} subtopics`);
 
   return { ...syllabus, id: "", generated_at: new Date().toISOString() } as Syllabus;
+}
+
+// ─── Lessons (slice A1) ───────────────────────────────────────────────────────
+// A short, readable lesson for ONE subtopic — the missing middle between the syllabus and chat.
+// Generated on demand and cached in the `lessons` table. Decomposed (summary + sections + takeaways)
+// and schema-enforced so it's reliable on the floor model; code-assembled into markdown that renders
+// via renderChatMarkdown. Plain-text math only (keeps the structured JSON clean — no LaTeX in strings).
+// LessonContent + assembleLessonMarkdown are the pure assembly half (lesson-format.ts).
+
+const LESSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["summary", "sections", "key_takeaways"],
+  properties: {
+    summary: { type: "string", minLength: 30, maxLength: 600 },
+    sections: {
+      type: "array",
+      minItems: 2,
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["heading", "body"],
+        properties: {
+          heading: { type: "string", minLength: 3, maxLength: 80 },
+          body: { type: "string", minLength: 60, maxLength: 1200 },
+        },
+      },
+    },
+    key_takeaways: { type: "array", minItems: 2, maxItems: 5, items: { type: "string", minLength: 8, maxLength: 200 } },
+  },
+};
+
+function buildLessonPrompt(topic: string, level: number, subtopic: { title: string; key_concepts: string[] }): string {
+  const concepts = subtopic.key_concepts.length ? subtopic.key_concepts.join(", ") : subtopic.title;
+  return `Write a short, clear lesson that teaches ONE subtopic of a course on "${topic}".
+
+## Subtopic
+- Title: ${subtopic.title}
+- Key concepts to cover: ${concepts}
+- Difficulty: ${getLevelMeaning(level)}
+
+## How to write it
+- summary: 2-3 sentences introducing what this subtopic is and why it matters.
+- sections: 2-4 short teaching sections, each a heading + 1-2 short paragraphs. Explain directly, build
+  from simpler to harder, and include at least one concrete worked example.
+- key_takeaways: 2-5 one-line points worth remembering.
+- Write for a motivated beginner: concrete, encouraging, no fluff. Do NOT include quiz questions.
+
+${MATH_FORMATTING_RULES}`;
+}
+
+// Generate + persist a lesson for a subtopic. On-demand; the caller caches by checking getLessons first.
+export async function generateLesson(
+  courseId: string,
+  level: number,
+  subtopic: { id: string; title: string; key_concepts: string[] },
+  topic: string,
+  config: LLMConfig,
+  onProgress?: (m: string) => void,
+): Promise<Lesson> {
+  const tier = config.modelTier ?? await detectModelTier(config);
+  config.modelTier = tier;
+
+  const result = await callLLMStructured<LessonContent>(
+    [{ role: "user", content: buildLessonPrompt(topic, level, subtopic) }],
+    config,
+    { schema: LESSON_SCHEMA, toolName: "emit_lesson", tier, onProgress: (m) => onProgress?.(m) },
+  );
+
+  const content = assembleLessonMarkdown(subtopic.title, result);
+  const lesson = await createLesson(courseId, level, subtopic.title, content, subtopic.id);
+  log.info("generateLesson", `L${level} "${subtopic.title}" → ${content.length} chars`);
+  return lesson;
 }
 
 function buildTopicListPrompt(

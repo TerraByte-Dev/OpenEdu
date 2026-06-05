@@ -179,6 +179,18 @@ function rankSuggestions(input: {
     });
   }
 
+  // Rule 4b — An untouched subtopic: read a clean lesson before practicing
+  const untouched = subtopics.find((s) => !s.practiced && !s.mastered);
+  if (untouched && out.length < 3) {
+    out.push({
+      key: `lesson-${untouched.id}`,
+      title: `Read a lesson on "${untouched.title}"`,
+      blurb: "A clean, readable walkthrough before you practice.",
+      action: () => switchTab("lessons", { lessonSubtopicId: untouched.id }),
+      actionLabel: "Open lesson",
+    });
+  }
+
   // Rule 5 — A previously-mastered subtopic flagged for review
   const reviewSub = subtopics.find((s) => s.review_needed);
   if (reviewSub) {
