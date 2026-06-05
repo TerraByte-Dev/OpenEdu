@@ -1,5 +1,6 @@
 import { getSyllabus, getQuizAttempts, upsertUserProgress, getUserProgress, updateSyllabusSubtopics, saveTutorInstruction } from "./db";
 import { log } from "./llm";
+import { applySubtopicScore } from "./mastery";
 import type { Syllabus, QuizQuestion } from "../types";
 
 // ─── Mastery Tracking ─────────────────────────────────────────────────────────
@@ -50,25 +51,14 @@ export async function updateSubtopicMastery(
     }
   }
 
-  // - Mark `practiced` if >= 1 tagged question was seen (sticky).
-  // - Mark `mastered` if >= 90% correct on its questions (Kulik et al. 1990).
+  // Per-subtopic transition (practiced / mastered / review_needed) lives in the pure mastery helper
+  // so it's unit-tested. `applySubtopicScore` returns the same reference when nothing changed.
   let changed = false;
   const updatedSubtopics = syllabus.subtopics.map((sub) => {
     const s = scores.get(sub.id);
     if (!s || s.total < 1) return sub;
-
-    let next = sub;
-    if (!next.practiced) {
-      next = { ...next, practiced: true };
-      changed = true;
-    }
-
-    const pct = s.correct / s.total;
-    if (pct >= 0.9 && !next.mastered) {
-      next = { ...next, mastered: true };
-      changed = true;
-    }
-
+    const next = applySubtopicScore(sub, s.correct, s.total);
+    if (next !== sub) changed = true;
     return next;
   });
 
