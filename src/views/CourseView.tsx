@@ -11,11 +11,14 @@ import QuizTab from "../components/QuizTab";
 import OverviewTab from "../components/OverviewTab";
 import ResourcesTab from "../components/ResourcesTab";
 import ReviewTab from "../components/ReviewTab";
+import LessonsTab from "../components/LessonsTab";
 
-export type Tab = "overview" | "chat" | "notes" | "quiz" | "review" | "syllabus" | "resources";
+export type Tab = "overview" | "chat" | "notes" | "lessons" | "quiz" | "review" | "syllabus" | "resources";
 
 export interface SwitchTabOpts {
   seedTopic?: string;
+  // Deep-link target for the Lessons tab — open (generating if needed) this subtopic's lesson.
+  lessonSubtopicId?: string;
 }
 
 interface CourseViewProps {
@@ -33,6 +36,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   const [regenerating, setRegenerating] = useState(false);
   const [regenStatus, setRegenStatus] = useState("");
   const [chatSeedTopic, setChatSeedTopic] = useState<string | undefined>(undefined);
+  const [pendingLessonSubtopic, setPendingLessonSubtopic] = useState<string | undefined>(undefined);
   // Resources tab (the curated Library). Shown only when the library is reachable + enabled, mirroring
   // the offline-first hiding everywhere else. `pendingResource` carries a deep-link from a chat chip.
   const [libReady, setLibReady] = useState(false);
@@ -41,6 +45,9 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   const switchTab = (tab: Tab, opts?: SwitchTabOpts) => {
     if (tab === "chat" && opts?.seedTopic) {
       setChatSeedTopic(opts.seedTopic);
+    }
+    if (tab === "lessons" && opts?.lessonSubtopicId) {
+      setPendingLessonSubtopic(opts.lessonSubtopicId);
     }
     setActiveTab(tab);
   };
@@ -133,6 +140,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
     { id: "overview", label: "Overview" },
     { id: "chat", label: "Chat" },
     { id: "notes", label: "Notes" },
+    { id: "lessons", label: "Lessons" },
     { id: "quiz", label: "Quiz" },
     { id: "review", label: "Review" },
     { id: "syllabus", label: "Syllabus" },
@@ -283,6 +291,16 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
         )}
         {activeTab === "notes" && (
           <NotesTab courseId={courseId} level={effectiveViewingLevel} />
+        )}
+        {activeTab === "lessons" && (
+          <LessonsTab
+            courseId={courseId}
+            level={effectiveViewingLevel}
+            topic={course.topic}
+            currentSyllabus={viewingSyllabus}
+            lessonSubtopicId={pendingLessonSubtopic}
+            onDeepLinkConsumed={() => setPendingLessonSubtopic(undefined)}
+          />
         )}
         {activeTab === "review" && (
           <ReviewTab courseId={courseId} level={effectiveViewingLevel} />
