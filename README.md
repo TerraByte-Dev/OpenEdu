@@ -115,16 +115,16 @@ CI runs typecheck + tests + build on every pull request (`.github/workflows/ci.y
 
 ## Architecture
 
-The data lives entirely in SQLite (`%APPDATA%/com.terrabyte.openedu/openedu.db` on Windows) — no per-course
-files. A few orientation points:
+The data lives entirely in SQLite (`%APPDATA%/com.terrabytesolutions.openedu/openedu.db` on Windows) — no
+per-course files. A few orientation points:
 
 - `src/lib/curriculum.ts` — the generation agent harness (`runGenerationPipeline`).
 - `src/lib/llm.ts` — provider abstraction, streaming, schema-enforced structured output, model-tier detection.
 - `src/lib/db.ts` — SQLite CRUD; `src-tauri/` — Rust backend + migrations.
 - `src/views/settings/` — the themed Settings system ([its README](src/views/settings/README.md)).
 
-Deeper notes: [`CLAUDE.md`](CLAUDE.md) (dev guide), [`V2_ARCHITECTURE.md`](V2_ARCHITECTURE.md), and
-[`docs/dev/`](docs/dev/) (development handoffs).
+Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (how it's built) and
+[`CONTRIBUTING.md`](CONTRIBUTING.md) (dev workflow).
 
 ## License
 

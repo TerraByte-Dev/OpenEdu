@@ -60,8 +60,8 @@ If you touched the agent harness or tutoring flow, also smoke-test a real genera
   up on ~4B local models. Keep new model calls structured + validated; don't regress that reliability.
 - **Don't modify a shipped `tauri-plugin-sql` migration** — add a new version instead.
 
-A deeper tour of the codebase lives in [`CLAUDE.md`](CLAUDE.md) and [`V2_ARCHITECTURE.md`](V2_ARCHITECTURE.md);
-development notes are under [`docs/dev/`](docs/dev/).
+A deeper tour of the codebase lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). [`CLAUDE.md`](CLAUDE.md)
+has notes for AI-assisted development.
 
 ## Reporting bugs
 

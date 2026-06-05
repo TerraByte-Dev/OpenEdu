@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/nicegui/static/tauri_conf_schema.json",
   "productName": "OpenEdu",
-  "version": "0.1.5",
-  "identifier": "com.terrabyte.openedu",
+  "version": "0.1.6",
+  "identifier": "com.terrabytesolutions.openedu",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",

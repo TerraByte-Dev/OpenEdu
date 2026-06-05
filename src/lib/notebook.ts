@@ -1,4 +1,4 @@
-// Notebook RAG layer (Phase 3, V2_ARCHITECTURE.md §6.3).
+// Notebook RAG layer (Phase 3, docs/ARCHITECTURE.md).
 //
 // Pure-ish lib functions that the notebook.* EduTools and the NotebookTab UI both call:
 //   - indexNote / importTextAsNote: chunk → embed → store a note's content (re-index on save)

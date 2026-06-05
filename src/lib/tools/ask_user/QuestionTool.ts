@@ -1,5 +1,5 @@
 // ask_user.question — the tutor asks the student a multiple-choice clarifying question and waits
-// for their pick before continuing the SAME turn (V2_ARCHITECTURE.md §3, mid-turn suspension).
+// for their pick before continuing the SAME turn (docs/ARCHITECTURE.md, mid-turn suspension).
 // The generator awaits ctx.askUser, a kernel-mediated Promise the UI resolves on click — the
 // tool never touches the UI directly.
 

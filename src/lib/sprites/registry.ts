@@ -1,4 +1,4 @@
-// Sprite-tutor persona registry (Phase 4b, V2_ARCHITECTURE.md §6.5).
+// Sprite-tutor persona registry (Phase 4b, docs/ARCHITECTURE.md).
 //
 // The WHO axis: a curated set of robot-themed pixel headshots, picked per course. A persona is a
 // THIN layer — it overrides only the system prompt's identity slot (name + tone); pedagogy lives on

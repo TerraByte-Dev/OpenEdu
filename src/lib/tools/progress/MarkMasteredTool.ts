@@ -1,5 +1,5 @@
 // progress.mark_mastered — the tutor marks a subtopic in the current level as mastered or
-// practiced based on what the student demonstrated in conversation (V2_ARCHITECTURE.md §3).
+// practiced based on what the student demonstrated in conversation (docs/ARCHITECTURE.md).
 // Wraps the direct mark-by-id path in progress.ts, then recomputes gaps and refreshes the
 // tutor's progress context. Subtopic-level only — never promotes course.current_level.
 

@@ -1,4 +1,4 @@
-// Permission rules (V2_ARCHITECTURE.md §7). A per-mode allow/ask/deny policy for what the tutor may
+// Permission rules (docs/ARCHITECTURE.md). A per-mode allow/ask/deny policy for what the tutor may
 // do on its own. The kernel reads this when selecting + dispatching tools: "deny" tools are never
 // offered to the model, "ask" tools require a user confirm, "allow" tools just run.
 
