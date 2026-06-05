@@ -1,5 +1,6 @@
 import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log, sanitizeJsonEscapes } from "./llm";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
+import { splitNewVsReview, storedToGenQuestion, pickReview, interleaveReview } from "./quiz-review";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -307,16 +308,23 @@ async function runBatches(ctxs: BatchContext[], config: LLMConfig): Promise<Gene
   return settled.flat();
 }
 
+// `reviewPool` (optional) holds previously-missed questions for this course; ~20% of the quiz is
+// re-posed from it (retrieval practice / spaced review), the rest freshly generated. An empty pool
+// degrades to all-fresh — identical to the pre-A2 behavior, so legacy callers are unaffected.
 export async function generateQuizQuestions(
   syllabus: Syllabus,
   numQuestions: number,
   config: LLMConfig,
+  reviewPool: QuizQuestion[] = [],
 ): Promise<GenQuestion[]> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
+  const { fresh, review } = splitNewVsReview(numQuestions, reviewPool.length);
+  const reviewQs = pickReview(reviewPool.map(storedToGenQuestion), review);
+
   const subs = subtopicsForGen(syllabus);
-  const counts = splitCount(numQuestions, subs.length);
+  const counts = splitCount(fresh, subs.length);
   const ctxs: BatchContext[] = subs
     .map((s, i): BatchContext => ({
       topic: syllabus.title,
@@ -331,11 +339,11 @@ export async function generateQuizQuestions(
     }))
     .filter((c) => c.count > 0);
 
-  const questions = (await runBatches(ctxs, config)).map(finalizeQuestion);
-  if (questions.length === 0) {
+  const freshQs = (await runBatches(ctxs, config)).map(finalizeQuestion);
+  if (freshQs.length === 0 && reviewQs.length === 0) {
     throw new Error("Could not generate quiz questions — the model returned no valid questions. Try again, or switch to a more capable model.");
   }
-  return questions;
+  return interleaveReview(freshQs, reviewQs);
 }
 
 // Promotion test: two sections (current level + review of previous levels)

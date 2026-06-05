@@ -8,6 +8,14 @@ Installed apps auto-update; the section for each release also shows up in the in
 
 ## [Unreleased]
 
+### Added
+- **Retrieval practice in quizzes.** Study quizzes now interleave ~20% previously-missed questions
+  (spaced review) with fresh ones, and offer an optional "in your own words, why is that the answer?"
+  self-explanation prompt after each answer — two of the best-evidenced study techniques (the testing
+  effect, Roediger & Karpicke 2006; the self-explanation effect, Chi 1989). A previously-mastered
+  subtopic that slips is flagged for review and clears once you're solid again. A brand-new course with
+  no history behaves exactly as before.
+
 ## [0.1.6] - 2026-06-04
 
 ### Changed
