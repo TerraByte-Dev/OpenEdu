@@ -138,16 +138,23 @@ export async function importTextAsNote(args: {
   text: string;
   sourceType?: NotebookSourceType;
   folderId?: string | null;
-}): Promise<{ note: Note; chunkCount: number }> {
+}): Promise<{ note: Note; chunkCount: number; embedded: boolean; indexError?: string }> {
+  // Always create the visible note first. Indexing (embedding) is best-effort: if the embedder is
+  // offline or one file fails, the note is still saved and shows in the vault — embed-on-save retries
+  // later. This is what keeps a batch import from dropping the rest of the files on one bad embed.
   const note = await createNote(args.courseId, args.title, args.text, 0, args.folderId ?? null);
-  const res = await indexNote({
-    courseId: args.courseId,
-    noteId: note.id,
-    title: args.title,
-    text: args.text,
-    sourceType: args.sourceType ?? "note",
-  });
-  return { note, chunkCount: res.chunkCount };
+  try {
+    const res = await indexNote({
+      courseId: args.courseId,
+      noteId: note.id,
+      title: args.title,
+      text: args.text,
+      sourceType: args.sourceType ?? "note",
+    });
+    return { note, chunkCount: res.chunkCount, embedded: true };
+  } catch (e) {
+    return { note, chunkCount: 0, embedded: false, indexError: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 // ── Retrieval ────────────────────────────────────────────────────────────────

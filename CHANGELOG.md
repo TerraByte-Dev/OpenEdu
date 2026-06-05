@@ -8,6 +8,12 @@ Installed apps auto-update; the section for each release also shows up in the in
 
 ## [Unreleased]
 
+### Fixed
+- **Notebook import no longer drops files when the embedder is offline.** Importing several notes
+  while Ollama (the embedder) isn't running used to fail on the first file and silently drop the rest.
+  Now every note is created regardless, and you get an honest message — "imported N, M couldn't be
+  embedded for search; they'll re-index next time you open and save them" — instead of a raw error.
+
 ### Added
 - **Course-completion capstone.** Passing the Level 6 mastery exam now opens a proper finish screen —
   your final score, subtopics mastered across all six levels, and the synthesis skills you've earned —

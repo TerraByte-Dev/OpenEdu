@@ -11,6 +11,7 @@ import {
   getFolders, createFolder, renameFolder, deleteFolder, moveNoteToFolder,
 } from "../lib/db";
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
+import { ingestResultSummary } from "../lib/ingest-format";
 import {
   extractTags, findWikiLinks, resolveWikiLink, linkKey,
   buildVaultGraph, buildTagIndex,
@@ -262,20 +263,27 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     if (accepted.length === 0) { setIngestError("Only .md, .markdown, and .txt files are supported."); return; }
     setIngesting(true);
     setIngestError(null);
-    try {
-      const target = folderId ?? (await ensureImportedFolder());
-      for (const f of accepted) {
+    // Per-file resilience: one bad/offline embed must not drop the rest of the batch. The note is
+    // always created (embedding is best-effort); we tally and report honestly.
+    const target = folderId ?? (await ensureImportedFolder());
+    let imported = 0;
+    let pending = 0; // created but not embedded (embedder offline) — embed-on-save will retry
+    let failed = 0;  // couldn't even create the note
+    for (const f of accepted) {
+      try {
         const text = await f.text();
         const sourceType = /\.(md|markdown)$/i.test(f.name) ? "md" : "text";
-        await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target });
+        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target });
+        imported++;
+        if (!res.embedded) pending++;
+      } catch {
+        failed++;
       }
-      if (target) setExpanded((s) => new Set(s).add(target));
-      await loadAll();
-    } catch (e) {
-      setIngestError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIngesting(false);
     }
+    if (target) setExpanded((s) => new Set(s).add(target));
+    await loadAll();
+    setIngesting(false);
+    setIngestError(ingestResultSummary({ imported, pending, failed }).message);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
