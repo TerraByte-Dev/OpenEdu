@@ -9,6 +9,10 @@ Installed apps auto-update; the section for each release also shows up in the in
 ## [Unreleased]
 
 ### Added
+- **Progress dashboard.** The course Overview now shows trends built from your own history — a study
+  **streak**, quizzes taken, average score, time on task, a recent-scores sparkbar, and a per-subtopic
+  accuracy heatmap for the current level. No new model calls; it visualizes data that was already being
+  recorded (and lights up the streak counter that previously did nothing).
 - **Lessons.** A new **Lessons** tab gives each subtopic a clean, readable walkthrough — the missing
   middle between the syllabus and chat. Lessons are written on demand (schema-enforced, small-model
   reliable), cached, and track read/unread; the Next-step card links you straight to one for an
