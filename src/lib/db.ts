@@ -585,7 +585,7 @@ export async function getUserProgress(courseId: string): Promise<UserProgress | 
 
 export async function upsertUserProgress(
   courseId: string,
-  data: { knowledge_gaps: string[]; total_quiz_score_avg: number | null },
+  data: { knowledge_gaps: string[]; total_quiz_score_avg: number | null; streak_days?: number },
 ): Promise<void> {
   const d = await getDb();
   const existing: Array<{ id: string }> = await d.select(
@@ -593,18 +593,35 @@ export async function upsertUserProgress(
     [courseId]
   );
   const gapsJson = JSON.stringify(data.knowledge_gaps);
+  const streak = data.streak_days ?? 0;
   if (existing.length > 0) {
     await d.execute(
-      `UPDATE user_progress SET knowledge_gaps = $1, total_quiz_score_avg = $2, last_active_at = datetime('now') WHERE course_id = $3`,
-      [gapsJson, data.total_quiz_score_avg, courseId]
+      `UPDATE user_progress SET knowledge_gaps = $1, total_quiz_score_avg = $2, streak_days = $3, last_active_at = datetime('now') WHERE course_id = $4`,
+      [gapsJson, data.total_quiz_score_avg, streak, courseId]
     );
   } else {
     const id = uuid();
     await d.execute(
-      `INSERT INTO user_progress (id, course_id, knowledge_gaps, total_quiz_score_avg, last_active_at) VALUES ($1, $2, $3, $4, datetime('now'))`,
-      [id, courseId, gapsJson, data.total_quiz_score_avg]
+      `INSERT INTO user_progress (id, course_id, knowledge_gaps, total_quiz_score_avg, streak_days, last_active_at) VALUES ($1, $2, $3, $4, $5, datetime('now'))`,
+      [id, courseId, gapsJson, data.total_quiz_score_avg, streak]
     );
   }
+}
+
+// Per-subtopic accuracy across all of a course's answered quiz questions (read-only aggregate; the
+// progress dashboard's heatmap). Returns one row per tagged subtopic with correct/total counts.
+export async function getSubtopicAccuracy(courseId: string): Promise<Array<{ subtopic_id: string; correct: number; total: number }>> {
+  const d = await getDb();
+  const rows: Array<{ subtopic_id: string; correct: number; total: number }> = await d.select(
+    `SELECT qq.subtopic_id as subtopic_id,
+            SUM(CASE WHEN qq.is_correct = 1 THEN 1 ELSE 0 END) as correct,
+            COUNT(*) as total
+       FROM quiz_questions qq JOIN quiz_attempts qa ON qq.attempt_id = qa.id
+      WHERE qa.course_id = $1 AND qq.subtopic_id IS NOT NULL AND qq.is_correct IS NOT NULL
+      GROUP BY qq.subtopic_id`,
+    [courseId]
+  );
+  return rows.map((r) => ({ subtopic_id: r.subtopic_id, correct: Number(r.correct), total: Number(r.total) }));
 }
 
 export async function updateSyllabusSubtopics(courseId: string, level: number, subtopicsJson: string): Promise<void> {
