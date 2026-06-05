@@ -9,6 +9,10 @@ Installed apps auto-update; the section for each release also shows up in the in
 ## [Unreleased]
 
 ### Added
+- **Spaced repetition & flashcards.** A new **Review** tab runs a due-card queue with an SM-2-lite
+  scheduler (Again / Hard / Good / Easy) — the most evidence-backed retention technique, running fully
+  offline on your machine. The tutor can mint cards in Review mode ("make a card for this"), you can add
+  your own, and missed promotion-test questions auto-become cards so the queue fills itself.
 - **Retrieval practice in quizzes.** Study quizzes now interleave ~20% previously-missed questions
   (spaced review) with fresh ones, and offer an optional "in your own words, why is that the answer?"
   self-explanation prompt after each answer — two of the best-evidenced study techniques (the testing

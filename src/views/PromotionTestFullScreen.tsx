@@ -9,6 +9,7 @@ import { getGenerationConfig } from "../lib/store";
 import { getLevelMeaning } from "../lib/curriculum";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
+import { mintCardsFromMisses } from "../lib/flashcards";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
 
 function getTimeLimitSeconds(level: number): number {
@@ -194,6 +195,19 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     const missedTopics = answered
       .filter((q) => !q.is_correct && q.subtopic_id)
       .map((q) => q.subtopic_id!);
+
+    // Auto-mint spaced-repetition cards from the misses (deduped, capped) so the Review queue fills
+    // itself after a test. Best-effort — never blocks the pass/fail flow.
+    await mintCardsFromMisses(
+      courseId,
+      answered.filter((q) => !q.is_correct).map((q) => ({
+        question_text: q.question_text,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation,
+        subtopic_id: q.subtopic_id,
+      })),
+      currentLevel,
+    ).catch(console.error);
 
     if (didPass) {
       const levels = [1, 2, 3, 4, 5, 6];
