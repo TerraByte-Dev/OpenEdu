@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, NotebookDocument, NotebookFolder } from "../types";
+import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder } from "../types";
 
 let db: Database | null = null;
 
@@ -73,6 +73,8 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM notebook_folders WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM tutor_instructions WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM syllabuses WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM lessons WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM flashcards WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM user_progress WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM courses WHERE id = $1", [id]);
 }
@@ -668,10 +670,80 @@ export async function markLessonRead(id: string): Promise<void> {
   );
 }
 
-export async function saveSelfExplanation(questionId: string, text: string): Promise<void> {
+// Flashcards (SRS, migration v10). Scheduling fields are written by src/lib/srs.ts via
+// updateFlashcardAfterReview; new cards start due-now (the migration default) so they enter the
+// first review session.
+export async function createFlashcard(input: {
+  courseId: string;
+  front: string;
+  back: string;
+  subtopicId?: string | null;
+  level?: number | null;
+  source?: Flashcard["source"];
+}): Promise<Flashcard> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute(
+    `INSERT INTO flashcards (id, course_id, subtopic_id, level, front, back, source)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, input.courseId, input.subtopicId ?? null, input.level ?? null, input.front, input.back, input.source ?? "manual"]
+  );
+  return (await getFlashcard(id))!;
+}
+
+export async function getFlashcard(id: string): Promise<Flashcard | null> {
+  const d = await getDb();
+  const rows: Flashcard[] = await d.select("SELECT * FROM flashcards WHERE id = $1", [id]);
+  return rows[0] ?? null;
+}
+
+export async function getFlashcards(courseId: string): Promise<Flashcard[]> {
+  const d = await getDb();
+  return await d.select("SELECT * FROM flashcards WHERE course_id = $1 ORDER BY created_at DESC", [courseId]);
+}
+
+// Cards due for review at `nowIso` (ISO timestamp), soonest-due first.
+export async function getDueFlashcards(courseId: string, nowIso: string, limit = 50): Promise<Flashcard[]> {
+  const d = await getDb();
+  return await d.select(
+    "SELECT * FROM flashcards WHERE course_id = $1 AND due_at <= $2 ORDER BY due_at ASC LIMIT $3",
+    [courseId, nowIso, limit]
+  );
+}
+
+export async function countDueFlashcards(courseId: string, nowIso: string): Promise<number> {
+  const d = await getDb();
+  const rows: Array<{ n: number }> = await d.select(
+    "SELECT COUNT(*) as n FROM flashcards WHERE course_id = $1 AND due_at <= $2",
+    [courseId, nowIso]
+  );
+  return Number(rows[0]?.n ?? 0);
+}
+
+// Persist a post-review SM-2-lite schedule onto a card (also stamps last_reviewed_at + updated_at).
+export async function updateFlashcardAfterReview(
+  id: string,
+  s: { ease: number; interval_days: number; reps: number; lapses: number; due_at: string },
+): Promise<void> {
   const d = await getDb();
   await d.execute(
-    "UPDATE quiz_questions SET self_explanation = $1 WHERE id = $2",
-    [text, questionId]
+    `UPDATE flashcards SET ease = $1, interval_days = $2, reps = $3, lapses = $4, due_at = $5,
+       last_reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = $6`,
+    [s.ease, s.interval_days, s.reps, s.lapses, s.due_at, id]
   );
+}
+
+export async function deleteFlashcard(id: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("DELETE FROM flashcards WHERE id = $1", [id]);
+}
+
+// Has a card with this exact front already been minted for the course? (dedup for auto-mint)
+export async function flashcardExists(courseId: string, front: string): Promise<boolean> {
+  const d = await getDb();
+  const rows: Array<{ id: string }> = await d.select(
+    "SELECT id FROM flashcards WHERE course_id = $1 AND front = $2 LIMIT 1",
+    [courseId, front]
+  );
+  return rows.length > 0;
 }

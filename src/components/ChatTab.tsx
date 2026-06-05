@@ -26,9 +26,11 @@ interface ChatTabProps {
   onSeedConsumed?: () => void;
   // Deep-link a library citation chip → open that card in the Resources tab (handled by CourseView).
   onOpenResource?: (id: string) => void;
+  // Deep-link a flashcard.review_due chip → open the Review tab (handled by CourseView).
+  onOpenReview?: () => void;
 }
 
-export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource }: ChatTabProps) {
+export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -306,7 +308,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             </div>
           </div>
         )}
-        {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} />}
+        {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
         )}
@@ -410,20 +412,20 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 // Inline tool activity — progress chips that become result / error cards. Identity is the
 // tool_call id, so a chip transitions in place. Session-only (not persisted in Phase 1).
-function ToolActivity({ events, onOpenResource }: { events: ToolUIEvent[]; onOpenResource?: (id: string) => void }) {
+function ToolActivity({ events, onOpenResource, onOpenReview }: { events: ToolUIEvent[]; onOpenResource?: (id: string) => void; onOpenReview?: () => void }) {
   return (
     <div className="flex gap-3">
       <span className="w-8 h-8 shrink-0" />
       <div className="flex-1 flex flex-col items-start gap-1.5">
         {events.map((ev) => (
-          <ToolChip key={ev.id} ev={ev} onOpenResource={onOpenResource} />
+          <ToolChip key={ev.id} ev={ev} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />
         ))}
       </div>
     </div>
   );
 }
 
-function ToolChip({ ev, onOpenResource }: { ev: ToolUIEvent; onOpenResource?: (id: string) => void }) {
+function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpenResource?: (id: string) => void; onOpenReview?: () => void }) {
   const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-mono border w-fit max-w-full";
   if (ev.kind === "error") {
     return <div className={`${base} bg-red-500/10 border-red-500/30 text-red-300`}>⚠ {ev.name}: {ev.error}</div>;
@@ -500,6 +502,26 @@ function ToolChip({ ev, onOpenResource }: { ev: ToolUIEvent; onOpenResource?: (i
             <span title="From the OpenEdu Library" className={cls}>{lbl}</span>
           )}
         </div>
+      );
+    }
+    // flashcard.create → a "🃏 Card minted" confirmation chip.
+    if (ev.name === "flashcard.create") {
+      const v = ev.value as { front?: string } | undefined;
+      return (
+        <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
+          🃏 Card minted{v?.front ? `: ${v.front.length > 48 ? v.front.slice(0, 48) + "…" : v.front}` : ""}
+        </div>
+      );
+    }
+    // flashcard.review_due → "N due → Review", clickable to deep-link into the Review tab.
+    if (ev.name === "flashcard.review_due") {
+      const n = (ev.value as { count?: number } | undefined)?.count ?? 0;
+      const label = `🃏 ${n} card${n === 1 ? "" : "s"} due`;
+      const cls = `${base} bg-lcd border-phosphor/20 text-phosphor-ink ${onOpenReview ? "cursor-pointer hover:border-phosphor/50 hover:text-phosphor-bright transition-colors" : ""}`;
+      return onOpenReview ? (
+        <button type="button" onClick={onOpenReview} title="Open the Review tab" className={cls}>{label} → Review</button>
+      ) : (
+        <span className={cls}>{label}</span>
       );
     }
     // notebook.ingest → "📓 Saved 'title' (N chunks)".

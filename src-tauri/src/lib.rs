@@ -212,6 +212,32 @@ pub fn run() {
             sql: "ALTER TABLE courses ADD COLUMN sprite_id TEXT;",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 10,
+            description: "flashcards (SRS) — SM-2-lite scheduling fields (v0.2.0; append-only, never edit v1-v9)",
+            sql: "
+                CREATE TABLE IF NOT EXISTS flashcards (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL REFERENCES courses(id),
+                    subtopic_id TEXT,
+                    level INTEGER,
+                    front TEXT NOT NULL,
+                    back TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'manual',
+                    ease REAL NOT NULL DEFAULT 2.5,
+                    interval_days REAL NOT NULL DEFAULT 0,
+                    reps INTEGER NOT NULL DEFAULT 0,
+                    lapses INTEGER NOT NULL DEFAULT 0,
+                    due_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    last_reviewed_at TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_flashcards_course_due ON flashcards(course_id, due_at);
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
