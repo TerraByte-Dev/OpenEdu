@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
-import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus } from "../lib/db";
+import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, getReviewPoolQuestions, updateQuizQuestionSelfExplanation } from "../lib/db";
 import { generateQuizQuestions } from "../lib/quiz";
 import { getLLMConfig } from "../lib/store";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
@@ -17,6 +17,8 @@ type State = "generating" | "in_progress" | "results";
 interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   user_answer: string | null;
   is_correct: boolean | null;
+  // DB row id once the answer is saved — lets a later self-explanation update the same row.
+  saved_id?: string;
 }
 
 export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps) {
@@ -40,7 +42,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     try {
       const cfg = await getLLMConfig();
       setConfig(cfg);
-      const generated = await generateQuizQuestions(syllabus, 20, cfg);
+      // Pull the spaced "review pool" (prior misses) so ~20% of the quiz is retrieval practice.
+      const reviewPool = await getReviewPoolQuestions(courseId, 6);
+      const generated = await generateQuizQuestions(syllabus, 20, cfg, reviewPool);
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
       setQuestions(generated.map((q) => ({ ...q, user_answer: null, is_correct: null })));
@@ -55,13 +59,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   // Save the answer for the current question — no auto-advance
   const handleAnswer = async (answer: string, isCorrect: boolean) => {
     const question = questions[currentIndex];
-    const updatedQuestions = questions.map((q, i) =>
-      i === currentIndex ? { ...q, user_answer: answer, is_correct: isCorrect } : q
-    );
-    setQuestions(updatedQuestions);
-
+    let savedId: string | undefined;
     if (attemptId) {
-      await saveQuizQuestion({
+      savedId = await saveQuizQuestion({
         attempt_id: attemptId,
         question_text: question.question_text,
         question_type: question.question_type,
@@ -74,7 +74,20 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         subtopic_id: question.subtopic_id,
         matching_pairs: question.matching_pairs,
         blank_position: question.blank_position,
+        self_explanation: question.self_explanation ?? null,
       });
+    }
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === currentIndex ? { ...q, user_answer: answer, is_correct: isCorrect, saved_id: savedId } : q))
+    );
+  };
+
+  // Persist a self-explanation typed after the answer was graded (writes to the same quiz_questions row).
+  const handleSelfExplain = async (text: string) => {
+    const q = questions[currentIndex];
+    setQuestions((prev) => prev.map((qq, i) => (i === currentIndex ? { ...qq, self_explanation: text } : qq)));
+    if (q?.saved_id && text) {
+      await updateQuizQuestionSelfExplanation(q.saved_id, text).catch(console.error);
     }
   };
 
@@ -226,6 +239,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               onAnswer={handleAnswer}
               disabled={answeredCurrent}
               config={config}
+              onSelfExplain={handleSelfExplain}
             />
           )}
 
