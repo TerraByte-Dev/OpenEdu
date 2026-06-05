@@ -1,4 +1,4 @@
-// Layered system-prompt assembly (V2_ARCHITECTURE.md §5).
+// Layered system-prompt assembly (docs/ARCHITECTURE.md).
 //
 // Phase 0: a single layer that delegates to the v1 builder VERBATIM — guarantees byte-identical
 // output while establishing the seam. V2 §5 later splits this into ordered pure layers

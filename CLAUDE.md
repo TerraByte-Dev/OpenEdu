@@ -7,7 +7,7 @@ The repo is on GitHub under `TerraByte-Dev`.
 **Dev:** `npm run tauri dev` from project root.
 **Test:** `npm test` (vitest) — fast unit tests over the pure logic modules (no DOM/Tauri). DOM-coupled UI is verified live in the dev app.
 
-For current work-in-progress, see `docs/dev/HANDOFF.md`. (Internal dev notes/handoffs live under `docs/dev/`.)
+Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contributor workflow: [`CONTRIBUTING.md`](CONTRIBUTING.md). (Local-only scratch notes live under `.dev/`, gitignored — not part of the repo.)
 
 ---
 
@@ -30,7 +30,7 @@ For current work-in-progress, see `docs/dev/HANDOFF.md`. (Internal dev notes/han
 
 The pure modules above (`store-keys`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
-DB lives at `%APPDATA%/com.terrabyte.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
+DB lives at `%APPDATA%/com.terrabytesolutions.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 
 ---
 
@@ -81,8 +81,6 @@ Verified working on `gemma4:e4b` (local Ollama, ~4B effective). The lessons that
 - **Don't `deleteCourse` on pipeline error.** State is persisted; the user can resume. Only delete on explicit user action.
 
 - **Don't reintroduce 0.5-increment levels.** Integers 1–6 only.
-
-- **Don't run builds while the user is away.** No `npm run tauri dev` / `cargo build` runs when the user is stepping out — wait for them to be at the keyboard.
 
 ---
 

@@ -1,4 +1,4 @@
-// Skill registry — the kernel/UI's single lookup point for loaded skills (V2_ARCHITECTURE.md §6.1).
+// Skill registry — the kernel/UI's single lookup point for loaded skills (docs/ARCHITECTURE.md).
 // Mirrors src/lib/tools/registry.ts. Built-in skills ship as `src/skills/*.md` and are bundled by
 // Vite as raw strings; user-sideloaded skills (%APPDATA%/.../skills/) are deferred to a later phase.
 

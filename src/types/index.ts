@@ -118,7 +118,7 @@ export interface NotebookFolder {
 // ── Notebook RAG (Phase 3) ──────────────────────────────────────────────────
 // Ingested student material (notes / dropped .md/.txt) chunked + embedded for retrieval.
 // Vectors are stored brute-force as JSON-array TEXT in notebook_embeddings.vec — see
-// V2_ARCHITECTURE.md §6.3 and the Phase 3 plan (sqlite-vec deferred; schema is vec0-compatible).
+// docs/ARCHITECTURE.md and the Phase 3 plan (sqlite-vec deferred; schema is vec0-compatible).
 export type NotebookSourceType = "text" | "md" | "note" | "pdf" | "url";
 
 export interface NotebookDocument {

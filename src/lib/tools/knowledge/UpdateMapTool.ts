@@ -1,5 +1,5 @@
 // knowledge.update_map — the tutor records a concise observation about the student's
-// understanding into their knowledge map (V2_ARCHITECTURE.md §3). The model supplies the
+// understanding into their knowledge map (docs/ARCHITECTURE.md). The model supplies the
 // already-distilled note, so this is a direct write (no second reflection call). The holistic
 // post-turn reflection (updateKnowledgeFiles) still covers the other knowledge files; the kernel
 // reports usedKnowledgeUpdate so the caller skips that reflection when this tool ran.
