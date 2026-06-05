@@ -8,11 +8,11 @@ Installed apps auto-update; the section for each release also shows up in the in
 
 ## [Unreleased]
 
-### Fixed
-- **Notebook import no longer drops files when the embedder is offline.** Importing several notes
-  while Ollama (the embedder) isn't running used to fail on the first file and silently drop the rest.
-  Now every note is created regardless, and you get an honest message — "imported N, M couldn't be
-  embedded for search; they'll re-index next time you open and save them" — instead of a raw error.
+## [0.2.0] - 2026-06-05
+
+_"Close the Learning Loop" — the pedagogy that turns a chat app into a tutor that makes learning stick:
+spaced repetition, retrieval practice, readable lessons, a progress dashboard, and a course-completion
+capstone, plus a notebook-import robustness fix._
 
 ### Added
 - **Course-completion capstone.** Passing the Level 6 mastery exam now opens a proper finish screen —
@@ -36,6 +36,12 @@ Installed apps auto-update; the section for each release also shows up in the in
   effect, Roediger & Karpicke 2006; the self-explanation effect, Chi 1989). A previously-mastered
   subtopic that slips is flagged for review and clears once you're solid again. A brand-new course with
   no history behaves exactly as before.
+
+### Fixed
+- **Notebook import no longer drops files when the embedder is offline.** Importing several notes
+  while Ollama (the embedder) isn't running used to fail on the first file and silently drop the rest.
+  Now every note is created regardless, and you get an honest message — "imported N, M couldn't be
+  embedded for search; they'll re-index next time you open and save them" — instead of a raw error.
 
 ## [0.1.6] - 2026-06-04
 
