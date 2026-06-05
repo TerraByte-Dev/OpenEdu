@@ -9,6 +9,9 @@ Installed apps auto-update; the section for each release also shows up in the in
 ## [Unreleased]
 
 ### Added
+- **Course-completion capstone.** Passing the Level 6 mastery exam now opens a proper finish screen —
+  your final score, subtopics mastered across all six levels, and the synthesis skills you've earned —
+  with an option to archive the course. Completed courses show a **COMPLETE ✓** badge.
 - **Progress dashboard.** The course Overview now shows trends built from your own history — a study
   **streak**, quizzes taken, average score, time on task, a recent-scores sparkbar, and a per-subtopic
   accuracy heatmap for the current level. No new model calls; it visualizes data that was already being

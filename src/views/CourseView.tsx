@@ -135,6 +135,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   };
 
   const isCurrentLevel = effectiveViewingLevel === course.current_level;
+  const isComplete = course.status === "completed" || course.status === "archived";
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
@@ -163,7 +164,11 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
         <div className="min-w-0 flex-1">
           <h1 className="text-sm font-semibold text-ink truncate leading-tight">{course.title}</h1>
           <p className="text-[11px] text-[var(--ink-faint)] leading-tight">
-            Active: Level {course.current_level} — {getLevelMeaning(course.current_level)}
+            {isComplete ? (
+              <span className="text-green-400 font-semibold">COMPLETE ✓ — full curriculum mastered</span>
+            ) : (
+              <>Active: Level {course.current_level} — {getLevelMeaning(course.current_level)}</>
+            )}
           </p>
         </div>
 
@@ -203,16 +208,18 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
                 onOpenPromotionTest({ courseId, course, level: effectiveViewingLevel, syllabus: viewingSyllabus, allSyllabuses: syllabuses });
               }
             }}
-            disabled={!isCurrentLevel || !viewingSyllabus}
+            disabled={!isCurrentLevel || !viewingSyllabus || isComplete}
             title={
-              !isCurrentLevel
+              isComplete
+                ? "Course complete — the full curriculum is mastered"
+                : !isCurrentLevel
                 ? "Navigate to your active level to take the promotion test"
                 : !viewingSyllabus
                 ? "Syllabus not generated yet"
                 : "Take the promotion test for this level"
             }
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              isCurrentLevel && viewingSyllabus
+              isCurrentLevel && viewingSyllabus && !isComplete
                 ? "btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white"
                 : "bg-panel-lite text-[var(--ink-faint)] cursor-not-allowed"
             }`}
