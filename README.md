@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  <strong>An AI tutor that runs on your machine.</strong><br/>
+  <strong>An AI tutor designed for models as small as ~e4B.</strong><br/>
   Bring-your-own-key, offline-first personalized learning — local on Ollama, with OpenAI / Anthropic as alternates.
 </p>
 
