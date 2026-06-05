@@ -438,12 +438,13 @@ export async function createQuizAttempt(
   return rows[0];
 }
 
-export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<void> {
+// Returns the generated row id so the caller can attach a self-explanation typed after answering.
+export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<string> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position, self_explanation)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
     [
       id, q.attempt_id, q.question_text, q.question_type,
       q.options ? JSON.stringify(q.options) : null,
@@ -453,8 +454,53 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<voi
       q.subtopic_id ?? null,
       q.matching_pairs ? JSON.stringify(q.matching_pairs) : null,
       q.blank_position ?? null,
+      q.self_explanation ?? null,
     ]
   );
+  return id;
+}
+
+// Self-explanation effect (Chi 1989): the student's own "why is that the answer" written after a
+// quiz question is graded. Captured separately because the row is saved on answer, before they type.
+export async function updateQuizQuestionSelfExplanation(id: string, text: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE quiz_questions SET self_explanation = $1 WHERE id = $2",
+    [text, id]
+  );
+}
+
+// The spaced "review pool": previously-missed questions for a course (most-recent first, deduped by
+// question text). Re-posed alongside fresh questions in study quizzes for retrieval practice.
+export async function getReviewPoolQuestions(courseId: string, limit: number): Promise<QuizQuestion[]> {
+  if (limit <= 0) return [];
+  const d = await getDb();
+  const rows: Array<Record<string, unknown>> = await d.select(
+    `SELECT qq.* FROM quiz_questions qq
+       JOIN quiz_attempts qa ON qq.attempt_id = qa.id
+      WHERE qa.course_id = $1 AND qq.is_correct = 0
+      ORDER BY qa.started_at DESC
+      LIMIT $2`,
+    [courseId, limit * 4] // overfetch so dedup can still reach `limit`
+  );
+  const mapped = rows.map((row) => ({
+    ...row,
+    options: row.options ? JSON.parse(row.options as string) : null,
+    is_correct: row.is_correct === null ? null : row.is_correct === 1,
+    matching_pairs: row.matching_pairs ? JSON.parse(row.matching_pairs as string) : null,
+    blank_position: row.blank_position ?? null,
+  })) as QuizQuestion[];
+
+  const seen = new Set<string>();
+  const out: QuizQuestion[] = [];
+  for (const q of mapped) {
+    const key = q.question_text.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(q);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 export async function completeQuizAttempt(
