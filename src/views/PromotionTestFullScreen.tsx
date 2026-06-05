@@ -11,6 +11,7 @@ import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } fro
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
 import { mintCardsFromMisses } from "../lib/flashcards";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
+import CompletionCapstone from "../components/CompletionCapstone";
 
 function getTimeLimitSeconds(level: number): number {
   // Rebase for 6-level scale: L1–L2 = 45min, L3–L4 = 60min, L5+ (incl. mastery) = 90min.
@@ -35,7 +36,7 @@ function formatCooldown(completedAt: string): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress" | "results";
+type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress" | "results" | "completion";
 
 interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   user_answer: string | null;
@@ -46,7 +47,8 @@ interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
 interface Props {
   context: QuizViewContext;
   onClose: () => void;
-  onPassed: (nextLevel: number) => void;
+  // nextLevel = the level just advanced to; null = course completed (L6 mastery passed).
+  onPassed: (nextLevel: number | null) => void;
 }
 
 export default function PromotionTestFullScreen({ context, onClose, onPassed }: Props) {
@@ -225,8 +227,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       setOverallScore(overall);
       setReviewScore(reviewQs.length > 0 ? reviewPct : null);
       setPassed(true);
-      setTestState("results");
-      onPassed(nextLevel ?? currentLevel);
+      if (nextLevel === null && currentLevel >= 6) {
+        // Course complete — hold the view on the capstone; onPassed(null) fires when the user finishes.
+        setTestState("completion");
+      } else {
+        setTestState("results");
+        onPassed(nextLevel ?? currentLevel);
+      }
       return;
     } else {
       setGeneratingPlan(true);
@@ -457,6 +464,20 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           </div>
         </div>
       </div>
+    );
+  }
+
+  // ── Completion (L6 capstone) ──
+  if (testState === "completion") {
+    return (
+      <CompletionCapstone
+        course={course}
+        syllabuses={allSyllabuses}
+        masterySyllabus={currentSyllabus}
+        overallScore={overallScore}
+        onDone={() => onPassed(null)}
+        onArchive={() => updateCourseStatus(courseId, "archived")}
+      />
     );
   }
 

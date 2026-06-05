@@ -70,11 +70,14 @@ export default function App() {
     setCurrentView("course");
   };
 
-  const handlePromotionPassed = (nextLevel: number) => {
+  const handlePromotionPassed = (nextLevel: number | null) => {
     refreshCourses();
     closeQuiz();
-    setPromotionBanner(nextLevel);
-    setTimeout(() => setPromotionBanner(null), 6000);
+    // null = course completed (the capstone already celebrated) — skip the level-up banner.
+    if (nextLevel !== null) {
+      setPromotionBanner(nextLevel);
+      setTimeout(() => setPromotionBanner(null), 6000);
+    }
   };
 
   const onCourseCreated = async (courseId: string) => {
