@@ -1,4 +1,4 @@
-// Golden conversations — the regression bar v2 must clear, phase by phase (V2_ARCHITECTURE.md §9).
+// Golden conversations — the regression bar v2 must clear, phase by phase (docs/ARCHITECTURE.md).
 //
 // Each golden is a fixed sequence of user turns plus a heuristic success() over the transcript.
 // Validators are intentionally coarse — they catch GROSS regressions (wrong answer, broken mode

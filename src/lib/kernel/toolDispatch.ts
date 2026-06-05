@@ -1,5 +1,5 @@
 // Tool dispatch — maps a model's tool_call → registry → EduTool.call generator → result,
-// surfacing UI events along the way (V2_ARCHITECTURE.md §4). The kernel's turn loop reinjects
+// surfacing UI events along the way (docs/ARCHITECTURE.md). The kernel's turn loop reinjects
 // the returned result (or error string) into the next model turn.
 //
 // Argument repair follows the same discipline as callLLMStructured: validate with the tool's

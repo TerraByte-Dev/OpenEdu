@@ -1,4 +1,4 @@
-// Skill frontmatter DSL (V2_ARCHITECTURE.md §6.1, §8). zod is the source of truth. Unlike the
+// Skill frontmatter DSL (docs/ARCHITECTURE.md). zod is the source of truth. Unlike the
 // course/syllabus DSLs, a skill schema is NOT sent to a provider — it validates the frontmatter of
 // a skill .md bundle (built-in `src/skills/*.md`, later user-sideloaded). The parsed markdown body
 // (the persona/rules text) rides alongside as the runtime `Skill`.

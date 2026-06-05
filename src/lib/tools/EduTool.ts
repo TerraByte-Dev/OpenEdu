@@ -1,5 +1,5 @@
 // The EduTool contract — single source of truth for every tool the tutor can call.
-// Direct descendant of Claude Code's Tool.ts (V2_ARCHITECTURE.md §3). Schemas are zod
+// Direct descendant of Claude Code's Tool.ts (docs/ARCHITECTURE.md). Schemas are zod
 // (the chosen source of truth); the kernel converts inputSchema → JSON Schema via the dsl
 // layer when it builds provider payloads.
 

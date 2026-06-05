@@ -1,4 +1,4 @@
-// Course-outline DSL (V2_ARCHITECTURE.md §8). zod source of truth; mirrors the `CourseOutline`
+// Course-outline DSL (docs/ARCHITECTURE.md). zod source of truth; mirrors the `CourseOutline`
 // / `OutlineLevel` interfaces in types/index.ts, with the same compile-time drift guard.
 
 import { z } from "zod";

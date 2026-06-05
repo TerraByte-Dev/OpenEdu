@@ -1,4 +1,4 @@
-// Syllabus DSL (V2_ARCHITECTURE.md §8) — zod is the source of truth; the TS type is inferred.
+// Syllabus DSL (docs/ARCHITECTURE.md) — zod is the source of truth; the TS type is inferred.
 // Mirrors the persisted `Syllabus` / `Subtopic` interfaces in types/index.ts. The compile-time
 // asserts below FAIL THE BUILD if the DSL and the hand-written interface ever drift apart, so
 // the two representations can't silently diverge.

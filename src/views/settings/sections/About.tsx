@@ -17,7 +17,7 @@ import { Section, SettingRow, ActionButton, Toggle, INPUT_CLS, useSettings } fro
 import { BrandMark } from "../../../components/BrandMark";
 import type { SectionProps } from "../types";
 
-const APP_IDENTIFIER = "com.terrabyte.openedu";
+const APP_IDENTIFIER = "com.terrabytesolutions.openedu";
 
 interface Diag {
   provider: LLMProvider;
