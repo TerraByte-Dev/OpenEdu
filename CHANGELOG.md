@@ -9,6 +9,10 @@ Installed apps auto-update; the section for each release also shows up in the in
 ## [Unreleased]
 
 ### Added
+- **Lessons.** A new **Lessons** tab gives each subtopic a clean, readable walkthrough — the missing
+  middle between the syllabus and chat. Lessons are written on demand (schema-enforced, small-model
+  reliable), cached, and track read/unread; the Next-step card links you straight to one for an
+  untouched subtopic.
 - **Spaced repetition & flashcards.** A new **Review** tab runs a due-card queue with an SM-2-lite
   scheduler (Again / Hard / Good / Easy) — the most evidence-backed retention technique, running fully
   offline on your machine. The tutor can mint cards in Review mode ("make a card for this"), you can add
