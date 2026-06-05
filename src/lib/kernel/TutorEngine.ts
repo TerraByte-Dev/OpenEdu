@@ -1,4 +1,4 @@
-// TutorEngine — the kernel that owns one tutoring turn (V2_ARCHITECTURE.md §4).
+// TutorEngine — the kernel that owns one tutoring turn (docs/ARCHITECTURE.md).
 //
 // The turn loop: assemble messages → select enabled tools → stream a provider turn →
 // route text to onText and tool_calls to dispatch → reinject tool results → repeat until

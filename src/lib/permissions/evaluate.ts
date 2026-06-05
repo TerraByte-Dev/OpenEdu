@@ -1,4 +1,4 @@
-// Resolve a permission decision for a tool in the current mode (V2_ARCHITECTURE.md §7).
+// Resolve a permission decision for a tool in the current mode (docs/ARCHITECTURE.md).
 
 import type { EduTool, PermissionMode } from "../tools/EduTool";
 import { DEFAULT_PERMISSION_RULES, type PermissionDecision, type PermissionRules } from "./rules";

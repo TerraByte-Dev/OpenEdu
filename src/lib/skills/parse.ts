@@ -1,4 +1,4 @@
-// Frontmatter parser for skill .md bundles (V2_ARCHITECTURE.md §6.1). Splits the leading `---`
+// Frontmatter parser for skill .md bundles (docs/ARCHITECTURE.md). Splits the leading `---`
 // fenced block from the markdown body and parses a small YAML subset — scalars, one level of
 // nesting, and arrays written inline (`[a, b]`) or as a block (`- item`). The result is a plain
 // object handed to SkillFrontmatterSchema for validation/coercion, so this stays intentionally

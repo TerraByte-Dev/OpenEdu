@@ -1,6 +1,6 @@
 // Tutor "modes" are the user-facing pedagogical-skill selector shown in the chat mode bar. Each
 // mode's behavior + the tools it unlocks now live in a skill .md bundle (src/skills/<id>.md),
-// loaded by the skill registry (V2_ARCHITECTURE.md §6.1). This file is just the bar's display
+// loaded by the skill registry (docs/ARCHITECTURE.md). This file is just the bar's display
 // metadata plus a thin resolver that pulls each mode's prompt text from its skill — so the
 // modes→skills conversion left the ChatTab and eval-runner call sites unchanged.
 //

@@ -1,4 +1,4 @@
-// Skill trigger matching + tier gating (V2_ARCHITECTURE.md §6.1, §11.3).
+// Skill trigger matching + tier gating (docs/ARCHITECTURE.md).
 //
 // DORMANT in Phase 2: no built-in skill sets `trigger.course_subject`, so matchSkillsForCourse
 // returns []. It's the seam Phase 4 domain/persona skills (math-tutor, code-tutor) will use. Until

@@ -1,4 +1,4 @@
-// math.render — typeset a mathematical expression as a rendered block (V2_ARCHITECTURE.md §6.4).
+// math.render — typeset a mathematical expression as a rendered block (docs/ARCHITECTURE.md).
 //
 // The LaTeX rides inside the tool-call ARGUMENTS (which providers double-escape correctly), so it
 // never enters a JSON chat string — the sanctioned workaround for the HANDOFF "no LaTeX in chat

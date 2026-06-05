@@ -1,5 +1,5 @@
 // Renders a math.render tool result as a typeset KaTeX block, inline in the chat surface
-// (V2_ARCHITECTURE.md §6.4). KaTeX is light enough to import eagerly; its CSS rides with this
+// (docs/ARCHITECTURE.md). KaTeX is light enough to import eagerly; its CSS rides with this
 // component's chunk. Graceful by contract: invalid LaTeX falls back to the raw source so the chat
 // never crashes — we never punish the model for imperfect LaTeX (PHASE4_HANDOFF "graceful fallback").
 

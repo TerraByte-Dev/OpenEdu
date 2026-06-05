@@ -8,6 +8,13 @@ Installed apps auto-update; the section for each release also shows up in the in
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-06-04
+
+### Changed
+- **App data now lives under a domain-accurate identifier** (`com.terrabytesolutions.openedu`). Corrected
+  now, while the app is brand new, to get it right before it matters. One-time note: this is a fresh start —
+  data from an earlier install is not migrated to the new location.
+
 ## [0.1.5] - 2026-06-04
 
 ### Fixed
@@ -50,7 +57,8 @@ Installed apps auto-update; the section for each release also shows up in the in
   tutor permission presets; and the CRT "blue phosphor" theme system. Bring-your-own-key — runs free on
   local Ollama, with OpenAI / Anthropic as alternates.
 
-[Unreleased]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.2...v0.1.3

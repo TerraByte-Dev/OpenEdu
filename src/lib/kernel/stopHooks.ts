@@ -1,4 +1,4 @@
-// Stop hooks — when a tutoring turn must end (V2_ARCHITECTURE.md §4).
+// Stop hooks — when a tutoring turn must end (docs/ARCHITECTURE.md).
 //
 // Phase 1 keeps this minimal: a hard iteration cap (the per-turn budget placeholder) plus
 // abort. The cap bounds tool↔model ping-pong on small models that might otherwise loop. Real

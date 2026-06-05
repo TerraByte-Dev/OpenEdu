@@ -1,6 +1,6 @@
 // notebook.search — retrieve passages from the student's own notebook (notes + ingested docs)
 // relevant to a query, so the tutor can ground answers in the student's material and cite it
-// (V2_ARCHITECTURE.md §3, §6.3). Read-only; wraps searchNotebook (brute-force cosine). ChatTab
+// (docs/ARCHITECTURE.md). Read-only; wraps searchNotebook (brute-force cosine). ChatTab
 // renders the results as inline "📓 Source: …" citation chips.
 
 import { z } from "zod";

@@ -1,4 +1,4 @@
-// diagram.render — render a diagram from Mermaid source as a visual block (V2_ARCHITECTURE.md §6.4).
+// diagram.render — render a diagram from Mermaid source as a visual block (docs/ARCHITECTURE.md).
 //
 // Like math.render, the Mermaid source rides in the tool-call ARGUMENTS, not a chat string. Read-only;
 // the tool echoes the Mermaid source and ChatTab renders it via a lazily-imported Mermaid (graceful:

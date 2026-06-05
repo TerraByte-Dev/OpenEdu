@@ -1,5 +1,5 @@
-// Persistence for permission rules (V2_ARCHITECTURE.md §7). Stored via @tauri-apps/plugin-store in
-// permissions.json under %APPDATA%/com.terrabyte.openedu/ — the same pattern as src/lib/store.ts.
+// Persistence for permission rules (see docs/ARCHITECTURE.md). Stored via @tauri-apps/plugin-store in
+// permissions.json under %APPDATA%/com.terrabytesolutions.openedu/ — the same pattern as src/lib/store.ts.
 // The active rule set = the built-in defaults merged with the user's per-tool overrides from Settings.
 
 import { Store } from "@tauri-apps/plugin-store";

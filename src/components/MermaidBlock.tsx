@@ -1,5 +1,5 @@
 // Renders a diagram.render tool result as a Mermaid diagram, inline in the chat surface
-// (V2_ARCHITECTURE.md §6.4). Mermaid is heavy (~500KB+), so it is LAZY-loaded via dynamic import on
+// (docs/ARCHITECTURE.md). Mermaid is heavy (~500KB+), so it is LAZY-loaded via dynamic import on
 // first use and the module is cached — it never enters the initial bundle chunk (the bundle is
 // already ~1.2MB with CodeMirror). Theme tuned to the blue-phosphor CRT palette; securityLevel
 // "strict" sanitizes the rendered SVG. Graceful: a Mermaid parse error falls back to the raw source.
