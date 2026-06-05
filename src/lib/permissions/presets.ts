@@ -22,6 +22,7 @@ export interface PermissionPreset {
 const RESTRICTED_TOOLS = new Set<string>([
   "knowledge.update_map",
   "progress.mark_mastered",
+  "flashcard.create",
   "web.search",
   "web.fetch",
   "code.run",

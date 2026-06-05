@@ -266,6 +266,35 @@ export const GOLDENS: Golden[] = [
     },
   },
   {
+    id: "tool-flashcard-create",
+    title: "Tool use — mints a flashcard in review mode",
+    topic: "Python Programming",
+    useTools: true,
+    syllabus: evalToolSyllabus(),
+    // Review mode exposes flashcard.create (tools_required). Seed the sentinel course so the
+    // flashcards row's FK to courses(id) is satisfied; teardown removes it (+ its cards via cascade).
+    setup: async () => {
+      await deleteCourse("__eval_tooluse__");
+      await ensureCourse("__eval_tooluse__", "Eval (tooluse)", "Eval");
+    },
+    teardown: async () => { await deleteCourse("__eval_tooluse__"); },
+    turns: [{
+      user: "Please make me a flashcard: front \"What keyword defines a function in Python?\", back \"def\".",
+      mode: "review",
+    }],
+    // Asserts tool SELECTION + well-formed args (front/back non-empty) — mirrors the mark_mastered golden.
+    success: (t) => {
+      const calls = t.flatMap((e) => e.toolCalls ?? []);
+      const made = calls.find((c) => c.name === "flashcard.create");
+      if (!made) return { pass: false, reasons: [`did not call flashcard.create (called: ${calls.map((c) => c.name).join(", ") || "nothing"})`] };
+      const input = made.input as { front?: unknown; back?: unknown };
+      const reasons: string[] = [];
+      if (typeof input?.front !== "string" || !input.front) reasons.push("missing/empty front");
+      if (typeof input?.back !== "string" || !input.back) reasons.push("missing/empty back");
+      return { pass: reasons.length === 0, reasons };
+    },
+  },
+  {
     id: "persona-no-regression",
     title: "Persona — an active persona identity doesn't break a correct answer",
     topic: "General Knowledge",

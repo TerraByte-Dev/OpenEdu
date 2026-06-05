@@ -11,6 +11,8 @@ import { mathRenderTool } from "./math/RenderTool";
 import { diagramRenderTool } from "./diagram/RenderTool";
 import { librarySearchTool } from "./library/SearchTool";
 import { libraryLookupTool } from "./library/LookupTool";
+import { flashcardCreateTool } from "./flashcard/CreateTool";
+import { flashcardReviewDueTool } from "./flashcard/ReviewDueTool";
 
 let registered = false;
 
@@ -26,4 +28,6 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(diagramRenderTool);
   toolRegistry.register(librarySearchTool);
   toolRegistry.register(libraryLookupTool);
+  toolRegistry.register(flashcardCreateTool);
+  toolRegistry.register(flashcardReviewDueTool);
 }
