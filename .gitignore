@@ -37,3 +37,7 @@ pnpm-debug.log*
 
 # Tauri generated
 WixTools/
+
+# Local-only dev notes / planning artifacts (kept out of the public repo)
+.dev/
+BLIP.md
