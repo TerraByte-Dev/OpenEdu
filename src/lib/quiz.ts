@@ -2,9 +2,9 @@ import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } fr
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { splitNewVsReview, storedToGenQuestion, pickReview, interleaveReview } from "./quiz-review";
 import {
-  checkAnswerConsistency, isNumericReasoningQuestion, extractConcludingNumber,
+  checkAnswerConsistency, shouldRejectNumericReasoning,
   gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults,
-  buildVerifyPrompt, parseVerifyDrops,
+  buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   type GradeOutcome,
 } from "./quiz-grading";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
@@ -98,10 +98,9 @@ const MC_STEM_RE = /\bwhich (of the following|of these|option|one)\b|\ball of th
 export function validateQuizBatch(
   questions: GeneratedQuestion[],
   allowedIds: Set<string>,
-  opts: { tier?: ModelTier } = {},
+  { tier }: { tier?: ModelTier } = {},
 ): string[] {
   const issues: string[] = [];
-  const small = opts.tier === "tiny" || opts.tier === "small";
   const stripPrefix = (s: string) => s.replace(/^[A-D]\)\s*/i, "").trim().toLowerCase();
 
   questions.forEach((q, i) => {
@@ -158,7 +157,7 @@ export function validateQuizBatch(
     // On the floor model, a multi-step numeric question with no shown working is where correct_answer
     // drifts. Force it to either go conceptual or show its work (which the consistency check then
     // validates). Capable tiers skip this — they get the independent verify pass instead.
-    if (small && isNumericReasoningQuestion(q) && extractConcludingNumber(q.explanation) === null) {
+    if (shouldRejectNumericReasoning(q, tier)) {
       issues.push(`${at}: this looks like a multi-step numeric/arithmetic question, which small models often get wrong. Either rewrite it as a conceptual question (no calculation needed), or show the full working in the explanation and end with "Therefore the answer is <value>".`);
     }
   });
@@ -248,14 +247,6 @@ interface BatchContext {
   difficulty: number;  // difficulty_level to embed
   tier: ModelTier;
   config: LLMConfig;
-}
-
-// Split `total` questions across `buckets`, as evenly as possible (remainder to the first buckets).
-function splitCount(total: number, buckets: number): number[] {
-  if (buckets <= 0) return [];
-  const base = Math.floor(total / buckets);
-  let rem = total - base * buckets;
-  return Array.from({ length: buckets }, () => base + (rem-- > 0 ? 1 : 0));
 }
 
 function subtopicsForGen(syllabus: Syllabus): Array<{ id: string; title: string; key_concepts: string[] }> {
@@ -358,9 +349,7 @@ async function runBatchesToTarget(
   const tier = baseCtxs[0].tier;
   const verify = tier === "medium" || tier === "large";
 
-  const produced: GenQuestion[] = [];
-  const seen = new Set<string>();
-  const key = (g: GenQuestion) => g.question_text.trim().toLowerCase();
+  let produced: GenQuestion[] = [];
 
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     const shortfall = target - produced.length;
@@ -374,11 +363,10 @@ async function runBatchesToTarget(
     let batch = (await runBatches(roundCtxs, config)).map(finalizeQuestion);
     if (verify) batch = await verifyAndFilter(batch, config, tier, `${label} r${round}`);
 
-    let added = 0;
-    for (const g of batch) {
-      const k = key(g);
-      if (k && !seen.has(k)) { seen.add(k); produced.push(g); added++; }
-    }
+    // Dedupe against everything kept so far (the top-up re-asks subtopics, so rounds can repeat).
+    const before = produced.length;
+    produced = dedupeByQuestionText([...produced, ...batch]);
+    const added = produced.length - before;
 
     if (added === 0) {
       log.warn("quiz", `${label}: round ${round} added 0 valid questions — stopping top-up at ${produced.length}/${target}`);

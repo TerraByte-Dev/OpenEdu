@@ -1,7 +1,7 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
-import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET } from "../lib/quiz";
+import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
 import { getLLMConfig } from "../lib/store";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
@@ -34,6 +34,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   const [error, setError] = useState("");
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const [finishing, setFinishing] = useState(false);
+  // Synchronous single-flight guard — a fast double-click can fire handleFinish twice before the
+  // `finishing` state re-renders, which would double-grade and double-persist (issue #83 review).
+  const finishingRef = useRef(false);
 
   useEffect(() => {
     generate();
@@ -96,27 +99,28 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   };
 
   const handleFinish = async (finalQuestions: ActiveQuestion[]) => {
-    if (finishing || !attemptId || !config) return;
+    if (finishingRef.current || !attemptId || !config) return;
+    finishingRef.current = true;
     setFinishing(true);
 
     // ── 1. Deferred grading: settle every recorded free-text answer in ONE batch (issue #83), so
     // taking the quiz never blocks on a per-answer model call. MC/true_false are already resolved. ──
     const graded = await gradeRecordedAnswers(finalQuestions);
 
-    // ── 2. Score and show results immediately; persist the cheap attempt + grade rows first. ──
+    // ── 2. Score and show results immediately. ALL persistence (incl. completeQuizAttempt) runs in
+    // the background, so a DB hiccup can never strand the user on the grading spinner (review #5). ──
     const correct = graded.filter((q) => q.is_correct).length;
     const total = graded.length;
     const pct = total > 0 ? (correct / total) * 100 : 0;
 
-    await completeQuizAttempt(attemptId, pct, correct, 0);
     setQuestions(graded);
     setScore({ correct, total });
     setState("results");
     setFinishing(false);
 
-    // ── 3. Heavy recompute (mastery → progress → knowledge) runs in the background — results are
-    // already on screen, so the machine no longer bogs down at finish (issue #83). ──
-    void persistQuizResults(graded, pct, total);
+    // ── 3. Persist (attempt + heavy mastery → progress → knowledge recompute) in the background —
+    // results are already on screen, so the machine no longer bogs down at finish (issue #83). ──
+    void persistQuizResults(graded, pct, correct, total);
   };
 
   // Grade the pending free-text answers (is_correct === null) in one batched call and write the
@@ -153,9 +157,10 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     return graded;
   };
 
-  const persistQuizResults = async (graded: ActiveQuestion[], pct: number, total: number) => {
+  const persistQuizResults = async (graded: ActiveQuestion[], pct: number, correct: number, total: number) => {
     const t0 = performance.now();
     try {
+      if (attemptId) await completeQuizAttempt(attemptId, pct, correct, 0);
       const freshSyllabus = await getSyllabus(courseId, syllabus.level);
       if (freshSyllabus) {
         await updateSubtopicMastery(courseId, freshSyllabus, graded);
@@ -291,8 +296,10 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       </div>
 
       {questions.length < QUIZ_TARGET && (
-        <div className="px-6 py-1.5 text-[11px] text-amber-400/80 bg-amber-500/5 border-b border-amber-500/20 shrink-0">
-          Generated {questions.length} of {QUIZ_TARGET} questions — your model produced fewer than usual this run.
+        <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < QUIZ_FLOOR ? "text-red-400/90 bg-red-500/5 border-red-500/20" : "text-amber-400/80 bg-amber-500/5 border-amber-500/20"}`}>
+          {questions.length < QUIZ_FLOOR
+            ? `Only ${questions.length} of ${QUIZ_TARGET} questions generated — your model is struggling with this topic. A more capable model will give a fuller quiz.`
+            : `Generated ${questions.length} of ${QUIZ_TARGET} questions — your model produced fewer than usual this run.`}
         </div>
       )}
 

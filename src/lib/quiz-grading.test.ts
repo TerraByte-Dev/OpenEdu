@@ -5,11 +5,15 @@ import {
   extractConcludingNumber,
   checkAnswerConsistency,
   isNumericReasoningQuestion,
+  shouldRejectNumericReasoning,
   gradeFreeTextDeterministic,
   buildBatchGradePrompt,
   parseBatchGradeResults,
   buildVerifyPrompt,
   parseVerifyDrops,
+  splitCount,
+  questionKey,
+  dedupeByQuestionText,
   type QuestionLike,
   type GradeItem,
   type VerifyItem,
@@ -49,6 +53,18 @@ describe("numericValueOf", () => {
     expect(numericValueOf("See matching_pairs")).toBeNull();
     expect(numericValueOf("")).toBeNull();
   });
+  it("does NOT read Unicode sub/superscripts as numbers (formula answers stay non-numeric)", () => {
+    // NFKC would fold these into ASCII digits and mis-grade chemistry/algebra answers (issue #83 review).
+    expect(numericValueOf("O₂")).toBeNull();
+    expect(numericValueOf("Fe³⁺")).toBeNull();
+    expect(numericValueOf("x²")).toBeNull();
+    expect(numericValueOf("CO₂")).toBeNull();
+  });
+  it("collapses a thousands separator but leaves a European decimal comma alone", () => {
+    expect(numericValueOf("1,000")).toBe(1000);
+    expect(numericValueOf("12,000 m")).toBe(12000);
+    expect(numericValueOf("3,14")).toBe(3); // not treated as a 3-digit group → comma ignored
+  });
 });
 
 describe("extractConcludingNumber", () => {
@@ -60,6 +76,11 @@ describe("extractConcludingNumber", () => {
   });
   it("returns null when the explanation states no result", () => {
     expect(extractConcludingNumber("It depends on the electron configuration.")).toBeNull();
+  });
+  it("does not match 'so' inside another word (word boundary)", () => {
+    expect(extractConcludingNumber("There are also 5 fingers.")).toBeNull();
+    expect(extractConcludingNumber("Miso has 4 letters.")).toBeNull();
+    expect(extractConcludingNumber("So 7.")).toBe(7); // a real "so" cue still matches
   });
 });
 
@@ -87,6 +108,12 @@ describe("checkAnswerConsistency", () => {
     expect(checkAnswerConsistency(q({
       correct_answer: "C) 8",
       explanation: "2 + 2 = 4, doubled is 4 × 2 = 8.",
+    }))).toBeNull();
+  });
+  it("does not flag a sub/superscript formula answer against a numeric explanation", () => {
+    expect(checkAnswerConsistency(q({
+      correct_answer: "O₂",
+      explanation: "Two oxygen atoms bond covalently; the molar mass is 32.",
     }))).toBeNull();
   });
 });
@@ -130,6 +157,11 @@ describe("gradeFreeTextDeterministic", () => {
   it("returns null when either side is empty", () => {
     expect(gradeFreeTextDeterministic("", "x", "short_answer")).toBeNull();
     expect(gradeFreeTextDeterministic("x", "  ", "short_answer")).toBeNull();
+  });
+  it("does not numeric-shortcircuit a formula answer against a bare digit, but still matches it exactly", () => {
+    expect(gradeFreeTextDeterministic("O₂", "2", "fill_in_blank")).toBeNull();
+    expect(gradeFreeTextDeterministic("x²", "2", "short_answer")).toBeNull();
+    expect(gradeFreeTextDeterministic("O₂", "O2", "fill_in_blank")).toBe(true); // formula match still works
   });
 });
 
@@ -197,5 +229,65 @@ describe("verify pass helpers", () => {
     const drop = parseVerifyDrops({ verdicts: [] }, items);
     expect(drop.size).toBe(0);
     expect(parseVerifyDrops(null, items).size).toBe(0);
+  });
+});
+
+describe("splitCount", () => {
+  it("splits evenly when divisible", () => {
+    expect(splitCount(10, 5)).toEqual([2, 2, 2, 2, 2]);
+  });
+  it("gives the remainder to the first buckets", () => {
+    expect(splitCount(11, 3)).toEqual([4, 4, 3]);
+    expect(splitCount(35, 4)).toEqual([9, 9, 9, 8]);
+  });
+  it("can return zero-count buckets when total < buckets (the .filter(count>0) relies on this)", () => {
+    expect(splitCount(2, 5)).toEqual([1, 1, 0, 0, 0]);
+  });
+  it("handles zero/negative totals and zero buckets", () => {
+    expect(splitCount(0, 3)).toEqual([0, 0, 0]);
+    expect(splitCount(-4, 3)).toEqual([0, 0, 0]);
+    expect(splitCount(5, 0)).toEqual([]);
+  });
+  it("always sums back to the requested total", () => {
+    expect(splitCount(45, 6).reduce((a, b) => a + b, 0)).toBe(45);
+    expect(splitCount(20, 3).reduce((a, b) => a + b, 0)).toBe(20);
+  });
+});
+
+describe("shouldRejectNumericReasoning", () => {
+  const ion = q({
+    question_text: "Carbon-12 has 6 protons and 6 neutrons. If it forms C³⁻, how many electrons?",
+    correct_answer: "9",
+    explanation: "Count carefully.", // no shown working
+  });
+  it("rejects a working-less numeric question on the tiny/small tier", () => {
+    expect(shouldRejectNumericReasoning(ion, "small")).toBe(true);
+    expect(shouldRejectNumericReasoning(ion, "tiny")).toBe(true);
+  });
+  it("does NOT reject on capable tiers (they get the verify pass instead)", () => {
+    expect(shouldRejectNumericReasoning(ion, "medium")).toBe(false);
+    expect(shouldRejectNumericReasoning(ion, "large")).toBe(false);
+    expect(shouldRejectNumericReasoning(ion, undefined)).toBe(false);
+  });
+  it("accepts the same question once it shows its working", () => {
+    expect(shouldRejectNumericReasoning({ ...ion, explanation: "It gains 3 electrons: 6 + 3 = 9." }, "small")).toBe(false);
+  });
+  it("never rejects a conceptual (non-numeric) question", () => {
+    expect(shouldRejectNumericReasoning(q({ question_text: "What is photosynthesis?", correct_answer: "a process", explanation: "x" }), "small")).toBe(false);
+  });
+});
+
+describe("dedupeByQuestionText", () => {
+  it("keeps the first of each distinct question (case/space-insensitive) and drops blanks", () => {
+    const items = [
+      { question_text: "What is a cell?", id: 1 },
+      { question_text: "  what IS a cell?  ", id: 2 },
+      { question_text: "What is DNA?", id: 3 },
+      { question_text: "   ", id: 4 },
+    ];
+    expect(dedupeByQuestionText(items).map((i) => i.id)).toEqual([1, 3]);
+  });
+  it("questionKey normalizes whitespace and case", () => {
+    expect(questionKey("  Hello World  ")).toBe("hello world");
   });
 });
