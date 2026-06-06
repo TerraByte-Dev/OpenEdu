@@ -37,8 +37,15 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   // Synchronous single-flight guard — a fast double-click can fire handleFinish twice before the
   // `finishing` state re-renders, which would double-grade and double-persist (issue #83 review).
   const finishingRef = useRef(false);
+  // React StrictMode (dev) invokes mount effects twice. Without this guard the quiz generates TWICE,
+  // and the slower, non-deterministic second run overwrites the first mid-session — resetting you to
+  // question 1 with a different question set/count — while two pipelines fight over the single local
+  // Ollama instance and inflate timeouts. (Prod builds don't double-invoke; the guard is correct regardless.)
+  const generatedRef = useRef(false);
 
   useEffect(() => {
+    if (generatedRef.current) return;
+    generatedRef.current = true;
     generate();
   }, []);
 
