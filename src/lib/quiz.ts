@@ -5,6 +5,7 @@ import {
   checkAnswerConsistency, shouldRejectNumericReasoning,
   gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
+  planSlotSubtopics, summarizeForLedger,
   type GradeOutcome,
 } from "./quiz-grading";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
@@ -322,66 +323,182 @@ async function generateQuestionBatch(ctx: BatchContext): Promise<GeneratedQuesti
   }
 }
 
-// Sequential on Ollama (single-GPU swap cost), parallel on cloud APIs — mirrors expandSubtopics.
-async function runBatches(ctxs: BatchContext[], config: LLMConfig): Promise<GeneratedQuestion[]> {
-  if (config.provider === "ollama") {
-    const out: GeneratedQuestion[] = [];
-    for (const ctx of ctxs) out.push(...(await generateQuestionBatch(ctx)));
-    return out;
-  }
-  const settled = await Promise.all(ctxs.map((c) => generateQuestionBatch(c)));
-  return settled.flat();
+// ─── One-question-per-call generation, LOCAL path (issue #83) ─────────────────
+// On a 4B local model, asking for a whole batch as one constrained JSON blob is what timed out and
+// truncated; one question per call is ~10–30s, gets the model's full attention (higher quality), and
+// isolates failure to a single question. Each call is steered by a short ledger of the questions
+// already produced (auto-derived summaries) so independent calls still cover distinct ideas.
+function buildOneQuestionPrompt(ctx: BatchContext, priorSummaries: string[]): string {
+  const small = ctx.tier === "tiny" || ctx.tier === "small";
+  const s = ctx.subtopics[0];
+  const stakes = ctx.highStakes
+    ? "This is a high-stakes promotion-test question — rigorous but fair.\n"
+    : ctx.easier
+    ? "This reviews earlier material — keep it slightly easier than the current level.\n"
+    : "";
+  const typeGuide = small
+    ? "Use multiple_choice, or true_false / fill_in_blank where it fits naturally."
+    : "Pick whichever type fits best: multiple_choice, true_false, fill_in_blank, word_problem, or drag_to_match.";
+  const steer = small
+    ? "\n- Prefer conceptual understanding, definitions, and reasoning. Avoid multi-step arithmetic and unit-conversion where you can; if calculation IS needed, show every step in the explanation."
+    : "";
+  const avoid = priorSummaries.length
+    ? `\nThis quiz already includes these questions — ask about a DIFFERENT idea; do NOT repeat or paraphrase any of them:\n${priorSummaries.map((x) => `- ${x}`).join("\n")}\n`
+    : "";
+
+  return `Generate ONE quiz question about "${ctx.topic}" — ${ctx.levelLabel}.
+${stakes}Cover this subtopic and put its id in subtopic_id:
+- id="${s.id}" title="${s.title}": ${s.key_concepts.join(", ")}
+${avoid}
+${typeGuide}
+
+Rules:
+- multiple_choice: provide EXACTLY 4 options ("A) ...", "B) ...", "C) ...", "D) ..."); correct_answer must be one of them verbatim. Vary which letter is correct.
+- true_false: question_text MUST be a declarative statement clearly true or false — never "Which of the following...". correct_answer is exactly "True" or "False".
+- fill_in_blank: blank_position is the full sentence with ___ where the answer goes.
+- drag_to_match: matching_pairs is 3–5 {left, right} objects; correct_answer is "See matching_pairs".
+- For any field this question does not use, set it empty: options [], matching_pairs [], blank_position "".
+- explanation: 1–2 sentences. Solve the question first, then end with "Therefore the answer is X" and set correct_answer to exactly that X — they must never disagree. difficulty_level: ${ctx.difficulty}.
+- The correct_answer must be unambiguously correct.${steer}
+
+Math/formatting:
+- Plain-text math only: × ÷ ² ³ π ≤ ≥ √ Δ θ α β. No LaTeX, no backslashes, no $...$ delimiters.`;
 }
 
-// ─── Top-up to target (issue #83) ─────────────────────────────────────────────
-// The floor model regularly loses a whole subtopic batch to a timeout or an unrecoverable validation,
-// and a single pass then ships short ("only ~10"). After each round we re-request the shortfall
-// (deduped by question text) until we hit the target or exhaust a small round cap. On medium/large
-// tiers each round is independently answer-verified (the gated verify pass) before it counts.
-async function runBatchesToTarget(
-  baseCtxs: BatchContext[],
-  config: LLMConfig,
-  target: number,
-  label: string,
+async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]): Promise<GenQuestion | null> {
+  const allowedIds = new Set(ctx.subtopics.map((s) => s.id));
+  try {
+    const q = await callLLMStructured<GeneratedQuestion>(
+      [{ role: "user", content: buildOneQuestionPrompt(ctx, priorSummaries) }],
+      ctx.config,
+      {
+        schema: QUESTION_SCHEMA,
+        toolName: "emit_quiz_question",
+        validate: (parsed) => validateQuizBatch(parsed ? [parsed] : [], allowedIds, { tier: ctx.tier }),
+        tier: ctx.tier,
+      },
+    );
+    return q ? finalizeQuestion(q) : null;
+  } catch (e) {
+    log.warn("generateOneQuestion", `failed for ${ctx.levelLabel} [${[...allowedIds].join(",")}]`, e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
+// ─── Generate to a target count (issue #83) ───────────────────────────────────
+// Provider-aware. LOCAL (Ollama) optimizes for QUALITY: one call per question, sequential, with a live
+// anti-repeat ledger (time is free on local). CLOUD optimizes for COST on a free plan: batch questions
+// per subtopic to minimize call count + repeated prompt tokens, fired in parallel. Both dedupe, top up
+// a shortfall (capped rounds), and on capable tiers run the independent verify pass.
+interface GenPlan {
+  subtopics: Array<{ id: string; title: string; key_concepts: string[] }>;
+  topic: string;
+  levelLabel: string;
+  difficulty: number;
+  highStakes: boolean;
+  easier: boolean;
+  tier: ModelTier;
+  config: LLMConfig;
+}
+
+function planSlotCtx(plan: GenPlan, subIdx: number): BatchContext {
+  return {
+    topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [plan.subtopics[subIdx]], count: 1,
+    highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier: plan.tier, config: plan.config,
+  };
+}
+
+async function generatePerQuestion(
+  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
-  if (baseCtxs.length === 0 || target <= 0) return [];
-  const MAX_ROUNDS = 3;
-  const tier = baseCtxs[0].tier;
+  const { tier, config } = plan;
   const verify = tier === "medium" || tier === "large";
+  const ledgerCap = tier === "tiny" || tier === "small" ? 8 : 16;
+  const MAX_ROUNDS = 3;
 
   let produced: GenQuestion[] = [];
+  const seen = new Set<string>();
+  const keyOf = (q: GenQuestion) => q.question_text.trim().toLowerCase();
+  const ledgerTail = () => produced.slice(-ledgerCap).map(summarizeForLedger);
+  const add = (q: GenQuestion | null): void => {
+    if (!q) return;
+    const k = keyOf(q);
+    if (!k || seen.has(k)) return;
+    seen.add(k); produced.push(q); onProgress?.(produced.length, target);
+  };
 
-  for (let round = 1; round <= MAX_ROUNDS; round++) {
-    const shortfall = target - produced.length;
-    if (shortfall <= 0) break;
-
-    // Redistribute the remaining shortfall across the subtopics (round 1 == the original even split).
-    const counts = splitCount(shortfall, baseCtxs.length);
-    const roundCtxs = baseCtxs.map((c, i) => ({ ...c, count: counts[i] })).filter((c) => c.count > 0);
-    if (roundCtxs.length === 0) break;
-
-    let batch = (await runBatches(roundCtxs, config)).map(finalizeQuestion);
-    if (verify) batch = await verifyAndFilter(batch, config, tier, `${label} r${round}`);
-
-    // Dedupe against everything kept so far (the top-up re-asks subtopics, so rounds can repeat).
-    const before = produced.length;
-    produced = dedupeByQuestionText([...produced, ...batch]);
-    const added = produced.length - before;
-
-    if (added === 0) {
-      log.warn("quiz", `${label}: round ${round} added 0 valid questions — stopping top-up at ${produced.length}/${target}`);
+  for (let round = 1; round <= MAX_ROUNDS && produced.length < target; round++) {
+    const roundStart = produced.length;
+    for (const subIdx of planSlotSubtopics(plan.subtopics.length, target - produced.length)) {
+      if (produced.length >= target) break;
+      add(await generateOneQuestion(planSlotCtx(plan, subIdx), ledgerTail()));
+    }
+    if (verify && produced.length > roundStart) {
+      const fresh = produced.slice(roundStart);
+      const kept = await verifyAndFilter(fresh, config, tier, `${label} r${round}`);
+      if (kept.length !== fresh.length) {
+        const keptKeys = new Set(kept.map(keyOf));
+        for (const q of fresh) if (!keptKeys.has(keyOf(q))) seen.delete(keyOf(q));
+        produced = produced.slice(0, roundStart).concat(kept);
+      }
+    }
+    if (produced.length === roundStart) {
+      log.warn("quiz", `${label}: round ${round} added 0 questions — stopping at ${produced.length}/${target}`);
       break;
     }
-    if (round > 1) log.info("quiz", `${label}: top-up round ${round} +${added} → ${produced.length}/${target}`);
+    if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
+  }
+
+  if (produced.length < target) log.warn("quiz", `${label}: generated ${produced.length}/${target} — model may be struggling (short test)`);
+  else log.info("quiz", `${label}: ${produced.length}/${target} questions ready`);
+  return produced.slice(0, target);
+}
+
+async function generateBatched(
+  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenQuestion[]> {
+  const { tier, config } = plan;
+  const verify = tier === "medium" || tier === "large";
+  const MAX_ROUNDS = 3;
+  let produced: GenQuestion[] = [];
+
+  for (let round = 1; round <= MAX_ROUNDS && produced.length < target; round++) {
+    const before = produced.length;
+    // One batch call per subtopic — minimizes call count + repeated prompt tokens for a free-plan key.
+    const counts = splitCount(target - produced.length, plan.subtopics.length);
+    const ctxs: BatchContext[] = plan.subtopics
+      .map((s, i): BatchContext => ({
+        topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [s], count: counts[i],
+        highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier, config,
+      }))
+      .filter((c) => c.count > 0);
+    if (ctxs.length === 0) break;
+
+    let batch = (await Promise.all(ctxs.map(generateQuestionBatch))).flat().map(finalizeQuestion);
+    if (verify) batch = await verifyAndFilter(batch, config, tier, `${label} r${round}`);
+
+    produced = dedupeByQuestionText([...produced, ...batch]);
+    onProgress?.(Math.min(produced.length, target), target);
+    if (produced.length === before) {
+      log.warn("quiz", `${label}: round ${round} added 0 questions — stopping at ${produced.length}/${target}`);
+      break;
+    }
+    if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
   }
 
   const final = produced.length > target ? produced.slice(0, target) : produced;
-  if (final.length < target) {
-    log.warn("quiz", `${label}: generated ${final.length}/${target} — model may be struggling (short test)`);
-  } else {
-    log.info("quiz", `${label}: ${final.length}/${target} questions ready`);
-  }
+  if (final.length < target) log.warn("quiz", `${label}: generated ${final.length}/${target} — model may be struggling (short test)`);
+  else log.info("quiz", `${label}: ${final.length}/${target} questions ready`);
   return final;
+}
+
+async function generateToTarget(
+  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenQuestion[]> {
+  if (plan.subtopics.length === 0 || target <= 0) return [];
+  return plan.config.provider === "ollama"
+    ? generatePerQuestion(plan, target, label, onProgress)   // local: quality, one call per question
+    : generateBatched(plan, target, label, onProgress);       // cloud: cost, batched per subtopic
 }
 
 // ─── Independent verification pass (issue #83) ────────────────────────────────
@@ -443,6 +560,7 @@ export async function generateQuizQuestions(
   numQuestions: number,
   config: LLMConfig,
   reviewPool: QuizQuestion[] = [],
+  onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
@@ -450,23 +568,21 @@ export async function generateQuizQuestions(
   const { fresh, review } = splitNewVsReview(numQuestions, reviewPool.length);
   const reviewQs = pickReview(reviewPool.map(storedToGenQuestion), review);
 
-  const subs = subtopicsForGen(syllabus);
-  const counts = splitCount(fresh, subs.length);
-  const ctxs: BatchContext[] = subs
-    .map((s, i): BatchContext => ({
+  const freshQs = await generateToTarget(
+    {
+      subtopics: subtopicsForGen(syllabus),
       topic: syllabus.title,
       levelLabel: `Level ${syllabus.level}`,
-      subtopics: [s],
-      count: counts[i],
+      difficulty: syllabus.level,
       highStakes: false,
       easier: false,
-      difficulty: syllabus.level,
       tier,
       config,
-    }))
-    .filter((c) => c.count > 0);
-
-  const freshQs = await runBatchesToTarget(ctxs, config, fresh, `quiz L${syllabus.level}`);
+    },
+    fresh,
+    `quiz L${syllabus.level}`,
+    onProgress,
+  );
   if (freshQs.length === 0 && reviewQs.length === 0) {
     throw new Error("Could not generate quiz questions — the model returned no valid questions. Try again, or switch to a more capable model.");
   }
@@ -483,48 +599,48 @@ export async function generatePromotionTestQuestions(
   currentSyllabus: Syllabus,
   previousSyllabuses: Syllabus[],
   config: LLMConfig,
+  onProgress?: (done: number, total: number, phase: "current" | "review") => void,
 ): Promise<PromotionTestQuestions> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
-  // ── Current section: per-subtopic over the current level (35 total). Even split across 3–6
-  // subtopics naturally yields ≥2 per subtopic, satisfying the mandatory-coverage rule. ──
-  const curSubs = subtopicsForGen(currentSyllabus);
-  const curCounts = splitCount(TEST_CURRENT_TARGET, curSubs.length);
-  const curCtxs: BatchContext[] = curSubs
-    .map((s, i): BatchContext => ({
+  // ── Current section: the current level's subtopics, round-robin to TEST_CURRENT_TARGET. ──
+  const current = await generateToTarget(
+    {
+      subtopics: subtopicsForGen(currentSyllabus),
       topic: currentSyllabus.title,
       levelLabel: `Level ${currentSyllabus.level} promotion test`,
-      subtopics: [s],
-      count: curCounts[i],
+      difficulty: currentSyllabus.level,
       highStakes: true,
       easier: false,
-      difficulty: currentSyllabus.level,
       tier,
       config,
-    }))
-    .filter((c) => c.count > 0);
-  const current = await runBatchesToTarget(curCtxs, config, TEST_CURRENT_TARGET, `promotion L${currentSyllabus.level} current`);
+    },
+    TEST_CURRENT_TARGET,
+    `promotion L${currentSyllabus.level} current`,
+    onProgress ? (d, t) => onProgress(d, t, "current") : undefined,
+  );
 
-  // ── Review section: per previous level (last ≤4), 10 total, slightly easier. ──
+  // ── Review section: the last ≤4 prior levels' subtopics flattened, slightly easier. ──
   let review: GenQuestion[] = [];
   const recents = previousSyllabuses.slice(-4).filter((s) => s.subtopics && s.subtopics.length > 0);
-  if (recents.length > 0) {
-    const revCounts = splitCount(TEST_REVIEW_TARGET, recents.length);
-    const revCtxs: BatchContext[] = recents
-      .map((s, i): BatchContext => ({
-        topic: s.title,
-        levelLabel: `Level ${s.level} (review of earlier material)`,
-        subtopics: s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })),
-        count: revCounts[i],
+  const reviewSubs = recents.flatMap((s) => s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })));
+  if (reviewSubs.length > 0) {
+    review = await generateToTarget(
+      {
+        subtopics: reviewSubs,
+        topic: currentSyllabus.title,
+        levelLabel: "review of earlier material",
+        difficulty: Math.max(1, currentSyllabus.level - 1),
         highStakes: false,
         easier: true,
-        difficulty: Math.max(1, currentSyllabus.level - 1),
         tier,
         config,
-      }))
-      .filter((c) => c.count > 0);
-    review = await runBatchesToTarget(revCtxs, config, TEST_REVIEW_TARGET, `promotion L${currentSyllabus.level} review`);
+      },
+      TEST_REVIEW_TARGET,
+      `promotion L${currentSyllabus.level} review`,
+      onProgress ? (d, t) => onProgress(d, t, "review") : undefined,
+    );
   }
 
   return { current, review };

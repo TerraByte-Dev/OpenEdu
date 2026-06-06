@@ -33,6 +33,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   const [score, setScore] = useState<{ correct: number; total: number } | null>(null);
   const [error, setError] = useState("");
   const [config, setConfig] = useState<LLMConfig | null>(null);
+  const [genProgress, setGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
   // Synchronous single-flight guard — a fast double-click can fire handleFinish twice before the
   // `finishing` state re-renders, which would double-grade and double-persist (issue #83 review).
@@ -52,12 +53,13 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   const generate = async () => {
     setState("generating");
     setError("");
+    setGenProgress(null);
     try {
       const cfg = await getLLMConfig();
       setConfig(cfg);
       // Pull the spaced "review pool" (prior misses) so ~20% of the quiz is retrieval practice.
       const reviewPool = await getReviewPoolQuestions(courseId, 6);
-      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool);
+      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }));
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
       setQuestions(generated.map((q) => ({ ...q, user_answer: null, is_correct: null })));
@@ -199,6 +201,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
             <>
               <div className="w-8 h-8 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-4" />
               <p className="text-[var(--ink-faint)]">Generating quiz questions for {syllabus.title}...</p>
+              {genProgress && (
+                <p className="text-phosphor-bright text-sm mt-2 font-mono">{genProgress.done} / {genProgress.total} questions</p>
+              )}
             </>
           )}
         </div>
