@@ -518,6 +518,16 @@ export async function completeQuizAttempt(
   );
 }
 
+// Update one quiz_questions row's grade after deferred end-of-test grading (issue #83): free-text
+// answers are recorded with is_correct = null during the test, then resolved here at finish.
+export async function updateQuizQuestionGrade(id: string, isCorrect: boolean): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    `UPDATE quiz_questions SET is_correct = $1 WHERE id = $2`,
+    [isCorrect ? 1 : 0, id]
+  );
+}
+
 export async function getQuizAttempts(courseId: string): Promise<QuizAttempt[]> {
   const d = await getDb();
   return await d.select(

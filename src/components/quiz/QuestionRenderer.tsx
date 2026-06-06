@@ -1,49 +1,34 @@
 ﻿import { useState, useMemo } from "react";
-import type { QuizQuestion, LLMConfig } from "../../types";
-import { gradeWrittenResponse } from "../../lib/quiz";
+import type { QuizQuestion } from "../../types";
 
 interface QuestionRendererProps {
   question: Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct"> & {
     user_answer: string | null;
     is_correct: boolean | null;
   };
-  onAnswer: (answer: string, isCorrect: boolean) => void;
+  // is_correct is null for free-text answers — they are recorded now and graded together in the
+  // end-of-test review phase (issue #83). MC / true_false still resolve instantly (boolean).
+  onAnswer: (answer: string, isCorrect: boolean | null) => void;
   disabled?: boolean;
-  config: LLMConfig;
   // When provided (study quizzes only), an optional self-explanation prompt is shown after the
   // question is answered; the typed text is persisted via this callback (Chi 1989).
   onSelfExplain?: (text: string) => void;
 }
 
-export default function QuestionRenderer({ question, onAnswer, disabled, config, onSelfExplain }: QuestionRendererProps) {
+export default function QuestionRenderer({ question, onAnswer, disabled, onSelfExplain }: QuestionRendererProps) {
   const [selected, setSelected] = useState<string>("");
-  const [grading, setGrading] = useState(false);
-  const [gradeFeedback, setGradeFeedback] = useState("");
   const [matchPairs, setMatchPairs] = useState<Record<string, string>>({});
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [explain, setExplain] = useState(question.self_explanation ?? "");
 
-  // AI-grade any free-text answer (fill-in-blank, written response, word problem)
-  const handleAIGrade = async () => {
-    if (!selected.trim() || grading) return;
-    setGrading(true);
-    try {
-      const result = await gradeWrittenResponse(
-        question.question_text,
-        question.correct_answer,
-        selected.trim(),
-        config,
-      );
-      setGradeFeedback(result.feedback);
-      setSubmitted(true);
-      onAnswer(selected.trim(), result.isCorrect);
-    } catch {
-      setSubmitted(true);
-      onAnswer(selected.trim(), true);
-    } finally {
-      setGrading(false);
-    }
+  // Record a free-text answer (fill-in-blank, written response, word problem, short answer). It is
+  // NOT graded here — taking the test never blocks on a model call. All free-text answers are graded
+  // together in the end-of-test review phase (issue #83); is_correct stays null until then.
+  const handleRecord = () => {
+    if (!selected.trim() || submitted) return;
+    setSubmitted(true);
+    onAnswer(selected.trim(), null);
   };
 
   // Drag-to-match: toggle a pair (match or unmatch)
@@ -85,23 +70,33 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config,
     return [...pairs.map((p) => p.right)].sort(() => Math.random() - 0.5);
   }, [question.question_text]);
 
-  // Show answered feedback when revisiting an already-answered question
+  // Show answered feedback when revisiting an already-answered question. Free-text answers (is_correct
+  // === null) are still pending grading until the test finishes — show a neutral "recorded" state.
   if (disabled && question.user_answer !== null) {
+    const pending = question.is_correct === null;
     return (
       <div className="space-y-3">
-        <div className={`p-4 rounded-xl border text-sm ${question.is_correct ? "border-green-500/30 bg-green-500/10" : "border-red-500/30 bg-red-500/10"}`}>
-          <div className={`font-medium mb-1 ${question.is_correct ? "text-green-300" : "text-red-300"}`}>
-            {question.is_correct ? "✓ Correct" : "✗ Incorrect"}
+        {pending ? (
+          <div className="p-4 rounded-xl border text-sm border-phosphor/30 bg-[rgb(var(--phosphor-rgb)/0.08)]">
+            <div className="font-medium mb-1 text-phosphor-bright">✎ Answer recorded</div>
+            <p className="text-[var(--ink-faint)] text-xs">Your answer: {question.user_answer}</p>
+            <p className="text-[var(--ink-faint)] text-xs mt-1">It will be graded when you finish.</p>
           </div>
-          {!question.is_correct && (
-            <p className="text-red-300/80 text-xs mb-1">
-              Your answer: {question.user_answer}
-              <br />
-              Correct answer: {question.correct_answer}
-            </p>
-          )}
-          {question.explanation && <p className="text-[var(--ink-faint)] text-xs">{question.explanation}</p>}
-        </div>
+        ) : (
+          <div className={`p-4 rounded-xl border text-sm ${question.is_correct ? "border-green-500/30 bg-green-500/10" : "border-red-500/30 bg-red-500/10"}`}>
+            <div className={`font-medium mb-1 ${question.is_correct ? "text-green-300" : "text-red-300"}`}>
+              {question.is_correct ? "✓ Correct" : "✗ Incorrect"}
+            </div>
+            {!question.is_correct && (
+              <p className="text-red-300/80 text-xs mb-1">
+                Your answer: {question.user_answer}
+                <br />
+                Correct answer: {question.correct_answer}
+              </p>
+            )}
+            {question.explanation && <p className="text-[var(--ink-faint)] text-xs">{question.explanation}</p>}
+          </div>
+        )}
         {onSelfExplain && (
           <div className="p-3 rounded-xl border border-[var(--rule)] bg-panel-lite/40">
             <label className="block text-xs text-phosphor-ink mb-1.5">
@@ -163,23 +158,20 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config,
               type="text"
               value={selected}
               onChange={(e) => setSelected(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && selected.trim() && !submitted) handleAIGrade(); }}
-              disabled={disabled || submitted || grading}
+              onKeyDown={(e) => { if (e.key === "Enter" && selected.trim() && !submitted) handleRecord(); }}
+              disabled={disabled || submitted}
               placeholder="your answer"
               className="inline-block mx-2 px-3 py-1.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor w-44"
             />
             {parts[1] ?? ""}
           </p>
-          {gradeFeedback && (
-            <p className="text-sm text-[var(--ink-faint)] italic">{gradeFeedback}</p>
-          )}
           {!submitted && (
             <button
-              onClick={handleAIGrade}
-              disabled={!selected.trim() || disabled || grading}
+              onClick={handleRecord}
+              disabled={!selected.trim() || disabled}
               className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
             >
-              {grading ? "Grading..." : "Check Answer"}
+              Submit Answer
             </button>
           )}
         </div>
@@ -194,21 +186,18 @@ export default function QuestionRenderer({ question, onAnswer, disabled, config,
           <textarea
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
-            disabled={disabled || submitted || grading}
+            disabled={disabled || submitted}
             placeholder="Write your answer here..."
             rows={4}
             className="w-full px-4 py-3 rounded-xl bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor resize-none"
           />
-          {gradeFeedback && (
-            <p className="text-sm text-[var(--ink-faint)] italic">{gradeFeedback}</p>
-          )}
           {!submitted && (
             <button
-              onClick={handleAIGrade}
-              disabled={!selected.trim() || disabled || grading}
+              onClick={handleRecord}
+              disabled={!selected.trim() || disabled}
               className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
             >
-              {grading ? "Grading..." : "Submit Answer"}
+              Submit Answer
             </button>
           )}
         </div>

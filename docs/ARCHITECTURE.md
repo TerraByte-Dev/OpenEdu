@@ -47,6 +47,10 @@ version, or move the change into application code. API keys and app settings per
 - **`db.ts`** — SQLite CRUD for every table.
 - **`knowledge.ts` / `progress.ts`** — persistent per-course knowledge files and subtopic mastery tracking;
   both feed context back into the tutor.
+- **`quiz.ts` / `quiz-grading.ts` / `quiz-review.ts`** — quiz & promotion-test generation (schema-enforced,
+  topped up to a target count, with answer↔explanation self-consistency checks and an independent verify
+  pass on capable tiers) and the end-of-test batched grader (deterministic match first, one model call for
+  the rest). The `-grading` / `-review` helpers are pure and unit-tested.
 - **`notebook.ts` / `notebook-links.ts`** — the notebook layer (retrieval + linking). See below.
 - **`kernel/`, `tools/`, `skills/`, `permissions/`** — the tutoring runtime. See below.
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
@@ -54,7 +58,8 @@ version, or move the change into application code. API keys and app settings per
   truth for setting keys + the secret/import allow-list.
 
 The pure, Tauri-free modules (`store-keys`, `models`, `version`, `text-match`, `settings-schema`,
-`theme` helpers, `permissions/presets`, `notebook-links`, …) are unit-tested with Vitest.
+`theme` helpers, `permissions/presets`, `notebook-links`, `quiz-grading`, `quiz-review`, `mastery`, …) are
+unit-tested with Vitest.
 
 ## The generation pipeline (`curriculum.ts`)
 
