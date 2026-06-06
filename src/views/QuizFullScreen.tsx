@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from "react";
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
-import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, getReviewPoolQuestions, updateQuizQuestionSelfExplanation } from "../lib/db";
-import { generateQuizQuestions } from "../lib/quiz";
+import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
+import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET } from "../lib/quiz";
+import { log } from "../lib/llm";
 import { getLLMConfig } from "../lib/store";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
@@ -12,13 +13,15 @@ interface QuizFullScreenProps {
   onClose: () => void;
 }
 
-type State = "generating" | "in_progress" | "results";
+type State = "generating" | "in_progress" | "grading" | "results";
 
 interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   user_answer: string | null;
   is_correct: boolean | null;
-  // DB row id once the answer is saved — lets a later self-explanation update the same row.
+  // DB row id once the answer is saved — lets a later self-explanation / deferred grade update the same row.
   saved_id?: string;
+  // Grader feedback for free-text answers, filled in during the end-of-test grading phase (issue #83).
+  feedback?: string;
 }
 
 export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps) {
@@ -44,7 +47,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       setConfig(cfg);
       // Pull the spaced "review pool" (prior misses) so ~20% of the quiz is retrieval practice.
       const reviewPool = await getReviewPoolQuestions(courseId, 6);
-      const generated = await generateQuizQuestions(syllabus, 20, cfg, reviewPool);
+      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool);
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
       setQuestions(generated.map((q) => ({ ...q, user_answer: null, is_correct: null })));
@@ -56,8 +59,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     }
   };
 
-  // Save the answer for the current question — no auto-advance
-  const handleAnswer = async (answer: string, isCorrect: boolean) => {
+  // Save the answer for the current question — no auto-advance. isCorrect is null for free-text
+  // answers (recorded now, graded in the end-of-test phase); the row is updated then.
+  const handleAnswer = async (answer: string, isCorrect: boolean | null) => {
     const question = questions[currentIndex];
     let savedId: string | undefined;
     if (attemptId) {
@@ -94,24 +98,76 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   const handleFinish = async (finalQuestions: ActiveQuestion[]) => {
     if (finishing || !attemptId || !config) return;
     setFinishing(true);
-    const correct = finalQuestions.filter((q) => q.is_correct).length;
-    const total = finalQuestions.length;
+
+    // ── 1. Deferred grading: settle every recorded free-text answer in ONE batch (issue #83), so
+    // taking the quiz never blocks on a per-answer model call. MC/true_false are already resolved. ──
+    const graded = await gradeRecordedAnswers(finalQuestions);
+
+    // ── 2. Score and show results immediately; persist the cheap attempt + grade rows first. ──
+    const correct = graded.filter((q) => q.is_correct).length;
+    const total = graded.length;
+    const pct = total > 0 ? (correct / total) * 100 : 0;
+
+    await completeQuizAttempt(attemptId, pct, correct, 0);
+    setQuestions(graded);
     setScore({ correct, total });
-
-    await completeQuizAttempt(attemptId, (correct / total) * 100, correct, 0);
-    const freshSyllabus = await getSyllabus(courseId, syllabus.level);
-    if (freshSyllabus) {
-      await updateSubtopicMastery(courseId, freshSyllabus, finalQuestions);
-      await updateUserProgress(courseId);
-      await refreshProgressContext(courseId, freshSyllabus);
-    }
-    const missedTopics = finalQuestions
-      .filter((q) => !q.is_correct && q.subtopic_id)
-      .map((q) => q.subtopic_id!);
-    await updateKnowledgeAfterQuiz(courseId, (correct / total) * 100, total, missedTopics, null, config).catch(console.error);
-
     setState("results");
     setFinishing(false);
+
+    // ── 3. Heavy recompute (mastery → progress → knowledge) runs in the background — results are
+    // already on screen, so the machine no longer bogs down at finish (issue #83). ──
+    void persistQuizResults(graded, pct, total);
+  };
+
+  // Grade the pending free-text answers (is_correct === null) in one batched call and write the
+  // resolved grades back to their rows. Returns the questions with grades + feedback applied. Shows
+  // a brief "Grading…" phase only when there is actually something to grade.
+  const gradeRecordedAnswers = async (qs: ActiveQuestion[]): Promise<ActiveQuestion[]> => {
+    if (!config) return qs;
+    const pending = qs
+      .map((q, index) => ({ q, index }))
+      .filter(({ q }) => q.is_correct === null && q.user_answer !== null);
+    if (pending.length === 0) return qs;
+
+    setState("grading");
+    const t0 = performance.now();
+    const outcomes = await gradeAnswersBatch(
+      pending.map(({ q, index }) => ({
+        index,
+        question: q.question_text,
+        expected: q.correct_answer,
+        student: q.user_answer ?? "",
+        type: q.question_type,
+      })),
+      config,
+    );
+    const graded = qs.map((q, i) => {
+      const o = outcomes.get(i);
+      return o ? { ...q, is_correct: o.isCorrect, feedback: o.feedback } : q;
+    });
+    await Promise.all(pending.map(({ index }) => {
+      const q = graded[index];
+      return q.saved_id ? updateQuizQuestionGrade(q.saved_id, !!q.is_correct).catch(console.error) : Promise.resolve();
+    }));
+    log.info("quiz", `graded ${pending.length} free-text answer(s) in ${Math.round(performance.now() - t0)}ms`);
+    return graded;
+  };
+
+  const persistQuizResults = async (graded: ActiveQuestion[], pct: number, total: number) => {
+    const t0 = performance.now();
+    try {
+      const freshSyllabus = await getSyllabus(courseId, syllabus.level);
+      if (freshSyllabus) {
+        await updateSubtopicMastery(courseId, freshSyllabus, graded);
+        await updateUserProgress(courseId);
+        await refreshProgressContext(courseId, freshSyllabus);
+      }
+      const missedTopics = graded.filter((q) => !q.is_correct && q.subtopic_id).map((q) => q.subtopic_id!);
+      await updateKnowledgeAfterQuiz(courseId, pct, total, missedTopics, null, config!);
+      log.info("quiz", `quiz finish persistence done in ${Math.round(performance.now() - t0)}ms`);
+    } catch (e) {
+      console.error("quiz finish persistence failed", e);
+    }
   };
 
   const question = questions[currentIndex];
@@ -133,6 +189,17 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               <p className="text-[var(--ink-faint)]">Generating quiz questions for {syllabus.title}...</p>
             </>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "grading") {
+    return (
+      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-4" />
+          <p className="text-[var(--ink-faint)]">Grading your answers…</p>
         </div>
       </div>
     );
@@ -181,6 +248,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
                       <p className="text-green-400">Correct: {q.correct_answer}</p>
                     </div>
                   )}
+                  {q.feedback && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)] italic">{q.feedback}</p>}
                   {q.explanation && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)]">{q.explanation}</p>}
                   {q.subtopic_id && <p className="ml-5 mt-1 text-[10px] text-[var(--ink-faint)]">Subtopic: {q.subtopic_id}</p>}
                 </div>
@@ -222,6 +290,12 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         </button>
       </div>
 
+      {questions.length < QUIZ_TARGET && (
+        <div className="px-6 py-1.5 text-[11px] text-amber-400/80 bg-amber-500/5 border-b border-amber-500/20 shrink-0">
+          Generated {questions.length} of {QUIZ_TARGET} questions — your model produced fewer than usual this run.
+        </div>
+      )}
+
       {/* Question */}
       <div className="flex-1 overflow-y-auto flex items-start justify-center p-6">
         <div className="w-full max-w-2xl">
@@ -232,13 +306,12 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
             <h2 className="text-lg text-ink leading-relaxed">{question?.question_text}</h2>
           </div>
 
-          {question && config && (
+          {question && (
             <QuestionRenderer
               key={currentIndex}
               question={question}
               onAnswer={handleAnswer}
               disabled={answeredCurrent}
-              config={config}
               onSelfExplain={handleSelfExplain}
             />
           )}

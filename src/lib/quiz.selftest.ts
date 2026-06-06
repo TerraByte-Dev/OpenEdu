@@ -66,6 +66,21 @@ export function runQuizValidateSelfTest(): { ok: boolean; checks: Check[] } {
       question_text: "The SI base unit for temperature is the kelvin.",
       correct_answer: "True",
     }], false),
+    // issue #83: the C³⁻ screenshot bug — answer contradicts its own explanation.
+    check("rejects a numeric answer that contradicts its explanation (C³⁻ bug)", [{
+      ...base,
+      question_text: "Carbon-12 (6 protons, 6 neutrons) forms a negative ion C³⁻. How many electrons does it have?",
+      options: ["A) 6", "B) 7", "C) 8", "D) 9"],
+      correct_answer: "A) 6",
+      explanation: "A neutral carbon atom has 6 electrons; gaining 3 more gives 6 + 3 = 9.",
+    }], true),
+    check("accepts a numeric answer consistent with its explanation", [{
+      ...base,
+      question_text: "Carbon-12 (6 protons, 6 neutrons) forms a negative ion C³⁻. How many electrons does it have?",
+      options: ["A) 6", "B) 7", "C) 8", "D) 9"],
+      correct_answer: "D) 9",
+      explanation: "A neutral carbon atom has 6 electrons; gaining 3 more gives 6 + 3 = 9. Therefore the answer is 9.",
+    }], false),
   ];
   return { ok: checks.every((c) => c.ok), checks };
 }

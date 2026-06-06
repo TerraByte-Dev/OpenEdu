@@ -1,4 +1,4 @@
-import { getSyllabus, getQuizAttempts, upsertUserProgress, getUserProgress, updateSyllabusSubtopics, saveTutorInstruction } from "./db";
+import { getSyllabuses, getQuizAttempts, upsertUserProgress, getUserProgress, updateSyllabusSubtopics, saveTutorInstruction } from "./db";
 import { log } from "./llm";
 import { applySubtopicScore } from "./mastery";
 import { computeStreak } from "./analytics";
@@ -124,13 +124,10 @@ export async function updateUserProgress(courseId: string): Promise<void> {
   for (const a of completed) totalScore += a.score ?? 0;
   const avg = completed.length > 0 ? totalScore / completed.length : null;
 
-  // Collect knowledge gaps from all syllabuses: subtopics still not mastered
-  // We load syllabuses lazily via db — check the 6 integer levels (1..6, 6 = mastery exam)
-  const knownLevels = [1, 2, 3, 4, 5, 6];
+  // Collect knowledge gaps from all syllabuses: subtopics still not mastered. One query for the whole
+  // course instead of six sequential getSyllabus round-trips (issue #83 — slims the finish cascade).
   const gaps: string[] = [];
-  for (const level of knownLevels) {
-    const syl = await getSyllabus(courseId, level);
-    if (!syl) continue;
+  for (const syl of await getSyllabuses(courseId)) {
     for (const sub of syl.subtopics) {
       if (!sub.mastered) gaps.push(sub.id);
     }

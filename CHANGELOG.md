@@ -8,7 +8,31 @@ Installed apps auto-update; the section for each release also shows up in the in
 
 ## [Unreleased]
 
+### Changed
+- **Quizzes and tests grade at the end, not mid-test.** Written and fill-in-the-blank answers used to
+  trigger a model call the moment you submitted each one, which made `gemma4:e4b` and the whole machine
+  stutter during the test and again in a cascade at the finish. Now those answers are recorded as you go
+  and graded together in one pass on a brief "Grading…" screen (exact / numeric answers settle instantly
+  with no model call at all), results render immediately, and the heavier bookkeeping moves to the
+  background. Multiple-choice and true/false still grade instantly as before.
+
+### Removed
+- **Dead promotion-test modal.** Removed an unused `PromotionTestModal` left over from the old half-level
+  scheme (the app uses the full-screen promotion test); no behavior change.
+
 ### Fixed
+- **Quiz/test answers can no longer contradict their own explanation.** The generator sometimes stored a
+  "correct" answer that disagreed with the reasoning it wrote — e.g. an ion-charge question whose
+  explanation worked out to 9 electrons but whose stored answer was 6 — which then marked your right
+  answer wrong. Generation now checks each answer against the value its own explanation derives, makes the
+  model commit to a worked answer, and (on capable models) independently re-solves and drops questions
+  whose answer doesn't hold up.
+- **Quizzes and promotion tests reliably reach their length.** A single timed-out or rejected batch used
+  to silently drop a whole subtopic's worth of questions, leaving you with a short test (~10 when 20 were
+  expected). Generation now tops up to target (quizzes 10–20, tests 30–45) and tells you honestly if your
+  model still came up short.
+- **A timed-out promotion test now scores the answers you actually gave** instead of counting everything
+  wrong.
 - **Settings "Provider & Models" icon renders cleanly.** Seven of the icon's chip "spoke" path segments
   were missing their SVG `moveto` (`M`) command, so the spokes silently failed and the dev console logged
   a `<path> attribute d` error for each on every launch. Prefixed them; no more console noise.

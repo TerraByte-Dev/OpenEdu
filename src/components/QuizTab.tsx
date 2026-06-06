@@ -16,7 +16,7 @@ export default function QuizTab({ currentSyllabus, onStartQuiz }: QuizTabProps) 
           {currentSyllabus
             ? `Level ${currentSyllabus.level} — ${currentSyllabus.title}`
             : "the current material"}
-          . 10 questions, untimed.
+          . 20 questions, untimed.
         </p>
         {!currentSyllabus && (
           <p className="text-xs text-amber-400/70 mb-4">

@@ -2,9 +2,10 @@
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import {
   createPromotionAttempt, saveQuizQuestion, completeQuizAttempt, getLastPromotionAttempt,
-  updateCourseLevel, updateCourseStatus, getSyllabus,
+  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade,
 } from "../lib/db";
-import { generatePromotionTestQuestions, generateStudyPlan } from "../lib/quiz";
+import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET } from "../lib/quiz";
+import { log } from "../lib/llm";
 import { getGenerationConfig } from "../lib/store";
 import { getLevelMeaning } from "../lib/curriculum";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
@@ -36,12 +37,15 @@ function formatCooldown(completedAt: string): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress" | "results" | "completion";
+type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress" | "grading" | "results" | "completion";
 
 interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   user_answer: string | null;
   is_correct: boolean | null;
   section: "current" | "review";
+  // DB row id (for the deferred grade write) + grader feedback, both filled at finish (issue #83).
+  saved_id?: string;
+  feedback?: string;
 }
 
 interface Props {
@@ -70,6 +74,11 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const [generatingPlan, setGeneratingPlan] = useState(false);
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Mirrors the latest `questions` so the timeout path grades the answers the student actually gave,
+  // not the pristine initial array (issue #83 — a timed-out test used to score 0%).
+  const questionsRef = useRef<ActiveQuestion[]>([]);
+
+  useEffect(() => { questionsRef.current = questions; }, [questions]);
 
   useEffect(() => {
     checkCooldown();
@@ -123,7 +132,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            finishTest(allQ, attempt.id, true);
+            // Grade what the student actually answered (questionsRef), not the pristine allQ.
+            finishTest(questionsRef.current.length ? questionsRef.current : allQ, attempt.id, true);
             return 0;
           }
           return prev - 1;
@@ -135,16 +145,12 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     }
   };
 
-  const handleAnswer = useCallback(async (answer: string, isCorrect: boolean) => {
+  // isCorrect is null for free-text answers — recorded now, graded together at finish (issue #83).
+  const handleAnswer = useCallback(async (answer: string, isCorrect: boolean | null) => {
     if (!attemptId) return;
 
     const question = questions[currentIndex];
-    const updatedQuestions = questions.map((q, i) =>
-      i === currentIndex ? { ...q, user_answer: answer, is_correct: isCorrect } : q
-    );
-    setQuestions(updatedQuestions);
-
-    await saveQuizQuestion({
+    const savedId = await saveQuizQuestion({
       attempt_id: attemptId,
       question_text: question.question_text,
       question_type: question.question_type,
@@ -158,6 +164,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       matching_pairs: question.matching_pairs,
       blank_position: question.blank_position,
     });
+    setQuestions((prev) => prev.map((q, i) =>
+      i === currentIndex ? { ...q, user_answer: answer, is_correct: isCorrect, saved_id: savedId } : q
+    ));
     // User navigates manually via Next/Finish buttons — no auto-advance
   }, [questions, currentIndex, attemptId]);
 
@@ -167,10 +176,38 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     timedOut: boolean,
   ) => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    // Pulled fresh (not the possibly-stale `config` closure) so the setInterval timeout path is safe.
+    const cfg = await getGenerationConfig();
+
+    // ── 1. Deferred grading: settle every recorded free-text answer in ONE batch (issue #83). ──
+    let gradedQuestions = finalQuestions;
+    const pending = finalQuestions
+      .map((q, index) => ({ q, index }))
+      .filter(({ q }) => q.is_correct === null && q.user_answer !== null);
+    if (pending.length > 0) {
+      setTestState("grading");
+      const tGrade = performance.now();
+      const outcomes = await gradeAnswersBatch(
+        pending.map(({ q, index }) => ({
+          index, question: q.question_text, expected: q.correct_answer,
+          student: q.user_answer ?? "", type: q.question_type,
+        })),
+        cfg,
+      );
+      gradedQuestions = finalQuestions.map((q, i) => {
+        const o = outcomes.get(i);
+        return o ? { ...q, is_correct: o.isCorrect, feedback: o.feedback } : q;
+      });
+      await Promise.all(pending.map(({ index }) => {
+        const q = gradedQuestions[index];
+        return q.saved_id ? updateQuizQuestionGrade(q.saved_id, !!q.is_correct).catch(console.error) : Promise.resolve();
+      }));
+      log.info("promotion", `graded ${pending.length} free-text answer(s) in ${Math.round(performance.now() - tGrade)}ms`);
+    }
 
     const answered = timedOut
-      ? finalQuestions.map((q) => q.user_answer !== null ? q : { ...q, is_correct: false })
-      : finalQuestions;
+      ? gradedQuestions.map((q) => q.user_answer !== null ? q : { ...q, is_correct: false })
+      : gradedQuestions;
 
     const totalCorrect = answered.filter((q) => q.is_correct).length;
     const total = answered.length;
@@ -184,32 +221,35 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
 
     await completeQuizAttempt(aid, overall, totalCorrect, timeTaken);
-
-    if (currentSyllabus) {
-      const freshSyllabus = await getSyllabus(courseId, currentLevel);
-      if (freshSyllabus) {
-        await updateSubtopicMastery(courseId, freshSyllabus, answered);
-        await updateUserProgress(courseId);
-        await refreshProgressContext(courseId, freshSyllabus);
-      }
-    }
+    setQuestions(answered);
 
     const missedTopics = answered
       .filter((q) => !q.is_correct && q.subtopic_id)
       .map((q) => q.subtopic_id!);
 
-    // Auto-mint spaced-repetition cards from the misses (deduped, capped) so the Review queue fills
-    // itself after a test. Best-effort — never blocks the pass/fail flow.
-    await mintCardsFromMisses(
-      courseId,
-      answered.filter((q) => !q.is_correct).map((q) => ({
-        question_text: q.question_text,
-        correct_answer: q.correct_answer,
-        explanation: q.explanation,
-        subtopic_id: q.subtopic_id,
-      })),
-      currentLevel,
-    ).catch(console.error);
+    // ── Heavy recompute (mastery → progress → knowledge) + spaced-card minting runs in the
+    // background so results render immediately and the machine no longer bogs at finish (issue #83). ──
+    const persist = async (studyPlanText: string | null) => {
+      const t0 = performance.now();
+      try {
+        const freshSyllabus = await getSyllabus(courseId, currentLevel);
+        if (freshSyllabus) {
+          await updateSubtopicMastery(courseId, freshSyllabus, answered);
+          await updateUserProgress(courseId);
+          await refreshProgressContext(courseId, freshSyllabus);
+        }
+        await updateKnowledgeAfterQuiz(courseId, overall, answered.length, missedTopics, studyPlanText, cfg);
+        await mintCardsFromMisses(
+          courseId,
+          answered.filter((q) => !q.is_correct).map((q) => ({
+            question_text: q.question_text, correct_answer: q.correct_answer,
+            explanation: q.explanation, subtopic_id: q.subtopic_id,
+          })),
+          currentLevel,
+        );
+        log.info("promotion", `test finish persistence done in ${Math.round(performance.now() - t0)}ms`);
+      } catch (e) { console.error("promotion finish persistence failed", e); }
+    };
 
     if (didPass) {
       const levels = [1, 2, 3, 4, 5, 6];
@@ -218,12 +258,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       if (nextLevel !== null) {
         await updateCourseLevel(courseId, nextLevel);
       } else if (currentLevel >= 6) {
-        // L6 is the mastery exam — passing it = course complete. Set the seam for
-        // future "beyond the course" work. No UI change yet beyond the results screen.
+        // L6 is the mastery exam — passing it = course complete.
         await updateCourseStatus(courseId, "completed");
       }
-      const cfg = await getGenerationConfig();
-      await updateKnowledgeAfterQuiz(courseId, overall, answered.length, missedTopics, null, cfg).catch(console.error);
       setOverallScore(overall);
       setReviewScore(reviewQs.length > 0 ? reviewPct : null);
       setPassed(true);
@@ -234,34 +271,30 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         setTestState("results");
         onPassed(nextLevel ?? currentLevel);
       }
+      void persist(null);
       return;
-    } else {
-      setGeneratingPlan(true);
-      const missed = answered
-        .filter((q) => !q.is_correct)
-        .map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
-      let studyPlanText = "";
-      try {
-        const cfg = await getGenerationConfig();
-        await generateStudyPlan(
-          currentSyllabus?.title ?? "this level",
-          currentLevel,
-          missed,
-          cfg,
-          (t) => {
-            studyPlanText += t;
-            setStudyPlan((p) => p + t);
-          },
-        );
-        await updateKnowledgeAfterQuiz(courseId, overall, answered.length, missedTopics, studyPlanText || null, cfg).catch(console.error);
-      } catch { /* study plan is a nice-to-have */ }
-      setGeneratingPlan(false);
     }
 
+    // ── Fail: show results immediately, then stream the study plan + persist in the background. ──
     setOverallScore(overall);
     setReviewScore(reviewQs.length > 0 ? reviewPct : null);
     setPassed(false);
     setTestState("results");
+    void (async () => {
+      setGeneratingPlan(true);
+      let studyPlanText = "";
+      try {
+        const missed = answered
+          .filter((q) => !q.is_correct)
+          .map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
+        await generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, cfg, (t) => {
+          studyPlanText += t;
+          setStudyPlan((p) => p + t);
+        });
+      } catch { /* study plan is a nice-to-have */ }
+      setGeneratingPlan(false);
+      await persist(studyPlanText || null);
+    })();
   }, [timeLeft, currentLevel, courseId, currentSyllabus, onPassed]);
 
   const question = questions[currentIndex];
@@ -397,6 +430,19 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     );
   }
 
+  // ── Grading (deferred free-text grading at finish, issue #83) ──
+  if (testState === "grading") {
+    return (
+      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center p-8">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-6" />
+          <h2 className="text-lg font-semibold text-ink mb-1">Grading Your Test</h2>
+          <p className="text-sm text-[var(--ink-faint)]">Scoring your written answers…</p>
+        </div>
+      </div>
+    );
+  }
+
   // ── In Progress ──
   if (testState === "in_progress" && question) {
     return (
@@ -419,6 +465,12 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           </div>
         </div>
 
+        {questions.length < TEST_TOTAL_TARGET && (
+          <div className="px-6 py-1.5 text-[11px] text-amber-400/80 bg-amber-500/5 border-b border-amber-500/20 shrink-0">
+            Generated {questions.length} of {TEST_TOTAL_TARGET} questions — your model produced fewer than usual this run.
+          </div>
+        )}
+
         {/* Question */}
         <div className="flex-1 overflow-y-auto flex items-start justify-center p-6">
           <div className="w-full max-w-2xl">
@@ -430,7 +482,6 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                 question={question}
                 onAnswer={handleAnswer}
                 disabled={answeredCurrent}
-                config={config}
               />
             )}
 
@@ -549,6 +600,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                     {!q.is_correct && q.user_answer && (
                       <p className="text-xs text-red-400 mt-0.5">Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
+                    {q.feedback && <p className="text-xs text-[var(--ink-faint)] italic mt-1">{q.feedback}</p>}
                     {q.explanation && <p className="text-xs text-[var(--ink-faint)] mt-1">{q.explanation}</p>}
                   </div>
                 </div>
