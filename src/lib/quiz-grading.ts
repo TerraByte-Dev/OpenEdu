@@ -28,6 +28,15 @@ function stripOptionLabel(s: string): string {
   return s.replace(/^\s*[A-Da-d]\s*[).．.]\s*/, "");
 }
 
+// Unicode super/subscript digits (²³¹ ⁰⁴-⁹ ₀-₉). The numeric extractors strip these so a chemical
+// formula or exponent ("O₂", "Fe³⁺", "x²") is NOT misread as the number 2/3 — NFKC would fold them
+// into ASCII digits, which silently mis-graded formula answers (issue #83 review).
+const SCRIPT_DIGITS = /[²³¹⁰⁴-⁹₀-₉]/g;
+// Collapse thousands separators ("1,000" → "1000") but leave a European-style decimal comma ("3,14")
+// alone — only a comma followed by exactly three digits is treated as a group separator.
+const stripNumericNoise = (s: string) =>
+  s.replace(SCRIPT_DIGITS, "").replace(/−/g, "-").replace(/(\d),(\d{3})(?!\d)/g, "$1$2");
+
 // Normalize a short answer for comparison: lowercase, unify unicode minus, drop the option label,
 // surrounding quotes, a leading article, collapsed whitespace, and terminal punctuation. Pure.
 export function normalizeAnswer(s: string): string {
@@ -49,7 +58,7 @@ export function normalizeAnswer(s: string): string {
 // "True" / "See matching_pairs" → null.
 export function numericValueOf(s: string): number | null {
   if (!s) return null;
-  const cleaned = stripOptionLabel(s.normalize("NFKC").replace(/−/g, "-")).replace(/(\d),(\d)/g, "$1$2");
+  const cleaned = stripNumericNoise(stripOptionLabel(s));
   const m = /-?\d+(?:\.\d+)?/.exec(cleaned);
   if (!m) return null;
   const n = parseFloat(m[0]);
@@ -68,8 +77,9 @@ function countNumbers(s: string): number {
 // tell-tale of the "talks itself out of its own answer" failure (issue #83 / the C³⁻ screenshot).
 export function extractConcludingNumber(explanation: string): number | null {
   if (!explanation) return null;
-  const text = explanation.normalize("NFKC").replace(/−/g, "-").replace(/(\d),(\d)/g, "$1$2");
-  const re = /(?:[=≈]|answer\s+is|equals|result\s+is|therefore[,:]?|thus[,:]?|so[,:]?)\s*:?\s*(-?\d+(?:\.\d+)?)/gi;
+  const text = stripNumericNoise(explanation);
+  // \b on the word cues so "also"/"miso"/"piso" don't match the "so" alternative (issue #83 review).
+  const re = /(?:[=≈]|\b(?:answer\s+is|equals|result\s+is|therefore|thus|so)[,:]?)\s*:?\s*(-?\d+(?:\.\d+)?)/gi;
   let last: number | null = null;
   for (let m = re.exec(text); m; m = re.exec(text)) {
     const n = parseFloat(m[1]);
@@ -113,6 +123,41 @@ export function isNumericReasoningQuestion(q: QuestionLike): boolean {
   // Numeric answer already confirmed above. Flag explicit arithmetic, or a calculation/unit/rate cue
   // that actually has quantities in the stem (so recall-style "how many bones…" stays untouched).
   return hasArithExpr || ((wordCue || unitRate || multiQuantity) && countNumbers(stem) >= 1);
+}
+
+// The small-tier numeric-trap gate, as a pure predicate so validateQuizBatch's wiring is testable
+// without importing the Tauri-coupled quiz.ts. On tiny/small a multi-step numeric question with no
+// shown working is rejected (→ repair-retry: go conceptual or show the work).
+export function shouldRejectNumericReasoning(q: QuestionLike, tier?: string): boolean {
+  const small = tier === "tiny" || tier === "small";
+  return small && isNumericReasoningQuestion(q) && extractConcludingNumber(q.explanation) === null;
+}
+
+// ─── Generation count + dedupe helpers (the quiz.ts top-up loop) ───────────────
+
+// Split `total` questions across `buckets`, as evenly as possible (remainder to the first buckets).
+// Pure — the arithmetic behind both the even per-subtopic split and the top-up shortfall redistribution.
+export function splitCount(total: number, buckets: number): number[] {
+  if (buckets <= 0) return [];
+  const base = Math.floor(Math.max(0, total) / buckets);
+  let rem = Math.max(0, total) - base * buckets;
+  return Array.from({ length: buckets }, () => base + (rem-- > 0 ? 1 : 0));
+}
+
+export const questionKey = (text: string): string => text.trim().toLowerCase();
+
+// Keep the first occurrence of each distinct question (by normalized text); drop blanks/dupes. The
+// top-up loop re-asks subtopics, so this guards against the model repeating a question across rounds.
+export function dedupeByQuestionText<T extends { question_text: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const it of items) {
+    const k = questionKey(it.question_text);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(it);
+  }
+  return out;
 }
 
 // ─── Deterministic free-text grading ──────────────────────────────────────────

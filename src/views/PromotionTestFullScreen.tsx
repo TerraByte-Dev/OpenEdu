@@ -4,7 +4,7 @@ import {
   createPromotionAttempt, saveQuizQuestion, completeQuizAttempt, getLastPromotionAttempt,
   updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade,
 } from "../lib/db";
-import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET } from "../lib/quiz";
+import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
 import { getGenerationConfig } from "../lib/store";
 import { getLevelMeaning } from "../lib/curriculum";
@@ -73,7 +73,11 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const [studyPlan, setStudyPlan] = useState("");
   const [generatingPlan, setGeneratingPlan] = useState(false);
   const [config, setConfig] = useState<LLMConfig | null>(null);
+  const [finishing, setFinishing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Synchronous single-flight guard for finishTest — blocks a double-click (or a click racing the
+  // timeout) from grading + persisting twice (issue #83 review).
+  const finishingRef = useRef(false);
   // Mirrors the latest `questions` so the timeout path grades the answers the student actually gave,
   // not the pristine initial array (issue #83 — a timed-out test used to score 0%).
   const questionsRef = useRef<ActiveQuestion[]>([]);
@@ -175,6 +179,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     aid: string,
     timedOut: boolean,
   ) => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setFinishing(true);
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     // Pulled fresh (not the possibly-stale `config` closure) so the setInterval timeout path is safe.
     const cfg = await getGenerationConfig();
@@ -220,7 +227,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     const didPass = overall >= 85 && reviewPct >= 60;
     const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
 
-    await completeQuizAttempt(aid, overall, totalCorrect, timeTaken);
+    // Guarded so a DB hiccup can't strand the user on the grading spinner (review #5) — we always
+    // reach a terminal results/completion state below.
+    try { await completeQuizAttempt(aid, overall, totalCorrect, timeTaken); }
+    catch (e) { console.error("completeQuizAttempt failed", e); }
     setQuestions(answered);
 
     const missedTopics = answered
@@ -255,12 +265,14 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       const levels = [1, 2, 3, 4, 5, 6];
       const idx = levels.indexOf(currentLevel);
       const nextLevel = idx >= 0 && idx < levels.length - 1 ? levels[idx + 1] : null;
-      if (nextLevel !== null) {
-        await updateCourseLevel(courseId, nextLevel);
-      } else if (currentLevel >= 6) {
-        // L6 is the mastery exam — passing it = course complete.
-        await updateCourseStatus(courseId, "completed");
-      }
+      try {
+        if (nextLevel !== null) {
+          await updateCourseLevel(courseId, nextLevel);
+        } else if (currentLevel >= 6) {
+          // L6 is the mastery exam — passing it = course complete.
+          await updateCourseStatus(courseId, "completed");
+        }
+      } catch (e) { console.error("course level update failed", e); }
       setOverallScore(overall);
       setReviewScore(reviewQs.length > 0 ? reviewPct : null);
       setPassed(true);
@@ -466,8 +478,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         </div>
 
         {questions.length < TEST_TOTAL_TARGET && (
-          <div className="px-6 py-1.5 text-[11px] text-amber-400/80 bg-amber-500/5 border-b border-amber-500/20 shrink-0">
-            Generated {questions.length} of {TEST_TOTAL_TARGET} questions — your model produced fewer than usual this run.
+          <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < TEST_FLOOR ? "text-red-400/90 bg-red-500/5 border-red-500/20" : "text-amber-400/80 bg-amber-500/5 border-amber-500/20"}`}>
+            {questions.length < TEST_FLOOR
+              ? `Only ${questions.length} of ${TEST_TOTAL_TARGET} questions generated — your model is struggling. A more capable model will give a fuller test.`
+              : `Generated ${questions.length} of ${TEST_TOTAL_TARGET} questions — your model produced fewer than usual this run.`}
           </div>
         )}
 
@@ -497,10 +511,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
               {isLastQuestion ? (
                 <button
                   onClick={() => finishTest(questions, attemptId!, false)}
-                  disabled={!allAnswered}
+                  disabled={!allAnswered || finishing}
                   className="px-5 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-medium disabled:opacity-40 transition-colors"
                 >
-                  Finish Test
+                  {finishing ? "Finishing…" : "Finish Test"}
                 </button>
               ) : (
                 <button
