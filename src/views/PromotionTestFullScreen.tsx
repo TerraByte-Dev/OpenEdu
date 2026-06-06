@@ -66,6 +66,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [genPhase, setGenPhase] = useState<"current" | "review" | "done">("current");
+  const [genProgress, setGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [genError, setGenError] = useState("");
   const [passed, setPassed] = useState(false);
   const [overallScore, setOverallScore] = useState(0);
@@ -105,6 +106,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const startTest = async () => {
     setTestState("generating");
     setGenPhase("current");
+    setGenProgress(null);
     setGenError("");
 
     try {
@@ -114,8 +116,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
       const { current, review } = await generatePromotionTestQuestions(
         currentSyllabus, previousSyllabuses, cfg,
+        (done, total, phase) => { setGenPhase(phase); setGenProgress({ done, total }); },
       );
-      setGenPhase("review");
+      setGenPhase("done");
 
       const allQ: ActiveQuestion[] = [
         ...current.map((q) => ({ ...q, user_answer: null, is_correct: null, section: "current" as const })),
@@ -433,7 +436,12 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
               </div>
             ))}
           </div>
-          <p className="text-xs text-[var(--ink-faint)]">45 questions — do not close this window</p>
+          {genProgress && (
+            <p className="text-phosphor-bright text-sm mb-2 font-mono">
+              {genProgress.done} / {genProgress.total} {genPhase === "review" ? "review " : ""}questions
+            </p>
+          )}
+          <p className="text-xs text-[var(--ink-faint)]">~{TEST_TOTAL_TARGET} questions — do not close this window</p>
           {genError && (
             <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">{genError}</div>
           )}

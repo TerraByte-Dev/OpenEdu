@@ -9,6 +9,12 @@ Installed apps auto-update; the section for each release also shows up in the in
 ## [Unreleased]
 
 ### Changed
+- **Question generation now fits the model.** On a **local** model we generate **one question per call**
+  (with a running "don't repeat these" ledger so coverage stays varied) — far more reliable than asking a
+  4B model for a whole batch as one giant JSON object (which was timing out and truncating), and each
+  question gets the model's full attention. On a **cloud** model we **batch** questions per subtopic to
+  keep the call count and token use low (friendly to free-tier keys). Both show a live "N / M questions"
+  progress count while generating.
 - **Quizzes and tests grade at the end, not mid-test.** Written and fill-in-the-blank answers used to
   trigger a model call the moment you submitted each one, which made `gemma4:e4b` and the whole machine
   stutter during the test and again in a cascade at the finish. Now those answers are recorded as you go

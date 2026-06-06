@@ -144,6 +144,25 @@ export function splitCount(total: number, buckets: number): number[] {
   return Array.from({ length: buckets }, () => base + (rem-- > 0 ? 1 : 0));
 }
 
+// Round-robin assignment of `total` question slots across `numSubtopics` subtopics — interleaved
+// (slot i → subtopic i % n) so coverage spreads from the very first questions, and the remainder lands
+// on the earliest subtopics (same per-subtopic balance as splitCount). One question is generated per
+// slot (issue #83: one-call-per-question is far more reliable + higher quality on a 4B model than
+// asking for a whole batch in a single constrained JSON call). Pure.
+export function planSlotSubtopics(numSubtopics: number, total: number): number[] {
+  if (numSubtopics <= 0 || total <= 0) return [];
+  return Array.from({ length: total }, (_, i) => i % numSubtopics);
+}
+
+// One-line summary of a generated question, fed into later single-question calls as a "don't repeat
+// these" ledger so independent calls still cover distinct ideas (the user's per-question-identifier
+// idea, auto-derived from the stem so the small model needn't emit an extra field). Pure.
+export function summarizeForLedger(q: { question_text: string; subtopic_id?: string | null }): string {
+  const sid = (q.subtopic_id ?? "").trim();
+  const stem = q.question_text.trim().replace(/\s+/g, " ").slice(0, 90);
+  return sid ? `[${sid}] ${stem}` : stem;
+}
+
 export const questionKey = (text: string): string => text.trim().toLowerCase();
 
 // Keep the first occurrence of each distinct question (by normalized text); drop blanks/dupes. The

@@ -12,6 +12,8 @@ import {
   buildVerifyPrompt,
   parseVerifyDrops,
   splitCount,
+  planSlotSubtopics,
+  summarizeForLedger,
   questionKey,
   dedupeByQuestionText,
   type QuestionLike,
@@ -274,6 +276,35 @@ describe("shouldRejectNumericReasoning", () => {
   });
   it("never rejects a conceptual (non-numeric) question", () => {
     expect(shouldRejectNumericReasoning(q({ question_text: "What is photosynthesis?", correct_answer: "a process", explanation: "x" }), "small")).toBe(false);
+  });
+});
+
+describe("planSlotSubtopics", () => {
+  it("round-robins one slot per question across subtopics", () => {
+    expect(planSlotSubtopics(3, 7)).toEqual([0, 1, 2, 0, 1, 2, 0]);
+  });
+  it("balances per-subtopic counts to within one (remainder to earliest)", () => {
+    const slots = planSlotSubtopics(4, 35);
+    const counts = [0, 1, 2, 3].map((s) => slots.filter((x) => x === s).length);
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+    expect(slots).toHaveLength(35);
+  });
+  it("handles the empty cases", () => {
+    expect(planSlotSubtopics(0, 5)).toEqual([]);
+    expect(planSlotSubtopics(3, 0)).toEqual([]);
+    expect(planSlotSubtopics(3, -2)).toEqual([]);
+  });
+});
+
+describe("summarizeForLedger", () => {
+  it("prefixes the subtopic id and truncates the stem", () => {
+    expect(summarizeForLedger({ subtopic_id: "1.2", question_text: "What is the capital of France?" }))
+      .toBe("[1.2] What is the capital of France?");
+    const long = "x".repeat(200);
+    expect(summarizeForLedger({ subtopic_id: "1.1", question_text: long }).length).toBeLessThanOrEqual(96);
+  });
+  it("collapses whitespace and tolerates a missing subtopic", () => {
+    expect(summarizeForLedger({ question_text: "  a   b  " })).toBe("a b");
   });
 });
 
