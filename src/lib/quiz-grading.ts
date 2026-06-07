@@ -58,7 +58,16 @@ export function normalizeAnswer(s: string): string {
 // "True" / "See matching_pairs" → null.
 export function numericValueOf(s: string): number | null {
   if (!s) return null;
-  const cleaned = stripNumericNoise(stripOptionLabel(s));
+  const t = stripOptionLabel(s).trim();
+  // Ambiguous non-scalars the bare extractor can't compare safely — skip rather than guess (audit):
+  // percent, currency, fraction (a/b), ratio/time (a:b), or a numeric range/compound (6 to 9, 8–10).
+  // Returning null here makes checkAnswerConsistency skip them AND makes gradeFreeTextDeterministic
+  // defer to the LLM grader instead of mis-matching on a misleading scalar (e.g. "1/2" vs "1/3").
+  if (/[%$£€]/.test(t)) return null;
+  if (/\d\s*\/\s*\d/.test(t)) return null;                 // fraction
+  if (/\d\s*:\s*\d/.test(t)) return null;                  // ratio / time
+  if (/\d\s*(?:–|—|\bto\b|\band\b)\s*-?\d/i.test(t)) return null; // range / compound
+  const cleaned = stripNumericNoise(t);
   const m = /-?\d+(?:\.\d+)?/.exec(cleaned);
   if (!m) return null;
   const n = parseFloat(m[0]);
@@ -75,17 +84,30 @@ function countNumbers(s: string): number {
 // The value a worked explanation lands on: the last "= N" / "≈ N" or "...answer is N" it states.
 // This is the conclusion the student is meant to reach, so disagreement with correct_answer is the
 // tell-tale of the "talks itself out of its own answer" failure (issue #83 / the C³⁻ screenshot).
-export function extractConcludingNumber(explanation: string): number | null {
-  if (!explanation) return null;
-  const text = stripNumericNoise(explanation);
-  // \b on the word cues so "also"/"miso"/"piso" don't match the "so" alternative (issue #83 review).
-  const re = /(?:[=≈]|\b(?:answer\s+is|equals|result\s+is|therefore|thus|so)[,:]?)\s*:?\s*(-?\d+(?:\.\d+)?)/gi;
+// The last number a global regex's capture group lands on, or null.
+function lastCaptured(re: RegExp, text: string): number | null {
   let last: number | null = null;
   for (let m = re.exec(text); m; m = re.exec(text)) {
     const n = parseFloat(m[1]);
     if (Number.isFinite(n)) last = n;
   }
   return last;
+}
+
+export function extractConcludingNumber(explanation: string): number | null {
+  if (!explanation) return null;
+  const text = stripNumericNoise(explanation);
+  const NUM = "(-?\\d+(?:\\.\\d+)?)";
+  // A 4B model phrases the conclusion many ways. Look for an EXPLICIT final-answer cue first, so a
+  // trailing sanity-check "= 6" can't hijack a correct "the answer is 8" (audit). \b-anchored so a cue
+  // never matches inside another word ("also" ≠ "so").
+  const strong = new RegExp(`(?:\\bthe\\s+answer\\s+is|\\banswer\\s*[:=]|\\btherefore[,:]?|\\bthus[,:]?|\\bhence[,:]?|\\bfinal\\s+answer[,:]?|\\bin\\s+total)\\s*:?\\s*${NUM}`, "gi");
+  const fromStrong = lastCaptured(strong, text);
+  if (fromStrong !== null) return fromStrong;
+  // Otherwise: operators, arrows, and the trailing verbs small models actually use to state a result
+  // ("the ion has 9", "→ 9", "we get 9", "becomes 9", "gives 9"). Last match wins (conclusion is last).
+  const broad = new RegExp(`(?:[=≈]|→|->|⇒|\\b(?:equals|result\\s+is|gives?|giving|we\\s+get|we\\s+have|leaving|leaves|ends?\\s+up\\s+with|becomes?|yields?|comes?\\s+out\\s+to|total\\s+of|so|is|are|has|have|will\\s+be|will\\s+have)[,:]?)\\s*:?\\s*${NUM}`, "gi");
+  return lastCaptured(broad, text);
 }
 
 const NUM_TOL = 1e-6;
