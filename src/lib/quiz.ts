@@ -565,8 +565,16 @@ export async function generateQuizQuestions(
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
-  const { fresh, review } = splitNewVsReview(numQuestions, reviewPool.length);
-  const reviewQs = pickReview(reviewPool.map(storedToGenQuestion), review);
+  // Re-posed review questions bypass generation-time validation, so a stored question with a bad answer
+  // would recur FOREVER: it's always graded wrong → never leaves the is_correct=0 pool → re-served every
+  // quiz. Run each through the SAME validator (answer↔explanation consistency + structural shape) and
+  // drop the broken ones, so a poisoned question can't keep popping up (issue #83). allowedIds is empty
+  // (we don't re-check subtopic membership for re-posed items).
+  const validReviewPool = reviewPool
+    .map(storedToGenQuestion)
+    .filter((q) => validateQuizBatch([q as unknown as GeneratedQuestion], new Set<string>(), { tier }).length === 0);
+  const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
+  const reviewQs = pickReview(validReviewPool, review);
 
   const freshQs = await generateToTarget(
     {
