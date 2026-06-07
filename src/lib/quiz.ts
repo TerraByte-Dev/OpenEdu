@@ -137,6 +137,11 @@ export function validateQuizBatch(
         issues.push(`${at}: fill_in_blank blank_position must be the full sentence containing "___".`);
       }
     } else if (type === "drag_to_match") {
+      // The matching key can't be verified (it's excluded from VERIFIABLE_TYPES and the consistency
+      // check), so don't let the weakest model ship an unverifiable answer key (issue #83 audit).
+      if (tier === "tiny" || tier === "small") {
+        issues.push(`${at}: drag_to_match is not allowed for small models — use multiple_choice, true_false, or fill_in_blank instead.`);
+      }
       const pairs = Array.isArray(q.matching_pairs) ? q.matching_pairs : [];
       if (pairs.length < 3 || pairs.length > 5) issues.push(`${at}: drag_to_match needs 3–5 matching_pairs (got ${pairs.length}).`);
       if (pairs.some((p) => !p || !String(p.left).trim() || !String(p.right).trim())) {
@@ -389,7 +394,7 @@ async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]):
 // Provider-aware. LOCAL (Ollama) optimizes for QUALITY: one call per question, sequential, with a live
 // anti-repeat ledger (time is free on local). CLOUD optimizes for COST on a free plan: batch questions
 // per subtopic to minimize call count + repeated prompt tokens, fired in parallel. Both dedupe, top up
-// a shortfall (capped rounds), and on capable tiers run the independent verify pass.
+// a shortfall (capped rounds), and run the independent verify pass on every tier but tiny.
 interface GenPlan {
   subtopics: Array<{ id: string; title: string; key_concepts: string[] }>;
   topic: string;
@@ -412,7 +417,7 @@ async function generatePerQuestion(
   plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   const { tier, config } = plan;
-  const verify = tier === "medium" || tier === "large";
+  const verify = tier !== "tiny"; // independent re-solve runs on every tier but the weakest (audit)
   const ledgerCap = tier === "tiny" || tier === "small" ? 8 : 16;
   const MAX_ROUNDS = 3;
 
@@ -458,7 +463,7 @@ async function generateBatched(
   plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   const { tier, config } = plan;
-  const verify = tier === "medium" || tier === "large";
+  const verify = tier !== "tiny"; // independent re-solve runs on every tier but the weakest (audit)
   const MAX_ROUNDS = 3;
   let produced: GenQuestion[] = [];
 
@@ -502,9 +507,11 @@ async function generateToTarget(
 }
 
 // ─── Independent verification pass (issue #83) ────────────────────────────────
-// Gated to capable tiers by the caller. One structured call re-solves the checkable questions and
-// flags any whose stored answer it disagrees with; those are dropped and the top-up loop refills.
-// Best-effort: any failure returns the batch untouched so a flaky verify never blocks generation.
+// Gated by the caller to every tier but the weakest (tiny). One structured call re-solves the checkable
+// questions and flags any whose stored answer it disagrees with; those are dropped and top-up refills.
+// The output is tiny (verdicts, not full questions), so it's cheap even on the floor model. Best-effort:
+// any failure returns the batch untouched, and a drop only happens on an explicit disagreement, so a
+// confused verifier can't silently drain the question count.
 const VERIFIABLE_TYPES = new Set(["multiple_choice", "true_false", "fill_in_blank", "short_answer", "word_problem"]);
 const VERIFY_SCHEMA = {
   type: "object",
@@ -574,7 +581,12 @@ export async function generateQuizQuestions(
     .map(storedToGenQuestion)
     .filter((q) => validateQuizBatch([q as unknown as GeneratedQuestion], new Set<string>(), { tier }).length === 0);
   const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
-  const reviewQs = pickReview(validReviewPool, review);
+  let reviewQs = pickReview(validReviewPool, review);
+  // The review pool is the path that leaked the recurring bad question, so re-posed items also get the
+  // independent verify pass (every tier but tiny) — not just the consistency/structural re-check above.
+  if (tier !== "tiny" && reviewQs.length > 0) {
+    reviewQs = await verifyAndFilter(reviewQs, config, tier, `quiz L${syllabus.level} review`);
+  }
 
   const freshQs = await generateToTarget(
     {

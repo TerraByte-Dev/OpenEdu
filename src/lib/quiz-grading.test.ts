@@ -67,6 +67,14 @@ describe("numericValueOf", () => {
     expect(numericValueOf("12,000 m")).toBe(12000);
     expect(numericValueOf("3,14")).toBe(3); // not treated as a 3-digit group → comma ignored
   });
+  it("treats percent / currency / fraction / ratio / range as non-scalar (returns null)", () => {
+    expect(numericValueOf("50%")).toBeNull();
+    expect(numericValueOf("$1.50")).toBeNull();
+    expect(numericValueOf("1/2")).toBeNull();
+    expect(numericValueOf("3:30")).toBeNull();
+    expect(numericValueOf("6 to 9")).toBeNull();
+    expect(numericValueOf("between 8 and 10")).toBeNull();
+  });
 });
 
 describe("extractConcludingNumber", () => {
@@ -81,8 +89,16 @@ describe("extractConcludingNumber", () => {
   });
   it("does not match 'so' inside another word (word boundary)", () => {
     expect(extractConcludingNumber("There are also 5 fingers.")).toBeNull();
-    expect(extractConcludingNumber("Miso has 4 letters.")).toBeNull();
     expect(extractConcludingNumber("So 7.")).toBe(7); // a real "so" cue still matches
+  });
+  it("catches conclusions phrased without an equals sign (the floor model rarely writes '=')", () => {
+    expect(extractConcludingNumber("The C³⁻ ion has 9 electrons.")).toBe(9);
+    expect(extractConcludingNumber("Adding three gives 9.")).toBe(9);
+    expect(extractConcludingNumber("gain 3 → 9 electrons")).toBe(9);
+    expect(extractConcludingNumber("It becomes 9.")).toBe(9);
+  });
+  it("prefers an explicit final answer over a later sanity-check equation", () => {
+    expect(extractConcludingNumber("Therefore the answer is 8. (Check: a neutral atom = 6.)")).toBe(8);
   });
 });
 
@@ -164,6 +180,10 @@ describe("gradeFreeTextDeterministic", () => {
     expect(gradeFreeTextDeterministic("O₂", "2", "fill_in_blank")).toBeNull();
     expect(gradeFreeTextDeterministic("x²", "2", "short_answer")).toBeNull();
     expect(gradeFreeTextDeterministic("O₂", "O2", "fill_in_blank")).toBe(true); // formula match still works
+  });
+  it("defers fraction / percent answers to the grader instead of matching on a misleading scalar", () => {
+    expect(gradeFreeTextDeterministic("1/2", "1/3", "fill_in_blank")).toBeNull();
+    expect(gradeFreeTextDeterministic("50%", "50 dollars", "short_answer")).toBeNull();
   });
 });
 

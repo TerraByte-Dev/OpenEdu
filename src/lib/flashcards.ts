@@ -2,6 +2,7 @@
 // the app-level glue (auto-mint). Kept out of db.ts so the auto-mint policy is in one obvious place.
 
 import { createFlashcard, flashcardExists } from "./db";
+import { checkAnswerConsistency } from "./quiz-grading";
 import type { QuizQuestion } from "../types";
 
 type MissedQuestion = Pick<QuizQuestion, "question_text" | "correct_answer" | "explanation" | "subtopic_id">;
@@ -21,6 +22,10 @@ export async function mintCardsFromMisses(
     const front = q.question_text.trim();
     const back = [q.correct_answer, q.explanation].map((s) => (s ?? "").trim()).filter(Boolean).join(" — ");
     if (!front || !back) continue;
+    // Never drill a wrong answer into the student via spaced repetition (issue #83 audit): skip the
+    // drag_to_match sentinel and any answer that contradicts its own explanation.
+    if (/^see matching/i.test((q.correct_answer ?? "").trim())) continue;
+    if (checkAnswerConsistency({ question_text: q.question_text, question_type: "", correct_answer: q.correct_answer, explanation: q.explanation }) !== null) continue;
     try {
       if (await flashcardExists(courseId, front)) continue;
       await createFlashcard({ courseId, front, back, subtopicId: q.subtopic_id ?? null, level, source: "quiz_miss" });
