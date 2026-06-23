@@ -1,10 +1,27 @@
-import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log, sanitizeJsonEscapes } from "./llm";
+import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } from "./llm";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { splitNewVsReview, storedToGenQuestion, pickReview, interleaveReview } from "./quiz-review";
+import {
+  checkAnswerConsistency, shouldRejectNumericReasoning,
+  gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults,
+  buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
+  planSlotSubtopics, summarizeForLedger,
+  type GradeOutcome,
+} from "./quiz-grading";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
 type GenQuestion = Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct">;
+
+// Target / floor question counts (issue #83). Target = what we aim to generate; floor = the count
+// below which a degraded run surfaces an honest "your model may be struggling" note instead of
+// silently shipping a short test. Quizzes 10–20, promotion tests 30–45.
+export const QUIZ_TARGET = 20;
+export const QUIZ_FLOOR = 10;
+export const TEST_CURRENT_TARGET = 35;
+export const TEST_REVIEW_TARGET = 10;
+export const TEST_TOTAL_TARGET = TEST_CURRENT_TARGET + TEST_REVIEW_TARGET; // 45
+export const TEST_FLOOR = 30;
 
 const QUESTION_TYPES = [
   "multiple_choice", "true_false", "fill_in_blank",
@@ -79,7 +96,11 @@ function buildBatchSchema(count: number): object {
 // Mirrors validateOutlineLevels in curriculum.ts. Returns [] when valid.
 const MC_STEM_RE = /\bwhich (of the following|of these|option|one)\b|\ball of the (following|above)\b|\bselect (the|all|one|each)\b|\bnone of the (following|above)\b/i;
 
-export function validateQuizBatch(questions: GeneratedQuestion[], allowedIds: Set<string>): string[] {
+export function validateQuizBatch(
+  questions: GeneratedQuestion[],
+  allowedIds: Set<string>,
+  { tier }: { tier?: ModelTier } = {},
+): string[] {
   const issues: string[] = [];
   const stripPrefix = (s: string) => s.replace(/^[A-D]\)\s*/i, "").trim().toLowerCase();
 
@@ -116,6 +137,11 @@ export function validateQuizBatch(questions: GeneratedQuestion[], allowedIds: Se
         issues.push(`${at}: fill_in_blank blank_position must be the full sentence containing "___".`);
       }
     } else if (type === "drag_to_match") {
+      // The matching key can't be verified (it's excluded from VERIFIABLE_TYPES and the consistency
+      // check), so don't let the weakest model ship an unverifiable answer key (issue #83 audit).
+      if (tier === "tiny" || tier === "small") {
+        issues.push(`${at}: drag_to_match is not allowed for small models — use multiple_choice, true_false, or fill_in_blank instead.`);
+      }
       const pairs = Array.isArray(q.matching_pairs) ? q.matching_pairs : [];
       if (pairs.length < 3 || pairs.length > 5) issues.push(`${at}: drag_to_match needs 3–5 matching_pairs (got ${pairs.length}).`);
       if (pairs.some((p) => !p || !String(p.left).trim() || !String(p.right).trim())) {
@@ -126,6 +152,19 @@ export function validateQuizBatch(questions: GeneratedQuestion[], allowedIds: Se
     const sid = String(q.subtopic_id ?? "").trim();
     if (allowedIds.size > 0 && sid && !allowedIds.has(sid)) {
       issues.push(`${at}: subtopic_id "${sid}" is not one of the allowed ids [${[...allowedIds].join(", ")}].`);
+    }
+
+    // ── Answer quality (issue #83): the schema enforces shape; these enforce truthfulness. ──
+    // Self-consistency: a numeric answer must agree with the value its own explanation works toward
+    // (catches the C³⁻ "stores 6 but reasons to 9" bug). Applies on every tier — it's free.
+    const consistency = checkAnswerConsistency(q);
+    if (consistency) issues.push(`${at}: ${consistency}`);
+
+    // On the floor model, a multi-step numeric question with no shown working is where correct_answer
+    // drifts. Force it to either go conceptual or show its work (which the consistency check then
+    // validates). Capable tiers skip this — they get the independent verify pass instead.
+    if (shouldRejectNumericReasoning(q, tier)) {
+      issues.push(`${at}: this looks like a multi-step numeric/arithmetic question, which small models often get wrong. Either rewrite it as a conceptual question (no calculation needed), or show the full working in the explanation and end with "Therefore the answer is <value>".`);
     }
   });
 
@@ -216,14 +255,6 @@ interface BatchContext {
   config: LLMConfig;
 }
 
-// Split `total` questions across `buckets`, as evenly as possible (remainder to the first buckets).
-function splitCount(total: number, buckets: number): number[] {
-  if (buckets <= 0) return [];
-  const base = Math.floor(total / buckets);
-  let rem = total - base * buckets;
-  return Array.from({ length: buckets }, () => base + (rem-- > 0 ? 1 : 0));
-}
-
 function subtopicsForGen(syllabus: Syllabus): Array<{ id: string; title: string; key_concepts: string[] }> {
   if (syllabus.subtopics && syllabus.subtopics.length > 0) {
     return syllabus.subtopics.map((s) => ({ id: s.id, title: s.title, key_concepts: s.key_concepts ?? [] }));
@@ -249,7 +280,7 @@ function buildBatchPrompt(ctx: BatchContext): string {
     : "Use a mix: mostly multiple_choice, plus some true_false, fill_in_blank, word_problem, or drag_to_match where they fit.";
 
   const steer = small
-    ? "\n- Prefer conceptual understanding, definitions, and reasoning. AVOID multi-step arithmetic and unit-conversion questions, and do not include numeric details irrelevant to the answer."
+    ? "\n- Prefer conceptual understanding, definitions, and reasoning. Avoid multi-step arithmetic and unit-conversion questions where you can; if a question DOES require calculation, show every step of the working in the explanation."
     : "";
 
   return `Generate ${ctx.count} quiz question${ctx.count === 1 ? "" : "s"} about "${ctx.topic}" — ${ctx.levelLabel}.
@@ -265,7 +296,7 @@ Rules for every question:
 - fill_in_blank: blank_position is the full sentence with ___ where the answer goes.
 - drag_to_match: matching_pairs is 3–5 {left, right} objects; correct_answer is "See matching_pairs".
 - For any field a question does not use, set it empty: options [], matching_pairs [], blank_position "".
-- explanation: 1–2 educational sentences. difficulty_level: ${ctx.difficulty}.
+- explanation: 1–2 educational sentences. Solve the question first, then end the explanation with "Therefore the answer is X" and set correct_answer to exactly that X — the explanation and correct_answer must never disagree. difficulty_level: ${ctx.difficulty}.
 - The correct_answer must be unambiguously correct.${steer}
 
 Math/formatting:
@@ -284,7 +315,7 @@ async function generateQuestionBatch(ctx: BatchContext): Promise<GeneratedQuesti
       {
         schema: buildBatchSchema(ctx.count),
         toolName: "emit_quiz_questions",
-        validate: (parsed) => validateQuizBatch(parsed?.questions ?? [], allowedIds),
+        validate: (parsed) => validateQuizBatch(parsed?.questions ?? [], allowedIds, { tier: ctx.tier }),
         tier: ctx.tier,
       },
     );
@@ -297,15 +328,235 @@ async function generateQuestionBatch(ctx: BatchContext): Promise<GeneratedQuesti
   }
 }
 
-// Sequential on Ollama (single-GPU swap cost), parallel on cloud APIs — mirrors expandSubtopics.
-async function runBatches(ctxs: BatchContext[], config: LLMConfig): Promise<GeneratedQuestion[]> {
-  if (config.provider === "ollama") {
-    const out: GeneratedQuestion[] = [];
-    for (const ctx of ctxs) out.push(...(await generateQuestionBatch(ctx)));
-    return out;
+// ─── One-question-per-call generation, LOCAL path (issue #83) ─────────────────
+// On a 4B local model, asking for a whole batch as one constrained JSON blob is what timed out and
+// truncated; one question per call is ~10–30s, gets the model's full attention (higher quality), and
+// isolates failure to a single question. Each call is steered by a short ledger of the questions
+// already produced (auto-derived summaries) so independent calls still cover distinct ideas.
+function buildOneQuestionPrompt(ctx: BatchContext, priorSummaries: string[]): string {
+  const small = ctx.tier === "tiny" || ctx.tier === "small";
+  const s = ctx.subtopics[0];
+  const stakes = ctx.highStakes
+    ? "This is a high-stakes promotion-test question — rigorous but fair.\n"
+    : ctx.easier
+    ? "This reviews earlier material — keep it slightly easier than the current level.\n"
+    : "";
+  const typeGuide = small
+    ? "Use multiple_choice, or true_false / fill_in_blank where it fits naturally."
+    : "Pick whichever type fits best: multiple_choice, true_false, fill_in_blank, word_problem, or drag_to_match.";
+  const steer = small
+    ? "\n- Prefer conceptual understanding, definitions, and reasoning. Avoid multi-step arithmetic and unit-conversion where you can; if calculation IS needed, show every step in the explanation."
+    : "";
+  const avoid = priorSummaries.length
+    ? `\nThis quiz already includes these questions — ask about a DIFFERENT idea; do NOT repeat or paraphrase any of them:\n${priorSummaries.map((x) => `- ${x}`).join("\n")}\n`
+    : "";
+
+  return `Generate ONE quiz question about "${ctx.topic}" — ${ctx.levelLabel}.
+${stakes}Cover this subtopic and put its id in subtopic_id:
+- id="${s.id}" title="${s.title}": ${s.key_concepts.join(", ")}
+${avoid}
+${typeGuide}
+
+Rules:
+- multiple_choice: provide EXACTLY 4 options ("A) ...", "B) ...", "C) ...", "D) ..."); correct_answer must be one of them verbatim. Vary which letter is correct.
+- true_false: question_text MUST be a declarative statement clearly true or false — never "Which of the following...". correct_answer is exactly "True" or "False".
+- fill_in_blank: blank_position is the full sentence with ___ where the answer goes.
+- drag_to_match: matching_pairs is 3–5 {left, right} objects; correct_answer is "See matching_pairs".
+- For any field this question does not use, set it empty: options [], matching_pairs [], blank_position "".
+- explanation: 1–2 sentences. Solve the question first, then end with "Therefore the answer is X" and set correct_answer to exactly that X — they must never disagree. difficulty_level: ${ctx.difficulty}.
+- The correct_answer must be unambiguously correct.${steer}
+
+Math/formatting:
+- Plain-text math only: × ÷ ² ³ π ≤ ≥ √ Δ θ α β. No LaTeX, no backslashes, no $...$ delimiters.`;
+}
+
+async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]): Promise<GenQuestion | null> {
+  const allowedIds = new Set(ctx.subtopics.map((s) => s.id));
+  try {
+    const q = await callLLMStructured<GeneratedQuestion>(
+      [{ role: "user", content: buildOneQuestionPrompt(ctx, priorSummaries) }],
+      ctx.config,
+      {
+        schema: QUESTION_SCHEMA,
+        toolName: "emit_quiz_question",
+        validate: (parsed) => validateQuizBatch(parsed ? [parsed] : [], allowedIds, { tier: ctx.tier }),
+        tier: ctx.tier,
+      },
+    );
+    return q ? finalizeQuestion(q) : null;
+  } catch (e) {
+    log.warn("generateOneQuestion", `failed for ${ctx.levelLabel} [${[...allowedIds].join(",")}]`, e instanceof Error ? e.message : String(e));
+    return null;
   }
-  const settled = await Promise.all(ctxs.map((c) => generateQuestionBatch(c)));
-  return settled.flat();
+}
+
+// ─── Generate to a target count (issue #83) ───────────────────────────────────
+// Provider-aware. LOCAL (Ollama) optimizes for QUALITY: one call per question, sequential, with a live
+// anti-repeat ledger (time is free on local). CLOUD optimizes for COST on a free plan: batch questions
+// per subtopic to minimize call count + repeated prompt tokens, fired in parallel. Both dedupe, top up
+// a shortfall (capped rounds), and run the independent verify pass on every tier but tiny.
+interface GenPlan {
+  subtopics: Array<{ id: string; title: string; key_concepts: string[] }>;
+  topic: string;
+  levelLabel: string;
+  difficulty: number;
+  highStakes: boolean;
+  easier: boolean;
+  tier: ModelTier;
+  config: LLMConfig;
+}
+
+function planSlotCtx(plan: GenPlan, subIdx: number): BatchContext {
+  return {
+    topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [plan.subtopics[subIdx]], count: 1,
+    highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier: plan.tier, config: plan.config,
+  };
+}
+
+async function generatePerQuestion(
+  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenQuestion[]> {
+  const { tier, config } = plan;
+  const verify = tier !== "tiny"; // independent re-solve runs on every tier but the weakest (audit)
+  const ledgerCap = tier === "tiny" || tier === "small" ? 8 : 16;
+  const MAX_ROUNDS = 3;
+
+  let produced: GenQuestion[] = [];
+  const seen = new Set<string>();
+  const keyOf = (q: GenQuestion) => q.question_text.trim().toLowerCase();
+  const ledgerTail = () => produced.slice(-ledgerCap).map(summarizeForLedger);
+  const add = (q: GenQuestion | null): void => {
+    if (!q) return;
+    const k = keyOf(q);
+    if (!k || seen.has(k)) return;
+    seen.add(k); produced.push(q); onProgress?.(produced.length, target);
+  };
+
+  for (let round = 1; round <= MAX_ROUNDS && produced.length < target; round++) {
+    const roundStart = produced.length;
+    for (const subIdx of planSlotSubtopics(plan.subtopics.length, target - produced.length)) {
+      if (produced.length >= target) break;
+      add(await generateOneQuestion(planSlotCtx(plan, subIdx), ledgerTail()));
+    }
+    if (verify && produced.length > roundStart) {
+      const fresh = produced.slice(roundStart);
+      const kept = await verifyAndFilter(fresh, config, tier, `${label} r${round}`);
+      if (kept.length !== fresh.length) {
+        const keptKeys = new Set(kept.map(keyOf));
+        for (const q of fresh) if (!keptKeys.has(keyOf(q))) seen.delete(keyOf(q));
+        produced = produced.slice(0, roundStart).concat(kept);
+      }
+    }
+    if (produced.length === roundStart) {
+      log.warn("quiz", `${label}: round ${round} added 0 questions — stopping at ${produced.length}/${target}`);
+      break;
+    }
+    if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
+  }
+
+  if (produced.length < target) log.warn("quiz", `${label}: generated ${produced.length}/${target} — model may be struggling (short test)`);
+  else log.info("quiz", `${label}: ${produced.length}/${target} questions ready`);
+  return produced.slice(0, target);
+}
+
+async function generateBatched(
+  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenQuestion[]> {
+  const { tier, config } = plan;
+  const verify = tier !== "tiny"; // independent re-solve runs on every tier but the weakest (audit)
+  const MAX_ROUNDS = 3;
+  let produced: GenQuestion[] = [];
+
+  for (let round = 1; round <= MAX_ROUNDS && produced.length < target; round++) {
+    const before = produced.length;
+    // One batch call per subtopic — minimizes call count + repeated prompt tokens for a free-plan key.
+    const counts = splitCount(target - produced.length, plan.subtopics.length);
+    const ctxs: BatchContext[] = plan.subtopics
+      .map((s, i): BatchContext => ({
+        topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [s], count: counts[i],
+        highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier, config,
+      }))
+      .filter((c) => c.count > 0);
+    if (ctxs.length === 0) break;
+
+    let batch = (await Promise.all(ctxs.map(generateQuestionBatch))).flat().map(finalizeQuestion);
+    if (verify) batch = await verifyAndFilter(batch, config, tier, `${label} r${round}`);
+
+    produced = dedupeByQuestionText([...produced, ...batch]);
+    onProgress?.(Math.min(produced.length, target), target);
+    if (produced.length === before) {
+      log.warn("quiz", `${label}: round ${round} added 0 questions — stopping at ${produced.length}/${target}`);
+      break;
+    }
+    if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
+  }
+
+  const final = produced.length > target ? produced.slice(0, target) : produced;
+  if (final.length < target) log.warn("quiz", `${label}: generated ${final.length}/${target} — model may be struggling (short test)`);
+  else log.info("quiz", `${label}: ${final.length}/${target} questions ready`);
+  return final;
+}
+
+async function generateToTarget(
+  plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
+): Promise<GenQuestion[]> {
+  if (plan.subtopics.length === 0 || target <= 0) return [];
+  return plan.config.provider === "ollama"
+    ? generatePerQuestion(plan, target, label, onProgress)   // local: quality, one call per question
+    : generateBatched(plan, target, label, onProgress);       // cloud: cost, batched per subtopic
+}
+
+// ─── Independent verification pass (issue #83) ────────────────────────────────
+// Gated by the caller to every tier but the weakest (tiny). One structured call re-solves the checkable
+// questions and flags any whose stored answer it disagrees with; those are dropped and top-up refills.
+// The output is tiny (verdicts, not full questions), so it's cheap even on the floor model. Best-effort:
+// any failure returns the batch untouched, and a drop only happens on an explicit disagreement, so a
+// confused verifier can't silently drain the question count.
+const VERIFIABLE_TYPES = new Set(["multiple_choice", "true_false", "fill_in_blank", "short_answer", "word_problem"]);
+const VERIFY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["verdicts"],
+  properties: {
+    verdicts: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["index", "proposed_is_correct"],
+        properties: { index: { type: "number" }, proposed_is_correct: { type: "boolean" } },
+      },
+    },
+  },
+};
+
+async function verifyAndFilter(
+  questions: GenQuestion[],
+  config: LLMConfig,
+  tier: ModelTier,
+  label: string,
+): Promise<GenQuestion[]> {
+  // index = position in `questions` so parseVerifyDrops maps straight back to a filter predicate.
+  const items = questions
+    .map((q, index) => ({ q, index }))
+    .filter(({ q }) => VERIFIABLE_TYPES.has(q.question_type))
+    .map(({ q, index }) => ({ index, question: q.question_text, options: q.options, proposed: q.correct_answer }));
+  if (items.length === 0) return questions;
+
+  try {
+    const parsed = await callLLMStructured<{ verdicts: Array<{ index: number; proposed_is_correct: boolean }> }>(
+      [{ role: "user", content: buildVerifyPrompt(items) }],
+      config,
+      { schema: VERIFY_SCHEMA, toolName: "emit_verdicts", tier },
+    );
+    const drop = parseVerifyDrops(parsed, items);
+    if (drop.size === 0) return questions;
+    log.info("quiz", `${label}: verify pass dropped ${drop.size}/${items.length} with disagreeing answers`);
+    return questions.filter((_, i) => !drop.has(i));
+  } catch (e) {
+    log.warn("quiz", `${label}: verify pass failed — keeping batch as-is`, e instanceof Error ? e.message : String(e));
+    return questions;
+  }
 }
 
 // `reviewPool` (optional) holds previously-missed questions for this course; ~20% of the quiz is
@@ -316,30 +567,42 @@ export async function generateQuizQuestions(
   numQuestions: number,
   config: LLMConfig,
   reviewPool: QuizQuestion[] = [],
+  onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
-  const { fresh, review } = splitNewVsReview(numQuestions, reviewPool.length);
-  const reviewQs = pickReview(reviewPool.map(storedToGenQuestion), review);
+  // Re-posed review questions bypass generation-time validation, so a stored question with a bad answer
+  // would recur FOREVER: it's always graded wrong → never leaves the is_correct=0 pool → re-served every
+  // quiz. Run each through the SAME validator (answer↔explanation consistency + structural shape) and
+  // drop the broken ones, so a poisoned question can't keep popping up (issue #83). allowedIds is empty
+  // (we don't re-check subtopic membership for re-posed items).
+  const validReviewPool = reviewPool
+    .map(storedToGenQuestion)
+    .filter((q) => validateQuizBatch([q as unknown as GeneratedQuestion], new Set<string>(), { tier }).length === 0);
+  const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
+  let reviewQs = pickReview(validReviewPool, review);
+  // The review pool is the path that leaked the recurring bad question, so re-posed items also get the
+  // independent verify pass (every tier but tiny) — not just the consistency/structural re-check above.
+  if (tier !== "tiny" && reviewQs.length > 0) {
+    reviewQs = await verifyAndFilter(reviewQs, config, tier, `quiz L${syllabus.level} review`);
+  }
 
-  const subs = subtopicsForGen(syllabus);
-  const counts = splitCount(fresh, subs.length);
-  const ctxs: BatchContext[] = subs
-    .map((s, i): BatchContext => ({
+  const freshQs = await generateToTarget(
+    {
+      subtopics: subtopicsForGen(syllabus),
       topic: syllabus.title,
       levelLabel: `Level ${syllabus.level}`,
-      subtopics: [s],
-      count: counts[i],
+      difficulty: syllabus.level,
       highStakes: false,
       easier: false,
-      difficulty: syllabus.level,
       tier,
       config,
-    }))
-    .filter((c) => c.count > 0);
-
-  const freshQs = (await runBatches(ctxs, config)).map(finalizeQuestion);
+    },
+    fresh,
+    `quiz L${syllabus.level}`,
+    onProgress,
+  );
   if (freshQs.length === 0 && reviewQs.length === 0) {
     throw new Error("Could not generate quiz questions — the model returned no valid questions. Try again, or switch to a more capable model.");
   }
@@ -356,87 +619,122 @@ export async function generatePromotionTestQuestions(
   currentSyllabus: Syllabus,
   previousSyllabuses: Syllabus[],
   config: LLMConfig,
+  onProgress?: (done: number, total: number, phase: "current" | "review") => void,
 ): Promise<PromotionTestQuestions> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
-  // ── Current section: per-subtopic over the current level (35 total). Even split across 3–6
-  // subtopics naturally yields ≥2 per subtopic, satisfying the mandatory-coverage rule. ──
-  const curSubs = subtopicsForGen(currentSyllabus);
-  const curCounts = splitCount(35, curSubs.length);
-  const curCtxs: BatchContext[] = curSubs
-    .map((s, i): BatchContext => ({
+  // ── Current section: the current level's subtopics, round-robin to TEST_CURRENT_TARGET. ──
+  const current = await generateToTarget(
+    {
+      subtopics: subtopicsForGen(currentSyllabus),
       topic: currentSyllabus.title,
       levelLabel: `Level ${currentSyllabus.level} promotion test`,
-      subtopics: [s],
-      count: curCounts[i],
+      difficulty: currentSyllabus.level,
       highStakes: true,
       easier: false,
-      difficulty: currentSyllabus.level,
       tier,
       config,
-    }))
-    .filter((c) => c.count > 0);
-  const current = (await runBatches(curCtxs, config)).map(finalizeQuestion);
+    },
+    TEST_CURRENT_TARGET,
+    `promotion L${currentSyllabus.level} current`,
+    onProgress ? (d, t) => onProgress(d, t, "current") : undefined,
+  );
 
-  // ── Review section: per previous level (last ≤4), 10 total, slightly easier. ──
+  // ── Review section: the last ≤4 prior levels' subtopics flattened, slightly easier. ──
   let review: GenQuestion[] = [];
   const recents = previousSyllabuses.slice(-4).filter((s) => s.subtopics && s.subtopics.length > 0);
-  if (recents.length > 0) {
-    const revCounts = splitCount(10, recents.length);
-    const revCtxs: BatchContext[] = recents
-      .map((s, i): BatchContext => ({
-        topic: s.title,
-        levelLabel: `Level ${s.level} (review of earlier material)`,
-        subtopics: s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })),
-        count: revCounts[i],
+  const reviewSubs = recents.flatMap((s) => s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })));
+  if (reviewSubs.length > 0) {
+    review = await generateToTarget(
+      {
+        subtopics: reviewSubs,
+        topic: currentSyllabus.title,
+        levelLabel: "review of earlier material",
+        difficulty: Math.max(1, currentSyllabus.level - 1),
         highStakes: false,
         easier: true,
-        difficulty: Math.max(1, currentSyllabus.level - 1),
         tier,
         config,
-      }))
-      .filter((c) => c.count > 0);
-    review = (await runBatches(revCtxs, config)).map(finalizeQuestion);
+      },
+      TEST_REVIEW_TARGET,
+      `promotion L${currentSyllabus.level} review`,
+      onProgress ? (d, t) => onProgress(d, t, "review") : undefined,
+    );
   }
 
   return { current, review };
 }
 
-// Grade a written response or word problem using the LLM
-export async function gradeWrittenResponse(
-  question: string,
-  correctAnswer: string,
-  studentAnswer: string,
+// ─── End-of-test grading (issue #83) ──────────────────────────────────────────
+// Grades every free-text answer in ONE place at finish, instead of a blocking LLM call per answer
+// mid-test (the old gradeWrittenResponse, which bogged the machine down). Normalized exact / numeric
+// matches are settled deterministically with zero model calls; only the genuinely fuzzy answers go to
+// a single batched structured call. Returns answer-index → {isCorrect, feedback}. Best-effort: a
+// grader failure marks the unresolved answers correct (lenient) rather than punishing the student.
+export interface AnswerToGrade {
+  index: number;     // stable id back to the caller's question list
+  question: string;
+  expected: string;
+  student: string;
+  type: string;
+}
+
+const BATCH_GRADE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["results"],
+  properties: {
+    results: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["index", "correct", "feedback"],
+        properties: {
+          index: { type: "number" },
+          correct: { type: "boolean" },
+          feedback: { type: "string", maxLength: 300 },
+        },
+      },
+    },
+  },
+};
+
+export async function gradeAnswersBatch(
+  items: AnswerToGrade[],
   config: LLMConfig,
-): Promise<{ isCorrect: boolean; feedback: string }> {
-  const prompt = `You are grading a student's written answer. Return a JSON object.
+): Promise<Map<number, GradeOutcome>> {
+  const out = new Map<number, GradeOutcome>();
+  const needsLLM: AnswerToGrade[] = [];
 
-Question: ${question}
-Expected answer: ${correctAnswer}
-Student's answer: ${studentAnswer}
-
-Evaluate if the student demonstrates understanding of the core concept. Allow for different wording as long as the meaning is correct. Be generous with partial credit — if they show understanding, mark correct.
-
-Return ONLY valid JSON: {"correct": true/false, "feedback": "1-2 sentence feedback explaining the evaluation"}
-
-${MATH_FORMATTING_RULES}`;
-
-  const response = await callLLM([{ role: "user", content: prompt }], config);
-  let jsonStr = response.trim();
-  if (jsonStr.startsWith("```")) {
-    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  for (const it of items) {
+    // gradeFreeTextDeterministic only ever returns true (confident match) or null (defer) — never a
+    // false, so it can't wrongly fail a correct-but-reworded answer.
+    if (gradeFreeTextDeterministic(it.expected, it.student, it.type) === true) {
+      out.set(it.index, { isCorrect: true, feedback: "Correct." });
+    } else {
+      needsLLM.push(it);
+    }
   }
-  const s = jsonStr.indexOf("{");
-  const e = jsonStr.lastIndexOf("}");
-  if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e + 1);
-  let result: { correct: boolean; feedback: string };
-  try {
-    result = JSON.parse(jsonStr) as { correct: boolean; feedback: string };
-  } catch {
-    result = JSON.parse(sanitizeJsonEscapes(jsonStr)) as { correct: boolean; feedback: string };
+
+  if (needsLLM.length > 0) {
+    const tier = config.modelTier ?? await detectModelTier(config);
+    config.modelTier = tier;
+    try {
+      const parsed = await callLLMStructured<{ results: Array<{ index: number; correct: boolean; feedback: string }> }>(
+        [{ role: "user", content: buildBatchGradePrompt(needsLLM, MATH_FORMATTING_RULES) }],
+        config,
+        { schema: BATCH_GRADE_SCHEMA, toolName: "emit_grades", tier },
+      );
+      for (const [idx, outcome] of parseBatchGradeResults(parsed, needsLLM)) out.set(idx, outcome);
+    } catch (e) {
+      log.warn("quiz", `batch grade failed — marking ${needsLLM.length} answers correct (lenient)`, e instanceof Error ? e.message : String(e));
+      for (const it of needsLLM) out.set(it.index, { isCorrect: true, feedback: "" });
+    }
   }
-  return { isCorrect: Boolean(result.correct), feedback: String(result.feedback ?? "") };
+
+  return out;
 }
 
 // Generate a study plan from missed questions after a failed promotion test
