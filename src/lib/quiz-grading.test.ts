@@ -134,6 +134,29 @@ describe("checkAnswerConsistency", () => {
       explanation: "Two oxygen atoms bond covalently; the molar mass is 32.",
     }))).toBeNull();
   });
+  it("does not flag a correct answer whose explanation ends on a contrasting distractor (soft verb, no derivation)", () => {
+    // The broken heuristic read the trailing 'is/has' number as the conclusion and rejected these
+    // perfectly-correct questions — and silently dropped them from the spaced-review pool (audit, issue #83).
+    const cases: Array<[string, string]> = [
+      ["8", "An octet is 8 bits. A nibble is 4 bits."],
+      ["8", "An octagon has 8 sides. A hexagon has 6 sides."],
+      ["4", "A quadrilateral has 4 sides, while a triangle has 3."],
+      ["7", "A week has 7 days. A fortnight is 14 days."],
+      ["6", "An insect has 6 legs; a spider, by contrast, has 8."],
+    ];
+    for (const [correct_answer, explanation] of cases) {
+      expect(checkAnswerConsistency(q({ correct_answer, explanation }))).toBeNull();
+    }
+  });
+  it("still flags a real arithmetic derivation that contradicts the answer, even when the answer appears as an intermediate", () => {
+    // The C³⁻ class: "has 6" is a soft intermediate; the arithmetic concludes 9; stored answer 6 is wrong.
+    const issue = checkAnswerConsistency(q({
+      correct_answer: "6",
+      explanation: "A neutral atom has 6 electrons; gaining 3 we get 6 + 3 = 9.",
+    }));
+    expect(issue).not.toBeNull();
+    expect(issue).toContain("9");
+  });
 });
 
 describe("isNumericReasoningQuestion", () => {

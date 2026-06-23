@@ -94,20 +94,44 @@ function lastCaptured(re: RegExp, text: string): number | null {
   return last;
 }
 
+const NUM = "(-?\\d+(?:\\.\\d+)?)";
+// Conclusion cues, split by how trustworthy a number trailing them is. A 4B model phrases conclusions
+// many ways, so we keep a wide net for "is there a stated result?" but a narrower one for "is this a
+// DERIVED result we'd reject a question over?":
+//  • STRONG — an explicit final-answer marker ("the answer is X", "therefore X").
+//  • ARITH  — an operator or computation verb whose number is a derived result ("= 9", "gives 9", "→ 9").
+//  • SOFT   — a bare factual verb ("is/are/has/have"). A small model states distractor / parallel facts
+//             with these as often as conclusions ("an octet is 8 bits; a nibble is 4 bits"), so a SOFT
+//             trailing number is NOT trustworthy as the value the work lands on.
+// \b-anchored so a cue never matches inside another word ("also" ≠ "so").
+const STRONG_CUES = "\\bthe\\s+answer\\s+is|\\banswer\\s*[:=]|\\btherefore[,:]?|\\bthus[,:]?|\\bhence[,:]?|\\bfinal\\s+answer[,:]?|\\bin\\s+total";
+const ARITH_CUES = "[=≈]|→|->|⇒|\\b(?:equals|result\\s+is|gives?|giving|we\\s+get|we\\s+have|leaving|leaves|ends?\\s+up\\s+with|becomes?|yields?|comes?\\s+out\\s+to|total\\s+of)[,:]?";
+const SOFT_CUES = "\\b(?:so|is|are|has|have|will\\s+be|will\\s+have)[,:]?";
+
+// Fresh regex per call (global regexes carry lastIndex state — never share one across calls).
+const cueRegex = (cues: string): RegExp => new RegExp(`(?:${cues})\\s*:?\\s*${NUM}`, "gi");
+
 export function extractConcludingNumber(explanation: string): number | null {
   if (!explanation) return null;
   const text = stripNumericNoise(explanation);
-  const NUM = "(-?\\d+(?:\\.\\d+)?)";
-  // A 4B model phrases the conclusion many ways. Look for an EXPLICIT final-answer cue first, so a
-  // trailing sanity-check "= 6" can't hijack a correct "the answer is 8" (audit). \b-anchored so a cue
-  // never matches inside another word ("also" ≠ "so").
-  const strong = new RegExp(`(?:\\bthe\\s+answer\\s+is|\\banswer\\s*[:=]|\\btherefore[,:]?|\\bthus[,:]?|\\bhence[,:]?|\\bfinal\\s+answer[,:]?|\\bin\\s+total)\\s*:?\\s*${NUM}`, "gi");
-  const fromStrong = lastCaptured(strong, text);
+  // An EXPLICIT final-answer cue wins, so a trailing sanity-check "= 6" can't hijack "the answer is 8".
+  const fromStrong = lastCaptured(cueRegex(STRONG_CUES), text);
   if (fromStrong !== null) return fromStrong;
-  // Otherwise: operators, arrows, and the trailing verbs small models actually use to state a result
-  // ("the ion has 9", "→ 9", "we get 9", "becomes 9", "gives 9"). Last match wins (conclusion is last).
-  const broad = new RegExp(`(?:[=≈]|→|->|⇒|\\b(?:equals|result\\s+is|gives?|giving|we\\s+get|we\\s+have|leaving|leaves|ends?\\s+up\\s+with|becomes?|yields?|comes?\\s+out\\s+to|total\\s+of|so|is|are|has|have|will\\s+be|will\\s+have)[,:]?)\\s*:?\\s*${NUM}`, "gi");
-  return lastCaptured(broad, text);
+  // Otherwise the last operator/verb-stated result, incl. soft verbs ("the ion has 9", "→ 9",
+  // "becomes 9"). This is the broad "is there shown working?" signal (shouldRejectNumericReasoning).
+  return lastCaptured(cueRegex(`${ARITH_CUES}|${SOFT_CUES}`), text);
+}
+
+// The number a worked explanation DERIVES — strong or arithmetic cues only, no soft factual verbs. This
+// is the only conclusion checkAnswerConsistency will reject a question over: a soft-verb trailing number
+// ("a nibble is 4 bits") is as often a contrasting distractor as a result, so flagging on it bounces
+// correct questions. The independent verify pass re-solves the soft-verb cases this abstains on.
+function derivedResult(explanation: string): number | null {
+  if (!explanation) return null;
+  const text = stripNumericNoise(explanation);
+  const fromStrong = lastCaptured(cueRegex(STRONG_CUES), text);
+  if (fromStrong !== null) return fromStrong;
+  return lastCaptured(cueRegex(ARITH_CUES), text);
 }
 
 const NUM_TOL = 1e-6;
@@ -117,16 +141,19 @@ function numbersAgree(a: number, b: number): boolean {
 
 // ─── Semantic validation (drives repair-retry) ────────────────────────────────
 
-// Self-consistency: when a question has a numeric correct_answer AND its explanation concludes on a
-// number, the two must agree. Conservative on purpose — it only fires when an explicit concluding
-// value exists, so a well-formed question is never flagged. Returns an issue string or null.
+// Self-consistency: when a question has a numeric correct_answer AND its explanation DERIVES a number
+// (a strong "therefore X" or an arithmetic "… = X" — see derivedResult), the two must agree. Conservative
+// on purpose: it ignores soft factual verbs, so a correct question whose explanation merely ends on a
+// contrasting distractor ("an octet is 8 bits; a nibble is 4 bits", answer 8) is never falsely flagged —
+// only a genuine "works itself to a different number" (the C³⁻ screenshot) is. The independent verify
+// pass re-solves the soft-verb cases this abstains on. Returns an issue string or null.
 export function checkAnswerConsistency(q: QuestionLike): string | null {
   const ans = numericValueOf(q.correct_answer);
   if (ans === null) return null;
-  const concl = extractConcludingNumber(q.explanation);
-  if (concl === null) return null;
-  if (numbersAgree(ans, concl)) return null;
-  return `the explanation works toward ${concl}, but correct_answer is "${q.correct_answer}" (${ans}). ` +
+  const derived = derivedResult(q.explanation);
+  if (derived === null) return null;
+  if (numbersAgree(ans, derived)) return null;
+  return `the explanation works toward ${derived}, but correct_answer is "${q.correct_answer}" (${ans}). ` +
     `Re-solve the problem, end the explanation with "Therefore the answer is <value>", and set correct_answer to that exact value.`;
 }
 
@@ -275,7 +302,7 @@ export function parseBatchGradeResults(
   return out;
 }
 
-// ─── Independent verification pass (medium/large tier only — see quiz.ts) ──────
+// ─── Independent verification pass (every tier but tiny — see quiz.ts) ─────────
 
 export interface VerifyItem {
   index: number;
@@ -284,8 +311,9 @@ export interface VerifyItem {
   proposed: string; // the correct_answer we're checking
 }
 
-// Ask a capable model to independently solve each question and judge whether the proposed answer is
-// right. (Gated to medium/large in quiz.ts so the floor model never pays for it.)
+// Ask the model to independently solve each question and judge whether the proposed answer is right.
+// (Gated in quiz.ts to every tier but the weakest (tiny); the floor model runs it too — the output is
+// verdicts only, so it stays cheap even on a 4B model.)
 export function buildVerifyPrompt(items: VerifyItem[]): string {
   const body = items
     .map((it) => {
