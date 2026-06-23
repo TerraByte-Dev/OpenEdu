@@ -1,0 +1,175 @@
+{
+  "target": "npc",
+  "mode": "single",
+  "prompt": "OpenEdu robotic tutor avatar concept sheet, 2x2 static portraits, cyan phosphor pixel/CRT style, magenta chroma key",
+  "role": "",
+  "input": "C:\\Users\\tatew\\Desktop\\Tate\\TerraByte Solutions LLC\\Production\\Products\\OpenEdu\\src\\assets\\tutor-avatars\\draft-01\\raw-openedu-robot-tutor-sheet.png",
+  "threshold": 90,
+  "edge_threshold": 90,
+  "duration": 200,
+  "rows": 2,
+  "cols": 2,
+  "cell_size": 128,
+  "fit_scale": 0.92,
+  "trim_border": 4,
+  "edge_clean_depth": 3,
+  "align": "center",
+  "shared_scale": false,
+  "component_mode": "largest",
+  "component_padding": 0,
+  "min_component_area": 1,
+  "edge_touch_margin": 0,
+  "frame_labels": [
+    "single-1",
+    "single-2",
+    "single-3",
+    "single-4"
+  ],
+  "frames": [
+    {
+      "grid": [
+        0,
+        0
+      ],
+      "source_box": [
+        0,
+        0,
+        627,
+        627
+      ],
+      "component_mode": "largest",
+      "component_count": 1,
+      "selected_component_area": 152038,
+      "selected_component_bbox": [
+        122,
+        92,
+        541,
+        572
+      ],
+      "crop_bbox": [
+        122,
+        92,
+        541,
+        572
+      ],
+      "edge_touch": false,
+      "output_size": [
+        102,
+        117
+      ],
+      "paste_position": [
+        13,
+        5
+      ]
+    },
+    {
+      "grid": [
+        0,
+        1
+      ],
+      "source_box": [
+        627,
+        0,
+        1254,
+        627
+      ],
+      "component_mode": "largest",
+      "component_count": 1,
+      "selected_component_area": 170300,
+      "selected_component_bbox": [
+        71,
+        92,
+        506,
+        580
+      ],
+      "crop_bbox": [
+        71,
+        92,
+        506,
+        580
+      ],
+      "edge_touch": false,
+      "output_size": [
+        104,
+        117
+      ],
+      "paste_position": [
+        12,
+        5
+      ]
+    },
+    {
+      "grid": [
+        1,
+        0
+      ],
+      "source_box": [
+        0,
+        627,
+        627,
+        1254
+      ],
+      "component_mode": "largest",
+      "component_count": 6,
+      "selected_component_area": 126549,
+      "selected_component_bbox": [
+        84,
+        47,
+        561,
+        456
+      ],
+      "crop_bbox": [
+        84,
+        47,
+        561,
+        456
+      ],
+      "edge_touch": false,
+      "output_size": [
+        117,
+        100
+      ],
+      "paste_position": [
+        5,
+        14
+      ]
+    },
+    {
+      "grid": [
+        1,
+        1
+      ],
+      "source_box": [
+        627,
+        627,
+        1254,
+        1254
+      ],
+      "component_mode": "largest",
+      "component_count": 1,
+      "selected_component_area": 148433,
+      "selected_component_bbox": [
+        61,
+        31,
+        470,
+        511
+      ],
+      "crop_bbox": [
+        61,
+        31,
+        470,
+        511
+      ],
+      "edge_touch": false,
+      "output_size": [
+        100,
+        117
+      ],
+      "paste_position": [
+        14,
+        5
+      ]
+    }
+  ],
+  "edge_touch_frames": []
+}

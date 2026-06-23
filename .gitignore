@@ -41,3 +41,7 @@ WixTools/
 # Local-only dev notes / planning artifacts (kept out of the public repo)
 .dev/
 BLIP.md
+
+# Tutor-avatar generation: keep the curated final art (single-*/sheet-transparent/animation/preview/meta),
+# but ignore the multi-MB raw generation sheets — regenerable scratch, not referenced by the app.
+src/assets/tutor-avatars/**/raw-*
