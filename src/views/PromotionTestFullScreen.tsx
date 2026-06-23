@@ -186,8 +186,16 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     finishingRef.current = true;
     setFinishing(true);
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    // Pulled fresh (not the possibly-stale `config` closure) so the setInterval timeout path is safe.
-    const cfg = await getGenerationConfig();
+    // Prefer a fresh config (a settings change can outlive the test via the timeout path), but a config
+    // read must never strand the finish — fall back to the config captured at start. (audit: this was the
+    // lone unguarded await on the finish path; every other failure-prone step here is already guarded.)
+    let cfg = config;
+    try {
+      cfg = await getGenerationConfig();
+    } catch (e) {
+      log.warn("promotion-test", "config refetch at finish failed; using the config captured at start", e instanceof Error ? e.message : String(e));
+    }
+    if (!cfg) { finishingRef.current = false; setFinishing(false); return; }
 
     // ── 1. Deferred grading: settle every recorded free-text answer in ONE batch (issue #83). ──
     let gradedQuestions = finalQuestions;
