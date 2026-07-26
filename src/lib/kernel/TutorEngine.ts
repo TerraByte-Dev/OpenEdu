@@ -43,11 +43,12 @@ export interface TutorTurnResult {
   // True if knowledge.update_map ran successfully this turn — the caller skips its post-turn
   // auto-reflection so there's exactly one writer to the knowledge files.
   usedKnowledgeUpdate: boolean;
-  // Why the turn ended. "stalled" (the stream went silent) and "aborted" (the student pressed Stop)
-  // both mean `text` is a FRAGMENT — the caller must not persist it as a finished answer. Before #86
-  // the done event was dropped entirely, so an aborted stream looked like a natural ending and a
-  // truncated half-sentence was written to the database as the tutor's reply.
-  stopReason: "complete" | "aborted" | "stalled" | "max_iterations";
+  // Why the turn ended. "aborted" (the student pressed Stop), "stalled" (the stream went silent) and
+  // "length" (the model hit its output cap mid-sentence) all mean `text` is a FRAGMENT — the caller
+  // must not persist it as a finished answer. Before #86 the done event was dropped entirely, so an
+  // interrupted stream looked like a natural ending and a truncated half-sentence was written to the
+  // database as the tutor's reply.
+  stopReason: "complete" | "aborted" | "stalled" | "length" | "max_iterations";
   // Budget telemetry for the dev readout / diagnostics.
   usage: { contextTokens: number; promptTokens: number; droppedMessages: number };
 }
@@ -87,14 +88,22 @@ export class TutorEngine {
     const toolCalls: TutorTurnResult["toolCalls"] = [];
     let usedKnowledgeUpdate = false;
     let endedNaturally = false; // the model gave a closing answer without calling a tool
-    let interrupted: "aborted" | "stalled" | null = null;
+    // Set when the provider reports the turn did not finish cleanly. "length" is included because
+    // num_predict is now bounded by the budget's reserve slice, which makes hitting the output cap a
+    // reachable outcome rather than a theoretical one.
+    let interrupted: "aborted" | "stalled" | "length" | null = null;
+    const noteFinish = (reason: string) => {
+      if (reason === "aborted") interrupted = "aborted";
+      else if (reason === "stalled") interrupted = "stalled";
+      else if (reason === "length") interrupted = "length";
+    };
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
 
       let iterationText = ""; // text emitted before any tool call in THIS model turn
       const pendingCalls: Array<{ id: string; name: string; args: unknown }> = [];
-      for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
+      for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, numPredict: budget.reserve, signal: ctx.abort })) {
         if (ev.type === "text") { iterationText += ev.delta; streamedText += ev.delta; turn.onText(ev.delta); }
         else if (ev.type === "tool_call") {
           // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
@@ -102,12 +111,11 @@ export class TutorEngine {
           // second call silently ERASED the first one's card.
           pendingCalls.push({ id: `${iteration}:${ev.id}`, name: ev.name, args: ev.args });
         }
-        else if (ev.type === "done") {
-          if (ev.finishReason === "aborted") interrupted = "aborted";
-          else if (ev.finishReason === "stalled") interrupted = "stalled";
-        }
+        else if (ev.type === "done") noteFinish(ev.finishReason);
       }
 
+      // A "length" stop alongside tool calls still means the assistant turn was cut short; treat any
+      // non-clean finish as terminal so we never build further context on a truncated turn.
       if (interrupted) break;
       if (pendingCalls.length === 0) { endedNaturally = true; break; }
 
@@ -146,12 +154,9 @@ export class TutorEngine {
     // force one final NO-tools call so the user always gets a reply, using the tool results already
     // in `messages`.
     if (!endedNaturally && !interrupted && !ctx.abort.aborted) {
-      for await (const ev of callLLMTurn(messages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
+      for await (const ev of callLLMTurn(messages, turn.config, { tier: ctx.modelTier, numPredict: budget.reserve, signal: ctx.abort })) {
         if (ev.type === "text") { streamedText += ev.delta; turn.onText(ev.delta); }
-        else if (ev.type === "done") {
-          if (ev.finishReason === "aborted") interrupted = "aborted";
-          else if (ev.finishReason === "stalled") interrupted = "stalled";
-        }
+        else if (ev.type === "done") noteFinish(ev.finishReason);
       }
     }
 

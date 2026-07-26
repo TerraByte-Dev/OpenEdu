@@ -408,11 +408,18 @@ export const CHAT_HISTORY_LIMIT = 200;
 
 export async function getChatMessages(courseId: string, level: number): Promise<ChatMessage[]> {
   const d = await getDb();
+  // Order by rowid, NOT created_at. `created_at` defaults to datetime('now') — SECOND granularity —
+  // and a question plus its reply routinely land in the same second, so created_at alone leaves
+  // their order undefined and any tiebreak on `id` sorts by UUID, i.e. at random. Swapping a user
+  // message with its assistant reply corrupts the transcript the model reads on every later turn.
+  // rowid is monotonic in insertion order on this table (TEXT primary key, not WITHOUT ROWID), which
+  // is exactly the chronological order we want. It is aliased because `SELECT *` from a subquery
+  // does not expose the implicit rowid to the outer query; `_rid` rides along unused on each row.
   return await d.select(
     `SELECT * FROM (
-       SELECT * FROM chat_messages WHERE course_id = $1 AND level = $2
-       ORDER BY created_at DESC, id DESC LIMIT $3
-     ) ORDER BY created_at ASC, id ASC`,
+       SELECT rowid AS _rid, * FROM chat_messages WHERE course_id = $1 AND level = $2
+       ORDER BY _rid DESC LIMIT $3
+     ) ORDER BY _rid ASC`,
     [courseId, level, CHAT_HISTORY_LIMIT]
   );
 }

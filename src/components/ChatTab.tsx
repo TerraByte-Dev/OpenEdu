@@ -221,7 +221,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     try {
       const result = await tutorEngine.run(turn, ctx);
-      const partial = result.stopReason === "aborted" || result.stopReason === "stalled";
+      const partial = result.stopReason === "aborted" || result.stopReason === "stalled" || result.stopReason === "length";
       if (result.text.trim()) {
         // Persist an interrupted reply WITH a marker rather than silently as a finished answer.
         // Two bugs met here before #86: a stall left `controller.signal.aborted` false, so a truncated
@@ -232,7 +232,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           ? "\n\n_[the tutor stopped responding — ask again to continue]_"
           : result.stopReason === "aborted"
             ? "\n\n_[stopped]_"
-            : "";
+            : result.stopReason === "length"
+              ? "\n\n_[cut off at the length limit — ask the tutor to continue]_"
+              : "";
         const assistantMsg = await saveChatMessage(courseId, "assistant", result.text + suffix, level);
         setMessages((prev) => [...prev, assistantMsg]);
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
