@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
-import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite } from "../lib/db";
+import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite, countDueFlashcards } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
+import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, type TutorTurn, type ToolUIEvent, type Suggestion } from "../lib/kernel";
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
@@ -50,6 +50,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Whether the LAST answer was actually grounded in retrieved material. Derived from n-gram overlap
   // (kernel `groundedIn`), never from the model claiming it — so this cannot be a fabricated citation.
   const [groundingNote, setGroundingNote] = useState<{ kind: "grounded"; titles: string[] } | { kind: "ungrounded" } | null>(null);
+  // Follow-up chips for the just-finished turn. Derived deterministically from turn state — no model
+  // call — so they cost nothing on a CPU box. Cleared on send.
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
   const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
   const askResolverRef = useRef<((value: string) => void) | null>(null);
@@ -200,6 +203,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setStreamingText("");
     setToolEvents([]);
     setGroundingNote(null);
+    setSuggestions([]);
 
     const turn: TutorTurn = {
       messages: llmMessages,
@@ -269,6 +273,18 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       } else {
         setGroundingNote(null);
       }
+      // Follow-up chips. `countDueFlashcards` is a cheap indexed count and the only I/O here; if it
+      // fails the chips just lose one option rather than the turn losing its suggestions.
+      const due = await countDueFlashcards(courseId, new Date().toISOString()).catch(() => 0);
+      setSuggestions(suggestFollowUps({
+        answer: result.text,
+        syllabus: currentSyllabus,
+        hits: result.grounding.hits,
+        usedHits: result.usedHits,
+        dueFlashcards: due,
+        incomplete: partial,
+      }));
+
       if (result.stopReason === "stalled") {
         setChatError("The model stopped sending output. If this keeps happening on a local model, it may be short on memory — try a smaller model or a smaller context window in Settings.");
       }
@@ -381,6 +397,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         )}
         {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />}
         {!streaming && groundingNote && <GroundingNote note={groundingNote} />}
+        {!streaming && !askPending && !confirmPending && suggestions.length > 0 && (
+          <SuggestionChips suggestions={suggestions} onPick={(m) => { setInput(m); inputRef.current?.focus(); }} />
+        )}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
         )}
@@ -477,6 +496,31 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             dangerouslySetInnerHTML={{ __html: renderChatMarkdown(message.content) }}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+// Follow-up chips. Tapping one PREFILLS the input rather than sending immediately — the student can
+// edit it first, and a mis-tap costs nothing. That is the difference between a suggestion and a
+// button that spends 8 seconds of a CPU box's time on something you did not mean.
+function SuggestionChips({ suggestions, onPick }: { suggestions: Suggestion[]; onPick: (message: string) => void }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-8 h-8 shrink-0" />
+      <div className="flex-1 flex flex-wrap items-start gap-1.5">
+        {suggestions.map((s) => (
+          <button
+            key={s.message}
+            type="button"
+            onClick={() => onPick(s.message)}
+            title={s.message}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] border border-[var(--rule)] bg-panel-lite text-[var(--ink-dim)] hover:border-phosphor/50 hover:text-phosphor-bright hover:bg-panel transition-colors"
+          >
+            <span className="text-[var(--ink-faint)]">↳</span>
+            {s.label}
+          </button>
+        ))}
       </div>
     </div>
   );
