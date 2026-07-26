@@ -48,6 +48,21 @@ export const DEFAULT_PERMISSION_RULES: PermissionRules = {
 // and the defaults can't drift.
 export const PERMISSION_ROWS: string[] = Object.keys(DEFAULT_PERMISSION_RULES);
 
-// The modes shown as columns in the editor. "bypass" is intentionally omitted (it's the always-allow
-// escape hatch, not a user-editable policy).
-export const PERMISSION_EDITABLE_MODES: PermissionMode[] = ["default", "study", "exam"];
+// The modes shown as columns in the editor.
+//
+// ONLY "default" — because only "default" can actually happen. `permissionMode` is the literal string
+// "default" at both and only production call sites (ChatTab.tsx and eval/runner.ts); nothing in the
+// codebase can currently produce "study" or "exam". Rendering three columns invited the user to tune
+// two of them to no effect (#88).
+//
+// The study/exam DECISIONS below are deliberately kept: they are a correct policy, and the day a mode
+// selector exists (the promotion-test screen is the obvious "exam" trigger) they become live by
+// adding one entry here. What was deleted is the UI claim, not the capability.
+// "bypass" was always omitted — it's the always-allow escape hatch, not a user-editable policy.
+export const PERMISSION_EDITABLE_MODES: PermissionMode[] = ["default"];
+
+// Every mode that may legitimately appear in a PERSISTED rule set. Distinct from the editable list on
+// purpose: what the UI renders and what the data model accepts are different questions, and conflating
+// them meant narrowing the editor silently started DISCARDING study/exam overrides on settings import.
+// "bypass" is excluded — it is the always-allow escape hatch, resolved in evaluate.ts, never stored.
+export const PERMISSION_PERSISTED_MODES: PermissionMode[] = ["default", "study", "exam"];

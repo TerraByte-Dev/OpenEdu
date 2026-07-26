@@ -8,7 +8,7 @@
 // promotion tests) is never loosened by picking a preset. The Advanced grid can still override exam by hand.
 
 import type { PermissionMode } from "../tools/EduTool";
-import { DEFAULT_PERMISSION_RULES, PERMISSION_ROWS, PERMISSION_EDITABLE_MODES, type PermissionDecision, type PermissionRules } from "./rules";
+import { DEFAULT_PERMISSION_RULES, PERMISSION_ROWS, PERMISSION_PERSISTED_MODES, type PermissionDecision, type PermissionRules } from "./rules";
 
 export interface PermissionPreset {
   id: string;
@@ -67,7 +67,10 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
 export function detectPreset(rules: PermissionRules): string {
   const matches = (preset: PermissionRules): boolean =>
     PERMISSION_ROWS.every((tool) =>
-      PERMISSION_EDITABLE_MODES.every((mode) => (rules[tool]?.[mode]) === (preset[tool]?.[mode])),
+      // Compare PERSISTED modes: "is this stored rule set equal to this preset" is a question about
+      // the data, not about which columns the editor happens to render. Comparing only the editable
+      // ones would report a match between presets that differ solely in a hidden column.
+      PERMISSION_PERSISTED_MODES.every((mode) => (rules[tool]?.[mode]) === (preset[tool]?.[mode])),
     );
   for (const preset of PERMISSION_PRESETS) {
     if (matches(preset.rules)) return preset.id;
