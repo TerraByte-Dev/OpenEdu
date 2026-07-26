@@ -528,29 +528,50 @@ function ollamaSupportsSchemaFormat(version: string | null): boolean {
 // Users never pick a tier directly.
 
 // Per-session cache; keyed by "provider:model". Cleared on app restart.
-const tierCache = new Map<string, ModelTier>();
+const profileCache = new Map<string, ModelProfile>();
+
+// What the harness knows about the chosen model. `tier` answers "how smart is it" and drives schema
+// relaxation / few-shot / timeouts. The other two answer questions tier CANNOT: a 4B model with a 32k
+// window and a 4B model with a 2k window share a tier and need opposite behavior. Both new fields come
+// out of the SAME /api/show response detectModelTier already fetched and threw away.
+export interface ModelProfile {
+  tier: ModelTier;
+  // The model's own maximum context, in tokens. The app sends min(this, user setting) as num_ctx —
+  // before this existed, nothing sent num_ctx at all and every turn silently ran at Ollama's default.
+  contextTokens: number;
+  // Whether the model's template declares native tool support. Exposed and logged in Phase 0;
+  // branching on it (skip toolDefs, fall back to a text parser) is Phase 3 — see #86.
+  supportsTools: boolean;
+}
+
+// Conservative floor when a probe fails or reports nothing. Matches Ollama's own default, so an
+// unknown model behaves exactly as it did before this module existed.
+const FALLBACK_CONTEXT_TOKENS = 4096;
+
+// Cloud models all have large windows and native tool support; we don't probe them.
+const CLOUD_CONTEXT_TOKENS = 128_000;
 
 // Tier budgets — knobs the rest of the harness reads to adapt behavior.
-//   promptCharCap        — soft cap on per-call prompt size (research/topic-list/etc.)
-//   expansionParallelism — max concurrent subtopic-expansion calls in Stage B
-//   minLengthScale       — schema minLength constraints multiplied by this before send/validate
-//   perCallTimeoutMs     — abort a single LLM call after this long. Generous because the harness
-//                          runs many calls; one slow one stalling for ~3min is better UX than
-//                          a fast abort that breaks the whole pipeline. Ollama is the slow path —
-//                          a 7B model on a modest GPU/CPU can take 60–120s for a single structured
-//                          call. The per-provider multiplier below tightens this for cloud APIs.
-//   fewShot              — inject one worked example into prompts that support it
+//   minLengthScale   — schema minLength/minItems constraints multiplied by this before send/validate
+//   perCallTimeoutMs — abort a single NON-STREAMING call after this long. Generous because the
+//                      harness runs many calls; one slow one stalling for ~3min is better UX than a
+//                      fast abort that breaks the whole pipeline. Streaming calls do NOT use this —
+//                      they use a stall timer (see `withStallSignal`), because a wall-clock budget on
+//                      a stream kills generations that are working fine, just slowly.
+//
+// Three former fields — `promptCharCap`, `expansionParallelism`, `fewShot` — were removed in #86.
+// Every one of them appeared only in this declaration: nothing ever read them. `fewShot` in
+// particular is a live BEHAVIOR, but curriculum.ts derives it by hand from the tier (`curriculum.ts:586`
+// and `:861`) and never consulted this table. Keep it that way — a knob nobody turns is worse than no
+// knob, because it reads as configuration and is actually decoration.
 export const TIER_BUDGETS: Record<ModelTier, {
-  promptCharCap: number;
-  expansionParallelism: number;
   minLengthScale: number;
   perCallTimeoutMs: number;
-  fewShot: boolean;
 }> = {
-  tiny:   { promptCharCap: 1500, expansionParallelism: 1, minLengthScale: 0.5, perCallTimeoutMs: 180_000, fewShot: true  },
-  small:  { promptCharCap: 2500, expansionParallelism: 1, minLengthScale: 0.5, perCallTimeoutMs: 150_000, fewShot: true  },
-  medium: { promptCharCap: 4000, expansionParallelism: 4, minLengthScale: 1.0, perCallTimeoutMs: 120_000, fewShot: false },
-  large:  { promptCharCap: 6000, expansionParallelism: 8, minLengthScale: 1.0, perCallTimeoutMs: 90_000,  fewShot: false },
+  tiny:   { minLengthScale: 0.5, perCallTimeoutMs: 180_000 },
+  small:  { minLengthScale: 0.5, perCallTimeoutMs: 150_000 },
+  medium: { minLengthScale: 1.0, perCallTimeoutMs: 120_000 },
+  large:  { minLengthScale: 1.0, perCallTimeoutMs: 90_000  },
 };
 
 // Cloud APIs (OpenAI/Anthropic) are reliable and fast — tighten their effective timeout
@@ -617,48 +638,96 @@ function ollamaNameTierOverride(model: string): ModelTier | null {
   return null;
 }
 
-export async function detectModelTier(config: LLMConfig): Promise<ModelTier> {
+// Pull the context length out of an /api/show response. Ollama nests it under `model_info` keyed by
+// the architecture, e.g. `gemma3.context_length` / `llama.context_length` / `qwen2.context_length`.
+// We read `general.architecture` to build the key, then fall back to scanning for any `*.context_length`
+// so a model family we've never seen still reports correctly — the alternative is another hardcoded
+// name table, and this file already has one of those too many.
+export function parseContextLength(modelInfo: unknown): number | null {
+  if (!modelInfo || typeof modelInfo !== "object") return null;
+  const info = modelInfo as Record<string, unknown>;
+  const arch = typeof info["general.architecture"] === "string" ? (info["general.architecture"] as string) : null;
+  const candidates = arch ? [`${arch}.context_length`] : [];
+  for (const key of Object.keys(info)) if (key.endsWith(".context_length")) candidates.push(key);
+  for (const key of candidates) {
+    const v = info[key];
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) return Math.floor(v);
+  }
+  return null;
+}
+
+// Ollama reports native tool support in a `capabilities` array (e.g. ["completion","tools"]).
+// Absent on older Ollama builds — and "we don't know" must NOT read as "no tools", or every turn on
+// an older server would silently lose its tools. Unknown therefore means `true`: preserve the
+// pre-existing behavior and only act on positive evidence of absence.
+function parseSupportsTools(capabilities: unknown): boolean {
+  if (!Array.isArray(capabilities)) return true;
+  return capabilities.some((c) => typeof c === "string" && c.toLowerCase() === "tools");
+}
+
+// The full probe. One /api/show round-trip per model per session, cached.
+//
+// Note the shape change from the old tier-only version: a name override (the Matformer e2b/e4b
+// correction) used to SHORT-CIRCUIT the network call entirely, which meant the floor model — the one
+// this whole app is tuned for — was the one model we never learned the context window of. Now the
+// probe always runs for Ollama and the override only decides `tier`.
+export async function detectModelProfile(config: LLMConfig): Promise<ModelProfile> {
   const cacheKey = `${config.provider}:${config.model}`;
-  const hit = tierCache.get(cacheKey);
+  const hit = profileCache.get(cacheKey);
   if (hit) return hit;
 
-  let tier: ModelTier;
+  let profile: ModelProfile;
   if (config.provider === "openai" || config.provider === "anthropic") {
-    tier = cloudModelTier(config.provider, config.model);
+    profile = {
+      tier: cloudModelTier(config.provider, config.model),
+      contextTokens: CLOUD_CONTEXT_TOKENS,
+      supportsTools: true,
+    };
   } else {
-    // Ollama — check name overrides first (for Matformer / "effective param" models
-    // whose actual /api/show parameter count is misleading), then fall back to /api/show.
+    // Ollama. The name override wins on tier (for Matformer / "effective param" models whose
+    // /api/show parameter count is misleading); everything else comes from the probe.
     const nameOverride = ollamaNameTierOverride(config.model);
-    if (nameOverride) {
-      tier = nameOverride;
-      log.info("detectModelTier", `${config.model} → name-override → ${tier}`);
-    } else {
-      const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
-      try {
-        const response = await fetch(`${baseUrl}/api/show`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
-          body: JSON.stringify({ name: config.model }),
-        });
-        if (!response.ok) {
-          log.warn("detectModelTier", `Ollama /api/show ${response.status} for ${config.model} — defaulting to small`);
-          tier = "small";
-        } else {
-          const json = await response.json();
+    const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+    let tier: ModelTier = nameOverride ?? "small";
+    let contextTokens = FALLBACK_CONTEXT_TOKENS;
+    let supportsTools = true;
+
+    try {
+      const response = await fetch(`${baseUrl}/api/show`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+        body: JSON.stringify({ name: config.model }),
+      });
+      if (!response.ok) {
+        log.warn("detectModelProfile", `Ollama /api/show ${response.status} for ${config.model} — using fallbacks`);
+      } else {
+        const json = await response.json();
+        if (!nameOverride) {
           const sizeStr: string | undefined = json?.details?.parameter_size;
-          const billions = parseParamBillions(sizeStr);
-          tier = tierFromBillions(billions);
-          log.info("detectModelTier", `${config.model} → ${sizeStr ?? "?"} → ${tier}`);
+          tier = tierFromBillions(parseParamBillions(sizeStr));
         }
-      } catch (e) {
-        log.warn("detectModelTier", "probe failed — defaulting to small", e);
-        tier = "small";
+        contextTokens = parseContextLength(json?.model_info) ?? FALLBACK_CONTEXT_TOKENS;
+        supportsTools = parseSupportsTools(json?.capabilities);
       }
+    } catch (e) {
+      log.warn("detectModelProfile", "probe failed — using fallbacks", e);
     }
+
+    profile = { tier, contextTokens, supportsTools };
+    log.info(
+      "detectModelProfile",
+      `${config.model} → tier=${tier}${nameOverride ? " (name-override)" : ""} ctx=${contextTokens} tools=${supportsTools}`,
+    );
   }
 
-  tierCache.set(cacheKey, tier);
-  return tier;
+  profileCache.set(cacheKey, profile);
+  return profile;
+}
+
+// Back-compat shim. All 11 existing tier call sites go through this unchanged — widening the probe
+// was explicitly not an excuse to churn curriculum.ts.
+export async function detectModelTier(config: LLMConfig): Promise<ModelTier> {
+  return (await detectModelProfile(config)).tier;
 }
 
 // ─── Structured output: schema-enforced JSON with repair-retry ────────────────
@@ -792,7 +861,10 @@ async function callOllamaStructured(
     model: config.model,
     messages,
     stream: false,
-    options: { temperature },
+    // num_ctx rides along when the caller resolved one. The curriculum pipeline does not set
+    // `contextTokens` yet (deliberately — #86 keeps generation untouched), so this is a no-op there
+    // today and the plumbing is ready for the phase that turns it on.
+    options: { temperature, ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}) },
     format: supportsSchema ? schema : "json",
   };
 
@@ -1153,28 +1225,67 @@ export interface NeutralMessage {
 export type LLMTurnEvent =
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; args: unknown }
-  | { type: "done"; finishReason: "stop" | "tool_calls" | "length" | "aborted" };
+  // "stalled" = the stream went silent past the idle budget (distinct from "aborted", which is the
+  // student pressing Stop). The kernel needs the difference: a stall means the reply is incomplete
+  // through no fault of the user and should be marked as such, not persisted as a finished answer.
+  | { type: "done"; finishReason: "stop" | "tool_calls" | "length" | "aborted" | "stalled" };
 
 export interface TurnOpts {
   tools?: ProviderToolDef[];
   tier?: ModelTier;
   temperature?: number; // omitted from the request when undefined — keeps plain turns identical
+  numPredict?: number;  // Ollama only: cap one reply's length as a runaway guard (see ollamaOptions)
   signal?: AbortSignal;
 }
 
-// Combine the caller's AbortSignal with a per-call timeout, mirroring callLLMStructured.
-// Bounds a single model HTTP call (not tool execution — that's the kernel's concern).
-function withTimeoutSignal(signal: AbortSignal | undefined, timeoutMs: number) {
+// How long to wait for the FIRST byte. Generous: on a cold Ollama this covers loading multiple GB of
+// weights off a slow disk, which is the normal case on the hardware this app targets.
+const FIRST_BYTE_TIMEOUT_MS = 120_000;
+// How long to tolerate NO bytes once the stream is flowing. A model producing tokens — however
+// slowly — resets this on every chunk, so generation speed no longer decides whether a turn survives.
+const STALL_TIMEOUT_MS = 30_000;
+
+// Combine the caller's AbortSignal with a STALL timer, for streaming calls.
+//
+// This replaces a wall-clock timeout (#86). The old version armed one setTimeout before the fetch and
+// never reset it, so the budget was really "max total tokens ÷ tokens per second": at ~3 tok/s on a
+// CPU box a 600-token answer needs ~200s against a 150s budget, and a perfectly healthy generation
+// was killed mid-sentence. What we actually want to detect is a *hung* stream, not a slow one — so
+// the timer measures silence, and every chunk bumps it.
+//
+// Non-streaming calls (callLLMStructured) keep their wall-clock budget: there is no stream to stall
+// on, so elapsed time is the only signal available there.
+function withStallSignal(
+  signal: AbortSignal | undefined,
+  opts: { firstByteMs?: number; idleMs?: number } = {},
+) {
+  const firstByteMs = opts.firstByteMs ?? FIRST_BYTE_TIMEOUT_MS;
+  const idleMs = opts.idleMs ?? STALL_TIMEOUT_MS;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  let stalled = false;
+  let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => { stalled = true; ctrl.abort(); }, firstByteMs);
+
   const onAbort = () => ctrl.abort();
   if (signal) {
     if (signal.aborted) ctrl.abort();
     else signal.addEventListener("abort", onAbort, { once: true });
   }
+
   return {
     signal: ctrl.signal,
-    cleanup: () => { clearTimeout(timer); if (signal) signal.removeEventListener("abort", onAbort); },
+    // Call on every chunk that carried bytes. Re-arms the clock at the (shorter) idle budget.
+    bump: () => {
+      if (timer === null) return; // already cleaned up
+      clearTimeout(timer);
+      timer = setTimeout(() => { stalled = true; ctrl.abort(); }, idleMs);
+    },
+    // True when WE aborted for silence, as opposed to the caller pressing Stop. Lets the kernel
+    // distinguish "the model hung" from "the student cancelled".
+    didStall: () => stalled,
+    cleanup: () => {
+      if (timer !== null) { clearTimeout(timer); timer = null; }
+      if (signal) signal.removeEventListener("abort", onAbort);
+    },
   };
 }
 
@@ -1263,6 +1374,29 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
   return { system, messages: out };
 }
 
+// Build Ollama's `options` object, or undefined when there is nothing to say.
+//
+// `num_ctx` is the whole point (#86): without it Ollama silently uses its own default window and
+// truncates the front of the prompt — the system message and the <tools> manifest — with no error.
+// `config.contextTokens` is populated by the caller from `detectModelProfile`, already clamped to
+// min(model maximum, user setting).
+//
+// `num_predict` bounds a single reply so a looping model cannot generate until the stall timer fires.
+// It is deliberately generous: it is a runaway guard, not a length policy.
+//
+// NOTE: `keep_alive` is intentionally absent. It and `num_ctx` are the two settings that most
+// directly multiply resident RAM, and shipping both at once on a 4GB machine is the configuration
+// that produces `signal: killed`. It lands in a later phase, after this one is measured.
+export const DEFAULT_NUM_PREDICT = 2048;
+
+function ollamaOptions(config: LLMConfig, opts: TurnOpts): Record<string, unknown> | undefined {
+  const options: Record<string, unknown> = {};
+  if (config.contextTokens && config.contextTokens > 0) options.num_ctx = Math.floor(config.contextTokens);
+  if (opts.numPredict !== undefined) options.num_predict = opts.numPredict;
+  if (opts.temperature !== undefined) options.temperature = opts.temperature;
+  return Object.keys(options).length > 0 ? options : undefined;
+}
+
 // ── Tool-def builders (one per provider envelope) ──
 function ollamaToolDefs(tools?: ProviderToolDef[]) {
   return tools?.length ? tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })) : undefined;
@@ -1287,11 +1421,17 @@ export async function* callLLMTurn(
 async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, opts: TurnOpts): AsyncGenerator<LLMTurnEvent> {
   const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOllamaTurnMessage), stream: true };
-  if (opts.temperature !== undefined) body.options = { temperature: opts.temperature };
+  // Ollama options. Before #86 this key was only ever set when a temperature was passed — which the
+  // kernel never did — so every chat turn ran at the server's DEFAULT context window (4096) no matter
+  // what the model supported, and the overflow was dropped silently from the front, taking the system
+  // prompt and the <tools> manifest with it. That, not tool-call syntax, is why the floor model
+  // "stopped using RAG" in long conversations.
+  const options = ollamaOptions(config, opts);
+  if (options) body.options = options;
   const tools = ollamaToolDefs(opts.tools);
   if (tools) body.tools = tools;
 
-  const { signal, cleanup } = withTimeoutSignal(opts.signal, effectivePerCallTimeoutMs(config.provider, opts.tier));
+  const { signal, bump, didStall, cleanup } = withStallSignal(opts.signal);
   try {
     let response: Awaited<ReturnType<typeof fetch>>;
     try {
@@ -1317,9 +1457,10 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
     let sawToolCall = false;
     let callIdx = 0;
     while (true) {
-      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: "aborted" }; return; }
+      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
       const { done, value } = await reader.read();
       if (done) break;
+      bump(); // bytes arrived — the stream is alive, restart the silence clock
       lineBuffer += decoder.decode(value, { stream: true });
       const lines = lineBuffer.split("\n");
       lineBuffer = lines.pop() ?? "";
@@ -1339,7 +1480,7 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
         }
       }
     }
-    if (signal.aborted) { yield { type: "done", finishReason: "aborted" }; return; }
+    if (signal.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
     yield { type: "done", finishReason: sawToolCall ? "tool_calls" : "stop" };
   } finally { cleanup(); }
 }
@@ -1351,7 +1492,8 @@ async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, 
   const tools = ollamaToolDefs(opts.tools); // identical {type:function,function:{…}} envelope as Ollama/OpenAI
   if (tools) { body.tools = tools; body.tool_choice = "auto"; }
 
-  const { signal, cleanup } = withTimeoutSignal(opts.signal, effectivePerCallTimeoutMs(config.provider, opts.tier));
+  // Cloud is fast; a silent stream there is a real hang, so tighten both clocks.
+  const { signal, bump, didStall, cleanup } = withStallSignal(opts.signal, { firstByteMs: 60_000, idleMs: 20_000 });
   try {
     let response: Awaited<ReturnType<typeof fetch>>;
     try {
@@ -1373,9 +1515,10 @@ async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, 
     const toolAcc = new Map<number, { id: string; name: string; args: string }>();
     let finishReason: "stop" | "tool_calls" | "length" = "stop";
     while (true) {
-      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: "aborted" }; return; }
+      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
       const { done, value } = await reader.read();
       if (done) break;
+      bump(); // bytes arrived — the stream is alive, restart the silence clock
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
@@ -1402,7 +1545,7 @@ async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, 
         if (choice.finish_reason === "tool_calls" || choice.finish_reason === "length") finishReason = choice.finish_reason;
       }
     }
-    if (signal.aborted) { yield { type: "done", finishReason: "aborted" }; return; }
+    if (signal.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
     let fallbackIdx = 0;
     for (const [, c] of toolAcc) {
       let parsed: unknown = {};
@@ -1425,7 +1568,8 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
   const tools = anthropicToolDefs(opts.tools);
   if (tools) body.tools = tools;
 
-  const { signal, cleanup } = withTimeoutSignal(opts.signal, effectivePerCallTimeoutMs(config.provider, opts.tier));
+  // Cloud is fast; a silent stream there is a real hang, so tighten both clocks.
+  const { signal, bump, didStall, cleanup } = withStallSignal(opts.signal, { firstByteMs: 60_000, idleMs: 20_000 });
   try {
     let response: Awaited<ReturnType<typeof fetch>>;
     try {
@@ -1447,9 +1591,10 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
     const toolBlocks = new Map<number, { id: string; name: string; json: string }>();
     let finishReason: "stop" | "tool_calls" | "length" = "stop";
     while (true) {
-      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: "aborted" }; return; }
+      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
       const { done, value } = await reader.read();
       if (done) break;
+      bump(); // bytes arrived — the stream is alive, restart the silence clock
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
@@ -1480,7 +1625,7 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
         }
       }
     }
-    if (signal.aborted) { yield { type: "done", finishReason: "aborted" }; return; }
+    if (signal.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
     yield { type: "done", finishReason };
   } finally { cleanup(); }
 }

@@ -32,6 +32,10 @@ export interface ToolContext {
   level: number;
   syllabus: Syllabus | null;
   modelTier: ModelTier;
+  // The context window this turn runs in, in tokens — min(the model's maximum, the user's setting),
+  // resolved by the caller from detectModelProfile. The kernel derives its whole budget from this.
+  // Absent in older/headless callers, which fall back to budget.ts's DEFAULT_CONTEXT_TOKENS. (#86)
+  contextTokens?: number;
   permissionMode: PermissionMode;
   // The active LLM config — tools that make their own model calls (knowledge reflection,
   // quiz authoring) read it here rather than re-fetching it. (Phase 1 addition.)

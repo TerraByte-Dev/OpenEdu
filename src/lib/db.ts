@@ -398,11 +398,22 @@ export async function deleteNotebookDocumentByNote(noteId: string): Promise<void
 }
 
 // Chat Messages (level-scoped per unit)
+//
+// Capped at the most recent CHAT_HISTORY_LIMIT messages (#86). This query used to be unbounded, and
+// ChatTab spreads its result verbatim into every request — so a long-running course sent its entire
+// transcript to the model on every turn and paid the IPC + JSON cost of loading it on every mount.
+// The kernel's budget would trim it anyway; this stops it being read off disk in the first place.
+// The inner query takes the NEWEST rows, the outer one restores chronological order.
+export const CHAT_HISTORY_LIMIT = 200;
+
 export async function getChatMessages(courseId: string, level: number): Promise<ChatMessage[]> {
   const d = await getDb();
   return await d.select(
-    "SELECT * FROM chat_messages WHERE course_id = $1 AND level = $2 ORDER BY created_at ASC",
-    [courseId, level]
+    `SELECT * FROM (
+       SELECT * FROM chat_messages WHERE course_id = $1 AND level = $2
+       ORDER BY created_at DESC, id DESC LIMIT $3
+     ) ORDER BY created_at ASC, id ASC`,
+    [courseId, level, CHAT_HISTORY_LIMIT]
   );
 }
 

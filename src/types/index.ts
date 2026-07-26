@@ -287,6 +287,11 @@ export interface LLMConfig {
   ollamaUrl?: string;
   // Auto-derived tier. Populated by detectModelTier; not user-set.
   modelTier?: ModelTier;
+  // The context window to REQUEST, in tokens — min(the model's own maximum, the user's setting).
+  // Populated by the caller from detectModelProfile. Sent to Ollama as `num_ctx`; when absent the
+  // server picks its own default and truncates the front of the prompt silently, which is the bug
+  // this field exists to prevent (#86). Ignored by cloud providers, which size their own windows.
+  contextTokens?: number;
 }
 
 export type View = "dashboard" | "course" | "settings" | "quiz" | "promotion-test";

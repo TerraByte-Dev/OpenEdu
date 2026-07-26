@@ -4,13 +4,14 @@ import {
   getLLMProvider, setLLMProvider, setGenerationModel, setChatModel,
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
   getEmbeddingConfig, setEmbeddingModel,
+  getMaxContextTokens, setMaxContextTokens, CONTEXT_TOKEN_CHOICES,
 } from "../../../lib/store";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
   OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, type ModelOption,
 } from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
-import { Section, SettingRow, SecretField, INPUT_CLS, useSettings } from "../primitives";
+import { Section, SettingRow, SecretField, SegmentedControl, INPUT_CLS, useSettings } from "../primitives";
 import type { SectionProps } from "../types";
 
 export default function ProviderModels({ onProviderChanged }: SectionProps) {
@@ -24,6 +25,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   const [ollamaStatus, setOllamaStatus] = useState<"checking" | "connected" | "disconnected">("checking");
   const [ollamaError, setOllamaError] = useState<string | null>(null);
+  const [maxCtx, setMaxCtx] = useState<number>(8192);
 
   // Initial load probes Ollama exactly once with the persisted URL; the effect below re-probes only when the
   // PROVIDER changes — NOT on every keystroke in the URL field (that fired a network probe per character and
@@ -38,6 +40,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
       setGenModel((await getGenerationConfig()).model);
       setChatModelState((await getChatConfig()).model);
       setEmbeddingModelState((await getEmbeddingConfig()).model);
+      setMaxCtx(await getMaxContextTokens());
       if (base.provider !== "ollama") setApiKeyValue((await getApiKey(base.provider)) || "");
       if (base.provider === "ollama") void checkOllama(base.ollamaUrl);
     })();
@@ -217,6 +220,31 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             className={INPUT_CLS}
             spellCheck={false}
           />
+        </SettingRow>
+
+        <SettingRow
+          label="Context window"
+          help={<>How much conversation the tutor can hold at once. The app uses the smaller of this and what the model itself supports. <span className="text-phosphor-ink">Bigger remembers more but uses more memory</span> — if a local model starts failing or the app feels sluggish on a low-RAM machine, lower this first. Applies to local (Ollama) models; cloud models manage their own.</>}
+          keywords="context window num_ctx tokens memory ram history truncation length"
+        >
+          <div className="flex flex-col gap-1.5">
+            <SegmentedControl
+              options={CONTEXT_TOKEN_CHOICES.map((n) => ({ id: String(n), label: n >= 1024 ? `${n / 1024}k` : String(n) }))}
+              value={String(maxCtx)}
+              onChange={(next) => {
+                const n = Number(next);
+                setMaxCtx(n);
+                void setMaxContextTokens(n).then(markSaved);
+              }}
+            />
+            <span className="text-[11px] text-[var(--ink-faint)]">
+              {maxCtx <= 4096
+                ? "Safe on low-memory machines. Long conversations get trimmed sooner."
+                : maxCtx >= 32768
+                  ? "Needs a lot of memory. Only pick this if the machine has RAM to spare."
+                  : "A good default for most machines."}
+            </span>
+          </div>
         </SettingRow>
       </Section>
     </>
