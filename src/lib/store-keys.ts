@@ -24,6 +24,10 @@ export const STORE_KEYS = {
   // RAM: the KV cache scales with it, and on a 4GB machine an over-large window is what turns a
   // working setup into `signal: killed`.
   maxContextTokens: "max_context_tokens",
+  // How retrieval behaves: "always" runs the grounding stage before every turn, "off" leaves
+  // notebook.search as the only path. Exposed so the A/B in the eval is runnable, and so a user
+  // whose vault is noise can turn it off (#90).
+  retrievalMode: "retrieval_mode",
 } as const;
 
 // Per-provider API key, e.g. "apikey_openai".
@@ -54,6 +58,7 @@ export const ALLOWED_IMPORT_KEYS: ReadonlySet<string> = new Set<string>([
   STORE_KEYS.libraryEnabled,
   STORE_KEYS.libraryUrl,
   STORE_KEYS.maxContextTokens,
+  STORE_KEYS.retrievalMode,
   // secrets — only present when the export was made with "include keys"
   STORE_KEYS.tavilyApiKey,
   apiKeyStoreKey("ollama"),
