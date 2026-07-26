@@ -403,6 +403,12 @@ export async function deleteNotebookDocumentByNote(noteId: string): Promise<void
 // ChatTab spreads its result verbatim into every request — so a long-running course sent its entire
 // transcript to the model on every turn and paid the IPC + JSON cost of loading it on every mount.
 // The kernel's budget would trim it anyway; this stops it being read off disk in the first place.
+//
+// PRODUCT DECISION, not just a prompt-cost cap: this is the ONLY loader for the chat transcript, so
+// the limit is also the student's scrollback window. Messages older than the most recent 200 in a
+// course/level disappear from the UI on the next mount. They are not deleted — a "load earlier"
+// affordance or a separate, larger UI read would restore them. 200 is roughly a term of tutoring at
+// one session a week; revisit if that proves short.
 // The inner query takes the NEWEST rows, the outer one restores chronological order.
 export const CHAT_HISTORY_LIMIT = 200;
 
