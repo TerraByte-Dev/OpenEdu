@@ -8,15 +8,16 @@
 //     await window.__runEvals()                 // all goldens
 //     await window.__runEvals({ only: "math-word-problem" })
 
-import { callLLMStreaming, detectModelTier } from "../llm";
+import { callLLMStreaming, detectModelTier, detectModelProfile } from "../llm";
 import { buildSystemPrompt } from "../curriculum";
-import { getChatConfig } from "../store";
+import { getChatConfig, getMaxContextTokens } from "../store";
 import { getTutorModePrompt } from "../tutor-modes";
 import { tutorEngine, personaIdentityLayer, type TutorTurn } from "../kernel";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill, resolveDomainSkill, resolvePersona } from "../skills";
 import { setLibraryEnabledForTesting } from "../library";
 import { GOLDENS, type Golden, type GoldenTranscriptEntry } from "./goldens";
+import type { LLMConfig } from "../../types";
 
 // Eval-only stand-in for a generated course's tutor instructions. The math rule is inlined
 // (mirrors src/lib/formatting.ts) so the harness stays self-contained and doesn't couple to a
@@ -98,6 +99,7 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
         level: g.syllabus?.level ?? 1,
         syllabus: g.syllabus ?? null,
         modelTier,
+        contextTokens: config.contextTokens,
         permissionMode: "default",
         config,
         abort: new AbortController().signal,
@@ -139,7 +141,16 @@ export interface EvalReport {
 }
 
 export async function runEvals(opts?: { only?: string }): Promise<EvalReport> {
-  const config = await getChatConfig();
+  // Resolve the window exactly as ChatTab does (#86). Without this the eval fit its prompts to the
+  // 8192-token default while sending NO num_ctx — so it measured a budget the app never runs at, on a
+  // server window it never asked about. The eval is the regression gate for every later phase; if it
+  // drifts from the app, every comparison built on it is meaningless.
+  const baseConfig = await getChatConfig();
+  const profile = await detectModelProfile(baseConfig);
+  const contextTokens = baseConfig.provider === "ollama"
+    ? Math.min(profile.contextTokens, await getMaxContextTokens())
+    : profile.contextTokens;
+  const config: LLMConfig = { ...baseConfig, modelTier: profile.tier, contextTokens };
   const goldens = opts?.only ? GOLDENS.filter((g) => g.id === opts.only) : GOLDENS;
   console.log(`[eval] model=${config.provider}/${config.model} — running ${goldens.length} golden(s)`);
 

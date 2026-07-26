@@ -151,8 +151,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // allowed. Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and
     // dropped the front of the prompt — the system message and the tools manifest — with no error.
     const profile = await detectModelProfile(baseConfig);
-    const maxContextTokens = await getMaxContextTokens();
-    const contextTokens = Math.min(profile.contextTokens, maxContextTokens);
+    // The setting caps what we ASK OLLAMA FOR — it is a RAM knob, and cloud providers size their own
+    // windows. Applying it to cloud too would silently trim an OpenAI/Anthropic conversation to 8k
+    // for no benefit, which is neither what the setting says nor what the user would expect.
+    const contextTokens = baseConfig.provider === "ollama"
+      ? Math.min(profile.contextTokens, await getMaxContextTokens())
+      : profile.contextTokens;
     const config = { ...baseConfig, modelTier: profile.tier, contextTokens };
     const modelTier = profile.tier;
     // Two orthogonal skill axes feed the turn: the mode skill (from the bar) and the course's domain
@@ -249,7 +253,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (!/abort/i.test(msg)) setChatError(msg);
+      if (!/abort|cancel/i.test(msg)) setChatError(msg);
     } finally {
       setStreamingText("");
       setStreaming(false);

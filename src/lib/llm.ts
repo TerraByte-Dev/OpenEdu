@@ -402,7 +402,15 @@ export async function callLLM(
           "Accept": "application/json",
           "Origin": "", // suppress tauri-plugin-http injected Origin header
         },
-        body: JSON.stringify({ model: config.model, messages, stream: false }),
+        // num_ctx must MATCH the chat turn's. Ollama keys its loaded runner on the option set, so a
+        // second call with a different window unloads and reloads the model — on a CPU-only box that
+        // is tens of seconds, twice per turn, for the post-turn knowledge reflection alone.
+        body: JSON.stringify({
+          model: config.model,
+          messages,
+          stream: false,
+          ...(config.contextTokens ? { options: { num_ctx: Math.floor(config.contextTokens) } } : {}),
+        }),
       });
     } catch (e) {
       throw new Error(`Cannot reach Ollama at ${baseUrl}. Open a terminal and run "ollama serve". Detail: ${networkAwareMessage(e)}`);
@@ -691,6 +699,7 @@ export async function detectModelProfile(config: LLMConfig): Promise<ModelProfil
     let tier: ModelTier = nameOverride ?? "small";
     let contextTokens = FALLBACK_CONTEXT_TOKENS;
     let supportsTools = true;
+    let probed = false;
 
     try {
       const response = await fetch(`${baseUrl}/api/show`, {
@@ -708,6 +717,7 @@ export async function detectModelProfile(config: LLMConfig): Promise<ModelProfil
         }
         contextTokens = parseContextLength(json?.model_info) ?? FALLBACK_CONTEXT_TOKENS;
         supportsTools = parseSupportsTools(json?.capabilities);
+        probed = true;
       }
     } catch (e) {
       log.warn("detectModelProfile", "probe failed — using fallbacks", e);
@@ -716,8 +726,12 @@ export async function detectModelProfile(config: LLMConfig): Promise<ModelProfil
     profile = { tier, contextTokens, supportsTools };
     log.info(
       "detectModelProfile",
-      `${config.model} → tier=${tier}${nameOverride ? " (name-override)" : ""} ctx=${contextTokens} tools=${supportsTools}`,
+      `${config.model} → tier=${tier}${nameOverride ? " (name-override)" : ""} ctx=${contextTokens} tools=${supportsTools}${probed ? "" : " (probe failed — not cached)"}`,
     );
+    // Do NOT cache a failed probe. Ollama is commonly not running yet on the first turn after
+    // launch; caching the fallback would pin the whole session to a 4096 window and the wrong tier
+    // even after the user starts it. Retrying costs one cheap local request.
+    if (!probed) return profile;
   }
 
   profileCache.set(cacheKey, profile);
@@ -1234,7 +1248,6 @@ export interface TurnOpts {
   tools?: ProviderToolDef[];
   tier?: ModelTier;
   temperature?: number; // omitted from the request when undefined — keeps plain turns identical
-  numPredict?: number;  // Ollama only: cap one reply's length as a runaway guard (see ollamaOptions)
   signal?: AbortSignal;
 }
 
@@ -1289,10 +1302,35 @@ function withStallSignal(
   };
 }
 
+// Read one chunk, converting an abort into a normal terminal result.
+//
+// @tauri-apps/plugin-http errors the response stream when the signal fires (it calls
+// `controller.error("Request cancelled")` on the ReadableStream), so `reader.read()` REJECTS rather
+// than resolving `{done:true}` — and the rejection is a plain Error, not a DOMException named
+// "AbortError", so the outer catch does not recognize it either. Left unhandled it throws straight
+// out of the generator: the terminal `done` event is never yielded, `finishReason: "stalled"` is
+// unreachable, and a cancellation reaches the user as a red error banner.
+async function readChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  signal: AbortSignal,
+): Promise<{ done: boolean; value?: Uint8Array; aborted: boolean }> {
+  try {
+    const r = await reader.read();
+    return { done: !!r.done, value: r.value, aborted: false };
+  } catch (e) {
+    if (signal.aborted) return { done: true, aborted: true };
+    throw e;
+  }
+}
+
 // ── Minimal stream-chunk shapes (typed parsing, no `any`) ──
 interface OllamaTurnChunk {
   error?: string;
   done?: boolean;
+  // Ollama reports WHY it stopped here — "stop", "length" (hit num_ctx or num_predict), "load".
+  // It was never parsed, so a reply truncated by the context limit was reported as a clean stop and
+  // persisted as the tutor's finished answer. OpenAI and Anthropic both map their equivalent.
+  done_reason?: string;
   message?: { content?: string; tool_calls?: Array<{ function?: { name?: string; arguments?: unknown } }> };
 }
 interface OpenAITurnChunk {
@@ -1345,7 +1383,11 @@ function toOpenAITurnMessage(m: NeutralMessage): Record<string, unknown> {
 // Anthropic: content-block translation + tool_results grouped into one user message
 // (Anthropic expects all tool_results for a turn together).
 function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string; messages: Array<Record<string, unknown>> } {
-  const system = messages.find((m) => m.role === "system")?.content;
+  // Join EVERY system message, not just the first. The kernel's budget layer inserts an elision note
+  // with role "system" mid-array when it trims history; taking only `find()` silently dropped it, so
+  // on Anthropic the model was never told the conversation had been cut.
+  const systemParts = messages.filter((m) => m.role === "system").map((m) => m.content).filter(Boolean);
+  const system = systemParts.length ? systemParts.join("\n\n") : undefined;
   const out: Array<Record<string, unknown>> = [];
   let pendingToolResults: Array<Record<string, unknown>> = [];
   const flush = () => {
@@ -1371,6 +1413,13 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
     }
   }
   flush();
+  // Anthropic requires the first message to be a user turn and 400s otherwise. Nothing guaranteed
+  // that before the budget layer existed (the array always began with the first user message), but a
+  // trimmed window can now start anywhere — including on an assistant turn. Rather than drop it and
+  // lose context, prepend a minimal user turn so the transcript stays intact and valid.
+  if (out.length && out[0].role !== "user") {
+    out.unshift({ role: "user", content: "(earlier conversation continues)" });
+  }
   return { system, messages: out };
 }
 
@@ -1381,18 +1430,19 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
 // `config.contextTokens` is populated by the caller from `detectModelProfile`, already clamped to
 // min(model maximum, user setting).
 //
-// `num_predict` bounds a single reply so a looping model cannot generate until the stall timer fires.
-// It is deliberately generous: it is a runaway guard, not a length policy.
+// There is deliberately NO `num_predict`. An earlier revision of this branch derived one from the
+// budget's reserve slice, which capped every local reply at ~1200 tokens (307 on the 2048 setting)
+// and truncated mid-sentence with no signal — a worse corruption than the one #86 set out to fix.
+// Ollama's default is unbounded generation, and `num_ctx` now bounds a runaway naturally: a looping
+// model fills the window and stops. The stall timer covers a hung one. A length cap buys nothing
+// those two do not already cover, and costs correct answers.
 //
-// NOTE: `keep_alive` is intentionally absent. It and `num_ctx` are the two settings that most
+// NOTE: `keep_alive` is also intentionally absent. It and `num_ctx` are the two settings that most
 // directly multiply resident RAM, and shipping both at once on a 4GB machine is the configuration
 // that produces `signal: killed`. It lands in a later phase, after this one is measured.
-export const DEFAULT_NUM_PREDICT = 2048;
-
 function ollamaOptions(config: LLMConfig, opts: TurnOpts): Record<string, unknown> | undefined {
   const options: Record<string, unknown> = {};
   if (config.contextTokens && config.contextTokens > 0) options.num_ctx = Math.floor(config.contextTokens);
-  if (opts.numPredict !== undefined) options.num_predict = opts.numPredict;
   if (opts.temperature !== undefined) options.temperature = opts.temperature;
   return Object.keys(options).length > 0 ? options : undefined;
 }
@@ -1431,7 +1481,12 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
   const tools = ollamaToolDefs(opts.tools);
   if (tools) body.tools = tools;
 
-  const { signal, bump, didStall, cleanup } = withStallSignal(opts.signal);
+  // First byte on a local model means loading GBs of weights off disk — keep the tier-aware budget
+  // the wall-clock timeout used, so this change never SHORTENS a cold start. Only the post-first-byte
+  // behavior changes: silence, not elapsed time.
+  const { signal, bump, didStall, cleanup } = withStallSignal(opts.signal, {
+    firstByteMs: effectivePerCallTimeoutMs(config.provider, opts.tier),
+  });
   try {
     let response: Awaited<ReturnType<typeof fetch>>;
     try {
@@ -1456,12 +1511,13 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
     let lineBuffer = "";
     let sawToolCall = false;
     let callIdx = 0;
+    let doneReason: string | undefined;
     while (true) {
-      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
-      const { done, value } = await reader.read();
-      if (done) break;
+      const chunk = await readChunk(reader, signal);
+      if (chunk.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
+      if (chunk.done) break;
       bump(); // bytes arrived — the stream is alive, restart the silence clock
-      lineBuffer += decoder.decode(value, { stream: true });
+      lineBuffer += decoder.decode(chunk.value, { stream: true });
       const lines = lineBuffer.split("\n");
       lineBuffer = lines.pop() ?? "";
       for (const line of lines) {
@@ -1469,6 +1525,7 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
         let json: OllamaTurnChunk;
         try { json = JSON.parse(line) as OllamaTurnChunk; } catch { continue; }
         if (json.error) throw new Error(`Ollama error: ${json.error}`);
+        if (json.done && json.done_reason) doneReason = json.done_reason;
         if (json.message?.content) yield { type: "text", delta: json.message.content };
         if (Array.isArray(json.message?.tool_calls)) {
           for (const tc of json.message.tool_calls) {
@@ -1481,7 +1538,8 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
       }
     }
     if (signal.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
-    yield { type: "done", finishReason: sawToolCall ? "tool_calls" : "stop" };
+    // done_reason "length" means the model was cut off by num_ctx — a FRAGMENT, not an answer.
+    yield { type: "done", finishReason: doneReason === "length" ? "length" : sawToolCall ? "tool_calls" : "stop" };
   } finally { cleanup(); }
 }
 
@@ -1515,11 +1573,11 @@ async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, 
     const toolAcc = new Map<number, { id: string; name: string; args: string }>();
     let finishReason: "stop" | "tool_calls" | "length" = "stop";
     while (true) {
-      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
-      const { done, value } = await reader.read();
-      if (done) break;
+      const chunk = await readChunk(reader, signal);
+      if (chunk.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
+      if (chunk.done) break;
       bump(); // bytes arrived — the stream is alive, restart the silence clock
-      buffer += decoder.decode(value, { stream: true });
+      buffer += decoder.decode(chunk.value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
       for (const line of lines) {
@@ -1591,11 +1649,11 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
     const toolBlocks = new Map<number, { id: string; name: string; json: string }>();
     let finishReason: "stop" | "tool_calls" | "length" = "stop";
     while (true) {
-      if (signal.aborted) { reader.cancel(); yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
-      const { done, value } = await reader.read();
-      if (done) break;
+      const chunk = await readChunk(reader, signal);
+      if (chunk.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
+      if (chunk.done) break;
       bump(); // bytes arrived — the stream is alive, restart the silence clock
-      buffer += decoder.decode(value, { stream: true });
+      buffer += decoder.decode(chunk.value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
       for (const line of lines) {

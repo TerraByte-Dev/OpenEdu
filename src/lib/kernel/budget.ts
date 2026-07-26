@@ -31,7 +31,17 @@ export function estTokens(text: string): number {
 // conversation. Raising it costs RAM on the KV cache — which is why this is a user-visible setting
 // and why `keep_alive` is deliberately NOT shipped alongside it (see #86): both multiply resident
 // memory, and on a 4GB machine the combination is what produces `signal: killed`.
-export const DEFAULT_CONTEXT_TOKENS = 8192;
+// 4096, deliberately — it is exactly Ollama's own default, so upgrading an existing install changes
+// the KV-cache allocation by ZERO bytes while still delivering the actual fix (#86): the app now
+// KNOWS the number and fits the prompt to it, instead of overflowing a window it never asked about.
+// 8192 is one opt-in step away for anyone with RAM to spare. Raising this default would double the
+// KV ask for the entire installed base on precisely the 4GB hardware this app targets, which is the
+// opposite of the point.
+export const DEFAULT_CONTEXT_TOKENS = 4096;
+
+// Hard ceiling on the user-settable window. Guards an imported settings file from asking for a
+// window no target machine can allocate.
+export const MAX_CONTEXT_TOKENS = 32_768;
 
 // Never go below this — under ~2k there is no room for a system prompt plus one exchange, and every
 // provider default is at least this.
@@ -76,11 +86,25 @@ export function capText(text: string, maxTokens: number): string {
   if (maxTokens <= 0) return "";
   const maxChars = maxTokens * CHARS_PER_TOKEN;
   if (text.length <= maxChars) return text;
-  // Prefer cutting on a whitespace boundary so we don't hand the model half a token/word.
-  const hard = text.slice(0, maxChars);
-  const lastBreak = hard.lastIndexOf("\n") >= maxChars * 0.6 ? hard.lastIndexOf("\n") : hard.lastIndexOf(" ");
-  const body = lastBreak > maxChars * 0.5 ? hard.slice(0, lastBreak) : hard;
-  return `${body}\n…[truncated: showing ${body.length} of ${text.length} characters]`;
+  // The marker counts against the cap. Building it first and reserving its length is the difference
+  // between "capped at N" and "capped at N plus however long the marker happens to be" — the latter
+  // means a result can come back LONGER than the budget that was supposed to bound it.
+  const marker = (kept: number) => `\n…[truncated: showing ${kept} of ${text.length} characters]`;
+  const ELLIPSIS = "…";
+
+  // Degenerate caps: below the length of the explanatory marker there is no room to both truncate
+  // and say so. Truncating wins — the cap is the invariant. (Not reachable from the kernel's own
+  // budgets; this only guards a caller passing something pathological.)
+  if (maxChars <= ELLIPSIS.length) return text.slice(0, maxChars);
+  if (maxChars <= marker(maxChars).length) return text.slice(0, maxChars - ELLIPSIS.length) + ELLIPSIS;
+
+  const room = maxChars - marker(maxChars).length;
+  // Prefer cutting on a whitespace boundary so we don't hand the model half a word.
+  const hard = text.slice(0, room);
+  const nl = hard.lastIndexOf("\n");
+  const lastBreak = nl >= room * 0.6 ? nl : hard.lastIndexOf(" ");
+  const body = lastBreak > room * 0.5 ? hard.slice(0, lastBreak) : hard;
+  return `${body}${marker(body.length)}`;
 }
 
 // ── Fitting a conversation ───────────────────────────────────────────────────
@@ -96,12 +120,21 @@ export interface FitResult<T extends FitMessage> {
   usage: { system: number; history: number; total: number };
 }
 
+// Marks an elision note so a later refit can recognize and replace its own note rather than pinning
+// it as part of the system head. The kernel refits after every tool round, so without this the notes
+// stack up — each one undroppable and charged to the one slice nothing bounds.
+const ELISION_MARK = "​[trimmed]";
+
+export function isElisionNote(m: FitMessage): boolean {
+  return m.role === "system" && m.content.startsWith(ELISION_MARK);
+}
+
 // The note that replaces an elided prefix. The model is told history was trimmed rather than being
 // left to infer it from a conversation that appears to begin mid-thought.
 function elisionNote(dropped: number): FitMessage {
   return {
     role: "system",
-    content: `[${dropped} earlier message${dropped === 1 ? "" : "s"} in this session were trimmed to fit the context window. Ask the student to restate anything you need from earlier.]`,
+    content: `${ELISION_MARK} ${dropped} earlier message${dropped === 1 ? "" : "s"} in this session were trimmed to fit the context window. Ask the student to restate anything you need from earlier.`,
   };
 }
 
@@ -123,15 +156,25 @@ export function fitMessages<T extends FitMessage>(
   opts: { groundingUsed?: number } = {},
 ): FitResult<T> {
   const groundingUsed = Math.max(0, opts.groundingUsed ?? 0);
-  const historyAllowance = budget.history + Math.max(0, budget.grounding - groundingUsed);
 
-  // Leading system messages are pinned; everything after is candidate history.
+  // Leading system messages are pinned; everything after is candidate history. Any elision note left
+  // by a previous fit is dropped first — otherwise each refit pins the last one into the unbounded
+  // head and they accumulate, one per tool round.
+  const cleaned = messages.filter((m, i) => !(i > 0 && isElisionNote(m)));
   let pin = 0;
-  while (pin < messages.length && messages[pin].role === "system") pin++;
-  const head = messages.slice(0, pin);
-  const rest = messages.slice(pin);
+  while (pin < cleaned.length && cleaned[pin].role === "system") pin++;
+  const head = cleaned.slice(0, pin);
+  const rest = cleaned.slice(pin);
 
   const systemTokens = head.reduce((n, m) => n + estTokens(m.content), 0);
+
+  // Derive the allowance from what is ACTUALLY left after the pinned head and the output reserve —
+  // not from a fixed fraction of the window. The head is pinned and never trimmed, so a system
+  // prompt larger than its nominal slice (a full syllabus easily is) would otherwise push
+  // system + history past num_ctx and put us right back where we started: the server truncating
+  // from the front. `budget.system` is a target for warning on, not a cap that enforces itself.
+  const historyAllowance = Math.max(0, budget.total - budget.reserve - systemTokens - groundingUsed);
+
   if (rest.length === 0) {
     return { messages: [...head], dropped: 0, usage: { system: systemTokens, history: 0, total: systemTokens } };
   }
@@ -151,11 +194,19 @@ export function fitMessages<T extends FitMessage>(
   }
 
   // Invariant 3: never begin on an orphaned tool result. Only a cut can orphan one — if `cut` is
-  // still 0 nothing was dropped, so a leading "tool" message is whatever the caller handed us and
-  // removing it would be the bug rather than the fix.
-  while (cut > 0 && cut < rest.length - 1 && rest[cut].role === "tool") {
-    used -= estTokens(rest[cut].content);
-    cut++;
+  // still 0 nothing was dropped, so a leading "tool" message is whatever the caller handed us.
+  //
+  // Walk BACKWARD to re-admit the assistant turn that issued the calls, rather than forward to skip
+  // the results. Forward is wrong twice over: it discards the very evidence the model is about to
+  // answer from, and when the tool block is the TAIL of the array — which is the common case, since
+  // the kernel refits immediately after pushing tool results — there is nothing after it to advance
+  // to, so the orphan survives anyway. Re-admitting may exceed the allowance; a valid prompt that is
+  // slightly over beats a perfectly-sized one the provider rejects with a 400.
+  if (cut > 0 && rest[cut].role === "tool") {
+    let back = cut;
+    while (back > 0 && rest[back].role === "tool") back--;
+    for (let i = back; i < cut; i++) used += estTokens(rest[i].content);
+    cut = back;
   }
 
   const kept = rest.slice(cut);

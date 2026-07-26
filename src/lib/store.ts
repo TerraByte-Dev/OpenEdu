@@ -2,7 +2,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel } from "./models";
-import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS } from "./kernel/budget";
+import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 
 let store: Store | null = null;
 
@@ -110,17 +110,25 @@ export async function setOllamaUrl(url: string): Promise<void> {
 // but raising it at all costs RAM, because the KV cache scales with it. That is the whole reason
 // this is a user-visible number and not a constant: 8192 is right on a laptop with headroom and
 // wrong on a 4GB shared school machine, and only the person at the keyboard knows which they have.
-export const CONTEXT_TOKEN_CHOICES = [2048, 4096, 8192, 16384, 32768] as const;
+// 32k is deliberately absent: without a memory probe it is an invitation to OOM a shared
+// school machine, and nothing in the app can currently tell the user whether it will fit.
+export const CONTEXT_TOKEN_CHOICES = [2048, 4096, 8192, 16384] as const;
 
+// Clamp on READ, not only on write. `setMaxContextTokens` is not the only writer — settings-io's
+// import path writes any allow-listed key straight through with a raw `store.set`, and this key is
+// on that list. An imported file could otherwise pin num_ctx to 1, or to a window no machine can
+// allocate, and budgetFor would disagree with what was actually sent.
 export async function getMaxContextTokens(): Promise<number> {
   const s = await getStore();
   const v = await s.get<number>(STORE_KEYS.maxContextTokens);
-  return typeof v === "number" && v > 0 ? v : DEFAULT_CONTEXT_TOKENS;
+  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return DEFAULT_CONTEXT_TOKENS;
+  return Math.min(Math.max(MIN_CONTEXT_TOKENS, Math.floor(v)), MAX_CONTEXT_TOKENS);
 }
 
 export async function setMaxContextTokens(tokens: number): Promise<void> {
   const s = await getStore();
-  await s.set(STORE_KEYS.maxContextTokens, Math.max(MIN_CONTEXT_TOKENS, Math.floor(tokens)));
+  const clamped = Math.min(Math.max(MIN_CONTEXT_TOKENS, Math.floor(tokens)), MAX_CONTEXT_TOKENS);
+  await s.set(STORE_KEYS.maxContextTokens, clamped);
   await s.save();
 }
 

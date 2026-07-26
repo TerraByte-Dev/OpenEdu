@@ -47,7 +47,7 @@ describe("capText", () => {
 
   it("truncates with a visible marker naming both lengths", () => {
     const long = "word ".repeat(500);
-    const out = capText(long, 10);
+    const out = capText(long, 100); // a realistic cap — the marker itself is ~45 chars
     expect(out.length).toBeLessThan(long.length);
     expect(out).toMatch(/…\[truncated: showing \d+ of \d+ characters\]/);
   });
@@ -57,11 +57,32 @@ describe("capText", () => {
   });
 
   it("prefers a whitespace boundary over a mid-word cut", () => {
-    const out = capText("alpha bravo charlie delta echo foxtrot golf hotel", 4);
+    const out = capText("alpha bravo charlie delta echo foxtrot golf hotel ".repeat(20), 40);
     const body = out.split("\n")[0];
     expect(body.endsWith(" ")).toBe(false);
     // the marker is on its own line, and the body did not end mid-word
     expect(/[a-z]$/.test(body)).toBe(true);
+  });
+
+  // The marker counts against the cap. Before this, a "capped" result could come back LONGER than
+  // the budget that was supposed to bound it — capText("z".repeat(41), 10) returned 82 chars.
+  it("never returns more characters than the cap allows", () => {
+    for (const tokens of [1, 5, 10, 50, 200]) {
+      const out = capText("z".repeat(5000), tokens);
+      expect(out.length).toBeLessThanOrEqual(tokens * 4);
+    }
+  });
+
+  it("still respects the cap when it is too small to fit the explanatory marker", () => {
+    const out = capText("z".repeat(500), 1);
+    expect(out.length).toBeLessThanOrEqual(4);
+    expect(out.endsWith("…")).toBe(true); // visibly cut, even with no room to explain
+  });
+
+  it("handles text with no whitespace at all", () => {
+    const out = capText("z".repeat(5000), 40);
+    expect(out).toContain("truncated");
+    expect(out.length).toBeLessThanOrEqual(160);
   });
 });
 
@@ -137,6 +158,43 @@ describe("fitMessages", () => {
     const r = fitMessages([], budget);
     expect(r.messages).toEqual([]);
     expect(r.dropped).toBe(0);
+  });
+
+  // The refit after a tool round hands fitMessages an array whose LAST messages are tool results.
+  // The original guard stopped advancing ON the last element, so the window began on an orphan whose
+  // assistant tool_calls turn had been dropped — a hard 400 on OpenAI and Anthropic.
+  it("re-admits the assistant turn when the trailing tool block would be orphaned", () => {
+    const input = [
+      msg("system", 10),
+      ...Array.from({ length: 40 }, () => msg("user", 300)),
+      msg("assistant", 300, "a"),
+      msg("tool", 900, "t"),
+      msg("tool", 900, "t"),
+    ];
+    const r = fitMessages(input, budgetFor(2048));
+    const kept = r.messages.filter((m) => m.role !== "system");
+    expect(kept[0].role).toBe("assistant");
+    expect(kept[kept.length - 1].role).toBe("tool");
+  });
+
+  // The pinned system head is never trimmed, so a fixed 60%-of-window history slice let
+  // system + history exceed num_ctx — putting the server back in charge of what to drop.
+  it("shrinks the history allowance when the system prompt is oversized", () => {
+    const budget4k = budgetFor(4096);
+    const fat = [msg("system", 2500), ...Array.from({ length: 30 }, () => msg("user", 100))];
+    const r = fitMessages(fat, budget4k);
+    expect(r.usage.total).toBeLessThanOrEqual(budget4k.total - budget4k.reserve + 100);
+    expect(r.dropped).toBeGreaterThan(0);
+  });
+
+  // The kernel refits after every tool round. A note pinned into the system head on one pass would
+  // be counted as head on the next, so they stacked up — all undroppable.
+  it("does not accumulate elision notes across repeated fits", () => {
+    const long = [msg("system", 10), ...Array.from({ length: 80 }, () => msg("user", 200))];
+    let out = fitMessages(long, budget).messages;
+    for (let i = 0; i < 5; i++) out = fitMessages(out, budget).messages;
+    const notes = out.filter((m) => m.content.includes("trimmed to fit"));
+    expect(notes.length).toBeLessThanOrEqual(1);
   });
 
   it("reports usage that reflects what was actually kept", () => {
