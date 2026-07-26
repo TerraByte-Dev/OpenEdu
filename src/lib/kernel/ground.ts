@@ -14,7 +14,7 @@
 
 import { estTokens, capText, type Budget } from "./budget";
 import { searchNotebook } from "../notebook";
-import { getManifest, matchResources, fetchResource, isLibraryAvailable } from "../library";
+import { getManifest, matchResourcesScored, fetchResource, isLibraryAvailable } from "../library";
 import { getLibraryEnabled } from "../store";
 import type { ToolContext } from "../tools/EduTool";
 
@@ -60,6 +60,18 @@ export type RetrievalMode = "always" | "auto" | "off";
  *  this, hits are topically adjacent noise — a biology vault answering "what is a for loop?". */
 export const MIN_NOTE_SCORE = 0.45;
 
+/** Minimum LEXICAL score for a library card to be injected automatically.
+ *
+ *  `matchResources` keeps anything scoring above zero, which is right for a tool the model chose to
+ *  call — it already had the topic in mind — and wrong for automatic grounding, where the least-bad
+ *  card in a 154-card library gets injected into every unrelated question. The eval caught exactly
+ *  that: "What is the boiling point of ethanol?" retrieved "Types of Economic Systems".
+ *
+ *  6 is the first score that requires real evidence under `scoreEntry`: a title/alias substring match
+ *  (+6), or two title tokens (3+3), or a title token plus two tags. A single incidental summary token
+ *  scores 1 and no longer survives. */
+export const MIN_LIBRARY_SCORE = 6;
+
 /** At most this many chunks from any one document, so five hits cannot all be one note's ord 0..4. */
 const MAX_PER_DOC = 2;
 
@@ -71,16 +83,29 @@ const MAX_HITS = 3;
  *  plus the question still leave the model room to answer inside a 4096-token window. */
 const MAX_HIT_TOKENS = 250;
 
-/** Below this many content words a question is conversational ("thanks", "what about that?") and
- *  retrieval is noise — it would inject the top-3 of an unrelated vault into small talk. */
-const MIN_CONTENT_WORDS = 4;
+/** Below this many content words the turn is an acknowledgement, not a question.
+ *
+ *  Started at 4. The eval caught it rejecting "How high is Ashcombe Ridge?" (3 words) — the single
+ *  positive failure in an otherwise clean run. Dropping to 2 then rejected "What is photosynthesis?"
+ *  (1 word, since the stopword list eats "what" and "is"), which is the archetypal student question.
+ *
+ *  The lesson: this gate was never the thing keeping irrelevant hits out — the SCORE FLOOR is. All
+ *  this does is avoid a pointless ~20ms embed on small talk, so it should be as generous as possible.
+ *  One content word is the floor: "thanks" and "ok got it" reduce to zero (see the stopword list),
+ *  while any question naming any thing survives. If an acknowledgement does slip through, it retrieves
+ *  nothing above the floor and costs one embed. That is the correct direction to be wrong in. */
+const MIN_CONTENT_WORDS = 1;
 
-// Mirrors library.ts's stopword list; kept local so this module stays independent of it.
+// Mirrors library.ts's stopword list; kept local so this module stays independent of it. The trailing
+// group is acknowledgement vocabulary — the words that make up a turn carrying no question at all
+// ("ok got it", "sure thanks", "cool"). They are what lets MIN_CONTENT_WORDS sit at 1 without
+// retrieving on every "yeah makes sense".
 const STOPWORDS = new Set([
   "the", "a", "an", "of", "for", "to", "in", "on", "is", "are", "was", "were", "what", "whats",
   "show", "me", "my", "tell", "about", "give", "list", "and", "or", "how", "do", "does", "did",
   "i", "you", "can", "could", "with", "this", "that", "it", "its", "be", "been", "have", "has",
   "if", "then", "so", "but", "not", "no", "yes", "please", "thanks", "thank", "ok", "okay",
+  "got", "get", "sure", "great", "cool", "nice", "right", "yeah", "yep", "sense", "makes", "wow",
 ]);
 
 export function contentWords(s: string): string[] {
@@ -263,14 +288,17 @@ async function groundFromLibrary(question: string): Promise<GroundingHit[]> {
   try {
     if (!(await getLibraryEnabled()) || !isLibraryAvailable()) return [];
     const manifest = await getManifest();
-    const matches = matchResources(question, manifest, 1);
-    if (matches.length === 0) return [];
-    const entry = matches[0];
+    const matches = matchResourcesScored(question, manifest, 1);
+    // The floor is the whole point here — see MIN_LIBRARY_SCORE. Without it the library half fires on
+    // every single question, which is indistinguishable from a bug in the logs and actively harmful
+    // when the notebook half returns nothing: the model is handed one irrelevant card and no notes.
+    if (matches.length === 0 || matches[0].score < MIN_LIBRARY_SCORE) return [];
+    const { entry } = matches[0];
     const { text } = await fetchResource(entry, 1800);
     if (!text.trim()) return [];
-    // A curated card that survived matchResources' `score > 0` filter is a strong signal; it is
-    // pinned just above the note floor rather than scored, because the lexical scale is unbounded
-    // and not comparable to cosine.
+    // Pinned just above the note floor rather than mapped from the lexical score: the two scales are
+    // not comparable (cosine is bounded 0..1, scoreEntry is unbounded ints), so any mapping would be
+    // invented precision. The gate above is what decides admission; this only orders it among notes.
     return [{ source: "library", title: entry.title, text, score: MIN_NOTE_SCORE + 0.05, ref: `lib:${entry.id}` }];
   } catch {
     return []; // library is a bonus corpus; never let it break a turn

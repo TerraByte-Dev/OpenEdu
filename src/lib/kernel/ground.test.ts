@@ -36,6 +36,20 @@ describe("shouldRetrieve", () => {
     expect(shouldRetrieve("how does cellular respiration produce ATP in mitochondria", "always").retrieve).toBe(true);
   });
 
+  // Regression: the gate required 4 content words and rejected this, which was the ONLY positive
+  // failure in the first clean eval run. A short question about a named thing is the normal shape of
+  // a student question — the score floor, not the word count, is what keeps irrelevant hits out.
+  it("retrieves for a short question about a named thing", () => {
+    for (const q of [
+      "How high is Ashcombe Ridge?",
+      "Who wrote Hamlet?",
+      "What is photosynthesis?",
+      "define entropy",
+    ]) {
+      expect(shouldRetrieve(q, "always").retrieve, q).toBe(true);
+    }
+  });
+
   it("honours the off switch regardless of the question", () => {
     const r = shouldRetrieve("how does cellular respiration produce ATP in mitochondria", "off");
     expect(r.retrieve).toBe(false);

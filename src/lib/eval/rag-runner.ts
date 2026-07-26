@@ -12,7 +12,7 @@
 //     await window.__runRagEval({ repeats: 3 })        // the real bar
 //     await window.__runRagEval({ modes: ["always"] }) // just the shipping path
 
-import { tutorEngine, type TutorTurn } from "../kernel";
+import { tutorEngine, EMPTY_GROUNDING, type TutorTurn, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
@@ -26,6 +26,14 @@ import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type RagQuest
 import type { LLMConfig } from "../../types";
 
 const RAG_COURSE_ID = "__eval_rag__";
+
+// Only ONE run at a time. Both `seedVault` and the teardown mutate a fixed course id, so two
+// overlapping runs destroy each other's vault: the first to finish deletes the course the second is
+// still reading from, and every subsequent retrieval silently returns library-only hits. That is not
+// a hypothetical — it happened on the first real run of this harness and produced a plausible-looking
+// 36% that had nothing to do with the model. A silent wrong number is worse than a loud refusal, so
+// this refuses.
+let inFlight = false;
 
 // Minimal instructions so the system prompt is realistic without dragging in a generated course.
 const RAG_INSTRUCTIONS: Record<string, string> = {
@@ -65,6 +73,14 @@ async function seedVault(): Promise<void> {
 }
 
 export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMode[]; only?: string }): Promise<RagReport> {
+  if (inFlight) {
+    throw new Error(
+      "A RAG eval is already running. Wait for it to finish — two runs share one fixture course and " +
+      "would delete each other's vault, producing numbers that look real and are not.",
+    );
+  }
+  inFlight = true;
+
   const repeats = opts?.repeats ?? 1;
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const questions = opts?.only ? RAG_QUESTIONS.filter((q) => q.id === opts.only) : RAG_QUESTIONS;
@@ -117,9 +133,13 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
           let citedTitles: string[] = [];
           let retrievedTitles: string[] = [];
           let toolCalls: string[] = [];
+          let noteCandidates = 0;
+          let retrievalTrace: Grounding["trace"] = EMPTY_GROUNDING.trace;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
+            noteCandidates = result.grounding.hits.filter((h) => h.source === "note").length;
+            retrievalTrace = result.grounding.trace;
             // The citation the STUDENT would see — n-gram verified, never the model's claim. In
             // tool-only mode the grounding stage does not run, so a cited title can still arrive via
             // the tool path only if the answer reused its text; that asymmetry is the thing measured.
@@ -130,6 +150,17 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
             answer = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
           }
 
+          // Integrity check. In "always" mode with a seeded 12-note vault, a real question must produce
+          // note candidates. Zero notes means the vault is gone (a concurrent run, a crashed teardown)
+          // and every row after this point would be measuring an empty corpus. Refuse to keep going —
+          // the failure mode this guards against is a run that COMPLETES and reports a wrong number.
+          if (mode === "always" && retrievalTrace.skipped !== "short-query" && noteCandidates === 0) {
+            throw new Error(
+              `Fixture vault is empty at ${question.id} (${retrievalTrace.candidates} candidate(s), library-only). ` +
+              "The seeded course was deleted mid-run — most likely a second eval started. Results discarded.",
+            );
+          }
+
           const verdict = scoreRagAnswer(question, answer, citedTitles);
           rows.push({ mode, question, answer, citedTitles, retrievedTitles, toolCalls, verdict });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason}`);
@@ -138,6 +169,7 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
     }
   } finally {
     await deleteCourse(RAG_COURSE_ID).catch(() => {});
+    inFlight = false;
   }
 
   const byMode: RagReport["byMode"] = {};
