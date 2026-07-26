@@ -70,7 +70,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Keep the local persona in sync if the course (or its persisted sprite) changes under us.
   useEffect(() => { setSpriteId(course.sprite_id ?? null); }, [course.id, course.sprite_id]);
 
-  const switchPersona = async (id: string) => {
+  // `null` clears the persona entirely — the tutor falls back to the course's generated identity and
+  // no character voice is injected at all. The whole data path already supported null
+  // (setCourseSprite, resolvePersona, buildSystemPrompt); only the picker had no way to say it, so a
+  // student who did not want a character was stuck with one.
+  const switchPersona = async (id: string | null) => {
     setSpriteId(id);
     setPersonaPickerOpen(false);
     try { await setCourseSprite(courseId, id); } catch (e) { console.error("[persona] failed to persist sprite", e); }
@@ -302,6 +306,17 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           <>
             <div className="fixed inset-0 z-10" onClick={() => setPersonaPickerOpen(false)} />
             <div className="absolute left-3 top-full z-20 mt-1 w-64 rounded-lg border border-[var(--rule)] bg-panel-lite shadow-xl p-1.5">
+              <button
+                type="button"
+                onClick={() => switchPersona(null)}
+                className={`flex items-start gap-2 w-full text-left p-1.5 rounded-md hover:bg-panel ${spriteId === null ? "bg-panel" : ""}`}
+              >
+                <span className="w-9 h-9 shrink-0 rounded-md border border-[var(--rule)] bg-lcd flex items-center justify-center text-[var(--ink-faint)] text-xs">—</span>
+                <span className="min-w-0">
+                  <span className="block text-xs text-phosphor-bright">No persona</span>
+                  <span className="block text-[10px] text-[var(--ink-faint)] leading-snug">Just the tutor. No character voice.</span>
+                </span>
+              </button>
               {SPRITE_PERSONAS.map((p) => (
                 <button
                   key={p.id}

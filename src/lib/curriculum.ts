@@ -1,4 +1,5 @@
 import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } from "./llm";
+import { outputRulesLayer } from "./kernel/outputRules";
 import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson } from "./db";
 import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
@@ -1059,7 +1060,12 @@ Level: ${getLevelMeaning(courseLevel)}`);
   }
 
   const base = parts.join("\n\n---\n\n");
-  return modePromptSuffix ? base + modePromptSuffix : base;
+  const withMode = modePromptSuffix ? base + modePromptSuffix : base;
+  // <output_rules> goes LAST, after the mode suffix — nearest the user turn, which is where a small
+  // model follows an instruction most reliably. Applied unconditionally rather than passed in by the
+  // caller: how a reply is allowed to LOOK is a product invariant, not a per-call option, and making
+  // it a parameter is exactly how ChatTab and the eval runner drifted apart on knowledgeSummary.
+  return `${withMode}\n\n---\n\n${outputRulesLayer()}`;
 }
 
 // ─── Course generation pipeline with checkpoint/resume ────────────────────────
