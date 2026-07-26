@@ -94,6 +94,17 @@ describe("selectHits", () => {
   });
 });
 
+// The distinction that broke the first clean eval run: "nothing survived the floor" and "the corpus
+// is empty" look identical if you only count surviving hits, and they mean opposite things. A
+// negative question SHOULD retrieve candidates and reject all of them.
+describe("floor rejection vs empty corpus", () => {
+  it("rejecting every candidate is not the same as having none", () => {
+    const offTopic = [hit({ score: 0.39, ref: "a" }), hit({ score: 0.31, ref: "b" }), hit({ score: 0.2, ref: "c" })];
+    expect(selectHits(offTopic)).toEqual([]);   // correctly grounded in nothing
+    expect(offTopic.length).toBe(3);            // but the vault plainly had material to reject
+  });
+});
+
 describe("formatGroundingBlock", () => {
   it("is empty when there is nothing to say", () => {
     expect(formatGroundingBlock([], 1000)).toBe("");

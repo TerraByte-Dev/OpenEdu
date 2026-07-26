@@ -33,6 +33,11 @@ export interface RetrievalTrace {
   /** Non-null when retrieval was deliberately skipped, naming the reason. */
   skipped: "short-query" | "no-corpus" | "below-floor" | "disabled" | null;
   candidates: number;
+  /** Note-sourced candidates BEFORE the score floor. Distinct from how many survived: zero survivors
+   *  is the healthy answer to a question the vault cannot answer, whereas zero CANDIDATES means the
+   *  notebook returned nothing at all — an empty vault, a dead embedder, the wrong course id. Only
+   *  the pre-floor count can tell those apart, which the eval's integrity check depends on. */
+  noteCandidates: number;
   topScore: number;
   hitTitles: string[];
   blockTokens: number;
@@ -49,7 +54,7 @@ export interface Grounding {
 export const EMPTY_GROUNDING: Grounding = {
   block: "",
   hits: [],
-  trace: { skipped: null, candidates: 0, topScore: 0, hitTitles: [], blockTokens: 0 },
+  trace: { skipped: null, candidates: 0, noteCandidates: 0, topScore: 0, hitTitles: [], blockTokens: 0 },
 };
 
 export type RetrievalMode = "always" | "auto" | "off";
@@ -241,6 +246,7 @@ export async function ground(
   }
 
   const candidates: GroundingHit[] = [];
+  let noteCandidates = 0;
   let error: string | undefined;
 
   // Notes and library are fetched concurrently and fail independently. The library half needs no
@@ -252,6 +258,7 @@ export async function ground(
   ]);
 
   if (notes.status === "fulfilled") {
+    noteCandidates = notes.value.length;
     for (const r of notes.value) {
       candidates.push({ source: "note", title: r.document_title, text: r.text, score: r.score, ref: r.document_id });
     }
@@ -274,6 +281,7 @@ export async function ground(
     trace: {
       skipped,
       candidates: candidates.length,
+      noteCandidates,
       topScore,
       hitTitles: hits.map((h) => h.title),
       blockTokens: estTokens(block),

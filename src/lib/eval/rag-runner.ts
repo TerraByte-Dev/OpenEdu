@@ -133,12 +133,10 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
           let citedTitles: string[] = [];
           let retrievedTitles: string[] = [];
           let toolCalls: string[] = [];
-          let noteCandidates = 0;
           let retrievalTrace: Grounding["trace"] = EMPTY_GROUNDING.trace;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
-            noteCandidates = result.grounding.hits.filter((h) => h.source === "note").length;
             retrievalTrace = result.grounding.trace;
             // The citation the STUDENT would see — n-gram verified, never the model's claim. In
             // tool-only mode the grounding stage does not run, so a cited title can still arrive via
@@ -150,14 +148,21 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
             answer = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
           }
 
-          // Integrity check. In "always" mode with a seeded 12-note vault, a real question must produce
-          // note candidates. Zero notes means the vault is gone (a concurrent run, a crashed teardown)
-          // and every row after this point would be measuring an empty corpus. Refuse to keep going —
-          // the failure mode this guards against is a run that COMPLETES and reports a wrong number.
-          if (mode === "always" && retrievalTrace.skipped !== "short-query" && noteCandidates === 0) {
+          // Integrity check on the VAULT, not on the answer.
+          //
+          // Reads noteCandidates (pre-floor), not surviving hits. Zero SURVIVORS is the healthy result
+          // for a question the vault cannot answer — every negative produces it, and checking hits
+          // aborted the run on "Who wrote Hamlet?" with 6 perfectly good candidates sitting at 0.39.
+          // Zero CANDIDATES is the pathological case: the notebook returned nothing at all, which
+          // means the seeded course is gone and every later row would measure an empty corpus.
+          const retrievalRan = retrievalTrace.skipped !== "short-query" && retrievalTrace.skipped !== "disabled";
+          if (mode === "always" && retrievalRan && retrievalTrace.noteCandidates === 0) {
             throw new Error(
-              `Fixture vault is empty at ${question.id} (${retrievalTrace.candidates} candidate(s), library-only). ` +
-              "The seeded course was deleted mid-run — most likely a second eval started. Results discarded.",
+              `Fixture vault returned NO note candidates at ${question.id} ` +
+              `(${retrievalTrace.candidates} total candidate(s), ${retrievalTrace.noteCandidates} from notes` +
+              `${retrievalTrace.error ? `, embed error: ${retrievalTrace.error}` : ""}). ` +
+              "The seeded course is gone or the embedder is down — every later row would measure an " +
+              "empty corpus. Results discarded.",
             );
           }
 
