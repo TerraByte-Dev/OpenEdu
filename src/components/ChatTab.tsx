@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
-import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite, countDueFlashcards } from "../lib/db";
+import {
+  getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite, countDueFlashcards,
+  listChatThreads, createChatThread, touchChatThread, deleteChatThread, type ChatThread,
+} from "../lib/db";
+import { deriveThreadTitle } from "../lib/thread-title";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
@@ -32,6 +36,11 @@ interface ChatTabProps {
 
 export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Conversation threading. Before this there was ONE endless transcript per (course, level), so an
+  // earlier topic got buried and — past the read cap — became unreachable.
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadPickerOpen, setThreadPickerOpen] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -68,12 +77,54 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Load this level's threads and open the most recent. A level with no threads yet gets one lazily
+  // on first send rather than eagerly here — an empty thread the student never used is clutter in the
+  // list, and creating it on mount would make merely LOOKING at a level leave a trace.
   useEffect(() => {
+    let alive = true;
     (async () => {
-      const msgs = await getChatMessages(courseId, level);
-      setMessages(msgs);
+      const list = await listChatThreads(courseId, level);
+      if (!alive) return;
+      setThreads(list);
+      const active = list[0]?.id ?? null;
+      setThreadId(active);
+      setMessages(active ? await getChatMessages(active) : []);
     })();
+    return () => { alive = false; };
   }, [courseId, level]);
+
+  const openThread = async (id: string) => {
+    setThreadPickerOpen(false);
+    if (id === threadId) return;
+    setThreadId(id);
+    setMessages(await getChatMessages(id));
+    setSuggestions([]);
+    setGroundingNote(null);
+    setToolEvents([]);
+  };
+
+  // A new thread is not written to the DB until the first message lands — see the load effect.
+  const startNewThread = () => {
+    setThreadPickerOpen(false);
+    setThreadId(null);
+    setMessages([]);
+    setSuggestions([]);
+    setGroundingNote(null);
+    setToolEvents([]);
+    inputRef.current?.focus();
+  };
+
+  const removeThread = async (id: string) => {
+    await deleteChatThread(id);
+    const list = await listChatThreads(courseId, level);
+    setThreads(list);
+    if (id === threadId) {
+      const next = list[0]?.id ?? null;
+      setThreadId(next);
+      setMessages(next ? await getChatMessages(next) : []);
+      setSuggestions([]);
+    }
+  };
 
   // Keep the local persona in sync if the course (or its persisted sprite) changes under us.
   useEffect(() => { setSpriteId(course.sprite_id ?? null); }, [course.id, course.sprite_id]);
@@ -154,8 +205,22 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const userText = input.trim();
     setInput("");
 
-    const userMsg = await saveChatMessage(courseId, "user", userText, level);
+    // The thread is created HERE, on first send, not on mount — so opening a level and leaving does
+    // not litter the list with empty conversations. The title comes from this first message via a
+    // pure function, deliberately not a model call: titling is not worth 3-8s on a CPU box.
+    let activeThread = threadId;
+    let createdThread = false;
+    if (!activeThread) {
+      const t = await createChatThread(courseId, level, deriveThreadTitle(userText));
+      activeThread = t.id;
+      createdThread = true;
+      setThreadId(t.id);
+    }
+
+    const userMsg = await saveChatMessage(courseId, "user", userText, level, activeThread);
     setMessages((prev) => [...prev, userMsg]);
+    void touchChatThread(activeThread).catch(() => {});
+    if (createdThread) void listChatThreads(courseId, level).then(setThreads).catch(() => {});
 
     // Build system prompt — with fallback if instructions not yet generated. The kernel appends
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
@@ -263,7 +328,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             : result.stopReason === "length"
               ? "\n\n_[cut off at the length limit — ask the tutor to continue]_"
               : "";
-        const assistantMsg = await saveChatMessage(courseId, "assistant", result.text + suffix, level);
+        const assistantMsg = await saveChatMessage(courseId, "assistant", result.text + suffix, level, activeThread);
         setMessages((prev) => [...prev, assistantMsg]);
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
@@ -330,6 +395,66 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           </span>
           <span className="text-[var(--ink-faint)] text-[10px]">▾</span>
         </button>
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setThreadPickerOpen((o) => !o)}
+              title="Switch conversation"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] text-[var(--ink-dim)] hover:text-phosphor-bright hover:bg-panel-lite transition-colors max-w-[220px]"
+            >
+              <span className="text-[var(--ink-faint)]">💬</span>
+              <span className="truncate">
+                {threads.find((t) => t.id === threadId)?.title || "New chat"}
+              </span>
+              <span className="text-[var(--ink-faint)] text-[10px]">▾</span>
+            </button>
+            {threadPickerOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setThreadPickerOpen(false)} />
+                <div className="absolute right-0 top-full z-20 mt-1 w-72 max-h-80 overflow-y-auto rounded-lg border border-[var(--rule)] bg-panel-lite shadow-xl p-1.5">
+                  {threads.length === 0 && (
+                    <p className="px-2 py-3 text-[11px] text-[var(--ink-faint)]">
+                      No conversations yet at this level. Ask something to start one.
+                    </p>
+                  )}
+                  {threads.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`group flex items-center gap-1 rounded-md hover:bg-panel ${t.id === threadId ? "bg-panel" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => openThread(t.id)}
+                        className="flex-1 min-w-0 text-left px-2 py-1.5"
+                      >
+                        <span className="block text-xs text-phosphor-bright truncate">{t.title || "Untitled"}</span>
+                        <span className="block text-[10px] text-[var(--ink-faint)]">{relativeDate(t.updated_at)}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeThread(t.id)}
+                        title="Delete this conversation"
+                        className="px-2 py-1.5 text-[var(--ink-faint)] opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={startNewThread}
+            title="Start a new conversation"
+            className="px-2 py-1 rounded-lg text-[11px] text-[var(--ink-faint)] hover:text-phosphor-bright hover:bg-panel-lite transition-colors"
+          >
+            ＋ New
+          </button>
+        </div>
         {personaPickerOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setPersonaPickerOpen(false)} />
@@ -488,6 +613,19 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       </div>
     </div>
   );
+}
+
+// "3h ago" beats a timestamp in a list you scan — the useful question is how recent, not when.
+function relativeDate(iso: string): string {
+  const then = new Date(iso.includes("T") ? iso : iso.replace(" ", "T") + "Z").getTime();
+  if (!Number.isFinite(then)) return "";
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "yesterday" : `${days}d ago`;
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {

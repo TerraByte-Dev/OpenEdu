@@ -238,6 +238,47 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 11,
+            description: "chat threads — named conversations per course/level (append-only, never edit v1-v10)",
+            sql: "
+                CREATE TABLE IF NOT EXISTS chat_threads (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL REFERENCES courses(id),
+                    level REAL NOT NULL DEFAULT 0.0,
+                    title TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                ALTER TABLE chat_messages ADD COLUMN thread_id TEXT;
+
+                -- Backfill: every existing (course, level) transcript becomes one thread, so no
+                -- history is stranded. The id is DERIVED rather than random precisely so this can run
+                -- in pure SQL inside the migration -- a JS backfill would have to be idempotent, would
+                -- run after the UI had already queried, and could half-complete. The courses guard
+                -- keeps a FK violation from aborting the migration if any orphaned messages exist.
+                INSERT INTO chat_threads (id, course_id, level, title, created_at, updated_at)
+                SELECT 'legacy:' || course_id || ':' || level,
+                       course_id,
+                       level,
+                       'Earlier conversation',
+                       MIN(created_at),
+                       MAX(created_at)
+                  FROM chat_messages
+                 WHERE course_id IN (SELECT id FROM courses)
+                 GROUP BY course_id, level;
+
+                UPDATE chat_messages
+                   SET thread_id = 'legacy:' || course_id || ':' || level
+                 WHERE thread_id IS NULL
+                   AND course_id IN (SELECT id FROM courses);
+
+                CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages(thread_id, created_at);
+                CREATE INDEX IF NOT EXISTS idx_chat_threads_course ON chat_threads(course_id, level, updated_at);
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
