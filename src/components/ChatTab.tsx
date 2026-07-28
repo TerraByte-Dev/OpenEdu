@@ -80,9 +80,22 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Which thread's messages are currently in state. Lifting threadId to a PROP created a second
+  // writer to `messages` — this effect and the send path — and on the first send of a new thread they
+  // race: onThreadCreated changes the prop mid-send, so the effect's load and the send's append are
+  // both in flight. Whichever resolves last wins, and both orderings are wrong. If the load lands
+  // first, the append duplicates the message it already contains (a React duplicate-key error). If it
+  // lands second, it resolves with the rows from BEFORE the insert and silently wipes the message the
+  // student just sent.
+  //
+  // The send path claims the thread it creates, so this effect skips a thread already in state.
+  const loadedThreadRef = useRef<string | null | undefined>(undefined);
+
   // Messages follow whichever thread the rail has open. A null thread is a not-yet-created
   // conversation (see the send path) and correctly shows an empty transcript.
   useEffect(() => {
+    if (loadedThreadRef.current === threadId) return; // already showing it; do not re-fetch
+    loadedThreadRef.current = threadId;
     let alive = true;
     (async () => {
       const msgs = threadId ? await getChatMessages(threadId) : [];
@@ -181,11 +194,14 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     if (!activeThread) {
       const t = await createChatThread(courseId, level, deriveThreadTitle(userText));
       activeThread = t.id;
+      // Claim it BEFORE telling the parent: the prop change that follows would otherwise trigger a
+      // reload that races this send. We already hold this thread's messages — there are none.
+      loadedThreadRef.current = t.id;
       onThreadCreated(t.id);
     }
 
     const userMsg = await saveChatMessage(courseId, "user", userText, level, activeThread);
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});
     onThreadActivity();
 
@@ -296,7 +312,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               ? "\n\n_[cut off at the length limit — ask the tutor to continue]_"
               : "";
         const assistantMsg = await saveChatMessage(courseId, "assistant", result.text + suffix, level, activeThread);
-        setMessages((prev) => [...prev, assistantMsg]);
+        setMessages((prev) => appendUnique(prev, assistantMsg));
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
         // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently.
@@ -520,6 +536,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       </div>
     </div>
   );
+}
+
+// A transcript must never contain the same message id twice. Enforced at the one place that appends
+// rather than trusted, because the failure is silent in production (React only complains in dev) and
+// what the student sees is their own question rendered twice.
+function appendUnique(prev: ChatMessage[], msg: ChatMessage): ChatMessage[] {
+  return prev.some((m) => m.id === msg.id) ? prev : [...prev, msg];
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
