@@ -127,7 +127,11 @@ export default function App() {
           {!isFullscreenView && <UpdateNotice />}
 
           <div className="flex flex-1 min-h-0">
-            {!isFullscreenView && (
+            {/* The course list owns the left column everywhere EXCEPT inside a course, where it is
+                the one list you do not need — you are already in the thing it selects. In course
+                view CourseView takes the column for its own navigation (tabs, threads, notes), and
+                the way back to the list is the header's back arrow. */}
+            {!isFullscreenView && currentView !== "course" && (
               <Sidebar
                 courses={courses}
                 selectedCourseId={selectedCourseId}

@@ -1,7 +1,12 @@
 ﻿import { useState, useEffect } from "react";
 import type { Course, Syllabus, QuizViewContext } from "../types";
 
-import { getCourse, getSyllabuses } from "../lib/db";
+import {
+  getCourse, getSyllabuses,
+  listChatThreads, deleteChatThread, type ChatThread,
+} from "../lib/db";
+import CourseRail from "../components/CourseRail";
+import ThreadList from "../components/ThreadList";
 import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus, generateCourseOutline, recordLedgerEntry } from "../lib/curriculum";
 import { getGenerationConfig, getLibraryEnabled } from "../lib/store";
 import { getManifest, isLibraryAvailable } from "../lib/library";
@@ -41,6 +46,11 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   // the offline-first hiding everywhere else. `pendingResource` carries a deep-link from a chat chip.
   const [libReady, setLibReady] = useState(false);
   const [pendingResource, setPendingResource] = useState<string | null>(null);
+  // Chat threads live at this level so the RAIL can own the conversation list. ChatTab still owns the
+  // messages; it just no longer decides which thread is open — a header dropdown was only ever a
+  // workaround for not having a column to put the list in.
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
 
   const switchTab = (tab: Tab, opts?: SwitchTabOpts) => {
     if (tab === "chat" && opts?.seedTopic) {
@@ -62,6 +72,31 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   };
 
   useEffect(() => { loadCourseData(); }, [courseId]);
+
+  // Threads are per (course, level). Opening the most recent matches how every chat app behaves —
+  // you come back to where you were, not to a blank page.
+  const viewingLevelForThreads = viewingLevel ?? course?.current_level ?? 1;
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const list = await listChatThreads(courseId, viewingLevelForThreads);
+      if (!alive) return;
+      setThreads(list);
+      setThreadId(list[0]?.id ?? null);
+    })();
+    return () => { alive = false; };
+  }, [courseId, viewingLevelForThreads]);
+
+  const refreshThreads = async () => {
+    setThreads(await listChatThreads(courseId, viewingLevelForThreads));
+  };
+
+  const removeThread = async (id: string) => {
+    await deleteChatThread(id);
+    const list = await listChatThreads(courseId, viewingLevelForThreads);
+    setThreads(list);
+    if (id === threadId) setThreadId(list[0]?.id ?? null);
+  };
 
   // Gate the Resources tab on library availability (enabled + a cached manifest). The manifest is
   // warmed at app init (main.tsx → refreshManifest); getManifest is cache-first + offline-safe.
@@ -232,34 +267,30 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
         </div>
       </div>
 
-      {/* ── Tabs row ── */}
-      <div className="flex items-center px-4 pt-1.5 bg-panel border-b border-[var(--rule)] shrink-0">
-        <div className="flex gap-0.5">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => switchTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                activeTab === tab.id
-                  ? "bg-bg text-phosphor-bright border-b-2 border-phosphor"
-                  : "text-[var(--ink-faint)] hover:text-ink hover:bg-panel-lite/50"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* ── Rail + content ── */}
+      <div className="flex flex-1 min-h-0">
+        <CourseRail tabs={tabs} activeTab={activeTab} onSelectTab={(t) => switchTab(t)}>
+          {activeTab === "chat" ? (
+            <ThreadList
+              threads={threads}
+              activeId={threadId}
+              onOpen={setThreadId}
+              // A new conversation is not written until its first message, so "new" is just an empty
+              // selection — nothing to create, nothing to clean up if they wander off.
+              onNew={() => setThreadId(null)}
+              onDelete={removeThread}
+            />
+          ) : undefined}
+        </CourseRail>
+
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* Viewing level indicator when browsing a non-active level */}
         {!isCurrentLevel && (
-          <span className="ml-auto text-[10px] text-amber-400/80 flex items-center gap-1 pb-1.5">
+          <div className="flex items-center gap-1 px-4 py-1 text-[10px] text-amber-400/80 border-b border-[var(--rule)] bg-panel shrink-0">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
             Viewing Level {effectiveViewingLevel} — {getLevelMeaning(effectiveViewingLevel)}
-          </span>
+          </div>
         )}
-      </div>
-
-      {/* ── Tab content ── */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {activeTab === "overview" && (
           <OverviewTab
             courseId={courseId}
@@ -298,6 +329,9 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             onSeedConsumed={() => setChatSeedTopic(undefined)}
             onOpenResource={openResource}
             onOpenReview={() => switchTab("review")}
+            threadId={threadId}
+            onThreadCreated={(id) => { setThreadId(id); void refreshThreads(); }}
+            onThreadActivity={() => { void refreshThreads(); }}
           />
         )}
         {activeTab === "notes" && (
@@ -341,6 +375,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             onPendingConsumed={() => setPendingResource(null)}
           />
         )}
+        </div>
       </div>
 
     </div>
