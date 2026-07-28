@@ -103,9 +103,23 @@ describe("suggestFollowUps", () => {
     expect(out.some((s) => s.label === "Worked example")).toBe(true);
   });
 
-  it("stays silent on an interrupted or trivial reply", () => {
-    expect(suggestFollowUps(input({ incomplete: true }))).toEqual([]);
+  it("stays silent when the student abandoned the turn, or there is nothing to follow up on", () => {
+    expect(suggestFollowUps(input({ abandoned: true }))).toEqual([]);
     expect(suggestFollowUps(input({ answer: "Yes." }))).toEqual([]);
+  });
+
+  // The bug this pins: "abandoned" and "truncated" were one flag, so every length-capped reply
+  // suppressed its own chips — the turns most in need of an obvious next action offered none.
+  it("still suggests after a truncated reply, led by Continue", () => {
+    const out = suggestFollowUps(input({ truncated: true }));
+    expect(out.length).toBeGreaterThan(0);
+    expect(out[0].label).toBe("Continue");
+  });
+
+  it("keeps Continue even when the fragment ends on a question", () => {
+    const out = suggestFollowUps(input({ truncated: true, answer: `${ANSWER} So what is the ratio?` }));
+    expect(out.map((s) => s.label)).toContain("Continue");
+    expect(out.map((s) => s.label)).toContain("Give me a hint");
   });
 
   it("keeps labels short enough to sit in one row", () => {

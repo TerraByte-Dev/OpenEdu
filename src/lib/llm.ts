@@ -1443,8 +1443,21 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
 function ollamaOptions(config: LLMConfig, opts: TurnOpts): Record<string, unknown> | undefined {
   const options: Record<string, unknown> = {};
   if (config.contextTokens && config.contextTokens > 0) options.num_ctx = Math.floor(config.contextTokens);
+  // -1 = generate until EOS or the context window fills, whichever comes first.
+  //
+  // Sent EXPLICITLY rather than relying on Ollama's default, because that default is not something
+  // this app can verify: the documented value is -1, but 128 ships as the default in a number of
+  // modelfiles and older builds, and at 128 tokens every reply longer than ~96 words is cut off
+  // mid-sentence with done_reason "length". Leaving it unset means the reply length is decided by
+  // whichever Ollama a user happens to have installed.
+  //
+  // An earlier revision set this from the budget's reserve slice, which was worse than not setting it
+  // at all — the reserve is a PLANNING figure for fitMessages, not a length policy, and using it as
+  // one capped replies at ~460 words on the default window. num_ctx is the real bound and it already
+  // does the job: a runaway fills the window and stops.
+  options.num_predict = -1;
   if (opts.temperature !== undefined) options.temperature = opts.temperature;
-  return Object.keys(options).length > 0 ? options : undefined;
+  return options;
 }
 
 // ── Tool-def builders (one per provider envelope) ──

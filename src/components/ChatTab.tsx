@@ -238,7 +238,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     try {
       const result = await tutorEngine.run(turn, ctx);
-      const partial = result.stopReason === "aborted" || result.stopReason === "stalled" || result.stopReason === "length";
+      // Three different things, previously collapsed into one flag. "abandoned" means the student
+      // stopped it or the stream died; "truncated" means the model ran out of room mid-sentence but
+      // what it did say is usable. Only the first should suppress follow-ups.
+      const abandoned = result.stopReason === "aborted" || result.stopReason === "stalled";
+      const truncated = result.stopReason === "length";
+      const partial = abandoned || truncated;
       if (result.text.trim()) {
         // Persist an interrupted reply WITH a marker rather than silently as a finished answer.
         // Two bugs met here before #86: a stall left `controller.signal.aborted` false, so a truncated
@@ -282,7 +287,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         hits: result.grounding.hits,
         usedHits: result.usedHits,
         dueFlashcards: due,
-        incomplete: partial,
+        abandoned,
+        truncated,
       }));
 
       if (result.stopReason === "stalled") {

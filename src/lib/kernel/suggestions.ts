@@ -37,8 +37,10 @@ export interface SuggestionInput {
   /** The subset the answer demonstrably used (kernel `groundedIn`). */
   usedHits: GroundingHit[];
   dueFlashcards?: number;
-  /** Suppresses chips entirely — an interrupted reply is not a place to offer next steps. */
-  incomplete?: boolean;
+  /** The student pressed Stop, or the stream died. No chips — they did not want more. */
+  abandoned?: boolean;
+  /** The reply was cut off by the length/context limit. Chips still show, led by "Continue". */
+  truncated?: boolean;
 }
 
 /** True when the reply ends on a question, which changes what a useful chip is. */
@@ -50,7 +52,10 @@ export function endsWithQuestion(answer: string): boolean {
 }
 
 export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
-  if (input.incomplete) return [];
+  // Abandoned and truncated are NOT the same thing, and conflating them was a real bug: every
+  // length-capped reply suppressed its own chips, so the turns most in need of an obvious next action
+  // were the only ones that offered none.
+  if (input.abandoned) return [];
   const answer = input.answer.trim();
   if (answer.length < 40) return []; // nothing substantive to follow up on
 
@@ -59,13 +64,20 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
     if (out.length < MAX_SUGGESTIONS && !out.some((x) => x.message === s.message)) out.push(s);
   };
 
+  // A reply that stopped mid-sentence has exactly one obvious next move, and making the student type
+  // it is the definition of a rough edge.
+  if (input.truncated) {
+    push({ label: "Continue", message: "Please continue from where you left off." });
+  }
+
   if (endsWithQuestion(answer)) {
     // The tutor asked something. Competing with its question would be rude, so the chips become ways
     // to ANSWER it — specifically the two a stuck student needs and is least likely to type, because
     // both amount to admitting they are stuck.
     push({ label: "Give me a hint", message: "I'm not sure — can you give me a hint?" });
     push({ label: "Walk me through it", message: "I don't know how to start. Can you walk me through it?" });
-    return out;
+    return out; // any Continue chip pushed above is kept — it was the more urgent signal
+
   }
 
   // Retrieval found something in the student's own material that the answer did NOT draw on. They
