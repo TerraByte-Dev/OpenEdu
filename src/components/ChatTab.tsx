@@ -36,7 +36,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [chatError, setChatError] = useState("");
-  const [activeMode, setActiveMode] = useState<TutorModeId>("explain");
+  // The teaching mode for the NEXT turn. Set by tapping a chip that carries one; reset to the neutral
+  // default after every send. There is no mode bar any more — asking the student to classify their
+  // own intent before they have asked their question was the one thing they came for help with.
+  // Persistent pedagogy lives on the persona instead (the WHO axis), so this is a per-turn override.
+  const [pendingMode, setPendingMode] = useState<TutorModeId | null>(null);
+  const activeMode: TutorModeId = pendingMode ?? "explain";
   // Phase 4b persona (WHO axis). Local mirror of course.sprite_id so a mid-course switch reflects
   // immediately; written through to the DB on switch. resolvePersona maps it to a persona skill.
   const [spriteId, setSpriteId] = useState<string | null>(course.sprite_id ?? null);
@@ -204,6 +209,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setToolEvents([]);
     setGroundingNote(null);
     setSuggestions([]);
+    setPendingMode(null); // consumed by this turn
 
     const turn: TutorTurn = {
       messages: llmMessages,
@@ -404,7 +410,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />}
         {!streaming && groundingNote && <GroundingNote note={groundingNote} />}
         {!streaming && !askPending && !confirmPending && suggestions.length > 0 && (
-          <SuggestionChips suggestions={suggestions} onPick={(m) => { setInput(m); inputRef.current?.focus(); }} />
+          <SuggestionChips
+            suggestions={suggestions}
+            onPick={(s) => { setInput(s.message); setPendingMode(s.mode ?? null); inputRef.current?.focus(); }}
+          />
         )}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
@@ -422,24 +431,22 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
       {/* Input */}
       <div className="p-4 border-t border-[var(--rule)] bg-panel">
-        {/* Mode selector */}
-        <div className="flex gap-1 max-w-3xl mx-auto mb-2.5">
-          {TUTOR_MODES.map((mode) => (
+        {/* A chip that carried a teaching mode says so, and can be taken back off. Visible because an
+            invisible mode is indistinguishable from the tutor behaving oddly. */}
+        {pendingMode && (
+          <div className="flex max-w-3xl mx-auto mb-2.5">
             <button
-              key={mode.id}
-              onClick={() => setActiveMode(mode.id)}
-              title={mode.title}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                activeMode === mode.id
-                  ? "btn-primary/30 text-phosphor-bright border border-phosphor/40"
-                  : "text-[var(--ink-faint)] hover:text-[var(--ink-dim)] hover:bg-panel-lite"
-              }`}
+              type="button"
+              onClick={() => setPendingMode(null)}
+              title="Ask normally instead"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium btn-primary/30 text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
             >
-              <span>{mode.icon}</span>
-              <span>{mode.label}</span>
+              <span>{TUTOR_MODES.find((m) => m.id === pendingMode)?.icon}</span>
+              <span>{TUTOR_MODES.find((m) => m.id === pendingMode)?.label}</span>
+              <span className="text-[var(--ink-faint)]">✕</span>
             </button>
-          ))}
-        </div>
+          </div>
+        )}
         <div className="flex gap-3 max-w-3xl mx-auto">
           <input
             ref={inputRef}
@@ -510,7 +517,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 // Follow-up chips. Tapping one PREFILLS the input rather than sending immediately — the student can
 // edit it first, and a mis-tap costs nothing. That is the difference between a suggestion and a
 // button that spends 8 seconds of a CPU box's time on something you did not mean.
-function SuggestionChips({ suggestions, onPick }: { suggestions: Suggestion[]; onPick: (message: string) => void }) {
+function SuggestionChips({ suggestions, onPick }: { suggestions: Suggestion[]; onPick: (s: Suggestion) => void }) {
   return (
     <div className="flex gap-3">
       <span className="w-8 h-8 shrink-0" />
@@ -519,7 +526,7 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: Suggestion[]; o
           <button
             key={s.message}
             type="button"
-            onClick={() => onPick(s.message)}
+            onClick={() => onPick(s)}
             title={s.message}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] border border-[var(--rule)] bg-panel-lite text-[var(--ink-dim)] hover:border-phosphor/50 hover:text-phosphor-bright hover:bg-panel transition-colors"
           >

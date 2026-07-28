@@ -129,6 +129,29 @@ describe("suggestFollowUps", () => {
     for (const s of out) expect(s.label.length).toBeLessThanOrEqual(30);
   });
 
+  // The mode bar was deleted; these chips are what replaced it. If context always wins all three
+  // slots, socratic and quiz become unreachable and the bar was removed rather than replaced.
+  it("always leaves room for at least one mode chip", () => {
+    const out = suggestFollowUps(input({
+      hits: [hit({ ref: "d1", title: "Moles" }), hit({ ref: "d2", title: "Ratios" })],
+      syllabus: syllabus([{ title: "Limiting reagents", mastered: false }]),
+      dueFlashcards: 4,
+    }));
+    expect(out).toHaveLength(3);
+    expect(out.some((s) => s.mode === "socratic" || s.mode === "quiz" || s.label === "Worked example")).toBe(true);
+  });
+
+  it("carries the teaching mode on the chips that need one", () => {
+    const asked = suggestFollowUps(input({ answer: `${ANSWER} What do you think?` }));
+    expect(asked.find((s) => s.label === "Give me a hint")?.mode).toBe("hint");
+
+    const plain = suggestFollowUps(input());
+    expect(plain.find((s) => s.label === "Make me figure it out")?.mode).toBe("socratic");
+    expect(plain.find((s) => s.label === "Quiz me on this")?.mode).toBe("quiz");
+    // "explain" is the neutral default, so a chip that wants it carries no mode at all.
+    expect(plain.find((s) => s.label === "Worked example")?.mode).toBeUndefined();
+  });
+
   it("never emits duplicate messages", () => {
     const out = suggestFollowUps(input({
       hits: [hit({ ref: "doc-9", title: "Moles" })],

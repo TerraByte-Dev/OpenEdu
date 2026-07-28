@@ -16,6 +16,7 @@
 // fallbacks sit last and get trimmed first.
 
 import type { Syllabus } from "../../types";
+import type { TutorModeId } from "../tutor-modes";
 import type { GroundingHit } from "./ground";
 
 export interface Suggestion {
@@ -23,10 +24,31 @@ export interface Suggestion {
   label: string;
   /** What actually gets sent when tapped — a full sentence, as the student would have typed it. */
   message: string;
+  /**
+   * The teaching mode this chip carries, applied to the turn it starts.
+   *
+   * This is what lets the mode bar be deleted rather than merely hidden. A mode is not a label — it
+   * is `tools_required` plus a promptSuffix, and the suffix is what makes the behaviour reliable on a
+   * 4B model ("ONLY brief nudges — one sentence maximum" is why hint mode produces a hint). A chip
+   * that only sent text would trade a UI win for a reliability loss; a chip that carries the mode
+   * keeps the pedagogy and drops the control.
+   *
+   * Omitted means "explain" — the neutral default, which is also what plain typing does.
+   */
+  mode?: TutorModeId;
 }
 
 /** Three is the cap. A fourth chip reads as a menu, and a menu is something to read rather than act on. */
 const MAX_SUGGESTIONS = 3;
+
+/**
+ * At most this many context-derived chips, so at least one mode chip always survives.
+ *
+ * Without it, a turn with rich context (an unused note, a cited reference, an unmastered subtopic)
+ * fills all three slots and the modes that replaced the deleted bar — socratic, quiz — become
+ * unreachable. Contextual chips are more specific and deserve to win, but not to shut the door.
+ */
+const MAX_CONTEXTUAL = 2;
 
 export interface SuggestionInput {
   /** The assistant's completed reply. */
@@ -74,7 +96,7 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
     // The tutor asked something. Competing with its question would be rude, so the chips become ways
     // to ANSWER it — specifically the two a stuck student needs and is least likely to type, because
     // both amount to admitting they are stuck.
-    push({ label: "Give me a hint", message: "I'm not sure — can you give me a hint?" });
+    push({ label: "Give me a hint", message: "I'm not sure — can you give me a hint?", mode: "hint" });
     push({ label: "Walk me through it", message: "I don't know how to start. Can you walk me through it?" });
     return out; // any Continue chip pushed above is kept — it was the more urgent signal
 
@@ -112,13 +134,20 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   }
 
   if ((input.dueFlashcards ?? 0) > 0) {
-    push({ label: "Review due cards", message: "Quiz me on the flashcards I have due." });
+    push({ label: "Review due cards", message: "Quiz me on the flashcards I have due.", mode: "review" });
   }
 
-  // Generic but genuinely useful, and last so they are the first to be trimmed. A worked example is
-  // the single most common thing a stuck student wants and the least likely to be volunteered.
+  // Everything above is contextual. Trim to leave room for a mode chip — see MAX_CONTEXTUAL.
+  const contextual = out.splice(MAX_CONTEXTUAL);
+  void contextual;
+
+  // The mode chips. These ARE the deleted mode bar: each carries the pedagogy that used to require
+  // the student to classify their own intent before asking. Ordered by how often a stuck student
+  // actually wants them.
   push({ label: "Worked example", message: "Can you show me a worked example?" });
-  push({ label: "Why does that work?", message: "Why does that work?" });
+  push({ label: "Make me figure it out", message: "Don't tell me the answer — guide me to it.", mode: "socratic" });
+  push({ label: "Quiz me on this", message: "Quiz me on this.", mode: "quiz" });
+  push({ label: "Check if I've got this", message: "Check whether I've actually got this.", mode: "assess" });
 
   return out;
 }
