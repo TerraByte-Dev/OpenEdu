@@ -26,18 +26,27 @@ export function estTokens(text: string): number {
 
 // ── The budget ───────────────────────────────────────────────────────────────
 
-// What the app asks Ollama for when the model's own maximum is larger. 8192 is the smallest window
-// that comfortably holds a ~1,200-token system prompt, a retrieved-context block, and a real
-// conversation. Raising it costs RAM on the KV cache — which is why this is a user-visible setting
-// and why `keep_alive` is deliberately NOT shipped alongside it (see #86): both multiply resident
-// memory, and on a 4GB machine the combination is what produces `signal: killed`.
-// 4096, deliberately — it is exactly Ollama's own default, so upgrading an existing install changes
-// the KV-cache allocation by ZERO bytes while still delivering the actual fix (#86): the app now
-// KNOWS the number and fits the prompt to it, instead of overflowing a window it never asked about.
-// 8192 is one opt-in step away for anyone with RAM to spare. Raising this default would double the
-// KV ask for the entire installed base on precisely the 4GB hardware this app targets, which is the
-// opposite of the point.
-export const DEFAULT_CONTEXT_TOKENS = 4096;
+// What the app asks Ollama for when the model's own maximum is larger. This OVERRIDES whatever
+// context length Ollama itself is configured with — deliberately, so the number is one the app knows
+// and can budget against rather than one it inherits and can only guess at. `keep_alive` is still
+// deliberately NOT shipped alongside it (see #86): both multiply resident memory, and on a 4GB
+// machine the combination is what produces `signal: killed`.
+//
+// Was 4096 — chosen to match Ollama's own default so upgrading changed KV-cache RAM by zero bytes.
+// That was the right call while `num_predict` was still unset, because replies were being cut at ~128
+// tokens and the window was not the binding constraint. With that fixed, 4096 became the constraint:
+// system prompt (~735) + grounding (~450) + reserve leaves roughly 2,300 tokens of history, about 19
+// prior messages, and a real conversation outgrows that in one sitting.
+//
+// 8192 doubles the KV cache (~0.5GB -> ~1.1GB on a 4B model with GQA) and buys ~48 messages of
+// history plus a ~900-word reply budget. That is enough that chat stops hitting the wall.
+//
+// NOT 16384, despite it being one click away, and the reason is quality rather than memory: small
+// models get WORSE with long contexts, not better — attention dilutes and relevant passages get lost
+// among the irrelevant. A bigger window mostly buys more history the model handles less well. It also
+// costs ~2.2GB of KV, which is fatal on the low-RAM machines this project is nominally aimed at.
+// 16k remains available for anyone who wants it; it just should not be what everyone gets.
+export const DEFAULT_CONTEXT_TOKENS = 8192;
 
 // Hard ceiling on the user-settable window. Guards an imported settings file from asking for a
 // window no target machine can allocate.
