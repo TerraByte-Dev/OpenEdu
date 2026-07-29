@@ -28,6 +28,10 @@ export const STORE_KEYS = {
   // notebook.search as the only path. Exposed so the A/B in the eval is runnable, and so a user
   // whose vault is noise can turn it off (#90).
   retrievalMode: "retrieval_mode",
+  // Onboarding (#92): whether the feature tour has been completed or skipped. Not in
+  // ALLOWED_IMPORT_KEYS — importing someone else's settings should not silently mark YOUR tour as
+  // seen, which would hide it from the person it exists for.
+  tourSeen: "tour_seen",
 } as const;
 
 // Per-provider API key, e.g. "apikey_openai".

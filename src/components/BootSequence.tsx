@@ -1,15 +1,27 @@
 import { useEffect, useRef } from "react";
 
+// Flavour only. Every line here describes something the app ITSELF does on launch — mounting its own
+// storage, loading its own driver, initialising its own schema.
+//
+// It used to also claim "Detected: 16384MB RAM OK", "[ OK ] Ollama (local) LISTENING :11434" and
+// "[ OK ] OpenAI CONFIGURED", none of which were probed. On a machine with 4GB and no Ollama it
+// asserted all three, which is the worst possible failure for a first-run screen: the person least
+// able to tell it is wrong is exactly the person it misleads, and they conclude the app is broken
+// rather than unconfigured.
+//
+// Anything about the ENVIRONMENT now lives in SetupGate, which actually checks. Do not add
+// environment claims back here — this component runs before anything has been probed, so it cannot
+// know, and a splash screen has no business guessing. (#92)
 const BOOT_LINES: Array<{ text: string; delay: number; cls: string }> = [
   { delay: 0,    cls: "dim",  text: "TERRABYTE BIOS v2.4.1 — 2026 TERRABYTE SOLUTIONS LLC" },
-  { delay: 80,   cls: "dim",  text: "Detected: 16384MB RAM OK" },
+
   { delay: 140,  cls: "ok",   text: "POST... PASS" },
   { delay: 200,  cls: "dim",  text: "" },
   { delay: 250,  cls: "info", text: "Booting OPENEDU.SYS..." },
   { delay: 350,  cls: "dim",  text: "" },
   { delay: 380,  cls: "ok",   text: "[ OK ] Mounting filesystem           ./data" },
   { delay: 470,  cls: "ok",   text: "[ OK ] Loading SQLite driver         openedu.db" },
-  { delay: 560,  cls: "ok",   text: "[ OK ] Initializing schema           migrations v6" },
+  { delay: 560,  cls: "ok",   text: "[ OK ] Initializing schema           openedu.db" },
   { delay: 650,  cls: "ok",   text: "[ OK ] Starting curriculum engine    READY" },
   { delay: 760,  cls: "ok",   text: "[ OK ] Loading knowledge graph       INIT" },
   { delay: 870,  cls: "ok",   text: "[ OK ] Mounting syllabus store       ALL LEVELS" },
@@ -17,17 +29,11 @@ const BOOT_LINES: Array<{ text: string; delay: number; cls: string }> = [
   { delay: 1040, cls: "ok",   text: "[ OK ] Promotion test engine         ARMED" },
   { delay: 1120, cls: "ok",   text: "[ OK ] Markdown renderer             ENABLED" },
   { delay: 1200, cls: "ok",   text: "[ OK ] Wiki-link processor           ENABLED" },
-  { delay: 1280, cls: "ok",   text: "[ OK ] Web search (Tavily)           OPTIONAL" },
-  { delay: 1360, cls: "dim",  text: "" },
-  { delay: 1410, cls: "info", text: "Connecting LLM providers..." },
-  { delay: 1510, cls: "ok",   text: "[ OK ] OpenAI                        CONFIGURED" },
-  { delay: 1580, cls: "ok",   text: "[ OK ] Anthropic                     CONFIGURED" },
-  { delay: 1650, cls: "ok",   text: "[ OK ] Ollama (local)                LISTENING :11434" },
-  { delay: 1720, cls: "dim",  text: "" },
+  { delay: 1280, cls: "dim",  text: "" },
   { delay: 1760, cls: "ok",   text: "[ OK ] CRT display driver            LOADED" },
   { delay: 1820, cls: "ok",   text: "[ OK ] Phosphor calibration          COMPLETE" },
   { delay: 1880, cls: "dim",  text: "" },
-  { delay: 1930, cls: "info", text: "All systems nominal. Launching..." },
+  { delay: 1930, cls: "info", text: "Ready. Checking your setup..." },
   { delay: 2050, cls: "dim",  text: "" },
 ];
 

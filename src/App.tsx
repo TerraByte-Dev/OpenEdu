@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import { getCourses, deleteCourse } from "./lib/db";
-import { getLLMProvider } from "./lib/store";
+import { getLLMProvider, getTourSeen, setTourSeen } from "./lib/store";
+import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
+import SetupGate from "./components/SetupGate";
+import TourOverlay, { TOUR_STEPS } from "./components/TourOverlay";
 import CRTLayer from "./components/CRTLayer";
 import BootSequence from "./components/BootSequence";
 import Titlebar from "./components/Titlebar";
@@ -30,6 +33,13 @@ export default function App() {
   const [promotionBanner, setPromotionBanner] = useState<number | null>(null);
   // Course whose generation needs to resume — Dashboard consumes this once on mount.
   const [pendingResumeCourse, setPendingResumeCourse] = useState<Course | null>(null);
+  // First-run (#92). `null` = not probed yet; the gate renders only when something BLOCKS use, so a
+  // working install never sees it. `setupDismissed` covers the ready-but-incomplete case, where the
+  // user has been told the embedder is missing and chosen to carry on.
+  const [setup, setSetup] = useState<SetupStatus | null>(null);
+  const [setupDismissed, setSetupDismissed] = useState(false);
+  const [ollamaUrl, setOllamaUrl] = useState("http://127.0.0.1:11434");
+  const [tourStep, setTourStep] = useState<number | null>(null);
 
   const refreshCourses = async () => {
     const c = await getCourses();
@@ -39,12 +49,31 @@ export default function App() {
   const refreshProvider = async () => {
     const cfg = await getLLMProvider();
     setActiveProvider(cfg.provider);
+    setOllamaUrl(cfg.ollamaUrl);
+  };
+
+  // Probe on launch and after any settings change — a user who fixes the provider should not have to
+  // restart to be believed.
+  const recheckSetup = async () => {
+    try { setSetup(await probeEnvironment()); }
+    catch { setSetup(null); } // a failed probe must never gate the app; that would be the old lie inverted
   };
 
   useEffect(() => {
     refreshCourses();
     refreshProvider();
+    void recheckSetup();
+    void getTourSeen().then((seen) => { if (!seen) setTourStep(0); });
   }, []);
+
+  const advanceTour = () => {
+    setTourStep((s) => {
+      const next = (s ?? 0) + 1;
+      if (next >= TOUR_STEPS.length) { void setTourSeen(true); return null; }
+      return next;
+    });
+  };
+  const skipTour = () => { void setTourSeen(true); setTourStep(null); };
 
   const handleBootComplete = useCallback(() => {
     setBooted(true);
@@ -166,7 +195,19 @@ export default function App() {
                 </button>
               )}
 
-              <div className={`flex-1 min-h-0 flex flex-col ${currentView !== "dashboard" ? "hidden" : ""}`}>
+              {currentView === "dashboard" && setup && (!setup.ready || (!setup.complete && !setupDismissed)) && (
+                <SetupGate
+                  status={setup}
+                  ollamaUrl={ollamaUrl}
+                  onRecheck={() => { void recheckSetup(); }}
+                  onOpenSettings={() => setCurrentView("settings")}
+                  onDismiss={() => setSetupDismissed(true)}
+                />
+              )}
+
+              <div className={`flex-1 min-h-0 flex flex-col ${
+                currentView !== "dashboard" || (setup && (!setup.ready || (!setup.complete && !setupDismissed))) ? "hidden" : ""
+              }`}>
                 <Dashboard
                   courses={courses}
                   onOpenCourse={openCourse}
@@ -199,6 +240,10 @@ export default function App() {
               )}
             </main>
           </div>
+
+          {tourStep !== null && !isFullscreenView && setup?.ready && (
+            <TourOverlay step={tourStep} onNext={advanceTour} onSkip={skipTour} />
+          )}
         </>
       )}
     </div>
