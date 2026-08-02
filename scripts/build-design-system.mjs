@@ -193,11 +193,24 @@ function rescopeDerivedTokens(css, root) {
   return css;
 }
 
+/** Drop `-webkit-mask*` declarations, PREVIEW ONLY.
+ *
+ *  The app ships both the prefixed and unprefixed property, which is correct for it. But inlining turns
+ *  each `url()` into a base64 blob, so a single 54 KiB mask costs 141 KiB — the same image twice — and
+ *  that alone pushed the mask-recolor card 50 KiB over the read cap.
+ *
+ *  Preview pages render in a current Chromium, which supports unprefixed `mask`, so the prefixed copy
+ *  buys nothing here. The app's own CSS is untouched; only the inlined shell loses it. */
+function dedupePrefixedMasks(css) {
+  return css.replace(/\s*-webkit-mask(-[\w-]+)?\s*:[^;}]*;/g, "");
+}
+
 async function buildShell(css, names, root) {
   let out = css.replace(/@import\s+["']tailwindcss["'];?/, "");     // 1 — would hit the network
   out = out.replaceAll("html[data-theme=", "[data-theme=");          // 2 — the enabling rewrite
   out = out.replaceAll("html.crt-off", ".crt-off");                  // 3 — same, for the CRT kill switch
   out = rescopeDerivedTokens(out, root);                             // 3b — makes (2) actually correct
+  out = dedupePrefixedMasks(out);                                    // 3c — before inlining, see below
   out = await inlineAssets(out, names);                              // 4
   return out + PREVIEW_RESET;                                        // 5 — @theme{} (6) is left alone: inert
 }
@@ -553,10 +566,15 @@ async function readAuthored() {
     }
     const group = m[1];
     const title = group.split("/").pop();
-    // Opt into the full face set with `<!-- @dsAssets all -->` as line 2, and only line 2. Scanning the
-    // whole file for the directive means any card that DOCUMENTS it also triggers it — which is exactly
-    // what the scaffold card did, silently gaining 88 KiB of fonts it never renders.
-    const assets = /^<!--\s*@dsAssets\s+all\s*-->/.test(rest[0] ?? "") ? ALL : CORE;
+    // Line 2 may carry `<!-- @dsAssets all -->` for every bundled face, or a comma-separated list of
+    // extras to ADD to CORE (e.g. `<!-- @dsAssets globe -->`). Only line 2 is read: scanning the whole
+    // file means any card that DOCUMENTS the directive also triggers it, which is exactly what the
+    // scaffold card did — silently gaining 88 KiB of fonts it never renders.
+    const directive = /^<!--\s*@dsAssets\s+([^>]+?)\s*-->/.exec(rest[0] ?? "");
+    const spec = directive?.[1].trim();
+    const assets = !spec ? CORE
+      : spec === "all" ? ALL
+      : [...CORE, ...spec.split(",").map((s) => s.trim()).filter(Boolean)];
     cards.push({ slug: file.replace(/\.html$/, ""), html: page(group, title, rest.join("\n")), assets });
   }
   return cards;
