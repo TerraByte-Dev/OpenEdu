@@ -12,8 +12,12 @@
 import type { Note, NotebookFolder } from "../types";
 
 // ── Syntax ────────────────────────────────────────────────────────────────────
-// A [[wiki link]] is any run of non-"]" characters between double brackets.
-export const WIKI_LINK_RE = /\[\[([^\]]+)\]\]/g;
+// A [[wiki link]] is any run of non-"]" characters between double brackets, ON ONE LINE.
+// The newline exclusion is load-bearing: without it a stray unclosed "[[" swallows every character up
+// to the next "]]" anywhere later in the document, so one typo silently invents a link — with a title
+// containing paragraphs — that then shows up in the graph, in backlinks, and as a giant underline in
+// the editor. Obsidian doesn't let a link span lines either.
+export const WIKI_LINK_RE = /\[\[([^\]\n]+)\]\]/g;
 // A #tag is "#" + a letter-led word ([A-Za-z][\w-]*) that sits at the start of the text
 // or right after whitespace — so "C#", "a#b", and "#1" are deliberately NOT tags.
 export const TAG_RE = /(?:^|\s)#([A-Za-z][\w-]*)/g;
@@ -207,6 +211,22 @@ export function findUnlinkedMentions(target: Note, notes: readonly Note[]): Ment
     if (contexts.length) out.push({ note: source, contexts });
   }
   return out;
+}
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+
+/**
+ * The partial title being typed inside an unclosed `[[`, or null when the caret isn't in one.
+ * `before` is the document text up to the caret (callers pass a bounded slice).
+ *
+ * Lives here rather than in the editor so the matching rule is testable without a CodeMirror instance —
+ * it is the part most likely to be subtly wrong.
+ */
+export function wikiLinkPrefix(before: string): string | null {
+  // No "]", "[" or newline between the "[[" and the caret: a completed [[link]], a fresh "[[", or a
+  // line break all end the candidate.
+  const m = /\[\[([^\][\n]*)$/.exec(before);
+  return m ? m[1] : null;
 }
 
 // ── Outline ───────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import {
   buildBacklinkIndex,
   findUnlinkedMentions,
   extractOutline,
+  wikiLinkPrefix,
 } from "./notebook-links";
 import type { Note, NotebookFolder } from "../types";
 
@@ -299,5 +300,71 @@ describe("extractOutline", () => {
 
   it("handles CRLF", () => {
     expect(extractOutline("# A\r\n## B").map((h) => h.line)).toEqual([0, 1]);
+  });
+});
+
+describe("wikiLinkPrefix", () => {
+  it("returns the partial title inside an unclosed [[", () => {
+    expect(wikiLinkPrefix("see [[Calv")).toBe("Calv");
+  });
+
+  it("returns an empty string right after [[", () => {
+    expect(wikiLinkPrefix("see [[")).toBe("");
+  });
+
+  it("returns null outside a link", () => {
+    expect(wikiLinkPrefix("just some prose")).toBeNull();
+  });
+
+  it("returns null once the link is closed", () => {
+    expect(wikiLinkPrefix("see [[Calvin cycle]]")).toBeNull();
+  });
+
+  it("returns null after a closed link followed by text", () => {
+    expect(wikiLinkPrefix("see [[Calvin cycle]] and more")).toBeNull();
+  });
+
+  it("matches the most recent [[ when several are on the line", () => {
+    expect(wikiLinkPrefix("[[One]] then [[Tw")).toBe("Tw");
+  });
+
+  it("does not match across a newline", () => {
+    expect(wikiLinkPrefix("[[\nCalv")).toBeNull();
+  });
+
+  it("does not match across a stray closing bracket", () => {
+    expect(wikiLinkPrefix("[[a] b")).toBeNull();
+  });
+
+  it("allows spaces in the partial title", () => {
+    expect(wikiLinkPrefix("[[Calvin cy")).toBe("Calvin cy");
+  });
+
+  it("handles a single bracket without matching", () => {
+    expect(wikiLinkPrefix("an [array")).toBeNull();
+  });
+});
+
+describe("WIKI_LINK_RE does not span lines", () => {
+  it("ignores an unclosed [[ instead of swallowing the next line's link", () => {
+    // Before the newline exclusion this produced ONE link titled
+    // " oops\n\nAlready closed: [[Calvin cycle" — a phantom edge in the graph from a single typo.
+    const md = "Type [[ oops\n\nAlready closed: [[Calvin cycle]]";
+    expect(findWikiLinks(md).map((l) => l.title)).toEqual(["Calvin cycle"]);
+  });
+
+  it("still finds two links on separate lines", () => {
+    expect(findWikiLinks("[[A]]\n[[B]]").map((l) => l.title)).toEqual(["A", "B"]);
+  });
+
+  it("still finds two links on one line", () => {
+    expect(findWikiLinks("[[A]] and [[B]]").map((l) => l.title)).toEqual(["A", "B"]);
+  });
+
+  it("keeps an unclosed [[ out of the graph", () => {
+    const a = note({ id: "na", title: "Alpha", content: "[[ oops\n\nsee [[Beta]]" });
+    const b = note({ id: "nb", title: "Beta", content: "" });
+    const g = buildVaultGraph([a, b], []);
+    expect(g.links).toEqual([{ source: "na", target: "nb" }]);
   });
 });

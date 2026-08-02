@@ -383,6 +383,12 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   // Normalized titles of every note — lets the editor style [[links]] to missing notes as "missing".
   const existingTitles = useMemo(() => new Set(notes.map((n) => linkKey(n.title))), [notes]);
+  // Display titles for [[ autocomplete. Excludes the open note (linking a note to itself is noise)
+  // and anything untitled, which would offer a blank row.
+  const noteTitles = useMemo(
+    () => notes.filter((n) => n.id !== selectedNote?.id && n.title.trim()).map((n) => n.title),
+    [notes, selectedNote],
+  );
 
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -747,6 +753,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                     onWikiLinkClick={handleWikiLinkNav}
                     onTagClick={openTagView}
                     existingTitles={existingTitles}
+                    noteTitles={noteTitles}
                     revealLine={reveal}
                   />
                 </Suspense>

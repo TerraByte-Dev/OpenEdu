@@ -9,10 +9,14 @@ import { useEffect, useRef } from "react";
 import { EditorView, keymap, ViewPlugin, Decoration, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { EditorState, StateEffect, type Range } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap,
+  type CompletionContext, type CompletionResult,
+} from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxTree, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { findWikiLinks, findTags, linkKey } from "../lib/notebook-links";
+import { findWikiLinks, findTags, linkKey, wikiLinkPrefix } from "../lib/notebook-links";
 
 // Dispatched when the set of existing note titles changes so missing/exists link styling refreshes.
 const refreshLinks = StateEffect.define<null>();
@@ -99,6 +103,42 @@ function makeLivePreview(titlesRef: { current: Set<string> }) {
   );
 }
 
+// [[ autocomplete over existing note titles. Deliberately does NOT offer "create <x>" — the vault's
+// rule is that a missing [[link]] never auto-creates; you get dashed styling and an explicit create
+// affordance in the panel instead. Autocomplete is for reaching notes that already exist.
+function wikiLinkCompletions(titlesRef: { current: string[] }) {
+  return (ctx: CompletionContext): CompletionResult | null => {
+    // Look back for an unclosed "[[". Bounded so a huge document doesn't re-scan itself per keystroke,
+    // and the class excludes ] [ and newline so we never match across a completed link or a line break.
+    const from = Math.max(0, ctx.pos - 300);
+    const typed = wikiLinkPrefix(ctx.state.doc.sliceString(from, ctx.pos));
+    if (typed === null) return null;
+    // Only auto-open once there's something to filter on; explicit Ctrl-Space still opens on bare "[[".
+    if (!ctx.explicit && typed.length === 0) return null;
+
+    // Don't emit a second "]]" when the bracket-closer already put one there.
+    const after = ctx.state.doc.sliceString(ctx.pos, ctx.pos + 2);
+    const suffix = after === "]]" ? "" : "]]";
+
+    return {
+      from: ctx.pos - typed.length,
+      options: titlesRef.current.map((title) => ({
+        label: title,
+        type: "class",
+        apply: (view: EditorView, _c: unknown, a: number, b: number) => {
+          // Land the cursor past the closing "]]" either way — whether we just wrote it or it was
+          // already sitting there.
+          view.dispatch({
+            changes: { from: a, to: b, insert: title + suffix },
+            selection: { anchor: a + title.length + 2 },
+          });
+        },
+      })),
+      validFor: /^[^\][\n]*$/,
+    };
+  };
+}
+
 const theme = EditorView.theme({
   "&": { backgroundColor: "transparent", color: "var(--ink)", height: "100%", fontSize: "14px" },
   "&.cm-focused": { outline: "none" },
@@ -120,6 +160,19 @@ const theme = EditorView.theme({
   ".cm-wikilink--missing:hover": { color: "var(--ink-dim)" },
   ".cm-tag": { color: "var(--phosphor-ink)", backgroundColor: "rgb(var(--phosphor-rgb)/0.12)", borderRadius: "4px", padding: "0 4px", cursor: "pointer" },
   ".cm-tag:hover": { color: "var(--phosphor-bright)", backgroundColor: "rgb(var(--phosphor-rgb)/0.22)" },
+  // Completion popup — themed to the panel surface so it doesn't arrive as a white browser default.
+  ".cm-tooltip.cm-tooltip-autocomplete": {
+    backgroundColor: "var(--panel-lite)", border: "1px solid var(--rule)", borderRadius: "8px",
+    boxShadow: "0 0 16px var(--phosphor-faint)", overflow: "hidden",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    fontFamily: "var(--font-mono)", fontSize: "12px", maxHeight: "16em",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "4px 10px", color: "var(--ink-dim)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    backgroundColor: "rgb(var(--phosphor-rgb)/0.16)", color: "var(--phosphor-bright)",
+  },
+  ".cm-completionIcon": { display: "none" },   // the default glyphs are off-theme and add nothing here
 });
 
 interface Props {
@@ -130,11 +183,13 @@ interface Props {
   onWikiLinkClick: (title: string) => void;
   onTagClick?: (tag: string) => void;
   existingTitles?: Set<string>;         // normalized (linkKey) titles of every note — drives missing-link styling
+  /** Display titles, in the order to offer them — powers [[ autocomplete. */
+  noteTitles?: string[];
   /** Scroll a 0-based line to the top of the viewport. `nonce` re-fires the same line on a repeat click. */
   revealLine?: { line: number; nonce: number } | null;
 }
 
-export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles, revealLine }: Props) {
+export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles, noteTitles, revealLine }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   // Latest callbacks in a ref so the editor (created once) always calls the current ones.
@@ -143,6 +198,9 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
   // The plugin reads this ref so it always styles links against the current vault.
   const titlesRef = useRef<Set<string>>(existingTitles ?? new Set());
   titlesRef.current = existingTitles ?? new Set();
+  // Same trick for the completion source: created once, but always reads the current title list.
+  const displayTitlesRef = useRef<string[]>(noteTitles ?? []);
+  displayTitlesRef.current = noteTitles ?? [];
 
   useEffect(() => {
     if (!host.current) return;
@@ -150,7 +208,14 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
       doc,
       extensions: [
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        // completionKeymap before defaultKeymap so Enter/Escape go to an open popup first.
+        keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap]),
+        closeBrackets(),
+        autocompletion({
+          override: [wikiLinkCompletions(displayTitlesRef)],
+          icons: false,
+          activateOnTyping: true,
+        }),
         markdown(),
         syntaxHighlighting(mdHighlight),
         makeLivePreview(titlesRef),
