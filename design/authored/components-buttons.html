@@ -1,0 +1,86 @@
+<!-- @dsCard group="Components" -->
+<style>
+/* .btn / .btn-primary ship in index.css and are used as-is below. These three do not exist in the app
+   yet — they are the missing members of the same family, built only from existing tokens so they sit
+   correctly under all eleven themes. */
+.btn-ghost{background:none;border-color:transparent;color:var(--ink-dim)}
+.btn-ghost:hover{border-color:var(--rule);color:var(--ink);box-shadow:none;background:var(--panel-lite)}
+.btn-danger{border-color:rgb(255 64 96 / .5);color:#FF4060;
+  background:linear-gradient(180deg,rgb(255 64 96 / .12) 0%,rgb(255 64 96 / .04) 100%)}
+.btn-danger:hover{border-color:#FF4060;color:#FF4060;box-shadow:0 0 8px rgb(255 64 96 / .35)}
+.btn-icon{padding:6px;gap:0}
+.sizes .btn{font-size:.6875rem;padding:4px 10px}
+.sizes .btn.md{font-size:.78rem;padding:6px 14px}
+.sizes .btn.lg{font-size:.875rem;padding:9px 20px}
+.grid2{display:grid;grid-template-columns:auto 1fr;gap:14px 20px;align-items:center}
+.grid2 .lbl{font-family:var(--font-mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--ink-faint);white-space:nowrap}
+.new{font-family:var(--font-mono);font-size:.5625rem;color:var(--phosphor-ink);border:1px solid var(--phosphor-faint);
+  border-radius:9999px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+</style>
+
+<h1>Buttons</h1>
+<p class="ds-lede">One geometry: <code>2px</code> radius, mono type at <code>.78rem</code>,
+<code>.04em</code> tracking, a top-lit gradient, and a phosphor bloom on hover. Primary differs from
+secondary by accent border and inner glow — <strong>not</strong> by a solid fill, which is why the label
+stays <code>var(--phosphor)</code> and never <code>white</code>. A white label would survive the CRT
+themes and then fail on Light.</p>
+
+<h2>Variants</h2>
+<div class="grid2">
+  <span class="lbl">Primary</span>
+  <div class="ds-row"><button class="btn btn-primary">Continue</button>
+    <button class="btn btn-primary">Start level 4</button></div>
+
+  <span class="lbl">Secondary</span>
+  <div class="ds-row"><button class="btn">Review notes</button>
+    <button class="btn">Skip</button></div>
+
+  <span class="lbl">Ghost<span class="new">new</span></span>
+  <div class="ds-row"><button class="btn btn-ghost">Cancel</button>
+    <button class="btn btn-ghost">Not now</button></div>
+
+  <span class="lbl">Danger<span class="new">new</span></span>
+  <div class="ds-row"><button class="btn btn-danger">Delete course</button></div>
+
+  <span class="lbl">Icon<span class="new">new</span></span>
+  <div class="ds-row">
+    <button class="btn btn-icon" aria-label="Settings">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6M4.2 4.2l4.3 4.3m7 7l4.3 4.3M1 12h6m10 0h6M4.2 19.8l4.3-4.3m7-7l4.3-4.3"/>
+      </svg>
+    </button>
+    <button class="btn btn-icon btn-ghost" aria-label="Close">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+</div>
+
+<h2>States</h2>
+<div class="ds-row">
+  <button class="btn btn-primary">Default</button>
+  <button class="btn btn-primary" style="box-shadow:0 0 16px var(--phosphor-faint), inset 0 0 20px var(--phosphor-veil)">Hover</button>
+  <button class="btn btn-primary" disabled>Disabled</button>
+  <button class="btn">Default</button>
+  <button class="btn" style="border-color:var(--phosphor);color:var(--phosphor);box-shadow:0 0 8px var(--phosphor-faint)">Hover</button>
+  <button class="btn" disabled>Disabled</button>
+</div>
+<p class="ds-note">Disabled is <code>opacity:.4</code> plus <code>cursor:not-allowed</code>, and hover
+styles must not fire underneath it.</p>
+
+<h2>Sizes</h2>
+<div class="ds-row sizes">
+  <button class="btn btn-primary">Small</button>
+  <button class="btn btn-primary md">Medium</button>
+  <button class="btn btn-primary lg">Large</button>
+</div>
+<p class="ds-note">Medium is the shipped default and covers almost everything. Small is for dense
+chrome (rails, titlebars); large is for a single primary action on an empty screen.</p>
+
+<h2>Markup</h2>
+<pre class="ds-code">&lt;button class="btn btn-primary"&gt;Continue&lt;/button&gt;
+&lt;button class="btn"&gt;Review notes&lt;/button&gt;
+&lt;button class="btn btn-ghost"&gt;Cancel&lt;/button&gt;
+&lt;button class="btn btn-danger"&gt;Delete course&lt;/button&gt;
+&lt;button class="btn btn-icon" aria-label="Settings"&gt;…&lt;/button&gt;</pre>

@@ -361,6 +361,179 @@ else derives. ${Object.keys(cssThemes).length} such blocks exist today.</p>
 `);
 }
 
+function parseFontFaces(css) {
+  const out = [];
+  for (const m of css.matchAll(/@font-face\s*\{/g)) {
+    const body = blockAt(css, css.indexOf("{", m.index));
+    const family = body.match(/font-family:\s*'([^']+)'/)?.[1];
+    const weight = body.match(/font-weight:\s*([^;]+);/)?.[1].trim();
+    const file = body.match(/url\(['"]?\.\/assets\/fonts\/([^'")]+)['"]?\)/)?.[1];
+    if (family) out.push({ family, weight, file });
+  }
+  return out;
+}
+
+// Each face's job, keyed by family. The app's four --font-* tokens are stacks; this is what actually
+// renders at the front of each, and why.
+const FACE_ROLES = {
+  Lexend: ["--font-display + --font-body", "Headings and body prose. Chosen for reading-proficiency research — its word-shape spacing measurably improves reading speed and comprehension, which is a product decision for an app whose users read under bad conditions, not a style one."],
+  "IBM Plex Mono": ["--font-mono", "UI chrome — buttons, tags, labels, metadata."],
+  "Share Tech Mono": ["--font-lcd", "LCD readouts and text inputs. Dropped by the universal themes, which fall back to IBM Plex Mono."],
+  VT323: ["boot only", "The blocky pixel face. Retired from the app UI in favour of Lexend, kept for the boot sequence and splash."],
+  Inter: ["fallback only", "Never renders — it sits behind Lexend in both stacks it appears in. Present so the fallback chain is honest, and carried here only as a specimen."],
+};
+
+function typographyCard(root, faces) {
+  const byFamily = [...new Map(faces.map((f) => [f.family, f])).values()];
+  const ramp = [
+    [".5625rem", "9px", "micro labels"], [".625rem", "10px", "eyebrow headings, badges"],
+    [".6875rem", "11px", "titlebar, dense chrome"], [".72rem", "11.5px", ".tag"],
+    [".75rem", "12px", "captions, help text"], [".78rem", "12.5px", ".btn"],
+    [".8125rem", "13px", "rail items"], [".875rem", "14px", "body, inputs"],
+    [".9375rem", "15px", "card titles"], ["1.5rem", "24px", "card h1"],
+  ];
+
+  return page("Foundations/Type", "Typography", `
+<style>
+.face{border:1px solid var(--rule);border-radius:12px;padding:16px;background:var(--panel);margin-bottom:12px}
+.face-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.face-name{font-family:var(--font-display);font-size:1.0625rem;color:var(--phosphor)}
+.face-tok{font-family:var(--font-mono);font-size:.625rem;color:var(--phosphor-ink);border:1px solid var(--phosphor-faint);
+  border-radius:9999px;padding:2px 8px}
+.face-wt{font-family:var(--font-mono);font-size:.625rem;color:var(--ink-faint)}
+.face-why{font-size:.75rem;color:var(--ink-dim);line-height:1.5;margin:0 0 12px;max-width:70ch}
+.spec{font-size:1.75rem;line-height:1.25;color:var(--ink-em);margin-bottom:4px}
+.spec-sm{font-size:.8125rem;color:var(--ink-dim);letter-spacing:.01em}
+.ramp{width:100%;border-collapse:collapse}
+.ramp td{border-bottom:1px solid var(--rule);padding:7px 10px;vertical-align:baseline}
+.ramp td:first-child{font-family:var(--font-mono);font-size:.6875rem;color:var(--phosphor-ink);white-space:nowrap;width:1%}
+.ramp td:nth-child(2){font-family:var(--font-mono);font-size:.625rem;color:var(--ink-faint);white-space:nowrap;width:1%}
+.ramp td:last-child{color:var(--ink-faint);font-size:.6875rem;text-align:right}
+.stacks{font-family:var(--font-mono);font-size:.6875rem;line-height:2;color:var(--ink-dim)}
+.stacks b{color:var(--phosphor-ink);font-weight:400}
+</style>
+<h1>Typography</h1>
+<p class="ds-lede">Five bundled faces, all local woff2 — no CDN, because the app has to work with no network
+at all. Four <code>--font-*</code> tokens select among them.</p>
+
+<h2>The stacks</h2>
+<div class="stacks">
+${["--font-display", "--font-mono", "--font-lcd", "--font-body"]
+  .map((t) => `<div><b>${t}</b> &nbsp;${esc(root[t] || "")}</div>`).join("\n")}
+</div>
+
+<h2>Faces</h2>
+${byFamily.map((f) => {
+  const [tok, why] = FACE_ROLES[f.family] || ["", ""];
+  return `<div class="face">
+  <div class="face-hd">
+    <span class="face-name" style="font-family:'${f.family}'">${esc(f.family)}</span>
+    ${tok ? `<span class="face-tok">${esc(tok)}</span>` : ""}
+    <span class="face-wt">weight ${esc(f.weight || "400")}</span>
+  </div>
+  <p class="face-why">${esc(why)}</p>
+  <div class="spec" style="font-family:'${f.family}'">Photosynthesis converts light into chemical energy.</div>
+  <div class="spec-sm" style="font-family:'${f.family}'">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 — ${esc("+-x/=<>%")}</div>
+</div>`;
+}).join("\n")}
+
+<h2>Size ramp</h2>
+<table class="ramp">
+${ramp.map(([rem, px, use]) => `<tr><td>${rem}</td><td>${px}</td><td style="font-size:${rem};color:var(--ink)">The mitochondria is the powerhouse</td><td>${esc(use)}</td></tr>`).join("\n")}
+</table>
+<p class="ds-note">Uppercase eyebrow headings pair a small size with
+<code>letter-spacing:.18em</code> and <code>--ink-faint</code>. That combination is the app's most
+repeated typographic gesture.</p>
+`);
+}
+
+function crtCard(root) {
+  const knobs = [
+    ["--crt-scanline-opacity", 0, 0.3, 0.005, "scanline strength"],
+    ["--crt-vignette-opacity", 0, 1, 0.01, "corner darkening"],
+    ["--crt-noise-opacity", 0, 0.2, 0.002, "film grain"],
+    ["--crt-aberration", 0, 3, 0.1, "RGB fringe (px)", "px"],
+  ];
+
+  return page("Effects", "CRT Overlay Stack", `
+<style>
+/* The overlay is position:fixed in the app (it covers the window). Re-scope it into the demo frame so
+   the card can show it contained, next to the knobs that drive it. */
+.frame{position:relative;overflow:hidden;border:1px solid var(--rule);border-radius:12px;height:300px;
+  background:var(--bg);padding:24px}
+.frame .term-grid-bg,.frame .crt-stack{position:absolute}
+.frame-content{position:relative;z-index:1}
+.knobs{display:grid;gap:10px;grid-template-columns:1fr;margin-top:16px}
+.knob{display:grid;grid-template-columns:190px 1fr 64px;gap:12px;align-items:center}
+.knob label{font-family:var(--font-mono);font-size:.6875rem;color:var(--phosphor-ink)}
+.knob .hint{font-size:.625rem;color:var(--ink-faint);display:block}
+.knob output{font-family:var(--font-mono);font-size:.6875rem;color:var(--ink-dim);text-align:right}
+.knob input{width:100%;accent-color:var(--phosphor)}
+.layers{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0}
+.layers label{display:flex;gap:6px;align-items:center;font-family:var(--font-mono);font-size:.6875rem;color:var(--ink-dim)}
+.layers input{accent-color:var(--phosphor)}
+</style>
+<h1>CRT Overlay Stack</h1>
+<p class="ds-lede">Four fixed layers plus a masked grid field, sitting above the whole window. This is the
+single most identifying thing about OpenEdu — any generated full-screen surface needs it or it isn't the
+same product. <code>.crt-scanlines</code> and <code>.crt-flicker</code> use
+<code>mix-blend-mode:screen</code>, which is what makes the phosphor bloom rather than just tint.</p>
+
+<div class="layers">
+${["term-grid-bg", "crt-scanlines", "crt-noise", "crt-flicker", "crt-vignette"]
+  .map((c) => `<label><input type="checkbox" checked data-layer="${c}"> .${c}</label>`).join("\n")}
+</div>
+
+<div class="frame" id="frame">
+  <div class="term-grid-bg"></div>
+  <div class="crt-stack">
+    <div class="crt-scanlines"></div><div class="crt-noise"></div>
+    <div class="crt-flicker"></div><div class="crt-vignette"></div>
+  </div>
+  <div class="frame-content">
+    <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--phosphor)" class="phosphor-glow">Stoichiometry</div>
+    <p style="color:var(--ink-dim);font-size:.8125rem;max-width:44ch;line-height:1.6">Balance the equation, then
+    convert grams to moles using molar mass. The mole ratio comes from the coefficients.</p>
+    <div class="ds-row"><button class="btn btn-primary">Continue</button><span class="tag">Level 3</span></div>
+  </div>
+</div>
+
+<div class="knobs">
+${knobs.map(([tok, min, max, step, hint, unit]) => `  <div class="knob">
+    <label>${tok}<span class="hint">${esc(hint)}</span></label>
+    <input type="range" min="${min}" max="${max}" step="${step}" value="${parseFloat(root[tok])}"
+           data-token="${tok}" data-unit="${unit || ""}">
+    <output>${esc(root[tok])}</output>
+  </div>`).join("\n")}
+</div>
+
+<h2>Resulting tokens</h2>
+<pre class="ds-code" id="emit"></pre>
+<p class="ds-note">The kill switch is <code>.crt-off</code> on <code>&lt;html&gt;</code>, which sets
+<code>display:none</code> on <code>.crt-stack</code> and <code>.term-grid-bg</code>. Universal themes
+force it on. Any surface that reproduces this stack must reproduce the escape hatch too — the lines are
+overbearing for some readers, and that is a readability requirement, not a preference.</p>
+
+<script>
+const frame = document.getElementById('frame'), emit = document.getElementById('emit');
+const knobs = [...document.querySelectorAll('.knob input')];
+function render() {
+  emit.textContent = ':root {\\n' + knobs.map(k =>
+    '  ' + k.dataset.token + ': ' + k.value + k.dataset.unit + ';').join('\\n') + '\\n}';
+}
+knobs.forEach(k => k.addEventListener('input', () => {
+  frame.style.setProperty(k.dataset.token, k.value + k.dataset.unit);
+  k.parentElement.querySelector('output').textContent = k.value + k.dataset.unit;
+  render();
+}));
+document.querySelectorAll('.layers input').forEach(box => box.addEventListener('change', () => {
+  frame.querySelector('.' + box.dataset.layer).style.display = box.checked ? '' : 'none';
+}));
+render();
+</script>
+`);
+}
+
 // ── build ──────────────────────────────────────────────────────────────────────────────────────────
 
 async function readAuthored() {
@@ -380,7 +553,10 @@ async function readAuthored() {
     }
     const group = m[1];
     const title = group.split("/").pop();
-    const assets = /data-oe-assets="all"/.test(raw) ? ALL : CORE;
+    // Opt into the full face set with `<!-- @dsAssets all -->` as line 2, and only line 2. Scanning the
+    // whole file for the directive means any card that DOCUMENTS it also triggers it — which is exactly
+    // what the scaffold card did, silently gaining 88 KiB of fonts it never renders.
+    const assets = /^<!--\s*@dsAssets\s+all\s*-->/.test(rest[0] ?? "") ? ALL : CORE;
     cards.push({ slug: file.replace(/\.html$/, ""), html: page(group, title, rest.join("\n")), assets });
   }
   return cards;
@@ -406,6 +582,9 @@ async function main() {
   const cards = [
     { slug: "foundations-palette", html: paletteCard(root), assets: CORE },
     { slug: "foundations-themes", html: themeMatrixCard(themes, cssThemes), assets: CORE },
+    // ALL: this is the one card that must show every face, including the two the UI never renders.
+    { slug: "foundations-typography", html: typographyCard(root, parseFontFaces(css)), assets: ALL },
+    { slug: "effects-crt", html: crtCard(root), assets: CORE },
     ...(await readAuthored()),
   ];
 

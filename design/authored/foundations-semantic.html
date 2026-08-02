@@ -1,0 +1,93 @@
+<!-- @dsCard group="Foundations/Color" -->
+<style>
+.sig{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:8px}
+.sig>div{border:1px solid var(--rule);border-radius:12px;padding:14px;background:var(--panel)}
+.sig .hex{font-family:var(--font-mono);font-size:.6875rem;color:var(--ink-faint)}
+.sig .tok{font-family:var(--font-mono);font-size:.8125rem;margin-bottom:8px}
+.sig .bar{height:32px;border-radius:6px;margin-bottom:10px;border:1px solid}
+.sig .src{font-size:.6875rem;color:var(--ink-dim);line-height:1.5;margin-top:8px}
+.banner{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;
+  border:1px solid;font-size:.8125rem;line-height:1.5;margin-bottom:8px;max-width:560px}
+.banner svg{flex-shrink:0;margin-top:2px}
+.on-themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.on-themes>div{border:1px solid var(--rule);border-radius:8px;padding:10px;background:var(--bg);color:var(--ink)}
+.on-themes .lab{font-family:var(--font-mono);font-size:.5625rem;color:var(--ink-faint);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.dots{display:flex;gap:5px}
+.dots span{width:14px;height:14px;border-radius:50%}
+</style>
+
+<h1>Semantic Signals</h1>
+<p class="ds-lede">Four status colours. These are not new inventions — three of them already ship as
+hardcoded literals in <code>index.css</code> and are simply given names here, so the app stops flipping
+between <code>green-400</code> and <code>emerald-400</code> for the same meaning.</p>
+
+<div class="sig">
+  <div>
+    <div class="bar" style="background:rgb(43 255 136 / .16);border-color:rgb(43 255 136 / .4)"></div>
+    <div class="tok" style="color:#2BFF88">--ok</div>
+    <div class="hex">#2BFF88</div>
+    <div class="src">Already the Green theme's <code>--phosphor</code>.</div>
+  </div>
+  <div>
+    <div class="bar" style="background:rgb(255 176 0 / .16);border-color:rgb(255 176 0 / .4)"></div>
+    <div class="tok" style="color:#FFB000">--warn</div>
+    <div class="hex">#FFB000</div>
+    <div class="src">Already in <code>.boot-line .warn</code> and <code>.window-dot.min</code>.</div>
+  </div>
+  <div>
+    <div class="bar" style="background:rgb(255 64 96 / .16);border-color:rgb(255 64 96 / .4)"></div>
+    <div class="tok" style="color:#FF4060">--err</div>
+    <div class="hex">#FF4060</div>
+    <div class="src">Already <code>.window-dot.close</code>.</div>
+  </div>
+  <div>
+    <div class="bar" style="background:var(--phosphor-veil);border-color:var(--phosphor-faint)"></div>
+    <div class="tok" style="color:var(--phosphor)">--info</div>
+    <div class="hex">var(--phosphor)</div>
+    <div class="src">The only one that follows the theme.</div>
+  </div>
+</div>
+
+<h2>Theme-invariant, by rule</h2>
+<p class="ds-lede" style="margin-bottom:12px">Status colour does <strong>not</strong> recolour with the
+theme. Under Crimson the accent is red — if "correct" inherited the accent, a right answer and a wrong
+answer would be the same colour in a quiz app. Success is green on every theme, including the green
+one, where it simply matches.</p>
+<div class="on-themes">
+  <div><div class="lab">OpenEdu</div><div class="dots">
+    <span style="background:#2BFF88"></span><span style="background:#FFB000"></span>
+    <span style="background:#FF4060"></span><span style="background:var(--phosphor)"></span></div></div>
+  <div data-theme="crimson" style="background:var(--bg)"><div class="lab">Crimson</div><div class="dots">
+    <span style="background:#2BFF88"></span><span style="background:#FFB000"></span>
+    <span style="background:#FF4060"></span><span style="background:var(--phosphor)"></span></div></div>
+  <div data-theme="green" style="background:var(--bg)"><div class="lab">Green</div><div class="dots">
+    <span style="background:#2BFF88"></span><span style="background:#FFB000"></span>
+    <span style="background:#FF4060"></span><span style="background:var(--phosphor)"></span></div></div>
+  <div data-theme="light" style="background:var(--bg)"><div class="lab">Light</div><div class="dots">
+    <span style="background:#2BFF88"></span><span style="background:#FFB000"></span>
+    <span style="background:#FF4060"></span><span style="background:var(--phosphor)"></span></div></div>
+</div>
+
+<h2>Applied</h2>
+<p class="ds-note" style="margin-bottom:10px">One recipe everywhere: <strong>12% fill, 40% border,
+full-strength text.</strong> Same proportions as the status chip, so banners and chips read as one family.</p>
+
+<div class="banner" style="background:rgb(43 255 136 / .12);border-color:rgb(43 255 136 / .4);color:#2BFF88">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+  <span>Promotion test passed — you're on Level 4.</span>
+</div>
+<div class="banner" style="background:rgb(255 176 0 / .12);border-color:rgb(255 176 0 / .4);color:#FFB000">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <path d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+  <span>No embedding model installed — notes won't be searched until you add one.</span>
+</div>
+<div class="banner" style="background:rgb(255 64 96 / .12);border-color:rgb(255 64 96 / .4);color:#FF4060">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <circle cx="12" cy="12" r="9"/><path d="M12 8v4m0 4h.01"/></svg>
+  <span>Couldn't reach Ollama at 127.0.0.1:11434.</span>
+</div>
+
+<pre class="ds-code">--ok:   #2BFF88    --warn: #FFB000    --err:  #FF4060    --info: var(--phosphor)
+
+background: rgb(R G B / .12);  border: 1px solid rgb(R G B / .4);  color: #RGB;</pre>

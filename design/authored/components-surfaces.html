@@ -1,0 +1,92 @@
+<!-- @dsCard group="Components" -->
+<style>
+.card{border:1px solid var(--rule);border-radius:12px;background:var(--panel);padding:16px}
+.card h3{font-family:var(--font-display);font-size:.9375rem;color:var(--ink-em);margin:0 0 4px}
+.card p{margin:0;color:var(--ink-dim);font-size:.8125rem;line-height:1.55}
+.eyebrow{font-family:var(--font-mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.18em;
+  color:var(--ink-faint);margin-bottom:8px}
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.depth{display:flex;gap:0;border:1px solid var(--rule);border-radius:12px;overflow:hidden;margin-bottom:8px}
+.depth div{flex:1;padding:18px 10px;text-align:center;font-family:var(--font-mono);font-size:.625rem;color:var(--ink-faint)}
+.row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;background:var(--panel-lite);
+  transition:background .15s}
+.row:hover{background:var(--lcd)}
+.row .dot{width:8px;height:8px;border-radius:50%;background:var(--phosphor);
+  box-shadow:0 0 8px var(--phosphor);flex-shrink:0}
+.row .grow{flex:1;min-width:0}
+.row .t{font-size:.8125rem;color:var(--ink)}
+.row .s{font-size:.6875rem;color:var(--ink-faint)}
+</style>
+
+<h1>Surfaces</h1>
+<p class="ds-lede">Four background tiers, each one step further from the viewer. The whole scale is dark
+and close together on purpose — separation comes from the hairline <code>--rule</code> border and from
+glow, not from brightness steps.</p>
+
+<h2>Depth scale</h2>
+<div class="depth">
+  <div style="background:var(--bg)">--bg</div>
+  <div style="background:var(--panel)">--panel</div>
+  <div style="background:var(--panel-lite)">--panel-lite</div>
+  <div style="background:var(--lcd)">--lcd</div>
+</div>
+<p class="ds-note"><code>--lcd</code> is <em>recessed</em>, not raised — it reads as inset because of the
+scanline gradient and inner shadow the <code>.lcd</code> class layers on top.</p>
+
+<h2>The three surfaces</h2>
+<div class="tiers">
+
+  <div>
+    <div class="eyebrow">Panel card</div>
+    <div class="card">
+      <h3>Photosynthesis</h3>
+      <p>Six subtopics. You're on the second.</p>
+      <div class="ds-row" style="margin:12px 0 0"><button class="btn">Open</button></div>
+    </div>
+    <p class="ds-note">The default container. <code>12px</code> radius,
+    <code>--panel</code>, one hairline border.</p>
+  </div>
+
+  <div>
+    <div class="eyebrow">LCD readout</div>
+    <div class="lcd" style="padding:16px;border-radius:8px">
+      <div style="font-size:1.75rem;line-height:1">86%</div>
+      <div style="font-size:.6875rem;opacity:.8;margin-top:2px">MASTERY</div>
+    </div>
+    <p class="ds-note"><code>.lcd</code> — scanline gradient, top-lit radial, inner shadow, outer bloom.
+    For numbers and code, never for prose.</p>
+  </div>
+
+  <div>
+    <div class="eyebrow">Terminal window</div>
+    <div class="window">
+      <div class="window-titlebar">
+        <span class="window-dot close"></span><span class="window-dot min"></span><span class="window-dot max"></span>
+        <span style="margin-left:2px">OUTPUT</span>
+      </div>
+      <div style="padding:12px;font-family:var(--font-mono);font-size:.6875rem;color:var(--ink-dim);line-height:1.7">
+        &gt; balanced<span class="caret"></span>
+      </div>
+    </div>
+    <p class="ds-note"><code>.window</code> — <code>4px</code> radius and traffic dots. Reserve it for
+    things that genuinely read as terminal output.</p>
+  </div>
+</div>
+
+<h2>List row</h2>
+<div style="max-width:420px;display:grid;gap:4px">
+  <div class="row"><span class="dot"></span><span class="grow"><span class="t">Light reactions</span></span>
+    <span class="s">done</span></div>
+  <div class="row"><span class="dot" style="background:#FFB000;box-shadow:0 0 8px #FFB000"></span>
+    <span class="grow"><span class="t">Calvin cycle</span><br><span class="s">in progress</span></span>
+    <button class="btn" style="font-size:.6875rem;padding:4px 10px">Resume</button></div>
+  <div class="row"><span class="dot" style="background:var(--ink-faint);box-shadow:none"></span>
+    <span class="grow"><span class="t">Limiting factors</span></span><span class="s">locked</span></div>
+</div>
+<p class="ds-note">Status dot, title, optional caption, optional trailing action —
+<code>8px</code> radius on <code>--panel-lite</code>, hovering to <code>--lcd</code>.</p>
+
+<h2>Markup</h2>
+<pre class="ds-code">&lt;div class="card"&gt;…&lt;/div&gt;                     radius 12, --panel
+&lt;div class="lcd"&gt;…&lt;/div&gt;                      recessed readout
+&lt;div class="window"&gt;&lt;div class="window-titlebar"&gt;…</pre>

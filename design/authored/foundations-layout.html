@@ -1,0 +1,78 @@
+<!-- @dsCard group="Foundations" -->
+<style>
+.scale{width:100%;border-collapse:collapse;margin-bottom:6px}
+.scale td{border-bottom:1px solid var(--rule);padding:8px 10px;vertical-align:middle}
+.scale td:first-child{font-family:var(--font-mono);font-size:.6875rem;color:var(--phosphor-ink);width:1%;white-space:nowrap}
+.scale td:last-child{font-size:.6875rem;color:var(--ink-faint);text-align:right}
+.bar{height:12px;background:var(--phosphor-veil);border:1px solid var(--phosphor-faint);border-radius:2px}
+.rad{display:flex;gap:12px;flex-wrap:wrap}
+.rad>div{text-align:center}
+.rad .box{width:76px;height:56px;background:var(--panel);border:1px solid var(--rule);margin-bottom:6px}
+.rad .lab{font-family:var(--font-mono);font-size:.625rem;color:var(--phosphor-ink)}
+.rad .use{font-size:.625rem;color:var(--ink-faint);margin-top:2px}
+.z{width:100%;border-collapse:collapse}
+.z td,.z th{border-bottom:1px solid var(--rule);padding:7px 10px;text-align:left;font-size:.75rem}
+.z th{font-family:var(--font-mono);font-size:.5625rem;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--ink-faint);font-weight:400}
+.z td:first-child{font-family:var(--font-mono);color:var(--phosphor-ink);width:1%}
+.z td:nth-child(2){font-family:var(--font-mono);color:var(--ink-dim);width:1%}
+.z td:last-child{color:var(--ink-faint)}
+</style>
+
+<h1>Space, Radius &amp; Layering</h1>
+<p class="ds-lede">The app has no spacing or radius tokens — every value is a literal. These three scales
+are derived from what actually ships, so they describe the product rather than reforming it. A generator
+needs concrete numbers; without them it invents a new scale on every run.</p>
+
+<h2>Spacing — 4px base</h2>
+<table class="scale">
+<tr><td>4</td><td><div class="bar" style="width:4px"></div></td><td>icon-to-label</td></tr>
+<tr><td>6</td><td><div class="bar" style="width:6px"></div></td><td>chip internals</td></tr>
+<tr><td>8</td><td><div class="bar" style="width:8px"></div></td><td>related controls</td></tr>
+<tr><td>12</td><td><div class="bar" style="width:12px"></div></td><td>grid gap, list rows</td></tr>
+<tr><td>16</td><td><div class="bar" style="width:16px"></div></td><td>card padding</td></tr>
+<tr><td>24</td><td><div class="bar" style="width:24px"></div></td><td>page padding</td></tr>
+<tr><td>36</td><td><div class="bar" style="width:36px"></div></td><td>section gap</td></tr>
+</table>
+<p class="ds-note">Half-steps (<code>6</code>, <code>10</code>, <code>14</code>) are allowed below 16 and
+nowhere above it — that matches the <code>py-3.5</code> / <code>px-3.5</code> already in the settings
+primitives, which are load-bearing for dense chrome.</p>
+
+<h2>Radius</h2>
+<div class="rad">
+  <div><div class="box" style="border-radius:2px"></div><div class="lab">2px</div>
+    <div class="use">CRT chrome<br>.btn .tag .lcd .cf-input</div></div>
+  <div><div class="box" style="border-radius:4px"></div><div class="lab">4px</div>
+    <div class="use">terminal window<br>.window</div></div>
+  <div><div class="box" style="border-radius:8px"></div><div class="lab">8px</div>
+    <div class="use">controls<br>rows, inputs, menus</div></div>
+  <div><div class="box" style="border-radius:12px"></div><div class="lab">12px</div>
+    <div class="use">cards<br>panels, modals</div></div>
+  <div><div class="box" style="border-radius:9999px;width:76px"></div><div class="lab">9999px</div>
+    <div class="use">pills<br>chips, toggles, dots</div></div>
+</div>
+<p class="ds-note">Derived from the shipped distribution — <code>rounded-lg</code> 87 uses,
+<code>rounded-xl</code> 48, <code>rounded-full</code> 42, plus the 2px and 4px hardcoded in the CSS.
+<code>rounded-md</code> (9) and <code>rounded-2xl</code> (5) are stragglers and are not part of the scale.
+The tight 2px on terminal chrome is deliberate: soft corners undercut the CRT read.</p>
+
+<h2>Z-index</h2>
+<table class="z">
+<tr><th>z</th><th>name</th><th>what sits there</th></tr>
+<tr><td>0</td><td>base</td><td>page content, <code>.term-grid-bg</code></td></tr>
+<tr><td>10</td><td>sticky</td><td>sticky headers, pinned rows</td></tr>
+<tr><td>20</td><td>dropdown</td><td>popovers, autocomplete, context menus</td></tr>
+<tr><td>40</td><td>drawer</td><td>slide-overs, coach marks</td></tr>
+<tr><td>50</td><td>modal</td><td>dialogs and their scrim, full-screen views</td></tr>
+<tr><td>100</td><td>crt</td><td><code>.crt-stack</code> — the overlay</td></tr>
+<tr><td>150</td><td>toast</td><td>transient notices</td></tr>
+<tr><td>200</td><td>titlebar</td><td>the frameless window chrome</td></tr>
+<tr><td>9000</td><td>boot</td><td>boot sequence and splash</td></tr>
+</table>
+<p class="ds-note"><strong>Nothing sits above the CRT layer except toasts, the titlebar, and boot.</strong>
+Scanlines cross modals — that is correct and intentional, because the overlay is the screen, not a
+decoration on top of the content. The app already obeys this by accident; the scale makes it a rule.</p>
+
+<pre class="ds-code">space   4 6 8 12 16 24 36            (half-steps below 16 only)
+radius  2 chrome · 4 window · 8 control · 12 card · 9999 pill
+z       0 · 10 · 20 · 40 · 50 · 100 crt · 150 · 200 · 9000</pre>
