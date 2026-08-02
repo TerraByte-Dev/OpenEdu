@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, type ReactNode } from "react";
 // Heavy, view-gated components are lazy-loaded so they leave the eager main bundle: ForceGraph2D
 // (react-force-graph-2d) mounts only in the vault-graph view; MarkdownEditor (CodeMirror) only when
 // a note is open. Both are code-split into their own chunks fetched on first use.
@@ -63,10 +63,13 @@ function FolderPlusGlyph({ size = 13, className = "" }: { size?: number; classNa
   );
 }
 
+// Visibility of the context panel, remembered across mounts. Mirrors the `oe-` prefix theme.ts uses.
+const CONTEXT_PANEL_KEY = "oe-notes-context";
+
 // A collapsible section in the right-hand context panel. Count lives in the header so the panel can be
 // read at a glance while collapsed.
 function ContextSection({ title, count, open, onToggle, children }: {
-  title: string; count: number; open: boolean; onToggle: () => void; children: React.ReactNode;
+  title: string; count: number; open: boolean; onToggle: () => void; children: ReactNode;
 }) {
   return (
     <div className="border-b border-[var(--rule)] last:border-b-0">
@@ -138,7 +141,18 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
   // Right-hand context panel (outline + backlinks), the Obsidian right-sidebar pattern.
-  const [showContext, setShowContext] = useState(true);
+  //
+  // Persisted, because NotesTab unmounts whenever you leave the Notes tab — without this, closing the
+  // panel lasted until the next tab switch and then silently came back. localStorage rather than the
+  // Tauri store: it is a per-machine view preference, it must be readable synchronously during the
+  // first render to avoid a visible flash, and it has no business travelling in a settings export.
+  const [showContext, setShowContext] = useState(() => {
+    try { return localStorage.getItem(CONTEXT_PANEL_KEY) !== "0"; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(CONTEXT_PANEL_KEY, showContext ? "1" : "0"); } catch { /* ignore */ }
+  }, [showContext]);
+
   const [openSections, setOpenSections] = useState({ outline: true, linked: true, unlinked: false });
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
   // Bumped on every outline click so clicking the same heading twice still scrolls to it.
