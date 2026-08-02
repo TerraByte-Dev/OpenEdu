@@ -10,6 +10,9 @@ import {
   buildVaultGraph,
   folderNodeId,
   tagNodeId,
+  buildBacklinkIndex,
+  findUnlinkedMentions,
+  extractOutline,
 } from "./notebook-links";
 import type { Note, NotebookFolder } from "../types";
 
@@ -172,5 +175,129 @@ describe("buildVaultGraph", () => {
     const a = note({ id: "na", title: "A", content: "#x", folder_id: "f1" });
     const g = buildVaultGraph([a], [folder("f1", "F")]);
     expect(new Set(g.nodes.map((n) => n.kind))).toEqual(new Set(["note", "folder", "tag"]));
+  });
+});
+
+describe("buildBacklinkIndex", () => {
+  it("maps a target to the notes linking at it", () => {
+    const a = note({ id: "na", title: "Alpha", content: "see [[Beta]]" });
+    const b = note({ id: "nb", title: "Beta", content: "nothing here" });
+    const idx = buildBacklinkIndex([a, b]);
+    expect(idx.get("nb")!.map((m) => m.note.id)).toEqual(["na"]);
+    expect(idx.has("na")).toBe(false);
+  });
+
+  it("resolves case-insensitively, like the link syntax itself", () => {
+    const a = note({ id: "na", title: "Alpha", content: "see [[beta]]" });
+    const b = note({ id: "nb", title: "Beta", content: "" });
+    expect(buildBacklinkIndex([a, b]).get("nb")!).toHaveLength(1);
+  });
+
+  it("groups repeated links from one note into a single entry with several contexts", () => {
+    const a = note({ id: "na", title: "Alpha", content: "first [[Beta]]\nthen [[Beta]] again" });
+    const b = note({ id: "nb", title: "Beta", content: "" });
+    const hits = buildBacklinkIndex([a, b]).get("nb")!;
+    expect(hits).toHaveLength(1);
+    expect(hits[0].contexts).toEqual(["first [[Beta]]", "then [[Beta]] again"]);
+  });
+
+  it("ignores self-links", () => {
+    const a = note({ id: "na", title: "Alpha", content: "[[Alpha]] refers to itself" });
+    expect(buildBacklinkIndex([a]).has("na")).toBe(false);
+  });
+
+  it("ignores links whose target does not exist", () => {
+    const a = note({ id: "na", title: "Alpha", content: "[[Nowhere]]" });
+    expect(buildBacklinkIndex([a]).size).toBe(0);
+  });
+
+  it("elides a long context around the hit rather than returning the whole line", () => {
+    const pad = "x ".repeat(120);
+    const a = note({ id: "na", title: "Alpha", content: `${pad}[[Beta]]${pad}` });
+    const b = note({ id: "nb", title: "Beta", content: "" });
+    const ctx = buildBacklinkIndex([a, b]).get("nb")![0].contexts[0];
+    expect(ctx.startsWith("…")).toBe(true);
+    expect(ctx.endsWith("…")).toBe(true);
+    expect(ctx).toContain("[[Beta]]");
+    expect(ctx.length).toBeLessThan(240);
+  });
+});
+
+describe("findUnlinkedMentions", () => {
+  const target = note({ id: "nt", title: "Photosynthesis", content: "" });
+
+  it("finds a plain-prose mention of the title", () => {
+    const other = note({ id: "no", title: "Leaves", content: "Photosynthesis happens here." });
+    const hits = findUnlinkedMentions(target, [target, other]);
+    expect(hits.map((m) => m.note.id)).toEqual(["no"]);
+    expect(hits[0].contexts).toEqual(["Photosynthesis happens here."]);
+  });
+
+  it("does not count a mention that is already linked", () => {
+    const other = note({ id: "no", title: "Leaves", content: "see [[Photosynthesis]]" });
+    expect(findUnlinkedMentions(target, [target, other])).toEqual([]);
+  });
+
+  it("counts only the unlinked occurrence when a note has both", () => {
+    const other = note({ id: "no", title: "Leaves", content: "[[Photosynthesis]] and photosynthesis again" });
+    const hits = findUnlinkedMentions(target, [target, other]);
+    expect(hits[0].contexts).toHaveLength(1);
+    expect(hits[0].contexts[0]).toContain("again");
+  });
+
+  it("is case-insensitive but whole-word only", () => {
+    const yes = note({ id: "y", title: "Y", content: "PHOTOSYNTHESIS rules" });
+    const no = note({ id: "n", title: "N", content: "Photosynthesises and photosynthesis-like" });
+    expect(findUnlinkedMentions(target, [target, yes]).map((m) => m.note.id)).toEqual(["y"]);
+    expect(findUnlinkedMentions(target, [target, no])).toEqual([]);
+  });
+
+  it("never reports the target itself", () => {
+    const self = note({ id: "nt2", title: "Photosynthesis", content: "Photosynthesis is me" });
+    expect(findUnlinkedMentions(self, [self])).toEqual([]);
+  });
+
+  it("skips titles too short to be meaningful", () => {
+    const short = note({ id: "s", title: "AI", content: "" });
+    const other = note({ id: "o", title: "O", content: "AI everywhere, AI again" });
+    expect(findUnlinkedMentions(short, [short, other])).toEqual([]);
+  });
+
+  it("treats a title with regex metacharacters literally", () => {
+    const weird = note({ id: "w", title: "C++ (basics)", content: "" });
+    const other = note({ id: "o", title: "O", content: "notes on C++ (basics) today" });
+    expect(findUnlinkedMentions(weird, [weird, other]).map((m) => m.note.id)).toEqual(["o"]);
+  });
+});
+
+describe("extractOutline", () => {
+  it("returns headings with level, text, and line", () => {
+    expect(extractOutline("# One\n\ntext\n## Two\n### Three")).toEqual([
+      { level: 1, text: "One", line: 0 },
+      { level: 2, text: "Two", line: 3 },
+      { level: 3, text: "Three", line: 4 },
+    ]);
+  });
+
+  it("ignores headings inside fenced code blocks", () => {
+    const md = "# Real\n\n```sh\n# not a heading\n```\n\n## Also real";
+    expect(extractOutline(md).map((h) => h.text)).toEqual(["Real", "Also real"]);
+  });
+
+  it("closes a fence only on a matching fence character", () => {
+    const md = "```\n# hidden\n~~~\n# still hidden\n```\n# visible";
+    expect(extractOutline(md).map((h) => h.text)).toEqual(["visible"]);
+  });
+
+  it("strips trailing closing hashes", () => {
+    expect(extractOutline("## Title ##")).toEqual([{ level: 2, text: "Title", line: 0 }]);
+  });
+
+  it("requires a space after the hashes", () => {
+    expect(extractOutline("#nospace\n#tag here")).toEqual([]);
+  });
+
+  it("handles CRLF", () => {
+    expect(extractOutline("# A\r\n## B").map((h) => h.line)).toEqual([0, 1]);
   });
 });

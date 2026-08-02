@@ -102,7 +102,10 @@ function makeLivePreview(titlesRef: { current: Set<string> }) {
 const theme = EditorView.theme({
   "&": { backgroundColor: "transparent", color: "var(--ink)", height: "100%", fontSize: "14px" },
   "&.cm-focused": { outline: "none" },
-  ".cm-scroller": { fontFamily: "Inter, system-ui, sans-serif", lineHeight: "1.65", overflow: "auto" },
+  // --font-body (Lexend), not a hardcoded Inter. Notes are the most-read surface in the app, and
+  // Lexend is the face that was picked for reading comprehension in the first place; the editor was
+  // the one place still opting out of it.
+  ".cm-scroller": { fontFamily: "var(--font-body)", lineHeight: "1.65", overflow: "auto" },
   ".cm-content": { padding: "16px 20px", caretColor: "var(--phosphor)" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--phosphor)" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "rgb(var(--phosphor-rgb)/0.20)" },
@@ -127,9 +130,11 @@ interface Props {
   onWikiLinkClick: (title: string) => void;
   onTagClick?: (tag: string) => void;
   existingTitles?: Set<string>;         // normalized (linkKey) titles of every note — drives missing-link styling
+  /** Scroll a 0-based line to the top of the viewport. `nonce` re-fires the same line on a repeat click. */
+  revealLine?: { line: number; nonce: number } | null;
 }
 
-export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles }: Props) {
+export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles, revealLine }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   // Latest callbacks in a ref so the editor (created once) always calls the current ones.
@@ -184,6 +189,18 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
   useEffect(() => {
     view.current?.dispatch({ effects: refreshLinks.of(null) });
   }, [existingTitles]);
+
+  // Outline click → put the cursor on that heading and scroll it to the top. Guarded against a stale
+  // line number, which is easy to hit: the outline is derived from `doc`, and a fast edit can shrink
+  // the document between render and click.
+  useEffect(() => {
+    const v = view.current;
+    if (!v || !revealLine) return;
+    const lineNo = Math.min(revealLine.line + 1, v.state.doc.lines);
+    const line = v.state.doc.line(lineNo);
+    v.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: "start" }) });
+    v.focus();
+  }, [revealLine]);
 
   // Switching notes → swap the document (typing changes `doc` too, but noteId stays, so no churn).
   useEffect(() => {
