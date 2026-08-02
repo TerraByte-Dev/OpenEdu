@@ -99,6 +99,27 @@ are **derived from note content** — no DB column. **`notebook.ts`** handles RA
 embedded on save, and searched by **brute-force cosine** over the course's vectors (fine for a single
 student's vault; vectors are stored as JSON-array TEXT, schema kept `sqlite-vec`-compatible for later).
 
+Linking is bidirectional. `buildBacklinkIndex` maps a note to everything holding a `[[link]]` that
+resolves to it, with the surrounding line as context; `findUnlinkedMentions` finds notes that say the
+title in prose without linking it. **These two are reported separately and must stay that way** — a
+linked mention is a fact about the vault, an unlinked one is only a suggestion, and merging the counts
+would assert a relationship that doesn't exist. Unlinked matching is deliberately conservative
+(whole-word, titles under 3 characters skipped) because a suggestion that fires constantly is worse than
+one that never fires.
+
+`extractOutline` gives the heading tree, skipping fenced code blocks. `wikiLinkPrefix` backs the `[[`
+autocomplete and lives here rather than in the editor so the matching rule is testable without a
+CodeMirror instance. `NotesTab` renders outline + both mention kinds in a toggleable right rail;
+`lib/fuzzy.ts` powers the Ctrl/Cmd+O quick switcher with subsequence (not edit-distance) matching.
+
+Two invariants worth not breaking:
+
+- **`WIKI_LINK_RE` must exclude newlines.** Without that, one stray unclosed `[[` swallows everything up
+  to the next `]]` later in the document, inventing a link whose title spans paragraphs — which then
+  becomes a real edge in the graph and a row in backlinks.
+- **A missing `[[link]]` never auto-creates.** It renders dashed, and creating is an explicit action.
+  Autocomplete offers existing titles only, and the quick switcher can't create at all.
+
 ## Design system
 
 The UI is a **blue-phosphor CRT** aesthetic defined entirely with CSS variables in `src/index.css`
@@ -106,6 +127,22 @@ The UI is a **blue-phosphor CRT** aesthetic defined entirely with CSS variables 
 `src/lib/theme.ts` and are applied pre-paint in `main.tsx` via `html[data-theme="…"]`. **Use the tokens,
 not hardcoded colors**, so everything stays theme-aware. Settings has its own
 [architecture README](../src/views/settings/README.md).
+
+`design/` holds a browsable version of the same system, built by `npm run design` into self-contained
+HTML cards and pushed to Claude Design, which then generates new work using these colours, type, and
+components. `design/authored/` is committed source; `design/dist/` is generated and gitignored. The
+generator inlines `index.css` verbatim rather than parsing it for values, so a parse bug produces a
+wrong label beside a correct swatch instead of a wrong design.
+
+Two things to know if you touch it:
+
+- **`data-theme` on a descendant is not the same as on `<html>`.** Derived tokens (`--rule`,
+  `--ink-dim`, `--phosphor-faint`) are declared on `:root`, so their `var()` resolves there and is
+  inherited already-computed. The app never hits this because `data-theme` lives on `<html>` — the same
+  element as `:root` — but any preview that scopes a theme to a `<div>` must re-emit the derived tokens.
+- **Tailwind utilities lose to unlayered CSS.** `.btn-primary` in `index.css` is unlayered; utilities
+  live in `@layer utilities`. So `class="btn-primary text-white"` renders the accent, not white. This
+  bit us once — 24 `text-white` classes that had never done anything.
 
 ## Testing & CI
 
