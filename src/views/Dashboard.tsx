@@ -50,7 +50,7 @@ function StepIcon({ status }: { status: StepStatus }) {
   }
   if (status === "active") {
     return (
-      <span className="w-5 h-5 rounded-full bg-[rgb(var(--phosphor-rgb)/0.14)]/20 border border-phosphor-ink flex items-center justify-center shrink-0 animate-pulse">
+      <span className="w-5 h-5 rounded-full bg-[rgb(var(--phosphor-rgb)/0.14)] border border-phosphor-ink flex items-center justify-center shrink-0 animate-pulse">
         <span className="w-1.5 h-1.5 rounded-full bg-phosphor-ink" />
       </span>
     );

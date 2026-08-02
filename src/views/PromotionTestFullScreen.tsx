@@ -368,7 +368,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         </div>
         <div className="flex-1 overflow-y-auto flex items-center justify-center p-8">
           <div className="max-w-lg w-full text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 btn-primary/20 border border-phosphor/30 rounded-full text-phosphor-bright text-sm font-medium mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[rgb(var(--phosphor-rgb)/0.12)] border border-phosphor/30 rounded-full text-phosphor-bright text-sm font-medium mb-4">
               Level {currentLevel} — {getLevelMeaning(currentLevel)}
             </div>
             <h2 className="text-2xl font-bold text-ink mb-2">
@@ -435,7 +435,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
             {[1, 2].map((step) => (
               <div key={step} className="flex items-center gap-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                  phaseStep > step ? "bg-[rgb(var(--phosphor-rgb)/0.14)] text-white" : phaseStep === step ? "bg-[rgb(var(--phosphor-rgb)/0.14)]/40 border border-phosphor text-phosphor-bright animate-pulse" : "bg-panel-lite text-[var(--ink-faint)]"
+                  phaseStep > step ? "bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright" : phaseStep === step ? "bg-[rgb(var(--phosphor-rgb)/0.08)] border border-phosphor text-phosphor-bright animate-pulse" : "bg-panel-lite text-[var(--ink-faint)]"
                 }`}>
                   {phaseStep > step ? "✓" : step}
                 </div>
