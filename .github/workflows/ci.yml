@@ -1,11 +1,15 @@
 name: CI
 
-# Frontend checks for every PR into master (and pushes to master). Intentionally Node-only — the React/TS
-# frontend type-checks, unit-tests, and bundles without the Rust/Tauri toolchain, so this stays fast
-# (~1-2 min). The Tauri desktop build is not exercised here.
+# Frontend checks for EVERY pull request, whatever it targets, plus pushes to master. Intentionally
+# Node-only — the React/TS frontend type-checks, unit-tests, and bundles without the Rust/Tauri
+# toolchain, so this stays fast (~1-2 min). The Tauri desktop build is not exercised here.
+#
+# The `branches: [master]` filter used to be here and was wrong for how this repo works. PRs are stacked
+# — each one bases on the branch below it — so filtering on the BASE meant only the bottom PR of a stack
+# ever ran CI. Everything above it sat unchecked until it was retargeted at master by the merge below
+# it, which is the worst possible moment to discover a break: mid-merge, on the PR that is next in line.
 on:
   pull_request:
-    branches: [master]
   push:
     branches: [master]
 
