@@ -12,6 +12,7 @@ import {
 } from "../lib/db";
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
 import { ingestResultSummary } from "../lib/ingest-format";
+import QuickSwitcher from "./QuickSwitcher";
 import {
   extractTags, resolveWikiLink, linkKey,
   buildVaultGraph, buildTagIndex,
@@ -134,6 +135,8 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const [docResults, setDocResults] = useState<NotebookSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
 
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+
   // Right-hand context panel (outline + backlinks), the Obsidian right-sidebar pattern.
   const [showContext, setShowContext] = useState(true);
   const [openSections, setOpenSections] = useState({ outline: true, linked: true, unlinked: false });
@@ -212,12 +215,28 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     setPanelView("note");
   };
 
-  // Jump to a note by id — what the backlink and unlinked-mention entries call. Silently no-ops on an
-  // id that has since been deleted rather than clearing the panel out from under the reader.
+  // Jump to a note by id — what the backlink, unlinked-mention, and quick-switcher entries call.
+  // Silently no-ops on an id that has since been deleted rather than clearing the panel out from under
+  // the reader.
   const openNoteById = (id: string) => {
     const target = notes.find((n) => n.id === id);
     if (target) selectNote(target);
   };
+
+  // Ctrl/Cmd+O opens the quick switcher, matching Obsidian. A window listener rather than a handler on
+  // the container: a container handler only fires when focus is already inside it, so it would miss the
+  // common case of nothing being focused. Scoped by mount instead — NotesTab is only mounted while the
+  // Notes tab is showing, so the binding can't leak into the rest of the course view.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        setSwitcherOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Open the note-free tag view: every note carrying #tag, listed (never creates a note).
   const openTagView = (tag: string) => {
@@ -488,6 +507,13 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   return (
     <div className="flex h-full min-h-0">
+      <QuickSwitcher
+        open={switcherOpen}
+        notes={notes}
+        onClose={() => setSwitcherOpen(false)}
+        onSelect={openNoteById}
+      />
+
       {/* ── Sidebar ── */}
       <div className="w-64 border-r border-[var(--rule)] bg-panel flex flex-col shrink-0">
         <div className="p-2.5 border-b border-[var(--rule)] flex gap-1.5">
