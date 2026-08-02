@@ -22,9 +22,14 @@
 <h1>Buttons</h1>
 <p class="ds-lede">One geometry: <code>2px</code> radius, mono type at <code>.78rem</code>,
 <code>.04em</code> tracking, a top-lit gradient, and a phosphor bloom on hover. Primary differs from
-secondary by accent border and inner glow — <strong>not</strong> by a solid fill, which is why the label
-stays <code>var(--phosphor)</code> and never <code>white</code>. A white label would survive the CRT
-themes and then fail on Light.</p>
+secondary by accent border and inner glow — <strong>not</strong> by a solid fill.</p>
+
+<p class="ds-note" style="margin-bottom:18px">Because the fill is an 18% wash of the accent itself, the
+label is <code>var(--phosphor-bright)</code>, not <code>var(--phosphor)</code>. Measured against the
+composited fill, bright wins on every theme, and on Light it is the difference between <strong>4.01
+(fails WCAG AA)</strong> and <strong>4.88 (passes)</strong>. Worst case across all eleven themes is
+4.88. Note Light inverts the polarity — its "bright" is the <em>darker</em> <code>#0a5cc2</code> — so
+the token name reads backwards there while the contrast still improves.</p>
 
 <h2>Variants</h2>
 <div class="grid2">

@@ -89,3 +89,25 @@ border communicates selection.
 - **There are zero `focus-visible` rules in `src/`.** The design system's Interaction States card
   proposes one. This matters more than it looks for an app aimed at shared school hardware, where a
   broken or missing mouse is ordinary.
+
+---
+
+## Correction — the `text-white` claim above was wrong
+
+An earlier revision of this file said 28 hardcoded `text-white` usages would render white-on-light-accent
+under the Light theme. **They wouldn't.** `.btn-primary` is unlayered CSS in `index.css`, and Tailwind
+utilities live in `@layer utilities`, which loses the cascade — so `.btn-primary`'s own `color` always
+won and those buttons never rendered white on any theme:
+
+```
+btn-primary + text-white  →  rgb(0, 198, 255)      (identical to btn-primary alone)
+text-white alone          →  rgb(255, 255, 255)
+```
+
+The 24 `text-white` classes on `.btn-primary` elements were inert, and are removed as dead code rather
+than as a bug fix. The three on solid `bg-red-600` / `bg-green-600` buttons are correct and stay.
+
+**A real problem was hiding behind it, though.** `.btn-primary` put `var(--phosphor)` on an 18% wash of
+that same accent. Measured against the composited fill, Light came out at **4.01 — below WCAG AA**.
+Switching the label to `var(--phosphor-bright)` fixes it (4.88) and improves every other theme too.
+Worst case across all eleven is now 4.88.
