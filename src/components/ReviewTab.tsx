@@ -119,7 +119,7 @@ export default function ReviewTab({ courseId, level }: ReviewTabProps) {
             <button
               onClick={addCard}
               disabled={!front.trim() || !back.trim()}
-              className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-40 transition-colors"
+              className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-40 transition-colors"
             >
               Add card
             </button>
@@ -161,7 +161,7 @@ export default function ReviewTab({ courseId, level }: ReviewTabProps) {
               {!revealed ? (
                 <button
                   onClick={() => setRevealed(true)}
-                  className="w-full px-4 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
+                  className="w-full px-4 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
                 >
                   Show answer
                 </button>

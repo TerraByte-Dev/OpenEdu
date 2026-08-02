@@ -255,7 +255,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             }
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
               isCurrentLevel && viewingSyllabus && !isComplete
-                ? "btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white"
+                ? "btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)]"
                 : "bg-panel-lite text-[var(--ink-faint)] cursor-not-allowed"
             }`}
           >
@@ -408,7 +408,7 @@ function SyllabusView({
             <div className="flex items-center gap-3 mb-3">
               <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                 syllabus.level === currentLevel
-                  ? "btn-primary text-white"
+                  ? "btn-primary"
                   : syllabus.level < currentLevel
                   ? "bg-green-700/40 text-green-300"
                   : "bg-lcd text-[var(--ink-faint)]"
@@ -469,7 +469,7 @@ function SyllabusView({
                 <button
                   onClick={onRegenerate}
                   disabled={regenerating}
-                  className="px-5 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
+                  className="px-5 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-50 transition-colors"
                 >
                   {regenerating ? "Generating..." : "Generate Syllabus Now"}
                 </button>

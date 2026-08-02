@@ -93,7 +93,7 @@ export default function OverviewTab({
             <button
               onClick={onRegenerate}
               disabled={regenerating}
-              className="px-5 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
+              className="px-5 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {regenerating ? "Generating..." : "Generate Syllabus Now"}
             </button>

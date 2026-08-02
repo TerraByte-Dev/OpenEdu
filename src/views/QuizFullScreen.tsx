@@ -233,7 +233,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
+            className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
           >
             Return to Course
           </button>
@@ -356,7 +356,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               <button
                 onClick={() => setCurrentIndex((prev) => prev + 1)}
                 disabled={!answeredCurrent}
-                className="px-5 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-40 transition-colors"
+                className="px-5 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-40 transition-colors"
               >
                 Next →
               </button>

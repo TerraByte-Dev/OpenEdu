@@ -87,7 +87,7 @@ export default function NextStepCard({
             {s.action && (
               <button
                 onClick={s.action}
-                className="px-3 py-1.5 rounded-lg btn-primary text-white text-xs font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors shrink-0"
+                className="px-3 py-1.5 rounded-lg btn-primary text-xs font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors shrink-0"
               >
                 {s.actionLabel ?? "Open"}
               </button>

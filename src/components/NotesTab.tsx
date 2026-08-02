@@ -491,7 +491,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
       {/* ── Sidebar ── */}
       <div className="w-64 border-r border-[var(--rule)] bg-panel flex flex-col shrink-0">
         <div className="p-2.5 border-b border-[var(--rule)] flex gap-1.5">
-          <button onClick={() => handleNewNote(null)} className="flex-1 px-2 py-1.5 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-xs font-medium transition-colors flex items-center justify-center gap-1">
+          <button onClick={() => handleNewNote(null)} className="flex-1 px-2 py-1.5 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-xs font-medium transition-colors flex items-center justify-center gap-1">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
             Note
           </button>
@@ -500,7 +500,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           <button
             onClick={() => { saveIfDirty(); setPendingLink(null); setPanelView(panelView === "graph" ? "note" : "graph"); }}
             title="Toggle graph view"
-            className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${panelView === "graph" ? "btn-primary text-white" : "bg-lcd hover:bg-panel text-[var(--ink-faint)]"}`}
+            className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${panelView === "graph" ? "btn-primary" : "bg-lcd hover:bg-panel text-[var(--ink-faint)]"}`}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="5" cy="12" r="2.5" /><circle cx="19" cy="5" r="2.5" /><circle cx="19" cy="19" r="2.5" /><line x1="7.5" y1="12" x2="16.5" y2="6.5" /><line x1="7.5" y1="12" x2="16.5" y2="17.5" /></svg>
           </button>
@@ -735,7 +735,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                     No note titled <span className="font-mono text-phosphor-ink">“{pendingLink}”</span> yet.
                   </span>
                   <div className="flex-1" />
-                  <button onClick={createPendingNote} className="px-2 py-1 rounded btn-primary text-white text-[11px] font-medium shrink-0 flex items-center gap-1">
+                  <button onClick={createPendingNote} className="px-2 py-1 rounded btn-primary text-[11px] font-medium shrink-0 flex items-center gap-1">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
                     Create note
                   </button>

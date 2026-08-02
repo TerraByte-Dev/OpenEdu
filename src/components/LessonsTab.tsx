@@ -123,7 +123,7 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
                   <button
                     onClick={() => openFor(sub)}
                     disabled={isGenerating}
-                    className="px-3 py-1.5 rounded-lg btn-primary text-white text-xs font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 transition-colors shrink-0"
+                    className="px-3 py-1.5 rounded-lg btn-primary text-xs font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 transition-colors shrink-0"
                   >
                     {isGenerating ? "Writing…" : lesson ? "Open" : "Generate"}
                   </button>
