@@ -13,9 +13,10 @@ import {
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
 import { ingestResultSummary } from "../lib/ingest-format";
 import {
-  extractTags, findWikiLinks, resolveWikiLink, linkKey,
+  extractTags, resolveWikiLink, linkKey,
   buildVaultGraph, buildTagIndex,
-  type GraphNode, type GraphNodeKind,
+  buildBacklinkIndex, findUnlinkedMentions, extractOutline,
+  type GraphNode, type GraphNodeKind, type Mention,
 } from "../lib/notebook-links";
 
 // Phosphor palette for the canvas graph (hex — the canvas API can't read CSS vars). Tag nodes use a
@@ -61,6 +62,54 @@ function FolderPlusGlyph({ size = 13, className = "" }: { size?: number; classNa
   );
 }
 
+// A collapsible section in the right-hand context panel. Count lives in the header so the panel can be
+// read at a glance while collapsed.
+function ContextSection({ title, count, open, onToggle, children }: {
+  title: string; count: number; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-[var(--rule)] last:border-b-0">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-left hover:bg-panel-lite/60 transition-colors"
+      >
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+          className={`shrink-0 text-[var(--ink-faint)] transition-transform ${open ? "rotate-90" : ""}`}>
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+        <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)] flex-1 min-w-0 truncate">{title}</span>
+        <span className="text-[10px] font-mono text-[var(--ink-faint)] shrink-0">{count}</span>
+      </button>
+      {open && <div className="pb-2">{children}</div>}
+    </div>
+  );
+}
+
+// One note's mentions: its title, then a line of context per occurrence. Context is plain text on
+// purpose — rendering the markdown here would make the panel compete with the editor for attention.
+function MentionGroup({ mention, onOpen }: { mention: Mention; onOpen: (id: string) => void }) {
+  return (
+    <div className="px-3 py-1.5">
+      <button
+        onClick={() => onOpen(mention.note.id)}
+        className="text-left text-[12px] text-phosphor-ink hover:text-phosphor-bright transition-colors truncate w-full"
+      >
+        {mention.note.title || "Untitled"}
+      </button>
+      {mention.contexts.map((c, i) => (
+        <button
+          key={i}
+          onClick={() => onOpen(mention.note.id)}
+          className="mt-1 block w-full text-left text-[11px] leading-snug text-[var(--ink-dim)] hover:text-ink
+                     border-l-2 border-[var(--rule)] hover:border-phosphor/50 pl-2 transition-colors"
+        >
+          {c}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 // Course-wide Obsidian-like vault (Phase 3): one note tree per course, organized into nested
 // folders. Every note is searchable — imported files become notes, and notes re-index on save.
@@ -84,6 +133,13 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const [pendingLink, setPendingLink] = useState<string | null>(null); // missing [[link]] awaiting explicit create
   const [docResults, setDocResults] = useState<NotebookSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
+
+  // Right-hand context panel (outline + backlinks), the Obsidian right-sidebar pattern.
+  const [showContext, setShowContext] = useState(true);
+  const [openSections, setOpenSections] = useState({ outline: true, linked: true, unlinked: false });
+  const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
+  // Bumped on every outline click so clicking the same heading twice still scrolls to it.
+  const [reveal, setReveal] = useState<{ line: number; nonce: number } | null>(null);
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -154,6 +210,13 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     setEditContent(note.content);
     setPendingLink(null);
     setPanelView("note");
+  };
+
+  // Jump to a note by id — what the backlink and unlinked-mention entries call. Silently no-ops on an
+  // id that has since been deleted rather than clearing the panel out from under the reader.
+  const openNoteById = (id: string) => {
+    const target = notes.find((n) => n.id === id);
+    if (target) selectNote(target);
   };
 
   // Open the note-free tag view: every note carrying #tag, listed (never creates a note).
@@ -320,6 +383,12 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   // Normalized titles of every note — lets the editor style [[links]] to missing notes as "missing".
   const existingTitles = useMemo(() => new Set(notes.map((n) => linkKey(n.title))), [notes]);
+  // Display titles for [[ autocomplete. Excludes the open note (linking a note to itself is noise)
+  // and anything untitled, which would offer a blank row.
+  const noteTitles = useMemo(
+    () => notes.filter((n) => n.id !== selectedNote?.id && n.title.trim()).map((n) => n.title),
+    [notes, selectedNote],
+  );
 
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -330,11 +399,20 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     });
   }, [notes, query, activeTag]);
 
-  const backlinks = useMemo(() => {
-    if (!selectedNote) return [];
-    const key = linkKey(selectedNote.title);
-    return notes.filter((n) => n.id !== selectedNote.id && findWikiLinks(n.content).some((l) => linkKey(l.title) === key));
-  }, [notes, selectedNote]);
+  // Bidirectional linking, the half the UI was missing. Linked = someone wrote [[this]]; unlinked =
+  // someone said the title in prose. The first is a fact about the vault, the second a suggestion, so
+  // they are counted and shown separately rather than merged.
+  const backlinkIndex = useMemo(() => buildBacklinkIndex(notes), [notes]);
+  const linkedMentions = useMemo(
+    () => (selectedNote ? backlinkIndex.get(selectedNote.id) ?? [] : []),
+    [backlinkIndex, selectedNote],
+  );
+  const unlinkedMentions = useMemo(
+    () => (selectedNote ? findUnlinkedMentions(selectedNote, notes) : []),
+    [notes, selectedNote],
+  );
+  // Derived from the live buffer, not the saved note, so the outline tracks what you are typing.
+  const outline = useMemo(() => extractOutline(editContent), [editContent]);
 
   const graph = useMemo(() => buildVaultGraph(notes, folders), [notes, folders]);
 
@@ -635,6 +713,16 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleBlur} className="flex-1 bg-transparent text-ink font-semibold focus:outline-none min-w-0" placeholder="Note title..." />
                 {saving && <span className="text-[10px] text-[var(--ink-faint)] shrink-0">Saving…</span>}
                 {indexing && !saving && <span className="text-[10px] text-[var(--ink-faint)] shrink-0">Indexing…</span>}
+                <button
+                  onClick={() => setShowContext((v) => !v)}
+                  aria-pressed={showContext}
+                  className={`p-1.5 rounded transition-colors shrink-0 ${showContext ? "text-phosphor-bright bg-[rgb(var(--phosphor-rgb)/0.10)]" : "text-[var(--ink-faint)] hover:text-ink hover:bg-lcd"}`}
+                  title={showContext ? "Hide outline & backlinks" : "Show outline & backlinks"}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" />
+                  </svg>
+                </button>
                 <button onClick={handleDeleteNote} className="p-1.5 rounded hover:bg-red-500/20 text-[var(--ink-faint)] hover:text-red-400 transition-colors shrink-0" title="Delete note">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /></svg>
                 </button>
@@ -655,25 +743,65 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 </div>
               )}
 
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[var(--ink-faint)] text-sm">Loading editor…</div>}>
-                <MarkdownEditor
-                  doc={editContent}
-                  noteId={selectedNote.id}
-                  onChange={setEditContent}
-                  onBlur={handleBlur}
-                  onWikiLinkClick={handleWikiLinkNav}
-                  onTagClick={openTagView}
-                  existingTitles={existingTitles}
-                />
-              </Suspense>
-              {backlinks.length > 0 && (
-                <div className="border-t border-[var(--rule)] px-5 py-3 shrink-0">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] mb-1.5">{backlinks.length} linked mention{backlinks.length === 1 ? "" : "s"}</div>
-                  <div className="flex flex-col gap-1">
-                    {backlinks.map((b) => (<button key={b.id} onClick={() => selectNote(b)} className="text-left text-xs text-phosphor-ink hover:text-phosphor-bright truncate">← {b.title}</button>))}
-                  </div>
-                </div>
-              )}
+              <div className="flex-1 flex min-h-0">
+                <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[var(--ink-faint)] text-sm">Loading editor…</div>}>
+                  <MarkdownEditor
+                    doc={editContent}
+                    noteId={selectedNote.id}
+                    onChange={setEditContent}
+                    onBlur={handleBlur}
+                    onWikiLinkClick={handleWikiLinkNav}
+                    onTagClick={openTagView}
+                    existingTitles={existingTitles}
+                    noteTitles={noteTitles}
+                    revealLine={reveal}
+                  />
+                </Suspense>
+
+                {showContext && (
+                  <aside className="w-60 shrink-0 border-l border-[var(--rule)] bg-panel/40 overflow-y-auto">
+                    <ContextSection title="Outline" count={outline.length} open={openSections.outline} onToggle={() => toggleSection("outline")}>
+                      {outline.length === 0 ? (
+                        <p className="px-3 text-[11px] text-[var(--ink-faint)] leading-snug">
+                          No headings yet. Start a line with <code className="text-phosphor-ink">#</code>.
+                        </p>
+                      ) : (
+                        outline.map((h, i) => (
+                          <button
+                            key={`${h.line}-${i}`}
+                            onClick={() => setReveal({ line: h.line, nonce: Date.now() })}
+                            style={{ paddingLeft: `${12 + (h.level - 1) * 10}px` }}
+                            className="w-full text-left pr-3 py-[3px] text-[11.5px] leading-snug text-[var(--ink-dim)]
+                                       hover:text-phosphor-bright hover:bg-panel-lite/60 transition-colors truncate"
+                          >
+                            {h.text}
+                          </button>
+                        ))
+                      )}
+                    </ContextSection>
+
+                    <ContextSection title="Linked mentions" count={linkedMentions.length} open={openSections.linked} onToggle={() => toggleSection("linked")}>
+                      {linkedMentions.length === 0 ? (
+                        <p className="px-3 text-[11px] text-[var(--ink-faint)] leading-snug">
+                          Nothing links here yet. Write <code className="text-phosphor-ink">[[{selectedNote.title || "…"}]]</code> in another note.
+                        </p>
+                      ) : (
+                        linkedMentions.map((m) => <MentionGroup key={m.note.id} mention={m} onOpen={openNoteById} />)
+                      )}
+                    </ContextSection>
+
+                    <ContextSection title="Unlinked mentions" count={unlinkedMentions.length} open={openSections.unlinked} onToggle={() => toggleSection("unlinked")}>
+                      {unlinkedMentions.length === 0 ? (
+                        <p className="px-3 text-[11px] text-[var(--ink-faint)] leading-snug">
+                          No note mentions this title in prose.
+                        </p>
+                      ) : (
+                        unlinkedMentions.map((m) => <MentionGroup key={m.note.id} mention={m} onOpen={openNoteById} />)
+                      )}
+                    </ContextSection>
+                  </aside>
+                )}
+              </div>
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[var(--ink-faint)]">

@@ -12,8 +12,12 @@
 import type { Note, NotebookFolder } from "../types";
 
 // ── Syntax ────────────────────────────────────────────────────────────────────
-// A [[wiki link]] is any run of non-"]" characters between double brackets.
-export const WIKI_LINK_RE = /\[\[([^\]]+)\]\]/g;
+// A [[wiki link]] is any run of non-"]" characters between double brackets, ON ONE LINE.
+// The newline exclusion is load-bearing: without it a stray unclosed "[[" swallows every character up
+// to the next "]]" anywhere later in the document, so one typo silently invents a link — with a title
+// containing paragraphs — that then shows up in the graph, in backlinks, and as a giant underline in
+// the editor. Obsidian doesn't let a link span lines either.
+export const WIKI_LINK_RE = /\[\[([^\]\n]+)\]\]/g;
 // A #tag is "#" + a letter-led word ([A-Za-z][\w-]*) that sits at the start of the text
 // or right after whitespace — so "C#", "a#b", and "#1" are deliberately NOT tags.
 export const TAG_RE = /(?:^|\s)#([A-Za-z][\w-]*)/g;
@@ -102,6 +106,162 @@ export function buildTagIndex<T extends { content: string }>(notes: readonly T[]
     }
   }
   return idx;
+}
+
+// ── Backlinks ─────────────────────────────────────────────────────────────────
+// The half of bidirectional linking the UI was missing: a note knowing who points AT it. Obsidian
+// splits this in two, and the distinction matters — a LINKED mention is an explicit [[link]] someone
+// wrote, an UNLINKED mention is a note that happens to say the title in prose. The first is a fact
+// about the vault; the second is a suggestion.
+
+export interface Mention {
+  /** The note doing the mentioning. */
+  note: Note;
+  /** One entry per occurrence — the line it appears on, trimmed. */
+  contexts: string[];
+}
+
+/** How much of a long context line to keep on each side of the mention. */
+const CONTEXT_PAD = 90;
+
+/** The line `offset` falls on, trimmed, and elided around the hit when the line is long. */
+function contextAt(content: string, offset: number, hitLen: number): string {
+  let start = content.lastIndexOf("\n", offset - 1) + 1;
+  let end = content.indexOf("\n", offset);
+  if (end === -1) end = content.length;
+
+  const relStart = offset - start;
+  let line = content.slice(start, end);
+  let prefix = "";
+  let suffix = "";
+
+  if (relStart > CONTEXT_PAD) {
+    line = line.slice(relStart - CONTEXT_PAD);
+    prefix = "…";
+  }
+  const cut = (prefix ? CONTEXT_PAD : relStart) + hitLen + CONTEXT_PAD;
+  if (line.length > cut) {
+    line = line.slice(0, cut);
+    suffix = "…";
+  }
+  return (prefix + line.trim() + suffix).trim();
+}
+
+/**
+ * noteId -> the notes containing an explicit [[link]] that resolves to it.
+ * Self-links are ignored (a note listing itself as a backlink is noise, and Obsidian does the same).
+ */
+export function buildBacklinkIndex(notes: readonly Note[]): Map<string, Mention[]> {
+  const byKey = new Map<string, Note>();
+  for (const n of notes) byKey.set(linkKey(n.title), n);
+
+  const out = new Map<string, Mention[]>();
+  for (const source of notes) {
+    // Group this source's hits per target so a note linking three times is ONE entry with three
+    // contexts, not three entries.
+    const perTarget = new Map<string, string[]>();
+    for (const { title, start } of findWikiLinks(source.content)) {
+      const target = byKey.get(linkKey(title));
+      if (!target || target.id === source.id) continue;
+      const bucket = perTarget.get(target.id) ?? perTarget.set(target.id, []).get(target.id)!;
+      bucket.push(contextAt(source.content, start, title.length + 4));
+    }
+    for (const [targetId, contexts] of perTarget) {
+      (out.get(targetId) ?? out.set(targetId, []).get(targetId)!).push({ note: source, contexts });
+    }
+  }
+  return out;
+}
+
+/** Titles shorter than this are skipped for unlinked mentions — "AI" would match half the vault. */
+export const MIN_MENTION_TITLE = 3;
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Notes that say `target.title` in prose without linking it. Occurrences already inside [[...]] are
+ * excluded — those are linked mentions and would otherwise be double-counted.
+ *
+ * Deliberately conservative: whole-word match only, and titles under MIN_MENTION_TITLE characters are
+ * skipped entirely. A suggestion that fires constantly is worse than one that never fires.
+ */
+export function findUnlinkedMentions(target: Note, notes: readonly Note[]): Mention[] {
+  const title = target.title.trim();
+  if (title.length < MIN_MENTION_TITLE) return [];
+
+  // \b is wrong for titles ending in punctuation, so bound on non-word characters explicitly.
+  const re = new RegExp(`(?<![\\w-])${escapeRe(title)}(?![\\w-])`, "gi");
+  const out: Mention[] = [];
+
+  for (const source of notes) {
+    if (source.id === target.id) continue;
+
+    // Mask every [[...]] span so a linked mention can't also count as an unlinked one. Replace with
+    // same-length filler to keep offsets aligned with the original content.
+    let masked = source.content;
+    for (const { start, end } of findWikiLinks(source.content)) {
+      masked = masked.slice(0, start) + " ".repeat(end - start) + masked.slice(end);
+    }
+
+    const contexts: string[] = [];
+    for (let m = re.exec(masked); m; m = re.exec(masked)) {
+      contexts.push(contextAt(source.content, m.index, m[0].length));
+    }
+    re.lastIndex = 0;
+    if (contexts.length) out.push({ note: source, contexts });
+  }
+  return out;
+}
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+
+/**
+ * The partial title being typed inside an unclosed `[[`, or null when the caret isn't in one.
+ * `before` is the document text up to the caret (callers pass a bounded slice).
+ *
+ * Lives here rather than in the editor so the matching rule is testable without a CodeMirror instance —
+ * it is the part most likely to be subtly wrong.
+ */
+export function wikiLinkPrefix(before: string): string | null {
+  // No "]", "[" or newline between the "[[" and the caret: a completed [[link]], a fresh "[[", or a
+  // line break all end the candidate.
+  const m = /\[\[([^\][\n]*)$/.exec(before);
+  return m ? m[1] : null;
+}
+
+// ── Outline ───────────────────────────────────────────────────────────────────
+
+export interface OutlineItem {
+  /** 1–6, from the number of leading "#". */
+  level: number;
+  text: string;
+  /** 0-based line index, so clicking can scroll the editor to it. */
+  line: number;
+}
+
+/**
+ * The heading tree of a note, in document order. Fenced code blocks are skipped — a "# comment" inside
+ * a shell snippet is not a heading, and treating it as one puts junk in the outline.
+ */
+export function extractOutline(content: string): OutlineItem[] {
+  const out: OutlineItem[] = [];
+  let fence: string | null = null;
+
+  content.split(/\r?\n/).forEach((raw, line) => {
+    const fenceMatch = /^\s{0,3}(`{3,}|~{3,})/.exec(raw);
+    if (fenceMatch) {
+      // A fence closes only with the same character, and at least as many of them.
+      if (fence === null) fence = fenceMatch[1][0];
+      else if (fenceMatch[1][0] === fence) fence = null;
+      return;
+    }
+    if (fence !== null) return;
+
+    const h = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(raw);
+    if (h) out.push({ level: h[1].length, text: h[2].trim(), line });
+  });
+
+  return out;
 }
 
 // ── Vault graph ────────────────────────────────────────────────────────────────
