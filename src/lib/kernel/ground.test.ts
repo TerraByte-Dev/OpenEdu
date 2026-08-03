@@ -92,6 +92,35 @@ describe("selectHits", () => {
   it("treats the floor as inclusive", () => {
     expect(selectHits([hit({ score: MIN_NOTE_SCORE })])).toHaveLength(1);
   });
+
+  // A library card is pinned just above the floor while notes reach 0.9, so on pure rank the
+  // verified material loses every time there are three decent notes. It is the one passage the model
+  // is allowed to trust; it gets a seat.
+  it("reserves a slot for verified reference material", () => {
+    const strongNotes = [0.95, 0.9, 0.85].map((score, i) => hit({ score, ref: `doc-${i}` }));
+    const reference = hit({ source: "library", score: 0.5, ref: "lib:x", title: "Periodic Table" });
+    const out = selectHits([...strongNotes, reference]);
+    expect(out).toHaveLength(3);
+    expect(out.some((h) => h.source === "library")).toBe(true);
+    // ...by displacing the WEAKEST note, not the strongest.
+    expect(out.map((h) => h.score)).toContain(0.95);
+    expect(out.map((h) => h.score)).toContain(0.9);
+    expect(out.map((h) => h.score)).not.toContain(0.85);
+  });
+
+  it("does not manufacture a reference slot when no card qualifies", () => {
+    const notes = [0.95, 0.9, 0.85].map((score, i) => hit({ score, ref: `doc-${i}` }));
+    expect(selectHits(notes)).toHaveLength(3);
+    expect(selectHits(notes).every((h) => h.source === "note")).toBe(true);
+  });
+
+  it("leaves a reference that already made the cut alone", () => {
+    const out = selectHits([
+      hit({ score: 0.95, ref: "doc-0" }),
+      hit({ source: "library", score: 0.5, ref: "lib:x" }),
+    ]);
+    expect(out.filter((h) => h.source === "library")).toHaveLength(1);
+  });
 });
 
 // The distinction that broke the first clean eval run: "nothing survived the floor" and "the corpus
@@ -113,7 +142,7 @@ describe("formatGroundingBlock", () => {
   it("emits plain labelled text with no JSON, ids, or scores", () => {
     const out = formatGroundingBlock([hit()], 1000);
     expect(out).toContain("<context>");
-    expect(out).toContain("From the student's notes: Cells");
+    expect(out).toContain("[STUDENT NOTE: Cells]");
     expect(out).toContain("powerhouse");
     // The tool path leaked UUIDs and floats into the window; this must not.
     expect(out).not.toContain("doc-1");
@@ -123,13 +152,40 @@ describe("formatGroundingBlock", () => {
 
   it("carries the grounding instruction next to the evidence", () => {
     const out = formatGroundingBlock([hit()], 1000);
-    expect(out).toMatch(/say which title it came from/i);
+    expect(out).toMatch(/name the title you drew on/i);
     expect(out).toMatch(/general knowledge/i);
   });
 
-  it("labels library passages distinctly from notes", () => {
-    const out = formatGroundingBlock([hit({ source: "library", title: "Periodic Table" })], 1000);
-    expect(out).toContain("From the OpenEdu Library: Periodic Table");
+  it("labels reference and student material distinctly", () => {
+    const both = formatGroundingBlock(
+      [hit({ source: "library", title: "Periodic Table", ref: "lib:pt" }), hit()],
+      2000,
+    );
+    expect(both).toContain("[REFERENCE: Periodic Table]");
+    expect(both).toContain("[STUDENT NOTE: Cells]");
+  });
+
+  // The distinction that matters: a reference is true, a note is only what the student believes.
+  // Without this the tutor repeats a student's own misconception back with a citation attached,
+  // which makes the mistake look verified.
+  it("tells the model how much to trust each corpus", () => {
+    const both = formatGroundingBlock(
+      [hit({ source: "library", title: "Periodic Table", ref: "lib:pt" }), hit()],
+      2000,
+    );
+    expect(both).toMatch(/REFERENCE passages are verified/i);
+    expect(both).toMatch(/may be incomplete or mistaken/i);
+    expect(both).toMatch(/gently correct it/i);
+  });
+
+  it("only describes the corpora actually present", () => {
+    const notesOnly = formatGroundingBlock([hit()], 1000);
+    expect(notesOnly).toMatch(/STUDENT NOTE passages/i);
+    expect(notesOnly).not.toMatch(/REFERENCE passages are verified/i);
+
+    const refOnly = formatGroundingBlock([hit({ source: "library", ref: "lib:x" })], 1000);
+    expect(refOnly).toMatch(/REFERENCE passages are verified/i);
+    expect(refOnly).not.toMatch(/STUDENT NOTE passages/i);
   });
 
   it("never exceeds the grounding budget", () => {

@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
-import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite } from "../lib/db";
+import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite, countDueFlashcards } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
+import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, type TutorTurn, type ToolUIEvent, type Suggestion } from "../lib/kernel";
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
@@ -36,7 +36,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [chatError, setChatError] = useState("");
-  const [activeMode, setActiveMode] = useState<TutorModeId>("explain");
+  // The teaching mode for the NEXT turn. Set by tapping a chip that carries one; reset to the neutral
+  // default after every send. There is no mode bar any more — asking the student to classify their
+  // own intent before they have asked their question was the one thing they came for help with.
+  // Persistent pedagogy lives on the persona instead (the WHO axis), so this is a per-turn override.
+  const [pendingMode, setPendingMode] = useState<TutorModeId | null>(null);
+  const activeMode: TutorModeId = pendingMode ?? "explain";
   // Phase 4b persona (WHO axis). Local mirror of course.sprite_id so a mid-course switch reflects
   // immediately; written through to the DB on switch. resolvePersona maps it to a persona skill.
   const [spriteId, setSpriteId] = useState<string | null>(course.sprite_id ?? null);
@@ -50,6 +55,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Whether the LAST answer was actually grounded in retrieved material. Derived from n-gram overlap
   // (kernel `groundedIn`), never from the model claiming it — so this cannot be a fabricated citation.
   const [groundingNote, setGroundingNote] = useState<{ kind: "grounded"; titles: string[] } | { kind: "ungrounded" } | null>(null);
+  // Follow-up chips for the just-finished turn. Derived deterministically from turn state — no model
+  // call — so they cost nothing on a CPU box. Cleared on send.
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
   const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
   const askResolverRef = useRef<((value: string) => void) | null>(null);
@@ -70,7 +78,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Keep the local persona in sync if the course (or its persisted sprite) changes under us.
   useEffect(() => { setSpriteId(course.sprite_id ?? null); }, [course.id, course.sprite_id]);
 
-  const switchPersona = async (id: string) => {
+  // `null` clears the persona entirely — the tutor falls back to the course's generated identity and
+  // no character voice is injected at all. The whole data path already supported null
+  // (setCourseSprite, resolvePersona, buildSystemPrompt); only the picker had no way to say it, so a
+  // student who did not want a character was stuck with one.
+  const switchPersona = async (id: string | null) => {
     setSpriteId(id);
     setPersonaPickerOpen(false);
     try { await setCourseSprite(courseId, id); } catch (e) { console.error("[persona] failed to persist sprite", e); }
@@ -196,6 +208,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setStreamingText("");
     setToolEvents([]);
     setGroundingNote(null);
+    setSuggestions([]);
+    setPendingMode(null); // consumed by this turn
 
     const turn: TutorTurn = {
       messages: llmMessages,
@@ -230,7 +244,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     try {
       const result = await tutorEngine.run(turn, ctx);
-      const partial = result.stopReason === "aborted" || result.stopReason === "stalled" || result.stopReason === "length";
+      // Three different things, previously collapsed into one flag. "abandoned" means the student
+      // stopped it or the stream died; "truncated" means the model ran out of room mid-sentence but
+      // what it did say is usable. Only the first should suppress follow-ups.
+      const abandoned = result.stopReason === "aborted" || result.stopReason === "stalled";
+      const truncated = result.stopReason === "length";
+      const partial = abandoned || truncated;
       if (result.text.trim()) {
         // Persist an interrupted reply WITH a marker rather than silently as a finished answer.
         // Two bugs met here before #86: a stall left `controller.signal.aborted` false, so a truncated
@@ -265,6 +284,19 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       } else {
         setGroundingNote(null);
       }
+      // Follow-up chips. `countDueFlashcards` is a cheap indexed count and the only I/O here; if it
+      // fails the chips just lose one option rather than the turn losing its suggestions.
+      const due = await countDueFlashcards(courseId, new Date().toISOString()).catch(() => 0);
+      setSuggestions(suggestFollowUps({
+        answer: result.text,
+        syllabus: currentSyllabus,
+        hits: result.grounding.hits,
+        usedHits: result.usedHits,
+        dueFlashcards: due,
+        abandoned,
+        truncated,
+      }));
+
       if (result.stopReason === "stalled") {
         setChatError("The model stopped sending output. If this keeps happening on a local model, it may be short on memory — try a smaller model or a smaller context window in Settings.");
       }
@@ -302,6 +334,17 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           <>
             <div className="fixed inset-0 z-10" onClick={() => setPersonaPickerOpen(false)} />
             <div className="absolute left-3 top-full z-20 mt-1 w-64 rounded-lg border border-[var(--rule)] bg-panel-lite shadow-xl p-1.5">
+              <button
+                type="button"
+                onClick={() => switchPersona(null)}
+                className={`flex items-start gap-2 w-full text-left p-1.5 rounded-md hover:bg-panel ${spriteId === null ? "bg-panel" : ""}`}
+              >
+                <span className="w-9 h-9 shrink-0 rounded-md border border-[var(--rule)] bg-lcd flex items-center justify-center text-[var(--ink-faint)] text-xs">—</span>
+                <span className="min-w-0">
+                  <span className="block text-xs text-phosphor-bright">No persona</span>
+                  <span className="block text-[10px] text-[var(--ink-faint)] leading-snug">Just the tutor. No character voice.</span>
+                </span>
+              </button>
               {SPRITE_PERSONAS.map((p) => (
                 <button
                   key={p.id}
@@ -366,6 +409,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         )}
         {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />}
         {!streaming && groundingNote && <GroundingNote note={groundingNote} />}
+        {!streaming && !askPending && !confirmPending && suggestions.length > 0 && (
+          <SuggestionChips
+            suggestions={suggestions}
+            onPick={(s) => { setInput(s.message); setPendingMode(s.mode ?? null); inputRef.current?.focus(); }}
+          />
+        )}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
         )}
@@ -382,24 +431,22 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
       {/* Input */}
       <div className="p-4 border-t border-[var(--rule)] bg-panel">
-        {/* Mode selector */}
-        <div className="flex gap-1 max-w-3xl mx-auto mb-2.5">
-          {TUTOR_MODES.map((mode) => (
+        {/* A chip that carried a teaching mode says so, and can be taken back off. Visible because an
+            invisible mode is indistinguishable from the tutor behaving oddly. */}
+        {pendingMode && (
+          <div className="flex max-w-3xl mx-auto mb-2.5">
             <button
-              key={mode.id}
-              onClick={() => setActiveMode(mode.id)}
-              title={mode.title}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                activeMode === mode.id
-                  ? "btn-primary/30 text-phosphor-bright border border-phosphor/40"
-                  : "text-[var(--ink-faint)] hover:text-[var(--ink-dim)] hover:bg-panel-lite"
-              }`}
+              type="button"
+              onClick={() => setPendingMode(null)}
+              title="Ask normally instead"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium btn-primary/30 text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
             >
-              <span>{mode.icon}</span>
-              <span>{mode.label}</span>
+              <span>{TUTOR_MODES.find((m) => m.id === pendingMode)?.icon}</span>
+              <span>{TUTOR_MODES.find((m) => m.id === pendingMode)?.label}</span>
+              <span className="text-[var(--ink-faint)]">✕</span>
             </button>
-          ))}
-        </div>
+          </div>
+        )}
         <div className="flex gap-3 max-w-3xl mx-auto">
           <input
             ref={inputRef}
@@ -462,6 +509,31 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             dangerouslySetInnerHTML={{ __html: renderChatMarkdown(message.content) }}
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+// Follow-up chips. Tapping one PREFILLS the input rather than sending immediately — the student can
+// edit it first, and a mis-tap costs nothing. That is the difference between a suggestion and a
+// button that spends 8 seconds of a CPU box's time on something you did not mean.
+function SuggestionChips({ suggestions, onPick }: { suggestions: Suggestion[]; onPick: (s: Suggestion) => void }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-8 h-8 shrink-0" />
+      <div className="flex-1 flex flex-wrap items-start gap-1.5">
+        {suggestions.map((s) => (
+          <button
+            key={s.message}
+            type="button"
+            onClick={() => onPick(s)}
+            title={s.message}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] border border-[var(--rule)] bg-panel-lite text-[var(--ink-dim)] hover:border-phosphor/50 hover:text-phosphor-bright hover:bg-panel transition-colors"
+          >
+            <span className="text-[var(--ink-faint)]">↳</span>
+            {s.label}
+          </button>
+        ))}
       </div>
     </div>
   );

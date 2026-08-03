@@ -155,6 +155,18 @@ export function selectHits(candidates: GroundingHit[], opts: { minScore?: number
     perDoc.set(hit.ref, seen + 1);
     out.push(hit);
   }
+
+  // Reserve one slot for verified reference material.
+  //
+  // A library card is pinned just above the note floor while a note can score 0.9, so on pure rank
+  // three strong notes crowd the reference out completely — and the two are not interchangeable.
+  // Notes tell us what the student believes; only the reference tells us what is true. Dropping the
+  // weakest note for a qualifying card costs the least relevant passage and buys the one passage the
+  // model is allowed to trust, which matters most in exactly the case where a note is wrong.
+  if (out.length === maxHits && !out.some((h) => h.source === "library")) {
+    const reference = ranked.find((h) => h.source === "library");
+    if (reference) out.splice(out.length - 1, 1, reference);
+  }
   return out;
 }
 
@@ -174,17 +186,13 @@ export function selectHits(candidates: GroundingHit[], opts: { minScore?: number
 export function formatGroundingBlock(hits: GroundingHit[], maxTokens: number): string {
   if (hits.length === 0) return "";
 
-  const header =
-    "Here are passages from the student's own material that may be relevant. " +
-    "If you use one, say which title it came from. " +
-    "If none of them answer the question, ignore them and say you are answering from general knowledge.";
+  const header = contextHeader(hits);
 
   const parts: string[] = [];
   let used = estTokens(header) + 8; // + framing tags
   for (const hit of hits) {
-    const label = hit.source === "note" ? "From the student's notes" : "From the OpenEdu Library";
     const body = capText(hit.text.trim(), MAX_HIT_TOKENS);
-    const piece = `[${label}: ${hit.title}]\n${body}`;
+    const piece = `[${hit.source === "note" ? "STUDENT NOTE" : "REFERENCE"}: ${hit.title}]\n${body}`;
     const cost = estTokens(piece) + 2;
     if (used + cost > maxTokens) break;
     used += cost;
@@ -192,6 +200,46 @@ export function formatGroundingBlock(hits: GroundingHit[], maxTokens: number): s
   }
   if (parts.length === 0) return "";
   return `<context>\n${header}\n\n${parts.join("\n\n")}\n</context>`;
+}
+
+/**
+ * The header, which now carries the thing that actually matters about these two corpora: they do NOT
+ * have the same epistemic status.
+ *
+ * A REFERENCE passage is curated course material — if it says something, it is true. A STUDENT NOTE
+ * is whatever the student wrote down, which might be a correct fact, a half-finished thought, a
+ * quote from an earlier tutor turn, or their own misconception recorded verbatim. Labelling both and
+ * explaining neither is how a tutor ends up authoritatively repeating a student's mistake back to
+ * them — the worst failure a grounded tutor has available, because the citation makes the error look
+ * verified.
+ *
+ * So notes are framed as EVIDENCE OF WHAT THE STUDENT BELIEVES rather than as source material. That
+ * is both more honest and better pedagogy: a note that conflicts with the reference is not noise to
+ * be averaged away, it is the most useful thing in the window.
+ *
+ * Only the corpora actually present are described, so a notes-only turn does not pay for reference
+ * framing it cannot use.
+ */
+function contextHeader(hits: GroundingHit[]): string {
+  const hasReference = hits.some((h) => h.source === "library");
+  const hasNotes = hits.some((h) => h.source === "note");
+  const lines = ["Background for this question:"];
+  if (hasReference) {
+    lines.push("- REFERENCE passages are verified course material. Treat them as correct.");
+  }
+  if (hasNotes) {
+    lines.push(
+      "- STUDENT NOTE passages are the student's own writing. They show what the student currently " +
+      "believes, which may be incomplete or mistaken. Use them to see where the student is — and if " +
+      "one conflicts with a REFERENCE passage or with established fact, gently correct it rather " +
+      "than repeating it back.",
+    );
+  }
+  lines.push(
+    "Name the title you drew on. If none of this answers the question, ignore it and say you are " +
+    "answering from general knowledge.",
+  );
+  return lines.join("\n");
 }
 
 // ── Pure stage 4: did the answer actually USE any of it? ─────────────────────
