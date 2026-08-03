@@ -149,6 +149,18 @@ export async function setRetrievalMode(mode: RetrievalMode): Promise<void> {
   await s.save();
 }
 
+// Onboarding tour (#92). Shown once; "seen" covers both completing and skipping it.
+export async function getTourSeen(): Promise<boolean> {
+  const s = await getStore();
+  return (await s.get<boolean>(STORE_KEYS.tourSeen)) ?? false;
+}
+
+export async function setTourSeen(seen: boolean): Promise<void> {
+  const s = await getStore();
+  await s.set(STORE_KEYS.tourSeen, seen);
+  await s.save();
+}
+
 export async function setTavilyApiKey(key: string): Promise<void> {
   const s = await getStore();
   await s.set(STORE_KEYS.tavilyApiKey, key.trim());

@@ -1830,6 +1830,94 @@ if (typeof window !== "undefined") {
 }
 
 // ─── Fetch available Ollama models ────────────────────────────────────────────
+// ─── Model download (first-run onboarding, #92) ───────────────────────────────
+// Without this the honest first instruction is "open a terminal and run ollama pull", which is where
+// most new users stop — and on the hardware this project aims at there may not be a terminal-literate
+// person in the building. /api/pull streams NDJSON progress, so the download is visible rather than a
+// frozen window.
+
+export interface PullProgress {
+  /** Ollama's own status line, e.g. "pulling manifest", "downloading sha256:…", "success". */
+  status: string;
+  /** 0..1 when Ollama reports byte counts; undefined during the manifest/verify phases. */
+  fraction?: number;
+  completedBytes?: number;
+  totalBytes?: number;
+}
+
+interface OllamaPullChunk {
+  status?: string;
+  error?: string;
+  total?: number;
+  completed?: number;
+}
+
+/**
+ * Pull a model, reporting progress. Resolves when the pull succeeds; throws with a useful message
+ * otherwise.
+ *
+ * Note this deliberately does NOT use the stall timer: a model pull is minutes of sustained transfer
+ * on a slow connection, and "no bytes for 30s" is a normal hiccup there rather than a hung stream.
+ * The caller's abort signal is the way out.
+ */
+export async function pullOllamaModel(
+  model: string,
+  ollamaUrl: string,
+  onProgress?: (p: PullProgress) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = normalizeBase(ollamaUrl || "http://127.0.0.1:11434");
+  log.info("pullOllamaModel", `POST ${base}/api/pull ${model}`);
+
+  let response: Awaited<ReturnType<typeof fetch>>;
+  try {
+    response = await fetch(`${base}/api/pull`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+      body: JSON.stringify({ model, stream: true }),
+      signal,
+    });
+  } catch (e) {
+    throw new Error(`Cannot reach Ollama at ${base}: ${networkAwareMessage(e)}`);
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Ollama could not start the download (${response.status}): ${text || "unknown error"}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("Ollama returned no download stream.");
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let sawSuccess = false;
+
+  while (true) {
+    const chunk = await readChunk(reader, signal ?? new AbortController().signal);
+    if (chunk.aborted) throw new Error("Download cancelled.");
+    if (chunk.done) break;
+    buffer += decoder.decode(chunk.value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      let json: OllamaPullChunk;
+      try { json = JSON.parse(line) as OllamaPullChunk; } catch { continue; }
+      // Ollama reports a failed pull in-band on a 200 response — a missing model name arrives here,
+      // not as an HTTP error, so this is the only place it can be caught.
+      if (json.error) throw new Error(json.error);
+      if (json.status === "success") sawSuccess = true;
+      onProgress?.({
+        status: json.status ?? "",
+        fraction: json.total && json.completed !== undefined ? json.completed / json.total : undefined,
+        completedBytes: json.completed,
+        totalBytes: json.total,
+      });
+    }
+  }
+
+  if (!sawSuccess) throw new Error(`Download of "${model}" ended without confirming success.`);
+}
+
 export async function getOllamaModels(ollamaUrl: string): Promise<{ models: string[]; error?: string }> {
   const base = normalizeBase(ollamaUrl || "http://127.0.0.1:11434");
   log.info("getOllamaModels", `GET ${base}/api/tags`);
