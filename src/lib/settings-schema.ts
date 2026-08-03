@@ -4,7 +4,7 @@
 
 import { THEMES } from "./theme";
 import {
-  PERMISSION_ROWS, PERMISSION_EDITABLE_MODES, DEFAULT_PERMISSION_RULES,
+  PERMISSION_ROWS, PERMISSION_PERSISTED_MODES, DEFAULT_PERMISSION_RULES,
   type PermissionDecision, type PermissionRules,
 } from "./permissions/rules";
 
@@ -39,7 +39,9 @@ export function sanitizeImportedPermissions(raw: unknown): PermissionRules | nul
     out[tool] = { ...DEFAULT_PERMISSION_RULES[tool] };
     const modes = src[tool];
     if (modes && typeof modes === "object" && !Array.isArray(modes)) {
-      for (const mode of PERMISSION_EDITABLE_MODES) {
+      // Persisted modes, not editable ones — an import must round-trip a rule set the editor
+      // does not currently surface (see PERMISSION_PERSISTED_MODES).
+      for (const mode of PERMISSION_PERSISTED_MODES) {
         const d = (modes as Record<string, unknown>)[mode];
         if (typeof d === "string" && DECISIONS.has(d)) {
           out[tool][mode] = d as PermissionDecision;

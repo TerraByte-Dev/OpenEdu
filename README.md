@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  <strong>An AI tutor designed for models as small as ~e4B.</strong><br/>
+  <strong>An AI tutor designed to stay reliable on small local models.</strong><br/>
   Bring-your-own-key, offline-first personalized learning — local on Ollama, with OpenAI / Anthropic as alternates.
 </p>
 
@@ -33,7 +33,8 @@
 
 OpenEdu generates a focused, 6-level curriculum for **any** topic, then tutors you through it — chat, quizzes,
 a notebook with retrieval, and promotion tests — entirely on a local model if you want. It's built to be
-**reliable on small models** (verified on `gemma4:e4b`, ~4B effective params) and to work with **no account
+**reliable on small models** — verified on `gemma4:e4b`, the smallest model it has been tested with
+(~4B effective at inference, ~7.5GB to download) — and to work with **no account
 and no network**: your data lives in a local SQLite database, and the only outbound calls are to the model
 provider you choose.
 

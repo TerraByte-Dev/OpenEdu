@@ -61,7 +61,7 @@ export default function Permissions() {
     <Section
       title="Tutor Permissions"
       description="What the tutor may do on its own. Pick a preset, or open Advanced for per-tool control. Allow runs automatically · Ask prompts you first · Deny blocks it."
-      keywords="permissions tutor preset standard cautious trusting allow ask deny exam study web code grid tool security"
+      keywords="permissions tutor preset standard cautious trusting allow ask deny web code grid tool security"
       right={
         <button
           onClick={() => applyPreset(PERMISSION_PRESETS[0].rules)}
@@ -105,7 +105,7 @@ export default function Permissions() {
       {/* Advanced per-tool grid */}
       <Disclosure summary="Advanced — per-tool control">
         <p className="text-xs text-[var(--ink-faint)] mb-3">
-          Exam mode applies during promotion tests; its locks keep model help out of assessments. Changes save automatically.
+          One row per thing the tutor can do. Changes save automatically.
         </p>
         <div className="rounded-lg border border-[var(--rule)] overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">

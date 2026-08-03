@@ -1,6 +1,10 @@
 # OpenEdu
 
-TerraByte's AI-powered tutoring app. Tauri v2 + React 19 + TypeScript + SQLite. Bring-your-own-key — runs offline-first on local Ollama, with cloud (OpenAI / Anthropic) as alternates. Target floor model: `gemma4:e4b` (~4B effective params).
+TerraByte's AI-powered tutoring app. Tauri v2 + React 19 + TypeScript + SQLite. Bring-your-own-key — runs offline-first on local Ollama, with cloud (OpenAI / Anthropic) as alternates.
+Smallest **verified** model: `gemma4:e4b`. It behaves like ~4B at inference (Matformer), but the download
+is ~7.5GB — size a machine from the download, not the effective parameter count. Nothing smaller has
+been tested, so anything below this is *untested*, not unsupported: the harness is built to degrade, and
+a smaller model may well work. There is no measured hardware floor.
 
 The repo is on GitHub under `TerraByte-Dev`.
 
@@ -50,7 +54,8 @@ Each L1–L5 syllabus is a two-stage generation:
 
 ## The agent harness — what makes generation reliable
 
-Verified working on `gemma4:e4b` (local Ollama, ~4B effective). The lessons that stuck:
+Verified working on `gemma4:e4b` (local Ollama, ~4B effective at inference). That is the smallest
+configuration anyone has run it on — not a floor anyone established. The lessons that stuck:
 
 1. **Decompose, don't dump.** Research is 5 small structured sub-calls (`subject_overview`, `knowledge_domains`, `progression`, `obstacles`, `prerequisites`) code-assembled into the markdown brief downstream consumers slice. A single free-text dump was unreliable on e4b.
 
