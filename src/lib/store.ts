@@ -3,6 +3,7 @@ import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel } from "./models";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
+import type { RetrievalMode } from "./kernel/ground";
 
 let store: Store | null = null;
 
@@ -129,6 +130,22 @@ export async function setMaxContextTokens(tokens: number): Promise<void> {
   const s = await getStore();
   const clamped = Math.min(Math.max(MIN_CONTEXT_TOKENS, Math.floor(tokens)), MAX_CONTEXT_TOKENS);
   await s.set(STORE_KEYS.maxContextTokens, clamped);
+  await s.save();
+}
+
+// Retrieval mode (#90). "always" is the default: the grounding stage runs before the model sees the
+// turn, which is what makes a small model ground reliably instead of having to choose to. "off"
+// falls back to notebook.search alone — kept so the eval can A/B the two mechanisms on one fixture,
+// which is the only way the falsification condition can be tested honestly.
+export async function getRetrievalMode(): Promise<RetrievalMode> {
+  const s = await getStore();
+  const v = await s.get<string>(STORE_KEYS.retrievalMode);
+  return v === "off" || v === "auto" || v === "always" ? v : "always";
+}
+
+export async function setRetrievalMode(mode: RetrievalMode): Promise<void> {
+  const s = await getStore();
+  await s.set(STORE_KEYS.retrievalMode, mode);
   await s.save();
 }
 

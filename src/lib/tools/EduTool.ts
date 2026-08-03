@@ -85,6 +85,14 @@ export interface EduTool<Input = unknown, Output = unknown> {
 
   // Optional: how the tool result renders inline in the chat surface.
   renderResult?: (output: Output) => ReactNode;
+
+  // Optional: how the result is serialized INTO THE MODEL'S CONTEXT. Defaults to JSON.stringify.
+  //
+  // These are two different audiences and they want different things. The UI wants the full object
+  // (ids to deep-link with, scores to rank by). The model wants prose it can answer from — every id
+  // and float it cannot act on is window spent on punctuation. Splitting them lets a tool serve both
+  // without the kernel special-casing any tool by name.
+  toModelText?: (output: Output) => string;
 }
 
 // Ergonomic constructor: infers `Input` from the zod inputSchema so a tool author declares

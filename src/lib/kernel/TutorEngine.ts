@@ -22,6 +22,7 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
+import { ground, groundedIn, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 
@@ -35,6 +36,10 @@ export interface TutorTurn {
   onText: (chunk: string) => void;
   // Progress chips / result cards for tool calls. Omit in headless contexts (eval).
   onToolEvent?: (ev: ToolUIEvent) => void;
+  // How retrieval behaves this turn. "always" (the default) runs the grounding stage before the model
+  // sees anything; "off" disables it and leaves notebook.search as the only path. Exposed so the
+  // eval can A/B the two mechanisms on the same fixture — the falsification condition needs both.
+  retrieval?: RetrievalMode;
 }
 
 export interface TutorTurnResult {
@@ -51,6 +56,12 @@ export interface TutorTurnResult {
   stopReason: "complete" | "aborted" | "stalled" | "length" | "max_iterations";
   // Budget telemetry for the dev readout / diagnostics.
   usage: { contextTokens: number; promptTokens: number; droppedMessages: number };
+  // What the grounding stage retrieved, and — crucially — which of it the answer DEMONSTRABLY reused.
+  // `usedHits` is computed by n-gram overlap, never by asking the model whether it used the notes, so
+  // a citation the student sees cannot be fabricated. Empty `usedHits` with non-empty `hits` is the
+  // honest "retrieved, but answered from general knowledge" case the UI must surface rather than hide.
+  grounding: Grounding;
+  usedHits: Grounding["hits"];
 }
 
 export class TutorEngine {
@@ -75,9 +86,38 @@ export class TutorEngine {
       else messages.unshift({ role: "system", content: manifest });
     }
 
+    // ── Grounding stage (#90) ────────────────────────────────────────────────────────────────────
+    // Retrieval runs HERE, before the model has any say in it. See ground.ts for why: asking a 4B
+    // model to choose to retrieve makes grounding the product of five probabilities; running it as a
+    // stage makes it 1.0. Capable models get the same context and keep notebook.search for a second
+    // hop, so this is not a small-model branch.
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const grounding = lastUser
+      ? await ground(lastUser.content, ctx, budget, turn.retrieval ?? "always")
+      : EMPTY_GROUNDING;
+
+    if (grounding.block && lastUser) {
+      // Merged into the FINAL USER TURN, not the system prompt. Two reasons, both load-bearing:
+      //   Attention — on a small model an instruction sitting next to its evidence is followed far
+      //     more reliably than the same instruction four sections up a ~1,200-token system prompt.
+      //   Prefix cache — Ollama and llama.cpp reuse KV across an unchanged prefix. The system message
+      //     and settled history are stable turn to turn; retrieved passages are not. Putting them in
+      //     the system prompt would invalidate the cached prefix on EVERY turn, and on a CPU box
+      //     prefill dominates. This keeps the expensive part cacheable.
+      const idx = messages.lastIndexOf(lastUser);
+      messages[idx] = { ...lastUser, content: `${grounding.block}
+
+${lastUser.content}` };
+    }
+    if (import.meta.env?.DEV) {
+      const t = grounding.trace;
+      console.info(`[ground] ${t.skipped ? `skipped: ${t.skipped}` : `${t.hitTitles.length} hit(s) — ${t.hitTitles.join(", ")}`} · ${t.candidates} candidate(s) · top ${t.topScore.toFixed(2)} · ${t.blockTokens} tok${t.error ? ` · ${t.error}` : ""}`);
+    }
+
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
-    // history rather than the student's current question.
-    let fit = fitMessages(messages, budget);
+    // history rather than the student's current question. The grounding block is charged to its own
+    // slice so it does not silently eat the history allowance.
+    let fit = fitMessages(messages, budget, { groundingUsed: grounding.trace.blockTokens });
     messages = fit.messages;
     let droppedTotal = fit.dropped;
     if (import.meta.env?.DEV) {
@@ -136,7 +176,9 @@ export class TutorEngine {
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         // Cap what goes back into context. The model sees a visible truncation marker rather than a
         // silently shortened result it would otherwise answer from with false confidence.
-        const payload = result.ok ? JSON.stringify(result.value ?? {}) : `ERROR: ${result.error}`;
+        const payload = result.ok
+          ? (result.modelText ?? JSON.stringify(result.value ?? {}))
+          : `ERROR: ${result.error}`;
         messages.push({
           role: "tool",
           name: call.name,
@@ -177,12 +219,20 @@ export class TutorEngine {
     const stopReason: TutorTurnResult["stopReason"] =
       interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally ? "complete" : "max_iterations");
 
+    // Which retrieved passages did the answer DEMONSTRABLY reuse? Computed by n-gram overlap, never
+    // by asking the model. This is what drives the citation chip, so a chip cannot be fabricated —
+    // and an empty result against non-empty hits is the honest "answered from general knowledge"
+    // case the UI is required to show rather than quietly drop.
+    const usedHits = groundedIn(streamedText, grounding.hits);
+
     return {
       text: streamedText,
       toolCalls,
       usedKnowledgeUpdate,
       stopReason,
       usage: { contextTokens: budget.total, promptTokens: fit.usage.total, droppedMessages: droppedTotal },
+      grounding,
+      usedHits,
     };
   }
 }

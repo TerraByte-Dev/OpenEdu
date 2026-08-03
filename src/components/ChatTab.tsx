@@ -3,7 +3,7 @@ import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../typ
 import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
-import { getChatConfig, getMaxContextTokens } from "../lib/store";
+import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, skillBundleLayer, personaIdentityLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
@@ -47,6 +47,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   useEffect(() => { ensureChatKatex().then(() => setKatexTick((t) => t + 1)); }, []);
   // Live tool activity for the current/just-finished turn (session-only; not persisted).
   const [toolEvents, setToolEvents] = useState<ToolUIEvent[]>([]);
+  // Whether the LAST answer was actually grounded in retrieved material. Derived from n-gram overlap
+  // (kernel `groundedIn`), never from the model claiming it — so this cannot be a fabricated citation.
+  const [groundingNote, setGroundingNote] = useState<{ kind: "grounded"; titles: string[] } | { kind: "ungrounded" } | null>(null);
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
   const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
   const askResolverRef = useRef<((value: string) => void) | null>(null);
@@ -192,10 +195,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setStreaming(true);
     setStreamingText("");
     setToolEvents([]);
+    setGroundingNote(null);
 
     const turn: TutorTurn = {
       messages: llmMessages,
       config,
+      retrieval: await getRetrievalMode(),
       onText: (chunk) => setStreamingText((prev) => prev + chunk),
       onToolEvent: (ev) => setToolEvents((prev) => [...prev.filter((e) => e.id !== ev.id), ev]),
     };
@@ -247,6 +252,18 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         if (!result.usedKnowledgeUpdate && !partial) {
           updateKnowledgeFiles(courseId, userText, result.text, config).catch(() => {});
         }
+      }
+      // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
+      // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
+      // tutor ends up looking like it read your notes when it didn't.
+      if (result.grounding.hits.length > 0) {
+        setGroundingNote(
+          result.usedHits.length > 0
+            ? { kind: "grounded", titles: [...new Set(result.usedHits.map((h) => h.title))] }
+            : { kind: "ungrounded" },
+        );
+      } else {
+        setGroundingNote(null);
       }
       if (result.stopReason === "stalled") {
         setChatError("The model stopped sending output. If this keeps happening on a local model, it may be short on memory — try a smaller model or a smaller context window in Settings.");
@@ -348,6 +365,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           </div>
         )}
         {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />}
+        {!streaming && groundingNote && <GroundingNote note={groundingNote} />}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
         )}
@@ -443,6 +461,36 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: renderChatMarkdown(message.content) }}
           />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Honest grounding readout (#90). Two states, both worth showing:
+//   grounded   — the answer demonstrably reused these passages (n-gram overlap, not the model's word)
+//   ungrounded — passages WERE retrieved and the answer used none of them
+// The second is the one that keeps the product honest. A tutor that silently drops it looks like it
+// read the student's notes on every turn, which on a small model it very often did not.
+function GroundingNote({ note }: { note: { kind: "grounded"; titles: string[] } | { kind: "ungrounded" } }) {
+  const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-mono border w-fit max-w-full";
+  return (
+    <div className="flex gap-3">
+      <span className="w-8 h-8 shrink-0" />
+      <div className="flex-1 flex flex-wrap items-start gap-1.5">
+        {note.kind === "grounded" ? (
+          note.titles.map((title) => (
+            <span key={title} title="This answer used text from this source" className={`${base} bg-lcd border-phosphor/20 text-phosphor-ink`}>
+              📓 Grounded in: {title}
+            </span>
+          ))
+        ) : (
+          <span
+            title="Your material was searched, but this answer did not draw on it"
+            className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-faint)]`}
+          >
+            ○ Answered from general knowledge — not your notes
+          </span>
         )}
       </div>
     </div>

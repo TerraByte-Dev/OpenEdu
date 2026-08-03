@@ -25,7 +25,10 @@ export type ToolUIEvent =
 export interface ToolDispatchResult {
   name: string;
   ok: boolean;
+  /** The full result — what the UI renders. */
   value?: unknown;
+  /** What goes into the model's context. Set from the tool's `toModelText` when it defines one. */
+  modelText?: string;
   error?: string;
 }
 
@@ -134,7 +137,8 @@ export async function dispatchToolCall(
     }
 
     onUIEvent?.({ kind: "result", id: call.id, name: call.name, value });
-    return { name: call.name, ok: true, value };
+    const modelText = tool.toModelText ? tool.toModelText(value) : undefined;
+    return { name: call.name, ok: true, value, modelText };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });

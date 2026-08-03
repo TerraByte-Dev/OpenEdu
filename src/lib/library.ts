@@ -175,15 +175,28 @@ function scoreEntry(qTokens: string[], qPhrase: string, entry: LibraryEntry): nu
 
 // Score every entry against the query; return the top-N above zero, best first. Pure — no I/O.
 export function matchResources(query: string, manifest: LibraryEntry[], topN = 3): LibraryEntry[] {
+  return matchResourcesScored(query, manifest, topN).map((x) => x.entry);
+}
+
+// Same ranking, but WITH the scores. `matchResources` filters on `score > 0`, which means the best
+// match always wins however bad it is — fine for a tool the model chose to call about a topic it had
+// in mind, wrong for automatic grounding, where "the least-bad card in the library" gets injected
+// into every unrelated question. Callers that retrieve without being asked need to see the number so
+// they can set a floor. (#90 — the eval caught "boiling point of ethanol" pulling in
+// "Types of Economic Systems".)
+export function matchResourcesScored(
+  query: string,
+  manifest: LibraryEntry[],
+  topN = 3,
+): Array<{ entry: LibraryEntry; score: number }> {
   const qTokens = tokenize(query);
   const qPhrase = normalizePhrase(query);
   if (qTokens.length === 0 && !qPhrase) return [];
   return manifest
-    .map((e) => ({ e, score: scoreEntry(qTokens, qPhrase, e) }))
+    .map((e) => ({ entry: e, score: scoreEntry(qTokens, qPhrase, e) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, topN)
-    .map((x) => x.e);
+    .slice(0, topN);
 }
 
 function stripFrontmatter(text: string): string {
