@@ -18,7 +18,7 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 - `src/lib/curriculum.ts` — the agent harness. Research → outline → tutor instructions → 6 syllabuses. All schema-enforced. Entry point: `runGenerationPipeline`.
 - `src/lib/knowledge.ts` — persistent per-course knowledge files (`knowledge_map`, `misconceptions`, `study_log`, `learning_profile`) used as tutor context.
 - `src/lib/progress.ts` — subtopic mastery tracking and progress-context generation for the tutor.
-- `src/lib/notebook.ts` — notebook RAG (chunk/embed/cosine search) + `importTextAsNote`. `src/lib/notebook-links.ts` — pure `[[wiki link]]` / `#tag` parsing, resolution, tag index, and the vault-graph builder (note/folder/tag nodes); the source of truth for `NotesTab.tsx` + `MarkdownEditor.tsx`. Tags are content-derived (no DB column); `#tags` are a note-free link primitive (click → filtered tag view, distinct graph node); missing `[[links]]` never auto-create.
+- `src/lib/notebook.ts` — notebook RAG (chunk/embed/cosine search) + `importTextAsNote`. `src/lib/notebook-links.ts` — pure `[[wiki link]]` / `#tag` parsing, resolution, tag index, vault-graph builder (note/folder/tag nodes), **backlinks + unlinked mentions, the heading outline, and the `[[` autocomplete prefix matcher**; the source of truth for `NotesTab.tsx` + `MarkdownEditor.tsx`. Tags are content-derived (no DB column); `#tags` are a note-free link primitive (click → filtered tag view, distinct graph node); missing `[[links]]` never auto-create. `src/lib/fuzzy.ts` — subsequence matching for the Ctrl/Cmd+O quick switcher.
 - `src/views/settings/` — the Settings view (tabbed left-rail shell + declarative section registry + primitives). See `src/views/settings/README.md`.
 - `src/lib/store.ts` / `store-keys.ts` — settings persistence (plugin-store). `store-keys.ts` is the single source of truth for key names + the secret/import-allow-list (also consumed by `settings-io.ts`).
 - `src/lib/models.ts` — model catalog + recommended-derived defaults (one source for the Settings pickers AND the store defaults; closes issue #2's drift).
@@ -28,7 +28,7 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 - `src/components/` — shared widgets, including `terminal/*` primitives.
 - `src-tauri/` — Rust backend, SQLite migrations, plugin config.
 
-The pure modules above (`store-keys`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`) are Tauri-free and unit-tested in `*.test.ts` next to them.
+The pure modules above (`store-keys`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
 DB lives at `%APPDATA%/com.terrabytesolutions.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 
@@ -111,3 +111,12 @@ Lives in `src/index.css`. Blue phosphor CRT aesthetic.
 Key classes: `.window`, `.btn`, `.btn-primary`, `.cf-input`, `.lcd`, `.tag`, `.glow-line`, `.readout-val`, `.phosphor-glow`, `.crt-aberrate`.
 
 Fonts: Lexend (display headings + prose body — chosen for reading comprehension; variable weight), IBM Plex Mono (UI chrome), Share Tech Mono (LCD / inputs). Inter is the sans fallback. Color themes live in `src/lib/theme.ts` + `html[data-theme="…"]` blocks in `index.css`, applied pre-paint in `main.tsx`.
+
+A browsable version of the same system lives in `design/` — `npm run design` builds self-contained HTML
+cards that get pushed to Claude Design, which then generates new work using these colours, type, and
+components. `design/authored/` is committed; `design/dist/` is generated and gitignored.
+
+Two traps this codebase has already hit, both documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md):
+**derived tokens don't re-resolve** when `data-theme` is scoped to a descendant instead of `<html>`, and
+**Tailwind utilities lose to unlayered CSS**, so `class="btn-primary text-white"` renders the accent
+rather than white.
