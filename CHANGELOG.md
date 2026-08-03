@@ -8,7 +8,35 @@ Installed apps auto-update; the section for each release also shows up in the in
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-03
+
+### Added
+- **Your notes now know what links to them.** Open a note and the right-hand panel lists every note
+  that links here, with the line it appears on — plus **unlinked mentions**, notes that say this note's
+  title in prose without linking it. The two are counted separately on purpose: one is a fact about
+  your vault, the other is only a suggestion.
+- **An outline of the open note**, in the same panel. Click a heading to jump to it. Fenced code blocks
+  are skipped, so a `# comment` in a shell snippet doesn't become a heading.
+- **`[[` autocompletes note titles** as you type. It only offers notes that exist — a missing link still
+  never creates anything on its own.
+- **Quick switcher — `Ctrl`/`Cmd`+`O`.** Fuzzy jump to any note; `cvc` finds "Calvin cycle". It can't
+  create notes either.
+- **An assistant in the note panel.** Two actions, no prompt to write:
+  **Review this note** marks it up in place — wrong, missing, worth checking, and what you got right —
+  as coloured underlines over your own text. Fixing something the reviewer flagged makes its mark
+  disappear. **Notes from last chat** turns your most recent tutor conversation on that level into
+  markdown you can keep. Neither one edits your note: marks are an overlay, and the summary is a
+  preview with an explicit Insert.
+- **A keyboard focus ring.** There wasn't one anywhere, which made the app effectively unusable without
+  a mouse — a real problem on shared or donated hardware.
+
 ### Changed
+- **The notebook looks like a notebook now.** Quieter chrome throughout: ghost icons instead of filled
+  toolbar buttons, 24px rows, one hairline indent guide per nesting level, full-width selection instead
+  of a border stripe, and no file icon on every row. Consistent line-art icons replaced the mixed
+  `＋ ✎ ✕ ▾ ▸` text glyphs.
+- **The note editor uses Lexend**, the face chosen for reading comprehension, instead of a hardcoded
+  Inter. Notes are the most-read surface in the app and were the one place opting out of it.
 - **Question generation now fits the model.** On a **local** model we generate **one question per call**
   (with a running "don't repeat these" ledger so coverage stays varied) — far more reliable than asking a
   4B model for a whole batch as one giant JSON object (which was timing out and truncating), and each
@@ -25,8 +53,24 @@ Installed apps auto-update; the section for each release also shows up in the in
 ### Removed
 - **Dead promotion-test modal.** Removed an unused `PromotionTestModal` left over from the old half-level
   scheme (the app uses the full-screen promotion test); no behavior change.
+- **24 dead `text-white` classes.** They never applied — `.btn-primary` wins that cascade — so removing
+  them changes nothing on screen. Documented here because an earlier note claimed they were breaking the
+  Light theme, and that was wrong.
 
 ### Fixed
+- **Your own chat messages had no background.** The class meant to tint them wasn't a real class, so the
+  one bubble that's supposed to look different from the tutor's was transparent. Four other controls had
+  the same problem.
+- **A stray `[[` no longer invents a link across your whole note.** An unclosed bracket used to swallow
+  everything up to the next `]]` anywhere later in the document — inventing a link whose title spanned
+  paragraphs, which then showed up as a real edge in the graph and as an underline running across the
+  page.
+- **The selected quiz answer is visible again.** Its highlight had opacity applied twice, landing at
+  about 1.4% — only the border said anything was selected. Five other places had the same bug.
+- **Primary buttons are readable on the Light theme.** The label sat on a wash of its own accent and
+  measured 4.01 contrast — below WCAG AA. Now 4.88, and every one of the eleven themes improved.
+- **Headings in the Resources tab render in the right font.** All four font utilities were being
+  tree-shaken away because of a namespace typo, so `font-display` silently did nothing.
 - **Quiz/test answers can no longer contradict their own explanation.** The generator sometimes stored a
   "correct" answer that disagreed with the reasoning it wrote — e.g. an ion-charge question whose
   explanation worked out to 9 electrons but whose stored answer was 6 — which then marked your right
@@ -42,6 +86,15 @@ Installed apps auto-update; the section for each release also shows up in the in
 - **Settings "Provider & Models" icon renders cleanly.** Seven of the icon's chip "spoke" path segments
   were missing their SVG `moveto` (`M`) command, so the spokes silently failed and the dev console logged
   a `<path> attribute d` error for each on every launch. Prefixed them; no more console noise.
+
+### Internal
+- **A browsable design system** (`design/`, `npm run design`) — the palette, all eleven themes, type,
+  the CRT overlay, and the component set, built into self-contained HTML cards and pushed to Claude
+  Design so future work inherits the aesthetic. Foundations are generated from `src/index.css` so they
+  can't drift; components are authored.
+- **CI runs on every pull request**, not only those targeting `master`. PRs here are stacked, and
+  filtering on the base branch meant only the bottom PR of a stack was ever checked — eleven of twelve
+  open PRs had no checks at all.
 
 ## [0.2.0] - 2026-06-05
 
