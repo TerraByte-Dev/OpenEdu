@@ -42,20 +42,8 @@ function nodeRadius(gn: { kind: GraphNodeKind; degree: number }): number {
   return base + Math.min(gn.degree, cap) * 0.6;
 }
 
-// Line-art folder glyphs — monochrome (stroke=currentColor) so they sit on the phosphor theme like
-// the note file icon, instead of the off-theme 📁 emoji.
-function FolderGlyph({ open = false, size = 13, className = "text-phosphor-ink" }: { open?: boolean; size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
-      {open ? (
-        <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2" />
-      ) : (
-        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-      )}
-    </svg>
-  );
-}
-
+// The only folder glyph left. The tree itself uses a chevron alone — the open/closed folder icon was
+// redundant next to it, and dropping it is most of what separates a file tree from a toolbar.
 function FolderPlusGlyph({ size = 13, className = "" }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
@@ -67,6 +55,17 @@ function FolderPlusGlyph({ size = 13, className = "" }: { size?: number; classNa
 
 // Visibility of the context panel, remembered across mounts. Mirrors the `oe-` prefix theme.ts uses.
 const CONTEXT_PANEL_KEY = "oe-notes-context";
+
+// Ghost icon button — no fill, no border, 24px hit target. Used for every action in the vault chrome
+// (sidebar header and folder row hovers) so the tree has exactly one button shape instead of four.
+const GHOST_ICON =
+  "w-6 h-6 inline-flex items-center justify-center rounded-md text-[var(--ink-faint)] " +
+  "hover:bg-[rgb(var(--phosphor-rgb)/0.10)] hover:text-phosphor-bright transition-colors shrink-0 " +
+  "disabled:opacity-40 disabled:hover:bg-transparent";
+// Same thing at row scale, for the actions that only appear on folder hover.
+const ROW_ICON =
+  "w-5 h-5 inline-flex items-center justify-center rounded text-[var(--ink-faint)] " +
+  "hover:text-phosphor-bright transition-colors";
 
 // A collapsible section in the right-hand context panel. Count lives in the header so the panel can be
 // read at a glance while collapsed.
@@ -478,24 +477,28 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const filtering = query.trim() !== "" || activeTag !== null;
 
   // ── Tree renderers ──
-  const renderNoteItem = (note: Note, depth: number) => (
-    <button
-      key={note.id}
-      draggable
-      onDragStart={() => setDraggedNoteId(note.id)}
-      onDragEnd={() => setDraggedNoteId(null)}
-      onClick={() => selectNote(note)}
-      style={{ paddingLeft: 8 + depth * 14 }}
-      className={`w-full text-left pr-2 py-1.5 flex items-center gap-1.5 hover:bg-panel-lite transition-colors ${
-        selectedNote?.id === note.id && panelView === "note" ? "bg-panel-lite border-l-2 border-l-phosphor" : "border-l-2 border-l-transparent"
-      }`}
-    >
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-[var(--ink-faint)] shrink-0">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
-      </svg>
-      <span className="text-[13px] text-ink truncate">{note.title}</span>
-    </button>
-  );
+  // A note row. No file icon: in a tree where every leaf is a note, an icon on every leaf carries zero
+  // information and doubles the visual weight of the list. The name is the content.
+  const renderNoteItem = (note: Note, depth: number) => {
+    const active = selectedNote?.id === note.id && panelView === "note";
+    return (
+      <button
+        key={note.id}
+        draggable
+        onDragStart={() => setDraggedNoteId(note.id)}
+        onDragEnd={() => setDraggedNoteId(null)}
+        onClick={() => selectNote(note)}
+        style={{ paddingLeft: 21 + depth * 14 }}
+        className={`w-full text-left pr-2 h-6 flex items-center rounded-md text-[13px] truncate transition-colors ${
+          active
+            ? "bg-[rgb(var(--phosphor-rgb)/0.13)] text-phosphor-bright"
+            : "text-[var(--ink-dim)] hover:bg-[rgb(var(--ink-rgb)/0.05)] hover:text-ink"
+        }`}
+      >
+        {note.title || "Untitled"}
+      </button>
+    );
+  };
 
   const renderFolder = (folder: NotebookFolder, depth: number): React.ReactNode => {
     const isOpen = expanded.has(folder.id);
@@ -505,12 +508,18 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           onDragOver={(e) => { e.preventDefault(); setDropTarget(folder.id); }}
           onDragLeave={() => setDropTarget((t) => (t === folder.id ? null : t))}
           onDrop={(e) => handleDropOn(folder.id, e)}
-          style={{ paddingLeft: 6 + depth * 14 }}
-          className={`group flex items-center gap-1 pr-1.5 py-1.5 cursor-pointer hover:bg-panel-lite ${dropTarget === folder.id ? "bg-[rgb(var(--phosphor-rgb)/0.12)]" : ""}`}
+          style={{ paddingLeft: 5 + depth * 14 }}
+          className={`group flex items-center gap-1 pr-1 h-6 rounded-md cursor-pointer transition-colors ${
+            dropTarget === folder.id ? "bg-[rgb(var(--phosphor-rgb)/0.13)]" : "hover:bg-[rgb(var(--ink-rgb)/0.05)]"
+          }`}
           onClick={() => toggleExpand(folder.id)}
         >
-          <span className="text-[var(--ink-faint)] text-[10px] w-3 shrink-0">{isOpen ? "▾" : "▸"}</span>
-          <FolderGlyph open={isOpen} />
+          {/* Chevron only — no folder glyph. The chevron already says "container", and dropping the
+              second icon is most of what separates a file tree from a toolbar. */}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+               className={`shrink-0 text-[var(--ink-faint)] transition-transform ${isOpen ? "rotate-90" : ""}`}>
+            <path d="M9 18l6-6-6-6" />
+          </svg>
           {renamingId === folder.id ? (
             <input
               autoFocus
@@ -522,19 +531,33 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               className="flex-1 min-w-0 bg-lcd border border-phosphor/40 rounded px-1 text-[13px] text-ink focus:outline-none"
             />
           ) : (
-            <span className="flex-1 text-[13px] text-phosphor-ink truncate" onDoubleClick={(e) => { e.stopPropagation(); setRenamingId(folder.id); setRenameValue(folder.name); }}>
+            <span className="flex-1 text-[13px] text-ink truncate" onDoubleClick={(e) => { e.stopPropagation(); setRenamingId(folder.id); setRenameValue(folder.name); }}>
               {folder.name}
             </span>
           )}
-          <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
-            <button title="New note here" onClick={() => handleNewNote(folder.id)} className="px-1 text-[var(--ink-faint)] hover:text-phosphor-bright text-xs">＋</button>
-            <button title="New subfolder" onClick={() => handleNewFolder(folder.id)} className="px-1 text-[var(--ink-faint)] hover:text-phosphor-bright flex items-center"><FolderPlusGlyph size={12} /></button>
-            <button title="Rename" onClick={() => { setRenamingId(folder.id); setRenameValue(folder.name); }} className="px-1 text-[var(--ink-faint)] hover:text-phosphor-bright text-[11px]">✎</button>
-            <button title="Delete folder (keeps notes)" onClick={() => handleDeleteFolder(folder.id)} className="px-1 text-[var(--ink-faint)] hover:text-red-400 text-[11px]">✕</button>
+          {/* Row actions — all line-art at one weight. These used to be ＋ ✎ ✕ text glyphs sitting
+              next to SVGs, which is most of why the tree read as assembled from spare parts. */}
+          <span className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+            <button title="New note here" onClick={() => handleNewNote(folder.id)} className={ROW_ICON}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
+            <button title="New subfolder" onClick={() => handleNewFolder(folder.id)} className={ROW_ICON}>
+              <FolderPlusGlyph size={12} />
+            </button>
+            <button title="Rename" onClick={() => { setRenamingId(folder.id); setRenameValue(folder.name); }} className={ROW_ICON}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
+            </button>
+            <button title="Delete folder (keeps notes)" onClick={() => handleDeleteFolder(folder.id)} className={`${ROW_ICON} hover:!text-red-400`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
           </span>
         </div>
         {isOpen && (
-          <div>
+          /* Indent guide — one hairline per nesting level. Without it the varying left padding reads
+             as arbitrary rather than as depth. */
+          <div className="relative">
+            <span aria-hidden className="absolute top-0 bottom-0 w-px bg-[rgb(var(--ink-rgb)/0.13)]"
+                  style={{ left: 11 + depth * 14 }} />
             {childFolders(folder.id).map((cf) => renderFolder(cf, depth + 1))}
             {childNotes(folder.id).map((n) => renderNoteItem(n, depth + 1))}
           </div>
@@ -554,35 +577,54 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
       {/* ── Sidebar ── */}
       <div className="w-64 border-r border-[var(--rule)] bg-panel flex flex-col shrink-0">
-        <div className="p-2.5 border-b border-[var(--rule)] flex gap-1.5">
-          <button onClick={() => handleNewNote(null)} className="flex-1 px-2 py-1.5 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-xs font-medium transition-colors flex items-center justify-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
-            Note
+        {/* Header — a label and four ghost icons. This was a solid accent pill plus three filled
+            boxes, which put more visual weight in the toolbar than in the notes underneath it. */}
+        <div className="flex items-center gap-px pl-2.5 pr-1.5 py-1.5">
+          <span className="flex-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)] select-none">Notes</span>
+          <button onClick={() => handleNewNote(null)} title="New note" className={GHOST_ICON}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 5v14M5 12h14" /></svg>
           </button>
-          <button onClick={() => handleNewFolder(null)} title="New folder" className="px-2 py-1.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors flex items-center"><FolderPlusGlyph size={15} /></button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={ingesting} title="Import .md/.txt as notes" className="px-2 py-1.5 rounded-lg bg-lcd hover:bg-panel text-[var(--ink-faint)] text-xs font-medium transition-colors disabled:opacity-50">{ingesting ? "…" : "⬆"}</button>
+          <button onClick={() => handleNewFolder(null)} title="New folder" className={GHOST_ICON}>
+            <FolderPlusGlyph size={14} />
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={ingesting} title="Import .md/.txt as notes" className={GHOST_ICON}>
+            {/* Was a bare ⬆ character among line-art SVGs. */}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                 className={ingesting ? "animate-pulse" : ""}>
+              <path d="M12 15V3M7 8l5-5 5 5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+            </svg>
+          </button>
           <button
             onClick={() => { saveIfDirty(); setPendingLink(null); setPanelView(panelView === "graph" ? "note" : "graph"); }}
             title="Toggle graph view"
-            className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${panelView === "graph" ? "btn-primary" : "bg-lcd hover:bg-panel text-[var(--ink-faint)]"}`}
+            aria-pressed={panelView === "graph"}
+            className={`${GHOST_ICON} ${panelView === "graph" ? "!text-phosphor-bright bg-[rgb(var(--phosphor-rgb)/0.13)]" : ""}`}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="5" cy="12" r="2.5" /><circle cx="19" cy="5" r="2.5" /><circle cx="19" cy="19" r="2.5" /><line x1="7.5" y1="12" x2="16.5" y2="6.5" /><line x1="7.5" y1="12" x2="16.5" y2="17.5" /></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="5" cy="12" r="2.2" /><circle cx="19" cy="5" r="2.2" /><circle cx="19" cy="19" r="2.2" /><line x1="7.2" y1="12" x2="16.8" y2="6.6" /><line x1="7.2" y1="12" x2="16.8" y2="17.4" /></svg>
           </button>
           <input ref={fileInputRef} type="file" accept=".md,.markdown,.txt" multiple onChange={handleFileInput} className="hidden" />
         </div>
 
         {/* Search + tags */}
-        <div className="p-2.5 border-b border-[var(--rule)]">
-          <div className="flex gap-1.5">
+        <div className="px-2 pb-2">
+          <div className="flex gap-1 items-center">
+            {/* Recessed rather than boxed: a bordered field at the top of a tree competes with the
+                tree. The border only appears on focus, where it means something. */}
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSemanticSearch(); }}
-              placeholder="Search notes…  ↵ docs"
-              className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-lcd border border-[var(--rule)] text-ink text-xs focus:outline-none focus:border-phosphor"
+              placeholder="Search…"
+              title="Search titles and content — press Enter to also search imported documents"
+              className="flex-1 min-w-0 px-2 h-7 rounded-md bg-bg border border-transparent text-[var(--ink-dim)] text-xs
+                         placeholder-[var(--ink-faint)] focus:outline-none focus:border-phosphor focus:text-ink transition-colors"
             />
-            {(query || docResults) && <button onClick={() => { setQuery(""); setDocResults(null); }} title="Clear" className="px-2 rounded-lg bg-lcd text-[var(--ink-faint)] hover:text-ink text-xs">✕</button>}
+            {(query || docResults) && (
+              <button onClick={() => { setQuery(""); setDocResults(null); }} title="Clear search" className={ROW_ICON}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            )}
           </div>
           {allTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
