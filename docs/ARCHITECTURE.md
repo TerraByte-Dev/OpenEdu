@@ -111,8 +111,9 @@ not hardcoded colors**, so everything stays theme-aware. Settings has its own
 
 - `npm test` — Vitest over the pure logic modules (no DOM/Tauri). Add a `*.test.ts` for new pure logic.
 - `npm run build` — `tsc` typecheck + Vite bundle.
-- CI (`.github/workflows/ci.yml`) runs both on every PR. DOM-coupled UI is verified live in
-  `npm run tauri dev`.
+- CI (`.github/workflows/ci.yml`) runs both on every PR **regardless of what it targets** — PRs here are
+  commonly stacked, and filtering on the base branch would leave every PR above the bottom of a stack
+  unchecked. DOM-coupled UI is verified live in `npm run tauri dev`.
 
 ## Releases & auto-update
 
