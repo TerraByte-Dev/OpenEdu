@@ -169,7 +169,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             <button
               onClick={handleRecord}
               disabled={!selected.trim() || disabled}
-              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
+              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-50 transition-colors"
             >
               Submit Answer
             </button>
@@ -195,7 +195,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             <button
               onClick={handleRecord}
               disabled={!selected.trim() || disabled}
-              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-50 transition-colors"
+              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-50 transition-colors"
             >
               Submit Answer
             </button>
@@ -262,7 +262,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
           {allMatched && !submitted && (
             <button
               onClick={handleSubmitMatch}
-              className="mt-2 px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
+              className="mt-2 px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
             >
               Submit Matches
             </button>

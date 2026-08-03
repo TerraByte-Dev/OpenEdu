@@ -724,7 +724,11 @@ html.crt-off .term-grid-bg { display: none; }
 .btn-primary {
   background: linear-gradient(180deg, rgb(var(--phosphor-rgb) / 0.18) 0%, rgb(var(--phosphor-rgb) / 0.06) 100%);
   border-color: var(--phosphor);
-  color: var(--phosphor);
+  /* --phosphor-bright, not --phosphor: the label sits on an 18% wash of its own accent, which eats
+     contrast. Measured against the composited fill, bright wins on every theme — and on Light it is the
+     difference between 4.01 (fails WCAG AA) and 4.88 (passes). Light inverts the usual polarity, so
+     "bright" there is the DARKER #0a5cc2; the token name lies but the contrast is what matters. */
+  color: var(--phosphor-bright);
   box-shadow: 0 0 8px var(--phosphor-faint), inset 0 0 12px var(--phosphor-veil);
 }
 .btn-primary:hover {

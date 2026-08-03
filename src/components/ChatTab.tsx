@@ -525,7 +525,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             <button
               onClick={sendMessage}
               disabled={!input.trim()}
-              className="px-4 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />

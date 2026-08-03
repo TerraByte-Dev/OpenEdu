@@ -26,7 +26,7 @@ export default function QuizTab({ currentSyllabus, onStartQuiz }: QuizTabProps) 
         <button
           onClick={onStartQuiz}
           disabled={!currentSyllabus || !onStartQuiz}
-          className="px-6 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Start Quiz
         </button>

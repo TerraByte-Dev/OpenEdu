@@ -406,7 +406,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
             <button
               onClick={startTest}
-              className="w-full px-6 py-3.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white font-semibold text-base transition-colors"
+              className="w-full px-6 py-3.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] font-semibold text-base transition-colors"
             >
               Begin Test
             </button>
@@ -536,7 +536,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                 <button
                   onClick={() => setCurrentIndex((prev) => prev + 1)}
                   disabled={!answeredCurrent}
-                  className="px-5 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium disabled:opacity-40 transition-colors"
+                  className="px-5 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-40 transition-colors"
                 >
                   Next →
                 </button>
@@ -572,7 +572,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         </div>
         <button
           onClick={onClose}
-          className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-white text-sm font-medium transition-colors"
+          className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
         >
           {passed ? "Continue Learning" : "Back to Course"}
         </button>
