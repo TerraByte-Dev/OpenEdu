@@ -292,10 +292,15 @@ html[data-theme="dark"] .crt-aberrate,     html[data-theme="light"] .crt-aberrat
   --color-panel-lite:     var(--panel-lite);
   --color-lcd:            var(--lcd);
   --color-bg:             var(--bg);
-  --font-family-display:  var(--font-display);
-  --font-family-mono:     var(--font-mono);
-  --font-family-lcd:      var(--font-lcd);
-  --font-family-body:     var(--font-body);
+  /* Tailwind v4's font namespace is --font-*, NOT --font-family-*. Under the wrong name no utility is
+     generated at all, which is why `font-display` silently rendered in the body font.
+     These look self-referential and are not: @theme emits into `@layer theme`, while the :root block
+     above is unlayered and therefore always wins. So the utility is generated here, and the value it
+     resolves is the one :root (or an [data-theme] override) actually declares. */
+  --font-display:         var(--font-display);
+  --font-mono:            var(--font-mono);
+  --font-lcd:             var(--font-lcd);
+  --font-body:            var(--font-body);
 }
 
 /* ═══════════════════════════════════════════════════════════════

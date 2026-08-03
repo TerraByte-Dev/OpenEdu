@@ -136,7 +136,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
               disabled={disabled || submitted}
               className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
                 selected === option
-                  ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.14)]/10 text-ink"
+                  ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.14)] text-ink"
                   : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-dim)] hover:border-phosphor/50 disabled:opacity-50"
               }`}
             >
@@ -223,9 +223,9 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
                     disabled={disabled || submitted}
                     className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                       isSelected
-                        ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.14)]/15 text-ink"
+                        ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.18)] text-ink"
                         : isPaired
-                        ? "border-phosphor-ink/40 bg-[rgb(var(--phosphor-rgb)/0.14)]/10 text-ink"
+                        ? "border-phosphor-ink/40 bg-[rgb(var(--phosphor-rgb)/0.10)] text-ink"
                         : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-dim)] hover:border-phosphor-ink/50"
                     }`}
                   >
@@ -247,7 +247,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
                     disabled={disabled || submitted || selectedLeft === null}
                     className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                       isMatched
-                        ? "border-phosphor-ink/40 bg-[rgb(var(--phosphor-rgb)/0.14)]/10 text-[var(--ink-dim)]"
+                        ? "border-phosphor-ink/40 bg-[rgb(var(--phosphor-rgb)/0.10)] text-[var(--ink-dim)]"
                         : selectedLeft !== null
                         ? "border-[var(--rule)] bg-panel-lite text-ink hover:border-phosphor-ink"
                         : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-faint)]"

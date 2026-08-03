@@ -487,7 +487,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               type="button"
               onClick={() => setPendingMode(null)}
               title="Ask normally instead"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium btn-primary/30 text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
             >
               <span>{TUTOR_MODES.find((m) => m.id === pendingMode)?.icon}</span>
               <span>{TUTOR_MODES.find((m) => m.id === pendingMode)?.label}</span>
@@ -555,7 +555,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {isUser ? "You" : "AI"}
       </span>
       <div className={`max-w-[75%] p-3 rounded-xl text-sm leading-relaxed ${
-        isUser ? "btn-primary/20 text-ink whitespace-pre-wrap" : "bg-panel text-ink"
+        isUser ? "bg-[rgb(var(--phosphor-rgb)/0.10)] text-ink whitespace-pre-wrap" : "bg-panel text-ink"
       }`}>
         {isUser ? message.content : (
           <div
@@ -783,7 +783,7 @@ function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; su
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onChoose(true)}
-            className="px-3 py-1.5 rounded-lg text-[12px] font-medium btn-primary/30 text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
           >
             Allow
           </button>
@@ -813,7 +813,7 @@ function AskUserChoices({ question, choices, onPick }: { question: string; choic
             <button
               key={c.value}
               onClick={() => onPick(c.value)}
-              className="px-3 py-1.5 rounded-lg text-[12px] font-medium btn-primary/30 text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
             >
               {c.label}
             </button>
