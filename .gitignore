@@ -38,6 +38,11 @@ pnpm-debug.log*
 # Tauri generated
 WixTools/
 
+# Design-system cards for Claude Design. design/authored/ is committed source; design/dist/ is generated
+# by `npm run design` and is what gets pushed. Already matched by the `dist/` rule above — spelled out so
+# that tightening it to `/dist/` doesn't silently start committing ~1.7 MiB of inlined base64 per rebuild.
+design/dist/
+
 # Local-only dev notes / planning artifacts (kept out of the public repo)
 .dev/
 BLIP.md

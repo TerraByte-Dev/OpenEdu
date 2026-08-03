@@ -1,0 +1,90 @@
+<!-- @dsCard group="Meta" -->
+<style>
+.stepnum{font-family:var(--font-mono);font-size:.625rem;color:var(--phosphor);border:1px solid var(--phosphor-faint);
+  border-radius:9999px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0}
+.step{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.step p{margin:0;font-size:.8125rem;color:var(--ink-dim);line-height:1.6;max-width:74ch}
+.warn{border:1px solid rgb(255 176 0 / .4);background:rgb(255 176 0 / .1);border-radius:12px;padding:14px;
+  margin:14px 0}
+.warn h3{font-family:var(--font-display);font-size:.875rem;color:#FFB000;margin:0 0 6px}
+.warn p{margin:0;font-size:.8125rem;color:var(--ink-dim);line-height:1.6;max-width:74ch}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.split>div{border:1px solid var(--rule);border-radius:12px;padding:12px}
+.split h4{font-family:var(--font-mono);font-size:.5625rem;text-transform:uppercase;letter-spacing:.14em;margin:0 0 8px}
+.ok h4{color:#2BFF88}.no h4{color:#FF4060}
+.split pre{margin:0;font-family:var(--font-mono);font-size:.6875rem;color:var(--ink-dim);
+  white-space:pre-wrap;line-height:1.6}
+</style>
+
+<h1>Card Scaffold</h1>
+<p class="ds-lede">How to add a card. Copy an existing file in <code>design/authored/</code> and edit —
+the boilerplate below is what every card gets for free from the build.</p>
+
+<h2>Anatomy</h2>
+<div class="step"><span class="stepnum">1</span><p><strong>Line 1 must be the marker</strong>, verbatim:
+<code>&lt;!-- @dsCard group="Components" --&gt;</code>. The build reads the group from it and throws by
+filename if it's missing. The title is the last segment of the group path.</p></div>
+<div class="step"><span class="stepnum">2</span><p><strong>Everything after line 1 is the body.</strong>
+No <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code> or <code>&lt;body&gt;</code> — the build wraps it.
+A <code>&lt;style&gt;</code> block in the body is valid and is where card-local layout goes.</p></div>
+<div class="step"><span class="stepnum">3</span><p><strong>The app's whole stylesheet is already
+present</strong>, so <code>.btn</code>, <code>.tag</code>, <code>.lcd</code>, <code>.window</code>,
+<code>.cf-input</code>, <code>.glow-line</code>, <code>.phosphor-glow</code> and every
+<code>--token</code> just work. Use them.</p></div>
+<div class="step"><span class="stepnum">4</span><p><strong>Shared furniture:</strong> <code>.ds-lede</code>
+for the intro paragraph, <code>h2</code> for section headings, <code>.ds-row</code> for a horizontal
+group, <code>.ds-grid</code> for a grid, <code>.ds-code</code> for the markup block,
+<code>.ds-note</code> for a footnote.</p></div>
+<div class="step"><span class="stepnum">5</span><p><strong>Fonts default to CORE</strong> (Lexend, IBM
+Plex Mono 400/500, Share Tech Mono) at ~150&#8239;KiB per card. To also carry Inter and VT323, make
+<code>&lt;!-- @dsAssets all --&gt;</code> the <em>second</em> line of the file. Only line 2 is checked —
+scanning the whole file would mean any card documenting the directive also triggered it. Only the
+typography card needs it, and it lands at 236&#8239;KiB against a 240&#8239;KiB ceiling.</p></div>
+
+<div class="warn">
+  <h3>The one that will catch you</h3>
+  <p>Putting <code>data-theme</code> on an element only changes <em>variables</em> from that element
+  down. Properties already resolved on an ancestor do not re-resolve. A themed tile must therefore
+  restate <code>background: var(--bg); color: var(--ink)</code> <strong>on itself</strong>, or it will
+  show the new accent against the old background. The build re-scopes the derived tokens
+  (<code>--rule</code>, <code>--ink-dim</code>, <code>--phosphor-faint</code>…) onto every
+  <code>[data-theme]</code> element so those stay correct — but the two properties above are yours.</p>
+</div>
+
+<h2>Tokens, never literals</h2>
+<div class="split">
+  <div class="ok"><h4>Do</h4><pre>color: var(--phosphor);
+background: var(--panel);
+border: 1px solid var(--rule);
+background: rgb(var(--phosphor-rgb) / .18);
+box-shadow: 0 0 8px var(--phosphor-faint);</pre></div>
+  <div class="no"><h4>Don't</h4><pre>color: #00C6FF;
+background: #020409;
+border: 1px solid #123;
+background: rgba(0,198,255,.18);
+box-shadow: 0 4px 12px rgba(0,0,0,.4);</pre></div>
+</div>
+<p class="ds-note">The left column survives all eleven themes. The right column is cyan forever, and the
+last line is a drop shadow, which this system doesn't have — depth is glow.</p>
+
+<h2>Skeleton</h2>
+<pre class="ds-code">&lt;!-- @dsCard group="Components" --&gt;
+&lt;style&gt;
+  .thing { border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); }
+&lt;/style&gt;
+
+&lt;h1&gt;Thing&lt;/h1&gt;
+&lt;p class="ds-lede"&gt;What it is and when to reach for it.&lt;/p&gt;
+
+&lt;h2&gt;Variants&lt;/h2&gt;
+&lt;div class="ds-row"&gt;
+  &lt;div class="thing"&gt;…&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;h2&gt;Markup&lt;/h2&gt;
+&lt;pre class="ds-code"&gt;&amp;lt;div class="thing"&amp;gt;…&lt;/pre&gt;</pre>
+
+<p class="ds-note">Two dead tokens are deliberately excluded from every card and should not appear in new
+ones: <code>--rule-dim</code> and <code>--rule-w</code>, both zero-use in the app. Leaving them out keeps
+them from being generated with.</p>

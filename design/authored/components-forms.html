@@ -1,0 +1,88 @@
+<!-- @dsCard group="Components" -->
+<style>
+.field{margin-bottom:16px;max-width:440px}
+.field label{display:block;font-size:.8125rem;color:var(--ink);margin-bottom:6px}
+.field .help{font-size:.75rem;color:var(--ink-faint);margin-top:6px;line-height:1.5}
+/* Toggle + segmented mirror src/views/settings/primitives.tsx, the best-written UI in the repo. */
+.tg{display:inline-flex;align-items:center;gap:10px;cursor:pointer;background:none;border:0;padding:0}
+.tg .track{position:relative;width:40px;height:22px;border-radius:9999px;border:1px solid var(--rule);
+  background:var(--panel);transition:background .15s,border-color .15s;flex-shrink:0}
+.tg .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+  background:var(--ink-faint);transition:left .15s,background .15s}
+.tg.on .track{background:rgb(var(--phosphor-rgb) / .28);border-color:var(--phosphor)}
+.tg.on .knob{left:20px;background:var(--phosphor);box-shadow:0 0 8px var(--phosphor-faint)}
+.tg span.lab{font-size:.8125rem;color:var(--ink-dim)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:2px;gap:2px}
+.seg button{padding:5px 14px;border-radius:6px;border:0;background:none;cursor:pointer;
+  font-family:var(--font-mono);font-size:.72rem;color:var(--ink-dim);transition:background .15s,color .15s}
+.seg button:hover{color:var(--ink);background:var(--panel-lite)}
+.seg button[aria-pressed="true"]{background:var(--phosphor-veil);color:var(--phosphor-bright);
+  box-shadow:inset 0 0 0 1px var(--phosphor-faint)}
+textarea.cf-input{font-family:var(--font-body);resize:vertical;min-height:80px;line-height:1.5}
+select.cf-input{appearance:none;cursor:pointer}
+</style>
+
+<h1>Form Controls</h1>
+<p class="ds-lede">Inputs are the one place OpenEdu commits hardest to the terminal: LCD face, accent
+text, a permanent inner wash, and a focus state that blooms rather than outlines. <code>.cf-input</code>
+ships in <code>index.css</code> and carries all of it.</p>
+
+<h2>Text input</h2>
+<div class="field">
+  <label for="a">Course topic</label>
+  <input class="cf-input" id="a" placeholder="e.g. organic chemistry">
+  <p class="help">Placeholder is <code>--ink-faint</code>; typed text is <code>--phosphor</code> with a
+  soft text-shadow, which is what gives it the phosphor-screen look.</p>
+</div>
+
+<div class="field">
+  <label for="b">Focused</label>
+  <input class="cf-input" id="b" value="stoichiometry"
+    style="border-color:var(--phosphor);box-shadow:0 0 0 1px var(--phosphor-faint), 0 0 12px var(--phosphor-faint)">
+  <p class="help">Focus is a border-colour change plus a double bloom — no <code>outline</code> ring, and
+  no layout shift.</p>
+</div>
+
+<div class="field">
+  <label for="c">Notes</label>
+  <textarea class="cf-input" id="c" placeholder="Write what you understood…"></textarea>
+  <p class="help">Long-form input switches to <code>--font-body</code> (Lexend). Prose the user writes
+  should be as readable as prose the app writes.</p>
+</div>
+
+<div class="field">
+  <label for="d">Model</label>
+  <select class="cf-input" id="d">
+    <option>gemma4:e4b</option><option>llama3.2:3b</option><option>qwen3:8b</option>
+  </select>
+</div>
+
+<h2>Toggle</h2>
+<div class="ds-row" style="gap:28px">
+  <button class="tg on" aria-pressed="true"><span class="track"><span class="knob"></span></span>
+    <span class="lab">Retrieval always on</span></button>
+  <button class="tg" aria-pressed="false"><span class="track"><span class="knob"></span></span>
+    <span class="lab">CRT overlay</span></button>
+</div>
+<p class="ds-note">Ships as <code>role="switch"</code> with <code>aria-checked</code> — the one control
+in the app that gets its ARIA right. Keep that.</p>
+
+<h2>Segmented control</h2>
+<div class="ds-row">
+  <div class="seg">
+    <button aria-pressed="true">Always</button><button aria-pressed="false">Auto</button>
+    <button aria-pressed="false">Off</button>
+  </div>
+  <div class="seg">
+    <button aria-pressed="false">2k</button><button aria-pressed="true">8k</button>
+    <button aria-pressed="false">16k</button><button aria-pressed="false">32k</button>
+  </div>
+</div>
+<p class="ds-note">For 2–5 mutually exclusive options that fit on one line. More than that, or longer
+labels, and it becomes a select.</p>
+
+<h2>Markup</h2>
+<pre class="ds-code">&lt;input class="cf-input" placeholder="…"&gt;
+&lt;textarea class="cf-input"&gt;&lt;/textarea&gt;
+&lt;select class="cf-input"&gt;…&lt;/select&gt;
+&lt;button class="tg on" role="switch" aria-checked="true"&gt;…</pre>

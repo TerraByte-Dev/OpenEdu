@@ -1,0 +1,81 @@
+<!-- @dsCard group="Components" -->
+<style>
+/* One chip geometry. .tag ships in index.css (pill + pulsing LED); the rest are the same shape in
+   different tones, built from tokens only. */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--rule);
+  border-radius:9999px;background:var(--panel-lite);color:var(--ink-dim);font-family:var(--font-mono);
+  font-size:.72rem;letter-spacing:.02em;transition:border-color .15s,color .15s,background .15s}
+.chip-action{cursor:pointer}
+.chip-action:hover{border-color:var(--phosphor);color:var(--phosphor-bright);background:var(--panel)}
+.chip-accent{background:var(--phosphor-veil);border-color:var(--phosphor-faint);color:var(--phosphor-ink)}
+.chip-ok{background:rgb(43 255 136 / .12);border-color:rgb(43 255 136 / .4);color:#2BFF88}
+.chip-warn{background:rgb(255 176 0 / .12);border-color:rgb(255 176 0 / .4);color:#FFB000}
+.chip-err{background:rgb(255 64 96 / .12);border-color:rgb(255 64 96 / .4);color:#FF4060}
+.chip svg{flex-shrink:0}
+.grid2{display:grid;grid-template-columns:auto 1fr;gap:14px 20px;align-items:center}
+.grid2 .lbl{font-family:var(--font-mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--ink-faint);white-space:nowrap}
+</style>
+
+<h1>Chips &amp; Tags</h1>
+<p class="ds-lede">One pill geometry — <code>9999px</code> radius, mono at <code>.72rem</code>, 3&#8239;×&#8239;10
+padding — in five tones. <code>.tag</code> is the shipped variant with a pulsing LED and is reserved for
+<em>live</em> state; everything else is a static chip.</p>
+
+<h2>Tag — live state only</h2>
+<div class="ds-row">
+  <span class="tag">Level 3</span>
+  <span class="tag">Generating</span>
+  <span class="tag">Ollama</span>
+</div>
+<p class="ds-note">The <code>::before</code> LED pulses on a 1.6s loop. That animation is a claim that
+something is <em>currently happening</em> — don't use <code>.tag</code> for a static label, or the UI
+lies about activity.</p>
+
+<h2>Tones</h2>
+<div class="grid2">
+  <span class="lbl">Neutral</span>
+  <div class="ds-row"><span class="chip">6 subtopics</span><span class="chip">draft</span></div>
+
+  <span class="lbl">Accent</span>
+  <div class="ds-row"><span class="chip chip-accent">Grounded in 2 notes</span>
+    <span class="chip chip-accent">Chemistry</span></div>
+
+  <span class="lbl">Status</span>
+  <div class="ds-row">
+    <span class="chip chip-ok">Passed</span>
+    <span class="chip chip-warn">Needs review</span>
+    <span class="chip chip-err">Failed</span>
+  </div>
+
+  <span class="lbl">Actionable</span>
+  <div class="ds-row">
+    <span class="chip chip-action">Show me a worked example</span>
+    <span class="chip chip-action">Why does that step work?</span>
+    <span class="chip chip-action">Quiz me on this</span>
+  </div>
+</div>
+
+<h2>Tool chip</h2>
+<div class="ds-row">
+  <span class="chip chip-accent">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M20 6L9 17l-5-5"/></svg>
+    notebook.search — 3 hits
+  </span>
+  <span class="chip">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    library.search
+  </span>
+</div>
+<p class="ds-note">Tool events are reported in the accent tone when they returned something and neutral
+when they didn't. A tool that ran and found nothing still gets a chip — silence would read as the tool
+never having run.</p>
+
+<h2>Markup</h2>
+<pre class="ds-code">&lt;span class="tag"&gt;Level 3&lt;/span&gt;                    live state, pulsing LED
+&lt;span class="chip"&gt;6 subtopics&lt;/span&gt;               neutral
+&lt;span class="chip chip-accent"&gt;Grounded&lt;/span&gt;      accent
+&lt;span class="chip chip-ok|warn|err"&gt;…&lt;/span&gt;        status
+&lt;button class="chip chip-action"&gt;…&lt;/button&gt;         suggestion</pre>

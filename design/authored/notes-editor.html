@@ -1,0 +1,101 @@
+<!-- @dsCard group="Notes" -->
+<style>
+/* Mirrors the CodeMirror theme in src/components/MarkdownEditor.tsx. The editor styles itself through
+   EditorView.theme() rather than index.css, so this card is where that surface is legible as design. */
+.ed{border:1px solid var(--rule);border-radius:12px;background:var(--panel);overflow:hidden}
+.ed-body{padding:16px 20px;font-family:var(--font-body);font-size:14px;line-height:1.65;color:var(--ink)}
+.ed-body p{margin:.55em 0}
+.h1{font-size:1.7em;font-weight:700;color:var(--phosphor-bright);line-height:1.35;margin:.2em 0}
+.h2{font-size:1.45em;font-weight:700;color:var(--phosphor-bright);line-height:1.35;margin:.7em 0 .2em}
+.h3{font-size:1.25em;font-weight:600;color:var(--phosphor-ink);margin:.7em 0 .2em}
+.wl{color:var(--phosphor-bright);text-decoration:underline;cursor:pointer}
+.wl-missing{color:var(--ink-faint);text-decoration:underline dashed;text-underline-offset:2px}
+.tg{color:var(--phosphor-ink);background:rgb(var(--phosphor-rgb)/0.12);border-radius:4px;padding:0 4px;cursor:pointer}
+.mono{font-family:'Share Tech Mono',monospace;color:var(--phosphor-ink)}
+.quote{color:var(--ink-dim);font-style:italic;border-left:2px solid var(--rule);padding-left:10px;margin:.6em 0}
+.caret-demo::after{content:'▮';display:inline-block;margin-left:4px;color:var(--phosphor);
+  animation:caret var(--cursor-blink) steps(2) infinite}
+.active-line{background:rgb(var(--phosphor-rgb)/0.04);margin:0 -20px;padding:0 20px}
+.marker{color:var(--ink-faint)}
+.pop{border:1px solid var(--rule);border-radius:8px;background:var(--panel-lite);
+  box-shadow:0 0 16px var(--phosphor-faint);overflow:hidden;width:210px;font-family:var(--font-mono);font-size:12px}
+.pop li{list-style:none;padding:4px 10px;color:var(--ink-dim)}
+.pop li[aria-selected]{background:rgb(var(--phosphor-rgb)/0.16);color:var(--phosphor-bright)}
+.pop ul{margin:0;padding:0}
+.two{display:grid;grid-template-columns:1fr 240px;gap:20px;align-items:start}
+</style>
+
+<h1>Note Editor</h1>
+<p class="ds-lede">One editable pane — no edit/preview toggle. Markdown renders at size while you type,
+and the syntax markers hide on every line except the one the cursor is on. The document underneath stays
+plain markdown, so the graph, tags, and retrieval index never see anything special.</p>
+
+<h2>Live preview</h2>
+<div class="ed">
+  <div class="ed-body">
+    <div class="h1">Calvin cycle</div>
+    <p>The light-independent reactions. Uses ATP and NADPH from the
+      <span class="wl">[[light reactions]]</span> to fix carbon into sugar.</p>
+    <div class="h2">Three phases</div>
+    <p>Fixation, reduction, regeneration. See also <span class="wl-missing">[[RuBisCO kinetics]]</span> —
+      dashed because that note doesn't exist yet.</p>
+    <p class="quote">RuBP is regenerated so the cycle can continue.</p>
+    <p>Filed under <span class="tg">#photosynthesis</span> and <span class="tg">#biochem</span>.
+      Formula: <span class="mono">3 CO₂ + 9 ATP → G3P</span><span class="caret-demo"></span></p>
+  </div>
+</div>
+
+<h2>Reveal on the active line</h2>
+<div class="two">
+  <div class="ed">
+    <div class="ed-body">
+      <div class="h3">Inactive line — markers hidden</div>
+      <p>Renders as <strong>bold</strong> and <em>italic</em>.</p>
+      <div class="active-line">
+        <p><span class="marker">### </span>Active line — markers shown<span class="caret-demo"></span></p>
+        <p><span class="marker">**</span>bold<span class="marker">**</span> and
+          <span class="marker">*</span>italic<span class="marker">*</span></p>
+      </div>
+    </div>
+  </div>
+  <p class="ds-note" style="margin:0">Put the cursor on a line and its <code>##</code>,
+  <code>**</code>, <code>`</code> and <code>&gt;</code> come back so you can edit them. Leave, and they
+  hide again. This is the whole trick behind "live preview" — one buffer, never two modes.</p>
+</div>
+
+<h2>Link states</h2>
+<div class="ds-row">
+  <span class="wl">[[exists]]</span>
+  <span class="wl-missing">[[does not exist yet]]</span>
+  <span class="tg">#tag</span>
+</div>
+<p class="ds-note">A missing link is dashed and faint, never red — it is a normal thing to write, not an
+error. Clicking one offers to create that note; <strong>nothing auto-creates</strong>, because a vault
+that spawns empty notes from typos stops being trustworthy.</p>
+
+<h2>Link autocomplete</h2>
+<div class="two">
+  <div class="ed">
+    <div class="ed-body">
+      <p>See also <span class="wl">[[Cal</span><span class="caret-demo"></span></p>
+      <div class="pop" style="margin-top:6px">
+        <ul>
+          <li aria-selected="true">Calvin cycle</li>
+          <li>Chlorophyll</li>
+          <li>Carbon fixation</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <p class="ds-note" style="margin:0">Typing <code>[[</code> offers existing titles only. There is no
+  "create new" row — that would contradict the never-auto-create rule above. Accepting inserts the
+  closing brackets and puts the caret past them.</p>
+</div>
+
+<pre class="ds-code">font       var(--font-body) @ 14px / 1.65   — Lexend, the reading face
+h1/h2      1.7em / 1.45em, 700, --phosphor-bright
+h3–h6      1.25em → 0.9em, 600, --phosphor-ink → --ink-dim
+[[link]]   --phosphor-bright, underline
+[[missing]]--ink-faint, underline dashed, offset 2px
+#tag       --phosphor-ink on rgb(var(--phosphor-rgb)/0.12), radius 4
+selection  rgb(var(--phosphor-rgb)/0.20)      caret --phosphor</pre>

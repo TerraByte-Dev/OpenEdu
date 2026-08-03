@@ -1,0 +1,83 @@
+<!-- @dsCard group="Foundations" -->
+<style>
+.st{width:100%;border-collapse:collapse;margin-bottom:8px}
+.st td,.st th{border-bottom:1px solid var(--rule);padding:10px;text-align:left;vertical-align:middle}
+.st th{font-family:var(--font-mono);font-size:.5625rem;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--ink-faint);font-weight:400}
+.st td:first-child{font-family:var(--font-mono);font-size:.6875rem;color:var(--phosphor-ink);width:1%;white-space:nowrap}
+.st td:last-child{font-size:.6875rem;color:var(--ink-faint)}
+.demo{padding:8px 14px;border:1px solid var(--rule);border-radius:8px;background:var(--panel-lite);
+  color:var(--ink-dim);font-size:.8125rem;display:inline-block}
+.fr{outline:2px solid var(--phosphor);outline-offset:2px;box-shadow:0 0 12px var(--phosphor-faint)}
+.try{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;
+  padding:16px;border:1px dashed var(--rule);border-radius:12px;align-items:center}
+.try :focus-visible{outline:2px solid var(--phosphor);outline-offset:2px;box-shadow:0 0 12px var(--phosphor-faint)}
+.try a{color:var(--phosphor-ink);font-size:.8125rem}
+.card-sel{border:1px solid var(--rule);border-radius:12px;padding:12px;background:var(--panel);font-size:.8125rem}
+.card-sel.on{border-color:var(--phosphor);background:var(--phosphor-veil);color:var(--phosphor-bright)}
+.rail{max-width:230px;display:grid;gap:2px}
+.rail a{display:block;padding:7px 12px;border-radius:6px;border-left:2px solid transparent;
+  color:var(--ink-dim);font-size:.8125rem;text-decoration:none}
+.rail a:hover{background:var(--panel-lite);color:var(--ink)}
+.rail a.on{background:var(--lcd);border-left-color:var(--phosphor);color:var(--phosphor-bright)}
+</style>
+
+<h1>Interaction States</h1>
+<p class="ds-lede">Five states, all expressed as border and glow shifts rather than fills. Two of these
+matter more than the rest: <strong>selected</strong>, because the app currently spells it five different
+ways, and <strong>focus</strong>, because the app has no focus indicator at all.</p>
+
+<h2>The five</h2>
+<table class="st">
+<tr><th>state</th><th></th><th>recipe</th></tr>
+<tr><td>default</td><td><span class="demo">Calvin cycle</span></td><td>--panel-lite, hairline rule</td></tr>
+<tr><td>hover</td><td><span class="demo" style="background:var(--lcd);color:var(--ink)">Calvin cycle</span></td>
+  <td>surface up one tier, text to --ink</td></tr>
+<tr><td>selected</td><td><span class="demo" style="background:var(--phosphor-veil);border-color:var(--phosphor);color:var(--phosphor-bright)">Calvin cycle</span></td>
+  <td>veil fill + accent border + bright text</td></tr>
+<tr><td>focus</td><td><span class="demo fr">Calvin cycle</span></td>
+  <td>2px accent outline, 2px offset, 12px bloom</td></tr>
+<tr><td>disabled</td><td><span class="demo" style="opacity:.4">Calvin cycle</span></td>
+  <td>opacity .4, no hover, not-allowed</td></tr>
+</table>
+
+<h2>Focus ring</h2>
+<p class="ds-lede" style="margin-bottom:12px">There are currently <strong>zero</strong>
+<code>focus-visible</code> rules in the app, which makes it effectively unusable by keyboard. That is not
+a polish item here — OpenEdu targets shared and donated school hardware where a dead or missing mouse is
+ordinary, and a lab machine driven by Tab is a normal way to use it.</p>
+
+<p class="ds-note" style="margin-bottom:10px">Tab through these — the ring is live:</p>
+<div class="try">
+  <button class="btn btn-primary">Button</button>
+  <input class="cf-input" placeholder="Input" style="border-radius:8px">
+  <a href="#focus-demo">A link</a>
+  <button class="card-sel on" style="text-align:left;cursor:pointer">Selected card</button>
+</div>
+
+<pre class="ds-code">:focus-visible {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 2px;
+  box-shadow: 0 0 12px var(--phosphor-faint);
+}</pre>
+<p class="ds-note"><code>outline</code>, not <code>box-shadow</code> alone: an outline survives an
+<code>overflow:hidden</code> ancestor and still renders in forced-colors mode, where box-shadows are
+dropped. The bloom is added on top so it reads as phosphor rather than as a browser default.
+<code>:focus-visible</code> rather than <code>:focus</code>, so it appears for keyboard users without
+ringing every mouse click.</p>
+
+<h2>Selected — one convention</h2>
+<p class="ds-lede" style="margin-bottom:10px">Veil fill, accent left-border, bright text. One rule for
+rails, tabs, and choice cards alike.</p>
+<div class="ds-row" style="align-items:flex-start;gap:24px">
+  <nav class="rail">
+    <a href="#nav-demo" class="on">Overview</a>
+    <a href="#nav-demo">Lessons</a>
+    <a href="#nav-demo">Notes</a>
+    <a href="#nav-demo">Review</a>
+  </nav>
+  <div style="display:grid;gap:8px;max-width:240px">
+    <div class="card-sel on">Guided — I want worked examples</div>
+    <div class="card-sel">Socratic — make me figure it out</div>
+  </div>
+</div>

@@ -1,0 +1,83 @@
+<!-- @dsCard group="Recipes" -->
+<!-- @dsAssets globe -->
+<style>
+.strip{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.cell{flex:1 1 108px;padding:16px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;
+  background:var(--bg);color:var(--ink)}
+.cell .name{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--ink-faint)}
+.big{display:flex;gap:28px;align-items:center;flex-wrap:wrap;padding:20px;border:1px solid var(--rule);
+  border-radius:12px;background:var(--panel)}
+.step{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.step .num{font-family:var(--font-mono);font-size:10px;color:var(--phosphor);border:1px solid var(--phosphor-faint);
+  border-radius:9999px;width:19px;height:19px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.step p{margin:0;font-size:13px;line-height:1.6;color:var(--ink-dim);max-width:74ch}
+.why{border:1px solid var(--rule);border-radius:12px;padding:14px;background:var(--panel);margin-top:4px}
+.why p{margin:0;font-size:13px;line-height:1.6;color:var(--ink-dim);max-width:76ch}
+</style>
+
+<h1>Mask Recolor</h1>
+<p class="ds-lede">One monochrome PNG, painted in whatever the active accent happens to be. This is how
+the TerraByte mark survives eleven themes with <strong>zero per-theme assets</strong> — and it
+generalises to any single-colour shape you want to ship once and tint everywhere.</p>
+
+<h2>The same file, eleven themes</h2>
+<div class="strip">
+  <div class="cell"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">openedu</span></div>
+  <div class="cell" data-theme="ice" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">ice</span></div>
+  <div class="cell" data-theme="green" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">green</span></div>
+  <div class="cell" data-theme="amber" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">amber</span></div>
+  <div class="cell" data-theme="tangerine" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">tangerine</span></div>
+  <div class="cell" data-theme="crimson" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">crimson</span></div>
+  <div class="cell" data-theme="vapor" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">vapor</span></div>
+  <div class="cell" data-theme="synthwave" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">synthwave</span></div>
+  <div class="cell" data-theme="ultraviolet" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">ultraviolet</span></div>
+  <div class="cell" data-theme="dark" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">dark</span></div>
+  <div class="cell" data-theme="light" style="background:var(--bg)"><span class="tb-logo" style="width:34px;height:34px"></span><span class="name">light</span></div>
+</div>
+<p class="ds-note">No sprite sheet, no eleven exports, no SVG <code>fill</code> to keep in sync. One
+54&#8239;KB transparent PNG and a background colour.</p>
+
+<h2>Sizes and glow</h2>
+<div class="big">
+  <span class="tb-logo" style="width:20px;height:20px"></span>
+  <span class="tb-logo" style="width:28px;height:28px"></span>
+  <span class="tb-logo" style="width:40px;height:40px"></span>
+  <span class="tb-logo tb-logo--glow" style="width:52px;height:52px"></span>
+  <span class="tb-logo" style="width:52px;height:52px;background-color:var(--ink-faint)"></span>
+</div>
+<p class="ds-note">Any size — it's a mask, so it scales to the box. <code>--glow</code> adds a
+<code>drop-shadow</code> in the accent. The last one overrides the fill to <code>--ink-faint</code>,
+which is how you get a de-emphasised mark without a second asset.</p>
+
+<h2>How</h2>
+<div class="step"><span class="num">1</span><p>Export the shape as a <strong>transparent monochrome
+PNG</strong>. Only the alpha channel matters — the colour in the file is thrown away, so don't spend
+time on it. Square, generous padding, no baked-in glow.</p></div>
+<div class="step"><span class="num">2</span><p>Render an <strong>empty element</strong>. There is no
+<code>&lt;img&gt;</code> and nothing inside it; the element is a painted rectangle that the mask
+punches a hole through.</p></div>
+<div class="step"><span class="num">3</span><p>Set <code>background-color</code> to a token, and the
+mask to the file. Ship both <code>-webkit-mask</code> and <code>mask</code>.</p></div>
+<div class="step"><span class="num">4</span><p>Give it <code>role="img"</code> and an
+<code>aria-label</code> — an empty span is invisible to a screen reader otherwise.</p></div>
+
+<pre class="ds-code">.tb-logo {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: var(--phosphor);          /* ← the only line that decides colour */
+  -webkit-mask: url('logo.png') center / contain no-repeat;
+          mask: url('logo.png') center / contain no-repeat;
+}
+.tb-logo--glow { filter: drop-shadow(0 0 5px var(--phosphor-faint)); }
+
+&lt;span class="tb-logo" role="img" aria-label="TerraByte Solutions"
+      style="width:28px;height:28px"&gt;&lt;/span&gt;</pre>
+
+<div class="why">
+  <p><strong>Worth knowing:</strong> the TerraByte brand doc says never recolour the mark outside the
+  mint palette, and this deliberately breaks that rule — the mark takes the active theme accent instead.
+  It is a considered exception, not an oversight. A single monochrome mask that adapts to every theme
+  for free is worth more than colour orthodoxy, and the alternative is eleven exports that drift.
+  If you reuse this recipe in another product, decide that trade explicitly rather than inheriting it.</p>
+</div>

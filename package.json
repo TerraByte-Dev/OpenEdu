@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
-    "sync:library": "node scripts/sync-library.mjs"
+    "sync:library": "node scripts/sync-library.mjs",
+    "design": "node scripts/build-design-system.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.2",

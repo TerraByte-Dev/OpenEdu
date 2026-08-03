@@ -1,0 +1,91 @@
+<!-- @dsCard group="Meta" -->
+<style>
+.rule{border:1px solid var(--rule);border-radius:12px;padding:16px;background:var(--panel);margin-bottom:12px}
+.rule h3{font-family:var(--font-display);font-size:.9375rem;color:var(--phosphor);margin:0 0 6px}
+.rule p{margin:0;color:var(--ink-dim);font-size:.8125rem;line-height:1.6;max-width:76ch}
+.rule .bad{color:var(--ink-faint)}
+.brand{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.brand>div{border:1px solid var(--rule);border-radius:12px;padding:14px}
+.brand h4{font-family:var(--font-mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.14em;
+  margin:0 0 10px;color:var(--ink-faint)}
+.chip-row{display:flex;gap:6px;margin-bottom:8px}
+.chip-row span{width:34px;height:34px;border-radius:4px;border:1px solid var(--rule)}
+.brand code{font-family:var(--font-mono);font-size:.6875rem;color:var(--phosphor-ink)}
+.brand p{font-size:.75rem;color:var(--ink-dim);line-height:1.55;margin:8px 0 0}
+</style>
+
+<h1>OpenEdu Design System</h1>
+<p class="ds-lede">The visual language of OpenEdu — an offline-first AI tutor built to run on shared,
+donated, low-spec school hardware. Every card here is a <strong>generation exemplar</strong>: whatever
+CSS a card contains is what gets learned as "what OpenEdu looks like", so cards are built from the app's
+real stylesheet rather than reimplemented.</p>
+
+<h2>Authoring rules</h2>
+
+<div class="rule">
+  <h3>Tokens, never literals</h3>
+  <p>Every colour is <code>var(--phosphor)</code>, <code>rgb(var(--phosphor-rgb) / 0.18)</code>,
+  <code>var(--ink-faint)</code>. No hex outside the <code>:root</code> preamble and the semantic-signal
+  card. This is the highest-leverage rule in the system — it is the single thing that makes anything
+  generated from these cards survive all eleven themes without extra work.</p>
+</div>
+
+<div class="rule">
+  <h3>Use the real classes</h3>
+  <p>Every card inlines the app's whole stylesheet, so <code>.btn</code>, <code>.tag</code>,
+  <code>.lcd</code>, <code>.cf-input</code>, <code>.window</code> and <code>.glow-line</code> are all
+  available and correct. Reach for those. A card that reimplements a button in its own CSS teaches a
+  button that exists nowhere in the product. Author new CSS only where the app genuinely has no class
+  for the thing.</p>
+</div>
+
+<div class="rule">
+  <h3>Glow is the depth model</h3>
+  <p>There are no drop shadows in OpenEdu. Elevation, focus, and emphasis are all expressed as
+  phosphor bloom — <code>box-shadow: 0 0 8px var(--phosphor-faint)</code> and the
+  <code>.phosphor-glow</code> family. A generated surface that reaches for a grey drop shadow will
+  read as a different product immediately.</p>
+</div>
+
+<div class="rule">
+  <h3>Show the markup</h3>
+  <p>Live demo on top, the exact class string beneath in a <code>.ds-code</code> block. The render is
+  for a human; the markup is what gets copied.</p>
+</div>
+
+<h2>Brand: which blue is OpenEdu</h2>
+
+<div class="brand">
+  <div>
+    <h4>Canonical — what ships</h4>
+    <div class="chip-row">
+      <span style="background:#00C6FF"></span><span style="background:#44D8FF"></span>
+      <span style="background:#6DD4EE"></span><span style="background:#000000"></span>
+    </div>
+    <code>#00C6FF · #44D8FF · #6DD4EE · #000000</code>
+    <p>Lexend + IBM Plex Mono + Share Tech Mono. Used by the app, both logo lockups, every app icon,
+    the website hero, and the share card.</p>
+  </div>
+  <div>
+    <h4 class="bad">Stale — never implemented</h4>
+    <div class="chip-row">
+      <span style="background:#0088ff"></span><span style="background:#4aadff"></span>
+      <span style="background:#80c8ff"></span><span style="background:#050810"></span>
+    </div>
+    <code>#0088ff · #4aadff · #80c8ff · #050810</code>
+    <p>The OpenEdu sub-brand block in the TerraByte brand doc. It has a zero-artifact footprint — no
+    shipped surface has ever used it. Treat it as out of date, not as an alternative.</p>
+  </div>
+</div>
+
+<p class="ds-note">Two live blues would be worse than either one, so this is recorded as a stale spec
+rather than a divergence. <strong>Mint <code>#00e5a0</code> is TerraByte corporate, not OpenEdu.</strong>
+Its one appearance in the product is the TerraByte globe in the About panel, and even there the CSS mask
+repaints it in the active theme accent — that recolour is a deliberate, documented exception to the
+brand doc's "never recolour the mark" rule, because a single monochrome mask adapting to eleven themes
+is worth more than colour orthodoxy.</p>
+
+<p class="ds-note"><strong>Lexend is not a style choice.</strong> It was picked because its letterform
+spacing measurably improves reading speed and comprehension. The brand doc specifies Inter as the house
+face; that governs TerraByte's own marketing. Inter is TerraByte's voice, Lexend is OpenEdu's teaching
+surface, and for an app whose users read under bad conditions the teaching surface wins.</p>

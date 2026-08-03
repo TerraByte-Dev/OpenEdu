@@ -1,0 +1,116 @@
+<!-- @dsCard group="Notes" -->
+<style>
+.wrap{display:grid;grid-template-columns:1fr 240px;border:1px solid var(--rule);border-radius:12px;
+  overflow:hidden;background:var(--panel);min-height:330px}
+.doc{padding:18px 20px;font-family:var(--font-body);line-height:1.65;color:var(--ink);font-size:14px}
+.doc .t{font-size:1.7em;font-weight:700;color:var(--phosphor-bright);line-height:1.35;margin:0 0 .3em}
+.doc .s{font-size:1.45em;font-weight:700;color:var(--phosphor-bright);margin:.9em 0 .2em}
+.side{border-left:1px solid var(--rule);background:rgb(2 4 9 / .4)}
+.sec{border-bottom:1px solid var(--rule)}
+.sec:last-child{border-bottom:0}
+.sec-hd{width:100%;display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:0;
+  cursor:pointer;text-align:left;transition:background .15s}
+.sec-hd:hover{background:rgb(4 7 9 / .6)}
+.sec-hd .chev{width:9px;height:9px;flex-shrink:0;color:var(--ink-faint);transition:transform .15s}
+.sec-hd.open .chev{transform:rotate(90deg)}
+.sec-hd .lbl{flex:1;min-width:0;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--ink-faint)}
+.sec-hd .n{font-family:var(--font-mono);font-size:10px;color:var(--ink-faint)}
+.sec-body{padding-bottom:8px}
+.ol{display:block;width:100%;text-align:left;padding:3px 12px 3px 12px;border:0;background:none;cursor:pointer;
+  font-size:11.5px;line-height:1.4;color:var(--ink-dim);transition:color .15s,background .15s}
+.ol:hover{color:var(--phosphor-bright);background:rgb(4 7 9 / .6)}
+.mg{padding:6px 12px}
+.mg .who{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;padding:0;
+  font-size:12px;color:var(--phosphor-ink)}
+.mg .who:hover{color:var(--phosphor-bright)}
+.mg .ctx{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;
+  margin-top:4px;padding:0 0 0 8px;border-left:2px solid var(--rule);
+  font-size:11px;line-height:1.45;color:var(--ink-dim);transition:color .15s,border-color .15s}
+.mg .ctx:hover{color:var(--ink);border-left-color:rgb(var(--phosphor-rgb)/0.5)}
+.empty{padding:0 12px;font-size:11px;line-height:1.45;color:var(--ink-faint)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+.pair>div{border:1px solid var(--rule);border-radius:8px;padding:12px}
+.pair h4{margin:0 0 6px;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--phosphor-ink)}
+.pair p{margin:0;font-size:12px;line-height:1.55;color:var(--ink-dim)}
+</style>
+
+<h1>Context Panel</h1>
+<p class="ds-lede">The right rail of the note editor: where you are in the document, and who points at
+it. Toggleable, three collapsible sections, counts in the headers so it still reads while collapsed.</p>
+
+<div class="wrap">
+  <div class="doc">
+    <div class="t">Calvin cycle</div>
+    <p>The light-independent reactions of photosynthesis.</p>
+    <div class="s">Three phases</div>
+    <p>Carbon fixation, reduction, and regeneration of RuBP.</p>
+  </div>
+
+  <aside class="side">
+    <div class="sec">
+      <button class="sec-hd open">
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6"/></svg>
+        <span class="lbl">Outline</span><span class="n">2</span>
+      </button>
+      <div class="sec-body">
+        <button class="ol">Calvin cycle</button>
+        <button class="ol" style="padding-left:22px">Three phases</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <button class="sec-hd open">
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6"/></svg>
+        <span class="lbl">Linked mentions</span><span class="n">2</span>
+      </button>
+      <div class="sec-body">
+        <div class="mg">
+          <button class="who">Photosynthesis</button>
+          <button class="ctx">…light reactions feed the [[Calvin cycle]] downstream…</button>
+        </div>
+        <div class="mg">
+          <button class="who">RuBisCO</button>
+          <button class="ctx">catalyses the first step of the [[Calvin cycle]]</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <button class="sec-hd">
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6"/></svg>
+        <span class="lbl">Unlinked mentions</span><span class="n">1</span>
+      </button>
+    </div>
+  </aside>
+</div>
+
+<h2>Linked vs unlinked</h2>
+<div class="pair">
+  <div>
+    <h4>Linked — a fact</h4>
+    <p>Someone wrote <code>[[Calvin cycle]]</code>. The edge exists; it is in the graph. Shown expanded
+    by default because it is real structure.</p>
+  </div>
+  <div>
+    <h4>Unlinked — a suggestion</h4>
+    <p>A note says "Calvin cycle" in prose. Might be worth linking, might be incidental. Collapsed by
+    default, and matched conservatively — whole-word only, and titles under three characters are skipped
+    entirely. A suggestion that fires constantly is worse than one that never fires.</p>
+  </div>
+</div>
+<p class="ds-note">Keep these separate. Merging them into one "mentions" count would state a
+relationship the vault doesn't actually have.</p>
+
+<h2>Empty states</h2>
+<div style="max-width:240px;border:1px solid var(--rule);border-radius:8px;padding:8px 0;background:var(--panel)">
+  <p class="empty">Nothing links here yet. Write <code style="color:var(--phosphor-ink)">[[Calvin cycle]]</code> in another note.</p>
+</div>
+<p class="ds-note">An empty section says what to do about it, not just that it is empty — the panel is
+most often seen empty in a young vault, which is exactly when the reader needs the nudge.</p>
+
+<pre class="ds-code">width      240px, border-left --rule, bg rgb(panel / .4)
+header     10px mono, uppercase, .14em tracking, --ink-faint, count right-aligned
+outline    11.5px, indent 10px per heading level, click scrolls the editor
+context    11px --ink-dim on a 2px --rule left border, brightening on hover</pre>
