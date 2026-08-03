@@ -1,15 +1,19 @@
 // TutorEngine — the kernel that owns one tutoring turn (docs/ARCHITECTURE.md).
 //
-// The turn loop: assemble messages → select enabled tools → stream a provider turn →
-// route text to onText and tool_calls to dispatch → reinject tool results → repeat until
-// the model answers without calling a tool (or the iteration cap trips). A turn that
-// offers no tools and uses no tool is byte-identical to the v1 streamed chat — that's the
-// "plain chat looks identical" guarantee.
+// The turn loop: fit messages to the budget → select enabled tools → stream a provider turn →
+// route text to onText and tool_calls to dispatch → cap and reinject tool results → re-fit → repeat
+// until the model answers without calling a tool (or the iteration cap trips). A turn that offers no
+// tools and uses no tool is byte-identical to the v1 streamed chat — that's the "plain chat looks
+// identical" guarantee.
 //
 // The kernel is intentionally free of DB / React concerns. It returns the final text plus a
 // summary of what happened; the caller (ChatTab) persists the message and runs the post-turn
 // knowledge reflection — gated by `usedKnowledgeUpdate` so it never double-writes with the
 // knowledge.update_map tool.
+//
+// #86 gave this loop the one thing it never had: a context budget. It used to hand the provider an
+// unbounded message array with uncapped tool results and let the server decide what to drop — and
+// Ollama drops from the FRONT, taking the system prompt and the tools manifest with it.
 
 import { callLLMTurn, type NeutralMessage } from "../llm";
 import type { LLMConfig } from "../../types";
@@ -17,8 +21,13 @@ import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent } from "./toolDispatch";
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
+import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
+
+// A single tool result may claim at most this share of the grounding slice. A notebook.search hit
+// can be several thousand tokens of JSON; uncapped it evicts the entire conversation behind it.
+const TOOL_RESULT_BUDGET_FRACTION = 0.8;
 
 export interface TutorTurn {
   messages: Array<{ role: string; content: string }>;
@@ -34,14 +43,25 @@ export interface TutorTurnResult {
   // True if knowledge.update_map ran successfully this turn — the caller skips its post-turn
   // auto-reflection so there's exactly one writer to the knowledge files.
   usedKnowledgeUpdate: boolean;
+  // Why the turn ended. "aborted" (the student pressed Stop), "stalled" (the stream went silent) and
+  // "length" (the model hit its output cap mid-sentence) all mean `text` is a FRAGMENT — the caller
+  // must not persist it as a finished answer. Before #86 the done event was dropped entirely, so an
+  // interrupted stream looked like a natural ending and a truncated half-sentence was written to the
+  // database as the tutor's reply.
+  stopReason: "complete" | "aborted" | "stalled" | "length" | "max_iterations";
+  // Budget telemetry for the dev readout / diagnostics.
+  usage: { contextTokens: number; promptTokens: number; droppedMessages: number };
 }
 
 export class TutorEngine {
   async run(turn: TutorTurn, ctx: ToolContext): Promise<TutorTurnResult> {
-    const messages: NeutralMessage[] = turn.messages.map((m) => ({
+    let messages: NeutralMessage[] = turn.messages.map((m) => ({
       role: m.role as NeutralMessage["role"],
       content: m.content,
     }));
+
+    const budget: Budget = budgetFor(ctx.contextTokens ?? DEFAULT_CONTEXT_TOKENS);
+    const toolResultCap = Math.floor(budget.grounding * TOOL_RESULT_BUDGET_FRACTION);
 
     const eduTools = await selectTools(ctx);
     const toolDefs = eduTools.length ? buildProviderToolDefs(eduTools) : undefined;
@@ -55,10 +75,26 @@ export class TutorEngine {
       else messages.unshift({ role: "system", content: manifest });
     }
 
+    // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
+    // history rather than the student's current question.
+    let fit = fitMessages(messages, budget);
+    messages = fit.messages;
+    let droppedTotal = fit.dropped;
+    if (import.meta.env?.DEV) {
+      console.info(`[budget] ${formatBudgetUsage(budget, fit.usage)}${fit.dropped ? ` · dropped ${fit.dropped}` : ""}`);
+    }
+
     let streamedText = ""; // everything shown to the user this turn = what we persist
     const toolCalls: TutorTurnResult["toolCalls"] = [];
     let usedKnowledgeUpdate = false;
     let endedNaturally = false; // the model gave a closing answer without calling a tool
+    // Set when the provider reports the turn did not finish cleanly. "length" is included because
+    // num_predict is now bounded by the budget's reserve slice, which makes hitting the output cap a
+    // reachable outcome rather than a theoretical one.
+    // Assigned inline rather than through a helper: TypeScript's control-flow analysis cannot see
+    // writes made through a closure, so routing these through one narrows `interrupted` to null at
+    // every later read and silently disables the checks below.
+    let interrupted: "aborted" | "stalled" | "length" | null = null;
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
@@ -67,9 +103,23 @@ export class TutorEngine {
       const pendingCalls: Array<{ id: string; name: string; args: unknown }> = [];
       for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
         if (ev.type === "text") { iterationText += ev.delta; streamedText += ev.delta; turn.onText(ev.delta); }
-        else if (ev.type === "tool_call") pendingCalls.push({ id: ev.id, name: ev.name, args: ev.args });
+        else if (ev.type === "tool_call") {
+          // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
+          // iteration 1 and 2 both emit "call_0" — and the chat surface keys tool chips by id, so the
+          // second call silently ERASED the first one's card.
+          pendingCalls.push({ id: `${iteration}:${ev.id}`, name: ev.name, args: ev.args });
+        }
+        else if (ev.type === "done") {
+          if (ev.finishReason === "aborted") interrupted = "aborted";
+          else if (ev.finishReason === "stalled") interrupted = "stalled";
+          else if (ev.finishReason === "length") interrupted = "length";
+        }
       }
 
+      // A hard interruption (Stop, or a stalled stream) ends the turn immediately. "length" does NOT:
+      // the model may have emitted valid tool calls before running out of room, and dropping them
+      // would lose work AND skip the forced final answer below, leaving the student with nothing.
+      if (interrupted && interrupted !== "length") break;
       if (pendingCalls.length === 0) { endedNaturally = true; break; }
 
       // Record the assistant's tool-call turn, then dispatch each call and reinject its result.
@@ -79,28 +129,61 @@ export class TutorEngine {
         tool_calls: pendingCalls.map((c) => ({ id: c.id, name: c.name, args: c.args })),
       });
       for (const call of pendingCalls) {
-        if (ctx.abort.aborted) break;
+        if (ctx.abort.aborted) { interrupted = "aborted"; break; }
+        // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
         const result = await dispatchToolCall(call, ctx, turn.onToolEvent);
         toolCalls.push({ name: call.name, args: call.args, ok: result.ok });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
+        // Cap what goes back into context. The model sees a visible truncation marker rather than a
+        // silently shortened result it would otherwise answer from with false confidence.
+        const payload = result.ok ? JSON.stringify(result.value ?? {}) : `ERROR: ${result.error}`;
         messages.push({
           role: "tool",
           name: call.name,
           tool_call_id: call.id,
-          content: result.ok ? JSON.stringify(result.value ?? {}) : `ERROR: ${result.error}`,
+          content: capText(payload, toolResultCap),
         });
       }
-    }
+      if (ctx.abort.aborted) interrupted = interrupted ?? "aborted";
+      if (interrupted && interrupted !== "length") break;
 
-    // If the loop ended on the iteration cap (not a natural closing answer), force one final
-    // NO-tools call so the user always gets a reply, using the tool results already in `messages`.
-    if (!endedNaturally && !ctx.abort.aborted) {
-      for await (const ev of callLLMTurn(messages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
-        if (ev.type === "text") { streamedText += ev.delta; turn.onText(ev.delta); }
+      fit = fitMessages(messages, budget);
+      messages = fit.messages;
+      droppedTotal += fit.dropped;
+      if (import.meta.env?.DEV) {
+        console.info(`[budget] after tools · ${formatBudgetUsage(budget, fit.usage)}${fit.dropped ? ` · dropped ${fit.dropped}` : ""}`);
       }
     }
 
-    return { text: streamedText, toolCalls, usedKnowledgeUpdate };
+    // If the loop ended on the iteration cap (not a natural closing answer, not an interruption),
+    // force one final NO-tools call so the user always gets a reply, using the tool results already
+    // in `messages`.
+    const hardStopped = interrupted === "aborted" || interrupted === "stalled";
+    if (!endedNaturally && !hardStopped && !ctx.abort.aborted) {
+      for await (const ev of callLLMTurn(messages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
+        if (ev.type === "text") { streamedText += ev.delta; turn.onText(ev.delta); }
+        else if (ev.type === "done") {
+          if (ev.finishReason === "aborted") interrupted = "aborted";
+          else if (ev.finishReason === "stalled") interrupted = "stalled";
+          else if (ev.finishReason === "length") interrupted = "length";
+        }
+      }
+    }
+
+    // The abort flag is authoritative. `interrupted` can miss a Stop that lands during or after the
+    // final tool dispatch — the loop then exits via shouldContinue, which discards its own reason —
+    // and the turn would report "max_iterations", which the caller does not treat as partial. The
+    // fragment would then be persisted unmarked and reflected into the course knowledge files.
+    const stopReason: TutorTurnResult["stopReason"] =
+      interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally ? "complete" : "max_iterations");
+
+    return {
+      text: streamedText,
+      toolCalls,
+      usedKnowledgeUpdate,
+      stopReason,
+      usage: { contextTokens: budget.total, promptTokens: fit.usage.total, droppedMessages: droppedTotal },
+    };
   }
 }
 

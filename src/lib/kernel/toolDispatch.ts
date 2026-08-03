@@ -102,13 +102,25 @@ export async function dispatchToolCall(
   onUIEvent?.({ kind: "start", id: call.id, name: call.name });
   try {
     let value: unknown;
+    // Track whether a result was ACTUALLY yielded, not just whether `value` ended up undefined —
+    // a tool may legitimately yield `undefined` as its result. Before #86 a generator that yielded
+    // only progress events (an early `return`, a swallowed exception) produced {ok:true,
+    // value:undefined}, and the kernel then handed the model the literal string "{}" and told it the
+    // call had succeeded. The model would then reason confidently from nothing.
+    let sawResult = false;
     for await (const ev of tool.call(parsed.data, ctx)) {
       if (ev.kind === "progress") onUIEvent?.({ kind: "progress", id: call.id, name: call.name, message: ev.message });
-      else if (ev.kind === "result") value = ev.value;
+      else if (ev.kind === "result") { value = ev.value; sawResult = true; }
       else if (ev.kind === "error") {
         onUIEvent?.({ kind: "error", id: call.id, name: call.name, error: ev.error });
         return { name: call.name, ok: false, error: ev.error };
       }
+    }
+
+    if (!sawResult) {
+      const error = `${call.name} finished without producing a result. Do not assume it succeeded — try a different approach or tell the student you could not complete that step.`;
+      onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });
+      return { name: call.name, ok: false, error };
     }
 
     // Optional semantic output check (uniqueness/completeness the schema can't express).

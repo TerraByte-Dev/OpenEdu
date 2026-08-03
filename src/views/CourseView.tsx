@@ -286,6 +286,10 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
         )}
         {activeTab === "chat" && (
           <ChatTab
+            // Remount on a course/level switch. Without a key, React reuses the instance and only
+            // re-runs the effects — so an in-flight turn from the PREVIOUS level can resolve after
+            // the switch and append its assistant message to the new level's transcript (#86).
+            key={`${courseId}:${effectiveViewingLevel}`}
             courseId={courseId}
             course={course}
             level={effectiveViewingLevel}

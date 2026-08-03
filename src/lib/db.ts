@@ -398,11 +398,35 @@ export async function deleteNotebookDocumentByNote(noteId: string): Promise<void
 }
 
 // Chat Messages (level-scoped per unit)
+//
+// Capped at the most recent CHAT_HISTORY_LIMIT messages (#86). This query used to be unbounded, and
+// ChatTab spreads its result verbatim into every request — so a long-running course sent its entire
+// transcript to the model on every turn and paid the IPC + JSON cost of loading it on every mount.
+// The kernel's budget would trim it anyway; this stops it being read off disk in the first place.
+//
+// PRODUCT DECISION, not just a prompt-cost cap: this is the ONLY loader for the chat transcript, so
+// the limit is also the student's scrollback window. Messages older than the most recent 200 in a
+// course/level disappear from the UI on the next mount. They are not deleted — a "load earlier"
+// affordance or a separate, larger UI read would restore them. 200 is roughly a term of tutoring at
+// one session a week; revisit if that proves short.
+// The inner query takes the NEWEST rows, the outer one restores chronological order.
+export const CHAT_HISTORY_LIMIT = 200;
+
 export async function getChatMessages(courseId: string, level: number): Promise<ChatMessage[]> {
   const d = await getDb();
+  // Order by rowid, NOT created_at. `created_at` defaults to datetime('now') — SECOND granularity —
+  // and a question plus its reply routinely land in the same second, so created_at alone leaves
+  // their order undefined and any tiebreak on `id` sorts by UUID, i.e. at random. Swapping a user
+  // message with its assistant reply corrupts the transcript the model reads on every later turn.
+  // rowid is monotonic in insertion order on this table (TEXT primary key, not WITHOUT ROWID), which
+  // is exactly the chronological order we want. It is aliased because `SELECT *` from a subquery
+  // does not expose the implicit rowid to the outer query; `_rid` rides along unused on each row.
   return await d.select(
-    "SELECT * FROM chat_messages WHERE course_id = $1 AND level = $2 ORDER BY created_at ASC",
-    [courseId, level]
+    `SELECT * FROM (
+       SELECT rowid AS _rid, * FROM chat_messages WHERE course_id = $1 AND level = $2
+       ORDER BY _rid DESC LIMIT $3
+     ) ORDER BY _rid ASC`,
+    [courseId, level, CHAT_HISTORY_LIMIT]
   );
 }
 

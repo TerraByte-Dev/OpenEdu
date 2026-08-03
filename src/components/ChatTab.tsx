@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
 import { getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite } from "../lib/db";
 import { buildSystemPrompt } from "../lib/curriculum";
-import { detectModelTier } from "../lib/llm";
-import { getChatConfig } from "../lib/store";
+import { detectModelProfile } from "../lib/llm";
+import { getChatConfig, getMaxContextTokens } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, skillBundleLayer, personaIdentityLayer, type TutorTurn, type ToolUIEvent } from "../lib/kernel";
@@ -82,10 +82,20 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     onSeedConsumed?.();
   }, [seedTopic, onSeedConsumed]);
 
-  // Abort any in-flight stream on unmount or when level/course changes
+  // Abort any in-flight stream on unmount or when level/course changes.
+  //
+  // Resolving the two suspended-turn promises is NOT optional (#86): a turn parked inside
+  // ask_user.question or a permission confirm is awaiting a Promise that only a click resolves.
+  // Aborting the controller does not settle it, so navigating away with a card on screen left the
+  // generator awaiting forever — a leaked turn holding its whole message array. The explicit Stop
+  // handler already did this; unmount did not.
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      askResolverRef.current?.("");
+      askResolverRef.current = null;
+      confirmResolverRef.current?.(false);
+      confirmResolverRef.current = null;
     };
   }, [courseId, level]);
 
@@ -136,8 +146,19 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     const instructions = await getTutorInstructions(courseId);
     const knowledgeSummary = await getKnowledgeSummary(courseId);
-    const config = await getChatConfig();
-    const modelTier = await detectModelTier(config);
+    const baseConfig = await getChatConfig();
+    // Resolve the window this turn runs in: the smaller of what the model supports and what the user
+    // allowed. Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and
+    // dropped the front of the prompt — the system message and the tools manifest — with no error.
+    const profile = await detectModelProfile(baseConfig);
+    // The setting caps what we ASK OLLAMA FOR — it is a RAM knob, and cloud providers size their own
+    // windows. Applying it to cloud too would silently trim an OpenAI/Anthropic conversation to 8k
+    // for no benefit, which is neither what the setting says nor what the user would expect.
+    const contextTokens = baseConfig.provider === "ollama"
+      ? Math.min(profile.contextTokens, await getMaxContextTokens())
+      : profile.contextTokens;
+    const config = { ...baseConfig, modelTier: profile.tier, contextTokens };
+    const modelTier = profile.tier;
     // Two orthogonal skill axes feed the turn: the mode skill (from the bar) and the course's domain
     // skill (math-tutor/code-tutor, code-routed from the topic). Both gate tools (selectTools unions
     // their tools_required) and contribute <skill_bundle> rules. domainSkill is null off-subject.
@@ -184,6 +205,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       level,
       syllabus: currentSyllabus,
       modelTier,
+      contextTokens,
       permissionMode: "default", // Phase 2: rules live in permissions.json; "default" asks before writes
       config,
       abort: controller.signal,
@@ -203,18 +225,35 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     try {
       const result = await tutorEngine.run(turn, ctx);
-      if (!controller.signal.aborted && result.text.trim()) {
-        const assistantMsg = await saveChatMessage(courseId, "assistant", result.text, level);
+      const partial = result.stopReason === "aborted" || result.stopReason === "stalled" || result.stopReason === "length";
+      if (result.text.trim()) {
+        // Persist an interrupted reply WITH a marker rather than silently as a finished answer.
+        // Two bugs met here before #86: a stall left `controller.signal.aborted` false, so a truncated
+        // half-sentence was written as the tutor's final word; and a real abort wrote nothing at all,
+        // leaving the student's question hanging in the transcript with no reply forever — which then
+        // became history that teaches the model unanswered questions are normal.
+        const suffix = result.stopReason === "stalled"
+          ? "\n\n_[the tutor stopped responding — ask again to continue]_"
+          : result.stopReason === "aborted"
+            ? "\n\n_[stopped]_"
+            : result.stopReason === "length"
+              ? "\n\n_[cut off at the length limit — ask the tutor to continue]_"
+              : "";
+        const assistantMsg = await saveChatMessage(courseId, "assistant", result.text + suffix, level);
         setMessages((prev) => [...prev, assistantMsg]);
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
-        // knowledge.update_map already wrote this turn so there's exactly one writer.
-        if (!result.usedKnowledgeUpdate) {
+        // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
+        // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently.
+        if (!result.usedKnowledgeUpdate && !partial) {
           updateKnowledgeFiles(courseId, userText, result.text, config).catch(() => {});
         }
       }
+      if (result.stopReason === "stalled") {
+        setChatError("The model stopped sending output. If this keeps happening on a local model, it may be short on memory — try a smaller model or a smaller context window in Settings.");
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (!/abort/i.test(msg)) setChatError(msg);
+      if (!/abort|cancel/i.test(msg)) setChatError(msg);
     } finally {
       setStreamingText("");
       setStreaming(false);

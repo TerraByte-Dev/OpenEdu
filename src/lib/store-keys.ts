@@ -19,6 +19,11 @@ export const STORE_KEYS = {
   libraryUrl: "library_url",
   libraryManifestCache: "library_manifest_cache",
   libraryManifestCacheAt: "library_manifest_cache_at",
+  // Ceiling on the context window the app requests from Ollama, in tokens (#86). The effective
+  // window is min(this, the model's own maximum). User-visible because it trades answer quality for
+  // RAM: the KV cache scales with it, and on a 4GB machine an over-large window is what turns a
+  // working setup into `signal: killed`.
+  maxContextTokens: "max_context_tokens",
 } as const;
 
 // Per-provider API key, e.g. "apikey_openai".
@@ -48,6 +53,7 @@ export const ALLOWED_IMPORT_KEYS: ReadonlySet<string> = new Set<string>([
   STORE_KEYS.ollamaUrl,
   STORE_KEYS.libraryEnabled,
   STORE_KEYS.libraryUrl,
+  STORE_KEYS.maxContextTokens,
   // secrets — only present when the export was made with "include keys"
   STORE_KEYS.tavilyApiKey,
   apiKeyStoreKey("ollama"),
