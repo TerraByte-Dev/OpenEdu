@@ -66,6 +66,7 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM quiz_questions WHERE attempt_id IN (SELECT id FROM quiz_attempts WHERE course_id = $1)", [id]);
   await d.execute("DELETE FROM quiz_attempts WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM chat_messages WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM chat_threads WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM notes WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM notebook_embeddings WHERE chunk_id IN (SELECT c.id FROM notebook_chunks c JOIN notebook_documents nd ON c.document_id = nd.id WHERE nd.course_id = $1)", [id]);
   await d.execute("DELETE FROM notebook_chunks WHERE document_id IN (SELECT id FROM notebook_documents WHERE course_id = $1)", [id]);
@@ -397,6 +398,61 @@ export async function deleteNotebookDocumentByNote(noteId: string): Promise<void
   if (doc) await deleteNotebookDocument(doc.id);
 }
 
+// ── Chat threads ─────────────────────────────────────────────────────────────
+// A thread is one named conversation inside a (course, level). Before this there was exactly ONE
+// endless transcript per level, so an earlier topic got buried and — once past the read cap — was
+// effectively unreachable. Threads are scoped to (course, level) rather than to the course alone so
+// the syllabus context a turn is built against always matches the thread it lives in.
+
+export interface ChatThread {
+  id: string;
+  course_id: string;
+  level: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Newest activity first — the order a conversation list is useful in. */
+export async function listChatThreads(courseId: string, level: number): Promise<ChatThread[]> {
+  const d = await getDb();
+  return await d.select(
+    "SELECT * FROM chat_threads WHERE course_id = $1 AND level = $2 ORDER BY updated_at DESC, rowid DESC",
+    [courseId, level],
+  );
+}
+
+export async function createChatThread(courseId: string, level: number, title = ""): Promise<ChatThread> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute(
+    "INSERT INTO chat_threads (id, course_id, level, title) VALUES ($1, $2, $3, $4)",
+    [id, courseId, level, title],
+  );
+  const rows: ChatThread[] = await d.select("SELECT * FROM chat_threads WHERE id = $1", [id]);
+  return rows[0];
+}
+
+export async function renameChatThread(threadId: string, title: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE chat_threads SET title = $1, updated_at = datetime('now') WHERE id = $2",
+    [title, threadId],
+  );
+}
+
+/** Bumped on every send so the list stays ordered by real activity, not creation. */
+export async function touchChatThread(threadId: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE chat_threads SET updated_at = datetime('now') WHERE id = $1", [threadId]);
+}
+
+export async function deleteChatThread(threadId: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("DELETE FROM chat_messages WHERE thread_id = $1", [threadId]);
+  await d.execute("DELETE FROM chat_threads WHERE id = $1", [threadId]);
+}
+
 // Chat Messages (level-scoped per unit)
 //
 // Capped at the most recent CHAT_HISTORY_LIMIT messages (#86). This query used to be unbounded, and
@@ -412,7 +468,7 @@ export async function deleteNotebookDocumentByNote(noteId: string): Promise<void
 // The inner query takes the NEWEST rows, the outer one restores chronological order.
 export const CHAT_HISTORY_LIMIT = 200;
 
-export async function getChatMessages(courseId: string, level: number): Promise<ChatMessage[]> {
+export async function getChatMessages(threadId: string): Promise<ChatMessage[]> {
   const d = await getDb();
   // Order by rowid, NOT created_at. `created_at` defaults to datetime('now') — SECOND granularity —
   // and a question plus its reply routinely land in the same second, so created_at alone leaves
@@ -423,10 +479,10 @@ export async function getChatMessages(courseId: string, level: number): Promise<
   // does not expose the implicit rowid to the outer query; `_rid` rides along unused on each row.
   return await d.select(
     `SELECT * FROM (
-       SELECT rowid AS _rid, * FROM chat_messages WHERE course_id = $1 AND level = $2
-       ORDER BY _rid DESC LIMIT $3
+       SELECT rowid AS _rid, * FROM chat_messages WHERE thread_id = $1
+       ORDER BY _rid DESC LIMIT $2
      ) ORDER BY _rid ASC`,
-    [courseId, level, CHAT_HISTORY_LIMIT]
+    [threadId, CHAT_HISTORY_LIMIT]
   );
 }
 
@@ -435,12 +491,13 @@ export async function saveChatMessage(
   role: "user" | "assistant" | "system",
   content: string,
   level: number,
+  threadId: string,
 ): Promise<ChatMessage> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO chat_messages (id, course_id, level, role, content) VALUES ($1, $2, $3, $4, $5)",
-    [id, courseId, level, role, content]
+    "INSERT INTO chat_messages (id, course_id, level, role, content, thread_id) VALUES ($1, $2, $3, $4, $5, $6)",
+    [id, courseId, level, role, content, threadId]
   );
   const rows: ChatMessage[] = await d.select("SELECT * FROM chat_messages WHERE id = $1", [id]);
   return rows[0];

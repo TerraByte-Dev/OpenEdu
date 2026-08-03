@@ -152,6 +152,35 @@ describe("suggestFollowUps", () => {
     expect(plain.find((s) => s.label === "Worked example")?.mode).toBeUndefined();
   });
 
+  // The messages were padded once ("I don't know how to start. Can you walk me through it?") and the
+  // padding turned out to be semantically active: it announced confusion and instructed a restart, so
+  // the tutor circled back over ground already covered. Terse is the feature, not a style preference.
+  it("keeps messages short and imperative", () => {
+    const everyMessage = [
+      ...suggestFollowUps(input()),
+      ...suggestFollowUps(input({ truncated: true })),
+      ...suggestFollowUps(input({ answer: `${ANSWER} What do you think?` })),
+      ...suggestFollowUps(input({ dueFlashcards: 2 })),
+      ...suggestFollowUps(input({ hits: [hit({ ref: "d9", title: "Moles" })] })),
+      ...suggestFollowUps(input({ syllabus: syllabus([{ title: "Limiting reagents", mastered: false }]) })),
+    ];
+    expect(everyMessage.length).toBeGreaterThan(5);
+    for (const s of everyMessage) {
+      expect(s.message.split(/\s+/).length, s.message).toBeLessThanOrEqual(8);
+      // No self-reported confusion — that is what invited reassurance instead of progress.
+      expect(s.message, s.message).not.toMatch(/i'?m not sure|i don'?t know|i'?m confused|not really/i);
+      // No politeness scaffolding wrapping the actual request.
+      expect(s.message, s.message).not.toMatch(/^(can you|could you|please|would you)/i);
+    }
+  });
+
+  it("labels are a truthful preview of what gets sent", () => {
+    // Tapping "Give me a hint" should send "Give me a hint" — not a paragraph never shown.
+    for (const s of suggestFollowUps(input({ answer: `${ANSWER} What do you think?` }))) {
+      expect(s.message.toLowerCase(), s.label).toContain(s.label.toLowerCase().replace(/[^a-z ]/g, ""));
+    }
+  });
+
   it("never emits duplicate messages", () => {
     const out = suggestFollowUps(input({
       hits: [hit({ ref: "doc-9", title: "Moles" })],

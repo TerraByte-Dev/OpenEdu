@@ -38,6 +38,20 @@ describe("budgetFor", () => {
   it("scales with the window", () => {
     expect(budgetFor(16384).history).toBeGreaterThan(budgetFor(8192).history);
   });
+
+  // The default is a product decision, not an implementation detail: 4096 left ~19 messages of
+  // history once the system prompt and grounding block were paid for, and chat outgrew it in a
+  // sitting. 16384 is deliberately NOT the default — small models get worse with long contexts, so it
+  // mostly buys history the model handles badly, for ~2.2GB of KV cache.
+  it("defaults to a window that actually fits a conversation", () => {
+    expect(DEFAULT_CONTEXT_TOKENS).toBe(8192);
+    const b = budgetFor(DEFAULT_CONTEXT_TOKENS);
+    const SYSTEM_PROMPT = 735; // measured: buildSystemPrompt 549 + output_rules 186
+    const GROUNDING = 450;     // observed 111-446 across real turns
+    const history = b.total - b.reserve - SYSTEM_PROMPT - GROUNDING;
+    expect(history).toBeGreaterThan(5000);  // ~40+ prior messages
+    expect(b.reserve).toBeGreaterThan(1000); // room for a long reply
+  });
 });
 
 describe("capText", () => {

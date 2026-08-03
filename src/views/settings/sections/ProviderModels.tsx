@@ -224,7 +224,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
         <SettingRow
           label="Context window"
-          help={<>How much conversation the tutor can hold at once. The app uses the smaller of this and what the model itself supports. <span className="text-phosphor-ink">Bigger remembers more but uses more memory</span> — if a local model starts failing or the app feels sluggish on a low-RAM machine, lower this first. Applies to local (Ollama) models; cloud models manage their own.</>}
+          help={<>How much conversation the tutor can hold at once. <span className="text-phosphor-ink">Bigger is not better.</span> A larger window costs memory <em>and</em> tends to make small local models answer worse, because the relevant part of a long context gets lost among the rest. Raise it only if replies are getting cut off; lower it if the app is sluggish or a model fails to load. Applies to local (Ollama) models — and this setting <span className="text-phosphor-ink">overrides</span> whatever context length Ollama itself is configured with, so there is one place to change it. Cloud models manage their own.</>}
           keywords="context window num_ctx tokens memory ram history truncation length"
         >
           <div className="flex flex-col gap-1.5">
@@ -238,11 +238,13 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
               }}
             />
             <span className="text-[11px] text-[var(--ink-faint)]">
-              {maxCtx <= 4096
-                ? "Safe on low-memory machines. Long conversations get trimmed sooner."
-                : maxCtx >= 32768
-                  ? "Needs a lot of memory. Only pick this if the machine has RAM to spare."
-                  : "A good default for most machines."}
+              {maxCtx <= 2048
+                ? "Minimum. Only for very low-memory machines — long answers will be cut short."
+                : maxCtx === 4096
+                  ? "Frugal. Roughly 19 messages of history; long conversations get trimmed sooner."
+                  : maxCtx === 8192
+                    ? "Recommended. Roughly 48 messages of history and room for a long reply."
+                    : "Generous. More history than a small model reliably uses, and about 2GB of memory."}
             </span>
           </div>
         </SettingRow>

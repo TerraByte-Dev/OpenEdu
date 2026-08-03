@@ -22,7 +22,22 @@ import type { GroundingHit } from "./ground";
 export interface Suggestion {
   /** Short text on the chip. */
   label: string;
-  /** What actually gets sent when tapped — a full sentence, as the student would have typed it. */
+  /**
+   * What gets sent when tapped. IMPERATIVE AND BARE — this is not politeness scaffolding, and the
+   * padding it used to carry was actively harmful rather than merely verbose.
+   *
+   * "I don't know how to start. Can you walk me through it?" instructs a restart. "I'm not sure —
+   * can you give me a hint?" announces confusion, which invites reassurance and re-explanation. Both
+   * made the tutor circle back over ground already covered instead of advancing, which is exactly
+   * what the chips exist to prevent.
+   *
+   * A chip that carries a `mode` also does not need to describe the behaviour it wants: socratic's
+   * prompt suffix already says "do not give direct answers", so the message only has to name the
+   * subject. Say the thing; let the mode say how.
+   *
+   * The label should be a truthful preview of this — tapping "Give me a hint" should send "Give me a
+   * hint", not a paragraph the student never saw.
+   */
   message: string;
   /**
    * The teaching mode this chip carries, applied to the turn it starts.
@@ -89,15 +104,15 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // A reply that stopped mid-sentence has exactly one obvious next move, and making the student type
   // it is the definition of a rough edge.
   if (input.truncated) {
-    push({ label: "Continue", message: "Please continue from where you left off." });
+    push({ label: "Continue", message: "Continue." });
   }
 
   if (endsWithQuestion(answer)) {
     // The tutor asked something. Competing with its question would be rude, so the chips become ways
     // to ANSWER it — specifically the two a stuck student needs and is least likely to type, because
     // both amount to admitting they are stuck.
-    push({ label: "Give me a hint", message: "I'm not sure — can you give me a hint?", mode: "hint" });
-    push({ label: "Walk me through it", message: "I don't know how to start. Can you walk me through it?" });
+    push({ label: "Give me a hint", message: "Give me a hint.", mode: "hint" });
+    push({ label: "Walk me through it", message: "Walk me through it." });
     return out; // any Continue chip pushed above is kept — it was the more urgent signal
 
   }
@@ -111,7 +126,7 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   if (unusedNote) {
     push({
       label: `My notes on ${short(unusedNote.title, 16)}`,
-      message: `What do my notes on "${unusedNote.title}" say about this?`,
+      message: `What do my notes say about ${unusedNote.title}?`,
     });
   }
 
@@ -120,7 +135,7 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   if (usedReference) {
     push({
       label: `More on ${short(usedReference.title, 18)}`,
-      message: `Tell me more from the ${usedReference.title} reference.`,
+      message: `More on ${usedReference.title}.`,
     });
   }
 
@@ -129,12 +144,12 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   if (nextSubtopic) {
     push({
       label: short(nextSubtopic.title),
-      message: `Can you explain ${nextSubtopic.title}?`,
+      message: `Explain ${nextSubtopic.title}.`,
     });
   }
 
   if ((input.dueFlashcards ?? 0) > 0) {
-    push({ label: "Review due cards", message: "Quiz me on the flashcards I have due.", mode: "review" });
+    push({ label: "Review due cards", message: "Review my due flashcards.", mode: "review" });
   }
 
   // Everything above is contextual. Trim to leave room for a mode chip — see MAX_CONTEXTUAL.
@@ -144,10 +159,10 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // The mode chips. These ARE the deleted mode bar: each carries the pedagogy that used to require
   // the student to classify their own intent before asking. Ordered by how often a stuck student
   // actually wants them.
-  push({ label: "Worked example", message: "Can you show me a worked example?" });
-  push({ label: "Make me figure it out", message: "Don't tell me the answer — guide me to it.", mode: "socratic" });
+  push({ label: "Worked example", message: "Show me a worked example." });
+  push({ label: "Make me figure it out", message: "Let me work it out.", mode: "socratic" });
   push({ label: "Quiz me on this", message: "Quiz me on this.", mode: "quiz" });
-  push({ label: "Check if I've got this", message: "Check whether I've actually got this.", mode: "assess" });
+  push({ label: "Check if I've got this", message: "Check if I've got this.", mode: "assess" });
 
   return out;
 }
