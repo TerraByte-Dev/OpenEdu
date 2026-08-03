@@ -13,6 +13,8 @@ import {
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
 import { ingestResultSummary } from "../lib/ingest-format";
 import QuickSwitcher from "./QuickSwitcher";
+import NotesAssistant from "./NotesAssistant";
+import { anchorAnnotations, appendSummary, type AnchoredAnnotation } from "../lib/notebook-assistant";
 import {
   extractTags, resolveWikiLink, linkKey,
   buildVaultGraph, buildTagIndex,
@@ -155,6 +157,15 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   const [openSections, setOpenSections] = useState({ outline: true, linked: true, unlinked: false });
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
+
+  // Which tab of the right rail is showing. Not persisted — unlike visibility, this is a
+  // what-am-I-doing-right-now choice, and reopening on Context is the right default every time.
+  const [rail, setRail] = useState<"context" | "assistant">("context");
+
+  // Review marks. Kept in memory only, and cleared whenever the note changes underneath them: an
+  // annotation is a claim about specific characters, and once those characters move it is a claim
+  // about nothing. Re-running a review is one click, so stale ink is never worth keeping.
+  const [annotations, setAnnotations] = useState<AnchoredAnnotation[]>([]);
   // Bumped on every outline click so clicking the same heading twice still scrolls to it.
   const [reveal, setReveal] = useState<{ line: number; nonce: number } | null>(null);
 
@@ -446,6 +457,19 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   );
   // Derived from the live buffer, not the saved note, so the outline tracks what you are typing.
   const outline = useMemo(() => extractOutline(editContent), [editContent]);
+
+  // Re-anchor the review marks against the live buffer on every edit rather than holding the offsets
+  // the review returned. Two things fall out of this for free: offsets stay correct as text above them
+  // shifts, and fixing something the reviewer flagged makes its mark disappear, because the quote no
+  // longer matches. A memo, not an effect — deriving this avoids a setState-in-effect loop entirely.
+  const anchoredAnnotations = useMemo(
+    () => anchorAnnotations(editContent, annotations),
+    [editContent, annotations],
+  );
+
+  // Marks belong to the note they were made on. Re-anchoring would drop most of them on a note switch
+  // anyway, but a phrase common to both notes would survive and point at the wrong thing.
+  useEffect(() => { setAnnotations([]); }, [selectedNote?.id]);
 
   const graph = useMemo(() => buildVaultGraph(notes, folders), [notes, folders]);
 
@@ -794,12 +818,50 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                     onTagClick={openTagView}
                     existingTitles={existingTitles}
                     noteTitles={noteTitles}
+                    annotations={anchoredAnnotations}
                     revealLine={reveal}
                   />
                 </Suspense>
 
                 {showContext && (
-                  <aside className="w-60 shrink-0 border-l border-[var(--rule)] bg-panel/40 overflow-y-auto">
+                  <aside className="w-60 shrink-0 border-l border-[var(--rule)] bg-panel/40 flex flex-col min-h-0">
+                    <div className="flex shrink-0 border-b border-[var(--rule)]">
+                      {(["context", "assistant"] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setRail(t)}
+                          className={`flex-1 px-2 py-2 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                            rail === t
+                              ? "text-phosphor-bright bg-[rgb(var(--phosphor-rgb)/0.08)]"
+                              : "text-[var(--ink-faint)] hover:text-ink hover:bg-panel-lite/60"
+                          }`}
+                        >
+                          {t}
+                          {t === "assistant" && anchoredAnnotations.length > 0 && (
+                            <span className="ml-1.5 font-mono" style={{ color: "#FF4060" }}>
+                              {anchoredAnnotations.length}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    {rail === "assistant" ? (
+                      <NotesAssistant
+                        courseId={courseId}
+                        level={level}
+                        noteTitle={editTitle}
+                        noteContent={editContent}
+                        annotations={anchoredAnnotations}
+                        onAnnotations={setAnnotations}
+                        onInsertSummary={(md) => setEditContent((c) => appendSummary(c, md))}
+                        onRevealOffset={(offset) => setReveal({
+                          line: editContent.slice(0, offset).split("\n").length - 1,
+                          nonce: Date.now(),
+                        })}
+                      />
+                    ) : (
+                    <div className="flex-1 min-h-0 overflow-y-auto">
                     <ContextSection title="Outline" count={outline.length} open={openSections.outline} onToggle={() => toggleSection("outline")}>
                       {outline.length === 0 ? (
                         <p className="px-3 text-[11px] text-[var(--ink-faint)] leading-snug">
@@ -839,6 +901,8 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                         unlinkedMentions.map((m) => <MentionGroup key={m.note.id} mention={m} onOpen={openNoteById} />)
                       )}
                     </ContextSection>
+                    </div>
+                    )}
                   </aside>
                 )}
               </div>

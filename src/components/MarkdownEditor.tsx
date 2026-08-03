@@ -17,6 +17,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { syntaxTree, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { findWikiLinks, findTags, linkKey, wikiLinkPrefix } from "../lib/notebook-links";
+import type { AnchoredAnnotation } from "../lib/notebook-assistant";
 
 // Dispatched when the set of existing note titles changes so missing/exists link styling refreshes.
 const refreshLinks = StateEffect.define<null>();
@@ -36,9 +37,24 @@ const mdHighlight = HighlightStyle.define([
   { tag: tags.list, color: "var(--phosphor-ink)" },
 ]);
 
-function buildDecorations(view: EditorView, existingTitles: Set<string>): DecorationSet {
+function buildDecorations(
+  view: EditorView,
+  existingTitles: Set<string>,
+  annotations: readonly AnchoredAnnotation[],
+): DecorationSet {
   const decos: Range<Decoration>[] = [];
   const { state } = view;
+
+  // Review marks — the red-ink layer. Offsets are absolute (resolved against the same document by
+  // anchorAnnotations), so these are added once rather than per visible range. Clamped and skipped
+  // when out of range: the document can change between a review finishing and this running, and a
+  // decoration past the end of the doc throws rather than degrading.
+  const len = state.doc.length;
+  for (const a of annotations) {
+    const from = Math.max(0, Math.min(a.from, len));
+    const to = Math.max(0, Math.min(a.to, len));
+    if (to > from) decos.push(Decoration.mark({ class: `cm-ink cm-ink--${a.kind}` }).range(from, to));
+  }
 
   const activeLines = new Set<number>();
   for (const r of state.selection.ranges) {
@@ -87,15 +103,18 @@ function buildDecorations(view: EditorView, existingTitles: Set<string>): Decora
 
 // The plugin closes over a ref so it always reads the latest existing-title set (and so a
 // refreshLinks effect — dispatched when that set changes — re-runs the decorations).
-function makeLivePreview(titlesRef: { current: Set<string> }) {
+function makeLivePreview(
+  titlesRef: { current: Set<string> },
+  inkRef: { current: readonly AnchoredAnnotation[] },
+) {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
-      constructor(view: EditorView) { this.decorations = buildDecorations(view, titlesRef.current); }
+      constructor(view: EditorView) { this.decorations = buildDecorations(view, titlesRef.current, inkRef.current); }
       update(u: ViewUpdate) {
         const linksChanged = u.transactions.some((tr) => tr.effects.some((e) => e.is(refreshLinks)));
         if (u.docChanged || u.selectionSet || u.viewportChanged || linksChanged) {
-          this.decorations = buildDecorations(u.view, titlesRef.current);
+          this.decorations = buildDecorations(u.view, titlesRef.current, inkRef.current);
         }
       }
     },
@@ -173,6 +192,16 @@ const theme = EditorView.theme({
     backgroundColor: "rgb(var(--phosphor-rgb)/0.16)", color: "var(--phosphor-bright)",
   },
   ".cm-completionIcon": { display: "none" },   // the default glyphs are off-theme and add nothing here
+
+  // ── Review marks ──────────────────────────────────────────────────────────────────────────────
+  // Underline rather than highlight: the student's own words stay the thing you read, and the mark
+  // sits under them the way pen sits under type. Wavy for the two that mean "look again", straight
+  // for the two that are statements.
+  ".cm-ink": { textUnderlineOffset: "3px", textDecorationThickness: "1.5px" },
+  ".cm-ink--error": { textDecoration: "underline wavy #FF4060" },
+  ".cm-ink--gap": { textDecoration: "underline wavy #FFB000" },
+  ".cm-ink--question": { textDecoration: "underline dotted var(--phosphor)" },
+  ".cm-ink--correct": { textDecoration: "underline solid #2BFF88" },
 });
 
 interface Props {
@@ -185,11 +214,13 @@ interface Props {
   existingTitles?: Set<string>;         // normalized (linkKey) titles of every note — drives missing-link styling
   /** Display titles, in the order to offer them — powers [[ autocomplete. */
   noteTitles?: string[];
+  /** Review marks to paint over the text. Overlay only — never rewrites the document. */
+  annotations?: readonly AnchoredAnnotation[];
   /** Scroll a 0-based line to the top of the viewport. `nonce` re-fires the same line on a repeat click. */
   revealLine?: { line: number; nonce: number } | null;
 }
 
-export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles, noteTitles, revealLine }: Props) {
+export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles, noteTitles, annotations, revealLine }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   // Latest callbacks in a ref so the editor (created once) always calls the current ones.
@@ -201,6 +232,9 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
   // Same trick for the completion source: created once, but always reads the current title list.
   const displayTitlesRef = useRef<string[]>(noteTitles ?? []);
   displayTitlesRef.current = noteTitles ?? [];
+  // …and for the review marks, so a finished review repaints without rebuilding the editor.
+  const inkRef = useRef<readonly AnchoredAnnotation[]>(annotations ?? []);
+  inkRef.current = annotations ?? [];
 
   useEffect(() => {
     if (!host.current) return;
@@ -218,7 +252,7 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
         }),
         markdown(),
         syntaxHighlighting(mdHighlight),
-        makeLivePreview(titlesRef),
+        makeLivePreview(titlesRef, inkRef),
         EditorView.lineWrapping,
         theme,
         EditorView.updateListener.of((u) => { if (u.docChanged) cb.current.onChange(u.state.doc.toString()); }),
@@ -250,10 +284,11 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-run link decorations when the set of existing note titles changes (note added/renamed/deleted).
+  // Re-run decorations when the vault's titles change (note added/renamed/deleted) or when a review
+  // pass produces new marks. Both read from refs, so a plain effect dispatch is enough to repaint.
   useEffect(() => {
     view.current?.dispatch({ effects: refreshLinks.of(null) });
-  }, [existingTitles]);
+  }, [existingTitles, annotations]);
 
   // Outline click → put the cursor on that heading and scroll it to the top. Guarded against a stale
   // line number, which is easy to hit: the outline is derived from `doc`, and a fast edit can shrink
