@@ -1,10 +1,19 @@
 # OpenEdu
 
 TerraByte's AI-powered tutoring app. Tauri v2 + React 19 + TypeScript + SQLite. Bring-your-own-key — runs offline-first on local Ollama, with cloud (OpenAI / Anthropic) as alternates.
-Smallest **verified** model: `gemma4:e4b`. It behaves like ~4B at inference (Matformer), but the download
-is ~7.5GB — size a machine from the download, not the effective parameter count. Nothing smaller has
-been tested, so anything below this is *untested*, not unsupported: the harness is built to degrade, and
-a smaller model may well work. There is no measured hardware floor.
+Smallest model **verified end to end (generation + tutoring)**: `gemma4:e4b`. It behaves like ~4B at
+inference (Matformer), but the Ollama tag is **9.6GB on disk** (`ollama list`, Q4_K_M) — size a machine
+from the download, not the effective parameter count. (Google publishes a much smaller official QAT
+Q4_0 GGUF; that is a different artifact from the Ollama tag, so don't quote one figure for the other.)
+
+Smallest model the **harness** is verified on: `qwen3.5:0.8b`, **1.0GB** — it passes
+`preflightStructuredOutput` and tool-calls cleanly, but **only with `think: false`** (see
+`OLLAMA_THINK_OFF` in `llm.ts`; without it the model burns its whole window reasoning and returns an
+empty string). That is evidence the *plumbing* works at 1.0GB, **not** that a 0.8B model can tutor —
+the RAG eval has never been run against it. Do not promote it to "verified" until it has.
+
+Anything below is *untested*, not unsupported: the harness is built to degrade. There is no measured
+hardware floor — every number in this repo was taken on an RTX 3070 laptop.
 
 The repo is on GitHub under `TerraByte-Dev`.
 
@@ -94,7 +103,13 @@ configuration anyone has run it on — not a floor anyone established. The lesso
 - Window is frameless (`decorations: false` in `tauri.conf.json`), background `#000000`. Drag region is `data-tauri-drag-region` on the Titlebar center div.
 - Window controls (min / max / close) call `getCurrentWindow()` from `@tauri-apps/api/window`.
 - API keys / model config persist via `@tauri-apps/plugin-store`.
-- Capabilities in `src-tauri/capabilities/default.json` include `http`, `shell` (for Ollama), `fs`, `store`, `sql`.
+- Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `store`, `updater`, `process`,
+  and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily / library.openedu.app /
+  api.github.com). **There is no `fs` and no `shell` capability, and `src-tauri/src/lib.rs` defines no
+  `#[tauri::command]` functions at all** — the Rust side is migrations plus five `.plugin()` calls.
+  So the app cannot open a path, enumerate a directory, or write an arbitrary file. The only way content
+  enters is an HTML `<input type="file">` filtered to `.md,.markdown,.txt` read via `File.text()`
+  (`NotesTab.tsx:368,605`). Granting file access is step zero for anything archive-shaped.
 
 ---
 
