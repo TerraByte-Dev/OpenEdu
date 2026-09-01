@@ -132,72 +132,10 @@ export function isLibraryAvailable(): boolean {
   return !disabledForTesting && memManifest !== null && memManifest.length > 0;
 }
 
-// ── lexical matching (pure, unit-testable) ──
-const STOPWORDS = new Set([
-  "the", "a", "an", "of", "for", "to", "in", "on", "is", "are", "what", "whats", "show", "me", "my",
-  "tell", "about", "give", "list", "and", "or", "how", "do", "i", "you", "can", "with", "this", "that",
-]);
-
-function tokenize(s: string): string[] {
-  return s
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
-}
-
-function normalizePhrase(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function scoreEntry(qTokens: string[], qPhrase: string, entry: LibraryEntry): number {
-  let score = 0;
-  // Phrase bonus: a curated title/alias that the query contains (or vice-versa) is a near-certain
-  // hit — this is what makes "periodic table" / "table of elements" land cleanly.
-  for (const name of [entry.title, ...entry.aliases]) {
-    const n = normalizePhrase(name);
-    if (!n) continue;
-    if (qPhrase === n) score += 12;
-    else if (qPhrase.includes(n) || n.includes(qPhrase)) score += 6;
-  }
-  // Weighted token overlap.
-  const fields: Array<[string, number]> = [
-    [entry.title, 3],
-    [entry.aliases.join(" "), 3],
-    [entry.tags.join(" "), 2],
-    [entry.summary, 1],
-  ];
-  for (const [text, weight] of fields) {
-    const fieldTokens = new Set(tokenize(text));
-    for (const qt of qTokens) if (fieldTokens.has(qt)) score += weight;
-  }
-  return score;
-}
-
-// Score every entry against the query; return the top-N above zero, best first. Pure — no I/O.
-export function matchResources(query: string, manifest: LibraryEntry[], topN = 3): LibraryEntry[] {
-  return matchResourcesScored(query, manifest, topN).map((x) => x.entry);
-}
-
-// Same ranking, but WITH the scores. `matchResources` filters on `score > 0`, which means the best
-// match always wins however bad it is — fine for a tool the model chose to call about a topic it had
-// in mind, wrong for automatic grounding, where "the least-bad card in the library" gets injected
-// into every unrelated question. Callers that retrieve without being asked need to see the number so
-// they can set a floor. (#90 — the eval caught "boiling point of ethanol" pulling in
-// "Types of Economic Systems".)
-export function matchResourcesScored(
-  query: string,
-  manifest: LibraryEntry[],
-  topN = 3,
-): Array<{ entry: LibraryEntry; score: number }> {
-  const qTokens = tokenize(query);
-  const qPhrase = normalizePhrase(query);
-  if (qTokens.length === 0 && !qPhrase) return [];
-  return manifest
-    .map((e) => ({ entry: e, score: scoreEntry(qTokens, qPhrase, e) }))
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topN);
-}
+// ── lexical matching ──
+// Lives in library-rank.ts (pure, Tauri-free, unit-tested). Re-exported here so every existing
+// import site keeps working unchanged.
+export { tokenize, normalizePhrase, scoreEntry, matchResources, matchResourcesScored, STOPWORDS } from "./library-rank";
 
 function stripFrontmatter(text: string): string {
   // Remove a leading YAML frontmatter block (---\n … \n---) if present.
