@@ -25,14 +25,14 @@
 // gapPurity is the metric that will show it being fixed.
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 import type { LibraryEntry } from "../../types";
 import { evaluateLibraryRetrieval, LIBRARY_QUERIES, LIBRARY_FLOOR } from "./library-fixture";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const MANIFEST = resolve(HERE, "../../../public/library/index.json");
+// The real bundled manifest, imported rather than read off disk. `npm run build` runs tsc over the
+// whole of src/ including tests, and this project has no @types/node — so a node:fs read typechecks
+// locally (where the types are hoisted) and fails in CI on a clean install. resolveJsonModule is
+// already on, so the import is both portable and statically checked.
+import manifestJson from "../../../public/library/index.json";
 
 /**
  * Measured on the shipped 154-card manifest. Every ratio is a floor except `floorViolations`,
@@ -50,7 +50,7 @@ export const LIBRARY_BASELINE = {
   gapQueries: 11,
 } as const;
 
-const manifest: LibraryEntry[] = JSON.parse(readFileSync(MANIFEST, "utf8"));
+const manifest = manifestJson as unknown as LibraryEntry[];
 
 describe("library retrieval — fixture integrity", () => {
   it("scores the real bundled manifest", () => {
