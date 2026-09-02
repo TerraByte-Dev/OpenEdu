@@ -7,26 +7,27 @@
 //
 // READ THIS BEFORE TRUSTING THE HEADLINE NUMBERS.
 //
-// P@1 0.892 / R@3 0.919 look strong and are somewhat flattering: most queries here are the happy
-// path, where a phrase bonus against a curated title or alias does the work. That is worth pinning
-// precisely because it is what a careless ranker change would break — but it is NOT the number that
-// says retrieval is healthy.
+// P@1 and R@3 are somewhat flattering: most queries here are the happy path, where a phrase bonus
+// against a curated title or alias does the work. They are pinned because that is exactly what a
+// careless ranker change would break — but they are NOT the number that says retrieval is healthy.
 //
-// The number that says retrieval is unhealthy is GAP PURITY: 0.545. Five of eleven questions the
-// library provably cannot answer still return a card above the grounding floor, which means the
-// tutor is handed a confidently irrelevant passage and invited to use it. Two examples, measured:
+// GAP PURITY is. It measures whether questions the corpus provably cannot answer correctly return
+// silence, rather than the least-bad card in the library. It was 0.545 when this fixture was
+// written: five of eleven unanswerable questions returned a card above the grounding floor, so the
+// tutor was handed a confidently irrelevant passage and invited to use it.
 //
 //   "what are the rules for derivatives"  -> chemistry/oxidation-rules@7, ela/comma-rules@7,
 //                                            math/logarithm-rules@7      (the token "rules")
 //   "types of chemical bonding"           -> chemistry/reaction-types@9  ("types" + "chemical")
 //
-// No card is weighted by how common its terms are, so a stopword-adjacent token like "rules",
-// "types" or "point" scores exactly as much as "electronegativity". That is the defect to fix, and
-// gapPurity is the metric that will show it being fixed.
+// #112 fixed it — rarity damping, query coverage, length normalisation, apostrophe elision and body
+// terms — and gap purity is now 1.0 with zero floor violations. The bar below is therefore a
+// RATCHET: it must never fall back.
 
 import { describe, it, expect } from "vitest";
 import type { LibraryEntry } from "../../types";
 import { evaluateLibraryRetrieval, LIBRARY_QUERIES, LIBRARY_FLOOR } from "./library-fixture";
+import { BODY_BUDGET, tokenize, parseBodyTerms } from "../library-rank";
 
 // The real bundled manifest, imported rather than read off disk. `npm run build` runs tsc over the
 // whole of src/ including tests, and this project has no @types/node — so a node:fs read typechecks
@@ -43,10 +44,10 @@ export const LIBRARY_BASELINE = {
   cards: 154,
   queries: 48,
   ranked: 37,
-  p1: 0.892,
-  r3: 0.919,
-  floorViolations: 4,
-  gapPurity: 0.545,
+  p1: 0.973,        // was 0.892 before #112
+  r3: 0.973,        // was 0.919
+  floorViolations: 0, // was 4
+  gapPurity: 1,     // was 0.545 — the one that mattered
   gapQueries: 11,
 } as const;
 
@@ -111,33 +112,66 @@ describe("library retrieval — regression gate", () => {
   });
 });
 
-describe("library retrieval — known defects, pinned so a fix is visible", () => {
-  // These assert the BROKEN behaviour on purpose. When the ranker is fixed, each of these fails
-  // and gets inverted in the same commit. That makes the fix impossible to land silently.
-
-  it("apostrophe elision breaks an alias: 'boyles law' cannot reach chemistry/gas-laws", () => {
-    // The card's alias is "boyle's law". normalizePhrase -> "boyle s law"; tokenize -> [boyle, law].
-    // A student typing "boyles" produces [boyles, law], and "boyles" never matches "boyle".
-    // "ohms law" works only because that card's alias happens to be written without an apostrophe.
-    const hits = evaluateLibraryRetrieval(manifest, [
+describe("library retrieval — the three defects #112 fixed, pinned so they cannot come back", () => {
+  it("apostrophe elision no longer breaks an alias: 'boyles law' reaches chemistry/gas-laws", () => {
+    // The card's alias is "boyle's law". Splitting on non-alphanumerics gave [boyle, law], so a
+    // student typing "boyles" produced [boyles, law] and never matched. "ohms law" worked only
+    // because that card's alias happens to be written without an apostrophe. Both sides now elide.
+    const r = evaluateLibraryRetrieval(manifest, [
       { ask: "boyles law", expect: ["chemistry/gas-laws"] },
     ]);
-    expect(hits.r3).toBe(0);
+    expect(r.r3).toBe(1);
   });
 
-  it("body-only terms are invisible: 'what is a lanthanide' returns nothing at all", () => {
-    // "lanthanide" appears in the periodic-table body. Ranking never reads a body.
+  it("body-only terms are reachable: 'what is a lanthanide' finds the periodic table", () => {
+    // "lanthanides" appears once in the periodic-table body and nowhere in its metadata. Ranking
+    // still never reads a body at runtime — build-index.mjs distils each one into weighted terms,
+    // and plural folding closes the singular/plural gap on both sides.
     const r = evaluateLibraryRetrieval(manifest, [
       { ask: "what is a lanthanide", expect: ["chemistry/periodic-table"] },
     ]);
-    expect(r.detail[0].top).toEqual([]);
+    expect(r.r3).toBe(1);
   });
 
-  it("a common token outranks a topic term: 'rules' pulls three unrelated cards", () => {
+  it("a common token no longer outranks a topic term: 'rules' pulls nothing above the floor", () => {
+    // Rarity damping makes "rules" cheap; query coverage then scales the whole token score by the
+    // share of the query's information actually matched, so a card answering "rules" while ignoring
+    // "derivatives" cannot clear the floor.
     const r = evaluateLibraryRetrieval(manifest, [
       { ask: "what are the rules for derivatives", gap: true },
     ]);
-    const above = r.detail[0].top.filter((t) => t.score >= LIBRARY_FLOOR).map((t) => t.id);
-    expect(above).toContain("ela/comma-rules");
+    const above = r.detail[0].top.filter((t) => t.score >= LIBRARY_FLOOR);
+    expect(above).toEqual([]);
+  });
+
+  it("body evidence can lift a card across the floor but never admit one alone", () => {
+    // BODY_BUDGET (5) sits below MIN_LIBRARY_SCORE (6) on purpose. This is the invariant that lets
+    // bodies be indexed for coverage without body noise becoming a new source of false positives.
+    expect(BODY_BUDGET).toBeLessThan(LIBRARY_FLOOR);
+  });
+});
+
+describe("library retrieval — builder/app tokenizer parity", () => {
+  // The single most likely way this feature silently stops working: openedu-library's
+  // build-index.mjs carries its own copy of the tokenizer, and if the two drift, terms emitted
+  // there can never be matched here and body indexing quietly becomes a no-op that still passes
+  // every other test. Rather than import the builder, assert the invariant its output must satisfy.
+
+  it("every emitted body term is a fixed point of the app's own tokenizer", () => {
+    const bad: string[] = [];
+    for (const entry of manifest) {
+      for (const [term] of parseBodyTerms(entry)) {
+        const round = tokenize(term);
+        if (round.length !== 1 || round[0] !== term) bad.push(`${entry.id}: "${term}" -> [${round}]`);
+      }
+    }
+    // A failure here means the builder lowercases, splits, folds plurals, elides apostrophes or
+    // filters stopwords differently from the app. Fix build-index.mjs, do not relax this.
+    expect(bad).toEqual([]);
+  });
+
+  it("body terms actually reach the corpus — not silently empty", () => {
+    const withTerms = manifest.filter((e) => parseBodyTerms(e).length > 0);
+    expect(withTerms.length).toBe(manifest.length);
   });
 });

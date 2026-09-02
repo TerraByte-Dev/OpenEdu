@@ -21,7 +21,8 @@
     "subject": "computer-science",
     "summary": "The boolean operators, their truth tables, precedence, and De Morgan's laws.",
     "path": "resources/arts-music-cs/boolean-and-de-morgan.md",
-    "asset": "assets/arts-music-cs/boolean-and-de-morgan.svg"
+    "asset": "assets/arts-music-cs/boolean-and-de-morgan.svg",
+    "body_terms": "true:2 gate:2 false:2 differ:2 symbol:2 negate:2 flip:2 value:2 parenthese:2 condition:2 invert:2 swap:2 when:1 only:1 exactly:2 lowest:2 input:2 override:2 highest:2 combine:2 become:2 least:2 card:2 term:2"
   },
   {
     "id": "arts-music-cs/flowchart-symbols",
@@ -44,7 +45,8 @@
     "subject": "computer-science",
     "summary": "The standard flowchart symbols and what each one represents.",
     "path": "resources/arts-music-cs/flowchart-symbols.md",
-    "asset": "assets/arts-music-cs/flowchart-symbols.svg"
+    "asset": "assets/arts-music-cs/flowchart-symbols.svg",
+    "body_terms": "arrow:3 rectangle:3 step:2 bottom:2 flow:2 document:2 diamond:2 output:2 loop:2 yes:2 false:2 input:2 true:2 top:2 calculation:2 predefined:2 subroutine:2 connector:2 database:2 normally:2 display:2 labeled:2 stored:2 struck:2"
   },
   {
     "id": "arts-music-cs/logic-gate-truth-tables",
@@ -66,7 +68,8 @@
     "subject": "arts-music-cs",
     "summary": "The seven basic logic gates with their boolean expressions and truth tables.",
     "path": "resources/arts-music-cs/logic-gate-truth-tables.md",
-    "asset": "assets/arts-music-cs/logic-gate-truth-tables.svg"
+    "asset": "assets/arts-music-cs/logic-gate-truth-tables.svg",
+    "body_terms": "input:2 output:2 only:1 both:2 circuit:2 when:1 xnor:2 universal:2 invert:2 morgan:2 binary:2 exactly:2 false:2 built:2 true:2 combine:2 differ:2 single:2 least:2 de:2 any:2 one:1 be:2 vs:1"
   },
   {
     "id": "arts-music-cs/powers-of-two",
@@ -89,7 +92,8 @@
     "subject": "computer-science",
     "summary": "Powers of two from 2⁰ to 2³² with decimal values and computing landmarks.",
     "path": "resources/arts-music-cs/powers-of-two.md",
-    "asset": "assets/arts-music-cs/powers-of-two.svg"
+    "asset": "assets/arts-music-cs/powers-of-two.svg",
+    "body_terms": "bit:3 byte:3 color:2 range:2 kib:2 memory:2 everywhere:2 represent:2 appear:2 handy:2 hex:2 7m:2 approximation:2 distinct:2 giga:2 mega:2 gib:2 mib:2 address:2 kilo:2 page:2 depth:2 digit:2 billion:2"
   },
   {
     "id": "arts-music-cs/units-of-digital-data",
@@ -113,7 +117,8 @@
     "subject": "computer-science",
     "summary": "From bit to petabyte, plus the powers-of-2 (KiB) vs powers-of-10 (KB) distinction.",
     "path": "resources/arts-music-cs/units-of-digital-data.md",
-    "asset": "assets/arts-music-cs/units-of-digital-data.svg"
+    "asset": "assets/arts-music-cs/units-of-digital-data.svg",
+    "body_terms": "gib:2 decimal:2 binary:2 drive:2 system:2 frequently:2 operating:2 gibibyte:2 gigabyte:2 internet:2 kibibyte:2 mebibyte:2 megabyte:2 tebibyte:2 terabyte:2 nibble:2 sold:2 iec:2 tib:2 why:2 that:2 mib:2 enough:2 eight:2"
   },
   {
     "id": "biology/amino-acids",
@@ -135,7 +140,8 @@
     "subject": "biology",
     "summary": "The 20 protein-building amino acids with three- and one-letter codes and side-chain class.",
     "path": "resources/biology/amino-acids.md",
-    "asset": "assets/biology/amino-acids.svg"
+    "asset": "assets/biology/amino-acids.svg",
+    "body_terms": "met:3 his:2 ile:2 leu:2 thr:2 trp:2 lys:2 phe:2 val:2 group:2 asparagine:2 isoleucine:2 tryptophan:2 aspartate:2 glutamine:2 histidine:2 threonine:2 uncharged:2 arginine:2 carboxyl:2 cysteine:2 tyrosine:2 leucine:2 peptide:2"
   },
   {
     "id": "biology/animal-plant-cell",
@@ -158,7 +164,8 @@
     "subject": "biology",
     "summary": "The main organelles of animal and plant cells and how the two differ.",
     "path": "resources/biology/animal-plant-cell.md",
-    "asset": "assets/biology/animal-plant-cell.svg"
+    "asset": "assets/biology/animal-plant-cell.svg",
+    "body_terms": "ribosome:3 membrane:3 wall:3 rounder:2 lysosome:2 vacuole:2 have:2 chloroplast:2 nucleu:2 contain:2 control:2 er:2 protein:2 out:2 chlorophyll:2 endoplasmic:2 powerhouse:2 reticulum:2 boxy:2 firm:2 cellulose:2 centriole:2 cytoplasm:2 apparatu:2"
   },
   {
     "id": "biology/dna-rna-base-pairing",
@@ -181,7 +188,8 @@
     "subject": "biology",
     "summary": "The four bases, their complementary pairs, and the differences between DNA and RNA.",
     "path": "resources/biology/dna-rna-base-pairing.md",
-    "asset": "assets/biology/dna-rna-base-pairing.svg"
+    "asset": "assets/biology/dna-rna-base-pairing.svg",
+    "body_terms": "thymine:3 strand:3 cytosine:2 adenine:2 guanine:2 uracil:2 ring:2 bond:2 sugar:2 hydrogen:2 deoxyribose:2 backbone:2 paired:2 ribose:2 arage:2 ree:2 keeping:2 pple:2 rung:2 replace:2 width:2 aid:2 phosphate:2 memory:2"
   },
   {
     "id": "biology/genetic-code-codons",
@@ -206,7 +214,8 @@
     "subject": "biology",
     "summary": "How the 64 mRNA codons map to amino acids, including START and STOP.",
     "path": "resources/biology/genetic-code-codons.md",
-    "asset": "assets/biology/genetic-code-codons.svg"
+    "asset": "assets/biology/genetic-code-codons.svg",
+    "body_terms": "translation:3 pick:3 base:2 row:2 read:2 group:2 overlapping:2 redundant:2 several:2 aaa:2 aag:2 gaa:2 gag:2 gcu:2 gga:2 ggc:2 ggg:2 ggu:2 guu:2 uaa:2 uag:2 uga:2 uuc:2 uuu:2"
   },
   {
     "id": "biology/human-body-systems",
@@ -227,7 +236,8 @@
     "subject": "biology",
     "summary": "The 11 human organ systems with their main organs and primary function.",
     "path": "resources/biology/human-body-systems.md",
-    "asset": "assets/biology/human-body-systems.svg"
+    "asset": "assets/biology/human-body-systems.svg",
+    "body_terms": "blood:3 endocrine:2 skeletal:2 nervou:2 circulatory:2 protection:2 nutrient:2 waste:2 cell:2 integumentary:2 reproductive:2 respiratory:2 cartilage:2 diaphragm:2 digestive:2 excretory:2 infection:2 intestine:2 lymphatic:2 offspring:2 pituitary:2 sensation:2 bladder:2 cardiac:2"
   },
   {
     "id": "biology/levels-of-organization",
@@ -248,7 +258,8 @@
     "subject": "biology",
     "summary": "The ordered hierarchy of life from atom up to the biosphere, with an example at each level.",
     "path": "resources/biology/levels-of-organization.md",
-    "asset": "assets/biology/levels-of-organization.svg"
+    "asset": "assets/biology/levels-of-organization.svg",
+    "body_terms": "tissue:3 organ:3 organism:3 ecosystem:2 wolf:2 community:2 muscle:2 population:2 together:2 system:2 area:2 environment:2 interacting:2 ecological:2 nonliving:2 neuron:2 wolve:2 deer:2 pack:2 unit:2 all:1 earth:1 circulatory:2 combined:2"
   },
   {
     "id": "biology/macromolecules",
@@ -269,7 +280,8 @@
     "subject": "biology",
     "summary": "The four classes of biological macromolecules with monomer, elements, and function.",
     "path": "resources/biology/macromolecules.md",
-    "asset": "assets/biology/macromolecules.svg"
+    "asset": "assets/biology/macromolecules.svg",
+    "body_terms": "nucleotide:2 enzyme:2 structure:2 water:1 monosaccharide:2 phospholipid:2 dehydration:2 hemoglobin:2 insulation:2 antibodie:2 hydrolysi:2 glycerol:2 nitrogen:2 transmit:2 steroid:2 starch:2 fatty:2 carb:2 hydrophobic:2 cellulose:2 signaling:2 synthesi:2 genetic:2 storage:2"
   },
   {
     "id": "biology/organelle-functions",
@@ -290,7 +302,8 @@
     "subject": "biology",
     "summary": "Each cell organelle with its one-line function and which cells have it.",
     "path": "resources/biology/organelle-functions.md",
-    "asset": "assets/biology/organelle-functions.svg"
+    "asset": "assets/biology/organelle-functions.svg",
+    "body_terms": "both:2 plant:2 membrane:3 animal:3 protein:2 lysosome:2 vacuole:2 bound:2 chloroplast:2 mainly:2 wall:2 make:2 control:2 er:2 only:1 large:2 central:2 prokaryote:2 detoxifie:2 turgor:2 centriole:2 cytoplasm:2 apparatu:2 nucleolu:2"
   },
   {
     "id": "biology/photosynthesis-respiration",
@@ -312,7 +325,8 @@
     "subject": "biology",
     "summary": "The two balanced equations side by side, with location and energy direction.",
     "path": "resources/biology/photosynthesis-respiration.md",
-    "asset": "assets/biology/photosynthesis-respiration.svg"
+    "asset": "assets/biology/photosynthesis-respiration.svg",
+    "body_terms": "co:2 glucose:3 release:2 atp:2 off:2 happen:2 cycle:2 store:2 give:2 take:2 mitochondria:2 connection:2 reactant:2 usable:2 algae:2 continuou:2 capture:2 mirror:2 chloroplast:2 organism:2 processe:2 mainly:2 image:2 water:1"
   },
   {
     "id": "biology/taxonomy-ranks",
@@ -334,7 +348,8 @@
     "subject": "biology",
     "summary": "The eight Linnaean classification ranks from domain to species, with the human example.",
     "path": "resources/biology/taxonomy-ranks.md",
-    "asset": "assets/biology/taxonomy-ranks.svg"
+    "asset": "assets/biology/taxonomy-ranks.svg",
+    "body_terms": "genu:3 eukarya:3 animalia:2 sapien:2 homo:2 family:2 class:2 specific:2 capitalized:2 escherichia:2 interbreed:2 italicized:2 hominidae:2 broadest:2 chordata:2 mammalia:2 protista:2 archaea:2 closely:2 plantae:2 primate:2 fungi:2 hilip:2 cani:2"
   },
   {
     "id": "chemistry/activity-series",
@@ -356,7 +371,8 @@
     "subject": "chemistry",
     "summary": "Metals ranked most-to-least reactive, used to predict single-replacement reactions.",
     "path": "resources/chemistry/activity-series.md",
-    "asset": "assets/chemistry/activity-series.svg"
+    "asset": "assets/chemistry/activity-series.svg",
+    "body_terms": "displace:3 cu:2 react:2 ag:2 li:2 zn:2 ca:2 na:2 au:2 above:2 below:2 any:2 corrosion:2 chlorine:2 oxidized:2 platinum:2 easily:2 resist:2 cuso:2 zinc:2 znso:2 nonmetal:2 bromide:2 halogen:2"
   },
   {
     "id": "chemistry/common-acids",
@@ -378,7 +394,8 @@
     "subject": "chemistry",
     "summary": "The acids that appear constantly, their formulas, and the acid-naming rules.",
     "path": "resources/chemistry/common-acids.md",
-    "asset": "assets/chemistry/common-acids.svg"
+    "asset": "assets/chemistry/common-acids.svg",
+    "body_terms": "anion:3 ic:3 hno:3 ous:3 hydro:2 ite:2 ate:2 hcl:2 so:1 end:1 give:2 hydrofluoric:2 hypochlorou:2 sulfurou:2 nitrou:2 sulfur:2 chlor:2 nitr:2 ide:2 hc:2 hydrobromic:2 hydroiodic:2 phosphoric:2 carbonic:2"
   },
   {
     "id": "chemistry/electron-configuration",
@@ -400,7 +417,8 @@
     "subject": "chemistry",
     "summary": "The aufbau filling order, subshell capacities, and how to write electron configurations.",
     "path": "resources/chemistry/electron-configuration.md",
-    "asset": "assets/chemistry/electron-configuration.svg"
+    "asset": "assets/chemistry/electron-configuration.svg",
+    "body_terms": "2p:3 hold:2 1s:3 2s:3 3s:3 3d:2 4s:2 fill:2 group:2 singly:2 pauli:2 hund:2 spin:2 2n:2 3p:2 4d:2 4f:2 4p:2 5d:2 5p:2 5s:2 6p:2 7s:2 outermost:2"
   },
   {
     "id": "chemistry/gas-laws",
@@ -423,7 +441,8 @@
     "subject": "chemistry",
     "summary": "Boyle's, Charles's, Gay-Lussac's, combined, and ideal gas laws.",
     "path": "resources/chemistry/gas-laws.md",
-    "asset": "assets/chemistry/gas-laws.svg"
+    "asset": "assets/chemistry/gas-laws.svg",
+    "body_terms": "atm:2 kelvin:2 rise:2 compressed:2 inversely:2 balloon:2 squeeze:2 expand:2 held:2 convert:2 charle:2 using:2 mole:2 variable:2 absolute:2 mol:2 relationship:2 related:2 alway:2 heat:2 read:2 constant:2 double:2 any:2"
   },
   {
     "id": "chemistry/intermolecular-forces",
@@ -446,7 +465,8 @@
     "subject": "chemistry",
     "summary": "The three intermolecular forces ranked by strength, what causes each, and their effects.",
     "path": "resources/chemistry/intermolecular-forces.md",
-    "asset": "assets/chemistry/intermolecular-forces.svg"
+    "asset": "assets/chemistry/intermolecular-forces.svg",
+    "body_terms": "molecule:3 stronger:3 boiling:2 water:1 tension:2 bond:2 electron:2 another:2 ion:2 higher:2 surface:2 attraction:2 dissolving:2 attracted:2 momentary:2 strongest:2 covalent:2 acetone:2 involve:2 weakest:2 bigger:2 caused:2 random:2 weaker:2"
   },
   {
     "id": "chemistry/oxidation-rules",
@@ -467,7 +487,8 @@
     "subject": "chemistry",
     "summary": "The priority-ordered rules for assigning oxidation numbers, with the common fixed values.",
     "path": "resources/chemistry/oxidation-rules.md",
-    "asset": "assets/chemistry/oxidation-rules.svg"
+    "asset": "assets/chemistry/oxidation-rules.svg",
+    "body_terms": "reduction:2 gain:2 ion:2 charge:2 na:2 metal:2 sum:2 group:2 monatomic:2 fluorine:2 were:2 nah:2 rig:2 polyatomic:2 decrease:2 increase:2 peroxide:2 worked:2 ionic:2 loss:2 but:1 conflict:2 apply:2 atom:2"
   },
   {
     "id": "chemistry/periodic-table",
@@ -488,7 +509,8 @@
     "subject": "chemistry",
     "summary": "Elements with their symbol, atomic number, and atomic mass; plus how the table is organized.",
     "path": "resources/chemistry/periodic-table.md",
-    "asset": "assets/chemistry/periodic-table.svg"
+    "asset": "assets/chemistry/periodic-table.svg",
+    "body_terms": "group:2 metal:2 row:2 proton:2 electron:2 lanthanide:2 transition:2 metalloid:2 staircase:2 actinide:2 straddle:2 weighted:2 isotope:2 alkali:2 inert:2 bh:2 bk:2 cf:2 cr:2 cs:2 ds:2 dy:2 eu:2 fm:2"
   },
   {
     "id": "chemistry/ph-scale",
@@ -511,7 +533,8 @@
     "subject": "chemistry",
     "summary": "The 0–14 pH scale, the pH = −log[H⁺] relationship, and common examples.",
     "path": "resources/chemistry/ph-scale.md",
-    "asset": "assets/chemistry/ph-scale.svg"
+    "asset": "assets/chemistry/ph-scale.svg",
+    "body_terms": "acidic:3 pure:2 more:1 basic:2 strong:2 oh:2 very:2 water:1 concentration:2 seawater:2 cleaner:2 baking:2 bleach:2 fully:2 juice:2 lemon:2 soda:2 lye:2 than:2 ammonia:2 stomach:2 vinegar:2 coffee:2 giving:2"
   },
   {
     "id": "chemistry/polyatomic-ions",
@@ -534,7 +557,8 @@
     "subject": "chemistry",
     "summary": "Names, formulas, and charges of the most common polyatomic ions.",
     "path": "resources/chemistry/polyatomic-ions.md",
-    "asset": "assets/chemistry/polyatomic-ions.svg"
+    "asset": "assets/chemistry/polyatomic-ions.svg",
+    "body_terms": "sulfite:2 so3:2 carbonate:2 so4:2 hypochlorite:2 permanganate:2 bicarbonate:2 perchlorate:2 dichromate:2 phosphite:2 chlorite:2 chromate:2 oxyanion:2 cyanide:2 cation:2 cr2o7:2 clo2:2 clo4:2 cro4:2 hco3:2 mno4:2 clo:2 no2:2 po3:2"
   },
   {
     "id": "chemistry/reaction-types",
@@ -557,7 +581,8 @@
     "subject": "chemistry",
     "summary": "The five core reaction patterns with general forms and examples.",
     "path": "resources/chemistry/reaction-types.md",
-    "asset": "assets/chemistry/reaction-types.svg"
+    "asset": "assets/chemistry/reaction-types.svg",
+    "body_terms": "2h:3 ab:2 formula:2 element:2 co:2 hydrocarbon:2 subscript:2 dioxide:2 adjust:2 yield:2 2hcl:2 agno:2 fuel:2 zncl:2 2o:2 coefficient:2 combination:2 balancing:2 insoluble:2 agcl:2 lone:2 nano:2 bc:2 cb:2"
   },
   {
     "id": "chemistry/solubility-rules",
@@ -580,7 +605,8 @@
     "subject": "chemistry",
     "summary": "Which ionic compounds dissolve in water, with the main exceptions.",
     "path": "resources/chemistry/solubility-rules.md",
-    "asset": "assets/chemistry/solubility-rules.svg"
+    "asset": "assets/chemistry/solubility-rules.svg",
+    "body_terms": "except:2 metal:2 group:2 ba2:2 ca2:2 pb2:2 sr2:2 generally:2 ammonium:2 chloride:2 those:2 ag:2 slightly:2 sulfide:2 aqueou:2 agno3:2 oxide:2 hg2:2 s2:2 form:1 carbonate:2 chlorate:2 acetate:2 bromide:2"
   },
   {
     "id": "chemistry/strong-acids-bases",
@@ -602,7 +628,8 @@
     "subject": "chemistry",
     "summary": "The short memorize-list of strong acids and strong bases — everything else is weak.",
     "path": "resources/chemistry/strong-acids-bases.md",
-    "asset": "assets/chemistry/strong-acids-bases.svg"
+    "asset": "assets/chemistry/strong-acids-bases.svg",
+    "body_terms": "concentrated:2 oh:2 ionize:2 hclo:2 group:2 completely:2 perchloric:2 dissolved:2 chloric:2 assume:2 csoh:2 lioh:2 rboh:2 hydrochloric:2 hydrobromic:2 hydroiodic:2 phosphoric:2 anything:2 carbonic:2 sulfuric:2 ammonia:2 soluble:2 vinegar:2 acetic:2"
   },
   {
     "id": "earth-space/geologic-time-scale",
@@ -623,7 +650,8 @@
     "subject": "earth-space",
     "summary": "Earth's history divided into eons and eras with approximate dates and defining events.",
     "path": "resources/earth-space/geologic-time-scale.md",
-    "asset": "assets/earth-space/geologic-time-scale.svg"
+    "asset": "assets/earth-space/geologic-time-scale.svg",
+    "body_terms": "ma:2 mammal:3 bird:3 life:2 phanerozoic:2 extinction:2 dinosaur:2 reptile:2 ago:2 today:2 specie:2 rock:2 first:1 year:2 age:2 proterozoic:2 amphibian:2 eukaryote:2 explosion:2 abundant:2 cambrian:2 archean:2 forming:2 permian:2"
   },
   {
     "id": "earth-space/hr-diagram",
@@ -645,7 +673,8 @@
     "subject": "earth-space",
     "summary": "The Hertzsprung–Russell diagram (luminosity vs temperature) and where stars live and die.",
     "path": "resources/earth-space/hr-diagram.md",
-    "asset": "assets/earth-space/hr-diagram.svg"
+    "asset": "assets/earth-space/hr-diagram.svg",
+    "body_terms": "cool:2 massive:2 nebula:2 hot:2 dwarf:2 giant:2 dim:2 left:2 sun:2 white:2 bottom:2 very:2 axi:2 right:1 top:2 brightness:2 supergiant:2 planetary:2 protostar:2 supernova:2 diagonal:2 lifetime:2 plotted:2 remnant:2"
   },
   {
     "id": "earth-space/layers-of-atmosphere",
@@ -666,7 +695,8 @@
     "subject": "earth-space",
     "summary": "The five atmospheric layers from the surface up, with altitude and key features.",
     "path": "resources/earth-space/layers-of-atmosphere.md",
-    "asset": "assets/earth-space/layers-of-atmosphere.svg"
+    "asset": "assets/earth-space/layers-of-atmosphere.svg",
+    "body_terms": "km:2 air:2 absorb:2 temperature:2 stratopause:2 ionosphere:2 tropopause:2 exosphere:2 extremely:2 mesopause:2 charged:2 typical:2 aurora:2 cruise:2 meteor:2 burn:2 fade:2 meso:2 jet:2 uv:2 most:1 boundarie:2 outermost:2 radiation:2"
   },
   {
     "id": "earth-space/layers-of-earth",
@@ -687,7 +717,8 @@
     "subject": "earth-space",
     "summary": "Earth's interior layers — crust, mantle, outer core, inner core — with depth, state, and makeup.",
     "path": "resources/earth-space/layers-of-earth.md",
-    "asset": "assets/earth-space/layers-of-earth.svg"
+    "asset": "assets/earth-space/layers-of-earth.svg",
+    "body_terms": "km:2 solid:2 asthenosphere:2 lithosphere:2 nickel:2 iron:2 pressure:2 uppermost:2 generate:2 silicate:2 immense:2 oceanic:2 thinner:2 slowly:2 composition:2 mechanical:2 mesosphere:2 despite:2 granite:2 basalt:2 mostly:2 partly:2 rocky:2 kept:2"
   },
   {
     "id": "earth-space/mohs-hardness-scale",
@@ -708,7 +739,8 @@
     "subject": "earth-space",
     "summary": "The 1–10 mineral hardness scale with reference minerals and common scratch tests.",
     "path": "resources/earth-space/mohs-hardness-scale.md",
-    "asset": "assets/earth-space/mohs-hardness-scale.svg"
+    "asset": "assets/earth-space/mohs-hardness-scale.svg",
+    "body_terms": "calcite:2 quartz:2 steel:2 glass:2 fingernail:2 orthoclase:2 corundum:2 feldspar:2 fluorite:2 sapphire:2 scratche:2 apatite:2 hardest:2 ordinal:2 suggest:2 gypsum:2 harder:2 iraffe:2 uietly:2 window:2 knife:2 penny:2 topaz:2 file:2"
   },
   {
     "id": "earth-space/rock-cycle",
@@ -729,7 +761,8 @@
     "subject": "earth-space",
     "summary": "How igneous, sedimentary, and metamorphic rocks transform into one another.",
     "path": "resources/earth-space/rock-cycle.md",
-    "asset": "assets/earth-space/rock-cycle.svg"
+    "asset": "assets/earth-space/rock-cycle.svg",
+    "body_terms": "sediment:3 magma:3 turn:2 melting:3 heat:2 pressure:2 weathering:2 limestone:2 shale:2 processe:2 any:2 when:1 surface:2 crystallization:2 continuously:2 transforming:2 cementation:2 crystallize:2 compaction:2 compacted:2 sandstone:2 weathered:2 cemented:2 existing:2"
   },
   {
     "id": "earth-space/solar-system-planets",
@@ -751,7 +784,8 @@
     "subject": "earth-space",
     "summary": "The 8 planets in order from the Sun with distance, year length, and type.",
     "path": "resources/earth-space/solar-system-planets.md",
-    "asset": "assets/earth-space/solar-system-planets.svg"
+    "asset": "assets/earth-space/solar-system-planets.svg",
+    "body_terms": "terrestrial:3 giant:3 day:2 orbit:2 rocky:2 ice:2 au:2 four:2 gas:2 astronomical:2 reclassified:2 separated:2 educated:2 farthest:2 jupiter:2 mercury:2 neptune:2 gaseou:2 mother:2 saturn:2 served:2 nacho:2 pluto:2 uranu:2"
   },
   {
     "id": "earth-space/storm-scales",
@@ -774,7 +808,8 @@
     "subject": "earth-space",
     "summary": "The hurricane, tornado, earthquake, and wind scales with their ranges.",
     "path": "resources/earth-space/storm-scales.md",
-    "asset": "assets/earth-space/storm-scales.svg"
+    "asset": "assets/earth-space/storm-scales.svg",
+    "body_terms": "mph:3 cat:3 shaking:2 breeze:2 damage:2 rate:2 major:2 catastrophic:2 observation:2 separately:2 estimated:2 enhanced:2 mercalli:2 modified:2 released:2 barely:2 fujita:2 gentle:2 rated:2 gale:2 ef0:2 ef1:2 ef2:2 ef3:2"
   },
   {
     "id": "earth-space/water-cycle",
@@ -795,7 +830,8 @@
     "subject": "earth-space",
     "summary": "The continuous movement of water through evaporation, condensation, precipitation, and collection.",
     "path": "resources/earth-space/water-cycle.md",
-    "asset": "assets/earth-space/water-cycle.svg"
+    "asset": "assets/earth-space/water-cycle.svg",
+    "body_terms": "ocean:2 vapor:3 transpiration:2 droplet:2 runoff:2 lake:2 sun:2 evapotranspiration:2 infiltration:2 redistribute:2 groundwater:2 constantly:2 freshwater:2 recharging:2 evaporate:2 downhill:2 aquifer:2 gather:2 cloud:2 sleet:2 hail:2 snow:2 soak:2 atmosphere:2"
   },
   {
     "id": "economics/economic-indicators-glossary",
@@ -817,7 +853,8 @@
     "subject": "economics",
     "summary": "Key macroeconomic terms — GDP, GNP, inflation/CPI, unemployment, interest rates, recession.",
     "path": "resources/economics/economic-indicators-glossary.md",
-    "asset": "assets/economics/economic-indicators-glossary.svg"
+    "asset": "assets/economics/economic-indicators-glossary.svg",
+    "body_terms": "policy:3 money:2 gross:2 price:2 bank:2 country:2 measure:2 product:2 central:2 significant:2 influenced:2 adjusting:2 borrowing:2 actively:2 consumer:2 headline:2 monetary:2 produced:2 jobless:2 reserve:2 seeking:2 tracked:2 basket:2 buying:2"
   },
   {
     "id": "economics/economic-systems",
@@ -839,7 +876,8 @@
     "subject": "economics",
     "summary": "Traditional, command, market, and mixed economies compared on who decides and who owns.",
     "path": "resources/economics/economic-systems.md",
-    "asset": "assets/economics/economic-systems.svg"
+    "asset": "assets/economics/economic-systems.svg",
+    "body_terms": "private:3 government:2 public:2 produce:2 subsistence:2 idealized:2 incentive:2 gatherer:2 societie:2 variety:2 choice:2 custom:2 former:2 hunter:2 blend:2 lack:2 norm:2 poor:2 aim:2 efficiency:2 community:2 stability:2 equality:2 reward:2"
   },
   {
     "id": "economics/factors-of-production",
@@ -860,7 +898,8 @@
     "subject": "economics",
     "summary": "The four economic resources used to produce goods and services, with examples and their income.",
     "path": "resources/economics/factors-of-production.md",
-    "asset": "assets/economics/factors-of-production.svg"
+    "asset": "assets/economics/factors-of-production.svg",
+    "body_terms": "tool:2 profit:2 business:2 physical:2 money:2 made:2 human:2 entrepreneur:2 equipment:2 financial:2 inventor:2 rewarded:2 earned:2 scarce:2 worker:2 risk:2 wage:2 buy:2 computer:2 factorie:2 organize:2 founder:2 machine:2 effort:2"
   },
   {
     "id": "economics/personal-finance",
@@ -884,7 +923,8 @@
     "subject": "economics",
     "summary": "Core financial-literacy figures — interest formulas, the 50/30/20 budget, credit, and accounts.",
     "path": "resources/economics/personal-finance.md",
-    "asset": "assets/economics/personal-finance.svg"
+    "asset": "assets/economics/personal-finance.svg",
+    "body_terms": "pay:3 rate:2 earn:2 home:2 year:2 your:2 take:2 deduction:2 emergency:2 checking:2 reliably:2 expense:2 payment:2 annual:2 paying:2 payoff:2 maxed:2 repay:2 fico:2 fund:2 hurt:2 than:2 keeping:2 predict:2"
   },
   {
     "id": "economics/supply-and-demand",
@@ -907,7 +947,8 @@
     "subject": "economics",
     "summary": "The supply and demand curves, market equilibrium, surplus vs shortage, and what shifts each curve.",
     "path": "resources/economics/supply-and-demand.md",
-    "asset": "assets/economics/supply-and-demand.svg"
+    "asset": "assets/economics/supply-and-demand.svg",
+    "body_terms": "quantity:3 demanded:3 supplied:3 buyer:3 rise:2 shifter:2 toward:2 expectation:2 slope:2 too:2 fall:2 substitute:2 subsidie:2 compete:2 unsold:2 taste:2 tend:2 good:2 where:2 income:2 seller:2 cost:2 technology:2 resource:2"
   },
   {
     "id": "ela/apa-citation",
@@ -931,7 +972,8 @@
     "subject": "ela",
     "summary": "APA 7th-edition reference-list templates and (Author, Year) in-text patterns.",
     "path": "resources/ela/apa-citation.md",
-    "asset": "assets/ela/apa-citation.svg"
+    "asset": "assets/ela/apa-citation.svg",
+    "body_terms": "smith:3 page:3 title:2 doi:3 journal:3 book:2 org:2 publisher:2 http:2 url:2 article:2 sentence:2 name:2 parenthetical:2 capitalize:2 italicize:2 narrative:2 included:2 subtitle:2 proper:2 treat:2 jone:2 site:2 xxxx:2"
   },
   {
     "id": "ela/comma-rules",
@@ -953,7 +995,8 @@
     "subject": "ela",
     "summary": "The main rules for when a comma is required, with examples.",
     "path": "resources/ela/comma-rules.md",
-    "asset": "assets/ela/comma-rules.svg"
+    "asset": "assets/ela/comma-rules.svg",
+    "body_terms": "rained:2 clause:2 conjunction:2 we:2 nonrestrictive:2 coordinating:2 academic:2 brother:2 georgia:2 winding:2 error:2 game:2 ohio:2 fix:2 tag:2 after:2 introductory:2 essential:2 addresse:2 dialogue:2 atlanta:2 however:2 called:2 extra:2"
   },
   {
     "id": "ela/commonly-confused-words",
@@ -975,7 +1018,8 @@
     "subject": "ela",
     "summary": "Frequently mixed-up word pairs with the quick rule that tells them apart.",
     "path": "resources/ela/commonly-confused-words.md",
-    "asset": "assets/ela/commonly-confused-words.svg"
+    "asset": "assets/ela/commonly-confused-words.svg",
+    "body_terms": "possessive:3 usually:2 who:2 uncountable:2 compliment:2 stationary:2 stationery:2 countable:2 excluding:2 influence:2 otherwise:2 misplace:2 accept:2 praise:2 fewer:2 tight:2 apostrophe:2 belief:2 chief:2 whose:2 comparison:2 excessive:2 principal:2 replaced:2"
   },
   {
     "id": "ela/figurative-language",
@@ -997,7 +1041,8 @@
     "subject": "ela",
     "summary": "The major figures of speech — non-literal language — with a clear example of each.",
     "path": "resources/ela/figurative-language.md",
-    "asset": "assets/ela/figurative-language.svg"
+    "asset": "assets/ela/figurative-language.svg",
+    "body_terms": "thing:2 word:1 say:2 human:2 meaning:2 sound:2 contradictory:2 alliteration:2 onomatopoeia:2 bittersweet:2 synecdoche:2 deafening:2 whispered:2 metonymy:2 oxymoron:2 extreme:2 imitate:2 picked:2 splash:2 brave:2 clang:2 peter:2 piper:2 ruled:2"
   },
   {
     "id": "ela/greek-latin-roots",
@@ -1019,7 +1064,8 @@
     "subject": "ela",
     "summary": "High-frequency Greek/Latin roots plus common prefixes and suffixes with meanings.",
     "path": "resources/ela/greek-latin-roots.md",
-    "asset": "assets/ela/greek-latin-roots.svg"
+    "asset": "assets/ela/greek-latin-roots.svg",
+    "body_terms": "biology:2 study:2 write:2 malfunction:2 thermometer:2 chronology:2 photograph:2 construct:2 geography:2 paragraph:2 telephone:2 aquarium:2 audible:2 benefit:2 capable:2 hydrate:2 inspect:2 affixe:2 chrono:2 struct:2 ology:2 photo:2 scrib:2 spect:2"
   },
   {
     "id": "ela/literary-devices",
@@ -1042,7 +1088,8 @@
     "subject": "ela",
     "summary": "A glossary of narrative and structural literary devices used in analyzing texts.",
     "path": "resources/ela/literary-devices.md",
-    "asset": "assets/ela/literary-devices.svg"
+    "asset": "assets/ela/literary-devices.svg",
+    "body_terms": "theme:3 reader:2 image:2 character:2 author:2 person:2 event:2 idea:2 characterization:2 interruption:2 situational:2 flashback:2 recurring:2 attitude:2 dramatic:2 inferred:2 revealed:2 imagery:2 insight:2 sensory:2 saying:2 verbal:2 defie:2 meant:2"
   },
   {
     "id": "ela/mla-citation",
@@ -1066,7 +1113,8 @@
     "subject": "ela",
     "summary": "MLA 9th-edition Works Cited templates and in-text citation patterns.",
     "path": "resources/ela/mla-citation.md",
-    "asset": "assets/ela/mla-citation.svg"
+    "asset": "assets/ela/mla-citation.svg",
+    "body_terms": "title:2 page:3 last:3 author:2 publisher:3 url:3 month:2 year:2 journal:2 smith:2 source:2 book:2 element:2 article:2 first:1 no:1 day:2 abbreviated:2 contributor:2 publication:2 shortened:2 accessed:2 climate:2 website:2"
   },
   {
     "id": "ela/parts-of-speech",
@@ -1087,7 +1135,8 @@
     "subject": "ela",
     "summary": "The eight parts of speech with each one's job and example words.",
     "path": "resources/ela/parts-of-speech.md",
-    "asset": "assets/ela/parts-of-speech.svg"
+    "asset": "assets/ela/parts-of-speech.svg",
+    "body_terms": "describe:2 book:2 place:2 interjection:2 determiner:2 expresse:2 depend:2 sudden:2 ninth:2 think:2 ouch:2 tall:2 hey:2 wow:2 show:2 quickly:2 flight:2 sorted:2 being:2 happy:2 maria:2 kind:2 yet:2 ly:2"
   },
   {
     "id": "ela/plot-diagram",
@@ -1111,7 +1160,8 @@
     "subject": "ela",
     "summary": "The five stages of a story's plot — exposition, rising action, climax, falling action, resolution.",
     "path": "resources/ela/plot-diagram.md",
-    "asset": "assets/ela/plot-diagram.svg"
+    "asset": "assets/ela/plot-diagram.svg",
+    "body_terms": "conflict:3 character:2 vs:1 event:2 protagonist:2 incident:2 inciting:2 main:2 tension:2 here:2 central:2 complication:2 arrangement:2 antagonist:2 beginning:2 situation:2 nouement:2 opposing:2 struggle:2 classic:2 resolve:2 setting:2 settled:2 society:2"
   },
   {
     "id": "ela/point-of-view",
@@ -1134,7 +1184,8 @@
     "subject": "ela",
     "summary": "The narrative points of view — first, second, and the three third-person modes.",
     "path": "resources/ela/point-of-view.md",
-    "asset": "assets/ela/point-of-view.svg"
+    "asset": "assets/ela/point-of-view.svg",
+    "body_terms": "thought:3 story:3 know:3 they:1 character:2 she:2 objective:2 he:2 limited:2 reader:2 author:2 we:2 observable:2 unreliable:2 narrating:2 anywhere:2 believed:2 intimate:2 confuse:2 distort:2 mislead:2 camera:2 trust:2 voice:2"
   },
   {
     "id": "ela/prefixes",
@@ -1157,7 +1208,8 @@
     "subject": "ela",
     "summary": "High-frequency English prefixes with their meaning and an example word.",
     "path": "resources/ela/prefixes.md",
-    "asset": "assets/ela/prefixes.svg"
+    "asset": "assets/ela/prefixes.svg",
+    "body_terms": "back:2 not:1 too:2 under:2 root:2 opposite:2 antifreeze:2 impossible:2 semicircle:2 automatic:2 disappear:2 invisible:2 irregular:2 submarine:2 superhero:2 supervise:2 translate:2 underpaid:2 antibody:2 disagree:2 interact:2 midnight:2 misspell:2 monorail:2"
   },
   {
     "id": "ela/punctuation-marks",
@@ -1179,7 +1231,8 @@
     "subject": "ela",
     "summary": "Each common punctuation mark with its name and core rule for use.",
     "path": "resources/ela/punctuation-marks.md",
-    "asset": "assets/ela/punctuation-marks.svg"
+    "asset": "assets/ela/punctuation-marks.svg",
+    "body_terms": "comma:2 join:2 off:3 nonessential:2 clause:2 quotation:2 conjunction:2 statement:2 separate:2 item:2 dog:2 complete:2 end:1 question:2 without:2 direct:2 contraction:2 exclamation:2 explanation:2 emotional:2 emphatic:2 omission:2 trailing:2 ellipsi:2"
   },
   {
     "id": "ela/rhetorical-appeals",
@@ -1203,7 +1256,8 @@
     "subject": "ela",
     "summary": "Aristotle's three appeals (ethos, pathos, logos) plus kairos and common rhetorical devices.",
     "path": "resources/ela/rhetorical-appeals.md",
-    "asset": "assets/ela/rhetorical-appeals.svg"
+    "asset": "assets/ela/rhetorical-appeals.svg",
+    "body_terms": "speaker:2 repeating:2 emphasi:2 question:2 person:2 generalization:2 misrepresent:2 contrasting:2 credibility:2 grammatical:2 parallelism:2 trustworthy:2 deliberate:2 repetition:2 timeliness:2 antithesi:2 bandwagon:2 qualified:2 reasoning:2 restating:2 anaphora:2 audience:2 convince:2 fallacie:2"
   },
   {
     "id": "ela/sentence-types-and-structures",
@@ -1227,7 +1281,8 @@
     "subject": "ela",
     "summary": "The four sentence purposes and the four clause structures, with clause basics.",
     "path": "resources/ela/sentence-types-and-structures.md",
-    "asset": "assets/ela/sentence-types-and-structures.svg"
+    "asset": "assets/ela/sentence-types-and-structures.svg",
+    "body_terms": "independent:2 dependent:3 she:2 barked:2 bell:2 rang:2 alone:2 dog:2 ran:2 stand:2 mark:2 run:2 he:2 by:1 exclamatory:2 subordinate:2 imperative:2 request:2 cannot:2 one:1 more:1 end:1 classified:2 building:2"
   },
   {
     "id": "ela/suffixes",
@@ -1250,7 +1305,8 @@
     "subject": "ela",
     "summary": "High-frequency English suffixes with their meaning / part of speech and an example.",
     "path": "resources/ela/suffixes.md",
-    "asset": "assets/ela/suffixes.svg"
+    "asset": "assets/ela/suffixes.svg",
+    "body_terms": "adjective:2 noun:2 teacher:2 able:2 running:2 vowel:2 full:2 er:2 present:2 action:2 characterized:2 derivational:2 inflectional:2 comparative:2 superlative:2 happiness:2 dangerou:2 hopeless:2 kindness:2 readable:2 relating:2 fastest:2 grammar:2 hopeful:2"
   },
   {
     "id": "ela/text-structures",
@@ -1274,7 +1330,8 @@
     "subject": "ela",
     "summary": "The five ways nonfiction text is organized, each with its signal words.",
     "path": "resources/ela/text-structures.md",
-    "asset": "assets/ela/text-structures.svg"
+    "asset": "assets/ela/text-structures.svg",
+    "body_terms": "description:2 sequence:2 propose:2 author:2 answer:2 result:2 characteristic:2 chronological:2 consequently:2 describing:2 explaining:2 comparing:2 meanwhile:2 organizer:2 similarly:2 therefore:2 identify:2 instance:2 likewise:2 ordering:2 response:2 graphic:2 improve:2 solving:2"
   },
   {
     "id": "ela/verb-tenses",
@@ -1296,7 +1353,8 @@
     "subject": "ela",
     "summary": "The 12 English verb tenses across past, present, and future, shown with \"to walk.",
     "path": "resources/ela/verb-tenses.md",
-    "asset": "assets/ela/verb-tenses.svg"
+    "asset": "assets/ela/verb-tenses.svg",
+    "body_terms": "walking:3 been:3 have:2 walked:3 will:3 simple:2 now:3 aspect:2 had:2 ing:2 was:2 action:2 happening:2 progress:2 ongoing:2 be:2 finished:2 habit:2 done:2 participle:2 linked:2 time:1 am:2 another:2"
   },
   {
     "id": "french/articles-and-noun-gender",
@@ -1321,7 +1379,8 @@
     "subject": "french",
     "summary": "French definite, indefinite, and partitive articles plus noun-gender hints.",
     "path": "resources/french/articles-and-noun-gender.md",
-    "asset": "assets/french/articles-and-noun-gender.svg"
+    "asset": "assets/french/articles-and-noun-gender.svg",
+    "body_terms": "some:2 livre:2 pomme:2 mange:2 sing:2 feminine:2 masculine:2 je:2 often:2 tendencie:2 fromage:2 libert:2 salade:2 learn:2 ence:2 ette:2 ille:2 isme:2 lami:2 leau:2 pain:2 ami:2 aux:2 eau:2"
   },
   {
     "id": "french/days-months-seasons",
@@ -1347,7 +1406,8 @@
     "subject": "french",
     "summary": "The days, months, and seasons in French plus the date format.",
     "path": "resources/french/days-months-seasons.md",
-    "asset": "assets/french/days-months-seasons.svg"
+    "asset": "assets/french/days-months-seasons.svg",
+    "body_terms": "le:2 lundi:3 monday:3 en:2 printemp:2 juillet:2 premier:2 cembre:2 mai:2 somme:2 nou:2 les:2 est:2 septembre:2 dimanche:2 lautomne:2 mercredi:2 novembre:2 vendredi:2 automne:2 janvier:2 octobre:2 lhiver:2 samedi:2"
   },
   {
     "id": "french/etre-and-avoir",
@@ -1373,7 +1433,8 @@
     "subject": "french",
     "summary": "Present-tense être and avoir side by side — the two French auxiliary verbs.",
     "path": "resources/french/etre-and-avoir.md",
-    "asset": "assets/french/etre-and-avoir.svg"
+    "asset": "assets/french/etre-and-avoir.svg",
+    "body_terms": "jai:3 sui:3 elle:2 je:2 auxiliarie:2 compo:2 ans:2 somme:2 pass:2 nou:2 take:2 profession:2 thirsty:2 tudiant:2 afraid:2 besoin:2 hungry:2 raison:2 chaud:2 froid:2 avez:2 avon:2 faim:2 mang:2"
   },
   {
     "id": "french/numbers-0-100",
@@ -1395,7 +1456,8 @@
     "subject": "french",
     "summary": "French cardinal numbers 0-100, including the soixante-dix / quatre-vingts quirks.",
     "path": "resources/french/numbers-0-100.md",
-    "asset": "assets/french/numbers-0-100.svg"
+    "asset": "assets/french/numbers-0-100.svg",
+    "body_terms": "neuf:3 deux:3 et:3 cent:3 onze:3 un:2 douze:2 cinq:2 huit:2 hyphen:2 sept:2 use:1 base:2 switzerland:2 cinquante:2 quarante:2 quatorze:2 septante:2 belgium:2 nonante:2 treize:2 trente:2 tricky:2 seize:2"
   },
   {
     "id": "french/pronouns",
@@ -1420,7 +1482,8 @@
     "subject": "french",
     "summary": "French subject, direct-object, indirect-object, reflexive, and stressed pronoun sets.",
     "path": "resources/french/pronouns.md",
-    "asset": "assets/french/pronouns.svg"
+    "asset": "assets/french/pronouns.svg",
+    "body_terms": "vou:2 nou:2 te:2 lui:3 le:2 elle:2 se:2 moi:3 leur:2 him:2 obj:2 person:2 la:2 before:1 verb:2 les:2 vowel:2 disjunctive:2 required:2 singular:2 rarely:2 donne:2 laver:2 pense:2"
   },
   {
     "id": "french/question-words-and-greetings",
@@ -1444,7 +1507,8 @@
     "subject": "french",
     "summary": "French interrogatives, the three ways to form questions, and core greetings.",
     "path": "resources/french/question-words-and-greetings.md",
-    "asset": "assets/french/question-words-and-greetings.svg"
+    "asset": "assets/french/question-words-and-greetings.svg",
+    "body_terms": "comment:3 vien:3 vou:2 tu:2 quelle:3 pla:2 sil:2 ce:2 il:2 thank:2 quel:2 va:2 informal:2 formal:2 parle:2 yes:2 elle:2 est:2 de:2 name:2 interrogatif:2 intonation:2 inversion:2 mappelle:2"
   },
   {
     "id": "french/regular-verb-endings",
@@ -1469,7 +1533,8 @@
     "subject": "french",
     "summary": "Present-tense endings for the three regular French verb classes with a model verb each.",
     "path": "resources/french/regular-verb-endings.md",
-    "asset": "assets/french/regular-verb-endings.svg"
+    "asset": "assets/french/regular-verb-endings.svg",
+    "body_terms": "ent:3 parle:3 vend:3 ons:3 ez:3 iss:3 speak:2 je:2 parlent:2 fini:2 ils:2 elle:2 tu:2 es:2 finissent:2 finissez:2 finisson:2 vendent:2 finish:2 parlez:2 parlon:2 vendez:2 vendon:2 finit:2"
   },
   {
     "id": "geography/continents-oceans",
@@ -1491,7 +1556,8 @@
     "subject": "geography",
     "summary": "The 7 continents and 5 oceans with their relative size and key facts.",
     "path": "resources/geography/continents-oceans.md",
-    "asset": "assets/geography/continents-oceans.svg"
+    "asset": "assets/geography/continents-oceans.svg",
+    "body_terms": "km:2 million:2 smallest:2 america:2 covered:2 pacific:2 antarctica:2 include:2 australia:2 billion:2 2nd:2 ice:2 africa:2 europe:2 people:2 rainforest:2 shallowest:2 populated:2 surround:2 deepest:2 densely:2 mariana:2 warmest:2 global:2"
   },
   {
     "id": "geography/countries-capitals",
@@ -1513,7 +1579,8 @@
     "subject": "geography",
     "summary": "Capital cities of major countries grouped by continent.",
     "path": "resources/geography/countries-capitals.md",
-    "asset": "assets/geography/countries-capitals.svg"
+    "asset": "assets/geography/countries-capitals.svg",
+    "body_terms": "guatemala:2 new:2 south:2 mexico:2 city:2 africa:2 united:2 america:2 administrative:2 wellington:2 argentina:2 selection:2 canberra:2 colombia:2 ethiopia:2 pretoria:2 santiago:2 thailand:2 bangkok:2 beijing:2 jakarta:2 moresby:2 morocco:2 nairobi:2"
   },
   {
     "id": "geography/landform-glossary",
@@ -1534,7 +1601,8 @@
     "subject": "geography",
     "summary": "The common landforms and water features, each with a one-line definition.",
     "path": "resources/geography/landform-glossary.md",
-    "asset": "assets/geography/landform-glossary.svg"
+    "asset": "assets/geography/landform-glossary.svg",
+    "body_terms": "land:2 surrounded:3 narrow:3 hill:3 larger:2 mountain:3 steep:2 river:2 side:2 area:2 gulf:2 meet:2 valley:2 flat:2 low:2 by:1 connecting:2 triangular:2 tableland:2 tributary:2 elevated:2 rainfall:2 waterway:2 deposit:2"
   },
   {
     "id": "geography/latitude-and-longitude",
@@ -1557,7 +1625,8 @@
     "subject": "geography",
     "summary": "The graticule — parallels and meridians, the key reference lines, hemispheres, and coordinates.",
     "path": "resources/geography/latitude-and-longitude.md",
-    "asset": "assets/geography/latitude-and-longitude.svg"
+    "asset": "assets/geography/latitude-and-longitude.svg",
+    "body_terms": "pole:3 tropic:2 running:2 east:2 distance:2 west:2 split:2 measure:2 circle:2 capricorn:2 international:2 antarctic:2 greenwich:2 northern:2 atlanta:2 arctic:2 cancer:2 ladder:2 write:2 rung:2 lie:2 address:2 eastern:2 england:2"
   },
   {
     "id": "geography/map-symbols-and-legend",
@@ -1581,7 +1650,8 @@
     "subject": "geography",
     "summary": "How to read a map — the legend, compass rose, scale, and the common map symbols.",
     "path": "resources/geography/map-symbols-and-legend.md",
-    "asset": "assets/geography/map-symbols-and-legend.svg"
+    "asset": "assets/geography/map-symbols-and-legend.svg",
+    "body_terms": "line:2 title:2 distance:2 blue:2 city:2 area:2 direction:2 intermediate:2 navigating:2 measuring:2 crosstie:2 highway:2 anyone:2 dashed:2 locate:2 park:2 town:2 sw:2 boundary:2 railroad:2 explain:2 forest:2 thick:2 lake:2"
   },
   {
     "id": "geography/us-states-map",
@@ -1605,7 +1675,8 @@
     "subject": "geography",
     "summary": "A map of the 50 US states with two-letter postal codes (Albers USA projection).",
     "path": "resources/geography/us-states-map.md",
-    "asset": "assets/geography/us-states-map.svg"
+    "asset": "assets/geography/us-states-map.svg",
+    "body_terms": "alaska:3 california:2 hawaii:2 ny:2 tx:2 ca:2 largest:2 fact:2 reposition:2 contiguou:2 northeast:2 statehood:2 admitted:2 nickname:2 midwest:2 wyoming:2 bureau:2 useful:2 censu:2 inset:2 rhode:2 usp:2 ak:2 az:2"
   },
   {
     "id": "geography/world-physical-map",
@@ -1630,7 +1701,8 @@
     "subject": "geography",
     "summary": "The world's major mountain ranges, rivers, and deserts on a labeled physical map.",
     "path": "resources/geography/world-physical-map.md",
-    "asset": "assets/geography/world-physical-map.svg"
+    "asset": "assets/geography/world-physical-map.svg",
+    "body_terms": "asia:2 longest:3 africa:2 america:2 km:2 driest:2 largest:2 europe:2 australia:2 great:2 place:2 north:2 south:2 mississippi:2 definition:2 dividing:2 himalaya:2 kalahari:2 missouri:2 arabian:2 atacama:2 collide:2 everest:2 tallest:2"
   },
   {
     "id": "geography/world-political-map",
@@ -1654,7 +1726,8 @@
     "subject": "geography",
     "summary": "A labeled world map of countries and continents (equirectangular projection).",
     "path": "resources/geography/world-political-map.md",
-    "asset": "assets/geography/world-political-map.svg"
+    "asset": "assets/geography/world-political-map.svg",
+    "body_terms": "capital:2 hemisphere:2 area:2 physical:2 longitude:2 latitude:2 country:2 ocean:2 see:1 split:2 card:2 america:2 state:1 greenland:2 observer:2 stretche:2 profile:2 show:2 earth:1 antarctica:2 greenwich:2 indonesia:2 meridian:2 northern:2"
   },
   {
     "id": "health-pe/fitness-and-target-heart-rate",
@@ -1678,7 +1751,8 @@
     "subject": "health-pe",
     "summary": "The 5 health-related fitness components, the max-HR formula, and target training zones.",
     "path": "resources/health-pe/fitness-and-target-heart-rate.md",
-    "asset": "assets/health-pe/fitness-and-target-heart-rate.svg"
+    "asset": "assets/health-pe/fitness-and-target-heart-rate.svg",
+    "body_terms": "mhr:3 activity:2 endurance:2 vigorou:2 minute:2 muscular:2 moderate:2 muscle:2 cardiovascular:2 coordination:2 flexibility:2 stretching:2 guideline:2 supplying:2 ntensity:2 requency:2 swimming:2 aerobic:2 agility:2 should:2 exert:2 hard:2 lean:2 teen:2"
   },
   {
     "id": "health-pe/myplate",
@@ -1702,7 +1776,8 @@
     "subject": "health-pe",
     "summary": "USDA MyPlate's five food groups and how to build a balanced meal.",
     "path": "resources/health-pe/myplate.md",
-    "asset": "assets/health-pe/myplate.svg"
+    "asset": "assets/health-pe/myplate.svg",
+    "body_terms": "grain:3 vegetable:3 dairy:3 fruit:3 half:2 protein:2 fat:2 drink:2 cup:2 your:2 section:2 whole:2 fill:2 make:2 side:2 fortified:2 broccoli:2 spinach:2 berrie:2 beside:2 carrot:2 cheese:2 sugary:2 yogurt:2"
   },
   {
     "id": "health-pe/nutrition-facts-label",
@@ -1727,7 +1802,8 @@
     "subject": "health-pe",
     "summary": "How to read the FDA Nutrition Facts label — serving size, calories, nutrients, and %DV.",
     "path": "resources/health-pe/nutrition-facts-label.md",
-    "asset": "assets/health-pe/nutrition-facts-label.svg"
+    "asset": "assets/health-pe/nutrition-facts-label.svg",
+    "body_terms": "per:2 get:2 package:2 fat:2 protein:2 these:2 high:2 less:2 low:2 cholesterol:2 contribute:2 potassium:2 children:2 consumed:2 packaged:2 calcium:2 dietary:2 updated:2 vitamin:2 carrie:2 claim:2 young:2 bold:2 more:1"
   },
   {
     "id": "math/coordinate-plane",
@@ -1750,7 +1826,8 @@
     "subject": "math",
     "summary": "The axes, origin, four quadrants, and the (x, y) ordered-pair convention for plotting points.",
     "path": "resources/math/coordinate-plane.md",
-    "asset": "assets/math/coordinate-plane.svg"
+    "asset": "assets/math/coordinate-plane.svg",
+    "body_terms": "right:1 left:2 upper:2 up:1 line:2 lower:2 down:2 formed:2 counterclockwise:2 perpendicular:2 cross:2 named:2 basi:2 different:2 iii:2 iv:2 horizontal:2 function:2 vertical:2 ii:2 equation:2 matter:2 second:2 alway:2"
   },
   {
     "id": "math/factoring-special-products",
@@ -1772,7 +1849,8 @@
     "subject": "math",
     "summary": "The key factoring patterns — difference of squares, perfect-square trinomials, cubes, FOIL.",
     "path": "resources/math/factoring-special-products.md",
-    "asset": "assets/math/factoring-special-products.svg"
+    "asset": "assets/math/factoring-special-products.svg",
+    "body_terms": "2ab:3 6x:2 multiplying:2 factor:2 ab:2 sum:2 out:2 pull:2 gcf:2 3x:2 5x:2 9x:2 bd:2 binomial:2 2x:2 bc:2 bx:2 greatest:2 multiply:2 reverse:2 back:2 find:2 check:2 ac:2"
   },
   {
     "id": "math/geometry-formulas",
@@ -1795,7 +1873,8 @@
     "subject": "math",
     "summary": "Area and perimeter of 2D shapes plus surface area and volume of 3D solids.",
     "path": "resources/math/geometry-formulas.md",
-    "asset": "assets/math/geometry-formulas.svg"
+    "asset": "assets/math/geometry-formulas.svg",
+    "body_terms": "sa:3 triangle:2 side:2 angle:2 sum:2 base:2 circumference:2 quadrilateral:2 rectangular:2 trapezoid:2 sphere:2 prism:2 cone:2 parallelogram:2 hypotenuse:2 rectangle:2 cylinder:2 theorem:2 4s:2 6s:2 rh:2 pythagorean:2 radiu:2 width:2"
   },
   {
     "id": "math/laws-of-exponents",
@@ -1817,7 +1896,8 @@
     "subject": "math",
     "summary": "The product, quotient, power, zero, negative, and fractional exponent rules.",
     "path": "resources/math/laws-of-exponents.md",
-    "asset": "assets/math/laws-of-exponents.svg"
+    "asset": "assets/math/laws-of-exponents.svg",
+    "body_terms": "multiply:2 base:2 rational:2 add:1 multiplying:2 subtract:2 integer:2 mistake:2 worked:2 when:1 raised:2 another:2 ab:2 any:2 like:2 only:1 common:1 not:1 example:1"
   },
   {
     "id": "math/linear-equation-forms",
@@ -1839,7 +1919,8 @@
     "subject": "math",
     "summary": "Slope-intercept, point-slope, and standard forms of a line, plus the slope formula.",
     "path": "resources/math/linear-equation-forms.md",
-    "asset": "assets/math/linear-equation-forms.svg"
+    "asset": "assets/math/linear-equation-forms.svg",
+    "body_terms": "negative:2 through:2 have:2 rise:2 2y:2 mx:2 undefined:2 integer:2 ax:2 perpendicular:2 reciprocal:2 horizontal:2 vertical:2 run:2 fact:2 positive:2 constant:2 fall:2 parallel:2 left:2 equal:2 right:1 has:1 example:1"
   },
   {
     "id": "math/logarithm-rules",
@@ -1861,7 +1942,8 @@
     "subject": "math",
     "summary": "Product, quotient, power, and change-of-base log rules plus the log↔exponent link.",
     "path": "resources/math/logarithm-rules.md",
-    "asset": "assets/math/logarithm-rules.svg"
+    "asset": "assets/math/logarithm-rules.svg",
+    "body_terms": "ln:3 linearize:2 notation:2 underlie:2 xy:2 exponential:2 identitie:2 addition:2 decibel:2 multiplication:2 ph:2 turn:2 growth:2 answer:2 scale:2 natural:2 because:2 why:2 into:1 common:1 they:1 example:1"
   },
   {
     "id": "math/multiplication-table",
@@ -1883,7 +1965,8 @@
     "subject": "math",
     "summary": "Multiplication facts from 1x1 to 12x12.",
     "path": "resources/math/multiplication-table.md",
-    "asset": "assets/math/multiplication-table.svg"
+    "asset": "assets/math/multiplication-table.svg",
+    "body_terms": "commutative:2 multiple:2 row:2 square:2 list:2 equal:2 number:1 so:1 each:1"
   },
   {
     "id": "math/order-of-operations",
@@ -1905,7 +1988,8 @@
     "subject": "math",
     "summary": "PEMDAS evaluation order plus the commutative, associative, distributive, and identity properties.",
     "path": "resources/math/order-of-operations.md",
-    "asset": "assets/math/order-of-operations.svg"
+    "asset": "assets/math/order-of-operations.svg",
+    "body_terms": "level:2 rank:2 left:2 ab:2 right:1 equal:2 ultiplication:2 subtraction:2 ubtraction:2 arenthese:2 whichever:2 grouping:2 bracket:2 ddition:2 ivision:2 xponent:2 watch:2 division:2 fraction:2 inverse:2 doesnt:2 bar:2 come:2 ac:2"
   },
   {
     "id": "math/parent-functions",
@@ -1927,7 +2011,8 @@
     "subject": "math",
     "summary": "The basic graph shapes (linear, quadratic, cubic, root, reciprocal, exponential, log) functions are built from.",
     "path": "resources/math/parent-functions.md",
-    "asset": "assets/math/parent-functions.svg"
+    "asset": "assets/math/parent-functions.svg",
+    "body_terms": "shift:2 transformation:2 stretch:2 logarithmic:2 parabola:2 family:2 origin:2 passe:2 growth:2 square:2 axi:2 over:2 through:2 asymptote:2 hyperbola:2 simplest:2 rapid:2 axe:2 compression:2 shaped:2 curve:2 reflection:2 straight:2 inverse:2"
   },
   {
     "id": "math/probability-statistics-sheet",
@@ -1949,7 +2034,8 @@
     "subject": "math",
     "summary": "Center and spread measures, probability rules, and counting formulas.",
     "path": "resources/math/probability-statistics-sheet.md",
-    "asset": "assets/math/probability-statistics-sheet.svg"
+    "asset": "assets/math/probability-statistics-sheet.svg",
+    "body_terms": "variance:2 average:2 outcome:2 middle:2 even:2 matter:2 favorable:2 frequent:2 dice:2 value:2 order:1 addition:2 rolling:2 sorted:2 die:2 multiplication:2 doesnt:2 fair:2 min:2 complement:2 max:2 independent:2 range:2 total:2"
   },
   {
     "id": "math/quadratic-reference",
@@ -1971,7 +2057,8 @@
     "subject": "math",
     "summary": "The quadratic formula, discriminant, vertex, and the forms of a parabola y = ax² + bx + c.",
     "path": "resources/math/quadratic-reference.md",
-    "asset": "assets/math/quadratic-reference.svg"
+    "asset": "assets/math/quadratic-reference.svg",
+    "body_terms": "2a:3 4ac:2 real:2 factored:2 symmetry:2 if:2 intercept:2 minimum:2 solve:2 2x:2 repeated:2 complex:2 maximum:2 graph:2 open:2 feature:2 factor:2 sum:2 axi:2 product:2 down:2 two:1 key:1 set:1"
   },
   {
     "id": "math/si-units",
@@ -1995,7 +2082,8 @@
     "subject": "math",
     "summary": "The 7 SI base units, common derived units, and the metric prefix ladder.",
     "path": "resources/math/si-units.md",
-    "asset": "assets/math/si-units.svg"
+    "asset": "assets/math/si-units.svg",
+    "body_terms": "kg:2 kilogram:2 candela:2 pascal:2 centi:2 hecto:2 metre:2 milli:2 deca:2 deci:2 pico:2 tera:2 substance:2 convert:2 luminou:2 ampere:2 hertz:2 joule:2 micro:2 mole:2 nano:2 volt:2 hz:2 multiply:2"
   },
   {
     "id": "math/squares-cubes-roots",
@@ -2017,7 +2105,8 @@
     "subject": "math",
     "summary": "Perfect squares and cubes with their roots, plus common irrational approximations.",
     "path": "resources/math/squares-cubes-roots.md",
-    "asset": "assets/math/squares-cubes-roots.svg"
+    "asset": "assets/math/squares-cubes-roots.svg",
+    "body_terms": "radical:2 simplifying:2 recognizing:2 principal:2 quadratic:2 golden:2 ratio:2 formula:2 ab:2 positive:2 speed:2 symbol:2 mean:2 value:2 power:1 up:1 rule:1 has:1 two:1"
   },
   {
     "id": "math/trig-identities",
@@ -2039,7 +2128,8 @@
     "subject": "math",
     "summary": "Pythagorean, reciprocal, quotient, even/odd, sum/difference, and double-angle identities.",
     "path": "resources/math/trig-identities.md",
-    "asset": "assets/math/trig-identities.svg"
+    "asset": "assets/math/trig-identities.svg",
+    "body_terms": "cos:2 tan:3 sin:2 cot:3 adjacent:2 cosa:2 cosb:2 sina:2 sinb:2 tana:2 tanb:2 csc:2 sec:2 hypotenuse:2 opposite:2 2sin:2 2tan:2 2co:2 cah:2 soh:2 toa:2 triangle:2 basic:2 right:1"
   },
   {
     "id": "math/unit-circle",
@@ -2061,7 +2151,8 @@
     "subject": "math",
     "summary": "Common angles on the unit circle with their radian measure and exact sin/cos/tan values.",
     "path": "resources/math/unit-circle.md",
-    "asset": "assets/math/unit-circle.svg"
+    "asset": "assets/math/unit-circle.svg",
+    "body_terms": "undefined:2 radiu:2 positive:2 centered:2 calculu:2 student:2 qiii:2 qii:2 qiv:2 qi:2 point:1 quadrant:2 lie:2 counterclockwise:2 pythagorean:2 sign:2 aid:2 identity:2 memory:2 origin:2 turn:2 iii:2 iv:2 measured:2"
   },
   {
     "id": "music/circle-of-fifths",
@@ -2085,7 +2176,8 @@
     "subject": "music",
     "summary": "Major and minor keys arranged by fifths with their sharp/flat counts and relative minors.",
     "path": "resources/music/circle-of-fifths.md",
-    "asset": "assets/music/circle-of-fifths.svg"
+    "asset": "assets/music/circle-of-fifths.svg",
+    "body_terms": "bb:3 eb:3 last:3 clockwise:2 ab:2 step:2 counterclockwise:2 find:2 moving:2 half:2 father:2 bead:2 mean:2 add:1 battle:2 charle:2 cb:2 gb:2 up:1 reverse:2 goe:2 db:2 go:2 mnemonic:2"
   },
   {
     "id": "music/dynamics-and-tempo",
@@ -2110,7 +2202,8 @@
     "subject": "music",
     "summary": "Italian markings for volume (dynamics), speed (tempo), and articulation.",
     "path": "resources/music/dynamics-and-tempo.md",
-    "asset": "assets/music/dynamics-and-tempo.svg"
+    "asset": "assets/music/dynamics-and-tempo.svg",
+    "body_terms": "gradually:3 loud:3 soft:3 fast:3 very:2 slow:3 mezzo:2 medium:2 accelerando:2 decrescendo:2 diminuendo:2 fortissimo:2 pianissimo:2 ritardando:2 emphasize:2 detached:2 moderato:2 speeding:2 staccato:2 andante:2 fermata:2 hairpin:2 loudest:2 slowing:2"
   },
   {
     "id": "music/grand-staff-and-clefs",
@@ -2136,7 +2229,8 @@
     "subject": "music",
     "summary": "Treble and bass clef note names (lines & spaces), middle C, and the grand staff.",
     "path": "resources/music/grand-staff-and-clefs.md",
-    "asset": "assets/music/grand-staff-and-clefs.svg"
+    "asset": "assets/music/grand-staff-and-clefs.svg",
+    "body_terms": "ledger:3 bottom:2 top:2 boy:2 pitche:2 hand:2 around:2 fine:2 above:2 below:2 brace:2 grass:2 spell:2 stave:2 curl:2 cow:2 good:2 face:2 4th:2 up:1 linked:2 link:2 eat:2 outside:2"
   },
   {
     "id": "music/major-minor-scales",
@@ -2159,7 +2253,8 @@
     "subject": "music",
     "summary": "The whole/half-step formulas for major and the three minor scales.",
     "path": "resources/music/major-minor-scales.md",
-    "asset": "assets/music/major-minor-scales.svg"
+    "asset": "assets/music/major-minor-scales.svg",
+    "body_terms": "key:1 6th:2 raised:2 7th:2 relative:2 starting:2 leading:2 coming:2 lowered:2 sharp:2 same:1 degree:2 apart:2 fixed:2 going:2 different:2 signature:2 tone:2 relationship:2 create:2 again:2 built:2 share:2 flat:2"
   },
   {
     "id": "music/musical-intervals",
@@ -2182,7 +2277,8 @@
     "subject": "music",
     "summary": "The intervals within an octave by half-step count, with quality names.",
     "path": "resources/music/musical-intervals.md",
-    "asset": "assets/music/musical-intervals.svg"
+    "asset": "assets/music/musical-intervals.svg",
+    "body_terms": "minor:3 6th:3 7th:3 unison:3 5th:3 2nd:2 3rd:2 lowering:2 tritone:2 m2:2 m3:2 m6:2 m7:2 4th:2 diminished:2 augmented:2 dissonant:2 semitone:2 raising:2 stable:2 p1:2 p4:2 p5:2 p8:2"
   },
   {
     "id": "music/note-and-rest-values",
@@ -2205,7 +2301,8 @@
     "subject": "music",
     "summary": "The duration of each note and its matching rest, counted in 4/4 time.",
     "path": "resources/music/note-and-rest-values.md",
-    "asset": "assets/music/note-and-rest-values.svg"
+    "asset": "assets/music/note-and-rest-values.svg",
+    "body_terms": "sixteenth:3 halve:2 beam:2 flag:2 tie:2 add:1 silence:2 dotted:2 meter:2 grouped:2 shorter:2 relate:2 tell:2 say:2 signature:2 sustained:2 count:2 get:2 one:1 joined:2 join:2 dot:2 length:2 long:2"
   },
   {
     "id": "music/time-signatures",
@@ -2229,7 +2326,8 @@
     "subject": "music",
     "summary": "What the top and bottom numbers mean, plus common simple and compound meters.",
     "path": "resources/music/time-signatures.md",
-    "asset": "assets/music/time-signatures.svg"
+    "asset": "assets/music/time-signatures.svg",
+    "body_terms": "note:2 quarter:3 eighth:3 measure:2 cut:2 divide:2 each:1 half:2 lilting:2 march:2 polka:2 waltz:2 pop:2 stacked:2 dotted:2 staff:2 fast:2 into:1 grouped:2 felt:2 define:2 rock:2 get:2 three:1"
   },
   {
     "id": "physics/circular-and-rotational-motion",
@@ -2252,7 +2350,8 @@
     "subject": "physics",
     "summary": "Uniform circular motion (centripetal force/acceleration) and the rotational analogs of linear motion.",
     "path": "resources/physics/circular-and-rotational-motion.md",
-    "asset": "assets/physics/circular-and-rotational-motion.svg"
+    "asset": "assets/physics/circular-and-rotational-motion.svg",
+    "body_terms": "angle:2 outward:2 radian:2 center:2 speed:2 accelerating:2 centrifugal:2 inward:2 flung:2 arc:2 point:1 changing:2 greatest:2 link:2 displacement:2 moving:2 feel:2 length:2 there:2 real:2 period:2 toward:2 alway:2 your:2"
   },
   {
     "id": "physics/constants",
@@ -2274,7 +2373,8 @@
     "subject": "physics",
     "summary": "Common fundamental physics constants with their symbols, values, and units.",
     "path": "resources/physics/constants.md",
-    "asset": "assets/physics/constants.svg"
+    "asset": "assets/physics/constants.svg",
+    "body_terms": "kg:2 vacuum:2 mass:2 gravity:2 mol:2 surface:2 permeability:2 permittivity:2 gravitation:2 elementary:2 boltzmann:2 molar:2 earth:1 universal:2 proton:2 coulomb:2 atomic:2 newton:2 acceleration:2 electron:2 charge:2 gas:2 format:2 standard:2"
   },
   {
     "id": "physics/electric-and-magnetic-fields",
@@ -2297,7 +2397,8 @@
     "subject": "physics",
     "summary": "Coulomb's law, electric field and force, and the magnetic force on charges and wires.",
     "path": "resources/physics/electric-and-magnetic-fields.md",
-    "asset": "assets/physics/electric-and-magnetic-fields.svg"
+    "asset": "assets/physics/electric-and-magnetic-fields.svg",
+    "body_terms": "moving:2 current:2 voltage:2 sin:2 transformer:2 generator:2 potential:2 carrying:2 faraday:2 induce:2 motor:2 repel:2 tesla:2 changing:2 strength:2 attract:2 basi:2 difference:2 given:2 away:2 create:2 feel:2 toward:2 direction:2"
   },
   {
     "id": "physics/electromagnetic-spectrum",
@@ -2319,7 +2420,8 @@
     "subject": "physics",
     "summary": "The bands of EM radiation from radio to gamma, ordered by wavelength and frequency.",
     "path": "resources/physics/electromagnetic-spectrum.md",
-    "asset": "assets/physics/electromagnetic-spectrum.svg"
+    "asset": "assets/physics/electromagnetic-spectrum.svg",
+    "body_terms": "nm:3 shortest:2 imaging:2 mm:2 violet:2 longest:2 visible:2 lowest:2 highest:2 red:2 energy:1 higher:2 sterilization:2 ultraviolet:2 broadcast:2 microwave:2 treatment:2 infrared:2 medical:2 roygbiv:2 sunburn:2 indigo:2 remote:2 radar:2"
   },
   {
     "id": "physics/electronic-component-symbols",
@@ -2340,7 +2442,8 @@
     "subject": "physics",
     "summary": "The standard schematic symbols for common circuit components and what each does.",
     "path": "resources/physics/electronic-component-symbols.md",
-    "asset": "assets/physics/electronic-component-symbols.svg"
+    "asset": "assets/physics/electronic-component-symbols.svg",
+    "body_terms": "line:2 current:2 connected:2 diode:2 arrow:2 wire:2 unit:2 field:2 voltage:2 store:2 measure:2 serie:2 parallel:2 light:2 conducting:2 conductor:2 resistive:2 shrinking:2 voltmeter:2 inductor:2 pointing:2 ammeter:2 hinged:2 switch:2"
   },
   {
     "id": "physics/energy-work",
@@ -2362,7 +2465,8 @@
     "subject": "physics",
     "summary": "Work, kinetic and potential energy, power, and conservation of energy.",
     "path": "resources/physics/energy-work.md",
-    "asset": "assets/physics/energy-work.svg"
+    "asset": "assets/physics/energy-work.svg",
+    "body_terms": "ke:3 pe:3 transferred:2 transformed:2 converted:2 force:2 gravitational:2 mechanical:2 destroyed:2 theorem:2 giving:2 impact:2 doing:2 joule:2 ball:2 friction:2 falling:2 watt:2 height:2 moved:2 just:2 stay:2 net:2 distance:2"
   },
   {
     "id": "physics/index-of-refraction",
@@ -2384,7 +2488,8 @@
     "subject": "physics",
     "summary": "The refractive index of common media, Snell's law, and the critical angle.",
     "path": "resources/physics/index-of-refraction.md",
-    "asset": "assets/physics/index-of-refraction.svg"
+    "asset": "assets/physics/index-of-refraction.svg",
+    "body_terms": "medium:2 sin:2 diamond:2 vacuum:2 dense:2 higher:2 optically:2 bending:2 ethanol:2 refract:2 sparkle:2 slower:2 internally:2 entering:2 totally:2 denser:2 crown:2 bend:2 leaving:2 along:2 fiber:2 going:2 basi:2 slow:2"
   },
   {
     "id": "physics/kinematics-equations",
@@ -2406,7 +2511,8 @@
     "subject": "physics",
     "summary": "The four constant-acceleration (SUVAT) equations of straight-line motion.",
     "path": "resources/physics/kinematics-equations.md",
-    "asset": "assets/physics/kinematics-equations.svg"
+    "asset": "assets/physics/kinematics-equations.svg",
+    "body_terms": "gt:2 variable:2 displacement:2 fall:2 no:1 quantitie:2 neither:2 omit:2 car:2 unit:2 accelerate:2 downward:2 initial:2 want:2 convention:2 quantity:2 choose:2 reache:2 know:2 near:2 pick:2 rest:2 sign:2 time:1"
   },
   {
     "id": "physics/kirchhoffs-laws",
@@ -2430,7 +2536,8 @@
     "subject": "physics",
     "summary": "Kirchhoff's current (junction) and voltage (loop) laws for analyzing circuits.",
     "path": "resources/physics/kirchhoffs-laws.md",
-    "asset": "assets/physics/kirchhoffs-laws.svg"
+    "asset": "assets/physics/kirchhoffs-laws.svg",
+    "body_terms": "conservation:3 flowing:2 any:2 energy:1 serie:2 across:2 out:2 parallel:2 closed:2 add:1 gained:2 same:1 resistor:2 branch:2 source:2 node:2 branche:2 around:2 ohm:2 dropped:2 zero:2 each:1 split:2 sum:2"
   },
   {
     "id": "physics/momentum-impulse",
@@ -2452,7 +2559,8 @@
     "subject": "physics",
     "summary": "Momentum, impulse, conservation of momentum, and elastic vs inelastic collisions.",
     "path": "resources/physics/momentum-impulse.md",
-    "asset": "assets/physics/momentum-impulse.svg"
+    "asset": "assets/physics/momentum-impulse.svg",
+    "body_terms": "kg:2 conserved:3 kinetic:2 object:2 perfectly:2 external:2 bounce:2 recoil:2 rocket:2 stick:2 cart:2 lost:2 unit:2 force:2 change:1 accelerate:2 isolated:2 vector:2 gun:2 energy:1 apart:2 general:2 newton:2 net:2"
   },
   {
     "id": "physics/newtons-laws-forces",
@@ -2474,7 +2582,8 @@
     "subject": "physics",
     "summary": "Newton's three laws of motion and the common force equations.",
     "path": "resources/physics/newtons-laws-forces.md",
-    "asset": "assets/physics/newtons-laws-forces.svg"
+    "asset": "assets/physics/newtons-laws-forces.svg",
+    "body_terms": "net:2 object:2 inertia:2 weight:2 friction:2 mass:2 velocity:2 kg:2 unbalanced:2 acted:2 hooke:2 change:1 centripetal:2 coefficient:2 unless:2 equilibrium:2 reaction:2 spring:2 near:2 rest:2 location:2 gravity:2 center:2 normal:2"
   },
   {
     "id": "physics/ohms-law-circuits",
@@ -2496,7 +2605,8 @@
     "subject": "physics",
     "summary": "Ohm's law, electric power, and the rules for series and parallel resistors.",
     "path": "resources/physics/ohms-law-circuits.md",
-    "asset": "assets/physics/ohms-law-circuits.svg"
+    "asset": "assets/physics/ohms-law-circuits.svg",
+    "body_terms": "current:2 voltage:2 total:2 path:2 across:2 combining:2 dissipate:2 add:1 multiple:2 ampere:2 volt:2 same:1 variable:2 battery:2 watt:2 coulomb:2 drive:2 smallest:2 each:1 less:2 flow:2 charge:2 through:2 than:2"
   },
   {
     "id": "physics/optics",
@@ -2521,7 +2631,8 @@
     "subject": "physics",
     "summary": "Law of reflection, Snell's law, the thin-lens/mirror equation, and image rules.",
     "path": "resources/physics/optics.md",
-    "asset": "assets/physics/optics.svg"
+    "asset": "assets/physics/optics.svg",
+    "body_terms": "bend:3 angle:2 diverging:2 concave:2 convex:2 denser:2 focal:2 index:2 normal:2 ray:2 side:2 sin:2 object:2 magnification:2 converging:2 magnifying:2 incidence:2 projected:2 crossing:2 inverted:2 upright:2 virtual:2 media:2 internally:2"
   },
   {
     "id": "physics/projectile-motion",
@@ -2544,7 +2655,8 @@
     "subject": "physics",
     "summary": "Independent x/y motion of a projectile, the parabolic path, range, and max height.",
     "path": "resources/physics/projectile-motion.md",
-    "asset": "assets/physics/projectile-motion.svg"
+    "asset": "assets/physics/projectile-motion.svg",
+    "body_terms": "sin:2 horizontal:2 vertical:2 constant:2 horizontally:2 identically:2 ignoring:2 launch:2 thrown:2 hit:2 2g:2 downward:2 affect:2 ball:2 same:1 at:1 parabola:2 maximum:2 ground:2 linked:2 resistance:2 cos:2 velocity:2 dropped:2"
   },
   {
     "id": "physics/thermodynamics",
@@ -2568,7 +2680,8 @@
     "subject": "physics",
     "summary": "The four laws of thermodynamics, heat equations, temperature scales, and heat transfer.",
     "path": "resources/physics/thermodynamics.md",
-    "asset": "assets/physics/thermodynamics.svg"
+    "asset": "assets/physics/thermodynamics.svg",
+    "body_terms": "change:1 kg:2 flow:2 system:2 gas:2 unreachable:2 conduction:2 fahrenheit:2 approache:2 chemistry:2 heating:2 latent:2 phase:2 0th:2 1st:2 radiation:2 substance:2 decrease:2 isolated:2 contact:2 minimum:2 thermal:2 done:2 warm:2"
   },
   {
     "id": "physics/vectors-and-trig-for-physics",
@@ -2591,7 +2704,8 @@
     "subject": "physics",
     "summary": "Resolving vectors into components, recombining them, and the SOH-CAH-TOA relations.",
     "path": "resources/physics/vectors-and-trig-for-physics.md",
-    "asset": "assets/physics/vectors-and-trig-for-physics.svg"
+    "asset": "assets/physics/vectors-and-trig-for-physics.svg",
+    "body_terms": "cos:2 adj:2 hyp:2 opp:2 sin:2 magnitude:2 tan:2 horizontal:2 graphically:2 recombine:2 tail:2 adding:2 tip:2 acceleration:2 displacement:2 measured:2 velocity:2 vertical:2 temperature:2 above:2 place:2 axi:2 angle:2 speed:2"
   },
   {
     "id": "physics/waves-and-sound",
@@ -2616,7 +2730,8 @@
     "subject": "physics",
     "summary": "Wave types and parts, the wave-speed relation v = f·λ, and the basics of sound.",
     "path": "resources/physics/waves-and-sound.md",
-    "asset": "assets/physics/waves-and-sound.svg"
+    "asset": "assets/physics/waves-and-sound.svg",
+    "body_terms": "medium:2 compression:3 amplitude:2 vibrate:2 crest:2 pitch:2 electromagnetic:2 motion:2 light:2 vacuum:2 need:2 transferring:2 approaching:2 rarefaction:2 loudness:2 receding:2 ripple:2 shaken:2 rope:2 brighter:2 spectrum:2 transfer:2 decibel:2 louder:2"
   },
   {
     "id": "reference/greek-alphabet",
@@ -2638,7 +2753,8 @@
     "subject": "reference",
     "summary": "The 24 Greek letters with uppercase, lowercase, names, and common uses.",
     "path": "resources/reference/greek-alphabet.md",
-    "asset": "assets/reference/greek-alphabet.svg"
+    "asset": "assets/reference/greek-alphabet.svg",
+    "body_terms": "angle:2 chi:2 particle:2 ratio:2 eigenvalue:2 density:2 epsilon:2 omicron:2 squared:2 upsilon:2 lambda:2 photon:2 kappa:2 omega:2 sigma:2 theta:2 iota:2 zeta:2 eta:2 phi:2 psi:2 rho:2 tau:2 mu:2"
   },
   {
     "id": "reference/morse-code",
@@ -2661,7 +2777,8 @@
     "subject": "reference",
     "summary": "International Morse code for letters A–Z, digits 0–9, and common punctuation.",
     "path": "resources/reference/morse-code.md",
-    "asset": "assets/reference/morse-code.svg"
+    "asset": "assets/reference/morse-code.svg",
+    "body_terms": "dash:3 distress:2 timing:2 slash:2 seven:2 between:1 gap:2 comma:2 mark:2 question:2 length:2 long:2 period:2 short:2 format:2 word:1 time:1 three:1 one:1"
   },
   {
     "id": "reference/nato-phonetic-alphabet",
@@ -2683,7 +2800,8 @@
     "subject": "reference",
     "summary": "The NATO/ICAO spelling alphabet — code word for each letter A–Z plus digits.",
     "path": "resources/reference/nato-phonetic-alphabet.md",
-    "asset": "assets/reference/nato-phonetic-alphabet.svg"
+    "asset": "assets/reference/nato-phonetic-alphabet.svg",
+    "body_terms": "juliett:2 non:2 standard:2 communicate:2 confusion:2 correctly:2 pronounce:2 aviation:2 clearly:2 foxtrot:2 whiskey:2 quebec:2 sierra:2 spoken:2 victor:2 yankee:2 hotel:2 niner:2 oscar:2 romeo:2 tango:2 echo:2 golf:2 mike:2"
   },
   {
     "id": "reference/roman-numerals",
@@ -2704,7 +2822,8 @@
     "subject": "reference",
     "summary": "Roman numeral symbols, values 1–20 and tens/hundreds, and the rules for reading them.",
     "path": "resources/reference/roman-numerals.md",
-    "asset": "assets/reference/roman-numerals.svg"
+    "asset": "assets/reference/roman-numerals.svg",
+    "body_terms": "ix:2 xc:2 xl:2 xx:2 cm:2 vi:2 larger:2 cd:2 iv:2 subtracted:2 mcmxcix:2 cdxliv:2 mmxxiv:2 xviii:2 dccc:2 lxxx:2 viii:2 xiii:2 xlix:2 xvii:2 ccc:2 dcc:2 lxx:2 xiv:2"
   },
   {
     "id": "spanish/articles-and-noun-gender",
@@ -2727,7 +2846,8 @@
     "subject": "spanish",
     "summary": "Spanish definite/indefinite articles and the rules for masculine/feminine noun gender.",
     "path": "resources/spanish/articles-and-noun-gender.md",
-    "asset": "assets/spanish/articles-and-noun-gender.svg"
+    "asset": "assets/spanish/articles-and-noun-gender.svg",
+    "body_terms": "casa:3 libro:3 agua:2 ending:2 plural:2 despite:2 mesa:2 sing:2 plu:2 usually:2 problema:2 planeta:2 papele:2 clima:2 guila:2 papel:2 umbre:2 foto:2 mano:2 mapa:2 moto:2 pice:2 aje:2 dad:2"
   },
   {
     "id": "spanish/days-months-seasons",
@@ -2753,7 +2873,8 @@
     "subject": "spanish",
     "summary": "The days, months, and seasons in Spanish plus the date format.",
     "path": "resources/spanish/days-months-seasons.md",
-    "asset": "assets/spanish/days-months-seasons.svg"
+    "asset": "assets/spanish/days-months-seasons.svg",
+    "body_terms": "el:3 monday:3 lune:3 diciembre:2 marte:2 mayo:2 es:2 hoy:2 los:2 cu:2 septiembre:2 noviembre:2 primavera:2 invierno:2 domingo:2 febrero:2 octubre:2 primero:2 agosto:2 verano:2 vierne:2 abril:2 enero:2 fecha:2"
   },
   {
     "id": "spanish/numbers-0-100",
@@ -2775,7 +2896,8 @@
     "subject": "spanish",
     "summary": "Spanish cardinal numbers 0-100 with the spelling and combining rules.",
     "path": "resources/spanish/numbers-0-100.md",
-    "asset": "assets/spanish/numbers-0-100.svg"
+    "asset": "assets/spanish/numbers-0-100.svg",
+    "body_terms": "veinti:3 treinta:3 dieci:3 una:3 cuarenta:2 veintid:2 ciento:2 cinco:2 cien:2 accent:2 exactly:2 written:2 word:1 veinticuatro:2 veinticinco:2 veintinueve:2 veintisiete:2 contracted:2 diecinueve:2 diecisiete:2 veintiocho:2 cincuenta:2 dieciocho:2 dosciento:2"
   },
   {
     "id": "spanish/question-words-and-greetings",
@@ -2799,7 +2921,8 @@
     "subject": "spanish",
     "summary": "Spanish interrogatives (all accented) plus the core greetings and courtesy phrases.",
     "path": "resources/spanish/question-words-and-greetings.md",
-    "asset": "assets/spanish/question-words-and-greetings.svg"
+    "asset": "assets/spanish/question-words-and-greetings.svg",
+    "body_terms": "cu:2 qu:3 mo:2 buena:2 hasta:2 nde:2 por:2 thank:2 qui:2 good:2 name:2 interrogativo:2 afternoon:2 morning:2 porque:2 siento:2 favor:2 llama:2 luego:2 night:2 noche:2 tarde:2 nada:2 perd:2"
   },
   {
     "id": "spanish/regular-verb-endings",
@@ -2824,7 +2947,8 @@
     "subject": "spanish",
     "summary": "Present-tense endings for the three regular Spanish verb classes with a model verb each.",
     "path": "resources/spanish/regular-verb-endings.md",
-    "asset": "assets/spanish/regular-verb-endings.svg"
+    "asset": "assets/spanish/regular-verb-endings.svg",
+    "body_terms": "speak:2 habla:2 vive:2 subject:2 nosotro:2 vosotro:2 ella:2 come:2 en:2 es:2 hablamo:2 comemo:2 hablan:2 vivimo:2 comen:2 viven:2 como:2 habl:2 vivo:2 amo:2 com:2 emo:2 imo:2 viv:2"
   },
   {
     "id": "spanish/ser-vs-estar",
@@ -2849,7 +2973,8 @@
     "subject": "spanish",
     "summary": "Present-tense ser and estar side by side, plus the rules for which \"to be\" to use.",
     "path": "resources/spanish/ser-vs-estar.md",
-    "asset": "assets/spanish/ser-vs-estar.svg"
+    "asset": "assets/spanish/ser-vs-estar.svg",
+    "body_terms": "est:2 es:2 estoy:3 soy:3 ella:3 aburrido:2 listo:2 ere:2 son:2 trait:2 mnemonic:2 en:2 mark:2 he:2 de:2 haracteristic:2 elationship:2 personality:2 changeable:2 escription:2 ccupation:2 caliente:2 comiendo:2 ondition:2"
   },
   {
     "id": "spanish/subject-and-object-pronouns",
@@ -2873,7 +2998,8 @@
     "subject": "spanish",
     "summary": "Spanish subject, direct-object, indirect-object, and reflexive pronoun sets in one chart.",
     "path": "resources/spanish/subject-and-object-pronouns.md",
-    "asset": "assets/spanish/subject-and-object-pronouns.svg"
+    "asset": "assets/spanish/subject-and-object-pronouns.svg",
+    "body_terms": "lo:3 nos:3 le:2 se:2 te:2 los:3 person:2 las:2 os:2 doy:2 verb:2 him:2 obj:2 la:2 vosotro:2 ustede:2 usted:2 ella:2 3rd:2 les:2 before:1 affirmative:2 conjugated:2 levantarse:2"
   },
   {
     "id": "us-history-civics/articles-of-the-constitution",
@@ -2894,7 +3020,8 @@
     "subject": "us-history-civics",
     "summary": "What each of the Constitution's seven original articles establishes.",
     "path": "resources/us-history-civics/articles-of-the-constitution.md",
-    "asset": "assets/us-history-civics/articles-of-the-constitution.svg"
+    "asset": "assets/us-history-civics/articles-of-the-constitution.svg",
+    "body_terms": "create:2 state:1 supreme:2 congress:2 court:2 president:2 federal:2 atification:2 extradition:2 egislative:2 admitting:2 immunitie:2 privilege:2 approval:2 mendment:2 relation:2 upremacy:2 xecutive:2 honored:2 treason:2 udicial:2 ratify:2 faith:2 oath:2"
   },
   {
     "id": "us-history-civics/bill-of-rights",
@@ -2916,7 +3043,8 @@
     "subject": "us-history-civics",
     "summary": "The ten 1791 amendments and the right each protects, in plain language.",
     "path": "resources/us-history-civics/bill-of-rights.md",
-    "asset": "assets/us-history-civics/bill-of-rights.svg"
+    "asset": "assets/us-history-civics/bill-of-rights.svg",
+    "body_terms": "jury:3 trial:3 punishment:2 people:2 federal:2 no:1 arm:2 civil:2 government:2 compensation:2 impartial:2 peacetime:2 confront:2 libertie:2 retained:2 unlisted:2 witnesse:2 accused:2 forcing:2 require:2 search:2 taken:2 incrimination:2 unreasonable:2"
   },
   {
     "id": "us-history-civics/causes-of-the-american-revolution",
@@ -2938,7 +3066,8 @@
     "subject": "us-history-civics",
     "summary": "The chain from the French and Indian War debt through the taxes and protests to war in 1775.",
     "path": "resources/us-history-civics/causes-of-the-american-revolution.md",
-    "asset": "assets/us-history-civics/causes-of-the-american-revolution.svg"
+    "asset": "assets/us-history-civics/causes-of-the-american-revolution.svg",
+    "body_terms": "colonist:3 representation:2 british:2 tax:2 paper:2 sugar:2 without:2 appalachian:2 parliament:2 propaganda:2 restricted:2 settlement:2 underlying:2 lexington:2 townshend:2 formally:2 massacre:2 punished:2 boycott:2 concord:2 molasse:2 banned:2 armie:2 round:2"
   },
   {
     "id": "us-history-civics/civil-war-and-reconstruction",
@@ -2960,7 +3089,8 @@
     "subject": "us-history-civics",
     "summary": "Key dates from secession through the Civil War to the end of Reconstruction in 1877.",
     "path": "resources/us-history-civics/civil-war-and-reconstruction.md",
-    "asset": "assets/us-history-civics/civil-war-and-reconstruction.svg"
+    "asset": "assets/us-history-civics/civil-war-and-reconstruction.svg",
+    "body_terms": "apr:2 union:2 begin:2 south:2 assassinated:2 emancipation:2 segregation:2 appomattox:2 compromise:2 gettysburg:2 abolishe:2 attacked:2 enslaved:2 secede:2 sumter:2 ended:2 rebel:2 13th:2 14th:2 15th:2 crow:2 fort:2 took:2 jan:2"
   },
   {
     "id": "us-history-civics/constitutional-amendments",
@@ -2982,7 +3112,8 @@
     "subject": "us-history-civics",
     "summary": "The Bill of Rights (1–10) plus the key later amendments, through the 27th.",
     "path": "resources/us-history-civics/constitutional-amendments.md",
-    "asset": "assets/us-history-civics/constitutional-amendments.svg"
+    "asset": "assets/us-history-civics/constitutional-amendments.svg",
+    "body_terms": "trial:2 jury:2 vote:2 no:1 term:2 people:2 prohibition:2 forced:2 repeal:2 women:2 incrimination:2 unreasonable:2 punishment:2 quartering:2 regardless:2 assembly:2 jeopardy:2 petition:2 probable:2 lowered:2 searche:2 seizure:2 soldier:2 unusual:2"
   },
   {
     "id": "us-history-civics/electoral-college",
@@ -3004,7 +3135,8 @@
     "subject": "us-history-civics",
     "summary": "How 538 electors choose the President and why 270 is the winning number.",
     "path": "resources/us-history-civics/electoral-college.md",
-    "asset": "assets/us-history-civics/electoral-college.svg"
+    "asset": "assets/us-history-civics/electoral-college.svg",
+    "body_terms": "candidate:3 winner:2 cast:2 state:1 representative:2 senator:2 national:2 house:2 amendment:2 their:2 take:2 congressional:2 delegation:2 presidency:2 statewide:2 choosing:2 nebraska:2 getting:2 january:2 ballot:2 chosen:2 losing:2 really:2 maine:2"
   },
   {
     "id": "us-history-civics/federalism",
@@ -3028,7 +3160,8 @@
     "subject": "us-history-civics",
     "summary": "Which powers belong to the federal government, which to the states, and which are shared.",
     "path": "resources/us-history-civics/federalism.md",
-    "asset": "assets/us-history-civics/federalism.svg"
+    "asset": "assets/us-history-civics/federalism.svg",
+    "body_terms": "public:2 commerce:2 marriage:2 foreign:2 10th:2 regulate:2 law:1 money:2 run:2 naturalization:2 conflicting:2 interstate:2 maintain:2 charter:2 conduct:2 divorce:2 eminent:2 license:2 borrow:2 denied:2 driver:2 police:2 safety:2 school:2"
   },
   {
     "id": "us-history-civics/founding-documents-comparison",
@@ -3049,7 +3182,8 @@
     "subject": "us-history-civics",
     "summary": "Magna Carta, Declaration, Articles of Confederation, and the Constitution — year, purpose, legacy.",
     "path": "resources/us-history-civics/founding-documents-comparison.md",
-    "asset": "assets/us-history-civics/founding-documents-comparison.svg"
+    "asset": "assets/us-history-civics/founding-documents-comparison.svg",
+    "body_terms": "government:2 weak:2 national:2 too:2 limit:2 power:1 law:1 effective:2 explained:2 jefferson:2 prompting:2 weaknesse:2 governed:2 consent:2 failed:2 oldest:2 remain:2 broke:2 thoma:2 king:2 men:2 federalism:2 regulate:2 stronger:2"
   },
   {
     "id": "us-history-civics/how-a-bill-becomes-law",
@@ -3072,7 +3206,8 @@
     "subject": "us-history-civics",
     "summary": "The path of a federal bill from introduction through both chambers to the President's signature.",
     "path": "resources/us-history-civics/how-a-bill-becomes-law.md",
-    "asset": "assets/us-history-civics/how-a-bill-becomes-law.svg"
+    "asset": "assets/us-history-civics/how-a-bill-becomes-law.svg",
+    "body_terms": "die:3 vote:2 debate:2 identical:2 pass:2 must:2 if:2 override:2 house:2 it:1 step:2 reconciliation:2 subcommittee:2 conference:2 overridden:2 adjourned:2 objection:2 excepted:2 referred:2 reported:2 returned:2 hearing:2 session:2 markup:2"
   },
   {
     "id": "us-history-civics/major-us-wars",
@@ -3092,7 +3227,8 @@
     "subject": "us-history-civics",
     "summary": "The principal wars the United States has fought, with dates, opponents, and outcomes.",
     "path": "resources/us-history-civics/major-us-wars.md",
-    "asset": "assets/us-history-civics/major-us-wars.svg"
+    "asset": "assets/us-history-civics/major-us-wars.svg",
+    "body_terms": "withdrawal:3 victory:3 iraq:3 vietnam:2 mexican:2 gained:2 stalemate:2 allied:2 britain:2 began:2 win:2 treatie:2 great:2 north:2 involvement:2 nationalism:2 philippine:2 coalition:2 combatant:2 liberated:2 southwest:2 cession:2 taliban:2 toppled:2"
   },
   {
     "id": "us-history-civics/preamble",
@@ -3113,7 +3249,8 @@
     "subject": "us-history-civics",
     "summary": "The 52-word Preamble and its six stated purposes of government.",
     "path": "resources/us-history-civics/preamble.md",
-    "asset": "assets/us-history-civics/preamble.svg"
+    "asset": "assets/us-history-civics/preamble.svg",
+    "body_terms": "establish:3 tranquility:2 posterity:2 blessing:2 defence:2 justice:2 promote:2 provide:2 welfare:2 insure:2 secure:2 domestic:2 liberty:2 protect:2 general:2 state:1 perfect:2 union:2 united:2 generation:2 authority:2 ourselve:2 better:2 ordain:2"
   },
   {
     "id": "us-history-civics/qualifications-and-terms",
@@ -3135,7 +3272,8 @@
     "subject": "us-history-civics",
     "summary": "Constitutional age, citizenship, and residency requirements and term lengths for federal office.",
     "path": "resources/us-history-civics/qualifications-and-terms.md",
-    "asset": "assets/us-history-civics/qualifications-and-terms.svg"
+    "asset": "assets/us-history-civics/qualifications-and-terms.svg",
+    "body_terms": "year:2 citizen:3 born:2 judge:2 senate:2 live:2 must:2 natural:2 effectively:2 appointed:2 behaviour:2 confirmed:2 staggered:2 unelected:2 22nd:2 seat:2 representative:2 stability:2 elected:2 incl:2 vice:2 every:1 resident:2 degree:2"
   },
   {
     "id": "us-history-civics/three-branches-government",
@@ -3157,7 +3295,8 @@
     "subject": "us-history-civics",
     "summary": "The legislative, executive, and judicial branches and the checks they hold on each other.",
     "path": "resources/us-history-civics/three-branches-government.md",
-    "asset": "assets/us-history-civics/three-branches-government.svg"
+    "asset": "assets/us-history-civics/three-branches-government.svg",
+    "body_terms": "president:2 congress:2 court:2 unconstitutional:2 official:2 appoint:2 confirm:2 law:1 veto:2 federal:2 declare:2 judge:2 senate:2 commander:2 cooperate:2 interpret:2 impeache:2 cabinet:2 madison:2 marbury:2 review:2 strike:2 make:2 enforce:2"
   },
   {
     "id": "us-history-civics/us-history-eras-timeline",
@@ -3179,7 +3318,8 @@
     "subject": "us-history-civics",
     "summary": "The major eras of U.S. history from colonization to today, with date ranges and key events.",
     "path": "resources/us-history-civics/us-history-eras-timeline.md",
-    "asset": "assets/us-history-civics/us-history-eras-timeline.svg"
+    "asset": "assets/us-history-civics/us-history-eras-timeline.svg",
+    "body_terms": "slavery:2 age:2 industrialization:2 expansion:2 historian:2 jamestown:2 louisiana:2 defining:2 manifest:2 purchase:2 westward:2 destiny:2 gilded:2 reform:2 terror:2 edge:2 post:2 reconstruction:2 contemporary:2 confederacy:2 containment:2 immigration:2 depression:2 rebuilding:2"
   },
   {
     "id": "visual-art/color-models-rgb-cmyk",
@@ -3203,7 +3343,8 @@
     "subject": "visual-art",
     "summary": "Additive (RGB, light/screens) vs subtractive (CMYK, ink/print) color and how each combines.",
     "path": "resources/visual-art/color-models-rgb-cmyk.md",
-    "asset": "assets/visual-art/color-models-rgb-cmyk.svg"
+    "asset": "assets/visual-art/color-models-rgb-cmyk.svg",
+    "body_terms": "black:2 primarie:3 magenta:2 cyan:2 white:2 yellow:2 green:2 paper:2 blue:2 red:2 subtracting:2 depending:2 printing:2 pigment:2 printer:2 duller:2 gamut:2 muddy:2 wider:2 none:2 tvs:2 start:2 add:1 subtract:2"
   },
   {
     "id": "visual-art/color-wheel",
@@ -3227,7 +3368,8 @@
     "subject": "visual-art",
     "summary": "The 12-hue artist's (RYB) color wheel with primary, secondary, tertiary, and color relationships.",
     "path": "resources/visual-art/color-wheel.md",
-    "asset": "assets/visual-art/color-wheel.svg"
+    "asset": "assets/visual-art/color-wheel.svg",
+    "body_terms": "yellow:2 green:2 violet:3 orange:3 blue:2 red:2 gray:2 primarie:2 warm:2 rgb:2 model:2 cool:2 black:2 white:2 neighboring:2 harmoniou:2 arrange:2 lighter:2 triadic:2 darker:2 mixing:2 purple:2 spaced:2 arent:2"
   },
   {
     "id": "visual-art/elements-and-principles-of-art",
@@ -3249,7 +3391,8 @@
     "subject": "visual-art",
     "summary": "The 7 elements of art (the tools) and the principles of design (how they're arranged).",
     "path": "resources/visual-art/elements-and-principles-of-art.md",
-    "asset": "assets/visual-art/elements-and-principles-of-art.svg"
+    "asset": "assets/visual-art/elements-and-principles-of-art.svg",
+    "body_terms": "eye:2 depth:2 color:2 feel:2 path:2 between:1 area:2 asymmetrical:2 distributed:2 symmetrical:2 proportion:2 geometric:2 lightness:2 darkness:2 harmony:2 organic:2 texture:2 curved:2 radial:2 unity:2 dark:2 part:2 value:2 point:1"
   },
   {
     "id": "world-history/age-of-exploration",
@@ -3271,7 +3414,8 @@
     "subject": "world-history",
     "summary": "Major European explorers, their sponsor country, dates, and what they achieved.",
     "path": "resources/world-history/age-of-exploration.md",
-    "asset": "assets/world-history/age-of-exploration.svg"
+    "asset": "assets/world-history/age-of-exploration.svg",
+    "body_terms": "spain:2 portugal:3 empire:2 conquered:2 sea:2 american:2 africa:2 america:2 circumnavigate:2 achievement:2 christopher:2 consequence:2 bartolomeu:2 expedition:2 astrolabe:2 caribbean:2 francisco:2 collapse:2 explored:2 namesake:2 vespucci:2 amerigo:2 caravel:2 enabled:2"
   },
   {
     "id": "world-history/classical-civilizations",
@@ -3293,7 +3437,8 @@
     "subject": "world-history",
     "summary": "Greece, Rome, Han China, and classical India — dates, government, and lasting contributions.",
     "path": "resources/world-history/classical-civilizations.md",
-    "asset": "assets/world-history/classical-civilizations.svg"
+    "asset": "assets/world-history/classical-civilizations.svg",
+    "body_terms": "bce:2 empire:2 ce:2 democracy:2 maurya:2 gupta:2 republic:2 spread:2 road:2 law:1 confucianism:2 bureaucracy:2 centralized:2 seismograph:2 mathematic:2 confucian:2 aqueduct:2 athenian:2 centurie:2 concept:2 endured:2 olympic:2 science:2 socrate:2"
   },
   {
     "id": "world-history/cold-war-timeline",
@@ -3316,7 +3461,8 @@
     "subject": "world-history",
     "summary": "The U.S.–USSR Cold War from 1947 to 1991, with its defining crises and the Soviet collapse.",
     "path": "resources/world-history/cold-war-timeline.md",
-    "asset": "assets/world-history/cold-war-timeline.svg"
+    "asset": "assets/world-history/cold-war-timeline.svg",
+    "body_terms": "pact:2 communist:2 nuclear:2 formed:2 warsaw:2 space:2 race:2 win:2 union:2 capitalist:2 blockaded:2 doctrine:2 marshall:2 standoff:2 airlift:2 defined:2 landing:2 supplie:2 threat:2 truman:2 weapon:2 brush:2 proxy:2 end:1"
   },
   {
     "id": "world-history/columbian-exchange",
@@ -3338,7 +3484,8 @@
     "subject": "world-history",
     "summary": "What crossed the Atlantic after 1492 — crops, animals, and diseases between Old and New Worlds.",
     "path": "resources/world-history/columbian-exchange.md",
-    "asset": "assets/world-history/columbian-exchange.svg"
+    "asset": "assets/world-history/columbian-exchange.svg",
+    "body_terms": "population:2 potatoe:2 maize:2 native:2 africa:2 europe:2 asia:2 devastated:2 plantation:2 chocolate:2 columbuss:2 influenza:2 reshaping:2 sugarcane:2 immunity:2 smallpox:2 tobacco:2 tomatoe:2 vanilla:2 banana:2 cattle:2 killed:2 measle:2 squash:2"
   },
   {
     "id": "world-history/major-revolutions",
@@ -3360,7 +3507,8 @@
     "subject": "world-history",
     "summary": "The great political revolutions — dates, what they overthrew, and their results.",
     "path": "resources/world-history/major-revolutions.md",
-    "asset": "assets/world-history/major-revolutions.svg"
+    "asset": "assets/world-history/major-revolutions.svg",
+    "body_terms": "monarchy:3 republic:3 led:2 rule:1 american:2 independent:2 right:1 fraternity:2 portuguese:2 successful:2 bolshevik:2 contract:2 napoleon:2 gloriou:2 russian:2 unequal:2 revolt:2 thread:2 lenin:2 loui:2 mart:2 tsar:2 bol:2 san:2"
   },
   {
     "id": "world-history/river-valley-civilizations",
@@ -3382,7 +3530,8 @@
     "subject": "world-history",
     "summary": "The four foundational river-valley civilizations — river, region, dates, writing, and achievements.",
     "path": "resources/world-history/river-valley-civilizations.md",
-    "asset": "assets/world-history/river-valley-civilizations.svg"
+    "asset": "assets/world-history/river-valley-civilizations.svg",
+    "body_terms": "citie:3 bce:2 fertile:2 script:2 mummification:2 hieroglyphic:2 undeciphered:2 veneration:2 cuneiform:2 hammurabi:2 ancestor:2 crescent:2 drainage:2 euphrate:2 harappan:2 surpluse:2 ziggurat:2 babylon:2 casting:2 harappa:2 mohenjo:2 pharaoh:2 planned:2 bronze:2"
   },
   {
     "id": "world-history/silk-road",
@@ -3406,7 +3555,8 @@
     "subject": "world-history",
     "summary": "The overland Silk Road and maritime spice route linking China to the Mediterranean, with key cities and goods.",
     "path": "resources/world-history/silk-road.md",
-    "asset": "assets/world-history/silk-road.svg"
+    "asset": "assets/world-history/silk-road.svg",
+    "body_terms": "sea:3 west:2 east:2 asia:2 then:1 via:2 spread:2 ce:2 under:2 red:2 was:2 europe:2 constantinople:2 alexandria:2 especially:2 glassware:2 guangzhou:2 gunpowder:2 launching:2 mongolica:2 porcelain:2 samarkand:2 dunhuang:2 merchant:2"
   },
   {
     "id": "world-history/world-history-timeline",
@@ -3428,7 +3578,8 @@
     "subject": "world-history",
     "summary": "The major periods of world history from the first civilizations to today, with date ranges.",
     "path": "resources/world-history/world-history-timeline.md",
-    "asset": "assets/world-history/world-history-timeline.svg"
+    "asset": "assets/world-history/world-history-timeline.svg",
+    "body_terms": "revolution:2 bce:2 china:2 writing:2 war:2 decolonization:2 globalization:2 postclassical:2 agricultural:2 approximate:2 imperialism:2 philosophie:2 reformation:2 renaissance:2 industrial:2 scientific:2 feudal:2 stone:2 song:2 enlightenment:2 contemporary:2 mesopotamia:2 network:2 maurya:2"
   },
   {
     "id": "world-history/world-religions",
@@ -3451,7 +3602,8 @@
     "subject": "world-history",
     "summary": "The five major world religions — origin, sacred text, core belief, and approximate size.",
     "path": "resources/world-history/world-religions.md",
-    "asset": "assets/world-history/world-religions.svg"
+    "asset": "assets/world-history/world-religions.svg",
+    "body_terms": "monotheism:3 billion:2 bce:2 adherent:2 karma:2 jesu:2 founder:2 god:2 middle:2 ce:2 million:2 india:2 reincarnation:2 siddhartha:2 submission:2 eightfold:2 salvation:2 tripitaka:2 bhagavad:2 covenant:2 estimate:2 muhammad:2 abraham:2 dharmic:2"
   },
   {
     "id": "world-history/wwi-at-a-glance",
@@ -3474,7 +3626,8 @@
     "subject": "world-history",
     "summary": "WWI — dates, the two alliance blocs, the M.A.I.N. causes, and the outcome.",
     "path": "resources/world-history/wwi-at-a-glance.md",
-    "asset": "assets/world-history/wwi-at-a-glance.svg"
+    "asset": "assets/world-history/wwi-at-a-glance.svg",
+    "body_terms": "austria:2 hungary:2 germany:2 nation:2 assassination:2 glorification:2 competition:2 ationalism:2 mperialism:2 reparation:2 ilitarism:2 airplane:2 archduke:2 bulgaria:2 military:2 sarajevo:2 dragged:2 lliance:2 roughly:2 blamed:2 brutal:2 ethnic:2 helped:2 poison:2"
   },
   {
     "id": "world-history/wwii-at-a-glance",
@@ -3497,6 +3650,7 @@
     "subject": "world-history",
     "summary": "WWII — dates, Allied vs Axis powers, major turning points, and the outcome.",
     "path": "resources/world-history/wwii-at-a-glance.md",
-    "asset": "assets/world-history/wwii-at-a-glance.svg"
+    "asset": "assets/world-history/wwii-at-a-glance.svg",
+    "body_terms": "germany:3 japan:3 united:2 surrender:2 soviet:2 sept:2 aug:2 million:2 appeasement:2 aggression:2 militarism:2 resentment:2 stalingrad:2 deadliest:2 hiroshima:2 mussolini:2 japanese:2 murdered:2 nagasaki:2 normandy:2 fascism:2 founded:2 postwar:2 hitler:2"
   }
 ]
