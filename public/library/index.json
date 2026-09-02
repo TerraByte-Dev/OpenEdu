@@ -118,7 +118,7 @@
     "summary": "From bit to petabyte, plus the powers-of-2 (KiB) vs powers-of-10 (KB) distinction.",
     "path": "resources/arts-music-cs/units-of-digital-data.md",
     "asset": "assets/arts-music-cs/units-of-digital-data.svg",
-    "body_terms": "gib:2 decimal:2 binary:2 drive:2 system:2 frequently:2 operating:2 gibibyte:2 gigabyte:2 internet:2 kibibyte:2 mebibyte:2 megabyte:2 tebibyte:2 terabyte:2 nibble:2 sold:2 iec:2 tib:2 why:2 that:2 mib:2 enough:2 eight:2"
+    "body_terms": "gib:2 decimal:2 binary:2 drive:2 system:2 frequently:2 operating:2 gibibyte:2 gigabyte:2 internet:2 kibibyte:2 mebibyte:2 megabyte:2 tebibyte:2 terabyte:2 nibble:2 sold:2 iec:2 tib:2 why:2 mib:2 enough:2 eight:2 pb:2"
   },
   {
     "id": "biology/amino-acids",
@@ -326,7 +326,7 @@
     "summary": "The two balanced equations side by side, with location and energy direction.",
     "path": "resources/biology/photosynthesis-respiration.md",
     "asset": "assets/biology/photosynthesis-respiration.svg",
-    "body_terms": "co:2 glucose:3 release:2 atp:2 off:2 happen:2 cycle:2 store:2 give:2 take:2 mitochondria:2 connection:2 reactant:2 usable:2 algae:2 continuou:2 capture:2 mirror:2 chloroplast:2 organism:2 processe:2 mainly:2 image:2 water:1"
+    "body_terms": "co:2 glucose:3 release:2 atp:2 off:2 happen:2 cycle:2 store:2 take:2 mitochondria:2 connection:2 reactant:2 usable:2 algae:2 continuou:2 capture:2 mirror:2 chloroplast:2 organism:2 processe:2 mainly:2 image:2 water:1 bacteria:2"
   },
   {
     "id": "biology/taxonomy-ranks",
@@ -395,7 +395,7 @@
     "summary": "The acids that appear constantly, their formulas, and the acid-naming rules.",
     "path": "resources/chemistry/common-acids.md",
     "asset": "assets/chemistry/common-acids.svg",
-    "body_terms": "anion:3 ic:3 hno:3 ous:3 hydro:2 ite:2 ate:2 hcl:2 so:1 end:1 give:2 hydrofluoric:2 hypochlorou:2 sulfurou:2 nitrou:2 sulfur:2 chlor:2 nitr:2 ide:2 hc:2 hydrobromic:2 hydroiodic:2 phosphoric:2 carbonic:2"
+    "body_terms": "anion:3 ic:3 hno:3 ous:3 hydro:2 ite:2 ate:2 hcl:2 so:1 end:1 hydrofluoric:2 hypochlorou:2 sulfurou:2 nitrou:2 sulfur:2 chlor:2 nitr:2 ide:2 hc:2 hydrobromic:2 hydroiodic:2 phosphoric:2 carbonic:2 chloride:2"
   },
   {
     "id": "chemistry/electron-configuration",
@@ -1114,7 +1114,7 @@
     "summary": "MLA 9th-edition Works Cited templates and in-text citation patterns.",
     "path": "resources/ela/mla-citation.md",
     "asset": "assets/ela/mla-citation.svg",
-    "body_terms": "title:2 page:3 last:3 author:2 publisher:3 url:3 month:2 year:2 journal:2 smith:2 source:2 book:2 element:2 article:2 first:1 no:1 day:2 abbreviated:2 contributor:2 publication:2 shortened:2 accessed:2 climate:2 website:2"
+    "body_terms": "title:2 page:3 last:3 author:2 publisher:3 url:3 month:2 year:2 journal:2 smith:2 source:2 book:2 element:2 article:2 thi:2 first:1 no:1 day:2 abbreviated:2 contributor:2 publication:2 shortened:2 accessed:2 climate:2"
   },
   {
     "id": "ela/parts-of-speech",
@@ -1136,7 +1136,7 @@
     "summary": "The eight parts of speech with each one's job and example words.",
     "path": "resources/ela/parts-of-speech.md",
     "asset": "assets/ela/parts-of-speech.svg",
-    "body_terms": "describe:2 book:2 place:2 interjection:2 determiner:2 expresse:2 depend:2 sudden:2 ninth:2 think:2 ouch:2 tall:2 hey:2 wow:2 show:2 quickly:2 flight:2 sorted:2 being:2 happy:2 maria:2 kind:2 yet:2 ly:2"
+    "body_terms": "describe:2 book:2 place:2 interjection:2 determiner:2 expresse:2 depend:2 sudden:2 ninth:2 think:2 ouch:2 tall:2 hey:2 wow:2 quickly:2 flight:2 sorted:2 being:2 happy:2 maria:2 kind:2 yet:2 ly:2 but:1"
   },
   {
     "id": "ela/plot-diagram",
@@ -1727,7 +1727,7 @@
     "summary": "A labeled world map of countries and continents (equirectangular projection).",
     "path": "resources/geography/world-political-map.md",
     "asset": "assets/geography/world-political-map.svg",
-    "body_terms": "capital:2 hemisphere:2 area:2 physical:2 longitude:2 latitude:2 country:2 ocean:2 see:1 split:2 card:2 america:2 state:1 greenland:2 observer:2 stretche:2 profile:2 show:2 earth:1 antarctica:2 greenwich:2 indonesia:2 meridian:2 northern:2"
+    "body_terms": "capital:2 hemisphere:2 area:2 physical:2 longitude:2 latitude:2 country:2 ocean:2 see:1 split:2 card:2 america:2 state:1 greenland:2 observer:2 stretche:2 profile:2 earth:1 antarctica:2 greenwich:2 indonesia:2 meridian:2 northern:2 pakistan:2"
   },
   {
     "id": "health-pe/fitness-and-target-heart-rate",
@@ -1966,7 +1966,7 @@
     "summary": "Multiplication facts from 1x1 to 12x12.",
     "path": "resources/math/multiplication-table.md",
     "asset": "assets/math/multiplication-table.svg",
-    "body_terms": "commutative:2 multiple:2 row:2 square:2 list:2 equal:2 number:1 so:1 each:1"
+    "body_terms": "commutative:2 multiple:2 row:2 square:2 equal:2 number:1 so:1 each:1"
   },
   {
     "id": "math/order-of-operations",
@@ -2302,7 +2302,7 @@
     "summary": "The duration of each note and its matching rest, counted in 4/4 time.",
     "path": "resources/music/note-and-rest-values.md",
     "asset": "assets/music/note-and-rest-values.svg",
-    "body_terms": "sixteenth:3 halve:2 beam:2 flag:2 tie:2 add:1 silence:2 dotted:2 meter:2 grouped:2 shorter:2 relate:2 tell:2 say:2 signature:2 sustained:2 count:2 get:2 one:1 joined:2 join:2 dot:2 length:2 long:2"
+    "body_terms": "sixteenth:3 halve:2 beam:2 flag:2 tie:2 add:1 silence:2 dotted:2 meter:2 grouped:2 shorter:2 relate:2 say:2 signature:2 sustained:2 count:2 get:2 one:1 joined:2 join:2 dot:2 length:2 long:2 bottom:2"
   },
   {
     "id": "music/time-signatures",
@@ -2537,7 +2537,7 @@
     "summary": "Kirchhoff's current (junction) and voltage (loop) laws for analyzing circuits.",
     "path": "resources/physics/kirchhoffs-laws.md",
     "asset": "assets/physics/kirchhoffs-laws.svg",
-    "body_terms": "conservation:3 flowing:2 any:2 energy:1 serie:2 across:2 out:2 parallel:2 closed:2 add:1 gained:2 same:1 resistor:2 branch:2 source:2 node:2 branche:2 around:2 ohm:2 dropped:2 zero:2 each:1 split:2 sum:2"
+    "body_terms": "conservation:3 flowing:2 any:2 energy:1 serie:2 across:2 out:2 thi:2 parallel:2 closed:2 add:1 gained:2 same:1 resistor:2 branch:2 source:2 node:2 branche:2 around:2 ohm:2 dropped:2 zero:2 each:1 split:2"
   },
   {
     "id": "physics/momentum-impulse",

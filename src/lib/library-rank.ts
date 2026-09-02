@@ -76,8 +76,11 @@ export function tokenize(s: string): string[] {
     .toLowerCase()
     .replace(APOSTROPHES, "")
     .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 2 && !STOPWORDS.has(t))
-    .map(fold);
+    // Fold BEFORE the stopword filter, or a folded form can land on a stopword: "thats" survives
+    // the filter, folds to "that", and gets indexed as a term this same function would then refuse
+    // to produce from a query. The builder must apply the identical order.
+    .map(fold)
+    .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
 }
 
 export function normalizePhrase(s: string): string {
