@@ -117,14 +117,47 @@ export function parseBodyTerms(entry: LibraryEntry): Array<[string, number]> {
   return out;
 }
 
+// Field tokens, memoised per entry.
+//
+// Scoring reads all four metadata fields of EVERY entry on EVERY query, and ResourcesTab searches
+// on each keystroke while groundFromLibrary runs on each chat turn. Re-tokenising is pure repeated
+// work, and it stops being free once packs merge into the manifest — measured at 154 / 1,540 / 4,928
+// entries: 3.15 / 19.27 / 54.12 ms per query before this, which is visible jank in a search box.
+interface EntryTokens {
+  fields: Array<{ set: Set<string>; weight: number; lenNorm: number }>;
+  all: Set<string>;
+}
+const tokenCache = new WeakMap<object, EntryTokens>();
+
+const FIELD_WEIGHTS: Array<[(e: LibraryEntry) => string, number]> = [
+  [(e) => e.title, 3],
+  [(e) => e.aliases.join(" "), 3],
+  [(e) => e.tags.join(" "), 2],
+  [(e) => e.summary, 1],
+];
+
+function tokensFor(e: LibraryEntry): EntryTokens {
+  let t = tokenCache.get(e);
+  if (!t) {
+    const fields: EntryTokens["fields"] = [];
+    const all = new Set<string>();
+    for (const [get, weight] of FIELD_WEIGHTS) {
+      const set = new Set(tokenize(get(e)));
+      if (set.size === 0) continue;
+      for (const tok of set) all.add(tok);
+      // Longer fields are damped; a short field is never boosted above its face weight.
+      fields.push({ set, weight, lenNorm: Math.min(2, Math.max(1, Math.sqrt(set.size / LEN_NORM_BASE))) });
+    }
+    for (const [term] of parseBodyTerms(e)) all.add(term);
+    t = { fields, all };
+    tokenCache.set(e, t);
+  }
+  return t;
+}
+
 /** Every token an entry contributes to document frequency — the same surfaces scoring reads. */
 function entryTerms(e: LibraryEntry): Set<string> {
-  const t = new Set<string>();
-  for (const s of [e.title, e.aliases.join(" "), e.tags.join(" "), e.summary]) {
-    for (const tok of tokenize(s)) t.add(tok);
-  }
-  for (const [term] of parseBodyTerms(e)) t.add(term);
-  return t;
+  return tokensFor(e).all;
 }
 
 export function buildDfIndex(manifest: LibraryEntry[]): DfIndex {
@@ -184,21 +217,9 @@ export function scoreEntry(
     else if (qPhrase.includes(n) || n.includes(qPhrase)) phrase += 6;
   }
 
-  const fields: Array<[string, number]> = [
-    [entry.title, 3],
-    [entry.aliases.join(" "), 3],
-    [entry.tags.join(" "), 2],
-    [entry.summary, 1],
-  ];
-
   const matched = new Set<string>();
   let tokens = 0;
-  for (const [text, weight] of fields) {
-    const fieldTokens = tokenize(text);
-    if (fieldTokens.length === 0) continue;
-    const set = new Set(fieldTokens);
-    // Longer fields are damped; a short field is never boosted above its face weight.
-    const lenNorm = Math.min(2, Math.max(1, Math.sqrt(set.size / LEN_NORM_BASE)));
+  for (const { set, weight, lenNorm } of tokensFor(entry).fields) {
     for (const qt of qTokens) {
       if (!set.has(qt)) continue;
       matched.add(qt);
