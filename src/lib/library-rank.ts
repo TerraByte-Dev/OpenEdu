@@ -87,6 +87,48 @@ export function normalizePhrase(s: string): string {
   return s.toLowerCase().replace(APOSTROPHES, "").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+/**
+ * Coerce a fetched manifest into LibraryEntry[], dropping rows that cannot be addressed.
+ *
+ * Lives here rather than in library.ts because it is pure AND because the retrieval fixture must
+ * score the manifest shape the APP builds, not the raw JSON. It previously lived in the
+ * Tauri-coupled module, the fixture imported index.json directly to get around that, and the two
+ * shapes silently diverged: body_terms shipped in index.json, was dropped here, and the test that
+ * guarded it passed anyway because it never went through this function.
+ */
+export function normalizeManifest(data: unknown): LibraryEntry[] {
+  const arr = Array.isArray(data)
+    ? data
+    : Array.isArray((data as { resources?: unknown })?.resources)
+      ? (data as { resources: unknown[] }).resources
+      : [];
+  const out: LibraryEntry[] = [];
+  for (const raw of arr) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    if (typeof r.id !== "string" || typeof r.title !== "string" || typeof r.path !== "string") continue;
+    out.push({
+      id: r.id,
+      title: r.title,
+      path: r.path,
+      aliases: Array.isArray(r.aliases) ? r.aliases.filter((a): a is string => typeof a === "string") : [],
+      tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === "string") : [],
+      subject: typeof r.subject === "string" ? r.subject : "",
+      summary: typeof r.summary === "string" ? r.summary : "",
+      asset: typeof r.asset === "string" ? r.asset : undefined,
+      // Without this line body indexing is dead in the running app: parseBodyTerms returns [],
+      // every body score is 0, and the df index loses its body terms too, which shifts rarity and
+      // coverage for every query.
+      body_terms: typeof r.body_terms === "string" ? r.body_terms : undefined,
+      // Without this line body indexing is dead in the running app: parseBodyTerms returns [],
+      // every body score is 0, and the df index loses its body terms too, which shifts rarity and
+      // coverage for every query.
+
+    });
+  }
+  return out;
+}
+
 // ── Document frequency ──────────────────────────────────────────────────────────────────────────
 
 export interface DfIndex {

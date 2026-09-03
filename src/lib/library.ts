@@ -16,6 +16,7 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import type { LibraryEntry } from "../types";
 import { getLibraryEnabled, getLibraryUrl, getLibraryManifestCache, setLibraryManifestCache } from "./store";
+import { normalizeManifest } from "./library-rank";
 
 // Canonical remote host for the optional Settings `library_url` override (must also be allow-listed in
 // src-tauri/capabilities/default.json). NOT the default source — the bundled copy below is.
@@ -63,30 +64,7 @@ export async function fetchLibText(url: string, remote: boolean): Promise<string
 }
 
 // Defensive: the manifest is our own, but coerce/validate so a malformed deploy can't crash the tutor.
-function normalizeManifest(data: unknown): LibraryEntry[] {
-  const arr = Array.isArray(data)
-    ? data
-    : Array.isArray((data as { resources?: unknown })?.resources)
-      ? (data as { resources: unknown[] }).resources
-      : [];
-  const out: LibraryEntry[] = [];
-  for (const raw of arr) {
-    if (!raw || typeof raw !== "object") continue;
-    const r = raw as Record<string, unknown>;
-    if (typeof r.id !== "string" || typeof r.title !== "string" || typeof r.path !== "string") continue;
-    out.push({
-      id: r.id,
-      title: r.title,
-      path: r.path,
-      aliases: Array.isArray(r.aliases) ? r.aliases.filter((a): a is string => typeof a === "string") : [],
-      tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === "string") : [],
-      subject: typeof r.subject === "string" ? r.subject : "",
-      summary: typeof r.summary === "string" ? r.summary : "",
-      asset: typeof r.asset === "string" ? r.asset : undefined,
-    });
-  }
-  return out;
-}
+// normalizeManifest lives in library-rank.ts (pure, testable) and is re-exported here.
 
 // Load the manifest from the active source (bundled by default; remote override otherwise) into memory.
 async function loadManifest(): Promise<LibraryEntry[]> {
@@ -136,6 +114,7 @@ export function isLibraryAvailable(): boolean {
 // Lives in library-rank.ts (pure, Tauri-free, unit-tested). Re-exported here so every existing
 // import site keeps working unchanged.
 export { tokenize, normalizePhrase, scoreEntry, matchResources, matchResourcesScored, STOPWORDS } from "./library-rank";
+export { normalizeManifest };
 
 function stripFrontmatter(text: string): string {
   // Remove a leading YAML frontmatter block (---\n … \n---) if present.
