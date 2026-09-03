@@ -7,6 +7,18 @@ function normalizeBase(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+// Small local models reason by default now — qwen3.5 and its neighbours emit a `thinking` field and
+// only then the answer. On a structured or tool-calling call that is pure cost, and it fails in the
+// worst possible way: the model spends the entire window thinking, Ollama returns `content: ""` with
+// `done_reason: "length"`, and the empty string reads here as malformed JSON. `preflightStructuredOutput`
+// then reports a perfectly good model as incompatible.
+//
+// Measured on qwen3.5:0.8b with OpenEdu's own preflight probe: 8,168 tokens and an empty string with
+// thinking on; 20 tokens and valid JSON in 0.39s with `think: false`. Same shape as the num_ctx bug in
+// #86 — a field we never sent, so the server chose its own default and the failure surfaced as a
+// model-quality problem. Chat is the one place reasoning may earn its cost; every path below is not chat.
+const OLLAMA_THINK_OFF = { think: false } as const;
+
 // Small Ollama models often emit raw LaTeX (\alpha, \frac, \pi, \sum, ...) inside
 // JSON string values without doubling the backslash. JSON.parse rejects those as
 // "Bad escaped character", and even when grammar-constrained sampling lets them
@@ -409,6 +421,7 @@ export async function callLLM(
           model: config.model,
           messages,
           stream: false,
+          ...OLLAMA_THINK_OFF,
           ...(config.contextTokens ? { options: { num_ctx: Math.floor(config.contextTokens) } } : {}),
         }),
       });
@@ -880,6 +893,7 @@ async function callOllamaStructured(
     // today and the plumbing is ready for the phase that turns it on.
     options: { temperature, ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}) },
     format: supportsSchema ? schema : "json",
+    ...OLLAMA_THINK_OFF,
   };
 
   log.info("callOllamaStructured", `POST ${baseUrl}/api/chat schema=${supportsSchema ? "yes" : "json-loose"} v=${version ?? "?"}`);
@@ -905,6 +919,28 @@ async function callOllamaStructured(
 
   const json = await response.json();
   const raw: string = json.message?.content ?? "";
+
+  // A truncated structured call is not a malformed one, and conflating them is what made a working
+  // model look broken. Name the two cases so the caller's error text points at the cause.
+  if (!raw.trim()) {
+    const thinking: string = json.message?.thinking ?? "";
+    if (json.done_reason === "length") {
+      throw new Error(
+        thinking
+          ? `Ollama model "${config.model}" spent its whole context window reasoning and returned no answer ` +
+            `(done_reason=length, ${thinking.length} chars of thinking). Raise the context window, or the model is ` +
+            `ignoring think:false.`
+          : `Ollama model "${config.model}" hit its context limit before emitting an answer (done_reason=length). ` +
+            `Raise the context window in Settings.`,
+      );
+    }
+    if (thinking) {
+      throw new Error(
+        `Ollama model "${config.model}" returned reasoning but no answer. It may not honour think:false — ` +
+          `try a different model for structured output.`,
+      );
+    }
+  }
 
   let parsed: unknown = null;
   try { parsed = tryParseJsonLenient(raw); }
@@ -1483,7 +1519,11 @@ export async function* callLLMTurn(
 
 async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, opts: TurnOpts): AsyncGenerator<LLMTurnEvent> {
   const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
-  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOllamaTurnMessage), stream: true };
+  // `think: false` here for the same reason as the structured path: this turn carries a tools manifest
+  // and the kernel needs the tool call, not a monologue. Verified on qwen3.5:0.8b — a clean
+  // notebook_search call with the right argument. If a reasoning-in-chat setting ever lands, this is
+  // the one line it flips.
+  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOllamaTurnMessage), stream: true, ...OLLAMA_THINK_OFF };
   // Ollama options. Before #86 this key was only ever set when a temperature was passed — which the
   // kernel never did — so every chat turn ran at the server's DEFAULT context window (4096) no matter
   // what the model supported, and the overflow was dropped silently from the front, taking the system
