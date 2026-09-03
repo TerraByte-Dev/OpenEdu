@@ -164,6 +164,12 @@ export interface LibraryEntry {
   summary: string;     // one-line description
   path: string;        // relative path to the resource body, e.g. "resources/chemistry/periodic-table.md"
   asset?: string;      // OPTIONAL relative path to an authored SVG "raw form", e.g. "assets/chemistry/periodic-table.svg"
+  // OPTIONAL discriminative terms from the card BODY, emitted by build-index.mjs as a compact
+  // "term:weight" string. Ranking never reads a body at runtime — 154KB of authored prose was
+  // invisible to retrieval — so the builder distils it once. Buckets use absolute df thresholds,
+  // never per-corpus quantiles, so a term's weight means the same thing in the bundled core and in
+  // a separately-built pack. Absent on an older manifest, which scores exactly as before.
+  body_terms?: string;   // compact "term:weight term:weight", weight 3|2|1
 }
 
 // The result the library.search tool yields. `text` is the matched resource's cleaned, capped body;
