@@ -49,6 +49,7 @@ export const LIBRARY_BASELINE = {
   floorViolations: 0, // was 4
   gapPurity: 1,     // was 0.545 — the one that mattered
   gapQueries: 11,
+  groundableRate: 0.892, // was 0.865 — the fraction the TUTOR actually gets to see
 } as const;
 
 const manifest = manifestJson as unknown as LibraryEntry[];
@@ -97,6 +98,13 @@ describe("library retrieval — regression gate", () => {
     expect(r.gapPurity).toBeGreaterThanOrEqual(LIBRARY_BASELINE.gapPurity);
   });
 
+  it("does not regress what the tutor can actually ground on", () => {
+    // Every score in this ranker is damped (rarity <= 1, coverage <= 1), so it was entirely possible
+    // to fix precision while quietly starving grounding — a correct hit scoring 4 never reaches
+    // groundFromLibrary. Measured against the pre-#112 ranker: 86.5% -> 89.2%. It improved.
+    expect(r.groundableRate).toBeGreaterThanOrEqual(LIBRARY_BASELINE.groundableRate);
+  });
+
   it("reports the current state for a human", () => {
     const misses = r.detail.filter((d) => d.hit === false);
     const leaks = r.detail.filter((d) => d.hit === null && d.top.some((t) => t.score >= LIBRARY_FLOOR));
@@ -104,7 +112,8 @@ describe("library retrieval — regression gate", () => {
     // not just that a ratio changed.
     console.log(
       `\nlibrary retrieval: P@1 ${r.p1} · R@3 ${r.r3} · floor violations ${r.floorViolations}` +
-        ` · gap purity ${r.gapPurity} (${r.gapQueries} gap queries)\n` +
+        ` · gap purity ${r.gapPurity} · groundable ${r.groundableRate} (${r.gapQueries} gap)
+` +
         `  misses (${misses.length}): ${misses.map((m) => m.ask).join(" | ") || "none"}\n` +
         `  gap leaks (${leaks.length}): ${leaks.map((l) => l.ask).join(" | ") || "none"}`,
     );

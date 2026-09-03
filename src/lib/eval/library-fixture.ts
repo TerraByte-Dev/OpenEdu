@@ -163,6 +163,15 @@ export interface LibraryEvalResult {
   floorViolations: number;
   /** `gap` queries that correctly returned nothing at or above the floor, over all gap queries. */
   gapPurity: number;
+  /**
+   * The metric that decides what the TUTOR actually sees.
+   *
+   * P@1 says we ranked the right card first; gap purity says we stayed quiet when we should.
+   * Neither says the right card cleared `LIBRARY_FLOOR` — and a correct hit scoring 4 is invisible
+   * to `groundFromLibrary`, so the student is answered from parametric memory instead. Over the
+   * ranked queries, the fraction whose expected card is BOTH in the top 3 AND at or above the floor.
+   */
+  groundableRate: number;
   gapQueries: number;
   /** Per-query detail, for eyeballing a regression rather than just seeing a number move. */
   detail: Array<{
@@ -180,7 +189,7 @@ export function evaluateLibraryRetrieval(
   manifest: LibraryEntry[],
   queries: LibQuery[] = LIBRARY_QUERIES,
 ): LibraryEvalResult {
-  let ranked = 0, p1 = 0, r3 = 0, floorViolations = 0, gapQueries = 0, gapClean = 0;
+  let ranked = 0, p1 = 0, r3 = 0, floorViolations = 0, gapQueries = 0, gapClean = 0, groundable = 0;
   const detail: LibraryEvalResult["detail"] = [];
 
   for (const q of queries) {
@@ -206,6 +215,8 @@ export function evaluateLibraryRetrieval(
       hit = q.expect.some((e) => ids.includes(e));
       if (hit) r3++;
       if (ids[0] && q.expect.includes(ids[0])) p1++;
+      const best = top.find((t) => q.expect!.includes(t.id));
+      if (best && best.score >= LIBRARY_FLOOR) groundable++;
     }
     if (q.gap) {
       gapQueries++;
@@ -222,6 +233,7 @@ export function evaluateLibraryRetrieval(
     r3: ranked ? r3dp(r3 / ranked) : 0,
     floorViolations,
     gapPurity: gapQueries ? r3dp(gapClean / gapQueries) : 1,
+    groundableRate: ranked ? r3dp(groundable / ranked) : 0,
     gapQueries,
     detail,
   };
