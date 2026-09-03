@@ -95,7 +95,12 @@ async function streamOllama(
         "Accept": "application/json",
         "Origin": "", // suppress tauri-plugin-http injected Origin header (breaks Ollama CORS)
       },
-      body: JSON.stringify({ model: config.model, messages, stream: true }),
+      // The FOURTH Ollama path, and the one that matters most: curriculum.ts:553 and quiz.ts:758
+      // route here via callLLMStreaming whenever an onChunk is supplied, which the Dashboard always
+      // does. #110 patched the other three and missed this one, so every course generation's
+      // pedagogy step still ran un-patched — and the loop below only reads message.content, so a
+      // reasoning model produced an EMPTY instruction that was saved with no error thrown.
+      body: JSON.stringify({ model: config.model, messages, stream: true, ...OLLAMA_THINK_OFF }),
       signal,
     });
   } catch (e) {
@@ -124,6 +129,7 @@ async function streamOllama(
 
   const decoder = new TextDecoder();
   let fullText = "";
+  let sawThinking = false;
   // Buffer incomplete lines — NDJSON chunks may split across reads
   let lineBuffer = "";
 
@@ -146,12 +152,27 @@ async function streamOllama(
         if (json.message?.content) {
           fullText += json.message.content;
           onToken(json.message.content);
+        } else if (json.message?.thinking) {
+          // Reasoning tokens are not the answer. Count them so a model that ignores think:false
+          // ends in a diagnosable error rather than silently returning "" — the caller saves this
+          // string straight into tutor_instructions.
+          sawThinking = true;
         }
       } catch { /* partial JSON — skip */ }
     }
   }
   if (signal?.aborted) return;
   log.info("streamOllama", `Done — ${fullText.length} chars`);
+  // A reasoning model that ignored think:false yields reasoning and no answer. Returning "" here
+  // is the silent failure: curriculum.ts saves it straight into tutor_instructions and the course
+  // looks generated. Fail loudly instead.
+  if (!fullText.trim() && sawThinking) {
+    onError(
+      `Ollama model "${config.model}" returned reasoning but no answer. It may not honour ` +
+      `think:false — try a different model for generation.`,
+    );
+    return;
+  }
   onDone(fullText);
 }
 

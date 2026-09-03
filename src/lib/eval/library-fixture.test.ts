@@ -27,7 +27,7 @@
 import { describe, it, expect } from "vitest";
 import type { LibraryEntry } from "../../types";
 import { evaluateLibraryRetrieval, LIBRARY_QUERIES, LIBRARY_FLOOR } from "./library-fixture";
-import { BODY_BUDGET, tokenize, parseBodyTerms } from "../library-rank";
+import { BODY_BUDGET, tokenize, parseBodyTerms, normalizeManifest } from "../library-rank";
 
 // The real bundled manifest, imported rather than read off disk. `npm run build` runs tsc over the
 // whole of src/ including tests, and this project has no @types/node — so a node:fs read typechecks
@@ -52,7 +52,14 @@ export const LIBRARY_BASELINE = {
   groundableRate: 0.892, // was 0.865 — the fraction the TUTOR actually gets to see
 } as const;
 
-const manifest = manifestJson as unknown as LibraryEntry[];
+// Scored through normalizeManifest — the SAME coercion the running app applies — not as raw JSON.
+//
+// This is the fix for a bug this fixture failed to catch. index.json shipped `body_terms` on all
+// 154 entries, normalizeManifest rebuilt every entry from an explicit field list that omitted it,
+// and body indexing was therefore dead in the product. The test still passed, because it imported
+// index.json directly and scored a manifest shape the app never constructs. A fixture that measures
+// a different object than production is not a measuring device.
+const manifest: LibraryEntry[] = normalizeManifest(manifestJson);
 
 describe("library retrieval — fixture integrity", () => {
   it("scores the real bundled manifest", () => {
@@ -165,6 +172,16 @@ describe("library retrieval — builder/app tokenizer parity", () => {
   // build-index.mjs carries its own copy of the tokenizer, and if the two drift, terms emitted
   // there can never be matched here and body indexing quietly becomes a no-op that still passes
   // every other test. Rather than import the builder, assert the invariant its output must satisfy.
+
+  it("normalizeManifest preserves body_terms — the field the app used to silently drop", () => {
+    // The regression this file exists to prevent. body_terms shipped in index.json, normalizeManifest
+    // rebuilt entries from an explicit field list that omitted it, and body indexing was dead in the
+    // product while every test stayed green. Delete the field from normalizeManifest and this fails,
+    // as do the body-term scoring tests below.
+    const withTerms = manifest.filter((e) => e.body_terms);
+    expect(withTerms.length).toBe(manifest.length);
+    expect(parseBodyTerms(manifest[0]).length).toBeGreaterThan(0);
+  });
 
   it("every emitted body term is a fixed point of the app's own tokenizer", () => {
     const bad: string[] = [];
