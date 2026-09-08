@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder } from "../types";
+import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
 
 let db: Database | null = null;
 
@@ -300,14 +300,6 @@ export async function deleteFolder(id: string): Promise<void> {
 // tauri-plugin-sql like the rest of this module — no native extension.
 
 // One chunk's stored vector joined back to its document, for brute-force search.
-export interface NotebookVecRow {
-  chunk_id: string;
-  document_id: string;
-  document_title: string;
-  ord: number;
-  text: string;
-  vec: string; // JSON-array string, parsed by searchNotebook
-}
 
 export async function findNotebookDocumentBySha(courseId: string, sha256: string): Promise<NotebookDocument | null> {
   const d = await getDb();
@@ -343,7 +335,8 @@ export async function createNotebookChunk(chunk: {
   ord: number;
   text: string;
   tokenCount: number;
-  vec: string;
+  /** Base64 of the raw f32 buffer — see vec-codec.ts for why not JSON. */
+  vecB64: string;
 }): Promise<string> {
   const d = await getDb();
   const id = uuid();
@@ -351,7 +344,11 @@ export async function createNotebookChunk(chunk: {
     "INSERT INTO notebook_chunks (id, document_id, ord, text, token_count) VALUES ($1, $2, $3, $4, $5)",
     [id, chunk.documentId, chunk.ord, chunk.text, chunk.tokenCount]
   );
-  await d.execute("INSERT INTO notebook_embeddings (chunk_id, vec) VALUES ($1, $2)", [id, chunk.vec]);
+  await d.execute("INSERT INTO notebook_embeddings (chunk_id, vec, vec_b64) VALUES ($1, $2, $3)",
+    // `vec` stays populated because migration 7 declared it NOT NULL and migrations may not be
+    // edited once shipped. It is written as "" — the reader prefers vec_b64 and only falls back
+    // to JSON for rows written before migration 12.
+    [id, "", chunk.vecB64]);
   return id;
 }
 
@@ -367,15 +364,34 @@ export async function getNotebookDocuments(courseId: string): Promise<Array<Note
 
 // Load every chunk vector in a course for a given embedding model (brute-force search input).
 // Filtering by model keeps cosine comparisons dimensionally consistent across re-embeds.
+// Vectors ONLY — no chunk text, no document join.
+//
+// The old query selected `c.text` and `d.title` alongside every vector, so ranking shipped the
+// entire course's prose across IPC on every keystroke to score it and then throw all but three
+// rows away. Text is now fetched for the winners, after ranking, by `getChunkTexts`.
 export async function loadNotebookVectors(courseId: string, embeddingModel: string): Promise<NotebookVecRow[]> {
   const d = await getDb();
   return await d.select(
-    "SELECT e.chunk_id AS chunk_id, c.document_id AS document_id, d.title AS document_title, c.ord AS ord, c.text AS text, e.vec AS vec " +
+    "SELECT e.chunk_id AS chunk_id, e.vec AS vec, e.vec_b64 AS vec_b64 " +
       "FROM notebook_embeddings e " +
       "JOIN notebook_chunks c ON e.chunk_id = c.id " +
       "JOIN notebook_documents d ON c.document_id = d.id " +
       "WHERE d.course_id = $1 AND d.embedding_model = $2",
     [courseId, embeddingModel]
+  );
+}
+
+/** Text and provenance for the handful of chunks that actually won. */
+export async function getChunkTexts(chunkIds: string[]): Promise<NotebookChunkText[]> {
+  if (chunkIds.length === 0) return [];
+  const d = await getDb();
+  const holes = chunkIds.map((_, i) => `$${i + 1}`).join(",");
+  return await d.select(
+    "SELECT c.id AS chunk_id, c.document_id AS document_id, d.title AS document_title, " +
+      "c.ord AS ord, c.text AS text " +
+      "FROM notebook_chunks c JOIN notebook_documents d ON c.document_id = d.id " +
+      `WHERE c.id IN (${holes})`,
+    chunkIds
   );
 }
 

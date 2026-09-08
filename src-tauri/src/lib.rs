@@ -281,6 +281,22 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 12,
+            description: "notebook vectors as base64 f32 (append-only, never edit v1-v11)",
+            sql: "
+                -- Vectors shipped as JSON-array TEXT: 9,495 bytes for a 768-dim f32 vs 3,072 raw,
+                -- a 3.09x bloat that is also 3.09x of IPC and of JSON.parse on every single query.
+                -- Retrieval loaded EVERY chunk in a course, so V8's 2^29-byte string ceiling capped
+                -- the whole feature at ~47,000 chunks -- about 2,500 documents.
+                --
+                -- New column rather than a rewrite of `vec`: migrations are hashed and may never be
+                -- edited once shipped, and a NULL here simply means \"not yet re-encoded\", which the
+                -- reader falls back from. Nothing needs backfilling for correctness.
+                ALTER TABLE notebook_embeddings ADD COLUMN vec_b64 TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

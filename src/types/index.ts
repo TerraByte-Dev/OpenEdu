@@ -155,6 +155,22 @@ export interface NotebookSearchResult {
 // One entry in the OpenEdu Library manifest (index.json hosted on the static site). The app fetches
 // the manifest, matches a query against these fields (lexical), then fetches the resource body by
 // `path`. Kept small so the manifest stays a few KB even with a large library.
+export interface NotebookVecRow {
+  chunk_id: string;
+  /** Legacy JSON-array encoding. Empty on rows written after migration 12. */
+  vec?: string | null;
+  /** Base64 of the raw f32 buffer — 4,096 bytes for 768 dims against 9,495 as JSON. */
+  vec_b64?: string | null;
+}
+
+export interface NotebookChunkText {
+  chunk_id: string;
+  document_id: string;
+  document_title: string;
+  ord: number;
+  text: string;
+}
+
 export interface LibraryEntry {
   id: string;          // stable id, e.g. "chemistry/periodic-table"
   title: string;       // human title, shown in the source chip
