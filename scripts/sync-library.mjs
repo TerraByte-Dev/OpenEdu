@@ -22,7 +22,11 @@ import { fileURLToPath } from "node:url";
 const APP_ROOT = join(fileURLToPath(import.meta.url), "..", "..");
 const SRC = join(APP_ROOT, "..", "openedu-library");
 const DEST = join(APP_ROOT, "public", "library");
-const ITEMS = ["index.json", "resources", "assets", "datasets"];
+// "units" ships for the same reason "resources" does: the app must be able to read it offline, and
+// a test that imports it from the sibling repo passes locally and fails in CI, where only this repo
+// is checked out. LICENSE-CONTENT and ATTRIBUTION.md ride along because the binary embeds the
+// content and was shipping it with no licence text at all.
+const ITEMS = ["index.json", "resources", "assets", "datasets", "units", "LICENSE-CONTENT", "ATTRIBUTION.md"];
 
 try {
   await access(SRC);

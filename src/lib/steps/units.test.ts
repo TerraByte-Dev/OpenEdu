@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { compileCard } from "./pool";
 
-// The two hand-authored units, imported from the content repo.
-const units = import.meta.glob("../../../../openedu-library/units/**/unit.md", {
+// The authored units, from the BUNDLED copy under public/library — not the sibling repo.
+// Importing across repos passes locally and finds nothing in CI, where only this repo is checked
+// out; the "found the authored units" guard below is what caught that, and without it this whole
+// suite would have passed vacuously on an empty glob.
+const units = import.meta.glob("../../../public/library/units/**/unit.md", {
   eager: true, query: "?raw", import: "default",
 }) as Record<string, string>;
 

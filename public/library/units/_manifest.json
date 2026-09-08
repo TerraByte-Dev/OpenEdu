@@ -1,0 +1,55 @@
+[
+  {
+    "id": "living-skills/finance/borrowing-basics",
+    "title": "Borrowing Basics",
+    "subject": "living-skills",
+    "summary": "The words a lender uses, and what a loan actually costs once the interest is counted.",
+    "cluster": "L1-4",
+    "concepts": [
+      "interest vocabulary",
+      "cost of credit"
+    ],
+    "prerequisites": [],
+    "cards": [
+      "economics/personal-finance"
+    ],
+    "harm_class": "low",
+    "license": "CC0-1.0",
+    "commercial_ok": true,
+    "est_minutes": 11,
+    "path": "units/living-skills/finance/borrowing-basics/unit.md",
+    "sections": [
+      "Interest vocabulary",
+      "Cost of credit"
+    ],
+    "authored_items": 1
+  },
+  {
+    "id": "living-skills/navigation/map-and-compass",
+    "title": "Map and Compass",
+    "subject": "living-skills",
+    "summary": "Reading a bearing, converting a map scale to ground distance, and naming what the contours show.",
+    "cluster": "L6-2",
+    "concepts": [
+      "compass bearings",
+      "map scale",
+      "terrain features"
+    ],
+    "prerequisites": [],
+    "cards": [
+      "geography/latitude-and-longitude",
+      "geography/map-symbols-and-legend"
+    ],
+    "harm_class": "low",
+    "license": "CC0-1.0",
+    "commercial_ok": true,
+    "est_minutes": 12,
+    "path": "units/living-skills/navigation/map-and-compass/unit.md",
+    "sections": [
+      "Compass bearings",
+      "Map scale",
+      "Terrain features"
+    ],
+    "authored_items": 2
+  }
+]
