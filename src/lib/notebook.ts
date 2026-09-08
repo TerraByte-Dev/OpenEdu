@@ -17,9 +17,9 @@ import {
   deleteNotebookDocumentByNote,
   createNotebookDocument,
   createNotebookChunk,
-  loadNotebookVectors,
-} from "./db";
+  loadNotebookVectors, getChunkTexts} from "./db";
 import type { Note, NotebookSearchResult, NotebookSourceType } from "../types";
+import { encodeVec, readVec, cosine } from "./vec-codec";
 
 // ── Text utilities ───────────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ export async function indexNote(args: {
     dim,
   });
   for (let i = 0; i < chunks.length; i++) {
-    await createNotebookChunk({ documentId, ord: i, text: chunks[i], tokenCount: estTokens(chunks[i]), vec: JSON.stringify(vectors[i]) });
+    await createNotebookChunk({ documentId, ord: i, text: chunks[i], tokenCount: estTokens(chunks[i]), vecB64: encodeVec(vectors[i]) });
   }
   return { documentId, chunkCount: chunks.length, skipped: false };
 }
@@ -173,25 +173,26 @@ export async function searchNotebook(args: {
   const cfg = await getEmbeddingConfig();
   const [qvec] = await embed([q], cfg);
   if (!qvec) return [];
+  const qf = Float32Array.from(qvec);
 
+  // PHASE 1 — score. Vectors only: no chunk text, no document titles. The old query shipped the
+  // whole course's prose across IPC to rank it and then discarded all but `topK` rows.
   const rows = await loadNotebookVectors(args.courseId, cfg.model);
-  const scored: NotebookSearchResult[] = [];
+  const scored: Array<{ chunk_id: string; score: number }> = [];
   for (const row of rows) {
-    let vec: number[];
-    try {
-      vec = JSON.parse(row.vec);
-    } catch {
-      continue; // skip a corrupt row rather than fail the whole search
-    }
-    scored.push({
-      chunk_id: row.chunk_id,
-      document_id: row.document_id,
-      document_title: row.document_title,
-      ord: row.ord,
-      text: row.text,
-      score: cosineSim(qvec, vec),
-    });
+    const vec = readVec(row);
+    if (!vec) continue; // a corrupt row is skipped, never fatal to the whole search
+    scored.push({ chunk_id: row.chunk_id, score: cosine(qf, vec) });
   }
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, topK);
+  const winners = scored.slice(0, topK);
+  if (winners.length === 0) return [];
+
+  // PHASE 2 — hydrate only the winners.
+  const texts = await getChunkTexts(winners.map((w) => w.chunk_id));
+  const byId = new Map(texts.map((t): [string, typeof t] => [t.chunk_id, t]));
+  return winners.flatMap((w) => {
+    const t = byId.get(w.chunk_id);
+    return t ? [{ ...t, score: w.score }] : [];
+  });
 }
