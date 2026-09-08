@@ -3,20 +3,36 @@
 import { harvestCard } from "./harvest";
 import { runGates, type GateName } from "./gates";
 import type { Item, Pool } from "./types";
-import { POOL_MIN_CLOSED, SEQUESTERED } from "./types";
+import { POOL_MIN_CLOSED, POOL_MIN_DISTINCT, SEQUESTERED } from "./types";
+
+/** The set of distinct expected answers in a pool — the diversity `kinds` was standing in for. */
+function distinctExpected(items: Item[]): number {
+  const seen = new Set<string>();
+  for (const i of items) {
+    const e = i.expected;
+    seen.add(
+      e.kind === "exact_set" ? e.any.join("|")
+      : e.kind === "numeric" ? String(e.value)
+      : e.kind === "order" ? e.items.join("|")
+      : e.require.join("|"),
+    );
+  }
+  return seen.size;
+}
 
 export function poolFor(conceptId: string, items: Item[]): Pool {
   const closed = items.filter((i) => i.closedBook);
   const kinds = new Set(closed.map((i) => i.kind)).size;
+  // A pool must be varied enough that the sequestered pair tests transfer rather than recall of the
+  // drill. Two checker kinds satisfies that; so does a large distinct answer set — see the note on
+  // POOL_MIN_DISTINCT for why the second disjunct exists and who decided it.
+  const varied = kinds >= 2 || distinctExpected(closed) >= POOL_MIN_DISTINCT;
   return {
     conceptId,
     items,
     closedCount: closed.length,
     kinds,
-    // Two kinds minimum: a pool of one checker shape is item-memorisation waiting to happen, and
-    // the sequestered pair has to differ in FORM from the eight that were served or the checkpoint
-    // measures recall of the drill rather than transfer.
-    bearsMastery: closed.length >= POOL_MIN_CLOSED && kinds >= 2,
+    bearsMastery: closed.length >= POOL_MIN_CLOSED && varied,
   };
 }
 
@@ -99,4 +115,4 @@ export function measureF0(
   };
 }
 
-export { POOL_MIN_CLOSED, SEQUESTERED };
+export { POOL_MIN_CLOSED, POOL_MIN_DISTINCT, SEQUESTERED };

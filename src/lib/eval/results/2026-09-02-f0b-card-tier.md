@@ -1,6 +1,6 @@
 # F0(b) — can the 154-card base bear mastery?
 
-**Date:** 2026-09-02 · **Verdict: FAILS as specified.** · Reproduce: `npm test src/lib/steps`
+**Date:** 2026-09-02, amended 2026-09-08 · **Verdict: still FAILS, at 30.5%.** · Reproduce: `npm test src/lib/steps`
 
 The bar, pre-committed in the design: **`pool_closed >= 10` for ≥40% of the 154 cards**, and ≥1 item
 for ≥95%. Below **28%** bearing, the card tier is not mastery-bearing and the empty-shelf product
@@ -91,3 +91,26 @@ readings, in order of how much I believe them.
 
 **F0(b) is failed. The corpus-to-assessment premise is not dead — it moves from the card tier to the
 unit tier, which is where the design already put it.**
+
+
+---
+
+## Amendment, 2026-09-08 — decided by Tate, and the number is worse than I projected
+
+The `kinds >= 2` clause is now a disjunction:
+
+> `pool_closed >= 10` **AND** (`>= 2 checker kinds` **OR** `>= 10 distinct expected values`)
+
+**Measured after the change: 30.5%** at `minDistinct=4` (19.5% at 8). Bar 40%, cliff 28%.
+
+**I projected 37.7% when I proposed this, and that was wrong.** The projection came from data taken
+before the cue-uniqueness fix — the compiler was generating items from table columns whose *cue*
+values repeated, producing several identical stems with different answers. Removing those dropped
+the corpus from 1,864 items to 1,647, and with them the cards that had been reaching ten items on
+ambiguous ones.
+
+So: the amendment moves the number from 10.4% to 30.5%, not to 37.7%. **It clears the 28% cliff by
+2.5 points.** That is a much thinner margin than the proposal implied, and it should be read as
+confirming the original verdict rather than softening it: *the card tier is not a mastery product.*
+The value of the amendment is that the remaining failure is now attributable to the corpus having no
+harvestable structure, rather than to a proxy clause.

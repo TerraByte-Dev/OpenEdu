@@ -184,11 +184,12 @@ describe("F0(b) — measured against the real 154-card base", () => {
 
   it("FAILS its bar, and records why — see eval/results/2026-09-02-f0b-card-tier.md", () => {
     const r = measureF0(cards, 4);
-    // The bar was >=40% mastery-bearing; the cliff below which the card tier is not mastery-bearing
-    // was 28%. Measured: 10.4%. This assertion pins the FAILURE deliberately, the same way the
-    // ranker defects were pinned before #112 fixed them — so that any change to the compiler, the
-    // pool law or the corpus shows up here as a number that moved.
-    expect(r.bearingFraction).toBeCloseTo(0.104, 2);
+    // Bar was >=40%; the cliff below which the card tier is not mastery-bearing was 28%.
+    // Under the amended pool law (>=2 kinds OR >=10 distinct answers): 30.5%. Still a FAIL, pinned
+    // deliberately, so any change to the compiler, the law or the corpus shows up as a moved number.
+    // NOTE 30.5%, not the 37.7% projected when the amendment was proposed — that projection used
+    // data taken before the cue-uniqueness fix, which correctly removed 217 ambiguous items.
+    expect(r.bearingFraction).toBeCloseTo(0.305, 2);
 
     // The diagnosis: item YIELD nearly clears the bar. The `kinds >= 2` clause is what fails it.
     const tenPlus = r.perCard.filter((c) => c.closed >= 10).length / r.cards;
