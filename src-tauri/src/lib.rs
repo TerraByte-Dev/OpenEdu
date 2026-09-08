@@ -1,3 +1,5 @@
+mod corpus;
+
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -289,7 +291,18 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_store::Builder::default().build());
+        .plugin(tauri_plugin_store::Builder::default().build())
+        // Folder picking. Read-only corpus access lives in corpus.rs behind explicit grants rather
+        // than tauri-plugin-fs, whose allow-list is fixed at build time — this product needs a root
+        // the user chooses at runtime, and nothing outside it.
+        .plugin(tauri_plugin_dialog::init())
+        .manage(corpus::Granted::default())
+        .invoke_handler(tauri::generate_handler![
+            corpus::corpus_grant,
+            corpus::corpus_granted,
+            corpus::corpus_list,
+            corpus::corpus_read_text,
+        ]);
 
     // Updater is desktop-only.
     #[cfg(desktop)]
