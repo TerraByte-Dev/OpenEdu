@@ -1,0 +1,11 @@
+{
+  "unit": "living-skills/finance/borrowing-basics",
+  "claims": [
+    { "id": "c01", "concept": "interest vocabulary",
+      "text": "Every loan is the same three numbers wearing different names: how much you borrowed, what rate you pay, and how long you take.",
+      "provenance": "canonical", "authority": "standard lending terminology", "as_of": "2026-09" },
+    { "id": "c02", "concept": "cost of credit",
+      "text": "Doubling the term does not halve the cost — it lowers the payment and raises the total.",
+      "provenance": "computed", "derivation": "amortised interest at 8% on 10000: 5y=2166, 10y=4559", "as_of": "2026-09" }
+  ]
+}

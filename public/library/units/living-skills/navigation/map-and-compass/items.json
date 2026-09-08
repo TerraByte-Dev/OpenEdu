@@ -1,0 +1,13 @@
+{
+  "unit": "living-skills/navigation/map-and-compass",
+  "items": [
+    { "id": "i01", "concept": "map scale", "claim": "c04", "kind": "numeric",
+      "stem": "On a 1:50,000 map, how many metres of ground does one centimetre represent?",
+      "expected": { "kind": "numeric", "value": 500, "tolRel": 0 },
+      "derived": true, "derivation": "50000/100", "closed_book": 1, "world_knowledge": 1 },
+    { "id": "i02", "concept": "compass bearings", "claim": "c02", "kind": "numeric",
+      "stem": "You are facing north and turn clockwise through three right angles. What is your bearing in degrees?",
+      "expected": { "kind": "numeric", "value": 270, "tolRel": 0 },
+      "derived": true, "derivation": "90*3", "closed_book": 1, "world_knowledge": 1 }
+  ]
+}

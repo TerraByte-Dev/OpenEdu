@@ -1,0 +1,20 @@
+{
+  "unit": "living-skills/navigation/map-and-compass",
+  "claims": [
+    { "id": "c01", "concept": "compass bearings",
+      "text": "A bearing is an angle measured clockwise from north, in degrees.",
+      "provenance": "canonical", "authority": "standard compass convention", "as_of": "2026-09" },
+    { "id": "c02", "concept": "compass bearings",
+      "text": "North is 0, and a full turn is 360.",
+      "provenance": "canonical", "authority": "standard compass convention", "as_of": "2026-09" },
+    { "id": "c03", "concept": "map scale",
+      "text": "Scale is a ratio: one unit on the map equals that many units on the ground.",
+      "provenance": "canonical", "authority": "cartographic convention", "as_of": "2026-09" },
+    { "id": "c04", "concept": "map scale",
+      "text": "At 1:25,000, one centimetre is 25,000 centimetres — 250 metres.",
+      "provenance": "computed", "derivation": "25000/100", "as_of": "2026-09" },
+    { "id": "c05", "concept": "terrain features",
+      "text": "Contour lines join points of equal height.",
+      "provenance": "canonical", "authority": "cartographic convention", "as_of": "2026-09" }
+  ]
+}

@@ -1,0 +1,61 @@
+# Licence — library content
+
+This file covers the **content** of this repository. The build scripts under `scripts/` are
+MIT-licensed; see `LICENSE`.
+
+## What this covers
+
+Everything under:
+
+- `resources/` — the reference card bodies (Markdown)
+- `units/` — teaching units, their claim ledgers and item banks
+- `datasets/` — the lookup record sets
+- `assets/` — the generated SVG diagrams
+- `index.json`, `units/_manifest.json`, `datasets/_manifest.json` — the generated manifests
+
+## The dedication
+
+To the extent possible under law, **TerraByte Solutions LLC** has waived all copyright and related
+or neighbouring rights to the above material, dedicating it to the public domain worldwide under the
+**Creative Commons CC0 1.0 Universal Public Domain Dedication**.
+
+Full legal text: <https://creativecommons.org/publicdomain/zero/1.0/legalcode>
+SPDX identifier: `CC0-1.0`
+
+You may copy, modify, distribute and use this material, including for commercial purposes, without
+asking permission and without attribution.
+
+### Why CC0 and not a share-alike licence
+
+This content is embedded **verbatim inside an MIT-licensed application binary**. A share-alike
+content licence would raise a genuine question about whether the combined distribution has to be
+relicensed. CC0 removes the question. Attribution is welcome but is not required, because stacking
+attribution across thousands of units is not manageable at the scale this library is built for.
+
+## What this does NOT cover
+
+CC0 is a waiver of *our* rights. It cannot waive anyone else's. Third-party material in this
+repository keeps its own licence, and each piece is recorded in `ATTRIBUTION.md` with its source and
+terms. As of this writing that includes:
+
+- **Vendored map geometry** under `scripts/data/` — Natural Earth and US Census TopoJSON, public
+  domain; the `world-atlas` / `us-atlas` wrappers are ISC. See `scripts/data/MAPS-PROVENANCE.md`.
+- **`scripts/data/elements.json`** — derived from PubChem, a US Government work.
+
+Facts themselves are not copyrightable. What CC0 disclaims here is our interest in the **prose, the
+selection and arrangement (the compilation), and the generated diagrams** — which is the surface
+that actually carries copyright.
+
+## Content sourced from elsewhere
+
+Any unit whose claims derive from an external source records that source, its licence, and a
+`commercial_ok` flag in its own `claims.json` and `ATTRIBUTION.md`. Those fields are computed by the
+build, never hand-written, and the build fails if a unit declares a licence less restrictive than the
+sources it draws on.
+
+Two consequences worth stating plainly:
+
+- **Share-alike content is quarantined.** A unit derived from CC BY-SA material lives in its own
+  pack, is never bundled into the application binary, and carries its attribution through to the UI.
+- **A `commercial_ok: false` unit can never be moved into a paid product**, and the flag propagates
+  automatically from source to unit to pack so that decision cannot be crossed by accident.

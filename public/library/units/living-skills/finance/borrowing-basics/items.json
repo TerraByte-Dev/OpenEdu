@@ -1,0 +1,9 @@
+{
+  "unit": "living-skills/finance/borrowing-basics",
+  "items": [
+    { "id": "i01", "concept": "cost of credit", "claim": "c02", "kind": "numeric",
+      "stem": "At 8% on 10,000, how much MORE total interest does a 10-year term cost than a 5-year term?",
+      "expected": { "kind": "numeric", "value": 2393, "tolRel": 0.01 },
+      "derived": true, "derivation": "4559-2166", "closed_book": 1, "world_knowledge": 0 }
+  ]
+}
