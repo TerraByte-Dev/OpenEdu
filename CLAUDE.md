@@ -20,6 +20,8 @@ The repo is on GitHub under `TerraByte-Dev`.
 **Dev:** `npm run tauri dev` from project root.
 **Test:** `npm test` (vitest) — fast unit tests over the pure logic modules (no DOM/Tauri). DOM-coupled UI is verified live in the dev app.
 
+**Outside contributors and their agents: the rules in @AGENTS.md apply to you** (branching, draft PRs, what not to touch).
+
 Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contributor workflow: [`CONTRIBUTING.md`](CONTRIBUTING.md). (Local-only scratch notes live under `.dev/`, gitignored — not part of the repo.)
 
 ---

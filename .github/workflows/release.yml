@@ -10,6 +10,9 @@ on:
 jobs:
   release:
     runs-on: windows-latest
+    # The updater signing key lives in this Environment, not as a repo secret, and the Environment only
+    # deploys from v* tags (which only the maintainer can push). A collaborator's branch workflow can't read it.
+    environment: release
     permissions:
       contents: write # create the release + upload assets
     steps:
