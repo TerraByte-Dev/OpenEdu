@@ -1,8 +1,8 @@
 import { getSyllabuses, getQuizAttempts, upsertUserProgress, getUserProgress, updateSyllabusSubtopics, saveTutorInstruction } from "./db";
 import { log } from "./llm";
-import { applySubtopicScore } from "./mastery";
+import { applySubtopicScore, resolveSubtopic } from "./mastery";
 import { computeStreak } from "./analytics";
-import type { Syllabus, QuizQuestion } from "../types";
+import type { Syllabus, Subtopic, QuizQuestion } from "../types";
 
 // ─── Mastery Tracking ─────────────────────────────────────────────────────────
 
@@ -73,7 +73,8 @@ export async function updateSubtopicMastery(
  * Directly set one subtopic's mastery status by id OR title — the conversation-driven path the
  * tutor uses via the progress.mark_mastered tool (vs the quiz-driven updateSubtopicMastery above).
  * Small models naturally reference the human-readable title ("Introduction to Python and Basic
- * Output") rather than the internal id ("1.1"), so we resolve either. "mastered" implies
+ * Output") rather than the internal id ("1.1"), so we resolve either (see resolveSubtopic: a blank
+ * or ambiguous ref resolves to nothing, never a guess). "mastered" implies
  * "practiced". Writes only when something changed. Returns whether a subtopic was found and its
  * title. Subtopic-level only — never touches course.current_level (integer levels 1–6 stay under
  * the promotion-test logic).
@@ -83,16 +84,11 @@ export async function setSubtopicStatus(
   syllabus: Syllabus,
   idOrTitle: string,
   status: "mastered" | "practiced",
-): Promise<{ found: boolean; changed: boolean; title?: string }> {
-  // Resolve by exact id, then exact title, then a loose title contains-match.
-  const norm = (s: string) => s.trim().toLowerCase();
-  const target = norm(idOrTitle);
-  const match =
-    syllabus.subtopics.find((s) => s.id === idOrTitle) ??
-    syllabus.subtopics.find((s) => norm(s.title) === target) ??
-    syllabus.subtopics.find((s) => norm(s.title).includes(target) || target.includes(norm(s.title)));
-
-  if (!match) return { found: false, changed: false };
+): Promise<{ found: boolean; changed: boolean; title?: string; ambiguous?: Subtopic[] }> {
+  const resolved = resolveSubtopic(syllabus.subtopics, idOrTitle);
+  if (resolved.kind === "ambiguous") return { found: false, changed: false, ambiguous: resolved.candidates };
+  if (resolved.kind === "none") return { found: false, changed: false };
+  const match = resolved.sub;
 
   let changed = false;
   const updated = syllabus.subtopics.map((sub) => {
