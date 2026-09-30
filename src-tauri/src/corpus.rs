@@ -196,3 +196,306 @@ pub fn corpus_read_text(path: String, max_bytes: usize, state: State<Granted>) -
     let target = resolve_granted(&granted_roots(&state)?, &path)?;
     read_text_capped(&target, max_bytes)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use tempfile::TempDir;
+
+    // Canonical from the start: on Windows temp_dir() can be an 8.3 short path, and canonicalize
+    // returns \\?\C:\... — never compare canonical output with hand-built strings.
+    fn tmp() -> (TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(dir.path()).unwrap();
+        (dir, root)
+    }
+
+    fn touch(path: &Path, bytes: &[u8]) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(path, bytes).unwrap();
+    }
+
+    fn s(p: &Path) -> &str {
+        p.to_str().unwrap()
+    }
+
+    fn names(listing: &Listing) -> Vec<String> {
+        let mut n: Vec<String> = listing.entries.iter().map(|e| e.name.clone()).collect();
+        n.sort();
+        n
+    }
+
+    #[test]
+    fn grant_rejects_a_file() {
+        let (_d, root) = tmp();
+        let file = root.join("a.txt");
+        touch(&file, b"x");
+        let mut roots = Vec::new();
+        assert_eq!(grant(&mut roots, s(&file)), Err("not a folder".to_string()));
+        assert!(roots.is_empty());
+    }
+
+    #[test]
+    fn regrant_does_not_duplicate_even_via_another_spelling() {
+        let (_d, root) = tmp();
+        fs::create_dir(root.join("sub")).unwrap();
+        let mut roots = Vec::new();
+        assert_eq!(grant(&mut roots, s(&root)).unwrap(), root);
+        assert_eq!(grant(&mut roots, s(&root.join("sub").join(".."))).unwrap(), root);
+        assert_eq!(roots, vec![root]);
+    }
+
+    #[test]
+    fn root_and_its_descendants_are_granted() {
+        let (_d, root) = tmp();
+        let file = root.join("deep").join("a.txt");
+        touch(&file, b"x");
+        let roots = vec![root.clone()];
+        assert_eq!(resolve_granted(&roots, s(&root)).unwrap(), root);
+        assert_eq!(resolve_granted(&roots, s(&file)).unwrap(), file);
+    }
+
+    #[test]
+    fn dotdot_escape_is_rejected_after_canonicalisation() {
+        let (_d, base) = tmp();
+        let root = base.join("inner");
+        fs::create_dir(&root).unwrap();
+        touch(&base.join("secret.txt"), b"x");
+        // Built as a string from the plain (non-\\?\) form a folder picker returns: PathBuf::push
+        // collapses `..` on a \\?\ path, and Windows won't resolve `..` inside one at all. Textually
+        // this is under the root; only canonicalising before the check catches it.
+        let plain = s(&root).trim_start_matches(r"\\?\");
+        let raw = format!("{plain}{sep}..{sep}secret.txt", sep = std::path::MAIN_SEPARATOR);
+        assert_eq!(
+            resolve_granted(&[root], &raw),
+            Err("path is outside every granted folder".to_string())
+        );
+    }
+
+    #[test]
+    fn sibling_with_the_root_as_a_string_prefix_is_not_granted() {
+        let (_d, base) = tmp();
+        let root = base.join("lib");
+        let evil = base.join("lib-evil").join("a.txt");
+        fs::create_dir(&root).unwrap();
+        touch(&evil, b"x");
+        assert!(!is_granted(&[root.clone()], &evil));
+        assert!(resolve_granted(&[root], s(&evil)).is_err());
+    }
+
+    #[test]
+    fn a_path_that_does_not_exist_cannot_be_resolved() {
+        let (_d, root) = tmp();
+        let err = resolve_granted(&[root.clone()], s(&root.join("missing.txt"))).unwrap_err();
+        assert!(err.starts_with("cannot resolve path:"), "{err}");
+    }
+
+    #[test]
+    fn extension_filter_is_case_insensitive_and_ignores_the_dot() {
+        let (_d, root) = tmp();
+        touch(&root.join("a.MD"), b"x");
+        touch(&root.join("b.md"), b"x");
+        touch(&root.join("c.txt"), b"x");
+        touch(&root.join("noext"), b"x");
+        let listing = walk(&root, 100, &[".MD".to_string()]);
+        assert_eq!(names(&listing), vec!["a.MD", "b.md"]);
+        assert!(listing.entries.iter().all(|e| e.ext == "md"));
+        assert_eq!(names(&walk(&root, 100, &["md".to_string()])), vec!["a.MD", "b.md"]);
+        assert_eq!(walk(&root, 100, &[]).entries.len(), 4);
+    }
+
+    #[test]
+    fn truncated_only_when_a_match_is_left_over() {
+        let (_d, root) = tmp();
+        for n in ["a", "b", "c"] {
+            touch(&root.join(format!("{n}.txt")), b"x");
+        }
+        let exact = walk(&root, 3, &[]);
+        assert_eq!(exact.entries.len(), 3);
+        assert!(!exact.truncated);
+
+        touch(&root.join("d.txt"), b"x");
+        let over = walk(&root, 3, &[]);
+        assert_eq!(over.entries.len(), 3);
+        assert!(over.truncated);
+    }
+
+    #[test]
+    fn filtered_out_files_do_not_count_towards_the_cap() {
+        let (_d, root) = tmp();
+        touch(&root.join("a.md"), b"x");
+        touch(&root.join("b.txt"), b"x");
+        touch(&root.join("c.txt"), b"x");
+        let listing = walk(&root, 1, &["md".to_string()]);
+        assert_eq!(names(&listing), vec!["a.md"]);
+        assert!(!listing.truncated);
+    }
+
+    #[test]
+    fn max_zero_clamps_to_one() {
+        let (_d, root) = tmp();
+        touch(&root.join("a.txt"), b"x");
+        touch(&root.join("b.txt"), b"x");
+        let listing = walk(&root, 0, &[]);
+        assert_eq!(listing.entries.len(), 1);
+        assert!(listing.truncated);
+    }
+
+    #[test]
+    fn walk_is_breadth_first() {
+        let (_d, root) = tmp();
+        touch(&root.join("sub").join("nested.txt"), b"x");
+        touch(&root.join("top.txt"), b"x");
+        let listing = walk(&root, 1, &[]);
+        assert_eq!(names(&listing), vec!["top.txt"]);
+        assert!(listing.truncated);
+    }
+
+    #[test]
+    fn walk_reports_the_root_and_full_paths() {
+        let (_d, root) = tmp();
+        let file = root.join("sub").join("a.txt");
+        touch(&file, b"hello");
+        let listing = walk(&root, 10, &[]);
+        assert_eq!(listing.root, root.to_string_lossy());
+        assert_eq!(listing.entries.len(), 1);
+        assert_eq!(listing.entries[0].path, file.to_string_lossy());
+        assert_eq!(listing.entries[0].bytes, 5);
+        assert!(listing.skipped.is_empty());
+    }
+
+    #[test]
+    fn a_walk_start_that_cannot_be_read_is_skipped_not_fatal() {
+        let (_d, root) = tmp();
+        let gone = root.join("gone");
+        let listing = walk(&gone, 10, &[]);
+        assert!(listing.entries.is_empty());
+        assert_eq!(listing.skipped, vec![gone.to_string_lossy().into_owned()]);
+    }
+
+    #[test]
+    fn reads_a_file_under_the_cap() {
+        let (_d, root) = tmp();
+        let file = root.join("a.txt");
+        touch(&file, "héllo".as_bytes());
+        assert_eq!(read_text_capped(&file, 1024).unwrap(), "héllo");
+    }
+
+    #[test]
+    fn max_bytes_zero_clamps_to_one() {
+        let (_d, root) = tmp();
+        let one = root.join("one.txt");
+        let two = root.join("two.txt");
+        touch(&one, b"x");
+        touch(&two, b"xy");
+        assert_eq!(read_text_capped(&one, 0).unwrap(), "x");
+        assert_eq!(read_text_capped(&two, 0), Err("file is 2 bytes, over the 1 byte cap".to_string()));
+    }
+
+    #[test]
+    fn a_file_over_the_cap_is_refused() {
+        let (_d, root) = tmp();
+        let file = root.join("big.txt");
+        touch(&file, &[b'x'; 11]);
+        assert_eq!(read_text_capped(&file, 10), Err("file is 11 bytes, over the 10 byte cap".to_string()));
+        assert_eq!(read_text_capped(&file, 11).unwrap().len(), 11);
+    }
+
+    #[test]
+    fn invalid_utf8_is_replaced_not_an_error() {
+        let (_d, root) = tmp();
+        let file = root.join("bad.txt");
+        touch(&file, b"ok \xff\xfe end");
+        assert_eq!(read_text_capped(&file, 1024).unwrap(), "ok \u{FFFD}\u{FFFD} end");
+    }
+
+    #[test]
+    fn a_directory_is_not_a_file() {
+        let (_d, root) = tmp();
+        assert_eq!(read_text_capped(&root, 1024), Err("not a file".to_string()));
+    }
+
+    // Automates the HANDOFF verify step ("a 3.9 GB file must not crash"). set_len is sparse on
+    // Linux/macOS; on NTFS it reserves the space without writing it.
+    #[test]
+    fn a_4gb_file_is_refused_without_being_read() {
+        let (_d, root) = tmp();
+        let file = root.join("huge.bin");
+        File::create(&file).unwrap().set_len(4_000_000_000).unwrap();
+        assert_eq!(
+            read_text_capped(&file, 64 * 1024 * 1024),
+            Err("file is 4000000000 bytes, over the 67108864 byte cap".to_string())
+        );
+        // The cap is clamped too, so asking for more doesn't lift it.
+        assert!(read_text_capped(&file, usize::MAX).unwrap_err().contains("over the 67108864 byte cap"));
+    }
+
+    // A junction needs no Developer Mode, unlike a symlink, so it's what an ordinary Windows user
+    // can have in an archive.
+    #[cfg(windows)]
+    #[test]
+    fn a_junction_out_of_the_root_is_neither_walked_nor_readable() {
+        let (_d, base) = tmp();
+        let root = base.join("root");
+        let outside = base.join("outside");
+        touch(&root.join("mine.txt"), b"x");
+        touch(&outside.join("secret.txt"), b"x");
+        let link = root.join("inside");
+        let out = std::process::Command::new("cmd")
+            .args(["/c", "mklink", "/J"])
+            .arg(&link)
+            .arg(&outside)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stdout));
+
+        assert_eq!(names(&walk(&root, 100, &[])), vec!["mine.txt"]);
+        assert_eq!(
+            resolve_granted(&[root.clone()], s(&link.join("secret.txt"))),
+            Err("path is outside every granted folder".to_string())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_out_of_the_root_is_neither_walked_nor_readable() {
+        let (_d, base) = tmp();
+        let root = base.join("root");
+        let outside = base.join("outside");
+        touch(&root.join("mine.txt"), b"x");
+        touch(&outside.join("secret.txt"), b"x");
+        let link = root.join("inside");
+        std::os::unix::fs::symlink(&outside, &link).unwrap();
+
+        assert_eq!(names(&walk(&root, 100, &[])), vec!["mine.txt"]);
+        assert_eq!(
+            resolve_granted(&[root.clone()], s(&link.join("secret.txt"))),
+            Err("path is outside every granted folder".to_string())
+        );
+    }
+
+    // The canonical tempdir is already a \\?\ verbatim path, which is what lets std go past
+    // MAX_PATH. Everything corpus.rs touches after a grant is canonical, so this is the real case.
+    #[cfg(windows)]
+    #[test]
+    fn paths_over_260_chars_work_end_to_end() {
+        let (_d, base) = tmp();
+        let mut deep = base.clone();
+        while deep.as_os_str().len() <= 300 {
+            deep.push("a_fairly_long_directory_name_0123456789");
+        }
+        let file = deep.join("deep.txt");
+        touch(&file, b"deep");
+        assert!(s(&file).len() > 260);
+
+        let mut roots = Vec::new();
+        grant(&mut roots, s(&base)).unwrap();
+        let listing = walk(&base, 10, &[]);
+        assert_eq!(names(&listing), vec!["deep.txt"]);
+        let target = resolve_granted(&roots, &listing.entries[0].path).unwrap();
+        assert_eq!(read_text_capped(&target, 1024).unwrap(), "deep");
+    }
+}
