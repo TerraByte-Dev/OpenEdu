@@ -57,6 +57,10 @@ export interface ToolContext {
   // tool whose permission decision is "ask" and runs it only on `true`. Mirrors askUser; absent in
   // headless contexts (where "ask" then proceeds so eval tool goldens still exercise).
   confirmTool?: (toolName: string, summary: string) => Promise<boolean>;
+  // From detectModelProfile. `false` only on positive evidence the model's template has no tool
+  // support; then selectTools offers nothing and the turn runs as grounded chat instead of failing
+  // at the provider. Absent means true, which is what headless callers get (#127).
+  supportsTools?: boolean;
 }
 
 // Tools are generators so long-running work (web fetch, quiz authoring, notebook indexing)

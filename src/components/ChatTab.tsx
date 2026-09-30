@@ -21,6 +21,9 @@ const MathBlock = lazy(() => import("./MathBlock"));
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
 
+// Models already reported as tool-less this session, so the DEV notice prints once per model.
+const toolsSuppressedLogged = new Set<string>();
+
 interface ChatTabProps {
   courseId: string;
   course: Course;
@@ -229,7 +232,15 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // Domain skills (math-tutor/code-tutor) compose with TEACHING modes, but not with the focused
     // "assess" mastery-check — adding its render tools + pedagogy there destabilizes the 4B model's
     // tool selection (it stopped calling progress.mark_mastered). Keep assess to its Phase-2 tool set.
-    const domainSkill = activeSkill?.name === "assess" ? null : (resolveDomainSkill(course.topic, modelTier) ?? null);
+    // A model without tool support gets no domain skill either: its bundle orders tool calls ("you
+    // MUST call math.render") that the model can't make (#127).
+    const domainSkill = activeSkill?.name === "assess" || !profile.supportsTools
+      ? null
+      : (resolveDomainSkill(course.topic, modelTier) ?? null);
+    if (import.meta.env.DEV && !profile.supportsTools && !toolsSuppressedLogged.has(config.model)) {
+      toolsSuppressedLogged.add(config.model);
+      console.info(`[OpenEdu:tools] ${config.model} reports no tool support — offering no tools or domain skill, grounded chat only`);
+    }
     const skillSuffix = (skillBundleLayer(activeSkill) ?? "") + (skillBundleLayer(domainSkill) ?? "");
     // Phase 4b: the chosen persona (WHO) overrides only the identity slot; mode/domain stay as-is.
     const persona = resolvePersona(spriteId) ?? null;
@@ -278,6 +289,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       abort: controller.signal,
       activeSkill,
       domainSkill,
+      supportsTools: profile.supportsTools,
       askUser: (question, choices) =>
         new Promise<string>((resolve) => {
           askResolverRef.current = resolve;

@@ -581,8 +581,8 @@ export interface ModelProfile {
   // The model's own maximum context, in tokens. The app sends min(this, user setting) as num_ctx —
   // before this existed, nothing sent num_ctx at all and every turn silently ran at Ollama's default.
   contextTokens: number;
-  // Whether the model's template declares native tool support. Exposed and logged in Phase 0;
-  // branching on it (skip toolDefs, fall back to a text parser) is Phase 3 — see #86.
+  // Whether the model's template declares native tool support. `false` makes selectTools offer no
+  // tools (#127), so the turn runs as grounded chat. A text-level tool-call parser is still Phase 3.
   supportsTools: boolean;
 }
 
