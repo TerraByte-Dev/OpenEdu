@@ -23,6 +23,8 @@ tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 quick-xml = "0.38"
+zip = { version = "4", default-features = false, features = ["deflate-flate2"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 
 [dev-dependencies]
 tempfile = "3"
