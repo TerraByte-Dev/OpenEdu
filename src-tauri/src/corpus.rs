@@ -18,9 +18,11 @@ use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use tauri::State;
+use tauri::ipc::JavaScriptChannelId;
+use tauri::{State, Webview};
 
 /// Roots the user picked this session. Not persisted — a restart re-asks, which is the safe default.
 #[derive(Default)]
@@ -46,6 +48,18 @@ pub struct Listing {
     /// Directories that could not be read (permissions, a disconnected drive). Reported, not fatal:
     /// one unreadable folder must never abort a walk over an archive.
     pub skipped: Vec<String>,
+}
+
+/// Where a walk has got to. Sent to the UI while `corpus_list` runs, throttled by `Throttle`.
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WalkProgress {
+    /// Directories visited so far, including ones that could not be read.
+    pub dirs_scanned: usize,
+    pub files_matched: usize,
+    pub current_dir: String,
+    /// The last message of a walk. Its counts match the returned listing.
+    pub done: bool,
 }
 
 fn canonical(p: &str) -> Result<PathBuf, String> {
@@ -87,7 +101,15 @@ pub(crate) fn grant(roots: &mut Vec<PathBuf>, raw: &str) -> Result<PathBuf, Stri
 /// walk still returns something representative rather than the deepest corner of one subtree.
 /// Symlinked directories are not followed — that is how a walk over a real archive ends up in a
 /// cycle, or silently outside the root.
-pub(crate) fn walk(start: &Path, max: usize, exts: &[String]) -> Listing {
+///
+/// `on_progress` runs after every directory and once more with `done` set. Throttling is the
+/// caller's job, so the walk itself stays free of clocks.
+pub(crate) fn walk(
+    start: &Path,
+    max: usize,
+    exts: &[String],
+    mut on_progress: impl FnMut(&WalkProgress),
+) -> Listing {
     let want: Vec<String> = exts.iter().map(|e| e.trim_start_matches('.').to_lowercase()).collect();
     let cap = max.clamp(1, 200_000);
 
@@ -95,12 +117,17 @@ pub(crate) fn walk(start: &Path, max: usize, exts: &[String]) -> Listing {
     let mut skipped = Vec::new();
     let mut queue = VecDeque::from([start.to_path_buf()]);
     let mut truncated = false;
+    let mut progress =
+        WalkProgress { dirs_scanned: 0, files_matched: 0, current_dir: String::new(), done: false };
 
     while let Some(dir) = queue.pop_front() {
+        progress.dirs_scanned += 1;
+        progress.current_dir = dir.to_string_lossy().into_owned();
         let read = match fs::read_dir(&dir) {
             Ok(r) => r,
             Err(_) => {
-                skipped.push(dir.to_string_lossy().into_owned());
+                skipped.push(progress.current_dir.clone());
+                on_progress(&progress);
                 continue;
             }
         };
@@ -135,13 +162,47 @@ pub(crate) fn walk(start: &Path, max: usize, exts: &[String]) -> Listing {
                 bytes: meta.len(),
             });
         }
+        progress.files_matched = entries.len();
         if truncated {
             break;
         }
+        on_progress(&progress);
     }
 
+    progress.done = true;
+    on_progress(&progress);
     Listing { root: start.to_string_lossy().into_owned(), entries, truncated, skipped }
 }
+
+/// Decides which progress messages are worth sending: one every `every_dirs` directories or every
+/// `interval`, whichever comes first, and always the final one. A 100k-file walk is then hundreds
+/// of IPC messages, not 100k.
+pub(crate) struct Throttle {
+    every_dirs: usize,
+    interval: Duration,
+    sent_dirs: usize,
+    sent_at: Instant,
+}
+
+impl Throttle {
+    pub(crate) fn new(every_dirs: usize, interval: Duration, now: Instant) -> Self {
+        Throttle { every_dirs, interval, sent_dirs: 0, sent_at: now }
+    }
+
+    pub(crate) fn due(&mut self, p: &WalkProgress, now: Instant) -> bool {
+        let due = p.done
+            || p.dirs_scanned - self.sent_dirs >= self.every_dirs
+            || now.duration_since(self.sent_at) >= self.interval;
+        if due {
+            self.sent_dirs = p.dirs_scanned;
+            self.sent_at = now;
+        }
+        due
+    }
+}
+
+const PROGRESS_EVERY_DIRS: usize = 64;
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Read an already-granted, canonical text file, capped.
 ///
@@ -189,17 +250,33 @@ async fn off_main_thread<T: Send + 'static>(
 }
 
 /// Breadth-first walk under a granted root. See `walk`.
+///
+/// `on_progress` is a JS `Channel`, optional. It arrives as a `JavaScriptChannelId` rather than a
+/// `Channel` because `Option<Channel>` is not a valid command argument in tauri 2.10: `Channel` has
+/// a custom `CommandArg` impl but no `Deserialize`. `webview` is injected by Tauri, not sent by JS.
 #[tauri::command]
 pub async fn corpus_list(
     root: String,
     max: usize,
     exts: Vec<String>,
+    on_progress: Option<JavaScriptChannelId>,
+    webview: Webview,
     state: State<'_, Granted>,
 ) -> Result<Listing, String> {
     let roots = granted_roots(&state)?;
+    let channel = on_progress.map(|id| id.channel_on::<_, WalkProgress>(webview));
     off_main_thread(move || {
         let start = resolve_granted(&roots, &root)?;
-        Ok(walk(&start, max, &exts))
+        let Some(channel) = channel else {
+            return Ok(walk(&start, max, &exts, |_| {}));
+        };
+        let mut throttle = Throttle::new(PROGRESS_EVERY_DIRS, PROGRESS_INTERVAL, Instant::now());
+        Ok(walk(&start, max, &exts, |p| {
+            if throttle.due(p, Instant::now()) {
+                // A closed webview can't be told anything; the listing still comes back.
+                let _ = channel.send(p.clone());
+            }
+        }))
     })
     .await
 }
@@ -325,11 +402,11 @@ mod tests {
         touch(&root.join("b.md"), b"x");
         touch(&root.join("c.txt"), b"x");
         touch(&root.join("noext"), b"x");
-        let listing = walk(&root, 100, &[".MD".to_string()]);
+        let listing = walk(&root, 100, &[".MD".to_string()], |_| {});
         assert_eq!(names(&listing), vec!["a.MD", "b.md"]);
         assert!(listing.entries.iter().all(|e| e.ext == "md"));
-        assert_eq!(names(&walk(&root, 100, &["md".to_string()])), vec!["a.MD", "b.md"]);
-        assert_eq!(walk(&root, 100, &[]).entries.len(), 4);
+        assert_eq!(names(&walk(&root, 100, &["md".to_string()], |_| {})), vec!["a.MD", "b.md"]);
+        assert_eq!(walk(&root, 100, &[], |_| {}).entries.len(), 4);
     }
 
     #[test]
@@ -338,12 +415,12 @@ mod tests {
         for n in ["a", "b", "c"] {
             touch(&root.join(format!("{n}.txt")), b"x");
         }
-        let exact = walk(&root, 3, &[]);
+        let exact = walk(&root, 3, &[], |_| {});
         assert_eq!(exact.entries.len(), 3);
         assert!(!exact.truncated);
 
         touch(&root.join("d.txt"), b"x");
-        let over = walk(&root, 3, &[]);
+        let over = walk(&root, 3, &[], |_| {});
         assert_eq!(over.entries.len(), 3);
         assert!(over.truncated);
     }
@@ -354,7 +431,7 @@ mod tests {
         touch(&root.join("a.md"), b"x");
         touch(&root.join("b.txt"), b"x");
         touch(&root.join("c.txt"), b"x");
-        let listing = walk(&root, 1, &["md".to_string()]);
+        let listing = walk(&root, 1, &["md".to_string()], |_| {});
         assert_eq!(names(&listing), vec!["a.md"]);
         assert!(!listing.truncated);
     }
@@ -364,7 +441,7 @@ mod tests {
         let (_d, root) = tmp();
         touch(&root.join("a.txt"), b"x");
         touch(&root.join("b.txt"), b"x");
-        let listing = walk(&root, 0, &[]);
+        let listing = walk(&root, 0, &[], |_| {});
         assert_eq!(listing.entries.len(), 1);
         assert!(listing.truncated);
     }
@@ -374,7 +451,7 @@ mod tests {
         let (_d, root) = tmp();
         touch(&root.join("sub").join("nested.txt"), b"x");
         touch(&root.join("top.txt"), b"x");
-        let listing = walk(&root, 1, &[]);
+        let listing = walk(&root, 1, &[], |_| {});
         assert_eq!(names(&listing), vec!["top.txt"]);
         assert!(listing.truncated);
     }
@@ -384,7 +461,7 @@ mod tests {
         let (_d, root) = tmp();
         let file = root.join("sub").join("a.txt");
         touch(&file, b"hello");
-        let listing = walk(&root, 10, &[]);
+        let listing = walk(&root, 10, &[], |_| {});
         assert_eq!(listing.root, root.to_string_lossy());
         assert_eq!(listing.entries.len(), 1);
         assert_eq!(listing.entries[0].path, file.to_string_lossy());
@@ -396,7 +473,7 @@ mod tests {
     fn a_walk_start_that_cannot_be_read_is_skipped_not_fatal() {
         let (_d, root) = tmp();
         let gone = root.join("gone");
-        let listing = walk(&gone, 10, &[]);
+        let listing = walk(&gone, 10, &[], |_| {});
         assert!(listing.entries.is_empty());
         assert_eq!(listing.skipped, vec![gone.to_string_lossy().into_owned()]);
     }
@@ -441,6 +518,105 @@ mod tests {
     fn a_directory_is_not_a_file() {
         let (_d, root) = tmp();
         assert_eq!(read_text_capped(&root, 1024), Err("not a file".to_string()));
+    }
+
+    // ~50 directories and ~500 files, as the issue asks: 10 top-level dirs with 4 subdirs each.
+    fn archive() -> (TempDir, PathBuf) {
+        let (d, root) = tmp();
+        for a in 0..10 {
+            touch(&root.join(format!("d{a}")).join("top.txt"), b"x");
+            for b in 0..4 {
+                for f in 0..12 {
+                    touch(&root.join(format!("d{a}")).join(format!("s{b}")).join(format!("f{f}.txt")), b"x");
+                }
+            }
+        }
+        (d, root)
+    }
+
+    fn listed(l: &Listing) -> (Vec<String>, bool, Vec<String>) {
+        (l.entries.iter().map(|e| e.path.clone()).collect(), l.truncated, l.skipped.clone())
+    }
+
+    #[test]
+    fn progress_does_not_change_the_listing() {
+        let (_d, root) = archive();
+        let mut calls = 0;
+        let with = walk(&root, 1000, &[], |_| calls += 1);
+        assert_eq!(listed(&with), listed(&walk(&root, 1000, &[], |_| {})));
+        assert_eq!(with.entries.len(), 490);
+        assert!(calls > 1);
+    }
+
+    #[test]
+    fn progress_is_monotonic_and_ends_on_the_listing_counts() {
+        let (_d, root) = archive();
+        let mut seen: Vec<WalkProgress> = Vec::new();
+        let listing = walk(&root, 1000, &[], |p| seen.push(p.clone()));
+        for pair in seen.windows(2) {
+            assert!(pair[1].dirs_scanned >= pair[0].dirs_scanned);
+            assert!(pair[1].files_matched >= pair[0].files_matched);
+        }
+        let last = seen.last().unwrap();
+        assert!(last.done);
+        assert_eq!(seen.iter().filter(|p| p.done).count(), 1);
+        assert_eq!(last.files_matched, listing.entries.len());
+        assert_eq!(last.dirs_scanned, 1 + 10 + 40);
+        // One message per directory, plus the final one.
+        assert_eq!(seen.len(), 51 + 1);
+    }
+
+    #[test]
+    fn a_truncated_walk_still_ends_with_done_on_the_listing_counts() {
+        let (_d, root) = archive();
+        let mut last = None;
+        let listing = walk(&root, 100, &[], |p| last = Some(p.clone()));
+        let last = last.unwrap();
+        assert!(listing.truncated && last.done);
+        assert_eq!(last.files_matched, 100);
+    }
+
+    #[test]
+    fn skipped_directories_count_as_scanned() {
+        let (_d, root) = tmp();
+        let mut seen = Vec::new();
+        walk(&root.join("gone"), 10, &[], |p| seen.push((p.dirs_scanned, p.done)));
+        assert_eq!(seen, vec![(1, false), (1, true)]);
+    }
+
+    fn progress(dirs: usize, done: bool) -> WalkProgress {
+        WalkProgress { dirs_scanned: dirs, files_matched: dirs * 10, current_dir: String::new(), done }
+    }
+
+    #[test]
+    fn throttle_sends_every_n_dirs_when_the_walk_is_fast() {
+        let t0 = Instant::now();
+        let mut t = Throttle::new(64, Duration::from_millis(100), t0);
+        // 10k directories of 10 files each, a 100k-file walk, with no time passing at all.
+        let sent = (1..=10_000).filter(|&d| t.due(&progress(d, false), t0)).count();
+        assert_eq!(sent, 10_000 / 64);
+        assert!(t.due(&progress(10_000, true), t0), "the final message is never throttled");
+    }
+
+    #[test]
+    fn throttle_sends_on_the_interval_when_the_walk_is_slow() {
+        let t0 = Instant::now();
+        let mut t = Throttle::new(64, Duration::from_millis(100), t0);
+        assert!(!t.due(&progress(1, false), t0 + Duration::from_millis(99)));
+        assert!(t.due(&progress(2, false), t0 + Duration::from_millis(100)));
+        assert!(!t.due(&progress(3, false), t0 + Duration::from_millis(150)));
+        assert!(t.due(&progress(4, false), t0 + Duration::from_millis(200)));
+    }
+
+    // Both limits at once: a 100k-file walk taking 20 s sends hundreds of messages, not 100k.
+    #[test]
+    fn throttle_keeps_a_100k_file_walk_to_hundreds_of_messages() {
+        let t0 = Instant::now();
+        let mut t = Throttle::new(64, Duration::from_millis(100), t0);
+        let sent = (1..=10_000usize)
+            .filter(|&d| t.due(&progress(d, false), t0 + Duration::from_millis(2 * d as u64)))
+            .count();
+        assert!((100..1000).contains(&sent), "{sent}");
     }
 
     // Automates the HANDOFF verify step ("a 3.9 GB file must not crash"). set_len is sparse on
@@ -489,7 +665,7 @@ mod tests {
             .unwrap();
         assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stdout));
 
-        assert_eq!(names(&walk(&root, 100, &[])), vec!["mine.txt"]);
+        assert_eq!(names(&walk(&root, 100, &[], |_| {})), vec!["mine.txt"]);
         assert_eq!(
             resolve_granted(&[root.clone()], s(&link.join("secret.txt"))),
             Err("path is outside every granted folder".to_string())
@@ -507,7 +683,7 @@ mod tests {
         let link = root.join("inside");
         std::os::unix::fs::symlink(&outside, &link).unwrap();
 
-        assert_eq!(names(&walk(&root, 100, &[])), vec!["mine.txt"]);
+        assert_eq!(names(&walk(&root, 100, &[], |_| {})), vec!["mine.txt"]);
         assert_eq!(
             resolve_granted(&[root.clone()], s(&link.join("secret.txt"))),
             Err("path is outside every granted folder".to_string())
@@ -530,7 +706,7 @@ mod tests {
 
         let mut roots = Vec::new();
         grant(&mut roots, s(&base)).unwrap();
-        let listing = walk(&base, 10, &[]);
+        let listing = walk(&base, 10, &[], |_| {});
         assert_eq!(names(&listing), vec!["deep.txt"]);
         let target = resolve_granted(&roots, &listing.entries[0].path).unwrap();
         assert_eq!(read_text_capped(&target, 1024).unwrap(), "deep");
