@@ -52,58 +52,48 @@ fn canonical(p: &str) -> Result<PathBuf, String> {
     fs::canonicalize(p).map_err(|e| format!("cannot resolve path: {e}"))
 }
 
+// The pure halves below take plain data rather than `tauri::State`, so they can be tested without a
+// running app. The commands lock the grant list, copy what they need and delegate.
+
 /// A canonicalised target must be the granted root or live beneath it.
-fn ensure_granted(state: &State<Granted>, target: &Path) -> Result<(), String> {
-    let roots = state.0.lock().map_err(|_| "grant list poisoned".to_string())?;
-    if roots.iter().any(|r| target == r || target.starts_with(r)) {
-        Ok(())
+pub(crate) fn is_granted(roots: &[PathBuf], target: &Path) -> bool {
+    roots.iter().any(|r| target == r || target.starts_with(r))
+}
+
+/// Canonicalise first, then check: the order is what stops `..` and symlinks from escaping a root.
+pub(crate) fn resolve_granted(roots: &[PathBuf], raw: &str) -> Result<PathBuf, String> {
+    let target = canonical(raw)?;
+    if is_granted(roots, &target) {
+        Ok(target)
     } else {
         Err("path is outside every granted folder".into())
     }
 }
 
-/// Trust a folder for this session. The UI calls this with whatever the folder picker returned.
-#[tauri::command]
-pub fn corpus_grant(path: String, state: State<Granted>) -> Result<String, String> {
-    let root = canonical(&path)?;
+pub(crate) fn grant(roots: &mut Vec<PathBuf>, raw: &str) -> Result<PathBuf, String> {
+    let root = canonical(raw)?;
     if !root.is_dir() {
         return Err("not a folder".into());
     }
-    let mut roots = state.0.lock().map_err(|_| "grant list poisoned".to_string())?;
     if !roots.contains(&root) {
         roots.push(root.clone());
     }
-    Ok(root.to_string_lossy().into_owned())
+    Ok(root)
 }
 
-#[tauri::command]
-pub fn corpus_granted(state: State<Granted>) -> Result<Vec<String>, String> {
-    let roots = state.0.lock().map_err(|_| "grant list poisoned".to_string())?;
-    Ok(roots.iter().map(|r| r.to_string_lossy().into_owned()).collect())
-}
-
-/// Breadth-first walk under a granted root.
+/// Breadth-first walk from an already-granted, canonical `start`.
 ///
 /// Breadth-first on purpose: an archive's useful files are usually near the top, so a truncated
 /// walk still returns something representative rather than the deepest corner of one subtree.
 /// Symlinked directories are not followed — that is how a walk over a real archive ends up in a
 /// cycle, or silently outside the root.
-#[tauri::command]
-pub fn corpus_list(
-    root: String,
-    max: usize,
-    exts: Vec<String>,
-    state: State<Granted>,
-) -> Result<Listing, String> {
-    let start = canonical(&root)?;
-    ensure_granted(&state, &start)?;
-
+pub(crate) fn walk(start: &Path, max: usize, exts: &[String]) -> Listing {
     let want: Vec<String> = exts.iter().map(|e| e.trim_start_matches('.').to_lowercase()).collect();
     let cap = max.clamp(1, 200_000);
 
     let mut entries = Vec::new();
     let mut skipped = Vec::new();
-    let mut queue = VecDeque::from([start.clone()]);
+    let mut queue = VecDeque::from([start.to_path_buf()]);
     let mut truncated = false;
 
     while let Some(dir) = queue.pop_front() {
@@ -150,20 +140,16 @@ pub fn corpus_list(
         }
     }
 
-    Ok(Listing { root: start.to_string_lossy().into_owned(), entries, truncated, skipped })
+    Listing { root: start.to_string_lossy().into_owned(), entries, truncated, skipped }
 }
 
-/// Read a text file under a granted root, capped.
+/// Read an already-granted, canonical text file, capped.
 ///
 /// The cap is not politeness — a 3.9 GB PDF read into a String would take the process down, and an
 /// archive contains files like that. Invalid UTF-8 is replaced rather than erroring, because a
 /// single bad byte in one file must not fail an import of thousands.
-#[tauri::command]
-pub fn corpus_read_text(path: String, max_bytes: usize, state: State<Granted>) -> Result<String, String> {
-    let target = canonical(&path)?;
-    ensure_granted(&state, &target)?;
-
-    let meta = fs::metadata(&target).map_err(|e| format!("cannot stat file: {e}"))?;
+pub(crate) fn read_text_capped(target: &Path, max_bytes: usize) -> Result<String, String> {
+    let meta = fs::metadata(target).map_err(|e| format!("cannot stat file: {e}"))?;
     if !meta.is_file() {
         return Err("not a file".into());
     }
@@ -171,6 +157,42 @@ pub fn corpus_read_text(path: String, max_bytes: usize, state: State<Granted>) -
     if meta.len() > cap {
         return Err(format!("file is {} bytes, over the {} byte cap", meta.len(), cap));
     }
-    let bytes = fs::read(&target).map_err(|e| format!("cannot read file: {e}"))?;
+    let bytes = fs::read(target).map_err(|e| format!("cannot read file: {e}"))?;
     Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+fn granted_roots(state: &State<Granted>) -> Result<Vec<PathBuf>, String> {
+    state.0.lock().map(|r| r.clone()).map_err(|_| "grant list poisoned".to_string())
+}
+
+/// Trust a folder for this session. The UI calls this with whatever the folder picker returned.
+#[tauri::command]
+pub fn corpus_grant(path: String, state: State<Granted>) -> Result<String, String> {
+    let mut roots = state.0.lock().map_err(|_| "grant list poisoned".to_string())?;
+    grant(&mut roots, &path).map(|r| r.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn corpus_granted(state: State<Granted>) -> Result<Vec<String>, String> {
+    let roots = state.0.lock().map_err(|_| "grant list poisoned".to_string())?;
+    Ok(roots.iter().map(|r| r.to_string_lossy().into_owned()).collect())
+}
+
+/// Breadth-first walk under a granted root. See `walk`.
+#[tauri::command]
+pub fn corpus_list(
+    root: String,
+    max: usize,
+    exts: Vec<String>,
+    state: State<Granted>,
+) -> Result<Listing, String> {
+    let start = resolve_granted(&granted_roots(&state)?, &root)?;
+    Ok(walk(&start, max, &exts))
+}
+
+/// Read a text file under a granted root, capped. See `read_text_capped`.
+#[tauri::command]
+pub fn corpus_read_text(path: String, max_bytes: usize, state: State<Granted>) -> Result<String, String> {
+    let target = resolve_granted(&granted_roots(&state)?, &path)?;
+    read_text_capped(&target, max_bytes)
 }
