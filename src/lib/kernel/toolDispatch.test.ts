@@ -217,8 +217,12 @@ describe("dispatchToolCall", () => {
   });
 
   it("proceeds on an ask when there is no confirmTool (headless)", async () => {
-    const { result } = await run("t.write", {});
-    expect(result.ok).toBe(true);
+    const { result, events } = await run("t.write", {});
+    expect(result).toEqual({ name: "t.write", ok: true, value: "written", modelText: undefined });
+    expect(events).toEqual([
+      { kind: "start", id: "call-1", name: "t.write" },
+      { kind: "result", id: "call-1", name: "t.write", value: "written" },
+    ]);
   });
 
   it("never reports success for a generator that yielded no result (#86)", async () => {
@@ -258,8 +262,12 @@ describe("dispatchToolCall", () => {
   });
 
   it("uses toModelText for the model and keeps the full value for the UI", async () => {
-    const { result } = await run("t.prose", {});
+    const { result, events } = await run("t.prose", {});
     expect(result).toEqual({ name: "t.prose", ok: true, value: { hits: 3 }, modelText: "3 hits" });
+    expect(events).toEqual([
+      { kind: "start", id: "call-1", name: "t.prose" },
+      { kind: "result", id: "call-1", name: "t.prose", value: { hits: 3 } },
+    ]);
   });
 });
 
