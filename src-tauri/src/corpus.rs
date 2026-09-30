@@ -244,7 +244,11 @@ mod tests {
         fs::create_dir(root.join("sub")).unwrap();
         let mut roots = Vec::new();
         assert_eq!(grant(&mut roots, s(&root)).unwrap(), root);
-        assert_eq!(grant(&mut roots, s(&root.join("sub").join(".."))).unwrap(), root);
+        // Plain form, built as a string: `root.join("sub").join("..")` collapses back to the
+        // identical \\?\ path on Windows, so it would pass even without canonicalisation.
+        let plain = s(&root).trim_start_matches(r"\\?\");
+        let raw = format!("{plain}{sep}sub{sep}..", sep = std::path::MAIN_SEPARATOR);
+        assert_eq!(grant(&mut roots, &raw).unwrap(), root);
         assert_eq!(roots, vec![root]);
     }
 
@@ -264,15 +268,22 @@ mod tests {
         let root = base.join("inner");
         fs::create_dir(&root).unwrap();
         touch(&base.join("secret.txt"), b"x");
+        touch(&root.join("ok.txt"), b"x");
         // Built as a string from the plain (non-\\?\) form a folder picker returns: PathBuf::push
-        // collapses `..` on a \\?\ path, and Windows won't resolve `..` inside one at all. Textually
-        // this is under the root; only canonicalising before the check catches it.
+        // collapses `..` on a \\?\ path, and Windows won't resolve `..` inside one at all. On unix
+        // this is textually under the root, so only canonicalising before the check catches it. On
+        // Windows a plain path never starts with the \\?\ root, so the rejection alone proves
+        // nothing there; the plain-form positive case below and the junction test guard the order.
         let plain = s(&root).trim_start_matches(r"\\?\");
-        let raw = format!("{plain}{sep}..{sep}secret.txt", sep = std::path::MAIN_SEPARATOR);
+        let sep = std::path::MAIN_SEPARATOR;
+        let raw = format!("{plain}{sep}..{sep}secret.txt");
+        #[cfg(unix)]
+        assert!(Path::new(&raw).starts_with(&root));
         assert_eq!(
-            resolve_granted(&[root], &raw),
+            resolve_granted(&[root.clone()], &raw),
             Err("path is outside every granted folder".to_string())
         );
+        assert_eq!(resolve_granted(&[root.clone()], &format!("{plain}{sep}ok.txt")), Ok(root.join("ok.txt")));
     }
 
     #[test]
@@ -425,6 +436,18 @@ mod tests {
         let (_d, root) = tmp();
         let file = root.join("huge.bin");
         File::create(&file).unwrap().set_len(4_000_000_000).unwrap();
+        // Lock the file so any read before the size check fails with "cannot read file" instead of
+        // passing. (A no-op on unix when the tests run as root.)
+        #[cfg(windows)]
+        let _lock = {
+            use std::os::windows::fs::OpenOptionsExt;
+            fs::OpenOptions::new().read(true).share_mode(0).open(&file).unwrap()
+        };
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&file, fs::Permissions::from_mode(0o000)).unwrap();
+        }
         assert_eq!(
             read_text_capped(&file, 64 * 1024 * 1024),
             Err("file is 4000000000 bytes, over the 67108864 byte cap".to_string())
