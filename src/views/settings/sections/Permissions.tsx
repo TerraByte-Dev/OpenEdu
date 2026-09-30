@@ -19,6 +19,7 @@ const TOOL_LABELS: Record<string, string> = {
   "flashcard.review_due": "Review due flashcards",
   "quiz.generate": "Generate a quiz",
   "math.render": "Render math",
+  "math.calculate": "Calculate",
   "diagram.render": "Render a diagram",
   "knowledge.update_map": "Update knowledge map",
   "progress.mark_mastered": "Mark a topic mastered",

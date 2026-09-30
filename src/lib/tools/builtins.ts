@@ -8,6 +8,7 @@ import { questionTool } from "./ask_user/QuestionTool";
 import { searchTool } from "./notebook/SearchTool";
 import { ingestTool } from "./notebook/IngestTool";
 import { mathRenderTool } from "./math/RenderTool";
+import { mathCalculateTool } from "./math/CalculateTool";
 import { diagramRenderTool } from "./diagram/RenderTool";
 import { librarySearchTool } from "./library/SearchTool";
 import { libraryLookupTool } from "./library/LookupTool";
@@ -25,6 +26,7 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(searchTool);
   toolRegistry.register(ingestTool);
   toolRegistry.register(mathRenderTool);
+  toolRegistry.register(mathCalculateTool);
   toolRegistry.register(diagramRenderTool);
   toolRegistry.register(librarySearchTool);
   toolRegistry.register(libraryLookupTool);

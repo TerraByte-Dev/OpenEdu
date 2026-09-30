@@ -14,9 +14,14 @@ const tool = (name: string, isReadOnly = false) => ({ name, isReadOnly });
 
 describe("exam-mode permission integrity", () => {
   it("denies the model-help tools during an exam", () => {
-    for (const name of ["quiz.generate", "math.render", "diagram.render", "web.search", "web.fetch", "notebook.ingest", "flashcard.create"]) {
+    for (const name of ["quiz.generate", "math.render", "math.calculate", "diagram.render", "web.search", "web.fetch", "notebook.ingest", "flashcard.create"]) {
       expect(evaluatePermission(tool(name), "exam", DEFAULT_PERMISSION_RULES)).toBe("deny");
     }
+  });
+
+  it("denies math.calculate by its own row, not the read-only fallback", () => {
+    // Read-only tools with no rule fall back to "allow", so this proves the exam row exists.
+    expect(evaluatePermission(tool("math.calculate", true), "exam", DEFAULT_PERMISSION_RULES)).toBe("deny");
   });
 
   it("still allows passive reads during an exam", () => {
