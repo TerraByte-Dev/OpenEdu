@@ -104,7 +104,7 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
         config,
         abort: new AbortController().signal,
         // The active skill gates which tools are offered this turn (Phase 2) — assess exposes
-        // progress.mark_mastered; explain exposes none.
+        // progress.mark_mastered; explain exposes only read tools.
         activeSkill: modeSkill,
         domainSkill,
         // No askUser in the headless eval — ask_user.question would return an error the model recovers

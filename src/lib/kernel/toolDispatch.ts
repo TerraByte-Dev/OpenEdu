@@ -46,9 +46,10 @@ export function buildProviderToolDefs(tools: EduTool[]): ProviderToolDef[] {
 //   isEnabled (registry) → permission "deny" filter → skill tools_required filter.
 // Tools are gated to the UNION of the active mode skill's and the domain skill's tools_required
 // (Phase 4a's orthogonal axes) — e.g. plain "Explain" on a math course exposes notebook.search
-// (mode) ∪ math.render/diagram.render (domain). "Explain" alone (tools_required: []) still offers no
-// action tools, curbing the floor model's stray calls. Neither skill set → all permitted tools
-// (defensive back-compat; ChatTab + eval always set at least the mode skill).
+// (mode) ∪ math.render/diagram.render (domain). "Explain" alone offers only its three read tools
+// (notebook.search, library.search, library.lookup) and no action tools, curbing the floor model's
+// stray calls. Neither skill set → all permitted tools (defensive back-compat; ChatTab + eval always
+// set at least the mode skill).
 export async function selectTools(ctx: ToolContext): Promise<EduTool[]> {
   const enabled = await toolRegistry.list(ctx);
   const rules = await loadPermissionRules();
@@ -61,14 +62,25 @@ export async function selectTools(ctx: ToolContext): Promise<EduTool[]> {
   return permitted.filter((t) => allowed.has(t.name));
 }
 
+// `offered` is the set selectTools returned for this turn. Selection alone only decides what the
+// model is SHOWN; a small model still emits names it was never offered, so dispatch refuses them
+// here, before argument validation and before the tool runs. Errors then list only the offered
+// names, never the tools the turn gated away. Headless callers that omit it keep the old behaviour.
 export async function dispatchToolCall(
   call: { id: string; name: string; args: unknown },
   ctx: ToolContext,
   onUIEvent?: (ev: ToolUIEvent) => void,
+  offered?: ReadonlySet<string>,
 ): Promise<ToolDispatchResult> {
+  const available = (offered ? [...offered] : toolRegistry.all().map((t) => t.name)).join(", ") || "(none)";
   const tool = toolRegistry.get(call.name);
   if (!tool) {
-    const error = `Unknown tool "${call.name}". Available tools: ${toolRegistry.all().map((t) => t.name).join(", ") || "(none)"}.`;
+    const error = `Unknown tool "${call.name}". Available tools: ${available}.`;
+    onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });
+    return { name: call.name, ok: false, error };
+  }
+  if (offered && !offered.has(call.name)) {
+    const error = `"${call.name}" is not available this turn. Available: ${available}.`;
     onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });
     return { name: call.name, ok: false, error };
   }
