@@ -47,4 +47,3 @@ export function resolveDomainSkill(topic: string, tier: ModelTier): Skill | unde
   const candidates = skillRegistry.all().filter((s) => !s.name.startsWith("sprite-persona-"));
   return matchSkillsForCourse({ topic }, candidates, tier)[0];
 }
-

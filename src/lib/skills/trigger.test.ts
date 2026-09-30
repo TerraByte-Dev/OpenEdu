@@ -47,6 +47,11 @@ describe("domain skill routing (word-boundary matching)", () => {
     ["Computer Science 101", "code-tutor"],
     ["Musical Theatre", "music-tutor"],
     ["Beginner Guitars", "music-tutor"],
+    ["Orchestral Arrangement", "music-tutor"],
+    ["Rhythmic Training", "music-tutor"],
+
+    // Multiple domains match → first registered skill wins
+    ["Music Programming", "code-tutor"],
 
     // Unrouted general/language/science topics
     ["Beginner Spanish", undefined],
