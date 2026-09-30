@@ -75,6 +75,7 @@ export class TutorEngine {
     const toolResultCap = Math.floor(budget.grounding * TOOL_RESULT_BUDGET_FRACTION);
 
     const eduTools = await selectTools(ctx);
+    const offered = new Set(eduTools.map((t) => t.name));
     const toolDefs = eduTools.length ? buildProviderToolDefs(eduTools) : undefined;
 
     // Append the <tools> manifest to the system message so it matches the tools actually
@@ -171,7 +172,7 @@ ${lastUser.content}` };
       for (const call of pendingCalls) {
         if (ctx.abort.aborted) { interrupted = "aborted"; break; }
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
-        const result = await dispatchToolCall(call, ctx, turn.onToolEvent);
+        const result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
         toolCalls.push({ name: call.name, args: call.args, ok: result.ok });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         // Cap what goes back into context. The model sees a visible truncation marker rather than a

@@ -182,9 +182,10 @@ export const GOLDENS: Golden[] = [
     topic: "Python Programming",
     useTools: true,
     syllabus: evalToolSyllabus(),
-    // Same tempting prompt as the assess golden, but under the default "explain" skill
-    // (tools_required: []). Proves gating's negative half: with no tools offered, the model cannot
-    // call an action tool — even when the user explicitly asks it to record mastery.
+    // Same tempting prompt as the assess golden, but under the default "explain" skill, which
+    // offers only read tools (notebook.search, library.search, library.lookup). Proves gating's
+    // negative half: with no action tool offered, the model cannot call one — even when the user
+    // explicitly asks it to record mastery.
     turns: [{
       user: "I fully understand list comprehensions now — they completely click for me. Please record that I've mastered this subtopic.",
       mode: "explain",
