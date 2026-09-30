@@ -77,7 +77,7 @@ describe("calculate", () => {
 
   it("normalizes the expression and formats the display", () => {
     expect(calculate(" 12 * 5 / 1.5 ")).toEqual({ ok: true, value: 40, normalized: "12*5/1.5", display: "40" });
-    expect(calculate("SQRT( 2 )")).toMatchObject({ normalized: "sqrt(2)", display: "1.414213562" });
+    expect(calculate("SQRT( 2 )")).toMatchObject({ normalized: "sqrt(2)", display: "1.4142135623731" });
     expect(calculate("0.1 + 0.2")).toMatchObject({ value: 0.1 + 0.2, display: "0.3" });
   });
 });
@@ -85,9 +85,11 @@ describe("calculate", () => {
 describe("formatNumber", () => {
   it.each([
     [40, "40"],
-    [1 / 3, "0.3333333333"],
+    [1 / 3, "0.333333333333333"],
     [-0, "0"],
     [1234567.891, "1234567.891"],
+    [12345678901, "12345678901"],
+    [123456789.12, "123456789.12"],
     [1e21, "1e+21"],
   ])("%s → %s", (n, expected) => {
     expect(formatNumber(n)).toBe(expected);

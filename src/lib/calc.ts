@@ -156,10 +156,10 @@ function parse(tokens: Token[]): number {
   return value;
 }
 
-// Up to 10 significant digits with trailing zeros trimmed, so 0.1+0.2 shows as 0.3; `value` keeps
-// the exact double.
+// Up to 15 significant digits with trailing zeros trimmed, so 0.1+0.2 shows as 0.3 but 12345678901
+// isn't rounded (the model only sees `display`); `value` keeps the exact double.
 export function formatNumber(value: number): string {
-  const n = Number(value.toPrecision(10));
+  const n = Number(value.toPrecision(15));
   return Object.is(n, -0) ? "0" : String(n);
 }
 

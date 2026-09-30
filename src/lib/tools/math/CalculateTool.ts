@@ -18,7 +18,7 @@ export const mathCalculateTool = defineTool({
   description:
     "Calculate an arithmetic expression exactly. CALL THIS for every number you compute — never do " +
     "arithmetic in your head. Supports + - * / ^, parentheses, pi, e, and sqrt abs sin cos tan " +
-    "(radians) ln log10 round. Example: 150 / 2.5",
+    "ln log10 round. sin/cos/tan take RADIANS: for degrees write sin(30*pi/180). Example: 150 / 2.5",
   inputSchema: z.object({
     expression: z.string().min(1).describe("The arithmetic to evaluate, e.g. 12 * 5 / 1.5 or sqrt(3^2 + 4^2)."),
   }),
