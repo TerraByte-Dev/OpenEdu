@@ -178,23 +178,37 @@ pub fn corpus_granted(state: State<Granted>) -> Result<Vec<String>, String> {
     Ok(roots.iter().map(|r| r.to_string_lossy().into_owned()).collect())
 }
 
+/// Run filesystem work on the blocking pool. A sync command runs on the main thread, so a walk over
+/// a slow USB stick or NAS share would freeze the window for its whole duration.
+async fn off_main_thread<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|e| format!("corpus task failed: {e}"))?
+}
+
 /// Breadth-first walk under a granted root. See `walk`.
 #[tauri::command]
-pub fn corpus_list(
+pub async fn corpus_list(
     root: String,
     max: usize,
     exts: Vec<String>,
-    state: State<Granted>,
+    state: State<'_, Granted>,
 ) -> Result<Listing, String> {
-    let start = resolve_granted(&granted_roots(&state)?, &root)?;
-    Ok(walk(&start, max, &exts))
+    let roots = granted_roots(&state)?;
+    off_main_thread(move || {
+        let start = resolve_granted(&roots, &root)?;
+        Ok(walk(&start, max, &exts))
+    })
+    .await
 }
 
 /// Read a text file under a granted root, capped. See `read_text_capped`.
 #[tauri::command]
-pub fn corpus_read_text(path: String, max_bytes: usize, state: State<Granted>) -> Result<String, String> {
-    let target = resolve_granted(&granted_roots(&state)?, &path)?;
-    read_text_capped(&target, max_bytes)
+pub async fn corpus_read_text(path: String, max_bytes: usize, state: State<'_, Granted>) -> Result<String, String> {
+    let roots = granted_roots(&state)?;
+    off_main_thread(move || read_text_capped(&resolve_granted(&roots, &path)?, max_bytes)).await
 }
 
 #[cfg(test)]
