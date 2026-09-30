@@ -2,7 +2,7 @@
 name: music-tutor
 description: Music domain support — note names, theory, and structure diagrams.
 trigger:
-  course_subject: [music, piano, guitar, violin, cello, drums, percussion, trumpet, flute, clarinet, saxophone, ukulele, singing, choir, chorus, vocal, band, orchestra, songwriting, solfege, harmony, melody, rhythm]
+  course_subject: [music, musical, piano, guitar, violin, cello, drums, percussion, trumpet, flute, clarinet, saxophone, ukulele, singing, choir, chorus, vocal, band, orchestra, songwriting, solfege, harmony, melody, rhythm]
 tools_required: [diagram.render]
 model_tier_min: tiny
 ---
