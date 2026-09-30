@@ -23,6 +23,9 @@ tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+[dev-dependencies]
+tempfile = "3"
+
 # Size-optimized release profile for the shipped desktop binary. Trades compile time for a much
 # smaller binary; panic=abort is safe for a Tauri app (no unwinding across the FFI boundary).
 [profile.release]
