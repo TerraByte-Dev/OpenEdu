@@ -33,6 +33,8 @@ export const DEFAULT_PERMISSION_RULES: PermissionRules = {
   // model help — denied during an exam
   "quiz.generate":          { default: "allow", study: "allow", exam: "deny" },
   "math.render":            { default: "allow", study: "allow", exam: "deny" },
+  // read-only, so without this row it would fall back to "allow" in an exam
+  "math.calculate":         { default: "allow", study: "allow", exam: "deny" },
   "diagram.render":         { default: "allow", study: "allow", exam: "deny" },
   // writes to the student's record — ask by default, allowed while studying
   "knowledge.update_map":   { default: "ask", study: "allow", exam: "allow" },

@@ -13,9 +13,9 @@ export const mathRenderTool = defineTool({
   description:
     "Render a mathematical expression or equation as a typeset block. CALL THIS whenever an equation, " +
     "formula, or numeric relationship is part of your answer: put the LaTeX in the `latex` argument " +
-    "(e.g. v = \\frac{d}{t} = \\frac{60}{1.5} = 40). NEVER write backslash-LaTeX or $…$ delimiters in " +
-    "your chat text — route the math through this tool instead, and still state the plain-language " +
-    "result in your reply.",
+    "(e.g. v = \\frac{d}{t} = \\frac{60}{1.5} = 40, with the 40 taken from math.calculate). NEVER write " +
+    "backslash-LaTeX or $…$ delimiters in your chat text — route the math through this tool instead, " +
+    "and still state the plain-language result in your reply.",
   inputSchema: z.object({
     latex: z
       .string()
