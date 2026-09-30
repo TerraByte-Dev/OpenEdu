@@ -51,6 +51,7 @@ export function buildProviderToolDefs(tools: EduTool[]): ProviderToolDef[] {
 // stray calls. Neither skill set → all permitted tools (defensive back-compat; ChatTab + eval always
 // set at least the mode skill).
 export async function selectTools(ctx: ToolContext): Promise<EduTool[]> {
+  if (ctx.supportsTools === false) return [];
   const enabled = await toolRegistry.list(ctx);
   const rules = await loadPermissionRules();
   const permitted = enabled.filter((t) => evaluatePermission(t, ctx.permissionMode, rules) !== "deny");

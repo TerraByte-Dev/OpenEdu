@@ -118,6 +118,7 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
             abort: new AbortController().signal,
             activeSkill: skill,
             confirmTool: async () => true,
+            supportsTools: profile.supportsTools,
           };
           const turn: TutorTurn = {
             messages: [

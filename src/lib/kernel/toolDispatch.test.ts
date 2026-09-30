@@ -287,4 +287,21 @@ describe("selectTools", () => {
   it("drops a disabled tool even when the skill asks for it", async () => {
     expect(await names(ctx({ activeSkill: skill("explain", ["t.disabled", "t.prose"]) }))).toEqual(["t.prose"]);
   });
+
+  it.each([
+    ["false", false, []],
+    ["true", true, ["t.echo", "t.prose"]],
+    ["absent", undefined, ["t.echo", "t.prose"]],
+  ])("supportsTools %s", async (_label, supportsTools, expected) => {
+    const c = ctx({
+      activeSkill: skill("explain", ["t.echo"]),
+      domainSkill: skill("math-tutor", ["t.prose"]),
+      supportsTools,
+    });
+    expect(await names(c)).toEqual(expected);
+  });
+
+  it("offers nothing to a tool-less model even with no skill set", async () => {
+    expect(await names(ctx({ supportsTools: false }))).toEqual([]);
+  });
 });
