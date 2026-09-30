@@ -2,7 +2,7 @@
 name: math-tutor
 description: Math/physics/engineering domain support — typeset equations and diagrams.
 trigger:
-  course_subject: [math, mathematics, algebra, geometry, trigonometry, calculus, precalculus, physics, engineering, statistics, probability]
+  course_subject: [math, mathematics, mathematical, algebra, algebraic, geometry, trigonometry, calculus, precalculus, physics, engineering, statistics, probability]
 tools_required: [math.render, diagram.render]
 model_tier_min: tiny
 ---
