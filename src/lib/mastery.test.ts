@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applySubtopicScore } from "./mastery";
+import { applySubtopicScore, resolveSubtopic } from "./mastery";
 import type { Subtopic } from "../types";
 
 const base = (over: Partial<Subtopic> = {}): Subtopic => ({
@@ -50,5 +50,42 @@ describe("applySubtopicScore", () => {
   it("returns a new object only when something changed", () => {
     const solid = base({ mastered: true, practiced: true });
     expect(applySubtopicScore(solid, 10, 10)).toBe(solid); // already mastered, full marks → no change
+  });
+});
+
+describe("resolveSubtopic", () => {
+  const subs = [
+    base({ id: "1.1", title: "Loops" }),
+    base({ id: "1.2", title: "Nested Loops" }),
+    base({ id: "1.3", title: "List Comprehensions" }),
+    base({ id: "1.4", title: "Dict Comprehensions" }),
+  ];
+  const ids = (r: ReturnType<typeof resolveSubtopic>) =>
+    r.kind === "match" ? [r.sub.id] : r.kind === "ambiguous" ? r.candidates.map((s) => s.id) : [];
+
+  it.each([
+    ["blank", "", "none", []],
+    ["whitespace", "   ", "none", []],
+    ["exact id", "1.3", "match", ["1.3"]],
+    ["padded id", " 1.1 ", "match", ["1.1"]],
+    ["exact title, mixed case", "lIsT cOmPrEhEnSiOnS", "match", ["1.3"]],
+    ["exact title wins before containment", "loops", "match", ["1.1"]],
+    ["unique fragment", "dict", "match", ["1.4"]],
+    ["fragment shared by two titles", "comprehensions", "ambiguous", ["1.3", "1.4"]],
+    ["sentence containing exactly one title", "the student has clearly got list comprehensions down", "match", ["1.3"]],
+    ["no match", "recursion", "none", []],
+  ])("%s", (_label, ref, kind, expected) => {
+    const r = resolveSubtopic(subs, ref);
+    expect(r.kind).toBe(kind);
+    expect(ids(r)).toEqual(expected);
+  });
+
+  it("treats two identical titles as ambiguous", () => {
+    const dupes = [base({ id: "2.1", title: "Recursion" }), base({ id: "2.2", title: "recursion" })];
+    expect(ids(resolveSubtopic(dupes, "Recursion"))).toEqual(["2.1", "2.2"]);
+  });
+
+  it("treats a sentence containing two titles as ambiguous", () => {
+    expect(resolveSubtopic(subs, "they know dict comprehensions and list comprehensions").kind).toBe("ambiguous");
   });
 });

@@ -29,3 +29,31 @@ export function applySubtopicScore(sub: Subtopic, correct: number, total: number
 
   return next;
 }
+
+export type SubtopicResolution =
+  | { kind: "match"; sub: Subtopic }
+  | { kind: "ambiguous"; candidates: Subtopic[] }
+  | { kind: "none" };
+
+// Resolve a model-supplied subtopic ref (id or title) without guessing. Small models pass blank,
+// padded or partial refs; a blank ref used to contain-match every title and mark subtopic 1, and a
+// shared fragment silently took the first hit. Exact id, then exact title, then containment in
+// either direction — each title step accepts only a single hit, otherwise it's ambiguous.
+export function resolveSubtopic(subtopics: Subtopic[], ref: string): SubtopicResolution {
+  const trimmed = ref.trim();
+  if (!trimmed) return { kind: "none" };
+
+  const byId = subtopics.find((s) => s.id === trimmed);
+  if (byId) return { kind: "match", sub: byId };
+
+  const target = trimmed.toLowerCase();
+  const norm = (s: string) => s.trim().toLowerCase();
+  const pick = (hits: Subtopic[]): SubtopicResolution | null =>
+    hits.length === 1 ? { kind: "match", sub: hits[0] } : hits.length > 1 ? { kind: "ambiguous", candidates: hits } : null;
+
+  return (
+    pick(subtopics.filter((s) => norm(s.title) === target)) ??
+    pick(subtopics.filter((s) => norm(s.title).includes(target) || target.includes(norm(s.title)))) ??
+    { kind: "none" }
+  );
+}

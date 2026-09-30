@@ -33,6 +33,11 @@ export const markMasteredTool = defineTool({
 
     yield { kind: "progress", message: `marking "${input.subtopic_id}" as ${input.status}…` };
     const res = await setSubtopicStatus(ctx.courseId, syllabus, input.subtopic_id, input.status);
+    if (res.ambiguous) {
+      const candidates = res.ambiguous.map((s) => `${s.id} ("${s.title}")`).join("; ");
+      yield { kind: "error", error: `"${input.subtopic_id}" matches more than one subtopic in level ${ctx.level}: ${candidates}. Call again with one of these ids.` };
+      return;
+    }
     if (!res.found) {
       const valid = syllabus.subtopics.map((s) => `${s.id} ("${s.title}")`).join("; ");
       yield { kind: "error", error: `No subtopic matched "${input.subtopic_id}" in level ${ctx.level}. Valid subtopics: ${valid}.` };
