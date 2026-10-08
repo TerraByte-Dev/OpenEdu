@@ -154,10 +154,11 @@ Two things to know if you touch it:
   commonly stacked, and filtering on the base branch would leave every PR above the bottom of a stack
   unchecked. DOM-coupled UI is verified live in `npm run tauri dev`.
 
-## Releases & auto-update
+## Releases & updates
 
 Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which builds, **signs**, and publishes a
-GitHub Release with the installers and the updater manifest (`latest.json`). Installed apps poll the
-latest release and **auto-update**. The release notes (and the in-app update prompt) are extracted from
-that version's section in [`CHANGELOG.md`](../CHANGELOG.md) — so keep the changelog current and bump the
-version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` together.
+GitHub Release with the installers and the updater manifest (`latest.json`). Installed apps update **only
+when the user presses Check for updates** in Settings → About — offline-first means no check at launch.
+The release notes (shown beside that button) are extracted from that version's section in
+[`CHANGELOG.md`](../CHANGELOG.md) — so keep the changelog current and bump the version in `package.json`,
+`src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` together.

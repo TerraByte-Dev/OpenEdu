@@ -1,7 +1,7 @@
 name: Release
 
 # Push a version tag (e.g. v0.1.1) to build, SIGN, and publish a GitHub Release with the installers and the
-# updater manifest (latest.json). Installed apps poll the latest release and auto-update from it.
+# updater manifest (latest.json). Installed apps update from it when the user presses "Check for updates".
 on:
   push:
     tags:
@@ -55,7 +55,7 @@ jobs:
               printf '%s\n\n' "$section"
             fi
             echo "Download and run **OpenEdu_*_x64-setup.exe** (or the .msi) below to install."
-            echo "Already installed? OpenEdu updates itself automatically."
+            echo "Already installed? Open Settings → About → Check for updates."
             echo "${delim}"
           } >> "$GITHUB_OUTPUT"
 

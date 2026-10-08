@@ -1,7 +1,7 @@
-// In-app auto-update via the Tauri updater plugin. The app checks the configured endpoint (a `latest.json`
+// In-app update via the Tauri updater plugin. On request, the app checks the configured endpoint (a `latest.json`
 // on the latest GitHub Release — see tauri.conf.json → plugins.updater), and downloads/installs only
 // updates signed with the private key matching the bundled public key. After install it relaunches into the
-// new version. Used by the About tab (manual) and the launch-time UpdateNotice banner (automatic).
+// new version. Only the About tab calls this, on a button press — offline-first means no check at launch.
 
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";

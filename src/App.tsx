@@ -8,7 +8,6 @@ import TourOverlay, { TOUR_STEPS } from "./components/TourOverlay";
 import CRTLayer from "./components/CRTLayer";
 import BootSequence from "./components/BootSequence";
 import Titlebar from "./components/Titlebar";
-import { UpdateNotice } from "./components/UpdateNotice";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
@@ -152,8 +151,6 @@ export default function App() {
               onGoSettings={() => setCurrentView("settings")}
             />
           )}
-
-          {!isFullscreenView && <UpdateNotice />}
 
           <div className="flex flex-1 min-h-0">
             {/* The course list owns the left column everywhere EXCEPT inside a course, where it is
