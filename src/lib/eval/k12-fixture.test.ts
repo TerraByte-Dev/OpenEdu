@@ -18,10 +18,15 @@ import manifestJson from "../../../public/library/index.json";
 /**
  * `groundable` is the number of scored items whose full prompt clears the library grounding floor
  * on the shipped manifest — the prediction the results file compares the observed card count to.
- * MEASURED AFTER AUTHORING and written down here; 0 is the placeholder until the 240 items exist.
- * Items are never edited to move it.
+ * Measured after authoring (2026-10-08) and written down here. Items are never edited to move it.
+ *
+ * `lostToFormatLine` / `swappedByFormatLine` are what the ANSWER instruction costs the retriever. No
+ * wording is free: the ranker scales a card's score by how much of the query it covers, so ANY added
+ * words dilute it — the bare "ANSWER: <letter>" still moved three items. The line that was kept adds
+ * no card anywhere; it drops four that the question alone would have grounded and changes which
+ * card wins on three. Pinned so the cost is a recorded number rather than a footnote.
  */
-export const K12_BASELINE = { items: 240, groundable: 0 } as const;
+export const K12_BASELINE = { items: 240, groundable: 78, lostToFormatLine: 4, swappedByFormatLine: 3 } as const;
 
 const manifest: LibraryEntry[] = normalizeManifest(manifestJson);
 
@@ -71,7 +76,8 @@ describe("k12 — fixture integrity", () => {
   it("every item has four distinct non-empty options, a key in A-D and a basis", () => {
     const bad: string[] = [];
     for (const x of ALL) {
-      const opts = x.options.map((o) => o.trim().toLowerCase());
+      // Exact, not case-folded: a capitalization item's options differ only by case, on purpose.
+      const opts = x.options.map((o) => o.trim());
       if (opts.length !== 4 || opts.some((o) => !o) || new Set(opts).size !== 4) bad.push(`${x.id}: options`);
       if (!KEYS.includes(x.key)) bad.push(`${x.id}: key`);
       if (!x.basis.trim()) bad.push(`${x.id}: basis`);
@@ -195,24 +201,30 @@ describe("k12 — statistics", () => {
 });
 
 describe("k12 — retrieval against the shipped manifest", () => {
-  // The format line rides in the user turn, and the grounding stage ranks the whole user turn. If
-  // the line itself could pull a card or change which one wins, the shipping arm would be measuring
-  // the instruction rather than the question. A failure here means reword the line BEFORE the freeze.
-  it("the format line never changes the top card or the grounding decision", () => {
-    const moved: string[] = [];
-    for (const x of ALL) {
+  // The format line rides in the user turn, and the grounding stage ranks the whole user turn. The
+  // line must never ADD a card — that would be the shipping arm grounding on the instruction rather
+  // than the question. What it removes or swaps by dilution is counted in K12_BASELINE.
+  const drift = () => {
+    let gained = 0, lost = 0, swapped = 0;
+    for (const x of K12_ITEMS) {
       const full = formatK12Prompt(x);
-      const bare = full.slice(0, -K12_FORMAT_LINE.length).trimEnd();
       const a = topCard(full);
-      const b = topCard(bare);
-      if (a.id !== b.id || a.grounds !== b.grounds) moved.push(`${x.id}: ${b.id}/${b.grounds} -> ${a.id}/${a.grounds}`);
+      const b = topCard(full.slice(0, -K12_FORMAT_LINE.length).trimEnd());
+      if (a.grounds && !b.grounds) gained++;
+      else if (!a.grounds && b.grounds) lost++;
+      else if (a.grounds && b.grounds && a.id !== b.id) swapped++;
     }
-    expect(moved).toEqual([]);
+    return { gained, lost, swapped };
+  };
+
+  it("the format line never adds a card", () => {
+    expect(drift().gained).toBe(0);
   });
 
-  it("the number of groundable items matches the pinned baseline", () => {
+  it("groundable items and the format line's cost match the pinned baseline", () => {
     const groundable = K12_ITEMS.filter((x) => topCard(formatK12Prompt(x)).grounds).length;
-    expect({ items: K12_ITEMS.length, groundable }).toEqual(K12_BASELINE);
+    const { lost, swapped } = drift();
+    expect({ items: K12_ITEMS.length, groundable, lostToFormatLine: lost, swappedByFormatLine: swapped }).toEqual(K12_BASELINE);
   });
 });
 

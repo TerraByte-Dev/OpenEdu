@@ -35,7 +35,14 @@
 // parametric memory, at most one card is injected, and the library is high-school-leaning. The
 // quotable number is the absolute accuracy.
 //
-// KEY CHECK: <filled at freeze>
+// KEY CHECK (2026-10-08). Items were drafted by Claude, one author per subject x band cell, with no
+// access to this repo or the library. All 252 (240 + 12 pilot) were then answered blind — stem and
+// options, no key — by a second Claude solver: 0 key disagreements. That solver is the same model
+// family as the author, so agreement is weaker evidence than an independent solver would give. It
+// flagged 1 item (ela-912-01, an off-grade near-duplicate of a 6-8 item); replaced, re-solved,
+// agrees. 0 keys changed.
+// HUMAN CHECK: PENDING — 48 items (4 random per cell) to be hand-checked by the maintainer before
+// the freeze merges. This line is replaced with the counts when that is done.
 
 import type { K12Item, K12Key } from "./k12-items";
 
