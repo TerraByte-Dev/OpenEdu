@@ -14,7 +14,9 @@
 //
 // V (format validity). `no-parse` <= 5% in every arm. If V fails the result is recorded as
 // FORMAT-INVALID and is not quoted as an accuracy figure. A changed format line is a new
-// pre-registration with a new dated results file; the old file stays.
+// pre-registration with a new dated results file; the old file stays. A reply counts only if its
+// final ANSWER line is one letter alone, or one letter followed by that letter's own option text;
+// anything else there is a `no-parse`, even if an earlier line named one letter.
 //
 // H (harness contribution). Exact two-sided McNemar, shipping vs raw, alpha 0.05. Positive and
 // p < 0.05: a harness lift may be claimed, quoting both numbers. Negative and p < 0.05: recorded as
@@ -26,7 +28,8 @@
 //
 // Rules. (1) The first complete run is the result: all items, all arms, no repeats, no per-item
 // retries. (2) A run is void only if ERROR rows reach 5 in any arm, a guard trips, or the shipping
-// arm grounds zero items; a void run is discarded whole and logged with its counts. (3) No prompt,
+// arm grounds zero items; a void run is discarded whole and logged with its counts. An ERROR row is
+// a turn that threw, stalled, was aborted or outran the 10-minute watchdog. (3) No prompt,
 // parser, system-prompt or item change after the freeze commit. Only `K12_PILOT` may be sent to the
 // model before it. (4) A key changes only if objectively wrong, through an Errata section showing
 // item ids and the number before and after. (5) Strata are descriptive.
@@ -70,17 +73,40 @@ export function formatK12Prompt(item: K12Item): string {
 
 // ── Grading (pure) ───────────────────────────────────────────────────────────
 
-// "ANSWER:" then optional markdown/bracket decoration, then ONE letter that must be closed by
-// decoration, a dash, or the end of the line. The lookahead is what makes a hedge ("B or C",
-// "B, C", "B/C") and a word that merely starts with a letter ("A triangle", "Both") a no-parse
-// instead of a lucky guess.
-const ANSWER_RE = /answer\s*:\s*[\s*_`(\[<]*([A-D])(?=[*_`)\]}>.:]|\s*[-–—]|\s*$)/gim;
+// The grader accepts exactly two shapes after the ANSWER label and nothing else:
+//   the letter alone             ANSWER: B     **Answer**: (B)     ANSWER: \boxed{B}
+//   the letter + ITS OWN option  ANSWER: B) 7/8     ANSWER: Option B - 7/8
+// Everything else is a no-parse: a hedge ("B or C", "**B** **C**"), an enumeration ("A) 5/8 B) 7/8"),
+// a word or variable that merely starts with a letter ("A triangle", "D-Day", "a_n = 2n"), prose
+// ("B because ..."). Earlier versions tried to list the bad shapes and kept missing one; a wrong
+// letter is worse than none, so this lists the good shapes instead.
 
-/** The LAST well-formed ANSWER letter in a reply, or null. Last wins: a model that reconsiders
- *  mid-reply is graded on where it ended up, which is what a student would read as its answer. */
-export function extractChoice(text: string): K12Key | null {
+// The label, with at most two words before it on its line ("Corrected ANSWER: C", "The correct
+// answer is: B") — more than that is prose that happens to contain it ("Why not the other answer:
+// C."). Nothing crosses a newline. A label with nothing after it is not an answer line.
+const LABEL_RE = /^(.*?)\banswer\b[ \t]*[*_]*(?:[ \t]+is)?[ \t]*[*_]*[ \t]*[:：][ \t]*(.*)$/gim;
+const MAX_LEAD_WORDS = 2;
+// Decoration that may wrap the letter: markdown, brackets, quotes, $ and the common LaTeX wrappers
+// (\x5c is the backslash of "\(" and "\boxed{").
+const OPENERS_RE = /^(?:(?:option|choice|letter)\b[ \t:]*)?(?:[\s*_`(\[{<"'“‘$]|\x5c\(|\x5c(?:boxed|text|mathbf|textbf|mathrm)\{)*/i;
+const LETTER_RE = /^([A-Da-d])(?![A-Za-z0-9_])/;
+// Letters and digits only, lower-cased: how a tail is compared with an option's text.
+const norm = (s: string) => s.replace(/<[^>]*>/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+/** The letter on the LAST ANSWER line of a reply, or null. Last wins: a model that reconsiders
+ *  mid-reply is graded on where it ended up, which is what a student would read as its answer.
+ *  If that last line is not one of the two accepted shapes the reply is a no-parse — an earlier
+ *  clean line is not fallen back on. `options` enables the letter-plus-own-option shape. */
+export function extractChoice(text: string, options?: readonly string[]): K12Key | null {
   let last: K12Key | null = null;
-  for (const m of text.matchAll(ANSWER_RE)) last = m[1].toUpperCase() as K12Key;
+  for (const line of text.matchAll(LABEL_RE)) {
+    const rest = line[2].trim().replace(OPENERS_RE, "");
+    if (!rest || (line[1].match(/[\p{L}\p{N}]+/gu)?.length ?? 0) > MAX_LEAD_WORDS) continue;
+    const m = LETTER_RE.exec(rest);
+    const letter = m ? (m[1].toUpperCase() as K12Key) : null;
+    const tail = norm(rest.slice(1));
+    last = letter && (!tail || (options && tail === norm(options["ABCD".indexOf(letter)]))) ? letter : null;
+  }
   return last;
 }
 
@@ -92,13 +118,14 @@ export type K12Outcome = "correct" | "wrong" | "no-parse" | "error";
  * Deliberately NOT scoreRagAnswer: no alternatives, no substring matching, no model judge. The
  * letter is right or it is not.
  *
- * `text` starting "ERROR:" is a turn that threw (the runner writes it that way). `stopReason` is
- * not an input: a reply cut at the output cap is graded on its text, because that text is what a
- * student would see.
+ * `failed` is the runner saying the turn produced no reply to grade: it threw, stalled, was
+ * aborted or outran the watchdog. It is a flag, not a text prefix, so a model reply that happens to
+ * open with "ERROR:" is still graded. A reply cut at the output cap is NOT failed: it is graded on
+ * its text, because that text is what a student would see.
  */
-export function scoreK12(item: K12Item, text: string): { outcome: K12Outcome; letter: K12Key | null } {
-  if (text.startsWith("ERROR:")) return { outcome: "error", letter: null };
-  const letter = extractChoice(text);
+export function scoreK12(item: K12Item, text: string, failed = false): { outcome: K12Outcome; letter: K12Key | null } {
+  if (failed) return { outcome: "error", letter: null };
+  const letter = extractChoice(text, item.options);
   if (!letter) return { outcome: "no-parse", letter: null };
   return { outcome: letter === item.key ? "correct" : "wrong", letter };
 }
@@ -153,4 +180,55 @@ export function mcnemarExact(b: number, c: number): number {
     term = (term * (n - i)) / (i + 1);
   }
   return Math.min(1, (2 * sum) / 2 ** n);
+}
+
+// ── Verdict (pure) ───────────────────────────────────────────────────────────
+// The pre-registered bar applied to a complete run. Here rather than in the runner so the
+// comparisons that give K12_BAR its meaning are executed by the tests.
+
+/** Paired contrast, first arm vs second: b = items only the first got right, c = only the second. */
+export interface K12Contrast {
+  b: number;
+  c: number;
+  p: number;
+}
+
+export interface K12Verdict {
+  /** Non-null when rule 2 voids the run; the clauses below are then not a result. */
+  void: string | null;
+  V: boolean;
+  A: boolean;
+  H: "lift" | "reduces" | "no-difference";
+  C: boolean;
+}
+
+type K12Scored = { id: string; outcome: K12Outcome };
+
+export function contrastK12(first: K12Scored[], second: K12Scored[]): K12Contrast | null {
+  if (!first.length || !second.length) return null;
+  const secondRight = new Set(second.filter((r) => r.outcome === "correct").map((r) => r.id));
+  let b = 0;
+  let c = 0;
+  for (const r of first) {
+    const right = r.outcome === "correct";
+    if (right && !secondRight.has(r.id)) b++;
+    if (!right && secondRight.has(r.id)) c++;
+  }
+  return { b, c, p: mcnemarExact(b, c) };
+}
+
+/** `byArm` must hold `raw` and `shipping`; `shippingVsRaw` is contrastK12(shipping rows, raw rows). */
+export function judgeK12(byArm: Record<string, K12Tally>, grounded: number, shippingVsRaw: K12Contrast): K12Verdict {
+  const arms = Object.keys(byArm);
+  const { raw, shipping } = byArm;
+  const errored = arms.filter((a) => byArm[a].error / byArm[a].total > K12_BAR.maxErrorRate);
+  return {
+    void: errored.length
+      ? `ERROR rows over the limit in ${errored.join(", ")}`
+      : grounded === 0 ? "the shipping arm grounded zero items" : null,
+    V: arms.every((a) => byArm[a].noParse / byArm[a].total <= K12_BAR.maxNoParseRate),
+    A: wilson95(shipping.correct, shipping.total)[0] >= K12_BAR.shippingWilsonLowerBound,
+    H: shippingVsRaw.p < K12_BAR.alpha ? (shippingVsRaw.b > shippingVsRaw.c ? "lift" : "reduces") : "no-difference",
+    C: raw.correct / raw.total >= K12_BAR.ceiling,
+  };
 }

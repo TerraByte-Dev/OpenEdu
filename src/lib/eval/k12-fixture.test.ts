@@ -7,7 +7,7 @@
 import { describe, it, expect } from "vitest";
 import type { LibraryEntry } from "../../types";
 import { K12_ITEMS, K12_PILOT, type K12Band, type K12Item, type K12Key, type K12Subject } from "./k12-items";
-import { K12_BAR, K12_FORMAT_LINE, extractChoice, formatK12Prompt, mcnemarExact, scoreK12, tally, wilson95 } from "./k12-fixture";
+import { K12_BAR, K12_FORMAT_LINE, contrastK12, extractChoice, formatK12Prompt, judgeK12, mcnemarExact, scoreK12, tally, wilson95, type K12Outcome, type K12Tally } from "./k12-fixture";
 import { matchResourcesScored, normalizeManifest } from "../library-rank";
 import { MIN_LIBRARY_SCORE } from "../kernel/ground";
 
@@ -26,7 +26,7 @@ import manifestJson from "../../../public/library/index.json";
  * no card anywhere; it drops four that the question alone would have grounded and changes which
  * card wins on three. Pinned so the cost is a recorded number rather than a footnote.
  */
-export const K12_BASELINE = { items: 240, groundable: 78, lostToFormatLine: 4, swappedByFormatLine: 3 } as const;
+export const K12_BASELINE = { items: 240, groundable: 79, lostToFormatLine: 4, swappedByFormatLine: 3 } as const;
 
 const manifest: LibraryEntry[] = normalizeManifest(manifestJson);
 
@@ -110,6 +110,19 @@ describe("k12 — fixture integrity", () => {
     expect(bad).toEqual([]);
   });
 
+  // The grader reads a letter off an ANSWER line. A model that answers with the option TEXT, or
+  // echoes the prompt, must never be handed a letter by accident ("D-Day", "A. Lincoln", "c. 1500").
+  it("no option text and no prompt parses as a letter", () => {
+    const bad: string[] = [];
+    for (const x of ALL) {
+      x.options.forEach((o, i) => {
+        if (extractChoice(`ANSWER: ${o}`) !== null) bad.push(`${x.id}: option ${KEYS[i]}`);
+      });
+      if (extractChoice(formatK12Prompt(x)) !== null) bad.push(`${x.id}: prompt`);
+    }
+    expect(bad).toEqual([]);
+  });
+
   it("demand mix: every math item is apply, and at least 120 items are apply overall", () => {
     expect(K12_ITEMS.filter((x) => x.subject === "math" && x.demand !== "apply").map((x) => x.id)).toEqual([]);
     expect(K12_ITEMS.filter((x) => x.demand === "apply").length).toBeGreaterThanOrEqual(120);
@@ -135,36 +148,97 @@ describe("k12 — the grader", () => {
       ["ANSWER:B", "B"],
       ["answer: d", "D"],
       ["ANSWER: <B>", "B"],
+      ["**Answer**: B", "B"],
+      ["ANSWER: Option B", "B"],
+      ["ANSWER: \\boxed{B}", "B"],
+      ["ANSWER: $B$", "B"],
+      ['ANSWER: "B"', "B"],
+      ["ANSWER: 'B'", "B"],
+      ["ANSWER: \u201cB\u201d", "B"],
+      ["ANSWER\uff1a B", "B"],
     ];
     for (const [text, want] of cases) expect(extractChoice(`Some working.\n${text}`), text).toBe(want);
   });
 
-  it("reads a letter that is followed by its option text or wrapped in LaTeX", () => {
-    for (const text of ["ANSWER: B) 7/8", "ANSWER: B. 7/8", "ANSWER: B - seven", "$\\text{ANSWER: B}$"]) {
-      expect(extractChoice(text), text).toBe("B");
+  it("reads a letter followed by ITS OWN option text, and nothing else after a letter", () => {
+    for (const text of ["ANSWER: B) 7/8", "ANSWER: B. 7/8", "ANSWER: B (7/8)", "ANSWER: Option B - 7/8", "ANSWER: **B) 7/8** ✅"]) {
+      expect(extractChoice(text, item.options), text).toBe("B");
     }
+    // Another option's text, a paraphrase, or no options to compare against: not credited.
+    expect(extractChoice("ANSWER: B) 5/8", item.options)).toBeNull();
+    expect(extractChoice("ANSWER: B - seven eighths", item.options)).toBeNull();
+    expect(extractChoice("ANSWER: B) 7/8")).toBeNull();
+  });
+
+  it("reads LaTeX wrappers, a trailing mark, and a short lead-in before the label", () => {
+    const cases: Array<[string, K12Key]> = [
+      [String.raw`$\text{ANSWER: B}$`, "B"],
+      [String.raw`ANSWER: $\boxed{B}$`, "B"],
+      [String.raw`ANSWER: \(B\)`, "B"],
+      ["ANSWER: B ✅", "B"],
+      ["ANSWER: B!", "B"],
+      ["ANSWER: B <end_of_turn>", "B"],
+      ["The correct answer is: B", "B"],
+      ["**The final answer is:** B", "B"],
+      ["ANSWER: A\nWait, I made an error.\nCorrected ANSWER: C", "C"],
+      ["ANSWER: A\nMy final answer: C", "C"],
+    ];
+    for (const [text, want] of cases) expect(extractChoice(text), text).toBe(want);
+  });
+
+  // The shapes an allow-list exists to refuse. Every one of these was once read as a letter.
+  it("refuses enumerations, variables and words that start with a letter", () => {
+    const cases = [
+      "Answer: A) 5/8 B) 7/8 C) 4/12 D) 1", "ANSWER: A. 5/8  B. 7/8", "Answer: (A) is wrong; (B) is right", "ANSWER: A - no. B - yes.",
+      "answer: a_n = 2n", "answer: a*b", "answer: d(x) = 2x", "Answer: C(5,2) = 10", "answer: b - a", "answer: c:d",
+      "ANSWER: D-Day", "ANSWER: C-14", "ANSWER: A.D. 476", "ANSWER: D.C.", "ANSWER: A's",
+      "ANSWER: **B** OR **C**", "ANSWER: **B** **C**", "ANSWER: (B)(C)", "ANSWER: $B$ or $C$",
+      "ANSWER: B is correct", "ANSWER: B because 3 + 4 = 7", "RESPUESTA: B",
+    ];
+    for (const text of cases) expect(extractChoice(text, item.options), text).toBeNull();
   });
 
   it("takes the LAST answer when the model reconsiders", () => {
     expect(extractChoice("ANSWER: A\nWait, that is wrong.\nANSWER: C")).toBe("C");
   });
 
+  // More than two words before the label is prose, not an ANSWER line, whatever letter follows
+  // it — an enumeration starts at A, so reading it would hand out the A-keyed items.
+  it("ignores \"answer:\" inside prose", () => {
+    expect(extractChoice("Let's check each answer:\n\nA) 5/8 - no\nB) 7/8 - yes\n\nSo it is B.")).toBeNull();
+    expect(extractChoice("ANSWER: B\n\nWhy not the other answer: C. It adds denominators.")).toBe("B");
+    expect(extractChoice("ANSWER: B\n\nNote: the other answer: A) 5/8 is a common mistake.")).toBe("B");
+    expect(extractChoice("Let's check each answer:\n\nA) 5/8\nB) 7/8\n\nANSWER: B (7/8)", item.options)).toBe("B");
+    expect(extractChoice("ANSWER:\nB")).toBeNull();
+  });
+
   // A hedge is not an answer. Reading "B or C" as B would hand a guessing model free credit.
   it("refuses a hedge, a word that merely starts with a letter, and a reply with no ANSWER line", () => {
     const cases = [
       "ANSWER: B or C", "ANSWER: B, C", "ANSWER: B/C",
+      "ANSWER: **B** or **C**", "ANSWER: (B) or (C)", "ANSWER: B) 7/8 or C) 4/12", "ANSWER: B. or C.", "ANSWER: B) and D)",
       "ANSWER: A triangle", "The answer: a fraction", "ANSWER: Both",
       "It is 7/8, which is option B.",
     ];
     for (const text of cases) expect(extractChoice(text), text).toBeNull();
   });
 
+  // A wrong letter is worse than a no-parse: the last ANSWER line is the answer, and if it hedges
+  // the earlier clean line is not fallen back on.
+  it("a hedged last ANSWER line is a no-parse even after a clean one", () => {
+    expect(extractChoice("ANSWER: B\nANSWER: B or C")).toBeNull();
+    expect(extractChoice("ANSWER: B\nActually.\nANSWER: **B** or **C**")).toBeNull();
+    expect(extractChoice("ANSWER: B or C\nNo.\nANSWER: C")).toBe("C");
+  });
+
   it("scores correct, wrong, no-parse and error", () => {
     expect(scoreK12(item, "ANSWER: B")).toEqual({ outcome: "correct", letter: "B" });
     expect(scoreK12(item, "ANSWER: C")).toEqual({ outcome: "wrong", letter: "C" });
     expect(scoreK12(item, "It is 7/8.")).toEqual({ outcome: "no-parse", letter: null });
-    // A thrown turn is an error even if the message happens to contain an ANSWER line.
-    expect(scoreK12(item, "ERROR: stream failed after ANSWER: B")).toEqual({ outcome: "error", letter: null });
+    // A failed turn is an error even if the message happens to contain an ANSWER line...
+    expect(scoreK12(item, "ERROR: stream failed\nANSWER: B", true)).toEqual({ outcome: "error", letter: null });
+    // ...and it is the runner's flag that says so, not the text: a reply may open with "ERROR:".
+    expect(scoreK12(item, "ERROR: the denominators differ.\nANSWER: B")).toEqual({ outcome: "correct", letter: "B" });
   });
 
   it("tallies intention-to-treat: no-parse and error stay in the total", () => {
@@ -229,6 +303,10 @@ describe("k12 — retrieval against the shipped manifest", () => {
 });
 
 describe("k12 — the pre-registered bar", () => {
+  it("the format line is pinned by value", () => {
+    expect(K12_FORMAT_LINE).toBe("You may explain briefly. End your reply with one final line in exactly this form: ANSWER: <letter>");
+  });
+
   it("is pinned by value", () => {
     expect(K12_BAR).toEqual({
       items: 240,
@@ -238,5 +316,64 @@ describe("k12 — the pre-registered bar", () => {
       ceiling: 0.95,
       alpha: 0.05,
     });
+  });
+});
+
+// The comparisons that give the bar its meaning, each at its boundary. The runner calls these same
+// two functions; nothing about the verdict is computed anywhere else.
+describe("k12 — the verdict", () => {
+  const N = K12_BAR.items;
+  const arm = (correct: number, over: Partial<K12Tally> = {}): K12Tally => {
+    const t = { total: N, correct, noParse: 0, error: 0, ...over };
+    return { ...t, wrong: N - t.correct - t.noParse - t.error };
+  };
+  const clean = () => ({ raw: arm(200), "prompt-only": arm(200), shipping: arm(200) });
+  const noDiff = { b: 0, c: 0, p: 1 };
+
+  /** Paired rows with b items only the first arm got right and c only the second. */
+  const paired = (b: number, c: number) => {
+    const rows = (right: (i: number) => boolean) =>
+      Array.from({ length: b + c + 10 }, (_, i) => ({ id: `i${i}`, outcome: (right(i) ? "correct" : "wrong") as K12Outcome }));
+    return contrastK12(rows((i) => i < b || i >= b + c), rows((i) => i >= b))!;
+  };
+
+  it("a clean run is not void and passes V", () => {
+    expect(judgeK12(clean(), 79, noDiff)).toEqual({ void: null, V: true, A: true, H: "no-difference", C: false });
+  });
+
+  it("void: 5 ERROR rows in any one arm, not 4", () => {
+    expect(judgeK12({ ...clean(), "prompt-only": arm(200, { error: 4 }) }, 79, noDiff).void).toBeNull();
+    expect(judgeK12({ ...clean(), "prompt-only": arm(200, { error: 5 }) }, 79, noDiff).void).toBe("ERROR rows over the limit in prompt-only");
+  });
+
+  it("void: the shipping arm grounded 0 items, not 1", () => {
+    expect(judgeK12(clean(), 1, noDiff).void).toBeNull();
+    expect(judgeK12(clean(), 0, noDiff).void).toBe("the shipping arm grounded zero items");
+  });
+
+  it("V: 13 no-parse rows in any one arm fail it, 12 do not", () => {
+    expect(judgeK12({ ...clean(), raw: arm(200, { noParse: 12 }) }, 79, noDiff).V).toBe(true);
+    expect(judgeK12({ ...clean(), raw: arm(200, { noParse: 13 }) }, 79, noDiff).V).toBe(false);
+  });
+
+  it("A: shipping 194 meets the headline bar, 193 does not", () => {
+    expect(judgeK12({ ...clean(), shipping: arm(193) }, 79, noDiff).A).toBe(false);
+    expect(judgeK12({ ...clean(), shipping: arm(194) }, 79, noDiff).A).toBe(true);
+  });
+
+  it("C: raw 228 is at ceiling, 227 is not", () => {
+    expect(judgeK12({ ...clean(), raw: arm(227) }, 79, noDiff).C).toBe(false);
+    expect(judgeK12({ ...clean(), raw: arm(228) }, 79, noDiff).C).toBe(true);
+  });
+
+  it("contrastK12 counts b for the first arm and c for the second", () => {
+    expect(paired(15, 5)).toEqual({ b: 15, c: 5, p: mcnemarExact(15, 5) });
+    expect(contrastK12([], [])).toBeNull();
+  });
+
+  it("H: (15,5) is a lift, (5,15) reduces, (1,7) is no difference", () => {
+    expect(judgeK12(clean(), 79, paired(15, 5)).H).toBe("lift");
+    expect(judgeK12(clean(), 79, paired(5, 15)).H).toBe("reduces");
+    expect(judgeK12(clean(), 79, paired(1, 7)).H).toBe("no-difference");
   });
 });

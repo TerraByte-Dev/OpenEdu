@@ -21,12 +21,16 @@ import { getChatConfig, getLibraryEnabled, getLibraryUrl, getMaxContextTokens } 
 import { callLLMTurn, detectModelProfile } from "../llm";
 import { getManifest, isLibraryAvailable, isLibraryTestingDisabled } from "../library";
 import { K12_ITEMS, K12_PILOT, type K12Item, type K12Key } from "./k12-items";
-import { K12_BAR, formatK12Prompt, mcnemarExact, scoreK12, tally, wilson95, type K12Outcome, type K12Tally } from "./k12-fixture";
+import { K12_BAR, contrastK12, formatK12Prompt, judgeK12, scoreK12, tally, wilson95, type K12Contrast, type K12Outcome, type K12Tally, type K12Verdict } from "./k12-fixture";
 import type { LLMConfig } from "../../types";
 
 // Never created: no ensureCourse, no seeding, no teardown. The notebook half of grounding searches
 // an unknown course and returns nothing, so the bundled library is the only corpus in play.
 const K12_COURSE_ID = "__eval_k12__";
+
+// A kernel turn that has produced nothing in this long is recorded as an ERROR row and aborted. The
+// stall timer only covers the chat stream; the shipping arm's notebook embed has no timeout at all.
+const K12_TURN_WATCHDOG_MS = 600_000;
 
 // Only ONE run at a time — two interleaved runs would share window.__k12Rows and the GPU, and the
 // per-turn times would mean nothing. See rag-runner.ts for how the same mistake once cost a result.
@@ -51,8 +55,9 @@ export interface K12Row {
   text: string;
   letter: K12Key | null;
   outcome: K12Outcome;
-  /** Recorded, never graded on. The raw arm reports the provider's finishReason; the kernel arms
-   *  report the turn's stopReason; null when the turn threw. */
+  /** The raw arm reports the provider's finishReason; the kernel arms report the turn's stopReason;
+   *  null when the turn threw. "stalled" and "aborted" make the row an ERROR; nothing else is
+   *  graded on. */
   stopReason: string | null;
   hitTitles: string[];
   groundError: string | null;
@@ -66,22 +71,6 @@ export interface K12ArmSummary extends K12Tally {
   wilson: [number, number];
   bySubject: Split;
   byBand: Split;
-}
-
-/** Paired contrast, first arm vs second: b = items only the first got right, c = only the second. */
-export interface K12Contrast {
-  b: number;
-  c: number;
-  p: number;
-}
-
-export interface K12Verdict {
-  /** Non-null when rule 2 voids the run; the clauses below are then not a result. */
-  void: string | null;
-  V: boolean;
-  A: boolean;
-  H: "lift" | "reduces" | "no-difference";
-  C: boolean;
 }
 
 export interface K12Report {
@@ -109,22 +98,45 @@ function splitBy(rows: K12Row[], items: Map<string, K12Item>, key: "subject" | "
   return out;
 }
 
-function contrast(first: K12Row[], second: K12Row[]): K12Contrast | null {
-  if (!first.length || !second.length) return null;
-  const secondRight = new Set(second.filter((r) => r.outcome === "correct").map((r) => r.id));
-  let b = 0;
-  let c = 0;
-  for (const r of first) {
-    const right = r.outcome === "correct";
-    if (right && !secondRight.has(r.id)) b++;
-    if (!right && secondRight.has(r.id)) c++;
+// groundFromLibrary swallows every one of these conditions and returns no card, so without them the
+// shipping arm silently becomes the prompt-only arm and still prints a number. The kernel re-reads
+// all four on every turn, so they are checked before the run and again before every shipping turn.
+async function assertLibraryGuards(): Promise<void> {
+  if (isLibraryTestingDisabled()) {
+    throw new Error("The library is suppressed for testing (another eval is mid-run or crashed). Reload the app and retry.");
   }
-  return { b, c, p: mcnemarExact(b, c) };
+  if (!(await getLibraryEnabled())) {
+    throw new Error("The Library is switched off in Settings. Turn it on — the shipping arm cannot ground without it.");
+  }
+  if (await getLibraryUrl()) {
+    throw new Error("A library URL override is set in Settings. Clear it and restart the app — this benchmark measures the bundled corpus.");
+  }
+  await getManifest();
+  if (!isLibraryAvailable()) {
+    throw new Error("The bundled library manifest did not load. The shipping arm would run ungrounded; nothing was sent to the model.");
+  }
 }
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const fmtSplit = (s: Split) => Object.entries(s).map(([k, v]) => `${k} ${v.correct}/${v.total}`).join(" · ");
 const fmtContrast = (c: K12Contrast | null) => (c ? `b=${c.b} c=${c.c} p=${c.p.toFixed(4)}` : "not run");
+
+// One watchdog for every arm, so "outran the watchdog" means the same thing in all three. On
+// timeout it aborts the turn (stop the orphan using the GPU) and rejects into the row's catch.
+async function watched<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const turn = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const watchdog = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      turn.abort();
+      reject(new Error(`turn watchdog: no result in ${K12_TURN_WATCHDOG_MS / 60_000} min`));
+    }, K12_TURN_WATCHDOG_MS);
+  });
+  return Promise.race([run(turn.signal), watchdog]).finally(() => clearTimeout(timer));
+}
+
+// The count at which an arm's ERROR rows void the run (rule 2): 5 at n=240.
+const ERROR_LIMIT = Math.floor(K12_BAR.maxErrorRate * K12_BAR.items) + 1;
 
 export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only?: string }): Promise<K12Report> {
   if (inFlight) {
@@ -149,21 +161,7 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
       : profile.contextTokens;
     const config: LLMConfig = { ...baseConfig, modelTier: profile.tier, contextTokens };
 
-    // Guards. groundFromLibrary swallows every one of these conditions and returns no card, so
-    // without them the shipping arm silently becomes the prompt-only arm and still prints a number.
-    if (isLibraryTestingDisabled()) {
-      throw new Error("The library is suppressed for testing (another eval is mid-run or crashed). Reload the app and retry.");
-    }
-    if (!(await getLibraryEnabled())) {
-      throw new Error("The Library is switched off in Settings. Turn it on — the shipping arm cannot ground without it.");
-    }
-    if (await getLibraryUrl()) {
-      throw new Error("A library URL override is set in Settings. Clear it — this benchmark measures the bundled corpus.");
-    }
-    await getManifest();
-    if (!isLibraryAvailable()) {
-      throw new Error("The bundled library manifest did not load. The shipping arm would run ungrounded; nothing was sent to the model.");
-    }
+    await assertLibraryGuards();
 
     console.log(`[k12-eval] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} · ${items.length} item(s) × ${arms.length} arm(s)`);
 
@@ -174,47 +172,57 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
     const rows: K12Row[] = [];
     // Exposed before the first turn and filled as rows complete, so a late crash does not lose the run.
     (window as unknown as Record<string, unknown>).__k12Rows = rows;
+    // A void run is "logged with its counts" (rule 2) — this is that log.
+    const logCounts = () => {
+      for (const arm of arms) {
+        const t = tally(rows.filter((r) => r.arm === arm));
+        console.log(`[k12-eval] at void: ${arm.padEnd(11)} ${t.correct}/${t.total} · no-parse ${t.noParse} · error ${t.error}`);
+      }
+    };
 
     for (const item of items) {
       const prompt = formatK12Prompt(item);
       for (const arm of arms) {
+        // Outside the per-row try on purpose: a guard tripping mid-run throws and voids the run (rule 2).
+        if (arm === "shipping") await assertLibraryGuards().catch((e) => { logCounts(); throw e; });
         const row: K12Row = { id: item.id, arm, text: "", letter: null, outcome: "error", stopReason: null, hitTitles: [], groundError: null, toolCalls: [], ms: 0 };
         const started = Date.now();
+        let failed = false;
         try {
           if (arm === "raw") {
             // callLLMTurn, the transport the kernel itself uses — same num_ctx, num_predict and
             // think:false — so the only thing this arm removes is the harness.
-            const signal = new AbortController().signal;
-            for await (const ev of callLLMTurn([{ role: "user", content: prompt }], config, { tier: profile.tier, signal })) {
-              if (ev.type === "text") row.text += ev.delta;
-              else if (ev.type === "done") row.stopReason = ev.finishReason;
-            }
+            await watched(async (signal) => {
+              for await (const ev of callLLMTurn([{ role: "user", content: prompt }], config, { tier: profile.tier, signal })) {
+                if (ev.type === "text") row.text += ev.delta;
+                else if (ev.type === "done") row.stopReason = ev.finishReason;
+              }
+            });
           } else {
             const shipping = arm === "shipping";
-            const ctx: ToolContext = {
-              courseId: K12_COURSE_ID,
-              level: 1,
-              syllabus: null,
-              modelTier: profile.tier,
-              contextTokens,
-              permissionMode: "default",
-              config,
-              abort: new AbortController().signal,
-              activeSkill: skill,
-              confirmTool: async () => true,
-              // false returns no tools before the registry is consulted, which together with
-              // retrieval "off" makes the library unreachable in the prompt-only arm.
-              supportsTools: shipping ? profile.supportsTools : false,
-            };
-            const result = await tutorEngine.run(
+            const result = await watched((signal) => tutorEngine.run(
               {
                 messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
                 config,
                 retrieval: shipping ? "always" : "off",
                 onText: () => {},
               },
-              ctx,
-            );
+              {
+                courseId: K12_COURSE_ID,
+                level: 1,
+                syllabus: null,
+                modelTier: profile.tier,
+                contextTokens,
+                permissionMode: "default",
+                config,
+                abort: signal,
+                activeSkill: skill,
+                confirmTool: async () => true,
+                // false returns no tools before the registry is consulted, which together with
+                // retrieval "off" makes the library unreachable in the prompt-only arm.
+                supportsTools: shipping ? profile.supportsTools : false,
+              } satisfies ToolContext,
+            ));
             row.text = result.text;
             row.stopReason = result.stopReason;
             row.hitTitles = result.grounding.trace.hitTitles;
@@ -224,13 +232,26 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
         } catch (e) {
           row.text = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
           row.stopReason = null;
+          failed = true;
+        }
+        // Nothing but the watchdog aborts either arm's signal, so both of these mean the stream
+        // hung, not that the model answered. "length" stays graded on its text.
+        if (row.stopReason === "stalled" || row.stopReason === "aborted") {
+          row.text = `ERROR: turn ${row.stopReason}`;
+          failed = true;
         }
         row.ms = Date.now() - started;
-        const scored = scoreK12(item, row.text);
+        const scored = scoreK12(item, row.text, failed);
         row.outcome = scored.outcome;
         row.letter = scored.letter;
         rows.push(row);
         console.log(`[k12-eval] ${arm.padEnd(11)} ${item.id.padEnd(14)} ${row.outcome}${row.letter ? ` ${row.letter}` : ""} · ${row.ms}ms`);
+        // The run is void at this count whatever happens next (rule 2); stop instead of spending
+        // up to a watchdog per remaining row on a dependency that has gone away.
+        if (row.outcome === "error" && rows.filter((r) => r.arm === arm && r.outcome === "error").length >= ERROR_LIMIT) {
+          logCounts();
+          throw new Error(`VOID RUN — the ${arm} arm reached ${ERROR_LIMIT} ERROR rows at ${item.id}. Discard it whole.`);
+        }
       }
     }
 
@@ -244,8 +265,8 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
     }
     const grounded = of("shipping").filter((r) => r.hitTitles.length > 0).length;
     const contrasts = {
-      shippingVsRaw: contrast(of("shipping"), of("raw")),
-      shippingVsPromptOnly: contrast(of("shipping"), of("prompt-only")),
+      shippingVsRaw: contrastK12(of("shipping"), of("raw")),
+      shippingVsPromptOnly: contrastK12(of("shipping"), of("prompt-only")),
     };
 
     console.log("\n[k12-eval] ── summary ─────────────────────────────");
@@ -264,24 +285,15 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
     if (partial) {
       console.log("[k12-eval] PARTIAL RUN — not a result");
     } else {
-      const raw = byArm.raw!;
       const ship = byArm.shipping!;
-      const h = contrasts.shippingVsRaw!;
-      const errored = arms.filter((a) => byArm[a]!.error / byArm[a]!.total > K12_BAR.maxErrorRate);
-      verdict = {
-        void: errored.length
-          ? `ERROR rows over the limit in ${errored.join(", ")}`
-          : grounded === 0 ? "the shipping arm grounded zero items" : null,
-        V: arms.every((a) => byArm[a]!.noParse / byArm[a]!.total <= K12_BAR.maxNoParseRate),
-        A: ship.wilson[0] >= K12_BAR.shippingWilsonLowerBound,
-        H: h.p < K12_BAR.alpha ? (h.b > h.c ? "lift" : "reduces") : "no-difference",
-        C: raw.correct / raw.total >= K12_BAR.ceiling,
-      };
+      verdict = judgeK12(byArm as Record<K12Arm, K12ArmSummary>, grounded, contrasts.shippingVsRaw!);
       if (verdict.void) console.log(`[k12-eval] VOID RUN — ${verdict.void}. Discard it whole and log these counts.`);
-      console.log(`[k12-eval] V (format validity, no-parse <= ${pct(K12_BAR.maxNoParseRate)} per arm): ${verdict.V ? "VALID" : "FORMAT-INVALID — not quotable as an accuracy figure"}`);
-      console.log(`[k12-eval] A (shipping Wilson lower bound >= ${pct(K12_BAR.shippingWilsonLowerBound)}): ${pct(ship.wilson[0])} — ${verdict.A ? "MET" : "NOT MET"}`);
-      console.log(`[k12-eval] H (shipping vs raw, alpha ${K12_BAR.alpha}): ${verdict.H === "lift" ? "harness lift" : verdict.H === "reduces" ? "the harness reduces accuracy on this format" : `no measurable difference at n=${ship.total}`}`);
-      console.log(`[k12-eval] C (raw arm >= ${pct(K12_BAR.ceiling)}): ${verdict.C ? "NEAR CEILING — the set cannot discriminate a harness effect" : "below ceiling"}`);
+      else {
+        console.log(`[k12-eval] V (format validity, no-parse <= ${pct(K12_BAR.maxNoParseRate)} per arm): ${verdict.V ? "VALID" : "FORMAT-INVALID — not quotable as an accuracy figure"}`);
+        console.log(`[k12-eval] A (shipping Wilson lower bound >= ${pct(K12_BAR.shippingWilsonLowerBound)}): ${pct(ship.wilson[0])} — ${verdict.A ? "MET" : "NOT MET"}`);
+        console.log(`[k12-eval] H (shipping vs raw, alpha ${K12_BAR.alpha}): ${verdict.H === "lift" ? "harness lift" : verdict.H === "reduces" ? "the harness reduces accuracy on this format" : `no measurable difference at n=${ship.total}`}`);
+        console.log(`[k12-eval] C (raw arm >= ${pct(K12_BAR.ceiling)}): ${verdict.C ? "NEAR CEILING — the set cannot discriminate a harness effect" : "below ceiling"}`);
+      }
     }
 
     return { model: config.model, provider: config.provider, contextTokens, supportsTools: profile.supportsTools, partial, rows, byArm, grounded, contrasts, verdict };
