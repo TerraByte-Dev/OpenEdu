@@ -102,7 +102,7 @@ npm run tauri dev      # launches the desktop app
 On first run, open **Settings** (the gear) to pick your provider/model. With Ollama running locally you're
 ready to generate your first course — no key required.
 
-> Prefer a prebuilt installer? Grab the latest signed build from [**Releases**](https://github.com/TerraByte-Dev/OpenEdu/releases/latest) — installed apps auto-update.
+> Prefer a prebuilt installer? Grab the latest signed build from [**Releases**](https://github.com/TerraByte-Dev/OpenEdu/releases/latest) — update from **Settings → About → Check for updates** (the app never checks on its own).
 
 ## Development
 
