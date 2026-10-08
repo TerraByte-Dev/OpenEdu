@@ -44,6 +44,13 @@
 // family as the author, so agreement is weaker evidence than an independent solver would give. It
 // flagged 1 item (ela-912-01, an off-grade near-duplicate of a 6-8 item); replaced, re-solved,
 // agrees. 0 keys changed.
+// A second pass then audited every item WITH its key (one Claude auditor per cell, told to break
+// it): 0 wrong keys. 6 items repaired — 2 replaced as off-band or duplicate (math-912-12,
+// ela-912-02), 2 with an answer cue in the options (science-912-11, social-68-19), 2 reworded
+// (ela-68-11, social-68-15) — plus ela-k5-04 and math-68-12 changed to stop duplicating an item in
+// another band, 1 option corrected (social-912-05) and 6 rationales corrected. Keys were then
+// re-placed by a seeded shuffle (5 per letter per cell). The repaired items have NOT been
+// re-solved blind; the hand-check below should include them.
 // HUMAN CHECK: PENDING — 48 items (4 random per cell) to be hand-checked by the maintainer before
 // the freeze merges. This line is replaced with the counts when that is done.
 
