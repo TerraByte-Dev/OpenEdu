@@ -26,10 +26,13 @@
 // C (ceiling). If the raw arm is >= 95%, the write-up must say the set is near ceiling for this
 // model and cannot discriminate a harness effect.
 //
-// Rules. (1) The first complete run is the result: all items, all arms, no repeats, no per-item
-// retries. (2) A run is void only if ERROR rows reach 5 in any arm, a guard trips, or the shipping
+// Rules. (1) The first complete run is the result: all items, all arms, no repeats. A turn that
+// produced NO reply (it threw, stalled, was aborted or outran the watchdog) is retried once, because
+// the pilot showed Ollama occasionally hanging in prompt processing for minutes on this hardware;
+// a turn that produced any reply, right, wrong or unparseable, is never retried. Retried rows are
+// marked (`attempts: 2`) and counted in the results file. (2) A run is void only if ERROR rows reach 5 in any arm, a guard trips, or the shipping
 // arm grounds zero items; a void run is discarded whole and logged with its counts. An ERROR row is
-// a turn that threw, stalled, was aborted or outran the 10-minute watchdog. (3) No prompt,
+// a turn that still produced no reply on its second attempt. (3) No prompt,
 // parser, system-prompt or item change after the freeze commit. Only `K12_PILOT` may be sent to the
 // model before it. (4) A key changes only if objectively wrong, through an Errata section showing
 // item ids and the number before and after. (5) Strata are descriptive.

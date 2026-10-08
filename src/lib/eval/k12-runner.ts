@@ -31,6 +31,7 @@ const K12_COURSE_ID = "__eval_k12__";
 // A kernel turn that has produced nothing in this long is recorded as an ERROR row and aborted. The
 // stall timer only covers the chat stream; the shipping arm's notebook embed has no timeout at all.
 const K12_TURN_WATCHDOG_MS = 600_000;
+const K12_MAX_ATTEMPTS = 2;
 
 // Only ONE run at a time — two interleaved runs would share window.__k12Rows and the GPU, and the
 // per-turn times would mean nothing. See rag-runner.ts for how the same mistake once cost a result.
@@ -63,6 +64,8 @@ export interface K12Row {
   groundError: string | null;
   toolCalls: string[];
   ms: number;
+  /** 1, or 2 when the first attempt produced no reply and was retried. */
+  attempts: number;
 }
 
 type Split = Record<string, { correct: number; total: number }>;
@@ -180,72 +183,86 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
       }
     };
 
+    // Warm-up, unscored and carrying no item: a cold model load took longer than the first-byte
+    // timeout in the pilot and cost the first row. If this fails Ollama is not usable; say so now.
+    await watched(async (signal) => {
+      for await (const ev of callLLMTurn([{ role: "user", content: "Reply with the single word: ready" }], config, { tier: profile.tier, signal })) void ev;
+    }).catch(() => { /* a slow cold load is exactly what this absorbs; the first real turn decides */ });
+
     for (const item of items) {
       const prompt = formatK12Prompt(item);
       for (const arm of arms) {
         // Outside the per-row try on purpose: a guard tripping mid-run throws and voids the run (rule 2).
         if (arm === "shipping") await assertLibraryGuards().catch((e) => { logCounts(); throw e; });
-        const row: K12Row = { id: item.id, arm, text: "", letter: null, outcome: "error", stopReason: null, hitTitles: [], groundError: null, toolCalls: [], ms: 0 };
+        const row: K12Row = { id: item.id, arm, text: "", letter: null, outcome: "error", stopReason: null, hitTitles: [], groundError: null, toolCalls: [], ms: 0, attempts: 0 };
         const started = Date.now();
         let failed = false;
-        try {
-          if (arm === "raw") {
-            // callLLMTurn, the transport the kernel itself uses — same num_ctx, num_predict and
-            // think:false — so the only thing this arm removes is the harness.
-            await watched(async (signal) => {
-              for await (const ev of callLLMTurn([{ role: "user", content: prompt }], config, { tier: profile.tier, signal })) {
-                if (ev.type === "text") row.text += ev.delta;
-                else if (ev.type === "done") row.stopReason = ev.finishReason;
-              }
-            });
-          } else {
-            const shipping = arm === "shipping";
-            const result = await watched((signal) => tutorEngine.run(
-              {
-                messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
-                config,
-                retrieval: shipping ? "always" : "off",
-                onText: () => {},
-              },
-              {
-                courseId: K12_COURSE_ID,
-                level: 1,
-                syllabus: null,
-                modelTier: profile.tier,
-                contextTokens,
-                permissionMode: "default",
-                config,
-                abort: signal,
-                activeSkill: skill,
-                confirmTool: async () => true,
-                // false returns no tools before the registry is consulted, which together with
-                // retrieval "off" makes the library unreachable in the prompt-only arm.
-                supportsTools: shipping ? profile.supportsTools : false,
-              } satisfies ToolContext,
-            ));
-            row.text = result.text;
-            row.stopReason = result.stopReason;
-            row.hitTitles = result.grounding.trace.hitTitles;
-            row.groundError = result.grounding.trace.error ?? null;
-            row.toolCalls = result.toolCalls.map((c) => c.name);
-          }
-        } catch (e) {
-          row.text = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
+        // One retry, for a turn that produced NO reply (rule 1). A reply, right or wrong, is never retried.
+        for (let attempt = 1; attempt <= K12_MAX_ATTEMPTS; attempt++) {
+          row.attempts = attempt;
+          row.text = "";
           row.stopReason = null;
-          failed = true;
-        }
-        // Nothing but the watchdog aborts either arm's signal, so both of these mean the stream
-        // hung, not that the model answered. "length" stays graded on its text.
-        if (row.stopReason === "stalled" || row.stopReason === "aborted") {
-          row.text = `ERROR: turn ${row.stopReason}`;
-          failed = true;
+          failed = false;
+          try {
+            if (arm === "raw") {
+              // callLLMTurn, the transport the kernel itself uses — same num_ctx, num_predict and
+              // think:false — so the only thing this arm removes is the harness.
+              await watched(async (signal) => {
+                for await (const ev of callLLMTurn([{ role: "user", content: prompt }], config, { tier: profile.tier, signal })) {
+                  if (ev.type === "text") row.text += ev.delta;
+                  else if (ev.type === "done") row.stopReason = ev.finishReason;
+                }
+              });
+            } else {
+              const shipping = arm === "shipping";
+              const result = await watched((signal) => tutorEngine.run(
+                {
+                  messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
+                  config,
+                  retrieval: shipping ? "always" : "off",
+                  onText: () => {},
+                },
+                {
+                  courseId: K12_COURSE_ID,
+                  level: 1,
+                  syllabus: null,
+                  modelTier: profile.tier,
+                  contextTokens,
+                  permissionMode: "default",
+                  config,
+                  abort: signal,
+                  activeSkill: skill,
+                  confirmTool: async () => true,
+                  // false returns no tools before the registry is consulted, which together with
+                  // retrieval "off" makes the library unreachable in the prompt-only arm.
+                  supportsTools: shipping ? profile.supportsTools : false,
+                } satisfies ToolContext,
+              ));
+              row.text = result.text;
+              row.stopReason = result.stopReason;
+              row.hitTitles = result.grounding.trace.hitTitles;
+              row.groundError = result.grounding.trace.error ?? null;
+              row.toolCalls = result.toolCalls.map((c) => c.name);
+            }
+          } catch (e) {
+            row.text = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
+            row.stopReason = null;
+            failed = true;
+          }
+          // Nothing but the watchdog aborts either arm's signal, so both of these mean the stream
+          // hung, not that the model answered. "length" stays graded on its text.
+          if (row.stopReason === "stalled" || row.stopReason === "aborted") {
+            row.text = `ERROR: turn ${row.stopReason}`;
+            failed = true;
+          }
+          if (!failed) break;
         }
         row.ms = Date.now() - started;
         const scored = scoreK12(item, row.text, failed);
         row.outcome = scored.outcome;
         row.letter = scored.letter;
         rows.push(row);
-        console.log(`[k12-eval] ${arm.padEnd(11)} ${item.id.padEnd(14)} ${row.outcome}${row.letter ? ` ${row.letter}` : ""} · ${row.ms}ms`);
+        console.log(`[k12-eval] ${arm.padEnd(11)} ${item.id.padEnd(14)} ${row.outcome}${row.letter ? ` ${row.letter}` : ""} · ${row.ms}ms${row.attempts > 1 ? " · retried" : ""}`);
         // The run is void at this count whatever happens next (rule 2); stop instead of spending
         // up to a watchdog per remaining row on a dependency that has gone away.
         if (row.outcome === "error" && rows.filter((r) => r.arm === arm && r.outcome === "error").length >= ERROR_LIMIT) {
@@ -277,6 +294,7 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
       console.log(`[k12-eval]   by band:    ${fmtSplit(s.byBand)}`);
     }
     console.log(`[k12-eval] grounded (shipping rows handed a card): ${grounded}/${of("shipping").length}`);
+    console.log(`[k12-eval] retried turns (no reply on the first attempt): ${arms.map((a) => `${a} ${of(a).filter((r) => r.attempts > 1).length}`).join(" · ")}`);
     console.log(`[k12-eval] McNemar shipping vs raw: ${fmtContrast(contrasts.shippingVsRaw)}`);
     console.log(`[k12-eval] McNemar shipping vs prompt-only (descriptive): ${fmtContrast(contrasts.shippingVsPromptOnly)}`);
 
