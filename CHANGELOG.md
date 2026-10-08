@@ -13,22 +13,25 @@ The section for each release is also what the app shows when you press Check for
 ### Added
 - **The tutor reads your notes and the Library before it answers — every time.** Looking things up used
   to be the model's decision, and a small local model usually decided not to. Retrieval is now a step
-  that runs before the model sees your question, so the passages are simply there. On `gemma4:e4b`, a
-  test set of 36 questions whose answers live only in the notes went from 6 answered from the notes to
-  36. It works with no embedding model installed too: the Library half needs no model at all.
-- **Citations you can trust.** A source chip appears only when the answer actually reuses the retrieved
-  text, so a chip can't be invented. When nothing was used, the tutor says it answered from general
-  knowledge, not your notes.
+  that runs before the model sees your question, so the passages are simply there. On `gemma4:e4b`, a test set of 12 questions whose answers
+  live only in the notes, each asked three times, went from 6 of 36 answered from the notes to 36 of 36. It works with no embedding model installed too: the Library half needs no model at all.
+- **A "Grounded in" chip you can trust.** It appears only when the answer actually reuses the retrieved
+  text, so that chip can't be invented. When passages were found but the answer doesn't closely follow
+  them, the tutor says it answered from general knowledge, not your notes. The check is strict: a short
+  answer that paraphrases a note can be labelled general knowledge.
 - **Conversation threads.** Each level used to hold one endless transcript, and an older topic
   eventually scrolled out of reach. Start a new thread whenever you like; they title themselves and sit
   in a list beside the chat. Your existing history is kept as a thread called "Earlier conversation".
-- **Follow-up chips under each reply** — "Give me a hint", "Make me figure it out", "Quiz me on this",
-  "Check if I've got this". They replace the mode bar (see Changed).
+- **Follow-up chips under the latest reply** — up to three, chosen from what just happened: "Give me a
+  hint" and "Walk me through it" when the tutor asks you something, otherwise suggestions such as
+  "Worked example", "Make me figure it out" and, when there is room, "Quiz me on this". They replace
+  the mode bar (see Changed).
 - **A first-run setup that tells the truth.** The boot screen used to print "Ollama LISTENING" and a RAM
-  figure without checking anything. It now really probes: it tells you if Ollama isn't running or no
-  chat model is installed, downloads a model from inside the app, and then gives a short tour.
-- **A "Context window" setting**, defaulting to 8192 tokens (roughly 48 messages of history). It
-  overrides whatever Ollama is configured with, and is capped at what your model supports.
+  figure without checking anything. It now really probes: it tells you if Ollama isn't running or your
+  tutor model isn't installed, downloads that model from inside the app, and then gives a short tour.
+- **A "Context window" setting** for local (Ollama) models, defaulting to 8192 tokens (roughly 48
+  messages of history). In tutor chat it overrides whatever Ollama is configured with, and is capped at
+  what your model supports.
 - **Your notes now know what links to them.** Open a note and the right-hand panel lists every note
   that links here, with the line it appears on — plus **unlinked mentions**, notes that say this note's
   title in prose without linking it. The two are counted separately on purpose: one is a fact about
@@ -53,11 +56,12 @@ The section for each release is also what the app shows when you press Check for
   seconds after every launch to look for a new version. It no longer does. To update, open **Settings →
   About → Check for updates**.
 - **Inside a course, the left column belongs to that course.** The course list is hidden while you're
-  in one (the back arrow returns to it), and the column holds the course's tabs plus the active tab's
-  own list — your chat threads, your notes.
+  in one (the back arrow returns to it), and the column holds the course's tabs plus, on the Chat tab,
+  your conversation threads.
 - **The mode bar is gone.** Explain / Socratic / Quiz Me / Review / Hint / Assess asked you to classify
-  your question before asking it. Plain typing explains; the follow-up chips carry the other modes for
-  the one turn you tap them.
+  your question before asking it. Plain typing explains; when a follow-up chip for hinting, Socratic
+  questioning, quizzing or flashcard review is offered, it applies that mode for the one turn you tap
+  it. There is no chip for Assess in this release.
 - **The notebook looks like a notebook now.** Quieter chrome throughout: ghost icons instead of filled
   toolbar buttons, 24px rows, one hairline indent guide per nesting level, full-width selection instead
   of a border stripe, and no file icon on every row. Consistent line-art icons replaced the mixed
@@ -76,19 +80,20 @@ The section for each release is also what the app shows when you press Check for
   and graded together in one pass on a brief "Grading…" screen (exact / numeric answers settle instantly
   with no model call at all), results render immediately, and the heavier bookkeeping moves to the
   background. Multiple-choice and true/false still grade instantly as before.
-- **The Library finds the right card far more often, and stays quiet when it has nothing.** Common words
-  like "rules", "types" and "point" used to count as much as the word that carried the meaning, so
-  "IR spectroscopy" could hand the tutor a French verb card and invite it to use it. Terms are now
-  weighted by how rare they are, a card has to cover the question rather than one word of it, and the
-  text of every card is searchable, not just its title and aliases — "what is a lanthanide" used to
-  return nothing at all. On the 154 bundled cards, the eleven test questions the Library cannot answer
-  now all return silence instead of a confident wrong passage (five of them didn't before). This
-  changes both what the tutor cites and what the Resources search shows.
-- **Notebook search no longer ships your whole notebook around to rank it.** Every search used to pull
-  the full text of every chunk just to score it and throw all but three away, which is what made
-  search fall over on large notebooks. It now ranks first and fetches text only for the winners, and
-  newly indexed notes store their vectors in a format less than half the size. Existing notebooks keep
-  working as they are — nothing is re-embedded on upgrade.
+- **The Library ranks cards better, and the tutor's automatic lookup stays quiet when it has nothing.**
+  Common words like "rules", "types" and "point" used to count as much as the word that carried the
+  meaning. Terms are now weighted by how rare they are, a card has to cover the question rather than
+  one word of it, and key terms from each card's body are indexed alongside its title and aliases —
+  "what is a lanthanide" used to return nothing at all and now finds the periodic table in Resources
+  search. On the 154 bundled cards, for the eleven test questions the Library cannot answer, the lookup
+  that runs before each answer now injects nothing (five of them cleared the bar before). Resources
+  search, and the tutor's own library search when it chooses to call it, still list the closest cards
+  for any query, in the new order.
+- **Notebook search no longer pulls the text of every note to rank it.** Every search used to load the
+  full text of every chunk alongside its vector just to score it and throw all but a handful away. It
+  now ranks on the vectors alone and fetches text only for the winners, and newly indexed notes store
+  their vectors in a format less than half the size. Existing notebooks keep working as they are —
+  nothing is re-embedded on upgrade, so they keep the larger format until a note is re-indexed.
 
 ### Removed
 - **The launch-time update banner**, along with the check behind it (see Changed).
@@ -106,8 +111,8 @@ The section for each release is also what the app shows when you press Check for
 - **Long conversations no longer make the tutor forget who it is.** OpenEdu never told Ollama how big a
   context window to use, so Ollama used its own default and silently dropped the oldest text — which is
   where the tutor's instructions and its list of tools live. The app now sets the window explicitly and
-  trims old history itself, never the instructions or your question. Replies that were being cut off
-  after about a hundred words are fixed by the same change.
+  trims old history itself, never the instructions or your question. On Ollama setups that capped replies at about a hundred words, replies are no longer cut off: the
+  app now sets the reply limit itself too.
 - **Your own chat messages had no background.** The class meant to tint them wasn't a real class, so the
   one bubble that's supposed to look different from the tutor's was transparent. Four other controls had
   the same problem.
@@ -138,17 +143,16 @@ The section for each release is also what the app shows when you press Check for
   a `<path> attribute d` error for each on every launch. Prefixed them; no more console noise.
 - **Small "reasoning" models no longer fail as if they were broken.** Newer local models think out
   loud by default, and on OpenEdu's structured calls they spent their whole context window reasoning
-  and returned nothing — so the pre-flight check reported a working model as incompatible and told you
-  to download a bigger one. OpenEdu now asks Ollama not to reason on these calls. The same gap meant
+  and returned nothing — so the pre-flight check reported a working model as incompatible and told you to switch to a different one. OpenEdu now asks Ollama not to reason on these calls. The same gap meant
   course generation could save an **empty** tutor instruction with no error, leaving a course that
   looked generated and wasn't; that path is fixed too, and a model that reasons but never answers now
   gets a named error instead of a silent blank.
 - **Models without tool support can chat again.** If your local model's Ollama template has no tool
   support, every tutor turn in Explain, Socratic, Review and Assess — and every math, code or music
-  course — failed outright. OpenEdu already detected this and ignored it. Those models now get a plain
+  course — failed outright. OpenEdu now checks whether the model supports tools before offering any. Those models now get a plain
   grounded chat: no tools, but citations still work.
 - **The tutor can no longer mark the wrong subtopic as mastered.** A blank or vague reference from the
-  model used to resolve to the first subtopic that loosely matched — a blank one matched subtopic 1
+  model used to resolve to the first subtopic that loosely matched — one that was only spaces matched subtopic 1
   every time — quietly dropping the wrong topic out of your gaps. An unclear reference now changes
   nothing, and the tutor is told which subtopics it could have meant.
 - **The tutor can only run tools it was actually offered that turn.** A small model that named a tool
