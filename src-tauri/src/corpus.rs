@@ -143,10 +143,58 @@ pub(crate) fn walk(start: &Path, max: usize, exts: &[String]) -> Listing {
     Listing { root: start.to_string_lossy().into_owned(), entries, truncated, skipped }
 }
 
-/// Read an already-granted, canonical text file, capped.
+// `encoding` and `had_errors` are for tests today and for the first caller that reports them.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) struct Decoded {
+    pub text: String,
+    pub encoding: &'static str,
+    pub had_errors: bool,
+}
+
+/// Decode file bytes whose encoding nobody recorded. In order:
+///
+///   1. a BOM (UTF-8, UTF-16LE, UTF-16BE) wins, and is stripped;
+///   2. strict UTF-8 is taken as-is;
+///   3. pervasively invalid UTF-8 is Windows-1252 — at least 2 invalid sequences, and invalid bytes
+///      are at least 20% of the non-ASCII bytes;
+///   4. anything else stays lossy UTF-8.
+///
+/// Step 3's bar is what keeps one stray byte in a long UTF-8 file a single U+FFFD, instead of
+/// turning every é in it into "Ã©". A 1252 file's non-ASCII bytes are almost all invalid UTF-8, so
+/// it clears the bar as soon as it has two of them. Never fails: 1252 maps every byte.
+pub(crate) fn decode_text(bytes: &[u8]) -> Decoded {
+    if let Some((enc, bom_len)) = encoding_rs::Encoding::for_bom(bytes) {
+        let (text, had_errors) = enc.decode_without_bom_handling(&bytes[bom_len..]);
+        return Decoded { text: text.into_owned(), encoding: enc.name(), had_errors };
+    }
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return Decoded { text: text.to_owned(), encoding: "UTF-8", had_errors: false };
+    }
+    let (invalid_seqs, invalid_bytes) = utf8_errors(bytes);
+    let non_ascii = bytes.iter().filter(|b| !b.is_ascii()).count();
+    if invalid_seqs >= 2 && invalid_bytes * 5 >= non_ascii {
+        let (text, had_errors) = encoding_rs::WINDOWS_1252.decode_without_bom_handling(bytes);
+        return Decoded { text: text.into_owned(), encoding: "windows-1252", had_errors };
+    }
+    Decoded { text: String::from_utf8_lossy(bytes).into_owned(), encoding: "UTF-8", had_errors: true }
+}
+
+/// (invalid sequences, bytes in them), counted the way `from_utf8_lossy` replaces them.
+fn utf8_errors(mut rest: &[u8]) -> (usize, usize) {
+    let (mut seqs, mut bytes) = (0, 0);
+    while let Err(e) = std::str::from_utf8(rest) {
+        let bad = e.error_len().unwrap_or(rest.len() - e.valid_up_to());
+        seqs += 1;
+        bytes += bad;
+        rest = &rest[e.valid_up_to() + bad..];
+    }
+    (seqs, bytes)
+}
+
+/// Read an already-granted, canonical text file, capped, and decode it with `decode_text`.
 ///
 /// The cap is not politeness — a 3.9 GB PDF read into a String would take the process down, and an
-/// archive contains files like that. Invalid UTF-8 is replaced rather than erroring, because a
+/// archive contains files like that. Undecodable bytes are replaced rather than erroring, because a
 /// single bad byte in one file must not fail an import of thousands.
 pub(crate) fn read_text_capped(target: &Path, max_bytes: usize) -> Result<String, String> {
     let meta = fs::metadata(target).map_err(|e| format!("cannot stat file: {e}"))?;
@@ -158,7 +206,7 @@ pub(crate) fn read_text_capped(target: &Path, max_bytes: usize) -> Result<String
         return Err(format!("file is {} bytes, over the {} byte cap", meta.len(), cap));
     }
     let bytes = fs::read(target).map_err(|e| format!("cannot read file: {e}"))?;
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
+    Ok(decode_text(&bytes).text)
 }
 
 fn granted_roots(state: &State<Granted>) -> Result<Vec<PathBuf>, String> {
@@ -419,8 +467,125 @@ mod tests {
     fn invalid_utf8_is_replaced_not_an_error() {
         let (_d, root) = tmp();
         let file = root.join("bad.txt");
-        touch(&file, b"ok \xff\xfe end");
-        assert_eq!(read_text_capped(&file, 1024).unwrap(), "ok \u{FFFD}\u{FFFD} end");
+        touch(&file, b"ok \xff end");
+        assert_eq!(read_text_capped(&file, 1024).unwrap(), "ok \u{FFFD} end");
+    }
+
+    #[test]
+    fn reads_decode_utf16_rather_than_interleaving_nuls() {
+        let (_d, root) = tmp();
+        let file = root.join("u16.txt");
+        touch(&file, &utf16le_bom(SAMPLE));
+        assert_eq!(read_text_capped(&file, 1024).unwrap(), SAMPLE);
+    }
+
+    const SAMPLE: &str = "café — naïve";
+
+    fn utf16le_bom(text: &str) -> Vec<u8> {
+        let mut b = vec![0xFF, 0xFE];
+        b.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+        b
+    }
+
+    fn assert_decoded(d: &Decoded, text: &str, encoding: &str, had_errors: bool) {
+        assert_eq!((d.text.as_str(), d.encoding, d.had_errors), (text, encoding, had_errors));
+    }
+
+    #[test]
+    fn bomless_utf8_is_byte_identical() {
+        let text = "café — naïve, 日本語, 🎓";
+        assert_decoded(&decode_text(text.as_bytes()), text, "UTF-8", false);
+        assert_decoded(&decode_text(b""), "", "UTF-8", false);
+    }
+
+    #[test]
+    fn a_utf8_bom_is_stripped() {
+        let bytes = [&[0xEF, 0xBB, 0xBF][..], SAMPLE.as_bytes()].concat();
+        assert_decoded(&decode_text(&bytes), SAMPLE, "UTF-8", false);
+    }
+
+    #[test]
+    fn utf16le_with_a_bom_decodes() {
+        assert_decoded(&decode_text(&utf16le_bom(SAMPLE)), SAMPLE, "UTF-16LE", false);
+    }
+
+    #[test]
+    fn utf16be_with_a_bom_decodes() {
+        let mut bytes = vec![0xFE, 0xFF];
+        bytes.extend(SAMPLE.encode_utf16().flat_map(u16::to_be_bytes));
+        assert_decoded(&decode_text(&bytes), SAMPLE, "UTF-16BE", false);
+    }
+
+    #[test]
+    fn windows_1252_decodes_accents_curly_quotes_and_dashes() {
+        let d = decode_text(b"caf\xe9 \x93quoted\x94 \x97 dash");
+        assert_decoded(&d, "café \u{201C}quoted\u{201D} \u{2014} dash", "windows-1252", false);
+    }
+
+    #[test]
+    fn one_stray_byte_in_long_utf8_stays_utf8() {
+        let body = "naïve café — résumé. ".repeat(50);
+        let bytes = [body.as_bytes(), &[0xFF]].concat();
+        let d = decode_text(&bytes);
+        assert_eq!((d.encoding, d.had_errors), ("UTF-8", true));
+        assert_eq!(d.text.matches('\u{FFFD}').count(), 1);
+        assert_eq!(d.text.trim_end_matches('\u{FFFD}'), body);
+    }
+
+    // The realistic 1252 file: pages of English with a couple of accents. ASCII is not in the
+    // denominator, or this would read as UTF-8 with two stray bytes.
+    #[test]
+    fn mostly_ascii_1252_still_decodes_as_1252() {
+        let bytes = [b"Notes. ".repeat(200).as_slice(), b"Caf\xe9 with Ren\xe9e."].concat();
+        let d = decode_text(&bytes);
+        assert_eq!(d.encoding, "windows-1252");
+        assert!(d.text.ends_with("Café with Renée."));
+    }
+
+    // The price of the "at least 2 sequences" bar: a 1252 file with a single accented byte is
+    // indistinguishable from UTF-8 with one stray byte, and gets the UTF-8 reading.
+    #[test]
+    fn a_single_invalid_byte_is_never_enough_for_1252() {
+        assert_decoded(&decode_text(b"caf\xe9"), "caf\u{FFFD}", "UTF-8", true);
+    }
+
+    #[test]
+    fn the_1252_bar_is_twenty_percent_of_non_ascii_bytes() {
+        // 4 valid é (8 non-ASCII bytes) + 2 stray bytes: 2 of 10 is exactly 20%.
+        let at = ["éééé".as_bytes(), b"\xff\xff"].concat();
+        assert_eq!(decode_text(&at).encoding, "windows-1252");
+        // One more é: 2 of 12 is under.
+        let under = ["ééééé".as_bytes(), b"\xff\xff"].concat();
+        assert_eq!(decode_text(&under).encoding, "UTF-8");
+    }
+
+    // from_utf8 reports a sequence cut off by the end of input with error_len() == None.
+    #[test]
+    fn a_trailing_incomplete_sequence_counts_as_invalid() {
+        assert_decoded(&decode_text(b"\xe9t\xe9"), "été", "windows-1252", false);
+    }
+
+    #[test]
+    fn windows_1252_maps_every_byte() {
+        let all: Vec<u8> = (0..=255).collect();
+        let d = decode_text(&all);
+        assert_eq!((d.encoding, d.had_errors), ("windows-1252", false));
+        assert_eq!(d.text.chars().count(), 256);
+        assert!(!d.text.contains('\u{FFFD}'));
+    }
+
+    #[test]
+    fn binary_and_broken_input_still_decodes() {
+        let mut x: u32 = 0x1234_5678;
+        let noise: Vec<u8> = (0..4096)
+            .map(|_| {
+                x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                (x >> 24) as u8
+            })
+            .collect();
+        assert!(!decode_text(&noise).text.is_empty());
+        // A UTF-16 BOM with an odd byte left over.
+        assert_decoded(&decode_text(&[0xFF, 0xFE, b'a', 0, b'b']), "a\u{FFFD}", "UTF-16LE", true);
     }
 
     #[test]
