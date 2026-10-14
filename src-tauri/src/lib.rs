@@ -1,4 +1,5 @@
 mod corpus;
+mod extract;
 
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -318,6 +319,7 @@ pub fn run() {
             corpus::corpus_granted,
             corpus::corpus_list,
             corpus::corpus_read_text,
+            corpus::corpus_extract_epub,
         ]);
 
     // Updater is desktop-only.

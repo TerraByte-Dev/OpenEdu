@@ -64,6 +64,24 @@ export function readCorpusText(path: string, maxBytes = 4 * 1024 * 1024): Promis
   return invoke<string>("corpus_read_text", { path, maxBytes });
 }
 
+/** One spine item of an EPUB, as text. */
+export interface EpubSection {
+  /** First h1-h3, else the page's <title>, else `href`. */
+  title: string;
+  /** The chapter's path inside the archive. */
+  href: string;
+  text: string;
+}
+
+/**
+ * Extract an EPUB under a granted root into text sections, in reading (spine) order. Sections, not
+ * one blob, so a small model can be handed one at a time. `maxBytes` caps the compressed file; the
+ * backend separately caps what it inflates to, so a zip bomb is an error rather than a crash.
+ */
+export function extractEpub(path: string, maxBytes = 64 * 1024 * 1024): Promise<EpubSection[]> {
+  return invoke<EpubSection[]>("corpus_extract_epub", { path, maxBytes });
+}
+
 /** Pick, grant and list in one step — the whole "point it at a folder" gesture. */
 export async function openFolder(opts?: { max?: number; exts?: string[] }): Promise<CorpusListing | null> {
   const picked = await pickFolder();

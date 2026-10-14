@@ -22,6 +22,8 @@ use std::sync::Mutex;
 use serde::Serialize;
 use tauri::State;
 
+use crate::extract::{self, Section};
+
 /// Roots the user picked this session. Not persisted — a restart re-asks, which is the safe default.
 #[derive(Default)]
 pub struct Granted(pub Mutex<Vec<PathBuf>>);
@@ -149,6 +151,13 @@ pub(crate) fn walk(start: &Path, max: usize, exts: &[String]) -> Listing {
 /// archive contains files like that. Invalid UTF-8 is replaced rather than erroring, because a
 /// single bad byte in one file must not fail an import of thousands.
 pub(crate) fn read_text_capped(target: &Path, max_bytes: usize) -> Result<String, String> {
+    check_cap(target, max_bytes)?;
+    let bytes = fs::read(target).map_err(|e| format!("cannot read file: {e}"))?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Refuse anything that isn't a file, or is over the cap, before a byte of it is read.
+fn check_cap(target: &Path, max_bytes: usize) -> Result<(), String> {
     let meta = fs::metadata(target).map_err(|e| format!("cannot stat file: {e}"))?;
     if !meta.is_file() {
         return Err("not a file".into());
@@ -157,8 +166,15 @@ pub(crate) fn read_text_capped(target: &Path, max_bytes: usize) -> Result<String
     if meta.len() > cap {
         return Err(format!("file is {} bytes, over the {} byte cap", meta.len(), cap));
     }
-    let bytes = fs::read(target).map_err(|e| format!("cannot read file: {e}"))?;
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
+    Ok(())
+}
+
+/// Extract an already-granted, canonical EPUB into sections. `max_bytes` caps the compressed file
+/// exactly as `read_text_capped` caps a text file; `extract::Limits` caps what it inflates to.
+pub(crate) fn extract_epub_capped(target: &Path, max_bytes: usize) -> Result<Vec<Section>, String> {
+    check_cap(target, max_bytes)?;
+    let file = fs::File::open(target).map_err(|e| format!("cannot read file: {e}"))?;
+    extract::extract_epub(std::io::BufReader::new(file), &extract::Limits::default())
 }
 
 fn granted_roots(state: &State<Granted>) -> Result<Vec<PathBuf>, String> {
@@ -195,6 +211,13 @@ pub fn corpus_list(
 pub fn corpus_read_text(path: String, max_bytes: usize, state: State<Granted>) -> Result<String, String> {
     let target = resolve_granted(&granted_roots(&state)?, &path)?;
     read_text_capped(&target, max_bytes)
+}
+
+/// An EPUB under a granted root as text sections in spine order. See `extract::extract_epub`.
+#[tauri::command]
+pub fn corpus_extract_epub(path: String, max_bytes: usize, state: State<Granted>) -> Result<Vec<Section>, String> {
+    let target = resolve_granted(&granted_roots(&state)?, &path)?;
+    extract_epub_capped(&target, max_bytes)
 }
 
 #[cfg(test)]
@@ -427,6 +450,41 @@ mod tests {
     fn a_directory_is_not_a_file() {
         let (_d, root) = tmp();
         assert_eq!(read_text_capped(&root, 1024), Err("not a file".to_string()));
+    }
+
+    #[test]
+    fn an_epub_under_the_cap_extracts() {
+        let (_d, root) = tmp();
+        let file = root.join("book.epub");
+        touch(&file, &crate::extract::tests::three_chapter_book());
+        let titles: Vec<String> = extract_epub_capped(&file, 1 << 20).unwrap().into_iter().map(|s| s.title).collect();
+        assert_eq!(titles, vec!["Three", "One", "Two"]);
+    }
+
+    // The same gate as corpus_read_text, so the same errors, word for word.
+    #[test]
+    fn epub_extraction_is_capped_exactly_like_a_text_read() {
+        let (_d, root) = tmp();
+        let file = root.join("book.epub");
+        let bytes = crate::extract::tests::three_chapter_book();
+        touch(&file, &bytes);
+        let len = bytes.len();
+        assert_eq!(extract_epub_capped(&file, len - 1).unwrap_err(), read_text_capped(&file, len - 1).unwrap_err());
+        assert_eq!(
+            extract_epub_capped(&file, len - 1).unwrap_err(),
+            format!("file is {len} bytes, over the {} byte cap", len - 1)
+        );
+        assert_eq!(extract_epub_capped(&file, len).unwrap().len(), 3);
+        assert_eq!(extract_epub_capped(&root, 1024).unwrap_err(), "not a file");
+        assert!(extract_epub_capped(&file, usize::MAX).is_ok());
+    }
+
+    #[test]
+    fn a_text_file_is_not_an_epub() {
+        let (_d, root) = tmp();
+        let file = root.join("fake.epub");
+        touch(&file, b"just text");
+        assert!(extract_epub_capped(&file, 1024).unwrap_err().starts_with("not an EPUB (zip)"));
     }
 
     // Automates the HANDOFF verify step ("a 3.9 GB file must not crash"). set_len is sparse on
