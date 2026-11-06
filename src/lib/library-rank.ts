@@ -63,6 +63,58 @@ const LEN_NORM_BASE = 4;
 // first. Eliding normalises both sides to the same shape.
 const APOSTROPHES = /['‘’ʼ]/g;
 
+// French (and Catalan, Italian single-letter) elision: "l'énergie", "qu'est-ce", "j'ai". Gluing these
+// the way "boyle's" is glued would index "lenergie", which no query for "énergie" can reach — so a
+// word-initial single-letter clitic (or "qu") before an apostrophe is dropped instead. English has no
+// word that starts with one of these letters and an apostrophe, so English text never reaches this.
+const ELIDED_CLITIC = /(?<![\p{L}\p{M}\p{Nd}])(?:[cdjlmnst]|qu)['‘’ʼ](?=\p{L})/giu;
+
+// ── Words — the one splitter every lexical matcher in the app uses ────────────────────────────────
+//
+// It used to be `.split(/[^a-z0-9]+/)` in four places, which meant a Hindi, Amharic or Arabic question
+// had NO words at all — and ground.ts treats zero content words as small talk, so those students got
+// no grounding whatsoever. A word is now any run of letters, combining marks and decimal digits.
+//
+//   marks       \p{M} must stay INSIDE words. Devanagari, Bengali, Thai and Ethiopic write vowel signs
+//               and viramas as combining marks: splitting on [^\p{L}\p{N}] cuts "हिन्दी" into "ह", "न",
+//               "द" — every word in the language shattered into consonants.
+//   accents     Stripped ONLY where the base letter is Latin, so "energía" and "energia" meet. A mark on
+//               any other script is part of the spelling, never decoration, and is left alone.
+//   notation    Latin and non-Latin letters never share a token, and Latin modifier letters (ⁿ ₐ ᵢ) are
+//               separators. Without both, the English corpus's math turns "sinθ" into one unmatchable
+//               token where it used to give "sin", and "logₐ" stops yielding "log".
+//   digits      Only \p{Nd}. "CO₂" and "m²" keep splitting where they always did; Devanagari and
+//               Arabic-Indic digits are decimal digits and stay words.
+//
+// For ASCII input every step above is a no-op, so English tokenisation is unchanged byte for byte.
+// openedu-library/scripts/build-index.mjs carries the identical function — keep them in step.
+const LATIN_MARKS = /(\p{Script=Latin})\p{M}+/gu;
+const NOT_WORD = /(?:[^\p{L}\p{M}\p{Nd}]|[ʰ-˿]|(?=\p{Lm})\p{Script=Latin})+/gu;
+const WORD_RUN = /[\p{Script=Latin}\p{Nd}][\p{Script=Latin}\p{Nd}\p{M}]*|[^ \p{Script=Latin}\p{Nd}]+/gu;
+
+/** Lowercase, fold Latin accents, and split into words (unfiltered). */
+export function words(s: string): string[] {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(LATIN_MARKS, "$1")
+    .normalize("NFC")
+    .replace(NOT_WORD, " ")
+    .match(WORD_RUN) ?? [];
+}
+
+/**
+ * A word's length for the `>= 2` filters: letters and digits, by code point, NOT counting combining
+ * marks. `.length` counts UTF-16 units, so Hindi "का" (consonant + vowel sign) measured 2 and passed a
+ * filter that exists to drop single characters. Counted this way one akshara is one character, the same
+ * as one English letter: "का", "है", "में", "से" — postpositions and auxiliaries, the closest Hindi has to
+ * "a" and "i" — are dropped, while "घर" (house) and "पानी" (water) are kept. Code points rather than
+ * units also stops an astral script (Adlam, used for Fula) counting every letter twice.
+ */
+export function wordLength(t: string): number {
+  return [...t.replace(/\p{M}/gu, "")].length;
+}
+
 // Light plural folding so "lanthanide" reaches a body that says "lanthanides". Applied on both
 // sides — query and index — so they always agree. Deliberately naive: no stemmer and no dependency,
 // just strip a trailing "s" on tokens longer than 3 that don't end in "ss" (so "class" and "gas"
@@ -72,19 +124,20 @@ function fold(t: string): string {
 }
 
 export function tokenize(s: string): string[] {
-  return s
-    .toLowerCase()
-    .replace(APOSTROPHES, "")
-    .split(/[^a-z0-9]+/)
+  return words(elide(s))
     // Fold BEFORE the stopword filter, or a folded form can land on a stopword: "thats" survives
     // the filter, folds to "that", and gets indexed as a term this same function would then refuse
     // to produce from a query. The builder must apply the identical order.
     .map(fold)
-    .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
+    .filter((t) => wordLength(t) >= 2 && !STOPWORDS.has(t));
 }
 
 export function normalizePhrase(s: string): string {
-  return s.toLowerCase().replace(APOSTROPHES, "").replace(/[^a-z0-9]+/g, " ").trim();
+  return words(elide(s)).join(" ");
+}
+
+function elide(s: string): string {
+  return s.replace(ELIDED_CLITIC, "").replace(APOSTROPHES, "");
 }
 
 /**

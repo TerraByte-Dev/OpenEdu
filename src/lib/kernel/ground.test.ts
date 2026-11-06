@@ -50,6 +50,29 @@ describe("shouldRetrieve", () => {
     }
   });
 
+  // Regression: contentWords split on /[^a-z0-9]+/, so every non-Latin question had ZERO content
+  // words and was skipped as "short-query". A Hindi, Amharic or Arabic student got no grounding at all.
+  it("retrieves for questions in non-Latin scripts", () => {
+    for (const q of [
+      "प्रकाश संश्लेषण क्या है?",        // Hindi: what is photosynthesis?
+      "ፎቶሲንተሲስ ምንድን ነው?",            // Amharic
+      "ما هو التمثيل الضوئي؟",           // Arabic
+      "সালোকসংশ্লেষণ কী?",               // Bengali
+      "¿Qué es la fotosíntesis?",        // Spanish, accented
+      "Qu'est-ce que l'énergie ?",       // French, elided
+      "explain प्रकाश संश्लेषण please",  // mixed script
+    ]) {
+      expect(shouldRetrieve(q, "always"), q).toEqual({ retrieve: true, reason: null });
+    }
+  });
+
+  it("still skips emoji-only and particle-only turns", () => {
+    expect(shouldRetrieve("👍🏽🙏", "always").reason).toBe("short-query");
+    expect(shouldRetrieve("ok ❤️", "always").reason).toBe("short-query");
+    // Single-akshara Hindi particles are below the length floor (see wordLength in library-rank.ts).
+    expect(shouldRetrieve("का है", "always").reason).toBe("short-query");
+  });
+
   it("honours the off switch regardless of the question", () => {
     const r = shouldRetrieve("how does cellular respiration produce ATP in mitochondria", "off");
     expect(r.retrieve).toBe(false);
@@ -243,6 +266,16 @@ describe("groundedIn — the honesty mechanism", () => {
   it("handles short answers and empty hit lists without throwing", () => {
     expect(groundedIn("Yes.", [source])).toEqual([]);
     expect(groundedIn("a long enough answer with plenty of content words here", [])).toEqual([]);
+  });
+
+  // Before Unicode words, contentWords of any Hindi text was [], so a Hindi answer quoting a Hindi
+  // note could never earn a citation — and an unrelated one could never be told apart from it.
+  it("works on a Hindi passage, in both directions", () => {
+    const hindi = hit({ text: "प्रकाश संश्लेषण में पौधे सूर्य के प्रकाश से कार्बन डाइऑक्साइड और पानी को ग्लूकोज में बदलते हैं।" });
+    const quoted = "हाँ, प्रकाश संश्लेषण में पौधे सूर्य के प्रकाश से कार्बन डाइऑक्साइड और पानी को ग्लूकोज में बदलते हैं।";
+    const unrelated = "पौधों को बढ़ने के लिए मिट्टी, धूप और नियमित पानी की आवश्यकता होती है और वे हरे होते हैं।";
+    expect(groundedIn(quoted, [hindi])).toHaveLength(1);
+    expect(groundedIn(unrelated, [hindi])).toEqual([]);
   });
 
   it("gets stricter as n grows", () => {

@@ -12,6 +12,7 @@
 // library tools during the golden run.
 
 import { resolveSource, fetchLibText, isLibraryTestingDisabled } from "./library";
+import { words, wordLength } from "./library-rank";
 import { getLibraryEnabled } from "./store";
 import type { LibraryLookupResult } from "../types";
 
@@ -100,8 +101,8 @@ async function getDataset(id: string): Promise<Dataset> {
 // ── lexical matcher (mirrors library.ts's scorer, scoped to dataset rows) ──
 const STOP = new Set(["the", "a", "an", "of", "for", "to", "in", "on", "is", "are", "what", "whats", "show",
   "me", "my", "tell", "about", "give", "list", "and", "or", "how", "do", "i", "you", "can", "with", "was", "who", "which"]);
-const tokenize = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2 && !STOP.has(t));
-const normPhrase = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const tokenize = (s: string) => words(s).filter((t) => wordLength(t) >= 2 && !STOP.has(t));
+const normPhrase = (s: string) => words(s).join(" ");
 
 function scoreRow(row: Record<string, unknown>, ds: Dataset, qTokens: string[], qPhrase: string, qNum: number | null): number {
   let score = 0;

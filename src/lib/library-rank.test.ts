@@ -1,0 +1,176 @@
+import { describe, it, expect } from "vitest";
+import { words, wordLength, tokenize, normalizePhrase, matchResourcesScored } from "./library-rank";
+import type { LibraryEntry } from "../types";
+
+// The splitter every lexical matcher in the app goes through: library ranking (tokenize /
+// normalizePhrase), the grounding gate (ground.ts contentWords) and dataset lookup.
+
+describe("words — non-Latin scripts are words, not separators", () => {
+  it("Hindi: combining vowel signs and viramas stay inside the word", () => {
+    // "हिन्दी" is ह ि न ् द ी — four of its six code points are combining marks. A split on
+    // [^\p{L}\p{N}] would return "ह", "न", "द".
+    expect(words("हिन्दी में प्रकाश संश्लेषण क्या है?")).toEqual(["हिन्दी", "में", "प्रकाश", "संश्लेषण", "क्या", "है"]);
+  });
+
+  it("Bengali and Thai keep their marks too", () => {
+    expect(words("সালোকসংশ্লেষণ কী?")).toEqual(["সালোকসংশ্লেষণ", "কী"]);
+    expect(words("น้ำ คือ อะไร")).toEqual(["น้ำ", "คือ", "อะไร"]);
+  });
+
+  it("Amharic (Ethiopic): syllables are letters; Ethiopic punctuation separates", () => {
+    expect(words("ፎቶሲንተሲስ ምንድን ነው?")).toEqual(["ፎቶሲንተሲስ", "ምንድን", "ነው"]);
+    expect(words("ውሃ፣ አየር።")).toEqual(["ውሃ", "አየር"]);
+  });
+
+  it("Arabic: letters kept, Arabic question mark and comma separate, diacritics untouched", () => {
+    expect(words("ما هو التمثيل الضوئي؟")).toEqual(["ما", "هو", "التمثيل", "الضوئي"]);
+    expect(words("ماءٌ، هواء")).toEqual(["ماءٌ", "هواء"]);
+  });
+
+  it("native decimal digits are digits", () => {
+    expect(words("कक्षा १० और ٣ ")).toEqual(["कक्षा", "१०", "और", "٣"]);
+  });
+
+  it("is NFC-normalised, so a decomposed and a precomposed spelling are one word", () => {
+    // Devanagari "क़" has a precomposed code point (U+0958) and a decomposed form (क + nukta).
+    expect(words("क़")).toEqual(words("क़"));
+  });
+});
+
+describe("words — accents fold on Latin letters only", () => {
+  it("Spanish: accented and unaccented spellings meet", () => {
+    expect(words("¿Qué es la energía?")).toEqual(["que", "es", "la", "energia"]);
+    expect(words("energía")).toEqual(words("energia"));
+    expect(words("Año, niño, Bogotá, Perú")).toEqual(["ano", "nino", "bogota", "peru"]);
+  });
+
+  it("precomposed and combining-mark spellings of a Latin word are identical", () => {
+    expect(words("energía")).toEqual(words("energía"));
+  });
+
+  it("Vietnamese stacked diacritics all fold (a Latin-script language)", () => {
+    expect(words("Quang hợp là gì")).toEqual(["quang", "hop", "la", "gi"]);
+  });
+
+  it("never strips a mark from a non-Latin letter", () => {
+    expect(words("हिन्दी")[0].normalize("NFD")).toContain("ि"); // vowel sign i survives
+    expect(words("Ελληνικά")).toEqual(["ελληνικά"]); // Greek tonos is spelling, not decoration
+  });
+
+  it("lowercases with the locale-free toLowerCase", () => {
+    // Turkish dotted capital I lowercases to i + combining dot above; the dot is a Latin mark and folds.
+    expect(words("İSTANBUL")).toEqual(["istanbul"]);
+  });
+});
+
+describe("words — mixed script, notation and emoji", () => {
+  it("never puts Latin and non-Latin letters in one token", () => {
+    expect(words("DNAका structure")).toEqual(["dna", "का", "structure"]);
+    expect(words("photosynthesis प्रकाश संश्लेषण")).toEqual(["photosynthesis", "प्रकाश", "संश्लेषण"]);
+  });
+
+  it("keeps math notation splitting exactly where ASCII-only splitting did", () => {
+    // The English library writes trig, logs and chemistry this way. These were ["sin"], ["log", "x"],
+    // ["co"], ["2tan"] before Unicode, and must still be.
+    expect(words("sinθ")).toEqual(["sin", "θ"]);
+    expect(words("logₐ(x)")).toEqual(["log", "x"]);
+    expect(words("CO₂ and m²")).toEqual(["co", "and", "m"]);
+    expect(words("2tanθ")).toEqual(["2tan", "θ"]);
+    expect(words("2πr")).toEqual(["2", "π", "r"]);
+  });
+
+  it("emoji are separators, including variation selectors and skin tones", () => {
+    expect(words("🌋 volcano 🔥🔥")).toEqual(["volcano"]);
+    expect(tokenize("❤️ 👍🏽 👨‍👩‍👧")).toEqual([]);
+    expect(tokenize("1️⃣ step")).toEqual(["step"]);
+  });
+});
+
+describe("wordLength — the >= 2 filter counts letters, not UTF-16 units", () => {
+  it("one akshara (consonant + vowel sign) is one character", () => {
+    expect("का".length).toBe(2); // why .length was wrong
+    expect(wordLength("का")).toBe(1);
+    expect(wordLength("है")).toBe(1);
+    expect(wordLength("में")).toBe(1);
+  });
+
+  it("a two-consonant Hindi word is two characters, matras or not", () => {
+    expect(wordLength("घर")).toBe(2);
+    expect(wordLength("पानी")).toBe(2);
+  });
+
+  it("is .length for ASCII", () => {
+    expect(wordLength("mitochondria")).toBe("mitochondria".length);
+  });
+
+  it("drops single-akshara particles and keeps two-letter words, in the real tokenizer", () => {
+    expect(tokenize("पानी का घर है")).toEqual(["पानी", "घर"]);
+  });
+});
+
+describe("tokenize / normalizePhrase — apostrophes and elision", () => {
+  it("English apostrophes still elide, exactly as before", () => {
+    expect(tokenize("Boyle's law")).toEqual(tokenize("boyles law"));
+    expect(tokenize("boyle’s law")).toEqual(["boyle", "law"]);
+    expect(normalizePhrase("Kirchhoff's Laws")).toBe("kirchhoffs laws");
+  });
+
+  it("French elided articles drop, so l'énergie reaches énergie", () => {
+    expect(tokenize("l'énergie")).toEqual(tokenize("énergie"));
+    expect(tokenize("Qu'est-ce que l'énergie ?")).toEqual(["est", "ce", "que", "energie"]);
+    expect(tokenize("J’ai froid")).toEqual(["ai", "froid"]);
+    expect(normalizePhrase("L'Été")).toBe("ete");
+  });
+
+  it("an apostrophe inside an English word is not a clitic", () => {
+    expect(tokenize("don't")).toEqual(["dont"]);
+    expect(tokenize("it's")).toEqual(["its"]);
+  });
+});
+
+describe("tokenize — English output is unchanged", () => {
+  // The pre-Unicode implementation, kept here ONLY as an oracle: production no longer calls it.
+  const OLD_STOP = new Set(["the", "a", "an", "of", "for", "to", "in", "on", "is", "are", "what", "whats", "show", "me", "my",
+    "tell", "about", "give", "list", "and", "or", "how", "do", "i", "you", "can", "with", "this", "that"]);
+  const oldFold = (t: string) => (t.length > 3 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t);
+  const oldTokenize = (s: string) =>
+    s.toLowerCase().replace(/['‘’ʼ]/g, "").split(/[^a-z0-9]+/).map(oldFold).filter((t) => t.length >= 2 && !OLD_STOP.has(t));
+  const oldPhrase = (s: string) => s.toLowerCase().replace(/['‘’ʼ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+  it("matches the old tokenizer on 5,000 random printable-ASCII strings", () => {
+    // Seeded, so a failure reproduces. Biased toward letters, spaces and apostrophes, which is where
+    // the elision and clitic rules live.
+    let seed = 0x5eed;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const alphabet = "abcdeijlmnqstuxyzABCDLST0129    ''’-_.,?!()/";
+    for (let n = 0; n < 5000; n++) {
+      let s = "";
+      const len = 1 + Math.floor(rand() * 30);
+      for (let i = 0; i < len; i++) s += rand() < 0.15 ? String.fromCharCode(32 + Math.floor(rand() * 95)) : alphabet[Math.floor(rand() * alphabet.length)];
+      // A word-initial c/d/j/l/m/n/s/t + apostrophe + letter is French elision by design (see
+      // ELIDED_CLITIC); no English word has that shape, so random strings that do are excluded.
+      if (/(^|[^a-z0-9])(?:[cdjlmnst]|qu)['‘’ʼ][a-z]/i.test(s)) continue;
+      expect(tokenize(s), JSON.stringify(s)).toEqual(oldTokenize(s));
+      expect(normalizePhrase(s), JSON.stringify(s)).toBe(oldPhrase(s));
+    }
+  });
+});
+
+describe("matchResourcesScored — a Spanish query without accents reaches an accented card", () => {
+  const entry = (over: Partial<LibraryEntry>): LibraryEntry => ({
+    id: "x", title: "", path: "x.md", aliases: [], tags: [], subject: "", summary: "", ...over,
+  });
+  const manifest = [
+    entry({ id: "es/dias", title: "Los días de la semana", aliases: ["días", "semana"], tags: ["spanish"] }),
+    entry({ id: "hi/water", title: "पानी का चक्र", aliases: ["जल चक्र"], tags: ["hindi"] }),
+    entry({ id: "en/cell", title: "Animal and plant cells", aliases: ["cell"], tags: ["biology"] }),
+  ];
+
+  it("dias de la semana -> the días card", () => {
+    expect(matchResourcesScored("dias de la semana", manifest)[0]?.entry.id).toBe("es/dias");
+  });
+
+  it("a Hindi query reaches a Hindi card", () => {
+    expect(matchResourcesScored("पानी का चक्र क्या है", manifest)[0]?.entry.id).toBe("hi/water");
+  });
+});

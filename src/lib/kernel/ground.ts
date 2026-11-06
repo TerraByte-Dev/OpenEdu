@@ -15,6 +15,7 @@
 import { estTokens, capText, type Budget } from "./budget";
 import { searchNotebook } from "../notebook";
 import { getManifest, matchResourcesScored, fetchResource, isLibraryAvailable } from "../library";
+import { words, wordLength } from "../library-rank";
 import { getLibraryEnabled } from "../store";
 import type { ToolContext } from "../tools/EduTool";
 
@@ -114,10 +115,10 @@ const STOPWORDS = new Set([
 ]);
 
 export function contentWords(s: string): string[] {
-  return s
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
+  // words() is the shared Unicode splitter (library-rank.ts). On ASCII it is exactly the old
+  // `.toLowerCase().split(/[^a-z0-9]+/)`; on Hindi, Amharic or Arabic it is the difference between a
+  // question and "short-query", which skipped grounding for every non-Latin student.
+  return words(s).filter((t) => wordLength(t) >= 2 && !STOPWORDS.has(t));
 }
 
 // ── Pure stage 1: should we retrieve at all? ─────────────────────────────────
