@@ -9,10 +9,11 @@ shaped this way."
 OpenEdu is a **Tauri v2** desktop app: a **React 19 + TypeScript** frontend over a small **Rust** backend,
 with **SQLite** for all persistence. It is **local-first and bring-your-own-key** — the tutor runs on a
 local [Ollama](https://ollama.com/) model by default, with OpenAI and Anthropic as drop-in alternates.
-The guiding constraint is **reliability on small models**. The smallest one it has been verified on is
-`gemma4:e4b` (~4B effective at inference, 9.6GB on disk); smaller models are untested rather than
-ruled out, and no hardware floor has been measured. Everything follows from that constraint:
-everything the model produces is schema-enforced and validated.
+The guiding constraint is **reliability on small models**. The smallest one verified end to end
+(generation + tutoring) is `gemma4:e4b` (~4B effective at inference, 9.6GB on disk). The harness also
+runs on `qwen3.5:0.8b` (1.0GB, with `think: false`), but its tutoring has not been evaluated; smaller
+models are untested rather than ruled out, and no hardware floor has been measured. Everything follows
+from that constraint: everything the model produces is schema-enforced and validated.
 
 ## Data & storage
 

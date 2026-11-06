@@ -65,8 +65,9 @@ Each L1–L5 syllabus is a two-stage generation:
 
 ## The agent harness — what makes generation reliable
 
-Verified working on `gemma4:e4b` (local Ollama, ~4B effective at inference). That is the smallest
-configuration anyone has run it on — not a floor anyone established. The lessons that stuck:
+Verified working end to end on `gemma4:e4b` (local Ollama, ~4B effective at inference). That is the
+smallest configuration verified end to end, not a floor anyone established; the harness alone has run
+on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 
 1. **Decompose, don't dump.** Research is 5 small structured sub-calls (`subject_overview`, `knowledge_domains`, `progression`, `obstacles`, `prerequisites`) code-assembled into the markdown brief downstream consumers slice. A single free-text dump was unreliable on e4b.
 
