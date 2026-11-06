@@ -1,4 +1,4 @@
-# Held-out RAG eval, dev split — qwen3.5:0.8b, gemma4:e2b, gemma4:e4b, and the quote check — 2026-11-06
+# Held-out RAG eval, dev split — qwen3.5:0.8b, qwen3.5:4b, gemma4:e2b, gemma4:e4b, and the quote check — 2026-11-06
 
 The first runs on `rag-heldout.ts` (#152), questions written without looking at any gate. Dev split
 only: 18 near-miss negatives, 4 far negatives, 12 cross-lingual positives (es/fr/hi/sw/ar/am), 8
@@ -8,7 +8,7 @@ English paraphrases = 42 items × 3 repeats, `retrieval: "always"`. The test spl
 
 | | |
 |---|---|
-| Models | `qwen3.5:0.8b` (1.0 GB), `gemma4:e2b` (4.6 GB), `gemma4:e4b` (9.6 GB), all via Ollama, `think: false` |
+| Models | `qwen3.5:0.8b` (1.0 GB), `qwen3.5:4b` (3.3 GB), `gemma4:e2b` (4.6 GB), `gemma4:e4b` (9.6 GB), all via Ollama, `think: false` |
 | Embedder | `nomic-embed-text` |
 | Context | 8192 |
 | Hardware | RTX 3070 laptop (8 GB) / Ryzen 7 5800H; gemma4 partly offloaded to CPU |
@@ -20,6 +20,7 @@ English paraphrases = 42 items × 3 repeats, `retrieval: "always"`. The test spl
 |---|---|---|---|---|---|
 | qwen3.5:0.8b | 35/54 | 12/12 | 20/36 | 22/24 | 42/60 (70%) |
 | qwen3.5:0.8b + quote check | 37/54 | 12/12 | 24/36 | 17/24 | 41/60 (68%) |
+| qwen3.5:4b | 20/54 | 12/12 | 27/36 | 24/24 | 51/60 (85%) |
 | gemma4:e2b | 54/54 | 12/12 | 27/36 | 20/24 | 47/60 (78%) |
 | gemma4:e4b | 42/54 | 12/12 | 30/36 | 24/24 | 54/60 (90%) |
 
@@ -39,6 +40,7 @@ it, or answers a real-world question correctly from general knowledge.
 | | misused note | invented | wrong general | honest | **harmful (misused + invented)** |
 |---|---|---|---|---|---|
 | qwen3.5:0.8b | 18 | 20 | 9 | 7 | **38/54 (70%)** |
+| qwen3.5:4b | 4 | 8 | 3 | 39 | **12/54 (22%)** |
 | gemma4:e2b | 0 | 0 | 0 | 54 | **0/54 (0%)** |
 | gemma4:e4b | 0 | 4 | 0 | 50 | **4/54 (7%)** |
 
@@ -56,6 +58,11 @@ How the automatic scorer compares with the grader:
   the n-gram detector shows a citation chip. The chip is technically accurate and looks like a source.
 - gemma4's 4 harmful answers all say "I am answering from general knowledge" and then name an
   inventor for the fictional Wexler ratio or a colour for a fictional reagent.
+
+qwen3.5:4b was graded in its own pass with the same rubric. It refuses honestly most of the time and
+quotes the note while doing so (hence the automatic scorer's 34 "failures"), but 12 answers invent
+or misuse: two inventors for the fictional Wexler ratio, three iodide colours for the fictional
+reagent, "Verrin solution is acetone, which boils at 214 °C".
 
 gemma4:e2b was graded in a separate pass with the same rubric (54 rows, shuffled) and every label was
 checked by hand. It is honest by refusing: on the 18 near-miss rows about real-world facts (Everest,
@@ -88,7 +95,7 @@ Not run on the test split.
 - gemma4:e2b answered h-xl-am03 in Amharic but wrote "orange" in Bengali or Greek letters all three
   times ("উজ্জ্বল কমলা"), so the scorer could not find the Amharic word. A script-mixing failure, not a
   grounding one.
-- Cross-lingual positives: 0.8b 56%, gemma4:e2b 75%, gemma4:e4b 83%. The main fixture's two Spanish items overstated all three.
+- Cross-lingual positives: 0.8b 56%, qwen3.5:4b 75%, gemma4:e2b 75%, gemma4:e4b 83%. The main fixture's two Spanish items overstated all three.
 
 ## Reproduce
 
