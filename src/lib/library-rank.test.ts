@@ -33,7 +33,7 @@ describe("words — non-Latin scripts are words, not separators", () => {
 
   it("is NFC-normalised, so a decomposed and a precomposed spelling are one word", () => {
     // Devanagari "क़" has a precomposed code point (U+0958) and a decomposed form (क + nukta).
-    expect(words("क़")).toEqual(words("क़"));
+    expect(words("\u0958")).toEqual(words("\u0915\u093C"));
   });
 });
 
@@ -45,7 +45,7 @@ describe("words — accents fold on Latin letters only", () => {
   });
 
   it("precomposed and combining-mark spellings of a Latin word are identical", () => {
-    expect(words("energía")).toEqual(words("energía"));
+    expect(words("energ\u00EDa")).toEqual(words("energi\u0301a"));
   });
 
   it("Vietnamese stacked diacritics all fold (a Latin-script language)", () => {
@@ -53,7 +53,7 @@ describe("words — accents fold on Latin letters only", () => {
   });
 
   it("never strips a mark from a non-Latin letter", () => {
-    expect(words("हिन्दी")[0].normalize("NFD")).toContain("ि"); // vowel sign i survives
+    expect(words("हिन्दी")[0].normalize("NFD")).toContain("\u093F"); // vowel sign i survives
     expect(words("Ελληνικά")).toEqual(["ελληνικά"]); // Greek tonos is spelling, not decoration
   });
 

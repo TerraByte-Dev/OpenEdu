@@ -82,14 +82,15 @@ const ELIDED_CLITIC = /(?<![\p{L}\p{M}\p{Nd}])(?:[cdjlmnst]|qu)['‘’ʼ](?=\p{
 //               any other script is part of the spelling, never decoration, and is left alone.
 //   notation    Latin and non-Latin letters never share a token, and Latin modifier letters (ⁿ ₐ ᵢ) are
 //               separators. Without both, the English corpus's math turns "sinθ" into one unmatchable
-//               token where it used to give "sin", and "logₐ" stops yielding "log".
+//               token where it used to give "sin", and "logₐ" stops yielding "log". The Spacing
+//               Modifier Letters block (U+02B0–U+02FF, which holds "ʼ") separates for the same reason.
 //   digits      Only \p{Nd}. "CO₂" and "m²" keep splitting where they always did; Devanagari and
 //               Arabic-Indic digits are decimal digits and stay words.
 //
 // For ASCII input every step above is a no-op, so English tokenisation is unchanged byte for byte.
 // openedu-library/scripts/build-index.mjs carries the identical function — keep them in step.
 const LATIN_MARKS = /(\p{Script=Latin})\p{M}+/gu;
-const NOT_WORD = /(?:[^\p{L}\p{M}\p{Nd}]|[ʰ-˿]|(?=\p{Lm})\p{Script=Latin})+/gu;
+const NOT_WORD = /(?:[^\p{L}\p{M}\p{Nd}]|[\u02B0-\u02FF]|(?=\p{Lm})\p{Script=Latin})+/gu;
 const WORD_RUN = /[\p{Script=Latin}\p{Nd}][\p{Script=Latin}\p{Nd}\p{M}]*|[^ \p{Script=Latin}\p{Nd}]+/gu;
 
 /** Lowercase, fold Latin accents, and split into words (unfiltered). */
