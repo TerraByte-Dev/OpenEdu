@@ -108,8 +108,12 @@ export const RAG_QUESTIONS: RagQuestion[] = [
   { id: "m1", kind: "multihop", ask: "Compare the height of Ashcombe Ridge with the rotor speed of the Kessel engine — which number is larger?", expect: "4,180|4180" },
   { id: "m2", kind: "multihop", ask: "I am doing lab work and baking this week. What temperature does the Verrin solution need, and how much rye flour per loaf?", expect: "214" },
 
-  // 2 Spanish — a non-English learner is the mission's actual user. Retrieval is language-agnostic
-  // (embeddings are multilingual) but the ANSWER path is not, so this is worth measuring separately.
+  // 2 Spanish — a non-English learner is the mission's actual user. Retrieval is NOT language-agnostic:
+  // shouldRetrieve gates on contentWords (kernel/ground.ts), which splits on /[^a-z0-9]+/, so a
+  // question with no ASCII letter/digit run of 2+ chars (e.g. pure Devanagari) never reaches the
+  // automatic retrieval stage; one that contains a number or Latin term ("H2O", "100") clears the gate
+  // on those tokens alone. These two clear it because they are Latin script, and they carry English
+  // nonce names. The ANSWER path is a separate question, worth measuring separately.
   { id: "s1", kind: "spanish", ask: "¿A qué temperatura hierve la solución Verrin?", expect: "214" },
   { id: "s2", kind: "spanish", ask: "¿Cuántos gramos de harina de centeno lleva el pan Brannock?", expect: "340" },
 ];

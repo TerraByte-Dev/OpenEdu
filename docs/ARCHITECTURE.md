@@ -9,10 +9,11 @@ shaped this way."
 OpenEdu is a **Tauri v2** desktop app: a **React 19 + TypeScript** frontend over a small **Rust** backend,
 with **SQLite** for all persistence. It is **local-first and bring-your-own-key** — the tutor runs on a
 local [Ollama](https://ollama.com/) model by default, with OpenAI and Anthropic as drop-in alternates.
-The guiding constraint is **reliability on small models**. The smallest one it has been verified on is
-`gemma4:e4b` (~4B effective at inference, ~7.5GB to download); smaller models are untested rather than
-ruled out, and no hardware floor has been measured. Everything follows from that constraint:
-everything the model produces is schema-enforced and validated.
+The guiding constraint is **reliability on small models**. The smallest one verified end to end
+(generation + tutoring) is `gemma4:e4b` (~4B effective at inference, 9.6GB on disk). The harness also
+runs on `qwen3.5:0.8b` (1.0GB, with `think: false`), but its tutoring has not been evaluated; smaller
+models are untested rather than ruled out, and no hardware floor has been measured. Everything follows
+from that constraint: everything the model produces is schema-enforced and validated.
 
 ## Data & storage
 
@@ -87,10 +88,10 @@ A tutoring turn is owned by the **kernel** (`TutorEngine`): it assembles a layer
 model, dispatches **tools**, and applies **stop hooks** to decide when the turn ends. Capabilities the
 tutor can invoke are **EduTools** (zod-schema'd, modeled on Claude Code's tool shape) — e.g. notebook
 search/ingest, math/diagram render, knowledge-map updates, mastery marking, and a mid-turn "ask the user"
-tool. Behavior is composed from **skills** (`src/skills/*.md` + user-sideloaded bundles in APPDATA):
-markdown files with frontmatter that gate on subject/tier. A per-mode **permission** policy
+tool. Behavior is composed from **skills** (`src/skills/*.md`; user-sideloaded bundles are not implemented yet):
+markdown files with frontmatter that gate on subject/tier. A per-tool **permission** policy
 (allow / ask / deny, with Standard · Cautious · Trusting presets) governs what the tutor may do on its
-own; exam mode locks model help.
+own.
 
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
@@ -99,7 +100,8 @@ force-directed vault graph. **`notebook-links.ts`** is the pure source of truth 
 `#tag` parsing, link resolution, the tag index, and the graph builder (note / folder / tag nodes). Tags
 are **derived from note content** — no DB column. **`notebook.ts`** handles RAG: notes are chunked,
 embedded on save, and searched by **brute-force cosine** over the course's vectors (fine for a single
-student's vault; vectors are stored as JSON-array TEXT, schema kept `sqlite-vec`-compatible for later).
+student's vault; vectors are stored as base64 f32 TEXT in `vec_b64`, with pre-migration-12 rows read back
+from JSON-array TEXT, schema kept `sqlite-vec`-compatible for later).
 
 Linking is bidirectional. `buildBacklinkIndex` maps a note to everything holding a `[[link]]` that
 resolves to it, with the surrounding line as context; `findUnlinkedMentions` finds notes that say the

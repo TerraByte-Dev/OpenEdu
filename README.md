@@ -33,19 +33,20 @@
 
 OpenEdu generates a focused, 6-level curriculum for **any** topic, then tutors you through it — chat, quizzes,
 a notebook with retrieval, and promotion tests — entirely on a local model if you want. It's built to be
-**reliable on small models** — verified on `gemma4:e4b`, the smallest model it has been tested with
-(~4B effective at inference, ~7.5GB to download) — and to work with **no account
+**reliable on small models** — the smallest model verified end to end (generation + tutoring) is
+`gemma4:e4b` (~4B effective at inference, 9.6GB on disk); the harness also runs on `qwen3.5:0.8b` (1.0GB),
+whose tutoring has not been evaluated yet — and to work with **no account
 and no network**: your data lives in a local SQLite database, and the only outbound calls are to the model
-provider you choose.
+provider you choose, plus web search if you add a Tavily key and the update check when you click it.
 
 ## Features
 
-- **Generate a course for anything** — a research → outline → tutor-instructions → 6 syllabuses pipeline, fully schema-enforced so it holds up on tiny local models.
+- **Generate a course for anything** — a research → outline → tutor-instructions → 6 syllabuses pipeline, fully schema-enforced so it holds up on small local models.
 - **Bring your own key, or none** — runs free on local **Ollama**; OpenAI and Anthropic are drop-in alternates. Separate model choices for generation vs. chat vs. embeddings.
 - **Offline curated Library** — a 150+ card K-12 reference set (periodic table, formulas, definitions, maps…) bundled in the app; the tutor can cite it mid-lesson with zero network.
 - **Notebook with retrieval** — an Obsidian-style vault with a live-preview editor, `[[wiki-links]]`, note-free `#tags`, and a vault graph; documents are embedded locally so the tutor can search and cite your notes.
 - **Quizzes & promotion tests** — per-level practice plus a code-assembled mastery exam.
-- **Tutor permissions** — a per-mode allow / ask / deny policy (Standard · Cautious · Trusting presets) governing what the tutor may do on its own; exam mode locks model help.
+- **Tutor permissions** — a per-tool allow / ask / deny policy (Standard · Cautious · Trusting presets) governing what the tutor may do on its own.
 - **Themes** — a CRT "blue phosphor" aesthetic with recolors (Amber, Green, Crimson, Synthwave, Ultraviolet…) plus clean **Dark / Light** themes — all CSS-variable driven.
 
 ## Screenshots
@@ -88,7 +89,7 @@ provider you choose.
 
 - [Node.js](https://nodejs.org/) 20.19+ or 22.12+
 - [Rust](https://www.rust-lang.org/tools/install) + the [Tauri v2 system dependencies](https://v2.tauri.app/start/prerequisites/) for your OS
-- (For the free local path) [Ollama](https://ollama.com/) with a model pulled, e.g. `ollama run llama3`
+- (For the free local path) [Ollama](https://ollama.com/) with a model pulled, e.g. `ollama run gemma4:e4b`
 
 **Run**
 
