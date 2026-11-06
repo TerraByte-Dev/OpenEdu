@@ -10,7 +10,7 @@ import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, type TutorTurn, type ToolUIEvent, type Suggestion } from "../lib/kernel";
+import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
@@ -67,9 +67,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   useEffect(() => { ensureChatKatex().then(() => setKatexTick((t) => t + 1)); }, []);
   // Live tool activity for the current/just-finished turn (session-only; not persisted).
   const [toolEvents, setToolEvents] = useState<ToolUIEvent[]>([]);
-  // Whether the LAST answer was actually grounded in retrieved material. Derived from n-gram overlap
-  // (kernel `groundedIn`), never from the model claiming it — so this cannot be a fabricated citation.
-  const [groundingNote, setGroundingNote] = useState<{ kind: "grounded"; titles: string[] } | { kind: "ungrounded" } | null>(null);
+  // Which retrieved passages the LAST answer quoted. Derived from n-gram overlap (kernel `groundedIn`),
+  // never from the model claiming it — so this cannot be a fabricated citation. It proves a quote, not
+  // that the passage answered the question (see kernel/citation.ts).
+  const [groundingNote, setGroundingNote] = useState<CitationNote | null>(null);
   // Follow-up chips for the just-finished turn. Derived deterministically from turn state — no model
   // call — so they cost nothing on a CPU box. Cleared on send.
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -335,15 +336,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
       // tutor ends up looking like it read your notes when it didn't.
-      if (result.grounding.hits.length > 0) {
-        setGroundingNote(
-          result.usedHits.length > 0
-            ? { kind: "grounded", titles: [...new Set(result.usedHits.map((h) => h.title))] }
-            : { kind: "ungrounded" },
-        );
-      } else {
-        setGroundingNote(null);
-      }
+      setGroundingNote(citationNote(result.grounding.hits, result.usedHits));
       // Follow-up chips. `countDueFlashcards` is a cheap indexed count and the only I/O here; if it
       // fails the chips just lose one option rather than the turn losing its suggestions.
       const due = await countDueFlashcards(courseId, new Date().toISOString()).catch(() => 0);
@@ -607,20 +600,22 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: Suggestion[]; o
 }
 
 // Honest grounding readout (#90). Two states, both worth showing:
-//   grounded   — the answer demonstrably reused these passages (n-gram overlap, not the model's word)
+//   quoted     — the answer demonstrably reused these passages (n-gram overlap, not the model's word).
+//                Worded as a quote, not a source: an honest "your notes don't say" that quotes the
+//                note lands here too (kernel/citation.ts has the evidence).
 //   ungrounded — passages WERE retrieved and the answer used none of them
 // The second is the one that keeps the product honest. A tutor that silently drops it looks like it
 // read the student's notes on every turn, which on a small model it very often did not.
-function GroundingNote({ note }: { note: { kind: "grounded"; titles: string[] } | { kind: "ungrounded" } }) {
+function GroundingNote({ note }: { note: CitationNote }) {
   const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-mono border w-fit max-w-full";
   return (
     <div className="flex gap-3">
       <span className="w-8 h-8 shrink-0" />
       <div className="flex-1 flex flex-wrap items-start gap-1.5">
-        {note.kind === "grounded" ? (
+        {note.kind === "quoted" ? (
           note.titles.map((title) => (
-            <span key={title} title="This answer used text from this source" className={`${base} bg-lcd border-phosphor/20 text-phosphor-ink`}>
-              📓 Grounded in: {title}
+            <span key={title} title={QUOTED_CHIP_TOOLTIP} className={`${base} bg-lcd border-phosphor/20 text-phosphor-ink`}>
+              📓 {quotedChipLabel(title)}
             </span>
           ))
         ) : (
