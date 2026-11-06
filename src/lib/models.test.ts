@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   GENERATION_MODELS, CHAT_MODELS,
   defaultGenerationModel, defaultChatModel, defaultEmbeddingModel,
-  defaultOllamaModelForRam, OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS,
+  defaultOllamaModelForRam, defaultOllamaModel, isOllamaDefaultModel,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS,
 } from "./models";
 
 const CLOUD = ["openai", "anthropic"] as const;
@@ -86,5 +87,41 @@ describe("defaultOllamaModelForRam (8 GB community-centre PCs)", () => {
       expect(OLLAMA_GEN_SUGGESTIONS).toContain(defaultGenerationModel("ollama", ram));
       expect(OLLAMA_CHAT_SUGGESTIONS).toContain(defaultChatModel("ollama", ram));
     }
+  });
+});
+
+describe("defaultOllamaModel (an upgrade must not point a working install at a model it lacks)", () => {
+  it("an 8 GB install set up on e4b before this default existed keeps e4b", () => {
+    expect(defaultOllamaModel(8 * GiB, ["gemma4:e4b", "nomic-embed-text:latest"])).toBe("gemma4:e4b");
+    expect(defaultChatModel("ollama", 8 * GiB, ["gemma4:e4b"])).toBe("gemma4:e4b");
+    expect(defaultGenerationModel("ollama", 8 * GiB, ["gemma4:e4b"])).toBe("gemma4:e4b");
+  });
+
+  it("a fresh 8 GB install gets e2b, and so does one that has pulled it", () => {
+    expect(defaultOllamaModel(8 * GiB, [])).toBe("gemma4:e2b");
+    expect(defaultOllamaModel(8 * GiB, ["nomic-embed-text:latest"])).toBe("gemma4:e2b");
+    expect(defaultOllamaModel(8 * GiB, ["gemma4:e4b", "gemma4:e2b"])).toBe("gemma4:e2b");
+  });
+
+  it("a large machine with only e2b pulled uses it rather than one it does not have", () => {
+    expect(defaultOllamaModel(32 * GiB, ["gemma4:e2b"])).toBe("gemma4:e2b");
+    expect(defaultOllamaModel(32 * GiB, ["gemma4:e2b", "gemma4:e4b"])).toBe("gemma4:e4b");
+  });
+
+  it("matches tags exactly: another gemma4 tag is not the default being present", () => {
+    expect(defaultOllamaModel(8 * GiB, ["gemma4:latest"])).toBe("gemma4:e2b");
+    expect(defaultOllamaModel(8 * GiB, ["GEMMA4:E4B"])).toBe("gemma4:e4b");
+  });
+
+  it("Ollama unreachable (null) leaves the RAM pick alone", () => {
+    expect(defaultOllamaModel(8 * GiB, null)).toBe("gemma4:e2b");
+    expect(defaultOllamaModel(null, null)).toBe("gemma4:e4b");
+  });
+
+  it("isOllamaDefaultModel names exactly the two defaults", () => {
+    expect(isOllamaDefaultModel("gemma4:e2b")).toBe(true);
+    expect(isOllamaDefaultModel(" Gemma4:E4B ")).toBe(true);
+    expect(isOllamaDefaultModel("qwen3.5:0.8b")).toBe(false);
+    expect(isOllamaDefaultModel("gemma3:1b")).toBe(false);
   });
 });

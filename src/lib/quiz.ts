@@ -2,7 +2,7 @@ import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } fr
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { splitNewVsReview, storedToGenQuestion, pickReview, interleaveReview } from "./quiz-review";
 import {
-  checkAnswerConsistency, shouldRejectNumericReasoning,
+  checkAnswerConsistency, shouldRejectNumericReasoning, runsVerifyPass,
   gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger,
@@ -394,7 +394,7 @@ async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]):
 // Provider-aware. LOCAL (Ollama) optimizes for QUALITY: one call per question, sequential, with a live
 // anti-repeat ledger (time is free on local). CLOUD optimizes for COST on a free plan: batch questions
 // per subtopic to minimize call count + repeated prompt tokens, fired in parallel. Both dedupe, top up
-// a shortfall (capped rounds), and run the independent verify pass on every tier but tiny.
+// a shortfall (capped rounds), and run the independent verify pass where runsVerifyPass says to.
 interface GenPlan {
   subtopics: Array<{ id: string; title: string; key_concepts: string[] }>;
   topic: string;
@@ -417,7 +417,7 @@ async function generatePerQuestion(
   plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   const { tier, config } = plan;
-  const verify = tier !== "tiny"; // independent re-solve runs on every tier but the weakest (audit)
+  const verify = runsVerifyPass(tier, config.model); // independent re-solve: every tier but tiny, plus the defaults (audit)
   const ledgerCap = tier === "tiny" || tier === "small" ? 8 : 16;
   const MAX_ROUNDS = 3;
 
@@ -463,7 +463,7 @@ async function generateBatched(
   plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   const { tier, config } = plan;
-  const verify = tier !== "tiny"; // independent re-solve runs on every tier but the weakest (audit)
+  const verify = runsVerifyPass(tier, config.model); // independent re-solve: every tier but tiny, plus the defaults (audit)
   const MAX_ROUNDS = 3;
   let produced: GenQuestion[] = [];
 
@@ -507,8 +507,9 @@ async function generateToTarget(
 }
 
 // ─── Independent verification pass (issue #83) ────────────────────────────────
-// Gated by the caller to every tier but the weakest (tiny). One structured call re-solves the checkable
-// questions and flags any whose stored answer it disagrees with; those are dropped and top-up refills.
+// Gated by the caller (runsVerifyPass: every tier but tiny, plus the default local models). One
+// structured call re-solves the checkable questions and flags any whose stored answer it disagrees
+// with; those are dropped and top-up refills.
 // The output is tiny (verdicts, not full questions), so it's cheap even on the floor model. Best-effort:
 // any failure returns the batch untouched, and a drop only happens on an explicit disagreement, so a
 // confused verifier can't silently drain the question count.
@@ -583,8 +584,8 @@ export async function generateQuizQuestions(
   const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
   let reviewQs = pickReview(validReviewPool, review);
   // The review pool is the path that leaked the recurring bad question, so re-posed items also get the
-  // independent verify pass (every tier but tiny) — not just the consistency/structural re-check above.
-  if (tier !== "tiny" && reviewQs.length > 0) {
+  // independent verify pass (runsVerifyPass) — not just the consistency/structural re-check above.
+  if (runsVerifyPass(tier, config.model) && reviewQs.length > 0) {
     reviewQs = await verifyAndFilter(reviewQs, config, tier, `quiz L${syllabus.level} review`);
   }
 

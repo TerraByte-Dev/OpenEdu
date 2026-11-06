@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel } from "./models";
+import { getOllamaModels } from "./llm";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 import type { RetrievalMode } from "./kernel/ground";
 
@@ -25,6 +26,15 @@ function systemMemoryBytes(): Promise<number | null> {
   return memoryBytes;
 }
 
+// What Ollama has pulled, for the default pick (models.ts defaultOllamaModel). Asked on every resolve
+// and not cached: the setup gate's "download model" fix pulls a model mid-session, and the next resolve
+// has to see it. Only reached when no model is stored, so a configured install never makes this call.
+// null when Ollama could not be asked, so the RAM pick stands.
+async function installedOllamaModels(ollamaUrl: string): Promise<string[] | null> {
+  const tags = await getOllamaModels(ollamaUrl);
+  return tags.error ? null : tags.models;
+}
+
 // Shared provider/key config
 export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?: string; ollamaUrl: string }> {
   const s = await getStore();
@@ -40,7 +50,10 @@ export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?
 export async function getGenerationConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const model = (await s.get<string>(STORE_KEYS.genModel)) ?? defaultGenerationModel(base.provider, await systemMemoryBytes());
+  const stored = await s.get<string>(STORE_KEYS.genModel);
+  const model = stored ?? (base.provider === "ollama"
+    ? defaultGenerationModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
+    : defaultGenerationModel(base.provider));
   return { ...base, model };
 }
 
@@ -48,7 +61,10 @@ export async function getGenerationConfig(): Promise<LLMConfig> {
 export async function getChatConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const model = (await s.get<string>(STORE_KEYS.chatModel)) ?? defaultChatModel(base.provider, await systemMemoryBytes());
+  const stored = await s.get<string>(STORE_KEYS.chatModel);
+  const model = stored ?? (base.provider === "ollama"
+    ? defaultChatModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
+    : defaultChatModel(base.provider));
   return { ...base, model };
 }
 
