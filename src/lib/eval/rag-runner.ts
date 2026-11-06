@@ -26,7 +26,7 @@ import { importTextAsNote } from "../notebook";
 import { evalToolSyllabus } from "./goldens";
 import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type RagQuestion, type RagVerdict } from "./rag-fixture";
 import { RAG_HELDOUT } from "./rag-heldout";
-import type { LLMConfig } from "../../types";
+import type { LLMConfig, Syllabus } from "../../types";
 
 const RAG_COURSE_ID = "__eval_rag__";
 
@@ -75,12 +75,36 @@ async function seedVault(): Promise<void> {
   }
 }
 
+function matchedSyllabus(): Syllabus {
+  const sub = (id: string, title: string, key_concepts: string[]) =>
+    ({ id, title, key_concepts, practice_type: "exercises", mastered: false, practiced: false });
+  return {
+    id: "eval-syl-rag",
+    course_id: RAG_COURSE_ID,
+    level: 1,
+    title: "General Studies",
+    description: "A general course: the student brings questions from any subject and keeps notes on what they learn.",
+    learning_objectives: ["Answer questions across science, geography, history and economics"],
+    subtopics: [
+      sub("gs-science", "Science", ["chemistry", "biology", "astronomy", "engineering"]),
+      sub("gs-geo", "Geography and History", ["landforms", "documents", "dates"]),
+      sub("gs-econ", "Economics and Study Skills", ["ratios", "study plans"]),
+    ],
+    assessment_criteria: ["Can answer a factual question and say where the answer came from"],
+    estimated_hours: 2,
+    generated_at: new Date().toISOString(),
+  } as Syllabus;
+}
+
 export async function runRagEval(opts?: {
   repeats?: number;
   modes?: RetrievalMode[];
   only?: string;
   /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts. */
   set?: "main" | "dev" | "test";
+  /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
+   *  vault's subjects, which is what a learner who wrote these notes would actually be enrolled in. */
+  syllabus?: "python" | "matched";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -117,11 +141,11 @@ export async function runRagEval(opts?: {
       for (let rep = 0; rep < repeats; rep++) {
         for (const question of questions) {
           const skill = resolveSkill("explain") ?? null;
-          const system = buildSystemPrompt(RAG_INSTRUCTIONS, evalToolSyllabus(), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined);
+          const system = buildSystemPrompt(RAG_INSTRUCTIONS, (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined);
           const ctx: ToolContext = {
             courseId: RAG_COURSE_ID,
             level: 1,
-            syllabus: evalToolSyllabus(),
+            syllabus: (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()),
             modelTier: profile.tier,
             contextTokens,
             permissionMode: "default",
