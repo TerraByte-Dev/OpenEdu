@@ -54,7 +54,7 @@ export default function WebLibrary() {
         <Disclosure summary="Advanced — custom library source">
           <SettingRow
             label="Library base URL override"
-            help="Point at a remote static host to fetch a larger/updated corpus (must be allow-listed in capabilities). Leave empty to use the bundled offline copy."
+            help="Point at a remote static host to fetch a larger/updated corpus. The host must be allow-listed in capabilities, and none is today. Leave empty to use the bundled offline copy."
             keywords="library url override remote host corpus advanced"
           >
             <input
@@ -62,7 +62,7 @@ export default function WebLibrary() {
               value={libraryUrl}
               onChange={(e) => setLibraryUrlState(e.target.value)}
               onBlur={async () => { await setLibraryUrl(libraryUrl.trim()); markSaved(); }}
-              placeholder="https://library.openedu.app/"
+              placeholder="https://"
               className={INPUT_CLS}
               spellCheck={false}
             />
