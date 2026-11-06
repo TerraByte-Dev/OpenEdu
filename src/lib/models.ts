@@ -42,11 +42,14 @@ export const CHAT_MODELS: Record<CloudProvider, ModelOption[]> = {
 };
 
 // Curated fallback lists shown when Ollama isn't connected (no live model discovery available).
-export const OLLAMA_GEN_SUGGESTIONS = ["llama3:70b", "qwen2.5:72b", "mistral-large", "llama3"];
-export const OLLAMA_CHAT_SUGGESTIONS = ["llama3", "phi3", "gemma2", "mistral"];
+// gemma4:e4b is the only local model verified end to end (generation + the RAG eval). qwen3.5:0.8b runs
+// the harness and grounds 36/36 positives, but fails the zero-fabrication bar on negatives
+// (src/lib/eval/results/2026-11-06-qwen3.5-0.8b.md), so it is offered, never defaulted.
+export const OLLAMA_GEN_SUGGESTIONS = ["gemma4:e4b"];
+export const OLLAMA_CHAT_SUGGESTIONS = ["gemma4:e4b", "qwen3.5:0.8b"];
 
-const OLLAMA_GEN_DEFAULT = "llama3";
-const OLLAMA_CHAT_DEFAULT = "llama3";
+const OLLAMA_GEN_DEFAULT = "gemma4:e4b";
+const OLLAMA_CHAT_DEFAULT = "gemma4:e4b";
 const OLLAMA_EMBEDDING_DEFAULT = "nomic-embed-text";
 const OPENAI_EMBEDDING_DEFAULT = "text-embedding-3-small";
 
