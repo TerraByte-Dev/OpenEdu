@@ -11,6 +11,8 @@
 //     await window.__runRagEval()                      // both mechanisms, 1 repeat
 //     await window.__runRagEval({ repeats: 3 })        // the real bar
 //     await window.__runRagEval({ modes: ["always"] }) // just the shipping path
+//     await window.__runRagEval({ set: "dev", modes: ["always"], quoteCheck: true })
+//                                                      // held-out split (rag-heldout.ts), quote check on
 
 import { tutorEngine, EMPTY_GROUNDING, type TutorTurn, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
@@ -23,6 +25,7 @@ import { deleteCourse, ensureCourse } from "../db";
 import { importTextAsNote } from "../notebook";
 import { evalToolSyllabus } from "./goldens";
 import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type RagQuestion, type RagVerdict } from "./rag-fixture";
+import { RAG_HELDOUT } from "./rag-heldout";
 import type { LLMConfig } from "../../types";
 
 const RAG_COURSE_ID = "__eval_rag__";
@@ -49,6 +52,8 @@ export interface RagRow {
   citedTitles: string[];
   retrievedTitles: string[];
   toolCalls: string[];
+  /** What the quote check got back, when it ran. */
+  quote?: string;
   verdict: RagVerdict;
 }
 
@@ -72,7 +77,14 @@ async function seedVault(): Promise<void> {
   }
 }
 
-export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMode[]; only?: string }): Promise<RagReport> {
+export async function runRagEval(opts?: {
+  repeats?: number;
+  modes?: RetrievalMode[];
+  only?: string;
+  /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts. */
+  set?: "main" | "dev" | "test";
+  quoteCheck?: boolean;
+}): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
       "A RAG eval is already running. Wait for it to finish — two runs share one fixture course and " +
@@ -83,7 +95,9 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
 
   const repeats = opts?.repeats ?? 1;
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
-  const questions = opts?.only ? RAG_QUESTIONS.filter((q) => q.id === opts.only) : RAG_QUESTIONS;
+  const set = opts?.set ?? "main";
+  const pool: RagQuestion[] = set === "main" ? RAG_QUESTIONS : RAG_HELDOUT.filter((q) => q.split === set);
+  const questions = opts?.only ? pool.filter((q) => q.id === opts.only) : pool;
 
   registerBuiltinTools();
   await loadBuiltinSkills();
@@ -96,7 +110,7 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
     : profile.contextTokens;
   const config: LLMConfig = { ...baseConfig, modelTier: profile.tier, contextTokens };
 
-  console.log(`[rag-eval] ${config.provider}/${config.model} ctx=${contextTokens} · ${questions.length} question(s) × ${repeats} repeat(s) × ${modes.length} mode(s)`);
+  console.log(`[rag-eval] ${config.provider}/${config.model} ctx=${contextTokens} · set=${set}${opts?.quoteCheck ? " · quote check" : ""} · ${questions.length} question(s) × ${repeats} repeat(s) × ${modes.length} mode(s)`);
 
   const rows: RagRow[] = [];
   try {
@@ -127,6 +141,7 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
             ],
             config,
             retrieval: mode,
+            quoteCheck: opts?.quoteCheck,
             onText: () => {},
           };
 
@@ -134,6 +149,7 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
           let citedTitles: string[] = [];
           let retrievedTitles: string[] = [];
           let toolCalls: string[] = [];
+          let quote: string | undefined;
           let retrievalTrace: Grounding["trace"] = EMPTY_GROUNDING.trace;
           try {
             const result = await tutorEngine.run(turn, ctx);
@@ -145,6 +161,7 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
             citedTitles = [...new Set(result.usedHits.map((h) => h.title))];
             retrievedTitles = result.grounding.trace.hitTitles;
             toolCalls = result.toolCalls.map((c) => c.name);
+            quote = result.grounding.trace.quote;
           } catch (e) {
             answer = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
           }
@@ -168,7 +185,7 @@ export async function runRagEval(opts?: { repeats?: number; modes?: RetrievalMod
           }
 
           const verdict = scoreRagAnswer(question, answer, citedTitles);
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, toolCalls, verdict });
+          rows.push({ mode, question, answer, citedTitles, retrievedTitles, toolCalls, quote, verdict });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason}`);
         }
       }

@@ -23,6 +23,7 @@ import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
+import { quoteCheck } from "./quote-check";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 
@@ -40,6 +41,9 @@ export interface TutorTurn {
   // sees anything; "off" disables it and leaves notebook.search as the only path. Exposed so the
   // eval can A/B the two mechanisms on the same fixture — the falsification condition needs both.
   retrieval?: RetrievalMode;
+  // Experimental (quote-check.ts): before answering, the model must copy the sentence that answers
+  // and code drops any passage that does not contain it. One extra call per grounded turn.
+  quoteCheck?: boolean;
 }
 
 export interface TutorTurnResult {
@@ -93,9 +97,14 @@ export class TutorEngine {
     // stage makes it 1.0. Capable models get the same context and keep notebook.search for a second
     // hop, so this is not a small-model branch.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    const grounding = lastUser
+    let grounding = lastUser
       ? await ground(lastUser.content, ctx, budget, turn.retrieval ?? "always")
       : EMPTY_GROUNDING;
+    if (turn.quoteCheck && lastUser && grounding.hits.length) {
+      grounding = await quoteCheck(lastUser.content, grounding, {
+        config: turn.config, tier: ctx.modelTier, maxTokens: budget.grounding, signal: ctx.abort,
+      });
+    }
 
     if (grounding.block && lastUser) {
       // Merged into the FINAL USER TURN, not the system prompt. Two reasons, both load-bearing:

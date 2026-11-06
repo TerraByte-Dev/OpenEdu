@@ -32,7 +32,7 @@ export interface GroundingHit {
 
 export interface RetrievalTrace {
   /** Non-null when retrieval was deliberately skipped, naming the reason. */
-  skipped: "short-query" | "no-corpus" | "below-floor" | "disabled" | null;
+  skipped: "short-query" | "no-corpus" | "below-floor" | "disabled" | "no-quote" | null;
   candidates: number;
   /** Note-sourced candidates BEFORE the score floor. Distinct from how many survived: zero survivors
    *  is the healthy answer to a question the vault cannot answer, whereas zero CANDIDATES means the
@@ -43,6 +43,8 @@ export interface RetrievalTrace {
   hitTitles: string[];
   blockTokens: number;
   error?: string;
+  /** The sentence the quote check (quote-check.ts) got back, when it ran. */
+  quote?: string;
 }
 
 export interface Grounding {
@@ -87,7 +89,7 @@ const MAX_HITS = 3;
 
 /** Per-passage cap. Long enough to carry a fact with its sentence, short enough that three of them
  *  plus the question still leave the model room to answer inside a 4096-token window. */
-const MAX_HIT_TOKENS = 250;
+export const MAX_HIT_TOKENS = 250;
 
 /** Below this many content words the turn is an acknowledgement, not a question.
  *
