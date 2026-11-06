@@ -85,10 +85,16 @@ const ELIDED_CLITIC = /(?<![\p{L}\p{M}\p{Nd}])(?:[cdjlmnst]|qu)['‘’ʼ](?=\p{
 //               token where it used to give "sin", and "logₐ" stops yielding "log". The Spacing
 //               Modifier Letters block (U+02B0–U+02FF, which holds "ʼ") separates for the same reason.
 //   digits      Only \p{Nd}. "CO₂" and "m²" keep splitting where they always did; Devanagari and
-//               Arabic-Indic digits are decimal digits and stay words.
+//               Arabic-Indic digits are decimal digits and stay words, but never glue onto a
+//               non-Latin word: "कक्षा१०" is "कक्षा" and "१०".
+//   joiners     ZWJ and ZWNJ (U+200D, U+200C) are deleted, not split on. They choose a rendering
+//               INSIDE a word: Sinhala Sri (ශ් ZWJ රී), Devanagari half-forms, Persian mi-khaham (می ZWNJ خواهم). As
+//               separators they shattered those words into single-letter fragments the length filter
+//               then dropped. Deleting them also makes the joined and unjoined spellings one token.
 //
 // For ASCII input every step above is a no-op, so English tokenisation is unchanged byte for byte.
 // openedu-library/scripts/build-index.mjs carries the identical function — keep them in step.
+const JOINERS = /[\u200C\u200D]/g;
 const LATIN_MARKS = /(\p{Script=Latin})\p{M}+/gu;
 const NOT_WORD = /(?:[^\p{L}\p{M}\p{Nd}]|[\u02B0-\u02FF]|(?=\p{Lm})\p{Script=Latin})+/gu;
 const WORD_RUN = /[\p{Script=Latin}\p{Nd}][\p{Script=Latin}\p{Nd}\p{M}]*|[^ \p{Script=Latin}\p{Nd}]+/gu;
@@ -96,6 +102,7 @@ const WORD_RUN = /[\p{Script=Latin}\p{Nd}][\p{Script=Latin}\p{Nd}\p{M}]*|[^ \p{S
 /** Lowercase, fold Latin accents, and split into words (unfiltered). */
 export function words(s: string): string[] {
   return s
+    .replace(JOINERS, "")
     .toLowerCase()
     .normalize("NFD")
     .replace(LATIN_MARKS, "$1")
@@ -190,6 +197,8 @@ export interface DfIndex {
   df: Map<string, number>;
   /** Corpus size. */
   n: number;
+  /** Every word the corpus can match on: df terms plus every word of every title and alias phrase. */
+  vocab: Set<string>;
 }
 
 // body_terms ships as a compact "term:weight term:weight" string — an array of pairs quadrupled
@@ -222,6 +231,8 @@ export function parseBodyTerms(entry: LibraryEntry): Array<[string, number]> {
 interface EntryTokens {
   fields: Array<{ set: Set<string>; weight: number; lenNorm: number }>;
   all: Set<string>;
+  /** normalizePhrase of the title and each alias, non-empty only — the phrase-bonus targets. */
+  names: string[];
 }
 const tokenCache = new WeakMap<object, EntryTokens>();
 
@@ -245,7 +256,10 @@ function tokensFor(e: LibraryEntry): EntryTokens {
       fields.push({ set, weight, lenNorm: Math.min(2, Math.max(1, Math.sqrt(set.size / LEN_NORM_BASE))) });
     }
     for (const [term] of parseBodyTerms(e)) all.add(term);
-    t = { fields, all };
+    // Memoised with the tokens: the Unicode normalizePhrase is several regex passes, and scoreEntry
+    // otherwise re-ran it on ~900 titles and aliases per query (0.57 -> ~1.9 ms/query, measured).
+    const names = [e.title, ...e.aliases].map(normalizePhrase).filter(Boolean);
+    t = { fields, all, names };
     tokenCache.set(e, t);
   }
   return t;
@@ -258,10 +272,13 @@ function entryTerms(e: LibraryEntry): Set<string> {
 
 export function buildDfIndex(manifest: LibraryEntry[]): DfIndex {
   const df = new Map<string, number>();
+  const vocab = new Set<string>();
   for (const e of manifest) {
     for (const term of entryTerms(e)) df.set(term, (df.get(term) ?? 0) + 1);
+    for (const name of tokensFor(e).names) for (const w of name.split(" ")) vocab.add(w);
   }
-  return { df, n: manifest.length };
+  for (const term of df.keys()) vocab.add(term);
+  return { df, n: manifest.length, vocab };
 }
 
 const rawIdf = (df: number, n: number) => Math.log((n + 1) / (df + 1));
@@ -306,9 +323,7 @@ export function scoreEntry(
 ): number {
   let phrase = 0;
   // A curated title/alias the query contains (or vice-versa) is near-certain — never damped.
-  for (const name of [entry.title, ...entry.aliases]) {
-    const n = normalizePhrase(name);
-    if (!n) continue;
+  for (const n of tokensFor(entry).names) {
     if (qPhrase === n) phrase += 12;
     else if (qPhrase.includes(n) || n.includes(qPhrase)) phrase += 6;
   }
@@ -374,15 +389,29 @@ export function matchResources(query: string, manifest: LibraryEntry[], topN = 3
 // into every unrelated question. Callers that retrieve without being asked need to see the number so
 // they can set a floor. (#90 — the eval caught "boiling point of ethanol" pulling in
 // "Types of Economic Systems".)
+//
+// A non-Latin word the corpus has never seen is dropped from the query before scoring. Students mix
+// scripts: "photosynthesis क्या है", "ما هو freytag pyramid". We have no stopword list for Hindi,
+// Arabic or Amharic, so "क्या है" (what is) arrives as two df-0 tokens, which queryCoverage rates as
+// the most informative words in the query, and the English card loses most of its score: "freytag
+// pyramid के बारे में बताइए" fell from 11.5 to 5.3, below the grounding floor. They also turned an
+// exact title match into a containment one. Dropping them gives the library exactly the query it saw
+// before Unicode words, which ignored every non-Latin character. A non-Latin word the corpus DOES
+// contain (a Hindi card's title or terms) is kept, and Latin words are never dropped, so an English
+// df-0 term like "spectroscopy" still counts against coverage. The grounding gate and groundedIn use
+// contentWords, not this, and still see every word.
+const LATIN_SIDE = /^[\p{Script=Latin}0-9]/u;
+
 export function matchResourcesScored(
   query: string,
   manifest: LibraryEntry[],
   topN = 3,
 ): Array<{ entry: LibraryEntry; score: number }> {
-  const qTokens = tokenize(query);
-  const qPhrase = normalizePhrase(query);
-  if (qTokens.length === 0 && !qPhrase) return [];
   const idx = dfFor(manifest);
+  const keep = (w: string) => LATIN_SIDE.test(w) || idx.vocab.has(w);
+  const qTokens = tokenize(query).filter(keep);
+  const qPhrase = words(elide(query)).filter(keep).join(" ");
+  if (qTokens.length === 0 && !qPhrase) return [];
   return manifest
     .map((e) => ({ entry: e, score: scoreEntry(qTokens, qPhrase, e, idx) }))
     .filter((x) => x.score > 0)

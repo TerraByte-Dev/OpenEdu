@@ -84,6 +84,43 @@ describe("words — mixed script, notation and emoji", () => {
     expect(tokenize("❤️ 👍🏽 👨‍👩‍👧")).toEqual([]);
     expect(tokenize("1️⃣ step")).toEqual(["step"]);
   });
+
+  it("Spacing Modifier Letters that are not Latin-script still separate", () => {
+    // U+02B9 (modifier prime) and U+02D0 (IPA length mark) are Lm with Script=Common, so only the
+    // explicit U+02B0-U+02FF range in NOT_WORD keeps them from becoming one-character "words".
+    expect(words("fʹ(x) = 2x")).toEqual(["f", "x", "2x"]);
+    expect(words("a: aː")).toEqual(["a", "a"]);
+  });
+
+  it("native digits never glue onto a non-Latin word", () => {
+    expect(words("कक्षा१०")).toEqual(["कक्षा", "१०"]);
+    expect(words("الصف٣")).toEqual(["الصف", "٣"]);
+  });
+});
+
+describe("words — zero-width joiners are part of the word", () => {
+  // Built from code points: the joiners are invisible, and a literal one in source is unreviewable.
+  const ZWNJ = String.fromCodePoint(0x200c);
+  const ZWJ = String.fromCodePoint(0x200d);
+
+  it("Sinhala Sri (ZWJ conjunct) stays one word and survives the length filter", () => {
+    expect(words(`ශ්${ZWJ}රී ලංකාව`)).toEqual(["ශ්රී", "ලංකාව"]);
+    expect(tokenize(`ශ්${ZWJ}රී`)).toEqual(["ශ්රී"]);
+  });
+
+  it("a Devanagari ZWNJ conjunct is the plain conjunct, not two dropped fragments", () => {
+    expect(tokenize(`क्${ZWNJ}ष`)).toEqual(tokenize("क्ष"));
+    expect(tokenize("क्ष")).toEqual(["क्ष"]);
+  });
+
+  it("Persian ZWNJ words are one token, matching the unjoined spelling", () => {
+    expect(words(`می${ZWNJ}خواهم`)).toEqual(words("میخواهم"));
+    expect(words(`می${ZWNJ}خواهم`)).toHaveLength(1);
+  });
+
+  it("emoji ZWJ sequences are still separators", () => {
+    expect(words(`👨${ZWJ}👩${ZWJ}👧 family`)).toEqual(["family"]);
+  });
 });
 
 describe("wordLength — the >= 2 filter counts letters, not UTF-16 units", () => {
@@ -172,5 +209,27 @@ describe("matchResourcesScored — a Spanish query without accents reaches an ac
 
   it("a Hindi query reaches a Hindi card", () => {
     expect(matchResourcesScored("पानी का चक्र क्या है", manifest)[0]?.entry.id).toBe("hi/water");
+  });
+
+  it("an unknown non-Latin frame does not dilute an English query", () => {
+    // "क्या है" is in no card, so it is dropped before scoring; the score is the bare query's.
+    const bare = matchResourcesScored("animal and plant cells", manifest)[0];
+    for (const q of ["animal and plant cells क्या है", "ما هو animal and plant cells", "animal and plant cells ምንድን ነው"]) {
+      const r = matchResourcesScored(q, manifest)[0];
+      expect(r?.entry.id, q).toBe("en/cell");
+      expect(r?.score, q).toBe(bare.score);
+    }
+  });
+
+  it("a non-Latin word the corpus contains is kept, so the Hindi title still matches exactly", () => {
+    // "पानी का चक्र" is the title verbatim once the unknown "क्या है" is dropped: exact (+12), not containment.
+    expect(matchResourcesScored("पानी का चक्र क्या है", manifest)[0]?.score)
+      .toBe(matchResourcesScored("पानी का चक्र", manifest)[0]?.score);
+  });
+
+  it("an unknown Latin word still counts against coverage", () => {
+    // Only non-Latin words are dropped. "spectroscopy" is in no card and must still cost the cell card.
+    const bare = matchResourcesScored("cell", manifest)[0].score;
+    expect(matchResourcesScored("cell spectroscopy", manifest)[0].score).toBeLessThan(bare);
   });
 });
