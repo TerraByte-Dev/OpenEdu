@@ -105,13 +105,15 @@ configuration anyone has run it on — not a floor anyone established. The lesso
 - Window is frameless (`decorations: false` in `tauri.conf.json`), background `#000000`. Drag region is `data-tauri-drag-region` on the Titlebar center div.
 - Window controls (min / max / close) call `getCurrentWindow()` from `@tauri-apps/api/window`.
 - API keys / model config persist via `@tauri-apps/plugin-store`.
-- Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `store`, `updater`, `process`,
+- Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `dialog`, `store`, `updater`, `process`,
   and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily / library.openedu.app /
-  api.github.com). **There is no `fs` and no `shell` capability, and `src-tauri/src/lib.rs` defines no
-  `#[tauri::command]` functions at all** — the Rust side is migrations plus five `.plugin()` calls.
-  So the app cannot open a path, enumerate a directory, or write an arbitrary file. The only way content
-  enters is an HTML `<input type="file">` filtered to `.md,.markdown,.txt` read via `File.text()`
-  (`NotesTab.tsx:368,605`). Granting file access is step zero for anything archive-shaped.
+  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers four
+  `#[tauri::command]`s from `corpus.rs` (`corpus_grant`, `corpus_granted`, `corpus_list`,
+  `corpus_read_text`): read-only access scoped to folders the user picks, with no write command. The Rust
+  side is migrations, six `.plugin()` calls, and those commands. **Nothing in the UI calls
+  `src/lib/corpus.ts` yet**, so in the shipped app the only way a file's content enters is the notebook
+  import (file picker or drag-and-drop), filtered to `.md,.markdown,.txt` and read via `File.text()`
+  (`NotesTab.tsx:367,380,605`). Wiring folder access into the UI is step zero for anything archive-shaped.
 
 ---
 
