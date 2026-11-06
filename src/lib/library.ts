@@ -5,7 +5,7 @@
 //
 // SOURCE: the library is BUNDLED with the app (public/library/ → /library/* at the app origin), so it
 // works fully offline with zero deploy. A Settings `library_url` override points at a remote static host
-// (e.g. https://library.openedu.app) to fetch a larger/updated corpus when desired. Bundled assets use
+// to fetch a larger/updated corpus when desired (no remote host is allow-listed today). Bundled assets use
 // the standard same-origin fetch (CSP is null); the remote override uses @tauri-apps/plugin-http (the
 // host must be allow-listed in src-tauri/capabilities/default.json).
 //
@@ -17,10 +17,6 @@ import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import type { LibraryEntry } from "../types";
 import { getLibraryEnabled, getLibraryUrl, getLibraryManifestCache, setLibraryManifestCache } from "./store";
 import { normalizeManifest } from "./library-rank";
-
-// Canonical remote host for the optional Settings `library_url` override (must also be allow-listed in
-// src-tauri/capabilities/default.json). NOT the default source — the bundled copy below is.
-export const LIBRARY_DEFAULT_BASE = "https://library.openedu.app";
 
 // The bundled library, served at the app origin (Vite copies public/ → dist root). BASE_URL is "/" by
 // default, so this resolves to "/library".

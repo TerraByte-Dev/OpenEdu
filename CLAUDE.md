@@ -106,7 +106,7 @@ configuration anyone has run it on — not a floor anyone established. The lesso
 - Window controls (min / max / close) call `getCurrentWindow()` from `@tauri-apps/api/window`.
 - API keys / model config persist via `@tauri-apps/plugin-store`.
 - Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `store`, `updater`, `process`,
-  and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily / library.openedu.app /
+  and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily /
   api.github.com). **There is no `fs` and no `shell` capability, and `src-tauri/src/lib.rs` defines no
   `#[tauri::command]` functions at all** — the Rust side is migrations plus five `.plugin()` calls.
   So the app cannot open a path, enumerate a directory, or write an arbitrary file. The only way content
