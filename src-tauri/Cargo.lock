@@ -2516,6 +2516,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 name = "openedu"
 version = "0.3.0"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
  "tauri",
@@ -2527,6 +2528,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tempfile",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

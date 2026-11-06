@@ -42,14 +42,60 @@ export const CHAT_MODELS: Record<CloudProvider, ModelOption[]> = {
 };
 
 // Curated fallback lists shown when Ollama isn't connected (no live model discovery available).
-// gemma4:e4b is the only local model verified end to end (generation + the RAG eval). qwen3.5:0.8b runs
-// the harness and grounds 36/36 positives, but fails the zero-fabrication bar on negatives
+// gemma4:e4b is the only local model verified end to end (generation + the RAG eval). gemma4:e2b is
+// the default below 16 GB (see defaultOllamaModelForRam), so it is listed too or the picker would
+// highlight nothing on exactly the machines it is the default for. qwen3.5:0.8b runs the harness and
+// grounds 36/36 positives, but fails the zero-fabrication bar on negatives
 // (src/lib/eval/results/2026-11-06-qwen3.5-0.8b.md), so it is offered, never defaulted.
-export const OLLAMA_GEN_SUGGESTIONS = ["gemma4:e4b"];
-export const OLLAMA_CHAT_SUGGESTIONS = ["gemma4:e4b", "qwen3.5:0.8b"];
+export const OLLAMA_GEN_SUGGESTIONS = ["gemma4:e4b", "gemma4:e2b"];
+export const OLLAMA_CHAT_SUGGESTIONS = ["gemma4:e4b", "gemma4:e2b", "qwen3.5:0.8b"];
 
-const OLLAMA_GEN_DEFAULT = "gemma4:e4b";
-const OLLAMA_CHAT_DEFAULT = "gemma4:e4b";
+// The two local defaults. e4b is 9.6 GB on disk and does not fit an 8 GB machine, which is the
+// hardware a community learning centre has. e2b (4.6 GB) gave 0 of 54 harmful near-miss answers and
+// 78% of positives on the held-out RAG eval (src/lib/eval/results/2026-11-06-heldout-dev.md). That eval
+// measures tutor answers grounded in notes, nothing else: e2b has NOT been run through curriculum
+// generation or checked for quiz answer-key correctness. It is the generation default on small
+// machines only because e4b there means swapping or not loading at all. e2b tiers as "tiny"
+// (llm.ts ollamaNameTierOverride), where e4b is "small"; the one tier-gated safety step that would
+// otherwise switch off, the quiz verify pass, is kept on for both defaults (quiz-grading.ts
+// runsVerifyPass).
+const OLLAMA_LARGE_DEFAULT = "gemma4:e4b";
+const OLLAMA_SMALL_DEFAULT = "gemma4:e2b";
+
+export function isOllamaDefaultModel(model: string): boolean {
+  const m = model.trim().toLowerCase();
+  return m === OLLAMA_LARGE_DEFAULT || m === OLLAMA_SMALL_DEFAULT;
+}
+
+// "16 GB or more", measured the way the OS reports it. Installed RAM always reads LOW: firmware and
+// integrated graphics reserve some before the OS sees it (this dev box: 32 GiB installed, 31.90 GiB
+// reported). A strict 16 GiB cutoff would therefore send every 16 GB machine to the small model.
+// 14 GiB leaves 2 GiB for that reservation and still puts a 12 GB machine below the line.
+export const LARGE_MODEL_MIN_RAM_BYTES = 14 * 1024 ** 3;
+
+// Default local model for a machine with `totalBytes` of physical RAM (src-tauri/src/system.rs). Pure
+// so the threshold is tested. Unknown RAM (no Tauri, a failed OS call) keeps the pre-RAM default,
+// e4b: guessing small would silently downgrade a machine that can run the verified model.
+export function defaultOllamaModelForRam(totalBytes: number | null): string {
+  if (totalBytes === null || !Number.isFinite(totalBytes) || totalBytes <= 0) return OLLAMA_LARGE_DEFAULT;
+  return totalBytes >= LARGE_MODEL_MIN_RAM_BYTES ? OLLAMA_LARGE_DEFAULT : OLLAMA_SMALL_DEFAULT;
+}
+
+// The RAM pick, unless it is not pulled and the other default is. This is what keeps an upgrade from
+// breaking a working install: an 8 GB machine set up before this default existed has e4b pulled (the
+// README and the old Settings hint both said `ollama pull gemma4:e4b`) and no stored model, so the bare
+// RAM pick would point it at an e2b it does not have, and ask a bandwidth-poor site for a 4.6 GB
+// download to get back to where it was. `installed` is the Ollama tag list, or null when Ollama could
+// not be asked; matching is exact, because setup-check's modelIsInstalled treats any gemma4:* as a
+// match for any other and would call e2b present when only e4b is.
+export function defaultOllamaModel(ramBytes: number | null, installed: string[] | null): string {
+  const pick = defaultOllamaModelForRam(ramBytes);
+  if (!installed) return pick;
+  const has = (m: string) => installed.some((i) => i.trim().toLowerCase() === m);
+  if (has(pick)) return pick;
+  const other = pick === OLLAMA_LARGE_DEFAULT ? OLLAMA_SMALL_DEFAULT : OLLAMA_LARGE_DEFAULT;
+  return has(other) ? other : pick;
+}
 const OLLAMA_EMBEDDING_DEFAULT = "nomic-embed-text";
 const OPENAI_EMBEDDING_DEFAULT = "text-embedding-3-small";
 
@@ -59,12 +105,13 @@ function recommendedId(options: ModelOption[]): string {
 
 // Default model id when the user hasn't picked one — DERIVED from the catalog's `recommended` flag, so the
 // store default always equals the chip Settings highlights. Cloud providers fall back to their recommended
-// catalog entry; Ollama uses a safe local default (discovery fills the rest in the picker).
-export function defaultGenerationModel(provider: LLMProvider): string {
-  return provider === "ollama" ? OLLAMA_GEN_DEFAULT : recommendedId(GENERATION_MODELS[provider]);
+// catalog entry; Ollama picks by RAM and what is pulled (discovery fills the rest in the picker).
+// `ramBytes` and `installed` are ignored for cloud providers.
+export function defaultGenerationModel(provider: LLMProvider, ramBytes: number | null = null, installed: string[] | null = null): string {
+  return provider === "ollama" ? defaultOllamaModel(ramBytes, installed) : recommendedId(GENERATION_MODELS[provider]);
 }
-export function defaultChatModel(provider: LLMProvider): string {
-  return provider === "ollama" ? OLLAMA_CHAT_DEFAULT : recommendedId(CHAT_MODELS[provider]);
+export function defaultChatModel(provider: LLMProvider, ramBytes: number | null = null, installed: string[] | null = null): string {
+  return provider === "ollama" ? defaultOllamaModel(ramBytes, installed) : recommendedId(CHAT_MODELS[provider]);
 }
 export function defaultEmbeddingModel(provider: LLMProvider): string {
   // Embedding is local-first (Anthropic has no embeddings endpoint) — only OpenAI gets a cloud default.

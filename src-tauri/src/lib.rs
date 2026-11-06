@@ -1,4 +1,5 @@
 mod corpus;
+mod system;
 
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -318,6 +319,7 @@ pub fn run() {
             corpus::corpus_granted,
             corpus::corpus_list,
             corpus::corpus_read_text,
+            system::system_memory_bytes,
         ]);
 
     // Updater is desktop-only.

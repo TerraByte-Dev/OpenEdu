@@ -6,6 +6,7 @@ import {
   checkAnswerConsistency,
   isNumericReasoningQuestion,
   shouldRejectNumericReasoning,
+  runsVerifyPass,
   gradeFreeTextDeterministic,
   buildBatchGradePrompt,
   parseBatchGradeResults,
@@ -363,5 +364,17 @@ describe("dedupeByQuestionText", () => {
   });
   it("questionKey normalizes whitespace and case", () => {
     expect(questionKey("  Hello World  ")).toBe("hello world");
+  });
+});
+
+describe("runsVerifyPass (the answer-key re-check must survive the 8 GB default)", () => {
+  it("runs on every tier but tiny, as the #83 audit set it", () => {
+    for (const tier of ["small", "medium", "large", undefined]) expect(runsVerifyPass(tier, "llama3.1:8b")).toBe(true);
+    expect(runsVerifyPass("tiny", "qwen3.5:0.8b")).toBe(false);
+    expect(runsVerifyPass("tiny", "gemma3:1b")).toBe(false);
+  });
+  it("stays on for gemma4:e2b, which tiers as tiny and is the default below 16 GB", () => {
+    expect(runsVerifyPass("tiny", "gemma4:e2b")).toBe(true);
+    expect(runsVerifyPass("small", "gemma4:e4b")).toBe(true);
   });
 });

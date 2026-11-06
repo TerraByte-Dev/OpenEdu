@@ -12,6 +12,8 @@
 //
 // Nothing here imports from quiz.ts — keep it leaf to avoid a cycle.
 
+import { isOllamaDefaultModel } from "./models";
+
 // Minimal structural shapes (we deliberately don't import GeneratedQuestion to stay leaf).
 export interface QuestionLike {
   question_text: string;
@@ -180,6 +182,16 @@ export function isNumericReasoningQuestion(q: QuestionLike): boolean {
 export function shouldRejectNumericReasoning(q: QuestionLike, tier?: string): boolean {
   const small = tier === "tiny" || tier === "small";
   return small && isNumericReasoningQuestion(q) && extractConcludingNumber(q.explanation) === null;
+}
+
+// Whether quiz.ts runs the independent verify pass (verifyAndFilter). The #83 audit put it on every tier
+// but tiny so that "the floor model" ran it; the floor model was gemma4:e4b, a "small". Below 16 GB the
+// default is now gemma4:e2b, which tiers as tiny, so a tier-only gate would quietly drop the answer-key
+// re-check on every 8 GB machine. The shipped defaults therefore run it whatever their tier. Not yet
+// measured on e2b: a weak verifier can only cost questions (it drops on explicit disagreement, and
+// top-up refills), and a short quiz is a better failure than a wrong answer key taught to a learner.
+export function runsVerifyPass(tier: string | undefined, model: string): boolean {
+  return tier !== "tiny" || isOllamaDefaultModel(model);
 }
 
 // ─── Generation count + dedupe helpers (the quiz.ts top-up loop) ───────────────

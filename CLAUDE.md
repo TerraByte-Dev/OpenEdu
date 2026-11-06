@@ -112,10 +112,16 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 - API keys / model config persist via `@tauri-apps/plugin-store`.
 - Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `dialog`, `store`, `updater`, `process`,
   and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily /
-  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers four
-  `#[tauri::command]`s from `corpus.rs` (`corpus_grant`, `corpus_granted`, `corpus_list`,
-  `corpus_read_text`): read-only access scoped to folders the user picks, with no write command. The Rust
-  side is migrations, six `.plugin()` calls, and those commands. **Nothing in the UI calls
+  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers five
+  `#[tauri::command]`s. Four are from `corpus.rs` (`corpus_grant`, `corpus_granted`, `corpus_list`,
+  `corpus_read_text`): read-only access scoped to folders the user picks, with no write command. The
+  fifth, `system_memory_bytes` in `system.rs`, returns total physical RAM (or null) so `store.ts` can
+  default Ollama to `gemma4:e2b` below 16 GB and `gemma4:e4b` at or above it (threshold in `models.ts`)
+  when the user has not picked a model, unless that one is not pulled and the other default is (so an
+  upgrade never strands an install on a model it lacks); `navigator.deviceMemory` caps at 8 and cannot
+  draw that line. e2b tiers as `tiny`, so `quiz-grading.ts` `runsVerifyPass` keeps the quiz verify pass
+  on for both defaults.
+  The Rust side is migrations, six `.plugin()` calls, and those commands. **Nothing in the UI calls
   `src/lib/corpus.ts` yet**, so in the shipped app the only way a file's content enters is the notebook
   import (file picker or drag-and-drop), filtered to `.md,.markdown,.txt` and read via `File.text()`
   (`NotesTab.tsx:367,380,605`). Wiring folder access into the UI is step zero for anything archive-shaped.
