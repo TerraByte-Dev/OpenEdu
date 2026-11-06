@@ -32,8 +32,8 @@ describe("model catalog ↔ defaults (the issue #2 contract)", () => {
   }
 
   it("ollama defaults are local", () => {
-    expect(defaultGenerationModel("ollama")).toBe("llama3");
-    expect(defaultChatModel("ollama")).toBe("llama3");
+    expect(defaultGenerationModel("ollama")).toBe("gemma4:e4b");
+    expect(defaultChatModel("ollama")).toBe("gemma4:e4b");
     expect(defaultEmbeddingModel("ollama")).toBe("nomic-embed-text");
   });
 

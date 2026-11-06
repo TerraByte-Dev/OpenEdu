@@ -17,8 +17,8 @@ import type { SectionProps } from "../types";
 export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const { markSaved } = useSettings();
   const [provider, setProvider] = useState<LLMProvider>("ollama");
-  const [genModel, setGenModel] = useState("llama3");
-  const [chatModel, setChatModelState] = useState("llama3");
+  const [genModel, setGenModel] = useState("gemma4:e4b");
+  const [chatModel, setChatModelState] = useState("gemma4:e4b");
   const [embeddingModel, setEmbeddingModelState] = useState("nomic-embed-text");
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [ollamaUrlValue, setOllamaUrlValue] = useState("http://127.0.0.1:11434");
@@ -158,7 +158,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
               <div className="mt-2.5 space-y-1">
                 {ollamaError && <p className="text-xs text-red-400 font-mono bg-panel-lite px-2 py-1.5 rounded">{ollamaError}</p>}
                 <p className="text-xs text-[var(--ink-faint)]">
-                  Install from <strong>ollama.com</strong> and run a model: <code className="bg-panel-lite px-1 rounded">ollama run llama3</code>
+                  Install from <strong>ollama.com</strong> and run a model: <code className="bg-panel-lite px-1 rounded">ollama pull gemma4:e4b</code>
                 </p>
               </div>
             )}
@@ -295,7 +295,7 @@ function OllamaModelPicker({ label, value, onChange, onCommit, discoveredModels,
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => onCommit(value)}
         onKeyDown={(e) => { if (e.key === "Enter") onCommit(value); }}
-        placeholder="e.g. llama3, qwen2.5:7b, phi3:mini"
+        placeholder="e.g. gemma4:e4b, qwen3.5:0.8b"
         className={INPUT_CLS}
         spellCheck={false}
       />
