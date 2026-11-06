@@ -912,7 +912,13 @@ async function callOllamaStructured(
     // num_ctx rides along when the caller resolved one. The curriculum pipeline does not set
     // `contextTokens` yet (deliberately — #86 keeps generation untouched), so this is a no-op there
     // today and the plumbing is ready for the phase that turns it on.
-    options: { temperature, ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}) },
+    // num_predict is bounded for the same reason as chat turns (see ollamaOptions): a timed-out call
+    // aborts the fetch, but Ollama keeps generating with no client attached.
+    options: {
+      temperature,
+      num_predict: ollamaMaxPredict(config),
+      ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}),
+    },
     format: supportsSchema ? schema : "json",
     ...OLLAMA_THINK_OFF,
   };
@@ -1487,21 +1493,29 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
 // `config.contextTokens` is populated by the caller from `detectModelProfile`, already clamped to
 // min(model maximum, user setting).
 //
-// There is deliberately NO `num_predict`. An earlier revision of this branch derived one from the
-// budget's reserve slice, which capped every local reply at ~1200 tokens (307 on the 2048 setting)
-// and truncated mid-sentence with no signal — a worse corruption than the one #86 set out to fix.
-// Ollama's default is unbounded generation, and `num_ctx` now bounds a runaway naturally: a looping
-// model fills the window and stops. The stall timer covers a hung one. A length cap buys nothing
-// those two do not already cover, and costs correct answers.
+// `num_predict` is capped at the context window. It used to be -1 (unbounded) on the belief that
+// `num_ctx` bounds a runaway: "a looping model fills the window and stops". It does not. Ollama
+// 0.40 shifts the context (discards the oldest half) and keeps generating. On 2026-11-06 phi4-mini
+// looped on an Amharic question past 30,000 tokens in an 8,192 window. Dropping the HTTP request
+// did not stop it either: the runner kept generating with no client attached until it was killed.
+// The stall timer cannot help, because a looping model is never silent. On a shared center PC that
+// is one bad answer holding the machine until someone restarts Ollama.
+//
+// The cap is the window, not a reply-length policy: no reply the student can read is longer than the
+// context it was generated in, so this never truncates a real answer. A capped reply ends with
+// done_reason "length", which the kernel already treats as a fragment.
 //
 // NOTE: `keep_alive` is also intentionally absent. It and `num_ctx` are the two settings that most
 // directly multiply resident RAM, and shipping both at once on a 4GB machine is the configuration
 // that produces `signal: killed`. It lands in a later phase, after this one is measured.
+/** Upper bound on generated tokens for one Ollama turn: the context window, or 8192 if unknown. */
+export function ollamaMaxPredict(config: Pick<LLMConfig, "contextTokens">): number {
+  return config.contextTokens && config.contextTokens > 0 ? Math.floor(config.contextTokens) : 8192;
+}
+
 function ollamaOptions(config: LLMConfig, opts: TurnOpts): Record<string, unknown> | undefined {
   const options: Record<string, unknown> = {};
   if (config.contextTokens && config.contextTokens > 0) options.num_ctx = Math.floor(config.contextTokens);
-  // -1 = generate until EOS or the context window fills, whichever comes first.
-  //
   // Sent EXPLICITLY rather than relying on Ollama's default, because that default is not something
   // this app can verify: the documented value is -1, but 128 ships as the default in a number of
   // modelfiles and older builds, and at 128 tokens every reply longer than ~96 words is cut off
@@ -1510,9 +1524,9 @@ function ollamaOptions(config: LLMConfig, opts: TurnOpts): Record<string, unknow
   //
   // An earlier revision set this from the budget's reserve slice, which was worse than not setting it
   // at all — the reserve is a PLANNING figure for fitMessages, not a length policy, and using it as
-  // one capped replies at ~460 words on the default window. num_ctx is the real bound and it already
-  // does the job: a runaway fills the window and stops.
-  options.num_predict = -1;
+  // one capped replies at ~460 words on the default window. The window itself is the right bound; see
+  // the header comment for why -1 is not.
+  options.num_predict = ollamaMaxPredict(config);
   if (opts.temperature !== undefined) options.temperature = opts.temperature;
   return options;
 }
