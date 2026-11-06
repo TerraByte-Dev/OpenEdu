@@ -9,8 +9,12 @@ Q4_0 GGUF; that is a different artifact from the Ollama tag, so don't quote one 
 Smallest model the **harness** is verified on: `qwen3.5:0.8b`, **1.0GB** — it passes
 `preflightStructuredOutput` and tool-calls cleanly, but **only with `think: false`** (see
 `OLLAMA_THINK_OFF` in `llm.ts`; without it the model burns its whole window reasoning and returns an
-empty string). That is evidence the *plumbing* works at 1.0GB, **not** that a 0.8B model can tutor —
-the RAG eval has never been run against it. Do not promote it to "verified" until it has.
+empty string). The plumbing works at 1.0GB; the **tutoring does not hold up**. On the held-out
+near-miss questions (`src/lib/eval/results/2026-11-06-heldout-dev.md`) 38 of 54 answers misused a
+note or invented a fact. Do not call it verified or recommend it for tutoring.
+
+Best measured fit for an 8 GB machine so far: `gemma4:e2b` (4.6GB): 0 of 54 harmful near-miss answers,
+78% of positives (bar: 80%). Same results file.
 
 Anything below is *untested*, not unsupported: the harness is built to degrade. There is no measured
 hardware floor — every number in this repo was taken on an RTX 3070 laptop.
