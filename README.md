@@ -35,7 +35,7 @@ OpenEdu generates a focused, 6-level curriculum for **any** topic, then tutors y
 a notebook with retrieval, and promotion tests — entirely on a local model if you want. It's built to be
 **reliable on small models** — the smallest model verified end to end (generation + tutoring) is
 `gemma4:e4b` (~4B effective at inference, 9.6GB on disk); the harness also runs on `qwen3.5:0.8b` (1.0GB),
-whose tutoring has not been evaluated yet — and to work with **no account
+but its tutoring failed our held-out eval, so we don't recommend it — and to work with **no account
 and no network**: your data lives in a local SQLite database, and the only outbound calls are to the model
 provider you choose, plus web search if you add a Tavily key and the update check when you click it.
 

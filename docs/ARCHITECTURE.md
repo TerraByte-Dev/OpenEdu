@@ -11,7 +11,8 @@ with **SQLite** for all persistence. It is **local-first and bring-your-own-key*
 local [Ollama](https://ollama.com/) model by default, with OpenAI and Anthropic as drop-in alternates.
 The guiding constraint is **reliability on small models**. The smallest one verified end to end
 (generation + tutoring) is `gemma4:e4b` (~4B effective at inference, 9.6GB on disk). The harness also
-runs on `qwen3.5:0.8b` (1.0GB, with `think: false`), but its tutoring has not been evaluated; smaller
+runs on `qwen3.5:0.8b` (1.0GB, with `think: false`), but its tutoring failed the held-out RAG eval
+(`src/lib/eval/results/2026-11-06-heldout-dev.md`); smaller
 models are untested rather than ruled out, and no hardware floor has been measured. Everything follows
 from that constraint: everything the model produces is schema-enforced and validated.
 
