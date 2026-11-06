@@ -27,7 +27,7 @@
 import { describe, it, expect } from "vitest";
 import type { LibraryEntry } from "../../types";
 import { evaluateLibraryRetrieval, LIBRARY_QUERIES, LIBRARY_FLOOR } from "./library-fixture";
-import { BODY_BUDGET, tokenize, parseBodyTerms, normalizeManifest } from "../library-rank";
+import { BODY_BUDGET, tokenize, parseBodyTerms, normalizeManifest, matchResourcesScored } from "../library-rank";
 
 // The real bundled manifest, imported rather than read off disk. `npm run build` runs tsc over the
 // whole of src/ including tests, and this project has no @types/node — so a node:fs read typechecks
@@ -167,6 +167,32 @@ describe("library retrieval — the three defects #112 fixed, pinned so they can
   });
 });
 
+describe("library retrieval — code-mixed questions", () => {
+  // Students ask in their own language around an English term. The corpus has no Hindi, Arabic or
+  // Amharic, so the frame words must leave the score exactly where the bare query put it — they
+  // used to arrive as df-0 tokens that dragged "freytag pyramid" from 11.5 to 5.3, under the floor.
+  const frames: Array<(q: string) => string> = [
+    (q) => `${q} क्या है`,
+    (q) => `${q} के बारे में बताइए`,
+    (q) => `ما هو ${q}`,
+    (q) => `${q} ምንድን ነው`,
+  ];
+
+  it("a non-Latin question frame never changes an English query's top card or score", () => {
+    const moved: string[] = [];
+    for (const q of LIBRARY_QUERIES.filter((x) => x.expect?.length)) {
+      const bare = matchResourcesScored(q.ask, manifest, 1)[0];
+      for (const frame of frames) {
+        const mixed = matchResourcesScored(frame(q.ask), manifest, 1)[0];
+        if (mixed?.entry.id !== bare?.entry.id || mixed?.score !== bare?.score) {
+          moved.push(`${frame(q.ask)}: ${bare?.score} -> ${mixed?.score}`);
+        }
+      }
+    }
+    expect(moved).toEqual([]);
+  });
+});
+
 describe("library retrieval — builder/app tokenizer parity", () => {
   // The single most likely way this feature silently stops working: openedu-library's
   // build-index.mjs carries its own copy of the tokenizer, and if the two drift, terms emitted
@@ -193,6 +219,27 @@ describe("library retrieval — builder/app tokenizer parity", () => {
     }
     // A failure here means the builder lowercases, splits, folds plurals, elides apostrophes or
     // filters stopwords differently from the app. Fix build-index.mjs, do not relax this.
+    expect(bad).toEqual([]);
+  });
+
+  it("the builder splits accented words whole, not on the accent", () => {
+    // The fixed-point test above only catches a builder that KEEPS accents. A builder still on the
+    // ASCII splitter /[^a-z0-9]+/ emits fragments ("cembre" from "décembre", "ma" from "mañana")
+    // that are fixed points too, so it would pass there while accented body terms silently stop
+    // matching. These cards' bodies contain the accented words and their folded forms rank in the
+    // top terms only when the builder folds instead of splitting. If a card is rewritten and one
+    // drops out of its top terms, replace it with another accented term from the same card.
+    const pins: Array<[string, string, string]> = [
+      ["french/days-months-seasons", "decembre", "cembre"],
+      ["french/etre-and-avoir", "etudiant", "tudiant"],
+      ["spanish/question-words-and-greetings", "manana", "perd"],
+      ["ela/plot-diagram", "denouement", "nouement"],
+    ];
+    const bad: string[] = [];
+    for (const [id, folded, fragment] of pins) {
+      const terms = new Set(parseBodyTerms(manifest.find((e) => e.id === id)!).map(([t]) => t));
+      if (!terms.has(folded) || terms.has(fragment)) bad.push(`${id}: want "${folded}", not "${fragment}"`);
+    }
     expect(bad).toEqual([]);
   });
 
