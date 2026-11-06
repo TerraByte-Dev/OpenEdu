@@ -372,7 +372,7 @@
     "summary": "Metals ranked most-to-least reactive, used to predict single-replacement reactions.",
     "path": "resources/chemistry/activity-series.md",
     "asset": "assets/chemistry/activity-series.svg",
-    "body_terms": "displace:3 cu:2 react:2 ag:2 li:2 zn:2 ca:2 na:2 au:2 above:2 below:2 any:2 corrosion:2 chlorine:2 oxidized:2 platinum:2 easily:2 resist:2 cuso:2 zinc:2 znso:2 nonmetal:2 bromide:2 halogen:2"
+    "body_terms": "displace:3 cu:3 react:2 ag:2 li:2 zn:2 na:2 ca:2 au:2 above:2 below:2 any:2 corrosion:2 chlorine:2 oxidized:2 platinum:2 easily:2 resist:2 cuso:2 zinc:2 znso:2 nonmetal:2 bromide:2 halogen:2"
   },
   {
     "id": "chemistry/common-acids",
@@ -651,7 +651,7 @@
     "summary": "Earth's history divided into eons and eras with approximate dates and defining events.",
     "path": "resources/earth-space/geologic-time-scale.md",
     "asset": "assets/earth-space/geologic-time-scale.svg",
-    "body_terms": "ma:2 mammal:3 bird:3 life:2 phanerozoic:2 extinction:2 dinosaur:2 reptile:2 ago:2 today:2 specie:2 rock:2 first:1 year:2 age:2 proterozoic:2 amphibian:2 eukaryote:2 explosion:2 abundant:2 cambrian:2 archean:2 forming:2 permian:2"
+    "body_terms": "ma:3 mammal:3 bird:3 life:2 phanerozoic:2 extinction:2 dinosaur:2 reptile:2 ago:2 today:2 specie:2 rock:2 first:1 year:2 age:2 proterozoic:2 amphibian:2 eukaryote:2 explosion:2 abundant:2 cambrian:2 archean:2 forming:2 permian:2"
   },
   {
     "id": "earth-space/hr-diagram",
@@ -1161,7 +1161,7 @@
     "summary": "The five stages of a story's plot — exposition, rising action, climax, falling action, resolution.",
     "path": "resources/ela/plot-diagram.md",
     "asset": "assets/ela/plot-diagram.svg",
-    "body_terms": "conflict:3 character:2 vs:1 event:2 protagonist:2 incident:2 inciting:2 main:2 tension:2 here:2 central:2 complication:2 arrangement:2 antagonist:2 beginning:2 situation:2 nouement:2 opposing:2 struggle:2 classic:2 resolve:2 setting:2 settled:2 society:2"
+    "body_terms": "conflict:3 character:2 vs:1 event:2 protagonist:2 incident:2 inciting:2 main:2 tension:2 here:2 central:2 complication:2 arrangement:2 antagonist:2 denouement:2 beginning:2 situation:2 opposing:2 struggle:2 classic:2 resolve:2 setting:2 settled:2 society:2"
   },
   {
     "id": "ela/point-of-view",
@@ -1380,7 +1380,7 @@
     "summary": "French definite, indefinite, and partitive articles plus noun-gender hints.",
     "path": "resources/french/articles-and-noun-gender.md",
     "asset": "assets/french/articles-and-noun-gender.svg",
-    "body_terms": "some:2 livre:2 pomme:2 mange:2 sing:2 feminine:2 masculine:2 je:2 often:2 tendencie:2 fromage:2 libert:2 salade:2 learn:2 ence:2 ette:2 ille:2 isme:2 lami:2 leau:2 pain:2 ami:2 aux:2 eau:2"
+    "body_terms": "some:2 livre:2 pomme:2 ami:2 eau:2 sing:2 feminine:2 mange:2 masculine:2 je:2 often:2 tendencie:2 fromage:2 liberte:2 salade:2 learn:2 ence:2 ette:2 idee:2 ille:2 isme:2 pain:2 aux:2 ier:2"
   },
   {
     "id": "french/days-months-seasons",
@@ -1407,7 +1407,7 @@
     "summary": "The days, months, and seasons in French plus the date format.",
     "path": "resources/french/days-months-seasons.md",
     "asset": "assets/french/days-months-seasons.svg",
-    "body_terms": "le:2 lundi:3 monday:3 en:2 printemp:2 juillet:2 premier:2 cembre:2 mai:2 somme:2 nou:2 les:2 est:2 septembre:2 dimanche:2 lautomne:2 mercredi:2 novembre:2 vendredi:2 automne:2 janvier:2 octobre:2 lhiver:2 samedi:2"
+    "body_terms": "le:2 lundi:3 monday:3 en:2 decembre:2 printemp:2 automne:2 juillet:2 premier:2 hiver:2 mai:2 somme:2 ete:2 est:2 les:2 nou:2 septembre:2 dimanche:2 mercredi:2 novembre:2 vendredi:2 fevrier:2 janvier:2 octobre:2"
   },
   {
     "id": "french/etre-and-avoir",
@@ -1434,7 +1434,7 @@
     "summary": "Present-tense être and avoir side by side — the two French auxiliary verbs.",
     "path": "resources/french/etre-and-avoir.md",
     "asset": "assets/french/etre-and-avoir.svg",
-    "body_terms": "jai:3 sui:3 elle:2 je:2 auxiliarie:2 compo:2 ans:2 somme:2 pass:2 nou:2 take:2 profession:2 thirsty:2 tudiant:2 afraid:2 besoin:2 hungry:2 raison:2 chaud:2 froid:2 avez:2 avon:2 faim:2 mang:2"
+    "body_terms": "ai:3 sui:3 elle:2 je:2 auxiliarie:2 compose:2 ans:2 somme:2 nou:2 passe:2 take:2 profession:2 etudiant:2 thirsty:2 afraid:2 besoin:2 hungry:2 raison:2 chaud:2 froid:2 alle:2 avez:2 avon:2 faim:2"
   },
   {
     "id": "french/numbers-0-100",
@@ -1483,7 +1483,7 @@
     "summary": "French subject, direct-object, indirect-object, reflexive, and stressed pronoun sets.",
     "path": "resources/french/pronouns.md",
     "asset": "assets/french/pronouns.svg",
-    "body_terms": "vou:2 nou:2 te:2 lui:3 le:2 elle:2 se:2 moi:3 leur:2 him:2 obj:2 person:2 la:2 before:1 verb:2 les:2 vowel:2 disjunctive:2 required:2 singular:2 rarely:2 donne:2 laver:2 pense:2"
+    "body_terms": "vou:2 nou:2 lui:3 te:2 le:2 elle:2 se:2 moi:3 leur:2 him:2 obj:2 person:2 la:2 before:1 verb:2 les:2 vowel:2 disjunctive:2 required:2 singular:2 rarely:2 donne:2 laver:2 pense:2"
   },
   {
     "id": "french/question-words-and-greetings",
@@ -1508,7 +1508,7 @@
     "summary": "French interrogatives, the three ways to form questions, and core greetings.",
     "path": "resources/french/question-words-and-greetings.md",
     "asset": "assets/french/question-words-and-greetings.svg",
-    "body_terms": "comment:3 vien:3 vou:2 tu:2 quelle:3 pla:2 sil:2 ce:2 il:2 thank:2 quel:2 va:2 informal:2 formal:2 parle:2 yes:2 elle:2 est:2 de:2 name:2 interrogatif:2 intonation:2 inversion:2 mappelle:2"
+    "body_terms": "il:2 comment:3 vien:3 vou:2 quelle:3 tu:2 est:2 plait:2 ce:2 thank:2 quel:2 va:2 informal:2 formal:2 parle:2 yes:2 elle:2 ca:2 de:2 name:2 interrogatif:2 intonation:2 inversion:2 pourquoi:2"
   },
   {
     "id": "french/regular-verb-endings",
@@ -1580,7 +1580,7 @@
     "summary": "Capital cities of major countries grouped by continent.",
     "path": "resources/geography/countries-capitals.md",
     "asset": "assets/geography/countries-capitals.svg",
-    "body_terms": "guatemala:2 new:2 south:2 mexico:2 city:2 africa:2 united:2 america:2 administrative:2 wellington:2 argentina:2 selection:2 canberra:2 colombia:2 ethiopia:2 pretoria:2 santiago:2 thailand:2 bangkok:2 beijing:2 jakarta:2 moresby:2 morocco:2 nairobi:2"
+    "body_terms": "guatemala:2 new:2 south:2 mexico:2 city:2 africa:2 united:2 america:2 administrative:2 wellington:2 argentina:2 selection:2 brasilia:2 canberra:2 colombia:2 ethiopia:2 pretoria:2 santiago:2 thailand:2 bangkok:2 beijing:2 jakarta:2 moresby:2 morocco:2"
   },
   {
     "id": "geography/landform-glossary",
@@ -1850,7 +1850,7 @@
     "summary": "The key factoring patterns — difference of squares, perfect-square trinomials, cubes, FOIL.",
     "path": "resources/math/factoring-special-products.md",
     "asset": "assets/math/factoring-special-products.svg",
-    "body_terms": "2ab:3 6x:2 multiplying:2 factor:2 ab:2 sum:2 out:2 pull:2 gcf:2 3x:2 5x:2 9x:2 bd:2 binomial:2 2x:2 bc:2 bx:2 greatest:2 multiply:2 reverse:2 back:2 find:2 check:2 ac:2"
+    "body_terms": "2ab:3 6x:2 multiplying:2 factor:2 ab:2 sum:2 out:2 pull:2 gcf:2 3x:2 5x:2 9x:2 bd:2 binomial:2 2x:2 bc:2 bx:2 greatest:2 multiply:2 reverse:2 back:2 find:2 ad:2 check:2"
   },
   {
     "id": "math/geometry-formulas",
@@ -2012,7 +2012,7 @@
     "summary": "The basic graph shapes (linear, quadratic, cubic, root, reciprocal, exponential, log) functions are built from.",
     "path": "resources/math/parent-functions.md",
     "asset": "assets/math/parent-functions.svg",
-    "body_terms": "shift:2 transformation:2 stretch:2 logarithmic:2 parabola:2 family:2 origin:2 passe:2 growth:2 square:2 axi:2 over:2 through:2 asymptote:2 hyperbola:2 simplest:2 rapid:2 axe:2 compression:2 shaped:2 curve:2 reflection:2 straight:2 inverse:2"
+    "body_terms": "shift:2 transformation:2 stretch:2 logarithmic:2 parabola:2 family:2 origin:2 growth:2 square:2 passe:2 axi:2 over:2 through:2 asymptote:2 hyperbola:2 simplest:2 rapid:2 axe:2 compression:2 shaped:2 curve:2 reflection:2 straight:2 inverse:2"
   },
   {
     "id": "math/probability-statistics-sheet",
@@ -2537,7 +2537,7 @@
     "summary": "Kirchhoff's current (junction) and voltage (loop) laws for analyzing circuits.",
     "path": "resources/physics/kirchhoffs-laws.md",
     "asset": "assets/physics/kirchhoffs-laws.svg",
-    "body_terms": "conservation:3 flowing:2 any:2 energy:1 serie:2 across:2 out:2 thi:2 parallel:2 closed:2 add:1 gained:2 same:1 resistor:2 branch:2 source:2 node:2 branche:2 around:2 ohm:2 dropped:2 zero:2 each:1 split:2"
+    "body_terms": "conservation:3 flowing:2 any:2 energy:1 serie:2 across:2 out:2 thi:2 parallel:2 closed:2 add:1 gained:2 same:1 resistor:2 branch:2 source:2 node:2 branche:2 around:2 ohm:2 dropped:2 each:1 split:2 zero:2"
   },
   {
     "id": "physics/momentum-impulse",
@@ -2847,7 +2847,7 @@
     "summary": "Spanish definite/indefinite articles and the rules for masculine/feminine noun gender.",
     "path": "resources/spanish/articles-and-noun-gender.md",
     "asset": "assets/spanish/articles-and-noun-gender.svg",
-    "body_terms": "casa:3 libro:3 agua:2 ending:2 plural:2 despite:2 mesa:2 sing:2 plu:2 usually:2 problema:2 planeta:2 papele:2 clima:2 guila:2 papel:2 umbre:2 foto:2 mano:2 mapa:2 moto:2 pice:2 aje:2 dad:2"
+    "body_terms": "casa:3 libro:3 agua:2 ending:2 plural:2 despite:2 mesa:2 sing:2 plu:2 usually:2 problema:2 planeta:2 aguila:2 lapice:2 papele:2 clima:2 lapiz:2 papel:2 umbre:2 cion:2 foto:2 fria:2 mano:2 mapa:2"
   },
   {
     "id": "spanish/days-months-seasons",
@@ -2874,7 +2874,7 @@
     "summary": "The days, months, and seasons in Spanish plus the date format.",
     "path": "resources/spanish/days-months-seasons.md",
     "asset": "assets/spanish/days-months-seasons.svg",
-    "body_terms": "el:3 monday:3 lune:3 diciembre:2 marte:2 mayo:2 es:2 hoy:2 los:2 cu:2 septiembre:2 noviembre:2 primavera:2 invierno:2 domingo:2 febrero:2 octubre:2 primero:2 agosto:2 verano:2 vierne:2 abril:2 enero:2 fecha:2"
+    "body_terms": "el:2 monday:3 lune:3 diciembre:2 marte:2 mayo:2 es:2 hoy:2 los:2 septiembre:2 noviembre:2 primavera:2 invierno:2 miercole:2 domingo:2 febrero:2 octubre:2 primero:2 agosto:2 sabado:2 verano:2 vierne:2 abril:2 enero:2"
   },
   {
     "id": "spanish/numbers-0-100",
@@ -2897,7 +2897,7 @@
     "summary": "Spanish cardinal numbers 0-100 with the spelling and combining rules.",
     "path": "resources/spanish/numbers-0-100.md",
     "asset": "assets/spanish/numbers-0-100.svg",
-    "body_terms": "veinti:3 treinta:3 dieci:3 una:3 cuarenta:2 veintid:2 ciento:2 cinco:2 cien:2 accent:2 exactly:2 written:2 word:1 veinticuatro:2 veinticinco:2 veintinueve:2 veintisiete:2 contracted:2 diecinueve:2 diecisiete:2 veintiocho:2 cincuenta:2 dieciocho:2 dosciento:2"
+    "body_terms": "treinta:3 veinti:3 sei:3 una:3 cuarenta:2 diecisei:2 veintido:2 ciento:2 cinco:2 cien:2 accent:2 exactly:2 written:2 word:1 veinticuatro:2 veinticinco:2 veintinueve:2 veintisiete:2 contracted:2 diecinueve:2 diecisiete:2 veintiocho:2 cincuenta:2 dieciocho:2"
   },
   {
     "id": "spanish/question-words-and-greetings",
@@ -2922,7 +2922,7 @@
     "summary": "Spanish interrogatives (all accented) plus the core greetings and courtesy phrases.",
     "path": "resources/spanish/question-words-and-greetings.md",
     "asset": "assets/spanish/question-words-and-greetings.svg",
-    "body_terms": "cu:2 qu:3 mo:2 buena:2 hasta:2 nde:2 por:2 thank:2 qui:2 good:2 name:2 interrogativo:2 afternoon:2 morning:2 porque:2 siento:2 favor:2 llama:2 luego:2 night:2 noche:2 tarde:2 nada:2 perd:2"
+    "body_terms": "como:3 buena:2 hasta:2 por:2 thank:2 good:2 name:2 interrogativo:2 afternoon:2 morning:2 adonde:2 cuando:2 manana:2 perdon:2 porque:2 quiene:2 siento:2 cuale:2 favor:2 llama:2 luego:2 night:2 noche:2 tarde:2"
   },
   {
     "id": "spanish/regular-verb-endings",
@@ -2948,7 +2948,7 @@
     "summary": "Present-tense endings for the three regular Spanish verb classes with a model verb each.",
     "path": "resources/spanish/regular-verb-endings.md",
     "asset": "assets/spanish/regular-verb-endings.svg",
-    "body_terms": "speak:2 habla:2 vive:2 subject:2 nosotro:2 vosotro:2 ella:2 come:2 en:2 es:2 hablamo:2 comemo:2 hablan:2 vivimo:2 comen:2 viven:2 como:2 habl:2 vivo:2 amo:2 com:2 emo:2 imo:2 viv:2"
+    "body_terms": "speak:2 habla:2 vive:2 subject:2 nosotro:2 vosotro:2 ella:2 come:2 en:2 es:2 hablamo:2 comemo:2 hablai:2 hablan:2 vivimo:2 comei:2 comen:2 viven:2 vivi:2 vivo:2 ais:2 amo:2 eis:2 emo:2"
   },
   {
     "id": "spanish/ser-vs-estar",
@@ -2974,7 +2974,7 @@
     "summary": "Present-tense ser and estar side by side, plus the rules for which \"to be\" to use.",
     "path": "resources/spanish/ser-vs-estar.md",
     "asset": "assets/spanish/ser-vs-estar.svg",
-    "body_terms": "est:2 es:2 estoy:3 soy:3 ella:3 aburrido:2 listo:2 ere:2 son:2 trait:2 mnemonic:2 en:2 mark:2 he:2 de:2 haracteristic:2 elationship:2 personality:2 changeable:2 escription:2 ccupation:2 caliente:2 comiendo:2 ondition:2"
+    "body_terms": "esta:3 es:2 estoy:3 soy:3 ella:3 aburrido:2 listo:2 ere:2 son:2 trait:2 mnemonic:2 en:2 mark:2 he:2 de:2 haracteristic:2 elationship:2 personality:2 changeable:2 escription:2 ccupation:2 caliente:2 comiendo:2 ondition:2"
   },
   {
     "id": "spanish/subject-and-object-pronouns",
@@ -2999,7 +2999,7 @@
     "summary": "Spanish subject, direct-object, indirect-object, and reflexive pronoun sets in one chart.",
     "path": "resources/spanish/subject-and-object-pronouns.md",
     "asset": "assets/spanish/subject-and-object-pronouns.svg",
-    "body_terms": "lo:3 nos:3 le:2 se:2 te:2 los:3 person:2 las:2 os:2 doy:2 verb:2 him:2 obj:2 la:2 vosotro:2 ustede:2 usted:2 ella:2 3rd:2 les:2 before:1 affirmative:2 conjugated:2 levantarse:2"
+    "body_terms": "lo:3 nos:3 le:2 se:2 te:2 los:3 os:3 person:2 las:2 doy:2 verb:2 him:2 obj:2 la:2 vosotro:2 ustede:2 usted:2 ella:2 les:2 3rd:2 before:1 affirmative:2 conjugated:2 levantarse:2"
   },
   {
     "id": "us-history-civics/articles-of-the-constitution",
@@ -3207,7 +3207,7 @@
     "summary": "The path of a federal bill from introduction through both chambers to the President's signature.",
     "path": "resources/us-history-civics/how-a-bill-becomes-law.md",
     "asset": "assets/us-history-civics/how-a-bill-becomes-law.svg",
-    "body_terms": "die:3 vote:2 debate:2 identical:2 pass:2 must:2 if:2 override:2 house:2 it:1 step:2 reconciliation:2 subcommittee:2 conference:2 overridden:2 adjourned:2 objection:2 excepted:2 referred:2 reported:2 returned:2 hearing:2 session:2 markup:2"
+    "body_terms": "die:3 vote:2 debate:2 pass:2 identical:2 must:2 if:2 override:2 house:2 it:1 step:2 reconciliation:2 subcommittee:2 conference:2 overridden:2 adjourned:2 objection:2 excepted:2 referred:2 reported:2 returned:2 hearing:2 session:2 markup:2"
   },
   {
     "id": "us-history-civics/major-us-wars",
@@ -3508,7 +3508,7 @@
     "summary": "The great political revolutions — dates, what they overthrew, and their results.",
     "path": "resources/world-history/major-revolutions.md",
     "asset": "assets/world-history/major-revolutions.svg",
-    "body_terms": "monarchy:3 republic:3 led:2 rule:1 american:2 independent:2 right:1 fraternity:2 portuguese:2 successful:2 bolshevik:2 contract:2 napoleon:2 gloriou:2 russian:2 unequal:2 revolt:2 thread:2 lenin:2 loui:2 mart:2 tsar:2 bol:2 san:2"
+    "body_terms": "monarchy:3 republic:3 led:2 rule:1 american:2 independent:2 right:1 fraternity:2 portuguese:2 successful:2 bolshevik:2 contract:2 napoleon:2 bolivar:2 gloriou:2 russian:2 unequal:2 martin:2 revolt:2 thread:2 lenin:2 loui:2 tsar:2 san:2"
   },
   {
     "id": "world-history/river-valley-civilizations",
