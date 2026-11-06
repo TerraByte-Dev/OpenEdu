@@ -54,8 +54,9 @@
 // another band, 1 option corrected (social-912-05) and 6 rationales corrected. Keys were then
 // re-placed by a seeded shuffle (5 per letter per cell). The repaired items have NOT been
 // re-solved blind; the hand-check below should include them.
-// HUMAN CHECK: PENDING — 48 items (4 random per cell) to be hand-checked by the maintainer before
-// the freeze merges. This line is replaced with the counts when that is done.
+// HUMAN CHECK (2026-11-06): the maintainer reviewed the 48-item sample (4 random per cell, the
+// repaired items included) with the keys visible and judged every key correct. Not solved blind and
+// not logged per item, so it is a sanity read, not an independent solve. Bar and format confirmed.
 
 import type { K12Item, K12Key } from "./k12-items";
 
