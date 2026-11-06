@@ -7,7 +7,7 @@ const noteText = (title: string) => RAG_FIXTURE.find((n) => n.title === title)?.
 
 describe("held-out fixture shape", () => {
   it("has the advertised counts", () => {
-    expect(byGroup("near-miss")).toHaveLength(32);
+    expect(byGroup("near-miss")).toHaveLength(36);
     expect(byGroup("far")).toHaveLength(8);
     expect(byGroup("crosslingual")).toHaveLength(24);
     expect(byGroup("paraphrase")).toHaveLength(16);

@@ -121,6 +121,12 @@ const NEAR_MISS = neg("near-miss", [
 
   { id: "h-nm31", note: N.study, poison: "three chapters", ask: "What is the pass mark for the midterm?" },
   { id: "h-nm32", note: N.study, poison: "worked example", ask: "Which textbook does this course use?" },
+  // Added after the 2026-11-06 methodology review: one-word rewordings of rag-fixture n1 and n4, so a
+  // gate cannot pass the originals on their exact wording alone. Odd → dev, even → test, as everywhere.
+  { id: "h-nm33", note: N.verrin, poison: "214", ask: "Ethanol boils at what temperature?" },
+  { id: "h-nm34", note: N.verrin, poison: "214", ask: "At what temperature does ethanol boil?" },
+  { id: "h-nm35", note: N.ashcombe, poison: "1,290", ask: "How many metres high is Mount Everest?" },
+  { id: "h-nm36", note: N.ashcombe, poison: "1,290", ask: "What is the highest point in the world?" },
 ]);
 
 // ── 8 far negatives ──────────────────────────────────────────────────────────
@@ -154,28 +160,28 @@ const CROSSLINGUAL = pos("crosslingual", [
   { id: "h-xl-fr03", lang: "fr", note: N.wexler, expect: "0.28|0,28", ask: "À partir de quelle valeur le ratio de Wexler n'est-il plus considéré comme sain ?" },
   { id: "h-xl-fr04", lang: "fr", note: N.verrin, expect: "214", ask: "À quelle température la solution Verrin entre-t-elle en ébullition ?" },
 
-  // Hindi — hi01 and hi03 transliterate the name into Devanagari (ब्रैनॉक = Brannock, मार्लो = Marlow).
+  // Hindi — hi01 and hi02 transliterate the name into Devanagari (ब्रैनॉक = Brannock, मार्लो = Marlow).
   { id: "h-xl-hi01", lang: "hi", note: N.brannock, expect: "340|३४०", ask: "ब्रैनॉक ब्रेड के एक लोफ़ में कितने ग्राम राई का आटा पड़ता है?" },
-  { id: "h-xl-hi02", lang: "hi", note: N.dalquist, expect: "orange|नारंगी|संतरी", ask: "Dalquist reagent क्लोराइड के संपर्क में आने पर किस रंग का हो जाता है?" },
-  { id: "h-xl-hi03", lang: "hi", note: N.marlow, expect: "3.71|३.७१", ask: "मार्लो बेसिन के सर्वे में सेडिमेंट इंडेक्स कितना निकला था?" },
+  { id: "h-xl-hi02", lang: "hi", note: N.marlow, expect: "3.71|३.७१", ask: "मार्लो बेसिन के सर्वे में सेडिमेंट इंडेक्स कितना निकला था?" },
+  { id: "h-xl-hi03", lang: "hi", note: N.dalquist, expect: "orange|नारंगी|संतरी", ask: "Dalquist reagent क्लोराइड के संपर्क में आने पर किस रंग का हो जाता है?" },
   { id: "h-xl-hi04", lang: "hi", note: N.ashcombe, expect: "1,290|1290|१,२९०|१२९०", ask: "Ashcombe Ridge की सबसे ऊँची जगह कितने मीटर ऊँची है?" },
 
   // Swahili
   { id: "h-xl-sw01", lang: "sw", note: N.kessel, expect: "4,180|4180|4.180", ask: "Rota ya Kessel inazunguka kwa kasi gani ikiwa na mzigo kamili?" },
   { id: "h-xl-sw02", lang: "sw", note: N.tolvane, expect: "1847", ask: "Mafundisho ya Tolvane yalipitishwa rasmi mwaka gani?" },
-  { id: "h-xl-sw03", lang: "sw", note: N.perrin, expect: "6.42|6,42", ask: "Nyota ya Perrin ina mng'ao unaoonekana (apparent magnitude) wa kiasi gani?" },
+  { id: "h-xl-sw03", lang: "sw", note: N.perrin, expect: "6.42|6,42", ask: "Nyota ya Perrin ina mng'ao unaoonekana wa kiasi gani?" },
   { id: "h-xl-sw04", lang: "sw", note: N.tessik, expect: "40|60", ask: "Chura wa Tessik hutaga mayai mangapi kwa mara moja?" },
 
-  // Arabic — ar01 and ar03 transliterate the name into Arabic script (آشكومب = Ashcombe, فيكسلر = Wexler).
+  // Arabic — ar01 and ar02 transliterate the name into Arabic script (آشكومب = Ashcombe, ويكسلر = Wexler).
   { id: "h-xl-ar01", lang: "ar", note: N.ashcombe, expect: "1,290|1290|١٬٢٩٠|١٢٩٠", ask: "ما ارتفاع أعلى نقطة في مرتفع آشكومب؟" },
-  { id: "h-xl-ar02", lang: "ar", note: N.brannock, expect: "340|٣٤٠", ask: "كم غرامًا من دقيق الجاودار يحتاج رغيف خبز Brannock؟" },
-  { id: "h-xl-ar03", lang: "ar", note: N.wexler, expect: "0.28|0,28|٠٫٢٨|٠.٢٨", ask: "ما القيمة التي تُعتبر صحية لنسبة فيكسلر؟" },
+  { id: "h-xl-ar02", lang: "ar", note: N.wexler, expect: "0.28|0,28|٠٫٢٨|٠.٢٨", ask: "ما القيمة التي تُعتبر صحية لنسبة ويكسلر؟" },
+  { id: "h-xl-ar03", lang: "ar", note: N.brannock, expect: "340|٣٤٠", ask: "كم غرامًا من دقيق الجاودار يحتاج رغيف خبز Brannock؟" },
   { id: "h-xl-ar04", lang: "ar", note: N.verrin, expect: "214|٢١٤", ask: "عند أي درجة حرارة يغلي محلول Verrin؟" },
 
-  // Amharic — am01 and am03 transliterate the name into Ge'ez script (ቴሲክ = Tessik, ማርሎው = Marlow).
+  // Amharic — am01 and am02 transliterate the name into Ge'ez script (ቴሲክ = Tessik, ማርሎው = Marlow).
   { id: "h-xl-am01", lang: "am", note: N.tessik, expect: "40|60", ask: "የቴሲክ እንቁራሪት በአንድ ጊዜ ስንት እንቁላል ትጥላለች?" },
-  { id: "h-xl-am02", lang: "am", note: N.dalquist, expect: "orange|ብርቱካናማ|ብርቱካን", ask: "Dalquist reagent ከክሎራይድ ጋር ሲገናኝ ምን አይነት ቀለም ይይዛል?" },
-  { id: "h-xl-am03", lang: "am", note: N.marlow, expect: "3.71", ask: "በማርሎው ተፋሰስ ጥናት የደለል ኢንዴክሱ ስንት ነበር?" },
+  { id: "h-xl-am02", lang: "am", note: N.marlow, expect: "3.71", ask: "በማርሎው ተፋሰስ ጥናት የደለል ኢንዴክሱ ስንት ነበር?" },
+  { id: "h-xl-am03", lang: "am", note: N.dalquist, expect: "orange|ብርቱካናማ|ብርቱካን", ask: "Dalquist reagent ከክሎራይድ ጋር ሲገናኝ ምን አይነት ቀለም ይይዛል?" },
   { id: "h-xl-am04", lang: "am", note: N.tolvane, expect: "1847", ask: "Tolvane doctrine በየትኛው ዓመት ነው በይፋ የጸደቀው?" },
 ]);
 
@@ -194,10 +200,10 @@ const PARAPHRASE = pos("paraphrase", [
   { id: "h-pp09", note: N.wexler, expect: "0.28", ask: "What's the cut-off for a good Wexler figure?" },
   { id: "h-pp10", note: N.tessik, expect: "40|60", ask: "How big is a Tessik frog's batch of spawn?" },
   { id: "h-pp11", note: N.admin, expect: "Friday|noon", ask: "What's the weekly deadline for handing in homework?" },
-  { id: "h-pp12", note: N.study, expect: "worked example|solved problem", ask: "When I revise, which helps more: the chapter recaps or the step-by-step solved problems?" },
+  { id: "h-pp12", note: N.study, expect: "worked example", ask: "When I revise, which helps more: the chapter recaps or the step-by-step solved problems?" },
   { id: "h-pp13", note: N.kessel, expect: "4,180|4180", ask: "Past what speed does the Kessel's mount start humming?" },
   { id: "h-pp14", note: N.tolvane, expect: "1847", ask: "When did Tolvane's rule become law?" },
-  { id: "h-pp15", note: N.admin, expect: "ten percent|10%|twenty percent|20%", ask: "If I hand something in two days late, how much do I lose?" },
+  { id: "h-pp15", note: N.admin, expect: "ten percent per day|10% per day|ten percent a day|10% a day|twenty percent|20%", ask: "If I hand something in two days late, how much do I lose?" },
   { id: "h-pp16", note: N.brannock, expect: "340", ask: "For the bread recipe with the long chilled proof, how many grams of flour does it take?" },
 ]);
 
