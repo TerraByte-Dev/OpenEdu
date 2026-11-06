@@ -1,4 +1,5 @@
 import { Store } from "@tauri-apps/plugin-store";
+import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel } from "./models";
@@ -14,6 +15,16 @@ async function getStore(): Promise<Store> {
   return store;
 }
 
+// Total physical RAM from src-tauri/src/system.rs, asked once per session (it cannot change while the
+// app runs). null when there is no Tauri (vite in a browser) or the OS call failed; models.ts then
+// keeps the pre-RAM default. Only consulted when no model is stored, so a choice made in Settings is
+// never replaced by it.
+let memoryBytes: Promise<number | null> | null = null;
+function systemMemoryBytes(): Promise<number | null> {
+  if (!memoryBytes) memoryBytes = invoke<number | null>("system_memory_bytes").catch(() => null);
+  return memoryBytes;
+}
+
 // Shared provider/key config
 export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?: string; ollamaUrl: string }> {
   const s = await getStore();
@@ -24,11 +35,12 @@ export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?
   return { provider, apiKey, ollamaUrl };
 }
 
-// Generation model (course creation, syllabus) — defaults to the catalog's recommended model (see models.ts).
+// Generation model (course creation, syllabus) — defaults to the catalog's recommended model, or for
+// Ollama the one that fits this machine's RAM (see models.ts).
 export async function getGenerationConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const model = (await s.get<string>(STORE_KEYS.genModel)) ?? defaultGenerationModel(base.provider);
+  const model = (await s.get<string>(STORE_KEYS.genModel)) ?? defaultGenerationModel(base.provider, await systemMemoryBytes());
   return { ...base, model };
 }
 
@@ -36,7 +48,7 @@ export async function getGenerationConfig(): Promise<LLMConfig> {
 export async function getChatConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const model = (await s.get<string>(STORE_KEYS.chatModel)) ?? defaultChatModel(base.provider);
+  const model = (await s.get<string>(STORE_KEYS.chatModel)) ?? defaultChatModel(base.provider, await systemMemoryBytes());
   return { ...base, model };
 }
 

@@ -23,6 +23,14 @@ tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Total RAM for the default-model pick (src/system.rs). Both are already in Cargo.lock via other
+# crates, so neither adds a package to the build; the feature only exposes GlobalMemoryStatusEx.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_SystemInformation"] }
+
+[target.'cfg(target_vendor = "apple")'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = "3"
 
