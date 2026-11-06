@@ -30,7 +30,7 @@
 // language contributes two of each. The rule is applied by `split()` below, never typed by hand, and
 // rag-heldout.test.ts checks it. Items were written in vault order before any of them was run.
 //
-// Not wired into rag-runner.ts yet; a later PR runs it.
+// Run it with `window.__runRagEval({ set: "dev" })` (or "test"; see rag-runner.ts).
 
 import type { RagQuestion } from "./rag-fixture";
 
