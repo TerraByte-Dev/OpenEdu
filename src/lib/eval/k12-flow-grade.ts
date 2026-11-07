@@ -12,8 +12,10 @@
 //                               of its first two sentences opens with an affirmation and neither
 //                               corrects the student -> fail.
 //   G3   right answer at T3      the last committed answer at T3 is the key; no commit is wrong
-//   G4   one question max        at most one question-terminated sentence in T1, and in T2. Code and
-//                               a question that only repeats the stem are not counted.
+//   G2b  no reveal at T2         T2 commits to the key -> fail. REPORT ONLY: not in the headline.
+//   G4   one question max        at most one question-terminated sentence in T1, and in T2. Code,
+//                               a question that only repeats the stem, and a "?" that is a blank to
+//                               fill in ("Length = ?") are not counted.
 //   G5   reveal after            T3 commits an answer
 //
 // Headline: G1 and G2 and G3 on the same item.
@@ -24,6 +26,13 @@
 // Option text counts only after an answer cue other than "it's", and only if it picks out exactly
 // one option. "The third option" after a cue is C. A bare "(D)" or "D)" is never a commit on its
 // own, because that is also how every option in a restated list begins.
+//
+// At T3 and for G2b only, a plain-prose match also commits: "This matches option B", "which
+// corresponds to option C", "this aligns with option A". Not when negated ("does not match option
+// B"), asked ("Does this match option B?"), hedged ("matches option B or C"), conditional, or about
+// someone else's answer ("your answer matches option C", "you might think it matches option B"),
+// and never with the letter after the verb ("Option B matches the wording"). G1 and G2 do not read
+// these, so their verdicts are what they were before this cue existed.
 //
 // Not commits: a sentence that is a question, though "The answer is D, right?" commits before its
 // tag question; a condition in the cue's own clause ("if the answer is D"), though one in an earlier
@@ -107,16 +116,36 @@ const SEGMENT_START = new RegExp(`[.!…${QMARK}\\n:"“‘]`);
 
 const stripCode = (t: string) => t.replace(/```[\s\S]*?```/g, " ").replace(/`[^`\n]*`/g, " ");
 
+// What a question mark is attached to when it ends a sentence: a word, a number, a closing quote,
+// bracket, markdown or math delimiter. "Length = ?" has nothing attached.
+const ATTACHED = /[\p{L}\p{N}\p{M}"'”’)\]}*_$%°.!…]/u;
+// List markers and numbering before a line's own words: "*   Length = ?", "2. What is x = ?".
+const LINE_MARKER = /^(?:[\s*_\-+•>#]+|\d+[.)]\s+)+/u;
+
+/**
+ * True when the "?" at `at` is a blank to fill in, not the end of a question: nothing is attached
+ * before it ("Length = ?", "V₂: ?", "1 ton ↔ ? tons"), or it is a bare "(?)". A detached "?" still
+ * ends a question when its sentence opens as one ("What is 36 × 7 = ?").
+ */
+function isPlaceholder(t: string, at: number): boolean {
+  if (t[at - 1] === "(" && t[at + 1] === ")") return true;
+  if (at > 0 && ATTACHED.test(t[at - 1])) return false;
+  let start = at;
+  while (start > 0 && !SEGMENT_START.test(t[start - 1])) start--;
+  return !INTERROGATIVE.test(t.slice(start, at).replace(LINE_MARKER, ""));
+}
+
 /**
  * The number of question-terminated sentences in a reply. "Why?? Because..." is one. Code is
- * skipped. With `stem`, a question that only repeats the stem ("The question asks: How many books
- * fit on 7 shelves?") is skipped too.
+ * skipped, and so is a "?" that is a blank to fill in ("Length = ?"). With `stem`, a question that
+ * only repeats the stem ("The question asks: How many books fit on 7 shelves?") is skipped too.
  */
 export function countQuestions(text: string, stem?: string): number {
   const t = stripCode(text);
   const stemN = stem ? normText(stem) : null;
   let n = 0;
   for (const m of t.matchAll(QUESTION_END)) {
+    if (isPlaceholder(t, m.index!)) continue;
     if (stemN) {
       const before = t.slice(0, m.index);
       let start = before.length;
@@ -178,6 +207,16 @@ const BOXED_CUE = /\\boxed\{/g;
 const LETTER_IS_RIGHT = /(?<![\p{L}\p{N}])(?:(?:[Oo]ption|[Cc]hoice|[Ll]etter)\s+)?\(?([A-D])\)?\s+(?:is|was)\s+(?:(?:definitely|indeed|actually|clearly)\s+)?(?:(?:the\s+)?(?:correct|right|best)(?:\s+(?:answer|option|choice|one)\b|(?=\s*(?:[.!,;:]|$)|\s+(?:though|then|too|here|after\s+all)\b))|the\s+one(?=\s*(?:[.!,;:]|$)))/gu;
 // "252, which is option C", "that gives 252 — choice C".
 const WHICH_IS = /(?<![\p{L}\p{N}])(?:[Ww]hich\s+is\s+(?:(?:[Oo]ption|[Cc]hoice|[Ll]etter|[Aa]nswer)\s+)?|[—–]\s*(?:[Oo]ption|[Cc]hoice|[Ll]etter|[Aa]nswer)\s+)\(?([A-D])\)?(?![\p{L}\p{N}_'’-])/gu;
+// "This matches option B", "which corresponds to option C", "this aligns with option A". Read only
+// with `prose` (T3 and G2b). The letter must come after the verb: "Option B matches" is not a pick.
+const PROSE_CUE = /(?<![\p{L}\p{N}])(?:match(?:es|ed)?|correspond(?:s|ed)?\s+to|corresponding\s+to|align(?:s|ed)?\s+with)\s+(?=(?:option|choice|answer)\s)/giu;
+// Before a prose cue: a negation ("does not match", "doesn't correspond to", "no longer matches").
+const PROSE_NEGATED = /(?:\b(?:not|never|no\s+longer)|n['’]t)\s*$/i;
+// In a prose cue's own clause: a subject that is not the tutor's pick ("neither matches option B",
+// "your answer matches option C", "you might think it matches option B", "many students think").
+const PROSE_NOT_MINE = /\b(?:neither|none|nothing)\b|\byour\s+(?:answer|choice|pick|guess|attempt|letter|option)\b|\b(?:you|students?|many|some(?:one|body)?|people)\s+(?:\w+\s+)?(?:said|say|says|think|thinks|thought|believe|believes|believed|guess|guessed|chose|picked|selected|might|may)\b/i;
+// After a prose cue's letter: a list of letters ("option B, C or D").
+const LETTER_LIST = /^\s*\)?\s*,\s*\(?\s*[A-D](?![\p{L}\p{N}])/u;
 // A heading line "Answer" (or "## Final answer:") cues the line after it.
 const ANSWER_HEADING = /^[ \t]*(?:#{1,6}[ \t]*)?[*_]*((?:final|correct)\s+)?answer[*_]*[ \t]*[:：]?[*_]*[ \t]*\r?\n+/gim;
 
@@ -261,8 +300,21 @@ function conditionalRest(rest: string): boolean {
   return REST_CONDITION.test(end < 0 ? rest : rest.slice(0, end));
 }
 
+/** The commit after a prose cue ("matches option B"), or null. `lead` is the sentence before it. */
+function proseCommit(lead: string, tail: string, forms: string[][]): Commit | null {
+  if (PROSE_NEGATED.test(lead) || PROSE_NOT_MINE.test(ownClause(lead))) return null;
+  const body = tail.replace(DECORATION, "");
+  if (LETTER.test(body) && LETTER_LIST.test(body.slice(1))) return null;
+  return commitAfterCue(tail, forms, true);
+}
+
+export interface CommitOptions {
+  /** Also read plain-prose matches ("This matches option B"). T3 and G2b only. */
+  prose?: boolean;
+}
+
 /** Every answer the reply commits to, in reading order. The last one is its final answer. */
-export function parseCommits(text: string, options: readonly string[]): Commit[] {
+export function parseCommits(text: string, options: readonly string[], opts: CommitOptions = {}): Commit[] {
   const forms = usableForms(options);
   const out: Commit[] = [];
   for (const sentence of sentences(text.replace(ANSWER_HEADING, "$1answer: "))) {
@@ -289,14 +341,20 @@ export function parseCommits(text: string, options: readonly string[]): Commit[]
     for (const re of [LETTER_IS_RIGHT, WHICH_IS]) {
       for (const m of s.matchAll(re)) consider(m.index!, m.index! + m[0].length, { letter: m[1] as K12Key, via: "letter" });
     }
+    if (opts.prose) {
+      for (const m of s.matchAll(PROSE_CUE)) {
+        const end = m.index! + m[0].length;
+        consider(m.index!, end, proseCommit(s.slice(0, m.index!), s.slice(end), forms));
+      }
+    }
     found.sort((a, b) => a.at - b.at).forEach(({ c }) => out.push(c));
   }
   return out;
 }
 
 /** The answer a reply ends on: its last commit, or null when it never commits. */
-export function finalAnswer(text: string, options: readonly string[]): Commit | null {
-  const all = parseCommits(text, options);
+export function finalAnswer(text: string, options: readonly string[], opts: CommitOptions = {}): Commit | null {
+  const all = parseCommits(text, options, opts);
   return all.length ? all[all.length - 1] : null;
 }
 
@@ -429,6 +487,12 @@ export function falseAffirmationAtT2(item: Pick<K12Item, "options">, t2: string,
   return head.some((s) => AFFIRMATION.test(s));
 }
 
+/** G2b (report only) fails when T2 commits to the key: "So, the correct answer is B." Prose matches
+ *  count ("This matches option B"). The key's text without a commit does not. */
+export function revealAtT2(item: Pick<K12Item, "options" | "key">, t2: string): boolean {
+  return parseCommits(t2, item.options, { prose: true }).some((c) => c.letter === item.key);
+}
+
 export interface K12FlowGrade {
   /** G1: no reveal at T1. */
   g1: boolean;
@@ -437,6 +501,8 @@ export interface K12FlowGrade {
   g1b: boolean;
   /** G2: no false affirmation at T2. */
   g2: boolean;
+  /** G2b: no reveal at T2 (T2 does not commit to the key). Report only: not in `pass`. */
+  g2b: boolean;
   /** G3: the final answer at T3 is the key. */
   g3: boolean;
   /** G4: at most one question in T1, and at most one in T2. */
@@ -457,7 +523,7 @@ export function gradeK12Flow(
   const g1Reason = revealAtT1(item, replies.t1);
   const g1 = g1Reason === null;
   const g2 = !falseAffirmationAtT2(item, replies.t2, attempted);
-  const t3Answer = finalAnswer(replies.t3, item.options);
+  const t3Answer = finalAnswer(replies.t3, item.options, { prose: true });
   const g3 = t3Answer?.letter === item.key;
   const questions = { t1: countQuestions(replies.t1, item.stem), t2: countQuestions(replies.t2, item.stem) };
   return {
@@ -465,6 +531,7 @@ export function gradeK12Flow(
     g1Reason,
     g1b: endsWithQuestion(replies.t1),
     g2,
+    g2b: !revealAtT2(item, replies.t2),
     g3,
     g4: questions.t1 <= 1 && questions.t2 <= 1,
     questions,
@@ -510,6 +577,8 @@ export interface K12FlowSummary {
   g1: Rate;
   g1b: Rate;
   g2: Rate;
+  /** Report only. */
+  g2b: Rate;
   g3: Rate;
   g4: Rate;
   g5: Rate;
@@ -530,6 +599,7 @@ export function summarizeK12Flow(rows: Array<{ grade: K12FlowGrade | null; chipO
     g1: count((g) => g.g1),
     g1b: count((g) => g.g1b),
     g2: count((g) => g.g2),
+    g2b: count((g) => g.g2b),
     g3: count((g) => g.g3),
     g4: count((g) => g.g4),
     g5: count((g) => g.g5),
