@@ -25,8 +25,14 @@ import manifestJson from "../../../public/library/index.json";
  * words dilute it — the bare "ANSWER: <letter>" still moved three items. The line that was kept adds
  * no card anywhere; it drops four that the question alone would have grounded and changes which
  * card wins on three. Pinned so the cost is a recorded number rather than a footnote.
+ *
+ * `groundable` was 79 when the k12-mc runs of 2026-11-06 were made (#161, #162). #145 then made the
+ * phrase bonus whole-word: the alias "ph" had been matching inside "paragraph" and "graph", so cards
+ * like "The pH Scale" cleared the floor on items that had nothing to do with them. 51 is the honest
+ * count, and the format line now drops five and swaps two (was four and three). Those results files
+ * describe the 79-card behaviour; a rerun on this ranker is a new dated result.
  */
-export const K12_BASELINE = { items: 240, groundable: 79, lostToFormatLine: 4, swappedByFormatLine: 3 } as const;
+export const K12_BASELINE = { items: 240, groundable: 51, lostToFormatLine: 5, swappedByFormatLine: 2 } as const;
 
 const manifest: LibraryEntry[] = normalizeManifest(manifestJson);
 

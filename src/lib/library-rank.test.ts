@@ -233,3 +233,22 @@ describe("matchResourcesScored — a Spanish query without accents reaches an ac
     expect(matchResourcesScored("cell spectroscopy", manifest)[0].score).toBeLessThan(bare);
   });
 });
+
+describe("matchResourcesScored — the phrase bonus matches whole words only (#145)", () => {
+  const entry = (over: Partial<LibraryEntry>): LibraryEntry => ({
+    id: "x", title: "", path: "x.md", aliases: [], tags: [], subject: "", summary: "", ...over,
+  });
+  const ph = entry({ id: "chem/ph", title: "The pH Scale", aliases: ["ph", "acidity"], tags: ["chemistry"] });
+  const para = entry({ id: "ela/paragraph", title: "Paragraph structure", aliases: ["topic sentence"], tags: ["writing"] });
+  const manifest = [ph, para];
+  const score = (q: string, e: LibraryEntry) => matchResourcesScored(q, manifest, 5).find((r) => r.entry.id === e.id)?.score ?? 0;
+
+  it("an alias does not score inside a longer word", () => {
+    expect(score("how do I write a good paragraph", ph)).toBe(0);
+    expect(score("read the graph", ph)).toBe(0);
+  });
+
+  it("an alias still scores as a word in a longer query", () => {
+    expect(score("what is the ph of lemon juice", ph)).toBeGreaterThan(0);
+  });
+});

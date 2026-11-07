@@ -315,6 +315,11 @@ export function queryCoverage(qTokens: string[], matched: Set<string>, idx: DfIn
 
 // ── Scoring ─────────────────────────────────────────────────────────────────────────────────────
 
+/** True when `needle` occurs in `hay` as whole words. Both are normalizePhrase output: single-spaced. */
+export function containsWords(hay: string, needle: string): boolean {
+  return !!needle && ` ${hay} `.includes(` ${needle} `);
+}
+
 export function scoreEntry(
   qTokens: string[],
   qPhrase: string,
@@ -325,7 +330,9 @@ export function scoreEntry(
   // A curated title/alias the query contains (or vice-versa) is near-certain — never damped.
   for (const n of tokensFor(entry).names) {
     if (qPhrase === n) phrase += 12;
-    else if (qPhrase.includes(n) || n.includes(qPhrase)) phrase += 6;
+    // Containment must be whole words: a raw substring test let the alias "ph" match inside
+    // "paragraph" and "graph", which put "The pH Scale" on 15 k12 items that had nothing to do with it (#145).
+    else if (containsWords(qPhrase, n) || containsWords(n, qPhrase)) phrase += 6;
   }
 
   const matched = new Set<string>();
