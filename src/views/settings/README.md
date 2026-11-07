@@ -10,7 +10,7 @@ App.tsx ──renders──▶ views/settings/Settings.tsx     (the shell)
                        ├─ registry.tsx   SECTIONS: SectionDef[]   ← add a tab = add one entry
                        ├─ primitives.tsx Section / SettingRow / Toggle / SegmentedControl /
                        │                 SecretField / Disclosure / ActionButton + SettingsContext
-                       └─ sections/*.tsx ProviderModels · WebLibrary · Permissions · Appearance · About
+                       └─ sections/*.tsx ProviderModels · WebLibrary · Permissions · Appearance · LearnerData · About
 ```
 
 ## The shell — `Settings.tsx`
@@ -52,6 +52,7 @@ The decisions most likely to harbor bugs are factored out of the components so t
 | `lib/text-match.ts` | `matchText` — the search filter. |
 | `lib/settings-schema.ts` | `parseSettingsExport`, `sanitizeImportedPermissions` (drops garbage so the kernel never reads bad rules), `isKnownThemeId` — the import-validation core. |
 | `lib/theme.ts` | Theme registry + `resolveCrtOff` (universal themes force the CRT overlay off; CRT themes honor the manual toggle). `useTheme.ts` is the React subscription used by the titlebar + Appearance tab. |
+| `lib/db-resilience.ts` | Learner data tab: `backupFileName`, `backupTo` (`VACUUM INTO`), `describeBackupError`; also the boot `quick_check` interpretation. |
 | `lib/permissions/presets.ts` | Standard / Cautious / Trusting presets + `detectPreset`. The **exam column is identical across presets** (integrity invariant — presets only change `default`/`study`). |
 
 ## Invariants — don't break these

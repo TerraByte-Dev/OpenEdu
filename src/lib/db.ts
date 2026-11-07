@@ -1,16 +1,58 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
+import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
 import { parseUsageMode, type UsageMode, type GroupRow } from "./usage-modes";
 import type { OverviewSource } from "./teacher-overview";
 
-let db: Database | null = null;
+// One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
+// each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
+let dbPromise: Promise<Database> | null = null;
 
-export async function getDb(): Promise<Database> {
-  if (!db) {
-    db = await Database.load("sqlite:openedu.db");
+export function getDb(): Promise<Database> {
+  if (!dbPromise) {
+    dbPromise = openDb();
+    dbPromise.catch(() => { dbPromise = null; }); // a failed open is retried by the next caller
   }
-  return db;
+  return dbPromise;
+}
+
+// Connection settings, checked against the shipped sources (tauri-plugin-sql 2.3.2, sqlx-sqlite 0.8.6):
+// - The plugin opens a sqlx Pool (`Pool::connect`, wrapper.rs): up to 10 connections, idle ones closed
+//   after 10 min, all recycled after 30 min (sqlx-core pool/options.rs). A PRAGMA sent from here runs
+//   on ONE pooled connection and is lost when that connection is recycled, so per-connection PRAGMAs
+//   cannot be set reliably from JS.
+// - sqlx already sets these on every connection it opens (sqlx-sqlite options/mod.rs defaults):
+//   foreign_keys=ON, busy_timeout=5s. synchronous is left at SQLite's default, FULL.
+// - journal_mode=WAL is stored in the database file (sqlite.org/wal.html, "Persistence of WAL mode"),
+//   so setting it once covers every connection, now and later. That is the one we set.
+// - synchronous stays FULL on purpose: in WAL mode NORMAL can lose the last commits on power loss
+//   (sqlite.org/pragma.html#pragma_synchronous); FULL syncs the WAL on each commit.
+async function openDb(): Promise<Database> {
+  const d = await Database.load("sqlite:openedu.db");
+  try {
+    const mode = await enableWal(d);
+    if (mode !== "wal") console.warn(`[db] journal_mode is "${mode}", not wal; will retry next launch`);
+  } catch (e) {
+    // Entering WAL needs a moment of exclusive access. If something else holds the file, carry on in
+    // the old mode; WAL is a speed and robustness gain, not something the app needs in order to work.
+    console.warn("[db] could not switch to WAL; will retry next launch", e);
+  }
+  return d;
+}
+
+/** Boot-time integrity check. Never throws; the caller shows a warning when the result is "damaged". */
+export async function checkDatabaseHealth(): Promise<DbHealth> {
+  const t0 = performance.now();
+  const health = await runQuickCheck(getDb);
+  console.info(`[db] quick_check: ${health.status} in ${Math.round(performance.now() - t0)} ms`);
+  if (health.status !== "ok") console.warn("[db] quick_check detail:", health.detail);
+  return health;
+}
+
+/** Copy every table to `path` (a file the user picked in a save dialog). */
+export async function backupLearnerData(path: string): Promise<BackupResult> {
+  return backupTo(await getDb(), path);
 }
 
 function uuid(): string {

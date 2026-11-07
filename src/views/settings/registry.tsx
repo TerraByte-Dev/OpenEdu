@@ -4,6 +4,7 @@ import ProviderModels from "./sections/ProviderModels";
 import WebLibrary from "./sections/WebLibrary";
 import Permissions from "./sections/Permissions";
 import Appearance from "./sections/Appearance";
+import LearnerData from "./sections/LearnerData";
 import About from "./sections/About";
 import UsageModeSection from "./sections/UsageMode";
 
@@ -50,6 +51,13 @@ export const SECTIONS: SectionDef[] = [
     keywords: "who uses this computer mode just me single class school center learners students teacher pin overview groups classes export csv spreadsheet",
     icon: <Icon d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6|M17 11a3 3 0 1 0 0-6|M21 20c0-3-2-5.5-4.5-6" />,
     Component: UsageModeSection,
+  },
+  {
+    id: "learner-data",
+    label: "Learner data",
+    keywords: "learner data backup restore database copy usb save power cut damaged recover replace file",
+    icon: <Icon d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z|M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6|M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />,
+    Component: LearnerData,
   },
   {
     id: "about",

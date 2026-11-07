@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
-  getCourses, deleteCourse, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
+  getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
   getUsageConfig, setUsageMode as saveUsageMode, listGroups, type UsageConfig,
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
@@ -10,9 +10,11 @@ import {
   type UsageMode, type GroupRow, type TeacherAction,
 } from "./lib/usage-modes";
 import type { PinRecord } from "./lib/learner-pin";
+import type { DbHealth } from "./lib/db-resilience";
 import { getLLMProvider, getTourSeen, setTourSeen } from "./lib/store";
 import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
+import DataDamagedBanner from "./components/DataDamagedBanner";
 import TourOverlay, { TOUR_STEPS } from "./components/TourOverlay";
 import CRTLayer from "./components/CRTLayer";
 import BootSequence from "./components/BootSequence";
@@ -52,6 +54,9 @@ export default function App() {
   const [setupDismissed, setSetupDismissed] = useState(false);
   const [ollamaUrl, setOllamaUrl] = useState("http://127.0.0.1:11434");
   const [tourStep, setTourStep] = useState<number | null>(null);
+  // Boot-time integrity check (power cuts are routine where OpenEdu runs). Only "damaged" shows a warning.
+  const [dbHealth, setDbHealth] = useState<DbHealth | null>(null);
+  const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
   // Learner profiles. `learners === null` = not loaded yet. `activeLearner === null` = the picker is
   // up and no learner data is loaded. learners.ts autoPickLearner decides when the picker is skipped.
   const [learners, setLearners] = useState<LearnerRow[] | null>(null);
@@ -191,6 +196,7 @@ export default function App() {
     void startUp();
     refreshProvider();
     void recheckSetup();
+    void checkDatabaseHealth().then(setDbHealth);
   }, []);
 
   const advanceTour = () => {
@@ -326,6 +332,13 @@ export default function App() {
             )}
 
             <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+              {dbHealth?.status === "damaged" && (
+                <DataDamagedBanner
+                  onHowToRestore={() => { setSettingsSection("learner-data"); setCurrentView("settings"); }}
+                  onDismiss={() => setDbHealth(null)}
+                />
+              )}
+
               {promotionBanner !== null && (
                 <div className="flex items-center justify-between px-4 py-2 border-b text-sm text-phosphor-ink shrink-0" style={{ background: "rgb(var(--phosphor-rgb)/0.10)", borderColor: "rgb(var(--phosphor-rgb)/0.30)" }}>
                   <span className="flex items-center gap-2">
@@ -381,6 +394,8 @@ export default function App() {
               )}
               {currentView === "settings" && (
                 <Settings
+                  key={settingsSection ?? "default"}
+                  initialSectionId={settingsSection}
                   onSaved={refreshProvider}
                   usage={mode ? {
                     mode,
