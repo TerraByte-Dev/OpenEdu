@@ -18,7 +18,6 @@ vi.mock("@tauri-apps/plugin-store", () => import("./shims/plugin-store"));
 vi.mock("@tauri-apps/api/core", () => import("./shims/api-core"));
 
 import { runRagEval } from "../rag-runner";
-import { runHeadlessEval } from "./run";
 import { seedStore, resetStores } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
 import { registerBuiltinTools } from "../../tools";
@@ -32,6 +31,7 @@ import { fs, os } from "./node-io";
 
 const ITEM = "h-pp01"; // dev split: "In the Marlow survey, what number did we record for silt build-up…"
 const MODEL = "gemma4:e2b";
+const OTHER_EMBED = "other-embed";
 const MARLOW = RAG_FIXTURE.find((n) => n.title === "Field Notes — Marlow Basin")!;
 const ASK = RAG_HELDOUT.find((q) => q.id === ITEM)!.ask;
 
@@ -48,7 +48,7 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
   calls.push({ path: url.pathname, body });
   switch (url.pathname) {
     case "/api/tags":
-      return json({ models: [{ name: MODEL }, { name: "nomic-embed-text:latest" }] });
+      return json({ models: [{ name: MODEL }, { name: "nomic-embed-text:latest" }, { name: OTHER_EMBED }] });
     case "/api/show":
       return json({ details: { parameter_size: "5.1B" }, model_info: { "general.architecture": "gemma3n", "gemma3n.context_length": 32768 }, capabilities: ["completion", "tools"] });
     case "/api/embed":
@@ -65,11 +65,23 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
   }
 }
 
+// runHeadlessEval from a new module graph (fresh store, library manifest, tool registry, shims).
+// vi.resetModules keeps mocked modules cached, so the shims are re-registered too.
+async function freshRun() {
+  vi.resetModules();
+  vi.doMock("@tauri-apps/plugin-sql", () => import("./shims/plugin-sql"));
+  vi.doMock("@tauri-apps/plugin-http", () => import("./shims/plugin-http"));
+  vi.doMock("@tauri-apps/plugin-store", () => import("./shims/plugin-store"));
+  vi.doMock("@tauri-apps/api/core", () => import("./shims/api-core"));
+  return (await import("./run")).runHeadlessEval;
+}
+
 const bodies = (p: string) => calls.filter((c) => c.path === p).map((c) => c.body);
 
 describe("headless eval == webview eval, on the wire", () => {
   let webview: { chat: unknown[]; embed: unknown[] };
   let headless: { chat: unknown[]; embed: unknown[]; out: Record<string, unknown> };
+  let custom: { chat: unknown[]; embed: unknown[] };
 
   beforeAll(async () => {
     expect(RAG_HELDOUT.find((q) => q.id === ITEM)?.split).toBe("dev");
@@ -88,15 +100,22 @@ describe("headless eval == webview eval, on the wire", () => {
     await runRagEval({ set: "dev", only: ITEM, modes: ["always"] });
     webview = { chat: bodies("/api/chat"), embed: bodies("/api/embed") };
 
-    // B. The terminal: `EVAL_SET=dev EVAL_ONLY=h-pp01 EVAL_MODES=always npm run eval`.
-    resetStores();
+    // B. The terminal: `EVAL_SET=dev EVAL_ONLY=h-pp01 EVAL_MODES=always npm run eval`. Each terminal
+    //    run gets a fresh module graph, as a new process would: store.ts keeps the first Store it
+    //    opens, and library.ts and the tool registry keep state too, so without the reset B would
+    //    read A's settings, manifest and tools, and a boot step missing from run.ts would go unseen.
     calls = [];
     const f = await fs();
     const dir = await f.mkdtemp(`${(await os()).tmpdir()}/oe-parity-`);
     try {
-      const { outFile } = await runHeadlessEval({ EVAL_MODEL: MODEL, EVAL_SET: "dev", EVAL_ONLY: ITEM, EVAL_MODES: "always", EVAL_OUT: `${dir}/run.json` });
+      const { outFile } = await (await freshRun())({ EVAL_MODEL: MODEL, EVAL_SET: "dev", EVAL_ONLY: ITEM, EVAL_MODES: "always", EVAL_OUT: `${dir}/run.json` });
       const out = JSON.parse(await f.readFile(outFile, "utf8")) as Record<string, unknown>;
       headless = { chat: bodies("/api/chat"), embed: bodies("/api/embed"), out };
+
+      // C. The terminal again, with non-default settings: they must reach the request.
+      calls = [];
+      await (await freshRun())({ EVAL_MODEL: MODEL, EVAL_SET: "dev", EVAL_ONLY: ITEM, EVAL_MODES: "always", EVAL_CTX: "4096", EVAL_EMBED_MODEL: OTHER_EMBED, EVAL_OUT: `${dir}/run-c.json` });
+      custom = { chat: bodies("/api/chat"), embed: bodies("/api/embed") };
     } finally {
       await f.rm(dir, { recursive: true, force: true });
     }
@@ -127,6 +146,13 @@ describe("headless eval == webview eval, on the wire", () => {
     expect(user.content).toContain(MARLOW.text);
     expect(user.content.endsWith(ASK)).toBe(true);
     for (const e of headless.embed as Array<{ model: string }>) expect(e.model).toBe("nomic-embed-text");
+  });
+
+  it("applies EVAL_CTX and EVAL_EMBED_MODEL to the request", () => {
+    const body = custom.chat[0] as { options: Record<string, number> };
+    expect(body.options.num_ctx).toBe(4096);
+    expect(custom.embed.length).toBeGreaterThan(1);
+    for (const e of custom.embed as Array<{ model: string }>) expect(e.model).toBe(OTHER_EMBED);
   });
 
   it("writes per-row timings and the run's identity to the results file", () => {
