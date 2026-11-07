@@ -31,6 +31,15 @@ Tables: `courses`, `syllabuses`, `tutor_instructions`, `notes`, `notebook_folder
 version, or move the change into application code. API keys and app settings persist separately via
 `@tauri-apps/plugin-store`.
 
+**Power loss.** `getDb()` switches the file to WAL on open (`PRAGMA journal_mode=WAL`; the mode is stored
+in the file, so it covers every pooled connection). Other connection settings come from sqlx on every
+connection: `foreign_keys=ON`, `busy_timeout` 5 s, and `synchronous` left at SQLite's default, FULL, which
+keeps each commit durable in WAL mode. Per-connection PRAGMAs sent from JS are not reliable: the plugin's
+sqlx pool holds up to 10 connections and recycles them. At boot `checkDatabaseHealth()` runs
+`PRAGMA quick_check` and the app shows a plain-words warning if it reports damage. **Settings → Learner
+data** writes a full copy with `VACUUM INTO` through the sql plugin (no `fs` capability) and explains how to
+restore it by hand. The logic is in `src/lib/db-resilience.ts` (pure, tested).
+
 ## Repo layout
 
 | Path | What lives there |
@@ -48,7 +57,8 @@ version, or move the change into application code. API keys and app settings per
 - **`curriculum.ts`** — the generation pipeline (entry point `runGenerationPipeline`). See below.
 - **`llm.ts`** — the provider abstraction (Ollama / OpenAI / Anthropic): streaming chat, schema-enforced
   structured output (`callLLMStructured`), embeddings, model-tier detection, and a preflight probe.
-- **`db.ts`** — SQLite CRUD for every table.
+- **`db.ts`** — SQLite CRUD for every table, plus the WAL switch, boot health check and backup.
+  `db-resilience.ts` holds their pure logic.
 - **`knowledge.ts` / `progress.ts`** — persistent per-course knowledge files and subtopic mastery tracking;
   both feed context back into the tutor.
 - **`quiz.ts` / `quiz-grading.ts` / `quiz-review.ts`** — quiz & promotion-test generation (schema-enforced,

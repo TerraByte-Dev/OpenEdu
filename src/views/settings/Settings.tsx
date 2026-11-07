@@ -5,8 +5,10 @@ import { SECTIONS } from "./registry";
 // Professional, tabbed Settings view. Left-rail navigation + per-row search, autosave for non-secret
 // controls (the sections call ctx.markSaved after they persist), explicit Save/Verify for secrets, and a
 // footer "saved" indicator. The actual settings live in the declarative SECTIONS registry.
-export default function Settings({ onSaved }: { onSaved?: () => void }) {
-  const [activeId, setActiveId] = useState(SECTIONS[0].id);
+export default function Settings({ onSaved, initialSectionId }: { onSaved?: () => void; initialSectionId?: string }) {
+  const [activeId, setActiveId] = useState(
+    SECTIONS.some((s) => s.id === initialSectionId) ? initialSectionId! : SECTIONS[0].id,
+  );
   const [query, setQuery] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

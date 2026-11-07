@@ -125,6 +125,26 @@ per-course files. A few orientation points:
 - `src/lib/db.ts` — SQLite CRUD; `src-tauri/` — Rust backend + migrations.
 - `src/views/settings/` — the themed Settings system ([its README](src/views/settings/README.md)).
 
+## Backing up and restoring learner data
+
+Every learner's courses, chats, notes, quizzes and progress live in that one `openedu.db` file. A power cut
+can damage it, so keep a copy somewhere else.
+
+**Back up:** open **Settings → Learner data → Back up all learner data** and save the file, for example to
+a USB stick. The default name is `openedu-backup-YYYY-MM-DD.db`. You can keep using the app while it saves.
+
+**Restore:** OpenEdu checks the file each time it starts and shows a warning if it finds damage. To restore:
+
+1. Close OpenEdu.
+2. Open the folder `%APPDATA%\com.terrabytesolutions.openedu\` (Windows). Settings → Learner data shows
+   the exact path on any system.
+3. Move `openedu.db` into a new folder called `old`, along with `openedu.db-wal` and `openedu.db-shm` if
+   they are there. Keep them.
+4. Copy your backup into the first folder and rename it to `openedu.db`.
+5. Start OpenEdu.
+
+Anything done after the backup was made is not in it.
+
 Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (how it's built) and
 [`CONTRIBUTING.md`](CONTRIBUTING.md) (dev workflow).
 
