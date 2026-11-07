@@ -26,7 +26,7 @@ All state lives in **one SQLite database** — no per-course files:
 
 Tables: `courses`, `syllabuses`, `tutor_instructions`, `notes`, `notebook_folders`,
 `notebook_documents` / `chunks` / `embeddings`, `chat_messages`, `quiz_questions`, `quiz_attempts`,
-`user_progress`, `learners`. The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
+`user_progress`, `learners`, `learner_groups`, `app_config`. The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
 `src-tauri/`). The plugin hashes each migration's SQL — **never edit a shipped migration**; add a new
 version, or move the change into application code. API keys and app settings persist separately via
 `@tauri-apps/plugin-store`.
@@ -40,6 +40,18 @@ with no PIN means no picker, so an upgraded install sees no change. Optional 4-6
 PBKDF2-SHA256 (`learner-pin.ts`). That keeps learners out of each other's courses; it does not protect
 the database file. Store keys that remember one learner (only the tour flag today) go through
 `learnerStoreKey` in `store-keys.ts`; the default learner keeps the bare key.
+
+**Usage modes (migration 14).** "Who uses this computer?" is Just me, A class, or A school or center
+(`usage-modes.ts`). The mode and the teacher PIN live in the `app_config` table, next to the data they
+protect, so a settings export never carries them and an import cannot lower them. Migration 14 stores
+"Just me" for an install that already has courses; a fresh install has no row and is asked once.
+Just me keeps the learner-profile rules above. A class always shows the picker, and a teacher PIN
+(PBKDF2, same as learner PINs) guards Settings, the mode, the teacher view, adding and removing learners,
+and clearing a learner's forgotten PIN. A school adds `learner_groups` and `learners.group_id`: the
+picker asks for the class first and the teacher overview filters by it. Leaving a protected mode needs
+the teacher PIN; no mode change deletes data. The overview (`teacher-overview.ts`) is the one read across
+learners (`getTeacherOverviewSource`), and its CSV goes through `export_save_csv` in `export.rs`, which
+opens the Save dialog itself and writes only the file the user picked, as `.csv`.
 
 ## Repo layout
 

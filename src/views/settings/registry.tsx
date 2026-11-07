@@ -5,6 +5,7 @@ import WebLibrary from "./sections/WebLibrary";
 import Permissions from "./sections/Permissions";
 import Appearance from "./sections/Appearance";
 import About from "./sections/About";
+import UsageModeSection from "./sections/UsageMode";
 
 function Icon({ d }: { d: string }) {
   return (
@@ -42,6 +43,13 @@ export const SECTIONS: SectionDef[] = [
     keywords: "appearance theme color crt amber green synthwave dark light phosphor scanlines glow look skin font",
     icon: <Icon d="M12 2a10 10 0 1 0 0 20c1 0 1.5-.8 1.5-1.5 0-.4-.2-.8-.5-1-.3-.3-.5-.6-.5-1 0-.8.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-4.4-3.6-8-8-8z|M7.5 12a1 1 0 1 0 0-.001|M12 7.5a1 1 0 1 0 0-.001|M16.5 11a1 1 0 1 0 0-.001" />,
     Component: Appearance,
+  },
+  {
+    id: "usage",
+    label: "Who uses this",
+    keywords: "who uses this computer mode just me single class school center learners students teacher pin overview groups classes export csv spreadsheet",
+    icon: <Icon d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6|M17 11a3 3 0 1 0 0-6|M21 20c0-3-2-5.5-4.5-6" />,
+    Component: UsageModeSection,
   },
   {
     id: "about",

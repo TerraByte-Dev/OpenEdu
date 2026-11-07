@@ -1,4 +1,5 @@
 mod corpus;
+mod export;
 mod system;
 
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -325,6 +326,36 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 14,
+            description: "usage modes: app_config (mode + teacher PIN), learner_groups + learners.group_id (append-only, never edit v1-v13)",
+            sql: "
+                -- Machine-wide settings that protect learner data live next to it, not in the plugin
+                -- store, so a settings export never carries them and an import cannot lower them.
+                -- Keys: usage_mode ('single' | 'class' | 'school'), teacher_pin_hash, teacher_pin_salt.
+                CREATE TABLE IF NOT EXISTS app_config (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                );
+
+                -- An install that already has courses was in use before modes existed: it starts as
+                -- 'Just me' without being asked. A fresh install has no row and gets the question.
+                INSERT OR IGNORE INTO app_config (key, value)
+                    SELECT 'usage_mode', 'single' WHERE EXISTS (SELECT 1 FROM courses);
+
+                -- Groups (classes) for school mode. Deleting a group leaves its learners in no group.
+                CREATE TABLE IF NOT EXISTS learner_groups (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                ALTER TABLE learners ADD COLUMN group_id TEXT REFERENCES learner_groups(id) ON DELETE SET NULL;
+
+                CREATE INDEX IF NOT EXISTS idx_learners_group ON learners(group_id);
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
@@ -347,6 +378,7 @@ pub fn run() {
             corpus::corpus_list,
             corpus::corpus_read_text,
             system::system_memory_bytes,
+            export::export_save_csv,
         ]);
 
     // Updater is desktop-only.

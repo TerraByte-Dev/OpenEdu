@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SettingsContext, matchText } from "./primitives";
 import { SECTIONS } from "./registry";
+import type { UsageControls } from "./types";
 
 // Professional, tabbed Settings view. Left-rail navigation + per-row search, autosave for non-secret
 // controls (the sections call ctx.markSaved after they persist), explicit Save/Verify for secrets, and a
 // footer "saved" indicator. The actual settings live in the declarative SECTIONS registry.
-export default function Settings({ onSaved }: { onSaved?: () => void }) {
+export default function Settings({ onSaved, usage }: { onSaved?: () => void; usage?: UsageControls }) {
   const [activeId, setActiveId] = useState(SECTIONS[0].id);
   const [query, setQuery] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
@@ -91,7 +92,7 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
 
           <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-8 py-7">
-              <ActiveComponent onProviderChanged={onSaved} />
+              <ActiveComponent onProviderChanged={onSaved} usage={usage} />
             </div>
           </div>
         </div>
