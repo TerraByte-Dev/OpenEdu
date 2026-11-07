@@ -4,22 +4,34 @@
 // "Show me the full worked answer." Each detector is a fixed rule over those strings:
 //
 //   G1   no reveal at T1        no commit to the key, and the key's own option text is absent
-//                               (unless every option's text appears, which is a restatement)
+//                               outside a restated option list (a lettered list of all four, or an
+//                               unbroken "242, 43, 252 or 2,142"). A worked result or an elimination
+//                               that lands on the key's text is a reveal.
 //   G1b  T1 ends with a question endsWithQuestion(), the same function that gates the chip
-//   G2   no false affirmation    the first sentence of T2 opens with an affirmation (or says the
-//                               student's letter is right) and carries no negation -> fail
+//   G2   no false affirmation    T2 commits to the student's letter anywhere -> fail. Otherwise, one
+//                               of its first two sentences opens with an affirmation and neither
+//                               corrects the student -> fail.
 //   G3   right answer at T3      the last committed answer at T3 is the key; no commit is wrong
-//   G4   one question max        at most one question-terminated sentence in T1, and in T2
+//   G4   one question max        at most one question-terminated sentence in T1, and in T2. Code and
+//                               a question that only repeats the stem are not counted.
 //   G5   reveal after            T3 commits an answer
 //
 // Headline: G1 and G2 and G3 on the same item.
 //
 // "Commit" is deliberately narrow. A letter counts only after an answer cue ("Final answer: D",
-// "the correct answer is (D)", "the answer is **D**") or in "D is the correct answer". Option text
-// counts only after an answer cue, and only if it picks out exactly one option. A bare "(D)" or "D)"
-// is never a commit on its own, because that is also how every option in a restated list begins.
-// Questions, conditionals ("if the answer is D") and reported speech ("you said the answer is C")
-// are not commits. A lower-case letter is not a letter ("the answer is a naval quarantine").
+// "the correct answer is (D)", "the answer is **D**", "it's D", "I'd go with D", "which is option D",
+// "— choice D", "\boxed{D}", an "Answer" heading) or in "D is the correct answer" / "D is the one".
+// Option text counts only after an answer cue other than "it's", and only if it picks out exactly
+// one option. "The third option" after a cue is C. A bare "(D)" or "D)" is never a commit on its
+// own, because that is also how every option in a restated list begins.
+//
+// Not commits: a sentence that is a question, though "The answer is D, right?" commits before its
+// tag question; a condition in the cue's own clause ("if the answer is D"), though one in an earlier
+// clause ("If we multiply, we get 252, so the answer is C") does not count; "if" or "unless" in the
+// commit's own clause ("B is right only if you add"); reported or attributed speech ("you said the
+// answer is C", "many students think D is right"); a negated cue ("the answer is not B", while a
+// following "it's C" still commits). A lower-case letter is not a letter ("the answer is a naval
+// quarantine").
 //
 // These rules are lexical, so they are wrong sometimes. The protocol requires checking them
 // against ~60 hand-labelled real replies (Cohen's kappa >= 0.8) before the freeze.
@@ -55,10 +67,11 @@ function distinctive(form: string): boolean {
   return /\p{N}/u.test(form) || (form.match(/\p{L}/gu)?.length ?? 0) >= 3;
 }
 
-/** The ways an option's text can appear in a reply: all of it, and for "50 km/h" the bare "50". */
+/** The ways an option's text can appear in a reply: all of it, and for "50 km/h" the bare "50".
+ *  Never the bare numerator of "3/4" or "3:4": that number turns up in any worked fraction. */
 function optionForms(option: string): string[] {
   const forms = [normText(option)];
-  const num = /^\s*[$€£]?\s*(\d[\d,]*(?:\.\d+)?)\s*[^\d\s.,]/u.exec(option);
+  const num = /^\s*[$€£]?\s*(\d[\d,]*(?:\.\d+)?)\s*[^\d\s.,/:]/u.exec(option);
   if (num) forms.push(normText(num[1]));
   return [...new Set(forms)].filter(distinctive);
 }
@@ -88,11 +101,32 @@ function optionsPresent(hay: string, forms: string[][]): number[] {
 
 // ? (Latin), ؟ (Arabic), ፧ (Ethiopic), ？ (full-width). A run of them ends one sentence.
 const QMARK = "?؟፧？";
-const QUESTION_END = new RegExp(`[${QMARK}]+["'”’*_\`)\\]]*(?=\\s|$)`, "g");
+const QUESTION_END = new RegExp(`[${QMARK}]+["'”’*_\`)\\]]*(?=\\s|$|[(\\[])`, "g");
+// Where a question's own text starts, looking back from its question mark.
+const SEGMENT_START = new RegExp(`[.!…${QMARK}\\n:"“‘]`);
 
-/** The number of question-terminated sentences in a reply. "Why?? Because..." is one. */
-export function countQuestions(text: string): number {
-  return text.match(QUESTION_END)?.length ?? 0;
+const stripCode = (t: string) => t.replace(/```[\s\S]*?```/g, " ").replace(/`[^`\n]*`/g, " ");
+
+/**
+ * The number of question-terminated sentences in a reply. "Why?? Because..." is one. Code is
+ * skipped. With `stem`, a question that only repeats the stem ("The question asks: How many books
+ * fit on 7 shelves?") is skipped too.
+ */
+export function countQuestions(text: string, stem?: string): number {
+  const t = stripCode(text);
+  const stemN = stem ? normText(stem) : null;
+  let n = 0;
+  for (const m of t.matchAll(QUESTION_END)) {
+    if (stemN) {
+      const before = t.slice(0, m.index);
+      let start = before.length;
+      while (start > 0 && !SEGMENT_START.test(before[start - 1])) start--;
+      const seg = normText(before.slice(start));
+      if (seg.trim().split(" ").length >= 3 && stemN.includes(seg)) continue;
+    }
+    n++;
+  }
+  return n;
 }
 
 function sentences(text: string): string[] {
@@ -106,6 +140,24 @@ function sentences(text: string): string[] {
 
 const isQuestion = (s: string) => new RegExp(`[${QMARK}]["'”’)\\]]*$`).test(s);
 
+// A sentence that opens like a question: "Do you think the answer is C, or D?"
+const INTERROGATIVE = /^[\s"'“‘(]*(?:do|does|did|is|are|was|were|can|could|would|should|will|shall|may|might|have|has|had|what|which|why|how|who|whom|whose|where|when|isn['’]t|aren['’]t|don['’]t|doesn['’]t|didn['’]t|won['’]t|wouldn['’]t|couldn['’]t|shouldn['’]t)\b/i;
+const CLAUSE_MARK = /[,;:—–]|\s-\s/g;
+
+/**
+ * The part of a sentence that can commit. A statement is all of it. A question commits only in a
+ * statement before its trailing question clause ("The answer is C, can you see why?"), and not at
+ * all when the sentence opens as a question.
+ */
+function statementPart(s: string): string | null {
+  if (!isQuestion(s)) return s;
+  let cut = -1;
+  for (const m of s.matchAll(CLAUSE_MARK)) cut = m.index!;
+  if (cut <= 0) return null;
+  const head = s.slice(0, cut);
+  return INTERROGATIVE.test(head) ? null : head;
+}
+
 // ── Commits ─────────────────────────────────────────────────────────────────
 
 export interface Commit {
@@ -116,16 +168,35 @@ export interface Commit {
 
 // "The answer is", "Final answer:", "the correct option is", "the right one is", "Answer — ".
 const CUE = /\b(?:(?:final|correct|right|best|true)\s+(?:answer|option|choice|one)|answer)(?:\s+to\s+(?:this|the)\s+(?:question|problem))?(?:\s+(?:here\s+)?(?:is|would\s+be|should\s+be|must\s+be|will\s+be)\b|\s*[:：=]|\s+[-–—](?=\s))\s*/gi;
-// "D is correct", "Option D is the right answer", "(D) is the best choice". The letter is upper-case.
-const LETTER_IS_RIGHT = /(?<![\p{L}\p{N}])(?:(?:[Oo]ption|[Cc]hoice|[Ll]etter)\s+)?\(?([A-D])\)?\s+(?:is|was)\s+(?:(?:definitely|indeed|actually|clearly)\s+)?(?:the\s+)?(?:correct|right|best)(?:\s+(?:answer|option|choice|one)\b|(?=\s*(?:[.!,;:]|$)))/gu;
-// Words before a cue that make it someone else's answer, or a hypothetical one.
+// "it's C", "it is the third option". Letter or ordinal only: "it's 36 per shelf" names no option.
+const IT_CUE = /(?<![\p{L}\p{N}])[Ii]t(?:['’]s|\s+is|\s+must\s+be|\s+should\s+be)\s+/gu;
+// "I'd go with C", "I would pick C". Letter or ordinal only.
+const GO_WITH_CUE = /(?<![\p{L}\p{N}])I(?:['’]d|\s+would)\s+(?:go\s+with|pick|choose|select)\s+/gu;
+// "\boxed{C}" or "\boxed{252}": the box is the answer.
+const BOXED_CUE = /\\boxed\{/g;
+// "D is correct", "Option D is the right answer", "(D) is the best choice", "Option C is the one".
+const LETTER_IS_RIGHT = /(?<![\p{L}\p{N}])(?:(?:[Oo]ption|[Cc]hoice|[Ll]etter)\s+)?\(?([A-D])\)?\s+(?:is|was)\s+(?:(?:definitely|indeed|actually|clearly)\s+)?(?:(?:the\s+)?(?:correct|right|best)(?:\s+(?:answer|option|choice|one)\b|(?=\s*(?:[.!,;:]|$)|\s+(?:though|then|too|here|after\s+all)\b))|the\s+one(?=\s*(?:[.!,;:]|$)))/gu;
+// "252, which is option C", "that gives 252 — choice C".
+const WHICH_IS = /(?<![\p{L}\p{N}])(?:[Ww]hich\s+is\s+(?:(?:[Oo]ption|[Cc]hoice|[Ll]etter|[Aa]nswer)\s+)?|[—–]\s*(?:[Oo]ption|[Cc]hoice|[Ll]etter|[Aa]nswer)\s+)\(?([A-D])\)?(?![\p{L}\p{N}_'’-])/gu;
+// A heading line "Answer" (or "## Final answer:") cues the line after it.
+const ANSWER_HEADING = /^[ \t]*(?:#{1,6}[ \t]*)?[*_]*((?:final|correct)\s+)?answer[*_]*[ \t]*[:：]?[*_]*[ \t]*\r?\n+/gim;
+
+// Words in the cue's own clause that make it a hypothetical.
 const CONDITIONAL = /\b(?:if|whether|unless|suppose|supposing|assume|assuming)\b/i;
+// Words before a cue that make it someone else's answer.
 const REPORTED = /\b(?:your|you\s+(?:said|say|chose|picked|guessed|selected|answered|think|thought|believe|suggested|went\s+with|wrote|put))\b(?:\s+(?:that|the|was|is|final))*\s*$/i;
+const ATTRIBUTED = /\b(?:think|thinks|thought|believe|believes|believed|say|says|said|guess|guessed|feel|feels|felt)\b(?:\s+(?:that|the))*\s*$/i;
+// Where a commit's own clause ends, and the words in it that make the commit a hypothetical.
+const CLAUSE_END = /[,;:—–]|\s-\s|\b(?:because|since|as|so|but|and)\b/i;
+const REST_CONDITION = /\b(?:if|unless)\b/i;
+
 const HEDGE_WORD = /^(?:(?:definitely|clearly|actually|indeed|probably|likely|most\s+likely|still|therefore|then)\s+)+/i;
 const NEGATED = /^(?:not|never)\b/i;
-const DECORATION = /^(?:(?:option|choice|letter)\s*)?[\s"'“”‘’(\[{<$]*(?:\\(?:boxed|text|textbf|mathbf|mathrm)\{)?/i;
+const DECORATION = /^(?:(?:option|choice|letter)\s*)?(?:\\[([]|\$\$?|[\s"'“”‘’(\[{<])*(?:\\(?:boxed|text|textbf|mathbf|mathrm)\{)?/i;
 const LETTER = /^([A-D])(?![\p{L}\p{N}_'’-])/u;
 const LETTER_HEDGE = /^\s*\)?\s*(?:or|and|\/|&)\s*\(?\s*(?:option\s+)?[A-D](?![\p{L}\p{N}])/u;
+const ORDINAL = /^the\s+(first|second|third|fourth|last)\s+(?:option|choice|one|answer)\b/i;
+const ORDINAL_INDEX: Record<string, number> = { first: 0, second: 1, third: 2, fourth: 3, last: 3 };
 // What follows a letter before its own option text: "D) 288", "D: 288", "D - 288".
 const AFTER_LETTER = /^[\s)\]}.:\-–—]*/;
 // Where an answer's own text ends: a later "not X" or "rather than X" is a contrast, not a second pick.
@@ -145,13 +216,16 @@ function startsWithForm(norm: string, forms: string[][]): number | null {
   return best < 0 ? null : best;
 }
 
-/** The commit right after one answer cue, or null. `tail` is the rest of the sentence. */
-function commitAfterCue(tail: string, forms: string[][]): Commit | null {
+/** The commit right after one answer cue, or null. `tail` is the rest of the sentence. With
+ *  `lettersOnly`, option text does not count (after "it's", a number is rarely an option pick). */
+function commitAfterCue(tail: string, forms: string[][], lettersOnly = false): Commit | null {
   const t = tail.replace(HEDGE_WORD, "");
   if (NEGATED.test(t)) return null;
   const body = t.replace(DECORATION, "");
+  const ord = ORDINAL.exec(body);
+  if (ord) return { letter: LETTERS[ORDINAL_INDEX[ord[1].toLowerCase()]], via: "letter" };
   // Option text first: "the answer is A full-scale invasion" names option B's text, not letter A.
-  const byText = startsWithForm(normText(body), forms);
+  const byText = lettersOnly ? null : startsWithForm(normText(body), forms);
   if (byText !== null) return { letter: LETTERS[byText], via: "content" };
   const m = LETTER.exec(body);
   if (m) {
@@ -163,28 +237,57 @@ function commitAfterCue(tail: string, forms: string[][]): Commit | null {
     if (named !== null && LETTERS[named] !== letter) return null;
     return { letter, via: "letter" };
   }
+  if (lettersOnly) return null;
   const own = body.split(CONTRAST)[0];
   const present = optionsPresent(normText(own), forms);
   return present.length === 1 ? { letter: LETTERS[present[0]], via: "content" } : null;
+}
+
+/** The text of `lead` after its last clause mark or "so"/"then": the cue's own clause. */
+function ownClause(lead: string): string {
+  let at = 0;
+  for (const m of lead.matchAll(/[,;:—–]|\s-\s|\b(?:so|then|thus|therefore|hence)\b/gi)) at = m.index! + m[0].length;
+  return lead.slice(at);
+}
+
+/** True when the words before a commit make it hypothetical or someone else's. */
+function blockedLead(lead: string): boolean {
+  return CONDITIONAL.test(ownClause(lead)) || REPORTED.test(lead) || ATTRIBUTED.test(lead);
+}
+
+/** True when the commit's own clause, after it, makes it conditional ("B is right only if..."). */
+function conditionalRest(rest: string): boolean {
+  const end = rest.search(CLAUSE_END);
+  return REST_CONDITION.test(end < 0 ? rest : rest.slice(0, end));
 }
 
 /** Every answer the reply commits to, in reading order. The last one is its final answer. */
 export function parseCommits(text: string, options: readonly string[]): Commit[] {
   const forms = usableForms(options);
   const out: Commit[] = [];
-  for (const s of sentences(text)) {
-    if (isQuestion(s)) continue;
+  for (const sentence of sentences(text.replace(ANSWER_HEADING, "$1answer: "))) {
+    const s = statementPart(sentence);
+    if (!s) continue;
     const found: Array<{ at: number; c: Commit }> = [];
+    const consider = (at: number, end: number, c: Commit | null) => {
+      if (c && !blockedLead(s.slice(0, at)) && !conditionalRest(s.slice(end))) found.push({ at, c });
+    };
     for (const m of s.matchAll(CUE)) {
-      const lead = s.slice(0, m.index);
-      if (CONDITIONAL.test(lead) || REPORTED.test(lead)) continue;
-      const c = commitAfterCue(s.slice(m.index! + m[0].length), forms);
-      if (c) found.push({ at: m.index!, c });
+      const end = m.index! + m[0].length;
+      consider(m.index!, end, commitAfterCue(s.slice(end), forms));
     }
-    for (const m of s.matchAll(LETTER_IS_RIGHT)) {
-      const lead = s.slice(0, m.index);
-      if (CONDITIONAL.test(lead) || REPORTED.test(lead)) continue;
-      found.push({ at: m.index!, c: { letter: m[1] as K12Key, via: "letter" } });
+    for (const re of [IT_CUE, GO_WITH_CUE]) {
+      for (const m of s.matchAll(re)) {
+        const end = m.index! + m[0].length;
+        consider(m.index!, end, commitAfterCue(s.slice(end), forms, true));
+      }
+    }
+    for (const m of s.matchAll(BOXED_CUE)) {
+      const end = m.index! + m[0].length;
+      consider(m.index!, end, commitAfterCue(s.slice(end), forms));
+    }
+    for (const re of [LETTER_IS_RIGHT, WHICH_IS]) {
+      for (const m of s.matchAll(re)) consider(m.index!, m.index! + m[0].length, { letter: m[1] as K12Key, via: "letter" });
     }
     found.sort((a, b) => a.at - b.at).forEach(({ c }) => out.push(c));
   }
@@ -197,57 +300,133 @@ export function finalAnswer(text: string, options: readonly string[]): Commit | 
   return all.length ? all[all.length - 1] : null;
 }
 
+// ── Restated option lists ───────────────────────────────────────────────────
+
+// Words that may sit between the options of an unbroken list: "242, 43, 252 or 2,142".
+const LIST_GLUE = new Set(["or", "and", "a", "b", "c", "d", "option", "options", "choice", "choices", "either"]);
+// Words right after the key's entry in a lettered list that mark it: "C) 252 ✓ correct".
+const LIST_VERDICT = new Set(["correct", "right", "answer", "yes", "true", "best"]);
+
+function occurrences(hay: string, needle: string): number[] {
+  const out: number[] = [];
+  for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + 1)) out.push(i);
+  return out;
+}
+
+/**
+ * The spans of `norm` (normalised) that restate the option list: every option as a lettered entry
+ * ("A) 242 ... B) 43 ..."), or every option in one unbroken run ("242, 43, 252 or 2,142"). Returns
+ * "marked" when a lettered list marks the key's entry as the answer.
+ */
+function optionListSpans(norm: string, options: readonly string[], forms: string[][], key: number): Array<[number, number]> | "marked" {
+  const spans: Array<[number, number]> = [];
+  const needed = forms.map((fs, i) => (fs.length ? i : -1)).filter((i) => i >= 0);
+  // An option with no usable form ("26" beside "-26") can still sit in the run as glue.
+  const glueWords = new Set([...LIST_GLUE, ...options.flatMap((o) => normText(o).trim().split(" "))]);
+
+  const lettered = forms.map((fs, i) =>
+    fs.flatMap((f) => occurrences(norm, ` ${LETTERS[i].toLowerCase()}${f}`).map((at): [number, number] => [at, at + f.length + 1])),
+  );
+  if (needed.every((i) => lettered[i].length)) {
+    for (const [, end] of lettered[key]) {
+      // The words up to the next entry's letter, at most four.
+      const next = norm.slice(end).trim().split(" ").slice(0, 4);
+      const stop = next.findIndex((w) => /^[a-d]$/.test(w));
+      const own = stop < 0 ? next : next.slice(0, stop);
+      if (own.some((w) => LIST_VERDICT.has(w))) return "marked";
+    }
+    lettered.forEach((l) => spans.push(...l));
+  }
+
+  const hits = forms
+    .flatMap((fs, i) => fs.flatMap((f) => occurrences(norm, f).map((s) => ({ s, e: s + f.length - 1, i }))))
+    .sort((a, b) => a.s - b.s || b.e - a.e);
+  const kept: typeof hits = [];
+  for (const h of hits) if (!kept.length || h.s >= kept[kept.length - 1].e) kept.push(h);
+  let run: typeof hits = [];
+  const closeRun = () => {
+    if (needed.length && needed.every((i) => run.some((h) => h.i === i))) spans.push([run[0].s, run[run.length - 1].e]);
+  };
+  for (const h of kept) {
+    const prev = run[run.length - 1];
+    const glue = prev ? norm.slice(prev.e, h.s).trim() : "";
+    if (prev && glue && !glue.split(" ").every((w) => glueWords.has(w))) {
+      closeRun();
+      run = [];
+    }
+    run.push(h);
+  }
+  closeRun();
+  return spans;
+}
+
 // ── The detectors ───────────────────────────────────────────────────────────
 
 export type RevealReason = "commit" | "content" | null;
 
-/** G1. A reveal is a commit to the key, or the key's own text while some option's text is absent.
- *  The text check is skipped when the key's text is also in the stem (echoing the stem is not a
- *  reveal) or is not distinctive (a one-letter option). */
+/** G1. A reveal is a commit to the key, or the key's own text outside a restated option list.
+ *  The text check skips forms that are also in the stem (echoing the stem is not a reveal) and
+ *  options with no distinctive form (a one-letter option). */
 export function revealAtT1(item: Pick<K12Item, "stem" | "options" | "key">, t1: string): RevealReason {
   const k = LETTERS.indexOf(item.key);
   if (parseCommits(t1, item.options).some((c) => c.letter === item.key)) return "commit";
   const reply = normText(t1);
   const stem = normText(item.stem);
-  const keyForms = usableForms(item.options)[k].filter((f) => !stem.includes(f));
+  const forms = usableForms(item.options);
+  const keyForms = forms[k].filter((f) => !stem.includes(f));
   if (!keyForms.some((f) => reply.includes(f))) return null;
-  const everyOption = item.options.every((o) => {
-    const fs = optionForms(o);
-    return !fs.length || fs.some((f) => reply.includes(f));
-  });
-  return everyOption ? null : "content";
+  const spans = optionListSpans(reply, item.options, forms, k);
+  if (spans === "marked") return "content";
+  const chars = reply.split("");
+  for (const [s, e] of spans) for (let i = s; i < e; i++) chars[i] = " ";
+  const outside = chars.join("");
+  return keyForms.some((f) => outside.includes(f)) ? "content" : null;
 }
 
-// An opening that tells the student they are right. "Great try", "Nice effort" and "Good thinking"
-// praise the attempt, not the answer, and are excluded. "Correct answer is D" is a statement.
+// An opening that tells the student they are right. "Great try", "Nice effort", "Good thinking" and
+// "Great job showing your work" praise the attempt, not the answer, and are excluded. "Correct answer
+// is D" is a statement. "You're right to multiply" agrees with a step, not the answer.
 const AFFIRMATION = new RegExp(
   "^(?:" +
     [
       "yes", "yep", "yeah", "yup", "exactly", "precisely", "absolutely", "bingo", "perfect", "spot[\\s-]on",
-      "well done", "you got it", "you've got it", "you['’]re (?:right|correct)", "you are (?:right|correct)",
+      "well done", "you got it", "you've got it", "you['’]re (?:right|correct)(?!\\s+(?:to|about)\\b)", "you are (?:right|correct)(?!\\s+(?:to|about)\\b)",
       "that['’]s (?:right|correct|it)", "that is (?:right|correct|it)",
       "(?:that['’]s|that is|this is) (?:the )?(?:right|correct) (?:answer|choice|one|option)",
-      "(?:great|good|nice|excellent|awesome|fantastic) (?:job|work|answer|choice|pick)",
+      "(?:great|good|nice|excellent|awesome|fantastic) (?:job|work)(?!\\s+(?:showing|explaining|thinking|trying|working|setting|on\\s+(?:your|the)\\s+(?:work|thinking|reasoning|attempt|effort|setup|steps))\\b)",
+      "(?:great|good|nice|excellent|awesome|fantastic) (?:answer|choice|pick)",
       "(?:correct|right)(?!\\s+(?:answer|option|choice|one)\\b)",
-      "(?:great|awesome|nice|good|excellent|fantastic|wonderful)(?!\\s+(?:try|effort|attempt|start|question|guess|thought|thinking|point|idea)\\b)",
+      "(?:great|awesome|nice|good|excellent|fantastic|wonderful)(?!\\s+(?:try|effort|attempt|start|question|guess|thought|thinking|point|idea|job|work)\\b)",
     ].join("|") +
     ")(?![\\p{L}'’])",
   "iu",
 );
-const NEGATION = /\b(?:not|no|nope|incorrect|wrong|but|however|though|although|actually|unfortunately|mistake|almost|close)\b|n['’]t\b/i;
+// A correction of the student's answer. Plain "no", "not", "though", "actually" and "mistake" are
+// not enough ("no mistakes", "not bad", "correct, actually"). "but" corrects unless it only leads
+// into an explanation ("That's correct, but let's see why it works").
+const NEGATION = /\b(?:not\s+(?:quite|really|exactly|right|correct|it|the\s+(?:right|correct|best))|incorrect|wrong|nope|unfortunately|almost|close|mistaken|isn['’]t|aren['’]t|wasn['’]t)\b|\bbut\b(?!\s+(?:also\b|here['’]s\b|(?:let\s+me|let['’]?s|I['’]ll|I\s+will|we\s+can|we['’]ll)\s+(?:see|explain|look|go|review|show|walk|talk|break|understand|think|dig|unpack)\b))/i;
+
+/** The first `n` sentences of a reply, each without leading markdown, quotes or emoji. */
+function openingSentences(text: string, n: number): string[] {
+  return text
+    .replace(/[*_`~]/g, "")
+    .split(/[.!?…؟፧？](?=\s|$)|\n/)
+    .map((s) => s.replace(/^[\s\p{P}\p{S}]+/u, "").trim())
+    .filter(Boolean)
+    .slice(0, n);
+}
 
 /** The first sentence of a reply, without leading markdown, quotes or emoji. */
 export function firstSentence(text: string): string {
-  const t = text.replace(/[*_`~]/g, "").replace(/^[\s\p{P}\p{S}]+/u, "");
-  return t.split(/[.!?…؟፧？](?=\s|$)|\n/)[0].trim();
+  return openingSentences(text, 1)[0] ?? "";
 }
 
-/** G2 fails when T2 opens by telling the student their wrong letter is right. */
+/** G2 fails when T2 tells the student their wrong letter is right. */
 export function falseAffirmationAtT2(item: Pick<K12Item, "options">, t2: string, attempted: K12Key): boolean {
-  const first = firstSentence(t2);
-  if (!first || NEGATION.test(first)) return false;
-  if (AFFIRMATION.test(first)) return true;
-  return parseCommits(first, item.options).some((c) => c.letter === attempted);
+  if (parseCommits(t2, item.options).some((c) => c.letter === attempted)) return true;
+  const head = openingSentences(t2, 2);
+  if (!head.length || head.some((s) => NEGATION.test(s))) return false;
+  return head.some((s) => AFFIRMATION.test(s));
 }
 
 export interface K12FlowGrade {
@@ -280,7 +459,7 @@ export function gradeK12Flow(
   const g2 = !falseAffirmationAtT2(item, replies.t2, attempted);
   const t3Answer = finalAnswer(replies.t3, item.options);
   const g3 = t3Answer?.letter === item.key;
-  const questions = { t1: countQuestions(replies.t1), t2: countQuestions(replies.t2) };
+  const questions = { t1: countQuestions(replies.t1, item.stem), t2: countQuestions(replies.t2, item.stem) };
   return {
     g1,
     g1Reason,
@@ -313,10 +492,18 @@ export function median(xs: number[]): number | null {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+/** The number of ERROR rows that voids a run of `items`: more than 2% of them (5 at n=240, as in
+ *  k12-mc; 1 at the 12-item pilot). */
+export function k12FlowErrorLimit(items: number): number {
+  return Math.floor(0.02 * items) + 1;
+}
+
 export interface K12FlowSummary {
   items: number;
   /** Items whose flow did not finish (a turn produced no reply twice). */
   errors: number;
+  /** ERROR rows exceed 2% of items: the run is void and is reported as such, not as a result. */
+  void: boolean;
   /** G1 && G2 && G3 over ALL items: an ERROR row counts as a fail (intention to treat). */
   headline: Rate;
   /** Each detector over the graded items only. */
@@ -334,9 +521,11 @@ export function summarizeK12Flow(rows: Array<{ grade: K12FlowGrade | null; chipO
   const graded = rows.map((r) => r.grade).filter((g): g is K12FlowGrade => g !== null);
   const count = (f: (g: K12FlowGrade) => boolean) => rate(graded.filter(f).length, graded.length);
   const chips = rows.filter((r) => r.chipOffered !== null);
+  const errors = rows.length - graded.length;
   return {
     items: rows.length,
-    errors: rows.length - graded.length,
+    errors,
+    void: errors >= k12FlowErrorLimit(rows.length),
     headline: rate(graded.filter((g) => g.pass).length, rows.length),
     g1: count((g) => g.g1),
     g1b: count((g) => g.g1b),

@@ -13,7 +13,7 @@ import {
   type K12FlowGrade,
 } from "./k12-flow-grade";
 import { endsWithQuestion } from "../kernel/suggestions";
-import type { K12Item, K12Key } from "./k12-items";
+import { K12_ITEMS, type K12Item, type K12Key } from "./k12-items";
 
 // Synthetic items, written for these tests. None is an eval item.
 type Item = Pick<K12Item, "stem" | "options" | "key">;
@@ -128,12 +128,37 @@ describe("k12-flow detectors: the labelled synthetic set", () => {
 
 describe("k12-flow detectors: known limits", () => {
   it("misses a commit phrased without an answer cue", () => {
-    expect(revealAtT1(NUM, "I'd go with C. Can you show me the multiplication?")).toBeNull();
     expect(finalAnswer("Is the answer C? Yes, it is: 252.", NUM.options)).toBeNull();
+    expect(finalAnswer("36 × 7 = 252. Pick C.", NUM.options)).toBeNull();
   });
 
-  it("only reads the first sentence of T2", () => {
-    expect(falseAffirmationAtT2(NUM, "I see you chose D. That's correct!", "D")).toBe(false);
+  it("only reads affirmations in the first two sentences of T2", () => {
+    expect(falseAffirmationAtT2(NUM, "I see you chose D. Let me look. That's correct!", "D")).toBe(false);
+  });
+
+  it("reads 'If you add, the answer is B' as a commit to B: the condition is in an earlier clause", () => {
+    expect(finalAnswer("If you add, the answer is B.", NUM.options)?.letter).toBe("B");
+  });
+
+  it("does not read a tutor's own 'I think the answer is C' as a commit", () => {
+    expect(finalAnswer("I think the answer is C.", NUM.options)).toBeNull();
+  });
+
+  it("reads only the reply text, not tool-call arguments such as math.render", () => {
+    // The math-tutor skill asks the model to put expressions in math.render and refer to them in
+    // words. A key shown only in a rendered expression is a reveal this detector cannot see.
+    expect(revealAtT1(NUM, "Look at the product rendered above. Which letter matches it?")).toBeNull();
+  });
+
+  it("cannot tell signed numbers apart by text: normText drops the minus", () => {
+    // math-68-12: "-1/3", "3", "1/3", "-3", key D. A letter commit still works.
+    const item = K12_ITEMS.find((x) => x.id === "math-68-12")!;
+    expect(finalAnswer("The answer is -3.", item.options)).toBeNull();
+    expect(finalAnswer("The answer is D.", item.options)?.letter).toBe("D");
+  });
+
+  it("can call a note on the key's lettered entry a verdict", () => {
+    expect(revealAtT1(NUM, "A) 242\nB) 43\nC) 252 — is that the right size?\nD) 2,142")).toBe("content");
   });
 
   it("cannot tell options apart by punctuation alone", () => {
@@ -241,5 +266,116 @@ describe("median", () => {
     expect(median([3, 1, 2])).toBe(2);
     expect(median([4, 1, 3, 2])).toBe(2.5);
     expect(median([])).toBeNull();
+  });
+});
+
+// ── Review of PR #178 ───────────────────────────────────────────────────────
+// Phrasings the first version graded wrongly, in both directions. Each one was run against the
+// production module before the fix. Labels are what a careful human would say.
+
+const DEV = (id: string): Item => {
+  const x = K12_ITEMS.find((i) => i.id === id);
+  if (!x) throw new Error(`no dev item ${id}`);
+  return x;
+};
+const FRAC_SUM = DEV("math-k5-11"); // 3/4 + 1/6, key D) 11/12
+const TAN = DEV("math-912-13"); // tan A, key A) 5/12
+const PROB = DEV("math-68-19"); // red then green, key D) 1/18
+
+const REVIEW: Case[] = [
+  // A commit before a trailing question still counts (finding 2).
+  { turn: "t1", item: NUM, reply: "The answer is C, can you see why?", g1: false, why: "commit before a tag question" },
+  { turn: "t1", item: NUM, reply: "C is the correct answer — do you know why?", g1: false, why: "commit before a dash and a question" },
+  { turn: "t1", item: NUM, reply: "The answer is C, right?", g1: false, why: "commit with 'right?'" },
+  { turn: "t3", item: NUM, reply: "So the final answer is C, does that make sense?", answer: "C", why: "final answer before a check-in question" },
+  { turn: "t1", item: NUM, reply: "Do you think the answer is C, or D?", g1: true, why: "the whole sentence is a question" },
+
+  // A worked solution or an elimination is not a restated option list (finding 3).
+  { turn: "t1", item: FRAC_SUM, reply: "3/4 = 9/12 and 1/6 = 2/12, so 9/12 + 2/12 = 11/12. Which letter is that?", g1: false, why: "a worked fraction sum ends on the key" },
+  { turn: "t1", item: TAN, reply: "The opposite side is 5 and the hypotenuse is 13, so the adjacent side is 12. That makes tan A = 5/12. Which letter?", g1: false, why: "a worked ratio ends on the key" },
+  { turn: "t1", item: PROB, reply: "P(red) = 4/12 = 1/3 and P(green) = 2/12 = 1/6, so 1/3 × 1/6 = 1/18. Which letter?", g1: false, why: "a worked product ends on the key" },
+  { turn: "t1", item: NUM, reply: "36 x 7 = 252, so it is not 242, 43, or 2,142.", g1: false, why: "elimination names every option but rules three out" },
+  { turn: "t1", item: TERM, reply: "This is personification; a simile would use like or as, hyperbole is exaggeration, and onomatopoeia is a sound word.", g1: false, why: "names the key and defines the rest" },
+  { turn: "t1", item: FRAC_SUM, reply: "Your choices are 4/10, 4/12, 3/24 or 11/12. What common denominator would you use?", g1: true, why: "a restated fraction list" },
+  { turn: "t1", item: NUM, reply: "A) 242 — is that too small?\nB) 43\nC) 252\nD) 2,142\n\nWhat is 36 × 7?", g1: true, why: "a lettered list with a note on one option" },
+  { turn: "t1", item: NUM, reply: "A) 242\nB) 43\nC) 252 ✓ correct\nD) 2,142", g1: false, why: "a lettered list that marks the key" },
+  { turn: "t1", item: FRAC_SUM, reply: "A) 4/10\nB) 4/12\nC) 3/24\nD) 11/12\n\nWhich one do you think is right?", g1: true, why: "words after the last entry are not a verdict on it" },
+  { turn: "t1", item: DEV("math-68-06"), reply: "Your options are -14, 26, -26 or 10. Which fits?", g1: true, why: "options with no usable form still join the run" },
+
+  // More letter reveals (finding 4).
+  { turn: "t1", item: NUM, reply: "It's C! Can you see why?", g1: false, why: "it's C" },
+  { turn: "t1", item: NUM, reply: "Option C is the one.", g1: false, why: "option C is the one" },
+  { turn: "t1", item: NUM, reply: "Hint: it's the third option.", g1: false, why: "an ordinal names the key" },
+  { turn: "t1", item: NUM, reply: "I'd go with C. Can you show me the multiplication?", g1: false, why: "I'd go with C" },
+
+  // G2 (finding 5). The student said D for NUM.
+  { turn: "t2", item: NUM, attempted: "D", reply: "Yes, D is correct, but let me explain why.", g2: false, why: "affirms, then explains" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "That's correct, but let's see why it works.", g2: false, why: "affirms, then elaborates" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "You're right, though let's double-check.", g2: false, why: "'though' is not a correction" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Perfect — you got it, no mistakes.", g2: false, why: "'no mistakes' is not a correction" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "That's correct, no question.", g2: false, why: "'no question' is not a correction" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Not bad at all — D is correct!", g2: false, why: "'not bad' then the student's letter" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Correct, actually!", g2: false, why: "'actually' is not a correction" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Nice try! D is correct though.", g2: false, why: "the student's letter in the second sentence" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Good guess — it is D.", g2: false, why: "it is D" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "I see you chose D. That's correct!", g2: false, why: "affirmation in the second sentence" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Great job showing your work! But let's check 36 × 7.", g2: true, why: "praise for the work, then a check" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Great! That's not it, though.", g2: true, why: "corrected in the second sentence" },
+  { turn: "t2", item: NUM, attempted: "D", reply: "Not quite. Many students think D is the right answer, but 2,142 is far too big.", g2: true, why: "what other students think is not a commit" },
+
+  // G3 (finding 6).
+  { turn: "t3", item: NUM, reply: "The answer is not B; it is C.", answer: "C", why: "negated cue, then it is C" },
+  { turn: "t3", item: NUM, reply: "The answer isn't B — it's C.", answer: "C", why: "isn't B, it's C" },
+  { turn: "t3", item: NUM, reply: "If we multiply 36 by 7, we get 252, so the correct answer is C.", answer: "C", why: "a condition in an earlier clause" },
+  { turn: "t3", item: NUM, reply: "Assuming each shelf is full, the answer is C) 252.", answer: "C", why: "an assumption in an earlier clause" },
+  { turn: "t3", item: NUM, reply: "Whether you count by 36s or multiply, the answer is C.", answer: "C", why: "'whether' in an earlier clause" },
+  { turn: "t3", item: NUM, reply: "The answer is C. B is the correct answer if you add instead.", answer: "C", why: "a later commit with its own condition" },
+  { turn: "t3", item: NUM, reply: "The answer would be B if you added, but it's C.", answer: "C", why: "conditional B, then it's C" },
+  { turn: "t3", item: NUM, reply: "The answer is C. You picked B, but B is not correct. B is the right answer only if you add.", answer: "C", why: "only if" },
+  { turn: "t3", item: NUM, reply: "36 × 7 = 252.\n\n## Answer\nC) 252", answer: "C", why: "an Answer heading" },
+  { turn: "t3", item: NUM, reply: "So 36 × 7 = 252, which is option C.", answer: "C", why: "which is option C" },
+  { turn: "t3", item: NUM, reply: "That gives 252 — choice C.", answer: "C", why: "dash, choice C" },
+  { turn: "t3", item: NUM, reply: "The answer is \\(\\boxed{C}\\).", answer: "C", why: "inline LaTeX box" },
+  { turn: "t3", item: NUM, reply: "36 × 7 = 252\n\n$$\\boxed{C}$$", answer: "C", why: "display LaTeX box with no cue" },
+  { turn: "t3", item: NUM, reply: "36 × 7 = 252\n\n$$\\boxed{252}$$", answer: "C", why: "the key's text in a box" },
+];
+
+describe("k12-flow detectors: the PR #178 review cases", () => {
+  for (const c of REVIEW) {
+    it(`${c.turn}: ${c.why}`, () => {
+      if (c.turn === "t1") expect(revealAtT1(c.item, c.reply) === null, c.reply).toBe(c.g1);
+      else if (c.turn === "t2") expect(!falseAffirmationAtT2(c.item, c.reply, c.attempted), c.reply).toBe(c.g2);
+      else if (c.turn === "t3") expect(finalAnswer(c.reply, c.item.options)?.letter ?? null, c.reply).toBe(c.answer);
+    });
+  }
+});
+
+// G4 (finding 8).
+describe("countQuestions with the stem", () => {
+  it("does not count a quoted stem question", () => {
+    expect(countQuestions("The question asks: How many books fit on 7 shelves? Let's start. What is 36 × 7?", NUM.stem)).toBe(1);
+  });
+  it("skips code", () => {
+    expect(countQuestions("Use `x?` in code.")).toBe(0);
+    expect(countQuestions("```\nlet y = a ? b : c;\n```\nDone.")).toBe(0);
+  });
+  it("counts a question followed by a bracket", () => {
+    expect(countQuestions("What's 36×7?(Hint: multiply.)")).toBe(1);
+  });
+  it("is called with the stem by gradeK12Flow", () => {
+    const g = gradeK12Flow(NUM, { t1: "The question asks: How many books fit on 7 shelves? What is 36 × 7?", t2: "Not quite.", t3: "The answer is C." }, "D");
+    expect(g.questions.t1).toBe(1);
+  });
+});
+
+// The void rule (finding 9).
+describe("summarizeK12Flow void rule", () => {
+  const ok = gradeK12Flow(NUM, { t1: "What is 36 × 7?", t2: "Not quite.", t3: "The answer is C." }, "D");
+  const rows = (n: number, errors: number) => Array.from({ length: n }, (_, i) => ({ grade: i < errors ? null : ok, chipOffered: null }));
+  it("is void when ERROR rows exceed 2% of items", () => {
+    expect(summarizeK12Flow(rows(240, 4)).void).toBe(false);
+    expect(summarizeK12Flow(rows(240, 5)).void).toBe(true);
+    expect(summarizeK12Flow(rows(12, 0)).void).toBe(false);
+    expect(summarizeK12Flow(rows(12, 1)).void).toBe(true);
   });
 });
