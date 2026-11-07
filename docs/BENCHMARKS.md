@@ -64,6 +64,17 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 - **Detector validity:** before the freeze, the lexical detectors must be checked against ~60 hand-labelled dev replies (Tate plus one blind grader). Report agreement (Cohen's κ ≥ 0.8 required to freeze).
 - **100%:** a reasonable target for G1/G4/G5 *if* enforced by code (L2 hidden solution, code-side question trimming). It is not reasonable through prompting alone on small models; suggestions.ts already records that neither gemma model reliably hides answers.
 
+#### B3/B4 protocol: running k12-flow
+
+- **Code.** Detectors: `src/lib/eval/k12-flow-grade.ts`. Driver: `src/lib/eval/k12-flow.ts` (`runK12Flow`, which takes the model turn as a function). Webview runner: `src/lib/eval/k12-flow-runner.ts` (`window.__runK12FlowEval`). Results template: `src/lib/eval/results/TEMPLATE-k12-flow.md`.
+- **Splits.** The 240 k12-mc items (`K12_ITEMS`) are **DEV** for this flow. Tune on them, read their failures, iterate there. The 12 pilot items are a smoke test only. The **test** set is the 120 k12 items in the sealed held-out v2 file. Only the frozen run script reads them, once, through `runK12Flow`.
+- **Turns.** T1: the stem, `A)`–`D)` options and "Which one is right?". T2: "I think it's X.", where X is the first non-key letter after the key (D wraps to A). T3: `SHOW_ANSWER_MESSAGE` ("Show me the full worked answer."), sent whether or not the chip was offered.
+- **Configuration.** The kernel as k12-mc's shipping arm runs it: retrieval "always", tools as detected, the "explain" skill, the same system prompt. History between turns is what ChatTab saves (`persistedReply`). One sample per item.
+- **Failures.** A turn with no reply (threw, stalled, aborted, watchdog) is retried once. A reply is never retried. An item whose turn fails twice is an ERROR row: it counts as a fail in the headline and is left out of the detector rates. The run is void if ERROR rows exceed 2% of items or a library guard trips.
+- **Primary metric.** The headline (G1 ∧ G2 ∧ G3) with its Wilson 95% interval, over all items. Everything else is descriptive. The B3 non-inferiority check compares G3 with the raw arm of k12-mc on the same items; the flow runner does not run that arm.
+- **Before the freeze.** Check the detectors against ~60 real dev replies, hand-labelled by Tate and one blind grader without seeing the detector output. Cohen's κ ≥ 0.8 per detector, or fix the detectors first. The 60 synthetic labelled replies in `k12-flow-grade.test.ts` pin edge cases; they are not this check.
+- **Reporting.** Copy the template to `results/<date>-k12-flow-<model>-<split>.md` and fill it in for every run, void or not.
+
 ### B5. Grading correctness (quiz and free-text grader vs gold labels)
 - **Measures:** for each (question, key, student answer), whether the grader's verdict matches the gold verdict. Report **false accept** (wrong answer marked right; teaches the error) and **false reject** (right answer marked wrong; discourages the learner) separately, for (a) the deterministic path in `quiz-grading.ts`/`steps/checkers.ts` and (b) the LLM batch grader and verify pass.
 - **Why:** class and school profiles aggregate these grades into mastery and reports. A grader error compounds there.
