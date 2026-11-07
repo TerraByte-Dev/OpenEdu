@@ -51,12 +51,25 @@ export function checkOrder(exp: Extract<Expected, { kind: "order" }>, raw: strin
  * left to a convention.
  */
 export function checkKeyset(exp: Extract<Expected, { kind: "keyset" }>, raw: string): Verdict {
-  const got = normalizeAnswer(raw);
+  const got = keysetWords(raw);
   if (!got) return "abstain";
   const hay = ` ${got} `;
-  for (const b of exp.ban) if (hay.includes(` ${normalizeAnswer(b)} `)) return "incorrect";
-  const hits = exp.require.filter((r) => hay.includes(` ${normalizeAnswer(r)} `)).length;
+  for (const b of exp.ban) if (hay.includes(` ${keysetWords(b)} `)) return "incorrect";
+  const hits = exp.require.filter((r) => hay.includes(` ${keysetWords(r)} `)).length;
   return hits >= exp.minHits ? "correct" : "incorrect";
+}
+
+// Keywords are matched as whole words, so punctuation inside the answer has to become a word break.
+// Before this, "neck, armpits and groin" missed "neck" (the haystack held "neck,") and a correct
+// list-style answer was marked wrong unless the student left the commas out. Apostrophes and hyphens
+// stay, because they are part of words ("don't", "self-harm"). So do a point or comma between two
+// digits, so "0.5" and "1,000" stay one token and a key of "5" cannot match an answer of "0.5".
+function keysetWords(s: string): string {
+  return normalizeAnswer(s)
+    .replace(/(?<!\p{N})[.,]|[.,](?!\p{N})/gu, " ")
+    .replace(/[^\p{L}\p{N}\s'’.,-]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Single entry point. Total: every (expected, response) pair yields a verdict. */

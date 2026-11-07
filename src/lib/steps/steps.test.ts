@@ -53,6 +53,26 @@ describe("checkers are total and never punish an abstention", () => {
     expect(e.ban.length).toBeGreaterThan(0);
   });
 
+  it("keyset treats punctuation inside a list answer as a word break", () => {
+    const e = compileKeyset(["neck", "armpits", "groin"], "cold packs on the neck, armpits and groin", 3);
+    expect(check(e, "neck, armpits and groin")).toBe("correct");
+    expect(check(e, "neck; armpits; groin.")).toBe("correct");
+    expect(check(e, "(neck) armpits/groin")).toBe("correct");
+    expect(check(e, "neck and armpits")).toBe("incorrect");
+  });
+
+  it("keyset keeps decimals and thousands as one token", () => {
+    const e = compileKeyset(["5"], "about 5 minutes", 1);
+    expect(check(e, "5 minutes")).toBe("correct");
+    expect(check(e, "0.5 minutes")).toBe("incorrect");
+    expect(check(compileKeyset(["1,000"], "1,000 people", 1), "1,000 people")).toBe("correct");
+  });
+
+  it("keyset still rejects a negation that ends in punctuation", () => {
+    const e = compileKeyset(["boil"], "boil the water", 1);
+    expect(check(e, "boil? no, never")).toBe("incorrect");
+  });
+
   it("a ban word already in the source span is not banned", () => {
     // Otherwise the correct answer would be unanswerable.
     const e = compileKeyset(["work"], "no work is done on the system");
