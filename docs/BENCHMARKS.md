@@ -137,6 +137,15 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 
 Conflict to resolve on dev, not by taste: L5(c) and lever 5 both change `contextHeader()`. Any header change must be A/B'd jointly on RAG dev and k12-flow dev.
 
+### G1 kill clauses for levers that change only later turns (proposed 2026-11-07; not retroactive)
+
+L1's kill rule included "G1 drops by more than 2 points". L1 changes only T3, and a test pinned the T1 request byte-identical between arms, so that clause could only measure sampling noise (Ollama has no fixed seed). Given the discordant pairs seen in the L1 A/B (41, 56 and 20 on e2b, e4b and qwen3.5:4b), a bare 2-point drop fires on pure noise with probability about 0.27, 0.25 and 0.13, so about one in two that it fires on at least one of the three models. L1's verdict stands as pre-registered; this changes nothing already run.
+
+Proposed for future levers whose change is confined to turns after T1:
+- The guard on T1 is a test that the T1 request is byte-identical between arms, through the production code path. Without that test the lever is not T1-free and the usual clause applies.
+- With that test, a G1 clause fires only if G1 drops by more than 2 points **and** the exact two-sided McNemar test on paired G1 gives p < 0.05. The same applies to G1b, G2 and G4 when their turns are also byte-identical. That bounds the false-fire rate at about 2.5% per model.
+- G1 is still reported for every model, labelled descriptive.
+
 ---
 
 ## 4. What NOT to claim, and the defensible headline
