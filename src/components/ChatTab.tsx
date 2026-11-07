@@ -10,8 +10,9 @@ import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
-import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
+import { tutorEngine, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
+import { resolvePersona } from "../lib/skills";
+import { chatTurnSkills } from "../lib/kernel/chatSkills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
@@ -229,23 +230,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       : profile.contextTokens;
     const config = { ...baseConfig, modelTier: profile.tier, contextTokens };
     const modelTier = profile.tier;
-    // Two orthogonal skill axes feed the turn: the mode skill (from the bar) and the course's domain
-    // skill (math-tutor/code-tutor, code-routed from the topic). Both gate tools (selectTools unions
-    // their tools_required) and contribute <skill_bundle> rules. domainSkill is null off-subject.
-    const activeSkill = resolveSkill(activeMode) ?? null;
-    // Domain skills (math-tutor/code-tutor) compose with TEACHING modes, but not with the focused
-    // "assess" mastery-check — adding its render tools + pedagogy there destabilizes the 4B model's
-    // tool selection (it stopped calling progress.mark_mastered). Keep assess to its Phase-2 tool set.
-    // A model without tool support gets no domain skill either: its bundle orders tool calls ("you
-    // MUST call math.render") that the model can't make (#127).
-    const domainSkill = activeSkill?.name === "assess" || !profile.supportsTools
-      ? null
-      : (resolveDomainSkill(course.topic, modelTier) ?? null);
+    // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rule
+    // lives in kernel/chatSkills.ts so the k12-flow eval builds its prompt the same way.
+    const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(activeMode, course.topic, modelTier, profile.supportsTools);
     if (import.meta.env.DEV && !profile.supportsTools && !toolsSuppressedLogged.has(config.model)) {
       toolsSuppressedLogged.add(config.model);
       console.info(`[OpenEdu:tools] ${config.model} reports no tool support — offering no tools or domain skill, grounded chat only`);
     }
-    const skillSuffix = (skillBundleLayer(activeSkill) ?? "") + (skillBundleLayer(domainSkill) ?? "");
     // Phase 4b: the chosen persona (WHO) overrides only the identity slot; mode/domain stay as-is.
     const persona = resolvePersona(spriteId) ?? null;
     const systemPrompt = buildSystemPrompt(
