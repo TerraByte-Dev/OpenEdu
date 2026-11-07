@@ -6,7 +6,7 @@
 // allow-list all come from store-keys.ts; parsing/validation comes from settings-schema.ts (both pure).
 
 import { Store } from "@tauri-apps/plugin-store";
-import { STORE_FILE, isSecretKey, NON_PORTABLE_KEYS, ALLOWED_IMPORT_KEYS } from "./store-keys";
+import { STORE_FILE, isSecretKey, NON_PORTABLE_KEYS, ALLOWED_IMPORT_KEYS, isLearnerScopedKey } from "./store-keys";
 import {
   type SettingsExport, EXPORT_KIND, EXPORT_VERSION,
   parseSettingsExport, sanitizeImportedPermissions, isKnownThemeId,
@@ -24,7 +24,7 @@ export async function gatherSettings(includeSecrets: boolean): Promise<SettingsE
 
   const settings: Record<string, unknown> = {};
   for (const [key, value] of entries) {
-    if (NON_PORTABLE_KEYS.has(key)) continue;
+    if (NON_PORTABLE_KEYS.has(key) || isLearnerScopedKey(key)) continue;
     if (!includeSecrets && isSecretKey(key)) continue;
     settings[key] = value;
   }

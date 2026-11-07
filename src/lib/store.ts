@@ -1,7 +1,7 @@
 import { Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
-import { STORE_FILE, STORE_KEYS, apiKeyStoreKey } from "./store-keys";
+import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel } from "./models";
 import { getOllamaModels } from "./llm";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
@@ -177,15 +177,22 @@ export async function setRetrievalMode(mode: RetrievalMode): Promise<void> {
   await s.save();
 }
 
-// Onboarding tour (#92). Shown once; "seen" covers both completing and skipping it.
-export async function getTourSeen(): Promise<boolean> {
+// Onboarding tour (#92). Shown once per learner; "seen" covers both completing and skipping it.
+export async function getTourSeen(learnerId: string): Promise<boolean> {
   const s = await getStore();
-  return (await s.get<boolean>(STORE_KEYS.tourSeen)) ?? false;
+  return (await s.get<boolean>(learnerStoreKey(STORE_KEYS.tourSeen, learnerId))) ?? false;
 }
 
-export async function setTourSeen(seen: boolean): Promise<void> {
+export async function setTourSeen(learnerId: string, seen: boolean): Promise<void> {
   const s = await getStore();
-  await s.set(STORE_KEYS.tourSeen, seen);
+  await s.set(learnerStoreKey(STORE_KEYS.tourSeen, learnerId), seen);
+  await s.save();
+}
+
+// Drop everything the store remembers about one learner (on learner delete).
+export async function clearLearnerStore(learnerId: string): Promise<void> {
+  const s = await getStore();
+  for (const base of LEARNER_SCOPED_KEYS) await s.delete(learnerStoreKey(base, learnerId));
   await s.save();
 }
 

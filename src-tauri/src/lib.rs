@@ -298,6 +298,33 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 13,
+            description: "learner profiles: learners table + courses.learner_id (append-only, never edit v1-v12)",
+            sql: "
+                -- Several learners share one PC. Every data table hangs off courses(id), so scoping
+                -- courses to a learner scopes everything under them.
+                CREATE TABLE IF NOT EXISTS learners (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    pin_hash TEXT,
+                    pin_salt TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    last_active_at TEXT
+                );
+
+                ALTER TABLE courses ADD COLUMN learner_id TEXT;
+
+                -- One default learner owns everything that existed before profiles. The id is fixed
+                -- (DEFAULT_LEARNER_ID in src/lib/learners.ts) so this runs in pure SQL, and one learner
+                -- with no PIN means the app shows no picker: an existing install sees no change.
+                INSERT OR IGNORE INTO learners (id, name, created_at) VALUES ('default', 'Learner 1', datetime('now'));
+                UPDATE courses SET learner_id = 'default' WHERE learner_id IS NULL;
+
+                CREATE INDEX IF NOT EXISTS idx_courses_learner ON courses(learner_id, updated_at);
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
