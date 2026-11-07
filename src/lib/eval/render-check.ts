@@ -1,7 +1,8 @@
 // Render-side check for the chat math pipeline (issue #23). Unlike __runEvals (which drives the
 // model), this is a pure, deterministic assertion battery over renderChatMarkdown — no Ollama, no
-// network. It proves the parser change (nonStandard boundaries + mhchem + \(\)/\[\] normalization)
-// actually renders the spans that used to leak as raw source.
+// network. It proves the parser (chat-math.ts: relaxed boundaries, mhchem, \(\)/\[\] delimiters,
+// per-span $ pairing from issue #20) actually renders the spans that used to leak as raw source.
+// The same cases run in vitest via chat-markdown.test.ts; this copy is for checking the live webview.
 //
 //     window.__testMathRender()      // logs a table; returns { passed, total, allPass, rows }
 //
@@ -35,12 +36,13 @@ const CASES: RenderCase[] = [
   { name: "three inline spans", input: "First $a^2$, then $b^2$, finally $c^2 = a^2 + b^2$.", expect: 3 },
   // Standalone display block (the one thing that already worked) — must still render exactly once.
   { name: "display block $$…$$", input: "$$\\Delta x = x_f - x_i$$", expect: 1 },
-  // \(…\) / \[…\] LaTeX delimiters get normalized to $…$ / $$…$$ before parsing.
+  // \(…\) / \[…\] LaTeX delimiters render as inline / display math.
   { name: "normalized \\(…\\) inline", input: "Energy is \\(E = mc^2\\) exactly.", expect: 1 },
   { name: "normalized \\[…\\] display", input: "\\[a^2 + b^2 = c^2\\]", expect: 1 },
-  // KNOWN TRADEOFF (informational, never fails): under nonStandard, currency reads as math. The
-  // first "$" opens, the next "$" closes, so "$5 apples for $10" yields one (wrong) katex span.
-  { name: "currency tradeoff ($5 … $10)", input: "$5 apples for $10", expect: 1, info: true },
+  // Issue #20: currency stays prose. "$5 apples for $" is rejected as a pair, so nothing renders.
+  { name: "currency stays text ($5 … $10)", input: "$5 apples for $10", expect: 0 },
+  // Issue #20: a multi-line $$ block straight after a sentence, then more math. Used to leak.
+  { name: "multi-line $$ after a sentence", input: "The formula is:\n$$\nx = \\frac{-b}{2a}\n$$\nwhere $a \\neq 0$.", expect: 2 },
 ];
 
 export async function testMathRender(): Promise<{ passed: number; total: number; allPass: boolean; rows: Array<{ name: string; expect: number; got: number; pass: boolean; info: boolean }> }> {
