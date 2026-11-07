@@ -10,11 +10,12 @@ import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
+import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
+import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 // MathBlock pulls KaTeX (~258 KB); lazy-load it so KaTeX leaves the eager bundle and only loads when
 // a math.render card actually mounts.
 const MathBlock = lazy(() => import("./MathBlock"));
@@ -204,6 +205,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       onThreadCreated(t.id);
     }
 
+    // `messages` still holds the history from before this send.
+    const studentAttempted = hasTriedOpenQuestion([...messages, { role: "user", content: userText }]);
     const userMsg = await saveChatMessage(courseId, "user", userText, level, activeThread);
     setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});
@@ -348,6 +351,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         dueFlashcards: due,
         abandoned,
         truncated,
+        studentAttempted,
       }));
 
       if (result.stopReason === "stalled") {
@@ -429,6 +433,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                 No syllabus loaded yet — your tutor will still help, but check the Syllabus tab once course creation finishes.
               </p>
             )}
+          </div>
+        )}
+        {isHealthTopic(course.topic) && (
+          <div className="p-3 rounded-lg border border-amber-500/40 border-l-4 border-l-amber-500 text-xs text-ink leading-relaxed" style={{ background: "rgba(245,158,11,0.06)" }}>
+            {HEALTH_NOTICE}
           </div>
         )}
         {messages.map((msg) => (

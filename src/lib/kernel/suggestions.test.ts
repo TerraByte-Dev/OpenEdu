@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { suggestFollowUps, endsWithQuestion, type SuggestionInput } from "./suggestions";
+import { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, type SuggestionInput } from "./suggestions";
 import type { GroundingHit } from "./ground";
 import type { Syllabus } from "../../types";
 
@@ -187,5 +187,59 @@ describe("suggestFollowUps", () => {
       syllabus: syllabus([{ title: "Moles", mastered: false }]),
     }));
     expect(new Set(out.map((s) => s.message)).size).toBe(out.length);
+  });
+});
+
+describe("attempt-gated answer chip", () => {
+  const ASKED = "Start with the ones digits. What do you get when you add 7 and 8?";
+
+  const tutor = (content: string) => ({ role: "assistant", content });
+  const student = (content: string) => ({ role: "user", content });
+
+  it("counts a reply to the tutor's question as a try", () => {
+    expect(hasTriedOpenQuestion([student("What is 47 + 38?"), tutor(ASKED), student("Is it 75?")])).toBe(true);
+    expect(hasTriedOpenQuestion([tutor(ASKED), student("15")])).toBe(true);
+  });
+
+  it("does not count requests, prefills, or a reply to a statement", () => {
+    for (const msg of ["Give me a hint.", "Give me a hint please", "Walk me through it.", "Help me with Decimals.",
+      "Explain carrying.", "I don't know", "idk", "   "]) {
+      expect(hasTriedOpenQuestion([tutor(ASKED), student(msg)]), msg).toBe(false);
+    }
+    expect(hasTriedOpenQuestion([tutor("The heart has four chambers."), student("ok")])).toBe(false);
+    expect(hasTriedOpenQuestion([student("What is 47 + 38?")])).toBe(false);
+  });
+
+  it("keeps a try through a hint request, so a hint does not take the answer away", () => {
+    expect(hasTriedOpenQuestion([
+      tutor(ASKED), student("75"), tutor("Not quite. What do 7 and 8 make?"), student("Give me a hint."),
+    ])).toBe(true);
+  });
+
+  it("closes the question once the answer was shown or the tutor stopped asking", () => {
+    expect(hasTriedOpenQuestion([
+      tutor(ASKED), student("75"), tutor("Not quite. What do 7 and 8 make?"),
+      student("Show me the full worked answer."),
+    ])).toBe(false);
+    expect(hasTriedOpenQuestion([
+      tutor(ASKED), student("75"), tutor("The answer is 85."), student("Give me a hint."),
+    ])).toBe(false);
+  });
+
+  it("offers the answer first, but only after a try", () => {
+    expect(suggestFollowUps(input({ answer: ASKED })).map((s) => s.label)).not.toContain("Show me the answer");
+    const after = suggestFollowUps(input({ answer: ASKED, studentAttempted: true }));
+    expect(after.map((s) => s.label)).toEqual(["Show me the answer", "Give me a hint", "Walk me through it"]);
+    expect(after[0].message).toBe("Show me the full worked answer.");
+    expect(after[0].mode).toBeUndefined(); // explain, never socratic or hint
+  });
+
+  it("does not offer the answer when the tutor did not ask anything", () => {
+    expect(suggestFollowUps(input({ studentAttempted: true })).map((s) => s.label)).not.toContain("Show me the answer");
+  });
+
+  it("keeps Continue ahead of everything on a cut-off reply", () => {
+    const out = suggestFollowUps(input({ answer: ASKED, studentAttempted: true, truncated: true }));
+    expect(out.map((s) => s.label)).toEqual(["Continue", "Show me the answer", "Give me a hint"]);
   });
 });
