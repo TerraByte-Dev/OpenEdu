@@ -76,13 +76,14 @@ export class TutorEngine {
     const toolResultCap = Math.floor(budget.grounding * TOOL_RESULT_BUDGET_FRACTION);
 
     // The worked-answer turn (lever L1): when the student's newest message is exactly the show-answer
-    // chip's text, this turn's output rules become the worked-answer rules. Done here, before the
-    // tools manifest is appended, so every caller of the kernel gets it and no caller can fork it.
-    // Any other turn's system prompt is untouched. See outputRules.ts.
-    const newestUser = [...messages].reverse().find((m) => m.role === "user");
+    // chip's text and the chip was offered under the reply before it, this turn's output rules become
+    // the worked-answer rules. Done here, before the tools manifest is appended, so every caller of
+    // the kernel gets it and no caller can fork it. Any other turn's system prompt is untouched. See
+    // outputRules.ts.
     const sysAt = messages.findIndex((m) => m.role === "system");
-    if (newestUser && sysAt >= 0) {
-      messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, newestUser.content) };
+    if (sysAt >= 0) {
+      const conversation = messages.filter((m) => m.role !== "system");
+      messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, conversation) };
     }
 
     const eduTools = await selectTools(ctx);

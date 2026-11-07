@@ -113,8 +113,11 @@ const AFTER_ATTEMPT: Sent = [
   { role: "user", content: PROBLEM },
   { role: "assistant", content: "What do you get when you scale both amounts by the same number?" },
   { role: "user", content: ATTEMPT },
-  { role: "assistant", content: "Not quite. Which number turns 2 into 8?" },
+  { role: "assistant", content: "Not quite. Which number turns the 2 cups of milk into 8?" },
 ];
+
+// The same try, but the tutor's reply after it is one ChatTab offers no show-answer chip under.
+const triedThen = (reply: string): Sent => [...AFTER_ATTEMPT.slice(0, 3), { role: "assistant", content: reply }];
 
 // Turns that are not the show-answer chip. Includes near-misses of its text: only the exact message
 // the chip sends is the event.
@@ -131,6 +134,12 @@ const OTHER_TURNS: Array<[string, Sent, string]> = [
   ["quoted", AFTER_ATTEMPT, `"${SHOW_ANSWER_MESSAGE}"`],
   ["trailing space", AFTER_ATTEMPT, `${SHOW_ANSWER_MESSAGE} `],
   ["after the answer was shown", [...AFTER_ATTEMPT, { role: "user", content: SHOW_ANSWER_MESSAGE }, { role: "assistant", content: "Step 1. Final answer: 12" }], "Thanks. Can I try another?"],
+  // The exact chip text when the chip was not offered: typed or pasted, it is not the chip.
+  ["chip text as the first message", [], SHOW_ANSWER_MESSAGE],
+  ["chip text before any try", AFTER_ATTEMPT.slice(0, 2), SHOW_ANSWER_MESSAGE],
+  ["chip text after a reply that asked nothing", triedThen("Not quite. Scale both amounts by 4: 3 × 4 = 12 cups of flour."), SHOW_ANSWER_MESSAGE],
+  ["chip text after a reply too short for chips", triedThen("Not quite. Which number turns 2 into 8?"), SHOW_ANSWER_MESSAGE],
+  ["chip text after a stopped reply", triedThen("Not quite. Which number turns the 2 cups of milk into 8?\n\n_[stopped]_"), SHOW_ANSWER_MESSAGE],
 ];
 
 beforeEach(() => { sent.length = 0; });

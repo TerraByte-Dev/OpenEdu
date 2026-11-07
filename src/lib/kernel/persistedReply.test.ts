@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { persistedReply } from "./persistedReply";
+import { persistedReply, replyFromPersisted } from "./persistedReply";
 
 describe("persistedReply", () => {
   it("saves a finished reply as is and an interrupted one with its marker", () => {
@@ -12,5 +12,15 @@ describe("persistedReply", () => {
 
   it("saves nothing for an empty reply", () => {
     expect(persistedReply("  \n", "aborted")).toBeNull();
+  });
+});
+
+describe("replyFromPersisted", () => {
+  it("gives back the model's text and the stop reason the marker records", () => {
+    for (const stopReason of ["length", "stalled", "aborted"]) {
+      expect(replyFromPersisted(persistedReply("Which is it?", stopReason)!)).toEqual({ text: "Which is it?", stopReason });
+    }
+    expect(replyFromPersisted(persistedReply("Done.", "complete")!)).toEqual({ text: "Done.", stopReason: "complete" });
+    expect(replyFromPersisted(persistedReply("Done.", "max_iterations")!)).toEqual({ text: "Done.", stopReason: "complete" });
   });
 });

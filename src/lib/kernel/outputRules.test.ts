@@ -66,9 +66,22 @@ describe("WORKED_ANSWER_RULES (lever L1)", () => {
   });
 });
 
+// A tried problem: the tutor asked, the student tried, the tutor asked again. ChatTab offers the
+// show-answer chip under that last reply.
+const tutor = (content: string) => ({ role: "assistant", content });
+const student = (content: string) => ({ role: "user", content });
+const PROBLEM = "A recipe needs 3 cups of flour for every 2 cups of milk. How many cups of flour go with 8 cups of milk?";
+const TRIED = [
+  student(PROBLEM),
+  tutor("What do you get when you scale both amounts by the same number?"),
+  student("Is it 10?"),
+  tutor("Not quite. Which number turns the 2 cups of milk into 8?"),
+];
+const send = (history: Array<{ role: string; content: string }>, text: string) => [...history, student(text)];
+
 describe("isWorkedAnswerTurn", () => {
-  it("is true for the show-answer chip's exact text", () => {
-    expect(isWorkedAnswerTurn(SHOW_ANSWER_MESSAGE)).toBe(true);
+  it("is true for the show-answer chip's exact text, sent when the chip was offered", () => {
+    expect(isWorkedAnswerTurn(send(TRIED, SHOW_ANSWER_MESSAGE))).toBe(true);
   });
 
   it("is false for anything else, near-misses included", () => {
@@ -88,8 +101,24 @@ describe("isWorkedAnswerTurn", () => {
       `Please. ${SHOW_ANSWER_MESSAGE}`,
       `${SHOW_ANSWER_MESSAGE}${SHOW_ANSWER_MESSAGE}`,
     ]) {
-      expect(isWorkedAnswerTurn(text), JSON.stringify(text)).toBe(false);
+      expect(isWorkedAnswerTurn(send(TRIED, text)), JSON.stringify(text)).toBe(false);
     }
+  });
+
+  // The chip text alone is not the event: it must be the chip, offered under the reply before it.
+  it("is false for the chip text typed or pasted with no chip offered", () => {
+    expect(isWorkedAnswerTurn([student(SHOW_ANSWER_MESSAGE)]), "first message").toBe(false);
+    expect(isWorkedAnswerTurn(send(TRIED.slice(0, 2), SHOW_ANSWER_MESSAGE)), "before any try").toBe(false);
+    expect(isWorkedAnswerTurn(send([...TRIED.slice(0, 3), tutor("Not quite. Scale both by 4: 3 × 4 = 12 cups of flour.")], SHOW_ANSWER_MESSAGE)), "after a reply that asked nothing").toBe(false);
+    expect(isWorkedAnswerTurn(send([...TRIED.slice(0, 3), tutor("Which turns 2 into 8?")], SHOW_ANSWER_MESSAGE)), "after a reply too short for chips").toBe(false);
+    expect(isWorkedAnswerTurn(send([...TRIED.slice(0, 3), tutor(`${TRIED[3].content}\n\n_[stopped]_`)], SHOW_ANSWER_MESSAGE)), "after a stopped reply").toBe(false);
+    expect(isWorkedAnswerTurn(send(TRIED.slice(0, 3), SHOW_ANSWER_MESSAGE)), "with no tutor reply before it").toBe(false);
+    expect(isWorkedAnswerTurn(send([...TRIED, student(SHOW_ANSWER_MESSAGE), tutor("Scale both amounts by 4, so 3 × 4 = 12. Final answer: 12 cups. Want to try another one?")], SHOW_ANSWER_MESSAGE)), "again after the answer was shown").toBe(false);
+  });
+
+  it("is true after a hint, and after a question cut at the length limit, as the chip is", () => {
+    expect(isWorkedAnswerTurn(send([...TRIED, student("Give me a hint."), tutor("Think about multiplying. What times 2 gives 8 cups of milk?")], SHOW_ANSWER_MESSAGE))).toBe(true);
+    expect(isWorkedAnswerTurn(send([...TRIED.slice(0, 3), tutor(`${TRIED[3].content}\n\n_[cut off at the length limit — ask the tutor to continue]_`)], SHOW_ANSWER_MESSAGE))).toBe(true);
   });
 });
 
@@ -97,17 +126,18 @@ describe("turnSystemPrompt", () => {
   const system = `## Tutor Identity\nA tutor.\n\n---\n\n${OUTPUT_RULES}`;
 
   it("swaps the trailing output rules on the worked-answer turn", () => {
-    expect(turnSystemPrompt(system, SHOW_ANSWER_MESSAGE)).toBe(`## Tutor Identity\nA tutor.\n\n---\n\n${WORKED_ANSWER_RULES}`);
+    expect(turnSystemPrompt(system, send(TRIED, SHOW_ANSWER_MESSAGE))).toBe(`## Tutor Identity\nA tutor.\n\n---\n\n${WORKED_ANSWER_RULES}`);
   });
 
   it("returns the same string on any other turn", () => {
-    expect(turnSystemPrompt(system, "Give me a hint.")).toBe(system);
+    expect(turnSystemPrompt(system, send(TRIED, "Give me a hint."))).toBe(system);
+    expect(turnSystemPrompt(system, [student(SHOW_ANSWER_MESSAGE)])).toBe(system);
   });
 
   it("leaves a prompt without trailing output rules alone", () => {
     const other = "You are a helpful assistant.";
-    expect(turnSystemPrompt(other, SHOW_ANSWER_MESSAGE)).toBe(other);
+    expect(turnSystemPrompt(other, send(TRIED, SHOW_ANSWER_MESSAGE))).toBe(other);
     const notLast = `${system}\n\nMore text.`;
-    expect(turnSystemPrompt(notLast, SHOW_ANSWER_MESSAGE)).toBe(notLast);
+    expect(turnSystemPrompt(notLast, send(TRIED, SHOW_ANSWER_MESSAGE))).toBe(notLast);
   });
 });
