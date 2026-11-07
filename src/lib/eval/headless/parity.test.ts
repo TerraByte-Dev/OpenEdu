@@ -20,6 +20,7 @@ vi.mock("@tauri-apps/api/core", () => import("./shims/api-core"));
 import { runRagEval } from "../rag-runner";
 import { runK12FlowEval } from "../k12-flow-runner";
 import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
+import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "../../kernel/outputRules";
 import { K12_ITEMS } from "../k12-items";
 import { seedStore, resetStores } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
@@ -223,6 +224,17 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     expect(lastUser(turns[1].messages).endsWith(formatK12FlowT2(FLOW_ITEM))).toBe(true);
     expect(lastUser(turns[2].messages).endsWith(K12_FLOW_T3)).toBe(true);
     for (const t of turns) expect(t.tools?.length).toBeGreaterThan(0);
+  });
+
+  it("swaps in the worked-answer rules on T3 only, before the tools manifest (lever L1)", () => {
+    type Msg = { role: string; content: string };
+    const systems = headless.chat.slice(1).map((r) => (JSON.parse(r as string) as { messages: Msg[] }).messages[0].content);
+    const [t1, t2, t3] = systems;
+    expect(t2).toBe(t1);
+    expect(t1).toContain(OUTPUT_RULES);
+    expect(t1).not.toContain(WORKED_ANSWER_RULES);
+    expect(t3).toBe(t1.replace(OUTPUT_RULES, WORKED_ANSWER_RULES));
+    expect(t3).toMatch(/\n\n<tools>\n[\s\S]*<\/tools>$/);
   });
 
   it("sends Ollama byte-identical embedding requests", () => {

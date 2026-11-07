@@ -23,6 +23,7 @@ import { tutorEngine } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
 import { personaIdentityLayer } from "./systemPrompt";
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
+import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "./outputRules";
 import { buildSystemPrompt } from "../curriculum";
 import { resolvePersona } from "../skills";
 import type { Syllabus, LLMConfig } from "../../types";
@@ -145,5 +146,18 @@ describe.each(Object.entries(COURSES))("system prompt sent by the kernel: %s", (
 
   it("show-answer chip turn", async () => {
     expect(await systemSent(course, AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE)).toMatchSnapshot(`${name} :: show-answer chip`);
+  });
+
+  it("swaps only the output rules on the show-answer chip turn", async () => {
+    const normal = await systemSent(course, [], PROBLEM);
+    const reveal = await systemSent(course, AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE);
+    expect(normal.endsWith(OUTPUT_RULES)).toBe(true);
+    expect(reveal).toBe(normal.slice(0, -OUTPUT_RULES.length) + WORKED_ANSWER_RULES);
+  });
+
+  it("goes back to the normal rules on the turn after", async () => {
+    const normal = await systemSent(course, [], PROBLEM);
+    const shown: Sent = [...AFTER_ATTEMPT, { role: "user", content: SHOW_ANSWER_MESSAGE }, { role: "assistant", content: "Step 1. Final answer: 12" }];
+    expect(await systemSent(course, shown, "Can I try another one?")).toBe(normal);
   });
 });

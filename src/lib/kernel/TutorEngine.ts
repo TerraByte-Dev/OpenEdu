@@ -21,6 +21,7 @@ import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent } from "./toolDispatch";
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
+import { turnSystemPrompt } from "./outputRules";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 
@@ -73,6 +74,16 @@ export class TutorEngine {
 
     const budget: Budget = budgetFor(ctx.contextTokens ?? DEFAULT_CONTEXT_TOKENS);
     const toolResultCap = Math.floor(budget.grounding * TOOL_RESULT_BUDGET_FRACTION);
+
+    // The worked-answer turn (lever L1): when the student's newest message is exactly the show-answer
+    // chip's text, this turn's output rules become the worked-answer rules. Done here, before the
+    // tools manifest is appended, so every caller of the kernel gets it and no caller can fork it.
+    // Any other turn's system prompt is untouched. See outputRules.ts.
+    const newestUser = [...messages].reverse().find((m) => m.role === "user");
+    const sysAt = messages.findIndex((m) => m.role === "system");
+    if (newestUser && sysAt >= 0) {
+      messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, newestUser.content) };
+    }
 
     const eduTools = await selectTools(ctx);
     const offered = new Set(eduTools.map((t) => t.name));
