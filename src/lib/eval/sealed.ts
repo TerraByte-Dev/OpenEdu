@@ -112,9 +112,10 @@ export function parseSealed(raw: unknown): SealedSet {
 
 // Capitalised words that are ordinary English (sentence starters, question words, words that turn up
 // inside real-world names such as "Social Security" or "Mayflower Compact") or real-world names common
-// in school material, so a match in src/ says nothing about leakage. Two more sources count as ordinary
-// (see extractNames): any word the set itself uses in lower case, and any word in the bundled library
-// (public/library), a real-world reference corpus that predates the set and is not under src/.
+// in school material, so a match in src/ says nothing about leakage. More sources count as ordinary
+// (see extractNames): English words, any word the k12 items use in lower case, and any word in the
+// bundled library (public/library), a real-world reference corpus that predates the set and is not
+// under src/.
 const COMMON = new Set(`
 a about above across after again against all almost along also although always am among an and another
 any are around as at away back be because been before being below between both but by can could did do
@@ -174,84 +175,101 @@ function sentenceInitial(text: string, index: number): boolean {
 }
 
 /**
- * The set's made-up names and distinctive tokens, lower-cased, de-duplicated and sorted. `ordinary` is
- * extra known vocabulary, lower-cased (the loader passes the bundled library's words).
- *  - Latin-script words of 3+ letters that start with a capital, are not in COMMON, and never appear
- *    in lower case anywhere in the set. In running text (notes, asks, k12 stems, options, bases) a word
- *    must also not start a sentence. In expect / poison / lookalike, which are short name-like fields,
- *    position does not matter. Note titles are skipped (title case capitalises every word); a name in
- *    a title also appears in its note.
- *  - Words of 3+ characters in a non-Latin script (Devanagari, Arabic, …) that are not in NATIVE_COMMON:
- *    a native-script name a learner might type, such as a transliterated nonce.
+ * The set's made-up names and distinctive tokens, lower-cased, in NFC, de-duplicated and sorted.
+ * `ordinary` is known vocabulary, lower-cased: the loader passes English words (englishWords) and the
+ * bundled library's words. A word is ordinary when it, or its singular, is in COMMON, in `ordinary`,
+ * or written in lower case in the k12 items (real-world school text).
+ *  - Latin script, English text (note titles and texts, English asks, k12 text, expect / poison /
+ *    lookalike): every word that is not ordinary. Capitalised words count from 2 letters ("Ix") and in
+ *    any position, sentence starts and titles included; lower-case words from 4 letters ("florbic").
+ *  - Latin script, a question in another language (an item with `lang`): only capitalised words that
+ *    do not start a sentence ("¿Qual…" is a question word, "…nascente Quorvath" a name), since English
+ *    vocabulary cannot tell a Portuguese word from a made-up one.
+ *  - Non-Latin script (Devanagari, Arabic, …): words of 3+ characters not in NATIVE_COMMON: a
+ *    native-script name a learner might type, such as a transliterated nonce.
  */
 export function extractNames(set: SealedSet, ordinary: ReadonlySet<string> = new Set()): string[] {
-  const prose: string[] = [];
-  const nameFields: string[] = [];
-  for (const n of set.rag.notes) prose.push(n.text);
+  const english: string[] = [];
+  const foreignAsks: string[] = [];
+  const foreignFields: string[] = [];
+  for (const n of set.rag.notes) english.push(n.title, n.text);
   for (const x of set.rag.items) {
-    prose.push(x.ask);
-    nameFields.push(x.expect ?? "", x.poison ?? "", x.lookalike ?? "");
+    english.push(x.note);
+    (x.lang ? foreignAsks : english).push(x.ask);
+    (x.lang ? foreignFields : english).push(x.expect ?? "", x.poison ?? "", x.lookalike ?? "");
   }
-  for (const x of set.k12.items) prose.push(x.stem, ...x.options, x.basis, x.strand ?? "");
-  const titles = [...set.rag.notes.map((n) => n.title), ...set.rag.items.map((x) => x.note)];
+  const k12 = set.k12.items.flatMap((x) => [x.stem, ...x.options, x.basis, x.strand ?? ""]);
+  english.push(...k12);
 
-  const all = [...prose, ...nameFields, ...titles];
-  const lowerSeen = new Set(all.flatMap((t) => t.match(TOKEN) ?? []).filter((w) => !UPPER_START.test(w)));
-  const out = new Set<string>();
-  const known = (lower: string) => COMMON.has(lower) || ordinary.has(lower) || lowerSeen.has(lower);
+  const nfc = (t: string) => t.normalize("NFC");
+  const k12Lower = new Set(k12.flatMap((t) => nfc(t).match(TOKEN) ?? []).filter((w) => !UPPER_START.test(w)));
+  const isKnown = (lower: string) => COMMON.has(lower) || ordinary.has(lower) || k12Lower.has(lower);
   // "Fridays", "Pilgrims": a plural of an ordinary word is ordinary.
-  const latinName = (w: string) => {
-    const lower = w.toLowerCase();
-    return w.length >= 3 && UPPER_START.test(w) && !known(lower) && !(lower.endsWith("s") && known(lower.slice(0, -1)));
-  };
+  const known = (lower: string) => isKnown(lower) || (lower.endsWith("s") && isKnown(lower.slice(0, -1)));
+  const out = new Set<string>();
 
-  for (const text of all) {
-    for (const m of text.matchAll(TOKEN)) {
+  const scan = (text: string, latin: (w: string, index: number, text: string) => boolean) => {
+    const t = nfc(text);
+    for (const m of t.matchAll(TOKEN)) {
       const w = m[0];
+      const lower = w.toLowerCase();
       if (!LATIN.test(w)) {
-        if ([...w].length >= 3 && !NATIVE_COMMON.has(w) && !ordinary.has(w.toLowerCase())) out.add(w.toLowerCase());
+        if ([...w].length >= 3 && !NATIVE_COMMON.has(w) && !ordinary.has(lower)) out.add(lower);
+      } else if (!known(lower) && latin(w, m.index!, t)) {
+        out.add(lower);
       }
     }
-  }
-  for (const text of prose) {
-    for (const m of text.matchAll(TOKEN)) {
-      if (LATIN.test(m[0]) && latinName(m[0]) && !sentenceInitial(text, m.index!)) out.add(m[0].toLowerCase());
-    }
-  }
-  for (const text of nameFields) {
-    for (const m of text.matchAll(TOKEN)) {
-      if (LATIN.test(m[0]) && latinName(m[0])) out.add(m[0].toLowerCase());
-    }
-  }
+  };
+  const capital = (w: string) => UPPER_START.test(w) && [...w].length >= 2;
+  for (const text of english) scan(text, (w) => capital(w) || [...w].length >= 4);
+  for (const text of foreignAsks) scan(text, (w, i, t) => capital(w) && !sentenceInitial(t, i));
+  for (const text of foreignFields) scan(text, capital);
   return [...out].sort();
 }
 
 export interface NameHit { token: string; files: string[] }
 
-/** Which tokens occur (case-insensitive, whole word) in which files. Pure. */
+// Code joins words: isQuorvath, quorvathFix, HTTPQuorvath. A space at each camelCase step lets the
+// name stand alone; "_", "-" and digits already count as breaks (QUORVATH_BOOST, quorvath2).
+const splitCamel = (text: string) => text.replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2").replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, "$1 $2");
+
+/**
+ * Which tokens occur in which files. Case-insensitive, in NFC, as a whole word: letters on either side
+ * make it a different word, but a plural or possessive ending ("Quorvaths", "Quorvath's") still counts,
+ * and so does a name inside a code identifier. Pure.
+ */
 export function findNameHits(tokens: string[], files: Array<{ path: string; text: string }>): NameHit[] {
   if (tokens.length === 0) return [];
-  const alt = [...tokens].sort((a, b) => b.length - a.length).join("|");
-  const re = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}_])(?:${alt})(?![\\p{L}\\p{M}\\p{N}_])`, "giu");
+  const alt = [...new Set(tokens.map((t) => t.normalize("NFC")))].sort((a, b) => b.length - a.length).join("|");
+  const re = new RegExp(`(?<![\\p{L}\\p{M}])(${alt})(?:['’]s|es|s)?(?![\\p{L}\\p{M}])`, "giu");
   const hits = new Map<string, Set<string>>();
   for (const f of files) {
-    for (const m of f.text.matchAll(re)) {
-      const token = m[0].toLowerCase();
-      if (!hits.has(token)) hits.set(token, new Set());
-      hits.get(token)!.add(f.path);
+    const text = f.text.normalize("NFC");
+    for (const variant of [text, splitCamel(text)]) {
+      for (const m of variant.matchAll(re)) {
+        const token = m[1].toLowerCase();
+        if (!hits.has(token)) hits.set(token, new Set());
+        hits.get(token)!.add(f.path);
+      }
     }
   }
   return [...hits].map(([token, paths]) => ({ token, files: [...paths].sort() })).sort((a, b) => a.token.localeCompare(b.token));
 }
 
-/** Every text file under `srcRoot` except lib/eval/, as { path relative to srcRoot's parent, text }. */
+// The protocol excludes all of src/lib/eval/, but code there shapes every eval request (the runner's
+// instructions, the matched syllabus, the tool syllabus). Only the eval's item data (RAG and k12 items,
+// the library-retrieval queries), its tests and its docs are excluded. Stricter than the protocol, so
+// it can only void more runs, never fewer.
+const EVAL_EXEMPT = /^lib\/eval\/(?:(?:rag-fixture|rag-heldout|k12-items|library-fixture)\.ts$|.*\.test\.ts$|.*\.md$)/;
+
+/** Every text file under `srcRoot` but EVAL_EXEMPT, as { path relative to srcRoot's parent, text }. */
 async function lintCorpus(srcRoot: string): Promise<Array<{ path: string; text: string }>> {
   const [f, p] = await Promise.all([fs(), path()]);
   const root = p.resolve(srcRoot);
   const out: Array<{ path: string; text: string }> = [];
   for (const file of await listFiles(root)) {
     const rel = p.relative(root, file).replace(/\\/g, "/");
-    if (rel.startsWith("lib/eval/")) continue;
+    if (EVAL_EXEMPT.test(rel)) continue;
     const bytes = await f.readFile(file);
     if (bytes.subarray(0, 8000).includes(0)) continue; // binary (images, fonts): no words to match
     out.push({ path: `${p.relative(p.dirname(root), file).replace(/\\/g, "/")}`, text: new TextDecoder().decode(bytes) });
@@ -270,6 +288,15 @@ export async function libraryVocabulary(libraryRoot: string): Promise<Set<string
     for (const w of (await f.readFile(file, "utf8")).match(TOKEN) ?? []) vocab.add(w.toLowerCase());
   }
   return vocab;
+}
+
+/**
+ * English words, lower-cased, inflections included (the word-list package, ~274k words, no proper
+ * nouns). Tells an ordinary word ("beaker", "Triple Alliance") from an invented one ("florbic").
+ */
+export async function englishWords(): Promise<Set<string>> {
+  const file = (await import("word-list")).default;
+  return new Set((await (await fs()).readFile(file, "utf8")).split("\n").map((w) => w.trim()).filter(Boolean));
 }
 
 export class SealedLintError extends Error {
@@ -314,7 +341,9 @@ export async function loadSealed(
   }
   const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).replace(/^﻿/, "");
   const set = parseSealed(JSON.parse(text));
-  const tokens = extractNames(set, await libraryVocabulary(opts?.libraryRoot ?? p.resolve(cwd(), "public", "library")));
+  const ordinary = await libraryVocabulary(opts?.libraryRoot ?? p.resolve(cwd(), "public", "library"));
+  for (const w of await englishWords()) ordinary.add(w);
+  const tokens = extractNames(set, ordinary);
   const hits = findNameHits(tokens, await lintCorpus(opts?.srcRoot ?? p.resolve(cwd(), "src")));
   if (hits.length) throw new SealedLintError(hits);
   return { set, sha256, lintedTokens: tokens.length };

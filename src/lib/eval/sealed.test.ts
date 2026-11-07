@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import protocolMd from "./heldout-v2-protocol.md?raw";
 import {
   HELDOUT_V2_SHA256, protocolSha256, parseSealed, extractNames, findNameHits, loadSealed, sha256Hex,
-  SealedLintError, type SealedSet,
+  SealedLintError, englishWords, type SealedSet,
 } from "./sealed";
 import { fs, os, path, writeText, cwd } from "./headless/node-io";
 import { RAG_FIXTURE } from "./rag-fixture";
@@ -72,8 +72,8 @@ describe("parseSealed", () => {
 });
 
 describe("extractNames", () => {
-  it("finds made-up names and native-script names, not sentence starters or ordinary words", () => {
-    const names = extractNames(synthetic());
+  it("finds made-up names and native-script names, not sentence starters or ordinary words", async () => {
+    const names = extractNames(synthetic(), await englishWords());
     expect(names).toEqual(expect.arrayContaining(["quorvath", "dellamire", "quorvan", "क्वोरवाथ"]));
     // Sentence starters, weekdays, title-case title words, and ordinary Hindi words are not names.
     for (const w of ["which", "how", "monday", "on", "our", "field", "log", "workshop", "qual", "पानी", "कितना", "में"]) {
@@ -92,6 +92,41 @@ describe("extractNames, ordinary vocabulary", () => {
   });
 });
 
+describe("extractNames, names in every position and case", () => {
+  let english: Set<string>;
+  beforeAll(async () => { english = await englishWords(); });
+
+  function withNote(title: string, text: string, ask = "What does the note say?"): SealedSet {
+    const set = synthetic();
+    set.rag.notes.push({ title, text });
+    set.rag.items.push({ id: "s-far01", group: "far", kind: "negative", split: "test", note: title, ask });
+    return set;
+  }
+
+  it("finds a name that only starts sentences, follows a colon, or sits in a title", () => {
+    expect(extractNames(withNote("Gear Works", "Zeltrin makes gears. Zeltrin was founded long ago.", "Zeltrin: who owns it?"), english)).toContain("zeltrin");
+    expect(extractNames(withNote("Brask Mill", "The mill grinds corn every morning."), english)).toContain("brask");
+  });
+
+  it("finds a capitalised name that the set also writes in lower case", () => {
+    expect(extractNames(withNote("Valley Survey", "The Kormath valley is wide; a kormath is a fish."), english)).toContain("kormath");
+  });
+
+  it("finds lower-case invented terms, and not ordinary English", () => {
+    const names = extractNames(withNote("Lab Bench", "Add the florbic solution slowly, then stir the beaker."), english);
+    expect(names).toContain("florbic");
+    for (const w of ["add", "solution", "slowly", "stir", "beaker", "lab", "bench"]) expect(names).not.toContain(w);
+  });
+
+  it("finds two-letter names", () => {
+    expect(extractNames(withNote("River Log", "The boats left the Ix river at dawn."), english)).toContain("ix");
+  });
+
+  it("still skips the sentence starters of a question in another language", () => {
+    expect(extractNames(synthetic(), english)).not.toContain("qual");
+  });
+});
+
 describe("findNameHits", () => {
   it("matches whole words, case-insensitively", () => {
     const files = [
@@ -103,6 +138,16 @@ describe("findNameHits", () => {
       { token: "quorvath", files: ["src/a.ts"] },
       { token: "क्वोरवाथ", files: ["src/c.md"] },
     ]);
+  });
+
+  it("finds a name inside code identifiers, with a plural or possessive, in any Unicode form", () => {
+    const leaks = ["const QUORVATH_BOOST = 2;", "if (isQuorvath(q)) {}", "quorvathFix();", "let quorvath2 = 0;", "the Quorvaths", "Quorvath's flow", "Quorvath’s flow", "case 'quorvath-spring':"];
+    for (const text of leaks) expect(findNameHits(["quorvath"], [{ path: "src/x.ts", text }]), text).toHaveLength(1);
+    const nfd = "Zoëtrin".normalize("NFD");
+    expect(findNameHits(["zoëtrin".normalize("NFC")], [{ path: "src/x.ts", text: `// ${nfd}` }])).toHaveLength(1);
+    expect(findNameHits(["zoëtrin".normalize("NFD")], [{ path: "src/x.ts", text: "// Zoëtrin".normalize("NFC") }])).toHaveLength(1);
+    // A longer word that merely starts or ends with the name is still a different word.
+    for (const text of ["quorvathian", "xquorvath", "unquorvathed"]) expect(findNameHits(["quorvath"], [{ path: "src/x.ts", text }]), text).toEqual([]);
   });
 
   it("finds a name that really is in this repo's src/ outside src/lib/eval/", async () => {
@@ -122,8 +167,10 @@ describe("loadSealed", () => {
   beforeEach(async () => {
     dir = await (await fs()).mkdtemp(`${(await os()).tmpdir()}/oe-sealed-test-`);
     await writeText(`${dir}/src/lib/tutor.ts`, "export const hello = 'world';\n");
-    // The eval folder is excluded from the lint: names may appear there (the loader itself, fixtures).
-    await writeText(`${dir}/src/lib/eval/notes.ts`, "// Quorvath\n");
+    // The eval folder's data, tests and docs are excluded from the lint: names may appear there.
+    for (const f of ["rag-fixture.ts", "rag-heldout.ts", "k12-items.ts", "sealed.test.ts", "results/run.md"]) {
+      await writeText(`${dir}/src/lib/eval/${f}`, "// Quorvath\n");
+    }
   });
   afterEach(async () => {
     await (await fs()).rm(dir, { recursive: true, force: true });
@@ -183,6 +230,14 @@ describe("loadSealed", () => {
     expect(tokens).toContain("verrin");
     const vaultWords = new Set(RAG_FIXTURE.flatMap((n) => `${n.title} ${n.text}`.toLowerCase().match(/[\p{L}\p{M}]+/gu) ?? []));
     expect(tokens.filter((t) => !vaultWords.has(t))).toEqual([]);
+  });
+
+  it("lints the eval code that shapes the request (runner prompts, syllabi), not only the app", async () => {
+    await writeText(`${dir}/src/lib/eval/rag-runner.ts`, "const RAG_INSTRUCTIONS = 'Answer about the Dellamire press.';\n");
+    const { file, sha } = await writeSet(synthetic());
+    const err = await loadSealed(file, sha, { srcRoot: `${dir}/src` }).catch((e) => e);
+    expect(err).toBeInstanceOf(SealedLintError);
+    expect((err as SealedLintError).hits).toEqual([{ token: "dellamire", files: ["src/lib/eval/rag-runner.ts"] }]);
   });
 
   it("skips binary files", async () => {
