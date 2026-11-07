@@ -2,7 +2,7 @@
 //!
 //! The app has no `fs` capability and the webview never names a path. This command opens the native
 //! Save dialog itself, from Rust, and writes only to the file the user picked there, always with a
-//! `.csv` extension. So the webview can hand over text, but it cannot choose where it goes, overwrite
+//! `.csv` extension, and never over a file the dialog did not warn about. So the webview can hand over text, but it cannot choose where it goes, overwrite
 //! an arbitrary file, or write anything that is not a .csv. One file per call, one user click each.
 
 use std::path::PathBuf;
@@ -30,9 +30,21 @@ pub async fn export_save_csv(
     .map_err(|e| e.to_string())?;
 
     let Some(picked) = picked else { return Ok(None) };
-    let path = with_csv_extension(picked.into_path().map_err(|e| e.to_string())?);
+    let path = csv_target(picked.into_path().map_err(|e| e.to_string())?)?;
     std::fs::write(&path, contents.as_bytes()).map_err(|e| e.to_string())?;
     Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// Where to write the file the user picked. The dialog warns before replacing the file it shows, but
+/// when the `.csv` had to be added the real target is a different file it never checked. So that
+/// case refuses rather than silently overwrite `report.txt.csv`; the message tells the user why.
+fn csv_target(picked: PathBuf) -> Result<PathBuf, String> {
+    let target = with_csv_extension(picked.clone());
+    if target != picked && target.exists() {
+        let name = target.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        return Err(format!("{name} already exists. Save again and pick a different name, or pick that file itself to replace it."));
+    }
+    Ok(target)
 }
 
 /// Force a `.csv` extension: `report` and `report.exe` become `report.csv` and `report.exe.csv`.
@@ -73,6 +85,39 @@ mod tests {
     fn forces_a_csv_extension() {
         assert_eq!(with_csv_extension(PathBuf::from("a/report")), PathBuf::from("a/report.csv"));
         assert_eq!(with_csv_extension(PathBuf::from("a/report.exe")), PathBuf::from("a/report.exe.csv"));
+    }
+
+    fn temp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("openedu-export-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn refuses_to_overwrite_a_file_the_dialog_never_warned_about() {
+        let dir = temp_dir("exists");
+        std::fs::write(dir.join("report.txt.csv"), "keep me").unwrap();
+        // The user typed report.txt; the dialog checked report.txt, not report.txt.csv.
+        let err = csv_target(dir.join("report.txt")).unwrap_err();
+        assert!(err.contains("report.txt.csv"), "{err}");
+        assert_eq!(std::fs::read_to_string(dir.join("report.txt.csv")).unwrap(), "keep me");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn writes_when_the_added_extension_names_a_new_file() {
+        let dir = temp_dir("new");
+        assert_eq!(csv_target(dir.join("report.txt")).unwrap(), dir.join("report.txt.csv"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_picked_csv_may_be_replaced_because_the_dialog_already_asked() {
+        let dir = temp_dir("csv");
+        std::fs::write(dir.join("report.csv"), "old").unwrap();
+        assert_eq!(csv_target(dir.join("report.csv")).unwrap(), dir.join("report.csv"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
