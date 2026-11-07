@@ -82,7 +82,7 @@ export const GOLDENS: Golden[] = [
     topic: "Introductory Algebra",
     // Phase 4a: the topic routes the math-tutor domain skill, so math.render is offered. The answer
     // (40) may land in the chat text OR inside a math.render latex arg — both pass. We no longer fail
-    // on backslash-LaTeX in chat: inline $…$/$$…$$ now renders (marked-katex-extension), so the old
+    // on backslash-LaTeX in chat: inline $…$/$$…$$ now renders (chat-math.ts), so the old
     // plain-text-in-chat constraint was intentionally relaxed for display.
     useTools: true,
     turns: [{ user: "A train travels 60 miles in 1.5 hours. What is its average speed in miles per hour? Give the number." }],
