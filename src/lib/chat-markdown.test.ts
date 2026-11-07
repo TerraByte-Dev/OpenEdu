@@ -58,6 +58,41 @@ describe("renderChatMarkdown: several equations in one reply", () => {
     expect(prose(html)).not.toMatch(/\$x/);
   });
 
+  it("does not let a price swallow an equation that opens after punctuation", () => {
+    const cases: [string, number, string][] = [
+      ["Each costs $3, i.e. **$x = 3$**.", 1, "$3, i.e."],
+      ["Pay $5, then **$y = 2x$** and $z$.", 2, "$5, then"],
+      ["It costs $10 vs ($x$) here.", 1, "$10 vs ("],
+      ['A $5 tip, so "$t = 5$" works.', 1, "$5 tip"],
+      ["Only $2 or [$k$] left.", 1, "$2 or ["],
+    ];
+    for (const [text, n, kept] of cases) {
+      const html = renderChatMarkdown(text);
+      expect(countKatex(html), text).toBe(n);
+      expect(prose(html), text).toContain(kept);
+      expect(prose(html), text).not.toMatch(/\$[xyztk]/);
+    }
+  });
+
+  it("renders word formulas joined by a LaTeX operator", () => {
+    for (const text of [
+      "$area = length \\times width$",
+      "$d = rate \\cdot time$",
+      "$Total = price \\cdot quantity$",
+      "$Force = mass \\times acceleration$",
+      "$\\text{Area} = length \\times width$",
+    ]) {
+      const html = renderChatMarkdown(`So ${text} here.`);
+      expect(countKatex(html), text).toBe(1);
+      expect(prose(html), text).not.toContain("$");
+    }
+  });
+
+  it("still keeps prose between dollars as text when a command sits in it", () => {
+    const html = renderChatMarkdown("Let $x be it and then \\times the rest$ go.");
+    expect(prose(html)).toContain("$x be it and then");
+  });
+
   it("keeps plain currency prose as text", () => {
     const html = renderChatMarkdown("Apples are $5 and pears are $10, so $15 in total.");
     expect(countKatex(html)).toBe(0);

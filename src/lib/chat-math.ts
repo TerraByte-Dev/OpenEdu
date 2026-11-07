@@ -17,9 +17,12 @@
 //   - the closer is the next unescaped $ on the same line, and the content is not blank
 //   - a digit straight after the closer means currency ("$5 to $10")
 //   - an opener followed by a digit with a space before the closer is currency ("$5 and $")
+//   - an opener followed by a digit whose closer is followed by a letter, digit, \, ( { or [ is a
+//     price, and its "closer" is the next equation's opener ("$3, i.e. **$x$**", "$10 vs ($x$)")
 //   - a closer with a space before it and a word right after it is really the next opener
 //     ("$x = 5 and then $y$": the middle $ opens $y$)
-//   - two plain words of 3+ letters in a row (outside \text{}) are prose, not math
+//   - two plain words of 3+ letters in a row (outside \text{}) are prose, not math. A command
+//     between them breaks the pair, so $area = length \times width$ is math
 import type { MarkedExtension, Tokens } from "marked";
 
 export type TexRenderer = (tex: string, displayMode: boolean) => string;
@@ -41,7 +44,7 @@ const PROSE_RE = /[A-Za-z]{3,}[ \t]+[A-Za-z]{3,}/;
 const TEXT_GROUP_RE = /\\(?:text\w*|mathrm|mbox|operatorname)\s*\{[^{}]*\}/g;
 
 function looksLikeProse(tex: string): boolean {
-  return PROSE_RE.test(tex.replace(TEXT_GROUP_RE, " ").replace(/\\[A-Za-z]+/g, " "));
+  return PROSE_RE.test(tex.replace(TEXT_GROUP_RE, " ").replace(/\\[A-Za-z]+/g, " # "));
 }
 
 // Index of the next `delim` at or after `from` that is not backslash-escaped, or -1. With
@@ -73,6 +76,7 @@ function singleDollar(src: string): MathMatch | null {
   const spaceBefore = /\s/.test(src[end - 1]);
   if (/\d/.test(after)) return null;
   if (spaceBefore && /\d/.test(src[1])) return null;
+  if (/\d/.test(src[1]) && /[A-Za-z0-9\\({[]/.test(after)) return null;
   if (spaceBefore && /[A-Za-z0-9\\({[]/.test(after)) return null;
   if (looksLikeProse(tex)) return null;
   return { raw: src.slice(0, end + 1), tex, display: false };
