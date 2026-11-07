@@ -243,3 +243,28 @@ describe("attempt-gated answer chip", () => {
     expect(out.map((s) => s.label)).toEqual(["Continue", "Show me the answer", "Give me a hint"]);
   });
 });
+
+describe("assess chip is reachable (#146)", () => {
+  const all = syllabus([{ title: "Moles", mastered: true }, { title: "Balancing equations", mastered: true }]);
+
+  it("leads the mode chips once every subtopic at the level is mastered", () => {
+    const out = suggestFollowUps(input({ syllabus: all }));
+    expect(out[0]).toMatchObject({ label: "Check if I've got this", mode: "assess" });
+  });
+
+  it("survives a turn with full context", () => {
+    const out = suggestFollowUps(input({
+      syllabus: all,
+      hits: [hit(), hit({ source: "library", title: "Mole concept", ref: "lib-1" })],
+      usedHits: [hit({ source: "library", title: "Mole concept", ref: "lib-1" })],
+      dueFlashcards: 3,
+    }));
+    expect(out.map((s) => s.mode)).toContain("assess");
+  });
+
+  it("is not offered while subtopics remain, or with no syllabus", () => {
+    const partial = syllabus([{ title: "Moles", mastered: true }, { title: "Balancing equations", mastered: false }]);
+    expect(suggestFollowUps(input({ syllabus: partial })).map((s) => s.mode)).not.toContain("assess");
+    expect(suggestFollowUps(input()).map((s) => s.mode)).not.toContain("assess");
+  });
+});

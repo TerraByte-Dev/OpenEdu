@@ -213,6 +213,12 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // The mode chips. These ARE the deleted mode bar: each carries the pedagogy that used to require
   // the student to classify their own intent before asking. Ordered by how often a stuck student
   // actually wants them.
+  //
+  // Except when every subtopic at this level is mastered: then the next real step is the mastery
+  // check, so it leads. Without this the assess chip was always fourth in a list capped at three,
+  // and Assess mode was unreachable from the UI (#146).
+  const allMastered = !!input.syllabus?.subtopics.length && input.syllabus.subtopics.every((s) => s.mastered);
+  if (allMastered) push({ label: "Check if I've got this", message: "Check if I've got this.", mode: "assess" });
   push({ label: "Worked example", message: "Show me a worked example." });
   push({ label: "Make me figure it out", message: "Let me work it out.", mode: "socratic" });
   push({ label: "Quiz me on this", message: "Quiz me on this.", mode: "quiz" });
