@@ -13,6 +13,10 @@
 //     await window.__runRagEval({ modes: ["always"] }) // just the shipping path
 //     await window.__runRagEval({ set: "dev", modes: ["always"], repeats: 3 })
 //                                                      // held-out split (rag-heldout.ts)
+//
+// Or from a terminal, against a real local Ollama and with no Tauri app: `npm run eval` (see
+// src/lib/eval/headless/README.md). That entry calls THIS function; it only swaps the platform
+// (SQLite, HTTP, settings store) underneath the kernel.
 
 import { tutorEngine, EMPTY_GROUNDING, type TutorTurn, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
@@ -24,7 +28,7 @@ import { detectModelProfile } from "../llm";
 import { deleteCourse, ensureCourse } from "../db";
 import { importTextAsNote } from "../notebook";
 import { evalToolSyllabus } from "./goldens";
-import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type RagQuestion, type RagVerdict } from "./rag-fixture";
+import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureNote, type RagQuestion, type RagVerdict } from "./rag-fixture";
 import { RAG_HELDOUT } from "./rag-heldout";
 import type { LLMConfig, Syllabus } from "../../types";
 
@@ -53,6 +57,17 @@ export interface RagRow {
   retrievedTitles: string[];
   toolCalls: string[];
   verdict: RagVerdict;
+  /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
+  ttft_ms: number | null;
+  /** Milliseconds for the whole turn, grounding and tool calls included. */
+  total_ms: number;
+}
+
+/** A set that brings its own vault, such as the sealed held-out file (sealed.ts). */
+export interface RagCustomSet {
+  name: string;
+  vault: FixtureNote[];
+  questions: RagQuestion[];
 }
 
 export interface RagReport {
@@ -60,6 +75,8 @@ export interface RagReport {
   provider: string;
   contextTokens: number;
   repeats: number;
+  /** "main", "dev", "test", or the name of a custom set (e.g. the sealed held-out file). */
+  set: string;
   rows: RagRow[];
   /** mode → kind → { pass, total } */
   byMode: Record<string, Record<string, { pass: number; total: number }>>;
@@ -67,10 +84,10 @@ export interface RagReport {
   verdict: { positivesPct: number; negativesClean: boolean; meetsBar: boolean };
 }
 
-async function seedVault(): Promise<void> {
+async function seedVault(vault: FixtureNote[]): Promise<void> {
   await deleteCourse(RAG_COURSE_ID); // clear leftovers from a crashed run
   await ensureCourse(RAG_COURSE_ID, "Eval (RAG)", "Eval");
-  for (const note of RAG_FIXTURE) {
+  for (const note of vault) {
     await importTextAsNote({ courseId: RAG_COURSE_ID, title: note.title, sourceType: "note", text: note.text });
   }
 }
@@ -99,9 +116,12 @@ function matchedSyllabus(): Syllabus {
 export async function runRagEval(opts?: {
   repeats?: number;
   modes?: RetrievalMode[];
+  /** One question id, or several separated by commas. */
   only?: string;
   /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts. */
   set?: "main" | "dev" | "test";
+  /** A set that brings its own vault (the sealed held-out file). Replaces `set` and RAG_FIXTURE. */
+  custom?: RagCustomSet;
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
    *  vault's subjects, which is what a learner who wrote these notes would actually be enrolled in. */
   syllabus?: "python" | "matched";
@@ -116,9 +136,16 @@ export async function runRagEval(opts?: {
 
   const repeats = opts?.repeats ?? 1;
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
-  const set = opts?.set ?? "main";
-  const pool: RagQuestion[] = set === "main" ? RAG_QUESTIONS : RAG_HELDOUT.filter((q) => q.split === set);
-  const questions = opts?.only ? pool.filter((q) => q.id === opts.only) : pool;
+  const set = opts?.custom?.name ?? opts?.set ?? "main";
+  const vault = opts?.custom?.vault ?? RAG_FIXTURE;
+  const pool: RagQuestion[] = opts?.custom ? opts.custom.questions
+    : set === "main" ? RAG_QUESTIONS : RAG_HELDOUT.filter((q) => q.split === set);
+  const only = opts?.only ? new Set(opts.only.split(",").map((id) => id.trim()).filter(Boolean)) : null;
+  const questions = only ? pool.filter((q) => only.has(q.id)) : pool;
+  if (questions.length === 0) {
+    inFlight = false;
+    throw new Error(`No questions selected (set=${set}${opts?.only ? `, only=${opts.only}` : ""}).`);
+  }
 
   registerBuiltinTools();
   await loadBuiltinSkills();
@@ -135,7 +162,7 @@ export async function runRagEval(opts?: {
 
   const rows: RagRow[] = [];
   try {
-    await seedVault();
+    await seedVault(vault);
 
     for (const mode of modes) {
       for (let rep = 0; rep < repeats; rep++) {
@@ -155,6 +182,10 @@ export async function runRagEval(opts?: {
             confirmTool: async () => true,
             supportsTools: profile.supportsTools,
           };
+          // Timed from here: the kernel's own work (tool selection, grounding, embedding the question)
+          // is part of what a learner waits for, so it counts toward ttft.
+          let ttft_ms: number | null = null;
+          const started = performance.now();
           const turn: TutorTurn = {
             messages: [
               ...(system.trim() ? [{ role: "system", content: system }] : []),
@@ -162,7 +193,7 @@ export async function runRagEval(opts?: {
             ],
             config,
             retrieval: mode,
-            onText: () => {},
+            onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
           let answer = "";
@@ -183,6 +214,7 @@ export async function runRagEval(opts?: {
           } catch (e) {
             answer = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
           }
+          const total_ms = Math.round(performance.now() - started);
 
           // Integrity check on the VAULT, not on the answer.
           //
@@ -203,8 +235,8 @@ export async function runRagEval(opts?: {
           }
 
           const verdict = scoreRagAnswer(question, answer, citedTitles);
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, toolCalls, verdict });
-          console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason}`);
+          rows.push({ mode, question, answer, citedTitles, retrievedTitles, toolCalls, verdict, ttft_ms, total_ms });
+          console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
     }
@@ -234,7 +266,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, rows, byMode, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, set, rows, byMode, verdict };
 }
 
 if (typeof window !== "undefined") {
