@@ -78,6 +78,31 @@ export interface SuggestionInput {
   abandoned?: boolean;
   /** The reply was cut off by the length/context limit. Chips still show, led by "Continue". */
   truncated?: boolean;
+  /** The student's last message was a try at the tutor's question (see `isAttempt`). */
+  studentAttempted?: boolean;
+}
+
+// What the stuck chips send. A tap on one of these is a request for help, not a try at the problem.
+const HINT_MESSAGE = "Give me a hint.";
+const WALK_MESSAGE = "Walk me through it.";
+// Measured on 2026-11-06 after a wrong first try: this wording got the worked answer from gemma4:e4b
+// in 8 of 8 runs, and "Walk me through it." in 5 of 8 (the tutor often kept asking instead).
+const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
+
+/**
+ * True when the student's message is a try at the question the tutor just asked.
+ *
+ * This is what gates the "Show me the answer" chip. Trying before seeing the answer, then getting
+ * the answer as feedback, helps memory more than reading the answer straight away (retrieval
+ * practice; the pretesting effect). But a tutor that only ever asks back leaves a stuck student with
+ * nothing, which is what the k12-mc benchmark caught both gemma4 models doing. So the answer is one
+ * tap away, but only after one try. Decided by code, not by the model: neither gemma4 model reliably
+ * followed a prompt rule to hide its answer.
+ */
+export function isAttempt(previousTutorReply: string | undefined, studentMessage: string): boolean {
+  if (!previousTutorReply || !endsWithQuestion(previousTutorReply)) return false;
+  const msg = studentMessage.trim();
+  return !!msg && msg !== HINT_MESSAGE && msg !== WALK_MESSAGE && msg !== SHOW_ANSWER_MESSAGE;
 }
 
 /** True when the reply ends on a question, which changes what a useful chip is. */
@@ -111,8 +136,10 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
     // The tutor asked something. Competing with its question would be rude, so the chips become ways
     // to ANSWER it — specifically the two a stuck student needs and is least likely to type, because
     // both amount to admitting they are stuck.
-    push({ label: "Give me a hint", message: "Give me a hint.", mode: "hint" });
-    push({ label: "Walk me through it", message: "Walk me through it." });
+    // After a try, the student has earned the answer, so it leads.
+    if (input.studentAttempted) push({ label: "Show me the answer", message: SHOW_ANSWER_MESSAGE });
+    push({ label: "Give me a hint", message: HINT_MESSAGE, mode: "hint" });
+    push({ label: "Walk me through it", message: WALK_MESSAGE });
     return out; // any Continue chip pushed above is kept — it was the more urgent signal
 
   }

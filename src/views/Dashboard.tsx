@@ -8,6 +8,7 @@ import { runGenerationPipeline } from "../lib/curriculum";
 import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
 import { searchTavily, formatSearchResults } from "../lib/web-search";
 import { preflightStructuredOutput } from "../lib/llm";
+import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 
 interface DashboardProps {
   courses: Course[];
@@ -288,6 +289,12 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     className="cf-input mb-4"
                     autoFocus
                   />
+                  {isHealthTopic(topic) && (
+                    <div className="mb-4 p-3 border border-amber-500/40 border-l-4 border-l-amber-500 text-xs text-ink leading-relaxed"
+                         style={{ background: "rgba(245,158,11,0.06)" }}>
+                      {HEALTH_NOTICE}
+                    </div>
+                  )}
                   {/* Persona picker (Phase 4b) — SAGE default; the ★ suggestion is a non-binding hint. */}
                   <div className="mb-4">
                     <div className="text-[10px] uppercase tracking-widest text-[var(--ink-faint)] mb-2">Tutor persona</div>

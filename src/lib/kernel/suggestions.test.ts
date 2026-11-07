@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { suggestFollowUps, endsWithQuestion, type SuggestionInput } from "./suggestions";
+import { suggestFollowUps, endsWithQuestion, isAttempt, type SuggestionInput } from "./suggestions";
 import type { GroundingHit } from "./ground";
 import type { Syllabus } from "../../types";
 
@@ -187,5 +187,40 @@ describe("suggestFollowUps", () => {
       syllabus: syllabus([{ title: "Moles", mastered: false }]),
     }));
     expect(new Set(out.map((s) => s.message)).size).toBe(out.length);
+  });
+});
+
+describe("attempt-gated answer chip", () => {
+  const ASKED = "Start with the ones digits. What do you get when you add 7 and 8?";
+
+  it("counts a reply to the tutor's question as a try", () => {
+    expect(isAttempt(ASKED, "Is it 75?")).toBe(true);
+    expect(isAttempt(ASKED, "15")).toBe(true);
+  });
+
+  it("does not count a request for help, an empty message, or a reply to a statement", () => {
+    expect(isAttempt(ASKED, "Give me a hint.")).toBe(false);
+    expect(isAttempt(ASKED, "Walk me through it.")).toBe(false);
+    expect(isAttempt(ASKED, "Show me the full worked answer.")).toBe(false);
+    expect(isAttempt(ASKED, "   ")).toBe(false);
+    expect(isAttempt("The heart has four chambers.", "ok")).toBe(false);
+    expect(isAttempt(undefined, "What is 47 + 38?")).toBe(false);
+  });
+
+  it("offers the answer first, but only after a try", () => {
+    expect(suggestFollowUps(input({ answer: ASKED })).map((s) => s.label)).not.toContain("Show me the answer");
+    const after = suggestFollowUps(input({ answer: ASKED, studentAttempted: true }));
+    expect(after.map((s) => s.label)).toEqual(["Show me the answer", "Give me a hint", "Walk me through it"]);
+    expect(after[0].message).toBe("Show me the full worked answer.");
+    expect(after[0].mode).toBeUndefined(); // explain, never socratic or hint
+  });
+
+  it("does not offer the answer when the tutor did not ask anything", () => {
+    expect(suggestFollowUps(input({ studentAttempted: true })).map((s) => s.label)).not.toContain("Show me the answer");
+  });
+
+  it("keeps Continue ahead of everything on a cut-off reply", () => {
+    const out = suggestFollowUps(input({ answer: ASKED, studentAttempted: true, truncated: true }));
+    expect(out.map((s) => s.label)).toEqual(["Continue", "Show me the answer", "Give me a hint"]);
   });
 });
