@@ -5,6 +5,8 @@
 // non-literal specifier and given the narrow types below. Only the headless eval and its tests import
 // this file; nothing in the app does, so Vite never bundles it.
 
+import type { GitState } from "./env";
+
 interface Dirent { name: string; isDirectory(): boolean; isFile(): boolean }
 interface Fs {
   readFile(path: string): Promise<Uint8Array>;
@@ -61,13 +63,27 @@ export async function writeText(file: string, text: string): Promise<void> {
   await f.writeFile(file, text, "utf8");
 }
 
-/** The commit the run happened at, and whether src/ has uncommitted changes (protocol rule 4). */
-export async function gitState(): Promise<{ commit: string | null; srcDirty: boolean | null }> {
-  try {
-    const cp = await load<ChildProcess>("node:child_process");
-    const run = (cmd: string) => cp.execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-    return { commit: run("git rev-parse HEAD"), srcDirty: run("git status --porcelain -- src") !== "" };
-  } catch {
-    return { commit: null, srcDirty: null };
-  }
+async function git(cmd: string): Promise<string> {
+  const cp = await load<ChildProcess>("node:child_process");
+  return cp.execSync(`git ${cmd}`, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+}
+
+/** What protocol rule 4 asks about the working copy. A field is null when git could not answer. */
+export async function gitState(): Promise<GitState> {
+  const ask = <T>(f: () => Promise<T>): Promise<T | null> => f().catch(() => null);
+  return {
+    commit: await ask(() => git("rev-parse HEAD")),
+    srcDirty: await ask(async () => (await git("status --porcelain -- src")) !== ""),
+    srcDiffersFromMaster: await ask(async () => (await git("diff --name-only master -- src")) !== ""),
+    tags: await ask(async () => (await git("tag --points-at HEAD")).split(/\s+/).filter(Boolean)),
+  };
+}
+
+/**
+ * The main checkout's folder (the parent of git's common dir), so results written from a linked
+ * worktree outlive the worktree. The working directory when git cannot say.
+ */
+export async function mainCheckout(): Promise<string> {
+  const p = await path();
+  return git("rev-parse --path-format=absolute --git-common-dir").then((d) => p.dirname(d), () => cwd());
 }

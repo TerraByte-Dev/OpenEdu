@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseEvalEnv, storeValuesFor, defaultOutPath, DEFAULT_EVAL_MODEL } from "./env";
+import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, DEFAULT_EVAL_MODEL } from "./env";
 
 describe("parseEvalEnv", () => {
   it("defaults to the RAG main set on the primary model, once, via local Ollama", () => {
@@ -23,6 +23,28 @@ describe("parseEvalEnv", () => {
       parseEvalEnv({ EVAL_SUITE: "k12", EVAL_SET: "sealed", EVAL_REPEATS: "0", EVAL_MODES: "sometimes", EVAL_PROVIDER: "openai" });
     } catch (e) { msg = (e as Error).message; }
     for (const k of ["EVAL_SUITE", "EVAL_SEALED", "EVAL_REPEATS", "EVAL_MODES", "EVAL_API_KEY"]) expect(msg).toContain(k);
+  });
+});
+
+describe("parseEvalEnv, sealed runs", () => {
+  it("refuses options that would run part of the sealed set (a partial run still burns all of it)", () => {
+    const sealed = { EVAL_SET: "sealed", EVAL_SEALED: "x.json" };
+    expect(() => parseEvalEnv(sealed)).not.toThrow();
+    expect(() => parseEvalEnv({ ...sealed, EVAL_ONLY: "s-nm01" })).toThrow(/EVAL_ONLY/);
+    expect(() => parseEvalEnv({ ...sealed, EVAL_MODES: "always" })).toThrow(/EVAL_MODES/);
+  });
+});
+
+describe("sealedGitRefusal (protocol rule 4)", () => {
+  const ok = { commit: "abc", srcDirty: false, srcDiffersFromMaster: false, tags: ["eval-test-2026-11-08"] };
+  it("allows a clean src/ that matches master, at an eval-test tag", () => {
+    expect(sealedGitRefusal(ok)).toBeNull();
+  });
+  it("refuses uncommitted src/, a src/ that differs from master, no eval-test tag, or no git", () => {
+    expect(sealedGitRefusal({ ...ok, srcDirty: true })).toMatch(/uncommitted/);
+    expect(sealedGitRefusal({ ...ok, srcDiffersFromMaster: true })).toMatch(/master/);
+    expect(sealedGitRefusal({ ...ok, tags: ["v0.9.0"] })).toMatch(/eval-test-/);
+    expect(sealedGitRefusal({ commit: null, srcDirty: null, srcDiffersFromMaster: null, tags: null })).toMatch(/git/);
   });
 });
 

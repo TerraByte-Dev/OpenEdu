@@ -160,6 +160,8 @@ describe("headless eval == webview eval, on the wire", () => {
     expect(out.set).toBe("dev");
     expect(out.model).toBe(MODEL);
     expect(out.options).not.toHaveProperty("apiKey");
+    expect((out as unknown as { library: { enabled: boolean; cards: number } }).library).toMatchObject({ enabled: true, cards: expect.any(Number) });
+    expect((out as unknown as { library: { cards: number } }).library.cards).toBeGreaterThan(0);
     expect(out.rows).toHaveLength(1);
     const row = out.rows[0] as { ttft_ms: number; total_ms: number; retrievedTitles: string[]; answer: string };
     expect(typeof row.ttft_ms).toBe("number");

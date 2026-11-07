@@ -7,17 +7,17 @@
 
 import { STORE_FILE } from "../../store-keys";
 import { getOllamaModels } from "../../llm";
-import { getEmbeddingConfig } from "../../store";
+import { getEmbeddingConfig, getLibraryEnabled } from "../../store";
 import { registerBuiltinTools } from "../../tools";
 import { loadBuiltinSkills } from "../../skills";
-import { refreshManifest } from "../../library";
+import { refreshManifest, isLibraryAvailable, getManifest } from "../../library";
 import { refreshDatasetManifest } from "../../library-datasets";
 import { runRagEval, type RagCustomSet, type RagReport } from "../rag-runner";
 import { HELDOUT_V2_SHA256, loadSealed } from "../sealed";
 import { seedStore } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
-import { parseEvalEnv, storeValuesFor, defaultOutPath, type EvalOptions } from "./env";
-import { cwd, path, writeText, gitState } from "./node-io";
+import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type EvalOptions } from "./env";
+import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
 
 export interface HeadlessResult {
   report: RagReport;
@@ -37,6 +37,10 @@ async function preflight(o: EvalOptions, embedModel: string): Promise<void> {
 
 export async function runHeadlessEval(env: Record<string, string | undefined>): Promise<HeadlessResult> {
   const o = parseEvalEnv(env);
+  const git = await gitState();
+  // Rule 4 before the set is touched: reading it burns it.
+  const refusal = o.set === "sealed" ? sealedGitRefusal(git) : null;
+  if (refusal) throw new Error(refusal);
 
   // Settings first: the store is read by everything below.
   seedStore(STORE_FILE, storeValuesFor(o));
@@ -62,6 +66,13 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   await loadBuiltinSkills();
   await refreshManifest();
   await refreshDatasetManifest();
+  // refreshManifest swallows errors, so a missing public/ would quietly drop the library from grounding
+  // and the tool list. Refuse instead, and record what loaded.
+  const libraryEnabled = await getLibraryEnabled();
+  if (libraryEnabled && !isLibraryAvailable()) {
+    throw new Error(`The library is enabled but its manifest did not load from ${(await path()).resolve(cwd(), "public", "library")}. Run npm run eval from the repo root.`);
+  }
+  const library = { enabled: libraryEnabled, cards: libraryEnabled ? (await getManifest()).length : 0 };
 
   const started = new Date();
   const report = await runRagEval({
@@ -74,14 +85,18 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   const finished = new Date();
 
   const p = await path();
-  const outFile = p.resolve(cwd(), o.out ?? defaultOutPath(o, started));
-  const git = await gitState();
+  // EVAL_OUT is relative to where you ran it; the default lands in the main checkout's .dev/, which a
+  // linked worktree's removal would otherwise delete with it.
+  const outFile = o.out ? p.resolve(cwd(), o.out) : p.resolve(await mainCheckout(), defaultOutPath(o, started));
   const options = { ...o, apiKey: undefined }; // dropped by JSON.stringify: a key never reaches the file
   await writeText(outFile, JSON.stringify({
     suite: o.suite,
     options,
     commit: git.commit,
     srcDirty: git.srcDirty,
+    srcDiffersFromMaster: git.srcDiffersFromMaster,
+    tags: git.tags,
+    library,
     sealedSha256,
     started: started.toISOString(),
     finished: finished.toISOString(),

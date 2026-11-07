@@ -53,6 +53,9 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   if (!SETS.includes(set)) errs.push(`EVAL_SET=${set}: use ${SETS.join(", ")}`);
   const sealedPath = get("EVAL_SEALED");
   if (set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
+  // A partial sealed run still reads, and so burns, the whole set (protocol rule 8).
+  if (set === "sealed" && get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed with EVAL_SET=sealed: the run covers every item");
+  if (set === "sealed" && get("EVAL_MODES")) errs.push("EVAL_MODES is not allowed with EVAL_SET=sealed: the run uses the runner's default modes");
 
   const repeatsRaw = get("EVAL_REPEATS") ?? "1";
   const repeats = Number(repeatsRaw);
@@ -113,7 +116,31 @@ export function storeValuesFor(o: EvalOptions): Record<string, unknown> {
   return v;
 }
 
-/** Default results path, relative to the working directory. */
+export interface GitState {
+  commit: string | null;
+  /** Uncommitted or untracked changes under src/. */
+  srcDirty: boolean | null;
+  /** `git diff master -- src` is not empty. */
+  srcDiffersFromMaster: boolean | null;
+  /** Tags pointing at HEAD. */
+  tags: string[] | null;
+}
+
+/**
+ * Protocol rule 4 for a sealed run: the reason it must not start, or null. Checked before the set is
+ * read, because reading it burns it (rule 8).
+ */
+export function sealedGitRefusal(g: GitState): string | null {
+  const why =
+    g.commit === null || g.srcDirty === null || g.srcDiffersFromMaster === null || g.tags === null ? "git state could not be read (is git on PATH, and is there a master branch?)"
+    : g.srcDirty ? "src/ has uncommitted changes"
+    : g.srcDiffersFromMaster ? "src/ differs from master"
+    : !g.tags.some((t) => t.startsWith("eval-test-")) ? "HEAD has no eval-test-<date> tag"
+    : null;
+  return why && `Refusing the sealed run: ${why}. heldout-v2-protocol.md rule 4: run at an eval-test-<date> tag with git diff against master = 0 in src/.`;
+}
+
+/** Default results path, relative to the main checkout (see run.ts). */
 export function defaultOutPath(o: EvalOptions, now: Date): string {
   const stamp = now.toISOString().replace(/[:.]/g, "-").replace(/Z$/, "");
   const model = o.model.replace(/[^A-Za-z0-9._-]+/g, "_");

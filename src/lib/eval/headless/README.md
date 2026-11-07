@@ -25,23 +25,36 @@ from environment variables.
 | `EVAL_SET` | `main` | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), or `sealed`. |
 | `EVAL_SEALED` | (none) | Path to the sealed v2 file. Required with `EVAL_SET=sealed`. |
 | `EVAL_REPEATS` | `1` | Repeats per question and mode. |
-| `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. |
-| `EVAL_ONLY` | (all) | Comma list of question ids. |
+| `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. Not allowed with `sealed`. |
+| `EVAL_ONLY` | (all) | Comma list of question ids. Not allowed with `sealed`. |
 | `EVAL_SYLLABUS` | `python` | `python` or `matched` (see rag-runner.ts). |
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
-| `EVAL_OUT` | `.dev/eval-runs/<stamp>-rag-<set>-<model>.json` | Results JSON. `.dev/` is gitignored. |
+| `EVAL_OUT` | `.dev/eval-runs/<stamp>-rag-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
 The results file holds the runner's report (every row, with `ttft_ms` and `total_ms`), the options,
-the commit SHA, whether `src/` had uncommitted changes, and the sealed file's SHA-256 when one was used.
+the commit SHA, whether `src/` had uncommitted changes or differs from master, the tags at HEAD, whether
+the library was on and how many cards it had, and the sealed file's SHA-256 when one was used.
+
+The run refuses to start when the library is on but its manifest did not load (run it from the repo
+root, where `public/library/` is).
 
 ## The sealed set
 
-`EVAL_SET=sealed EVAL_SEALED=<path>` reads the file through `loadSealed` in `../sealed.ts`. Before any
-model call it refuses when:
+`EVAL_SET=sealed EVAL_SEALED=<path>` reads the file through `loadSealed` in `../sealed.ts`. It refuses:
 
-1. the file's SHA-256 is not the one in `../heldout-v2-protocol.md`;
-2. the file does not match the v2 schema;
-3. the name lint finds one of the set's made-up names in `src/` outside `src/lib/eval/`.
+1. **before the file is read**, unless HEAD is at an `eval-test-<date>` tag, `src/` has no uncommitted
+   changes, and `git diff master -- src` is empty (protocol rule 4). `EVAL_ONLY` and `EVAL_MODES` are
+   refused too: a partial run still burns the whole set;
+2. when the file's SHA-256 is not the one in `../heldout-v2-protocol.md`;
+3. when the file does not match the v2 schema;
+4. when the name lint finds one of the set's made-up names or invented words in `src/`.
+
+The lint is stricter than protocol rule 2. Inside `src/lib/eval/` it skips only the item data
+(`rag-fixture.ts`, `rag-heldout.ts`, `k12-items.ts`, `library-fixture.ts`), tests and `.md` files,
+because the runner's prompts and syllabi there shape every request. It finds a name inside code
+identifiers (`QUORVATH_BOOST`, `isQuorvath`) and with a plural or possessive ending. An English
+wordlist (the `word-list` dev dependency), the bundled library's words and the k12 items' lower-case
+words count as ordinary; everything else in the set's English text is linted, in any position and case.
 
 The sealed notes become the vault in place of `RAG_FIXTURE`. Do not run it on a whim: the protocol
 says a set burns when it is read.
