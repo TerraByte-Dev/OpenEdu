@@ -60,7 +60,7 @@ describe("migration 13 on an existing install", () => {
     migrate(12);
     sqlite.exec(`INSERT INTO courses (id, title, topic, current_level) VALUES ('c1', 'Algebra', 'algebra', 1.0), ('c2', 'Biology', 'biology', 2.0);`);
     sqlite.exec(`INSERT INTO notes (id, course_id, title, content) VALUES ('n1', 'c1', 'My note', 'x = 2');`);
-    migrate(13, 13);
+    migrate(14, 13); // the app runs every migration; 14 adds group_id, which createLearner writes
   });
 
   it("creates one default learner with no PIN, so no picker appears", async () => {
@@ -124,7 +124,7 @@ describe("migration 13 on an existing install", () => {
 describe("migration 13 on a fresh install", () => {
   it("still makes exactly one default learner and no picker", async () => {
     await openDb();
-    migrate(13);
+    migrate(14);
     const learners = await listLearners();
     expect(learners.map((l) => l.id)).toEqual([DEFAULT_LEARNER_ID]);
     expect(needsPicker(learners)).toBe(false);

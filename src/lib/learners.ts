@@ -16,6 +16,8 @@ export interface LearnerRow {
   pin_salt: string | null;
   created_at: string;
   last_active_at: string | null;
+  /** The learner's group in school mode (migration 14), or null. */
+  group_id?: string | null;
 }
 
 export const LEARNER_NAME_MAX = 40;

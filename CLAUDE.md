@@ -33,8 +33,9 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 
 ## Architecture orientation
 
-- `src/lib/db.ts` — SQLite CRUD for every table (`courses`, `syllabuses`, `tutor_instructions`, `notes`, `chat_messages`, `quiz_attempts`, `quiz_questions`, `user_progress`, `learners`). Holds the active learner: course listing, creation and `getCourse` are scoped to it. `getDb()` switches the file to WAL on open; `checkDatabaseHealth()` (boot `quick_check`) and `backupLearnerData()` (`VACUUM INTO`) sit on the pure `src/lib/db-resilience.ts`. Per-connection PRAGMAs from JS are unreliable (sqlx pool of up to 10, recycled); sqlx already sets `foreign_keys=ON` and `busy_timeout` 5 s on every connection.
+- `src/lib/db.ts` — SQLite CRUD for every table (`courses`, `syllabuses`, `tutor_instructions`, `notes`, `chat_messages`, `quiz_attempts`, `quiz_questions`, `user_progress`, `learners`, `learner_groups`, `app_config`). Holds the active learner: course listing, creation and `getCourse` are scoped to it. `getTeacherOverviewSource` is the one deliberate cross-learner read, for the teacher view only. `getDb()` switches the file to WAL on open; `checkDatabaseHealth()` (boot `quick_check`) and `backupLearnerData()` (`VACUUM INTO`) sit on the pure `src/lib/db-resilience.ts`. Per-connection PRAGMAs from JS are unreliable (sqlx pool of up to 10, recycled); sqlx already sets `foreign_keys=ON` and `busy_timeout` 5 s on every connection.
 - `src/lib/learners.ts` / `learner-pin.ts` — learner profiles on a shared PC: picker-visibility rule, course-ownership guard, name rules, PBKDF2 PINs. Pure and tested; see `docs/ARCHITECTURE.md` › Data & storage.
+- `src/lib/usage-modes.ts` — "Who uses this computer?": Just me / A class / A school or center. Startup mode, what the teacher PIN guards, mode-change steps, picker and chip rules, school groups. `teacher-overview.ts` + `csv.ts` build the teacher's learner x course table and its CSV (formula-injection guarded). All pure and tested.
 - `src/lib/llm.ts` — provider abstraction (Ollama / OpenAI / Anthropic), streaming chat, schema-enforced structured output, tier detection, preflight check.
 - `src/lib/curriculum.ts` — the agent harness. Research → outline → tutor instructions → 6 syllabuses. All schema-enforced. Entry point: `runGenerationPipeline`.
 - `src/lib/knowledge.ts` — persistent per-course knowledge files (`knowledge_map`, `misconceptions`, `study_log`, `learning_profile`) used as tutor context.
@@ -49,7 +50,7 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 - `src/components/` — shared widgets, including `terminal/*` primitives.
 - `src-tauri/` — Rust backend, SQLite migrations, plugin config.
 
-The pure modules above (`store-keys`, `learners`, `learner-pin`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`) are Tauri-free and unit-tested in `*.test.ts` next to them.
+The pure modules above (`store-keys`, `learners`, `learner-pin`, `usage-modes`, `teacher-overview`, `csv`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
 DB lives at `%APPDATA%/com.terrabytesolutions.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 
@@ -114,7 +115,7 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 - API keys / model config persist via `@tauri-apps/plugin-store`.
 - Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `dialog`, `store`, `updater`, `process`,
   and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily /
-  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers five
+  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers six
   `#[tauri::command]`s. Four are from `corpus.rs` (`corpus_grant`, `corpus_granted`, `corpus_list`,
   `corpus_read_text`): read-only access scoped to folders the user picks, with no write command. The
   fifth, `system_memory_bytes` in `system.rs`, returns total physical RAM (or null) so `store.ts` can
@@ -122,7 +123,10 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   when the user has not picked a model, unless that one is not pulled and the other default is (so an
   upgrade never strands an install on a model it lacks); `navigator.deviceMemory` caps at 8 and cannot
   draw that line. e2b tiers as `tiny`, so `quiz-grading.ts` `runsVerifyPass` keeps the quiz verify pass
-  on for both defaults.
+  on for both defaults. The sixth, `export_save_csv` in `export.rs`, is the only write: it opens the
+  native Save dialog from Rust and writes the given text only to the file the user picked there, forced
+  to `.csv` (the teacher overview export), and it refuses rather than replace a file the dialog did not
+  warn about (`report.txt` picked, `report.txt.csv` exists). The webview never names a path.
   The Rust side is migrations, six `.plugin()` calls, and those commands. **Nothing in the UI calls
   `src/lib/corpus.ts` yet**, so in the shipped app the only way a file's content enters is the notebook
   import (file picker or drag-and-drop), filtered to `.md,.markdown,.txt` and read via `File.text()`

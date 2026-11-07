@@ -2,6 +2,8 @@ import Database from "@tauri-apps/plugin-sql";
 import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
 import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
+import { parseUsageMode, type UsageMode, type GroupRow } from "./usage-modes";
+import type { OverviewSource } from "./teacher-overview";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -77,10 +79,13 @@ export async function listLearners(): Promise<LearnerRow[]> {
   return await d.select("SELECT * FROM learners ORDER BY created_at ASC, rowid ASC");
 }
 
-export async function createLearner(name: string): Promise<LearnerRow> {
+export async function createLearner(name: string, groupId: string | null = null): Promise<LearnerRow> {
   const d = await getDb();
   const id = uuid();
-  await d.execute("INSERT INTO learners (id, name, created_at) VALUES ($1, $2, datetime('now'))", [id, name.trim()]);
+  await d.execute(
+    "INSERT INTO learners (id, name, created_at, group_id) VALUES ($1, $2, datetime('now'), $3)",
+    [id, name.trim(), groupId],
+  );
   const rows: LearnerRow[] = await d.select("SELECT * FROM learners WHERE id = $1", [id]);
   return rows[0];
 }
@@ -108,6 +113,99 @@ export async function deleteLearner(id: string): Promise<void> {
   for (const c of owned) await deleteCourse(c.id);
   await d.execute("DELETE FROM learners WHERE id = $1", [id]);
   if (activeLearnerId === id) activeLearnerId = null;
+}
+
+// ── Usage mode + teacher PIN (migration 14) ─────────────────────────────────
+// Stored in app_config, next to the data they protect. See usage-modes.ts for the rules.
+
+export interface UsageConfig {
+  /** null = never chosen (a fresh install that has not been asked yet). */
+  mode: UsageMode | null;
+  /** Same record shape as a learner PIN (learner-pin.ts), or nulls when no teacher PIN is set. */
+  teacher: { pin_hash: string | null; pin_salt: string | null };
+}
+
+export async function getUsageConfig(): Promise<UsageConfig> {
+  const d = await getDb();
+  const rows: Array<{ key: string; value: string | null }> = await d.select(
+    "SELECT key, value FROM app_config WHERE key IN ('usage_mode', 'teacher_pin_hash', 'teacher_pin_salt')",
+  );
+  const get = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
+  return {
+    mode: parseUsageMode(get("usage_mode")),
+    teacher: { pin_hash: get("teacher_pin_hash"), pin_salt: get("teacher_pin_salt") },
+  };
+}
+
+/**
+ * Save the mode, and the teacher PIN with it, so the two never disagree. `teacher` is the new PIN
+ * record, or null to clear it (going back to "Just me"), or undefined to leave it alone. One
+ * statement, so SQLite applies all of it or none of it: a failed write can never leave a class or
+ * school with no teacher PIN, or "Just me" with half of one.
+ */
+export async function setUsageMode(
+  mode: UsageMode,
+  teacher?: { pin_hash: string; pin_salt: string } | null,
+): Promise<void> {
+  const d = await getDb();
+  const upsert = "ON CONFLICT(key) DO UPDATE SET value = excluded.value";
+  if (teacher === undefined) {
+    await d.execute(`INSERT INTO app_config (key, value) VALUES ('usage_mode', $1) ${upsert}`, [mode]);
+    return;
+  }
+  await d.execute(
+    `INSERT INTO app_config (key, value) VALUES ('teacher_pin_hash', $1), ('teacher_pin_salt', $2), ('usage_mode', $3) ${upsert}`,
+    [teacher?.pin_hash ?? null, teacher?.pin_salt ?? null, mode],
+  );
+}
+
+// ── Groups (school mode, migration 14) ──────────────────────────────────────
+
+export async function listGroups(): Promise<GroupRow[]> {
+  const d = await getDb();
+  return await d.select("SELECT * FROM learner_groups ORDER BY name COLLATE NOCASE ASC");
+}
+
+export async function createGroup(name: string): Promise<GroupRow> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute("INSERT INTO learner_groups (id, name, created_at) VALUES ($1, $2, datetime('now'))", [id, name.trim()]);
+  const rows: GroupRow[] = await d.select("SELECT * FROM learner_groups WHERE id = $1", [id]);
+  return rows[0];
+}
+
+export async function renameGroup(id: string, name: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE learner_groups SET name = $1 WHERE id = $2", [name.trim(), id]);
+}
+
+/** Delete a group. Its learners stay, in no group; nobody's data is touched. */
+export async function deleteGroup(id: string): Promise<void> {
+  const d = await getDb();
+  // The FK says ON DELETE SET NULL; do it explicitly too so it holds even with foreign keys off.
+  await d.execute("UPDATE learners SET group_id = NULL WHERE group_id = $1", [id]);
+  await d.execute("DELETE FROM learner_groups WHERE id = $1", [id]);
+}
+
+export async function setLearnerGroup(learnerId: string, groupId: string | null): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE learners SET group_id = $1 WHERE id = $2", [groupId, learnerId]);
+}
+
+/**
+ * Raw rows for the teacher overview, across EVERY learner. This deliberately bypasses the
+ * active-learner scope above, so only the teacher view may call it, and only after the teacher PIN.
+ * Read-only; teacher-overview.ts buildOverviewRows turns it into the table and the CSV.
+ */
+export async function getTeacherOverviewSource(): Promise<OverviewSource> {
+  const d = await getDb();
+  return {
+    learners: await listLearners(),
+    groups: await listGroups(),
+    courses: await d.select("SELECT id, title, learner_id, current_level, updated_at FROM courses"),
+    syllabuses: await d.select("SELECT course_id, subtopics FROM syllabuses"),
+    progress: await d.select("SELECT course_id, last_active_at FROM user_progress"),
+  };
 }
 
 // Courses

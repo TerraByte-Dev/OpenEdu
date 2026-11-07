@@ -2,18 +2,21 @@ import { useState } from "react";
 import { createLearner, renameLearner, setLearnerPin, deleteLearner } from "../lib/db";
 import { clearLearnerStore } from "../lib/store";
 import {
-  needsPicker, canDeleteLearner, validateLearnerName, deleteConfirmMatches,
+  canDeleteLearner, validateLearnerName, deleteConfirmMatches,
   LEARNER_NAME_MAX, type LearnerRow,
 } from "../lib/learners";
 import { hashPin, verifyPin, isValidPin } from "../lib/learner-pin";
 import { Initial, BIG_BTN } from "./LearnerPicker";
+import { showsPicker, learnersManageLearners, type UsageMode } from "../lib/usage-modes";
 
 // The active learner's own controls, opened from the titlebar. Everything here acts on the learner
-// who is signed in and nobody else: you can rename, set a PIN for, or delete only yourself.
+// who is signed in and nobody else: you can rename, set a PIN for, or delete only yourself. In a class
+// or school (usage-modes.ts) adding and deleting learners moves to the teacher view.
 
 interface LearnerMenuProps {
   learner: LearnerRow;
   learners: LearnerRow[];
+  mode: UsageMode;
   /** Set while a course is being built: switching would hand the build's screen to someone else. */
   busyReason: string | null;
   onClose: () => void;
@@ -31,9 +34,10 @@ type Panel = null | "add" | "rename" | "pin" | "delete";
 const SMALL_BTN: React.CSSProperties = { fontSize: "1rem", padding: "10px 18px" };
 const INPUT: React.CSSProperties = { fontSize: "1.15rem" };
 
-export default function LearnerMenu({ learner, learners, busyReason, onClose, onSwitch, onAdded, onChanged, onDeleted }: LearnerMenuProps) {
+export default function LearnerMenu({ learner, learners, mode, busyReason, onClose, onSwitch, onAdded, onChanged, onDeleted }: LearnerMenuProps) {
   const [panel, setPanel] = useState<Panel>(null);
-  const canSwitch = needsPicker(learners);
+  const canSwitch = showsPicker(mode, learners);
+  const selfService = learnersManageLearners(mode);
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60" onMouseDown={onClose}>
@@ -62,12 +66,18 @@ export default function LearnerMenu({ learner, learners, busyReason, onClose, on
                 Switch learner
               </button>
             )}
-            <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("add")}>Add learner</button>
+            {selfService && (
+              <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("add")}>Add learner</button>
+            )}
             <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("rename")}>Change my name</button>
             <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("pin")}>
               {learner.pin_hash ? "Change or remove my PIN" : "Set a PIN"}
             </button>
-            <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("delete")}>Delete me</button>
+            {selfService ? (
+              <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("delete")}>Delete me</button>
+            ) : (
+              <p className="text-base text-[var(--ink-dim)]">Your teacher adds and removes learners, and can clear a PIN you forget.</p>
+            )}
           </div>
         )}
 
@@ -75,7 +85,7 @@ export default function LearnerMenu({ learner, learners, busyReason, onClose, on
         {panel === "rename" && (
           <RenamePanel learner={learner} learners={learners} onBack={() => setPanel(null)} onDone={() => { onChanged(); setPanel(null); }} />
         )}
-        {panel === "pin" && <PinPanel learner={learner} onBack={() => setPanel(null)} onDone={() => { onChanged(); setPanel(null); }} />}
+        {panel === "pin" && <PinPanel learner={learner} teacherCanReset={!selfService} onBack={() => setPanel(null)} onDone={() => { onChanged(); setPanel(null); }} />}
         {panel === "delete" && (
           <DeletePanel learner={learner} learners={learners} onBack={() => setPanel(null)} onDeleted={onDeleted} />
         )}
@@ -160,7 +170,7 @@ function RenamePanel({ learner, learners, onBack, onDone }: { learner: LearnerRo
   );
 }
 
-function PinInput({ value, onChange, autoFocus }: { value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+export function PinInput({ value, onChange, autoFocus }: { value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
   return (
     <input
       type="password"
@@ -176,7 +186,7 @@ function PinInput({ value, onChange, autoFocus }: { value: string; onChange: (v:
   );
 }
 
-function PinPanel({ learner, onBack, onDone }: { learner: LearnerRow; onBack: () => void; onDone: () => void }) {
+function PinPanel({ learner, teacherCanReset, onBack, onDone }: { learner: LearnerRow; teacherCanReset: boolean; onBack: () => void; onDone: () => void }) {
   const hasPin = !!learner.pin_hash;
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -226,7 +236,8 @@ function PinPanel({ learner, onBack, onDone }: { learner: LearnerRow; onBack: ()
   return (
     <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void save(); }}>
       <p className="text-base text-[var(--ink-dim)]">
-        A PIN keeps other learners on this computer out of your courses. If you forget it, it cannot be recovered yet.
+        A PIN keeps other learners on this computer out of your courses.{" "}
+        {teacherCanReset ? "If you forget it, your teacher can clear it." : "If you forget it, it cannot be recovered yet."}
       </p>
       {hasPin && (
         <Field label="Current PIN">
