@@ -30,7 +30,9 @@ describe("P3 — does a purpose-built unit clear the pool law by construction?",
       // all. A unit built to the rule yields dozens, because every concept section ends in a table
       // or a definition list the compiler can harvest with a guaranteed-correct key.
       expect(r.closed).toBeGreaterThanOrEqual(10);
-      expect(r.kinds).toBeGreaterThanOrEqual(2);
+      // The pool law is ">= 2 checker kinds OR >= 10 distinct answers" (POOL_MIN_DISTINCT, decided
+      // 2026-09-08). This test used to demand two kinds outright, which is stricter than the law the
+      // app enforces: a unit of anatomy definitions is 30 different facts in one checker kind.
       expect(r.bearsMastery).toBe(true);
       // Zero gate rejections: authored-to-spec content should not be tripping V0-V3 at all.
       expect(Object.keys(r.byGate)).toEqual([]);
