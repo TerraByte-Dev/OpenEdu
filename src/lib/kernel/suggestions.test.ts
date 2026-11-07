@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { suggestFollowUps, endsWithQuestion, isAttempt, type SuggestionInput } from "./suggestions";
+import { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, type SuggestionInput } from "./suggestions";
 import type { GroundingHit } from "./ground";
 import type { Syllabus } from "../../types";
 
@@ -193,18 +193,37 @@ describe("suggestFollowUps", () => {
 describe("attempt-gated answer chip", () => {
   const ASKED = "Start with the ones digits. What do you get when you add 7 and 8?";
 
+  const tutor = (content: string) => ({ role: "assistant", content });
+  const student = (content: string) => ({ role: "user", content });
+
   it("counts a reply to the tutor's question as a try", () => {
-    expect(isAttempt(ASKED, "Is it 75?")).toBe(true);
-    expect(isAttempt(ASKED, "15")).toBe(true);
+    expect(hasTriedOpenQuestion([student("What is 47 + 38?"), tutor(ASKED), student("Is it 75?")])).toBe(true);
+    expect(hasTriedOpenQuestion([tutor(ASKED), student("15")])).toBe(true);
   });
 
-  it("does not count a request for help, an empty message, or a reply to a statement", () => {
-    expect(isAttempt(ASKED, "Give me a hint.")).toBe(false);
-    expect(isAttempt(ASKED, "Walk me through it.")).toBe(false);
-    expect(isAttempt(ASKED, "Show me the full worked answer.")).toBe(false);
-    expect(isAttempt(ASKED, "   ")).toBe(false);
-    expect(isAttempt("The heart has four chambers.", "ok")).toBe(false);
-    expect(isAttempt(undefined, "What is 47 + 38?")).toBe(false);
+  it("does not count requests, prefills, or a reply to a statement", () => {
+    for (const msg of ["Give me a hint.", "Give me a hint please", "Walk me through it.", "Help me with Decimals.",
+      "Explain carrying.", "I don't know", "idk", "   "]) {
+      expect(hasTriedOpenQuestion([tutor(ASKED), student(msg)]), msg).toBe(false);
+    }
+    expect(hasTriedOpenQuestion([tutor("The heart has four chambers."), student("ok")])).toBe(false);
+    expect(hasTriedOpenQuestion([student("What is 47 + 38?")])).toBe(false);
+  });
+
+  it("keeps a try through a hint request, so a hint does not take the answer away", () => {
+    expect(hasTriedOpenQuestion([
+      tutor(ASKED), student("75"), tutor("Not quite. What do 7 and 8 make?"), student("Give me a hint."),
+    ])).toBe(true);
+  });
+
+  it("closes the question once the answer was shown or the tutor stopped asking", () => {
+    expect(hasTriedOpenQuestion([
+      tutor(ASKED), student("75"), tutor("Not quite. What do 7 and 8 make?"),
+      student("Show me the full worked answer."),
+    ])).toBe(false);
+    expect(hasTriedOpenQuestion([
+      tutor(ASKED), student("75"), tutor("The answer is 85."), student("Give me a hint."),
+    ])).toBe(false);
   });
 
   it("offers the answer first, but only after a try", () => {

@@ -7,6 +7,6 @@ export { dispatchToolCall, selectTools, buildProviderToolDefs } from "./toolDisp
 export type { ToolUIEvent, ToolDispatchResult } from "./toolDispatch";
 export { MAX_TURN_ITERATIONS } from "./stopHooks";
 export { ground, groundedIn, shouldRetrieve, selectHits, formatGroundingBlock, EMPTY_GROUNDING, type Grounding, type GroundingHit, type RetrievalMode } from "./ground";
-export { suggestFollowUps, endsWithQuestion, isAttempt, type Suggestion } from "./suggestions";
+export { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, type Suggestion } from "./suggestions";
 export { citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type CitationNote } from "./citation";
 export { OUTPUT_RULES, outputRulesLayer } from "./outputRules";

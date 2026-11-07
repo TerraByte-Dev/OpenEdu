@@ -10,7 +10,7 @@ import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, isAttempt, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
+import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
@@ -206,7 +206,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     }
 
     // `messages` still holds the history from before this send.
-    const studentAttempted = isAttempt([...messages].reverse().find((m) => m.role === "assistant")?.content, userText);
+    const studentAttempted = hasTriedOpenQuestion([...messages, { role: "user", content: userText }]);
     const userMsg = await saveChatMessage(courseId, "user", userText, level, activeThread);
     setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});

@@ -290,7 +290,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     autoFocus
                   />
                   {isHealthTopic(topic) && (
-                    <div className="mb-4 p-3 border border-amber-500/40 border-l-4 border-l-amber-500 text-xs text-ink leading-relaxed"
+                    <div className="mb-4 p-3 rounded-lg border border-amber-500/40 border-l-4 border-l-amber-500 text-xs text-ink leading-relaxed"
                          style={{ background: "rgba(245,158,11,0.06)" }}>
                       {HEALTH_NOTICE}
                     </div>

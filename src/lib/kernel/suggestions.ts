@@ -78,7 +78,7 @@ export interface SuggestionInput {
   abandoned?: boolean;
   /** The reply was cut off by the length/context limit. Chips still show, led by "Continue". */
   truncated?: boolean;
-  /** The student's last message was a try at the tutor's question (see `isAttempt`). */
+  /** The student has tried the question the tutor has open (see `hasTriedOpenQuestion`). */
   studentAttempted?: boolean;
 }
 
@@ -89,8 +89,13 @@ const WALK_MESSAGE = "Walk me through it.";
 // in 8 of 8 runs, and "Walk me through it." in 5 of 8 (the tutor often kept asking instead).
 const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
 
+// A message that asks for something rather than trying the problem: the chips, the deep-link prefill
+// ("Help me with Decimals."), and the ways students say they are stuck. Matched at the start so a chip
+// the student edited ("Give me a hint please") is still a request.
+const REQUEST = /^(give me a hint|walk me through|show me|help me|explain|tell me|continue|more on|quiz me|review my|check if|let me work|what do my notes|i don'?t know|idk|no idea)\b/i;
+
 /**
- * True when the student's message is a try at the question the tutor just asked.
+ * True when the student has had a go at the question the tutor currently has open.
  *
  * This is what gates the "Show me the answer" chip. Trying before seeing the answer, then getting
  * the answer as feedback, helps memory more than reading the answer straight away (retrieval
@@ -98,11 +103,33 @@ const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
  * nothing, which is what the k12-mc benchmark caught both gemma4 models doing. So the answer is one
  * tap away, but only after one try. Decided by code, not by the model: neither gemma4 model reliably
  * followed a prompt rule to hide its answer.
+ *
+ * `history` ends with the student's newest message. Walking back from it:
+ *   - a help request (hint, walk-through) keeps the try that came before it, so asking for a hint
+ *     after a try does not take the answer away again;
+ *   - "Show me the full worked answer." means the answer was given, so the question is closed;
+ *   - a tutor reply that asked nothing closed the question;
+ *   - any other student message is a try if the tutor's message before it asked a question.
+ *
+ * Known limit: code cannot tell "Correct! Now what is 12 + 9?" from a re-ask of the same question,
+ * so after a correct answer the chip is offered for the tutor's next question too.
  */
-export function isAttempt(previousTutorReply: string | undefined, studentMessage: string): boolean {
-  if (!previousTutorReply || !endsWithQuestion(previousTutorReply)) return false;
-  const msg = studentMessage.trim();
-  return !!msg && msg !== HINT_MESSAGE && msg !== WALK_MESSAGE && msg !== SHOW_ANSWER_MESSAGE;
+export function hasTriedOpenQuestion(history: ReadonlyArray<{ role: string; content: string }>): boolean {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m.role !== "user") {
+      if (!endsWithQuestion(m.content)) return false;
+      continue;
+    }
+    const text = m.content.trim().replace(/^["'\s]+/, "");
+    if (!text || text === SHOW_ANSWER_MESSAGE) return false;
+    if (REQUEST.test(text)) continue;
+    for (let k = i - 1; k >= 0; k--) {
+      if (history[k].role === "assistant") return endsWithQuestion(history[k].content);
+    }
+    return false;
+  }
+  return false;
 }
 
 /** True when the reply ends on a question, which changes what a useful chip is. */

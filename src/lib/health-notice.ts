@@ -15,16 +15,25 @@ export const HEALTH_NOTICE =
   "trained person. Check what you learn with a health worker or a hands-on first-aid course.";
 
 // Lower-case stems. A stem matches at the start of a word, so "injur" catches injury and injuries.
+// A trailing "$" makes an entry match a whole word only: "stroke$" matches "stroke" but not "strokes"
+// (swimming strokes, brush strokes).
+// Words that collide with common school topics are left out or narrowed on purpose: "depression"
+// (the Great Depression), "seizure" (search and seizure), "medic" (the Medici), "emergenc"
+// (emergence), "aids" (teaching aids). Those topics would otherwise see the warning so often that
+// students learn to ignore it.
 const STEMS = [
   // English
-  "first aid", "first-aid", "cpr", "resuscitat", "emergenc", "choking", "bleeding", "burns", "fracture",
-  "injur", "wound", "poison", "overdose", "snakebite", "snake bite", "drowning", "seizure", "epilep",
-  "stroke", "heart attack", "cardiac", "anaphyla", "allerg", "medic", "drug", "dosage", "dose",
-  "pharmac", "nursing", "nurse", "health", "anatomy", "physiolog", "human biology", "human body",
-  "disease", "infect", "vaccin", "malaria", "diabet", "hypertension", "pregnan", "childbirth",
-  "midwif", "contracept", "sexual health", "reproductive health", "mental health", "suicid",
-  "self-harm", "self harm", "depression", "nutrition", "dehydrat", "diarrh", "hygiene", "sanitation",
-  "disinfect",
+  "first aid", "first-aid", "cpr", "resuscitat", "emergency", "emergencies", "choking", "bleed",
+  "burn care", "burn injur", "burns first aid", "treating a burn", "treating burns", "broken bone",
+  "fracture", "injur", "wound", "poison", "overdose", "snakebite", "snake bite", "drowning",
+  "seizures", "epilep", "stroke$", "heart attack", "cardiac", "anaphyla", "allerg", "medica",
+  "medicin", "paramedic", "drug", "dosage", "pharmac", "nursing", "nurse", "health", "anatomy",
+  "physiolog", "human biology", "human body", "disease", "infect", "vaccin", "immunis", "immuniz",
+  "malaria", "hiv", "tuberculosis", "cholera", "covid", "diabet", "hypertension", "pregnan",
+  "childbirth", "newborn", "breastfeed", "midwif", "puberty", "menstrua", "contracept",
+  "sex education", "sexual health", "reproductive health", "mental health", "suicid", "self-harm",
+  "self harm", "herbal remed", "nutrition", "malnutrition", "dehydrat", "diarrh", "hygiene",
+  "sanitation", "disinfect",
   // French
   "premiers secours", "secourisme", "santé", "médec", "médicament", "maladie", "blessure", "grossesse",
   // Spanish / Portuguese
@@ -38,18 +47,23 @@ function normalise(s: string): string {
   return s.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-// A stem counts only at the start of a word, so "medic" does not match inside "comedic" and "dose"
-// does not match inside "bulldoser".
+// A stem counts only at the start of a word, so "hiv" does not match inside "archive".
+const WORD_CHAR = /[\p{L}\p{N}]/u;
 function startsWord(text: string, i: number): boolean {
-  return i === 0 || !/[\p{L}\p{N}]/u.test(text[i - 1]);
+  return i === 0 || !WORD_CHAR.test(text[i - 1]);
+}
+function endsWord(text: string, i: number): boolean {
+  return i >= text.length || !WORD_CHAR.test(text[i]);
 }
 
 export function isHealthTopic(topic: string): boolean {
   const text = normalise(topic);
   if (!text) return false;
-  return STEMS.some((stem) => {
+  return STEMS.some((entry) => {
+    const whole = entry.endsWith("$");
+    const stem = whole ? entry.slice(0, -1) : entry;
     for (let i = text.indexOf(stem); i !== -1; i = text.indexOf(stem, i + 1)) {
-      if (startsWord(text, i)) return true;
+      if (startsWord(text, i) && (!whole || endsWord(text, i + stem.length))) return true;
     }
     return false;
   });
