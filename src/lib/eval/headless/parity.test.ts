@@ -18,6 +18,9 @@ vi.mock("@tauri-apps/plugin-store", () => import("./shims/plugin-store"));
 vi.mock("@tauri-apps/api/core", () => import("./shims/api-core"));
 
 import { runRagEval } from "../rag-runner";
+import { runK12FlowEval } from "../k12-flow-runner";
+import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
+import { K12_ITEMS } from "../k12-items";
 import { seedStore, resetStores } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
 import { registerBuiltinTools } from "../../tools";
@@ -35,7 +38,7 @@ const OTHER_EMBED = "other-embed";
 const MARLOW = RAG_FIXTURE.find((n) => n.title === "Field Notes — Marlow Basin")!;
 const ASK = RAG_HELDOUT.find((q) => q.id === ITEM)!.ask;
 
-interface Call { path: string; body: Record<string, unknown> | undefined }
+interface Call { path: string; body: Record<string, unknown> | undefined; raw: string | undefined }
 let calls: Call[] = [];
 
 const json = (v: unknown) => new Response(JSON.stringify(v), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -45,7 +48,7 @@ const json = (v: unknown) => new Response(JSON.stringify(v), { status: 200, head
 async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> {
   const url = new URL(String(input));
   const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
-  calls.push({ path: url.pathname, body });
+  calls.push({ path: url.pathname, body, raw: init?.body ? String(init.body) : undefined });
   switch (url.pathname) {
     case "/api/tags":
       return json({ models: [{ name: MODEL }, { name: "nomic-embed-text:latest" }, { name: OTHER_EMBED }] });
@@ -168,5 +171,88 @@ describe("headless eval == webview eval, on the wire", () => {
     expect(row.total_ms).toBeGreaterThanOrEqual(row.ttft_ms);
     expect(row.retrievedTitles).toContain(MARLOW.title);
     expect(row.answer).toBe("The sediment index was 3.71 across the pits.");
+  });
+});
+
+// The same check for k12-flow: one dev item's three turns through the webview hook
+// (window.__runK12FlowEval = runK12FlowEval) and through `EVAL_SUITE=k12-flow npm run eval`.
+// Raw request bodies are compared, so this is byte for byte.
+describe("headless k12-flow == webview k12-flow, on the wire", () => {
+  const FLOW_ITEM = K12_ITEMS.find((x) => x.id === "math-k5-01")!; // math: the domain skill and tools are in play
+  const raws = (p: string) => calls.filter((c) => c.path === p).map((c) => c.raw);
+  let webview: { chat: unknown[]; embed: unknown[] };
+  let headless: { chat: unknown[]; embed: unknown[]; out: Record<string, unknown> };
+
+  beforeAll(async () => {
+    globalThis.fetch = fakeOllama as typeof fetch;
+    installAppOrigin();
+
+    // A. The webview: model picked in Settings, main.tsx's boot, then window.__runK12FlowEval({ only }).
+    resetStores();
+    seedStore(STORE_FILE, { [STORE_KEYS.chatModel]: MODEL });
+    registerBuiltinTools();
+    await loadBuiltinSkills();
+    await refreshManifest();
+    await refreshDatasetManifest();
+    calls = [];
+    await runK12FlowEval({ only: FLOW_ITEM.id });
+    webview = { chat: raws("/api/chat"), embed: raws("/api/embed") };
+
+    // B. The terminal: `EVAL_SUITE=k12-flow EVAL_ONLY=math-k5-01 npm run eval`, in a fresh module graph.
+    calls = [];
+    const f = await fs();
+    const dir = await f.mkdtemp(`${(await os()).tmpdir()}/oe-parity-flow-`);
+    try {
+      const { outFile } = await (await freshRun())({ EVAL_SUITE: "k12-flow", EVAL_MODEL: MODEL, EVAL_ONLY: FLOW_ITEM.id, EVAL_OUT: `${dir}/run.json` });
+      const out = JSON.parse(await f.readFile(outFile, "utf8")) as Record<string, unknown>;
+      headless = { chat: raws("/api/chat"), embed: raws("/api/embed"), out };
+    } finally {
+      await f.rm(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("sends Ollama byte-identical chat requests: the warm-up, then T1, T2 and T3", () => {
+    expect(webview.chat).toHaveLength(4);
+    expect(headless.chat).toEqual(webview.chat);
+    type Msg = { role: string; content: string };
+    const turns = headless.chat.slice(1).map((r) => JSON.parse(r as string) as { messages: Msg[]; tools?: unknown[] });
+    const lastUser = (m: Msg[]) => m.filter((x) => x.role === "user").slice(-1)[0].content;
+    expect(turns.map((t) => t.messages[0].role)).toEqual(["system", "system", "system"]);
+    expect(turns[0].messages[0].content).toContain("Mathematics");
+    expect(lastUser(turns[0].messages).endsWith(formatK12FlowT1(FLOW_ITEM))).toBe(true);
+    expect(lastUser(turns[1].messages).endsWith(formatK12FlowT2(FLOW_ITEM))).toBe(true);
+    expect(lastUser(turns[2].messages).endsWith(K12_FLOW_T3)).toBe(true);
+    for (const t of turns) expect(t.tools?.length).toBeGreaterThan(0);
+  });
+
+  it("sends Ollama byte-identical embedding requests", () => {
+    expect(webview.embed.length).toBeGreaterThan(0);
+    expect(headless.embed).toEqual(webview.embed);
+  });
+
+  it("writes each row with subject, band, the three turns and the detector verdicts, and a Wilson summary", () => {
+    type Turn = { user: string; text: string; ttftMs: number; totalMs: number; toolCalls: unknown[] };
+    const out = headless.out as {
+      suite: string; split: string; partial: boolean; abort: unknown; options: Record<string, unknown>;
+      rows: Array<{ id: string; subject: string; band: string; turns: Turn[]; grade: Record<string, unknown> }>;
+      summary: { items: number; headline: { k: number; n: number; wilson: number[] }; g1: { wilson: number[] } };
+    };
+    expect(out).toMatchObject({ suite: "k12-flow", split: "dev", partial: true, abort: null });
+    expect(out.options).not.toHaveProperty("apiKey");
+    expect(out.rows).toHaveLength(1);
+    const row = out.rows[0];
+    expect(row).toMatchObject({ id: FLOW_ITEM.id, subject: "math", band: "K-5" });
+    expect(row.turns.map((t) => t.user)).toEqual([formatK12FlowT1(FLOW_ITEM), formatK12FlowT2(FLOW_ITEM), K12_FLOW_T3]);
+    for (const t of row.turns) {
+      expect(t.text).toBe("The sediment index was 3.71 across the pits.");
+      expect(typeof t.ttftMs).toBe("number");
+      expect(t.totalMs).toBeGreaterThanOrEqual(t.ttftMs);
+      expect(t.toolCalls).toEqual([]);
+    }
+    expect(row.grade).toMatchObject({ g1: expect.any(Boolean), g2: expect.any(Boolean), g3: false, g5: false, pass: false });
+    expect(out.summary.items).toBe(1);
+    expect(out.summary.headline).toMatchObject({ k: 0, n: 1 });
+    expect(out.summary.headline.wilson).toHaveLength(2);
+    expect(out.summary.g1.wilson).toHaveLength(2);
   });
 });

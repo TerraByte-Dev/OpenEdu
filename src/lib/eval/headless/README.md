@@ -16,20 +16,22 @@ from environment variables.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `EVAL_SUITE` | `rag` | Only `rag` runs headless so far. |
+| `EVAL_SUITE` | `rag` | `rag` or `k12-flow` (see [k12-flow](#k12-flow) below). |
 | `EVAL_MODEL` | `gemma4:e2b` | Chat model. Stored as the Settings chat model. |
 | `EVAL_PROVIDER` | `ollama` | `ollama`, `openai` or `anthropic`. Cloud needs `EVAL_API_KEY`. |
 | `EVAL_API_KEY` | (none) | Cloud key. Read from the environment, never written to the results file. |
 | `EVAL_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama base URL. |
 | `EVAL_EMBED_MODEL` | app default (`nomic-embed-text`) | Embedding model for the vault and the question. |
-| `EVAL_SET` | `main` | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), or `sealed`. |
+| `EVAL_SET` | `main` (`dev` for k12-flow) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), or `sealed`. k12-flow takes `dev` only. |
 | `EVAL_SEALED` | (none) | Path to the sealed v2 file. Required with `EVAL_SET=sealed`. |
 | `EVAL_REPEATS` | `1` | Repeats per question and mode. |
 | `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. Not allowed with `sealed`. |
-| `EVAL_ONLY` | (all) | Comma list of question ids. Not allowed with `sealed`. |
+| `EVAL_ONLY` | (all) | Comma list of question ids (k12-flow: item ids). Not allowed with `sealed`. |
+| `EVAL_LIMIT` | (all) | k12-flow only. The first N items. |
+| `EVAL_SAMPLE` | (all) | k12-flow only. N items stratified by subject, drawn with a fixed seed, so the same N gives the same items every time. Applied before `EVAL_LIMIT`. |
 | `EVAL_SYLLABUS` | `python` | `python` or `matched` (see rag-runner.ts). |
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
-| `EVAL_OUT` | `.dev/eval-runs/<stamp>-rag-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
+| `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
 The results file holds the runner's report (every row, with `ttft_ms` and `total_ms`), the options,
 the commit SHA, whether `src/` had uncommitted changes or differs from master, the tags at HEAD, whether
@@ -37,6 +39,28 @@ the library was on and how many cards it had, and the sealed file's SHA-256 when
 
 The run refuses to start when the library is on but its manifest did not load (run it from the repo
 root, where `public/library/` is).
+
+## k12-flow
+
+```bash
+EVAL_SUITE=k12-flow npm run eval                    # all 240 dev items: a full dev baseline
+EVAL_SUITE=k12-flow EVAL_SAMPLE=6 npm run eval      # a 6-item pilot, stratified by subject
+```
+
+The attempt-first benchmark (`docs/BENCHMARKS.md` B3/B4). It calls `runK12FlowItems` in
+`../k12-flow-runner.ts`, the function `window.__runK12FlowEval` calls, so the system prompt, skills,
+tools, retrieval and the T1/T2/T3 turns are the webview runner's own. Only the 240 k12-mc items (DEV for
+this flow) run. `EVAL_SET=sealed` is refused: the k12 test items are in the sealed v2 file, and a
+headless path to them must go through `loadSealed` with all its refusals, which is not built.
+`EVAL_REPEATS`, `EVAL_MODES` and `EVAL_SYLLABUS` are refused too: the protocol fixes one sample per
+item, retrieval "always" and no syllabus.
+
+The results file holds, per row, the item id, subject and band, each turn's user text, reply, stop
+reason, tool calls, `ttftMs` and `totalMs`, the chip check and the detector verdicts (`grade`). The
+`summary` has the headline (G1 and G2 and G3, ERROR rows counted as fails) and each detector, each with
+k, n and a 95% Wilson interval. `partial` is true for anything short of all 240 items, and `selection`
+records how the items were picked. A void run (too many ERROR rows, or a library guard tripping) still
+writes its rows and summary, with the reason in `abort`, and then fails.
 
 ## The sealed set
 
@@ -74,7 +98,9 @@ says a set burns when it is read.
 App-origin URLs (`/library/…`) are served from `public/` on disk, as Vite serves them to the webview.
 
 `parity.test.ts` (part of `npm test`) runs one item through the webview entry (`runRagEval`) and the
-headless entry and checks that the `/api/chat` and `/api/embed` bodies are identical.
+headless entry and checks that the `/api/chat` and `/api/embed` bodies are identical. It does the same
+for k12-flow: one dev item through `runK12FlowEval` and through `EVAL_SUITE=k12-flow`, comparing the raw
+request bodies of the warm-up and T1, T2 and T3 byte for byte.
 
 Differences from a run in the dev webview that remain:
 
