@@ -23,6 +23,7 @@ The repo is on GitHub under `TerraByte-Dev`.
 
 **Dev:** `npm run tauri dev` from project root.
 **Test:** `npm test` (vitest) — fast unit tests over the pure logic modules (no DOM/Tauri). DOM-coupled UI is verified live in the dev app.
+**Eval:** `npm run eval` — benchmarks from a terminal against local Ollama, through the real kernel, no Tauri app. Options are `EVAL_*` env vars: [`src/lib/eval/headless/README.md`](src/lib/eval/headless/README.md).
 
 **Outside contributors and their agents: the rules in @AGENTS.md apply to you** (branching, draft PRs, what not to touch).
 

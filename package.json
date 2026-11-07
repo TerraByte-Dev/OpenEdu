@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync:library": "node scripts/sync-library.mjs",
-    "design": "node scripts/build-design-system.mjs"
+    "design": "node scripts/build-design-system.mjs",
+    "eval": "vitest run -c vitest.eval.config.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.2",
