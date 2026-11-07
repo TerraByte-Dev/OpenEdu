@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync:library": "node scripts/sync-library.mjs",
-    "design": "node scripts/build-design-system.mjs"
+    "design": "node scripts/build-design-system.mjs",
+    "eval": "vitest run -c vitest.eval.config.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.2",
@@ -48,6 +49,7 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
-    "vitest": "^3.2.6"
+    "vitest": "^3.2.6",
+    "word-list": "^4.1.0"
   }
 }

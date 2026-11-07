@@ -35,7 +35,8 @@
 import type { RagQuestion } from "./rag-fixture";
 
 export type HeldoutGroup = "near-miss" | "far" | "crosslingual" | "paraphrase";
-export type HeldoutLang = "es" | "fr" | "hi" | "sw" | "ar" | "am";
+// "pt" has no item in this file; the sealed v2 set (sealed.ts) uses it.
+export type HeldoutLang = "es" | "fr" | "hi" | "sw" | "ar" | "am" | "pt";
 
 export interface HeldoutQuestion extends RagQuestion {
   group: HeldoutGroup;
