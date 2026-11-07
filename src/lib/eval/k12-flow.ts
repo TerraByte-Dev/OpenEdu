@@ -25,7 +25,8 @@ export const K12_FLOW_QUESTION = "Which one is right?";
 /** T3 is the chip's own text, imported so the two can never drift apart. */
 export const K12_FLOW_T3 = SHOW_ANSWER_MESSAGE;
 
-/** A turn that produced no reply is retried once, as in k12-mc. A reply, right or wrong, never is. */
+/** A turn that produced no reply (it threw, stalled, aborted, or came back empty) is retried once,
+ *  as in k12-mc. A reply, right or wrong, never is. An empty reply would otherwise pass G1 and G2. */
 export const K12_FLOW_MAX_ATTEMPTS = 2;
 
 export function formatK12FlowT1(item: K12Item): string {
@@ -56,11 +57,15 @@ export interface K12FlowTurnOutput {
   hits: GroundingHit[];
   usedHits: GroundingHit[];
   ttftMs: number | null;
+  /** Tool calls the turn made. Not graded (the detectors read `text` only); kept for hand labels,
+   *  because a math.render call can show an expression the text only refers to. */
+  toolCalls?: Array<{ name: string; args: unknown }>;
 }
 
 /** One model turn. `messages` is the conversation so far, ending with the new user message,
- *  without a system message. It throws when the turn fails. */
-export type K12FlowTurnFn = (messages: ChatMessage[]) => Promise<K12FlowTurnOutput>;
+ *  without a system message; `item` lets the caller build that item's system prompt. It throws
+ *  when the turn fails. */
+export type K12FlowTurnFn = (messages: ChatMessage[], item: K12Item) => Promise<K12FlowTurnOutput>;
 
 export interface K12FlowTurnRecord {
   user: string;
@@ -71,6 +76,7 @@ export interface K12FlowTurnRecord {
   /** 1, or 2 when the first attempt produced no reply. */
   attempts: number;
   hitTitles: string[];
+  toolCalls: Array<{ name: string; args: unknown }>;
   /** Set when the turn still produced no reply on its last attempt. */
   error: string | null;
 }
@@ -95,24 +101,26 @@ export class K12FlowAbort extends Error {}
 
 const failedStop = (s: string) => s === "stalled" || s === "aborted";
 
-async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], now: () => number): Promise<{ rec: K12FlowTurnRecord; out: K12FlowTurnOutput | null }> {
+async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12Item, now: () => number): Promise<{ rec: K12FlowTurnRecord; out: K12FlowTurnOutput | null }> {
   const user = messages[messages.length - 1].content;
-  const rec: K12FlowTurnRecord = { user, text: "", stopReason: null, ttftMs: null, totalMs: 0, attempts: 0, hitTitles: [], error: null };
+  const rec: K12FlowTurnRecord = { user, text: "", stopReason: null, ttftMs: null, totalMs: 0, attempts: 0, hitTitles: [], toolCalls: [], error: null };
   for (let attempt = 1; attempt <= K12_FLOW_MAX_ATTEMPTS; attempt++) {
     rec.attempts = attempt;
     const started = now();
     try {
-      const out = await turn(messages);
+      const out = await turn(messages, item);
       rec.totalMs = now() - started;
       rec.text = out.text;
       rec.stopReason = out.stopReason;
       rec.ttftMs = out.ttftMs;
       rec.hitTitles = out.hits.map((h) => h.title);
-      if (!failedStop(out.stopReason)) {
+      rec.toolCalls = out.toolCalls ?? [];
+      if (failedStop(out.stopReason)) rec.error = `turn ${out.stopReason}`;
+      else if (!out.text.trim()) rec.error = "empty reply";
+      else {
         rec.error = null;
         return { rec, out };
       }
-      rec.error = `turn ${out.stopReason}`;
     } catch (e) {
       if (e instanceof K12FlowAbort) throw e;
       rec.totalMs = now() - started;
@@ -137,7 +145,7 @@ export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: ()
     const studentAttempted = hasTriedOpenQuestion([...history, userMsg]);
     if (i === 1) row.studentAttempted = studentAttempted;
     history.push(userMsg);
-    const { rec, out } = await runTurn(turn, [...history], now);
+    const { rec, out } = await runTurn(turn, [...history], item, now);
     row.turns.push(rec);
     if (!out) return row;
     texts.push(out.text);

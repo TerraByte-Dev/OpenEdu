@@ -93,10 +93,29 @@ describe("runK12FlowItem", () => {
     expect(row.grade?.g1b).toBe(true);
   });
 
-  it("leaves an empty reply out of history, as ChatTab does", async () => {
-    const { turn, calls } = scripted([reply(""), reply(T2_ASKS), reply(T3_SHOWS)]);
+  it("retries an empty reply, because an empty T1 or T2 would pass G1 and G2", async () => {
+    const { turn, calls } = scripted([reply("  "), reply(T1_ASKS), reply(T2_ASKS), reply(T3_SHOWS)]);
+    const row = await runK12FlowItem(ITEM, turn);
+    expect(calls[1].map((m) => m.role)).toEqual(["user"]);
+    expect(row.turns.map((t) => t.attempts)).toEqual([2, 1, 1]);
+    expect(row.grade?.pass).toBe(true);
+  });
+
+  it("makes an ERROR row when a turn is empty twice", async () => {
+    const { turn } = scripted([reply(T1_ASKS), reply(""), reply("")]);
+    const row = await runK12FlowItem(ITEM, turn);
+    expect(row.grade).toBeNull();
+    expect(row.turns[1]).toMatchObject({ attempts: 2, error: "empty reply" });
+  });
+
+  it("hands the turn function the item, so the runner can build that item's system prompt", async () => {
+    const seen: string[] = [];
+    const turn: K12FlowTurnFn = async (_m, item) => {
+      seen.push(item.id);
+      return reply(T1_ASKS);
+    };
     await runK12FlowItem(ITEM, turn);
-    expect(calls[1].map((m) => m.role)).toEqual(["user", "user"]);
+    expect(seen).toEqual(["synthetic-01", "synthetic-01", "synthetic-01"]);
   });
 
   it("retries a turn that produced no reply once", async () => {

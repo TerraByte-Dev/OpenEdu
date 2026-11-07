@@ -1,6 +1,7 @@
 // The k12-flow runner for the webview: the attempt-first flow (k12-flow.ts) through the real kernel,
-// configured as k12-runner.ts configures its shipping arm (retrieval "always", tools as detected,
-// the "explain" skill, the same system prompt). Detectors and statistics: k12-flow-grade.ts.
+// configured as ChatTab runs a turn (retrieval "always", tools as detected, the "explain" skill plus
+// the subject's domain skill, and ChatTab's system prompt for a course on the item's subject: see
+// k12-flow-prompt.ts). Detectors and statistics: k12-flow-grade.ts.
 //
 // Runs in the Tauri webview (needs Ollama up and a chat model; Library on, no library URL override):
 //     await window.__runK12FlowEval({ pilot: true })   // the 12 pilot items
@@ -12,16 +13,16 @@
 //
 // Do not save a source file during a run: Vite HMR reloads the webview and kills it.
 
-import { tutorEngine, skillBundleLayer } from "../kernel";
+import { tutorEngine } from "../kernel";
 import { registerBuiltinTools, type ToolContext } from "../tools";
-import { loadBuiltinSkills, resolveSkill } from "../skills";
-import { buildSystemPrompt } from "../curriculum";
+import { loadBuiltinSkills } from "../skills";
 import { getChatConfig, getMaxContextTokens } from "../store";
 import { callLLMTurn, detectModelProfile } from "../llm";
 import { K12_ITEMS, K12_PILOT } from "./k12-items";
-import { K12_INSTRUCTIONS, assertLibraryGuards, watched } from "./k12-runner";
+import { assertLibraryGuards, watched } from "./k12-runner";
+import { k12FlowTurnSetup } from "./k12-flow-prompt";
 import { K12FlowAbort, runK12Flow, type K12FlowRow, type K12FlowTurnFn } from "./k12-flow";
-import { median, type K12FlowSummary, type Rate } from "./k12-flow-grade";
+import { k12FlowErrorLimit, median, type K12FlowSummary, type Rate } from "./k12-flow-grade";
 import type { LLMConfig } from "../../types";
 
 // Never created, like k12-runner's course: notebook grounding finds nothing, the library is the corpus.
@@ -65,21 +66,18 @@ export async function runK12FlowEval(opts?: { pilot?: boolean; only?: string }):
     await assertLibraryGuards();
     console.log(`[k12-flow] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} · ${items.length} item(s) × 3 turns`);
 
-    // Every turn is typed text or the show-answer chip, and that chip carries no mode, so ChatTab
-    // runs all three turns in "explain".
-    const skill = resolveSkill("explain") ?? null;
-    const system = buildSystemPrompt(K12_INSTRUCTIONS, null, 1, "General Study", skillBundleLayer(skill) ?? "");
 
     // Warm-up, unscored: a cold model load can outlast the first-byte timeout.
     await watched(async (signal) => {
       for await (const ev of callLLMTurn([{ role: "user", content: "Reply with the single word: ready" }], config, { tier: profile.tier, signal })) void ev;
     }).catch(() => {});
 
-    const turn: K12FlowTurnFn = async (messages) => {
+    const turn: K12FlowTurnFn = async (messages, item) => {
       // A guard tripping mid-run ends the run (void): the shipping configuration went away.
       await assertLibraryGuards().catch((e) => {
         throw new K12FlowAbort(`VOID RUN — ${e instanceof Error ? e.message : String(e)}`);
       });
+      const { system, activeSkill, domainSkill } = k12FlowTurnSetup(item, profile.tier, profile.supportsTools);
       const started = Date.now();
       let ttftMs: number | null = null;
       const result = await watched((signal) => tutorEngine.run(
@@ -98,28 +96,42 @@ export async function runK12FlowEval(opts?: { pilot?: boolean; only?: string }):
           permissionMode: "default",
           config,
           abort: signal,
-          activeSkill: skill,
+          activeSkill,
+          domainSkill,
           confirmTool: async () => true,
           supportsTools: profile.supportsTools,
         } satisfies ToolContext,
       ));
-      return { text: result.text, stopReason: result.stopReason, hits: result.grounding.hits, usedHits: result.usedHits, ttftMs };
+      return {
+        text: result.text,
+        stopReason: result.stopReason,
+        hits: result.grounding.hits,
+        usedHits: result.usedHits,
+        ttftMs,
+        toolCalls: result.toolCalls.map(({ name, args }) => ({ name, args })),
+      };
     };
 
     const rows: K12FlowRow[] = [];
     (window as unknown as Record<string, unknown>).__k12FlowRows = rows;
 
+    // The run is void at this many ERROR rows whatever happens next; stop instead of spending hours.
+    const errorLimit = k12FlowErrorLimit(items.length);
     const { summary } = await runK12Flow(items, turn, {
       onRow: (row) => {
         rows.push(row);
         const g = row.grade;
         const ms = row.turns.map((t) => `${t.ttftMs ?? "-"}/${t.totalMs}`).join(" ");
         console.log(`[k12-flow] ${row.id.padEnd(14)} ${g ? `${g.pass ? "PASS" : "fail"} G1 ${+g.g1} G1b ${+g.g1b} G2 ${+g.g2} G3 ${+g.g3} G4 ${+g.g4} G5 ${+g.g5} T3=${g.t3Answer?.letter ?? "-"}` : "ERROR"} chip ${row.chipOffered ?? "-"} · ttft/total ms ${ms}`);
+        const errors = rows.filter((r) => r.grade === null).length;
+        if (errors >= errorLimit) {
+          throw new K12FlowAbort(`VOID RUN — ${errors} ERROR rows of ${items.length} items (limit ${errorLimit}) at ${row.id}. Discard it whole.`);
+        }
       },
     });
 
     console.log("\n[k12-flow] ── summary ─────────────────────────────");
-    console.log(`[k12-flow] headline G1∧G2∧G3: ${fmtRate(summary.headline)} · errors ${summary.errors}`);
+    console.log(`[k12-flow] headline G1∧G2∧G3: ${fmtRate(summary.headline)} · errors ${summary.errors}${summary.void ? " · VOID (errors over 2%)" : ""}`);
     for (const k of ["g1", "g1b", "g2", "g3", "g4", "g5", "chipOffered"] as const) {
       console.log(`[k12-flow]   ${k.padEnd(11)} ${fmtRate(summary[k])}`);
     }
