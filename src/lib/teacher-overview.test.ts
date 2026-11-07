@@ -77,10 +77,10 @@ describe("filterOverviewRows", () => {
 describe("overviewCsv", () => {
   const rows = buildOverviewRows(source);
 
-  it("has a Group column only when groups are in use", () => {
+  it("has a Class column only when groups are in use", () => {
     const lines = (csv: string) => csv.replace(/^﻿/, "").split("\r\n");
     expect(lines(overviewCsv(rows, false))[0]).toBe("Learner,Course,Level,Subtopics mastered,Subtopics total,Last active (UTC)");
-    expect(lines(overviewCsv(rows, true))[0]).toBe("Group,Learner,Course,Level,Subtopics mastered,Subtopics total,Last active (UTC)");
+    expect(lines(overviewCsv(rows, true))[0]).toBe("Class,Learner,Course,Level,Subtopics mastered,Subtopics total,Last active (UTC)");
     expect(lines(overviewCsv(rows, true))[3]).toBe("Grade 5,Amina,Algebra,2,3,5,2026-11-01 08:00:00");
   });
 

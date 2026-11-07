@@ -96,11 +96,11 @@ export function filterOverviewRows(rows: ReadonlyArray<OverviewRow>, filter: str
   return rows.filter((r) => r.groupId === filter);
 }
 
-/** The CSV the teacher saves. The Group column appears only when groups are in use (school mode). */
+/** The CSV the teacher saves. The Class column appears only when groups are in use (school mode). */
 export function overviewCsv(rows: ReadonlyArray<OverviewRow>, withGroups: boolean): string {
   const head = ["Learner", "Course", "Level", "Subtopics mastered", "Subtopics total", "Last active (UTC)"];
   return toCsv([
-    withGroups ? ["Group", ...head] : head,
+    withGroups ? ["Class", ...head] : head,
     ...rows.map((r) => {
       const cells = [r.learnerName, r.courseTitle ?? "", r.level ?? "", r.mastered, r.subtopics, r.lastActive ?? ""];
       return withGroups ? [r.groupName, ...cells] : cells;
