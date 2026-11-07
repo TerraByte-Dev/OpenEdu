@@ -26,6 +26,31 @@ describe("parseEvalEnv", () => {
   });
 });
 
+describe("parseEvalEnv, k12-flow", () => {
+  it("defaults to the dev items and reads EVAL_LIMIT, EVAL_SAMPLE and EVAL_ONLY", () => {
+    expect(parseEvalEnv({ EVAL_SUITE: "k12-flow" })).toMatchObject({ suite: "k12-flow", set: "dev", repeats: 1 });
+    expect(parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_LIMIT: "5", EVAL_SAMPLE: "24", EVAL_ONLY: "math-k5-01" })).toMatchObject({ limit: 5, sample: 24, only: "math-k5-01" });
+  });
+  it("refuses the sealed set and any other split, without asking for a path", () => {
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SET: "sealed" })).toThrow(/EVAL_SET=sealed: k12-flow runs only the dev items/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SET: "sealed" })).not.toThrow(/EVAL_SEALED=/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SET: "test" })).toThrow(/EVAL_SET=test/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SEALED: "x.json" })).toThrow(/EVAL_SEALED/);
+  });
+  it("refuses options its frozen protocol does not have, and bad counts", () => {
+    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS"]) expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", [k]: "2" })).toThrow(k);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SAMPLE: "0" })).toThrow(/EVAL_SAMPLE=0/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_LIMIT: "2.5" })).toThrow(/EVAL_LIMIT=2.5/);
+  });
+  it("keeps EVAL_LIMIT and EVAL_SAMPLE to k12-flow", () => {
+    expect(() => parseEvalEnv({ EVAL_LIMIT: "3" })).toThrow(/k12-flow only/);
+  });
+  it("names the suite in the default results path", () => {
+    expect(defaultOutPath(parseEvalEnv({ EVAL_SUITE: "k12-flow" }), new Date("2026-11-07T10:20:30.456Z")))
+      .toBe(".dev/eval-runs/2026-11-07T10-20-30-456-k12-flow-dev-gemma4_e2b.json");
+  });
+});
+
 describe("parseEvalEnv, sealed runs", () => {
   it("refuses options that would run part of the sealed set (a partial run still burns all of it)", () => {
     const sealed = { EVAL_SET: "sealed", EVAL_SEALED: "x.json" };

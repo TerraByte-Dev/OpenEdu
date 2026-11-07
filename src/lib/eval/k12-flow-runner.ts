@@ -8,6 +8,9 @@
 //     const r = await window.__runK12FlowEval()        // the 240 k12-mc items (DEV for this flow)
 //     copy(JSON.stringify(r))                          // window.__k12FlowRows holds the rows if this fails
 //
+// From a terminal, `EVAL_SUITE=k12-flow npm run eval` calls runK12FlowItems below, the same function
+// this hook calls (headless/run.ts; options in headless/README.md).
+//
 // The sealed v2 k12 items are the test set. Only the frozen run script reads that file; this runner
 // never opens it. That script can call `runK12Flow` (k12-flow.ts) with its own items and turn.
 //
@@ -18,7 +21,7 @@ import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills } from "../skills";
 import { getChatConfig, getMaxContextTokens } from "../store";
 import { callLLMTurn, detectModelProfile } from "../llm";
-import { K12_ITEMS, K12_PILOT } from "./k12-items";
+import { K12_ITEMS, K12_PILOT, type K12Item } from "./k12-items";
 import { assertLibraryGuards, watched } from "./k12-runner";
 import { k12FlowTurnSetup } from "./k12-flow-prompt";
 import { K12FlowAbort, runK12Flow, type K12FlowRow, type K12FlowTurnFn } from "./k12-flow";
@@ -44,13 +47,25 @@ export interface K12FlowReport {
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const fmtRate = (r: Rate) => `${r.k}/${r.n}${r.n ? ` (${pct(r.k / r.n)}, 95% Wilson ${pct(r.wilson[0])}-${pct(r.wilson[1])})` : ""}`;
 
+/** The webview hook, window.__runK12FlowEval. */
 export async function runK12FlowEval(opts?: { pilot?: boolean; only?: string }): Promise<K12FlowReport> {
+  const pool = opts?.pilot ? K12_PILOT : K12_ITEMS;
+  const items = opts?.only ? pool.filter((x) => x.id === opts.only) : pool;
+  return runK12FlowItems(items, {
+    onRows: (rows) => { if (typeof window !== "undefined") (window as unknown as Record<string, unknown>).__k12FlowRows = rows; },
+  });
+}
+
+/**
+ * Run `items` through the flow, configured as ChatTab runs a turn. The webview hook and the headless
+ * runner both call this. `onRows` gets the row log before the first item and it fills as rows
+ * complete, so a void run (K12FlowAbort) still leaves its rows with the caller.
+ */
+export async function runK12FlowItems(items: readonly K12Item[], opts: { onRows?: (rows: K12FlowRow[]) => void } = {}): Promise<K12FlowReport> {
   if (inFlight) throw new Error("A k12-flow eval is already running. Overlapping runs share one row log and one GPU.");
   inFlight = true;
   try {
-    const pool = opts?.pilot ? K12_PILOT : K12_ITEMS;
-    const items = opts?.only ? pool.filter((x) => x.id === opts.only) : pool;
-    const partial = !!opts?.pilot || items.length !== K12_ITEMS.length;
+    const partial = items.length !== K12_ITEMS.length;
 
     registerBuiltinTools();
     await loadBuiltinSkills();
@@ -113,7 +128,7 @@ export async function runK12FlowEval(opts?: { pilot?: boolean; only?: string }):
     };
 
     const rows: K12FlowRow[] = [];
-    (window as unknown as Record<string, unknown>).__k12FlowRows = rows;
+    opts.onRows?.(rows);
 
     // The run is void at this many ERROR rows whatever happens next; stop instead of spending hours.
     const errorLimit = k12FlowErrorLimit(items.length);

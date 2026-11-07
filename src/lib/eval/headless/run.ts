@@ -1,7 +1,8 @@
 // The headless eval entry: `npm run eval` (vitest.eval.config.ts → run.eval.ts → here).
 //
 // It does what the app does before a dev-console eval, then calls the SAME runner function the
-// webview hook calls (window.__runRagEval = runRagEval). The only things swapped are underneath the
+// webview hook calls (window.__runRagEval = runRagEval; window.__runK12FlowEval → runK12FlowItems).
+// The only things swapped are underneath the
 // kernel, by alias in vitest.eval.config.ts: SQLite (node:sqlite, in memory, real migrations), HTTP
 // (Node fetch), the settings store (in memory, seeded below) and the app origin (public/ on disk).
 
@@ -13,14 +14,19 @@ import { loadBuiltinSkills } from "../../skills";
 import { refreshManifest, isLibraryAvailable, getManifest } from "../../library";
 import { refreshDatasetManifest } from "../../library-datasets";
 import { runRagEval, type RagCustomSet, type RagReport } from "../rag-runner";
+import { runK12FlowItems, type K12FlowReport } from "../k12-flow-runner";
+import { K12FlowAbort, type K12FlowRow } from "../k12-flow";
+import { summarizeK12Flow } from "../k12-flow-grade";
+import { K12_ITEMS } from "../k12-items";
 import { HELDOUT_V2_SHA256, loadSealed } from "../sealed";
+import { K12_FLOW_SAMPLE_SEED, selectK12FlowItems } from "./select";
 import { seedStore } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type EvalOptions } from "./env";
 import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
 
 export interface HeadlessResult {
-  report: RagReport;
+  report: RagReport | K12FlowReport;
   outFile: string;
 }
 
@@ -37,6 +43,8 @@ async function preflight(o: EvalOptions, embedModel: string): Promise<void> {
 
 export async function runHeadlessEval(env: Record<string, string | undefined>): Promise<HeadlessResult> {
   const o = parseEvalEnv(env);
+  // Pick the k12-flow items before anything is seeded: a bad EVAL_ONLY id fails fast.
+  const flowItems = o.suite === "k12-flow" ? selectK12FlowItems(K12_ITEMS, o) : null;
   const git = await gitState();
   // Rule 4 before the set is touched: reading it burns it.
   const refusal = o.set === "sealed" ? sealedGitRefusal(git) : null;
@@ -75,21 +83,12 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   const library = { enabled: libraryEnabled, cards: libraryEnabled ? (await getManifest()).length : 0 };
 
   const started = new Date();
-  const report = await runRagEval({
-    repeats: o.repeats,
-    modes: o.modes,
-    only: o.only,
-    syllabus: o.syllabus,
-    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" }),
-  });
-  const finished = new Date();
-
   const p = await path();
   // EVAL_OUT is relative to where you ran it; the default lands in the main checkout's .dev/, which a
   // linked worktree's removal would otherwise delete with it.
   const outFile = o.out ? p.resolve(cwd(), o.out) : p.resolve(await mainCheckout(), defaultOutPath(o, started));
   const options = { ...o, apiKey: undefined }; // dropped by JSON.stringify: a key never reaches the file
-  await writeText(outFile, JSON.stringify({
+  const write = (body: object) => writeText(outFile, JSON.stringify({
     suite: o.suite,
     options,
     commit: git.commit,
@@ -99,9 +98,42 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     library,
     sealedSha256,
     started: started.toISOString(),
-    finished: finished.toISOString(),
-    ...report,
-  }, null, 2));
-  console.log(`[eval] results: ${outFile}`);
+    finished: new Date().toISOString(),
+    ...body,
+  }, null, 2)).then(() => console.log(`[eval] results: ${outFile}`));
+
+  if (flowItems) {
+    const report = await runFlow(flowItems, o, write);
+    return { report, outFile };
+  }
+
+  const report = await runRagEval({
+    repeats: o.repeats,
+    modes: o.modes,
+    only: o.only,
+    syllabus: o.syllabus,
+    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" }),
+  });
+  await write(report);
   return { report, outFile };
+}
+
+// k12-flow through the webview runner's own function. Each row is written out with its item's
+// subject and band. A void run (K12FlowAbort) still writes its rows and summary before it throws:
+// every run is reported (BENCHMARKS.md, anti-cheating rule 7).
+async function runFlow(items: typeof K12_ITEMS, o: EvalOptions, write: (body: object) => Promise<void>): Promise<K12FlowReport> {
+  const byId = new Map(K12_ITEMS.map((x) => [x.id, x]));
+  const selection = { pool: K12_ITEMS.length, items: items.length, only: o.only ?? null, limit: o.limit ?? null, sample: o.sample ?? null, seed: o.sample ? K12_FLOW_SAMPLE_SEED : null };
+  const withItem = (rows: K12FlowRow[]) => rows.map(({ id, ...r }) => ({ id, subject: byId.get(id)!.subject, band: byId.get(id)!.band, ...r }));
+  let log: K12FlowRow[] = [];
+  try {
+    const report = await runK12FlowItems(items, { onRows: (rows) => { log = rows; } });
+    await write({ split: "dev", selection, ...report, rows: withItem(report.rows), abort: null });
+    return report;
+  } catch (e) {
+    if (e instanceof K12FlowAbort) {
+      await write({ split: "dev", selection, partial: true, abort: e.message, rows: withItem(log), summary: summarizeK12Flow(log) });
+    }
+    throw e;
+  }
 }

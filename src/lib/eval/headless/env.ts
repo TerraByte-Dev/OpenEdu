@@ -5,8 +5,10 @@ import type { LLMProvider } from "../../../types";
 import type { RetrievalMode } from "../../kernel/ground";
 import { STORE_KEYS, apiKeyStoreKey } from "../../store-keys";
 
+export type EvalSuite = "rag" | "k12-flow";
+
 export interface EvalOptions {
-  suite: "rag";
+  suite: EvalSuite;
   provider: LLMProvider;
   model: string;
   ollamaUrl: string;
@@ -24,12 +26,17 @@ export interface EvalOptions {
   syllabus?: "python" | "matched";
   /** The Settings context-window cap. Unset: the app default. */
   maxContextTokens?: number;
+  /** k12-flow only: the first N items. */
+  limit?: number;
+  /** k12-flow only: N items stratified by subject, fixed seed (select.ts). */
+  sample?: number;
   /** Unset: .dev/eval-runs/<stamp>-<suite>-<set>-<model>.json under the working directory. */
   out?: string;
 }
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
 const PROVIDERS: LLMProvider[] = ["ollama", "openai", "anthropic"];
+const SUITES: EvalSuite[] = ["rag", "k12-flow"];
 const SETS = ["main", "dev", "test", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 
@@ -41,18 +48,26 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     return v ? v : undefined;
   };
 
-  const suite = get("EVAL_SUITE") ?? "rag";
-  if (suite !== "rag") errs.push(`EVAL_SUITE=${suite}: only "rag" runs headless so far`);
+  const suite = (get("EVAL_SUITE") ?? "rag") as EvalSuite;
+  if (!SUITES.includes(suite)) errs.push(`EVAL_SUITE=${suite}: use ${SUITES.join(", ")}`);
+  const flow = suite === "k12-flow";
 
   const provider = (get("EVAL_PROVIDER") ?? "ollama") as LLMProvider;
   if (!PROVIDERS.includes(provider)) errs.push(`EVAL_PROVIDER=${provider}: use ${PROVIDERS.join(", ")}`);
   const apiKey = get("EVAL_API_KEY");
   if (provider !== "ollama" && !apiKey) errs.push(`EVAL_PROVIDER=${provider} needs EVAL_API_KEY`);
 
-  const set = (get("EVAL_SET") ?? "main") as EvalOptions["set"];
+  const set = (get("EVAL_SET") ?? (flow ? "dev" : "main")) as EvalOptions["set"];
   if (!SETS.includes(set)) errs.push(`EVAL_SET=${set}: use ${SETS.join(", ")}`);
+  // The k12 test items are in the sealed v2 file. Running them needs the frozen path through
+  // loadSealed and all its refusals, which k12-flow does not have yet. The 240 k12-mc items are DEV.
+  if (flow && set !== "dev") errs.push(`EVAL_SET=${set}: k12-flow runs only the dev items (the 240 k12-mc items) for now`);
+  // k12-flow's configuration is frozen by its protocol (one sample, retrieval "always", no syllabus).
+  if (flow) {
+    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED"]) if (get(k)) errs.push(`${k} does not apply to k12-flow`);
+  }
   const sealedPath = get("EVAL_SEALED");
-  if (set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
+  if (!flow && set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
   // A partial sealed run still reads, and so burns, the whole set (protocol rule 8).
   if (set === "sealed" && get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed with EVAL_SET=sealed: the run covers every item");
   if (set === "sealed" && get("EVAL_MODES")) errs.push("EVAL_MODES is not allowed with EVAL_SET=sealed: the run uses the runner's default modes");
@@ -79,9 +94,20 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     if (!Number.isInteger(maxContextTokens) || maxContextTokens <= 0) errs.push(`EVAL_CTX=${ctxRaw}: a whole number of tokens`);
   }
 
+  const count = (k: string): number | undefined => {
+    const raw = get(k);
+    if (raw === undefined) return undefined;
+    if (!flow) errs.push(`${k} applies to k12-flow only (rag takes EVAL_ONLY)`);
+    const v = Number(raw);
+    if (!Number.isInteger(v) || v < 1) errs.push(`${k}=${raw}: a whole number, 1 or more`);
+    return v;
+  };
+  const limit = count("EVAL_LIMIT");
+  const sample = count("EVAL_SAMPLE");
+
   if (errs.length) throw new Error(`Bad eval options:\n  ${errs.join("\n  ")}`);
   return {
-    suite: "rag",
+    suite,
     provider,
     model: get("EVAL_MODEL") ?? DEFAULT_EVAL_MODEL,
     ollamaUrl: get("EVAL_OLLAMA_URL") ?? "http://127.0.0.1:11434",
@@ -94,6 +120,8 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     only: get("EVAL_ONLY"),
     syllabus,
     maxContextTokens,
+    limit,
+    sample,
     out: get("EVAL_OUT"),
   };
 }
