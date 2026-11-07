@@ -11,13 +11,18 @@ type Sqlite = {
   prepare(sql: string): { all(...p: unknown[]): unknown[]; run(...p: unknown[]): unknown };
 };
 let sqlite: Sqlite;
+// Writes allowed before execute starts throwing (a disk error, a locked file). null = never fail.
+let writesBeforeFailure: number | null = null;
 
 const bind = (sql: string) => sql.replace(/\$(\d+)/g, "?$1");
 vi.mock("@tauri-apps/plugin-sql", () => ({
   default: {
     load: async () => ({
       select: async (sql: string, params: unknown[] = []) => sqlite.prepare(bind(sql)).all(...params),
-      execute: async (sql: string, params: unknown[] = []) => { sqlite.prepare(bind(sql)).run(...params); },
+      execute: async (sql: string, params: unknown[] = []) => {
+        if (writesBeforeFailure !== null && writesBeforeFailure-- <= 0) throw new Error("disk I/O error");
+        sqlite.prepare(bind(sql)).run(...params);
+      },
     }),
   },
 }));
@@ -109,6 +114,34 @@ describe("migration 14 on an install already in use", () => {
     expect(count("SELECT COUNT(*) AS n FROM learners")).toBe(2);
     expect(count("SELECT COUNT(*) AS n FROM courses")).toBe(2);
     expect(count("SELECT COUNT(*) AS n FROM notes")).toBe(2);
+  });
+
+  it("a failed write never leaves a class or school with no teacher PIN", async () => {
+    await setUsageMode("class", await hashPin("2468"));
+    // Whatever write fails, the result is the old config or the new one, never a mix of the two.
+    for (let n = 0; n < 3; n++) {
+      writesBeforeFailure = n;
+      await setUsageMode("single", null).catch(() => { /* the failure under test */ });
+      writesBeforeFailure = null;
+      const cfg = await getUsageConfig();
+      if (cfg.mode !== "single") {
+        expect(cfg.mode).toBe("class");
+        expect(await verifyPin("2468", cfg.teacher)).toBe(true);
+      } else {
+        expect(cfg.teacher).toEqual({ pin_hash: null, pin_salt: null });
+        await setUsageMode("class", await hashPin("2468"));
+      }
+    }
+  });
+
+  it("a failed write on the way up never leaves Just me holding half a teacher PIN", async () => {
+    const rec = await hashPin("2468");
+    writesBeforeFailure = 1;
+    await setUsageMode("class", rec).catch(() => { /* the failure under test */ });
+    writesBeforeFailure = null;
+    const cfg = await getUsageConfig();
+    if (cfg.mode === "class") expect(await verifyPin("2468", cfg.teacher)).toBe(true);
+    else expect(cfg.teacher).toEqual({ pin_hash: null, pin_salt: null });
   });
 
   it("groups: learners join them, the picker buckets them, and deleting a group keeps its learners", async () => {

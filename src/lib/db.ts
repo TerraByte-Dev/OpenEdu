@@ -137,27 +137,26 @@ export async function getUsageConfig(): Promise<UsageConfig> {
   };
 }
 
-async function setConfig(key: string, value: string | null): Promise<void> {
-  const d = await getDb();
-  await d.execute(
-    "INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-    [key, value],
-  );
-}
-
 /**
- * Save the mode, and the teacher PIN with it, in one call so the two never disagree. `teacher` is
- * the new PIN record, or null to clear it (going back to "Just me"), or undefined to leave it alone.
+ * Save the mode, and the teacher PIN with it, so the two never disagree. `teacher` is the new PIN
+ * record, or null to clear it (going back to "Just me"), or undefined to leave it alone. One
+ * statement, so SQLite applies all of it or none of it: a failed write can never leave a class or
+ * school with no teacher PIN, or "Just me" with half of one.
  */
 export async function setUsageMode(
   mode: UsageMode,
   teacher?: { pin_hash: string; pin_salt: string } | null,
 ): Promise<void> {
-  if (teacher !== undefined) {
-    await setConfig("teacher_pin_hash", teacher?.pin_hash ?? null);
-    await setConfig("teacher_pin_salt", teacher?.pin_salt ?? null);
+  const d = await getDb();
+  const upsert = "ON CONFLICT(key) DO UPDATE SET value = excluded.value";
+  if (teacher === undefined) {
+    await d.execute(`INSERT INTO app_config (key, value) VALUES ('usage_mode', $1) ${upsert}`, [mode]);
+    return;
   }
-  await setConfig("usage_mode", mode);
+  await d.execute(
+    `INSERT INTO app_config (key, value) VALUES ('teacher_pin_hash', $1), ('teacher_pin_salt', $2), ('usage_mode', $3) ${upsert}`,
+    [teacher?.pin_hash ?? null, teacher?.pin_salt ?? null, mode],
+  );
 }
 
 // ── Groups (school mode, migration 14) ──────────────────────────────────────
