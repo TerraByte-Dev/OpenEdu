@@ -38,7 +38,7 @@ const K12_MAX_ATTEMPTS = 2;
 let inFlight = false;
 
 // RAG_INSTRUCTIONS, copied verbatim: it is not exported, and importing rag-runner drags in the db.
-const K12_INSTRUCTIONS: Record<string, string> = {
+export const K12_INSTRUCTIONS: Record<string, string> = {
   identity: "You are a helpful tutor.",
   pedagogy: "Answer the student's question directly and concisely.",
   rules: "Be accurate. If you do not know something, say so.",
@@ -104,7 +104,7 @@ function splitBy(rows: K12Row[], items: Map<string, K12Item>, key: "subject" | "
 // groundFromLibrary swallows every one of these conditions and returns no card, so without them the
 // shipping arm silently becomes the prompt-only arm and still prints a number. The kernel re-reads
 // all four on every turn, so they are checked before the run and again before every shipping turn.
-async function assertLibraryGuards(): Promise<void> {
+export async function assertLibraryGuards(): Promise<void> {
   if (isLibraryTestingDisabled()) {
     throw new Error("The library is suppressed for testing (another eval is mid-run or crashed). Reload the app and retry.");
   }
@@ -126,7 +126,7 @@ const fmtContrast = (c: K12Contrast | null) => (c ? `b=${c.b} c=${c.c} p=${c.p.t
 
 // One watchdog for every arm, so "outran the watchdog" means the same thing in all three. On
 // timeout it aborts the turn (stop the orphan using the GPU) and rejects into the row's catch.
-async function watched<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+export async function watched<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const turn = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const watchdog = new Promise<never>((_, reject) => {
