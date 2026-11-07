@@ -1,27 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
-import { appConfigDir, join } from "@tauri-apps/api/path";
 import { backupLearnerData } from "../../../lib/db";
 import { backupFileName, describeBackupError, formatApproxSize } from "../../../lib/db-resilience";
 import { Section, SettingRow, ActionButton } from "../primitives";
 import type { SectionProps } from "../types";
+import RestoreSteps from "../../../components/RestoreSteps";
 
 // Backup of every learner's courses, chats, notes, quizzes and progress. Power cuts are routine where
 // OpenEdu runs, so a copy on a USB stick is the recovery plan. The copy is made by SQLite itself
 // (VACUUM INTO, through the sql plugin), so no file-system permission is needed. The copy holds every
 // learner's data, so in a class or school it is behind the teacher PIN (guardEntry "learner-data-backup").
 export default function LearnerData({ usage }: SectionProps) {
-  const [dbPath, setDbPath] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
-    // tauri-plugin-sql keeps "sqlite:openedu.db" in the app CONFIG dir (wrapper.rs, app_config_dir()).
-    appConfigDir()
-      .then((dir) => join(dir, "openedu.db"))
-      .then((p) => { if (mounted.current) setDbPath(p); })
-      .catch(() => { /* the help text falls back to the Windows path */ });
     return () => { mounted.current = false; };
   }, []);
 
@@ -42,8 +36,6 @@ export default function LearnerData({ usage }: SectionProps) {
     }
   };
 
-  const shownPath = dbPath ?? "%APPDATA%\\com.terrabytesolutions.openedu\\openedu.db";
-
   return (
     <>
       <Section
@@ -56,7 +48,7 @@ export default function LearnerData({ usage }: SectionProps) {
           help="Saves one file with every course, chat, note, quiz and progress record. You can keep using OpenEdu while it saves. Make a new backup often, for example at the end of each day."
         >
           <div className="space-y-2.5">
-            <ActionButton primary onClick={() => (usage ? usage.guard("learner-data-backup", () => void backUp()) : backUp())} busyLabel="Saving backup…">Back up all learner data</ActionButton>
+            <ActionButton primary onClick={() => (usage ? usage.guard("learner-data-backup", backUp) : backUp())} busyLabel="Saving backup…">Back up all learner data</ActionButton>
             {result && (
               <p className={`text-xs break-all ${result.ok ? "text-emerald-400" : "text-red-400"}`}>
                 {result.ok ? "✓ " : "✗ "}{result.msg}
@@ -72,25 +64,7 @@ export default function LearnerData({ usage }: SectionProps) {
         keywords="restore backup damaged recover replace file power cut"
       >
         <SettingRow label="How to restore a backup" help="Restoring replaces all current learner data with the data in the backup. Anything done after that backup was made will be lost.">
-          <ol className="list-decimal pl-5 space-y-1.5 text-xs text-ink leading-relaxed max-w-prose">
-            <li>Close OpenEdu.</li>
-            <li>
-              Open the folder that holds this file:
-              <span className="block mt-1 font-mono text-[var(--ink-faint)] break-all select-all">{shownPath}</span>
-            </li>
-            <li>
-              Make a new folder there called <span className="font-mono">old</span>. Move <span className="font-mono">openedu.db</span> into
-              it, and also <span className="font-mono">openedu.db-wal</span> and <span className="font-mono">openedu.db-shm</span> if you see them.
-              Keep them; someone may be able to recover more from them later.
-            </li>
-            <li>
-              Copy your backup file into the first folder and rename the copy. If the other file names there end in
-              {" "}<span className="font-mono">.db</span>, type <span className="font-mono">openedu.db</span>. If they don't
-              (Windows is hiding file endings), type just <span className="font-mono">openedu</span>, or Windows will name
-              it <span className="font-mono">openedu.db.db</span> and OpenEdu will start with no data.
-            </li>
-            <li>Start OpenEdu.</li>
-          </ol>
+          <RestoreSteps />
         </SettingRow>
       </Section>
     </>

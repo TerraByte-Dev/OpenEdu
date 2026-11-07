@@ -34,7 +34,7 @@ import {
 } from "./db";
 import { DEFAULT_LEARNER_ID } from "./learners";
 import { hashPin, verifyPin } from "./learner-pin";
-import { resolveStartupMode, hasPriorUse, pickerGroups, learnersInGroup, NO_GROUP } from "./usage-modes";
+import { resolveStartupMode, hasPriorUse, pickerGroups, learnersInGroup, modeChangeStep, NO_GROUP } from "./usage-modes";
 import { buildOverviewRows, filterOverviewRows } from "./teacher-overview";
 
 function migrations(): Map<number, string> {
@@ -89,7 +89,7 @@ describe("migration 14 on an install already in use", () => {
     expect((await getNotes("c1")).map((n) => n.id)).toEqual(["n1"]);
   });
 
-  it("a class sets a teacher PIN that verifies; back to Just me drops it and deletes no one's data", async () => {
+  it("a class sets a teacher PIN that verifies; back to Just me keeps it and deletes no one's data", async () => {
     const bilal = await createLearner("Bilal");
     setActiveLearnerId(bilal.id);
     const chem = await createCourse("Chemistry", "chemistry");
@@ -107,13 +107,31 @@ describe("migration 14 on an install already in use", () => {
     expect(cfg.mode).toBe("school");
     expect(await verifyPin("2468", cfg.teacher)).toBe(true);
 
-    await setUsageMode("single", null);
+    // Back to Just me the way Settings does it after the PIN check: the teacher PIN is left alone.
+    await setUsageMode("single");
     cfg = await getUsageConfig();
     expect(cfg.mode).toBe("single");
-    expect(cfg.teacher).toEqual({ pin_hash: null, pin_salt: null });
+    expect(await verifyPin("2468", cfg.teacher)).toBe(true);
     expect(count("SELECT COUNT(*) AS n FROM learners")).toBe(2);
     expect(count("SELECT COUNT(*) AS n FROM courses")).toBe(2);
     expect(count("SELECT COUNT(*) AS n FROM notes")).toBe(2);
+  });
+
+  it("a school that went to Just me can go back up with its teacher PIN, though a learner has a PIN", async () => {
+    const bilal = await createLearner("Bilal");
+    const rec = await hashPin("1357");
+    sqlite.prepare("UPDATE learners SET pin_hash = ?, pin_salt = ? WHERE id = ?").run(rec.pin_hash, rec.pin_salt, bilal.id);
+    await setUsageMode("school", await hashPin("2468"));
+    await setUsageMode("single");
+
+    let cfg = await getUsageConfig();
+    const step = modeChangeStep("single", "school", await listLearners(), DEFAULT_LEARNER_ID, !!cfg.teacher.pin_hash);
+    expect(step).toEqual({ step: "verify-teacher-pin" });
+    expect(await verifyPin("2468", cfg.teacher)).toBe(true);
+    await setUsageMode("school");
+    cfg = await getUsageConfig();
+    expect(cfg.mode).toBe("school");
+    expect(await verifyPin("2468", cfg.teacher)).toBe(true);
   });
 
   it("a failed write never leaves a class or school with no teacher PIN", async () => {

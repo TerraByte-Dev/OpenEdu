@@ -6,8 +6,8 @@ import {
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import {
-  autoPickFor, resolveStartupMode, hasPriorUse, guardEntry, staysUnlocked, viewAfterTeacherDone, showsLearnerChip,
-  isProtected, type UsageMode, type GroupRow, type TeacherEntry,
+  autoPickFor, resolveStartupMode, hasPriorUse, runGuarded, staysUnlocked, viewAfterTeacherDone, showsLearnerChip,
+  isProtected, saveThenRefresh, type UsageMode, type GroupRow, type TeacherEntry,
 } from "./lib/usage-modes";
 import type { PinRecord } from "./lib/learner-pin";
 import type { DbHealth } from "./lib/db-resilience";
@@ -23,6 +23,7 @@ import LearnerPicker from "./components/LearnerPicker";
 import LearnerMenu from "./components/LearnerMenu";
 import TeacherView from "./components/TeacherView";
 import { UsageModeChooser, TeacherPinPrompt } from "./components/UsageMode";
+import StartupFailed from "./components/StartupFailed";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
@@ -67,6 +68,9 @@ export default function App() {
   // typed; `teacherOpen` shows the teacher view over the picker or the (still mounted) session.
   const [mode, setMode] = useState<UsageMode | null>(null);
   const [modeLoaded, setModeLoaded] = useState(false);
+  // The mode or the learner list could not be read at launch (a damaged file, #171). Without this the
+  // app would sit blank with no picker and no way to the restore steps.
+  const [startupFailed, setStartupFailed] = useState(false);
   const [teacher, setTeacher] = useState<UsageConfig["teacher"]>({ pin_hash: null, pin_salt: null });
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [teacherOpen, setTeacherOpen] = useState(false);
@@ -137,41 +141,53 @@ export default function App() {
   // Launch: read the mode; an install already in use becomes "Just me" silently (resolveStartupMode),
   // a fresh one is asked. Then the usual picker-or-straight-in rule, now per mode.
   const startUp = async () => {
-    let m = await applyUsageConfig();
-    if (!m) {
-      const list = await listLearners();
-      const tourSeen = await getTourSeen(DEFAULT_LEARNER_ID).catch(() => false);
-      m = resolveStartupMode(null, hasPriorUse(list, tourSeen));
-      if (m) { await saveUsageMode(m); setMode(m); }
+    setStartupFailed(false);
+    try {
+      let m = await applyUsageConfig();
+      if (!m) {
+        const list = await listLearners();
+        const tourSeen = await getTourSeen(DEFAULT_LEARNER_ID).catch(() => false);
+        m = resolveStartupMode(null, hasPriorUse(list, tourSeen));
+        if (m) { await saveUsageMode(m); setMode(m); }
+      }
+      setModeLoaded(true);
+      await enterOrPick(m);
+    } catch (e) {
+      console.error("startup failed", e);
+      setStartupFailed(true);
     }
-    setModeLoaded(true);
-    await enterOrPick(m);
+  };
+
+  // The mode (and teacher PIN) just saved, shown at once. A re-read that fails after this is not a
+  // failed save (saveThenRefresh), so the screen must not wait for it.
+  const showSavedMode = (to: UsageMode, rec: PinRecord | null | undefined) => {
+    setMode(to);
+    if (rec !== undefined) setTeacher(rec ?? { pin_hash: null, pin_salt: null });
   };
 
   // First run answered. A class or school lands in the teacher view (the PIN was just set), so the
   // teacher can add learners before anyone picks.
   const onModeChosen = async (m: UsageMode, rec: PinRecord | null) => {
-    await saveUsageMode(m, rec);
-    await applyUsageConfig();
+    await saveThenRefresh(async () => { await saveUsageMode(m, rec); showSavedMode(m, rec); }, applyUsageConfig);
     if (isProtected(m)) { await reloadLearners(); setTeacherUnlocked(true); openTeacherView("picker"); }
     else await enterOrPick(m);
   };
 
   // From Settings. The section has already set or checked the teacher PIN (modeChangeStep), so the
-  // teacher is in; that keeps Settings open after moving up from Just me.
+  // teacher is in; that keeps Settings open after moving up from Just me. Throws only if the save fails.
   const changeMode = async (to: UsageMode, rec: PinRecord | null | undefined) => {
-    await saveUsageMode(to, rec);
-    if (isProtected(to)) setTeacherUnlocked(true);
-    await applyUsageConfig();
+    await saveThenRefresh(async () => {
+      await saveUsageMode(to, rec);
+      showSavedMode(to, rec);
+      if (isProtected(to)) setTeacherUnlocked(true);
+    }, applyUsageConfig);
   };
 
   // Every teacher-only entry point comes through here under its own name (usage-modes.ts guardEntry):
-  // run `then` now, or after the teacher PIN.
-  const guarded = (entry: TeacherEntry, then: () => void) => {
-    if (!mode) return;
-    if (guardEntry(mode, entry, teacherUnlocked) === "go") { then(); return; }
-    setTeacherPrompt(() => () => { setTeacherUnlocked(true); then(); });
-  };
+  // run `then` now and return its result (a backup's promise), or run it after the teacher PIN.
+  const guarded = <T,>(entry: TeacherEntry, then: () => T): T | undefined =>
+    mode ? runGuarded(mode, entry, teacherUnlocked, then, (afterPin) =>
+      setTeacherPrompt(() => () => { setTeacherUnlocked(true); afterPin(); })) : undefined;
 
   const openSettings = (entry: TeacherEntry, section?: string) =>
     guarded(entry, () => { setSettingsSection(section); setCurrentView("settings"); });
@@ -309,6 +325,8 @@ export default function App() {
               onOpenLearner={activeLearner ? () => setLearnerMenuOpen(true) : undefined}
             />
           )}
+
+          {startupFailed && <StartupFailed onRetry={() => { void startUp(); }} />}
 
           {modeLoaded && mode === null && <UsageModeChooser onChosen={onModeChosen} />}
 

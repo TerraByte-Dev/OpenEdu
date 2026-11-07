@@ -2,12 +2,12 @@ import { useState } from "react";
 import type { SectionProps } from "../types";
 import { Section, useSettings } from "../primitives";
 import { ModeTiles, TeacherPinSetup, TeacherPinPrompt } from "../../../components/UsageMode";
-import { USAGE_MODES, modeChangeStep, keepsTeacherPin, isProtected, type UsageMode } from "../../../lib/usage-modes";
+import { USAGE_MODES, modeChangeStep, isProtected, type UsageMode } from "../../../lib/usage-modes";
 
 // "Who uses this computer?" in Settings. Changing the answer follows usage-modes.ts modeChangeStep:
 // moving up from "Just me" sets a teacher PIN; leaving a class or school asks for it again (only the
-// teacher can lower protection), and moving up is refused while another learner has a PIN. No change
-// deletes anybody's data.
+// teacher can lower protection). While another learner has a PIN, moving up asks for the teacher PIN
+// kept from before, or is refused when there is none. No change deletes anybody's data or the PIN.
 export default function UsageModeSection({ usage }: SectionProps) {
   const { markSaved } = useSettings();
   const [pending, setPending] = useState<{ to: UsageMode; step: "set-teacher-pin" | "verify-teacher-pin" } | null>(null);
@@ -26,7 +26,7 @@ export default function UsageModeSection({ usage }: SectionProps) {
   };
 
   const pick = (to: UsageMode) => {
-    const change = modeChangeStep(mode, to, usage.learners, usage.activeLearnerId);
+    const change = modeChangeStep(mode, to, usage.learners, usage.activeLearnerId, !!usage.teacher.pin_hash);
     if (change.step === "none") return;
     if (change.step === "refused") { setPending(null); setError(change.reason); return; }
     setError(null);
@@ -51,7 +51,7 @@ export default function UsageModeSection({ usage }: SectionProps) {
         )}
         {error && <p className="text-sm text-red-400">{error}</p>}
         <p className="text-xs text-[var(--ink-faint)] leading-relaxed max-w-prose">
-          Changing this never deletes anyone's courses or work. Going back to Just me needs the teacher PIN and turns it off.
+          Changing this never deletes anyone's courses or work. Going back to Just me needs the teacher PIN. The PIN is kept, so the teacher can switch back with it later.
         </p>
       </Section>
 
@@ -73,7 +73,7 @@ export default function UsageModeSection({ usage }: SectionProps) {
           record={usage.teacher}
           onCancel={() => setPending(null)}
           onOk={() => {
-            apply(pending.to, keepsTeacherPin(pending.to) ? undefined : null)
+            apply(pending.to, undefined)
               .catch(() => { setPending(null); setError("Could not change it. Try again."); });
           }}
         />

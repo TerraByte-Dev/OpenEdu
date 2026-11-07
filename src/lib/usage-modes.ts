@@ -50,15 +50,14 @@ export function usesGroups(mode: UsageMode): boolean {
   return mode === "school";
 }
 
-/** Everything the teacher PIN guards. In "Just me" none of them ask. */
+/**
+ * What the teacher PIN guards directly. In "Just me" none of them ask. Adding, removing and resetting
+ * learners and managing groups live inside the teacher view, so "teacher-view" covers them; changing
+ * the mode has its own rule (modeChangeStep).
+ */
 export const TEACHER_ACTIONS = [
   "open-settings",
-  "change-mode",
-  "add-learner",
-  "remove-learner",
-  "reset-learner-pin",
   "teacher-view",
-  "manage-groups",
   "backup-all-data",
 ] as const;
 export type TeacherAction = (typeof TEACHER_ACTIONS)[number];
@@ -106,6 +105,22 @@ export function guardEntry(mode: UsageMode, entry: TeacherEntry, teacherUnlocked
   return teacherUnlocked ? "go" : "ask-teacher-pin";
 }
 
+/**
+ * App's `guarded`: run `then` now and hand back what it returns (so a busy button can wait for a
+ * backup), or give `askPin` the action to run once the teacher PIN is typed and return undefined.
+ */
+export function runGuarded<T>(
+  mode: UsageMode,
+  entry: TeacherEntry,
+  teacherUnlocked: boolean,
+  then: () => T,
+  askPin: (afterPin: () => void) => void,
+): T | undefined {
+  if (guardEntry(mode, entry, teacherUnlocked) === "go") return then();
+  askPin(() => { void then(); });
+  return undefined;
+}
+
 /** The teacher stays unlocked only while Settings or the teacher view is on screen. Leaving re-locks. */
 export function staysUnlocked(view: string, teacherViewOpen: boolean): boolean {
   return view === "settings" || teacherViewOpen;
@@ -126,24 +141,28 @@ export type ModeChange =
 
 /**
  * Only the teacher can lower protection. Leaving a protected mode (to "Just me", or between class and
- * school) needs the teacher PIN. Moving up from "Just me" sets a new teacher PIN, because there is no
- * teacher yet. No mode change deletes anyone's data.
+ * school) needs the teacher PIN. No mode change deletes anyone's data, and none deletes the teacher
+ * PIN: going back to "Just me" keeps it, unused, so the same teacher can come back up with it.
  *
- * Moving up is refused while any learner other than the one signed in has a PIN. Otherwise any
- * learner could make themselves the teacher and then clear another learner's PIN or remove them. A
- * PIN set before the teacher PIN existed is never the teacher's to clear, so the escalation itself is
- * refused. The learner with that PIN can remove it, or sign in and make the change themselves.
+ * Moving up from "Just me" sets a new teacher PIN, unless another learner (not the one signed in) has
+ * a PIN. Otherwise any learner could make themselves the teacher and then clear another learner's PIN
+ * or remove them. Then only a kept teacher PIN can move up: a class or school that went to "Just me"
+ * comes back with the PIN it had, so one learner's forgotten PIN can't lock it out. With no kept
+ * teacher PIN the move is refused; the learner with that PIN can remove it, or sign in and make the
+ * change themselves.
  */
 export function modeChangeStep(
   from: UsageMode,
   to: UsageMode,
   learners: ReadonlyArray<Pick<LearnerRow, "id" | "name" | "pin_hash">>,
   activeLearnerId: string | null,
+  teacherPinKept: boolean,
 ): ModeChange {
   if (from === to) return { step: "none" };
   if (isProtected(from)) return { step: "verify-teacher-pin" };
   if (isProtected(to)) {
     const other = learners.find((l) => l.id !== activeLearnerId && !!l.pin_hash);
+    if (other && teacherPinKept) return { step: "verify-teacher-pin" };
     if (other) return { step: "refused", reason: `${other.name} has a PIN; they must remove it first, or sign in as them.` };
   }
   return { step: "set-teacher-pin" };
@@ -172,9 +191,17 @@ export async function submitTeacherPin(
   }
 }
 
-/** Whether the teacher PIN survives the change. Going back to "Just me" drops it: nothing uses it. */
-export function keepsTeacherPin(to: UsageMode): boolean {
-  return isProtected(to);
+/**
+ * Save, then re-read. Only a failed save is an error: once the save went through, a failed re-read
+ * must not tell the teacher "Could not save" (the caller has already shown the new state).
+ */
+export async function saveThenRefresh(save: () => Promise<void>, refresh: () => Promise<unknown>): Promise<void> {
+  await save();
+  try {
+    await refresh();
+  } catch {
+    // Saved. The screen already shows the new mode; the next refresh catches the rest up.
+  }
 }
 
 /** Show "Who is learning?" at launch. A class or school always picks; "Just me" keeps #173's rule. */

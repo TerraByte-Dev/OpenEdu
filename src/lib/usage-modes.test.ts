@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   USAGE_MODES, parseUsageMode, resolveStartupMode, hasPriorUse, isProtected, needsTeacherPin,
-  modeChangeStep, keepsTeacherPin, showsPicker, autoPickFor, showsLearnerChip, learnersManageLearners,
+  modeChangeStep, showsPicker, autoPickFor, showsLearnerChip, learnersManageLearners,
   pickerGroups, pickerAsksGroup, learnersInGroup, validateGroupName, NO_GROUP,
-  TEACHER_ACTIONS, TEACHER_ENTRIES, ENTRY_ACTION, guardEntry, staysUnlocked, viewAfterTeacherDone, submitTeacherPin,
+  TEACHER_ACTIONS, TEACHER_ENTRIES, ENTRY_ACTION, guardEntry, runGuarded, staysUnlocked, viewAfterTeacherDone,
+  submitTeacherPin, saveThenRefresh,
   type TeacherAction, type TeacherEntry, type UsageMode,
 } from "./usage-modes";
 import { verifyPin } from "./learner-pin";
@@ -51,22 +52,27 @@ describe("startup", () => {
 });
 
 describe("the teacher PIN", () => {
-  it("lists every action it can guard, including the all-learner backup", () => {
-    expect([...TEACHER_ACTIONS].sort()).toEqual([
-      "add-learner", "backup-all-data", "change-mode", "manage-groups", "open-settings", "remove-learner",
-      "reset-learner-pin", "teacher-view",
-    ]);
+  // Only the actions App actually asks needsTeacherPin about (through ENTRY_ACTION). Adding, removing
+  // and resetting learners and managing groups happen inside the teacher view, which is itself behind
+  // "teacher-view"; the mode change has its own rule (modeChangeStep).
+  it("lists exactly the actions the app checks", () => {
+    expect([...TEACHER_ACTIONS].sort()).toEqual(["backup-all-data", "open-settings", "teacher-view"]);
+    expect(new Set(Object.values(ENTRY_ACTION))).toEqual(new Set(TEACHER_ACTIONS));
   });
 
   it("guards nothing in Just me", () => {
     expect(isProtected("single")).toBe(false);
-    for (const a of TEACHER_ACTIONS) expect(needsTeacherPin("single", a)).toBe(false);
+    expect(needsTeacherPin("single", "open-settings")).toBe(false);
+    expect(needsTeacherPin("single", "teacher-view")).toBe(false);
+    expect(needsTeacherPin("single", "backup-all-data")).toBe(false);
   });
 
-  it("guards every teacher action in a class and in a school", () => {
+  it("guards Settings, the teacher view and the all-learner backup in a class and in a school", () => {
     for (const m of ["class", "school"] as const) {
       expect(isProtected(m)).toBe(true);
-      for (const a of TEACHER_ACTIONS) expect(needsTeacherPin(m, a)).toBe(true);
+      expect(needsTeacherPin(m, "open-settings")).toBe(true);
+      expect(needsTeacherPin(m, "teacher-view")).toBe(true);
+      expect(needsTeacherPin(m, "backup-all-data")).toBe(true);
     }
   });
 
@@ -106,6 +112,30 @@ describe("every way into a teacher-only screen goes through one guard", () => {
       expect(guardEntry("school", e, true)).toBe("go");
     });
   }
+});
+
+describe("running a guarded entry (App's guarded)", () => {
+  it("goes straight in and hands back what the action returns, so a busy button waits for it", async () => {
+    let asked = false;
+    let done = false;
+    const out = runGuarded("single", "learner-data-backup", false, async () => { done = true; }, () => { asked = true; });
+    expect(out).toBeInstanceOf(Promise);
+    await out;
+    expect(done).toBe(true);
+    expect(asked).toBe(false);
+    expect(runGuarded("class", "learner-data-backup", true, () => 7, () => { asked = true; })).toBe(7);
+    expect(asked).toBe(false);
+  });
+
+  it("when locked, asks for the PIN first and runs the action only after it", () => {
+    let ran = 0;
+    let afterPin: (() => void) | null = null;
+    const out = runGuarded("school", "gear", false, () => { ran++; }, (after) => { afterPin = after; });
+    expect(out).toBeUndefined();
+    expect(ran).toBe(0);
+    afterPin!();
+    expect(ran).toBe(1);
+  });
 });
 
 describe("the teacher is locked out again on leaving", () => {
@@ -149,6 +179,24 @@ describe("saving a new teacher PIN", () => {
     expect(err).toMatch(/Could not save/);
     expect(r.calls).toEqual([true, false]);
   });
+
+  it("a refresh that fails after a good save is not reported as a failed save", async () => {
+    const r = recorder();
+    let saved = false;
+    const err = await submitTeacherPin("2468", "2468", () => saveThenRefresh(
+      async () => { saved = true; },
+      async () => { throw new Error("database disk image is malformed"); },
+    ), r.setBusy);
+    expect(saved).toBe(true);
+    expect(err).toBeNull();
+  });
+
+  it("a failed save still fails, and nothing is refreshed", async () => {
+    let refreshed = false;
+    await expect(saveThenRefresh(async () => { throw new Error("db locked"); }, async () => { refreshed = true; }))
+      .rejects.toThrow("db locked");
+    expect(refreshed).toBe(false);
+  });
 });
 
 describe("changing mode", () => {
@@ -158,14 +206,14 @@ describe("changing mode", () => {
   const aminaPin = { id: "a", name: "Amina", pin_hash: "y" };
 
   it("moving up from Just me sets a new teacher PIN", () => {
-    expect(modeChangeStep("single", "class", solo, "a")).toEqual({ step: "set-teacher-pin" });
-    expect(modeChangeStep("single", "school", solo, "a")).toEqual({ step: "set-teacher-pin" });
-    expect(modeChangeStep("single", "class", [amina, { id: "b", name: "Bilal", pin_hash: null }], "a")).toEqual({ step: "set-teacher-pin" });
+    expect(modeChangeStep("single", "class", solo, "a", false)).toEqual({ step: "set-teacher-pin" });
+    expect(modeChangeStep("single", "school", solo, "a", false)).toEqual({ step: "set-teacher-pin" });
+    expect(modeChangeStep("single", "class", [amina, { id: "b", name: "Bilal", pin_hash: null }], "a", false)).toEqual({ step: "set-teacher-pin" });
   });
 
-  it("moving up is refused while another learner has a PIN, so nobody can take over someone else's PIN", () => {
+  it("with no teacher PIN kept, moving up is refused while another learner has a PIN, so nobody can take over someone else's PIN", () => {
     for (const to of ["class", "school"] as const) {
-      expect(modeChangeStep("single", to, [amina, bilalPin], "a")).toEqual({
+      expect(modeChangeStep("single", to, [amina, bilalPin], "a", false)).toEqual({
         step: "refused",
         reason: "Bilal has a PIN; they must remove it first, or sign in as them.",
       });
@@ -173,29 +221,36 @@ describe("changing mode", () => {
   });
 
   it("the learner signed in may have their own PIN; it is theirs to hand to the teacher", () => {
-    expect(modeChangeStep("single", "class", [aminaPin, { id: "b", name: "Bilal", pin_hash: null }], "a")).toEqual({ step: "set-teacher-pin" });
+    expect(modeChangeStep("single", "class", [aminaPin, { id: "b", name: "Bilal", pin_hash: null }], "a", false)).toEqual({ step: "set-teacher-pin" });
   });
 
   it("with nobody signed in, any PIN refuses the move up", () => {
-    expect(modeChangeStep("single", "class", [aminaPin], null).step).toBe("refused");
+    expect(modeChangeStep("single", "class", [aminaPin], null, false).step).toBe("refused");
   });
 
   it("leaving a protected mode always needs the teacher PIN, so only the teacher can lower protection", () => {
     const all = [amina, bilalPin];
-    expect(modeChangeStep("class", "single", all, "a")).toEqual({ step: "verify-teacher-pin" });
-    expect(modeChangeStep("school", "single", all, "a")).toEqual({ step: "verify-teacher-pin" });
-    expect(modeChangeStep("school", "class", all, "a")).toEqual({ step: "verify-teacher-pin" });
-    expect(modeChangeStep("class", "school", all, "a")).toEqual({ step: "verify-teacher-pin" });
+    expect(modeChangeStep("class", "single", all, "a", true)).toEqual({ step: "verify-teacher-pin" });
+    expect(modeChangeStep("school", "single", all, "a", true)).toEqual({ step: "verify-teacher-pin" });
+    expect(modeChangeStep("school", "class", all, "a", true)).toEqual({ step: "verify-teacher-pin" });
+    expect(modeChangeStep("class", "school", all, "a", true)).toEqual({ step: "verify-teacher-pin" });
   });
 
   it("no change asks for nothing", () => {
-    for (const m of MODES) expect(modeChangeStep(m, m, [amina, bilalPin], "a")).toEqual({ step: "none" });
+    for (const m of MODES) expect(modeChangeStep(m, m, [amina, bilalPin], "a", true)).toEqual({ step: "none" });
   });
 
-  it("drops the teacher PIN only on the way back to Just me", () => {
-    expect(keepsTeacherPin("single")).toBe(false);
-    expect(keepsTeacherPin("class")).toBe(true);
-    expect(keepsTeacherPin("school")).toBe(true);
+  it("a school that went to Just me can come back with its kept teacher PIN, whoever has a PIN", () => {
+    // Lowering keeps the teacher PIN. Coming back asks for that same PIN instead of refusing, so a
+    // learner who forgot their PIN cannot lock the school out of going back up.
+    for (const to of ["class", "school"] as const) {
+      expect(modeChangeStep("single", to, [amina, bilalPin], "a", true)).toEqual({ step: "verify-teacher-pin" });
+      expect(modeChangeStep("single", to, [aminaPin, bilalPin], null, true)).toEqual({ step: "verify-teacher-pin" });
+    }
+  });
+
+  it("with a kept teacher PIN and no one else's PIN at stake, a new teacher PIN may still be set", () => {
+    expect(modeChangeStep("single", "class", [amina, { id: "b", name: "Bilal", pin_hash: null }], "a", true)).toEqual({ step: "set-teacher-pin" });
   });
 });
 
@@ -270,5 +325,58 @@ describe("groups in the picker", () => {
     expect(validateGroupName("grade 5", groups)).toMatch(/already/);
     expect(validateGroupName("Grade 5", groups, "g1")).toBeNull();
     expect(validateGroupName("Grade 7", groups)).toBeNull();
+  });
+});
+
+// Static checks on the real UI source: guardEntry and runGuarded are only evidence if App and the
+// Settings sections actually send every way into a teacher-only screen through them. A new raw
+// setCurrentView("settings") or setTeacherOpen(true) anywhere would bypass the guard and fail here.
+describe("the app sends every teacher entry through the guard", () => {
+  const sources = import.meta.glob("../**/*.tsx", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+  const app = sources["../App.tsx"];
+  const occurrences = (needle: string) =>
+    Object.entries(sources).flatMap(([file, src]) =>
+      src.split("\n").filter((line) => line.includes(needle)).map((line) => `${file}: ${line.trim()}`));
+
+  it("reads the UI source", () => {
+    expect(app).toContain("export default function App");
+    expect(Object.keys(sources).length).toBeGreaterThan(10);
+  });
+
+  it("only openSettings opens Settings, and it is guarded", () => {
+    expect(occurrences('setCurrentView("settings")')).toEqual([
+      '../App.tsx: guarded(entry, () => { setSettingsSection(section); setCurrentView("settings"); });',
+    ]);
+    expect(app).toMatch(/const openSettings = \(entry: TeacherEntry, section\?: string\) =>\s*\n\s*guarded\(entry,/);
+  });
+
+  it("only openTeacherView opens the teacher view, and every call is guarded or follows a new PIN", () => {
+    expect(occurrences("setTeacherOpen(true)")).toEqual([
+      '../App.tsx: const openTeacherView = (from: "settings" | "picker") => { setTeacherFrom(from); setTeacherOpen(true); };',
+    ]);
+    const calls = occurrences("openTeacherView(").filter((l) => !l.includes("const openTeacherView ="));
+    expect(calls).toEqual([
+      // First run: the teacher PIN was set on this very screen.
+      '../App.tsx: if (isProtected(m)) { await reloadLearners(); setTeacherUnlocked(true); openTeacherView("picker"); }',
+      '../App.tsx: onTeacher={() => guarded("picker-teacher-tile", () => openTeacherView("picker"))}',
+      // Handed to Settings as usage.openTeacher, which is only ever run through usage.guard.
+      '../App.tsx: openTeacher: () => openTeacherView("settings"),',
+    ]);
+    expect(occurrences("usage.openTeacher")).toEqual([
+      '../views/settings/sections/UsageMode.tsx: <button className="btn btn-primary" onClick={() => usage.guard("settings-teacher-view", usage.openTeacher)}>Open the teacher view</button>',
+    ]);
+  });
+
+  it("every entry point is wired under its own name", () => {
+    const all = Object.values(sources).join("\n");
+    for (const e of TEACHER_ENTRIES) {
+      const wired = ["openSettings", "guarded", "usage.guard"].some((fn) => all.includes(`${fn}("${e}"`));
+      expect(wired, e).toBe(true);
+    }
+  });
+
+  it("App's guard is runGuarded, and leaving Settings or the teacher view locks again", () => {
+    expect(app).toMatch(/const guarded = [^\n]*\n[^\n]*runGuarded\(mode, entry, teacherUnlocked,/);
+    expect(app).toContain("if (!staysUnlocked(currentView, teacherOpen)) setTeacherUnlocked(false);");
   });
 });

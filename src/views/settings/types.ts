@@ -8,15 +8,18 @@ import type { LearnerRow } from "../../lib/learners";
 export interface UsageControls {
   mode: UsageMode;
   teacher: { pin_hash: string | null; pin_salt: string | null };
-  /** Every learner, and who is signed in: moving up from "Just me" is refused while another has a PIN. */
+  /** Every learner, and who is signed in: moving up from "Just me" checks whether another has a PIN. */
   learners: ReadonlyArray<Pick<LearnerRow, "id" | "name" | "pin_hash">>;
   activeLearnerId: string | null;
   /** `teacher`: a new PIN record, null to clear it, undefined to keep it. Throws when the save fails. */
   changeMode: (to: UsageMode, teacher: PinRecord | null | undefined) => Promise<void>;
   openTeacher: () => void;
   openLearnerMenu: () => void;
-  /** Run `then` now, or after the teacher PIN when this mode guards `entry` (usage-modes.ts guardEntry). */
-  guard: (entry: TeacherEntry, then: () => void) => void;
+  /**
+   * Run `then` now and return its result (so a busy button waits for it), or run it after the teacher
+   * PIN when this mode guards `entry` and return undefined (usage-modes.ts runGuarded).
+   */
+  guard: <T>(entry: TeacherEntry, then: () => T) => T | undefined;
 }
 
 // Props every settings section receives from the shell. Sections are self-contained (they load/save their
