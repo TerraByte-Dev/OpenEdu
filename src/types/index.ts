@@ -10,6 +10,8 @@ export interface Course {
   // Phase 4b persona (sprite tutor). NULL on legacy courses / when the picker is skipped →
   // buildSystemPrompt falls back to the generated tutor_instructions.identity.
   sprite_id?: string | null;
+  // Owning learner (migration 13). Every course has one; see src/lib/learners.ts.
+  learner_id?: string | null;
   created_at: string;
   updated_at: string;
 }

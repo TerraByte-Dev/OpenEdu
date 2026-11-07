@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
-import { getCourses, deleteCourse, checkDatabaseHealth } from "./lib/db";
+import { getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner } from "./lib/db";
 import type { DbHealth } from "./lib/db-resilience";
+import { autoPickLearner, type LearnerRow } from "./lib/learners";
 import { getLLMProvider, getTourSeen, setTourSeen } from "./lib/store";
 import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
@@ -10,6 +11,8 @@ import TourOverlay, { TOUR_STEPS } from "./components/TourOverlay";
 import CRTLayer from "./components/CRTLayer";
 import BootSequence from "./components/BootSequence";
 import Titlebar from "./components/Titlebar";
+import LearnerPicker from "./components/LearnerPicker";
+import LearnerMenu from "./components/LearnerMenu";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
@@ -44,10 +47,60 @@ export default function App() {
   // Boot-time integrity check (power cuts are routine where OpenEdu runs). Only "damaged" shows a warning.
   const [dbHealth, setDbHealth] = useState<DbHealth | null>(null);
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
+  // Learner profiles. `learners === null` = not loaded yet. `activeLearner === null` = the picker is
+  // up and no learner data is loaded. learners.ts autoPickLearner decides when the picker is skipped.
+  const [learners, setLearners] = useState<LearnerRow[] | null>(null);
+  const [activeLearner, setActiveLearner] = useState<LearnerRow | null>(null);
+  const [learnerMenuOpen, setLearnerMenuOpen] = useState(false);
 
   const refreshCourses = async () => {
+    const learnerId = getActiveLearnerId();
     const c = await getCourses();
-    setCourses(c);
+    // A switch can land while this was in flight; never show one learner's list to the next.
+    if (getActiveLearnerId() === learnerId) setCourses(c);
+  };
+
+  const reloadLearners = async (): Promise<LearnerRow[]> => {
+    const list = await listLearners();
+    setLearners(list);
+    return list;
+  };
+
+  // Everything below is per-session state that must not survive a learner switch. The main area is
+  // also keyed by learner id, so every view under it remounts with empty state.
+  const resetSession = () => {
+    setLearnerMenuOpen(false);
+    setCurrentView("dashboard");
+    setSelectedCourseId(null);
+    setQuizContext(null);
+    setPendingResumeCourse(null);
+    setPromotionBanner(null);
+    setTourStep(null);
+    setCourses([]);
+  };
+
+  const enterLearner = async (learner: LearnerRow) => {
+    resetSession();
+    setActiveLearnerId(learner.id);
+    setActiveLearner(learner);
+    void touchLearner(learner.id);
+    await refreshCourses();
+    void getTourSeen(learner.id).then((seen) => {
+      if (!seen && getActiveLearnerId() === learner.id) setTourStep(0);
+    });
+  };
+
+  const leaveLearner = () => {
+    setActiveLearnerId(null);
+    setActiveLearner(null);
+    resetSession();
+  };
+
+  // After a delete (or anything that may leave one learner with no PIN), apply the launch rule again.
+  const enterOrPick = async () => {
+    const list = await reloadLearners();
+    const auto = autoPickLearner(list);
+    if (auto) await enterLearner(auto);
   };
 
   const refreshProvider = async () => {
@@ -64,21 +117,20 @@ export default function App() {
   };
 
   useEffect(() => {
-    refreshCourses();
+    void enterOrPick();
     refreshProvider();
     void recheckSetup();
     void checkDatabaseHealth().then(setDbHealth);
-    void getTourSeen().then((seen) => { if (!seen) setTourStep(0); });
   }, []);
 
   const advanceTour = () => {
     setTourStep((s) => {
       const next = (s ?? 0) + 1;
-      if (next >= TOUR_STEPS.length) { void setTourSeen(true); return null; }
+      if (next >= TOUR_STEPS.length) { if (activeLearner) void setTourSeen(activeLearner.id, true); return null; }
       return next;
     });
   };
-  const skipTour = () => { void setTourSeen(true); setTourStep(null); };
+  const skipTour = () => { if (activeLearner) void setTourSeen(activeLearner.id, true); setTourStep(null); };
 
   const handleBootComplete = useCallback(() => {
     setBooted(true);
@@ -154,11 +206,18 @@ export default function App() {
           {!isFullscreenView && (
             <Titlebar
               provider={activeProvider}
-              onGoSettings={() => { setSettingsSection(undefined); setCurrentView("settings"); }}
+              onGoSettings={activeLearner ? () => { setSettingsSection(undefined); setCurrentView("settings"); } : undefined}
+              learnerName={activeLearner?.name}
+              onOpenLearner={activeLearner ? () => setLearnerMenuOpen(true) : undefined}
             />
           )}
 
-          <div className="flex flex-1 min-h-0">
+          {!activeLearner && learners && (
+            <LearnerPicker learners={learners} onEnter={(l) => { void enterLearner(l); void reloadLearners(); }} />
+          )}
+
+          {activeLearner && (
+          <div key={activeLearner.id} className="flex flex-1 min-h-0">
             {/* The course list owns the left column everywhere EXCEPT inside a course, where it is
                 the one list you do not need — you are already in the thing it selects. In course
                 view CourseView takes the column for its own navigation (tabs, threads, notes), and
@@ -250,8 +309,26 @@ export default function App() {
               )}
             </main>
           </div>
+          )}
 
-          {tourStep !== null && !isFullscreenView && setup?.ready && (
+          {learnerMenuOpen && activeLearner && learners && (
+            <LearnerMenu
+              learner={activeLearner}
+              learners={learners}
+              busyReason={craftingTopic ? `Wait for "${craftingTopic}" to finish building before switching, adding or deleting learners.` : null}
+              onClose={() => setLearnerMenuOpen(false)}
+              onSwitch={() => { leaveLearner(); void reloadLearners(); }}
+              onAdded={(l) => { void reloadLearners(); void enterLearner(l); }}
+              onChanged={async () => {
+                const list = await reloadLearners();
+                const me = list.find((l) => l.id === activeLearner.id);
+                if (me) setActiveLearner(me);
+              }}
+              onDeleted={() => { leaveLearner(); void enterOrPick(); }}
+            />
+          )}
+
+          {tourStep !== null && activeLearner && !isFullscreenView && setup?.ready && (
             <TourOverlay step={tourStep} onNext={advanceTour} onSkip={skipTour} />
           )}
         </>

@@ -32,7 +32,8 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 
 ## Architecture orientation
 
-- `src/lib/db.ts` — SQLite CRUD for every table (`courses`, `syllabuses`, `tutor_instructions`, `notes`, `chat_messages`, `quiz_attempts`, `quiz_questions`, `user_progress`). `getDb()` switches the file to WAL on open; `checkDatabaseHealth()` (boot `quick_check`) and `backupLearnerData()` (`VACUUM INTO`) sit on the pure `src/lib/db-resilience.ts`. Per-connection PRAGMAs from JS are unreliable (sqlx pool of up to 10, recycled); sqlx already sets `foreign_keys=ON` and `busy_timeout` 5 s on every connection.
+- `src/lib/db.ts` — SQLite CRUD for every table (`courses`, `syllabuses`, `tutor_instructions`, `notes`, `chat_messages`, `quiz_attempts`, `quiz_questions`, `user_progress`, `learners`). Holds the active learner: course listing, creation and `getCourse` are scoped to it. `getDb()` switches the file to WAL on open; `checkDatabaseHealth()` (boot `quick_check`) and `backupLearnerData()` (`VACUUM INTO`) sit on the pure `src/lib/db-resilience.ts`. Per-connection PRAGMAs from JS are unreliable (sqlx pool of up to 10, recycled); sqlx already sets `foreign_keys=ON` and `busy_timeout` 5 s on every connection.
+- `src/lib/learners.ts` / `learner-pin.ts` — learner profiles on a shared PC: picker-visibility rule, course-ownership guard, name rules, PBKDF2 PINs. Pure and tested; see `docs/ARCHITECTURE.md` › Data & storage.
 - `src/lib/llm.ts` — provider abstraction (Ollama / OpenAI / Anthropic), streaming chat, schema-enforced structured output, tier detection, preflight check.
 - `src/lib/curriculum.ts` — the agent harness. Research → outline → tutor instructions → 6 syllabuses. All schema-enforced. Entry point: `runGenerationPipeline`.
 - `src/lib/knowledge.ts` — persistent per-course knowledge files (`knowledge_map`, `misconceptions`, `study_log`, `learning_profile`) used as tutor context.
@@ -47,7 +48,7 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 - `src/components/` — shared widgets, including `terminal/*` primitives.
 - `src-tauri/` — Rust backend, SQLite migrations, plugin config.
 
-The pure modules above (`store-keys`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`) are Tauri-free and unit-tested in `*.test.ts` next to them.
+The pure modules above (`store-keys`, `learners`, `learner-pin`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
 DB lives at `%APPDATA%/com.terrabytesolutions.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 

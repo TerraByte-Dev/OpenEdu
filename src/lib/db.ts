@@ -1,6 +1,7 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
 import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } from "./db-resilience";
+import { canAccessCourse, type LearnerRow } from "./learners";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -56,19 +57,79 @@ function uuid(): string {
   return crypto.randomUUID();
 }
 
-// Courses
-export async function getCourses(): Promise<Course[]> {
-  const d = await getDb();
-  return await d.select("SELECT * FROM courses ORDER BY updated_at DESC");
+// ── Learners (migration 13) ──────────────────────────────────────────────────
+// Several learners share one PC. Every data table hangs off courses(id), and each course is stamped
+// with one learner, so the course list and getCourse are the two doors to scope; everything else is
+// reached through a course the active learner already owns. With no active learner (the picker is up)
+// both doors are shut: getCourses returns nothing and getCourse refuses everything.
+let activeLearnerId: string | null = null;
+
+export function setActiveLearnerId(id: string | null): void {
+  activeLearnerId = id;
 }
 
+export function getActiveLearnerId(): string | null {
+  return activeLearnerId;
+}
+
+export async function listLearners(): Promise<LearnerRow[]> {
+  const d = await getDb();
+  return await d.select("SELECT * FROM learners ORDER BY created_at ASC, rowid ASC");
+}
+
+export async function createLearner(name: string): Promise<LearnerRow> {
+  const d = await getDb();
+  const id = uuid();
+  await d.execute("INSERT INTO learners (id, name, created_at) VALUES ($1, $2, datetime('now'))", [id, name.trim()]);
+  const rows: LearnerRow[] = await d.select("SELECT * FROM learners WHERE id = $1", [id]);
+  return rows[0];
+}
+
+export async function renameLearner(id: string, name: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE learners SET name = $1 WHERE id = $2", [name.trim(), id]);
+}
+
+/** Set (hash + salt from learner-pin.ts) or clear (both null) a learner's PIN. */
+export async function setLearnerPin(id: string, pinHash: string | null, pinSalt: string | null): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE learners SET pin_hash = $1, pin_salt = $2 WHERE id = $3", [pinHash, pinSalt, id]);
+}
+
+export async function touchLearner(id: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE learners SET last_active_at = datetime('now') WHERE id = $1", [id]);
+}
+
+/** Delete a learner and every course they own, through the same path as deleting one course. */
+export async function deleteLearner(id: string): Promise<void> {
+  const d = await getDb();
+  const owned: Array<{ id: string }> = await d.select("SELECT id FROM courses WHERE learner_id = $1", [id]);
+  for (const c of owned) await deleteCourse(c.id);
+  await d.execute("DELETE FROM learners WHERE id = $1", [id]);
+  if (activeLearnerId === id) activeLearnerId = null;
+}
+
+// Courses
+export async function getCourses(): Promise<Course[]> {
+  if (!activeLearnerId) return [];
+  const d = await getDb();
+  return await d.select(
+    "SELECT * FROM courses WHERE learner_id = $1 ORDER BY updated_at DESC",
+    [activeLearnerId],
+  );
+}
+
+// Refuses (returns null for) a course owned by another learner, or any course while no learner is
+// active. Every course id that arrives from outside a course-scoped list goes through here.
 export async function getCourse(id: string): Promise<Course | null> {
   const d = await getDb();
   const rows: Course[] = await d.select("SELECT * FROM courses WHERE id = $1", [id]);
-  return rows[0] ?? null;
+  return canAccessCourse(rows[0], activeLearnerId) ? rows[0] : null;
 }
 
 export async function createCourse(title: string, topic: string, spriteId?: string | null): Promise<Course> {
+  if (!activeLearnerId) throw new Error("No active learner: pick a learner before creating a course");
   const d = await getDb();
   const id = uuid();
   // current_level defaults to 1.0 (the first learning level in the new 1..6 scheme).
@@ -76,8 +137,8 @@ export async function createCourse(title: string, topic: string, spriteId?: stri
   // change a previously-applied migration and trip the plugin's hash check).
   // sprite_id (Phase 4b) is the chosen persona; NULL when no persona is picked.
   await d.execute(
-    "INSERT INTO courses (id, title, topic, current_level, sprite_id) VALUES ($1, $2, $3, 1.0, $4)",
-    [id, title, topic, spriteId ?? null]
+    "INSERT INTO courses (id, title, topic, current_level, sprite_id, learner_id) VALUES ($1, $2, $3, 1.0, $4, $5)",
+    [id, title, topic, spriteId ?? null, activeLearnerId]
   );
   return (await getCourse(id))!;
 }
@@ -96,9 +157,11 @@ export async function setCourseSprite(courseId: string, spriteId: string | null)
 // foreign keys when seeding its sentinel course — a fake course_id otherwise throws FK 787.
 export async function ensureCourse(id: string, title: string, topic: string): Promise<void> {
   const d = await getDb();
+  // Stamped with the active learner like any other course, so the eval's sentinel stays in the
+  // session that ran it.
   await d.execute(
-    "INSERT OR IGNORE INTO courses (id, title, topic, current_level) VALUES ($1, $2, $3, 1.0)",
-    [id, title, topic]
+    "INSERT OR IGNORE INTO courses (id, title, topic, current_level, learner_id) VALUES ($1, $2, $3, 1.0, $4)",
+    [id, title, topic, activeLearnerId]
   );
 }
 

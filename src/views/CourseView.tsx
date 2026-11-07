@@ -64,6 +64,9 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
 
   const loadCourseData = async () => {
     const c = await getCourse(courseId);
+    // getCourse refuses a course owned by another learner (or any course with no learner active).
+    // Load nothing under it and leave: this view must never show another learner's data.
+    if (!c) { onBack(); return; }
     const s = await getSyllabuses(courseId);
     setCourse(c);
     setSyllabuses(s);
@@ -76,7 +79,10 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
   // Threads are per (course, level). Opening the most recent matches how every chat app behaves —
   // you come back to where you were, not to a blank page.
   const viewingLevelForThreads = viewingLevel ?? course?.current_level ?? 1;
+  // Only list threads once getCourse has accepted this course for the active learner.
+  const courseAccepted = course?.id === courseId;
   useEffect(() => {
+    if (!courseAccepted) return;
     let alive = true;
     (async () => {
       const list = await listChatThreads(courseId, viewingLevelForThreads);
@@ -85,7 +91,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
       setThreadId(list[0]?.id ?? null);
     })();
     return () => { alive = false; };
-  }, [courseId, viewingLevelForThreads]);
+  }, [courseId, viewingLevelForThreads, courseAccepted]);
 
   const refreshThreads = async () => {
     setThreads(await listChatThreads(courseId, viewingLevelForThreads));

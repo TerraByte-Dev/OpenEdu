@@ -4,6 +4,7 @@
 // Pure module (no Tauri imports) → unit-testable in node.
 
 import type { LLMProvider } from "../types";
+import { DEFAULT_LEARNER_ID } from "./learners";
 
 export const STORE_FILE = "settings.json";
 
@@ -30,9 +31,29 @@ export const STORE_KEYS = {
   retrievalMode: "retrieval_mode",
   // Onboarding (#92): whether the feature tour has been completed or skipped. Not in
   // ALLOWED_IMPORT_KEYS — importing someone else's settings should not silently mark YOUR tour as
-  // seen, which would hide it from the person it exists for.
+  // seen, which would hide it from the person it exists for. Per learner: see LEARNER_SCOPED_KEYS.
   tourSeen: "tour_seen",
 } as const;
+
+// Keys that remember something about ONE learner rather than the machine. Read and write them only
+// through learnerStoreKey(). Everything else in STORE_KEYS (provider, models, API keys, library,
+// context size) is shared by every learner on the PC.
+export const LEARNER_SCOPED_KEYS: ReadonlyArray<string> = [STORE_KEYS.tourSeen];
+
+const LEARNER_KEY_SEPARATOR = "@learner:";
+
+// The store key for `base` as seen by `learnerId`. The default learner (the one every pre-profiles
+// install was migrated into) keeps the bare key, so an existing install reads exactly what it wrote
+// before and nothing needs migrating. Every other learner gets its own suffixed key.
+export function learnerStoreKey(base: string, learnerId: string): string {
+  return learnerId === DEFAULT_LEARNER_ID ? base : `${base}${LEARNER_KEY_SEPARATOR}${learnerId}`;
+}
+
+// A per-learner key belonging to a non-default learner. Kept out of a settings export: it carries a
+// learner id and no setting anyone would want on another machine.
+export function isLearnerScopedKey(key: string): boolean {
+  return key.includes(LEARNER_KEY_SEPARATOR);
+}
 
 // Per-provider API key, e.g. "apikey_openai".
 export const API_KEY_PREFIX = "apikey_";

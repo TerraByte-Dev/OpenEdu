@@ -26,7 +26,7 @@ All state lives in **one SQLite database** — no per-course files:
 
 Tables: `courses`, `syllabuses`, `tutor_instructions`, `notes`, `notebook_folders`,
 `notebook_documents` / `chunks` / `embeddings`, `chat_messages`, `quiz_questions`, `quiz_attempts`,
-`user_progress`. The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
+`user_progress`, `learners`. The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
 `src-tauri/`). The plugin hashes each migration's SQL — **never edit a shipped migration**; add a new
 version, or move the change into application code. API keys and app settings persist separately via
 `@tauri-apps/plugin-store`.
@@ -39,6 +39,16 @@ sqlx pool holds up to 10 connections and recycles them. At boot `checkDatabaseHe
 `PRAGMA quick_check` and the app shows a plain-words warning if it reports damage. **Settings → Learner
 data** writes a full copy with `VACUUM INTO` through the sql plugin (no `fs` capability) and explains how to
 restore it by hand. The logic is in `src/lib/db-resilience.ts` (pure, tested).
+
+**Learner profiles (migration 13).** Several learners can share one PC. Each course carries a
+`learner_id`, and every other table hangs off `courses(id)`, so scoping courses scopes everything.
+`db.ts` holds the active learner: `getCourses` lists only that learner's courses, `createCourse` stamps
+them, and `getCourse` refuses another learner's course (the guard is `canAccessCourse` in
+`learners.ts`). Migration 13 creates one default learner and gives it every existing course; one learner
+with no PIN means no picker, so an upgraded install sees no change. Optional 4-6 digit PINs are
+PBKDF2-SHA256 (`learner-pin.ts`). That keeps learners out of each other's courses; it does not protect
+the database file. Store keys that remember one learner (only the tour flag today) go through
+`learnerStoreKey` in `store-keys.ts`; the default learner keeps the bare key.
 
 ## Repo layout
 
