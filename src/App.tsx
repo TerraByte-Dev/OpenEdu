@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
-import { getCourses, deleteCourse, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner } from "./lib/db";
+import { getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner } from "./lib/db";
+import type { DbHealth } from "./lib/db-resilience";
 import { autoPickLearner, type LearnerRow } from "./lib/learners";
 import { getLLMProvider, getTourSeen, setTourSeen } from "./lib/store";
 import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
+import DataDamagedBanner from "./components/DataDamagedBanner";
 import TourOverlay, { TOUR_STEPS } from "./components/TourOverlay";
 import CRTLayer from "./components/CRTLayer";
 import BootSequence from "./components/BootSequence";
@@ -42,6 +44,9 @@ export default function App() {
   const [setupDismissed, setSetupDismissed] = useState(false);
   const [ollamaUrl, setOllamaUrl] = useState("http://127.0.0.1:11434");
   const [tourStep, setTourStep] = useState<number | null>(null);
+  // Boot-time integrity check (power cuts are routine where OpenEdu runs). Only "damaged" shows a warning.
+  const [dbHealth, setDbHealth] = useState<DbHealth | null>(null);
+  const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
   // Learner profiles. `learners === null` = not loaded yet. `activeLearner === null` = the picker is
   // up and no learner data is loaded. learners.ts autoPickLearner decides when the picker is skipped.
   const [learners, setLearners] = useState<LearnerRow[] | null>(null);
@@ -115,6 +120,7 @@ export default function App() {
     void enterOrPick();
     refreshProvider();
     void recheckSetup();
+    void checkDatabaseHealth().then(setDbHealth);
   }, []);
 
   const advanceTour = () => {
@@ -200,7 +206,7 @@ export default function App() {
           {!isFullscreenView && (
             <Titlebar
               provider={activeProvider}
-              onGoSettings={activeLearner ? () => setCurrentView("settings") : undefined}
+              onGoSettings={activeLearner ? () => { setSettingsSection(undefined); setCurrentView("settings"); } : undefined}
               learnerName={activeLearner?.name}
               onOpenLearner={activeLearner ? () => setLearnerMenuOpen(true) : undefined}
             />
@@ -230,6 +236,13 @@ export default function App() {
             )}
 
             <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+              {dbHealth?.status === "damaged" && (
+                <DataDamagedBanner
+                  onHowToRestore={() => { setSettingsSection("learner-data"); setCurrentView("settings"); }}
+                  onDismiss={() => setDbHealth(null)}
+                />
+              )}
+
               {promotionBanner !== null && (
                 <div className="flex items-center justify-between px-4 py-2 border-b text-sm text-phosphor-ink shrink-0" style={{ background: "rgb(var(--phosphor-rgb)/0.10)", borderColor: "rgb(var(--phosphor-rgb)/0.30)" }}>
                   <span className="flex items-center gap-2">
@@ -256,7 +269,7 @@ export default function App() {
                   status={setup}
                   ollamaUrl={ollamaUrl}
                   onRecheck={() => { void recheckSetup(); }}
-                  onOpenSettings={() => setCurrentView("settings")}
+                  onOpenSettings={() => { setSettingsSection(undefined); setCurrentView("settings"); }}
                   onDismiss={() => setSetupDismissed(true)}
                 />
               )}
@@ -283,7 +296,7 @@ export default function App() {
                   onOpenPromotionTest={openPromotionTest}
                 />
               )}
-              {currentView === "settings" && <Settings onSaved={refreshProvider} />}
+              {currentView === "settings" && <Settings key={settingsSection ?? "default"} onSaved={refreshProvider} initialSectionId={settingsSection} />}
               {currentView === "quiz" && quizContext && (
                 <QuizFullScreen context={quizContext} onClose={closeQuiz} />
               )}

@@ -4,6 +4,7 @@ import ProviderModels from "./sections/ProviderModels";
 import WebLibrary from "./sections/WebLibrary";
 import Permissions from "./sections/Permissions";
 import Appearance from "./sections/Appearance";
+import LearnerData from "./sections/LearnerData";
 import About from "./sections/About";
 
 function Icon({ d }: { d: string }) {
@@ -42,6 +43,13 @@ export const SECTIONS: SectionDef[] = [
     keywords: "appearance theme color crt amber green synthwave dark light phosphor scanlines glow look skin font",
     icon: <Icon d="M12 2a10 10 0 1 0 0 20c1 0 1.5-.8 1.5-1.5 0-.4-.2-.8-.5-1-.3-.3-.5-.6-.5-1 0-.8.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-4.4-3.6-8-8-8z|M7.5 12a1 1 0 1 0 0-.001|M12 7.5a1 1 0 1 0 0-.001|M16.5 11a1 1 0 1 0 0-.001" />,
     Component: Appearance,
+  },
+  {
+    id: "learner-data",
+    label: "Learner data",
+    keywords: "learner data backup restore database copy usb save power cut damaged recover replace file",
+    icon: <Icon d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z|M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6|M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />,
+    Component: LearnerData,
   },
   {
     id: "about",
