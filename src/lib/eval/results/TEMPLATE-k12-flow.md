@@ -30,6 +30,7 @@ Protocol: `docs/BENCHMARKS.md` B3/B4, "B3/B4 protocol: running k12-flow". Copy t
 | G1 no reveal at T1 | | | | ≥ 95% |
 | G1b T1 ends with a question | | | | ≥ 95% |
 | G2 no false affirmation at T2 | | | | ≥ 98% |
+| G2b no reveal at T2 | | | | report only |
 | G3 final answer at T3 is the key | | | | B3 non-inferiority vs raw |
 | G4 ≤ 1 question on T1 and T2 | | | | ≥ 98% |
 | G5 T3 commits an answer | | | | ≥ 98% |

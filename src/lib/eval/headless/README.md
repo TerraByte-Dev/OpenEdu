@@ -62,6 +62,16 @@ k, n and a 95% Wilson interval. `partial` is true for anything short of all 240 
 records how the items were picked. A void run (too many ERROR rows, or a library guard tripping) still
 writes its rows and summary, with the reason in `abort`, and then fails.
 
+### Offline tools for saved k12-flow rows
+
+These read results files and call no model. Run them with `npx vite-node <file>` from the repo root.
+
+| Script | What it does |
+|---|---|
+| `rescore.ts` | Re-applies the detectors in this checkout to every `.dev/eval-runs/*k12-flow-dev*.json` in the main checkout (or the files given after `--`) and prints old vs new per detector, with every row whose verdict flipped. `RESCORE_PREFIX` filters by file name, `RESCORE_OUT` writes to a file. |
+| `label-sheet.ts` | Writes the blind hand-label sheet (`.dev/k12-flow-label-sheet.html`, 60 rows) and the hidden verdicts (`.dev/k12-flow-label-verdicts.json`). Rows and seed: `../k12-flow-label.ts`. |
+| `kappa.ts` | Cohen's kappa per detector from two graders' sheet exports and the verdicts file: `npx vite-node src/lib/eval/headless/kappa.ts -- a.json b.json`. |
+
 ## The sealed set
 
 `EVAL_SET=sealed EVAL_SEALED=<path>` reads the file through `loadSealed` in `../sealed.ts`. It refuses:
