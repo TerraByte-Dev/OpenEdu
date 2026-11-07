@@ -1,16 +1,22 @@
 import type { ComponentType, ReactNode } from "react";
-import type { UsageMode } from "../../lib/usage-modes";
+import type { UsageMode, TeacherEntry } from "../../lib/usage-modes";
 import type { PinRecord } from "../../lib/learner-pin";
+import type { LearnerRow } from "../../lib/learners";
 
 // What the "Who uses this computer?" section needs from App: the mode lives in the DB and changing it
 // re-shapes the whole app (picker, chip, teacher PIN), so App owns it and hands these down.
 export interface UsageControls {
   mode: UsageMode;
   teacher: { pin_hash: string | null; pin_salt: string | null };
-  /** `teacher`: a new PIN record, null to clear it, undefined to keep it. */
+  /** Every learner, and who is signed in: moving up from "Just me" is refused while another has a PIN. */
+  learners: ReadonlyArray<Pick<LearnerRow, "id" | "name" | "pin_hash">>;
+  activeLearnerId: string | null;
+  /** `teacher`: a new PIN record, null to clear it, undefined to keep it. Throws when the save fails. */
   changeMode: (to: UsageMode, teacher: PinRecord | null | undefined) => Promise<void>;
   openTeacher: () => void;
   openLearnerMenu: () => void;
+  /** Run `then` now, or after the teacher PIN when this mode guards `entry` (usage-modes.ts guardEntry). */
+  guard: (entry: TeacherEntry, then: () => void) => void;
 }
 
 // Props every settings section receives from the shell. Sections are self-contained (they load/save their

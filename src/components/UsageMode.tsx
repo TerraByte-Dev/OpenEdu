@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { USAGE_MODES, isProtected, type UsageMode } from "../lib/usage-modes";
-import { hashPin, isValidPin, type PinRecord } from "../lib/learner-pin";
+import { USAGE_MODES, isProtected, submitTeacherPin, type UsageMode } from "../lib/usage-modes";
+import type { PinRecord } from "../lib/learner-pin";
 import { BIG_BTN, PinScreen } from "./LearnerPicker";
 import { PinInput } from "./LearnerMenu";
 
@@ -59,11 +59,7 @@ export function TeacherPinSetup({ onBack, onSet, large }: {
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!isValidPin(pin)) { setError("A PIN is 4 to 6 numbers."); return; }
-    if (pin !== again) { setError("The two PINs are different."); return; }
-    setBusy(true);
-    try { await onSet(await hashPin(pin)); }
-    catch { setError("Could not save the PIN. Try again."); setBusy(false); }
+    setError(await submitTeacherPin(pin, again, onSet, setBusy));
   };
 
   const btn = large ? BIG_BTN : { fontSize: "1rem", padding: "10px 18px" };

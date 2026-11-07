@@ -6,7 +6,8 @@ import { USAGE_MODES, modeChangeStep, keepsTeacherPin, isProtected, type UsageMo
 
 // "Who uses this computer?" in Settings. Changing the answer follows usage-modes.ts modeChangeStep:
 // moving up from "Just me" sets a teacher PIN; leaving a class or school asks for it again (only the
-// teacher can lower protection). No change deletes anybody's data.
+// teacher can lower protection), and moving up is refused while another learner has a PIN. No change
+// deletes anybody's data.
 export default function UsageModeSection({ usage }: SectionProps) {
   const { markSaved } = useSettings();
   const [pending, setPending] = useState<{ to: UsageMode; step: "set-teacher-pin" | "verify-teacher-pin" } | null>(null);
@@ -16,22 +17,20 @@ export default function UsageModeSection({ usage }: SectionProps) {
   const { mode } = usage;
   const current = USAGE_MODES.find((m) => m.id === mode)!;
 
+  // Throws on failure: the PIN form shows its own message and frees its button (submitTeacherPin).
   const apply = async (to: UsageMode, teacher: Parameters<typeof usage.changeMode>[1]) => {
-    try {
-      await usage.changeMode(to, teacher);
-      setPending(null);
-      setError(null);
-      markSaved();
-    } catch {
-      setError("Could not change it. Try again.");
-    }
+    await usage.changeMode(to, teacher);
+    setPending(null);
+    setError(null);
+    markSaved();
   };
 
   const pick = (to: UsageMode) => {
-    const step = modeChangeStep(mode, to);
-    if (step === "none") return;
+    const change = modeChangeStep(mode, to, usage.learners, usage.activeLearnerId);
+    if (change.step === "none") return;
+    if (change.step === "refused") { setPending(null); setError(change.reason); return; }
     setError(null);
-    setPending({ to, step });
+    setPending({ to, step: change.step });
   };
 
   const target = pending ? USAGE_MODES.find((m) => m.id === pending.to)! : null;
@@ -62,7 +61,7 @@ export default function UsageModeSection({ usage }: SectionProps) {
       >
         <div className="flex gap-3 flex-wrap">
           {isProtected(mode) ? (
-            <button className="btn btn-primary" onClick={usage.openTeacher}>Open the teacher view</button>
+            <button className="btn btn-primary" onClick={() => usage.guard("settings-teacher-view", usage.openTeacher)}>Open the teacher view</button>
           ) : (
             <button className="btn" onClick={usage.openLearnerMenu}>Learner name, PIN and more learners</button>
           )}
@@ -73,7 +72,10 @@ export default function UsageModeSection({ usage }: SectionProps) {
         <TeacherPinPrompt
           record={usage.teacher}
           onCancel={() => setPending(null)}
-          onOk={() => void apply(pending.to, keepsTeacherPin(pending.to) ? undefined : null)}
+          onOk={() => {
+            apply(pending.to, keepsTeacherPin(pending.to) ? undefined : null)
+              .catch(() => { setPending(null); setError("Could not change it. Try again."); });
+          }}
         />
       )}
     </>

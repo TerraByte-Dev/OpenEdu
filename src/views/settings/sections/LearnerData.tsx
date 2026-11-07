@@ -4,11 +4,13 @@ import { appConfigDir, join } from "@tauri-apps/api/path";
 import { backupLearnerData } from "../../../lib/db";
 import { backupFileName, describeBackupError, formatApproxSize } from "../../../lib/db-resilience";
 import { Section, SettingRow, ActionButton } from "../primitives";
+import type { SectionProps } from "../types";
 
 // Backup of every learner's courses, chats, notes, quizzes and progress. Power cuts are routine where
 // OpenEdu runs, so a copy on a USB stick is the recovery plan. The copy is made by SQLite itself
-// (VACUUM INTO, through the sql plugin), so no file-system permission is needed.
-export default function LearnerData() {
+// (VACUUM INTO, through the sql plugin), so no file-system permission is needed. The copy holds every
+// learner's data, so in a class or school it is behind the teacher PIN (guardEntry "learner-data-backup").
+export default function LearnerData({ usage }: SectionProps) {
   const [dbPath, setDbPath] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const mounted = useRef(true);
@@ -54,7 +56,7 @@ export default function LearnerData() {
           help="Saves one file with every course, chat, note, quiz and progress record. You can keep using OpenEdu while it saves. Make a new backup often, for example at the end of each day."
         >
           <div className="space-y-2.5">
-            <ActionButton primary onClick={backUp} busyLabel="Saving backup…">Back up all learner data</ActionButton>
+            <ActionButton primary onClick={() => (usage ? usage.guard("learner-data-backup", () => void backUp()) : backUp())} busyLabel="Saving backup…">Back up all learner data</ActionButton>
             {result && (
               <p className={`text-xs break-all ${result.ok ? "text-emerald-400" : "text-red-400"}`}>
                 {result.ok ? "✓ " : "✗ "}{result.msg}

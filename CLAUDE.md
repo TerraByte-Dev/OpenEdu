@@ -124,7 +124,8 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   draw that line. e2b tiers as `tiny`, so `quiz-grading.ts` `runsVerifyPass` keeps the quiz verify pass
   on for both defaults. The sixth, `export_save_csv` in `export.rs`, is the only write: it opens the
   native Save dialog from Rust and writes the given text only to the file the user picked there, forced
-  to `.csv` (the teacher overview export). The webview never names a path.
+  to `.csv` (the teacher overview export), and it refuses rather than replace a file the dialog did not
+  warn about (`report.txt` picked, `report.txt.csv` exists). The webview never names a path.
   The Rust side is migrations, six `.plugin()` calls, and those commands. **Nothing in the UI calls
   `src/lib/corpus.ts` yet**, so in the shipped app the only way a file's content enters is the notebook
   import (file picker or drag-and-drop), filtered to `.md,.markdown,.txt` and read via `File.text()`

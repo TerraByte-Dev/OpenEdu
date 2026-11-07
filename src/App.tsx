@@ -6,8 +6,8 @@ import {
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import {
-  autoPickFor, resolveStartupMode, hasPriorUse, needsTeacherPin, showsLearnerChip, isProtected,
-  type UsageMode, type GroupRow, type TeacherAction,
+  autoPickFor, resolveStartupMode, hasPriorUse, guardEntry, staysUnlocked, viewAfterTeacherDone, showsLearnerChip,
+  isProtected, type UsageMode, type GroupRow, type TeacherEntry,
 } from "./lib/usage-modes";
 import type { PinRecord } from "./lib/learner-pin";
 import type { DbHealth } from "./lib/db-resilience";
@@ -71,6 +71,10 @@ export default function App() {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [teacherOpen, setTeacherOpen] = useState(false);
   const [teacherPrompt, setTeacherPrompt] = useState<(() => void) | null>(null);
+  // True once the teacher PIN is typed (or a new one set), and only while Settings or the teacher view
+  // stays on screen: leaving either re-locks (staysUnlocked), so the next learner never inherits it.
+  const [teacherUnlocked, setTeacherUnlocked] = useState(false);
+  const [teacherFrom, setTeacherFrom] = useState<"settings" | "picker">("picker");
 
   const refreshCourses = async () => {
     const learnerId = getActiveLearnerId();
@@ -149,23 +153,41 @@ export default function App() {
   const onModeChosen = async (m: UsageMode, rec: PinRecord | null) => {
     await saveUsageMode(m, rec);
     await applyUsageConfig();
-    if (isProtected(m)) { await reloadLearners(); setTeacherOpen(true); }
+    if (isProtected(m)) { await reloadLearners(); setTeacherUnlocked(true); openTeacherView("picker"); }
     else await enterOrPick(m);
   };
 
-  // From Settings. The section has already set or checked the teacher PIN (modeChangeStep).
+  // From Settings. The section has already set or checked the teacher PIN (modeChangeStep), so the
+  // teacher is in; that keeps Settings open after moving up from Just me.
   const changeMode = async (to: UsageMode, rec: PinRecord | null | undefined) => {
     await saveUsageMode(to, rec);
+    if (isProtected(to)) setTeacherUnlocked(true);
     await applyUsageConfig();
   };
 
-  // Run `then` now, or after the teacher PIN when this mode guards `action`.
-  const withTeacher = (action: TeacherAction, then: () => void) => {
-    if (mode && needsTeacherPin(mode, action)) setTeacherPrompt(() => then);
-    else then();
+  // Every teacher-only entry point comes through here under its own name (usage-modes.ts guardEntry):
+  // run `then` now, or after the teacher PIN.
+  const guarded = (entry: TeacherEntry, then: () => void) => {
+    if (!mode) return;
+    if (guardEntry(mode, entry, teacherUnlocked) === "go") { then(); return; }
+    setTeacherPrompt(() => () => { setTeacherUnlocked(true); then(); });
   };
 
-  const openSettings = () => withTeacher("open-settings", () => setCurrentView("settings"));
+  const openSettings = (entry: TeacherEntry, section?: string) =>
+    guarded(entry, () => { setSettingsSection(section); setCurrentView("settings"); });
+
+  const openTeacherView = (from: "settings" | "picker") => { setTeacherFrom(from); setTeacherOpen(true); };
+
+  const closeTeacherView = () => {
+    setTeacherOpen(false);
+    const next = viewAfterTeacherDone(teacherFrom);
+    if (next) setCurrentView(next);
+  };
+
+  // Leaving Settings or the teacher view locks the teacher out again.
+  useEffect(() => {
+    if (!staysUnlocked(currentView, teacherOpen)) setTeacherUnlocked(false);
+  }, [currentView, teacherOpen]);
 
   // The teacher added, renamed, moved or removed someone. If the learner whose session is open was
   // removed, leave it (db.ts already cleared the active learner).
@@ -282,7 +304,7 @@ export default function App() {
           {!isFullscreenView && (
             <Titlebar
               provider={activeProvider}
-              onGoSettings={activeLearner ? openSettings : undefined}
+              onGoSettings={activeLearner ? () => openSettings("gear") : undefined}
               learnerName={activeLearner && mode && learners && showsLearnerChip(mode, learners) ? activeLearner.name : undefined}
               onOpenLearner={activeLearner ? () => setLearnerMenuOpen(true) : undefined}
             />
@@ -296,7 +318,7 @@ export default function App() {
               mode={mode}
               groups={groups}
               onEnter={(l) => { void enterLearner(l); void reloadLearners(); }}
-              onTeacher={() => withTeacher("teacher-view", () => setTeacherOpen(true))}
+              onTeacher={() => guarded("picker-teacher-tile", () => openTeacherView("picker"))}
             />
           )}
 
@@ -306,7 +328,7 @@ export default function App() {
               learners={learners}
               groups={groups}
               busyReason={craftingTopic ? `Wait for "${craftingTopic}" to finish building before removing learners.` : null}
-              onClose={() => setTeacherOpen(false)}
+              onClose={closeTeacherView}
               onChanged={onTeacherChanged}
             />
           )}
@@ -334,7 +356,7 @@ export default function App() {
             <main className="flex-1 flex flex-col overflow-hidden min-h-0">
               {dbHealth?.status === "damaged" && (
                 <DataDamagedBanner
-                  onHowToRestore={() => { setSettingsSection("learner-data"); setCurrentView("settings"); }}
+                  onHowToRestore={() => openSettings("damaged-banner-restore", "learner-data")}
                   onDismiss={() => setDbHealth(null)}
                 />
               )}
@@ -365,7 +387,7 @@ export default function App() {
                   status={setup}
                   ollamaUrl={ollamaUrl}
                   onRecheck={() => { void recheckSetup(); }}
-                  onOpenSettings={openSettings}
+                  onOpenSettings={() => openSettings("setup-gate-settings")}
                   onDismiss={() => setSetupDismissed(true)}
                 />
               )}
@@ -400,9 +422,12 @@ export default function App() {
                   usage={mode ? {
                     mode,
                     teacher,
+                    learners: learners ?? [],
+                    activeLearnerId: activeLearner?.id ?? null,
                     changeMode,
-                    openTeacher: () => setTeacherOpen(true),
+                    openTeacher: () => openTeacherView("settings"),
                     openLearnerMenu: () => setLearnerMenuOpen(true),
+                    guard: guarded,
                   } : undefined}
                 />
               )}

@@ -12,6 +12,7 @@
 // data they protect, so a settings export never carries them and a settings import cannot lower them.
 
 import { needsPicker, autoPickLearner, type LearnerRow } from "./learners";
+import { hashPin, isValidPin, type PinRecord } from "./learner-pin";
 
 export type UsageMode = "single" | "class" | "school";
 
@@ -50,33 +51,125 @@ export function usesGroups(mode: UsageMode): boolean {
 }
 
 /** Everything the teacher PIN guards. In "Just me" none of them ask. */
-export type TeacherAction =
-  | "open-settings"
-  | "change-mode"
-  | "add-learner"
-  | "remove-learner"
-  | "reset-learner-pin"
-  | "teacher-view"
-  | "manage-groups";
+export const TEACHER_ACTIONS = [
+  "open-settings",
+  "change-mode",
+  "add-learner",
+  "remove-learner",
+  "reset-learner-pin",
+  "teacher-view",
+  "manage-groups",
+  "backup-all-data",
+] as const;
+export type TeacherAction = (typeof TEACHER_ACTIONS)[number];
 
-export function needsTeacherPin(mode: UsageMode, _action: TeacherAction): boolean {
-  // Every guarded action is guarded in both protected modes. The action is a parameter so a future
-  // mode can relax one of them without touching every call site.
-  return isProtected(mode);
+/** What each mode guards. An action not listed here is never guarded, whatever the mode. */
+const GUARDED: Record<UsageMode, ReadonlySet<TeacherAction>> = {
+  single: new Set(),
+  class: new Set(TEACHER_ACTIONS),
+  school: new Set(TEACHER_ACTIONS),
+};
+
+export function needsTeacherPin(mode: UsageMode, action: TeacherAction): boolean {
+  return GUARDED[mode].has(action);
+}
+
+/**
+ * Every place in the app that opens a teacher-only screen or action. App.tsx sends each one through
+ * guardEntry under its own name; none of them opens its screen directly.
+ */
+export const TEACHER_ENTRIES = [
+  "gear",                    // titlebar gear: Settings
+  "setup-gate-settings",     // SetupGate "Open settings"
+  "damaged-banner-restore",  // DataDamagedBanner "How to restore a backup": Settings > Learner data
+  "picker-teacher-tile",     // the picker's Teacher tile: the teacher view
+  "settings-teacher-view",   // Settings > Who uses this > Open the teacher view
+  "learner-data-backup",     // Settings > Learner data > Back up all learner data (every learner's data)
+] as const;
+export type TeacherEntry = (typeof TEACHER_ENTRIES)[number];
+
+export const ENTRY_ACTION: Record<TeacherEntry, TeacherAction> = {
+  "gear": "open-settings",
+  "setup-gate-settings": "open-settings",
+  "damaged-banner-restore": "open-settings",
+  "picker-teacher-tile": "teacher-view",
+  "settings-teacher-view": "teacher-view",
+  "learner-data-backup": "backup-all-data",
+};
+
+/**
+ * The one guard for every entry point. `teacherUnlocked` is true only while the teacher, having typed
+ * the PIN, is still in Settings or the teacher view (see staysUnlocked); then nothing asks twice.
+ */
+export function guardEntry(mode: UsageMode, entry: TeacherEntry, teacherUnlocked: boolean): "go" | "ask-teacher-pin" {
+  if (!needsTeacherPin(mode, ENTRY_ACTION[entry])) return "go";
+  return teacherUnlocked ? "go" : "ask-teacher-pin";
+}
+
+/** The teacher stays unlocked only while Settings or the teacher view is on screen. Leaving re-locks. */
+export function staysUnlocked(view: string, teacherViewOpen: boolean): boolean {
+  return view === "settings" || teacherViewOpen;
+}
+
+/**
+ * Where "Done" in the teacher view lands. Opened from Settings, it goes to the dashboard (and so
+ * re-locks), never back to a Settings the next learner could use. null = stay where the app is.
+ */
+export function viewAfterTeacherDone(openedFrom: "settings" | "picker"): "dashboard" | null {
+  return openedFrom === "settings" ? "dashboard" : null;
 }
 
 /** What a mode change asks for before it happens. */
-export type ModeChangeStep = "none" | "set-teacher-pin" | "verify-teacher-pin";
+export type ModeChange =
+  | { step: "none" | "set-teacher-pin" | "verify-teacher-pin" }
+  | { step: "refused"; reason: string };
 
 /**
  * Only the teacher can lower protection. Leaving a protected mode (to "Just me", or between class and
  * school) needs the teacher PIN. Moving up from "Just me" sets a new teacher PIN, because there is no
  * teacher yet. No mode change deletes anyone's data.
+ *
+ * Moving up is refused while any learner other than the one signed in has a PIN. Otherwise any
+ * learner could make themselves the teacher and then clear another learner's PIN or remove them. A
+ * PIN set before the teacher PIN existed is never the teacher's to clear, so the escalation itself is
+ * refused. The learner with that PIN can remove it, or sign in and make the change themselves.
  */
-export function modeChangeStep(from: UsageMode, to: UsageMode): ModeChangeStep {
-  if (from === to) return "none";
-  if (isProtected(from)) return "verify-teacher-pin";
-  return "set-teacher-pin";
+export function modeChangeStep(
+  from: UsageMode,
+  to: UsageMode,
+  learners: ReadonlyArray<Pick<LearnerRow, "id" | "name" | "pin_hash">>,
+  activeLearnerId: string | null,
+): ModeChange {
+  if (from === to) return { step: "none" };
+  if (isProtected(from)) return { step: "verify-teacher-pin" };
+  if (isProtected(to)) {
+    const other = learners.find((l) => l.id !== activeLearnerId && !!l.pin_hash);
+    if (other) return { step: "refused", reason: `${other.name} has a PIN; they must remove it first, or sign in as them.` };
+  }
+  return { step: "set-teacher-pin" };
+}
+
+/**
+ * The "Save teacher PIN" form's submit. Returns the message to show, or null when saved. Busy is
+ * always cleared, so a failed save leaves the button usable.
+ */
+export async function submitTeacherPin(
+  pin: string,
+  again: string,
+  save: (record: PinRecord) => void | Promise<void>,
+  setBusy: (busy: boolean) => void,
+): Promise<string | null> {
+  if (!isValidPin(pin)) return "A PIN is 4 to 6 numbers.";
+  if (pin !== again) return "The two PINs are different.";
+  setBusy(true);
+  try {
+    await save(await hashPin(pin));
+    return null;
+  } catch {
+    return "Could not save the PIN. Try again.";
+  } finally {
+    setBusy(false);
+  }
 }
 
 /** Whether the teacher PIN survives the change. Going back to "Just me" drops it: nothing uses it. */

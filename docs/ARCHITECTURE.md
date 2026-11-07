@@ -56,11 +56,16 @@ protect, so a settings export never carries them and an import cannot lower them
 "Just me" for an install that already has courses; a fresh install has no row and is asked once.
 Just me keeps the learner-profile rules above. A class always shows the picker, and a teacher PIN
 (PBKDF2, same as learner PINs) guards Settings, the mode, the teacher view, adding and removing learners,
-and clearing a learner's forgotten PIN. A school adds `learner_groups` and `learners.group_id`: the
+clearing a learner's forgotten PIN, and the all-learner backup. Every App entry point to those screens
+goes through one guard, `guardEntry`, under its own name. The teacher stays unlocked only while Settings
+or the teacher view is on screen; leaving either locks again. Moving up from Just me is refused while a
+learner other than the one signed in has a PIN: a PIN set before the teacher PIN existed is never the
+teacher's to clear. The mode and the teacher PIN are written in one statement. A school adds `learner_groups` and `learners.group_id`: the
 picker asks for the class first and the teacher overview filters by it. Leaving a protected mode needs
 the teacher PIN; no mode change deletes data. The overview (`teacher-overview.ts`) is the one read across
 learners (`getTeacherOverviewSource`), and its CSV goes through `export_save_csv` in `export.rs`, which
-opens the Save dialog itself and writes only the file the user picked, as `.csv`.
+opens the Save dialog itself and writes only the file the user picked, as `.csv`. When the `.csv` had to
+be added and that file already exists, it refuses: the dialog never warned about that file.
 
 ## Repo layout
 
