@@ -31,6 +31,7 @@ void refreshDatasetManifest();
 //   __runEvals()           — golden-conversation eval (src/lib/eval/runner.ts)
 //   __runRagEval()         — RAG grounding rate + falsification bar (src/lib/eval/rag-runner.ts)
 //   __runK12Eval()         — K-12 multiple-choice accuracy, three arms (src/lib/eval/k12-runner.ts)
+//   __runK12FlowEval()     — K-12 attempt-first flow, T1/T2/T3 detectors (src/lib/eval/k12-flow-runner.ts)
 //   __testMathRender()     — deterministic chat math render-check (src/lib/eval/render-check.ts)
 //   __testDsl()            — zod→JSON-Schema round-trip (src/lib/dsl/_roundTripCheck.ts)
 //   __spikeToolStreaming() — streaming+tools floor-model probe (src/lib/spike/toolStreamSpike.ts)
@@ -42,6 +43,7 @@ if (import.meta.env.DEV) {
   void import("./lib/eval/runner");
   void import("./lib/eval/rag-runner");
   void import("./lib/eval/k12-runner");
+  void import("./lib/eval/k12-flow-runner");
   void import("./lib/eval/render-check");
   void import("./lib/spike/toolStreamSpike");
   void import("./lib/library.devcheck");
