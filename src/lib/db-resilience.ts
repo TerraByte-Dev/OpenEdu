@@ -69,10 +69,13 @@ export async function enableWal(db: SqlDb): Promise<string | null> {
   return typeof mode === "string" ? mode.toLowerCase() : null;
 }
 
-/** `openedu-backup-YYYY-MM-DD.db`, in the computer's local date. */
+/** `openedu-backup-YYYY-MM-DD-HHMM.db`, in the computer's local time. */
 export function backupFileName(now: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
-  return `openedu-backup-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}.db`;
+  // The time is in the name because SQLite will not overwrite a file. With a date-only name, a second
+  // backup the same day to the same USB folder failed right after Windows asked "replace?" and the
+  // user said yes.
+  return `openedu-backup-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.db`;
 }
 
 export interface BackupResult {
@@ -102,7 +105,7 @@ export async function backupTo(db: SqlDb, path: string): Promise<BackupResult> {
 /** Plain-words reason a backup failed, with what to do next. */
 export function describeBackupError(err: unknown): string {
   const msg = errorText(err);
-  if (/already exists/i.test(msg)) return "A file with that name is already there. Choose a new name, or delete the old file first.";
+  if (/already exists/i.test(msg)) return "OpenEdu cannot replace a file that is already there, even if Windows asked whether to replace it. Choose a new name, or delete the old file first.";
   if (/disk is full|SQLITE_FULL|\(code: 13\)/i.test(msg)) return "The drive is full. Free some space, or save to another drive such as a USB stick.";
   if (/unable to open|SQLITE_CANTOPEN|\(code: 14\)|access is denied|permission/i.test(msg)) {
     return "OpenEdu could not write there. Check the USB stick is still plugged in, or pick another folder.";

@@ -18,8 +18,10 @@ function fakeDb(answer: (sql: string, args?: unknown[]) => unknown): SqlDb & { c
 
 describe("backupFileName", () => {
   it("uses the local date, zero-padded", () => {
-    expect(backupFileName(new Date(2026, 0, 5, 23, 59))).toBe("openedu-backup-2026-01-05.db");
-    expect(backupFileName(new Date(2026, 10, 7))).toBe("openedu-backup-2026-11-07.db");
+    expect(backupFileName(new Date(2026, 0, 5, 23, 59))).toBe("openedu-backup-2026-01-05-2359.db");
+    expect(backupFileName(new Date(2026, 10, 7))).toBe("openedu-backup-2026-11-07-0000.db");
+    // Two backups on the same day get different names, because SQLite refuses to overwrite a file.
+    expect(backupFileName(new Date(2026, 10, 7, 9, 5))).not.toBe(backupFileName(new Date(2026, 10, 7, 17, 30)));
   });
 });
 

@@ -82,8 +82,10 @@ export default function LearnerData() {
               Keep them; someone may be able to recover more from them later.
             </li>
             <li>
-              Copy your backup file into the first folder and rename the copy to <span className="font-mono">openedu.db</span>.
-              If Windows hides file endings, the name will show as just <span className="font-mono">openedu</span>.
+              Copy your backup file into the first folder and rename the copy. If the other file names there end in
+              {" "}<span className="font-mono">.db</span>, type <span className="font-mono">openedu.db</span>. If they don't
+              (Windows is hiding file endings), type just <span className="font-mono">openedu</span>, or Windows will name
+              it <span className="font-mono">openedu.db.db</span> and OpenEdu will start with no data.
             </li>
             <li>Start OpenEdu.</li>
           </ol>

@@ -210,7 +210,7 @@ export default function App() {
                   status={setup}
                   ollamaUrl={ollamaUrl}
                   onRecheck={() => { void recheckSetup(); }}
-                  onOpenSettings={() => setCurrentView("settings")}
+                  onOpenSettings={() => { setSettingsSection(undefined); setCurrentView("settings"); }}
                   onDismiss={() => setSetupDismissed(true)}
                 />
               )}
