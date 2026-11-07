@@ -10,8 +10,9 @@ import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
-import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
+import { tutorEngine, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
+import { resolvePersona } from "../lib/skills";
+import { chatTurnSkills } from "../lib/kernel/chatSkills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
@@ -229,23 +230,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       : profile.contextTokens;
     const config = { ...baseConfig, modelTier: profile.tier, contextTokens };
     const modelTier = profile.tier;
-    // Two orthogonal skill axes feed the turn: the mode skill (from the bar) and the course's domain
-    // skill (math-tutor/code-tutor, code-routed from the topic). Both gate tools (selectTools unions
-    // their tools_required) and contribute <skill_bundle> rules. domainSkill is null off-subject.
-    const activeSkill = resolveSkill(activeMode) ?? null;
-    // Domain skills (math-tutor/code-tutor) compose with TEACHING modes, but not with the focused
-    // "assess" mastery-check — adding its render tools + pedagogy there destabilizes the 4B model's
-    // tool selection (it stopped calling progress.mark_mastered). Keep assess to its Phase-2 tool set.
-    // A model without tool support gets no domain skill either: its bundle orders tool calls ("you
-    // MUST call math.render") that the model can't make (#127).
-    const domainSkill = activeSkill?.name === "assess" || !profile.supportsTools
-      ? null
-      : (resolveDomainSkill(course.topic, modelTier) ?? null);
+    // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rule
+    // lives in kernel/chatSkills.ts so the k12-flow eval builds its prompt the same way.
+    const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(activeMode, course.topic, modelTier, profile.supportsTools);
     if (import.meta.env.DEV && !profile.supportsTools && !toolsSuppressedLogged.has(config.model)) {
       toolsSuppressedLogged.add(config.model);
       console.info(`[OpenEdu:tools] ${config.model} reports no tool support — offering no tools or domain skill, grounded chat only`);
     }
-    const skillSuffix = (skillBundleLayer(activeSkill) ?? "") + (skillBundleLayer(domainSkill) ?? "");
     // Phase 4b: the chosen persona (WHO) overrides only the identity slot; mode/domain stay as-is.
     const persona = resolvePersona(spriteId) ?? null;
     const systemPrompt = buildSystemPrompt(
@@ -314,20 +305,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       const abandoned = result.stopReason === "aborted" || result.stopReason === "stalled";
       const truncated = result.stopReason === "length";
       const partial = abandoned || truncated;
-      if (result.text.trim()) {
-        // Persist an interrupted reply WITH a marker rather than silently as a finished answer.
-        // Two bugs met here before #86: a stall left `controller.signal.aborted` false, so a truncated
-        // half-sentence was written as the tutor's final word; and a real abort wrote nothing at all,
-        // leaving the student's question hanging in the transcript with no reply forever — which then
-        // became history that teaches the model unanswered questions are normal.
-        const suffix = result.stopReason === "stalled"
-          ? "\n\n_[the tutor stopped responding — ask again to continue]_"
-          : result.stopReason === "aborted"
-            ? "\n\n_[stopped]_"
-            : result.stopReason === "length"
-              ? "\n\n_[cut off at the length limit — ask the tutor to continue]_"
-              : "";
-        const assistantMsg = await saveChatMessage(courseId, "assistant", result.text + suffix, level, activeThread);
+      // persistedReply adds a marker to an interrupted reply rather than saving it as a finished answer.
+      const persisted = persistedReply(result.text, result.stopReason);
+      if (persisted !== null) {
+        const assistantMsg = await saveChatMessage(courseId, "assistant", persisted, level, activeThread);
         setMessages((prev) => appendUnique(prev, assistantMsg));
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
