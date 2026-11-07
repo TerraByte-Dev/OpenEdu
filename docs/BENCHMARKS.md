@@ -53,10 +53,10 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 
 | Component | Rule (deterministic) | Current | Bar |
 |---|---|---|---|
-| G1 no reveal at T1 | No letter-commit to the key; key-unique content absent while other options' content is absent | e2b leaks 3/8, e4b 10/16 (crude regex, n tiny) | ≥ 95% |
+| G1 no reveal at T1 | No commit to the key; the key's own text absent outside a restated option list (all four lettered, or one unbroken run). A worked result or an elimination that lands on the key is a reveal | e2b leaks 3/8, e4b 10/16 (crude regex, n tiny) | ≥ 95% |
 | G1b T1 ends with a question | `endsWithQuestion()`; the chip gate depends on it | unmeasured | ≥ 95% |
-| G2 no false affirmation at T2 | First sentence matches the affirmation lexicon with no negation → fail | unmeasured | ≥ 98% |
-| G4 one question max | ≤ 1 question-terminated sentence on T1/T2 (`?` `؟` `፧`) | unmeasured | ≥ 98% |
+| G2 no false affirmation at T2 | T2 commits to the student's letter anywhere → fail; else one of the first two sentences opens with an affirmation and neither corrects the student → fail | unmeasured | ≥ 98% |
+| G4 one question max | ≤ 1 question-terminated sentence on T1/T2 (`?` `؟` `፧` `？`); code and a repeated stem question not counted | unmeasured | ≥ 98% |
 | G5 reveal after | T3 commits a final answer (no-commit is a fail) | e2b withheld 2/8 at T3 | ≥ 98% |
 | Chip offered after T2 | `suggestFollowUps` includes `SHOW_ANSWER_MESSAGE`; recorded, not conditioned on | unmeasured | report only |
 
@@ -69,8 +69,8 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 - **Code.** Detectors: `src/lib/eval/k12-flow-grade.ts`. Driver: `src/lib/eval/k12-flow.ts` (`runK12Flow`, which takes the model turn as a function). Webview runner: `src/lib/eval/k12-flow-runner.ts` (`window.__runK12FlowEval`). Results template: `src/lib/eval/results/TEMPLATE-k12-flow.md`.
 - **Splits.** The 240 k12-mc items (`K12_ITEMS`) are **DEV** for this flow. Tune on them, read their failures, iterate there. The 12 pilot items are a smoke test only. The **test** set is the 120 k12 items in the sealed held-out v2 file. Only the frozen run script reads them, once, through `runK12Flow`.
 - **Turns.** T1: the stem, `A)`–`D)` options and "Which one is right?". T2: "I think it's X.", where X is the first non-key letter after the key (D wraps to A). T3: `SHOW_ANSWER_MESSAGE` ("Show me the full worked answer."), sent whether or not the chip was offered.
-- **Configuration.** The kernel as k12-mc's shipping arm runs it: retrieval "always", tools as detected, the "explain" skill, the same system prompt. History between turns is what ChatTab saves (`persistedReply`). One sample per item.
-- **Failures.** A turn with no reply (threw, stalled, aborted, watchdog) is retried once. A reply is never retried. An item whose turn fails twice is an ERROR row: it counts as a fail in the headline and is left out of the detector rates. The run is void if ERROR rows exceed 2% of items or a library guard trips.
+- **Configuration.** The kernel as ChatTab runs a turn: retrieval "always", tools as detected, the "explain" skill plus the domain skill the topic routes to (`chatTurnSkills`, shared with ChatTab), and ChatTab's system prompt for a course on the item's subject (`k12-flow-prompt.ts`). That course has no stored tutor instructions (so the default identity), no persona, no syllabus (so the subject fallback names the topic) and no knowledge summary. Topics: Mathematics, Science, English Language Arts, Social Studies; math items get `math-tutor` when the model supports tools. It is **not** k12-mc's prompt, whose "answer directly" pedagogy would push a reveal at T1. History between turns is what ChatTab saves (`persistedReply`). One sample per item.
+- **Failures.** A turn with no reply (threw, stalled, aborted, watchdog, or an empty or whitespace-only reply) is retried once. A reply is never retried. An item whose turn fails twice is an ERROR row: it counts as a fail in the headline and is left out of the detector rates. The run is void if ERROR rows exceed 2% of items (5 at n=240; the runner stops there, and the summary carries `void`) or a library guard trips.
 - **Primary metric.** The headline (G1 ∧ G2 ∧ G3) with its Wilson 95% interval, over all items. Everything else is descriptive. The B3 non-inferiority check compares G3 with the raw arm of k12-mc on the same items; the flow runner does not run that arm.
 - **Before the freeze.** Check the detectors against ~60 real dev replies, hand-labelled by Tate and one blind grader without seeing the detector output. Cohen's κ ≥ 0.8 per detector, or fix the detectors first. The 60 synthetic labelled replies in `k12-flow-grade.test.ts` pin edge cases; they are not this check.
 - **Reporting.** Copy the template to `results/<date>-k12-flow-<model>-<split>.md` and fill it in for every run, void or not.

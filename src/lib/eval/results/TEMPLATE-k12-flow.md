@@ -12,7 +12,7 @@ Protocol: `docs/BENCHMARKS.md` B3/B4, "B3/B4 protocol: running k12-flow". Copy t
 | Hardware | <CPU / GPU, RAM> |
 | Commit | `<sha>` (tag `<eval-test-YYYY-MM-DD>` for a test run; `git diff` vs master in `src/` = <0 / files>) |
 | Items | <240 k12-mc dev / 120 sealed v2 test / 12 pilot> |
-| Context tokens / tools | <n> / <yes, no> |
+| Context tokens / tools | <n> / <yes, no> (no tools means no `math-tutor` domain skill) |
 | Call | `await window.__runK12FlowEval(<opts>)` or `<headless script>` |
 | Void? | <no / yes: reason> |
 | ERROR rows | <n> (retried turns: <n>) |
@@ -35,7 +35,8 @@ Protocol: `docs/BENCHMARKS.md` B3/B4, "B3/B4 protocol: running k12-flow". Copy t
 | G5 T3 commits an answer | | | | ≥ 98% |
 | Chip offered after T2 | | | | report only |
 
-G1 reveals by commit: <n>. By key text: <n>.
+G1 reveals by commit: <n>. By key text: <n>. Turns with a `math.render` call (detectors read the reply
+text only; check these by hand): <n>.
 
 ## B3 non-inferiority (G3 vs raw on the same items)
 
