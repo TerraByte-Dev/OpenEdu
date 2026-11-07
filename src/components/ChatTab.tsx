@@ -10,7 +10,7 @@ import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
+import { tutorEngine, skillBundleLayer, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
 import { resolveSkill, resolveDomainSkill, resolvePersona } from "../lib/skills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
@@ -314,20 +314,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       const abandoned = result.stopReason === "aborted" || result.stopReason === "stalled";
       const truncated = result.stopReason === "length";
       const partial = abandoned || truncated;
-      if (result.text.trim()) {
-        // Persist an interrupted reply WITH a marker rather than silently as a finished answer.
-        // Two bugs met here before #86: a stall left `controller.signal.aborted` false, so a truncated
-        // half-sentence was written as the tutor's final word; and a real abort wrote nothing at all,
-        // leaving the student's question hanging in the transcript with no reply forever — which then
-        // became history that teaches the model unanswered questions are normal.
-        const suffix = result.stopReason === "stalled"
-          ? "\n\n_[the tutor stopped responding — ask again to continue]_"
-          : result.stopReason === "aborted"
-            ? "\n\n_[stopped]_"
-            : result.stopReason === "length"
-              ? "\n\n_[cut off at the length limit — ask the tutor to continue]_"
-              : "";
-        const assistantMsg = await saveChatMessage(courseId, "assistant", result.text + suffix, level, activeThread);
+      // persistedReply adds a marker to an interrupted reply rather than saving it as a finished answer.
+      const persisted = persistedReply(result.text, result.stopReason);
+      if (persisted !== null) {
+        const assistantMsg = await saveChatMessage(courseId, "assistant", persisted, level, activeThread);
         setMessages((prev) => appendUnique(prev, assistantMsg));
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on

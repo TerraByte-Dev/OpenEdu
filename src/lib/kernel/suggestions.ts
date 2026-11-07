@@ -87,7 +87,7 @@ const HINT_MESSAGE = "Give me a hint.";
 const WALK_MESSAGE = "Walk me through it.";
 // Measured on 2026-11-06 after a wrong first try: this wording got the worked answer from gemma4:e4b
 // in 8 of 8 runs, and "Walk me through it." in 5 of 8 (the tutor often kept asking instead).
-const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
+export const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
 
 // A message that asks for something rather than trying the problem: the chips, the deep-link prefill
 // ("Help me with Decimals."), and the ways students say they are stuck. Matched at the start so a chip
