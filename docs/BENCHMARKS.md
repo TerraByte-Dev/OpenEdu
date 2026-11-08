@@ -96,6 +96,7 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 - **Measures, per turn type:** time to first token and total time at p50 and p95, plus model calls per turn. Turn types: English chat, non-English chat, T1 new problem, reveal turn, quiz grading.
 - **Setup:** a reference CPU-only box (`num_gpu:0`, 4 threads, 8 GB and 16 GB RAM configs) running e2b. Also count Ollama model reloads and prefix-cache misses per session.
 - **Current:** **not measured in-app.** All app timings are GPU (median 1.0–1.8 s/turn). Diagnosis measurements on a Ryzen 5800H, CPU only: a gloss call takes 1.5–3.1 s, prefill runs ~100 tok/s (so a ~1,200-token uncached system prompt is ~10 s), and a cold reload from mismatched `num_ctx` takes 19 s.
+- **Harness:** `EVAL_SUITE=b7-cpu npm run eval` ([headless README](../src/lib/eval/headless/README.md), "b7-cpu"), built 2026-11-08 and not yet run. It drives the product path against a second, CPU-only Ollama server and refuses to run if any weights land on a GPU. Per turn it records wall time, TTFT, Ollama's token counts and rates, model loads and a step breakdown, and reports p50/p90 over warm repeats plus one cold start per scenario.
 - **Bar (pre-register before the levers):** English turn p50 TTFT ≤ 6 s and p95 ≤ 20 s warm. Reloads after the first = 0 (deterministic; a 100% target). Mean extra calls per English turn = 0.
 - **100%:** not applicable. This is a budget. Every lever in section 3 reports its delta here.
 
