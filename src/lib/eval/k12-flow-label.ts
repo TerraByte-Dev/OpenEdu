@@ -99,7 +99,17 @@ export interface LabelExport {
  *  the 20 rows named in the baseline results file (their verdicts are public); the rest were drawn. */
 export interface LabelVerdicts {
   sheet: string;
+  /** The commit that last changed the grader the verdicts come from (also in `sheet`). */
+  grader: string;
   rows: Record<string, { source: string; model: string; arm: string; item: string; fixed: boolean; detectors: Record<LabelDetector, boolean> }>;
+}
+
+/** Throws unless `v` names its grader commit and marks every row fixed or drawn: a row with no
+ *  `fixed` flag would silently count as drawn. */
+export function checkVerdicts(v: LabelVerdicts): void {
+  if (typeof v.grader !== "string" || !v.grader) throw new Error("The verdicts file does not name its grader commit; rebuild it with label-sheet.ts.");
+  const unmarked = Object.keys(v.rows).filter((rid) => typeof v.rows[rid].fixed !== "boolean");
+  if (unmarked.length) throw new Error(`Verdict rows with no "fixed" flag: ${unmarked.join(", ")}. Rebuild the verdicts with label-sheet.ts.`);
 }
 
 export interface Kappa {

@@ -2,12 +2,13 @@
 //
 //   npx vite-node src/lib/eval/headless/kappa.ts -- tate.json second.json verdicts.json
 //
-// The verdicts file is the one label-sheet.ts wrote (kept away from the sheet, so graders never see
-// it). Kappa is reported for all rows, then separately for the 20 fixed rows (named with their
+// The verdicts file is the one label-sheet.ts wrote (in the main checkout's .dev/label-verdicts/,
+// away from the sheet, so graders never see it). It must name its grader commit and mark every row
+// fixed or drawn, or the script stops. Kappa is reported for all rows, then separately for the 20 fixed rows (named with their
 // verdicts in the committed baseline results file, so not blind) and the 40 drawn rows. The bar
 // (docs/BENCHMARKS.md B4) is kappa >= 0.8 per detector before the freeze.
 
-import { kappaReport, type Kappa, type LabelExport, type LabelVerdicts } from "../k12-flow-label";
+import { checkVerdicts, kappaReport, type Kappa, type LabelExport, type LabelVerdicts } from "../k12-flow-label";
 import { fs } from "./node-io";
 
 const fmt = (k: Kappa) => (k.kappa === null ? `n/a (n ${k.n})` : `${k.kappa.toFixed(2)} (n ${k.n}, agree ${(100 * k.po!).toFixed(0)}%)`);
@@ -19,6 +20,8 @@ async function main(): Promise<void> {
   const read = async <T>(file: string): Promise<T> => JSON.parse(await f.readFile(file, "utf8")) as T;
   const [a, b, v] = await Promise.all([read<LabelExport>(args[0]), read<LabelExport>(args[1]), read<LabelVerdicts>(args[2])]);
   for (const e of [a, b]) if (e.sheet !== v.sheet) throw new Error(`${e.grader}'s export is for sheet ${e.sheet}, the verdicts are for ${v.sheet}`);
+  checkVerdicts(v);
+  console.log(`Sheet ${v.sheet}, verdicts from the grader at ${v.grader}.`);
   const sets: Array<[string, (r: LabelVerdicts["rows"][string]) => boolean]> = [
     ["All rows", () => true],
     ["The 20 fixed rows (verdicts public in the baseline results file)", (r) => r.fixed],

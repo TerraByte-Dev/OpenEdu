@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cohenKappa, humanVerdicts, kappaReport, selectLabelRows, LABEL_DETECTORS, LABEL_QUESTIONS, type LabelCandidate, type LabelExport, type LabelVerdicts } from "./k12-flow-label";
+import { checkVerdicts, cohenKappa, humanVerdicts, kappaReport, selectLabelRows, LABEL_DETECTORS, LABEL_QUESTIONS, type LabelCandidate, type LabelExport, type LabelVerdicts } from "./k12-flow-label";
 import type { K12FlowGrade } from "./k12-flow-grade";
 
 const pairs = (n: number, a: boolean, b: boolean): Array<[boolean, boolean]> => Array.from({ length: n }, () => [a, b]);
@@ -45,6 +45,7 @@ describe("kappaReport", () => {
   const det = (g1: boolean) => ({ g1, g1b: true, g2: true, g2b: true, g3: true, g4: true, g5: true });
   const verdicts: LabelVerdicts = {
     sheet: "s",
+    grader: "abc1234",
     rows: { R1: { source: "f", model: "m", arm: "a", item: "i1", fixed: true, detectors: det(true) }, R2: { source: "f", model: "m", arm: "a", item: "i2", fixed: false, detectors: det(true) }, R3: { source: "f", model: "m", arm: "a", item: "i3", fixed: true, detectors: det(false) }, R4: { source: "f", model: "m", arm: "a", item: "i4", fixed: false, detectors: det(false) } },
   };
   const ans = (reveal: boolean) => ({ t1_reveal: reveal ? ("yes" as const) : ("no" as const) });
@@ -69,6 +70,23 @@ describe("kappaReport", () => {
     const drawn = kappaReport(a, b, verdicts, (r) => !r.fixed).find((r) => r.detector === "g1")!;
     expect(drawn.aVsDetector).toMatchObject({ n: 2, kappa: 1 });
     expect(drawn.bVsDetector).toMatchObject({ n: 2, po: 0.5 });
+  });
+});
+
+describe("checkVerdicts", () => {
+  const row = { source: "f", model: "m", arm: "a", item: "i", fixed: true, detectors: { g1: true, g1b: true, g2: true, g2b: true, g3: true, g4: true, g5: true } };
+
+  it("accepts a verdicts file with a grader commit and a fixed flag on every row", () => {
+    expect(() => checkVerdicts({ sheet: "s", grader: "abc1234", rows: { R1: row, R2: { ...row, fixed: false } } })).not.toThrow();
+  });
+
+  it("refuses a row with no fixed flag (it would count as drawn)", () => {
+    const { fixed: _, ...noFlag } = row;
+    expect(() => checkVerdicts({ sheet: "s", grader: "abc1234", rows: { R1: row, R2: noFlag } } as unknown as LabelVerdicts)).toThrow(/R2/);
+  });
+
+  it("refuses a verdicts file that does not name its grader", () => {
+    expect(() => checkVerdicts({ sheet: "s", rows: { R1: row } } as unknown as LabelVerdicts)).toThrow(/grader/);
   });
 });
 

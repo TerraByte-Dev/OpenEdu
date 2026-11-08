@@ -1,27 +1,57 @@
 // Build the k12-flow hand-label sheet: one self-contained HTML file for Tate and a blind second
 // grader, plus the hidden verdicts file the kappa script reads. Offline: no model call.
 //
-//   npx vite-node src/lib/eval/headless/label-sheet.ts -- <verdicts.json>
+//   npx vite-node src/lib/eval/headless/label-sheet.ts [-- <verdicts.json>]
 //
-// Writes the sheet to <main checkout>/.dev/k12-flow-label-sheet.html and the hidden verdicts to the
-// path given, which must not be in the sheet's folder: the graders get the sheet only, and must not
-// find the verdicts beside it. Neither file is committed. The sheet never shows a detector verdict,
-// a model name or an arm. Rows come from LABEL_FILES, rescored with the detectors in this checkout.
+// Writes the sheet to <main checkout>/.dev/k12-flow-label-sheet.html and the hidden verdicts to
+// <main checkout>/.dev/label-verdicts/<sheet id>.json (or the path given), which must not be in the
+// sheet's folder: the graders get the sheet only, and must not find the verdicts beside it. Neither
+// file is committed. The sheet never shows a detector verdict, a model name or an arm. The 60 rows
+// are frozen (SHEET_ROWS); their verdicts come from the detectors in this checkout, and the sheet id
+// and the verdicts file name the commit that last changed the grader, so kappa.ts cannot score one
+// grader's verdicts against exports from a sheet built with another. The grader file must be
+// committed (no local changes) to build the sheet.
 
 import { K12_ITEMS, type K12Key } from "../k12-items";
 import { rescoreRows, type SavedK12FlowRow } from "../k12-flow-rescore";
 import { LABEL_DETECTORS, LABEL_QUESTIONS, LABEL_SEED, selectLabelRows, type LabelCandidate, type LabelVerdicts } from "../k12-flow-label";
 import { seededRandom } from "./select";
-import { fs, mainCheckout, path, writeText } from "./node-io";
+import { fs, lastCommitOf, mainCheckout, path, writeText } from "./node-io";
 
-/** The verdicts file's path: the one `.json` argument. */
-function verdictArg(): string {
+/** The verdicts file's path: the `.json` argument, if one is given. */
+function verdictArg(): string | null {
   const args = ((globalThis as { process?: { argv: string[] } }).process?.argv ?? []).slice(2).filter((a) => /\.json$/i.test(a));
-  if (args.length !== 1) throw new Error("Usage: label-sheet.ts -- <verdicts.json> (outside the sheet's folder)");
-  return args[0];
+  if (args.length > 1) throw new Error("Usage: label-sheet.ts [-- <verdicts.json>] (outside the sheet's folder)");
+  return args[0] ?? null;
 }
 
-export const LABEL_SHEET_ID = "k12-flow-label-2026-11-07-v1";
+/** The grader whose verdicts the sheet hides. */
+const GRADER_FILE = "src/lib/eval/k12-flow-grade.ts";
+
+/** The sheet id: the sheet's date and the grader commit. An export carries it, and kappa.ts refuses
+ *  an export whose sheet id is not the verdicts file's. */
+export const labelSheetId = (graderCommit: string): string => `k12-flow-label-2026-11-07-g${graderCommit}`;
+
+/** The 60 rows in display order (R01 first), as `model:arm:item`. Drawn on 2026-11-07 by
+ *  selectLabelRows (seed LABEL_SEED, the grader at 9bdc356) and shuffled with seed LABEL_SEED + 1;
+ *  frozen 2026-11-08 so that a grader change changes the hidden verdicts, never the rows shown. */
+const SHEET_ROWS = [
+  "e4b:baseline:social-68-13", "e4b:baseline:science-912-09", "e4b:baseline:math-912-01", "e2b:baseline:science-k5-04", "e2b:baseline:math-k5-05",
+  "e2b:baseline:math-k5-20", "e2b:baseline:math-k5-01", "e4b:L1:social-k5-17", "e2b:baseline:science-k5-18", "e2b:L1:science-k5-06",
+  "e4b:L1:math-68-12", "e4b:baseline:science-68-18", "e4b:L1:social-68-15", "e4b:baseline:math-912-04", "e2b:L1:ela-68-08",
+  "e4b:baseline:math-k5-13", "e2b:baseline:social-912-16", "e2b:L1:science-912-17", "e2b:L1:math-k5-02", "e4b:L1:math-k5-08",
+  "e2b:baseline:social-912-13", "e2b:baseline:math-k5-07", "e4b:baseline:math-k5-17", "e2b:baseline:math-912-16", "e2b:baseline:ela-k5-19",
+  "e2b:baseline:math-68-02", "e2b:baseline:ela-68-19", "e2b:baseline:math-k5-12", "e4b:baseline:ela-k5-05", "e4b:L1:social-912-18",
+  "e2b:baseline:science-912-16", "e4b:L1:math-912-08", "e4b:L1:ela-912-18", "e4b:baseline:math-k5-12", "e2b:L1:social-k5-18",
+  "e2b:baseline:science-912-04", "e2b:L1:social-912-11", "e2b:L1:social-68-10", "e4b:baseline:math-68-03", "e2b:baseline:social-912-05",
+  "e2b:baseline:ela-k5-03", "e4b:L1:science-912-06", "e2b:baseline:math-k5-17", "e2b:baseline:ela-912-12", "e4b:L1:science-912-14",
+  "e2b:baseline:math-912-05", "e2b:baseline:social-68-16", "e2b:L1:science-68-17", "e2b:L1:science-68-19", "e2b:baseline:social-68-20",
+  "e4b:L1:ela-68-02", "e4b:baseline:math-k5-03", "e4b:L1:ela-68-06", "e4b:baseline:math-68-09", "e4b:L1:ela-68-17",
+  "e4b:baseline:science-68-15", "e4b:L1:science-k5-13", "e4b:baseline:science-912-11", "e4b:L1:ela-68-04", "e4b:baseline:ela-k5-08",
+].map((s) => {
+  const [m, arm, id] = s.split(":");
+  return `gemma4:${m}|${arm}|${id}`;
+});
 
 /** The runs the rows come from: the gemma baselines (where the 20 fixed rows are) and the L1 arms. */
 const LABEL_FILES: Array<{ file: string; arm: string }> = [
@@ -50,7 +80,9 @@ async function main(): Promise<void> {
   const [f, p] = await Promise.all([fs(), path()]);
   const root = await mainCheckout();
   const sheetFile = p.join(root, ".dev", "k12-flow-label-sheet.html");
-  const verdictFile = p.resolve(verdictArg());
+  const grader = await lastCommitOf(GRADER_FILE);
+  const sheetId = labelSheetId(grader);
+  const verdictFile = p.resolve(verdictArg() ?? p.join(root, ".dev", "label-verdicts", `${sheetId}.json`));
   if (p.dirname(verdictFile).toLowerCase() === p.dirname(sheetFile).toLowerCase()) throw new Error("Write the verdicts outside the sheet's folder.");
   const dir = p.join(root, ".dev", "eval-runs");
   const byId = new Map(K12_ITEMS.map((i) => [i.id, i]));
@@ -79,17 +111,24 @@ async function main(): Promise<void> {
       });
     }
   }
-  const picked = selectLabelRows(pool, FIXED);
+  const byUid = new Map(pool.map((c) => [c.uid, c]));
+  const shown = SHEET_ROWS.map((u) => {
+    const c = byUid.get(u);
+    if (!c) throw new Error(`Sheet row ${u} is not in the label files`);
+    return c;
+  });
 
-  // Display order: a seeded shuffle, so the fixed rows are not all at the top.
-  const shown = [...picked];
+  // How the 2026-11-07 draw would come out with this grader (its minimums read the verdicts). The
+  // sheet keeps its frozen rows either way; this only says whether the draw has drifted.
+  const drawn = [...selectLabelRows(pool, FIXED)];
   const rand = seededRandom(LABEL_SEED + 1);
-  for (let i = shown.length - 1; i > 0; i--) {
+  for (let i = drawn.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
-    [shown[i], shown[j]] = [shown[j], shown[i]];
+    [drawn[i], drawn[j]] = [drawn[j], drawn[i]];
   }
+  const drift = drawn.filter((c, i) => c.uid !== SHEET_ROWS[i]).length;
 
-  const verdicts: LabelVerdicts = { sheet: LABEL_SHEET_ID, rows: {} };
+  const verdicts: LabelVerdicts = { sheet: sheetId, grader, rows: {} };
   const sheetRows = shown.map((c, i) => {
     const rid = `R${String(i + 1).padStart(2, "0")}`;
     const item = byId.get(c.item)!;
@@ -113,14 +152,14 @@ async function main(): Promise<void> {
     };
   });
 
-  await writeText(sheetFile, renderSheet(sheetRows));
+  await writeText(sheetFile, renderSheet(sheetId, sheetRows));
   await writeText(verdictFile, JSON.stringify(verdicts, null, 2));
 
-  const tally = (t: (c: LabelCandidate) => boolean) => picked.filter(t).length;
-  console.log(`Sheet: ${sheetFile}\nVerdicts (hidden from graders): ${verdictFile}\nRows: ${picked.length}`);
+  const tally = (t: (c: LabelCandidate) => boolean) => shown.filter(t).length;
+  console.log(`Sheet ${sheetId}: ${sheetFile}\nVerdicts (hidden from graders): ${verdictFile}\nRows: ${shown.length} (frozen; the seeded draw with this grader would differ at ${drift} positions)`);
   for (const d of LABEL_DETECTORS) console.log(`  ${d}: pass ${tally((c) => c.grade[d])}, fail ${tally((c) => !c.grade[d])}`);
-  for (const m of [...new Set(picked.map((c) => c.model))]) console.log(`  ${m}: ${tally((c) => c.model === m)}`);
-  for (const s of [...new Set(picked.map((c) => c.subject))]) console.log(`  ${s}: ${tally((c) => c.subject === s)}`);
+  for (const m of [...new Set(shown.map((c) => c.model))]) console.log(`  ${m}: ${tally((c) => c.model === m)}`);
+  for (const s of [...new Set(shown.map((c) => c.subject))]) console.log(`  ${s}: ${tally((c) => c.subject === s)}`);
   console.log(`  L1 arm: ${tally((c) => c.arm === "L1")}, prose-commit flips: ${tally((c) => c.proseFlip)}, placeholder flips: ${tally((c) => c.placeholderFlip)}`);
 }
 
@@ -135,8 +174,8 @@ interface SheetRow {
 }
 
 /** The sheet: one HTML file, no network, answers in localStorage, export to JSON. */
-function renderSheet(rows: SheetRow[]): string {
-  const data = JSON.stringify({ sheet: LABEL_SHEET_ID, questions: LABEL_QUESTIONS, rows }).replace(/</g, "\\u003c");
+function renderSheet(sheetId: string, rows: SheetRow[]): string {
+  const data = JSON.stringify({ sheet: sheetId, questions: LABEL_QUESTIONS, rows }).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en">
 <head>
