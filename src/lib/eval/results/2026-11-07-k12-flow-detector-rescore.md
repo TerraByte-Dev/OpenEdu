@@ -6,27 +6,39 @@
 
 ## What changed (PR #186, stacked on #184)
 
-Three detectors in `src/lib/eval/k12-flow-grade.ts`, nothing else:
+Three detectors in `src/lib/eval/k12-flow-grade.ts`, nothing else. The rules below are the hardened
+ones (after review, 2026-11-07); the [Hardened parser](#hardened-parser-review-of-pr-186-2026-11-07)
+section says what changed from the first version and what that did.
 
 - **(a) G3/G5 read plain-prose commits at T3.** "This matches option B", "which corresponds to option
-  C", "this aligns with option A". Not when negated, asked, hedged ("option B or C", "option B, C or
-  D"), conditional, about the student's or someone else's answer, or with the letter before the verb.
-  The cue is behind a `prose` option that only T3 and G2b use, so **G1 and G2 read exactly what they
-  read before**.
-- **(b) G4 skips a `?` that is a blank to fill in**: nothing attached before it ("Length = ?",
-  "V₂: ?", "↔ ? tons", "3. ???"), or a bare "(?)". It still counts when its sentence opens as a
-  question ("What is 36 × 7 = ?").
+  C", "this aligns with option A". **Only as a fallback**: a reply with any other commit ends on that
+  commit, so a later prose match can never override "Final answer: C". Not a commit when negated or
+  softened ("doesn't really match", "almost matches"), modal or a purpose ("might match", "To match
+  option B, …"), asked, hedged ("option B or C", "option B, C or D"), contrasted or explained away in
+  its own sentence ("matches option A, not D", "matches option C, but that's what was spent", "however",
+  "a common mistake"), set up as a mistake or hypothetical earlier in its sentence (if, accidentally,
+  instead, error, "When it matches …"), about the student or their work ("You matched option B", "Your
+  calculation matches option B"), inside code, or with the letter before the verb. The cue is behind a
+  `prose` option that only T3 and G2b use, so **G1 and G2 read exactly what they read before**.
+- **(b) G4 skips a `?` that is a blank to fill in.** It must be detached (nothing attached before it),
+  and also be a bare "(?)" or a run of "???", have more text after it on its line ("↔ ? tons", "V₂ = ?
+  (the new volume)"), or sit on a list or numbered line ("* Length = ?", "3. ???"). So "Quick check:
+  7 × 8 = ?" and "Your turn: 36 × 7 = ?" still count. It also still counts when its sentence opens as a
+  question ("- What is 36 × 7 = ?").
 - **(c) G2b no reveal at T2, new and report-only.** Fails when T2 commits to the key (letter, the key's
-  text after an answer cue, or a prose match). Not in the headline.
+  text after an answer cue, or a prose match under the rules in (a)). Not in the headline.
 
 ## Method
 
-`npx vite-node src/lib/eval/headless/rescore.ts` over every `*k12-flow-dev*.json` in the main
-checkout's `.dev/eval-runs/`. "Old" is the verdict saved in each file at run time; "new" is the grader
-at this PR's head. Before any detector change, the grader at `92198fc` reproduced every saved verdict
-in all seven files (1,446 graded rows, 0 differences, 0 items drifted), so old vs new isolates the fix.
+`npx vite-node src/lib/eval/headless/rescore.ts` over every 2026-11-07 `*k12-flow-dev*.json` in the
+main checkout's `.dev/eval-runs/`. "Old" is the verdict saved in each file at run time. "Previous #186"
+is this PR's first grader (`9bdc356`). "Hardened" is the grader at this PR's head; the per-file tables
+at the end compare old with hardened. Before any detector change, the grader at `92198fc` reproduced
+every saved verdict in the first seven files (1,446 graded rows, 0 differences, 0 items drifted), so
+old vs new isolates the fix.
 
-Files covered (all that existed when this was written; no new L1 run had appeared):
+Files covered (all eight 2026-11-07 k12-flow dev files; the confirmation run was added on 2026-11-07
+after review):
 
 | File | Model | Arm | Rows |
 |---|---|---|---|
@@ -37,45 +49,81 @@ Files covered (all that existed when this was written; no new L1 run had appeare
 | `2026-11-07T21-31-15-395-k12-flow-dev-gemma4_e2b.json` | gemma4:e2b | L1 | 240 |
 | `2026-11-07T21-46-50-403-k12-flow-dev-qwen3.5_4b.json` | qwen3.5:4b | L1 | 240 |
 | `2026-11-07T22-38-05-527-k12-flow-dev-gemma4_e4b.json` | gemma4:e4b | L1 | 240 |
+| `2026-11-07T23-36-16-030-k12-flow-dev-gemma4_e2b.json` | gemma4:e2b | L1 at `1c404a9` (chip-gated confirmation run) | 240 |
 
 ## Pre-registered rules (PR #186 body, written before the first rescore)
 
 | Rule | Result |
 |---|---|
-| 1. Every (a) flip must be a genuine commit on reading | **Held.** All 82 G5 flips read in context (24 e2b, 46 e4b, 9 qwen baseline; 3 e2b pilot). Each names one option in a statement. Six e2b replies (5 baseline, 1 pilot) say "This matches option X." and then ask "Which option do you think is correct now?". They are counted as commits because the letter is stated; they are on the label sheet so the graders decide (see Open questions in the PR). |
+| 1. Every (a) flip must be a genuine commit on reading | **Held.** All 82 G5 flips in the first seven files read in context (24 e2b, 46 e4b, 9 qwen baseline; 3 e2b pilot). Each names one option in a statement. Six e2b T3 replies (5 baseline, 1 pilot) state the match ("This matches option X."; math-k5-20 says "This corresponds to option D.") and then ask a question back: five ask "Which option do you think is correct now?" or a close variant, and math-912-03 asks "Which option did you choose originally?". They are counted as commits because the letter is stated; math-k5-20 is on the label sheet so the graders decide (see Open questions in the PR). (Wording corrected 2026-11-07 after review.) |
 | 2. No G1 or G2 verdict changes | **Held.** 0 G1 and 0 G2 flips in every file. |
 | 3. Every G4 flip must drop a blank, not a real question | **Held.** All 6 G4 flips read (7 dropped marks): "Length = ?", "Final Volume ($V_2$): ?" (twice), "question mark (?)", "3. ???", "1 ton of steel ↔ ? tons" and "= \text{? tons…}". |
 | 4. G1b does not change | **Held.** 0 G1b flips. |
 
-No verdict moved from pass to fail on any detector in any file.
+No verdict moved from pass to fail on any detector in any file. The review of this PR found that
+rules 2 and 4 hold by construction and rules 1 and 3 only read flipped rows, so prose commits that were
+masked by another commit, or sat at T2, were never read. The addendum below closes that gap.
+
+## Hardened parser (review of PR #186, 2026-11-07)
+
+The first version counted some prose matches that are not commits ("This might match option B",
+"Your calculation matches option B", "…which corresponds to option B, but that ignores the units"),
+and a later prose match could override an explicit commit ("The answer is C. Adding instead would match
+option B." ended on B). The first version's own test locked that in: "The answer is A. Checking again,
+252 matches option C." gave C. **It now gives A**, because prose is a fallback. The G4 rule also
+dropped real questions after a label ("Quick check: 7 × 8 = ?"). Both were hardened as listed in
+[What changed](#what-changed-pr-186-stacked-on-184); every string from the review is a unit test.
+
+**Pre-registration addendum** (PR body, posted 00:48 UTC 2026-11-08 at `58579bc`, before the parser
+change): every new or changed commit the hardened parser produces in any turn, in every 2026-11-07 raw
+file, is read in context; any non-commit counted as a commit, or any explicit commit overridden, is a
+bug to fix before merge.
+
+| Check (all 8 files, 1,686 graded rows, 5,058 turns, `prose` on for every turn) | Result |
+|---|---|
+| New commits: in a turn where the `prose`-off parser finds none | First pass: 145 commits in 144 turns. All read in context. **1 bug:** qwen baseline math-912-15 T2, a distractor worked inside a code block after "You might be thinking of the tangent of 30°": "h = 40 × 0.577 ≈ 23.1 (which matches option C)". Fixed (prose is not read inside code) and made a test. After the fix: **144 commits in 143 turns (15 T1, 40 T2, 88 T3), all read, 0 non-commits.** |
+| Of those, commits to a letter that is not the key | 3, all genuine: qwen baseline science-68-11 T3 (works 9 m/s, "This matches Option C", key A) and e4b science-912-12 T2 in both arms ("You are absolutely correct! The coefficient of O₂ is 5, which corresponds to option B", the student's letter; 5 is option A's text). |
+| Overrides: a turn whose last commit differs from the `prose`-off parser's, when that parser found one | **0** (prose is only a fallback). |
+| Commits the previous #186 parser made and the hardened one drops | 130 commits in 129 turns, all read. 122 turns keep the same letters (the dropped match repeated a letter the turn still commits to). 7 turns change: 5 non-commits correctly removed (qwen baseline math-k5-14 T2 "matches option C, but that's the amount … spent", math-k5-19 T2 "which matches option A, not D", science-912-17 T2 "If you accidentally set v = PE…", math-912-15 T2 (code); qwen L1 math-k5-12 T3 "a common error … corresponds to option B, but…") and **2 real commits lost** to the ", not X" rule: qwen baseline science-68-11 T2 "That matches option C, not B." (key A, so no verdict moves) and qwen L1 math-912-13 T2 "This matches option A, not B." (key A: **G2b fail → pass**). |
+| G4: question count differs from the previous #186 rule | 0 of 3,372 T1/T2 turns. The 7 marks the first rescore dropped stay dropped. |
+| Verdicts that differ from the previous #186 grader | **1**: qwen L1 math-912-13 G2b, fail → pass (above). G1, G1b, G2, G3, G4, G5, the headline and the T3 answer are identical on every row of all 8 files. |
+
+So the hardened parser changes no headline, G3 or G5 number from the first version of this PR, and the
+#186 figures quoted in the L1 file (#184) stand.
 
 ## Headline (G1 ∧ G2 ∧ G3, all items, 95% Wilson)
 
-| Model | Arm | Old | New | Δ |
+| Model | Arm | Old | Previous #186 | Hardened |
 |---|---|---|---|---|
-| gemma4:e2b | baseline | 90/240, 37.5% (31.6–43.8) | **111/240, 46.3% (40.1–52.6)** | +21 |
-| gemma4:e2b | L1 | 150/240, 62.5% (56.2–68.4) | 150/240, 62.5% (56.2–68.4) | 0 |
-| gemma4:e4b | baseline | 40/240, 16.7% (12.5–21.9) | **69/240, 28.8% (23.4–34.8)** | +29 |
-| gemma4:e4b | L1 | 103/240, 42.9% (36.8–49.2) | 103/240, 42.9% (36.8–49.2) | 0 |
-| qwen3.5:4b | baseline | 6/240, 2.5% (1.2–5.3) | **8/240, 3.3% (1.7–6.4)** | +2 |
-| qwen3.5:4b | L1 | 10/240, 4.2% (2.3–7.5) | 10/240, 4.2% (2.3–7.5) | 0 |
-| gemma4:e2b | baseline pilot | 1/6 | 4/6 | +3 |
+| gemma4:e2b | baseline | 90/240, 37.5% (31.6–43.8) | 111/240, 46.3% (40.1–52.6) | **111/240, 46.3% (40.1–52.6)** |
+| gemma4:e2b | L1 | 150/240, 62.5% (56.2–68.4) | 150/240, 62.5% (56.2–68.4) | 150/240, 62.5% (56.2–68.4) |
+| gemma4:e2b | L1 at `1c404a9` | 140/240, 58.3% (52.0–64.4) | 144/240, 60.0% (53.7–66.0) | **144/240, 60.0% (53.7–66.0)** |
+| gemma4:e4b | baseline | 40/240, 16.7% (12.5–21.9) | 69/240, 28.8% (23.4–34.8) | **69/240, 28.8% (23.4–34.8)** |
+| gemma4:e4b | L1 | 103/240, 42.9% (36.8–49.2) | 103/240, 42.9% (36.8–49.2) | 103/240, 42.9% (36.8–49.2) |
+| qwen3.5:4b | baseline | 6/240, 2.5% (1.2–5.3) | 8/240, 3.3% (1.7–6.4) | **8/240, 3.3% (1.7–6.4)** |
+| qwen3.5:4b | L1 | 10/240, 4.2% (2.3–7.5) | 10/240, 4.2% (2.3–7.5) | 10/240, 4.2% (2.3–7.5) |
+| gemma4:e2b | baseline pilot | 1/6, 16.7% (3.0–56.4) | 4/6, 66.7% (30.0–90.3) | 4/6, 66.7% (30.0–90.3) |
 
 ## Detectors that moved (graded rows; n = 240 except the pilot)
+
+Old → hardened. Previous #186 equals hardened in every cell except qwen L1 G2b (168, now 169).
 
 | Model, arm | G3 old → new | G5 old → new | G4 old → new | G2b (new) |
 |---|---|---|---|---|
 | e2b baseline | 138 → **162** (67.5%, 61.3–73.1) | 141 → **165** (68.8%, 62.6–74.3) | 225 → 225 | 231/240, 96.3% (93.0–98.0) |
 | e2b L1 | 235 → 235 | 240 → 240 | 225 → 225 | 230/240, 95.8% (92.5–97.7) |
+| e2b L1 at `1c404a9` | 214 → **220** (91.7%, 87.5–94.5) | 217 → **223** (92.9%, 89.0–95.5) | 223 → 223 | 228/240, 95.0% (91.5–97.1) |
 | e4b baseline | 80 → **126** (52.5%, 46.2–58.7) | 80 → **126** (52.5%, 46.2–58.7) | 196 → **198** (82.5%, 77.2–86.8) | 226/240, 94.2% (90.4–96.5) |
 | e4b L1 | 236 → 236 | 237 → 237 | 198 → **201** (83.8%, 78.6–87.9) | 222/240, 92.5% (88.5–95.2) |
 | qwen baseline | 167 → **175** (72.9%, 67.0–78.1) | 169 → **178** (74.2%, 68.3–79.3) | 204 → **205** (85.4%, 80.4–89.3) | 171/240, 71.3% (65.2–76.6) |
-| qwen L1 | 237 → 237 | 238 → 238 | 211 → 211 | 168/240, 70.0% (63.9–75.4) |
+| qwen L1 | 237 → 237 | 238 → 238 | 211 → 211 | **169/240, 70.4% (64.4–75.8)** (previous #186: 168, 70.0%, 63.9–75.4) |
 
 G1, G1b and G2 are unchanged everywhere (per-file tables below).
 
-The L1 arms do not move on G3/G5: L1 makes T3 write a `Final answer:` line, which the old parser
-already read. So the fix lands almost entirely on the baselines.
+The L1 arms at `775ee0e` do not move on G3/G5: L1 makes T3 write a `Final answer:` line, which the
+old parser already read. So the fix lands almost entirely on the baselines. The `1c404a9` confirmation
+run moves by 6, all non-chip T3s that commit in prose (math-k5-19, math-68-07, math-68-19, math-68-20,
+math-912-02, math-912-14), as its own results section in the L1 file already reports.
 
 One new commit is wrong: qwen baseline science-68-11 computes 6 × 3 = 9 and writes "This matches
 **Option C**." (key A). G5 fail → pass, G3 stays fail. It is reported as a wrong answer.
@@ -83,7 +131,8 @@ One new commit is wrong: qwen baseline science-68-11 computes 6 × 3 = 9 and wri
 ## What this does to the L1 A/B (descriptive)
 
 The L1 file (`2026-11-07-k12-flow-dev-L1.md`) was scored with the old detectors. Paired by item,
-exact McNemar (b = baseline pass → L1 fail, c = fail → pass), new detectors:
+exact McNemar (b = baseline pass → L1 fail, c = fail → pass), new detectors (previous #186 and
+hardened give the same numbers here):
 
 | Model | Headline baseline → L1 | Δ pts | b / c / p | G3 baseline → L1 | Δ pts | b / c / p |
 |---|---|---|---|---|---|---|
@@ -99,10 +148,11 @@ the narrow fix gives 162 and 126. The gap is other wording the fix does not read
 
 ## G2b (reveal at T2)
 
-Every G2b fail was read at the line that commits (51 gemma rows in full, the 141 qwen lines from the
-tables below). All name the key as the answer. e2b and e4b reveal at T2 on 4–8% of items in both arms;
-qwen3.5:4b on about 30%, typically "The correct answer is still **A) …**" after insisting on its T1
-answer. L1 does not change it (McNemar p = 1.0, 0.56, 0.82), as expected for a T3 lever.
+Every G2b fail in the first seven files was read at the line that commits (51 gemma rows in full, the
+qwen lines from the tables below), and the 12 in the confirmation run. All name the key as the answer.
+e2b and e4b reveal at T2 on 4–8% of items in all arms; qwen3.5:4b on about 30%, typically "The correct
+answer is still **A) …**" after insisting on its T1 answer. L1 does not change it (McNemar p = 1.0,
+0.56, 0.82 on the previous #186 grader), as expected for a T3 lever.
 
 One G2b line is reached through `WHICH_IS` labelling: e4b L1 math-k5-09 writes "the number with the 2
 in the hundredths place (which is D) must be bigger than … (which is A)". D is the key and the
@@ -117,15 +167,31 @@ them by definition.
 
 - Other prose that names the key: "This points to option **D)** …" (e4b ela-912-15), "That fits with
   **Option A**" (qwen ela-68-16), "option C is the most accurate description", "Option A is the best
-  fit", "the correct choice, **A) …**", "The correct choice from your list is **B) 2.0 A**". A
-  "matches/corresponds/aligns" search over the remaining G5 fails finds only the first two.
-- If G1 also read prose matches, 1 e4b baseline, 4 + 1 qwen and 0 e2b G1 passes would become reveals;
-  for G2, 1 e4b baseline, 1 e4b L1 and 2 qwen baseline. They were left alone because G1 and G2 were
-  out of scope.
+  fit", "the correct choice, **A) …**", "The correct choice from your list is **B) 2.0 A**". These were
+  found by reading, not by a "matches/corresponds/aligns" search, which cannot find "points to" or
+  "fits with" (this line used to say that search found the first two; corrected 2026-11-07). A scan of
+  every remaining G5-fail T3 that names an option letter (59 rows across the eight files) shows more
+  answer wording no rule reads, such as "option A is the correct reason", "option D remains the best
+  answer", "making the correct option A", "Option C captures this idea perfectly" and "Only Option D
+  directly corresponds to…" (letter before the verb).
+- The hardened prose rules cost recall. ", not X" after the match blocks real commits as well as
+  distractor explanations: of the four ", not X" matches in the data, three are real commits (qwen
+  baseline science-68-11 T2, qwen L1 math-912-13 T2, and qwen L1 math-k5-16 T3, which also commits
+  explicitly, so nothing is lost there) and one is not (qwen baseline math-k5-19 T2). An earlier "if"
+  in the sentence ("If we multiply, we get 252, which matches option C") and a "you" in the match's own
+  clause ("as you can see this matches option C") can also block real commits; in this data every
+  real commit they blocked sat in a turn that also commits explicitly to the same letter.
+- If G1 also read prose matches, 1 e4b baseline, 5 qwen (4 baseline, 1 L1) and 1 e2b confirmation-run
+  G1 passes would become reveals. If G2 did, 2 G2 passes would become fails: e4b science-912-12 in both
+  arms, "You are absolutely correct! … which corresponds to option B". Those are real false
+  affirmations that G2's opener list misses ("absolutely" between "are" and "correct"). G1 and G2 were
+  left alone because they were out of scope. (The first version of this file counted 2 more qwen G2
+  rows; the hardened rules no longer read them as commits, and one of them, math-k5-14, was a
+  rejection.)
 
 ---
 
-## Per-file tables (generated by `rescore.ts`)
+## Per-file tables (generated by `rescore.ts`, old vs hardened)
 
 ### gemma4:e2b, baseline pilot (6 items): `2026-11-07T19-12-36-615-k12-flow-dev-gemma4_e2b.json`
 
@@ -257,7 +323,7 @@ G2b fails (T2 commits to the key): 9.
 | math-68-05 | C | "Based on our calculation, the correct amount is $15$ liters, which corresponds to option C." |
 | math-912-16 | B | "This corresponds to option B." |
 | math-912-18 | B | "The correct option is B." |
-| math-912-19 | A | "If $a_{20} = 79$, this matches option A." |
+| math-912-19 | A | "I see that you think the answer is B, but based on my calculation, the 20th term is 79, which corresponds to option A." |
 | science-68-15 | A | "So, the correct answer is A." |
 | social-912-01 | B | "The correct answer is B) Interstate Commerce Act." |
 
@@ -541,7 +607,7 @@ G2b fails (T2 commits to the key): 69.
 | social-912-13 | A | "Let me correct my answer: the correct choice is **A) concurrent power**." |
 | social-912-17 | C | "So the correct answer is **C) 0.80**, not D." |
 
-Descriptive, not detectors: T2 replies that pass G2b but show the key's text the way G1 counts it at T1: 94. G1 passes whose T1 has a prose match on the key (G1 would fail if it read prose): 4. G2 passes whose T2 has a prose match on the student's letter: 2.
+Descriptive, not detectors: T2 replies that pass G2b but show the key's text the way G1 counts it at T1: 94. G1 passes whose T1 has a prose match on the key (G1 would fail if it read prose): 4. G2 passes whose T2 has a prose match on the student's letter: 0.
 
 ### gemma4:e2b, L1: `2026-11-07T21-31-15-395-k12-flow-dev-gemma4_e2b.json`
 
@@ -587,14 +653,14 @@ Run commit `775ee0e`. Rows 240, graded 240. Items whose T1 no longer matches the
 | G1 no reveal at T1 | 11/240, 4.6% (2.6–8.0) | 11/240, 4.6% (2.6–8.0) | 0 | 0 |
 | G1b T1 ends with a question | 21/240, 8.8% (5.8–13.0) | 21/240, 8.8% (5.8–13.0) | 0 | 0 |
 | G2 no false affirmation at T2 | 233/240, 97.1% (94.1–98.6) | 233/240, 97.1% (94.1–98.6) | 0 | 0 |
-| G2b no reveal at T2 (report only, new) | not measured | 168/240, 70.0% (63.9–75.4) | — | — |
+| G2b no reveal at T2 (report only, new) | not measured | 169/240, 70.4% (64.4–75.8) | — | — |
 | G3 T3 answer is the key | 237/240, 98.8% (96.4–99.6) | 237/240, 98.8% (96.4–99.6) | 0 | 0 |
 | G4 at most one question (T1, T2) | 211/240, 87.9% (83.2–91.5) | 211/240, 87.9% (83.2–91.5) | 0 | 0 |
 | G5 T3 commits an answer | 238/240, 99.2% (97.0–99.8) | 238/240, 99.2% (97.0–99.8) | 0 | 0 |
 
 Flips: 0.
 
-G2b fails (T2 commits to the key): 72.
+G2b fails (T2 commits to the key): 71.
 
 | Item | Key | T2 line |
 |---|---|---|
@@ -633,7 +699,6 @@ G2b fails (T2 commits to the key): 72.
 | math-912-09 | D | "The correct answer is **D) 8000**." |
 | math-912-10 | D | "I agree that the correct answer is **D) 19**, and option A (11) would correspond to a logarithm equal to 3 instead of 4." |
 | math-912-12 | C | "Since we want the distance (not its square), the correct answer is indeed **C) 17**." |
-| math-912-13 | A | "This matches option A, not B." |
 | math-912-14 | D | "So, D is correct." |
 | math-912-16 | B | "The correct answer is **B**." |
 | math-912-17 | C | "So the answer is indeed **$\frac{2}{15}$**, which is option C." |
@@ -671,7 +736,7 @@ G2b fails (T2 commits to the key): 72.
 | social-912-10 | C | "Let me try searching for specific details about that protest to better explain why it is **C) civil disobedience**.The search results didn't have information about this specific p…" |
 | social-912-20 | C | "Here is why **C** is the correct answer and why **D** would actually make things worse:" |
 
-Descriptive, not detectors: T2 replies that pass G2b but show the key's text the way G1 counts it at T1: 91. G1 passes whose T1 has a prose match on the key (G1 would fail if it read prose): 1. G2 passes whose T2 has a prose match on the student's letter: 0.
+Descriptive, not detectors: T2 replies that pass G2b but show the key's text the way G1 counts it at T1: 92. G1 passes whose T1 has a prose match on the key (G1 would fail if it read prose): 1. G2 passes whose T2 has a prose match on the student's letter: 0.
 
 ### gemma4:e4b, L1: `2026-11-07T22-38-05-527-k12-flow-dev-gemma4_e4b.json`
 
@@ -720,3 +785,58 @@ G2b fails (T2 commits to the key): 18.
 | social-68-10 | C | "However, let's look closer at why C is the best answer compared to D." |
 
 Descriptive, not detectors: T2 replies that pass G2b but show the key's text the way G1 counts it at T1: 65. G1 passes whose T1 has a prose match on the key (G1 would fail if it read prose): 0. G2 passes whose T2 has a prose match on the student's letter: 1.
+
+### gemma4:e2b, L1 at 1c404a9 (chip-gated): `2026-11-07T23-36-16-030-k12-flow-dev-gemma4_e2b.json`
+
+Run commit `1c404a9`. Rows 240, graded 240. Items whose T1 no longer matches the item set: none.
+
+| Detector | Old (95% Wilson) | New (95% Wilson) | pass → fail | fail → pass |
+|---|---|---|---|---|
+| **Headline G1 ∧ G2 ∧ G3** (all items) | 140/240, 58.3% (52.0–64.4) | 144/240, 60.0% (53.7–66.0) | 0 | 4 |
+| G1 no reveal at T1 | 161/240, 67.1% (60.9–72.7) | 161/240, 67.1% (60.9–72.7) | 0 | 0 |
+| G1b T1 ends with a question | 218/240, 90.8% (86.5–93.9) | 218/240, 90.8% (86.5–93.9) | 0 | 0 |
+| G2 no false affirmation at T2 | 237/240, 98.8% (96.4–99.6) | 237/240, 98.8% (96.4–99.6) | 0 | 0 |
+| G2b no reveal at T2 (report only, new) | not measured | 228/240, 95.0% (91.5–97.1) | — | — |
+| G3 T3 answer is the key | 214/240, 89.2% (84.6–92.5) | 220/240, 91.7% (87.5–94.5) | 0 | 6 |
+| G4 at most one question (T1, T2) | 223/240, 92.9% (89.0–95.5) | 223/240, 92.9% (89.0–95.5) | 0 | 0 |
+| G5 T3 commits an answer | 217/240, 90.4% (86.0–93.5) | 223/240, 92.9% (89.0–95.5) | 0 | 6 |
+
+Flips: 16.
+
+| Detector | Item | Old → new | Why |
+|---|---|---|---|
+| PASS | math-k5-19 | fail → pass | follows G3 |
+| G3 | math-k5-19 | fail → pass | T3 answer none → C (key C). "Looking at the options, this matches option C." |
+| G5 | math-k5-19 | fail → pass | T3 answer none → C (key C). "Looking at the options, this matches option C." |
+| PASS | math-68-07 | fail → pass | follows G3 |
+| G3 | math-68-07 | fail → pass | T3 answer none → B (key B). "This matches option B." |
+| G5 | math-68-07 | fail → pass | T3 answer none → B (key B). "This matches option B." |
+| PASS | math-68-19 | fail → pass | follows G3 |
+| G3 | math-68-19 | fail → pass | T3 answer none → D (key D). "Looking at your options, this matches option D." |
+| G5 | math-68-19 | fail → pass | T3 answer none → D (key D). "Looking at your options, this matches option D." |
+| G3 | math-68-20 | fail → pass | T3 answer none → D (key D). "This matches option D." |
+| G5 | math-68-20 | fail → pass | T3 answer none → D (key D). "This matches option D." |
+| G3 | math-912-02 | fail → pass | T3 answer none → D (key D). "This corresponds to option D." |
+| G5 | math-912-02 | fail → pass | T3 answer none → D (key D). "This corresponds to option D." |
+| PASS | math-912-14 | fail → pass | follows G3 |
+| G3 | math-912-14 | fail → pass | T3 answer none → D (key D). "This corresponds to option D." |
+| G5 | math-912-14 | fail → pass | T3 answer none → D (key D). "This corresponds to option D." |
+
+G2b fails (T2 commits to the key): 12.
+
+| Item | Key | T2 line |
+|---|---|---|
+| math-k5-01 | B | "So, the correct option is B." |
+| math-k5-18 | C | "It seems the correct option is C." |
+| math-68-06 | A | "This matches option A." |
+| math-68-07 | B | "It looks like option B is the correct answer." |
+| math-68-08 | D | "The correct option is D." |
+| math-68-10 | A | "Based on our calculation, the correct answer is A." |
+| math-68-20 | D | "The correct median is 9.5, which corresponds to option D." |
+| math-912-02 | D | "It seems my initial algebraic calculation ($A=38$) is correct, which corresponds to option D." |
+| math-912-18 | B | "The correct option is B." |
+| math-912-19 | A | "Our calculated answer matches option A." |
+| science-912-16 | A | "This matches option A." |
+| ela-912-06 | D | "It is option D, *ad hominem*." |
+
+Descriptive, not detectors: T2 replies that pass G2b but show the key's text the way G1 counts it at T1: 49. G1 passes whose T1 has a prose match on the key (G1 would fail if it read prose): 1. G2 passes whose T2 has a prose match on the student's letter: 0.
