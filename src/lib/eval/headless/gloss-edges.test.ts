@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 // Lever L2 at its edges, through the real kernel on the headless stand-ins (review of PR #188):
 //   - a real-topic question in Hindi whose gloss matches a card in the bundled library (finding 6). The
 //     RAG dev set cannot reach this path: its notes are about made-up things, so no dev gloss can match
-//     a library card. With three strong notes the question finds them as written, so no gloss is made;
+//     a library card;
 //   - a gloss call that never answers: the turn goes ahead on the original question alone once
 //     GLOSS_TIMEOUT_MS has passed (finding 4).
 // The vaults and questions are written for this test and are not from any eval set.
@@ -110,30 +110,12 @@ describe("a real-topic non-Latin question and the bundled library (finding 6)", 
     expect(JSON.stringify(reply)).not.toContain(GLOSS);
   }, 30_000);
 
-  it("when the question already reaches its notes, makes no gloss call and the card cannot displace a note", async () => {
-    // Fallback-only (L2b, PR #188): gloss-only passages join only a search that found nothing.
-    const { report, chat, turnEmbeds } = await run(PHOTO_NOTES, Q, "answer");
+  it("with three strong notes, the card takes the reserve slot from the weakest note", async () => {
+    const { report } = await run(PHOTO_NOTES, Q, "answer");
     const row = report.rows[0];
-    expect(row.retrieval.gloss).toBeUndefined();
-    expect(chat.filter((b) => b.format)).toHaveLength(0);
-    expect(turnEmbeds).toEqual([[ASK]]);
-    expect([...row.retrievedTitles].sort()).toEqual(PHOTO_NOTES.map((n) => n.title).sort());
-  }, 30_000);
-});
-
-describe("fallback-only: a library card found as written blocks the gloss (known limit)", () => {
-  it("makes no gloss call when the question's one Latin word pins a card, so a note only the gloss reaches is missed", async () => {
-    // The question is about a greenhouse note; its Latin "pH" matches the library's pH card. That card
-    // is a hit above the floor, so L2b does not gloss, and the note (reachable only in English) is not
-    // retrieved. Recorded here so a change to this behaviour is a decision, not an accident.
-    // On the fake embedder this note sits on the English axis, away from the Hindi question.
-    const greenhouse: FixtureNote[] = [{ title: "Garden Log", text: "Greenhouse chlorophyll readings were normal, and the soil pH in bed two read 6.4." }];
-    const ask = "ग्रीनहाउस के बेड दो में मिट्टी का pH कितना था?";
-    const { report, chat } = await run(greenhouse, { id: "hi-ph", kind: "positive", ask, expect: "6.4" }, "answer");
-    const row = report.rows[0];
-    expect(row.retrieval.gloss).toBeUndefined();
-    expect(chat.filter((b) => b.format)).toHaveLength(0);
-    expect(row.retrievedTitles).toEqual(["The pH Scale"]);
+    expect(row.retrieval.gloss).toMatchObject({ text: GLOSS });
+    expect(row.retrievedTitles).toHaveLength(3);
+    expect(row.retrievedTitles).toContain(CARD);
   }, 30_000);
 });
 

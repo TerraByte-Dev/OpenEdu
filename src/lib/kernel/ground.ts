@@ -18,7 +18,6 @@ import { getManifest, matchResourcesScored, fetchResource, isLibraryAvailable } 
 import { words, wordLength } from "../library-rank";
 import { getLibraryEnabled } from "../store";
 import type { ToolContext } from "../tools/EduTool";
-import type { GlossResult } from "./gloss";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,9 +43,8 @@ export interface RetrievalTrace {
   hitTitles: string[];
   blockTokens: number;
   error?: string;
-  /** Lever L2: present only on a turn whose question was glossed (gloss.ts), which happens only when
-   *  the original question retrieved nothing. Never shown to the student; recorded so an eval can see
-   *  what the second search used and what it cost. */
+  /** Lever L2: present only on a turn whose question was glossed (gloss.ts). Never shown to the
+   *  student; recorded so an eval can see what the second search used and what it cost. */
   gloss?: { text: string | null; ms: number; error?: string };
 }
 
@@ -310,12 +308,13 @@ export async function ground(
   ctx: ToolContext,
   budget: Budget,
   mode: RetrievalMode = "always",
-  gloss?: () => Promise<GlossResult>,
+  gloss?: string | null,
 ): Promise<Grounding> {
   const gate = shouldRetrieve(question, mode);
   if (!gate.retrieve) {
     return { ...EMPTY_GROUNDING, trace: { ...EMPTY_GROUNDING.trace, skipped: gate.reason } };
   }
+  if (gloss) return groundWithGloss(question, gloss, ctx, budget);
 
   const candidates: GroundingHit[] = [];
   let noteCandidates = 0;
@@ -342,21 +341,6 @@ export async function ground(
 
   const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
   const hits = selectHits(candidates);
-
-  // Lever L2 (fallback-only, "L2b" in PR #188): the gloss is asked for only when the question as
-  // written retrieved nothing above the floor. When it did, the turn is exactly what it was before L2:
-  // no gloss call, and no gloss-only passage can join the ones the student's own words found.
-  if (gloss && hits.length === 0) {
-    const g = await gloss();
-    const out = g.text
-      ? await groundWithGloss(notes, library, g.text, ctx, budget)
-      : finish(candidates, noteCandidates, topScore, hits, budget, error);
-    return { ...out, trace: { ...out.trace, gloss: g } };
-  }
-  return finish(candidates, noteCandidates, topScore, hits, budget, error);
-}
-
-function finish(candidates: GroundingHit[], noteCandidates: number, topScore: number, hits: GroundingHit[], budget: Budget, error: string | undefined): Grounding {
   const block = formatGroundingBlock(hits, budget.grounding);
 
   const skipped: RetrievalTrace["skipped"] =
@@ -377,21 +361,20 @@ function finish(candidates: GroundingHit[], noteCandidates: number, topScore: nu
   };
 }
 
-// Lever L2: the original question's search, which found nothing above the floor, merged with a search
-// for its English gloss, both corpora, per passage (mergeCandidates). The floor, diversity and cap are
-// selectHits's, unchanged. Only reached for a glossed question; an English turn never gets here.
-type NoteSearch = PromiseSettledResult<Awaited<ReturnType<typeof searchNotebook>>>;
-type LibrarySearch = PromiseSettledResult<GroundingHit[]>;
-
-async function groundWithGloss(notes: NoteSearch, library: LibrarySearch, gloss: string, ctx: ToolContext, budget: Budget): Promise<Grounding> {
-  const [glossNotes, glossLibrary] = await Promise.allSettled([
+// Lever L2: the same stage, searched with the original question AND its English gloss, both corpora,
+// merged per passage (mergeCandidates). The floor, diversity and cap are selectHits's, unchanged. Only
+// reached for a glossed (non-English) question; an English turn never gets here.
+async function groundWithGloss(question: string, gloss: string, ctx: ToolContext, budget: Budget): Promise<Grounding> {
+  const [notes, library, glossNotes, glossLibrary] = await Promise.allSettled([
+    searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }),
+    groundFromLibrary(question),
     searchNotebook({ courseId: ctx.courseId, query: gloss, topK: 6 }),
     groundFromLibrary(gloss),
   ]);
 
   type Keyed = GroundingHit & { key: string };
   let error: string | undefined;
-  const keyed = (n: NoteSearch, l: LibrarySearch): Keyed[] => {
+  const keyed = (n: typeof notes, l: typeof library): Keyed[] => {
     const out: Keyed[] = [];
     if (n.status === "fulfilled") {
       for (const r of n.value) out.push({ source: "note", title: r.document_title, text: r.text, score: r.score, ref: r.document_id, key: `note:${r.chunk_id}` });
@@ -403,8 +386,18 @@ async function groundWithGloss(notes: NoteSearch, library: LibrarySearch, gloss:
   };
   const candidates = mergeCandidates(keyed(notes, library), keyed(glossNotes, glossLibrary));
   const noteCandidates = candidates.filter((h) => h.source === "note").length;
+
   const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
-  return finish(candidates, noteCandidates, topScore, selectHits(candidates), budget, error);
+  const hits = selectHits(candidates);
+  const block = formatGroundingBlock(hits, budget.grounding);
+  const skipped: RetrievalTrace["skipped"] =
+    candidates.length === 0 ? "no-corpus" : hits.length === 0 ? "below-floor" : null;
+
+  return {
+    block,
+    hits,
+    trace: { skipped, candidates: candidates.length, noteCandidates, topScore, hitTitles: hits.map((h) => h.title), blockTokens: estTokens(block), error },
+  };
 }
 
 // The library half: lexical match over the bundled manifest, then fetch the best card's body.

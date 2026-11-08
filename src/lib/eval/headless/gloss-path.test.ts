@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 
 // Lever L2 on the wire: a non-English question through the real kernel on the headless stand-ins.
 // Checks the properties the lever promises (docs/BENCHMARKS.md section 3, row 2):
-//   - when the question as written retrieves nothing, exactly one extra chat call, structured, before
-//     the reply (gloss-edges.test.ts: none when it does);
+//   - exactly one extra chat call, structured, before the reply;
 //   - it continues the reply's own prefix: same model, tools, num_ctx and think flag, the same messages
 //     up to the student's question, then one instruction; its output is capped at GLOSS_NUM_PREDICT;
 //   - retrieval embeds the original AND the gloss, and a note only the gloss reaches is retrieved;
@@ -28,9 +27,7 @@ import { GLOSS_INSTRUCTION, GLOSS_NUM_PREDICT } from "../../kernel/gloss";
 import type { FixtureNote } from "../rag-fixture";
 
 const MODEL = "gemma4:e2b";
-// "pH" is written in Devanagari: in Latin letters it matches the library's pH card, the question then
-// has a hit as written, and fallback-only L2 makes no gloss call (gloss-edges.test.ts pins that case).
-const ASK = "ग्रीनहाउस के बेड दो में मिट्टी का पीएच कितना था?";
+const ASK = "ग्रीनहाउस के बेड दो में मिट्टी का pH कितना था?";
 const GLOSS = "What was the soil pH in bed two of the greenhouse?";
 const VAULT: FixtureNote[] = [
   { title: "Garden Log", text: "The greenhouse tomatoes were planted on the third of May. The soil pH in bed two read 6.4, and the drip line runs for twenty minutes each morning." },
