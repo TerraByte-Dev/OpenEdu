@@ -142,7 +142,7 @@ First request of each turn (`promptEvalCount`), median / mean:
 
 T2 paired by item, L − B: median +104, mean +104.0, range +19 to +194 (the spread is the T1 replies,
 which differ between runs). T1 is identical for every item. T3 is shorter in L because L's T2 replies
-are shorter (median 426 characters against 553).
+are shorter (median 424.5 characters against 552.5).
 
 ### Detector limits
 
