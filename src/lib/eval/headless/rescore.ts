@@ -4,8 +4,9 @@
 //   npx vite-node src/lib/eval/headless/rescore.ts -- a.json b.json
 //
 // RESCORE_PREFIX (default: none) keeps only files whose name starts with it, e.g. 2026-11-07.
-// RESCORE_OUT writes the markdown there instead of stdout. The "old" verdicts are the ones saved in
-// each file (the grader at run time); "new" is gradeK12Flow as it is in this checkout.
+// RESCORE_OUT writes the markdown there instead of stdout. The "master" verdicts are the ones saved
+// in each file (the grader at run time, which for the 2026-11-07 files is master's grader); "final"
+// is gradeK12Flow as it is in this checkout.
 
 import { K12_ITEMS } from "../k12-items";
 import { parseCommits, revealAtT1 } from "../k12-flow-grade";
@@ -60,7 +61,7 @@ export async function rescoreFile(file: string): Promise<string> {
   const out: string[] = [];
   out.push(`### ${data.model}, ${armOf(data)}: \`${name}\``, "");
   out.push(`Run commit \`${data.commit?.slice(0, 7) ?? "?"}\`. Rows ${data.rows.length}, graded ${res.rows.filter((r) => r.next).length}. Items whose T1 no longer matches the item set: ${res.drifted.length ? res.drifted.join(", ") : "none"}.`, "");
-  out.push("| Detector | Old (95% Wilson) | New (95% Wilson) | pass → fail | fail → pass |", "|---|---|---|---|---|");
+  out.push("| Detector | Master (saved, 95% Wilson) | Final (95% Wilson) | pass → fail | fail → pass |", "|---|---|---|---|---|");
   for (const c of counts) out.push(`| ${NAMES[c.detector]} | ${c.old ? pct(c.old) : "not measured"} | ${pct(c.next)} | ${c.old ? c.passToFail : "—"} | ${c.old ? c.failToPass : "—"} |`);
   out.push("");
 
@@ -80,6 +81,11 @@ export async function rescoreFile(file: string): Promise<string> {
       } else if (d === "g4") {
         const lines = [row.turns[0].text, row.turns[1].text].flatMap((t) => t.split("\n")).filter((l) => DETACHED_Q.test(l));
         why = `questions T1 ${r.old.questions.t1} → ${r.next.questions.t1}, T2 ${r.old.questions.t2} → ${r.next.questions.t2}. ${lines.map((l) => `"${clip(l, 90)}"`).join(" · ")}`;
+      } else if (d === "g1" || d === "g2") {
+        // The explicit cues read at T1 and T2 too ("The correct statement is C").
+        const [turn, letter] = d === "g1" ? [0, item.key] : [1, row.attempted];
+        const q = commitQuote(row.turns[turn].text, item.options, letter);
+        why = `T${turn + 1} commits to ${letter}${d === "g1" ? " (the key)" : " (the student's letter)"}. ${q ? `"${clip(q)}"` : "(no single line commits)"}`;
       } else if (d === "pass") {
         why = `follows ${(["g1", "g2", "g3"] as const).filter((x) => r.flips.includes(x)).join(", ").toUpperCase() || "?"}`;
       } else why = "out of scope: this is a bug";
@@ -87,7 +93,7 @@ export async function rescoreFile(file: string): Promise<string> {
     }
   }
   out.push(`Flips: ${flips.length}.`, "");
-  if (flips.length) out.push("| Detector | Item | Old → new | Why |", "|---|---|---|---|", ...flips, "");
+  if (flips.length) out.push("| Detector | Item | Master → final | Why |", "|---|---|---|---|", ...flips, "");
 
   // G2b has no old verdict. List its fails, and two descriptive counts.
   const g2bFails = res.rows.filter((r) => r.next && !r.next.g2b);
