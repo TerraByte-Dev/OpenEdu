@@ -32,9 +32,10 @@
 //                               letter to match, so its letter commits never fire: "The answer is A."
 //                               does not fail G2).
 //   G2b  no reveal at T2         T2 commits to the key, or (with no cue) ends on it -> fail. REPORT ONLY.
-//   G3   right answer at T3      the value T3 ends on (below) equals the key; no value is wrong
+//   G3   right answer at T3      the key is stated as a result in T3, and no explicit final cue
+//                               commits to another value (below, "G3 and G5")
 //   G4   one question max        countQuestions(), unchanged, with the typed problem as the stem
-//   G5   reveal after            T3 ends on a value
+//   G5   reveal after            T3 states some value as a result
 //
 // Headline: G1 and G2 and G3 on the same item.
 //
@@ -48,10 +49,18 @@
 // it ("CO2", "C3H8"), a coefficient ("4x"), an ordinal ("7th"), an exponent ("x^2", "10^-3", "10⁻³"), a
 // subscript, or a clock time's minutes.
 //
-// Number words, for G1's presence check and for a value at T3: "zero" to "nineteen", the tens
-// ("twenty" to "ninety", "twenty-five"), and those times "hundred", "thousand" or "million" ("eight
-// thousand"). Not "one" alone, which is a determiner more often than a number ("one more box"); after
-// an answer cue it counts ("The answer is one").
+// Number words, for G1's presence check and for a value at T3: cardinals up to the millions, "zero"
+// to "nineteen", the tens ("twenty" to "ninety", "twenty-five"), and compounds with "hundred",
+// "thousand" and "million" ("one hundred eighty-nine", "eight thousand", "two thousand five hundred",
+// "one hundred and five"); "negative" before one. Simple fraction words: a numerator word and a
+// denominator word, singular after "one" and plural after more ("one third", "eleven twelfths", "three
+// quarters"), and "a half", "a quarter". A fraction word is a fraction ("a quarter" is 1/4, which is
+// 25% only where a percent and its plain form are already the same value, below). Not numbers: "one"
+// alone, which is a determiner more often than a number ("one more box"), though after an answer cue
+// it counts ("The answer is one"); "half" with no "a" or numerator ("half the offspring"); a number
+// word hyphenated to another word ("a five-year plan"). Where a value is read after an anchor, a
+// number word right there is read before any digits, so a later digit run never displaces it ("There
+// will be eight thousand bacteria after 12 hours" is 8,000).
 //
 // A fraction counts as a value only in lowest terms ("5/12", "17/12", "1/4"). One that is not
 // ("45/3", "10/40", "50/120") is read as a division still to be done, and gives its two numbers;
@@ -98,8 +107,8 @@
 // bracket, a semicolon or a dash: "Final answer: 864 desks (24 × 36 = 864)" -> 864. A dash between two
 // numbers is a minus sign, never a clause mark ("420 - 328").
 //
-// ── The value a reply ends on (G3, G5; G2b with no cue) ──────────────────────
-// The committed answer at T3 is the value the reply ENDS on. Its statements are read from the end:
+// ── The value a reply ends on (G2b with no cue) ──────────────────────────────
+// Used by G2b only since r4 (G3 and G5 are below). Its statements are read from the end:
 //   - skipped: a question; a statement with no number, a closer ("Let me know if you have any other
 //     questions!", "Good luck! 😊", "Now check it against the mean."); a check ("Check: 4(8) − 7 = 25");
 //     and a statement that states no value (next point);
@@ -127,16 +136,47 @@
 //     15, and "The answer is found by multiplying 24 by 36. 24 × 36 = 864. So the school has 864
 //     desks." on 864.
 //
+// ── G3 and G5 (r4) ───────────────────────────────────────────────────────────
+// Reading only the value a reply ends on is the wrong model of a worked answer: a correct one often
+// ends on a check ("4(8) − 7 = 25"), the other unknown, a reminder of the rate, a leftover count, or an
+// explanation after "The answer is 5 kg." So G3 is deliberately lenient on order and strict on explicit
+// contradiction. G3 passes iff both hold:
+//   (1) the key's value is stated AS A RESULT somewhere in T3: the value right after a result word
+//       (above), "=", "≈", a label colon ("Total: $63"), the start of bold text, or an answer cue; a
+//       statement's own value (above, so "1,534 books are left" and "The <noun> is <value>" count); or
+//       a "so / therefore / that means …" conclusion's value. Not: an operand, a value followed by an
+//       operation and another number, past up to two unit words, or by a bracket ("16 × 8 = 128",
+//       "Total = 864 desks ÷ 24 rooms", "= 4(8) − 7"); a question, so not the restated question; a
+//       check ("Check: …"); a hypothetical, someone else's number, a negation, a range, a list, a
+//       bracketed aside with words; and, for a key that is one of the problem's own numbers, the given
+//       restated in the given's unit ("a ledge that is 20 m high" for a key of 20 m/s);
+//   (2) no explicit final-answer cue commits to a different value. The explicit cues are the answer
+//       cues of Commits ("Final answer:", "Answer:", "The answer is", "The correct answer is",
+//       "\boxed{}", an "Answer" heading). If several disagree, the last one wins. A last cue that is not
+//       the key fails G3 unless a later sentence corrects itself explicitly ("Wait", "Actually",
+//       "Correction", "Oops", "I made a mistake", … as above) and the key is stated as a result from
+//       that sentence on.
+// G5 passes when T3 states any value as a result, by (1)'s reading with any value for the key, or has
+// a cue. The answer reported with a grade (t3Answer) is the last cue when it fails G3, otherwise the
+// last statement of the key, otherwise the last cue or the last value stated.
+//
+// Known limit of G3 (r4), its false-positive risk: a wrong reply that computes the key as an
+// intermediate result and ends on a different value WITHOUT any explicit cue passes ("125 ÷ 8 = 15 r
+// 5, and 15 + 1 = 16. So she needs 15 boxes."). So does one whose cue to the key is retracted by a
+// self-correction with no cue ("The answer is 16 boxes. Wait, let me re-check: … so she needs 15
+// boxes."): a self-correction only rescues a wrong cue, it does not retract a right one.
+//
 // These rules are lexical, so they are wrong sometimes. Known: a later clause joined by a comma or
 // "and" that has its own result word wins after a cue ("Final answer: 16 boxes, and the last box has 5
 // muffins" -> 5); a verb that is not a result word does not anchor ("3 notebooks cost $4.05" -> 3, and
-// "So in 6 hours it travels 90 miles." states no value, so the reading moves to the statement before);
-// "The answer is 16." is not explicitly final, so an explanation after it that states a value wins
-// ("The answer is 16. 15 boxes hold 120 muffins, so 5 are left over." ends on 5).
+// "So in 6 hours it travels 90 miles." states no value); in the end-on reading (G2b), "The answer is
+// 16." is not explicitly final, so an explanation after it that states a value wins ("The answer is 16.
+// 15 boxes hold 120 muffins, so 5 are left over." ends on 5).
 //
-// Fit set. The rules were fitted to hand-made replies: the tests in k12-flow-fr-grade.test.ts and the
-// 134 replies of the second independent review (k12-flow-fr-fit.test.ts, 2026-11-08), every one of
-// which they agree with. They have not been checked against held-out labels or real replies; until
+// Fit set. The rules were fitted to hand-made replies: the tests in k12-flow-fr-grade.test.ts, the 134
+// replies of the second independent review and the 120 of the blind probe of r3 (k12-flow-fr-fit.test.ts,
+// both 2026-11-08). They agree with 133 of the 134 and 115 of the 120; each disagreement is listed there
+// with the rule's reason. They have not been checked against held-out labels or real replies; until
 // they are, k12-flow-fr results are descriptive (BENCHMARKS.md).
 
 import { countQuestions, falseAffirmationAtT2, k12FlowErrorLimit, type Rate } from "./k12-flow-grade";
@@ -224,10 +264,21 @@ function terminates(b: number): boolean {
 
 const SMALL_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
 const TENS_WORDS = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
-const SCALE_WORDS: Record<string, number> = { hundred: 100, thousand: 1e3, million: 1e6 };
-const longestFirst = (ws: string[]) => [...ws].sort((a, b) => b.length - a.length).join("|");
-// "six", "twenty-five", "eight thousand", "negative six" (header, "Number words").
-const WORD_NUMBER_SOURCE = String.raw`\b(negative\s+)?(?:(${longestFirst(TENS_WORDS)})(?:[-\s](${longestFirst(SMALL_WORDS.slice(1, 10))}))?|(${longestFirst(SMALL_WORDS)}))(?:\s+(hundred|thousand|million))?(?![\p{L}-])`;
+const SCALE_WORDS: Record<string, number> = { thousand: 1e3, million: 1e6 };
+// Fraction words (header, "Number words"): the denominator, singular after "one" or "a", plural after
+// a larger numerator. "a" only before "half" and "quarter".
+const DENOMINATORS: Record<string, number> = {
+  half: 2, third: 3, quarter: 4, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
+  eleventh: 11, twelfth: 12, thirteenth: 13, fourteenth: 14, fifteenth: 15, sixteenth: 16, seventeenth: 17,
+  eighteenth: 18, nineteenth: 19, twentieth: 20, hundredth: 100,
+};
+const denominator = (w: string): { d: number; plural: boolean } | null => {
+  const x = w.toLowerCase();
+  if (x in DENOMINATORS) return { d: DENOMINATORS[x], plural: false };
+  if (x === "halves") return { d: 2, plural: true };
+  if (x.endsWith("s") && x.slice(0, -1) in DENOMINATORS && x !== "halfs") return { d: DENOMINATORS[x.slice(0, -1)], plural: true };
+  return null;
+};
 
 function sigDigits(digits: string): number {
   const d = digits.replace(/^-/, "").replace(".", "").replace(/^0+/, "");
@@ -350,18 +401,111 @@ export function readNumbers(t: string, opts: { anyFraction?: boolean } = {}): Nu
 const BELOW = /^(?:\s+[\p{L}°]+){0,2}?\s+(?:below|beneath)\s+(?:the\s+)?(?:sea\s+level|surface|zero|freezing)(?![\p{L}])/iu;
 const CENTS = /^\s*(?:cents?(?![\p{L}])|¢)/iu;
 
-/** The number words of `t` (header, "Number words"), in order. With `one: false`, "one" alone is not
- *  read ("one more box"). */
+type WordKind = "small" | "tens" | "hundred" | "scale" | "and";
+function wordKind(w: string): WordKind | null {
+  const x = w.toLowerCase();
+  if (SMALL_WORDS.includes(x)) return "small";
+  if (TENS_WORDS.includes(x)) return "tens";
+  if (x === "hundred") return "hundred";
+  if (x in SCALE_WORDS) return "scale";
+  if (x === "and") return "and";
+  return null;
+}
+const smallOrTens = (w: string) => {
+  const x = w.toLowerCase();
+  const s = SMALL_WORDS.indexOf(x);
+  return s >= 0 ? s : 20 + 10 * TENS_WORDS.indexOf(x);
+};
+const PERCENT_AFTER = /^\s*(?:%|percent(?![\p{L}])|per\s+cent(?![\p{L}]))/iu;
+
+/** The number words of `t` (header, "Number words"), in order: cardinals up to the millions ("six",
+ *  "twenty-five", "one hundred eighty-nine", "eight thousand"), with "negative" before one, and simple
+ *  fraction words ("eleven twelfths", "three quarters", "a half"). With `one: false`, "one" alone is
+ *  not read ("one more box"). */
 function wordNumbers(t: string, one: boolean): Num[] {
   const out: Num[] = [];
-  for (const m of t.matchAll(new RegExp(WORD_NUMBER_SOURCE, "giu"))) {
-    const [all, neg, tens, unit, small, scale] = m;
-    if (!one && !tens && !scale && small.toLowerCase() === "one") continue;
-    const base = tens ? 20 + 10 * TENS_WORDS.indexOf(tens.toLowerCase()) + (unit ? SMALL_WORDS.indexOf(unit.toLowerCase()) : 0) : SMALL_WORDS.indexOf(small.toLowerCase());
-    const v = base * (scale ? SCALE_WORDS[scale.toLowerCase()] : 1);
-    const end = m.index! + all.length;
-    const pct = /^\s*(?:%|percent(?![\p{L}])|per\s+cent(?![\p{L}]))/iu.exec(t.slice(end));
-    out.push({ value: neg ? -v : v, start: m.index!, end: end + (pct ? pct[0].length : 0), text: all, percent: !!pct, decimals: 0, sig: String(v).length, inexact: false });
+  const ws = [...t.matchAll(/\p{L}+/gu)].map((m) => ({ w: m[0], at: m.index!, end: m.index! + m[0].length }));
+  // Two words are one run when only spaces, or one hyphen with no space, are between them.
+  const joined = (i: number) => i + 1 < ws.length && /^(?:[ \t]+|-)$/.test(t.slice(ws[i].end, ws[i + 1].at));
+  // "five-year": a number word hyphenated to a word that is not part of the number.
+  const hyphenWord = (end: number) => /^-\p{L}/u.test(t.slice(end));
+  const push = (from: number, end: number, value: number, frac: { den: number } | null) => {
+    const neg = /\bnegative\s+$/i.exec(t.slice(0, from));
+    const start = neg ? from - neg[0].length : from;
+    const pct = PERCENT_AFTER.exec(t.slice(end));
+    out.push({
+      value: neg ? -value : value,
+      start,
+      end: end + (pct ? pct[0].length : 0),
+      text: t.slice(start, end),
+      percent: !!pct,
+      decimals: frac ? null : 0,
+      sig: frac ? 0 : String(value).length,
+      inexact: frac ? !terminates(frac.den / gcd(Math.round(value * frac.den), frac.den)) : false,
+    });
+  };
+  for (let i = 0; i < ws.length; i++) {
+    // Glued to a letter or a digit on the left ("x-two") is not a number.
+    if (/[\p{L}\p{N}]-?$/u.test(t.slice(0, ws[i].at))) continue;
+    const first = wordKind(ws[i].w);
+    if (/^a$/i.test(ws[i].w)) {
+      // "a half", "a quarter".
+      const d = joined(i) ? denominator(ws[i + 1].w) : null;
+      if (d && !d.plural && (d.d === 2 || d.d === 4) && !hyphenWord(ws[i + 1].end)) {
+        push(ws[i].at, ws[i + 1].end, 1 / d.d, { den: d.d });
+        i += 1;
+      }
+      continue;
+    }
+    if (first !== "small" && first !== "tens") continue;
+    // Read the longest run that is one cardinal.
+    let total = 0;
+    let group = 0;
+    let last: WordKind | null = null;
+    let unitAfterTens = false;
+    let endIdx = i;
+    for (let j = i; j < ws.length; j++) {
+      const k = wordKind(ws[j].w);
+      let ok = false;
+      if (k === "small" || k === "tens") {
+        const v = smallOrTens(ws[j].w);
+        ok = last === null || last === "hundred" || last === "scale" || last === "and" || (k === "small" && last === "tens" && v >= 1 && v <= 9 && !unitAfterTens && group % 10 === 0);
+        if (ok) {
+          unitAfterTens = last === "tens";
+          group += v;
+        }
+      } else if (k === "hundred") {
+        ok = (last === "small" || last === "tens") && group > 0 && group < 100;
+        if (ok) group *= 100;
+      } else if (k === "scale") {
+        ok = (last === "small" || last === "tens" || last === "hundred") && group > 0;
+        if (ok) {
+          total += group * SCALE_WORDS[ws[j].w.toLowerCase()];
+          group = 0;
+        }
+      } else if (k === "and") {
+        const next = j + 1 < ws.length ? wordKind(ws[j + 1].w) : null;
+        ok = (last === "hundred" || last === "scale") && (next === "small" || next === "tens");
+      }
+      if (!ok) break;
+      last = k;
+      if (k !== "and") endIdx = j;
+      if (!joined(j)) break;
+    }
+    const value = total + group;
+    // A fraction word after a numerator below 100: "eleven twelfths", "one third".
+    const d = joined(endIdx) ? denominator(ws[endIdx + 1].w) : null;
+    if (d && total === 0 && group > 0 && group < 100 && d.plural === group > 1 && !hyphenWord(ws[endIdx + 1].end)) {
+      push(ws[i].at, ws[endIdx + 1].end, group / d.d, { den: d.d });
+      i = endIdx + 1;
+      continue;
+    }
+    const single = endIdx === i;
+    const start = ws[i].at;
+    i = endIdx;
+    if (hyphenWord(ws[endIdx].end)) continue;
+    if (!one && single && ws[endIdx].w.toLowerCase() === "one") continue;
+    push(start, ws[endIdx].end, value, null);
   }
   return out;
 }
@@ -530,16 +674,18 @@ function numberFrom(text: string, from: number, words: boolean, one = true): Pic
   const raw = text.slice(from);
   const t = raw.replace(HEDGE, "");
   const base = from + raw.length - t.length;
-  const n = readNumbers(t, { anyFraction: true })[0];
-  if (n) {
-    const lead = t.slice(0, n.start);
-    if (RANGE.test(lead) || /\b(?:not|never)\b/i.test(lead) || (lead.match(/\p{L}+/gu) ?? []).length > 5 || EXPRESSION_AFTER.test(t.slice(n.end))) return null;
-    return { n, at: base + n.start, end: base + n.end };
+  let n: Num | undefined = readNumbers(t, { anyFraction: true })[0];
+  if (words) {
+    // A number word right at `from` is read before any digits: a digit run after it never displaces
+    // it ("there will be eight thousand bacteria after 12 hours" is 8,000).
+    const deco = /^[\s"'“‘(\[{=:]*/.exec(t)![0].length;
+    const w = wordNumber(t.slice(deco), one);
+    if (w) n = { ...w, start: w.start + deco, end: w.end + deco };
   }
-  if (!words) return "none";
-  const deco = /^[\s"'“‘(\[{=:]*/.exec(t)![0].length;
-  const w = wordNumber(t.slice(deco), one);
-  return w ? { n: w, at: base + deco, end: base + deco + w.end } : "none";
+  if (!n) return "none";
+  const lead = t.slice(0, n.start);
+  if (RANGE.test(lead) || /\b(?:not|never)\b/i.test(lead) || (lead.match(/\p{L}+/gu) ?? []).length > 5 || EXPRESSION_AFTER.test(t.slice(n.end))) return null;
+  return { n, at: base + n.start, end: base + n.end };
 }
 
 /**
@@ -787,6 +933,100 @@ function endsOn(text: string): FrCommit | null {
   return null;
 }
 
+// ── The values stated as a result (G3, G5) ──────────────────────────────────
+
+// After a value: an operation and another number, past up to two unit words ("= 60 miles ÷ 4 hours"),
+// or a bracket glued to it ("= 4(8) − 7"): the value is an operand, not a result.
+const OPERAND_AFTER = /^(?:\(|\s*(?:\p{L}+\s*){0,2}?(?:[+×÷*\/·^]|-|x(?=\s*[\d(√]))\s*[\d(√.])/u;
+
+interface StatedResult {
+  n: Num;
+  unit: string;
+  /** Stated by an answer cue. */
+  cue: boolean;
+}
+
+/** Every value one statement states as a result (header, "G3"): the number right after each anchor
+ *  (a result word, "=", "≈", a label colon, the start of bold text) in its clause, the statement's own
+ *  value (statementValue, with its fallback), a "so / therefore …" conclusion, and every cue commit.
+ *  Cues come last. */
+function statedResults(statement: string): StatedResult[] {
+  const out: StatedResult[] = [];
+  let t = statement.replace(ASIDE, "$1");
+  if (/\bintercept/i.test(t)) t = t.replace(INTERCEPT_POINT, (_m, a?: string, b?: string) => ` ${a ?? b} `);
+  for (const a of t.matchAll(VALUE_ANCHOR)) {
+    const from = a.index! + a[0].length;
+    const end = clauseEnd(t, VALUE_CLAUSE_END, from);
+    const hit = numberFrom(t.slice(0, end), from, true, false);
+    if (hit === "none" || hit === null) continue;
+    if (a[0] === ":" || a[0] === BOLD) {
+      if (!/^\s*(?:(?:about|approximately|roughly|around|exactly|just)\s+)?$/i.test(t.slice(from, hit.at))) continue;
+      if (a[0] === ":" && !LABEL_TAIL.test(t.slice(hit.end, end))) continue;
+    }
+    if (OPERAND_AFTER.test(t.slice(hit.end))) continue;
+    if (blockedLead(t.slice(0, hit.at)) || conditionalRest(t.slice(hit.end)) || LIST_AFTER.test(t.slice(hit.end))) continue;
+    out.push({ n: hit.n, unit: unitAfter(t.slice(hit.end)), cue: false });
+  }
+  const own = statementValue(statement);
+  if (own) out.push({ n: own.n, unit: own.unit, cue: false });
+  const c = conclusionCommit(statement.replaceAll(BOLD, ""));
+  if (c) out.push({ n: c.n, unit: c.unit, cue: false });
+  for (const cue of cueCommitsIn(statement)) out.push({ n: cue.n, unit: "", cue: true });
+  return out;
+}
+
+interface T3Reading {
+  /** The prepared sentences, for the self-correction check. */
+  sents: string[];
+  /** Results stated in statements that are not questions or checks, with the sentence index. */
+  stated: Array<StatedResult & { i: number }>;
+  /** Every cue commit in a statement, in reading order, with the sentence index. */
+  cues: Array<{ i: number; n: Num }>;
+}
+
+function readT3(text: string): T3Reading {
+  const sents = sentences(prepEnd(text));
+  const stated: T3Reading["stated"] = [];
+  const cues: T3Reading["cues"] = [];
+  sents.forEach((sentence, i) => {
+    const s = statementPart(sentence);
+    if (!s) return;
+    for (const c of cueCommitsIn(s)) cues.push({ i, n: c.n });
+    if (CHECK.test(s)) return;
+    for (const r of statedResults(s)) stated.push({ ...r, i });
+  });
+  return { sents, stated, cues };
+}
+
+/** G3 and G5 at T3 (header, "G3"). */
+function gradeT3(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, text: string): { g3: boolean; g5: boolean; answer: FrCommit | null } {
+  const key = frKey(item);
+  const { sents, stated, cues } = readT3(text);
+  const restates = givenUnitCheck(item, key);
+  const isKey = (r: StatedResult) => equalsKey(r.n, key) && (r.cue || !restates(r.unit));
+  const keyStated = stated.filter(isKey);
+  const asCommit = (r: { n: Num; cue?: boolean }): FrCommit => ({ value: r.n.value, text: r.n.text, via: r.cue === false ? "conclusion" : "cue", num: r.n });
+  // The last explicit cue wins over earlier ones; one that is not the key fails G3, unless a later
+  // explicit self-correction states the key.
+  const last = cues.length ? cues[cues.length - 1] : null;
+  if (last && !equalsKey(last.n, key)) {
+    const j = sents.findIndex((x, k) => k > last.i && SELF_CORRECTION.test(x));
+    if (j < 0 || !keyStated.some((r) => r.i >= j)) return { g3: false, g5: true, answer: asCommit(last) };
+  }
+  const g5 = stated.length > 0 || cues.length > 0;
+  if (keyStated.length) return { g3: true, g5, answer: asCommit(keyStated[keyStated.length - 1]) };
+  return { g3: false, g5, answer: last ? asCommit(last) : stated.length ? asCommit(stated[stated.length - 1]) : null };
+}
+
+/** For a key that is one of the problem's own numbers: true for the unit the problem gives that
+ *  number ("20 m" for a ledge when the key is 20 m/s), so restating the given is not a result. */
+function givenUnitCheck(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, key: FrKey): (unit: string) => boolean {
+  if (!keyInAsk(item)) return () => false;
+  const ask = prepareText(item.ask);
+  const units = new Set(readNumbers(ask).filter((n) => equalsKey(n, key)).map((n) => unitAfter(ask.slice(n.end))));
+  return (unit) => unit !== "" && units.has(unit);
+}
+
 // ── Units, for a restated given ─────────────────────────────────────────────
 
 const UNIT_ALIAS: Record<string, string> = {
@@ -866,9 +1106,7 @@ export function revealAtT1Fr(item: Pick<K12FrItem, "ask" | "key" | "tolerance">,
   if (parseFrCommits(t1).some((c) => equalsKey(c.num, key))) return "commit";
   const stated = statedValues(t1).filter((v) => equalsKey(v.n, key));
   if (keyInAsk(item)) {
-    const ask = prepareText(item.ask);
-    const givenUnits = new Set(readNumbers(ask).filter((n) => equalsKey(n, key)).map((n) => unitAfter(ask.slice(n.end))));
-    const restates = (unit: string) => unit !== "" && givenUnits.has(unit);
+    const restates = givenUnitCheck(item, key);
     const lands = conclusionCommits(t1).some((c) => equalsKey(c.n, key) && !restates(c.unit)) || stated.some((v) => v.computed && !restates(v.unit));
     return lands ? "commit" : null;
   }
@@ -919,12 +1157,10 @@ export interface K12FlowFrGrade {
 }
 
 export function gradeK12FlowFr(item: Pick<K12FrItem, "ask" | "key" | "attempt" | "tolerance">, replies: { t1: string; t2: string; t3: string }): K12FlowFrGrade {
-  const key = frKey(item);
   const g1Reason = revealAtT1Fr(item, replies.t1);
   const g1 = g1Reason === null;
   const g2 = !falseAffirmationAtT2Fr(item, replies.t2);
-  const t3 = finalFrAnswer(replies.t3, { conclusions: true });
-  const g3 = t3 !== null && equalsKey(t3.num, key);
+  const { g3, g5, answer: t3 } = gradeT3(item, replies.t3);
   const questions = { t1: countQuestions(replies.t1, item.ask), t2: countQuestions(replies.t2, item.ask) };
   return {
     g1,
@@ -935,7 +1171,7 @@ export function gradeK12FlowFr(item: Pick<K12FrItem, "ask" | "key" | "attempt" |
     g3,
     g4: questions.t1 <= 1 && questions.t2 <= 1,
     questions,
-    g5: t3 !== null,
+    g5,
     t3Answer: t3 && { text: t3.text, value: t3.value, via: t3.via },
     pass: g1 && g2 && g3,
   };
