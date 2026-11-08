@@ -18,7 +18,7 @@
 // src/lib/eval/headless/README.md). That entry calls THIS function; it only swaps the platform
 // (SQLite, HTTP, settings store) underneath the kernel.
 
-import { tutorEngine, EMPTY_GROUNDING, type TutorTurn, type Grounding } from "../kernel";
+import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type TutorTurnResult, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
@@ -70,6 +70,11 @@ export interface RagRow {
   ttft_ms: number | null;
   /** Milliseconds for the whole turn, grounding and tool calls included. */
   total_ms: number;
+  /** The turn threw: the error's message (the answer is "ERROR: " + it). Null when the turn returned. */
+  error: string | null;
+  /** The kernel answered without tools after Ollama could not parse the model's tool call
+   *  (TutorTurnResult.toolCallRecovery). Null when that did not happen or the turn threw. */
+  toolCallRecovery: TutorTurnResult["toolCallRecovery"];
 }
 
 /** A set that brings its own vault, such as the sealed held-out file (sealed.ts). */
@@ -93,6 +98,9 @@ export interface RagReport {
   realWorld: Record<string, { answered: number; total: number }>;
   /** mode → kind → rows whose item's note was retrieved, over rows whose item names a note. */
   noteRetrieved: Record<string, Record<string, { retrieved: number; total: number }>>;
+  /** mode → ERROR rows (the turn threw) and rows the kernel answered without tools after a tool-call
+   *  parse failure. */
+  turnFailures: Record<string, { errors: number; toolCallRecovered: number }>;
   /** Whether the pre-committed condition was met (see the console summary for the exact bars). */
   verdict: { positivesPct: number; negativesClean: boolean; meetsBar: boolean };
 }
@@ -215,6 +223,11 @@ export async function runRagEval(opts?: {
           let retrievedTitles: string[] = [];
           let toolCalls: string[] = [];
           let retrievalTrace: Grounding["trace"] = EMPTY_GROUNDING.trace;
+          // False only when the turn threw before grounding reported anything: retrievalTrace is then
+          // a placeholder, not a measurement, and the vault check below must not read it.
+          let traceKnown = true;
+          let error: string | null = null;
+          let toolCallRecovery: RagRow["toolCallRecovery"] = null;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
@@ -225,8 +238,18 @@ export async function runRagEval(opts?: {
             citedTitles = [...new Set(result.usedHits.map((h) => h.title))];
             retrievedTitles = result.grounding.trace.hitTitles;
             toolCalls = result.toolCalls.map((c) => c.name);
+            toolCallRecovery = result.toolCallRecovery;
           } catch (e) {
-            answer = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
+            // A model or transport failure is an ERROR row with the real message. The kernel hands
+            // back what grounding found before the failure, so the row keeps the real trace.
+            error = e instanceof Error ? e.message : String(e);
+            answer = `ERROR: ${error}`;
+            if (e instanceof TutorTurnError) {
+              retrievalTrace = e.grounding.trace;
+              retrievedTitles = e.grounding.trace.hitTitles;
+            } else {
+              traceKnown = false;
+            }
           }
           const total_ms = Math.round(performance.now() - started);
 
@@ -238,11 +261,12 @@ export async function runRagEval(opts?: {
           // Zero CANDIDATES is the pathological case: the notebook returned nothing at all, which
           // means the seeded course is gone and every later row would measure an empty corpus.
           const retrievalRan = retrievalTrace.skipped !== "short-query" && retrievalTrace.skipped !== "disabled";
-          if (mode === "always" && retrievalRan && retrievalTrace.noteCandidates === 0) {
+          if (mode === "always" && traceKnown && retrievalRan && retrievalTrace.noteCandidates === 0) {
             throw new Error(
               `Fixture vault returned NO note candidates at ${question.id} ` +
               `(${retrievalTrace.candidates} total candidate(s), ${retrievalTrace.noteCandidates} from notes` +
-              `${retrievalTrace.error ? `, embed error: ${retrievalTrace.error}` : ""}). ` +
+              `${retrievalTrace.error ? `, embed error: ${retrievalTrace.error}` : ""}` +
+              `${error ? `; the turn also failed: ${error}` : ""}). ` +
               "The seeded course is gone or the embedder is down — every later row would measure an " +
               "empty corpus. Results discarded.",
             );
@@ -252,8 +276,8 @@ export async function runRagEval(opts?: {
           const realWorld = realWorldAnswered(question, set, answer);
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, ttft_ms, total_ms });
-          console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
+          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, ttft_ms, total_ms, error, toolCallRecovery });
+          console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
     }
@@ -265,8 +289,10 @@ export async function runRagEval(opts?: {
   const byMode: RagReport["byMode"] = {};
   const realWorld: RagReport["realWorld"] = {};
   const noteRetrieved: RagReport["noteRetrieved"] = {};
+  const turnFailures: RagReport["turnFailures"] = {};
   for (const mode of modes) {
     const mine = rows.filter((r) => r.mode === mode);
+    turnFailures[mode] = { errors: mine.filter((r) => r.error !== null).length, toolCallRecovered: mine.filter((r) => r.toolCallRecovery).length };
     byMode[mode] = summarizeRag(mine.map((r) => ({ q: r.question, verdict: r.verdict })));
     const rw = mine.filter((r) => r.realWorld !== null);
     realWorld[mode] = { answered: rw.filter((r) => r.realWorld).length, total: rw.length };
@@ -293,11 +319,12 @@ export async function runRagEval(opts?: {
     if (realWorld[mode].total) console.log(`[rag-eval] ${mode.padEnd(6)} real-world answered ${realWorld[mode].answered}/${realWorld[mode].total}`);
     const nr = Object.entries(noteRetrieved[mode]).map(([k, v]) => `${k} ${v.retrieved}/${v.total}`);
     if (nr.length) console.log(`[rag-eval] ${mode.padEnd(6)} note retrieved: ${nr.join(" · ")}`);
+    console.log(`[rag-eval] ${mode.padEnd(6)} ERROR rows ${turnFailures[mode].errors} · answered without tools after a tool-call parse failure ${turnFailures[mode].toolCallRecovered}`);
   }
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, set, rows, byMode, realWorld, noteRetrieved, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {
