@@ -22,6 +22,7 @@ import { HELDOUT_V2_SHA256, loadSealed } from "../sealed";
 import { K12_FLOW_SAMPLE_SEED, selectK12FlowItems } from "./select";
 import { seedStore } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
+import { installWire } from "./wire";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type EvalOptions } from "./env";
 import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
 import { ollamaRunInfo } from "./ollama-info";
@@ -54,6 +55,8 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   // Settings first: the store is read by everything below.
   seedStore(STORE_FILE, storeValuesFor(o));
   installAppOrigin();
+  // Off unless EVAL_WIRE or EVAL_NUM_GPU is set; then every Ollama chat/embed request goes through it.
+  const wire = installWire({ log: o.wire, numGpu: o.numGpu });
 
   // What the store resolves for embeddings is what the runner will use; ask it rather than guess.
   const embedModel = (await getEmbeddingConfig()).model;
@@ -93,7 +96,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   // linked worktree's removal would otherwise delete with it.
   const outFile = o.out ? p.resolve(cwd(), o.out) : p.resolve(await mainCheckout(), defaultOutPath(o, started));
   const options = { ...o, apiKey: undefined }; // dropped by JSON.stringify: a key never reaches the file
-  const write = (body: object) => writeText(outFile, JSON.stringify({
+  const write = async (body: object) => { await wire.settle(); return writeText(outFile, JSON.stringify({
     suite: o.suite,
     options,
     commit: git.commit,
@@ -106,7 +109,8 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     started: started.toISOString(),
     finished: new Date().toISOString(),
     ...body,
-  }, null, 2)).then(() => console.log(`[eval] results: ${outFile}`));
+    ...(o.wire ? { wire: wire.calls } : {}),
+  }, null, 2)).then(() => console.log(`[eval] results: ${outFile}`)); };
 
   if (flowItems) {
     const report = await runFlow(flowItems, o, write);

@@ -31,6 +31,8 @@ from environment variables.
 | `EVAL_SAMPLE` | (all) | k12-flow only. N items stratified by subject, drawn with a fixed seed, so the same N gives the same items every time. Applied before `EVAL_LIMIT`. |
 | `EVAL_SYLLABUS` | `python` | `python` or `matched` (see rag-runner.ts). |
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
+| `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
+| `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
 | `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
 The results file holds the runner's report (every row, with `ttft_ms` and `total_ms`), the options,

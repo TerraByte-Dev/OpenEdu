@@ -553,6 +553,33 @@ export async function getOllamaVersion(ollamaUrl: string): Promise<string | null
   }
 }
 
+// ─── Ollama loaded-model probe (/api/ps), not cached: the answer changes as Ollama loads and unloads ──
+// True when Ollama has `config.model` in memory, at `config.contextTokens` when /api/ps reports a
+// context length (a runner at another num_ctx reloads). False when it does not. null when the probe
+// fails or the reply is unreadable. Rethrows only when `signal` aborted it.
+export async function ollamaModelLoaded(config: LLMConfig, signal?: AbortSignal): Promise<boolean | null> {
+  const base = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+  const want = config.model.includes(":") ? config.model : `${config.model}:latest`;
+  try {
+    const response = await fetch(`${base}/api/ps`, {
+      method: "GET",
+      headers: { "Accept": "application/json", "Origin": "" },
+      signal,
+    });
+    if (!response.ok) return null;
+    const json = await response.json();
+    if (!Array.isArray(json?.models)) return null;
+    const ctx = config.contextTokens ? Math.floor(config.contextTokens) : null;
+    return json.models.some((m: { name?: unknown; model?: unknown; context_length?: unknown }) =>
+      (m?.name === want || m?.model === want) &&
+      (ctx === null || typeof m.context_length !== "number" || m.context_length === ctx));
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    log.warn("ollamaModelLoaded", "probe failed", e);
+    return null;
+  }
+}
+
 function ollamaSupportsSchemaFormat(version: string | null): boolean {
   // Schema-as-format introduced in Ollama 0.5.0
   if (!version) return false;
@@ -799,6 +826,14 @@ export interface StructuredOpts<T = unknown> {
   // technically-valid content that misses minLength by a character or two; this prevents
   // pointless repair-retry rejections without accepting genuinely empty fields.
   tier?: ModelTier;
+  // Ollama only: tools to declare on the request, exactly as a chat turn declares them. Not for the
+  // model to call (the schema constrains the output); sent so the rendered prompt's prefix matches a
+  // chat turn's and Ollama's prefix cache survives the call (kernel/gloss.ts). Ignored by cloud
+  // providers, whose structured paths use their own tool / response_format envelope.
+  tools?: ProviderToolDef[];
+  // Ollama only: cap on output tokens, below the default ollamaMaxPredict(config). For a call whose
+  // answer is known to be short (kernel/gloss.ts), so a rambling model stops early.
+  numPredict?: number;
 }
 
 // Deep-clone a JSON schema and scale every minLength / minItems found within by `scale`.
@@ -900,6 +935,8 @@ async function callOllamaStructured(
   schema: object,
   temperature: number,
   signal?: AbortSignal,
+  tools?: ProviderToolDef[],
+  numPredict?: number,
 ): Promise<ProviderResult> {
   const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const version = await getOllamaVersion(baseUrl);
@@ -916,12 +953,14 @@ async function callOllamaStructured(
     // aborts the fetch, but Ollama keeps generating with no client attached.
     options: {
       temperature,
-      num_predict: ollamaMaxPredict(config),
+      num_predict: numPredict ? Math.min(numPredict, ollamaMaxPredict(config)) : ollamaMaxPredict(config),
       ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}),
     },
     format: supportsSchema ? schema : "json",
     ...OLLAMA_THINK_OFF,
   };
+  const toolDefs = ollamaToolDefs(tools);
+  if (toolDefs) body.tools = toolDefs;
 
   log.info("callOllamaStructured", `POST ${baseUrl}/api/chat schema=${supportsSchema ? "yes" : "json-loose"} v=${version ?? "?"}`);
 
@@ -1139,7 +1178,7 @@ export async function callLLMStructured<T>(
     let result: ProviderResult;
     try {
       if (config.provider === "ollama") {
-        result = await callOllamaStructured(workingMessages, config, effectiveSchema, temperature, attemptController.signal);
+        result = await callOllamaStructured(workingMessages, config, effectiveSchema, temperature, attemptController.signal, opts.tools, opts.numPredict);
       } else if (config.provider === "openai") {
         result = await callOpenAIStructured(workingMessages, config, effectiveSchema, toolName, temperature, attemptController.signal);
       } else if (config.provider === "anthropic") {

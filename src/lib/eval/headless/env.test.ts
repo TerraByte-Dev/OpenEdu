@@ -24,6 +24,14 @@ describe("parseEvalEnv", () => {
     } catch (e) { msg = (e as Error).message; }
     for (const k of ["EVAL_SUITE", "EVAL_SEALED", "EVAL_REPEATS", "EVAL_MODES", "EVAL_API_KEY"]) expect(msg).toContain(k);
   });
+
+  it("reads EVAL_WIRE and EVAL_NUM_GPU, off by default", () => {
+    expect(parseEvalEnv({})).toMatchObject({ wire: false, numGpu: undefined });
+    expect(parseEvalEnv({ EVAL_WIRE: "1", EVAL_NUM_GPU: "0" })).toMatchObject({ wire: true, numGpu: 0 });
+    expect(() => parseEvalEnv({ EVAL_WIRE: "yes" })).toThrow(/EVAL_WIRE/);
+    expect(() => parseEvalEnv({ EVAL_NUM_GPU: "-1" })).toThrow(/EVAL_NUM_GPU/);
+    expect(() => parseEvalEnv({ EVAL_NUM_GPU: "0", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_NUM_GPU is not allowed with EVAL_SET=sealed/);
+  });
 });
 
 describe("parseEvalEnv, k12-flow", () => {

@@ -23,7 +23,8 @@ import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
-import { ground, groundedIn, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
+import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
+import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 
@@ -110,9 +111,26 @@ export class TutorEngine {
     // stage makes it 1.0. Capable models get the same context and keep notebook.search for a second
     // hop, so this is not a small-model branch.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    const grounding = lastUser
-      ? await ground(lastUser.content, ctx, budget, turn.retrieval ?? "always")
+    const retrieval = turn.retrieval ?? "always";
+
+    // Lever L2 (gloss.ts): a question in a non-Latin script gets one short call that writes it in
+    // English, and retrieval searches with both. The call continues this turn's own prefix (the
+    // messages as fitted, the same tools, the same num_ctx) so Ollama neither reloads nor loses its
+    // prefix cache. A question needsGloss rejects skips this block entirely, so its requests are the
+    // pre-L2 ones; english-path.test.ts pins that byte for byte for its English questions. The check is
+    // a heuristic, so some English text can still be glossed. Ollama only (shouldGloss): on a cloud
+    // provider the call is unmeasured and paid.
+    let gloss: GlossResult | null = null;
+    if (lastUser && shouldRetrieve(lastUser.content, retrieval).retrieve && shouldGloss(lastUser.content, turn.config.provider)) {
+      gloss = await glossQuestion(fitMessages(messages, budget).messages, lastUser.content, turn.config, {
+        tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort,
+      });
+    }
+
+    const grounded = lastUser
+      ? await ground(lastUser.content, ctx, budget, retrieval, gloss?.text)
       : EMPTY_GROUNDING;
+    const grounding: Grounding = gloss ? { ...grounded, trace: { ...grounded.trace, gloss } } : grounded;
 
     if (grounding.block && lastUser) {
       // Merged into the FINAL USER TURN, not the system prompt. Two reasons, both load-bearing:

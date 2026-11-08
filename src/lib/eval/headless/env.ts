@@ -32,6 +32,11 @@ export interface EvalOptions {
   sample?: number;
   /** Unset: .dev/eval-runs/<stamp>-<suite>-<set>-<model>.json under the working directory. */
   out?: string;
+  /** Record Ollama's own timing and token counts for every chat request (wire.ts). Requests unchanged. */
+  wire: boolean;
+  /** Ollama only: add options.num_gpu to every chat and embed request (0 = CPU only). Changes the
+   *  requests on purpose, for latency runs; such a run is not a parity run. */
+  numGpu?: number;
 }
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
@@ -105,6 +110,17 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   const limit = count("EVAL_LIMIT");
   const sample = count("EVAL_SAMPLE");
 
+  const wireRaw = get("EVAL_WIRE");
+  if (wireRaw !== undefined && wireRaw !== "1" && wireRaw !== "0") errs.push(`EVAL_WIRE=${wireRaw}: use 1 or 0`);
+  let numGpu: number | undefined;
+  const gpuRaw = get("EVAL_NUM_GPU");
+  if (gpuRaw !== undefined) {
+    numGpu = Number(gpuRaw);
+    if (!Number.isInteger(numGpu) || numGpu < 0) errs.push(`EVAL_NUM_GPU=${gpuRaw}: a whole number, 0 or more`);
+    if (provider !== "ollama") errs.push("EVAL_NUM_GPU applies to Ollama only");
+    if (set === "sealed") errs.push("EVAL_NUM_GPU is not allowed with EVAL_SET=sealed: it changes the requests");
+  }
+
   if (errs.length) throw new Error(`Bad eval options:\n  ${errs.join("\n  ")}`);
   return {
     suite,
@@ -123,6 +139,8 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     limit,
     sample,
     out: get("EVAL_OUT"),
+    wire: wireRaw === "1",
+    numGpu,
   };
 }
 
