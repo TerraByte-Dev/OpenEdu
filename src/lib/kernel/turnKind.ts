@@ -45,10 +45,16 @@ The student has just given you this problem and has not tried it yet. Do not ans
  * for the answer first. It does not say where the answer comes from: that stays with the grounding
  * block's own instructions (ground.ts contextHeader: name the title drawn on; if no passage answers,
  * say the answer is from general knowledge). It adds no rule about not knowing, so the app's escape
- * behaviour is unchanged. Prompt-wording iteration 1 of at most 3.
+ * behaviour is unchanged.
+ *
+ * Prompt-wording iteration 2 of at most 3. Iteration 1 ("Answer the question directly", PR #205) was
+ * killed on dev: gemma4:e2b answered near-miss questions with an unrelated note's value (a gecko
+ * question got a fictional newt's regrowth time). Iteration 2 adds one rule, written after reading
+ * those failures, so dev is in-sample for it: answer about the thing asked, and background about a
+ * different thing does not answer it.
  */
 export const FACT_LOOKUP_NOTE = `<tutor_note>
-The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
+The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. Answer about the exact thing the student asked about. If the background above is about a different thing (another animal, place, event, object or substance), it does not answer this question: do not give its numbers or facts as the answer. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
 </tutor_note>`;
 
 /** The note a turn of this kind gets, or null for none. */
@@ -144,7 +150,7 @@ const NUMW = String.raw`(?:\d+(?:\.\d+)?|zero|one|two|three|four|five|six|seven|
 const WORD_OP = String.raw`(?:plus|minus|times|multiplied by|divided by)`;
 const WORD_EXPR = new RegExp(String.raw`\b${NUMW}\s+${WORD_OP}\s+${NUMW}\b`, "i");
 const WORD_RESULT = new RegExp(String.raw`\b${NUMW}\s+${WORD_OP}\s+${NUMW}\s+(?:is|equals|makes|=)\s+-?${NUMW}\b`, "i");
-// "15% of 80", "3/4 of 20", "square root of 144", "9 squared", "2 to the power of 5", "0.25 as a fraction".
+// "12% of 50", "3/4 of 20", "square root of 81", "9 squared", "2 to the power of 5", "0.25 as a fraction".
 const MATH_PHRASE = [
   /\b\d+(?:\.\d+)?\s*(?:%|percent\b|per cent\b)\s*of\s+[$£€]?\d/i,
   /\b\d+\s*\/\s*\d+\s+of\s+[$£€]?\d/,
@@ -185,7 +191,7 @@ const YEAR_AFTER = /^\s*(?:bc|ad|bce|ce|s)\b/i;
 
 const NUMBER_WORD = /\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|dozen)\b/gi;
 
-// "ten-hour day", "3-year-old": a number joined to a word by a hyphen describes it; it is not a quantity.
+// "six-week course", "3-year-old": a number joined to a word by a hyphen describes it; it is not a quantity.
 const COMPOUND_AFTER = /^-\p{L}/u;
 
 /** Numbers that stand for quantities: not ordinals (3rd), not years (in 1990), not inside a name (CO2),
@@ -283,8 +289,8 @@ function asksFactLookup(text: string, runs: MathRun[]): boolean {
   const quantities = quantityCount(text);
   if (quantities >= 2 || (quantities > 0 && QUANTITY_Q.test(text))) return false;
   // Two or more numbers of any kind, years included, with a word that sets up a calculation are
-  // something to work out rather than a fact to recall ("75 years after 1969", "how old ... born in
-  // 1809 ... president in 1861"). A plain range ("between 1939 and 1945") stays a lookup.
+  // something to work out rather than a fact to recall ("40 years after 1990", "how old ... born in
+  // 1897 ... mayor in 1951"). A plain range ("between 1939 and 1945") stays a lookup.
   if ((text.match(/(?<![\p{L}\d.,])\d+(?:[.,]\d+)*(?!\d)/gu) ?? []).length >= 2 && /\b(?:after|before|later|earlier|ago|old|older|younger|if|until|from now)\b/i.test(text)) return false;
   const parts = sentences(text);
   const lookups = parts.filter((s) => isLookupSentence(s, text));

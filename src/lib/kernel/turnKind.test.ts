@@ -239,6 +239,6 @@ describe("the notes", () => {
   it("costs what the PR says, by the budget's own estimate", () => {
     expect(estTokens(FIRST_TURN_HOLD_NOTE)).toBe(103);
     expect(estTokens(TYPED_PROBLEM_HOLD_NOTE)).toBe(86);
-    expect(estTokens(FACT_LOOKUP_NOTE)).toBe(143);
+    expect(estTokens(FACT_LOOKUP_NOTE)).toBe(203);
   });
 });

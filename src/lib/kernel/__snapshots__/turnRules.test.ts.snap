@@ -19,7 +19,7 @@ exports[`conversation sent by the kernel: bare math course, explain > pins the l
 "What do my notes say about the boiling point of olive oil?
 
 <tutor_note>
-The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
+The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. Answer about the exact thing the student asked about. If the background above is about a different thing (another animal, place, event, object or substance), it does not answer this question: do not give its numbers or facts as the answer. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
 </tutor_note>"
 `;
 
@@ -42,7 +42,7 @@ exports[`conversation sent by the kernel: full science course, socratic > pins t
 "What do my notes say about the boiling point of olive oil?
 
 <tutor_note>
-The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
+The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. Answer about the exact thing the student asked about. If the background above is about a different thing (another animal, place, event, object or substance), it does not answer this question: do not give its numbers or facts as the answer. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
 </tutor_note>"
 `;
 
