@@ -14,10 +14,13 @@ import { loadBuiltinSkills } from "../../skills";
 import { refreshManifest, isLibraryAvailable, getManifest } from "../../library";
 import { refreshDatasetManifest } from "../../library-datasets";
 import { runRagEval, type RagCustomSet, type RagReport } from "../rag-runner";
-import { runK12FlowItems, type K12FlowReport } from "../k12-flow-runner";
+import { runK12FlowItems, runK12FlowFrItems, type K12FlowReport, type K12FlowFrReport } from "../k12-flow-runner";
 import { K12FlowAbort, type K12FlowRow } from "../k12-flow";
 import { summarizeK12Flow } from "../k12-flow-grade";
 import { K12_ITEMS } from "../k12-items";
+import type { K12FlowFrRow } from "../k12-flow-fr";
+import { summarizeK12FlowFr } from "../k12-flow-fr-grade";
+import { K12_FR_ITEMS } from "../k12-flow-fr-items";
 import { HELDOUT_V2_SHA256, loadSealed } from "../sealed";
 import { K12_FLOW_SAMPLE_SEED, selectK12FlowItems } from "./select";
 import { seedStore } from "./shims/plugin-store";
@@ -26,9 +29,10 @@ import { installWire } from "./wire";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type EvalOptions } from "./env";
 import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
 import { ollamaRunInfo } from "./ollama-info";
+import { runB7, type B7Result } from "./latency";
 
 export interface HeadlessResult {
-  report: RagReport | K12FlowReport;
+  report: RagReport | K12FlowReport | K12FlowFrReport | B7Result;
   outFile: string;
 }
 
@@ -38,7 +42,8 @@ const pulled = (models: string[], want: string) => models.some((m) => m === want
 // but later and less clearly (an embed error at the first note).
 async function preflight(o: EvalOptions, embedModel: string): Promise<void> {
   const tags = await getOllamaModels(o.ollamaUrl);
-  if (tags.error) throw new Error(`Ollama is not reachable at ${o.ollamaUrl}: ${tags.error}. Start it with "ollama serve".`);
+  const start = o.suite === "b7-cpu" ? 'Start the CPU-only server as src/lib/eval/headless/README.md shows ("b7-cpu")' : 'Start it with "ollama serve"';
+  if (tags.error) throw new Error(`Ollama is not reachable at ${o.ollamaUrl}: ${tags.error}. ${start}.`);
   const missing = [...(o.provider === "ollama" ? [o.model] : []), embedModel].filter((m) => !pulled(tags.models, m));
   if (missing.length) throw new Error(`Not pulled in Ollama: ${missing.join(", ")}. Run: ${missing.map((m) => `ollama pull ${m}`).join(" && ")}`);
 }
@@ -47,6 +52,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   const o = parseEvalEnv(env);
   // Pick the k12-flow items before anything is seeded: a bad EVAL_ONLY id fails fast.
   const flowItems = o.suite === "k12-flow" ? selectK12FlowItems(K12_ITEMS, o) : null;
+  const frItems = o.suite === "k12-flow-fr" ? selectK12FlowItems(K12_FR_ITEMS, o) : null;
   const git = await gitState();
   // Rule 4 before the set is touched: reading it burns it.
   const refusal = o.set === "sealed" ? sealedGitRefusal(git) : null;
@@ -112,8 +118,17 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     ...(o.wire ? { wire: wire.calls } : {}),
   }, null, 2)).then(() => console.log(`[eval] results: ${outFile}`)); };
 
+  if (o.suite === "b7-cpu") {
+    const report = await runB7(o, embedModel, (body) => write({ split: "dev", ...body }));
+    return { report, outFile };
+  }
+
   if (flowItems) {
     const report = await runFlow(flowItems, o, write);
+    return { report, outFile };
+  }
+  if (frItems) {
+    const report = await runFlowFr(frItems, o, write);
     return { report, outFile };
   }
 
@@ -143,6 +158,25 @@ async function runFlow(items: typeof K12_ITEMS, o: EvalOptions, write: (body: ob
   } catch (e) {
     if (e instanceof K12FlowAbort) {
       await write({ split: "dev", selection, partial: true, abort: e.message, rows: withItem(log), summary: summarizeK12Flow(log) });
+    }
+    throw e;
+  }
+}
+
+// k12-flow-fr the same way: the runner's own function, every row with its item's subject and band, a
+// void run written before it throws.
+async function runFlowFr(items: typeof K12_FR_ITEMS, o: EvalOptions, write: (body: object) => Promise<void>): Promise<K12FlowFrReport> {
+  const byId = new Map(K12_FR_ITEMS.map((x) => [x.id, x]));
+  const selection = { pool: K12_FR_ITEMS.length, items: items.length, only: o.only ?? null, limit: o.limit ?? null, sample: o.sample ?? null, seed: o.sample ? K12_FLOW_SAMPLE_SEED : null };
+  const withItem = (rows: K12FlowFrRow[]) => rows.map(({ id, ...r }) => ({ id, subject: byId.get(id)!.subject, band: byId.get(id)!.band, ...r }));
+  let log: K12FlowFrRow[] = [];
+  try {
+    const report = await runK12FlowFrItems(items, { onRows: (rows) => { log = rows; } });
+    await write({ split: "dev", selection, ...report, rows: withItem(report.rows), abort: null });
+    return report;
+  } catch (e) {
+    if (e instanceof K12FlowAbort) {
+      await write({ split: "dev", selection, partial: true, abort: e.message, rows: withItem(log), summary: summarizeK12FlowFr(log) });
     }
     throw e;
   }

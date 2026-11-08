@@ -18,8 +18,10 @@ vi.mock("@tauri-apps/plugin-store", () => import("./shims/plugin-store"));
 vi.mock("@tauri-apps/api/core", () => import("./shims/api-core"));
 
 import { runRagEval } from "../rag-runner";
-import { runK12FlowEval } from "../k12-flow-runner";
+import { runK12FlowEval, runK12FlowFrEval } from "../k12-flow-runner";
 import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
+import { formatK12FlowFrT2 } from "../k12-flow-fr";
+import { K12_FR_ITEMS } from "../k12-flow-fr-items";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "../../kernel/outputRules";
 import { FIRST_TURN_HOLD_NOTE, withFirstTurnHold } from "../../kernel/attemptFirst";
 import { K12_ITEMS } from "../k12-items";
@@ -284,5 +286,77 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     expect(out.summary.headline).toMatchObject({ k: 0, n: 1 });
     expect(out.summary.headline.wilson).toHaveLength(2);
     expect(out.summary.g1.wilson).toHaveLength(2);
+  });
+});
+
+// The same check for k12-flow-fr: one free-response item through its webview hook
+// (window.__runK12FlowFrEval = runK12FlowFrEval) and through `EVAL_SUITE=k12-flow-fr npm run eval`.
+describe("headless k12-flow-fr == webview k12-flow-fr, on the wire", () => {
+  const FR_ITEM = K12_FR_ITEMS.find((x) => x.id === "fr-math-k5-06")!; // math: the domain skill and tools are in play
+  const raws = (p: string) => calls.filter((c) => c.path === p).map((c) => c.raw);
+  const FLOW_REPLY = ["Not quite. Think about the leftovers. ", "How many muffins are left after the full boxes?"];
+  let webview: { chat: unknown[] };
+  let headless: { chat: unknown[]; out: Record<string, unknown> };
+
+  beforeAll(async () => {
+    globalThis.fetch = fakeOllama as typeof fetch;
+    installAppOrigin();
+    chatReply = FLOW_REPLY;
+
+    resetStores();
+    seedStore(STORE_FILE, { [STORE_KEYS.chatModel]: MODEL });
+    registerBuiltinTools();
+    await loadBuiltinSkills();
+    await refreshManifest();
+    await refreshDatasetManifest();
+    calls = [];
+    await runK12FlowFrEval({ only: FR_ITEM.id });
+    webview = { chat: raws("/api/chat") };
+
+    calls = [];
+    const f = await fs();
+    const dir = await f.mkdtemp(`${(await os()).tmpdir()}/oe-parity-fr-`);
+    try {
+      const { outFile } = await (await freshRun())({ EVAL_SUITE: "k12-flow-fr", EVAL_MODEL: MODEL, EVAL_ONLY: FR_ITEM.id, EVAL_OUT: `${dir}/run.json` });
+      const out = JSON.parse(await f.readFile(outFile, "utf8")) as Record<string, unknown>;
+      headless = { chat: raws("/api/chat"), out };
+    } finally {
+      await f.rm(dir, { recursive: true, force: true });
+      chatReply = RAG_REPLY;
+    }
+  }, 60_000);
+
+  it("sends Ollama byte-identical chat requests, with the typed problem alone as T1", () => {
+    expect(webview.chat).toHaveLength(4);
+    expect(headless.chat).toEqual(webview.chat);
+    type Msg = { role: string; content: string };
+    const turns = headless.chat.slice(1).map((r) => JSON.parse(r as string) as { messages: Msg[] });
+    const lastUser = (m: Msg[]) => m.filter((x) => x.role === "user").slice(-1)[0].content;
+    expect(turns[0].messages[0].content).toContain("Mathematics");
+    expect(lastUser(turns[0].messages)).toBe(FR_ITEM.ask);
+    expect(lastUser(turns[0].messages)).not.toMatch(/\bA\)|Which one is right/);
+    expect(lastUser(turns[1].messages)).toBe(formatK12FlowFrT2(FR_ITEM));
+    expect(lastUser(turns[2].messages)).toBe(K12_FLOW_T3);
+  });
+
+  it("sends T1 as a fresh conversation: the system prompt, the typed problem, and the tools", () => {
+    type Req = { model: string; messages: Array<{ role: string; content: string }>; tools?: unknown[]; options?: unknown };
+    const t1 = JSON.parse(headless.chat[1] as string) as Req;
+    expect(t1.messages.map((m) => m.role)).toEqual(["system", "user"]);
+    expect(t1.tools?.length).toBeGreaterThan(0);
+  });
+
+  it("writes each row with source, subject, band, the three turns, the verdicts and a Wilson summary", () => {
+    const out = headless.out as {
+      suite: string; split: string; partial: boolean; abort: unknown;
+      rows: Array<{ id: string; source: string; subject: string; band: string; key: string; attempted: string; turns: Array<{ user: string; text: string }>; chipOffered: boolean; workedAnswerTurn: boolean; t3WorkedAnswerRules: boolean; grade: Record<string, unknown> }>;
+      summary: { items: number; headline: { k: number; n: number; wilson: number[] } };
+    };
+    expect(out).toMatchObject({ suite: "k12-flow-fr", split: "dev", partial: true, abort: null });
+    expect(out.rows).toHaveLength(1);
+    expect(out.rows[0]).toMatchObject({ id: FR_ITEM.id, source: "math-k5-06", subject: "math", band: "K-5", key: "16", attempted: "15", chipOffered: true, workedAnswerTurn: true, t3WorkedAnswerRules: true });
+    expect(out.rows[0].turns.map((t) => t.user)).toEqual([FR_ITEM.ask, formatK12FlowFrT2(FR_ITEM), K12_FLOW_T3]);
+    expect(out.rows[0].grade).toMatchObject({ g1: true, g2: true, g3: false, g5: false, pass: false });
+    expect(out.summary).toMatchObject({ items: 1, headline: { k: 0, n: 1 } });
   });
 });
