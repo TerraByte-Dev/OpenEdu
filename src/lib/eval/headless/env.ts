@@ -4,6 +4,7 @@
 import type { LLMProvider } from "../../../types";
 import type { RetrievalMode } from "../../kernel/ground";
 import { STORE_KEYS, apiKeyStoreKey } from "../../store-keys";
+import type { RagPrompt } from "../rag-runner";
 
 export type EvalSuite = "rag" | "k12-flow";
 
@@ -24,6 +25,8 @@ export interface EvalOptions {
   modes?: RetrievalMode[];
   only?: string;
   syllabus?: "python" | "matched";
+  /** RAG only: the instructions arm (rag-runner.ts ragInstructions). Unset: the runner's default. */
+  prompt?: RagPrompt;
   /** The Settings context-window cap. Unset: the app default. */
   maxContextTokens?: number;
   /** k12-flow only: the first N items. */
@@ -44,6 +47,9 @@ const PROVIDERS: LLMProvider[] = ["ollama", "openai", "anthropic"];
 const SUITES: EvalSuite[] = ["rag", "k12-flow"];
 const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
+// Kept in step with rag-runner.ts RAG_PROMPTS by parity.test.ts (importing the runner here would pull the
+// kernel into a module that is meant to stay pure).
+const PROMPTS: RagPrompt[] = ["standin", "product-default", "product-course"];
 
 /** Parse the EVAL_* variables. Throws one error naming every bad value. */
 export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptions {
@@ -69,13 +75,15 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   if (flow && set !== "dev") errs.push(`EVAL_SET=${set}: k12-flow runs only the dev items (the 240 k12-mc items) for now`);
   // k12-flow's configuration is frozen by its protocol (one sample, retrieval "always", no syllabus).
   if (flow) {
-    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED"]) if (get(k)) errs.push(`${k} does not apply to k12-flow`);
+    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_PROMPT"]) if (get(k)) errs.push(`${k} does not apply to k12-flow`);
   }
   const sealedPath = get("EVAL_SEALED");
   if (!flow && set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
   // A partial sealed run still reads, and so burns, the whole set (protocol rule 8).
   if (set === "sealed" && get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed with EVAL_SET=sealed: the run covers every item");
   if (set === "sealed" && get("EVAL_MODES")) errs.push("EVAL_MODES is not allowed with EVAL_SET=sealed: the run uses the runner's default modes");
+  // Choosing the prompt arm per sealed run would let the sealed set pick it. The sealed run uses the default.
+  if (set === "sealed" && get("EVAL_PROMPT")) errs.push("EVAL_PROMPT is not allowed with EVAL_SET=sealed: the run uses the runner's default prompt");
 
   const repeatsRaw = get("EVAL_REPEATS") ?? "1";
   const repeats = Number(repeatsRaw);
@@ -88,6 +96,9 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     const bad = modes.filter((m) => !MODES.includes(m));
     if (bad.length || modes.length === 0) errs.push(`EVAL_MODES=${modesRaw}: comma list of ${MODES.join(", ")}`);
   }
+
+  const prompt = get("EVAL_PROMPT") as RagPrompt | undefined;
+  if (prompt !== undefined && !PROMPTS.includes(prompt)) errs.push(`EVAL_PROMPT=${prompt}: use ${PROMPTS.join(", ")}`);
 
   const syllabus = get("EVAL_SYLLABUS") as EvalOptions["syllabus"];
   if (syllabus !== undefined && syllabus !== "python" && syllabus !== "matched") errs.push(`EVAL_SYLLABUS=${syllabus}: use python or matched`);
@@ -135,6 +146,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     modes,
     only: get("EVAL_ONLY"),
     syllabus,
+    prompt,
     maxContextTokens,
     limit,
     sample,

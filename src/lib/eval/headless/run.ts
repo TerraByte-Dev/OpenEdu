@@ -122,6 +122,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     modes: o.modes,
     only: o.only,
     syllabus: o.syllabus,
+    prompt: o.prompt,
     ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" }),
   });
   await write(report);
