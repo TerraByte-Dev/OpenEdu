@@ -53,6 +53,9 @@ Wilson 95% intervals. n is items; item-majority is ≥ 2 of 3 repeats. Raw rows 
 
 e2b real-world answered per item (of 3): nl01 0, nl02 3, nl04 0, nl05 0, nl06 0, nl07 3, nl08 1, nl09 0,
 nl10 3, nl11 0, nl12 0, nl13 3, nl14 2, nl15 2, nl19 3, nl20 0, nl21 0, nl22 0, nl23 3.
+Two of e2b's eight are answered from a bundled library card, not general knowledge: `nl23` (the
+"Greek Alphabet" card; e2b cites "the REFERENCE passage on the Greek Alphabet") and `nl10` ("Waves &
+Sound"). Without them e2b is 6/17 on general knowledge (35.3%, 17.3–58.7).
 qwen3.5:4b: all 3 of 3 except nl01 1, nl12 1, nl20 1.
 
 ### RAG v1 dev (`EVAL_SET=dev`, 42 items)
@@ -63,9 +66,9 @@ qwen3.5:4b: all 3 of 3 except nl01 1, nl12 1, nl20 1.
 | Real-world answered, rows | 9/18, 50% (29.0–71.0) | 18/18, 100% (82.4–100) |
 | Near-miss automatic clean, items | 18/18 (82.4–100) | 5/18, 27.8% (12.5–50.9) |
 | Near-miss rows with a chip / poison, of 54 | 1 / 1 | 8 / 30 |
-| Far clean, items | 4/4 (rows 11/12; one library chip, `h-fn05`) | 4/4 (12/12) |
-| Cross-lingual, items | 11/12 (rows 33/36) | 12/12 (rows 34/36) |
-| Paraphrase, items | 7/8 (rows 21/24) | 8/8 (rows 24/24) |
+| Far clean, items | 4/4 (51.0–100; rows 11/12; one library chip, `h-fn05`) | 4/4 (51.0–100; rows 12/12) |
+| Cross-lingual, items | 11/12 (64.6–98.5; rows 33/36) | 12/12 (75.8–100; rows 34/36) |
+| Paraphrase, items | 7/8 (52.9–97.8; rows 21/24) | 8/8 (67.6–100; rows 24/24) |
 | Gold note retrieved, cross-lingual + paraphrase rows | 60/60 | 60/60 |
 
 e2b real-world per item: nm05 1, nm11 2, nm17 0, nm23 2, nm33 3, nm35 1. The hand-graded figure in
@@ -75,28 +78,28 @@ e2b real-world per item: nm05 1, nm11 2, nm17 0, nm23 2, nm33 3, nm35 1. The han
 
 | | e2b | qwen3.5:4b |
 |---|---|---|
-| Real-world answered, items (3: litmus, ethanol, highest point) | 1/3 (rows 3/9) | 3/3 (rows 9/9) |
+| Real-world answered, items (3: litmus, ethanol, highest point) | 1/3 (6.1–79.2; rows 3/9) | 3/3 (43.9–100; rows 9/9) |
 | Near-miss automatic clean, items | 15/18, 83.3% (60.8–94.2) | 5/18, 27.8% (12.5–50.9) |
 | Near-miss rows with a chip / poison, of 54 | 4 / 7 | 5 / 32 |
-| Far clean, items | 4/4 (12/12) | 4/4 (12/12) |
-| Cross-lingual, items | 11/12 (rows 34/36) | 12/12 (rows 34/36) |
-| Paraphrase, items | 7/8 (rows 22/24) | 8/8 (rows 24/24) |
+| Far clean, items | 4/4 (51.0–100; rows 12/12) | 4/4 (51.0–100; rows 12/12) |
+| Cross-lingual, items | 11/12 (64.6–98.5; rows 34/36) | 12/12 (75.8–100; rows 34/36) |
+| Paraphrase, items | 7/8 (52.9–97.8; rows 22/24) | 8/8 (67.6–100; rows 24/24) |
 
 ### Main fixture (`EVAL_SET=main`, 20 items)
 
 | | e2b | qwen3.5:4b |
 |---|---|---|
-| Positives, items | 12/12 (rows 36/36) | 12/12 (rows 36/36) |
-| Negatives clean, items | 4/4 (rows 12/12) | 3/4 (rows 9/12; `n1` leaks 214 twice, `n4` 1,290 once) |
-| Multi-hop | 2/2 (6/6) | 2/2 (6/6) |
-| Spanish | 2/2 (rows 5/6) | 2/2 (6/6) |
+| Positives, items | 12/12 (75.8–100; rows 36/36) | 12/12 (75.8–100; rows 36/36) |
+| Negatives clean, items | 4/4 (51.0–100; rows 12/12) | 3/4 (30.1–95.4; rows 9/12; `n1` leaks 214 twice, `n4` 1,290 once) |
+| Multi-hop, items | 2/2 (34.2–100; rows 6/6) | 2/2 (34.2–100; rows 6/6) |
+| Spanish, items | 2/2 (34.2–100; rows 5/6) | 2/2 (34.2–100; rows 6/6) |
 
 ## Reading it
 
 - **e2b over-refuses real-world questions when a near note is in context, and it is worse on the new
   vault.** 8 of 19 items answered. The misses are almost all "I do not have information about the
-  height of Mount Kilimanjaro in my current notes", the B1 over-refusal pattern, now on 11 items and
-  measured by code. Two misses are wrong answers, not refusals: "A concert harp typically has 81
+  height of Mount Kilimanjaro in my current notes", the B1 over-refusal pattern, on 10 items
+  (11 missed items: 10 refusals and one wrong answer) and measured by code. Two misses are wrong answers, not refusals: "A concert harp typically has 81
   strings" (nl12, all 3 repeats) and, on v1, acetone "82 °C" (nm05). e2b never misused a dev-v2 note
   (0 chips, 0 poison values in 75 rows).
 - **qwen3.5:4b answers the world and drags the note in.** Real-world 16/19, but the poison value
