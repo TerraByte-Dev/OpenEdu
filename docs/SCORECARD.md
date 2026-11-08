@@ -29,7 +29,8 @@ machines are shared and connectivity is poor. Models measured here: `gemma4:e2b`
 ## Headline results
 
 Changes that passed their pre-registered rule. Wilson 95% intervals in brackets; n counts items, not
-repeats; McNemar is exact and paired on items. All dev.
+repeats (one row counts answers, and says so); McNemar is exact and paired on items. All dev. Each row
+compares the commit just before that change with the change; the rows are not cumulative.
 
 | Metric | Model | Before → after | n | McNemar p | Change (PR) |
 |---|---|---|---|---|---|
@@ -39,8 +40,8 @@ repeats; McNemar is exact and paired on items. All dev.
 | | e4b | 93/240, 38.8% [32.8–45.0] → 229/240, 95.4% [92.0–97.4] | 240, majority of 3 | 2.3e-41 | same |
 | Worked answer correct when asked (G3) | e2b | 179/240, 74.6% [68.7–79.7] → 224/240, 93.3% [89.4–95.9] | 240, 1 run | 1.4e-9 | Worked-answer turn, as shipped ([#184](../src/lib/eval/results/2026-11-07-k12-flow-dev-L1.md)) ¹ |
 | | e4b | 77/168, 45.8% [38.5–53.4] → 166/168, 98.8% [95.8–99.7] | 168 ², 1 run | 7.4e-26 | same ¹ |
-| Non-English question answered from the right note | e2b | 9/12 → 11/12 items; answers 27/36, 75.0% [58.9–86.2] → 33/36, 91.7% [78.2–97.1] | 12, majority of 3 | 0.5 | Translate before search ([#188](../src/lib/eval/results/2026-11-07-rag-dev-L2.md)) ³ |
-| English questions whose note search changed | e2b, qwen3.5:4b | 0 of 90 answers on each model | 90 answers | — | same |
+| Non-English question: answer contains the note's value | e2b | 9/12, 75.0% [46.8–91.1] → 11/12, 91.7% [64.6–98.5] | 12, majority of 3 | 0.5 | Translate before search ([#188](../src/lib/eval/results/2026-11-07-rag-dev-L2.md)) ³ |
+| English questions whose note search changed | e2b, qwen3.5:4b | 0 of 90 answers on each model | 90 answers (not items) | — | same |
 | *No praise for a wrong answer (G2)* | e2b | ***PENDING: #213 check-before-praise A/B is running or queued. No result yet.*** | | | [#213](https://github.com/TerraByte-Dev/OpenEdu/pull/213) |
 | *Direct answers to fact lookups, harm unchanged* | e2b | ***PENDING: #215 lookup-note wording 2 is running or queued. No result yet.*** | | | [#215](https://github.com/TerraByte-Dev/OpenEdu/pull/215) |
 
@@ -65,7 +66,8 @@ box; 5 warm turns per kind)
 ([B7](../src/lib/eval/results/2026-11-08-b7-cpu-latency.md)): `gemma4:e2b` is the only model measured
 with a median under 15 s on all five turn kinds. Its slowest is the full worked answer at 12.5 s; an
 English question about the notes takes 2.1 s, with the first word at 0.65 s. A cold first turn takes
-14.8 s. `qwen3.5:4b` misses on all five (18.0–35.3 s).
+14.8 s, with the model file probably still in the OS file cache, so a first launch after a reboot is
+slower. `qwen3.5:4b` misses on all five (18.0–35.3 s).
 
 **The one held-out number.** On the RAG held-out v1 test set, run once on 2026-11-06 before any
 change above, e2b gave 1 harmful answer in 54 near-miss answers (18 trick questions × 3 runs), and all
@@ -78,7 +80,8 @@ diagnosis, so it is spent ([BENCHMARKS §0](BENCHMARKS.md#0-split-status-today-w
 The first three were killed by rules written before they ran; none of them is in the app.
 
 - **Named-entity gate** (lever 3, PR #192). It drops notes about a differently named thing. The rule
-  needed e2b to answer at least 4 more real-world questions; it answered 2 fewer (35 → 33 of 84). It
+  needed e2b to give at least 4 more real-world answers; it gave 2 fewer (35 → 33 of 84 answers, 28
+  questions × 3 runs). It
   also dropped the second note of a two-part question in every run of both models. On the three
   questions where the gate removed every note, e2b answered exactly as often as with the wrong note
   present, so on those the wrong note was not the cause of its refusals ([L3](../src/lib/eval/results/2026-11-08-rag-dev-L3.md)).
@@ -103,15 +106,19 @@ The first three were killed by rules written before they ran; none of them is in
   against human labels (Cohen's κ ≥ 0.8 on about 60 replies;
   [BENCHMARKS](BENCHMARKS.md#b3b4-protocol-running-k12-flow)). G1 looks for the answer's own text, so
   it can miss a paraphrased worked answer or a strong hint, which would overstate the G1 gains.
-  Runs and analyses were done by Claude (an AI agent), with Tate labelling samples.
+  Runs, analyses and the held-out v1 harm grading were done by Claude (an AI agent). No human label
+  has been taken yet.
 - **Note answers are scored by a proxy,** not a blind human rubric. The proxy cannot see invented facts.
 - **The notes numbers flatter e2b.** They were measured with a test-only "answer directly"
   instruction that a course generated in the app lacks. Under the app's course rules e2b answered 2 of
   22 note questions (22 of 22 with the test instruction), replying with a question instead
   ([prompt fidelity](../src/lib/eval/results/2026-11-08-rag-prompt-fidelity.md)).
-- **Worked-answer accuracy** has not yet met its bar of being no worse than the model's own accuracy
-  without the tutor (e2b lower bound 95.2% against a 95.75% bar;
-  [L1](../src/lib/eval/results/2026-11-07-k12-flow-dev-L1.md#b3-non-inferiority-g3-vs-the-k12-mc-raw-arm)).
+- **Worked-answer accuracy** has not met its bar of being no worse than the model's own accuracy
+  without the tutor (a 95.75% bar). At the commit that shipped the worked-answer turn, e2b's lower
+  bound is 89.4% (224/240, one run) ([L1](../src/lib/eval/results/2026-11-07-k12-flow-dev-L1.md#b3-non-inferiority-g3-vs-the-k12-mc-raw-arm)).
+  Later runs on master measured 234/240 and then 238/240 [97.0–99.8] (majority of 3,
+  [G1 hold](../src/lib/eval/results/2026-11-08-k12-flow-dev-G1hold.md)), but the bar's own test has not
+  been rerun on them.
 - **Mostly English.** The attempt-first problems are English. The notes tests use six languages with
   made-up names, and only Hindi and Arabic gained ([L2](../src/lib/eval/results/2026-11-07-rag-dev-L2.md)). On CPU, the
   qwen3.5 models' translation step timed out on 5 of 5 turns, so they get no benefit from it there
@@ -119,9 +126,12 @@ The first three were killed by rules written before they ran; none of them is in
 - **One machine.** Quality runs used the GPU of an RTX 3070 laptop (8 GB VRAM). Timings used its
   Ryzen 7 5800H CPU with 8 threads, not the 4-thread, 8 GB reference box, which will be slower. One
   learner at a time; shared-machine load is not measured ([B7 limits](../src/lib/eval/results/2026-11-08-b7-cpu-latency.md#limits)).
-- **Small n:** 240, 81, 25 and 12 items, and 5 timed turns per kind.
+- **Small n:** 240, 81, 43, 25, 22 and 12 items, and 5 timed turns per kind.
 - **Not learning outcomes.** No study with learners has been run. These numbers describe model
-  behaviour. Answer-grading accuracy and the safety of generated courses are not measured here.
+  behaviour. Answer-grading accuracy is not measured here.
+- **Generated courses are not safe for health topics yet.** In a check of AI-generated first-aid
+  courses, e2b's had 6 dangerous items and e4b's 3, rated not usable; the safety gate that would catch
+  them does not exist ([BENCHMARKS B6](BENCHMARKS.md#b6-course-generation-reliability-and-safety)).
 
 ## How it was measured
 
