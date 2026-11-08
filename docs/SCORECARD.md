@@ -44,7 +44,6 @@ compares the commit just before that change with the change; the rows are not cu
 | English questions whose note search changed | e2b, qwen3.5:4b | 0 of 90 answers on each model | 90 answers (not items) | — | same |
 | No praise for a wrong answer (G2), typed problems | e2b | 65/81, 80.2% [70.3–87.5] → 81/81, 100% [95.5–100] | 81, majority of 3 | 3.1e-5 | Check before praise ([#213](../src/lib/eval/results/2026-11-08-k12-flow-fr-dev-checkpraise.md)) ⁴ |
 | Whole conversation right, typed problems | e2b | 59/81, 72.8% [62.3–81.3] → 78/81, 96.3% [89.7–98.7] | 81, majority of 3 | 2.1e-5 | same |
-| *Direct answers to fact lookups, harm unchanged* | e2b | ***PENDING: #215 lookup-note wording 2 is running or queued. No result yet.*** | | | [#215](https://github.com/TerraByte-Dev/OpenEdu/pull/215) |
 
 ¹ Measured with a grader that may miss a few baseline answers, so these gains are upper bounds.
 ² e4b row: only items where the "show me the answer" button was offered in both arms, measured before
@@ -82,7 +81,7 @@ diagnosis, so it is spent ([BENCHMARKS §0](BENCHMARKS.md#0-split-status-today-w
 
 ## What was tried and did not work
 
-The first three were killed by rules written before they ran; none of them is in the app.
+The first four were killed by rules written before they ran; none of them is in the app.
 
 - **Named-entity gate** (lever 3, PR #192). It drops notes about a differently named thing. The rule
   needed e2b to give at least 4 more real-world answers; it gave 2 fewer (35 → 33 of 84 answers, 28
@@ -99,6 +98,12 @@ The first three were killed by rules written before they ran; none of them is in
   real-world answers. But the number of trick questions answered without misusing a note fell from 42
   to 38 of 43 (the rule allowed a loss of 1). Example: asked "how long does it take a gecko to regrow
   its tail?", e2b answered with a fictional newt's 17 days from the notes, in 3 of 3 runs.
+- **Lookup note, wording 2** (PR #215;
+  [results](../src/lib/eval/results/2026-11-08-rag-dev-lookup-note-v2.md)). One added sentence: answer
+  about the exact thing asked, and a note about a different thing does not answer it. The gains held
+  (3 → 22 of 22 note questions, 3 → 60 of 75 real-world answers), but the same two trick questions
+  failed the same way on 3 of 3 runs, and trick questions answered without misusing a note fell from 40
+  to 38 of 43. Rewording did not move them; the next attempt has to work in code, not in the note.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
   ([live check](../src/lib/eval/results/2026-11-08-ollama-toolcall-live-check.md)).
