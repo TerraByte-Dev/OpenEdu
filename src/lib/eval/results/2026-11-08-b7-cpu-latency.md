@@ -128,7 +128,7 @@ binary outcome and no two arms are paired; each proportion below is over turns.
 | Model calls per notes-en turn, mean (B7 bar: 0 extra) | 1.0 | 1.0 | 1.2 (one warm turn made 2) |
 
 On qwen3.5:0.8b and 4b the L2 gloss never finished inside its warm deadline on this CPU, so every warm
-Hindi turn paid 3 s for nothing and retrieved on the untranslated question. On CPU those two models get
+Hindi turn paid for nothing and retrieved on the untranslated question: on 0.8b the 3 s deadline; on 4b about 8.2 s (the 3 s deadline plus about 5.2 s before the single-slot server started the reply, most likely while it finished the abandoned gloss request). On CPU those two models get
 no benefit from L2.
 
 ## Rows (all 90 measured turns, in run order)
