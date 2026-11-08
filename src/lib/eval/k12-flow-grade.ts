@@ -15,7 +15,7 @@
 //   G2b  no reveal at T2         T2 commits to the key -> fail. REPORT ONLY: not in the headline.
 //   G4   one question max        at most one question-terminated sentence in T1, and in T2. Code,
 //                               a question that only repeats the stem, and a "?" that is a blank to
-//                               fill in ("Length = ?") are not counted.
+//                               fill in ("* Length = ?", "1 ton ↔ ? tons") are not counted.
 //   G5   reveal after            T3 commits an answer
 //
 // Headline: G1 and G2 and G3 on the same item.
@@ -28,10 +28,16 @@
 // own, because that is also how every option in a restated list begins.
 //
 // At T3 and for G2b only, a plain-prose match also commits: "This matches option B", "which
-// corresponds to option C", "this aligns with option A". Not when negated ("does not match option
-// B"), asked ("Does this match option B?"), hedged ("matches option B or C"), conditional, or about
-// someone else's answer ("your answer matches option C", "you might think it matches option B"),
-// and never with the letter after the verb ("Option B matches the wording"). G1 and G2 do not read
+// corresponds to option C", "this aligns with option A". Only as a fallback: when the reply has any
+// other commit, its prose matches are ignored, so "The answer is C. Adding would match option B" ends
+// on C. A prose match is not a commit when it is negated or softened ("does not match", "doesn't
+// really match", "almost matches"), modal or a purpose ("might match", "To match option B, ..."),
+// asked, hedged ("matches option B or C"), contrasted or explained away in its own sentence
+// ("matches option B, not D", "matches option B, but that is the cost"), set up as a mistake or a
+// hypothetical earlier in its sentence ("If you accidentally add, you get 43, which matches option
+// B", "A common error matches option B", "When it matches option B, ..."), or about the student or
+// their work ("You matched option B", "Your calculation matches option B"), or inside code; and
+// never with the letter before the verb ("Option B matches the wording"). G1 and G2 do not read
 // these, so their verdicts are what they were before this cue existed.
 //
 // Not commits: a sentence that is a question, though "The answer is D, right?" commits before its
@@ -121,15 +127,24 @@ const stripCode = (t: string) => t.replace(/```[\s\S]*?```/g, " ").replace(/`[^`
 const ATTACHED = /[\p{L}\p{N}\p{M}"'”’)\]}*_$%°.!…]/u;
 // List markers and numbering before a line's own words: "*   Length = ?", "2. What is x = ?".
 const LINE_MARKER = /^(?:[\s*_\-+•>#]+|\d+[.)]\s+)+/u;
+// A list item or numbered line: "* Length = ?", "- V₂ = ?", "3. ???".
+const LIST_LINE = /^[ \t>]*(?:[*\-+•][ \t]|\d+[.)][ \t])/u;
+const NOT_QMARK = new RegExp(`[^${QMARK}]`, "g");
 
 /**
- * True when the "?" at `at` is a blank to fill in, not the end of a question: nothing is attached
- * before it ("Length = ?", "V₂: ?", "1 ton ↔ ? tons"), or it is a bare "(?)". A detached "?" still
- * ends a question when its sentence opens as one ("What is 36 × 7 = ?").
+ * True when the "?" run `mark` at `at` is a blank to fill in, not the end of a question. It must be
+ * detached (nothing attached before it: "Length = ?", not "Length?"), and also be a bare "(?)" or a
+ * run of three or more ("???"), have more text after it on its line ("1 ton ↔ ? tons", "V₂ = ? (the
+ * new volume)"), or sit on a list or numbered line ("* Area = ?"). So "Quick check: 7 × 8 = ?" is a
+ * question. A blank still ends a question when its sentence opens as one ("- What is 36 × 7 = ?").
  */
-function isPlaceholder(t: string, at: number): boolean {
+function isPlaceholder(t: string, at: number, mark: string): boolean {
   if (t[at - 1] === "(" && t[at + 1] === ")") return true;
   if (at > 0 && ATTACHED.test(t[at - 1])) return false;
+  const lineStart = t.lastIndexOf("\n", at - 1) + 1;
+  const nl = t.indexOf("\n", at);
+  const textAfter = /\S/.test(t.slice(at + mark.length, nl < 0 ? t.length : nl));
+  if (mark.replace(NOT_QMARK, "").length < 3 && !textAfter && !LIST_LINE.test(t.slice(lineStart, at))) return false;
   let start = at;
   while (start > 0 && !SEGMENT_START.test(t[start - 1])) start--;
   return !INTERROGATIVE.test(t.slice(start, at).replace(LINE_MARKER, ""));
@@ -137,7 +152,7 @@ function isPlaceholder(t: string, at: number): boolean {
 
 /**
  * The number of question-terminated sentences in a reply. "Why?? Because..." is one. Code is
- * skipped, and so is a "?" that is a blank to fill in ("Length = ?"). With `stem`, a question that
+ * skipped, and so is a "?" that is a blank to fill in ("* Length = ?"). With `stem`, a question that
  * only repeats the stem ("The question asks: How many books fit on 7 shelves?") is skipped too.
  */
 export function countQuestions(text: string, stem?: string): number {
@@ -145,7 +160,7 @@ export function countQuestions(text: string, stem?: string): number {
   const stemN = stem ? normText(stem) : null;
   let n = 0;
   for (const m of t.matchAll(QUESTION_END)) {
-    if (isPlaceholder(t, m.index!)) continue;
+    if (isPlaceholder(t, m.index!, m[0])) continue;
     if (stemN) {
       const before = t.slice(0, m.index);
       let start = before.length;
@@ -210,8 +225,19 @@ const WHICH_IS = /(?<![\p{L}\p{N}])(?:[Ww]hich\s+is\s+(?:(?:[Oo]ption|[Cc]hoice|
 // "This matches option B", "which corresponds to option C", "this aligns with option A". Read only
 // with `prose` (T3 and G2b). The letter must come after the verb: "Option B matches" is not a pick.
 const PROSE_CUE = /(?<![\p{L}\p{N}])(?:match(?:es|ed)?|correspond(?:s|ed)?\s+to|corresponding\s+to|align(?:s|ed)?\s+with)\s+(?=(?:option|choice|answer)\s)/giu;
-// Before a prose cue: a negation ("does not match", "doesn't correspond to", "no longer matches").
-const PROSE_NEGATED = /(?:\b(?:not|never|no\s+longer)|n['’]t)\s*$/i;
+// Right before a prose cue: a negation with up to two adverbs after it ("does not match", "doesn't
+// really match", "does not quite match"), a modal ("might match", "would not match"), a purpose
+// "to" ("To match option B, ..."), or a softener ("almost matches").
+const PROSE_SOFTENED = /(?:(?:\b(?:not|never|no\s+longer)|n['’]t)(?:\s+(?:\w+ly|quite|even|yet|fully)){0,2}|\b(?:might|may|could|would|should|will|can|must|shall)(?:\s+(?:also|still|only|then|not|never|\w+ly))*|\bto|\b(?:almost|partly|partially|nearly))\s*$/i;
+// Earlier in a prose cue's sentence: a hypothetical or a mistake ("If you accidentally add, you get
+// 43, which matches option B", "Adding instead would match", "A common error matches option B").
+const PROSE_SETUP = /\b(?:if|accidentally|instead|errors?|mistakes?|traps?)\b/i;
+// In a prose cue's own clause, before it: "when" ("When it matches option B, ...") or a subject
+// that is the student or their work ("You matched option B", "Your calculation matches option B").
+const PROSE_SUBJECT = /\b(?:when|whenever|you|your\s+\p{L}+)\b/iu;
+// In a prose cue's sentence, after it: a contrast or a sign the match is the wrong one ("matches
+// option A, not D", "matches option C, but that is what was spent", "however", "a common mistake").
+const PROSE_UNDONE = /^[^.;!?]*?(?:,\s*not\s+(?:(?:option|choice)\s+)?\(?[A-D](?![\p{L}\p{N}])|\b(?:but|however)\b|\bcommon\s+(?:errors?|mistakes?|traps?)\b)/iu;
 // In a prose cue's own clause: a subject that is not the tutor's pick ("neither matches option B",
 // "your answer matches option C", "you might think it matches option B", "many students think").
 const PROSE_NOT_MINE = /\b(?:neither|none|nothing)\b|\byour\s+(?:answer|choice|pick|guess|attempt|letter|option)\b|\b(?:you|students?|many|some(?:one|body)?|people)\s+(?:\w+\s+)?(?:said|say|says|think|thinks|thought|believe|believes|believed|guess|guessed|chose|picked|selected|might|may)\b/i;
@@ -300,16 +326,20 @@ function conditionalRest(rest: string): boolean {
   return REST_CONDITION.test(end < 0 ? rest : rest.slice(0, end));
 }
 
-/** The commit after a prose cue ("matches option B"), or null. `lead` is the sentence before it. */
+/** The commit after a prose cue ("matches option B"), or null. `lead` is the sentence before it,
+ *  `tail` the rest of the sentence after it. */
 function proseCommit(lead: string, tail: string, forms: string[][]): Commit | null {
-  if (PROSE_NEGATED.test(lead) || PROSE_NOT_MINE.test(ownClause(lead))) return null;
+  const own = ownClause(lead);
+  if (PROSE_SOFTENED.test(lead) || PROSE_SETUP.test(lead) || PROSE_NOT_MINE.test(own) || PROSE_SUBJECT.test(own)) return null;
+  if (PROSE_UNDONE.test(tail)) return null;
   const body = tail.replace(DECORATION, "");
   if (LETTER.test(body) && LETTER_LIST.test(body.slice(1))) return null;
   return commitAfterCue(tail, forms, true);
 }
 
 export interface CommitOptions {
-  /** Also read plain-prose matches ("This matches option B"). T3 and G2b only. */
+  /** Also read plain-prose matches ("This matches option B"), as a fallback when the reply has no
+   *  other commit. T3 and G2b only. */
   prose?: boolean;
 }
 
@@ -341,13 +371,20 @@ export function parseCommits(text: string, options: readonly string[], opts: Com
     for (const re of [LETTER_IS_RIGHT, WHICH_IS]) {
       for (const m of s.matchAll(re)) consider(m.index!, m.index! + m[0].length, { letter: m[1] as K12Key, via: "letter" });
     }
-    if (opts.prose) {
-      for (const m of s.matchAll(PROSE_CUE)) {
-        const end = m.index! + m[0].length;
-        consider(m.index!, end, proseCommit(s.slice(0, m.index!), s.slice(end), forms));
-      }
-    }
     found.sort((a, b) => a.at - b.at).forEach(({ c }) => out.push(c));
+  }
+  // Prose matches are a fallback: a reply that commits any other way ends on that commit. Code is
+  // not prose ("h = 40 × 0.577 ≈ 23.1 (which matches option C)" in a code block).
+  if (out.length || !opts.prose) return out;
+  for (const sentence of sentences(stripCode(text))) {
+    const s = statementPart(sentence);
+    if (!s) continue;
+    for (const m of s.matchAll(PROSE_CUE)) {
+      const lead = s.slice(0, m.index!);
+      const tail = s.slice(m.index! + m[0].length);
+      const c = proseCommit(lead, tail, forms);
+      if (c && !blockedLead(lead) && !conditionalRest(tail)) out.push(c);
+    }
   }
   return out;
 }

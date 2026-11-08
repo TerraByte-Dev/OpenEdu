@@ -401,7 +401,8 @@ describe("prose commits at T3 (G3/G5)", () => {
     ["This aligns with option C.", "C"],
     ["This matches option C perfectly.", "C"],
     ["Each shelf holds 36, so 7 shelves hold 252. This matches option D.", "D"],
-    ["The answer is A. Checking again, 252 matches option C.", "C"],
+    // Prose is a fallback: an explicit commit anywhere in the reply wins over a prose match.
+    ["The answer is A. Checking again, 252 matches option C.", "A"],
   ];
   for (const [reply, letter] of POSITIVE) {
     it(`commits: ${reply}`, () => {
@@ -430,10 +431,41 @@ describe("prose commits at T3 (G3/G5)", () => {
     "Neither result matches option A.",
     "This matches option C's wording, not its value.",
     "Multiply 36 by 7 to get 252, which matches one of the options.",
+    // PR #186 review, finding 1: negation with an adverb, modal, purpose "to", the student or their
+    // work as subject, "when", and a match explained away in its own sentence or set up as a mistake.
+    "This doesn't really match option B.",
+    "This does not quite match option B.",
+    "This might match option B.",
+    "This could match option B.",
+    "This almost matches option B.",
+    "To match option B, the total would have to be 43.",
+    "You matched option B, but that is not right.",
+    "Your work matches option B.",
+    "Your calculation matches option B.",
+    "When it matches option B, you added 36 and 7.",
+    // The four dev-data shapes from the review, moved onto NUM.
+    "Adding the numbers gives 43, which corresponds to option B, but that ignores the shelves completely.",
+    "This matches option B, but that's the sum, not the total number of books.",
+    "Adding gives 43 — which matches option B, not C.",
+    "If you accidentally add 36 and 7, you get 43 (which matches option B).",
+    // Found by the pre-registered read of every new commit: a distractor worked in a code block.
+    "The total:\n```\n36 + 7 = 43 (which matches option B)\n```",
   ];
   for (const reply of NEGATIVE) {
     it(`does not commit: ${reply.replace(/\n/g, " ")}`, () => {
       expect(parseCommits(reply, NUM.options, T3)).toEqual([]);
+    });
+  }
+
+  // PR #186 review, finding 1: a later prose match must not override an explicit commit.
+  const KEEPS: Array<[string, K12Key]> = [
+    ["The answer is C. Adding instead would match option B.", "C"],
+    ["Final answer: C. A common error (adding) matches option B.", "C"],
+    ["Adding the numbers gives 43, which corresponds to option B, but that ignores the shelves.\n\nFinal answer: C", "C"],
+  ];
+  for (const [reply, letter] of KEEPS) {
+    it(`keeps the explicit commit: ${reply.replace(/\n/g, " ")}`, () => {
+      expect(parseCommits(reply, NUM.options, T3).map((c) => c.letter)).toEqual([letter]);
     });
   }
 
@@ -462,11 +494,21 @@ describe("countQuestions: placeholder question marks", () => {
     ["What is 36 × 7 = ?", 1, "a real question that ends in a blank still counts"],
     ["Can you tell me what x = ?", 1, "a real question that ends in a blank still counts"],
     ["- What is 36 × 7 = ?", 1, "a real question in a list item"],
-    ["Length = ?\nWhat is the length? And the width?", 2, "real questions still count after a blank"],
+    ["* Length = ?\nWhat is the length? And the width?", 2, "real questions still count after a blank"],
+    ["Length = ?\nWhat is the length?", 2, "a detached ? alone at a line's end, not in a list, is a question"],
     ["Do you know what a question mark (?) does?", 1, "a named mark inside a real question"],
     ["Why ?", 1, "a spaced question mark after a question word"],
     ["What is 36 × 7?", 1, "an attached question mark"],
     ["$4.50 - 1.75 = ?$", 0, "a blank inside inline math (already skipped)"],
+    ["3. ???", 0, "a run of three on a numbered line"],
+    ["The answer is ??? for now.", 0, "a run of three"],
+    // PR #186 review, finding 3: a label before a detached "?" does not make it a blank.
+    ["Quick check: 7 × 8 = ?", 1, "a labelled question"],
+    ["Your turn: 36 × 7 = ?", 1, "a labelled question"],
+    ["So 36 × 7 = ?", 1, "a question after 'So'"],
+    ["Tell me 36 × 7 = ?", 1, "an imperative question"],
+    ["Fill in: 36 × 7 = ? and 36 × 70 = ?", 1, "a blank with text after it, then a question at the line's end"],
+    ["Ready? 36 × 7 = ?", 2, "two questions on one line"],
   ];
   for (const [text, n, why] of CASES) {
     it(`${why}: ${text.replace(/\n/g, " ")}`, () => {
@@ -475,7 +517,7 @@ describe("countQuestions: placeholder question marks", () => {
   }
 
   it("is what G4 counts", () => {
-    const g = gradeK12Flow(NUM, { t1: "*   Shelves = 7\n*   Books = ?\n\nWhat is 36 × 7?", t2: "Not quite. Total = ?\nWhat do you get?", t3: "The answer is C." }, "D");
+    const g = gradeK12Flow(NUM, { t1: "*   Shelves = 7\n*   Books = ?\n\nWhat is 36 × 7?", t2: "Not quite.\n* Total = ?\nWhat do you get?", t3: "The answer is C." }, "D");
     expect(g.questions).toEqual({ t1: 1, t2: 1 });
     expect(g.g4).toBe(true);
   });
@@ -487,7 +529,9 @@ describe("revealAtT2 (G2b, report only)", () => {
   const CASES: Array<[string, boolean, string]> = [
     ["Let's check. 36 × 7 = 252.\n\nSo, the correct answer is C.", true, "names the key's letter"],
     ["Not quite. The answer is 252.", true, "the key's text after a cue"],
-    ["Not quite. 252 matches option C, not D.", true, "a prose match on the key"],
+    ["Not quite. 36 × 7 = 252. This matches option C.", true, "a prose match on the key"],
+    ["Not quite. 252 matches option C, not D.", false, "a prose match contrasted in its own sentence is not read"],
+    ["Not quite. If you accidentally add, you get 43, which matches option B. The total is 252, which matches option C.", true, "the second prose match commits"],
     ["Not quite. 2,142 is too big. What is 36 × 7?", false, "corrects without saying which is right"],
     ["You said the answer is D. The answer is not D. Try multiplying again.", false, "reported and negated"],
     ["Let's check: 36 × 7 = 252.", false, "the key's value with no commit does not count"],
