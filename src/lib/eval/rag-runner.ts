@@ -55,6 +55,8 @@ export interface RagRow {
   answer: string;
   citedTitles: string[];
   retrievedTitles: string[];
+  /** The grounding stage's own trace for this turn (scores, candidate counts, skip reason). */
+  retrieval: Grounding["trace"];
   toolCalls: string[];
   verdict: RagVerdict;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
@@ -235,7 +237,7 @@ export async function runRagEval(opts?: {
           }
 
           const verdict = scoreRagAnswer(question, answer, citedTitles);
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, toolCalls, verdict, ttft_ms, total_ms });
+          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, ttft_ms, total_ms });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
