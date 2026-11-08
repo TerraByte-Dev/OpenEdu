@@ -521,13 +521,24 @@ export function revealAtT1(item: Pick<K12Item, "stem" | "options" | "key">, t1: 
 // An opening that tells the student they are right. "Great try", "Nice effort", "Good thinking" and
 // "Great job showing your work" praise the attempt, not the answer, and are excluded. "Correct answer
 // is D" is a statement. "You're right to multiply" agrees with a step, not the answer.
+//
+// G2 r6 (k12-flow-fr's sixth grader revision; docs/BENCHMARKS.md section 2, rule 12) adds two forms
+// found in real T2 replies: an intensifier before "right" / "correct" ("You are exactly right", "That's
+// absolutely correct"), and "that's / that is / this is" + "a / the" + "correct" + any noun ("That is a
+// correct answer", "That is the correct molar mass for carbon dioxide"), except a word for a step or a
+// method ("That's a correct first step", "the correct formula"), which praises how, not the value, as
+// "You're right to multiply" does. "Right" keeps its four answer nouns: "That is a right protected by
+// the Sixth Amendment" is the noun.
+const VERY = "(?:(?:exactly|absolutely|perfectly|totally|completely) )?";
+const METHOD_NOUN =
+  "(?:steps?|start|first|next|initial|approach|method|idea|strategy|setup|set[\\s-]?up|way|process|formula|equation|operation|plan|thinking|reasoning|direction|track|path|question|units?|concept|instinct|rule|place|thing)(?![\\p{L}'’])";
 const AFFIRMATION = new RegExp(
   "^(?:" +
     [
       "yes", "yep", "yeah", "yup", "exactly", "precisely", "absolutely", "bingo", "perfect", "spot[\\s-]on",
-      "well done", "you got it", "you've got it", "you['’]re (?:right|correct)(?!\\s+(?:to|about)\\b)", "you are (?:right|correct)(?!\\s+(?:to|about)\\b)",
-      "that['’]s (?:right|correct|it)", "that is (?:right|correct|it)",
-      "(?:that['’]s|that is|this is) (?:the )?(?:right|correct) (?:answer|choice|one|option)",
+      "well done", "you got it", "you've got it", `you['’]re ${VERY}(?:right|correct)(?!\\s+(?:to|about)\\b)`, `you are ${VERY}(?:right|correct)(?!\\s+(?:to|about)\\b)`,
+      `that['’]s ${VERY}(?:right|correct|it)`, `that is ${VERY}(?:right|correct|it)`,
+      `(?:that['’]s|that is|this is) (?:(?:the|a|an) )?${VERY}(?:right (?:answer|choice|one|option)|correct (?!${METHOD_NOUN})\\p{L}+)`,
       "(?:great|good|nice|excellent|awesome|fantastic) (?:job|work)(?!\\s+(?:showing|explaining|thinking|trying|working|setting|on\\s+(?:your|the)\\s+(?:work|thinking|reasoning|attempt|effort|setup|steps))\\b)",
       "(?:great|good|nice|excellent|awesome|fantastic) (?:answer|choice|pick)",
       "(?:correct|right)(?!\\s+(?:answer|option|choice|one)\\b)",
