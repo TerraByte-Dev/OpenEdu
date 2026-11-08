@@ -1570,6 +1570,53 @@ function ollamaOptions(config: LLMConfig, opts: TurnOpts): Record<string, unknow
   return options;
 }
 
+// ── Ollama tool-call parse failures ──
+//
+// Ollama parses a model's tool-call output itself, with a parser chosen from the model's template.
+// When the model writes a malformed call, the parser fails and Ollama answers the whole request with
+// an error instead of a reply: HTTP 500 with {"error": "..."} when nothing had been streamed yet, or
+// an {"error": "..."} line in a 200 stream when something had. Observed on Ollama 0.40.15 with
+// qwen3.5:4b: server log `qwen3.5 tool call parsing failed error="expected element type <function>
+// but have <parameter>"`, then a 500 on /api/chat.
+//
+// The body carries only the parser's error, not Ollama's log message, so it is matched by shape:
+//   - "expected element type <": Go's encoding/xml unmarshal error. The XML tool-call parsers
+//     (qwen3-coder, qwen3.5) are the only XML Ollama reads on a chat turn.
+//   - "tool call": the other parsers' errors name it ("invalid tool call: …",
+//     "error parsing tool call: …", "incomplete GLM tool call: …").
+// Only a request that declared tools can fail this way, so the caller checks that too.
+const OLLAMA_TOOL_CALL_PARSE_ERROR = /^expected element type <|tool call/i;
+
+/** True when an Ollama error message is its tool-call parser failing on the model's output. */
+export function isOllamaToolCallParseFailure(ollamaError: string): boolean {
+  return OLLAMA_TOOL_CALL_PARSE_ERROR.test(ollamaError.trim());
+}
+
+/**
+ * Ollama could not parse the tool call the model wrote, and nothing from the request had reached the
+ * caller. The message is the one this failure always had ("Ollama error 500: …"), so a caller that
+ * does not handle it shows exactly what it showed before. The kernel retries the turn once without
+ * tools (TutorEngine.ts).
+ */
+export class OllamaToolCallParseError extends Error {
+  /** Ollama's own error text, e.g. "expected element type <function> but have <parameter>". */
+  readonly ollamaError: string;
+  constructor(message: string, ollamaError: string) {
+    super(message);
+    this.name = "OllamaToolCallParseError";
+    this.ollamaError = ollamaError;
+  }
+}
+
+/** The `error` field of an Ollama error body, or the raw text when the body is not that JSON. */
+function ollamaErrorText(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown };
+    if (typeof parsed.error === "string") return parsed.error;
+  } catch { /* not JSON */ }
+  return body;
+}
+
 // ── Tool-def builders (one per provider envelope) ──
 function ollamaToolDefs(tools?: ProviderToolDef[]) {
   return tools?.length ? tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })) : undefined;
@@ -1630,12 +1677,16 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       if (response.status === 404) throw new Error(`Ollama model "${config.model}" not found — run: ollama pull ${config.model}`);
-      throw new Error(`Ollama error ${response.status}: ${text || "unknown"}`);
+      const message = `Ollama error ${response.status}: ${text || "unknown"}`;
+      const ollamaError = ollamaErrorText(text);
+      if (tools && isOllamaToolCallParseFailure(ollamaError)) throw new OllamaToolCallParseError(message, ollamaError);
+      throw new Error(message);
     }
     const reader = response.body?.getReader();
     if (!reader) throw new Error("Ollama returned no response stream.");
     const decoder = new TextDecoder();
     let lineBuffer = "";
+    let yielded = false; // some text or tool call from this request has reached the caller
     let sawToolCall = false;
     let callIdx = 0;
     let doneReason: string | undefined;
@@ -1651,11 +1702,19 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
         if (!line.trim()) continue;
         let json: OllamaTurnChunk;
         try { json = JSON.parse(line) as OllamaTurnChunk; } catch { continue; }
-        if (json.error) throw new Error(`Ollama error: ${json.error}`);
+        if (json.error) {
+          // Typed only while nothing has reached the caller: once the student has seen part of a
+          // reply, a retried reply would follow it, so that case keeps the plain error.
+          if (tools && !yielded && isOllamaToolCallParseFailure(json.error)) {
+            throw new OllamaToolCallParseError(`Ollama error: ${json.error}`, json.error);
+          }
+          throw new Error(`Ollama error: ${json.error}`);
+        }
         if (json.done && json.done_reason) doneReason = json.done_reason;
-        if (json.message?.content) yield { type: "text", delta: json.message.content };
+        if (json.message?.content) { yielded = true; yield { type: "text", delta: json.message.content }; }
         if (Array.isArray(json.message?.tool_calls)) {
           for (const tc of json.message.tool_calls) {
+            yielded = true;
             sawToolCall = true;
             let args: unknown = tc.function?.arguments ?? {};
             if (typeof args === "string") { try { args = JSON.parse(args); } catch { /* keep raw string */ } }

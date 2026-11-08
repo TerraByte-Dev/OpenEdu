@@ -137,6 +137,11 @@ markdown files with frontmatter that gate on subject/tier. A per-tool **permissi
 (allow / ask / deny, with Standard · Cautious · Trusting presets) governs what the tutor may do on its
 own.
 
+When Ollama cannot parse a tool call the model wrote, it fails the whole request (HTTP 500, or an error
+line in the stream). If nothing had reached the student yet, the kernel answers that turn with one call
+that offers no tools and drops the tools manifest from the system prompt, and records it in the turn
+result (`toolCallRecovery`). Any other provider error fails the turn as before.
+
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
 The notebook is an Obsidian-style vault: notes in nested folders, a live-preview CodeMirror editor, and a
