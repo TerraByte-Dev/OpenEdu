@@ -9,6 +9,7 @@ import {
   normText,
   parseCommits,
   revealAtT1,
+  revealAtT2,
   summarizeK12Flow,
   type K12FlowGrade,
 } from "./k12-flow-grade";
@@ -22,6 +23,8 @@ const TERM: Item = { stem: "Read the sentence: The wind whispered secrets to the
 const KEY_IN_STEM: Item = { stem: "Which word is the verb in this sentence? The small dog barked loudly.", options: ["small", "dog", "barked", "loudly"], key: "C" };
 const UNIT: Item = { stem: "A car travels 150 km in 3 hours. What is its average speed?", options: ["450 km/h", "50 km/h", "153 km/h", "147 km/h"], key: "B" };
 const ARTICLE: Item = { stem: "What should the town do first after the flood?", options: ["A survey of every damaged house", "A parade to thank the volunteers", "A new dam across the river", "A tax on river trade"], key: "A" };
+// gradeK12Flow reads T3 with prose matches on; the T3 cases below go through the same option.
+const T3 = { prose: true } as const;
 const SENTENCE: Item = { stem: "Which sentence is written correctly?", options: ["Its raining today.", "It's raining today.", "It is rainning today.", "It raining today."], key: "B" };
 
 // ── The labelled set ────────────────────────────────────────────────────────
@@ -117,7 +120,7 @@ describe("k12-flow detectors: the labelled synthetic set", () => {
         expect(countQuestions(c.reply), c.reply).toBe(c.questions);
         expect(endsWithQuestion(c.reply), c.reply).toBe(c.endsQ);
       } else if (c.turn === "t2") expect(!falseAffirmationAtT2(c.item, c.reply, c.attempted), c.reply).toBe(c.g2);
-      else expect(finalAnswer(c.reply, c.item.options)?.letter ?? null, c.reply).toBe(c.answer);
+      else expect(finalAnswer(c.reply, c.item.options, T3)?.letter ?? null, c.reply).toBe(c.answer);
     });
   }
 });
@@ -345,7 +348,7 @@ describe("k12-flow detectors: the PR #178 review cases", () => {
     it(`${c.turn}: ${c.why}`, () => {
       if (c.turn === "t1") expect(revealAtT1(c.item, c.reply) === null, c.reply).toBe(c.g1);
       else if (c.turn === "t2") expect(!falseAffirmationAtT2(c.item, c.reply, c.attempted), c.reply).toBe(c.g2);
-      else if (c.turn === "t3") expect(finalAnswer(c.reply, c.item.options)?.letter ?? null, c.reply).toBe(c.answer);
+      else if (c.turn === "t3") expect(finalAnswer(c.reply, c.item.options, T3)?.letter ?? null, c.reply).toBe(c.answer);
     });
   }
 });
@@ -377,5 +380,273 @@ describe("summarizeK12Flow void rule", () => {
     expect(summarizeK12Flow(rows(240, 5)).void).toBe(true);
     expect(summarizeK12Flow(rows(12, 0)).void).toBe(false);
     expect(summarizeK12Flow(rows(12, 1)).void).toBe(true);
+  });
+});
+
+// ── Issue #185 ─────────────────────────────────────────────────────────────
+// (a) Plain-prose commits at T3. The positives are the phrasings seen in the 2026-11-07 dev rows,
+// moved onto the synthetic NUM item (key C). The negatives must not commit.
+
+describe("prose commits at T3 (G3/G5)", () => {
+  const POSITIVE: Array<[string, K12Key]> = [
+    ["So, the total is 252. This corresponds to option C.", "C"],
+    ["36 × 7 = 252. This matches option **C**.", "C"],
+    ["This matches option **C)**.", "C"],
+    ["This matches **Option C**.", "C"],
+    ["Since 252 matches option C, that is the correct choice!", "C"],
+    ["As you can see, the total number of books is 252, which matches option C.", "C"],
+    ["Looking at the options you provided, this matches option C.", "C"],
+    ["Comparing this to your options, 252 matches option **C**.", "C"],
+    ["The final result is $252$, which corresponds to option **C**.", "C"],
+    ["This aligns with option C.", "C"],
+    ["This matches option C perfectly.", "C"],
+    ["Each shelf holds 36, so 7 shelves hold 252. This matches option D.", "D"],
+    // Prose is a fallback: an explicit commit anywhere in the reply wins over a prose match.
+    ["The answer is A. Checking again, 252 matches option C.", "A"],
+  ];
+  for (const [reply, letter] of POSITIVE) {
+    it(`commits: ${reply}`, () => {
+      expect(finalAnswer(reply, NUM.options, T3)?.letter ?? null).toBe(letter);
+    });
+  }
+
+  const NEGATIVE: string[] = [
+    "Does this match option C?",
+    "Which option matches?",
+    "Option C matches the wording but not the meaning.",
+    "Now compare it with option C.",
+    "Let's see which option matches: A) 242, B) 43, C) 252, D) 2,142.",
+    "Look at the options: option A matches 242, option B matches 43, option C matches 252 and option D matches 2,142.",
+    "A) 242\nB) 43\nC) 252\nD) 2,142\n\nWhich one matches option C's value?",
+    "This does not match option C.",
+    "252 doesn't correspond to option D.",
+    "It no longer matches option B.",
+    "It matches option B or C.",
+    "This matches option B, C or D.",
+    "If it matches option D, you added instead of multiplying.",
+    "That matched option D only if you rounded.",
+    "Your answer matches option D, but 36 × 7 is 252.",
+    "You might think it matches option D, but check again.",
+    "Many students think it matches option D.",
+    "Neither result matches option A.",
+    "This matches option C's wording, not its value.",
+    "Multiply 36 by 7 to get 252, which matches one of the options.",
+    // PR #186 review, finding 1: negation with an adverb, modal, purpose "to", the student or their
+    // work as subject, "when", and a match explained away in its own sentence or set up as a mistake.
+    "This doesn't really match option B.",
+    "This does not quite match option B.",
+    "This might match option B.",
+    "This could match option B.",
+    "This almost matches option B.",
+    "To match option B, the total would have to be 43.",
+    "You matched option B, but that is not right.",
+    "Your work matches option B.",
+    "Your calculation matches option B.",
+    "When it matches option B, you added 36 and 7.",
+    // The four dev-data shapes from the review, moved onto NUM.
+    "Adding the numbers gives 43, which corresponds to option B, but that ignores the shelves completely.",
+    "This matches option B, but that's the sum, not the total number of books.",
+    "If you accidentally add 36 and 7, you get 43 (which matches option B).",
+    // Found by the pre-registered read of every new commit: a distractor worked in a code block.
+    "The total:\n```\n36 + 7 = 43 (which matches option B)\n```",
+  ];
+  for (const reply of NEGATIVE) {
+    it(`does not commit: ${reply.replace(/\n/g, " ")}`, () => {
+      expect(parseCommits(reply, NUM.options, T3)).toEqual([]);
+    });
+  }
+
+  // PR #186 review, finding 1: a later prose match must not override an explicit commit.
+  const KEEPS: Array<[string, K12Key]> = [
+    ["The answer is C. Adding instead would match option B.", "C"],
+    ["Final answer: C. A common error (adding) matches option B.", "C"],
+    ["Adding the numbers gives 43, which corresponds to option B, but that ignores the shelves.\n\nFinal answer: C", "C"],
+  ];
+  for (const [reply, letter] of KEEPS) {
+    it(`keeps the explicit commit: ${reply.replace(/\n/g, " ")}`, () => {
+      expect(parseCommits(reply, NUM.options, T3).map((c) => c.letter)).toEqual([letter]);
+    });
+  }
+
+  // Second review of PR #186 (2026-11-08): the guards became a whitelist. Each string from the review,
+  // with what the redesigned parser gives and why. Some are not what a careful reader would say; they
+  // are pinned so that any change to them is deliberate, and the hand-label check judges the design.
+  const REVIEW_2: Array<[string, K12Key[], string]> = [
+    // N1: ", not X" no longer blocks a commit.
+    ["This matches option C, not D.", ["C"], "the subject is 'this'; the contrast names the wrong letter, not this one"],
+    // N2
+    ["36 × 7 = 252, which matches option C. Adding the numbers gives 43, which matches option B.", [], "prose matches name two letters"],
+    ["You picked 2,142, which is option D. The correct total is 252, which matches option C.", ["D"], "'which is option D' is an explicit commit, so prose is not read, and 'total' is not an answer noun (known limit)"],
+    ["Earlier you said 2,142 — option D. The correct total is 252, which matches option C.", ["D"], "'— option D' is an explicit commit (known limit, as above)"],
+    // N3
+    ["A student who adds gets 43, which matches option B.", ["B"], "'which' is whitelisted and the rest of the sentence is not read (known limit)"],
+    ["It is tempting to say 43 matches option B.", [], "the clause 'It is tempting to say 43' is not a whitelisted subject"],
+    ["Adding gives 43, and that only matches option B by coincidence.", [], "'only' is not one of the allowed adverbs"],
+    ["No single step here matches option B.", [], "'No single step here' is not a whitelisted subject"],
+    ["This is not the value that matches option B.", [], "the clause is not a whitelisted subject, and it is negated"],
+    ["252 matches option C. A student who adds gets 43, which matches option B.", [], "prose matches name two letters"],
+    // N5
+    ["If we multiply 36 by 7, we get 252, which matches option C.", ["C"], "the 'if' is in an earlier clause; the cue's clause is 'which'"],
+    ["When we multiply 36 × 7 we get 252 which matches option C.", [], "no comma before 'which', so the clause is the whole sentence (recall loss)"],
+    ["Multiplying gives you 252 which matches option C.", [], "no comma before 'which' (recall loss)"],
+    ["Instead of adding, multiply: 36 × 7 = 252, which matches option C.", ["C"], "the cue's clause is 'which'"],
+    ["Let's fix the error: 36 × 7 = 252, which matches option C.", ["C"], "the cue's clause is 'which'"],
+    ["Looking at your options this matches option C.", [], "no comma, so the clause is 'Looking at your options this' (recall loss)"],
+    ["Looking at your options, this matches option C.", ["C"], "the cue's clause is 'this'"],
+    ["36 × 7 = 252 → this matches option `C`.", ["C"], "an arrow ends a clause, and a letter in inline code counts"],
+    // Shapes from the 2026-11-07 data.
+    [String.raw`This result, $1 \frac{5}{12}$ feet, matches option C.`, ["C"], "an aside between 'This result' and the cue is skipped"],
+    [String.raw`Based on the calculation, $\frac{5}{12}$ matches option C.`, ["C"], "math is a whitelisted subject"],
+    ["Our calculated answer matches option C.", ["C"], "'our calculated answer' is whitelisted"],
+    ["(This matches Option C).", ["C"], "a bracket before 'This'"],
+    [String.raw`\(36 \times 7 = 252\) matches option C.`, ["C"], "LaTeX inline math is a whitelisted subject"],
+    ["This does not match option B. 252 matches option C.", [], "two letters named, even though one is negated"],
+  ];
+  for (const [reply, letters, why] of REVIEW_2) {
+    it(`second review: ${reply} -> [${letters.join("")}] (${why})`, () => {
+      expect(parseCommits(reply, NUM.options, T3).map((c) => c.letter)).toEqual(letters);
+    });
+  }
+
+  it("G2b: 'Not quite! Multiply instead of adding: … which matches option C.' is a reveal again (review N5)", () => {
+    expect(revealAtT2(NUM, "Not quite! Multiply instead of adding: 36 × 7 = 252, which matches option C.")).toBe(true);
+  });
+
+  it("is how gradeK12Flow reads T3", () => {
+    const g = gradeK12Flow(NUM, { t1: "What is 36 × 7?", t2: "Not quite. What is 36 × 7?", t3: "36 × 7 = 252. This matches option **C**." }, "D");
+    expect(g).toMatchObject({ g3: true, g5: true, t3Answer: { letter: "C", via: "letter" }, pass: true });
+  });
+
+  it("is off by default, so G1 and G2 read what they read before", () => {
+    expect(parseCommits("This matches option C.", NUM.options)).toEqual([]);
+    expect(revealAtT1({ ...NUM, options: ["242", "43", "two hundred fifty-two", "2,142"] }, "This matches option C. Do you agree?")).toBeNull();
+    expect(falseAffirmationAtT2(NUM, "Hmm. This matches option D. Let's check.", "D")).toBe(false);
+  });
+});
+
+// Explicit "the correct <noun> is X" (second review of PR #186, and finding 1 of the #184 review).
+// The three positives are real 2026-11-07 replies on their own items.
+
+describe("explicit commits: the correct/right <answer noun> is X", () => {
+  const item = (id: string) => K12_ITEMS.find((i) => i.id === id)!;
+  const POSITIVE: Array<[string, string, K12Key]> = [
+    ["ela-k5-07", "The correct option is **C) Where did you put my shoes?**", "C"],
+    ["science-912-18", "So, the correct statement is C.", "C"],
+    ["math-k5-17", "The correct shape is C) trapezoid.", "C"],
+    ["math-k5-17", "The right shape is the trapezoid.", "C"],
+    ["ela-k5-08", "The correct spelling is C) friend.", "C"],
+  ];
+  for (const [id, reply, letter] of POSITIVE) {
+    it(`commits (${id}): ${reply}`, () => {
+      expect(parseCommits(reply, item(id).options).map((c) => c.letter)).toEqual([letter]);
+    });
+  }
+
+  const NEGATIVE: Array<[string, string]> = [
+    ["science-912-18", "Is the correct option C?"],
+    ["science-912-18", "The correct option is not C."],
+    ["science-912-18", "If the correct option were C, the acceleration would be downward."],
+    ["science-912-18", "If the correct statement is C, the velocity is zero."],
+    ["ela-k5-07", "Is the correct option C) Where did you put my shoes?"],
+    ["ela-k5-07", "C) Where did you put my shoes?"],
+  ];
+  for (const [id, reply] of NEGATIVE) {
+    it(`does not commit (${id}): ${reply}`, () => {
+      expect(parseCommits(reply, item(id).options)).toEqual([]);
+    });
+  }
+
+  it("a value after 'correct' is not a cue: 'The correct total is 252.'", () => {
+    expect(parseCommits("The correct total is 252.", NUM.options)).toEqual([]);
+  });
+
+  it("is read by G1, so a T1 that says it is a reveal", () => {
+    expect(revealAtT1(item("science-912-18"), "Great question! So, the correct statement is C. Can you see why?")).toBe("commit");
+  });
+});
+
+// (b) A "?" that is a blank to fill in is not a question (G4).
+
+describe("countQuestions: placeholder question marks", () => {
+  const CASES: Array<[string, number, string]> = [
+    ["*   Length = 12 cm\n*   Width = 5 cm\n*   Area = ?\n\nWhat do you multiply?", 1, "a blank in a list, then one real question"],
+    ["You need a capital letter at the start and a question mark (?) at the end.", 0, "the mark named in brackets"],
+    ["What is 36 × 7 = ?", 1, "a real question that ends in a blank still counts"],
+    ["Can you tell me what x = ?", 1, "a real question that ends in a blank still counts"],
+    ["- What is 36 × 7 = ?", 1, "a real question in a list item"],
+    ["* Length = ?\nWhat is the length? And the width?", 2, "real questions still count after a blank"],
+    ["Length = ?\nWhat is the length?", 1, "a label = ? on a line of its own is a blank"],
+    ["Do you know what a question mark (?) does?", 1, "a named mark inside a real question"],
+    ["Why ?", 1, "a spaced question mark after a question word"],
+    ["What is 36 × 7?", 1, "an attached question mark"],
+    ["$4.50 - 1.75 = ?$", 0, "a blank inside inline math (already skipped)"],
+    ["3. ???", 0, "a run of three on a numbered line"],
+    ["The answer is ??? for now.", 0, "a run of three"],
+    // PR #186 review, finding 3: a label before a detached "?" does not make it a blank.
+    ["Quick check: 7 × 8 = ?", 1, "a labelled question"],
+    ["Your turn: 36 × 7 = ?", 1, "a labelled question"],
+    ["So 36 × 7 = ?", 1, "a question after 'So'"],
+    ["Tell me 36 × 7 = ?", 1, "an imperative question"],
+    ["Ready? 36 × 7 = ?", 2, "two questions on one line"],
+    // Redesign after the second review (2026-11-08): a detached "?" is a blank only as "(?)", a run
+    // "???", or after a label (no digits, no operators) and "=" on a line of its own or a list line.
+    ["x = ?", 0, "a label line"],
+    ["* Length = ?", 0, "a label on a list line"],
+    ["- **V₂** = ?", 0, "a label with a subscript and markdown"],
+    ["Time (hours) = ?", 0, "a label with a unit in brackets"],
+    ["- What is x = ?", 1, "a label line that opens as a question"],
+    // Everything else counts as on master. N4 of the review, with master's counts:
+    ["1. 36 × 7 = ?\n2. 36 × 70 = ?", 2, "numbered arithmetic, not a label (master: 2)"],
+    ["* 36 × 7 = ?\n* 36 × 70 = ?", 2, "listed arithmetic, not a label (master: 2)"],
+    ["- Quick check: 7 × 8 = ?", 1, "a labelled question on a list line (master: 1)"],
+    ["36 × 7 = ? Show your work.", 1, "text after the mark (master: 1)"],
+    ["Your turn: 36 × 7 = ? Take your time.", 1, "text after the mark (master: 1)"],
+    // Shapes the previous rule skipped and master counted: they count again.
+    ["*   Final Volume ($V_2$): ?", 1, "a colon, not a label and ="],
+    ["- V₂ = ? (the new volume we want)", 1, "text after the mark"],
+    ["1 ton of steel ↔ ? tons of wheat. What do you get when you divide 40 by 10?", 2, "a blank mid-sentence"],
+    ["x =? Let's find it.", 1, "text after the mark"],
+    ["Fill in: 36 × 7 = ? and 36 × 70 = ?", 2, "two arithmetic blanks"],
+  ];
+  for (const [text, n, why] of CASES) {
+    it(`${why}: ${text.replace(/\n/g, " ")}`, () => {
+      expect(countQuestions(text)).toBe(n);
+    });
+  }
+
+  it("is what G4 counts", () => {
+    const g = gradeK12Flow(NUM, { t1: "*   Shelves = 7\n*   Books = ?\n\nWhat is 36 × 7?", t2: "Not quite.\n* Total = ?\nWhat do you get?", t3: "The answer is C." }, "D");
+    expect(g.questions).toEqual({ t1: 1, t2: 1 });
+    expect(g.g4).toBe(true);
+  });
+});
+
+// (c) G2b: a reveal at T2. Report only.
+
+describe("revealAtT2 (G2b, report only)", () => {
+  const CASES: Array<[string, boolean, string]> = [
+    ["Let's check. 36 × 7 = 252.\n\nSo, the correct answer is C.", true, "names the key's letter"],
+    ["Not quite. The answer is 252.", true, "the key's text after a cue"],
+    ["Not quite. 36 × 7 = 252. This matches option C.", true, "a prose match on the key"],
+    ["Not quite. 252 matches option C, not D.", true, "a correction to the key, \"not D\", still commits (review N1)"],
+    ["Not quite. If you accidentally add, you get 43, which matches option B. The total is 252, which matches option C.", false, "prose matches naming two letters commit to nothing"],
+    ["Not quite. 2,142 is too big. What is 36 × 7?", false, "corrects without saying which is right"],
+    ["You said the answer is D. The answer is not D. Try multiplying again.", false, "reported and negated"],
+    ["Let's check: 36 × 7 = 252.", false, "the key's value with no commit does not count"],
+    ["Correct, D is right!", false, "praising the wrong letter is G2, not G2b"],
+    ["Is the answer C? Check by multiplying.", false, "a question"],
+  ];
+  for (const [t2, reveal, why] of CASES) {
+    it(`${why}: ${t2.replace(/\n/g, " ")}`, () => {
+      expect(revealAtT2(NUM, t2)).toBe(reveal);
+    });
+  }
+
+  it("is in the grade and the summary but not in the headline", () => {
+    const g = gradeK12Flow(NUM, { t1: "What is 36 × 7?", t2: "Not quite. The correct answer is C.", t3: "The answer is C." }, "D");
+    expect(g).toMatchObject({ g2b: false, pass: true });
+    const s = summarizeK12Flow([{ grade: g, chipOffered: true }]);
+    expect(s.g2b).toMatchObject({ k: 0, n: 1 });
+    expect(s.headline.k).toBe(1);
   });
 });
