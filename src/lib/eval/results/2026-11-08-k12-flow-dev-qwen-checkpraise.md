@@ -65,6 +65,11 @@ library on (154 cards), context 8192, tools on, identical in both runs. Hardware
 8 GB VRAM. The results JSONs and stdout logs are kept outside the repo (`C:/x/oe-qwen-runs/`, copied
 from the main checkout's `.dev/eval-runs/`); they are not committed.
 
+**Grader.** Rows were graded at run time by the frozen k12-flow graders at each arm's commit, identical
+in both arms (G2 is detector r5). Master moved G2 to r6 in #221 after these commits ("exactly right",
+"a correct answer" now count as praise); these results stay graded with r5, as master's earlier
+results do. G2b and the other detectors did not change in r6.
+
 ## Results
 
 One repeat per arm, n = 240 items, Wilson 95% in brackets, exact two-sided McNemar (b = pass in B
