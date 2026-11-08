@@ -44,6 +44,8 @@ compares the commit just before that change with the change; the rows are not cu
 | English questions whose note search changed | e2b, qwen3.5:4b | 0 of 90 answers on each model | 90 answers (not items) | — | same |
 | No praise for a wrong answer (G2), typed problems | e2b | 65/81, 80.2% [70.3–87.5] → 81/81, 100% [95.5–100] | 81, majority of 3 | 3.1e-5 | Check before praise ([#213](../src/lib/eval/results/2026-11-08-k12-flow-fr-dev-checkpraise.md)) ⁴ |
 | Whole conversation right, typed problems | e2b | 59/81, 72.8% [62.3–81.3] → 78/81, 96.3% [89.7–98.7] | 81, majority of 3 | 2.1e-5 | same |
+| No answer given away on turn 2 (G2b), multiple-choice problems | qwen3.5:4b | 78/240, 32.5% [26.9–38.7] → 183/240, 76.3% [70.5–81.2] | 240, 1 run | 2.9e-23 | same, measured on a second model ([#220](../src/lib/eval/results/2026-11-08-k12-flow-dev-qwen-checkpraise.md)) ⁵ |
+| Whole conversation right, multiple-choice problems | qwen3.5:4b | 182/240, 75.8% [70.0–80.8] → 221/240, 92.1% [88.0–94.9] | 240, 1 run | 4.6e-7 | same ⁵ |
 
 ¹ Measured with a grader that may miss a few baseline answers, so these gains are upper bounds.
 ² e4b row: only items where the "show me the answer" button was offered in both arms, measured before
@@ -54,11 +56,16 @@ the item-level change is not statistically significant.
 conversations still praised a wrong try. No model call added; about 106 prompt tokens on the turn after
 the student's try (median difference). On e4b, reported but not under the rule, nothing moved
 significantly either way (G2 79 → 81, whole conversation 70 → 68, strict reading 68 → 65). The praise detector misses some phrasings
-("You are exactly right"); counting those as praise too, e2b goes 64 → 81, the same conclusion.
+("You are exactly right"); counting those as praise too, e2b goes 64 → 81, the same conclusion. A
+later revision of the praise detector (r6, [#221](https://github.com/TerraByte-Dev/OpenEdu/pull/221))
+re-scores these runs at 64 → 80; the results above were graded before it.
+⁵ qwen3.5:4b, one run per arm, pre-registered with the exact claim allowed. The note was written for
+e2b, so this is the first model it was not tuned on, though still on dev items.
 
-For qwen3.5:4b the first-turn hold lifted G1 from 6/240 to 233/240, but the model then gives the
+For qwen3.5:4b the first-turn hold lifted G1 from 6/240 to 233/240, but the model then gave the
 answer away on turn 2 instead (no reveal at turn 2: 178 → 88 of 240)
-([G1 hold](../src/lib/eval/results/2026-11-08-k12-flow-dev-G1hold.md)).
+([G1 hold](../src/lib/eval/results/2026-11-08-k12-flow-dev-G1hold.md)). The check-before-praise note
+closes most of that leak (78 → 183 of 240 in the table above).
 
 **Typed problems, no answer options, no change applied**
 ([baseline](../src/lib/eval/results/2026-11-08-k12-flow-fr-dev-baseline.md)), 81 items, majority of
