@@ -8,8 +8,13 @@
 Protocol: the pre-registered baseline in PR #203 (registered 2026-11-08 before any run, re-frozen
 at `31d3bd5`, `0cc037a`, `ef985e4` and `31ce633` in #203 and #208, each before any run), and
 `docs/BENCHMARKS.md` B3/B4 "k12-flow-fr". This is also the **B arm** of PR #205's "Pre-registration 2:
-typed-problem hold on k12-flow-fr" (master with #203 merged, no typed-problem hold). It is the first
-time any model has run on this instrument. No lever is on this commit.
+typed-problem hold on k12-flow-fr" (master with #203 merged, no typed-problem hold), with one
+caveat (review, 2026-11-08): that pre-registration asked for `git diff 8ef167f -- src/lib/eval/k12-flow-fr*.ts`
+to be empty, and at `9e32618` it is not (the grader was re-frozen four times in #203/#208 and #205 was
+never amended to the later freeze). G1 is unchanged under the `8ef167f` grader, so the ceiling argument
+below stands; the headline and G3 are not comparable to that grader (under it the item-majority headline
+is 57/81 for e2b and 66/81 for e4b). The typed-problem hold was killed before any lever run, so no B/L
+comparison was made. It is the first time any model has run on this instrument. No lever is on this commit.
 
 ## Run
 
@@ -33,8 +38,10 @@ time any model has run on this instrument. No lever is on this commit.
 
 The models ran one at a time, one eval process at a time, e2b first. Each model and the embedder were
 unloaded (`ollama stop`) after its three runs; `ollama ps` was empty at the end. The results files
-record `srcDiffersFromMaster: true` because the main checkout's local `master` ref was stale
-(`cce3051`); against `origin/master` (`9e32618`, the run commit) `src/` is identical.
+record `srcDiffersFromMaster: true` because the runner compares against the main checkout's local
+`master` ref, which differed from the run commit `9e32618` (for the first two e2b runs it was the older
+`cce3051`; from 16:05:50Z it was `591bc4f`, ahead of the run commit, with #197 and #196). The run commit
+itself is `9e32618` in every file with `srcDirty: false`.
 
 ## Primary metric: both headlines
 
@@ -91,8 +98,10 @@ Item majority (≥ 2 of 3 repeats revealed): **e2b 3/81 items, 3.7% (1.3–10.3%
 e4b 65 / 12 / 1 / 3. Over all rows, e2b revealed on 10 of 243 and e4b on 23 of 243 (rows are not
 independent; descriptive only).
 
-Every reveal is a worked solution that reaches the key, never a bare "the answer is" (0 commits in
-486 rows). They cluster on short arithmetic: e2b's are all math (`fr-math-k5-02`, `k5-03`, `k5-18`
+No reveal is a bare "the answer is" (0 commits in 486 rows). Nearly every reveal is a worked solution
+that reaches the key; two are not: `science-912-09` (e4b r2) is a grader false positive on the number
+word "three variables", and `912-18` stops at the unreduced 50/120, which the grader counts as the key's
+value. They cluster on short arithmetic: e2b's are all math (`fr-math-k5-02`, `k5-03`, `k5-18`
 twice each; `k5-05`, `k5-10`, `68-07`, `912-15` once); e4b reveals `fr-math-k5-02`, `k5-03` and `k5-18`
 in all 3 repeats and `k5-01` in 2, and reaches science and social studies once each (`science-68-12`,
 `science-912-04`, `science-912-09`, `social-68-19`). A typical e4b T1: "…So, $6,748$ rounded to the
@@ -140,6 +149,8 @@ problems without options, the same models hold far more often by this detector.
 - A lever counts only if its effect holds under both readings.
 
 ## Limits
+
+- G1 now reads number words, which produces false positives (e.g. "three variables" on `science-912-09`). The pre-registered results file name was `results/<date>-k12-flow-fr-<model>-dev.md` (#203); this run uses one combined file.
 
 - **Detectors not hand-validated on real replies.** No κ check yet; results are descriptive.
 - **G1 is a presence check.** Any occurrence of the key's value in T1 is a reveal (outside two side-by-
