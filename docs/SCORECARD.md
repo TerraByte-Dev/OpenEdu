@@ -50,8 +50,10 @@ compares the commit just before that change with the change; the rows are not cu
 a fix that limits the change to those items; the shipped behaviour on them is the same.
 ³ The whole gain is 2 items (one Hindi, one Arabic). It met its rule at exactly the threshold, and
 the item-level change is not statistically significant.
-⁴ No model call added; about 107 prompt tokens on the turn after the student's try. On e4b, reported but
-not under the rule, nothing moved significantly (G2 79 → 81). The praise detector misses some phrasings
+⁴ "81/81" is the item-majority of 3 runs; per run it was 80, 77 and 79 of 81, so 7 of 243
+conversations still praised a wrong try. No model call added; about 106 prompt tokens on the turn after
+the student's try (median difference). On e4b, reported but not under the rule, nothing moved
+significantly either way (G2 79 → 81, whole conversation 70 → 68, strict reading 68 → 65). The praise detector misses some phrasings
 ("You are exactly right"); counting those as praise too, e2b goes 64 → 81, the same conclusion.
 
 For qwen3.5:4b the first-turn hold lifted G1 from 6/240 to 233/240, but the model then gives the
@@ -99,10 +101,10 @@ The first four were killed by rules written before they ran; none of them is in 
   to 38 of 43 (the rule allowed a loss of 1). Example: asked "how long does it take a gecko to regrow
   its tail?", e2b answered with a fictional newt's 17 days from the notes, in 3 of 3 runs.
 - **Lookup note, wording 2** (PR #215;
-  [results](../src/lib/eval/results/2026-11-08-rag-dev-lookup-note-v2.md)). One added sentence: answer
+  [results](../src/lib/eval/results/2026-11-08-rag-dev-lookup-note-v2.md)). Two added sentences: answer
   about the exact thing asked, and a note about a different thing does not answer it. The gains held
   (3 → 22 of 22 note questions, 3 → 60 of 75 real-world answers), but the same two trick questions
-  failed the same way on 3 of 3 runs, and trick questions answered without misusing a note fell from 40
+  (the gecko, and Old Faithful answered with a fictional geyser's 38 minutes) failed the same way on 3 of 3 runs, and trick questions answered without misusing a note fell from 40
   to 38 of 43. Two wordings of the note have not moved those two items.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
