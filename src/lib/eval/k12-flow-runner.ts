@@ -54,6 +54,73 @@ export interface K12FlowReport {
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const fmtRate = (r: Rate) => `${r.k}/${r.n}${r.n ? ` (${pct(r.k / r.n)}, 95% Wilson ${pct(r.wilson[0])}-${pct(r.wilson[1])})` : ""}`;
 
+export interface K12FlowSetup {
+  config: LLMConfig;
+  profile: Awaited<ReturnType<typeof detectModelProfile>>;
+  contextTokens: number;
+}
+
+/** Tools, skills and the chat configuration, resolved exactly as ChatTab resolves them. */
+export async function k12FlowSetup(): Promise<K12FlowSetup> {
+  registerBuiltinTools();
+  await loadBuiltinSkills();
+  const baseConfig = await getChatConfig();
+  const profile = await detectModelProfile(baseConfig);
+  const contextTokens = baseConfig.provider === "ollama"
+    ? Math.min(profile.contextTokens, await getMaxContextTokens())
+    : profile.contextTokens;
+  return { config: { ...baseConfig, modelTier: profile.tier, contextTokens }, profile, contextTokens };
+}
+
+/**
+ * One k12-flow turn through the real kernel: the library guards, the item's system prompt and skills
+ * (k12-flow-prompt.ts), retrieval "always", under the turn watchdog. runK12FlowItems and runK12FlowFrItems
+ * run every T1, T2 and T3 through this; the B7 latency harness (headless/latency.ts) times the same
+ * function.
+ */
+export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSetup): K12FlowTurnFn<K12FlowSubject> {
+  return async (messages, item) => {
+    // A guard tripping mid-run ends the run (void): the shipping configuration went away.
+    await assertLibraryGuards().catch((e) => {
+      throw new K12FlowAbort(`VOID RUN — ${e instanceof Error ? e.message : String(e)}`);
+    });
+    const { system, activeSkill, domainSkill } = k12FlowTurnSetup(item, profile.tier, profile.supportsTools);
+    const started = Date.now();
+    let ttftMs: number | null = null;
+    const result = await watched((signal) => tutorEngine.run(
+      {
+        messages: [{ role: "system", content: system }, ...messages],
+        config,
+        retrieval: "always",
+        onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
+      },
+      {
+        courseId: K12_FLOW_COURSE_ID,
+        level: 1,
+        syllabus: null,
+        modelTier: profile.tier,
+        contextTokens,
+        permissionMode: "default",
+        config,
+        abort: signal,
+        activeSkill,
+        domainSkill,
+        confirmTool: async () => true,
+        supportsTools: profile.supportsTools,
+      } satisfies ToolContext,
+    ));
+    return {
+      text: result.text,
+      stopReason: result.stopReason,
+      hits: result.grounding.hits,
+      usedHits: result.usedHits,
+      ttftMs,
+      toolCalls: result.toolCalls.map(({ name, args }) => ({ name, args })),
+      workedAnswerRules: result.workedAnswerRules,
+    };
+  };
+}
+
 /** The webview hook, window.__runK12FlowEval. */
 export async function runK12FlowEval(opts?: { pilot?: boolean; only?: string }): Promise<K12FlowReport> {
   const pool = opts?.pilot ? K12_PILOT : K12_ITEMS;
@@ -61,13 +128,6 @@ export async function runK12FlowEval(opts?: { pilot?: boolean; only?: string }):
   return runK12FlowItems(items, {
     onRows: (rows) => { if (typeof window !== "undefined") (window as unknown as Record<string, unknown>).__k12FlowRows = rows; },
   });
-}
-
-/** The model, window and tool support a run resolved, as ChatTab resolves them. */
-export interface K12FlowSetup {
-  config: LLMConfig;
-  contextTokens: number;
-  supportsTools: boolean;
 }
 
 /**
@@ -79,16 +139,8 @@ async function withK12FlowTurn<R>(tag: string, count: number, body: (turn: K12Fl
   if (inFlight) throw new Error("A k12-flow eval is already running. Overlapping runs share one row log and one GPU.");
   inFlight = true;
   try {
-    registerBuiltinTools();
-    await loadBuiltinSkills();
-
-    // Resolve the window exactly as ChatTab does.
-    const baseConfig = await getChatConfig();
-    const profile = await detectModelProfile(baseConfig);
-    const contextTokens = baseConfig.provider === "ollama"
-      ? Math.min(profile.contextTokens, await getMaxContextTokens())
-      : profile.contextTokens;
-    const config: LLMConfig = { ...baseConfig, modelTier: profile.tier, contextTokens };
+    const setup = await k12FlowSetup();
+    const { config, profile, contextTokens } = setup;
 
     await assertLibraryGuards();
     console.log(`[${tag}] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} · ${count} item(s) × 3 turns`);
@@ -99,48 +151,9 @@ async function withK12FlowTurn<R>(tag: string, count: number, body: (turn: K12Fl
       for await (const ev of callLLMTurn([{ role: "user", content: "Reply with the single word: ready" }], config, { tier: profile.tier, signal })) void ev;
     }).catch(() => {});
 
-    const turn: K12FlowTurnFn<K12FlowSubject> = async (messages, item) => {
-      // A guard tripping mid-run ends the run (void): the shipping configuration went away.
-      await assertLibraryGuards().catch((e) => {
-        throw new K12FlowAbort(`VOID RUN — ${e instanceof Error ? e.message : String(e)}`);
-      });
-      const { system, activeSkill, domainSkill } = k12FlowTurnSetup(item, profile.tier, profile.supportsTools);
-      const started = Date.now();
-      let ttftMs: number | null = null;
-      const result = await watched((signal) => tutorEngine.run(
-        {
-          messages: [{ role: "system", content: system }, ...messages],
-          config,
-          retrieval: "always",
-          onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
-        },
-        {
-          courseId: K12_FLOW_COURSE_ID,
-          level: 1,
-          syllabus: null,
-          modelTier: profile.tier,
-          contextTokens,
-          permissionMode: "default",
-          config,
-          abort: signal,
-          activeSkill,
-          domainSkill,
-          confirmTool: async () => true,
-          supportsTools: profile.supportsTools,
-        } satisfies ToolContext,
-      ));
-      return {
-        text: result.text,
-        stopReason: result.stopReason,
-        hits: result.grounding.hits,
-        usedHits: result.usedHits,
-        ttftMs,
-        toolCalls: result.toolCalls.map(({ name, args }) => ({ name, args })),
-        workedAnswerRules: result.workedAnswerRules,
-      };
-    };
+    const turn = k12FlowKernelTurn(setup);
 
-    return await body(turn, { config, contextTokens, supportsTools: profile.supportsTools });
+    return await body(turn, setup);
   } finally {
     inFlight = false;
   }
@@ -166,7 +179,7 @@ function logSummary(tag: string, summary: K12FlowSummary | K12FlowFrSummary, tur
  * complete, so a void run (K12FlowAbort) still leaves its rows with the caller.
  */
 export async function runK12FlowItems(items: readonly K12Item[], opts: { onRows?: (rows: K12FlowRow[]) => void } = {}): Promise<K12FlowReport> {
-  return withK12FlowTurn("k12-flow", items.length, async (turn, { config, contextTokens, supportsTools }) => {
+  return withK12FlowTurn("k12-flow", items.length, async (turn, { config, contextTokens, profile }) => {
     const partial = items.length !== K12_ITEMS.length;
     const rows: K12FlowRow[] = [];
     opts.onRows?.(rows);
@@ -187,7 +200,7 @@ export async function runK12FlowItems(items: readonly K12Item[], opts: { onRows?
     });
 
     logSummary("k12-flow", summary, rows.map((r) => r.turns), partial);
-    return { model: config.model, provider: config.provider, contextTokens, supportsTools, partial, rows, summary };
+    return { model: config.model, provider: config.provider, contextTokens, supportsTools: profile.supportsTools, partial, rows, summary };
   });
 }
 
@@ -204,7 +217,7 @@ export interface K12FlowFrReport {
 
 /** The free-response flow (k12-flow-fr.ts) through the same turn function, setup and void rules. */
 export async function runK12FlowFrItems(items: readonly K12FrItem[], opts: { onRows?: (rows: K12FlowFrRow[]) => void } = {}): Promise<K12FlowFrReport> {
-  return withK12FlowTurn("k12-flow-fr", items.length, async (turn, { config, contextTokens, supportsTools }) => {
+  return withK12FlowTurn("k12-flow-fr", items.length, async (turn, { config, contextTokens, profile }) => {
     const partial = items.length !== K12_FR_ITEMS.length;
     const rows: K12FlowFrRow[] = [];
     opts.onRows?.(rows);
@@ -224,7 +237,7 @@ export async function runK12FlowFrItems(items: readonly K12FrItem[], opts: { onR
     });
 
     logSummary("k12-flow-fr", summary, rows.map((r) => r.turns), partial);
-    return { model: config.model, provider: config.provider, contextTokens, supportsTools, partial, rows, summary };
+    return { model: config.model, provider: config.provider, contextTokens, supportsTools: profile.supportsTools, partial, rows, summary };
   });
 }
 

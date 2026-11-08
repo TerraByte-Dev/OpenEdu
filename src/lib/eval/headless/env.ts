@@ -5,7 +5,7 @@ import type { LLMProvider } from "../../../types";
 import type { RetrievalMode } from "../../kernel/ground";
 import { STORE_KEYS, apiKeyStoreKey } from "../../store-keys";
 
-export type EvalSuite = "rag" | "k12-flow" | "k12-flow-fr";
+export type EvalSuite = "rag" | "k12-flow" | "k12-flow-fr" | "b7-cpu";
 
 export interface EvalOptions {
   suite: EvalSuite;
@@ -37,11 +37,16 @@ export interface EvalOptions {
   /** Ollama only: add options.num_gpu to every chat and embed request (0 = CPU only). Changes the
    *  requests on purpose, for latency runs; such a run is not a parity run. */
   numGpu?: number;
+  /** b7-cpu only: the CPU server's log file, read for the thread count its runner started with. */
+  serverLog?: string;
 }
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
 const PROVIDERS: LLMProvider[] = ["ollama", "openai", "anthropic"];
-const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr"];
+const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"];
+/** b7-cpu talks to a second, CPU-only Ollama server on its own port (README.md, "b7-cpu"). */
+export const B7_DEFAULT_OLLAMA_URL = "http://127.0.0.1:11435";
+export const B7_DEFAULT_REPEATS = 5;
 const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 
@@ -57,13 +62,14 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   if (!SUITES.includes(suite)) errs.push(`EVAL_SUITE=${suite}: use ${SUITES.join(", ")}`);
   // k12-flow-fr is the same flow on typed problems without options: every k12-flow rule applies.
   const flow = suite === "k12-flow" || suite === "k12-flow-fr";
+  const b7 = suite === "b7-cpu";
 
   const provider = (get("EVAL_PROVIDER") ?? "ollama") as LLMProvider;
   if (!PROVIDERS.includes(provider)) errs.push(`EVAL_PROVIDER=${provider}: use ${PROVIDERS.join(", ")}`);
   const apiKey = get("EVAL_API_KEY");
   if (provider !== "ollama" && !apiKey) errs.push(`EVAL_PROVIDER=${provider} needs EVAL_API_KEY`);
 
-  const set = (get("EVAL_SET") ?? (flow ? "dev" : "main")) as EvalOptions["set"];
+  const set = (get("EVAL_SET") ?? (flow || b7 ? "dev" : "main")) as EvalOptions["set"];
   if (!SETS.includes(set)) errs.push(`EVAL_SET=${set}: use ${SETS.join(", ")}`);
   // The k12 test items are in the sealed v2 file. Running them needs the frozen path through
   // loadSealed and all its refusals, which k12-flow does not have yet. The 240 k12-mc items are DEV.
@@ -72,13 +78,22 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   if (flow) {
     for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED"]) if (get(k)) errs.push(`${k} does not apply to ${suite}`);
   }
+  // b7-cpu's scenarios, retrieval mode and requests are fixed by its pre-registration (latency.ts). It
+  // measures the requests the app sends, so nothing that changes them is accepted.
+  if (b7) {
+    if (provider !== "ollama") errs.push("EVAL_SUITE=b7-cpu runs on Ollama only");
+    if (set !== "dev") errs.push(`EVAL_SET=${set}: b7-cpu runs its own fixed dev scenarios`);
+    for (const k of ["EVAL_MODES", "EVAL_ONLY", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_NUM_GPU", "EVAL_WIRE"]) if (get(k)) errs.push(`${k} does not apply to b7-cpu`);
+  } else if (get("EVAL_B7_SERVER_LOG")) {
+    errs.push("EVAL_B7_SERVER_LOG applies to b7-cpu only");
+  }
   const sealedPath = get("EVAL_SEALED");
   if (!flow && set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
   // A partial sealed run still reads, and so burns, the whole set (protocol rule 8).
   if (set === "sealed" && get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed with EVAL_SET=sealed: the run covers every item");
   if (set === "sealed" && get("EVAL_MODES")) errs.push("EVAL_MODES is not allowed with EVAL_SET=sealed: the run uses the runner's default modes");
 
-  const repeatsRaw = get("EVAL_REPEATS") ?? "1";
+  const repeatsRaw = get("EVAL_REPEATS") ?? (b7 ? String(B7_DEFAULT_REPEATS) : "1");
   const repeats = Number(repeatsRaw);
   if (!Number.isInteger(repeats) || repeats < 1) errs.push(`EVAL_REPEATS=${repeatsRaw}: a whole number, 1 or more`);
 
@@ -127,7 +142,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     suite,
     provider,
     model: get("EVAL_MODEL") ?? DEFAULT_EVAL_MODEL,
-    ollamaUrl: get("EVAL_OLLAMA_URL") ?? "http://127.0.0.1:11434",
+    ollamaUrl: get("EVAL_OLLAMA_URL") ?? (b7 ? B7_DEFAULT_OLLAMA_URL : "http://127.0.0.1:11434"),
     embedModel: get("EVAL_EMBED_MODEL"),
     apiKey,
     set,
@@ -142,6 +157,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     out: get("EVAL_OUT"),
     wire: wireRaw === "1",
     numGpu,
+    serverLog: b7 ? get("EVAL_B7_SERVER_LOG") : undefined,
   };
 }
 
