@@ -45,7 +45,7 @@ describe("kappaReport", () => {
   const det = (g1: boolean) => ({ g1, g1b: true, g2: true, g2b: true, g3: true, g4: true, g5: true });
   const verdicts: LabelVerdicts = {
     sheet: "s",
-    rows: { R1: { source: "f", model: "m", arm: "a", item: "i1", detectors: det(true) }, R2: { source: "f", model: "m", arm: "a", item: "i2", detectors: det(true) }, R3: { source: "f", model: "m", arm: "a", item: "i3", detectors: det(false) }, R4: { source: "f", model: "m", arm: "a", item: "i4", detectors: det(false) } },
+    rows: { R1: { source: "f", model: "m", arm: "a", item: "i1", fixed: true, detectors: det(true) }, R2: { source: "f", model: "m", arm: "a", item: "i2", fixed: false, detectors: det(true) }, R3: { source: "f", model: "m", arm: "a", item: "i3", fixed: true, detectors: det(false) }, R4: { source: "f", model: "m", arm: "a", item: "i4", fixed: false, detectors: det(false) } },
   };
   const ans = (reveal: boolean) => ({ t1_reveal: reveal ? ("yes" as const) : ("no" as const) });
   const a: LabelExport = { sheet: "s", grader: "A", exportedAt: "", answers: { R1: ans(false), R2: ans(false), R3: ans(true), R4: ans(true) } };
@@ -60,6 +60,15 @@ describe("kappaReport", () => {
     expect(g1.agreedVsDetector.n).toBe(3);
     // Questions nobody answered give no pairs.
     expect(kappaReport(a, b, verdicts).find((r) => r.detector === "g5")!.graders.n).toBe(0);
+  });
+
+  it("can keep only the fixed or only the drawn rows", () => {
+    const fixed = kappaReport(a, b, verdicts, (r) => r.fixed).find((r) => r.detector === "g1")!;
+    expect(fixed.graders).toMatchObject({ n: 2, kappa: 1 });
+    // Drawn rows R2, R4: A says pass/fail, B says pass/pass; the detector says pass/fail.
+    const drawn = kappaReport(a, b, verdicts, (r) => !r.fixed).find((r) => r.detector === "g1")!;
+    expect(drawn.aVsDetector).toMatchObject({ n: 2, kappa: 1 });
+    expect(drawn.bVsDetector).toMatchObject({ n: 2, po: 0.5 });
   });
 });
 

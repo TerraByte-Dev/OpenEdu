@@ -1,17 +1,25 @@
 // Build the k12-flow hand-label sheet: one self-contained HTML file for Tate and a blind second
 // grader, plus the hidden verdicts file the kappa script reads. Offline: no model call.
 //
-//   npx vite-node src/lib/eval/headless/label-sheet.ts
+//   npx vite-node src/lib/eval/headless/label-sheet.ts -- <verdicts.json>
 //
-// Writes <main checkout>/.dev/k12-flow-label-sheet.html and .dev/k12-flow-label-verdicts.json.
-// Neither is committed (.dev/ is gitignored). The sheet never shows a detector verdict, a model
-// name or an arm. Rows come from LABEL_FILES, rescored with the detectors in this checkout.
+// Writes the sheet to <main checkout>/.dev/k12-flow-label-sheet.html and the hidden verdicts to the
+// path given, which must not be in the sheet's folder: the graders get the sheet only, and must not
+// find the verdicts beside it. Neither file is committed. The sheet never shows a detector verdict,
+// a model name or an arm. Rows come from LABEL_FILES, rescored with the detectors in this checkout.
 
 import { K12_ITEMS, type K12Key } from "../k12-items";
 import { rescoreRows, type SavedK12FlowRow } from "../k12-flow-rescore";
 import { LABEL_DETECTORS, LABEL_QUESTIONS, LABEL_SEED, selectLabelRows, type LabelCandidate, type LabelVerdicts } from "../k12-flow-label";
 import { seededRandom } from "./select";
 import { fs, mainCheckout, path, writeText } from "./node-io";
+
+/** The verdicts file's path: the one `.json` argument. */
+function verdictArg(): string {
+  const args = ((globalThis as { process?: { argv: string[] } }).process?.argv ?? []).slice(2).filter((a) => /\.json$/i.test(a));
+  if (args.length !== 1) throw new Error("Usage: label-sheet.ts -- <verdicts.json> (outside the sheet's folder)");
+  return args[0];
+}
 
 export const LABEL_SHEET_ID = "k12-flow-label-2026-11-07-v1";
 
@@ -41,6 +49,9 @@ const SUBJECT_NAME: Record<string, string> = { math: "Math", science: "Science",
 async function main(): Promise<void> {
   const [f, p] = await Promise.all([fs(), path()]);
   const root = await mainCheckout();
+  const sheetFile = p.join(root, ".dev", "k12-flow-label-sheet.html");
+  const verdictFile = p.resolve(verdictArg());
+  if (p.dirname(verdictFile).toLowerCase() === p.dirname(sheetFile).toLowerCase()) throw new Error("Write the verdicts outside the sheet's folder.");
   const dir = p.join(root, ".dev", "eval-runs");
   const byId = new Map(K12_ITEMS.map((i) => [i.id, i]));
   const pool: LabelCandidate[] = [];
@@ -88,6 +99,7 @@ async function main(): Promise<void> {
       model: c.model,
       arm: c.arm,
       item: c.item,
+      fixed: FIXED.includes(c.uid),
       detectors: Object.fromEntries(LABEL_DETECTORS.map((d) => [d, c.grade[d]])) as LabelVerdicts["rows"][string]["detectors"],
     };
     return {
@@ -101,8 +113,6 @@ async function main(): Promise<void> {
     };
   });
 
-  const sheetFile = p.join(root, ".dev", "k12-flow-label-sheet.html");
-  const verdictFile = p.join(root, ".dev", "k12-flow-label-verdicts.json");
   await writeText(sheetFile, renderSheet(sheetRows));
   await writeText(verdictFile, JSON.stringify(verdicts, null, 2));
 
@@ -175,6 +185,8 @@ textarea { width: 100%; min-height: 60px; font: inherit; padding: 6px; border: 1
   <code>$x = 8$</code> is maths.</p>
   <p>Answer from what the reply says, not from what you think the tutor meant. If you are unsure, pick the answer that is
   closer and write a short note. Do not discuss rows with the other grader until you have both exported.</p>
+  <p>Please do not read the k12-flow results files, the pull requests about them or any verdicts file before you have
+  exported your answers. Some of them name these rows with their scores.</p>
   <p class="muted">Answers save in this browser as you go. When you finish, press <b>Export answers</b> and send the file.
   To move to another browser, export here and use <b>Load answers</b> there.</p>
   <div class="bar">

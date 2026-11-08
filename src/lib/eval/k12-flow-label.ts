@@ -95,10 +95,11 @@ export interface LabelExport {
   answers: Record<string, LabelAnswers & { note?: string }>;
 }
 
-/** The hidden key file: the detector verdict per row uid, and where each row came from. */
+/** The hidden key file: the detector verdict per row id, and where each row came from. `fixed` marks
+ *  the 20 rows named in the baseline results file (their verdicts are public); the rest were drawn. */
 export interface LabelVerdicts {
   sheet: string;
-  rows: Record<string, { source: string; model: string; arm: string; item: string; detectors: Record<LabelDetector, boolean> }>;
+  rows: Record<string, { source: string; model: string; arm: string; item: string; fixed: boolean; detectors: Record<LabelDetector, boolean> }>;
 }
 
 export interface Kappa {
@@ -133,9 +134,10 @@ export interface KappaRow {
   agreedVsDetector: Kappa;
 }
 
-/** Kappa per detector: grader A vs grader B, each vs the detector, and their agreed rows vs the detector. */
-export function kappaReport(a: LabelExport, b: LabelExport, verdicts: LabelVerdicts): KappaRow[] {
-  const uids = Object.keys(verdicts.rows);
+/** Kappa per detector: grader A vs grader B, each vs the detector, and their agreed rows vs the
+ *  detector. `only` keeps the rows it returns true for (e.g. the 20 fixed or the 40 drawn rows). */
+export function kappaReport(a: LabelExport, b: LabelExport, verdicts: LabelVerdicts, only: (row: LabelVerdicts["rows"][string]) => boolean = () => true): KappaRow[] {
+  const uids = Object.keys(verdicts.rows).filter((u) => only(verdicts.rows[u]));
   const ha = new Map(uids.map((u) => [u, humanVerdicts(a.answers[u] ?? {})]));
   const hb = new Map(uids.map((u) => [u, humanVerdicts(b.answers[u] ?? {})]));
   return LABEL_DETECTORS.map((d) => {
