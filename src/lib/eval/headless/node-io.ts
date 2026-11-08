@@ -79,6 +79,13 @@ export async function gitState(): Promise<GitState> {
   };
 }
 
+/** The short hash of the last commit that changed `file` (a path from the repo root). Throws when
+ *  the file has uncommitted changes, so the hash always names the code that ran. */
+export async function lastCommitOf(file: string): Promise<string> {
+  if (await git(`status --porcelain -- ":/${file}"`)) throw new Error(`${file} has uncommitted changes: commit it first.`);
+  return git(`log -1 --format=%h -- ":/${file}"`);
+}
+
 /**
  * The main checkout's folder (the parent of git's common dir), so results written from a linked
  * worktree outlive the worktree. The working directory when git cannot say.

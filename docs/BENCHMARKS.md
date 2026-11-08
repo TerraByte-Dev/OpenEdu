@@ -44,7 +44,7 @@ Every proportion is reported with a 95% Wilson interval, and **n is items, not r
 ### B3. Knowledge preservation under the tutor (k12-flow, attempt-first)
 - **Measures:** whether the tutor, run as ChatTab runs it, still delivers the correct worked answer when the student asks for it. This replaces single-turn k12-mc, which is format-invalid for both models and contradicts the attempt-first policy.
 - **Flow:** T1 stem + options + "Which one is right?" → T2 scripted wrong attempt (distractor chosen by a frozen rule: first non-key letter after the key, cyclic) → T3 `SHOW_ANSWER_MESSAGE`.
-- **Scoring (pure code):** G3 = final committed option equals the key, using a strict `Final answer:` parser with a unique-content fallback. No-commit counts as wrong.
+- **Scoring (pure code):** G3 = final committed option equals the key, using a strict `Final answer:` parser with a unique-content fallback. "The correct/right <answer noun> is X" is an explicit commit ("the correct statement is C", "the correct shape is C) trapezoid"; the noun names what an option is, never a value). A plain-prose match ("This matches option B", "which corresponds to option C") also commits at T3 (issue #185), only when the reply has no other commit, only when the cue's own clause is a whitelisted subject (this, that, it, which, a number or math, "the answer/result/value/total ..."), and only when every prose match in the reply names the same one letter. No-commit counts as wrong.
 - **Current:** not yet measured on the flow. Single-turn reference: e2b raw 237/240, shipping 187/240 (format-invalid). e4b raw 240/240, shipping 232/240 (format-invalid). 45/53 e2b losses are hand-back.
 - **Bar (non-inferiority vs raw on the same items):** G3 Wilson lower bound ≥ (raw − 3 points), and exact McNemar shipping-vs-raw not significant at 0.05, for e2b and e4b.
 - **100%:** a model-knowledge ceiling, not a harness target. The harness can only *preserve* raw (98.8% e2b, 100% e4b). Advertise "the tutor costs the model X points of its own knowledge" with a target of ~0. Going past raw needs vetted content, not prompting.
@@ -57,12 +57,13 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 | G1 no reveal at T1 | No commit to the key; the key's own text absent outside a restated option list (all four lettered, or one unbroken run). A worked result or an elimination that lands on the key is a reveal | e2b leaks 3/8, e4b 10/16 (crude regex, n tiny) | ≥ 95% |
 | G1b T1 ends with a question | `endsWithQuestion()`; the chip gate depends on it | unmeasured | ≥ 95% |
 | G2 no false affirmation at T2 | T2 commits to the student's letter anywhere → fail; else one of the first two sentences opens with an affirmation and neither corrects the student → fail | unmeasured | ≥ 98% |
-| G4 one question max | ≤ 1 question-terminated sentence on T1/T2 (`?` `؟` `፧` `？`); code and a repeated stem question not counted | unmeasured | ≥ 98% |
-| G5 reveal after | T3 commits a final answer (no-commit is a fail) | e2b withheld 2/8 at T3 | ≥ 98% |
+| G2b no reveal at T2 | T2 commits to the key (its letter, its text after an answer cue, or a prose match like "This matches option B") → fail. The key's text without a commit is not counted. Not in the headline | 2026-11-07 dev rescore: e2b 231/240, e4b 225/240 (baseline) | report only |
+| G4 one question max | ≤ 1 question-terminated sentence on T1/T2 (`?` `؟` `፧` `？`); code, a repeated stem question, and a `?` that is a blank to fill in not counted. A blank is "(?)", a detached "???", or a detached `?` after a label and "=" on a line of its own or a list line ("Length = ?", "* x = ?"; the label has no digits or operators). Every other `?` counts ("36 × 7 = ? Show your work.", "1. 36 × 7 = ?"), and so does a blank that ends a sentence opening as a question ("- What is x = ?") | unmeasured | ≥ 98% |
+| G5 reveal after | T3 commits a final answer (no-commit is a fail). A plain-prose match ("This matches option B") commits | e2b withheld 2/8 at T3 | ≥ 98% |
 | Chip offered after T2 | `suggestFollowUps` includes `SHOW_ANSWER_MESSAGE`; recorded, not conditioned on | unmeasured | report only |
 
 - **Headline (B3+B4):** share of items with G1 ∧ G2 ∧ G3, with Wilson interval.
-- **Detector validity:** before the freeze, the lexical detectors must be checked against ~60 hand-labelled dev replies (Tate plus one blind grader). Report agreement (Cohen's κ ≥ 0.8 required to freeze).
+- **Detector validity:** before the freeze, the lexical detectors must be checked against ~60 hand-labelled dev replies (Tate plus one blind grader). Report agreement (Cohen's κ ≥ 0.8 required to freeze). Kappa from two graders' exports: `src/lib/eval/headless/kappa.ts`.
 - **100%:** a reasonable target for G1/G4/G5 *if* enforced by code (L2 hidden solution, code-side question trimming). It is not reasonable through prompting alone on small models; suggestions.ts already records that neither gemma model reliably hides answers.
 
 #### B3/B4 protocol: running k12-flow
@@ -137,6 +138,16 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 | — | **Rule-based transliteration** | 0 | P1 | Only with ≥ 20 new native-script names authored before any rule | **Do not start** on current dev: tuning skeletons on 3 items is item tuning |
 
 Conflict to resolve on dev, not by taste: L5(c) and lever 5 both change `contextHeader()`. Any header change must be A/B'd jointly on RAG dev and k12-flow dev.
+
+### G1 kill clauses for levers that change only later turns (proposed 2026-11-07, revised 2026-11-08 after review; not retroactive)
+
+L1's kill rule included "G1 drops by more than 2 points". L1 changes only T3, and a test pinned the T1 request byte-identical between arms, so that clause could only measure sampling noise (Ollama has no fixed seed). Given the discordant pairs seen in the L1 A/B (41, 56 and 20 on e2b, e4b and qwen3.5:4b), a bare 2-point drop fires on pure noise with probability about 0.27, 0.25 and 0.13, so about one in two that it fires on at least one of the three models. L1's verdict stands as pre-registered; this changes nothing already run.
+
+Proposed for future levers whose change is confined to turns after T1:
+- The guard on T1 is a test that the T1 request is byte-identical between arms, through the production code path. Without that test the lever is not T1-free and the usual clause applies.
+- With that test, the lever cannot move G1 or G1b, so they are **descriptive only, with no kill clause**. A significance condition would not help: any "drop > 2 points and p < 0.05" firing could only be a false alarm (about 2.5% per model), never a real effect.
+- T2's request contains the sampled T1 reply, so it is never byte-identical between arms. The T2 condition is "the T2 request is byte-identical **given the same T1 reply**", shown by a test that feeds both arms the same T1 reply through the production code path. With that test, G2 and G4 are descriptive too. Without it, the usual clauses apply to them.
+- G1, G1b, G2 and G4 are still reported for every model, labelled descriptive.
 
 ---
 
