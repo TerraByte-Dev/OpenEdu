@@ -799,6 +799,11 @@ export interface StructuredOpts<T = unknown> {
   // technically-valid content that misses minLength by a character or two; this prevents
   // pointless repair-retry rejections without accepting genuinely empty fields.
   tier?: ModelTier;
+  // Ollama only: tools to declare on the request, exactly as a chat turn declares them. Not for the
+  // model to call (the schema constrains the output); sent so the rendered prompt's prefix matches a
+  // chat turn's and Ollama's prefix cache survives the call (kernel/gloss.ts). Ignored by cloud
+  // providers, whose structured paths use their own tool / response_format envelope.
+  tools?: ProviderToolDef[];
 }
 
 // Deep-clone a JSON schema and scale every minLength / minItems found within by `scale`.
@@ -900,6 +905,7 @@ async function callOllamaStructured(
   schema: object,
   temperature: number,
   signal?: AbortSignal,
+  tools?: ProviderToolDef[],
 ): Promise<ProviderResult> {
   const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const version = await getOllamaVersion(baseUrl);
@@ -922,6 +928,8 @@ async function callOllamaStructured(
     format: supportsSchema ? schema : "json",
     ...OLLAMA_THINK_OFF,
   };
+  const toolDefs = ollamaToolDefs(tools);
+  if (toolDefs) body.tools = toolDefs;
 
   log.info("callOllamaStructured", `POST ${baseUrl}/api/chat schema=${supportsSchema ? "yes" : "json-loose"} v=${version ?? "?"}`);
 
@@ -1139,7 +1147,7 @@ export async function callLLMStructured<T>(
     let result: ProviderResult;
     try {
       if (config.provider === "ollama") {
-        result = await callOllamaStructured(workingMessages, config, effectiveSchema, temperature, attemptController.signal);
+        result = await callOllamaStructured(workingMessages, config, effectiveSchema, temperature, attemptController.signal, opts.tools);
       } else if (config.provider === "openai") {
         result = await callOpenAIStructured(workingMessages, config, effectiveSchema, toolName, temperature, attemptController.signal);
       } else if (config.provider === "anthropic") {

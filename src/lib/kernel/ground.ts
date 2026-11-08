@@ -43,6 +43,9 @@ export interface RetrievalTrace {
   hitTitles: string[];
   blockTokens: number;
   error?: string;
+  /** Lever L2: present only on a turn whose question was glossed (gloss.ts). Never shown to the
+   *  student; recorded so an eval can see what the second search used and what it cost. */
+  gloss?: { text: string | null; ms: number; error?: string };
 }
 
 export interface Grounding {
@@ -275,6 +278,23 @@ export function groundedIn(answer: string, hits: GroundingHit[], n = 6): Groundi
   });
 }
 
+// ── Pure stage 2b: merge two searches (lever L2) ─────────────────────────────
+
+/**
+ * Merge the candidates of the original question's search and its English gloss's search. One entry
+ * per passage (a note chunk, or a library card), keeping the higher score; original-search entries
+ * first, so equal scores keep a fixed order. Deterministic: the result does not depend on which
+ * search finished first.
+ */
+export function mergeCandidates(original: Array<GroundingHit & { key: string }>, gloss: Array<GroundingHit & { key: string }>): GroundingHit[] {
+  const byKey = new Map<string, GroundingHit>();
+  for (const { key, ...hit } of [...original, ...gloss]) {
+    const seen = byKey.get(key);
+    if (!seen || hit.score > seen.score) byKey.set(key, seen ? { ...seen, score: hit.score } : hit);
+  }
+  return [...byKey.values()];
+}
+
 // ── The I/O shell ────────────────────────────────────────────────────────────
 
 /**
@@ -288,11 +308,13 @@ export async function ground(
   ctx: ToolContext,
   budget: Budget,
   mode: RetrievalMode = "always",
+  gloss?: string | null,
 ): Promise<Grounding> {
   const gate = shouldRetrieve(question, mode);
   if (!gate.retrieve) {
     return { ...EMPTY_GROUNDING, trace: { ...EMPTY_GROUNDING.trace, skipped: gate.reason } };
   }
+  if (gloss) return groundWithGloss(question, gloss, ctx, budget);
 
   const candidates: GroundingHit[] = [];
   let noteCandidates = 0;
@@ -336,6 +358,45 @@ export async function ground(
       blockTokens: estTokens(block),
       error,
     },
+  };
+}
+
+// Lever L2: the same stage, searched with the original question AND its English gloss, both corpora,
+// merged per passage (mergeCandidates). The floor, diversity and cap are selectHits's, unchanged. Only
+// reached for a glossed (non-English) question; an English turn never gets here.
+async function groundWithGloss(question: string, gloss: string, ctx: ToolContext, budget: Budget): Promise<Grounding> {
+  const [notes, library, glossNotes, glossLibrary] = await Promise.allSettled([
+    searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }),
+    groundFromLibrary(question),
+    searchNotebook({ courseId: ctx.courseId, query: gloss, topK: 6 }),
+    groundFromLibrary(gloss),
+  ]);
+
+  type Keyed = GroundingHit & { key: string };
+  let error: string | undefined;
+  const keyed = (n: typeof notes, l: typeof library): Keyed[] => {
+    const out: Keyed[] = [];
+    if (n.status === "fulfilled") {
+      for (const r of n.value) out.push({ source: "note", title: r.document_title, text: r.text, score: r.score, ref: r.document_id, key: `note:${r.chunk_id}` });
+    } else {
+      error ??= n.reason instanceof Error ? n.reason.message : String(n.reason);
+    }
+    if (l.status === "fulfilled") for (const h of l.value) out.push({ ...h, key: h.ref });
+    return out;
+  };
+  const candidates = mergeCandidates(keyed(notes, library), keyed(glossNotes, glossLibrary));
+  const noteCandidates = candidates.filter((h) => h.source === "note").length;
+
+  const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
+  const hits = selectHits(candidates);
+  const block = formatGroundingBlock(hits, budget.grounding);
+  const skipped: RetrievalTrace["skipped"] =
+    candidates.length === 0 ? "no-corpus" : hits.length === 0 ? "below-floor" : null;
+
+  return {
+    block,
+    hits,
+    trace: { skipped, candidates: candidates.length, noteCandidates, topScore, hitTitles: hits.map((h) => h.title), blockTokens: estTokens(block), error },
   };
 }
 
