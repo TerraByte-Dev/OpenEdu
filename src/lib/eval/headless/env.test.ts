@@ -17,6 +17,11 @@ describe("parseEvalEnv", () => {
     expect(o).toMatchObject({ model: "qwen3.5:2b", set: "dev", repeats: 3, modes: ["always", "off"], only: "h-nm01,h-nm03", syllabus: "matched", maxContextTokens: 4096, out: "x.json", embedModel: "nomic-embed-text" });
   });
 
+  it("takes the dev vault v2 set for RAG, and refuses it for k12-flow", () => {
+    expect(parseEvalEnv({ EVAL_SET: "dev-v2" })).toMatchObject({ suite: "rag", set: "dev-v2" });
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SET: "dev-v2" })).toThrow(/EVAL_SET=dev-v2: k12-flow runs only the dev items/);
+  });
+
   it("names every bad value in one error", () => {
     let msg = "";
     try {
