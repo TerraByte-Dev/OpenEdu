@@ -91,6 +91,41 @@ bug to fix before merge.
 So the hardened parser changes no headline, G3 or G5 number from the first version of this PR, and the
 #186 figures quoted in the L1 file (#184) stand.
 
+## Pre-registration 3, 2026-11-08 01:20 UTC (redesigned parser; written before any parser change)
+
+Posted at branch head `6bf20a3`, before the redesigned parser is written. The sections above are not
+edited.
+
+Planned change (decided by the lead after the second review; the 60-row hand-label check judges it):
+
+1. **Explicit commits.** The existing "the correct answer is X" cue extends to "the correct/right
+   <one answer noun> is X" (option, statement, choice, shape, answer, word, sentence, ...). A
+   sentence that ends in an option's own text that ends in "?" ("The correct option is C) Where did
+   you put my shoes?") is not a question unless it opens as one.
+2. **Prose commits** ("matches / corresponds to / aligns with option X") count only as a fallback
+   when the reply has no explicit commit, only when the subject of the cue's own clause is
+   whitelisted (this, that, it, which, a number or math expression, or "the answer/result/value/
+   total/..."), only when every prose match in the reply names the same one letter (two distinct
+   letters: no commit), with a short negation check on the cue's own verb. The ", not X" arm and the
+   whole-sentence if/when/you blocks are dropped; letters in inline code are read again.
+3. **G4.** A detached "?" is a blank only if it is "(?)", a run "???", or the left side of "=" is a
+   label with no digits or operators ("Length = ?", "x = ?") on a line of its own or a list line.
+   Every other "?" counts as on master.
+
+Rule: **every commit the new parser produces or removes vs master's grader, in any turn, across all
+2026-11-07 k12-flow dev raw files, is read in context and listed; any non-commit counted, or any
+explicit commit overridden, is fixed before merge.** Every G4 question count that differs from
+master's is read too; any real question dropped is fixed before merge. **Which rules can fail:
+all.** Nothing above holds by construction: the comparison is against master's grader (no prose, no
+blank rule), so new explicit commits, prose fallbacks, removed commits and G4 changes are all live.
+
+How it is applied: all eight 2026-11-07 k12-flow dev raw files in the main checkout's
+`.dev/eval-runs/` (including the e2b confirmation run `2026-11-07T23-36-16-030`). For T1, T2 and T3
+of every graded row, the new parser's commit list (with `prose` on, and with it off) is compared with
+master's `parseCommits`. Every commit present in one and not the other is read in its reply and
+listed with its verdict (real commit / non-commit). A turn whose last commit differs from master's,
+when master found one, is an override and is read.
+
 ## Headline (G1 ∧ G2 ∧ G3, all items, 95% Wilson)
 
 | Model | Arm | Old | Previous #186 | Hardened |
