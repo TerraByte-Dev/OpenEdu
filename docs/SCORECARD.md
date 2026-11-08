@@ -42,12 +42,16 @@ compares the commit just before that change with the change; the rows are not cu
 | | e4b | 77/168, 45.8% [38.5–53.4] → 166/168, 98.8% [95.8–99.7] | 168 ², 1 run | 7.4e-26 | same ¹ |
 | Non-English question: answer contains the note's value | e2b | 9/12, 75.0% [46.8–91.1] → 11/12, 91.7% [64.6–98.5] | 12, majority of 3 | 0.5 | Translate before search ([#188](../src/lib/eval/results/2026-11-07-rag-dev-L2.md)) ³ |
 | English questions whose note search changed | e2b, qwen3.5:4b | 0 of 90 answers on each model | 90 answers (not items) | — | same |
-| *No praise for a wrong answer (G2)* | e2b | ***PENDING: #213 check-before-praise A/B is running or queued. No result yet.*** | | | [#213](https://github.com/TerraByte-Dev/OpenEdu/pull/213) |
+| No praise for a wrong answer (G2), typed problems | e2b | 65/81, 80.2% [70.3–87.5] → 81/81, 100% [95.5–100] | 81, majority of 3 | 3.1e-5 | Check before praise ([#213](../src/lib/eval/results/2026-11-08-k12-flow-fr-dev-checkpraise.md)) ⁴ |
+| Whole conversation right, typed problems | e2b | 59/81, 72.8% [62.3–81.3] → 78/81, 96.3% [89.7–98.7] | 81, majority of 3 | 2.1e-5 | same |
 | *Direct answers to fact lookups, harm unchanged* | e2b | ***PENDING: #215 lookup-note wording 2 is running or queued. No result yet.*** | | | [#215](https://github.com/TerraByte-Dev/OpenEdu/pull/215) |
 
 ¹ Measured with a grader that may miss a few baseline answers, so these gains are upper bounds.
 ² e4b row: only items where the "show me the answer" button was offered in both arms, measured before
 a fix that limits the change to those items; the shipped behaviour on them is the same.
+⁴ No model call added; about 107 prompt tokens on the turn after the student's try. On e4b, reported but
+not under the rule, nothing moved significantly (G2 79 → 81). The praise detector misses some phrasings
+("You are exactly right"); counting those as praise too, e2b goes 64 → 80, the same conclusion.
 ³ The whole gain is 2 items (one Hindi, one Arabic). It met its rule at exactly the threshold, and
 the item-level change is not statistically significant.
 
@@ -59,7 +63,8 @@ answer away on turn 2 instead (no reveal at turn 2: 178 → 88 of 240)
 ([baseline](../src/lib/eval/results/2026-11-08-k12-flow-fr-dev-baseline.md)), 81 items, majority of
 3 runs: e2b holds the answer on 78/81 (96.3% [89.7–98.7]) and avoids praising the wrong answer on
 69/81 (85.2% [75.9–91.3]); e4b 77/81 (95.1% [88.0–98.1]) and 81/81 (100% [95.5–100]). Praise of a
-wrong answer is e2b's main miss here (12 of its 19 failed items), which #213 targets.
+wrong answer was e2b's main miss here (12 of its 19 failed items); the check-before-praise change in
+the table above targets it.
 
 **Speed, CPU only** (Ryzen 7 5800H laptop on mains, 8 threads, not the slower 4-thread reference
 box; 5 warm turns per kind)
