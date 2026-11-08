@@ -20,6 +20,7 @@ vi.mock("@tauri-apps/api/core", () => import("./shims/api-core"));
 import { runRagEval } from "../rag-runner";
 import { runK12FlowEval } from "../k12-flow-runner";
 import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
+import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "../../kernel/outputRules";
 import { K12_ITEMS } from "../k12-items";
 import { seedStore, resetStores } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
@@ -41,6 +42,11 @@ const ASK = RAG_HELDOUT.find((q) => q.id === ITEM)!.ask;
 interface Call { path: string; body: Record<string, unknown> | undefined; raw: string | undefined }
 let calls: Call[] = [];
 
+// What the stand-in model says on every chat turn. The k12-flow section swaps in a reply that asks a
+// question, so the show-answer chip is offered after T2 and T3 is a real worked-answer turn.
+const RAG_REPLY = ["The sediment index was ", "3.71 across the pits."];
+let chatReply: string[] = RAG_REPLY;
+
 const json = (v: unknown) => new Response(JSON.stringify(v), { status: 200, headers: { "Content-Type": "application/json" } });
 
 // A stand-in Ollama. Embeddings put every Marlow text on one axis and everything else on another, so
@@ -51,15 +57,14 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
   calls.push({ path: url.pathname, body, raw: init?.body ? String(init.body) : undefined });
   switch (url.pathname) {
     case "/api/tags":
-      return json({ models: [{ name: MODEL }, { name: "nomic-embed-text:latest" }, { name: OTHER_EMBED }] });
+      return json({ models: [{ name: MODEL, digest: "e2b-digest" }, { name: "nomic-embed-text:latest", digest: "embed-digest" }, { name: OTHER_EMBED, digest: "other-digest" }] });
     case "/api/show":
       return json({ details: { parameter_size: "5.1B" }, model_info: { "general.architecture": "gemma3n", "gemma3n.context_length": 32768 }, capabilities: ["completion", "tools"] });
     case "/api/embed":
       return json({ embeddings: (body!.input as string[]).map((t) => (/marlow/i.test(t) ? [1, 0, 0] : [0, 1, 0])) });
     case "/api/chat":
       return new Response(
-        `${JSON.stringify({ message: { role: "assistant", content: "The sediment index was " } })}\n` +
-        `${JSON.stringify({ message: { role: "assistant", content: "3.71 across the pits." } })}\n` +
+        chatReply.map((content) => `${JSON.stringify({ message: { role: "assistant", content } })}\n`).join("") +
         `${JSON.stringify({ done: true, done_reason: "stop" })}\n`,
         { status: 200 },
       );
@@ -163,6 +168,11 @@ describe("headless eval == webview eval, on the wire", () => {
     expect(out.set).toBe("dev");
     expect(out.model).toBe(MODEL);
     expect(out.options).not.toHaveProperty("apiKey");
+    // The Ollama version (null: this stand-in has no /api/version) and each model's digest.
+    expect((out as unknown as { ollama: unknown }).ollama).toEqual({
+      version: null,
+      models: { [MODEL]: { name: MODEL, digest: "e2b-digest" }, "nomic-embed-text": { name: "nomic-embed-text:latest", digest: "embed-digest" } },
+    });
     expect((out as unknown as { library: { enabled: boolean; cards: number } }).library).toMatchObject({ enabled: true, cards: expect.any(Number) });
     expect((out as unknown as { library: { cards: number } }).library.cards).toBeGreaterThan(0);
     expect(out.rows).toHaveLength(1);
@@ -180,12 +190,14 @@ describe("headless eval == webview eval, on the wire", () => {
 describe("headless k12-flow == webview k12-flow, on the wire", () => {
   const FLOW_ITEM = K12_ITEMS.find((x) => x.id === "math-k5-01")!; // math: the domain skill and tools are in play
   const raws = (p: string) => calls.filter((c) => c.path === p).map((c) => c.raw);
+  const FLOW_REPLY = ["Not quite. Look at the numbers again. ", "Which option do you get when you work it out?"];
   let webview: { chat: unknown[]; embed: unknown[] };
   let headless: { chat: unknown[]; embed: unknown[]; out: Record<string, unknown> };
 
   beforeAll(async () => {
     globalThis.fetch = fakeOllama as typeof fetch;
     installAppOrigin();
+    chatReply = FLOW_REPLY;
 
     // A. The webview: model picked in Settings, main.tsx's boot, then window.__runK12FlowEval({ only }).
     resetStores();
@@ -208,6 +220,7 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
       headless = { chat: raws("/api/chat"), embed: raws("/api/embed"), out };
     } finally {
       await f.rm(dir, { recursive: true, force: true });
+      chatReply = RAG_REPLY;
     }
   }, 60_000);
 
@@ -223,6 +236,19 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     expect(lastUser(turns[1].messages).endsWith(formatK12FlowT2(FLOW_ITEM))).toBe(true);
     expect(lastUser(turns[2].messages).endsWith(K12_FLOW_T3)).toBe(true);
     for (const t of turns) expect(t.tools?.length).toBeGreaterThan(0);
+  });
+
+  it("swaps in the worked-answer rules on T3 only, when the chip was offered, before the tools manifest (lever L1)", () => {
+    const row = (headless.out as { rows: Array<{ chipOffered: boolean; workedAnswerTurn: boolean; t3WorkedAnswerRules: boolean }> }).rows[0];
+    expect(row).toMatchObject({ chipOffered: true, workedAnswerTurn: true, t3WorkedAnswerRules: true });
+    type Msg = { role: string; content: string };
+    const systems = headless.chat.slice(1).map((r) => (JSON.parse(r as string) as { messages: Msg[] }).messages[0].content);
+    const [t1, t2, t3] = systems;
+    expect(t2).toBe(t1);
+    expect(t1).toContain(OUTPUT_RULES);
+    expect(t1).not.toContain(WORKED_ANSWER_RULES);
+    expect(t3).toBe(t1.replace(OUTPUT_RULES, WORKED_ANSWER_RULES));
+    expect(t3).toMatch(/\n\n<tools>\n[\s\S]*<\/tools>$/);
   });
 
   it("sends Ollama byte-identical embedding requests", () => {
@@ -244,7 +270,7 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     expect(row).toMatchObject({ id: FLOW_ITEM.id, subject: "math", band: "K-5" });
     expect(row.turns.map((t) => t.user)).toEqual([formatK12FlowT1(FLOW_ITEM), formatK12FlowT2(FLOW_ITEM), K12_FLOW_T3]);
     for (const t of row.turns) {
-      expect(t.text).toBe("The sediment index was 3.71 across the pits.");
+      expect(t.text).toBe(FLOW_REPLY.join(""));
       expect(typeof t.ttftMs).toBe("number");
       expect(t.totalMs).toBeGreaterThanOrEqual(t.ttftMs);
       expect(t.toolCalls).toEqual([]);

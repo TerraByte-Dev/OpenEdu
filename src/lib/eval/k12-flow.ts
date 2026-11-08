@@ -7,7 +7,9 @@
 //
 // History between turns is built exactly as ChatTab builds it (persistedReply), and after T2 the
 // chip check calls hasTriedOpenQuestion and suggestFollowUps with the arguments ChatTab passes. T3 is
-// sent whether or not the chip was offered: the chip is recorded, not conditioned on.
+// sent whether or not the chip was offered: the chip is recorded, not conditioned on. The kernel gives
+// T3 the worked-answer rules only when the chip was offered (isWorkedAnswerTurn); each row records
+// that gate too, and it must equal chipOffered.
 //
 // `runK12Flow` takes the model turn as a function, so the webview runner (k12-flow-runner.ts, which
 // drives the real kernel) and a headless runner can both call it. The turn function owns the system
@@ -16,6 +18,7 @@
 import type { K12Item, K12Key } from "./k12-items";
 import type { GroundingHit } from "../kernel/ground";
 import { SHOW_ANSWER_MESSAGE, hasTriedOpenQuestion, suggestFollowUps } from "../kernel/suggestions";
+import { isWorkedAnswerTurn } from "../kernel/outputRules";
 import { persistedReply } from "../kernel/persistedReply";
 import { gradeK12Flow, summarizeK12Flow, type K12FlowGrade, type K12FlowSummary } from "./k12-flow-grade";
 
@@ -60,6 +63,8 @@ export interface K12FlowTurnOutput {
   /** Tool calls the turn made. Not graded (the detectors read `text` only); kept for hand labels,
    *  because a math.render call can show an expression the text only refers to. */
   toolCalls?: Array<{ name: string; args: unknown }>;
+  /** The kernel's report that this turn's system prompt ended with the worked-answer rules. */
+  workedAnswerRules?: boolean;
 }
 
 /** One model turn. `messages` is the conversation so far, ending with the new user message,
@@ -91,6 +96,14 @@ export interface K12FlowRow {
   studentAttempted: boolean | null;
   /** suggestFollowUps offered "Show me the answer" after T2. Null if T2 did not finish. */
   chipOffered: boolean | null;
+  /** The gate function the kernel uses (isWorkedAnswerTurn), evaluated here by the driver on its own
+   *  copy of T3's conversation. It is a pure function of that history, so it must equal chipOffered,
+   *  but it is not read from the kernel: see t3WorkedAnswerRules for what T3 was actually sent. Null
+   *  if T2 did not finish. */
+  workedAnswerTurn: boolean | null;
+  /** From the kernel's own T3 result: the system prompt T3 sent ended with WORKED_ANSWER_RULES
+   *  (before the tools manifest). Null if T3 did not finish or the turn function does not report it. */
+  t3WorkedAnswerRules: boolean | null;
   /** Null for an ERROR row: some turn produced no reply twice, and later turns were not run. */
   grade: K12FlowGrade | null;
 }
@@ -134,7 +147,7 @@ async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12It
 /** Run one item's three turns and grade them. A failed turn is an ERROR row; only K12FlowAbort throws. */
 export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: () => number = Date.now): Promise<K12FlowRow> {
   const attempted = scriptedWrongLetter(item.key);
-  const row: K12FlowRow = { id: item.id, key: item.key, attempted, turns: [], studentAttempted: null, chipOffered: null, grade: null };
+  const row: K12FlowRow = { id: item.id, key: item.key, attempted, turns: [], studentAttempted: null, chipOffered: null, workedAnswerTurn: null, t3WorkedAnswerRules: null, grade: null };
   const history: ChatMessage[] = [];
   const texts: string[] = [];
 
@@ -164,7 +177,9 @@ export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: ()
         studentAttempted,
       });
       row.chipOffered = chips.some((c) => c.message === SHOW_ANSWER_MESSAGE);
+      row.workedAnswerTurn = isWorkedAnswerTurn([...history, { role: "user", content: K12_FLOW_T3 }]);
     }
+    if (i === 2) row.t3WorkedAnswerRules = out.workedAnswerRules ?? null;
   }
   row.grade = gradeK12Flow(item, { t1: texts[0], t2: texts[1], t3: texts[2] }, attempted);
   return row;

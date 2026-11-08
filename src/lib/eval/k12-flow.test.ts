@@ -93,6 +93,29 @@ describe("runK12FlowItem", () => {
     expect(row.grade?.g1b).toBe(true);
   });
 
+  it("records T3's worked-answer rules as the kernel reported them, and null when it did not", async () => {
+    const sent = await runK12FlowItem(ITEM, scripted([reply(T1_ASKS), reply(T2_ASKS), reply(T3_SHOWS, { workedAnswerRules: true })]).turn);
+    expect(sent.t3WorkedAnswerRules).toBe(true);
+    const notSent = await runK12FlowItem(ITEM, scripted([reply(T1_ASKS), reply(T2_ASKS, { workedAnswerRules: true }), reply(T3_SHOWS, { workedAnswerRules: false })]).turn);
+    expect(notSent.t3WorkedAnswerRules).toBe(false);
+    expect((await runK12FlowItem(ITEM, scripted([reply(T1_ASKS), reply(T2_ASKS), reply(T3_SHOWS)]).turn)).t3WorkedAnswerRules).toBeNull();
+    expect((await runK12FlowItem(ITEM, scripted([reply(T1_ASKS), reply(T2_ASKS), reply(""), reply("")]).turn)).t3WorkedAnswerRules).toBeNull();
+  });
+
+  it("records the gate function re-evaluated on the driver's history for T3, and it equals the chip", async () => {
+    const cases: Array<[string, K12FlowTurnOutput[], boolean]> = [
+      ["chip offered", [reply(T1_ASKS), reply(T2_ASKS), reply(T3_SHOWS)], true],
+      ["T1 did not ask", [reply("Multiply 36 by 7 to find the total number of books."), reply(T2_ASKS), reply(T3_SHOWS)], false],
+      ["T2 did not ask", [reply(T1_ASKS), reply("Not quite. 36 × 7 is not 2,142. Multiply again and see what you get."), reply(T3_SHOWS)], false],
+      ["T2 cut at the length limit, on a question", [reply(T1_ASKS), reply(T2_ASKS, { stopReason: "length" }), reply(T3_SHOWS)], true],
+    ];
+    for (const [name, replies, expected] of cases) {
+      const row = await runK12FlowItem(ITEM, scripted(replies).turn);
+      expect(row.chipOffered, name).toBe(expected);
+      expect(row.workedAnswerTurn, name).toBe(expected);
+    }
+  });
+
   it("retries an empty reply, because an empty T1 or T2 would pass G1 and G2", async () => {
     const { turn, calls } = scripted([reply("  "), reply(T1_ASKS), reply(T2_ASKS), reply(T3_SHOWS)]);
     const row = await runK12FlowItem(ITEM, turn);
