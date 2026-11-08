@@ -227,7 +227,7 @@ const ASK = /^(?:(?:tell|remind) me|let me know|i (?:want|need|would like|['’]
 const NOTES_LEAD = /^(?:according to|in|from|based on|using) (?:my|the) notes?,?\s*/i;
 // "what/who/when/where/which ...", "in what year", "at what temperature", "how tall/far/many ...", "define".
 const OPENER = /^(?:(?:(?:in|at|on|by|for|from|to|of|during|since|until|after|before|past|above|below|over|under|around|about) (?:what|which|whom|whose)\s)|(?:what|who|whom|whose|when|where|which)(?:['’]s\b|\s)|how (?:tall|big|far|long|old|high|deep|heavy|hot|cold|many|much|large|small|wide|fast|often|thick)\b|(?:define|definition of|meaning of)\b|(?:explain|describe) (?:what|who|when|where)\b)/i;
-// A yes/no question ("Is the star visible to the naked eye?") may sit beside a lookup without making
+// A yes/no question ("Is the river navigable in winter?") may sit beside a lookup without making
 // the message unsure. It is never a lookup on its own.
 const YES_NO = /^(?:is|are|was|were|does|do|did|can|has|have|had)\b/i;
 // What a lookup about the student's own notes says ("what do my notes say about", "what did I write
@@ -240,8 +240,8 @@ const PROBLEM_TALK = /\b(?:answer|answers|solution|solutions|solve|hint|hints|st
 // A question about the tutor ("Who are you?", "What do you mean?").
 const ABOUT_TUTOR = /\b(?:you|your|yours|yourself)\b/i;
 // Words that may point back at something the code cannot see ("When was it built?", "What is that?").
-// In a message that says little else they do; in one that describes its subject ("the comet's tail at
-// its brightest", "the owl that nests on cliffs") they point inside the message. So they rule a lookup
+// In a message that says little else they do; in one that describes its subject ("the bridge over
+// the old canal", "the bird that eats only figs") they point inside the message. So they rule a lookup
 // out only when the message has fewer than MIN_CONTENT_WORDS other content words.
 const POINTER = /\b(?:it|this|that|these|those|they|them|he|she|him|her|its|their|his)\b/gi;
 const MIN_CONTENT_WORDS = 3;
@@ -259,8 +259,8 @@ function lookupClause(clause: string): string | null {
   return s;
 }
 
-/** True when the sentence is a lookup: it opens with one, or a lead-in clause comes first ("The oil
- *  pressed from seed husks: at what temperature does it boil?", "For that measure, what is the cut-off?"). */
+/** True when the sentence is a lookup: it opens with one, or a lead-in clause comes first ("The metal
+ *  used in old church bells: when does it melt?", "For that recipe, how much salt goes in?"). */
 function isLookupSentence(sentence: string, text: string): boolean {
   const clauses = [sentence, ...sentence.split(/\s*(?:[,:;]|\s[—–-]\s)\s*/).slice(1)];
   if (!clauses.some((c) => lookupClause(c) !== null)) return false;
