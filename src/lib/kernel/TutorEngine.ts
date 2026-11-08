@@ -22,6 +22,7 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
+import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
@@ -68,6 +69,9 @@ export interface TutorTurnResult {
   // WORKED_ANSWER_RULES (lever L1). Read from the prompt itself, not from the gate, so the eval can
   // record what the model was actually told.
   workedAnswerRules: boolean;
+  // True when this turn appended FIRST_TURN_HOLD_NOTE to the student's message (the first-turn
+  // attempt-first hold, attemptFirst.ts), so the eval can record what the model was told.
+  firstTurnHold: boolean;
   // Set when Ollama could not parse a tool call the model wrote (OllamaToolCallParseError in llm.ts)
   // and the kernel answered the turn with one call without tools instead of failing it. `iteration`
   // is the model call that failed (0 = the first); `error` is Ollama's own error text. Null on every
@@ -120,6 +124,9 @@ export class TutorEngine {
       messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, conversation) };
     }
     const workedAnswerRules = sysAt >= 0 && messages[sysAt].content.endsWith(WORKED_ANSWER_RULES);
+    // The first-turn hold (attemptFirst.ts): decided here from the conversation as the caller sent it,
+    // applied below after retrieval, so the query and the gloss see only what the student typed.
+    const firstTurnHold = isFirstTurnHold(messages.filter((m) => m.role !== "system"));
 
     const eduTools = await selectTools(ctx);
     const offered = new Set(eduTools.map((t) => t.name));
@@ -174,13 +181,19 @@ export class TutorEngine {
 
 ${lastUser.content}` };
     }
+    if (firstTurnHold) {
+      // After the grounding block and the student's text, so the note is the last thing the model
+      // reads before it answers. The system prompt is untouched; see attemptFirst.ts.
+      const idx = messages.map((m) => m.role).lastIndexOf("user");
+      messages[idx] = { ...messages[idx], content: withFirstTurnHold(messages[idx].content) };
+    }
     if (import.meta.env?.DEV) {
       const t = grounding.trace;
       console.info(`[ground] ${t.skipped ? `skipped: ${t.skipped}` : `${t.hitTitles.length} hit(s) — ${t.hitTitles.join(", ")}`} · ${t.candidates} candidate(s) · top ${t.topScore.toFixed(2)} · ${t.blockTokens} tok${t.error ? ` · ${t.error}` : ""}`);
     }
 
     try {
-      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules });
+      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -199,9 +212,10 @@ ${lastUser.content}` };
       manifest: string | null;
       grounding: Grounding;
       workedAnswerRules: boolean;
+      firstTurnHold: boolean;
     },
   ): Promise<TutorTurnResult> {
-    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules } = prepared;
+    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold } = prepared;
     let messages = prepared.messages;
 
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
@@ -341,6 +355,7 @@ ${lastUser.content}` };
       grounding,
       usedHits,
       workedAnswerRules,
+      firstTurnHold,
       toolCallRecovery,
     };
   }

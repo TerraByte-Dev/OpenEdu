@@ -11,3 +11,4 @@ export { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, SHOW_ANSWER_M
 export { persistedReply } from "./persistedReply";
 export { citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type CitationNote } from "./citation";
 export { OUTPUT_RULES, outputRulesLayer, WORKED_ANSWER_RULES, isWorkedAnswerTurn, turnSystemPrompt } from "./outputRules";
+export { FIRST_TURN_HOLD_NOTE, posesNewProblem, isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";

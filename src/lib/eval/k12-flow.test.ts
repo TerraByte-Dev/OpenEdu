@@ -11,7 +11,8 @@ import {
   type K12FlowTurnFn,
   type K12FlowTurnOutput,
 } from "./k12-flow";
-import { K12_PILOT, type K12Item } from "./k12-items";
+import { K12_ITEMS, K12_PILOT, type K12Item } from "./k12-items";
+import { isFirstTurnHold } from "../kernel/attemptFirst";
 
 const ITEM: K12Item = {
   id: "synthetic-01", subject: "math", band: "K-5", demand: "apply",
@@ -100,6 +101,27 @@ describe("runK12FlowItem", () => {
     expect(notSent.t3WorkedAnswerRules).toBe(false);
     expect((await runK12FlowItem(ITEM, scripted([reply(T1_ASKS), reply(T2_ASKS), reply(T3_SHOWS)]).turn)).t3WorkedAnswerRules).toBeNull();
     expect((await runK12FlowItem(ITEM, scripted([reply(T1_ASKS), reply(T2_ASKS), reply(""), reply("")]).turn)).t3WorkedAnswerRules).toBeNull();
+  });
+
+  it("records each turn's first-turn hold as the kernel reported it, and null when it did not", async () => {
+    const row = await runK12FlowItem(ITEM, scripted([reply(T1_ASKS, { firstTurnHold: true }), reply(T2_ASKS, { firstTurnHold: false }), reply(T3_SHOWS, { firstTurnHold: false })]).turn);
+    expect(row.turns.map((t) => t.firstTurnHold)).toEqual([true, false, false]);
+    const unreported = await runK12FlowItem(ITEM, scripted([reply(T1_ASKS), reply(T2_ASKS), reply(T3_SHOWS)]).turn);
+    expect(unreported.turns.map((t) => t.firstTurnHold)).toEqual([null, null, null]);
+  });
+
+  it("puts every dev item's T1 under the first-turn hold, and never T2 or T3", () => {
+    // The kernel decides from the conversation (isFirstTurnHold). On the frozen turn texts the hold
+    // fires on T1 for all 240 items, so a run's trigger rate is a check on the run, not a variable.
+    for (const item of K12_ITEMS) {
+      const t1 = { role: "user", content: formatK12FlowT1(item) };
+      const t1Reply = { role: "assistant", content: "Which step would you try first?" };
+      const t2 = { role: "user", content: formatK12FlowT2(item) };
+      const t3 = { role: "user", content: K12_FLOW_T3 };
+      expect(isFirstTurnHold([t1]), item.id).toBe(true);
+      expect(isFirstTurnHold([t1, t1Reply, t2]), item.id).toBe(false);
+      expect(isFirstTurnHold([t1, t1Reply, t2, t1Reply, t3]), item.id).toBe(false);
+    }
   });
 
   it("records the gate function re-evaluated on the driver's history for T3, and it equals the chip", async () => {

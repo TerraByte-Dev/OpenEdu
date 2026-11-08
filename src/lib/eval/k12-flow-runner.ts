@@ -117,6 +117,7 @@ export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSet
       ttftMs,
       toolCalls: result.toolCalls.map(({ name, args }) => ({ name, args })),
       workedAnswerRules: result.workedAnswerRules,
+      firstTurnHold: result.firstTurnHold,
     };
   };
 }

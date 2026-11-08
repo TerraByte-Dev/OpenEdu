@@ -211,6 +211,23 @@ describe("attempt-gated answer chip", () => {
     expect(hasTriedOpenQuestion([student("What is 47 + 38?")])).toBe(false);
   });
 
+  it("does not count a newly posed problem with options as a try at the tutor's open question", () => {
+    // Made-up problem. Before this rule, the chip was offered right after a NEW question, because
+    // the tutor's reply before it had ended on a question.
+    const posed = "A bag has 9 apples and 4 are eaten. How many are left?\nA) 13\nB) 5\nC) 4\nD) 36\nWhich one is right?";
+    expect(hasTriedOpenQuestion([tutor(ASKED), student(posed)])).toBe(false);
+    expect(hasTriedOpenQuestion([tutor(ASKED), student("15"), tutor("Not quite. What do 7 and 8 make?"), student(posed)])).toBe(false);
+    // A hint asked on the new problem does not reach back past it to the old try.
+    expect(hasTriedOpenQuestion([tutor(ASKED), student("15"), tutor("Close. What next?"), student(posed), tutor("What happens when apples are eaten?"), student("Give me a hint.")])).toBe(false);
+    // The student's first answer to the new problem is a try, as before.
+    expect(hasTriedOpenQuestion([tutor(ASKED), student(posed), tutor("What happens when apples are eaten?"), student("I think it's A.")])).toBe(true);
+    // A problem posed together with the student's own pick is not a new open question, so the old rule applies.
+    expect(hasTriedOpenQuestion([tutor(ASKED), student(`${posed}\nI think it's B.`)])).toBe(true);
+    // So the chip is not offered under the tutor's reply to the new problem.
+    const history = [tutor(ASKED), student("15"), tutor("Not quite. What do 7 and 8 make?"), student(posed), tutor("Start with the 9 apples. What happens when some are eaten?")];
+    expect(showAnswerOfferedAfter(history)).toBe(false);
+  });
+
   it("keeps a try through a hint request, so a hint does not take the answer away", () => {
     expect(hasTriedOpenQuestion([
       tutor(ASKED), student("75"), tutor("Not quite. What do 7 and 8 make?"), student("Give me a hint."),
