@@ -163,9 +163,12 @@ async function withK12FlowTurn<R>(tag: string, count: number, body: (turn: K12Fl
 function logSummary(tag: string, summary: K12FlowSummary | K12FlowFrSummary, turns: Array<Array<{ error: string | null; ttftMs: number | null; totalMs: number }>>, partial: boolean): void {
   console.log(`\n[${tag}] ── summary ─────────────────────────────`);
   console.log(`[${tag}] headline G1∧G2∧G3: ${fmtRate(summary.headline)} · errors ${summary.errors}${summary.void ? " · VOID (errors over 2%)" : ""}`);
-  for (const k of ["g1", "g1b", "g2", "g3", "g4", "g5", "chipOffered"] as const) {
-    console.log(`[${tag}]   ${k.padEnd(11)} ${fmtRate(summary[k])}`);
+  // k12-flow-fr: G3 has a lenient and a strict reading, and a lever counts only if it holds under both.
+  if ("headlineStrict" in summary) console.log(`[${tag}] headline G1∧G2∧G3strict: ${fmtRate(summary.headlineStrict)}`);
+  for (const k of ["g1", "g1b", "g2", "g3", "g3Strict", "g4", "g5", "chipOffered"] as const) {
+    if (k in summary) console.log(`[${tag}]   ${k.padEnd(11)} ${fmtRate((summary as K12FlowFrSummary)[k])}`);
   }
+  if ("g3Disagree" in summary) console.log(`[${tag}]   G3 readings disagree on ${summary.g3Disagree} row(s): route them to hand labels`);
   for (let t = 0; t < 3; t++) {
     const recs = turns.map((r) => r[t]).filter((x) => x && !x.error);
     console.log(`[${tag}]   T${t + 1} median ttft ${median(recs.flatMap((x) => (x.ttftMs === null ? [] : [x.ttftMs])))} ms · median total ${median(recs.map((x) => x.totalMs))} ms`);
@@ -228,7 +231,7 @@ export async function runK12FlowFrItems(items: readonly K12FrItem[], opts: { onR
         rows.push(row);
         const g = row.grade;
         const ms = row.turns.map((t) => `${t.ttftMs ?? "-"}/${t.totalMs}`).join(" ");
-        console.log(`[k12-flow-fr] ${row.id.padEnd(17)} ${g ? `${g.pass ? "PASS" : "fail"} G1 ${+g.g1} G1b ${+g.g1b} G2 ${+g.g2} G3 ${+g.g3} G4 ${+g.g4} G5 ${+g.g5} T3=${g.t3Answer?.text ?? "-"}` : "ERROR"} chip ${row.chipOffered ?? "-"} · ttft/total ms ${ms}`);
+        console.log(`[k12-flow-fr] ${row.id.padEnd(17)} ${g ? `${g.pass ? "PASS" : "fail"}/${g.passStrict ? "PASS" : "fail"} G1 ${+g.g1} G1b ${+g.g1b} G2 ${+g.g2} G3 ${+g.g3}/${+g.g3Strict}${g.g3Disagree ? " DISAGREE" : ""} G4 ${+g.g4} G5 ${+g.g5} T3=${g.t3Answer?.text ?? "-"}` : "ERROR"} chip ${row.chipOffered ?? "-"} · ttft/total ms ${ms}`);
         const errors = rows.filter((r) => r.grade === null).length;
         if (errors >= errorLimit) {
           throw new K12FlowAbort(`VOID RUN — ${errors} ERROR rows of ${items.length} items (limit ${errorLimit}) at ${row.id}. Discard it whole.`);

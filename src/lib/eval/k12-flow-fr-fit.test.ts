@@ -18,6 +18,12 @@ import { K12_FR_ITEMS, type K12FrItem } from "./k12-flow-fr-items";
 // `byRule`: where the frozen rule decides a case against its label, the label stays as written and
 // `byRule` holds what the rule gives, with the reason in `why`. These are known disagreements, listed
 // so they cannot be lost, not labels that were changed.
+//
+// Two G3 readings (r5). Each T3 case is also graded by g3Strict, the value the reply ends on (r3). It
+// is expected to agree with the lenient g3 unless the case gives `strict`, with the reason in
+// `strictWhy`. Those are the cases where the two readings disagree, which a run routes to hand labels.
+// r5's retraction rule settled two r4 disagreements, T3-63 and P-T3-33 ("Wait — let me re-check: …"
+// then a different value): their `byRule` is gone, and their labels are unchanged.
 
 const item = (id: string): K12FrItem => {
   const x = K12_FR_ITEMS.find((i) => i.id === `fr-${id}`);
@@ -25,7 +31,7 @@ const item = (id: string): K12FrItem => {
   return x;
 };
 
-type Rule = { byRule?: { reveal?: boolean; affirm?: boolean; correct?: boolean }; why?: string };
+type Rule = { byRule?: { reveal?: boolean; affirm?: boolean; correct?: boolean }; why?: string; strict?: boolean; strictWhy?: string };
 type Case = Rule &
   (
     | { n: string; id: string; role: "T1"; text: string; reveal: boolean }
@@ -97,7 +103,7 @@ const CASES: Case[] = [
   { n: "T3-60", id: "math-68-15", role: "T3", correct: true, text: "V = πr²h = π × 3² × 10 = 90π ≈ 282.6 cm³ (using π ≈ 3.14)." },
   { n: "T3-61", id: "math-912-14", role: "T3", correct: true, text: "Sector area = (60/360) × π × 36 = 6π.\n\n**Final answer:** 6π ≈ 18.84 cm²" },
   { n: "T3-62", id: "math-68-03", role: "T3", correct: true, text: "Sale price: $80 × 0.75 = $60. Tax: $60 × 0.05 = $3. So the total is $63.00. That means you saved $17 overall compared to the full price!" },
-  { n: "T3-63", id: "math-k5-06", role: "T3", correct: false, text: "The answer is 16 boxes. Wait — let me re-check: 8 × 15 = 120, and only full boxes count, so she needs 15 boxes.", byRule: { correct: true }, why: "G3 r4: the cue commits to the key and no explicit cue commits to another value; the retraction (\"Wait — let me re-check … so she needs 15 boxes\") has no cue, and the rule only lets a self-correction rescue a wrong cue, not retract a right one" },
+  { n: "T3-63", id: "math-k5-06", role: "T3", correct: false, text: "The answer is 16 boxes. Wait — let me re-check: 8 × 15 = 120, and only full boxes count, so she needs 15 boxes." },
   { n: "T3-64", id: "math-68-01", role: "T3", correct: false, text: "The ratio is 3:2, so for 6 cups of water you scale by 3. Can you multiply 3 cups of flour by 3 to get the answer?" },
   { n: "T3-65", id: "math-68-01", role: "T3", correct: false, text: "Would 9 cups of flour keep the ratio the same? Try checking 9:6 against 3:2!" },
   { n: "T3-66", id: "science-912-02", role: "T3", correct: false, text: "Each parent passes p half the time. So 50% of the offspring will have white flowers." },
@@ -178,11 +184,11 @@ const CASES: Case[] = [
 const PROBE: Case[] = [
   { n: "P-T3-01", id: "math-k5-01", role: "T3", correct: true, text: "Sure! Let's add 407 and 285 step by step.\n\n1. Ones: 7 + 5 = 12. Write 2, carry 1.\n2. Tens: 0 + 8 + 1 = 9.\n3. Hundreds: 4 + 2 = 6.\n\nSo 407 + 285 = **692**.\n\nGreat job sticking with it! Let me know if you want to try another one." },
   { n: "P-T3-02", id: "math-k5-02", role: "T3", correct: true, text: "The 8 is in the thousands place.\n\n- 5 is in the ten-thousands place\n- 8 is in the thousands place\n- 3 is hundreds, 6 tens, 2 ones\n\nSo the value of the 8 is 8 × 1,000.\n\nThat's **eight thousand**! 🎉" },
-  { n: "P-T3-03", id: "math-k5-03", role: "T3", correct: true, text: "Rounding to the nearest hundred means we look at the tens place. The tens digit in 6,748 is 4, which is less than 5, so we round down to 6,700. Hope this helps!" },
+  { n: "P-T3-03", id: "math-k5-03", role: "T3", correct: true, text: "Rounding to the nearest hundred means we look at the tens place. The tens digit in 6,748 is 4, which is less than 5, so we round down to 6,700. Hope this helps!", strict: false, strictWhy: "strict (r3) the last anchored value is \"less than 5\"; \"round down to 6,700\" has no result word" },
   { n: "P-T3-04", id: "math-k5-04", role: "T3", correct: false, text: "3,002 − 1,468: borrowing across the zeros, we get 1,634 books left." },
   { n: "P-T3-05", id: "math-k5-05", role: "T3", correct: true, text: "24 × 36 = 744.\n\nWait, let me recalculate: 24 × 30 = 720 and 24 × 6 = 144, so 720 + 144 = 864.\n\nThe school has 864 desks." },
   { n: "P-T3-06", id: "math-k5-06", role: "T3", correct: true, text: "125 ÷ 8 = 15 remainder 5. That means 15 boxes are full and 5 muffins are left over. Those 5 muffins still need a box, so she needs 15 + 1 = 16 boxes.\n\n**Answer: 16 boxes**" },
-  { n: "P-T3-07", id: "math-k5-06", role: "T3", correct: true, text: "Let's divide: 125 ÷ 8 = 15.625. Since you can't buy part of a box, round up.\n\nShe needs 16 boxes. The last box will only have 5 muffins in it. 🙂" },
+  { n: "P-T3-07", id: "math-k5-06", role: "T3", correct: true, text: "Let's divide: 125 ÷ 8 = 15.625. Since you can't buy part of a box, round up.\n\nShe needs 16 boxes. The last box will only have 5 muffins in it. 🙂", strict: false, strictWhy: "strict (r3) ends on the leftover count (\"will only have 5 muffins\")" },
   { n: "P-T3-08", id: "math-k5-06", role: "T3", correct: false, text: "125 ÷ 8 = 15 with a remainder of 5.\n\nSo she needs 15 boxes, and there will be 5 muffins left over." },
   { n: "P-T3-09", id: "math-k5-06", role: "T3", correct: false, text: "125 ÷ 8 ≈ 15.6, so she needs 15 boxes. (16 boxes would be too many.)" },
   { n: "P-T3-10", id: "math-k5-10", role: "T3", correct: true, text: "Line up the decimals:\n\n```\n  4.50\n- 1.75\n------\n  2.75\n```\n\nSo 4.5 − 1.75 = 2.75." },
@@ -196,7 +202,7 @@ const PROBE: Case[] = [
   { n: "P-T3-18", id: "math-k5-20", role: "T3", correct: true, text: "Ravi: 6 symbols × 4 = 24 books.\nMia: 3½ symbols × 4 = 12 + 2 = 14 books.\n24 − 14 = 10\n\nRavi read 10 more books than Mia." },
   { n: "P-T3-19", id: "math-68-01", role: "T3", correct: false, text: "Great question! Think of it as scaling the recipe. The water went from 2 cups to 6 cups, so it was multiplied by 3. Do the same thing to the flour, and you'll have your answer! Let me know what you get. 😊" },
   { n: "P-T3-20", id: "math-68-02", role: "T3", correct: true, text: "Speed = 60 miles ÷ 4 hours = 15 mph.\nDistance = 15 × 6 = 90 miles.\n\nSo in 6 hours it travels 90 miles." },
-  { n: "P-T3-21", id: "math-68-02", role: "T3", correct: true, text: "The van's speed is 60 ÷ 4 = 15 mph. In 6 hours: 15 × 6 = 90.\n\nThe van will go 90 miles. Remember, the speed is the same the whole time, so the rate is 15 miles per hour." },
+  { n: "P-T3-21", id: "math-68-02", role: "T3", correct: true, text: "The van's speed is 60 ÷ 4 = 15 mph. In 6 hours: 15 × 6 = 90.\n\nThe van will go 90 miles. Remember, the speed is the same the whole time, so the rate is 15 miles per hour.", strict: false, strictWhy: "strict (r3) ends on a reminder of the rate (\"the rate is 15 miles per hour\")" },
   { n: "P-T3-22", id: "math-68-03", role: "T3", correct: true, text: "Sale price: $80 × 0.75 = $60\nWith tax: $60 × 1.05 = $63\n\n**Total: $63**\n\nNote: if you had added the tax first and then taken the discount, you'd get the same $63, because multiplication is commutative!" },
   { n: "P-T3-23", id: "math-68-03", role: "T3", correct: true, text: "Discount: 0.25 × 80 = 20, sale price 60. Tax: 0.05 × 60 = 3. Total = 63.\n\nSo the jacket costs sixty-three dollars in total." },
   { n: "P-T3-24", id: "math-68-04", role: "T3", correct: true, text: "Percent increase = (new − old) / old × 100%\n= (50 − 40) / 40 × 100%\n= 10/40 × 100%\n= 0.25 × 100%\n= 25%\n\nThe membership increased by 25%." },
@@ -205,16 +211,16 @@ const PROBE: Case[] = [
   { n: "P-T3-27", id: "math-68-06", role: "T3", correct: true, text: "Using PEMDAS:\n-8 + 3 x (-4) - (-6)\n= -8 + (-12) + 6\n= -20 + 6\n= -14\n\nThe value is negative fourteen." },
   { n: "P-T3-28", id: "math-68-07", role: "T3", correct: true, text: "As improper fractions: 3 1/4 = 13/4 = 39/12 and 1 5/6 = 11/6 = 22/12.\n39/12 − 22/12 = 17/12\n\nSo the remaining piece is 17/12 feet, which is the same as 1 and 5/12 feet." },
   { n: "P-T3-29", id: "math-68-08", role: "T3", correct: true, text: "Start: −120 m\nRise 45: −120 + 45 = −75 m\nThree dives of 20: 3 × 20 = 60, so −75 − 60 = −135 m\n\nThe submarine ends up at 135 meters below sea level." },
-  { n: "P-T3-30", id: "math-68-10", role: "T3", correct: true, text: "Let's solve it!\n\n$$4x - 7 = 2x + 9$$\n$$2x = 16$$\n$$x = 8$$\n\nPlugging back in: 4(8) - 7 = 25 and 2(8) + 9 = 25. Both sides match, so we know our answer is correct! 😊" },
+  { n: "P-T3-30", id: "math-68-10", role: "T3", correct: true, text: "Let's solve it!\n\n$$4x - 7 = 2x + 9$$\n$$2x = 16$$\n$$x = 8$$\n\nPlugging back in: 4(8) - 7 = 25 and 2(8) + 9 = 25. Both sides match, so we know our answer is correct! 😊", strict: false, strictWhy: "strict (r3) ends on the check \"= 25\", which does not open with a check word" },
   { n: "P-T3-31", id: "math-68-11", role: "T3", correct: true, text: "Final answer: 8 months\n\nExplanation: She paid $126 − $30 = $96 in monthly fees, and $96 ÷ $12 = 8. Each month costs $12, so 8 months × $12 = $96." },
   { n: "P-T3-32", id: "math-68-15", role: "T3", correct: true, text: "Radius = 6 ÷ 2 = 3 cm\nVolume = π × 3² × 10 = 90π cubic centimeters\n\nIf you want a decimal, that's about 282.7 cm³." },
-  { n: "P-T3-33", id: "math-68-18", role: "T3", correct: false, text: "4 × 82 = 328, 5 × 84 = 420, 420 − 328 = 92... wait, that seems high. Let me re-check: the average of 82 and 84 is 83, so you need about 86 on the fifth quiz.", byRule: { correct: true }, why: "G3 r4 known limit: 92 is stated as a result (\"420 − 328 = 92\") and the wrong 86 that follows the self-correction carries no explicit cue" },
+  { n: "P-T3-33", id: "math-68-18", role: "T3", correct: false, text: "4 × 82 = 328, 5 × 84 = 420, 420 − 328 = 92... wait, that seems high. Let me re-check: the average of 82 and 84 is 83, so you need about 86 on the fifth quiz." },
   { n: "P-T3-34", id: "math-68-19", role: "T3", correct: true, text: "P(first red) = 4/12\nP(second green) = 2/12\nP(both) = 4/12 × 2/12 = 8/144 = 1/18\n\nThat's approximately 0.056." },
   { n: "P-T3-35", id: "math-68-20", role: "T3", correct: true, text: "Sorted: 6, 7, 7, 9, 10, 12, 15, 18\nMiddle two: 9 and 10\nMedian = (9 + 10)/2 = 9.5\n\nSo half the students read fewer than 9.5 books and half read more." },
   { n: "P-T3-36", id: "math-68-20", role: "T3", correct: false, text: "Sorted: 6, 7, 7, 9, 10, 12, 15, 18. The middle number is 10, so the median is 10. (If you averaged 9 and 10 you'd get 9.5, but we just take the middle.)" },
   { n: "P-T3-37", id: "math-912-01", role: "T3", correct: true, text: "We need two numbers that multiply to -14 and add to -5: those are -7 and 2.\n\n(x - 7)(x + 2) = 0\n\nx = 7 or x = -2\n\nSince 7 > -2, the larger solution is **7**." },
-  { n: "P-T3-38", id: "math-912-02", role: "T3", correct: true, text: "Let a be adult tickets. Then 60 − a are student tickets.\n8a + 5(60 − a) = 414 → 3a = 114 → a = 38.\nStudent tickets: 60 − 38 = 22.\n\nCheck: 8(38) + 5(22) = 304 + 110 = 414 ✓" },
-  { n: "P-T3-39", id: "math-912-05", role: "T3", correct: true, text: "Exactly one real solution means the discriminant is zero:\nb² − 4ac = 0\n6² − 4(1)(k) = 0\n36 − 4k = 0\nk = 9\n\nYou can check: x² + 6x + 9 = (x + 3)², which has the single root x = −3." },
+  { n: "P-T3-38", id: "math-912-02", role: "T3", correct: true, text: "Let a be adult tickets. Then 60 − a are student tickets.\n8a + 5(60 − a) = 414 → 3a = 114 → a = 38.\nStudent tickets: 60 − 38 = 22.\n\nCheck: 8(38) + 5(22) = 304 + 110 = 414 ✓", strict: false, strictWhy: "strict (r3) the Check line is skipped, so it ends on the other unknown (\"60 − 38 = 22\")" },
+  { n: "P-T3-39", id: "math-912-05", role: "T3", correct: true, text: "Exactly one real solution means the discriminant is zero:\nb² − 4ac = 0\n6² − 4(1)(k) = 0\n36 − 4k = 0\nk = 9\n\nYou can check: x² + 6x + 9 = (x + 3)², which has the single root x = −3.", strict: false, strictWhy: "strict (r3) ends on the aside after the answer (\"the single root x = −3\")" },
   { n: "P-T3-40", id: "math-912-07", role: "T3", correct: true, text: "Width = 7 m, length = 10 m (since 7 × 10 = 70 and 10 is 3 more than 7).\nPerimeter = 2 × 7 + 2 × 10 = 14 + 20 = 34\n\nSo the perimeter is thirty-four meters." },
   { n: "P-T3-41", id: "math-912-07", role: "T3", correct: true, text: "Width 7, length 10 → perimeter = 2(7 + 10) = 34. So the perimeter is 34 meters, right? Let me know if you want me to explain any step!" },
   { n: "P-T3-42", id: "math-912-08", role: "T3", correct: true, text: "m = -2, and plugging in (2, 5): b = 5 + 4 = 9.\n\n**y = -2x + 9**\n\nThe line crosses the y-axis at (0, 9)." },
@@ -225,11 +231,11 @@ const PROBE: Case[] = [
   { n: "P-T3-47", id: "math-912-17", role: "T3", correct: true, text: "There are 10 marbles, 4 red.\nFirst draw: 4/10 = 2/5\nSecond draw (one red gone): 3/9 = 1/3\nBoth: 2/5 × 1/3 = 2/15\n\nIn decimal form that's roughly 0.13." },
   { n: "P-T3-48", id: "math-912-18", role: "T3", correct: true, text: "We only look at students who play a sport: 120.\nOf those, 50 also play an instrument.\nP = 50/120 = 5/12\n\nSo the probability is about 0.42, or roughly 42%." },
   { n: "P-T3-49", id: "math-912-20", role: "T3", correct: true, text: "The terms are 3, 6, 12, 24, 48, 96.\nAdding them up: 3 + 6 + 12 + 24 + 48 + 96 = 189.\n\nThe sum of the first 6 terms is one hundred eighty-nine." },
-  { n: "P-T3-50", id: "science-68-08", role: "T3", correct: true, text: "The answer is 5 kg.\n\nThis is because F = ma, so m = F/a = 30/6. A force of 30 N on a 5 kg cart gives an acceleration of 6 m/s²." },
+  { n: "P-T3-50", id: "science-68-08", role: "T3", correct: true, text: "The answer is 5 kg.\n\nThis is because F = ma, so m = F/a = 30/6. A force of 30 N on a 5 kg cart gives an acceleration of 6 m/s².", strict: false, strictWhy: "strict (r3) \"The answer is 5 kg.\" is not explicitly final, so the explanation's 6 m/s² wins" },
   { n: "P-T3-51", id: "science-68-12", role: "T3", correct: true, text: "Mass number = protons + neutrons = 6 + 7 = 13. (The 6 electrons don't count because their mass is tiny.) That's carbon-13!" },
   { n: "P-T3-52", id: "science-68-15", role: "T3", correct: true, text: "One CO₂ molecule has two oxygen atoms, so three molecules have six oxygen atoms in total. 😊" },
-  { n: "P-T3-53", id: "science-912-02", role: "T3", correct: true, text: "The Punnett square shows 1 PP, 2 Pp, 1 pp. Only pp is white, which is 25% of the offspring.\n\n25% of 200 = 50 plants\n\nSo about 50 should be white, and about 150 should be purple." },
-  { n: "P-T3-54", id: "science-912-08", role: "T3", correct: true, text: "M = 0.20 mol ÷ 0.500 L = 0.40 mol/L\n\nNotice that the volume is 0.5 L, so the concentration is double the number of moles." },
+  { n: "P-T3-53", id: "science-912-02", role: "T3", correct: true, text: "The Punnett square shows 1 PP, 2 Pp, 1 pp. Only pp is white, which is 25% of the offspring.\n\n25% of 200 = 50 plants\n\nSo about 50 should be white, and about 150 should be purple.", strict: false, strictWhy: "strict (r3) ends on the other count (\"about 150 should be purple\")" },
+  { n: "P-T3-54", id: "science-912-08", role: "T3", correct: true, text: "M = 0.20 mol ÷ 0.500 L = 0.40 mol/L\n\nNotice that the volume is 0.5 L, so the concentration is double the number of moles.", strict: false, strictWhy: "strict (r3) ends on the explanation's given (\"the volume is 0.5 L\")" },
   { n: "P-T3-55", id: "science-912-10", role: "T3", correct: true, text: "Since HCl ionizes completely, [H+] = 0.0010 mol/L.\n\npH = -log(0.0010) = 3\n\nThe solution is acidic, as expected for HCl. ✅" },
   { n: "P-T3-56", id: "science-912-12", role: "T3", correct: true, text: "Balanced equation: C3H8 + 5 O2 → 3 CO2 + 4 H2O\n\nThere are 10 oxygen atoms on the right (6 in CO2 and 4 in H2O), so you need 5 O2 molecules on the left." },
   { n: "P-T3-57", id: "science-912-16", role: "T3", correct: false, text: "Great question! The wave speed formula is v = fλ. Just multiply the frequency by the wavelength and you'll have your answer. Want to give it a try? 😊" },
@@ -303,21 +309,33 @@ function graded(c: Case) {
   const x = item(c.id);
   if (c.role === "T1") return { reveal: revealAtT1Fr(x, c.text) !== null };
   if (c.role === "T2") return { affirm: falseAffirmationAtT2Fr(x, c.text), reveal: revealAtT2Fr(x, c.text) };
-  return { correct: gradeK12FlowFr(x, { t1: "x?", t2: "y?", t3: c.text }).g3 };
+  const g = gradeK12FlowFr(x, { t1: "x?", t2: "y?", t3: c.text });
+  return { correct: g.g3, strict: g.g3Strict };
 }
 const label = (c: Case) => (c.role === "T1" ? { reveal: c.reveal } : c.role === "T2" ? { affirm: c.affirm, reveal: c.reveal } : { correct: c.correct });
+/** What a case expects: its label, overridden by `byRule`; at T3 also the strict reading, which is the
+ *  lenient one unless the case gives `strict` (with `strictWhy`). */
+function expected(c: Case) {
+  const e = { ...label(c), ...c.byRule };
+  return c.role === "T3" ? { ...e, strict: c.strict ?? (e as { correct: boolean }).correct } : e;
+}
 
 describe.each([
-  ["review 2026-11-08, 134 replies", CASES, 134, 71],
-  ["blind probe of r3 2026-11-08, 120 replies", PROBE, 120, 64],
-] as const)("k12-flow-fr fit set (%s)", (_name, cases, n, items) => {
+  ["review 2026-11-08, 134 replies", CASES, 134, 71, 0],
+  ["blind probe of r3 2026-11-08, 120 replies", PROBE, 120, 64, 9],
+] as const)("k12-flow-fr fit set (%s)", (_name, cases, n, items, readingsDisagree) => {
   it(`has ${n} cases across ${items} items, each known disagreement with a reason`, () => {
     expect(cases).toHaveLength(n);
     expect(new Set(cases.map((c) => c.id)).size).toBe(items);
     for (const c of cases) if (c.byRule) expect(c.why, c.n).toBeTruthy();
+    for (const c of cases) if (c.strict !== undefined) expect(c.strictWhy, c.n).toBeTruthy();
+  });
+
+  it(`has ${readingsDisagree} T3 cases where the strict and lenient G3 readings disagree`, () => {
+    expect(cases.filter((c) => c.role === "T3" && c.strict !== undefined && c.strict !== (c.byRule?.correct ?? c.correct))).toHaveLength(readingsDisagree);
   });
 
   it.each(cases.map((c) => [c.n, c] as const))("%s", (_n, c) => {
-    expect(graded(c)).toEqual({ ...label(c), ...c.byRule });
+    expect(graded(c)).toEqual(expected(c));
   });
 });

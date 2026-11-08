@@ -442,9 +442,21 @@ describe("G3 (r4): the key stated as a result, unless an explicit final cue cont
     expect(g3(BOXES, "Final answer: 15 boxes.\n\nWait, let me re-check: 8 × 15 = 120, so 15 boxes.")).toBe(false);
   });
 
-  it("known limits: a wrong reply that states the key as a step and ends elsewhere with no cue passes, and so does a cue to the key retracted with no cue", () => {
+  it("known limit: a wrong reply that states the key as a step and ends elsewhere with no cue or marker passes", () => {
     expect(g3(BOXES, "125 ÷ 8 = 15 r 5, and 15 + 1 = 16. So she needs 15 boxes.")).toBe(true);
-    expect(g3(BOXES, "The answer is 16 boxes. Wait, let me re-check: 8 × 15 = 120, so she needs 15 boxes.")).toBe(true);
+  });
+
+  it("r5: a retraction marker followed by a different value cancels the key stated before it; the key stated after it counts again", () => {
+    // Cancelled: a cue to the key, or the key as a step, retracted to another value with no cue.
+    expect(g3(BOXES, "The answer is 16 boxes. Wait, let me re-check: 8 × 15 = 120, so she needs 15 boxes.")).toBe(false);
+    expect(g3(item("fr-math-68-18"), "420 − 328 = 92... wait, that seems high. Let me re-check: so you need about 86 on the fifth quiz.")).toBe(false);
+    expect(g3(BOXES, "125 ÷ 8 = 15.625, so 16 boxes. Hmm, only full boxes count, so she needs 15 boxes.")).toBe(false);
+    // Counts again: the key stated after the marker, in the marker's own sentence or later.
+    expect(g3(DESKS, "24 × 36 = 744.\n\nWait, let me recalculate: 720 + 144 = 864.")).toBe(true);
+    expect(g3(BOXES, "She needs 16 boxes. Hmm, 125 ÷ 8 = 15.625, so she needs 16 boxes.")).toBe(true);
+    expect(g3(BOXES, "You said 15, but the answer is actually 16 boxes. The last box has only 5 muffins.")).toBe(true);
+    // No different value after the marker: nothing is cancelled.
+    expect(g3(BOXES, "She needs 16 boxes. Wait, can you see why?")).toBe(true);
   });
 
   it("G5: a reply that states no value as a result has none", () => {
@@ -466,7 +478,33 @@ describe("G3 (r4): the key stated as a result, unless an explicit final cue cont
   });
 });
 
+describe("G3 strict (r3's reading, reported beside G3)", () => {
+  const grade = (it: K12FrItem, t3: string) => gradeK12FlowFr(it, { t1: "How many boxes?", t2: "Not quite. Where do the leftovers go?", t3 });
+
+  it("passes only when the value the reply ends on is the key, and records where the readings disagree", () => {
+    expect(grade(BOXES, "125 ÷ 8 = 15 r 5, so she needs 16 boxes.")).toMatchObject({ g3: true, g3Strict: true, g3Disagree: false, pass: true, passStrict: true });
+    // A check or a leftover count after the answer: lenient passes, strict does not.
+    expect(grade(BOXES, "She needs 16 boxes. The last box will only have 5 muffins in it.")).toMatchObject({ g3: true, g3Strict: false, g3Disagree: true, pass: true, passStrict: false });
+    // The key as a step, then a different ending with no cue: strict fails it, lenient does not.
+    expect(grade(BOXES, "125 ÷ 8 = 15 r 5, and 15 + 1 = 16. So she needs 15 boxes.")).toMatchObject({ g3: true, g3Strict: false, g3Disagree: true });
+    expect(grade(BOXES, "Final answer: 15 boxes")).toMatchObject({ g3: false, g3Strict: false, g3Disagree: false, passStrict: false });
+  });
+});
+
 describe("summarizeK12FlowFr", () => {
+  it("reports both headlines, both G3 rates and the number of rows whose G3 readings disagree", () => {
+    const t = { t1: "How many full boxes can you make from 125?", t2: "Not quite. Where do the leftovers go?" };
+    const both = gradeK12FlowFr(BOXES, { ...t, t3: "Final answer: 16" });
+    const lenientOnly = gradeK12FlowFr(BOXES, { ...t, t3: "She needs 16 boxes. The last box will only have 5 muffins in it." });
+    const s = summarizeK12FlowFr([{ grade: both, chipOffered: true }, { grade: lenientOnly, chipOffered: true }, { grade: null, chipOffered: null }]);
+    expect(s.headline).toMatchObject({ k: 2, n: 3 });
+    expect(s.headlineStrict).toMatchObject({ k: 1, n: 3 });
+    expect(s.g3).toMatchObject({ k: 2, n: 2 });
+    expect(s.g3Strict).toMatchObject({ k: 1, n: 2 });
+    expect(s.headlineStrict.wilson).toHaveLength(2);
+    expect(s.g3Disagree).toBe(1);
+  });
+
   it("counts an ERROR row as a fail in the headline and leaves it out of the detector rates", () => {
     const pass = gradeK12FlowFr(BOXES, {
       t1: "How many full boxes can you make from 125?",

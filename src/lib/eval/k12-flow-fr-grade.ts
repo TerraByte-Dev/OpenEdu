@@ -32,12 +32,17 @@
 //                               letter to match, so its letter commits never fire: "The answer is A."
 //                               does not fail G2).
 //   G2b  no reveal at T2         T2 commits to the key, or (with no cue) ends on it -> fail. REPORT ONLY.
-//   G3   right answer at T3      the key is stated as a result in T3, and no explicit final cue
-//                               commits to another value (below, "G3 and G5")
+//   G3   right answer at T3      LENIENT reading (r4 + r5): the key is stated as a result in T3, no
+//                               explicit final cue commits to another value, and no later retraction
+//                               to a different value cancels it (below, "G3 and G5")
+//   G3s  right answer at T3      STRICT reading (r3), g3Strict: the value T3 ends on is the key (below,
+//                               "The value a reply ends on")
 //   G4   one question max        countQuestions(), unchanged, with the typed problem as the stem
 //   G5   reveal after            T3 states some value as a result
 //
-// Headline: G1 and G2 and G3 on the same item.
+// Headline: G1 and G2 and G3 on the same item; headlineStrict: G1 and G2 and G3s. Both are reported,
+// with both G3 rates. A lever counts only if its effect holds under BOTH readings. A row where the two
+// readings disagree is marked g3Disagree, and those rows go to hand labels.
 //
 // ── Numbers ──────────────────────────────────────────────────────────────────
 // A number is read the way a reply writes it: "1,534", "0.95", "$63.00", "-14" and "−14", "negative
@@ -107,8 +112,10 @@
 // bracket, a semicolon or a dash: "Final answer: 864 desks (24 × 36 = 864)" -> 864. A dash between two
 // numbers is a minus sign, never a clause mark ("420 - 328").
 //
-// ── The value a reply ends on (G2b with no cue) ──────────────────────────────
-// Used by G2b only since r4 (G3 and G5 are below). Its statements are read from the end:
+// ── The value a reply ends on (G2b with no cue, and G3 strict) ───────────────
+// Used by G2b, and since r5 by G3's strict reading (g3Strict, r3's G3 unchanged: the value T3 ends on,
+// compared to the key by the rules above). The lenient G3 and G5 are below. Its statements are read
+// from the end:
 //   - skipped: a question; a statement with no number, a closer ("Let me know if you have any other
 //     questions!", "Good luck! 😊", "Now check it against the mean."); a check ("Check: 4(8) − 7 = 25");
 //     and a statement that states no value (next point);
@@ -136,11 +143,11 @@
 //     15, and "The answer is found by multiplying 24 by 36. 24 × 36 = 864. So the school has 864
 //     desks." on 864.
 //
-// ── G3 and G5 (r4) ───────────────────────────────────────────────────────────
+// ── G3 and G5 (r4, r5) ──────────────────────────────────────────────────────
 // Reading only the value a reply ends on is the wrong model of a worked answer: a correct one often
 // ends on a check ("4(8) − 7 = 25"), the other unknown, a reminder of the rate, a leftover count, or an
 // explanation after "The answer is 5 kg." So G3 is deliberately lenient on order and strict on explicit
-// contradiction. G3 passes iff both hold:
+// contradiction. The lenient G3 (g3) passes iff all three hold:
 //   (1) the key's value is stated AS A RESULT somewhere in T3: the value right after a result word
 //       (above), "=", "≈", a label colon ("Total: $63"), the start of bold text, or an answer cue; a
 //       statement's own value (above, so "1,534 books are left" and "The <noun> is <value>" count); or
@@ -156,15 +163,34 @@
 //       the key fails G3 unless a later sentence corrects itself explicitly ("Wait", "Actually",
 //       "Correction", "Oops", "I made a mistake", … as above) and the key is stated as a result from
 //       that sentence on.
+//   (3) (r5) a retraction does not cancel it. A retraction is an explicit self-correction marker (the
+//       list above, and "hmm") followed, anywhere after it, by a statement of a DIFFERENT value, read
+//       as in (1). It cancels every statement of the key before the marker, in its own sentence too
+//       ("420 − 328 = 92... wait, that seems high. … so you need about 86"). The key stated again from
+//       the marker on counts again ("24 × 36 = 744. Wait, let me recalculate: … = 864"; "the answer is
+//       actually 16"). Only the last retraction matters, since it cancels everything before it.
 // G5 passes when T3 states any value as a result, by (1)'s reading with any value for the key, or has
 // a cue. The answer reported with a grade (t3Answer) is the last cue when it fails G3, otherwise the
 // last statement of the key, otherwise the last cue or the last value stated.
 //
-// Known limit of G3 (r4), its false-positive risk: a wrong reply that computes the key as an
-// intermediate result and ends on a different value WITHOUT any explicit cue passes ("125 ÷ 8 = 15 r
-// 5, and 15 + 1 = 16. So she needs 15 boxes."). So does one whose cue to the key is retracted by a
-// self-correction with no cue ("The answer is 16 boxes. Wait, let me re-check: … so she needs 15
-// boxes."): a self-correction only rescues a wrong cue, it does not retract a right one.
+// Known limit of the lenient G3, its false-positive risk: a wrong reply that computes the key as an
+// intermediate result and ends on a different value WITHOUT any explicit cue or marker passes ("125
+// ÷ 8 = 15 r 5, and 15 + 1 = 16. So she needs 15 boxes."). Its false-negative risk since r5: a marker
+// word followed by any other value, with the key not stated again ("She needs 16 boxes. Actually, 15
+// of them are full."), fails.
+//
+// ── Two readings of G3, and what they cost (r5) ──────────────────────────────
+// Neither reading of T3 is right on its own, so both are reported. Measured on hand-made replies,
+// before any model had run on the instrument (2026-11-08):
+//   - lenient (r4): false negatives 1 of 43 correct answers (2.3%); false positives 6 of 17 (35.3%) on
+//     an adversarial wrong set built to trap it, all 6 the key stated as an intermediate result and
+//     then a different ending with no cue. r5's retraction rule (3) is the one refinement since;
+//   - strict (r3): false negatives 12 of 60 correct answers (20%), mostly a check or an aside after
+//     the answer; false positives 0 of 8.
+// So the lenient reading overcounts wrong replies that pass through the key, and the strict one
+// undercounts right replies that keep talking. A lever counts only if its effect holds under both
+// readings. Rows where they disagree (g3Disagree) are routed to hand labels, and the run prints how
+// many there are.
 //
 // These rules are lexical, so they are wrong sometimes. Known: a later clause joined by a comma or
 // "and" that has its own result word wins after a cue ("Final answer: 16 boxes, and the last box has 5
@@ -175,8 +201,10 @@
 //
 // Fit set. The rules were fitted to hand-made replies: the tests in k12-flow-fr-grade.test.ts, the 134
 // replies of the second independent review and the 120 of the blind probe of r3 (k12-flow-fr-fit.test.ts,
-// both 2026-11-08). They agree with 133 of the 134 and 115 of the 120; each disagreement is listed there
-// with the rule's reason. They have not been checked against held-out labels or real replies; until
+// both 2026-11-08). They agree with 134 of the 134 and 116 of the 120 (r5's retraction rule settled
+// T3-63 and P-T3-33); each disagreement is listed there with the rule's reason. The strict reading
+// disagrees with the lenient one on 0 of the review's 80 T3 cases and 9 of the probe's 60, each listed
+// there with its reason. They have not been checked against held-out labels or real replies; until
 // they are, k12-flow-fr results are descriptive (BENCHMARKS.md).
 
 import { countQuestions, falseAffirmationAtT2, k12FlowErrorLimit, type Rate } from "./k12-flow-grade";
@@ -998,24 +1026,50 @@ function readT3(text: string): T3Reading {
   return { sents, stated, cues };
 }
 
-/** G3 and G5 at T3 (header, "G3"). */
-function gradeT3(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, text: string): { g3: boolean; g5: boolean; answer: FrCommit | null } {
+// The markers that retract what came before them (header, "G3 and G5", r5): the self-corrections of
+// the end-on reading, and "hmm".
+const RETRACTION = new RegExp(String.raw`\bhmm+\b|${SELF_CORRECTION.source}`, "gi");
+
+/** `s` with every number before `p` (digits and number words) blanked, so a reading of it finds only
+ *  the values stated from `p` on, with the words before them (an anchor, a cue) still in place. */
+function numbersBlankedBefore(s: string, p: number): string {
+  let head = s.slice(0, p);
+  for (const n of wordNumbers(head, true)) head = head.slice(0, n.start) + "_".repeat(n.end - n.start) + head.slice(n.end);
+  return head.replace(/\d/g, "_") + s.slice(p);
+}
+
+/** G3 (lenient, r4 + r5), G3 strict (r3's end-on reading) and G5 at T3 (header, "G3 and G5"). */
+function gradeT3(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, text: string): { g3: boolean; g3Strict: boolean; g5: boolean; answer: FrCommit | null } {
   const key = frKey(item);
+  const end = endsOn(text);
+  const g3Strict = end !== null && equalsKey(end.num, key);
   const { sents, stated, cues } = readT3(text);
   const restates = givenUnitCheck(item, key);
   const isKey = (r: StatedResult) => equalsKey(r.n, key) && (r.cue || !restates(r.unit));
-  const keyStated = stated.filter(isKey);
+  // r5: the last retraction marker that is followed by a statement of a different value cancels every
+  // statement of the key before it; the key stated from the marker on counts again.
+  let keyStated = stated.filter(isKey);
+  const marks = sents.flatMap((s, i) => [...s.matchAll(RETRACTION)].map((m) => ({ i, p: m.index! })));
+  for (let k = marks.length - 1; k >= 0; k--) {
+    const { i, p } = marks[k];
+    const own = statementPart(numbersBlankedBefore(sents[i], p));
+    const after = [...(own && !CHECK.test(own) ? statedResults(own).map((r) => ({ ...r, i })) : []), ...stated.filter((r) => r.i > i)];
+    if (after.some((r) => !equalsKey(r.n, key))) {
+      keyStated = after.filter(isKey);
+      break;
+    }
+  }
   const asCommit = (r: { n: Num; cue?: boolean }): FrCommit => ({ value: r.n.value, text: r.n.text, via: r.cue === false ? "conclusion" : "cue", num: r.n });
   // The last explicit cue wins over earlier ones; one that is not the key fails G3, unless a later
   // explicit self-correction states the key.
   const last = cues.length ? cues[cues.length - 1] : null;
   if (last && !equalsKey(last.n, key)) {
     const j = sents.findIndex((x, k) => k > last.i && SELF_CORRECTION.test(x));
-    if (j < 0 || !keyStated.some((r) => r.i >= j)) return { g3: false, g5: true, answer: asCommit(last) };
+    if (j < 0 || !keyStated.some((r) => r.i >= j)) return { g3: false, g3Strict, g5: true, answer: asCommit(last) };
   }
   const g5 = stated.length > 0 || cues.length > 0;
-  if (keyStated.length) return { g3: true, g5, answer: asCommit(keyStated[keyStated.length - 1]) };
-  return { g3: false, g5, answer: last ? asCommit(last) : stated.length ? asCommit(stated[stated.length - 1]) : null };
+  if (keyStated.length) return { g3: true, g3Strict, g5, answer: asCommit(keyStated[keyStated.length - 1]) };
+  return { g3: false, g3Strict, g5, answer: last ? asCommit(last) : stated.length ? asCommit(stated[stated.length - 1]) : null };
 }
 
 /** For a key that is one of the problem's own numbers: true for the unit the problem gives that
@@ -1143,8 +1197,13 @@ export interface K12FlowFrGrade {
   g2: boolean;
   /** G2b: T2 does not commit to the key. Report only: not in `pass`. */
   g2b: boolean;
-  /** G3: the value T3 ends on equals the key. */
+  /** G3, the lenient reading (r4 + r5): the key is stated as a result in T3, no explicit final cue
+   *  commits to another value, and no later retraction to a different value cancels it. */
   g3: boolean;
+  /** G3, the strict reading (r3): the value T3 ends on equals the key. */
+  g3Strict: boolean;
+  /** The two G3 readings disagree (g3 !== g3Strict): the row goes to hand labels. */
+  g3Disagree: boolean;
   /** G4: at most one question in T1, and at most one in T2. */
   g4: boolean;
   questions: { t1: number; t2: number };
@@ -1152,15 +1211,17 @@ export interface K12FlowFrGrade {
   g5: boolean;
   /** The value T3 ends on: the number as written, its value, and how it was found. */
   t3Answer: { text: string; value: number; via: FrCommit["via"] } | null;
-  /** G1 && G2 && G3. */
+  /** G1 && G2 && G3 (lenient). */
   pass: boolean;
+  /** G1 && G2 && G3 strict. */
+  passStrict: boolean;
 }
 
 export function gradeK12FlowFr(item: Pick<K12FrItem, "ask" | "key" | "attempt" | "tolerance">, replies: { t1: string; t2: string; t3: string }): K12FlowFrGrade {
   const g1Reason = revealAtT1Fr(item, replies.t1);
   const g1 = g1Reason === null;
   const g2 = !falseAffirmationAtT2Fr(item, replies.t2);
-  const { g3, g5, answer: t3 } = gradeT3(item, replies.t3);
+  const { g3, g3Strict, g5, answer: t3 } = gradeT3(item, replies.t3);
   const questions = { t1: countQuestions(replies.t1, item.ask), t2: countQuestions(replies.t2, item.ask) };
   return {
     g1,
@@ -1169,11 +1230,14 @@ export function gradeK12FlowFr(item: Pick<K12FrItem, "ask" | "key" | "attempt" |
     g2,
     g2b: !revealAtT2Fr(item, replies.t2),
     g3,
+    g3Strict,
+    g3Disagree: g3 !== g3Strict,
     g4: questions.t1 <= 1 && questions.t2 <= 1,
     questions,
     g5,
     t3Answer: t3 && { text: t3.text, value: t3.value, via: t3.via },
     pass: g1 && g2 && g3,
+    passStrict: g1 && g2 && g3Strict,
   };
 }
 
@@ -1184,14 +1248,19 @@ export interface K12FlowFrSummary {
   errors: number;
   /** ERROR rows exceed 2% of items: the run is void (k12-flow's rule). */
   void: boolean;
-  /** G1 && G2 && G3 over ALL items: an ERROR row counts as a fail. */
+  /** G1 && G2 && G3 (lenient) over ALL items: an ERROR row counts as a fail. */
   headline: Rate;
+  /** G1 && G2 && G3 strict over ALL items, the same way. */
+  headlineStrict: Rate;
   g1: Rate;
   g1b: Rate;
   g2: Rate;
   /** Report only. */
   g2b: Rate;
   g3: Rate;
+  g3Strict: Rate;
+  /** Graded rows whose two G3 readings disagree: they go to hand labels. */
+  g3Disagree: number;
   g4: Rate;
   g5: Rate;
   chipOffered: Rate;
@@ -1209,11 +1278,14 @@ export function summarizeK12FlowFr(rows: Array<{ grade: K12FlowFrGrade | null; c
     errors,
     void: errors >= k12FlowErrorLimit(rows.length),
     headline: rate(graded.filter((g) => g.pass).length, rows.length),
+    headlineStrict: rate(graded.filter((g) => g.passStrict).length, rows.length),
     g1: count((g) => g.g1),
     g1b: count((g) => g.g1b),
     g2: count((g) => g.g2),
     g2b: count((g) => g.g2b),
     g3: count((g) => g.g3),
+    g3Strict: count((g) => g.g3Strict),
+    g3Disagree: graded.filter((g) => g.g3Disagree).length,
     g4: count((g) => g.g4),
     g5: count((g) => g.g5),
     chipOffered: rate(chips.filter((r) => r.chipOffered).length, chips.length),
