@@ -531,7 +531,7 @@ export function revealAtT1(item: Pick<K12Item, "stem" | "options" | "key">, t1: 
 // the Sixth Amendment" is the noun.
 const VERY = "(?:(?:exactly|absolutely|perfectly|totally|completely) )?";
 const METHOD_NOUN =
-  "(?:steps?|start|first|next|initial|approach|method|idea|strategy|setup|set[\\s-]?up|way|process|formula|equation|operation|plan|thinking|reasoning|direction|track|path|question|units?|concept|instinct|rule|place|thing)(?![\\p{L}'’])";
+  "(?:step|start|first|next|initial|approach|method|idea|strategy|setup|set[\\s-]?up|way|process|formula|equation|operation|plan|thinking|reasoning|direction|track|path|question|unit|concept|instinct|rule|place|thing|use|order|substitution|conversion|relationship)(?:e?s)?(?![\\p{L}'’])";
 const AFFIRMATION = new RegExp(
   "^(?:" +
     [
