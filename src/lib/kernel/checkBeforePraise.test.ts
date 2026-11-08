@@ -64,13 +64,20 @@ describe("isAttemptText", () => {
   // an answer the student asked for.
   it("does not read a clock time, an either-or question or a request for more as a try", () => {
     for (const t of [
-      "5 more problems please", "10 more examples?", "3 more", "It's 3am and I can't focus, can you just explain it?",
-      "it's 7 pm here", "Is it 1789 or 1792 when the king was executed?", "is it 4 or 5?", "12 please", "Give me another 5",
+      "5 more problems please", "10 more examples?", "It's 3am and I can't focus, can you just explain it?",
+      "it's 7 pm here", "Is it 1789 or 1792 when the king was executed?", "is it 4 or 5?", "Give me another 5",
+      "can you explain it please", "please show me how", "give me another one",
     ]) expect(isAttemptText(t), t).toBe(false);
   });
 
-  it("still reads a try that mentions or after its answer", () => {
-    for (const t of ["I think it's 4, or maybe 5", "It's 12 or so", "my answer is 4 or 5"]) expect(isAttemptText(t), t).toBe(true);
+  // Found in review of #218: answers to K-12 problems that use the same words. "How many more" (grades
+  // 1-2), elapsed time (grades 3-4), a try with "please" or a check request after it.
+  it("still reads a try that mentions more, a time of day, please or or", () => {
+    for (const t of [
+      "I think it's 4, or maybe 5", "It's 12 or so", "my answer is 4 or 5", "6 more apples", "5 more", "2 more?",
+      "it's 3 pm", "is it 3:00 pm?", "I think it's 4:30 pm", "I got 10:15 am", "it's 4, please check", "is it 12 please",
+      "is it 12 or did I mess up", "is it 4 or not", "I got 12 am I right",
+    ]) expect(isAttemptText(t), t).toBe(true);
   });
 });
 

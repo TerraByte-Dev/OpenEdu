@@ -47,9 +47,13 @@ const LONE_VALUE = /^(?:[a-z]\s*=\s*)?[-−]?\$?\.?\d[\d,.]*(?:\s*\/\s*\d+)?\s*%
 // After ATTEMPT_WORDS: something that names an answer. "I think it's 9", "my answer is oxygen" and
 // "I'd say B" do; "I think so" and "I think I get it" do not.
 const NAMES_AN_ANSWER = /\p{N}|\b[A-F]\b|\b(?:it['’]?s|it is|is|are|equals?)\b/u;
-// Not a try, though a pattern above matches: a clock time ("It's 3am and I can't focus"), a choice the
-// student is asking about ("Is it 1789 or 1792?"), or a request for more ("5 more problems please").
-const NOT_A_TRY = /\d\s*(?:am|pm|a\.m\.|p\.m\.|o['’]clock)\b|\bis it\s+\S+\s+or\b|^\s*\d+\s+more\b|\b(?:please|another)\b/i;
+// Not a try, though a pattern above matches. Each part is narrow on purpose, because a time of day
+// ("it's 3 pm"), "5 more", "please" and "or" all appear in real answers to K-12 problems:
+//   - a clock time followed by chat: "It's 3am and I can't focus", "it's 7 pm here";
+//   - a choice the student is asking about: "Is it 1789 or 1792?" (not "is it 12 or did I mess up");
+//   - a request for more: "5 more problems please", "give me another one" (a bare "10 more?" reads as a try);
+//   - a request with please: "can you explain it please", "please show me".
+const NOT_A_TRY = /\b(?:it['’]?s|it is)\s+\d{1,2}(?::\d\d)?\s*(?:am|pm)\s+(?:and|here|now|already|rn|so)\b|\bis it\s+\S+\s+or\s+(?!not\b|did\b|do\b|am\b|is\b|was\b|something\b|what\b|maybe\b|so\b)\S|^\s*\d+\s+more\s+(?:problems?|questions?|examples?|exercises?|ones?|practice|please)\b|\b(?:can|could|will|would)\s+(?:you|u)\b[^.?!]*\bplease\b|\bplease\s+(?:give|explain|show|help|tell|send)\b|\banother\s+(?:\d+\s+)?(?:problems?|questions?|examples?|one)\b|\bgive me another\b/i;
 
 /** True when `text`, a student message, reads as a try at an answer. */
 export function isAttemptText(text: string): boolean {
