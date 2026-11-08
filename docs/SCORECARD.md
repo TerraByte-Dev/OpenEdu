@@ -59,8 +59,8 @@ significantly either way (G2 79 → 81, whole conversation 70 → 68, strict rea
 ("You are exactly right"); counting those as praise too, e2b goes 64 → 81, the same conclusion. A
 later revision of the praise detector (r6, [#221](https://github.com/TerraByte-Dev/OpenEdu/pull/221))
 re-scores these runs at 64 → 80; the results above were graded before it.
-⁵ qwen3.5:4b, one run per arm, pre-registered with the exact claim allowed. The note was written for
-e2b, so this is the first model it was not tuned on, though still on dev items.
+⁵ qwen3.5:4b, one run per arm, pre-registered with the exact claim allowed, on dev items. The note
+was written with e2b's misses in view; on e4b it moved nothing significantly (footnote 4).
 
 For qwen3.5:4b the first-turn hold lifted G1 from 6/240 to 233/240, but the model then gave the
 answer away on turn 2 instead (no reveal at turn 2: 178 → 88 of 240)
