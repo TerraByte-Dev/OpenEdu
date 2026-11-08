@@ -15,15 +15,7 @@ The student has just given you this problem and has not tried it yet. Do not ans
 </tutor_note>"
 `;
 
-exports[`conversation sent by the kernel: bare math course, explain > pins the typed-problem and lookup turns' user messages, the same bytes on any checkout 1`] = `
-"A recipe needs 3 cups of flour for every 2 cups of milk. How many cups of flour go with 8 cups of milk?
-
-<tutor_note>
-The student has just given you this problem and has not tried it yet. Do not answer it in this reply: do not work it out to its result. This replaces any rule to answer the student's question first. Give one short hint or first step, then end with one question that asks the student to try. Do not mention this note.
-</tutor_note>"
-`;
-
-exports[`conversation sent by the kernel: bare math course, explain > pins the typed-problem and lookup turns' user messages, the same bytes on any checkout 2`] = `
+exports[`conversation sent by the kernel: bare math course, explain > pins the lookup turn's user message, the same bytes on any checkout 1`] = `
 "What do my notes say about the boiling point of olive oil?
 
 <tutor_note>
@@ -46,15 +38,7 @@ The student has just given you this problem and has not tried it yet. Do not ans
 </tutor_note>"
 `;
 
-exports[`conversation sent by the kernel: full science course, socratic > pins the typed-problem and lookup turns' user messages, the same bytes on any checkout 1`] = `
-"A recipe needs 3 cups of flour for every 2 cups of milk. How many cups of flour go with 8 cups of milk?
-
-<tutor_note>
-The student has just given you this problem and has not tried it yet. Do not answer it in this reply: do not work it out to its result. This replaces any rule to answer the student's question first. Give one short hint or first step, then end with one question that asks the student to try. Do not mention this note.
-</tutor_note>"
-`;
-
-exports[`conversation sent by the kernel: full science course, socratic > pins the typed-problem and lookup turns' user messages, the same bytes on any checkout 2`] = `
+exports[`conversation sent by the kernel: full science course, socratic > pins the lookup turn's user message, the same bytes on any checkout 1`] = `
 "What do my notes say about the boiling point of olive oil?
 
 <tutor_note>

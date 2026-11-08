@@ -55,7 +55,11 @@ The student is asking for information, not working on a problem. Answer the ques
 export function turnNoteFor(kind: TurnKind): string | null {
   switch (kind) {
     case "options-problem": return FIRST_TURN_HOLD_NOTE;
-    case "typed-problem": return TYPED_PROBLEM_HOLD_NOTE;
+    // Killed by its pre-registered rule before any run (PR #205, pre-registration 2): on the
+    // free-response baseline gemma4:e2b and e4b already hold the answer on 78/81 and 77/81 typed
+    // problems, so G1 cannot rise by the 8 points the rule requires. The kind is still used by the
+    // show-answer chip gate (posesProblem); only the note is off.
+    case "typed-problem": return null;
     case "fact-lookup": return FACT_LOOKUP_NOTE;
     case "other": return null;
   }

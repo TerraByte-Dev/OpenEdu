@@ -203,7 +203,7 @@ describe("classifyTurn", () => {
 describe("the notes", () => {
   it("maps each kind to its note, and other to none", () => {
     expect(turnNoteFor("options-problem")).toBe(FIRST_TURN_HOLD_NOTE);
-    expect(turnNoteFor("typed-problem")).toBe(TYPED_PROBLEM_HOLD_NOTE);
+    expect(turnNoteFor("typed-problem")).toBeNull(); // the typed-problem hold was killed before any run (PR #205)
     expect(turnNoteFor("fact-lookup")).toBe(FACT_LOOKUP_NOTE);
     expect(turnNoteFor("other")).toBeNull();
     expect(withTurnNote("Q?", FACT_LOOKUP_NOTE)).toBe(`Q?\n\n${FACT_LOOKUP_NOTE}`);

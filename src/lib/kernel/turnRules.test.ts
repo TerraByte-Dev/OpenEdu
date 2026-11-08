@@ -25,7 +25,7 @@ import { personaIdentityLayer } from "./systemPrompt";
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "./outputRules";
 import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
-import { TYPED_PROBLEM_HOLD_NOTE, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
+import { FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
 import { buildSystemPrompt } from "../curriculum";
 import { resolvePersona } from "../skills";
 import type { Syllabus, LLMConfig } from "../../types";
@@ -220,13 +220,13 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
     }
   });
 
-  it("appends the typed-problem hold note to a newly posed problem typed without options", async () => {
+  it("classifies a problem typed without options but sends it unchanged (the typed-problem hold was killed before any run)", async () => {
     for (const history of [[], AFTER_ATTEMPT] as Sent[]) {
       await systemSent(course, history, PROBLEM);
       expect(lastTurnKind).toBe("typed-problem");
-      expect(lastFirstTurnHold).toBe(true);
-      expect(lastTurnNote).toBe(TYPED_PROBLEM_HOLD_NOTE);
-      expect(sent[0].slice(1)).toEqual([...history, { role: "user", content: `${PROBLEM}\n\n${TYPED_PROBLEM_HOLD_NOTE}` }]);
+      expect(lastFirstTurnHold).toBe(false);
+      expect(lastTurnNote).toBeNull();
+      expect(sent[0].slice(1)).toEqual([...history, { role: "user", content: PROBLEM }]);
     }
   });
 
@@ -247,8 +247,8 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
     expect(last).toMatchSnapshot();
   });
 
-  it("pins the typed-problem and lookup turns' user messages, the same bytes on any checkout", async () => {
-    for (const text of [PROBLEM, LOOKUP]) {
+  it("pins the lookup turn's user message, the same bytes on any checkout", async () => {
+    for (const text of [LOOKUP]) {
       await systemSent(course, [], text);
       const last = userSent().slice(-1)[0];
       expect(last).not.toContain("\r");
@@ -257,7 +257,7 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
   });
 
   it("sends every other turn's messages as the caller passed them, and reports no note", async () => {
-    const noted = new Set([LISTED_PROBLEM, PROBLEM, LOOKUP]);
+    const noted = new Set([LISTED_PROBLEM, LOOKUP]);
     for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => !noted.has(t)), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
       await systemSent(course, history, text);
       expect(lastFirstTurnHold, label).toBe(false);
