@@ -1,5 +1,5 @@
 // Public surface of the kernel.
-export { TutorEngine, tutorEngine } from "./TutorEngine";
+export { TutorEngine, TutorTurnError, tutorEngine } from "./TutorEngine";
 export type { TutorTurn, TutorTurnResult } from "./TutorEngine";
 export { assembleSystemPrompt, toolsLayer, skillBundleLayer, personaIdentityLayer } from "./systemPrompt";
 export type { SystemPromptInput } from "./systemPrompt";

@@ -4,8 +4,9 @@
 import type { LLMProvider } from "../../../types";
 import type { RetrievalMode } from "../../kernel/ground";
 import { STORE_KEYS, apiKeyStoreKey } from "../../store-keys";
+import type { RagPrompt } from "../rag-runner";
 
-export type EvalSuite = "rag" | "k12-flow";
+export type EvalSuite = "rag" | "k12-flow" | "k12-flow-fr" | "b7-cpu";
 
 export interface EvalOptions {
   suite: EvalSuite;
@@ -24,11 +25,13 @@ export interface EvalOptions {
   modes?: RetrievalMode[];
   only?: string;
   syllabus?: "python" | "matched";
+  /** RAG only: the instructions arm (rag-runner.ts ragInstructions). Unset: the runner's default. */
+  prompt?: RagPrompt;
   /** The Settings context-window cap. Unset: the app default. */
   maxContextTokens?: number;
-  /** k12-flow only: the first N items. */
+  /** k12-flow and k12-flow-fr only: the first N items. */
   limit?: number;
-  /** k12-flow only: N items stratified by subject, fixed seed (select.ts). */
+  /** k12-flow and k12-flow-fr only: N items stratified by subject, fixed seed (select.ts). */
   sample?: number;
   /** Unset: .dev/eval-runs/<stamp>-<suite>-<set>-<model>.json under the working directory. */
   out?: string;
@@ -40,13 +43,21 @@ export interface EvalOptions {
   /** RAG only: "off" sends no turn note (kernel turnKind.ts), the paired baseline at the same commit.
    *  Unset: "on", what the app does. */
   turnNotes?: "on" | "off";
+  /** b7-cpu only: the CPU server's log file, read for the thread count its runner started with. */
+  serverLog?: string;
 }
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
 const PROVIDERS: LLMProvider[] = ["ollama", "openai", "anthropic"];
-const SUITES: EvalSuite[] = ["rag", "k12-flow"];
+const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"];
+/** b7-cpu talks to a second, CPU-only Ollama server on its own port (README.md, "b7-cpu"). */
+export const B7_DEFAULT_OLLAMA_URL = "http://127.0.0.1:11435";
+export const B7_DEFAULT_REPEATS = 5;
 const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
+// Kept in step with rag-runner.ts RAG_PROMPTS by parity.test.ts (importing the runner here would pull the
+// kernel into a module that is meant to stay pure).
+const PROMPTS: RagPrompt[] = ["standin", "product-default", "product-course"];
 
 /** Parse the EVAL_* variables. Throws one error naming every bad value. */
 export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptions {
@@ -58,29 +69,42 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
 
   const suite = (get("EVAL_SUITE") ?? "rag") as EvalSuite;
   if (!SUITES.includes(suite)) errs.push(`EVAL_SUITE=${suite}: use ${SUITES.join(", ")}`);
-  const flow = suite === "k12-flow";
+  // k12-flow-fr is the same flow on typed problems without options: every k12-flow rule applies.
+  const flow = suite === "k12-flow" || suite === "k12-flow-fr";
+  const b7 = suite === "b7-cpu";
 
   const provider = (get("EVAL_PROVIDER") ?? "ollama") as LLMProvider;
   if (!PROVIDERS.includes(provider)) errs.push(`EVAL_PROVIDER=${provider}: use ${PROVIDERS.join(", ")}`);
   const apiKey = get("EVAL_API_KEY");
   if (provider !== "ollama" && !apiKey) errs.push(`EVAL_PROVIDER=${provider} needs EVAL_API_KEY`);
 
-  const set = (get("EVAL_SET") ?? (flow ? "dev" : "main")) as EvalOptions["set"];
+  const set = (get("EVAL_SET") ?? (flow || b7 ? "dev" : "main")) as EvalOptions["set"];
   if (!SETS.includes(set)) errs.push(`EVAL_SET=${set}: use ${SETS.join(", ")}`);
   // The k12 test items are in the sealed v2 file. Running them needs the frozen path through
   // loadSealed and all its refusals, which k12-flow does not have yet. The 240 k12-mc items are DEV.
-  if (flow && set !== "dev") errs.push(`EVAL_SET=${set}: k12-flow runs only the dev items (the 240 k12-mc items) for now`);
+  if (flow && set !== "dev") errs.push(`EVAL_SET=${set}: ${suite} runs only the dev items (${suite === "k12-flow" ? "the 240 k12-mc items" : "the free-response items derived from them"}) for now`);
   // k12-flow's configuration is frozen by its protocol (one sample, retrieval "always", no syllabus).
   if (flow) {
-    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED"]) if (get(k)) errs.push(`${k} does not apply to k12-flow`);
+    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_PROMPT"]) if (get(k)) errs.push(`${k} does not apply to ${suite}`);
+  }
+  // b7-cpu's scenarios, retrieval mode and requests are fixed by its pre-registration (latency.ts). It
+  // measures the requests the app sends, so nothing that changes them is accepted.
+  if (b7) {
+    if (provider !== "ollama") errs.push("EVAL_SUITE=b7-cpu runs on Ollama only");
+    if (set !== "dev") errs.push(`EVAL_SET=${set}: b7-cpu runs its own fixed dev scenarios`);
+    for (const k of ["EVAL_MODES", "EVAL_ONLY", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_NUM_GPU", "EVAL_WIRE", "EVAL_PROMPT"]) if (get(k)) errs.push(`${k} does not apply to b7-cpu`);
+  } else if (get("EVAL_B7_SERVER_LOG")) {
+    errs.push("EVAL_B7_SERVER_LOG applies to b7-cpu only");
   }
   const sealedPath = get("EVAL_SEALED");
   if (!flow && set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
   // A partial sealed run still reads, and so burns, the whole set (protocol rule 8).
   if (set === "sealed" && get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed with EVAL_SET=sealed: the run covers every item");
   if (set === "sealed" && get("EVAL_MODES")) errs.push("EVAL_MODES is not allowed with EVAL_SET=sealed: the run uses the runner's default modes");
+  // Choosing the prompt arm per sealed run would let the sealed set pick it. The sealed run uses the default.
+  if (set === "sealed" && get("EVAL_PROMPT")) errs.push("EVAL_PROMPT is not allowed with EVAL_SET=sealed: the run uses the runner's default prompt");
 
-  const repeatsRaw = get("EVAL_REPEATS") ?? "1";
+  const repeatsRaw = get("EVAL_REPEATS") ?? (b7 ? String(B7_DEFAULT_REPEATS) : "1");
   const repeats = Number(repeatsRaw);
   if (!Number.isInteger(repeats) || repeats < 1) errs.push(`EVAL_REPEATS=${repeatsRaw}: a whole number, 1 or more`);
 
@@ -91,6 +115,9 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     const bad = modes.filter((m) => !MODES.includes(m));
     if (bad.length || modes.length === 0) errs.push(`EVAL_MODES=${modesRaw}: comma list of ${MODES.join(", ")}`);
   }
+
+  const prompt = get("EVAL_PROMPT") as RagPrompt | undefined;
+  if (prompt !== undefined && !PROMPTS.includes(prompt)) errs.push(`EVAL_PROMPT=${prompt}: use ${PROMPTS.join(", ")}`);
 
   const syllabus = get("EVAL_SYLLABUS") as EvalOptions["syllabus"];
   if (syllabus !== undefined && syllabus !== "python" && syllabus !== "matched") errs.push(`EVAL_SYLLABUS=${syllabus}: use python or matched`);
@@ -105,7 +132,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   const count = (k: string): number | undefined => {
     const raw = get(k);
     if (raw === undefined) return undefined;
-    if (!flow) errs.push(`${k} applies to k12-flow only (rag takes EVAL_ONLY)`);
+    if (!flow) errs.push(`${k} applies to k12-flow only, and to k12-flow-fr (rag takes EVAL_ONLY)`);
     const v = Number(raw);
     if (!Number.isInteger(v) || v < 1) errs.push(`${k}=${raw}: a whole number, 1 or more`);
     return v;
@@ -126,8 +153,9 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   const turnNotes = get("EVAL_TURN_NOTES") as EvalOptions["turnNotes"];
   if (turnNotes !== undefined) {
     if (turnNotes !== "on" && turnNotes !== "off") errs.push(`EVAL_TURN_NOTES=${turnNotes}: use on or off`);
-    // k12-flow's configuration is frozen by its protocol; its lever arms are separate commits.
-    if (flow) errs.push("EVAL_TURN_NOTES does not apply to k12-flow");
+    // k12-flow's (and k12-flow-fr's) configuration is frozen by its protocol; its lever arms are
+    // separate commits. b7-cpu measures the requests the app sends, so nothing that changes them.
+    if (flow || b7) errs.push(`EVAL_TURN_NOTES does not apply to ${suite}`);
     // A sealed run measures the product as it ships.
     if (set === "sealed") errs.push("EVAL_TURN_NOTES is not allowed with EVAL_SET=sealed: the run uses the app's turn notes");
   }
@@ -137,7 +165,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     suite,
     provider,
     model: get("EVAL_MODEL") ?? DEFAULT_EVAL_MODEL,
-    ollamaUrl: get("EVAL_OLLAMA_URL") ?? "http://127.0.0.1:11434",
+    ollamaUrl: get("EVAL_OLLAMA_URL") ?? (b7 ? B7_DEFAULT_OLLAMA_URL : "http://127.0.0.1:11434"),
     embedModel: get("EVAL_EMBED_MODEL"),
     apiKey,
     set,
@@ -146,6 +174,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     modes,
     only: get("EVAL_ONLY"),
     syllabus,
+    prompt,
     maxContextTokens,
     limit,
     sample,
@@ -153,6 +182,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     wire: wireRaw === "1",
     numGpu,
     turnNotes,
+    serverLog: b7 ? get("EVAL_B7_SERVER_LOG") : undefined,
   };
 }
 

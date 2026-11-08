@@ -258,9 +258,9 @@ export function findNameHits(tokens: string[], files: Array<{ path: string; text
 
 // The protocol excludes all of src/lib/eval/, but code there shapes every eval request (the runner's
 // instructions, the matched syllabus, the tool syllabus). Only the eval's item data (RAG and k12 items,
-// the library-retrieval queries), its tests and its docs are excluded. Stricter than the protocol, so
+// the k12-flow-fr typed problems, the library-retrieval queries), its tests and its docs are excluded. Stricter than the protocol, so
 // it can only void more runs, never fewer.
-const EVAL_EXEMPT = /^lib\/eval\/(?:(?:rag-fixture|rag-heldout|rag-dev-v2|k12-items|library-fixture)\.ts$|.*\.test\.ts$|.*\.md$)/;
+const EVAL_EXEMPT = /^lib\/eval\/(?:(?:rag-fixture|rag-heldout|rag-dev-v2|k12-items|k12-flow-fr-items|library-fixture)\.ts$|.*\.test\.ts$|.*\.md$)/;
 
 /** Every text file under `srcRoot` but EVAL_EXEMPT, as { path relative to srcRoot's parent, text }. */
 async function lintCorpus(srcRoot: string): Promise<Array<{ path: string; text: string }>> {

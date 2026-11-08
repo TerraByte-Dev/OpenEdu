@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, DEFAULT_EVAL_MODEL } from "./env";
+import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, DEFAULT_EVAL_MODEL, B7_DEFAULT_OLLAMA_URL } from "./env";
 
 describe("parseEvalEnv", () => {
   it("defaults to the RAG main set on the primary model, once, via local Ollama", () => {
@@ -38,12 +38,14 @@ describe("parseEvalEnv", () => {
     expect(() => parseEvalEnv({ EVAL_NUM_GPU: "0", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_NUM_GPU is not allowed with EVAL_SET=sealed/);
   });
 
-  it("reads EVAL_TURN_NOTES for rag only, unset by default, and refuses it on the sealed set", () => {
+  it("reads EVAL_TURN_NOTES for rag only, unset by default, and refuses it on k12-flow, k12-flow-fr, b7-cpu and the sealed set", () => {
     expect(parseEvalEnv({}).turnNotes).toBeUndefined();
     expect(parseEvalEnv({ EVAL_SET: "dev-v2", EVAL_TURN_NOTES: "off" })).toMatchObject({ turnNotes: "off" });
     expect(parseEvalEnv({ EVAL_TURN_NOTES: "on" })).toMatchObject({ turnNotes: "on" });
     expect(() => parseEvalEnv({ EVAL_TURN_NOTES: "false" })).toThrow(/EVAL_TURN_NOTES=false: use on or off/);
     expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES does not apply to k12-flow-fr/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES does not apply to b7-cpu/);
     expect(() => parseEvalEnv({ EVAL_SET: "sealed", EVAL_SEALED: "x.json", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES is not allowed with EVAL_SET=sealed/);
   });
 });
@@ -70,6 +72,48 @@ describe("parseEvalEnv, k12-flow", () => {
   it("names the suite in the default results path", () => {
     expect(defaultOutPath(parseEvalEnv({ EVAL_SUITE: "k12-flow" }), new Date("2026-11-07T10:20:30.456Z")))
       .toBe(".dev/eval-runs/2026-11-07T10-20-30-456-k12-flow-dev-gemma4_e2b.json");
+  });
+});
+
+describe("parseEvalEnv, k12-flow-fr", () => {
+  it("defaults to the dev items and takes the k12-flow item options", () => {
+    expect(parseEvalEnv({ EVAL_SUITE: "k12-flow-fr" })).toMatchObject({ suite: "k12-flow-fr", set: "dev", repeats: 1 });
+    expect(parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_LIMIT: "5", EVAL_SAMPLE: "12", EVAL_ONLY: "fr-math-k5-01" })).toMatchObject({ limit: 5, sample: 12, only: "fr-math-k5-01" });
+  });
+  it("refuses the sealed set, any other split, and the options k12-flow refuses", () => {
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_SET: "sealed" })).toThrow(/EVAL_SET=sealed: k12-flow-fr runs only the dev items/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_SEALED does not apply to k12-flow-fr/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_SET: "test" })).toThrow(/EVAL_SET=test/);
+    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS"]) expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", [k]: "2" })).toThrow(k);
+  });
+  it("names the suite in the default results path, which k12-flow's rescore pattern does not match", () => {
+    const out = defaultOutPath(parseEvalEnv({ EVAL_SUITE: "k12-flow-fr" }), new Date("2026-11-08T10:20:30.456Z"));
+    expect(out).toBe(".dev/eval-runs/2026-11-08T10-20-30-456-k12-flow-fr-dev-gemma4_e2b.json");
+    expect(/k12-flow-dev.*\.json$/.test(out)).toBe(false);
+  });
+});
+
+describe("parseEvalEnv, b7-cpu", () => {
+  it("defaults to the CPU server's port and 5 warm repeats, and reads the server log path", () => {
+    const o = parseEvalEnv({ EVAL_SUITE: "b7-cpu" });
+    expect(o).toMatchObject({ suite: "b7-cpu", set: "dev", repeats: 5, ollamaUrl: B7_DEFAULT_OLLAMA_URL, wire: false, numGpu: undefined, serverLog: undefined });
+    expect(B7_DEFAULT_OLLAMA_URL).toBe("http://127.0.0.1:11435");
+    expect(parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_REPEATS: "2", EVAL_MODEL: "qwen3.5:0.8b", EVAL_OLLAMA_URL: "http://127.0.0.1:11500", EVAL_B7_SERVER_LOG: "C:/t/ollama-cpu.log" }))
+      .toMatchObject({ repeats: 2, model: "qwen3.5:0.8b", ollamaUrl: "http://127.0.0.1:11500", serverLog: "C:/t/ollama-cpu.log" });
+  });
+
+  it("refuses anything that would change the requests or the fixed scenarios", () => {
+    for (const [k, v] of [["EVAL_NUM_GPU", "0"], ["EVAL_WIRE", "1"], ["EVAL_MODES", "off"], ["EVAL_ONLY", "h-pp01"], ["EVAL_SYLLABUS", "python"], ["EVAL_SEALED", "x.json"]]) {
+      expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", [k]: v }), k).toThrow(new RegExp(`${k} does not apply to b7-cpu`));
+    }
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_SET: "main" })).toThrow(/b7-cpu runs its own fixed dev scenarios/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_PROVIDER: "openai", EVAL_API_KEY: "k" })).toThrow(/b7-cpu runs on Ollama only/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_SAMPLE: "3" })).toThrow(/EVAL_SAMPLE applies to k12-flow only/);
+    expect(() => parseEvalEnv({ EVAL_B7_SERVER_LOG: "x.log" })).toThrow(/EVAL_B7_SERVER_LOG applies to b7-cpu only/);
+  });
+
+  it("leaves the other suites' default URL alone", () => {
+    expect(parseEvalEnv({ EVAL_SUITE: "k12-flow" }).ollamaUrl).toBe("http://127.0.0.1:11434");
   });
 });
 

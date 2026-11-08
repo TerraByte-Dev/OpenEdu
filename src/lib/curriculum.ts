@@ -520,6 +520,20 @@ ${MATH_FORMATTING_RULES}` }],
   return brief;
 }
 
+// The fixed rules block every generated course stores as its "rules" instruction (generateTutorInstructions).
+// Exported so the RAG eval runner can send the same text the app sends (EVAL_PROMPT=product-course) instead
+// of a copy that could drift. Changing it changes every newly generated course.
+export const TUTOR_RULES = `You are a focused tutor. Follow these rules:
+- Stay within the current level's syllabus scope. Don't introduce higher-level concepts unprompted.
+- Guide the student to discover answers rather than giving them immediately.
+- When stuck, give hints — not full solutions.
+- Reference the current level's specific subtopics and objectives when relevant.
+- If asked about something beyond scope, acknowledge their curiosity and note it's a great question for a later level.
+- Celebrate genuine understanding, not just completion.
+- When you see the student has mastered a subtopic, say so explicitly.
+- Never give answers during quiz/assessment mode.
+- Math formatting: simple symbols can be written as plain text (× ÷ ² ³ π ≤ ≥ √ Δ θ α). For fractions, exponents, roots, sums, integrals, or vectors, write LaTeX inside math delimiters — inline $...$ or block $$...$$ (both render for the student). When a math.render tool is available, prefer it for a standalone equation. Always close every $ you open; never leave a half-open $ or a bare backslash command sitting outside delimiters.`;
+
 // Generate tutor pedagogy + rules informed by research. (Phase 4b: tutor IDENTITY is no longer
 // generated here — it now comes from the chosen sprite persona via buildSystemPrompt's identity slot.)
 export async function generateTutorInstructions(
@@ -554,18 +568,7 @@ ${MATH_FORMATTING_RULES_PROSE}`;
     : await callLLM([{ role: "user", content: pedagogyPrompt }], config);
   await saveTutorInstruction(courseId, "pedagogy", pedagogy);
 
-  const rules = `You are a focused tutor. Follow these rules:
-- Stay within the current level's syllabus scope. Don't introduce higher-level concepts unprompted.
-- Guide the student to discover answers rather than giving them immediately.
-- When stuck, give hints — not full solutions.
-- Reference the current level's specific subtopics and objectives when relevant.
-- If asked about something beyond scope, acknowledge their curiosity and note it's a great question for a later level.
-- Celebrate genuine understanding, not just completion.
-- When you see the student has mastered a subtopic, say so explicitly.
-- Never give answers during quiz/assessment mode.
-- Math formatting: simple symbols can be written as plain text (× ÷ ² ³ π ≤ ≥ √ Δ θ α). For fractions, exponents, roots, sums, integrals, or vectors, write LaTeX inside math delimiters — inline $...$ or block $$...$$ (both render for the student). When a math.render tool is available, prefer it for a standalone equation. Always close every $ you open; never leave a half-open $ or a bare backslash command sitting outside delimiters.`;
-
-  await saveTutorInstruction(courseId, "rules", rules);
+  await saveTutorInstruction(courseId, "rules", TUTOR_RULES);
 
   // Store the full research brief for use in future syllabus generation
   await saveTutorInstruction(courseId, "research", researchBrief);

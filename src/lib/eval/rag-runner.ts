@@ -18,12 +18,12 @@
 // src/lib/eval/headless/README.md). That entry calls THIS function; it only swaps the platform
 // (SQLite, HTTP, settings store) underneath the kernel.
 
-import { tutorEngine, EMPTY_GROUNDING, type TutorTurn, type Grounding } from "../kernel";
+import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type TutorTurnResult, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
 import type { TurnKind } from "../kernel/turnKind";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
-import { buildSystemPrompt } from "../curriculum";
+import { buildSystemPrompt, TUTOR_RULES } from "../curriculum";
 import { getChatConfig, getMaxContextTokens } from "../store";
 import { detectModelProfile } from "../llm";
 import { deleteCourse, ensureCourse } from "../db";
@@ -32,6 +32,7 @@ import { evalToolSyllabus } from "./goldens";
 import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureNote, type RagQuestion, type RagVerdict } from "./rag-fixture";
 import { RAG_HELDOUT } from "./rag-heldout";
 import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
+import { hasRefusalPhrase } from "./refusal";
 import type { LLMConfig, Syllabus } from "../../types";
 
 const RAG_COURSE_ID = "__eval_rag__";
@@ -44,14 +45,38 @@ const RAG_COURSE_ID = "__eval_rag__";
 // this refuses.
 let inFlight = false;
 
-// Minimal instructions so the system prompt is realistic without dragging in a generated course.
+// The stand-in instructions every B1 run before #194 used. The app never sends this text: it is kept,
+// and stays the default, so earlier results remain reproducible at a later commit.
 const RAG_INSTRUCTIONS: Record<string, string> = {
   identity: "You are a helpful tutor.",
   pedagogy: "Answer the student's question directly and concisely.",
   rules: "Be accurate. If you do not know something, say so.",
 };
 
+/**
+ * Which instructions record goes into buildSystemPrompt's instructions slot (EVAL_PROMPT, #194).
+ *   standin          RAG_INSTRUCTIONS above. Not product text.
+ *   product-default  {}: what getTutorInstructions returns for a course with no stored instructions, so
+ *                    buildSystemPrompt falls back to its default identity and sends no pedagogy or rules.
+ *   product-course   { rules: TUTOR_RULES }: the fixed rules block a generated course stores, from the
+ *                    product source. A generated course also stores a model-written pedagogy, which
+ *                    differs per course and is not sent here.
+ * No arm sends a persona (ChatTab's personaIdentity), a knowledge summary or progress context.
+ */
+export type RagPrompt = "standin" | "product-default" | "product-course";
+export const RAG_PROMPTS: readonly RagPrompt[] = ["standin", "product-default", "product-course"];
+
+export function ragInstructions(prompt: RagPrompt): Record<string, string> {
+  switch (prompt) {
+    case "standin": return RAG_INSTRUCTIONS;
+    case "product-default": return {};
+    case "product-course": return { rules: TUTOR_RULES };
+  }
+}
+
 export interface RagRow {
+  /** The instructions arm this row's system prompt was built from (ragInstructions). */
+  prompt: RagPrompt;
   mode: RetrievalMode;
   question: RagQuestion;
   answer: string;
@@ -67,6 +92,9 @@ export interface RagRow {
   /** For an item with a gold or near note (`note`), whether that note was among the hits the model saw.
    *  Null when the item names no note (main fixture, sealed far negatives without one). */
   noteRetrieved: boolean | null;
+  /** Whether the answer contains a refusal or deferral phrase (refusal.ts). Over-refusal is a row with
+   *  realWorld === false and this true. */
+  refusal: boolean;
   /** What the turn classifier made of the question (turnKind.ts), reported in both arms, and whether a
    *  turn note was actually appended (false on every row of an EVAL_TURN_NOTES=off run). Null kind on
    *  a turn that threw. */
@@ -76,6 +104,11 @@ export interface RagRow {
   ttft_ms: number | null;
   /** Milliseconds for the whole turn, grounding and tool calls included. */
   total_ms: number;
+  /** The turn threw: the error's message (the answer is "ERROR: " + it). Null when the turn returned. */
+  error: string | null;
+  /** The kernel answered without tools after Ollama could not parse the model's tool call
+   *  (TutorTurnResult.toolCallRecovery). Null when that did not happen or the turn threw. */
+  toolCallRecovery: TutorTurnResult["toolCallRecovery"];
 }
 
 /** A set that brings its own vault, such as the sealed held-out file (sealed.ts). */
@@ -90,6 +123,8 @@ export interface RagReport {
   provider: string;
   contextTokens: number;
   repeats: number;
+  /** The instructions arm (ragInstructions). */
+  prompt: RagPrompt;
   /** "off" when the run sent no turn notes (EVAL_TURN_NOTES=off, the paired baseline arm). */
   turnNotes: "on" | "off";
   /** "main", "dev", "test", "dev-v2", or the name of a custom set (e.g. the sealed held-out file). */
@@ -101,6 +136,9 @@ export interface RagReport {
   realWorld: Record<string, { answered: number; total: number }>;
   /** mode → kind → rows whose item's note was retrieved, over rows whose item names a note. */
   noteRetrieved: Record<string, Record<string, { retrieved: number; total: number }>>;
+  /** mode → ERROR rows (the turn threw) and rows the kernel answered without tools after a tool-call
+   *  parse failure. */
+  turnFailures: Record<string, { errors: number; toolCallRecovered: number }>;
   /** Whether the pre-committed condition was met (see the console summary for the exact bars). */
   verdict: { positivesPct: number; negativesClean: boolean; meetsBar: boolean };
 }
@@ -147,6 +185,8 @@ export async function runRagEval(opts?: {
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
    *  vault's subjects, which is what a learner who wrote these notes would actually be enrolled in. */
   syllabus?: "python" | "matched";
+  /** The instructions arm (ragInstructions). Default "standin". */
+  prompt?: RagPrompt;
   /** "off": the kernel sends no turn note (TutorTurn.turnNotes), for the paired baseline. Default "on",
    *  which is what the app does. */
   turnNotes?: "on" | "off";
@@ -161,6 +201,12 @@ export async function runRagEval(opts?: {
 
   const repeats = opts?.repeats ?? 1;
   const turnNotes = opts?.turnNotes ?? "on";
+  const prompt = opts?.prompt ?? "standin";
+  if (!RAG_PROMPTS.includes(prompt)) {
+    inFlight = false;
+    throw new Error(`Unknown prompt arm "${prompt}": use ${RAG_PROMPTS.join(", ")}.`);
+  }
+  const instructions = ragInstructions(prompt);
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
   const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
@@ -184,7 +230,7 @@ export async function runRagEval(opts?: {
     : profile.contextTokens;
   const config: LLMConfig = { ...baseConfig, modelTier: profile.tier, contextTokens };
 
-  console.log(`[rag-eval] ${config.provider}/${config.model} ctx=${contextTokens} · set=${set} · ${questions.length} question(s) × ${repeats} repeat(s) × ${modes.length} mode(s)`);
+  console.log(`[rag-eval] ${config.provider}/${config.model} ctx=${contextTokens} · set=${set} · prompt=${prompt} · ${questions.length} question(s) × ${repeats} repeat(s) × ${modes.length} mode(s)`);
 
   const rows: RagRow[] = [];
   try {
@@ -194,7 +240,7 @@ export async function runRagEval(opts?: {
       for (let rep = 0; rep < repeats; rep++) {
         for (const question of questions) {
           const skill = resolveSkill("explain") ?? null;
-          const system = buildSystemPrompt(RAG_INSTRUCTIONS, (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined);
+          const system = buildSystemPrompt(instructions, (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined);
           const ctx: ToolContext = {
             courseId: RAG_COURSE_ID,
             level: 1,
@@ -228,6 +274,11 @@ export async function runRagEval(opts?: {
           let retrievedTitles: string[] = [];
           let toolCalls: string[] = [];
           let retrievalTrace: Grounding["trace"] = EMPTY_GROUNDING.trace;
+          // False only when the turn threw before grounding reported anything: retrievalTrace is then
+          // a placeholder, not a measurement, and the vault check below must not read it.
+          let traceKnown = true;
+          let error: string | null = null;
+          let toolCallRecovery: RagRow["toolCallRecovery"] = null;
           let turnKind: TurnKind | null = null;
           let turnNoted = false;
           try {
@@ -242,8 +293,18 @@ export async function runRagEval(opts?: {
             citedTitles = [...new Set(result.usedHits.map((h) => h.title))];
             retrievedTitles = result.grounding.trace.hitTitles;
             toolCalls = result.toolCalls.map((c) => c.name);
+            toolCallRecovery = result.toolCallRecovery;
           } catch (e) {
-            answer = `ERROR: ${e instanceof Error ? e.message : String(e)}`;
+            // A model or transport failure is an ERROR row with the real message. The kernel hands
+            // back what grounding found before the failure, so the row keeps the real trace.
+            error = e instanceof Error ? e.message : String(e);
+            answer = `ERROR: ${error}`;
+            if (e instanceof TutorTurnError) {
+              retrievalTrace = e.grounding.trace;
+              retrievedTitles = e.grounding.trace.hitTitles;
+            } else {
+              traceKnown = false;
+            }
           }
           const total_ms = Math.round(performance.now() - started);
 
@@ -255,11 +316,12 @@ export async function runRagEval(opts?: {
           // Zero CANDIDATES is the pathological case: the notebook returned nothing at all, which
           // means the seeded course is gone and every later row would measure an empty corpus.
           const retrievalRan = retrievalTrace.skipped !== "short-query" && retrievalTrace.skipped !== "disabled";
-          if (mode === "always" && retrievalRan && retrievalTrace.noteCandidates === 0) {
+          if (mode === "always" && traceKnown && retrievalRan && retrievalTrace.noteCandidates === 0) {
             throw new Error(
               `Fixture vault returned NO note candidates at ${question.id} ` +
               `(${retrievalTrace.candidates} total candidate(s), ${retrievalTrace.noteCandidates} from notes` +
-              `${retrievalTrace.error ? `, embed error: ${retrievalTrace.error}` : ""}). ` +
+              `${retrievalTrace.error ? `, embed error: ${retrievalTrace.error}` : ""}` +
+              `${error ? `; the turn also failed: ${error}` : ""}). ` +
               "The seeded course is gone or the embedder is down — every later row would measure an " +
               "empty corpus. Results discarded.",
             );
@@ -269,8 +331,9 @@ export async function runRagEval(opts?: {
           const realWorld = realWorldAnswered(question, set, answer);
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, turnKind, turnNoted, ttft_ms, total_ms });
-          console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
+          const refusal = hasRefusalPhrase(answer);
+          rows.push({ prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, ttft_ms, total_ms, error, toolCallRecovery });
+          console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
     }
@@ -282,8 +345,10 @@ export async function runRagEval(opts?: {
   const byMode: RagReport["byMode"] = {};
   const realWorld: RagReport["realWorld"] = {};
   const noteRetrieved: RagReport["noteRetrieved"] = {};
+  const turnFailures: RagReport["turnFailures"] = {};
   for (const mode of modes) {
     const mine = rows.filter((r) => r.mode === mode);
+    turnFailures[mode] = { errors: mine.filter((r) => r.error !== null).length, toolCallRecovered: mine.filter((r) => r.toolCallRecovery).length };
     byMode[mode] = summarizeRag(mine.map((r) => ({ q: r.question, verdict: r.verdict })));
     const rw = mine.filter((r) => r.realWorld !== null);
     realWorld[mode] = { answered: rw.filter((r) => r.realWorld).length, total: rw.length };
@@ -310,11 +375,12 @@ export async function runRagEval(opts?: {
     if (realWorld[mode].total) console.log(`[rag-eval] ${mode.padEnd(6)} real-world answered ${realWorld[mode].answered}/${realWorld[mode].total}`);
     const nr = Object.entries(noteRetrieved[mode]).map(([k, v]) => `${k} ${v.retrieved}/${v.total}`);
     if (nr.length) console.log(`[rag-eval] ${mode.padEnd(6)} note retrieved: ${nr.join(" · ")}`);
+    console.log(`[rag-eval] ${mode.padEnd(6)} ERROR rows ${turnFailures[mode].errors} · answered without tools after a tool-call parse failure ${turnFailures[mode].toolCallRecovered}`);
   }
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, turnNotes, set, rows, byMode, realWorld, noteRetrieved, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

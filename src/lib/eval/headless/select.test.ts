@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { sampleBySubject, selectK12FlowItems, seededRandom } from "./select";
 import { K12_ITEMS } from "../k12-items";
+import { K12_FR_ITEMS } from "../k12-flow-fr-items";
 
 const subjects = (xs: Array<{ subject: string }>) => xs.reduce<Record<string, number>>((m, x) => ({ ...m, [x.subject]: (m[x.subject] ?? 0) + 1 }), {});
 
@@ -50,5 +51,14 @@ describe("selectK12FlowItems", () => {
   });
   it("EVAL_SAMPLE then EVAL_LIMIT", () => {
     expect(selectK12FlowItems(K12_ITEMS, { sample: 8, limit: 2 })).toEqual(sampleBySubject(K12_ITEMS, 8).slice(0, 2));
+  });
+});
+
+describe("selectK12FlowItems, free-response items", () => {
+  it("selects from the k12-flow-fr items the same way, and refuses an id from the other suite", () => {
+    expect(selectK12FlowItems(K12_FR_ITEMS, {})).toHaveLength(81);
+    expect(selectK12FlowItems(K12_FR_ITEMS, { only: "fr-science-68-07,fr-math-k5-01" }).map((x) => x.id)).toEqual(["fr-math-k5-01", "fr-science-68-07"]);
+    expect(() => selectK12FlowItems(K12_FR_ITEMS, { only: "math-k5-01" })).toThrow(/not a dev item of this suite: math-k5-01/);
+    expect(selectK12FlowItems(K12_FR_ITEMS, { sample: 9 })).toEqual(sampleBySubject(K12_FR_ITEMS, 9));
   });
 });

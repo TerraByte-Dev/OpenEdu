@@ -15,7 +15,7 @@
 // unbounded message array with uncapped tool results and let the server decide what to drop — and
 // Ollama drops from the FRONT, taking the system prompt and the tools manifest with it.
 
-import { callLLMTurn, type NeutralMessage } from "../llm";
+import { callLLMTurn, OllamaToolCallParseError, type NeutralMessage, type ProviderToolDef } from "../llm";
 import type { LLMConfig } from "../../types";
 import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent } from "./toolDispatch";
@@ -80,11 +80,40 @@ export interface TutorTurnResult {
   // was sent, and the note this turn actually appended (null for none).
   turnKind: TurnKind;
   turnNote: string | null;
+  // Set when Ollama could not parse a tool call the model wrote (OllamaToolCallParseError in llm.ts)
+  // and the kernel answered the turn with one call without tools instead of failing it. `iteration`
+  // is the model call that failed (0 = the first); `error` is Ollama's own error text. Null on every
+  // other turn.
+  toolCallRecovery: { iteration: number; error: string } | null;
+}
+
+/**
+ * A turn that failed after grounding ran. The message is the underlying error's, unchanged, so a
+ * caller that shows `e.message` shows what it showed before; `grounding` is what retrieval found
+ * before the failure, so the eval can tell a failed model call from an empty vault.
+ */
+export class TutorTurnError extends Error {
+  readonly grounding: Grounding;
+  readonly cause: unknown;
+  constructor(cause: unknown, grounding: Grounding) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "TutorTurnError";
+    this.cause = cause;
+    this.grounding = grounding;
+  }
+}
+
+// The system messages without the <tools> manifest the kernel appended (or inserted on its own).
+function withoutManifest(messages: NeutralMessage[], manifest: string): NeutralMessage[] {
+  const suffix = `\n\n${manifest}`;
+  return messages
+    .filter((m) => !(m.role === "system" && m.content === manifest))
+    .map((m) => (m.role === "system" && m.content.endsWith(suffix) ? { ...m, content: m.content.slice(0, -suffix.length) } : m));
 }
 
 export class TutorEngine {
   async run(turn: TutorTurn, ctx: ToolContext): Promise<TutorTurnResult> {
-    let messages: NeutralMessage[] = turn.messages.map((m) => ({
+    const messages: NeutralMessage[] = turn.messages.map((m) => ({
       role: m.role as NeutralMessage["role"],
       content: m.content,
     }));
@@ -174,6 +203,34 @@ ${lastUser.content}` };
       console.info(`[ground] ${t.skipped ? `skipped: ${t.skipped}` : `${t.hitTitles.length} hit(s) — ${t.hitTitles.join(", ")}`} · ${t.candidates} candidate(s) · top ${t.topScore.toFixed(2)} · ${t.blockTokens} tok${t.error ? ` · ${t.error}` : ""}`);
     }
 
+    try {
+      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, turnKind, turnNote });
+    } catch (e) {
+      throw new TutorTurnError(e, grounding);
+    }
+  }
+
+  // The model loop, after grounding: everything that calls the model and can fail.
+  private async respond(
+    turn: TutorTurn,
+    ctx: ToolContext,
+    prepared: {
+      messages: NeutralMessage[];
+      budget: Budget;
+      toolResultCap: number;
+      toolDefs: ProviderToolDef[] | undefined;
+      offered: Set<string>;
+      manifest: string | null;
+      grounding: Grounding;
+      workedAnswerRules: boolean;
+      firstTurnHold: boolean;
+      turnKind: TurnKind;
+      turnNote: string | null;
+    },
+  ): Promise<TutorTurnResult> {
+    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, turnKind, turnNote } = prepared;
+    let messages = prepared.messages;
+
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
     // history rather than the student's current question. The grounding block is charged to its own
     // slice so it does not silently eat the history allowance.
@@ -195,25 +252,38 @@ ${lastUser.content}` };
     // writes made through a closure, so routing these through one narrows `interrupted` to null at
     // every later read and silently disables the checks below.
     let interrupted: "aborted" | "stalled" | "length" | null = null;
+    let toolCallRecovery: TutorTurnResult["toolCallRecovery"] = null;
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
 
       let iterationText = ""; // text emitted before any tool call in THIS model turn
       const pendingCalls: Array<{ id: string; name: string; args: unknown }> = [];
-      for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
-        if (ev.type === "text") { iterationText += ev.delta; streamedText += ev.delta; turn.onText(ev.delta); }
-        else if (ev.type === "tool_call") {
-          // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
-          // iteration 1 and 2 both emit "call_0" — and the chat surface keys tool chips by id, so the
-          // second call silently ERASED the first one's card.
-          pendingCalls.push({ id: `${iteration}:${ev.id}`, name: ev.name, args: ev.args });
+      try {
+        for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
+          if (ev.type === "text") { iterationText += ev.delta; streamedText += ev.delta; turn.onText(ev.delta); }
+          else if (ev.type === "tool_call") {
+            // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
+            // iteration 1 and 2 both emit "call_0" — and the chat surface keys tool chips by id, so the
+            // second call silently ERASED the first one's card.
+            pendingCalls.push({ id: `${iteration}:${ev.id}`, name: ev.name, args: ev.args });
+          }
+          else if (ev.type === "done") {
+            if (ev.finishReason === "aborted") interrupted = "aborted";
+            else if (ev.finishReason === "stalled") interrupted = "stalled";
+            else if (ev.finishReason === "length") interrupted = "length";
+          }
         }
-        else if (ev.type === "done") {
-          if (ev.finishReason === "aborted") interrupted = "aborted";
-          else if (ev.finishReason === "stalled") interrupted = "stalled";
-          else if (ev.finishReason === "length") interrupted = "length";
-        }
+      } catch (e) {
+        // Ollama could not parse the tool call the model wrote and returned an error instead of a
+        // reply. Tools are optional help; a reply without them beats a failed turn. So this turn is
+        // answered by the no-tools call below, once. llm.ts only raises this error when nothing from
+        // the request reached the student, and the no-tools call cannot raise it, so there is no loop.
+        // Every other error fails the turn as before.
+        if (!(e instanceof OllamaToolCallParseError)) throw e;
+        toolCallRecovery = { iteration, error: e.ollamaError };
+        if (import.meta.env?.DEV) console.info(`[turn] tool call unparseable at call ${iteration} (${e.ollamaError}); answering without tools`);
+        break;
       }
 
       // A hard interruption (Stop, or a stalled stream) ends the turn immediately. "length" does NOT:
@@ -259,10 +329,13 @@ ${lastUser.content}` };
 
     // If the loop ended on the iteration cap (not a natural closing answer, not an interruption),
     // force one final NO-tools call so the user always gets a reply, using the tool results already
-    // in `messages`.
+    // in `messages`. The same call answers a turn whose tool call Ollama could not parse; that one
+    // also drops the <tools> manifest from the system prompt, so the model is not told about tools it
+    // cannot call and does not try the same malformed call as plain text.
     const hardStopped = interrupted === "aborted" || interrupted === "stalled";
     if (!endedNaturally && !hardStopped && !ctx.abort.aborted) {
-      for await (const ev of callLLMTurn(messages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
+      const finalMessages = toolCallRecovery && manifest ? withoutManifest(messages, manifest) : messages;
+      for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
         if (ev.type === "text") { streamedText += ev.delta; turn.onText(ev.delta); }
         else if (ev.type === "done") {
           if (ev.finishReason === "aborted") interrupted = "aborted";
@@ -276,8 +349,9 @@ ${lastUser.content}` };
     // final tool dispatch — the loop then exits via shouldContinue, which discards its own reason —
     // and the turn would report "max_iterations", which the caller does not treat as partial. The
     // fragment would then be persisted unmarked and reflected into the course knowledge files.
+    // A recovered turn that the no-tools call finished is complete, not capped.
     const stopReason: TutorTurnResult["stopReason"] =
-      interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally ? "complete" : "max_iterations");
+      interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally || toolCallRecovery ? "complete" : "max_iterations");
 
     // Which retrieved passages did the answer DEMONSTRABLY reuse? Computed by n-gram overlap, never
     // by asking the model. This is what drives the citation chip, so a chip cannot be fabricated —
@@ -297,6 +371,7 @@ ${lastUser.content}` };
       firstTurnHold,
       turnKind,
       turnNote,
+      toolCallRecovery,
     };
   }
 }
