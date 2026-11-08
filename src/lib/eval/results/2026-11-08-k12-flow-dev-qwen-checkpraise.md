@@ -49,7 +49,7 @@ Both runs valid on the first attempt; none excluded or rerun. L's exit code 1 is
 tinypool shutdown crash (`emitter.removeListener is not a function`), printed after the results file
 was written; the file is complete (240 rows, `partial` false). The runs took about 32 minutes each,
 not the ~80 the pre-registration estimated (#197's first qwen run took 82 minutes, its later ones 32
-to 45).
+to 64).
 
 | Before | Free RAM | VRAM used / free / total, GPU util | `ollama ps` |
 |---|---|---|---|
