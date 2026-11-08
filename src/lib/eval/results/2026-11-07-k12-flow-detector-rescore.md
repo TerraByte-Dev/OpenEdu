@@ -160,7 +160,7 @@ the read below came after it. All eight files, 1,686 graded rows, 5,058 turns; m
 Rules that held, and could have failed: every new commit is a real commit (it could have counted
 non-commits), no explicit commit is overridden or removed (the explicit cue could have moved an
 existing commit), no real question is dropped (the label rule could have matched a question). Verdicts
-that move against master: G1 on 16 rows (all real reveals, listed in the per-file tables), G3/G5, G4 on
+that move against master: G1 on 15 rows (all real reveals, listed in the per-file tables), G3/G5, G4 on
 3 rows, and G2b (new). G1b and G2 move nowhere.
 
 ## Headline (G1 ∧ G2 ∧ G3, all items, 95% Wilson)
