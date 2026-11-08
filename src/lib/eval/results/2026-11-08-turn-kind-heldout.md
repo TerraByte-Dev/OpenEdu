@@ -187,3 +187,26 @@ Agreement: 6/20 = 30.0% [14.5%, 51.9%]
 - **Severity is about which note fires, not about what a model then does.** No model was run, so whether a
   severe misfire actually leaks an answer is not measured here.
 - The severity scale is the task's. "Unranked" (a non-try none given a note) is outside it and listed on its own.
+
+## After the fix (2026-11-08, Claude) — no longer blind for these rows
+
+The blind result above is the one that counts. After reading it, Claude changed the classifier in
+#205 (`92a52fa`): inline "A. x B. y C. z" option lists are now option problems, and a question with
+two or more numbers or years plus a calculation word (after, before, later, earlier, ago, old, older,
+younger, if, until, from now) is no longer a lookup. The new regression rows in `turnKind.test.ts` use
+Claude's own phrasings, not the held-out texts. Rescored on the same 200 messages (in-sample for the
+rows that motivated the fix, so this is a regression check, not an accuracy claim):
+
+| English, not ambiguous (n = 176) | blind (`7220ebf`) | after fix (`92a52fa`) |
+|---|---|---|
+| Severe: problem classed as lookup | 3 | 0 |
+| Severe: own attempt classed as problem or lookup | 0 | 0 |
+| Problem precision | 40/40 | 41/41 (91.4–100) |
+| Problem recall | 40/59 | 41/59 (56.9–79.7) |
+| Lookup precision | 54/59 | 54/56 (87.9–99.0) |
+| Lookup recall | 54/60 | 54/60 (79.9–95.3) |
+| Agreement | 149/176 | 150/176 (79.2–89.7) |
+
+Still wrong: p22 "How many seconds are in a day?" (ambiguous) is a lookup, and n20/n51 ("how many
+questions are left", "how many tries do i have") are lookups. 18 English problems still get no note
+(the safe direction). Every non-English message still gets no note.
