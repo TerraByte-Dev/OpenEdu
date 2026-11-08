@@ -1,4 +1,5 @@
 import { withFirstTurnHold } from "../../kernel/attemptFirst";
+import { withCheckBeforePraise } from "../../kernel/checkBeforePraise";
 import { describe, it, expect, vi, beforeAll } from "vitest";
 
 // B7 (`EVAL_SUITE=b7-cpu npm run eval`) end to end on a stand-in Ollama: the same entry `npm run eval`
@@ -183,7 +184,7 @@ describe("b7-cpu: a full run on a stand-in CPU server", () => {
   it("sends the k12-flow runner's own T1, T2 and T3 requests, byte for byte, without its warm-up", () => {
     const first = b7Chat.slice(0, 3).map((c) => c.raw!);
     expect(first).toEqual(webview.k12);
-    expect(first.map(lastUser).map((u, i) => u.endsWith([withFirstTurnHold(formatK12FlowT1(items[0])), formatK12FlowT2(items[0]), K12_FLOW_T3][i]))).toEqual([true, true, true]);
+    expect(first.map(lastUser).map((u, i) => u.endsWith([withFirstTurnHold(formatK12FlowT1(items[0])), withCheckBeforePraise(formatK12FlowT2(items[0])), K12_FLOW_T3][i]))).toEqual([true, true, true]);
     expect(b7Chat.some((c) => lastUser(c.raw!).includes("Reply with the single word"))).toBe(false);
     // Repeat 1 is a different item under the same system prompt: a learner's next problem.
     const sys = (raw: string) => (JSON.parse(raw) as { messages: Msg[] }).messages[0].content;
