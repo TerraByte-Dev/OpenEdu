@@ -70,7 +70,11 @@ export interface K12FlowTurnOutput {
 /** One model turn. `messages` is the conversation so far, ending with the new user message,
  *  without a system message; `item` lets the caller build that item's system prompt. It throws
  *  when the turn fails. */
-export type K12FlowTurnFn = (messages: ChatMessage[], item: K12Item) => Promise<K12FlowTurnOutput>;
+export type K12FlowTurnFn<I extends K12FlowSubject = K12Item> = (messages: ChatMessage[], item: I) => Promise<K12FlowTurnOutput>;
+
+/** What a turn function may read from an item: its id, and its subject (the course topic). The
+ *  multiple-choice items and the free-response items (k12-flow-fr.ts) both have these. */
+export type K12FlowSubject = Pick<K12Item, "id" | "subject">;
 
 export interface K12FlowTurnRecord {
   user: string;
@@ -114,7 +118,7 @@ export class K12FlowAbort extends Error {}
 
 const failedStop = (s: string) => s === "stalled" || s === "aborted";
 
-async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12Item, now: () => number): Promise<{ rec: K12FlowTurnRecord; out: K12FlowTurnOutput | null }> {
+async function runTurn<I extends K12FlowSubject>(turn: K12FlowTurnFn<I>, messages: ChatMessage[], item: I, now: () => number): Promise<{ rec: K12FlowTurnRecord; out: K12FlowTurnOutput | null }> {
   const user = messages[messages.length - 1].content;
   const rec: K12FlowTurnRecord = { user, text: "", stopReason: null, ttftMs: null, totalMs: 0, attempts: 0, hitTitles: [], toolCalls: [], error: null };
   for (let attempt = 1; attempt <= K12_FLOW_MAX_ATTEMPTS; attempt++) {
@@ -144,23 +148,42 @@ async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12It
   return { rec, out: null };
 }
 
-/** Run one item's three turns and grade them. A failed turn is an ERROR row; only K12FlowAbort throws. */
-export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: () => number = Date.now): Promise<K12FlowRow> {
-  const attempted = scriptedWrongLetter(item.key);
-  const row: K12FlowRow = { id: item.id, key: item.key, attempted, turns: [], studentAttempted: null, chipOffered: null, workedAnswerTurn: null, t3WorkedAnswerRules: null, grade: null };
+/** The ungraded part of a row: the three turns as sent and answered, and the chip check. */
+export interface K12FlowConversation {
+  turns: K12FlowTurnRecord[];
+  studentAttempted: boolean | null;
+  chipOffered: boolean | null;
+  workedAnswerTurn: boolean | null;
+  t3WorkedAnswerRules: boolean | null;
+  /** The three reply texts, or null when some turn produced no reply twice (an ERROR row). */
+  texts: [string, string, string] | null;
+}
+
+/**
+ * Send `users` (T1, T2, T3) one at a time, with the history ChatTab would hold between them, and run
+ * ChatTab's chip check after T2. The multiple-choice flow (runK12FlowItem) and the free-response flow
+ * (k12-flow-fr.ts) both run their turns through this, so the two cannot drift apart in how a
+ * conversation is built. A failed turn ends the conversation; only K12FlowAbort throws.
+ */
+export async function runK12FlowConversation<I extends K12FlowSubject>(
+  item: I,
+  users: readonly [string, string, string],
+  turn: K12FlowTurnFn<I>,
+  now: () => number = Date.now,
+): Promise<K12FlowConversation> {
+  const conv: K12FlowConversation = { turns: [], studentAttempted: null, chipOffered: null, workedAnswerTurn: null, t3WorkedAnswerRules: null, texts: null };
   const history: ChatMessage[] = [];
   const texts: string[] = [];
 
-  const users = [formatK12FlowT1(item), formatK12FlowT2(item), K12_FLOW_T3];
   for (let i = 0; i < users.length; i++) {
     const userMsg: ChatMessage = { role: "user", content: users[i] };
     // ChatTab computes this from the history before the send, plus the new message.
     const studentAttempted = hasTriedOpenQuestion([...history, userMsg]);
-    if (i === 1) row.studentAttempted = studentAttempted;
+    if (i === 1) conv.studentAttempted = studentAttempted;
     history.push(userMsg);
     const { rec, out } = await runTurn(turn, [...history], item, now);
-    row.turns.push(rec);
-    if (!out) return row;
+    conv.turns.push(rec);
+    if (!out) return conv;
     texts.push(out.text);
     const saved = persistedReply(out.text, out.stopReason);
     if (saved !== null) history.push({ role: "assistant", content: saved });
@@ -176,13 +199,21 @@ export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: ()
         truncated: out.stopReason === "length",
         studentAttempted,
       });
-      row.chipOffered = chips.some((c) => c.message === SHOW_ANSWER_MESSAGE);
-      row.workedAnswerTurn = isWorkedAnswerTurn([...history, { role: "user", content: K12_FLOW_T3 }]);
+      conv.chipOffered = chips.some((c) => c.message === SHOW_ANSWER_MESSAGE);
+      conv.workedAnswerTurn = isWorkedAnswerTurn([...history, { role: "user", content: K12_FLOW_T3 }]);
     }
-    if (i === 2) row.t3WorkedAnswerRules = out.workedAnswerRules ?? null;
+    if (i === 2) conv.t3WorkedAnswerRules = out.workedAnswerRules ?? null;
   }
-  row.grade = gradeK12Flow(item, { t1: texts[0], t2: texts[1], t3: texts[2] }, attempted);
-  return row;
+  conv.texts = [texts[0], texts[1], texts[2]];
+  return conv;
+}
+
+/** Run one item's three turns and grade them. A failed turn is an ERROR row; only K12FlowAbort throws. */
+export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: () => number = Date.now): Promise<K12FlowRow> {
+  const attempted = scriptedWrongLetter(item.key);
+  const { texts, ...conv } = await runK12FlowConversation(item, [formatK12FlowT1(item), formatK12FlowT2(item), K12_FLOW_T3], turn, now);
+  const grade = texts ? gradeK12Flow(item, { t1: texts[0], t2: texts[1], t3: texts[2] }, attempted) : null;
+  return { id: item.id, key: item.key, attempted, ...conv, grade };
 }
 
 export interface K12FlowResult {
