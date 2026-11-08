@@ -1,5 +1,35 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`conversation sent by the kernel: bare math course, explain > pins the hold turn's user message, the same bytes on any checkout 1`] = `
+"A recipe needs 3 cups of flour for every 2 cups of milk. How many cups of flour go with 8 cups of milk?
+
+A) 10
+B) 12
+C) 16
+D) 5
+
+Which one is right?
+
+<tutor_note>
+The student has just given you this problem and has not tried it yet. Do not answer it in this reply: do not say which option is right, do not work it out to its result, and do not rule options in or out. This replaces any rule to answer the student's question first. Give one short hint or first step, then end with one question that asks the student to try. Do not mention this note.
+</tutor_note>"
+`;
+
+exports[`conversation sent by the kernel: full science course, socratic > pins the hold turn's user message, the same bytes on any checkout 1`] = `
+"A recipe needs 3 cups of flour for every 2 cups of milk. How many cups of flour go with 8 cups of milk?
+
+A) 10
+B) 12
+C) 16
+D) 5
+
+Which one is right?
+
+<tutor_note>
+The student has just given you this problem and has not tried it yet. Do not answer it in this reply: do not say which option is right, do not work it out to its result, and do not rule options in or out. This replaces any rule to answer the student's question first. Give one short hint or first step, then end with one question that asks the student to try. Do not mention this note.
+</tutor_note>"
+`;
+
 exports[`system prompt sent by the kernel: bare math course, explain > is the same bytes on every turn that is not the show-answer chip > bare math course, explain :: every other turn 1`] = `
 "## Tutor Identity
 You are a knowledgeable, encouraging tutor. Explain clearly, adapt to the student's level, and keep them motivated.

@@ -168,7 +168,7 @@ describe("loadSealed", () => {
     dir = await (await fs()).mkdtemp(`${(await os()).tmpdir()}/oe-sealed-test-`);
     await writeText(`${dir}/src/lib/tutor.ts`, "export const hello = 'world';\n");
     // The eval folder's data, tests and docs are excluded from the lint: names may appear there.
-    for (const f of ["rag-fixture.ts", "rag-heldout.ts", "rag-dev-v2.ts", "k12-items.ts", "sealed.test.ts", "results/run.md"]) {
+    for (const f of ["rag-fixture.ts", "rag-heldout.ts", "rag-dev-v2.ts", "k12-items.ts", "k12-flow-fr-items.ts", "sealed.test.ts", "results/run.md"]) {
       await writeText(`${dir}/src/lib/eval/${f}`, "// Quorvath\n");
     }
   });

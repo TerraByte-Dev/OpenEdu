@@ -1,5 +1,5 @@
 // Public surface of the kernel.
-export { TutorEngine, tutorEngine } from "./TutorEngine";
+export { TutorEngine, TutorTurnError, tutorEngine } from "./TutorEngine";
 export type { TutorTurn, TutorTurnResult } from "./TutorEngine";
 export { assembleSystemPrompt, toolsLayer, skillBundleLayer, personaIdentityLayer } from "./systemPrompt";
 export type { SystemPromptInput } from "./systemPrompt";
@@ -11,3 +11,4 @@ export { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, SHOW_ANSWER_M
 export { persistedReply } from "./persistedReply";
 export { citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, type CitationNote } from "./citation";
 export { OUTPUT_RULES, outputRulesLayer, WORKED_ANSWER_RULES, isWorkedAnswerTurn, turnSystemPrompt } from "./outputRules";
+export { FIRST_TURN_HOLD_NOTE, posesNewProblem, isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";

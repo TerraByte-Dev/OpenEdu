@@ -58,12 +58,13 @@ describe("chatTurnSkills (shared with ChatTab)", () => {
 
 // ChatTab is React and has no unit tests, so this pins the wiring instead: the swap lives in
 // tutorEngine.run, and ChatTab and the k12-flow runner both send their turn through it, with the
-// system prompt buildSystemPrompt builds. Neither decides the worked-answer turn itself.
+// system prompt buildSystemPrompt builds. Neither decides the worked-answer turn or the first-turn
+// hold itself.
 describe("one function for ChatTab and the eval", () => {
   for (const [name, src] of [["ChatTab.tsx", chatTabSource], ["k12-flow-runner.ts", k12FlowRunnerSource]] as const) {
     it(`${name} sends its turn through tutorEngine.run and does not fork the rule`, () => {
       expect(src).toMatch(/tutorEngine\.run\(/);
-      expect(src).not.toMatch(/WORKED_ANSWER_RULES|isWorkedAnswerTurn|turnSystemPrompt|outputRulesLayer/);
+      expect(src).not.toMatch(/WORKED_ANSWER_RULES|isWorkedAnswerTurn|turnSystemPrompt|outputRulesLayer|FIRST_TURN_HOLD_NOTE|isFirstTurnHold|withFirstTurnHold|posesNewProblem|tutor_note/);
     });
   }
 });

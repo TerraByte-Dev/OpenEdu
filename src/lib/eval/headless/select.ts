@@ -69,7 +69,7 @@ export function selectK12FlowItems<T extends Pick<K12Item, "id" | "subject">>(
   if (o.only) {
     const ids = o.only.split(",").map((s) => s.trim()).filter(Boolean);
     const missing = ids.filter((id) => !items.some((x) => x.id === id));
-    if (missing.length) throw new Error(`EVAL_ONLY: not a k12-flow dev item: ${missing.join(", ")}`);
+    if (missing.length) throw new Error(`EVAL_ONLY: not a dev item of this suite: ${missing.join(", ")}`);
     out = out.filter((x) => ids.includes(x.id));
   }
   if (o.sample !== undefined) out = sampleBySubject(out, o.sample);
