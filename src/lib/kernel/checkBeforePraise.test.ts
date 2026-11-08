@@ -59,6 +59,19 @@ describe("isAttemptText", () => {
       "Why do we flip the second fraction?", "a long time ago in a town far away",
     ]) expect(isAttemptText(t), t).toBe(false);
   });
+
+  // Found in review of #213: these read as a try by the patterns alone, and the note would then hold back
+  // an answer the student asked for.
+  it("does not read a clock time, an either-or question or a request for more as a try", () => {
+    for (const t of [
+      "5 more problems please", "10 more examples?", "3 more", "It's 3am and I can't focus, can you just explain it?",
+      "it's 7 pm here", "Is it 1789 or 1792 when the king was executed?", "is it 4 or 5?", "12 please", "Give me another 5",
+    ]) expect(isAttemptText(t), t).toBe(false);
+  });
+
+  it("still reads a try that mentions or after its answer", () => {
+    for (const t of ["I think it's 4, or maybe 5", "It's 12 or so", "my answer is 4 or 5"]) expect(isAttemptText(t), t).toBe(true);
+  });
 });
 
 describe("isCheckBeforePraiseTurn", () => {

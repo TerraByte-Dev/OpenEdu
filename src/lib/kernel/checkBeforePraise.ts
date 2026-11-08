@@ -47,10 +47,14 @@ const LONE_VALUE = /^(?:[a-z]\s*=\s*)?[-−]?\$?\.?\d[\d,.]*(?:\s*\/\s*\d+)?\s*%
 // After ATTEMPT_WORDS: something that names an answer. "I think it's 9", "my answer is oxygen" and
 // "I'd say B" do; "I think so" and "I think I get it" do not.
 const NAMES_AN_ANSWER = /\p{N}|\b[A-F]\b|\b(?:it['’]?s|it is|is|are|equals?)\b/u;
+// Not a try, though a pattern above matches: a clock time ("It's 3am and I can't focus"), a choice the
+// student is asking about ("Is it 1789 or 1792?"), or a request for more ("5 more problems please").
+const NOT_A_TRY = /\d\s*(?:am|pm|a\.m\.|p\.m\.|o['’]clock)\b|\bis it\s+\S+\s+or\b|^\s*\d+\s+more\b|\b(?:please|another)\b/i;
 
 /** True when `text`, a student message, reads as a try at an answer. */
 export function isAttemptText(text: string): boolean {
   const t = text.trim();
+  if (NOT_A_TRY.test(t)) return false;
   if (ATTEMPT_LETTER.test(t) || LONE_LETTER.test(t) || NUMBER_CUE.test(t) || LONE_VALUE.test(t)) return true;
   const m = ATTEMPT_WORDS.exec(t);
   return !!m && NAMES_AN_ANSWER.test(t.slice(m.index + m[0].length));
