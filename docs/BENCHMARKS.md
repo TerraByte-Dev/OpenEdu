@@ -16,7 +16,8 @@ Sealed set as found: `C:/x/sealed/heldout-v2.json`, 97,781 bytes, SHA-256 `47b28
 | k12-mc 240 items | **DEV only** | Every failure row of all 240 items was read. There was never a split |
 | Generation topics (3 + first aid) | DEV | Single reviewer, topics chosen after the fact |
 | `heldout-v2.json` (sealed) | TEST, unopened | Becomes valid once its hash is committed in a protocol file before any lever merges |
-| k12-flow sealed test, grader gold test, new RAG dev vault | **Do not exist yet** | Must be authored blind (see section 2) |
+| RAG dev vault v2 (`rag-dev-v2.ts`: 22 name-free positives, 25 lowercase near-misses, its own 16-note vault) | DEV | Written for levers 3 and 11 (#189); every item is dev |
+| k12-flow sealed test, grader gold test | **Do not exist yet** | Must be authored blind (see section 2) |
 
 ---
 

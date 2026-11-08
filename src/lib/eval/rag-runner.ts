@@ -30,6 +30,7 @@ import { importTextAsNote } from "../notebook";
 import { evalToolSyllabus } from "./goldens";
 import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureNote, type RagQuestion, type RagVerdict } from "./rag-fixture";
 import { RAG_HELDOUT } from "./rag-heldout";
+import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
 import type { LLMConfig, Syllabus } from "../../types";
 
 const RAG_COURSE_ID = "__eval_rag__";
@@ -59,6 +60,12 @@ export interface RagRow {
   retrieval: Grounding["trace"];
   toolCalls: string[];
   verdict: RagVerdict;
+  /** B1 (c): for a negative with a real-world answer list (rag-dev-v2.ts realWorldExpect), whether the
+   *  answer gave it. Null for every other row. */
+  realWorld: boolean | null;
+  /** For an item with a gold or near note (`note`), whether that note was among the hits the model saw.
+   *  Null when the item names no note (main fixture, sealed far negatives without one). */
+  noteRetrieved: boolean | null;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
   ttft_ms: number | null;
   /** Milliseconds for the whole turn, grounding and tool calls included. */
@@ -77,11 +84,15 @@ export interface RagReport {
   provider: string;
   contextTokens: number;
   repeats: number;
-  /** "main", "dev", "test", or the name of a custom set (e.g. the sealed held-out file). */
+  /** "main", "dev", "test", "dev-v2", or the name of a custom set (e.g. the sealed held-out file). */
   set: string;
   rows: RagRow[];
   /** mode → kind → { pass, total } */
   byMode: Record<string, Record<string, { pass: number; total: number }>>;
+  /** mode → real-world answered over the rows that have a real-world answer list (B1 (c)). */
+  realWorld: Record<string, { answered: number; total: number }>;
+  /** mode → kind → rows whose item's note was retrieved, over rows whose item names a note. */
+  noteRetrieved: Record<string, Record<string, { retrieved: number; total: number }>>;
   /** Whether the pre-committed condition was met (see the console summary for the exact bars). */
   verdict: { positivesPct: number; negativesClean: boolean; meetsBar: boolean };
 }
@@ -120,8 +131,9 @@ export async function runRagEval(opts?: {
   modes?: RetrievalMode[];
   /** One question id, or several separated by commas. */
   only?: string;
-  /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts. */
-  set?: "main" | "dev" | "test";
+  /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts;
+   *  "dev-v2" is rag-dev-v2.ts, with its own vault. */
+  set?: "main" | "dev" | "test" | "dev-v2";
   /** A set that brings its own vault (the sealed held-out file). Replaces `set` and RAG_FIXTURE. */
   custom?: RagCustomSet;
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
@@ -139,9 +151,9 @@ export async function runRagEval(opts?: {
   const repeats = opts?.repeats ?? 1;
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
-  const vault = opts?.custom?.vault ?? RAG_FIXTURE;
+  const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
   const pool: RagQuestion[] = opts?.custom ? opts.custom.questions
-    : set === "main" ? RAG_QUESTIONS : RAG_HELDOUT.filter((q) => q.split === set);
+    : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2 : RAG_HELDOUT.filter((q) => q.split === set);
   const only = opts?.only ? new Set(opts.only.split(",").map((id) => id.trim()).filter(Boolean)) : null;
   const questions = only ? pool.filter((q) => only.has(q.id)) : pool;
   if (questions.length === 0) {
@@ -237,7 +249,10 @@ export async function runRagEval(opts?: {
           }
 
           const verdict = scoreRagAnswer(question, answer, citedTitles);
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, ttft_ms, total_ms });
+          const realWorld = realWorldAnswered(question, set, answer);
+          const note = (question as { note?: string }).note;
+          const noteRetrieved = note ? retrievedTitles.includes(note) : null;
+          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, ttft_ms, total_ms });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -248,8 +263,19 @@ export async function runRagEval(opts?: {
   }
 
   const byMode: RagReport["byMode"] = {};
+  const realWorld: RagReport["realWorld"] = {};
+  const noteRetrieved: RagReport["noteRetrieved"] = {};
   for (const mode of modes) {
-    byMode[mode] = summarizeRag(rows.filter((r) => r.mode === mode).map((r) => ({ q: r.question, verdict: r.verdict })));
+    const mine = rows.filter((r) => r.mode === mode);
+    byMode[mode] = summarizeRag(mine.map((r) => ({ q: r.question, verdict: r.verdict })));
+    const rw = mine.filter((r) => r.realWorld !== null);
+    realWorld[mode] = { answered: rw.filter((r) => r.realWorld).length, total: rw.length };
+    noteRetrieved[mode] = {};
+    for (const r of mine.filter((r) => r.noteRetrieved !== null)) {
+      const b = (noteRetrieved[mode][r.question.kind] ??= { retrieved: 0, total: 0 });
+      b.total++;
+      if (r.noteRetrieved) b.retrieved++;
+    }
   }
 
   // The pre-committed bar, evaluated against the SHIPPING mechanism only.
@@ -264,11 +290,14 @@ export async function runRagEval(opts?: {
   for (const [mode, kinds] of Object.entries(byMode)) {
     const parts = Object.entries(kinds).map(([k, v]) => `${k} ${v.pass}/${v.total}`);
     console.log(`[rag-eval] ${mode.padEnd(6)} ${parts.join(" · ")}`);
+    if (realWorld[mode].total) console.log(`[rag-eval] ${mode.padEnd(6)} real-world answered ${realWorld[mode].answered}/${realWorld[mode].total}`);
+    const nr = Object.entries(noteRetrieved[mode]).map(([k, v]) => `${k} ${v.retrieved}/${v.total}`);
+    if (nr.length) console.log(`[rag-eval] ${mode.padEnd(6)} note retrieved: ${nr.join(" · ")}`);
   }
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, set, rows, byMode, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, set, rows, byMode, realWorld, noteRetrieved, verdict };
 }
 
 if (typeof window !== "undefined") {

@@ -16,7 +16,7 @@ export interface EvalOptions {
   embedModel?: string;
   /** Cloud providers only. Read from EVAL_API_KEY, never written to the results file. */
   apiKey?: string;
-  set: "main" | "dev" | "test" | "sealed";
+  set: "main" | "dev" | "test" | "dev-v2" | "sealed";
   /** Required when set is "sealed". */
   sealedPath?: string;
   repeats: number;
@@ -42,7 +42,7 @@ export interface EvalOptions {
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
 const PROVIDERS: LLMProvider[] = ["ollama", "openai", "anthropic"];
 const SUITES: EvalSuite[] = ["rag", "k12-flow"];
-const SETS = ["main", "dev", "test", "sealed"] as const;
+const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 
 /** Parse the EVAL_* variables. Throws one error naming every bad value. */

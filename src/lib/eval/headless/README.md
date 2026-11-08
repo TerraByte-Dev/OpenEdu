@@ -22,7 +22,7 @@ from environment variables.
 | `EVAL_API_KEY` | (none) | Cloud key. Read from the environment, never written to the results file. |
 | `EVAL_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama base URL. |
 | `EVAL_EMBED_MODEL` | app default (`nomic-embed-text`) | Embedding model for the vault and the question. |
-| `EVAL_SET` | `main` (`dev` for k12-flow) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), or `sealed`. k12-flow takes `dev` only. |
+| `EVAL_SET` | `main` (`dev` for k12-flow) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), `dev-v2` (rag-dev-v2.ts: its own vault, name-free positives and lowercase near-misses; all DEV), or `sealed`. k12-flow takes `dev` only. |
 | `EVAL_SEALED` | (none) | Path to the sealed v2 file. Required with `EVAL_SET=sealed`. |
 | `EVAL_REPEATS` | `1` | Repeats per question and mode. |
 | `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. Not allowed with `sealed`. |
@@ -34,6 +34,10 @@ from environment variables.
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
 | `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
 | `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
+
+For RAG, each row also has `realWorld` (B1 (c): for a near-miss with a real-world answer list, whether
+the answer gave it; see `realWorldExpect` in `../rag-dev-v2.ts`) and `noteRetrieved` (whether the
+item's gold or near note was among the hits the model saw), and the report sums both per mode.
 
 The results file holds the runner's report (every row, with `ttft_ms` and `total_ms`), the options,
 the commit SHA, whether `src/` had uncommitted changes or differs from master, the tags at HEAD, whether
@@ -90,7 +94,7 @@ These read results files and call no model. Run them with `npx vite-node <file>`
 4. when the name lint finds one of the set's made-up names or invented words in `src/`.
 
 The lint is stricter than protocol rule 2. Inside `src/lib/eval/` it skips only the item data
-(`rag-fixture.ts`, `rag-heldout.ts`, `k12-items.ts`, `library-fixture.ts`), tests and `.md` files,
+(`rag-fixture.ts`, `rag-heldout.ts`, `rag-dev-v2.ts`, `k12-items.ts`, `library-fixture.ts`), tests and `.md` files,
 because the runner's prompts and syllabi there shape every request. It finds a name inside code
 identifiers (`QUORVATH_BOOST`, `isQuorvath`) and with a plural or possessive ending. An English
 wordlist (the `word-list` dev dependency), the bundled library's words and the k12 items' lower-case
