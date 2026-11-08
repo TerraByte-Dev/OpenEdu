@@ -215,7 +215,8 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
   });
 
   it("sends every other turn's messages as the caller passed them, and reports no hold", async () => {
-    for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => t !== LISTED_PROBLEM), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
+    // A try gets the check-before-praise note instead (checkBeforePraise.test.ts).
+    for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => t !== LISTED_PROBLEM && t !== ATTEMPT), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
       await systemSent(course, history, text);
       expect(lastFirstTurnHold, label).toBe(false);
       expect(sent[0].slice(1), label).toEqual([...history, { role: "user", content: text }]);
@@ -233,6 +234,6 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
     const saved: Sent = [{ role: "user", content: LISTED_PROBLEM }, { role: "assistant", content: "Start with the ratio. What is 8 divided by 2?" }];
     await systemSent(course, saved, "I think it's C.");
     expect(lastFirstTurnHold).toBe(false);
-    expect(sent[0].some((m) => m.content.includes("<tutor_note>"))).toBe(false);
+    expect(sent[0].some((m) => m.content.includes(FIRST_TURN_HOLD_NOTE))).toBe(false);
   });
 });
