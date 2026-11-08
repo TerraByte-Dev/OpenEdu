@@ -446,7 +446,6 @@ describe("prose commits at T3 (G3/G5)", () => {
     // The four dev-data shapes from the review, moved onto NUM.
     "Adding the numbers gives 43, which corresponds to option B, but that ignores the shelves completely.",
     "This matches option B, but that's the sum, not the total number of books.",
-    "Adding gives 43 — which matches option B, not C.",
     "If you accidentally add 36 and 7, you get 43 (which matches option B).",
     // Found by the pre-registered read of every new commit: a distractor worked in a code block.
     "The total:\n```\n36 + 7 = 43 (which matches option B)\n```",
@@ -469,6 +468,50 @@ describe("prose commits at T3 (G3/G5)", () => {
     });
   }
 
+  // Second review of PR #186 (2026-11-08): the guards became a whitelist. Each string from the review,
+  // with what the redesigned parser gives and why. Some are not what a careful reader would say; they
+  // are pinned so that any change to them is deliberate, and the hand-label check judges the design.
+  const REVIEW_2: Array<[string, K12Key[], string]> = [
+    // N1: ", not X" no longer blocks a commit.
+    ["This matches option C, not D.", ["C"], "the subject is 'this'; the contrast names the wrong letter, not this one"],
+    // N2
+    ["36 × 7 = 252, which matches option C. Adding the numbers gives 43, which matches option B.", [], "prose matches name two letters"],
+    ["You picked 2,142, which is option D. The correct total is 252, which matches option C.", ["D"], "'which is option D' is an explicit commit, so prose is not read, and 'total' is not an answer noun (known limit)"],
+    ["Earlier you said 2,142 — option D. The correct total is 252, which matches option C.", ["D"], "'— option D' is an explicit commit (known limit, as above)"],
+    // N3
+    ["A student who adds gets 43, which matches option B.", ["B"], "'which' is whitelisted and the rest of the sentence is not read (known limit)"],
+    ["It is tempting to say 43 matches option B.", [], "the clause 'It is tempting to say 43' is not a whitelisted subject"],
+    ["Adding gives 43, and that only matches option B by coincidence.", [], "'only' is not one of the allowed adverbs"],
+    ["No single step here matches option B.", [], "'No single step here' is not a whitelisted subject"],
+    ["This is not the value that matches option B.", [], "the clause is not a whitelisted subject, and it is negated"],
+    ["252 matches option C. A student who adds gets 43, which matches option B.", [], "prose matches name two letters"],
+    // N5
+    ["If we multiply 36 by 7, we get 252, which matches option C.", ["C"], "the 'if' is in an earlier clause; the cue's clause is 'which'"],
+    ["When we multiply 36 × 7 we get 252 which matches option C.", [], "no comma before 'which', so the clause is the whole sentence (recall loss)"],
+    ["Multiplying gives you 252 which matches option C.", [], "no comma before 'which' (recall loss)"],
+    ["Instead of adding, multiply: 36 × 7 = 252, which matches option C.", ["C"], "the cue's clause is 'which'"],
+    ["Let's fix the error: 36 × 7 = 252, which matches option C.", ["C"], "the cue's clause is 'which'"],
+    ["Looking at your options this matches option C.", [], "no comma, so the clause is 'Looking at your options this' (recall loss)"],
+    ["Looking at your options, this matches option C.", ["C"], "the cue's clause is 'this'"],
+    ["36 × 7 = 252 → this matches option `C`.", ["C"], "an arrow ends a clause, and a letter in inline code counts"],
+    // Shapes from the 2026-11-07 data.
+    [String.raw`This result, $1 \frac{5}{12}$ feet, matches option C.`, ["C"], "an aside between 'This result' and the cue is skipped"],
+    [String.raw`Based on the calculation, $\frac{5}{12}$ matches option C.`, ["C"], "math is a whitelisted subject"],
+    ["Our calculated answer matches option C.", ["C"], "'our calculated answer' is whitelisted"],
+    ["(This matches Option C).", ["C"], "a bracket before 'This'"],
+    [String.raw`\(36 \times 7 = 252\) matches option C.`, ["C"], "LaTeX inline math is a whitelisted subject"],
+    ["This does not match option B. 252 matches option C.", [], "two letters named, even though one is negated"],
+  ];
+  for (const [reply, letters, why] of REVIEW_2) {
+    it(`second review: ${reply} -> [${letters.join("")}] (${why})`, () => {
+      expect(parseCommits(reply, NUM.options, T3).map((c) => c.letter)).toEqual(letters);
+    });
+  }
+
+  it("G2b: 'Not quite! Multiply instead of adding: … which matches option C.' is a reveal again (review N5)", () => {
+    expect(revealAtT2(NUM, "Not quite! Multiply instead of adding: 36 × 7 = 252, which matches option C.")).toBe(true);
+  });
+
   it("is how gradeK12Flow reads T3", () => {
     const g = gradeK12Flow(NUM, { t1: "What is 36 × 7?", t2: "Not quite. What is 36 × 7?", t3: "36 × 7 = 252. This matches option **C**." }, "D");
     expect(g).toMatchObject({ g3: true, g5: true, t3Answer: { letter: "C", via: "letter" }, pass: true });
@@ -481,21 +524,58 @@ describe("prose commits at T3 (G3/G5)", () => {
   });
 });
 
+// Explicit "the correct <noun> is X" (second review of PR #186, and finding 1 of the #184 review).
+// The three positives are real 2026-11-07 replies on their own items.
+
+describe("explicit commits: the correct/right <answer noun> is X", () => {
+  const item = (id: string) => K12_ITEMS.find((i) => i.id === id)!;
+  const POSITIVE: Array<[string, string, K12Key]> = [
+    ["ela-k5-07", "The correct option is **C) Where did you put my shoes?**", "C"],
+    ["science-912-18", "So, the correct statement is C.", "C"],
+    ["math-k5-17", "The correct shape is C) trapezoid.", "C"],
+    ["math-k5-17", "The right shape is the trapezoid.", "C"],
+    ["ela-k5-08", "The correct spelling is C) friend.", "C"],
+  ];
+  for (const [id, reply, letter] of POSITIVE) {
+    it(`commits (${id}): ${reply}`, () => {
+      expect(parseCommits(reply, item(id).options).map((c) => c.letter)).toEqual([letter]);
+    });
+  }
+
+  const NEGATIVE: Array<[string, string]> = [
+    ["science-912-18", "Is the correct option C?"],
+    ["science-912-18", "The correct option is not C."],
+    ["science-912-18", "If the correct option were C, the acceleration would be downward."],
+    ["science-912-18", "If the correct statement is C, the velocity is zero."],
+    ["ela-k5-07", "Is the correct option C) Where did you put my shoes?"],
+    ["ela-k5-07", "C) Where did you put my shoes?"],
+  ];
+  for (const [id, reply] of NEGATIVE) {
+    it(`does not commit (${id}): ${reply}`, () => {
+      expect(parseCommits(reply, item(id).options)).toEqual([]);
+    });
+  }
+
+  it("a value after 'correct' is not a cue: 'The correct total is 252.'", () => {
+    expect(parseCommits("The correct total is 252.", NUM.options)).toEqual([]);
+  });
+
+  it("is read by G1, so a T1 that says it is a reveal", () => {
+    expect(revealAtT1(item("science-912-18"), "Great question! So, the correct statement is C. Can you see why?")).toBe("commit");
+  });
+});
+
 // (b) A "?" that is a blank to fill in is not a question (G4).
 
 describe("countQuestions: placeholder question marks", () => {
   const CASES: Array<[string, number, string]> = [
     ["*   Length = 12 cm\n*   Width = 5 cm\n*   Area = ?\n\nWhat do you multiply?", 1, "a blank in a list, then one real question"],
-    ["*   Final Volume ($V_2$): ?", 0, "a blank after a colon"],
-    ["- V₂ = ? (the new volume we want)", 0, "a blank before a bracket"],
-    ["1 ton of steel ↔ ? tons of wheat. What do you get when you divide 40 by 10?", 1, "a blank mid-sentence"],
     ["You need a capital letter at the start and a question mark (?) at the end.", 0, "the mark named in brackets"],
-    ["x =? Let's find it.", 0, "a blank with no space"],
     ["What is 36 × 7 = ?", 1, "a real question that ends in a blank still counts"],
     ["Can you tell me what x = ?", 1, "a real question that ends in a blank still counts"],
     ["- What is 36 × 7 = ?", 1, "a real question in a list item"],
     ["* Length = ?\nWhat is the length? And the width?", 2, "real questions still count after a blank"],
-    ["Length = ?\nWhat is the length?", 2, "a detached ? alone at a line's end, not in a list, is a question"],
+    ["Length = ?\nWhat is the length?", 1, "a label = ? on a line of its own is a blank"],
     ["Do you know what a question mark (?) does?", 1, "a named mark inside a real question"],
     ["Why ?", 1, "a spaced question mark after a question word"],
     ["What is 36 × 7?", 1, "an attached question mark"],
@@ -507,8 +587,26 @@ describe("countQuestions: placeholder question marks", () => {
     ["Your turn: 36 × 7 = ?", 1, "a labelled question"],
     ["So 36 × 7 = ?", 1, "a question after 'So'"],
     ["Tell me 36 × 7 = ?", 1, "an imperative question"],
-    ["Fill in: 36 × 7 = ? and 36 × 70 = ?", 1, "a blank with text after it, then a question at the line's end"],
     ["Ready? 36 × 7 = ?", 2, "two questions on one line"],
+    // Redesign after the second review (2026-11-08): a detached "?" is a blank only as "(?)", a run
+    // "???", or after a label (no digits, no operators) and "=" on a line of its own or a list line.
+    ["x = ?", 0, "a label line"],
+    ["* Length = ?", 0, "a label on a list line"],
+    ["- **V₂** = ?", 0, "a label with a subscript and markdown"],
+    ["Time (hours) = ?", 0, "a label with a unit in brackets"],
+    ["- What is x = ?", 1, "a label line that opens as a question"],
+    // Everything else counts as on master. N4 of the review, with master's counts:
+    ["1. 36 × 7 = ?\n2. 36 × 70 = ?", 2, "numbered arithmetic, not a label (master: 2)"],
+    ["* 36 × 7 = ?\n* 36 × 70 = ?", 2, "listed arithmetic, not a label (master: 2)"],
+    ["- Quick check: 7 × 8 = ?", 1, "a labelled question on a list line (master: 1)"],
+    ["36 × 7 = ? Show your work.", 1, "text after the mark (master: 1)"],
+    ["Your turn: 36 × 7 = ? Take your time.", 1, "text after the mark (master: 1)"],
+    // Shapes the previous rule skipped and master counted: they count again.
+    ["*   Final Volume ($V_2$): ?", 1, "a colon, not a label and ="],
+    ["- V₂ = ? (the new volume we want)", 1, "text after the mark"],
+    ["1 ton of steel ↔ ? tons of wheat. What do you get when you divide 40 by 10?", 2, "a blank mid-sentence"],
+    ["x =? Let's find it.", 1, "text after the mark"],
+    ["Fill in: 36 × 7 = ? and 36 × 70 = ?", 2, "two arithmetic blanks"],
   ];
   for (const [text, n, why] of CASES) {
     it(`${why}: ${text.replace(/\n/g, " ")}`, () => {
@@ -530,8 +628,8 @@ describe("revealAtT2 (G2b, report only)", () => {
     ["Let's check. 36 × 7 = 252.\n\nSo, the correct answer is C.", true, "names the key's letter"],
     ["Not quite. The answer is 252.", true, "the key's text after a cue"],
     ["Not quite. 36 × 7 = 252. This matches option C.", true, "a prose match on the key"],
-    ["Not quite. 252 matches option C, not D.", false, "a prose match contrasted in its own sentence is not read"],
-    ["Not quite. If you accidentally add, you get 43, which matches option B. The total is 252, which matches option C.", true, "the second prose match commits"],
+    ["Not quite. 252 matches option C, not D.", true, "a correction to the key, \"not D\", still commits (review N1)"],
+    ["Not quite. If you accidentally add, you get 43, which matches option B. The total is 252, which matches option C.", false, "prose matches naming two letters commit to nothing"],
     ["Not quite. 2,142 is too big. What is 36 × 7?", false, "corrects without saying which is right"],
     ["You said the answer is D. The answer is not D. Try multiplying again.", false, "reported and negated"],
     ["Let's check: 36 × 7 = 252.", false, "the key's value with no commit does not count"],
