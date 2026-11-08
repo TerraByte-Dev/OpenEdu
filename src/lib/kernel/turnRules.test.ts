@@ -75,6 +75,9 @@ const COURSES: Record<string, Course> = {
   },
 };
 
+// The kernel's own report, in its result, of whether the last prompt it sent carried the worked-answer rules.
+let lastWorkedAnswerRules: boolean | null = null;
+
 // What ChatTab does on send, minus React and the DB: build the system prompt, then tutorEngine.run.
 async function systemSent(course: Course, history: Sent, userText: string): Promise<string> {
   const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(course.mode, course.topic, "tiny", false);
@@ -88,7 +91,8 @@ async function systemSent(course: Course, history: Sent, userText: string): Prom
     personaIdentityLayer(resolvePersona(course.spriteId) ?? null),
   );
   sent.length = 0;
-  await tutorEngine.run(
+  lastWorkedAnswerRules = null;
+  ({ workedAnswerRules: lastWorkedAnswerRules } = await tutorEngine.run(
     { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {} },
     {
       courseId: "c-1",
@@ -103,7 +107,7 @@ async function systemSent(course: Course, history: Sent, userText: string): Prom
       domainSkill,
       supportsTools: false,
     },
-  );
+  ));
   expect(sent).toHaveLength(1);
   expect(sent[0][0].role).toBe("system");
   return sent[0][0].content;
@@ -162,6 +166,15 @@ describe.each(Object.entries(COURSES))("system prompt sent by the kernel: %s", (
     const reveal = await systemSent(course, AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE);
     expect(normal.endsWith(OUTPUT_RULES)).toBe(true);
     expect(reveal).toBe(normal.slice(0, -OUTPUT_RULES.length) + WORKED_ANSWER_RULES);
+  });
+
+  it("reports in its result whether the prompt it sent ended with the worked-answer rules", async () => {
+    expect((await systemSent(course, AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE)).endsWith(WORKED_ANSWER_RULES)).toBe(true);
+    expect(lastWorkedAnswerRules).toBe(true);
+    for (const [label, history, text] of OTHER_TURNS) {
+      expect((await systemSent(course, history, text)).endsWith(WORKED_ANSWER_RULES), label).toBe(false);
+      expect(lastWorkedAnswerRules, label).toBe(false);
+    }
   });
 
   it("goes back to the normal rules on the turn after", async () => {

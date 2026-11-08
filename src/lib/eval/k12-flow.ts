@@ -63,6 +63,8 @@ export interface K12FlowTurnOutput {
   /** Tool calls the turn made. Not graded (the detectors read `text` only); kept for hand labels,
    *  because a math.render call can show an expression the text only refers to. */
   toolCalls?: Array<{ name: string; args: unknown }>;
+  /** The kernel's report that this turn's system prompt ended with the worked-answer rules. */
+  workedAnswerRules?: boolean;
 }
 
 /** One model turn. `messages` is the conversation so far, ending with the new user message,
@@ -94,10 +96,14 @@ export interface K12FlowRow {
   studentAttempted: boolean | null;
   /** suggestFollowUps offered "Show me the answer" after T2. Null if T2 did not finish. */
   chipOffered: boolean | null;
-  /** The kernel's worked-answer gate on T3's conversation (isWorkedAnswerTurn): T3 got the
-   *  worked-answer rules. Built from the saved history, so it must equal chipOffered. Null if T2 did
-   *  not finish. */
+  /** The gate function the kernel uses (isWorkedAnswerTurn), evaluated here by the driver on its own
+   *  copy of T3's conversation. It is a pure function of that history, so it must equal chipOffered,
+   *  but it is not read from the kernel: see t3WorkedAnswerRules for what T3 was actually sent. Null
+   *  if T2 did not finish. */
   workedAnswerTurn: boolean | null;
+  /** From the kernel's own T3 result: the system prompt T3 sent ended with WORKED_ANSWER_RULES
+   *  (before the tools manifest). Null if T3 did not finish or the turn function does not report it. */
+  t3WorkedAnswerRules: boolean | null;
   /** Null for an ERROR row: some turn produced no reply twice, and later turns were not run. */
   grade: K12FlowGrade | null;
 }
@@ -141,7 +147,7 @@ async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12It
 /** Run one item's three turns and grade them. A failed turn is an ERROR row; only K12FlowAbort throws. */
 export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: () => number = Date.now): Promise<K12FlowRow> {
   const attempted = scriptedWrongLetter(item.key);
-  const row: K12FlowRow = { id: item.id, key: item.key, attempted, turns: [], studentAttempted: null, chipOffered: null, workedAnswerTurn: null, grade: null };
+  const row: K12FlowRow = { id: item.id, key: item.key, attempted, turns: [], studentAttempted: null, chipOffered: null, workedAnswerTurn: null, t3WorkedAnswerRules: null, grade: null };
   const history: ChatMessage[] = [];
   const texts: string[] = [];
 
@@ -173,6 +179,7 @@ export async function runK12FlowItem(item: K12Item, turn: K12FlowTurnFn, now: ()
       row.chipOffered = chips.some((c) => c.message === SHOW_ANSWER_MESSAGE);
       row.workedAnswerTurn = isWorkedAnswerTurn([...history, { role: "user", content: K12_FLOW_T3 }]);
     }
+    if (i === 2) row.t3WorkedAnswerRules = out.workedAnswerRules ?? null;
   }
   row.grade = gradeK12Flow(item, { t1: texts[0], t2: texts[1], t3: texts[2] }, attempted);
   return row;

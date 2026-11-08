@@ -124,6 +124,7 @@ export async function runK12FlowItems(items: readonly K12Item[], opts: { onRows?
         usedHits: result.usedHits,
         ttftMs,
         toolCalls: result.toolCalls.map(({ name, args }) => ({ name, args })),
+        workedAnswerRules: result.workedAnswerRules,
       };
     };
 

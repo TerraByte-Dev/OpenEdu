@@ -239,8 +239,8 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
   });
 
   it("swaps in the worked-answer rules on T3 only, when the chip was offered, before the tools manifest (lever L1)", () => {
-    const row = (headless.out as { rows: Array<{ chipOffered: boolean; workedAnswerTurn: boolean }> }).rows[0];
-    expect(row).toMatchObject({ chipOffered: true, workedAnswerTurn: true });
+    const row = (headless.out as { rows: Array<{ chipOffered: boolean; workedAnswerTurn: boolean; t3WorkedAnswerRules: boolean }> }).rows[0];
+    expect(row).toMatchObject({ chipOffered: true, workedAnswerTurn: true, t3WorkedAnswerRules: true });
     type Msg = { role: string; content: string };
     const systems = headless.chat.slice(1).map((r) => (JSON.parse(r as string) as { messages: Msg[] }).messages[0].content);
     const [t1, t2, t3] = systems;

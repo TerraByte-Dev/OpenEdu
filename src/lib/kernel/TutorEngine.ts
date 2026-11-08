@@ -21,7 +21,7 @@ import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent } from "./toolDispatch";
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
-import { turnSystemPrompt } from "./outputRules";
+import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 
@@ -63,6 +63,10 @@ export interface TutorTurnResult {
   // honest "retrieved, but answered from general knowledge" case the UI must surface rather than hide.
   grounding: Grounding;
   usedHits: Grounding["hits"];
+  // True when the system prompt this turn sent ended, before the tools manifest, with
+  // WORKED_ANSWER_RULES (lever L1). Read from the prompt itself, not from the gate, so the eval can
+  // record what the model was actually told.
+  workedAnswerRules: boolean;
 }
 
 export class TutorEngine {
@@ -85,6 +89,7 @@ export class TutorEngine {
       const conversation = messages.filter((m) => m.role !== "system");
       messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, conversation) };
     }
+    const workedAnswerRules = sysAt >= 0 && messages[sysAt].content.endsWith(WORKED_ANSWER_RULES);
 
     const eduTools = await selectTools(ctx);
     const offered = new Set(eduTools.map((t) => t.name));
@@ -246,6 +251,7 @@ ${lastUser.content}` };
       usage: { contextTokens: budget.total, promptTokens: fit.usage.total, droppedMessages: droppedTotal },
       grounding,
       usedHits,
+      workedAnswerRules,
     };
   }
 }
