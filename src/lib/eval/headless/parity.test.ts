@@ -21,6 +21,7 @@ import { runRagEval } from "../rag-runner";
 import { runK12FlowEval } from "../k12-flow-runner";
 import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "../../kernel/outputRules";
+import { FIRST_TURN_HOLD_NOTE, withFirstTurnHold } from "../../kernel/attemptFirst";
 import { K12_ITEMS } from "../k12-items";
 import { seedStore, resetStores } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
@@ -232,7 +233,9 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     const lastUser = (m: Msg[]) => m.filter((x) => x.role === "user").slice(-1)[0].content;
     expect(turns.map((t) => t.messages[0].role)).toEqual(["system", "system", "system"]);
     expect(turns[0].messages[0].content).toContain("Mathematics");
-    expect(lastUser(turns[0].messages).endsWith(formatK12FlowT1(FLOW_ITEM))).toBe(true);
+    // T1 carries the first-turn hold note after the item's text (attemptFirst.ts); T2 and T3 do not.
+    expect(lastUser(turns[0].messages).endsWith(withFirstTurnHold(formatK12FlowT1(FLOW_ITEM)))).toBe(true);
+    expect(turns.slice(1).every((t) => t.messages.every((m) => !m.content.includes(FIRST_TURN_HOLD_NOTE)))).toBe(true);
     expect(lastUser(turns[1].messages).endsWith(formatK12FlowT2(FLOW_ITEM))).toBe(true);
     expect(lastUser(turns[2].messages).endsWith(K12_FLOW_T3)).toBe(true);
     for (const t of turns) expect(t.tools?.length).toBeGreaterThan(0);
@@ -257,7 +260,7 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
   });
 
   it("writes each row with subject, band, the three turns and the detector verdicts, and a Wilson summary", () => {
-    type Turn = { user: string; text: string; ttftMs: number; totalMs: number; toolCalls: unknown[] };
+    type Turn = { user: string; text: string; ttftMs: number; totalMs: number; toolCalls: unknown[]; firstTurnHold: boolean | null };
     const out = headless.out as {
       suite: string; split: string; partial: boolean; abort: unknown; options: Record<string, unknown>;
       rows: Array<{ id: string; subject: string; band: string; turns: Turn[]; grade: Record<string, unknown> }>;
@@ -269,6 +272,7 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     const row = out.rows[0];
     expect(row).toMatchObject({ id: FLOW_ITEM.id, subject: "math", band: "K-5" });
     expect(row.turns.map((t) => t.user)).toEqual([formatK12FlowT1(FLOW_ITEM), formatK12FlowT2(FLOW_ITEM), K12_FLOW_T3]);
+    expect(row.turns.map((t) => t.firstTurnHold)).toEqual([true, false, false]);
     for (const t of row.turns) {
       expect(t.text).toBe(FLOW_REPLY.join(""));
       expect(typeof t.ttftMs).toBe("number");

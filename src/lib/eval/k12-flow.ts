@@ -65,6 +65,8 @@ export interface K12FlowTurnOutput {
   toolCalls?: Array<{ name: string; args: unknown }>;
   /** The kernel's report that this turn's system prompt ended with the worked-answer rules. */
   workedAnswerRules?: boolean;
+  /** The kernel's report that this turn appended the first-turn hold note to the student's message. */
+  firstTurnHold?: boolean;
 }
 
 /** One model turn. `messages` is the conversation so far, ending with the new user message,
@@ -84,6 +86,9 @@ export interface K12FlowTurnRecord {
   toolCalls: Array<{ name: string; args: unknown }>;
   /** Set when the turn still produced no reply on its last attempt. */
   error: string | null;
+  /** The kernel's report that this turn got the first-turn hold note (attemptFirst.ts). Null if the
+   *  turn produced no reply or the turn function does not report it. */
+  firstTurnHold: boolean | null;
 }
 
 export interface K12FlowRow {
@@ -116,7 +121,7 @@ const failedStop = (s: string) => s === "stalled" || s === "aborted";
 
 async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12Item, now: () => number): Promise<{ rec: K12FlowTurnRecord; out: K12FlowTurnOutput | null }> {
   const user = messages[messages.length - 1].content;
-  const rec: K12FlowTurnRecord = { user, text: "", stopReason: null, ttftMs: null, totalMs: 0, attempts: 0, hitTitles: [], toolCalls: [], error: null };
+  const rec: K12FlowTurnRecord = { user, text: "", stopReason: null, ttftMs: null, totalMs: 0, attempts: 0, hitTitles: [], toolCalls: [], error: null, firstTurnHold: null };
   for (let attempt = 1; attempt <= K12_FLOW_MAX_ATTEMPTS; attempt++) {
     rec.attempts = attempt;
     const started = now();
@@ -128,6 +133,7 @@ async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12It
       rec.ttftMs = out.ttftMs;
       rec.hitTitles = out.hits.map((h) => h.title);
       rec.toolCalls = out.toolCalls ?? [];
+      rec.firstTurnHold = out.firstTurnHold ?? null;
       if (failedStop(out.stopReason)) rec.error = `turn ${out.stopReason}`;
       else if (!out.text.trim()) rec.error = "empty reply";
       else {
@@ -138,6 +144,7 @@ async function runTurn(turn: K12FlowTurnFn, messages: ChatMessage[], item: K12It
       if (e instanceof K12FlowAbort) throw e;
       rec.totalMs = now() - started;
       rec.stopReason = null;
+      rec.firstTurnHold = null;
       rec.error = e instanceof Error ? e.message : String(e);
     }
   }

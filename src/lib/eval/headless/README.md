@@ -66,7 +66,9 @@ The results file holds, per row, the item id, subject and band, each turn's user
 reason, tool calls, `ttftMs` and `totalMs`, the chip check, the detector verdicts (`grade`),
 `workedAnswerTurn` (the L1 gate function re-evaluated by the driver on its own history) and
 `t3WorkedAnswerRules` (the kernel's own report that the system prompt T3 sent ended with the
-worked-answer rules). The
+worked-answer rules), and per turn `firstTurnHold` (the kernel's own report that the turn appended the
+first-turn attempt-first note to the student's message, `src/lib/kernel/attemptFirst.ts`; on the
+frozen turn texts it is true on T1 and false on T2 and T3). The
 `summary` has the headline (G1 and G2 and G3, ERROR rows counted as fails) and each detector, each with
 k, n and a 95% Wilson interval. `partial` is true for anything short of all 240 items, and `selection`
 records how the items were picked. A void run (too many ERROR rows, or a library guard tripping) still
