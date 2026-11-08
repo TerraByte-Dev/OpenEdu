@@ -53,7 +53,7 @@ a fix that limits the change to those items; the shipped behaviour on them is th
 the item-level change is not statistically significant.
 ⁴ No model call added; about 107 prompt tokens on the turn after the student's try. On e4b, reported but
 not under the rule, nothing moved significantly (G2 79 → 81). The praise detector misses some phrasings
-("You are exactly right"); counting those as praise too, e2b goes 64 → 80, the same conclusion.
+("You are exactly right"); counting those as praise too, e2b goes 64 → 81, the same conclusion.
 
 For qwen3.5:4b the first-turn hold lifted G1 from 6/240 to 233/240, but the model then gives the
 answer away on turn 2 instead (no reveal at turn 2: 178 → 88 of 240)
