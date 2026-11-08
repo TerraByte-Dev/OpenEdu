@@ -17,7 +17,9 @@ vi.mock("@tauri-apps/plugin-http", () => import("./shims/plugin-http"));
 vi.mock("@tauri-apps/plugin-store", () => import("./shims/plugin-store"));
 vi.mock("@tauri-apps/api/core", () => import("./shims/api-core"));
 
-import { runRagEval } from "../rag-runner";
+import { runRagEval, ragInstructions, RAG_PROMPTS, type RagPrompt } from "../rag-runner";
+import { buildSystemPrompt, TUTOR_RULES } from "../../curriculum";
+import { parseEvalEnv } from "./env";
 import { runK12FlowEval, runK12FlowFrEval } from "../k12-flow-runner";
 import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
 import { formatK12FlowFrT2 } from "../k12-flow-fr";
@@ -358,5 +360,82 @@ describe("headless k12-flow-fr == webview k12-flow-fr, on the wire", () => {
     expect(out.rows[0].turns.map((t) => t.user)).toEqual([FR_ITEM.ask, formatK12FlowFrT2(FR_ITEM), K12_FLOW_T3]);
     expect(out.rows[0].grade).toMatchObject({ g1: true, g2: true, g3: false, g5: false, pass: false });
     expect(out.summary).toMatchObject({ items: 1, headline: { k: 0, n: 1 } });
+  });
+});
+
+// EVAL_PROMPT (#194): the arms differ in the instructions slot of the system prompt and nowhere else.
+describe("EVAL_PROMPT arms, on the wire", () => {
+  type Body = { messages: Array<{ role: string; content: string }> } & Record<string, unknown>;
+  type Out = { prompt: string; options: Record<string, unknown>; rows: Array<{ prompt: string; refusal: unknown }> };
+  const runs = new Map<RagPrompt | "unset", { chat: Body[]; out: Out }>();
+  const SEP = "\n\n---\n\n";
+  // The instructions part of the prompt, built by the product function from the arm's record.
+  const head = (arm: RagPrompt) => buildSystemPrompt(ragInstructions(arm), null, 1, "x").split(`${SEP}## Subject`)[0];
+
+  beforeAll(async () => {
+    globalThis.fetch = fakeOllama as typeof fetch;
+    installAppOrigin();
+    chatReply = RAG_REPLY;
+    const f = await fs();
+    const dir = await f.mkdtemp(`${(await os()).tmpdir()}/oe-prompt-`);
+    try {
+      for (const arm of ["unset", ...RAG_PROMPTS] as const) {
+        calls = [];
+        const env: Record<string, string> = { EVAL_MODEL: MODEL, EVAL_SET: "dev", EVAL_ONLY: ITEM, EVAL_MODES: "always", EVAL_SYLLABUS: "matched", EVAL_OUT: `${dir}/${arm}.json` };
+        if (arm !== "unset") env.EVAL_PROMPT = arm;
+        const { outFile } = await (await freshRun())(env);
+        runs.set(arm, { chat: bodies("/api/chat") as Body[], out: JSON.parse(await f.readFile(outFile, "utf8")) as Out });
+      }
+    } finally {
+      await f.rm(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  const system = (arm: RagPrompt | "unset") => runs.get(arm)!.chat[0].messages[0].content;
+
+  it("keeps the stand-in as the default, byte for byte", () => {
+    expect(runs.get("unset")!.chat).toEqual(runs.get("standin")!.chat);
+    expect(system("standin").startsWith(`${head("standin")}${SEP}## Current Level`)).toBe(true);
+  });
+
+  it("changes only the instructions part of the system prompt", () => {
+    const rest = (arm: RagPrompt) => system(arm).slice(head(arm).length);
+    const { messages: base, ...baseRequest } = runs.get("standin")!.chat[0];
+    for (const arm of RAG_PROMPTS) {
+      expect(runs.get(arm)!.chat).toHaveLength(1);
+      expect(system(arm).startsWith(`${head(arm)}${SEP}## Current Level`)).toBe(true);
+      expect(rest(arm)).toBe(rest("standin"));
+      const { messages, ...request } = runs.get(arm)!.chat[0];
+      expect(messages.slice(1)).toEqual(base.slice(1));
+      expect(request).toEqual(baseRequest);
+    }
+  });
+
+  it("product-default sends the app's fallback identity and no pedagogy or rules; product-course adds the product's rules block", () => {
+    expect(head("product-default")).toBe(buildSystemPrompt({}, null, 1, "x").split(SEP)[0]);
+    expect(head("product-default")).not.toMatch(/## Teaching Approach|## Rules/);
+    expect(head("product-course")).toBe(`${head("product-default")}${SEP}## Rules\n${TUTOR_RULES}`);
+    for (const arm of ["product-default", "product-course"] as const) expect(system(arm)).not.toContain("say so.");
+  });
+
+  it("records the arm on the run and on every row", () => {
+    for (const arm of RAG_PROMPTS) {
+      const out = runs.get(arm)!.out;
+      expect(out.options.prompt).toBe(arm);
+      expect(out.prompt).toBe(arm);
+      expect(out.rows.length).toBeGreaterThan(0);
+      for (const r of out.rows) {
+        expect(r.prompt).toBe(arm);
+        expect(typeof r.refusal).toBe("boolean");
+      }
+    }
+    expect(runs.get("unset")!.out.prompt).toBe("standin");
+  });
+
+  it("EVAL_PROMPT accepts exactly the runner's arms, and is refused for sealed and k12-flow", () => {
+    for (const arm of RAG_PROMPTS) expect(parseEvalEnv({ EVAL_PROMPT: arm }).prompt).toBe(arm);
+    expect(() => parseEvalEnv({ EVAL_PROMPT: "product" })).toThrow(/EVAL_PROMPT=product/);
+    expect(() => parseEvalEnv({ EVAL_PROMPT: "standin", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_PROMPT is not allowed with EVAL_SET=sealed/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_PROMPT: "standin" })).toThrow(/EVAL_PROMPT does not apply to k12-flow/);
   });
 });

@@ -30,6 +30,7 @@ from environment variables.
 | `EVAL_LIMIT` | (all) | k12-flow and k12-flow-fr only. The first N items. |
 | `EVAL_SAMPLE` | (all) | k12-flow and k12-flow-fr only. N items stratified by subject, drawn with a fixed seed, so the same N gives the same items every time. Applied before `EVAL_LIMIT`. |
 | `EVAL_SYLLABUS` | `python` | `python` or `matched` (see rag-runner.ts). |
+| `EVAL_PROMPT` | `standin` | RAG only. The instructions in the system prompt (rag-runner.ts `ragInstructions`): `standin` (the runner's own "helpful tutor … say so" text, which the app never sends; every B1 result before #194 used it), `product-default` (what the app sends for a course with no stored instructions: its fallback identity, no pedagogy or rules) or `product-course` (`product-default` plus the fixed rules block a generated course stores, `TUTOR_RULES` in curriculum.ts; no generated pedagogy). Recorded on the run and every row. Not allowed with `sealed`. |
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
 | `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
@@ -38,7 +39,8 @@ from environment variables.
 
 For RAG, each row also has `realWorld` (B1 (c): for a near-miss with a real-world answer list, whether
 the answer gave it; see `realWorldExpect` in `../rag-dev-v2.ts`) and `noteRetrieved` (whether the
-item's gold or near note was among the hits the model saw), and the report sums both per mode.
+item's gold or near note was among the hits the model saw), and the report sums both per mode. Each row
+also has `prompt` (the arm) and `refusal` (whether the answer contains a phrase from `../refusal.ts`).
 
 A turn that throws is an ERROR row: `answer` is `ERROR: ` plus the message and `error` holds the
 message. The row keeps the grounding trace the turn had before it failed, so a failed model call does

@@ -22,7 +22,7 @@ import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type Tuto
 import type { RetrievalMode } from "../kernel/ground";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
-import { buildSystemPrompt } from "../curriculum";
+import { buildSystemPrompt, TUTOR_RULES } from "../curriculum";
 import { getChatConfig, getMaxContextTokens } from "../store";
 import { detectModelProfile } from "../llm";
 import { deleteCourse, ensureCourse } from "../db";
@@ -31,6 +31,7 @@ import { evalToolSyllabus } from "./goldens";
 import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureNote, type RagQuestion, type RagVerdict } from "./rag-fixture";
 import { RAG_HELDOUT } from "./rag-heldout";
 import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
+import { hasRefusalPhrase } from "./refusal";
 import type { LLMConfig, Syllabus } from "../../types";
 
 const RAG_COURSE_ID = "__eval_rag__";
@@ -43,14 +44,38 @@ const RAG_COURSE_ID = "__eval_rag__";
 // this refuses.
 let inFlight = false;
 
-// Minimal instructions so the system prompt is realistic without dragging in a generated course.
+// The stand-in instructions every B1 run before #194 used. The app never sends this text: it is kept,
+// and stays the default, so earlier results remain reproducible at a later commit.
 const RAG_INSTRUCTIONS: Record<string, string> = {
   identity: "You are a helpful tutor.",
   pedagogy: "Answer the student's question directly and concisely.",
   rules: "Be accurate. If you do not know something, say so.",
 };
 
+/**
+ * Which instructions record goes into buildSystemPrompt's instructions slot (EVAL_PROMPT, #194).
+ *   standin          RAG_INSTRUCTIONS above. Not product text.
+ *   product-default  {}: what getTutorInstructions returns for a course with no stored instructions, so
+ *                    buildSystemPrompt falls back to its default identity and sends no pedagogy or rules.
+ *   product-course   { rules: TUTOR_RULES }: the fixed rules block a generated course stores, from the
+ *                    product source. A generated course also stores a model-written pedagogy, which
+ *                    differs per course and is not sent here.
+ * No arm sends a persona (ChatTab's personaIdentity), a knowledge summary or progress context.
+ */
+export type RagPrompt = "standin" | "product-default" | "product-course";
+export const RAG_PROMPTS: readonly RagPrompt[] = ["standin", "product-default", "product-course"];
+
+export function ragInstructions(prompt: RagPrompt): Record<string, string> {
+  switch (prompt) {
+    case "standin": return RAG_INSTRUCTIONS;
+    case "product-default": return {};
+    case "product-course": return { rules: TUTOR_RULES };
+  }
+}
+
 export interface RagRow {
+  /** The instructions arm this row's system prompt was built from (ragInstructions). */
+  prompt: RagPrompt;
   mode: RetrievalMode;
   question: RagQuestion;
   answer: string;
@@ -66,6 +91,9 @@ export interface RagRow {
   /** For an item with a gold or near note (`note`), whether that note was among the hits the model saw.
    *  Null when the item names no note (main fixture, sealed far negatives without one). */
   noteRetrieved: boolean | null;
+  /** Whether the answer contains a refusal or deferral phrase (refusal.ts). Over-refusal is a row with
+   *  realWorld === false and this true. */
+  refusal: boolean;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
   ttft_ms: number | null;
   /** Milliseconds for the whole turn, grounding and tool calls included. */
@@ -89,6 +117,8 @@ export interface RagReport {
   provider: string;
   contextTokens: number;
   repeats: number;
+  /** The instructions arm (ragInstructions). */
+  prompt: RagPrompt;
   /** "main", "dev", "test", "dev-v2", or the name of a custom set (e.g. the sealed held-out file). */
   set: string;
   rows: RagRow[];
@@ -147,6 +177,8 @@ export async function runRagEval(opts?: {
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
    *  vault's subjects, which is what a learner who wrote these notes would actually be enrolled in. */
   syllabus?: "python" | "matched";
+  /** The instructions arm (ragInstructions). Default "standin". */
+  prompt?: RagPrompt;
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -157,6 +189,12 @@ export async function runRagEval(opts?: {
   inFlight = true;
 
   const repeats = opts?.repeats ?? 1;
+  const prompt = opts?.prompt ?? "standin";
+  if (!RAG_PROMPTS.includes(prompt)) {
+    inFlight = false;
+    throw new Error(`Unknown prompt arm "${prompt}": use ${RAG_PROMPTS.join(", ")}.`);
+  }
+  const instructions = ragInstructions(prompt);
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
   const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
@@ -180,7 +218,7 @@ export async function runRagEval(opts?: {
     : profile.contextTokens;
   const config: LLMConfig = { ...baseConfig, modelTier: profile.tier, contextTokens };
 
-  console.log(`[rag-eval] ${config.provider}/${config.model} ctx=${contextTokens} · set=${set} · ${questions.length} question(s) × ${repeats} repeat(s) × ${modes.length} mode(s)`);
+  console.log(`[rag-eval] ${config.provider}/${config.model} ctx=${contextTokens} · set=${set} · prompt=${prompt} · ${questions.length} question(s) × ${repeats} repeat(s) × ${modes.length} mode(s)`);
 
   const rows: RagRow[] = [];
   try {
@@ -190,7 +228,7 @@ export async function runRagEval(opts?: {
       for (let rep = 0; rep < repeats; rep++) {
         for (const question of questions) {
           const skill = resolveSkill("explain") ?? null;
-          const system = buildSystemPrompt(RAG_INSTRUCTIONS, (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined);
+          const system = buildSystemPrompt(instructions, (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined);
           const ctx: ToolContext = {
             courseId: RAG_COURSE_ID,
             level: 1,
@@ -276,7 +314,8 @@ export async function runRagEval(opts?: {
           const realWorld = realWorldAnswered(question, set, answer);
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, ttft_ms, total_ms, error, toolCallRecovery });
+          const refusal = hasRefusalPhrase(answer);
+          rows.push({ prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, ttft_ms, total_ms, error, toolCallRecovery });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -324,7 +363,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {
