@@ -102,23 +102,23 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
 
 // runHeadlessEval in a fresh module graph, as a new `npm run eval` process gets, with the machine
 // probe replaced: its real one samples this machine's CPU for 3 s and asks the OS for core counts.
-async function freshRun(busyPct = 0) {
+async function freshRun(busyPct = 0, power: MachineInfo["power"] = "ac") {
   vi.resetModules();
   vi.doMock("@tauri-apps/plugin-sql", () => import("./shims/plugin-sql"));
   vi.doMock("@tauri-apps/plugin-http", () => import("./shims/plugin-http"));
   vi.doMock("@tauri-apps/plugin-store", () => import("./shims/plugin-store"));
   vi.doMock("@tauri-apps/api/core", () => import("./shims/api-core"));
-  vi.doMock("./machine", () => ({ machineInfo: async () => MACHINE, cpuBusyPct: async () => busyPct, serverThreads: async () => 8 }));
+  vi.doMock("./machine", () => ({ machineInfo: async () => ({ ...MACHINE, power }), cpuBusyPct: async () => busyPct, serverThreads: async () => 8 }));
   return (await import("./run")).runHeadlessEval;
 }
 
-async function b7Run(env: Record<string, string>, busyPct = 0): Promise<{ out: B7Result & Record<string, unknown>; error: Error | null }> {
+async function b7Run(env: Record<string, string>, busyPct = 0, power: MachineInfo["power"] = "ac"): Promise<{ out: B7Result & Record<string, unknown>; error: Error | null }> {
   const f = await fs();
   const dir = await f.mkdtemp(`${(await os()).tmpdir()}/oe-b7-`);
   const file = `${dir}/run.json`;
   let error: Error | null = null;
   try {
-    await (await freshRun(busyPct))({ EVAL_SUITE: "b7-cpu", EVAL_MODEL: MODEL, EVAL_OUT: file, ...env });
+    await (await freshRun(busyPct, power))({ EVAL_SUITE: "b7-cpu", EVAL_MODEL: MODEL, EVAL_OUT: file, ...env });
   } catch (e) {
     error = e as Error;
   }
@@ -284,6 +284,13 @@ describe("b7-cpu refusals", () => {
     const { out, error } = await b7Run({ EVAL_REPEATS: "1" });
     expect(error?.message).toMatch(/^Refusing: the Ollama server at http:\/\/127\.0\.0\.1:11434 has gemma4:e4b loaded/);
     expect(out.abort).toBe(error!.message);
+    expect(chats()).toBe(0);
+  }, 60_000);
+
+  it("refuses on battery power", async () => {
+    server.reset();
+    const { error } = await b7Run({ EVAL_REPEATS: "1" }, 0, "battery");
+    expect(error?.message).toMatch(/^Refusing: the machine is on battery/);
     expect(chats()).toBe(0);
   }, 60_000);
 

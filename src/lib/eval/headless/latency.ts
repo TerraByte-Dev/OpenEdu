@@ -6,7 +6,8 @@
 // started by hand as the README shows, and it refuses to run unless:
 //   - no other Ollama server on this machine (127.0.0.1:11434) has a model loaded (another run is
 //     using the CPU or the memory bus);
-//   - the CPU is idle (at most B7_MAX_BUSY_PCT busy over 3 s) before the first turn;
+//   - the machine is not on battery, and the CPU is idle (at most B7_MAX_BUSY_PCT busy over 3 s)
+//     before the first turn;
 //   - after every turn, /api/ps on the CPU server lists the chat model and every loaded model has
 //     size_vram 0. A model with any of its weights on a GPU voids the run (written, then thrown).
 //
@@ -185,6 +186,7 @@ export async function runB7(o: EvalOptions, embedModel: string, write: (body: B7
     const gpu = onGpu(result.server.psBefore);
     if (gpu.length) throw new B7Abort(`Refusing: the server at ${o.ollamaUrl} has weights on a GPU: ${gpu.join(", ")}. B7 needs a CPU-only server (README.md, "b7-cpu").`);
     result.machine = await machineInfo();
+    if (result.machine.power === "battery") throw new B7Abort("Refusing: the machine is on battery, and a laptop on battery throttles its CPU. Plug it in and retry.");
     result.server.threads = o.serverLog ? await serverThreads(o.serverLog) : null;
     result.server.busyPctBefore = await cpuBusyPct();
     if (result.server.busyPctBefore > B7_MAX_BUSY_PCT) {

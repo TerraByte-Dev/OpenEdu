@@ -132,8 +132,8 @@ $env:EVAL_MODEL = "gemma4:e2b"; npm run eval
 ```
 
 The run **refuses to start** when the usual server (`127.0.0.1:11434`) has any model loaded (another
-model run is using the machine), when `/api/ps` on the CPU server shows weights on a GPU, or when the
-CPU is more than 25% busy over 3 s. It **voids itself** (writes what it has, with the reason in
+model run is using the machine), when `/api/ps` on the CPU server shows weights on a GPU, when the
+laptop is on battery, or when the CPU is more than 25% busy over 3 s. It **voids itself** (writes what it has, with the reason in
 `abort`, then fails) when, after any turn, a loaded model has `size_vram` above 0, or the chat model is
 not in `/api/ps` (so the check could not cover it).
 
