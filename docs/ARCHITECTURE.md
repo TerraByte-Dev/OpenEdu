@@ -138,7 +138,7 @@ markdown files with frontmatter that gate on subject/tier. A per-tool **permissi
 own.
 
 When Ollama cannot parse a tool call the model wrote, it fails the whole request (HTTP 500, or an error
-line in the stream). If nothing had reached the student yet, the kernel answers that turn with one call
+line in the stream). If nothing from that model call had reached the student yet, the kernel answers that turn with one call
 that offers no tools and drops the tools manifest from the system prompt, and records it in the turn
 result (`toolCallRecovery`). Any other provider error fails the turn as before.
 
