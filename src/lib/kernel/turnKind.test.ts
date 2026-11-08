@@ -123,6 +123,13 @@ const TABLE: Array<[string, TurnKind]> = [
   ["How many legs do 3 spiders have?", "other"],
   ["How often should I practise, 3-4 times a week?", "other"],
   ["What happened between 1939-1945?", "fact-lookup"],
+  ["What happened between 1914 and 1918?", "fact-lookup"],
+  // After the blind held-out check (results/2026-11-08-turn-kind-heldout.md): calculations dressed as
+  // lookups, and inline "A." option lists. Own phrasings, not the held-out texts.
+  ["Which year is 40 years after 1990?", "other"],
+  ["If a tree was planted in 1950, how old is it in 2010?", "other"],
+  ["Which planet is largest? A. Mars B. Jupiter C. Venus D. Earth", "options-problem"],
+  ["I liked plan B. It was better.", "other"],
   ["So what is 3 + 4?", "other"],
   ["What is 3/4?", "other"],
   ["I have a test tomorrow. What is a cell?", "other"],
