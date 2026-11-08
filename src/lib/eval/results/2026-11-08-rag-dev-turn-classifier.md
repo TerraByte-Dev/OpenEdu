@@ -6,6 +6,10 @@
 > fires, on e2b's G1 (230 → 225 of 240, exactly the 5-item threshold, identical T1 requests). The plan below is as
 > pre-registered except the typed-problem sentence, corrected because that note was killed first.
 >
+> **Not on master.** This file records the kill on master (as #193 did for lever 3). The lever code,
+> `turnKind.ts` and its tests stay on branch `feat/turn-classifier` (PR #205, closed). Paths below that
+> name that code refer to the branch.
+>
 > **DEV, not a test result.** Sets: dev vault v2 (`rag-dev-v2.ts`), RAG held-out v1 `dev`, and the 240
 > k12-mc items (DEV for k12-flow). The classifier's second revision was written after reading the RAG
 > dev question texts (never model answers), so on these sets the trigger is in-sample.
@@ -60,7 +64,7 @@ arms given the same earlier replies (tested), so this guard can only fire on sam
 | Checkouts | e2b RAG runs: `C:/x/oe-turn` while it sat at `f64ade7`. All other runs: a detached worktree `C:/x/oe-turn-run` at `f64ade7` with its own `npm ci` |
 | Models | `gemma4:e2b` (`b37049369adf`), `qwen3.5:4b` (`d8b0f5e9760c`), `gemma4:e4b` (`c6eb396dbd59`); embedder `nomic-embed-text:latest` (`0a109f422b47`) |
 | Ollama | 0.40.15, 127.0.0.1:11434; library on, 154 cards; RTX 3070 laptop (8 GB VRAM), 32 GB RAM, GPU only |
-| Guard B arm | per the ruling in the PR body (2026-11-08), #197's pre-registered `L1 a1` runs at `32219a6` (whose `src/` equals #197's tip `a1ec967`): `C:/x/oe-g1-runs/gemma4_{e2b,e4b}-L1-a1.json`. `k12-flow-grade.ts` is unchanged between `32219a6` and `f64ade7`, so both arms are graded by the same code |
+| Guard B arm | per the ruling in the PR body (2026-11-08), #197's pre-registered `L1 a1` runs at `32219a6` (whose code under `src/` equals #197's tip at ruling time, `a1ec967`; only a results doc differs): `C:/x/oe-g1-runs/gemma4_{e2b,e4b}-L1-a1.json`. `k12-flow-grade.ts` is unchanged between `32219a6` and `f64ade7`, so both arms are graded by the same code |
 | Results JSON (not committed) | `C:/x/oe-turn-runs/<model>-<set>-<off\|on>-a1.json` and `<model>-k12flow-L-a1.json`; scripts `run.sh`/`run2.sh`, `check.cjs`, `analyze.cjs`, `poison.cjs`, `k12t1.cjs`; outputs `analysis-rag.txt`, `analysis-k12.txt`, `examples-e2b.txt`, `poison-e2b.txt`; log `run.log` |
 
 Before each model `ollama ps` was empty (checked by the script, which refuses to start otherwise):
@@ -117,9 +121,10 @@ row p-values are rough.
 
 The four e2b near-miss items lost: `v2-nl03` (3/3 clean → 0/3), `v2-nl16` (3/3 → 0/3), `h-nm03` (2/3 →
 0/3), `h-nm13` (2/3 → 1/3); none gained. The first two are real harm: the model answers a real-world
-question with a value from an unrelated fictional note. The two v1 dev items are citation chips on
-answers that say the note does not give the value (quoted below), which the proxy counts as a chip.
-Dropping those two still leaves a loss of 2 items, which still kills.
+question with a value from an unrelated fictional note. The two v1 dev items are milder. `h-nm13`'s
+chips sit on answers that say the note does not give the value (quoted below). `h-nm03`'s are not
+harmless: all 3 L repeats repeat the unrelated vault value 3.71, and repeat 3 never says the asked-for
+figure is missing (quoted below). Dropping both still leaves a loss of 2 items, which still kills.
 
 ### gemma4:e2b (kill rule applies)
 
@@ -202,7 +207,7 @@ Each row's first turn call (the one carrying the student's turn) was aligned to 
 call per tool call; every alignment checked against the request's tail). L − B `prompt_eval_count` on
 the same item and repeat: **noted turns +121 tokens on all 210 (e2b and e4b), +118 on all 210 (qwen)**;
 un-noted turns 0 on all 57 for e2b; for qwen 0 except 2 cross-lingual rows and for e4b 0 except 4
-(−68 to +67), each one whose retrieval differed between the runs (the Arabic and Amharic items). The PR's 143 is `estTokens`; the real cost
+(qwen −68 to +67, e4b −67 to +67), each one whose retrieval differed between the runs (the Arabic and Amharic items). The PR's 143 is `estTokens`; the real cost
 is about 120 tokens on that turn only. No arm added a model call; L made fewer calls than B because
 e2b, qwen and e4b called tools less with the note (dev-v2 B/L rows with tool calls: e2b 18/0, qwen
 29/0, e4b 16/0).
@@ -239,8 +244,14 @@ information about the geyser help you understand how we might measure time inter
 see you are asking about how often the Old Faithful erupts. I do not see any information about Old
 Faithful in your notes.\n\nCould you tell me if you are referring to the Ombrevast geyser in your
 notes?"). And `v2-nl24` ("century plant", value 26) went from 1 poison + 1 chip of 3 in B to 3 poison
-of 3 in L ("The Cindrel palm takes about 26 years to flower."). The v1 dev chips on `h-nm03` and
-`h-nm13` are answers that say the value is not in the note, e.g. L `h-nm13` repeat 1: "The recipe note
+of 3 in L ("The Cindrel palm takes about 26 years to flower."). The v1 dev chips on `h-nm13` are
+answers that say the value is not in the note; `h-nm03`'s L answers all contain the unrelated vault value
+3.71 (labelled "fabricated" because the scorer checks for a chip before the poison value), and repeat 3
+reads in full: "The notes indicate that the Marlow Basin sediment index came out at 3.71, which was
+lower than the team expected given the rainfall.
+
+What do you recall about the relationship between
+sediment index and rainfall?" L `h-nm13` repeat 1: "The recipe note
 states that Brannock bread should be baked until the crust sounds hollow when tapped, but it does not
 specify the exact oven temperature. …"
 
@@ -271,7 +282,7 @@ All 240 items, 1 repeat, n = 240.
 | G5 | 229/240 (92.0–97.4) | 235/240 (95.2–99.1) | +6 | 4 / 10 | 0.180 |
 
 Requests: every T1 has the same user text and the same `prompt_eval_count` in both arms on all 240
-items (e2b median 1,502 for both models), and T1 reported `firstTurnHold` on 240/240 with none on T2/T3 in
+items (median 1,502 for both e2b and e4b), and T1 reported `firstTurnHold` on 240/240 with none on T2/T3 in
 both arms, as the tests predict. **Guard kill rule, applied literally: it fires on e2b's G1** (230 → 225, a fall of 5 items = 2.1
 points, more than 2; McNemar p = 0.227). e2b's headline rose (+4), and e4b's G1 (−1) and headline (+6)
 did not fall by more than 2 points. With T1 requests identical in both arms, the e2b G1 drop is
@@ -287,7 +298,7 @@ is reported as a firing, not explained away. TTFT p50 at T1: e2b 142 → 119 ms,
   Pellomir newt's 17 days, Old Faithful gets the Ombrevast geyser's 38 minutes. The grounding block's
   "which passage to use" rules were left in charge, and e2b does not follow them under this pressure.
 - **The harm is small in count and real in kind.** 4 items of 43 (p = 0.125 on items, 12/1 on rows),
-  two of them proxy noise; but the two dev-v2 items fail on 3 of 3 repeats each, with a confident
+  `h-nm13` is proxy noise and `h-nm03` a milder leak of the vault value; but the two dev-v2 items fail on 3 of 3 repeats each, with a confident
   wrong value and no hedge. The pre-registered rule allowed 1 item and it was set before the run.
 - **e4b shows the same pattern** (harm proxy rows 109 → 100, chips/poison 20 → 29) with a smaller gain
   on positives (it was at 17/22). qwen3.5:4b barely moves: it already answers lookups and already
@@ -303,8 +314,9 @@ is reported as a firing, not explained away. TTFT p50 at T1: e2b 142 → 119 ms,
 ## Known limits
 
 - **DEV, in-sample trigger.** The classifier's rules were revised after reading these questions' texts.
-- **Harm proxy, not rubric.** A chip on an answer that says the value is absent counts as harm (two of
-  e2b's four lost items).
+- **Harm proxy, not rubric.** A chip on an answer that says the value is absent counts as harm (`h-nm13`,
+  one of e2b's four lost items). The near-miss "chip / poison" row counts label each row once, chip
+  first, so they undercount rows carrying the vault value: those go 4 → 14 (e2b), 16 → 23 (e4b), 70 → 71 (qwen).
 - **Single-turn questions, no persona, no generated pedagogy** (as #196).
 - **Guard B arm reused**, run 11 to 14 hours earlier; Ollama state differs. Requests match on T1.
 - **One machine, GPU only.**

@@ -6,6 +6,9 @@
 > since. Neither the classifier nor any label was changed for this run. The test that produced these
 > numbers is `src/lib/eval/turn-kind-heldout.test.ts`; it records and asserts nothing about accuracy.
 
+> **Not on master.** The classifier, the held-out set and its test stay on `feat/turn-classifier`
+> (PR #205, closed after its lever was killed); this file is kept on master as the record.
+
 Method: each message is classified as the student's newest message with an empty history.
 `options-problem` and `typed-problem` count as **problem**, `fact-lookup` as **lookup**, `other` as **none**.
 Intervals are Wilson 95%. Groups are reported separately: English not ambiguous (176), English marked
