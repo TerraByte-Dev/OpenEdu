@@ -103,7 +103,7 @@ The first four were killed by rules written before they ran; none of them is in 
   about the exact thing asked, and a note about a different thing does not answer it. The gains held
   (3 → 22 of 22 note questions, 3 → 60 of 75 real-world answers), but the same two trick questions
   failed the same way on 3 of 3 runs, and trick questions answered without misusing a note fell from 40
-  to 38 of 43. Rewording did not move them; the next attempt has to work in code, not in the note.
+  to 38 of 43. Two wordings of the note have not moved those two items.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
   ([live check](../src/lib/eval/results/2026-11-08-ollama-toolcall-live-check.md)).
