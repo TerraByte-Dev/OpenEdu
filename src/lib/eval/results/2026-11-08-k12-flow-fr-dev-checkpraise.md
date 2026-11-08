@@ -81,6 +81,8 @@ both arms (`git diff cbc373a 0f98a5e` over the frozen files is empty).
 
 ### Verdict: the kill rule does not fire
 
+The pre-registration expected e2b's G2 baseline to be 69/81 (from #209), so a rise of at most 12 items. This run's B arm measured 65/81, a fresh sample of the same code, so the measured rise is 16. The 6-item threshold does not depend on the baseline.
+
 | Clause (as read in the pre-registration) | B | L | Verdict |
 |---|---|---|---|
 | e2b k12-flow-fr G2 rises ≥ 6 items, c > b, McNemar p < 0.05 | 65/81 = 80.2% [70.3, 87.5] | 81/81 = 100.0% [95.5, 100.0] | +16 items, b 0, c 16, p 3.1e-5: **passes** |
