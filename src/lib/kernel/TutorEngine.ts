@@ -23,6 +23,7 @@ import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
 import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
+import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
@@ -127,6 +128,9 @@ export class TutorEngine {
     // The first-turn hold (attemptFirst.ts): decided here from the conversation as the caller sent it,
     // applied below after retrieval, so the query and the gloss see only what the student typed.
     const firstTurnHold = isFirstTurnHold(messages.filter((m) => m.role !== "system"));
+    // The check-before-praise note (checkBeforePraise.ts): a try at the problem the tutor just worked
+    // on. Decided and applied the same way as the hold; never on the same turn as it.
+    const checkBeforePraise = isCheckBeforePraiseTurn(messages.filter((m) => m.role !== "system"));
 
     const eduTools = await selectTools(ctx);
     const offered = new Set(eduTools.map((t) => t.name));
@@ -186,6 +190,11 @@ ${lastUser.content}` };
       // reads before it answers. The system prompt is untouched; see attemptFirst.ts.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withFirstTurnHold(messages[idx].content) };
+    }
+    if (checkBeforePraise) {
+      // Same place as the hold note: after the grounding block and the student's text.
+      const idx = messages.map((m) => m.role).lastIndexOf("user");
+      messages[idx] = { ...messages[idx], content: withCheckBeforePraise(messages[idx].content) };
     }
     if (import.meta.env?.DEV) {
       const t = grounding.trace;
