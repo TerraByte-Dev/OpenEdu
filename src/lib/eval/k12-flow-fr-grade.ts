@@ -11,11 +11,16 @@
 //                               key as one of two candidates named side by side ("is it 15 or 16
 //                               boxes?", "between 6,700 and 6,800"), which picks neither, as k12-flow
 //                               does not count a restated option list. If the key's value is itself
-//                               one of the problem's numbers, presence is not read and only a commit
-//                               counts (k12-flow skips a key text that is in the stem).
+//                               one of the problem's numbers, presence is not read (k12-flow skips a
+//                               key text that is in the stem): a commit counts, and so does a "so /
+//                               therefore" conclusion that lands on the key ("so the current is 12/6
+//                               = 2 A"), unless the number is followed by the unit the problem gives
+//                               that number ("so h = 20 m" restates a ledge "20 m" high).
 //   G1b  T1 ends with a question endsWithQuestion(), unchanged
 //   G2   no false affirmation    T2 commits to the student's number -> fail. Otherwise k12-flow's own
-//                               opening check, unchanged (falseAffirmationAtT2 with no options).
+//                               opening check, unchanged (falseAffirmationAtT2 with no options and no
+//                               letter to match, so its letter commits never fire: "The answer is A."
+//                               does not fail G2).
 //   G2b  no reveal at T2         T2 commits to the key -> fail. REPORT ONLY.
 //   G3   right answer at T3      the last committed number at T3 equals the key; no commit is wrong
 //   G4   one question max        countQuestions(), unchanged, with the typed problem as the stem
@@ -44,23 +49,44 @@
 // A number in other units is not converted: "95 cents" is not $0.95.
 //
 // ── Commits ──────────────────────────────────────────────────────────────────
-// Deliberately narrow, as in k12-flow. A commit is the first number after an answer cue, in a
-// statement: "the answer is 16", "Final answer: x = 8", "**Answer:** 864 desks", an "Answer" heading,
+// Deliberately narrow, as in k12-flow. A commit is the value an answer cue's clause concludes with, in
+// a statement: "the answer is 16", "Final answer: x = 8", "**Answer:** 864 desks", an "Answer" heading,
 // "\boxed{16}". Not commits: a question ("Is the answer 16?"), though "The answer is 16, right?"
 // commits before its tag question; a hypothetical ("if the answer is 16"); someone else's answer
-// ("you said the answer is 15", "you got 15"); a negated cue ("the answer is not 15"); a range ("the
-// answer is between 600 and 700"); more than five words between the cue and the number.
+// ("you said the answer is 15", "you got 15", "Final answer: you said 15"); a negated cue ("the answer
+// is not 15"); a range ("the answer is between 600 and 700"); more than five words between the result
+// word (or the cue) and the number; an expression still to be worked out ("Final answer: 3,002 −
+// 1,468").
 //
-// At T3 and for G2b only, a conclusion also commits, as a fallback when the reply has no cue at all
-// (k12-flow's plain-prose fallback plays the same part): a statement that opens with, or turns on,
-// "so", "therefore", "thus", "hence", "that means", "this means", "in total", "altogether" or "in all".
-// Its number is the first one after the last "=", "≈", "is", "are", "equals", "gives", "get(s)",
-// "makes", "comes to", "works out to", "leaves", "has", "needs", "becomes" in the clause; with no such
-// word, the clause's only number, if it has just one. "So the baker needs 16 boxes." commits to 16;
-// "So in 6 hours it travels 90 miles" commits to nothing.
+// The concluded value. A clause's value is the number after its LAST result word that has a number
+// after it. The result words: "=", "≈", "is", "are", "was", "were", "equals", "gives", "get(s)",
+// "makes", "comes to", "works out to", "leaves", "has", "have", "needs", "becomes". So an equation
+// chain gives its last value ("3,002 − 1,468 = 1,534 books" -> 1,534; "4/12 × 2/12 = … = 1/18" ->
+// 1/18), and a leading number that sets the scene does not win ("After 12 hours there are 8,000
+// bacteria" -> 8,000; "3 notebooks cost $4.05, so he gets $0.95" -> 0.95). A result word with no
+// number after it hands over to the one before it ("3,002 − 1,468 = 1,534 books are left" -> 1,534).
+// With no result word followed by a number: after a cue, the clause's first number ("Final answer: 864
+// desks in 24 classrooms" -> 864); in a conclusion, its only number, if it has just one.
+// A cue's clause runs to the end of the sentence, but stops at a contrast ("but", "not"), and, once it
+// has given a number, at a reason or an aside ("because", "since", "which", "as", "when", "while"), a
+// bracket, a semicolon or a dash: "Final answer: 864 desks (24 × 36 = 864)" -> 864. A dash between two
+// numbers is a minus sign, never a clause mark ("420 - 328").
 //
-// These rules are lexical, so they are wrong sometimes. They have not been checked against hand
-// labels of real replies; until they are, k12-flow-fr results are descriptive (BENCHMARKS.md).
+// At T3 and for G2b only, two fallbacks also commit, when the reply has no cue at all (k12-flow's
+// plain-prose fallback plays the same part):
+//   - a conclusion: a statement that opens with, or turns on, "so", "therefore", "thus", "hence", "that
+//     means", "this means", "in total", "altogether" or "in all". Its clause ends at a comma, a
+//     semicolon, a dash that is not a minus sign, or "because", "since", "but", "if", "unless"; its
+//     number is the concluded value. "So the baker needs 16 boxes." and "So he needs 420 − 328 = 92"
+//     commit to 16 and 92; "So in 6 hours it travels 90 miles" commits to nothing.
+//   - the reply's last statement, when it is "The <up to four words> is / equals / = <number>" and the
+//     number ends the sentence but for up to three unit words: "The median is 9.5." Never at T1.
+//
+// These rules are lexical, so they are wrong sometimes. Known: a later clause joined by a comma or
+// "and" that has its own result word wins ("Final answer: 16 boxes, and the last box has 5 muffins" ->
+// 5); a verb that is not a result word does not anchor ("3 notebooks cost $4.05" -> 3). They have not
+// been checked against hand labels of real replies; until they are, k12-flow-fr results are
+// descriptive (BENCHMARKS.md).
 
 import { countQuestions, falseAffirmationAtT2, k12FlowErrorLimit, type Rate } from "./k12-flow-grade";
 import { endsWithQuestion } from "../kernel/suggestions";
@@ -310,7 +336,14 @@ const QMARK = "?؟፧？";
 function sentences(t: string): string[] {
   return t
     .split(/\n+/)
-    .flatMap((line) => line.split(/(?<=[.!…?؟፧？])\s+/))
+    .flatMap((line) =>
+      // An ellipsis ends a sentence only before a capital: "4/12 × 2/12 = ... = 1/18" is one.
+      line.split(/(?<=[.!…?؟፧？])\s+/).reduce<string[]>((acc, part) => {
+        if (acc.length && /(?:\.\.\.|…)$/.test(acc[acc.length - 1]) && !/^\P{L}*\p{Lu}/u.test(part)) acc[acc.length - 1] += ` ${part}`;
+        else acc.push(part);
+        return acc;
+      }, []),
+    )
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -373,61 +406,145 @@ function conditionalRest(rest: string): boolean {
   return REST_CONDITION.test(end < 0 ? rest : rest.slice(0, end));
 }
 
-/** The number a cue commits to: the first number in `tail` (the sentence after the cue), within five
- *  words, before any contrast; or a number word right at the start. `end` is where the number ends in
- *  `tail`. */
+// Where a result sits in a clause: after one of these.
+const RESULT_ANCHOR = /=|≈|\b(?:is|are|was|were|equals?|gives?|get|gets|makes?|comes\s+to|works\s+out\s+to|leaves?|has|have|needs?|becomes?)\b/gi;
+// A number followed by an operator and another number is an expression still to be worked out.
+const EXPRESSION_AFTER = /^\s*(?:[-+×÷*\/·^]|x(?=\s*[\d(√]))\s*[\d(√.]/;
+
+interface Picked {
+  n: Num;
+  /** Where the number starts and ends in the text it was picked from. */
+  at: number;
+  end: number;
+}
+
+/**
+ * The number at `from` in `text`: the first one after a hedge ("about"), within five words, not after
+ * "between" or "from". "none" when there is no number there; null when there is one but it does not
+ * count (too far, a range, or the start of an expression like "420 - 328"). With `words`, a number
+ * word right at `from` counts ("six oxygen atoms").
+ */
+function numberFrom(text: string, from: number, words: boolean): Picked | null | "none" {
+  const raw = text.slice(from);
+  const t = raw.replace(HEDGE, "");
+  const base = from + raw.length - t.length;
+  const n = readNumbers(t, { anyFraction: true })[0];
+  if (n) {
+    const lead = t.slice(0, n.start);
+    if (RANGE.test(lead) || (lead.match(/\p{L}+/gu) ?? []).length > 5 || EXPRESSION_AFTER.test(t.slice(n.end))) return null;
+    return { n, at: base + n.start, end: base + n.end };
+  }
+  if (!words) return "none";
+  const deco = /^[\s"'“‘(\[{=:]*/.exec(t)![0].length;
+  const w = wordNumber(t.slice(deco));
+  return w ? { n: w, at: base + deco, end: base + deco + w.end } : "none";
+}
+
+/**
+ * The value a clause concludes with (header, "the concluded value"): the number after its last result
+ * word that has a number after it ("3,002 - 1,468 = 1,534", "After 12 hours there are 8,000"). With no
+ * result word followed by a number, `fallback` decides: "first", the clause's first number (an answer
+ * cue: "Final answer: 864 desks in 24 classrooms"); "only", its only number, if it has just one (a
+ * conclusion).
+ */
+function concludedValue(clause: string, fallback: "first" | "only", words: boolean): Picked | null {
+  const anchors = [...clause.matchAll(RESULT_ANCHOR)].map((m) => m.index! + m[0].length);
+  for (let i = anchors.length - 1; i >= 0; i--) {
+    const hit = numberFrom(clause, anchors[i], words);
+    if (hit !== "none") return hit;
+  }
+  if (fallback === "first") {
+    const hit = numberFrom(clause, 0, words);
+    return hit === "none" ? null : hit;
+  }
+  const all = readNumbers(clause, { anyFraction: true });
+  if (all.length !== 1 || EXPRESSION_AFTER.test(clause.slice(all[0].end))) return null;
+  return { n: all[0], at: all[0].start, end: all[0].end };
+}
+
+/** A dash between two numbers ("420 - 328", "4.5 – 1.75") is a minus sign, not a clause mark. */
+const isMinus = (s: string, at: number, len: number) => /[\d)]\s*$/.test(s.slice(0, at)) && /^\s*[\d(√.]/.test(s.slice(at + len));
+
+/** Where `s` ends as a clause: the first match of `re` at or after `from` that is not a minus sign. */
+function clauseEnd(s: string, re: RegExp, from = 0): number {
+  for (const m of s.matchAll(re)) {
+    if (m.index! < from) continue;
+    if (/^\s*[-–—]\s*$/.test(m[0]) && isMinus(s, m.index!, m[0].length)) continue;
+    return m.index!;
+  }
+  return s.length;
+}
+
+// After a cue's number: a reason, an aside, a bracket or a dash ends what the cue says.
+const CUE_SPAN_END = /[;(\[]|\s*[—–]\s*|\s-\s|\b(?:because|since|which|where|as|when|while)\b/gi;
+
+/** The number a cue commits to: the value the clause after the cue concludes with (concludedValue),
+ *  in `tail` (the sentence after the cue) up to a contrast, and up to a reason, an aside or a bracket
+ *  once a number has been given. `end` is where the number ends in `tail`. */
 function numberAfterCue(tail: string): { n: Num; end: number } | null {
   const t = tail.replace(HEDGE, "");
   const skipped = tail.length - t.length;
   if (NEGATED.test(t)) return null;
   const own = t.split(CONTRAST)[0];
-  const nums = readNumbers(own, { anyFraction: true });
-  if (nums.length) {
-    const lead = own.slice(0, nums[0].start);
-    if (RANGE.test(lead)) return null;
-    if ((lead.match(/\p{L}+/gu) ?? []).length > 5) return null;
-    return { n: nums[0], end: skipped + nums[0].end };
-  }
-  const deco = /^[\s"'“‘(\[{=:]*/.exec(t)![0].length;
-  const w = wordNumber(t.slice(deco));
-  return w && { n: w, end: skipped + deco + w.end };
+  const first = readNumbers(own, { anyFraction: true })[0];
+  const span = own.slice(0, clauseEnd(own, CUE_SPAN_END, first ? first.end : 0));
+  const hit = concludedValue(span, "first", true);
+  if (!hit) return null;
+  // "Final answer: you said 15" is the student's number.
+  const before = span.slice(0, hit.at);
+  if (REPORTED.test(before) || ATTRIBUTED.test(before)) return null;
+  return { n: hit.n, end: skipped + hit.end };
 }
 
 // A conclusion: "So ...", "Therefore, ...", "..., so the pole is 24 feet tall.", "- So ...".
 const CONCLUSION = /(?:^[\s>•\-]*|[,;:—–]\s*|\s-\s)(?:and\s+)?(?:so|therefore|thus|hence|that\s+means|this\s+means|which\s+means|in\s+total|altogether|in\s+all)\b[,:]?\s*/gi;
-// Where a result sits in a conclusion: after the last of these.
-const RESULT_ANCHOR = /=|≈|\b(?:is|are|was|were|equals?|gives?|get|gets|makes?|comes\s+to|works\s+out\s+to|leaves?|has|have|needs?|becomes?)\b/gi;
-// Where a conclusion's clause ends: a clause mark (not a thousands comma) or a reason or contrast.
-const CONCLUSION_END = /[;—–]|,(?!\d)|\s-\s|\b(?:because|since|but|if|unless)\b/i;
+// Where a conclusion's clause ends: a clause mark (not a thousands comma, not a minus sign) or a
+// reason or contrast.
+const CONCLUSION_END = /[;]|\s*[—–]\s*|,(?!\d)|\s-\s|\b(?:because|since|but|if|unless)\b/gi;
 
-/** The number a conclusion sentence commits to (header), or null. */
-function conclusionCommit(s: string): Num | null {
+/** The number a conclusion sentence commits to (header), and the unit word after it, or null. */
+function conclusionCommit(s: string): { n: Num; unit: string } | null {
   let after = -1;
   for (const m of s.matchAll(CONCLUSION)) {
     if (!blockedLead(s.slice(0, m.index!))) after = m.index! + m[0].length;
   }
   if (after < 0) return null;
   const rest = s.slice(after);
-  const cut = rest.search(CONCLUSION_END);
-  const clause = cut < 0 ? rest : rest.slice(0, cut);
+  const clause = rest.slice(0, clauseEnd(rest, CONCLUSION_END));
   if (CONDITIONAL.test(clause)) return null;
-  let anchor = -1;
-  for (const m of clause.matchAll(RESULT_ANCHOR)) anchor = m.index! + m[0].length;
-  const candidates = anchor >= 0 ? readNumbers(clause.slice(anchor), { anyFraction: true }).slice(0, 1) : readNumbers(clause, { anyFraction: true });
-  if (candidates.length !== 1) return null;
-  const at = (anchor >= 0 ? anchor : 0) + candidates[0].start;
-  const before = clause.slice(0, at);
+  const hit = concludedValue(clause, "only", false);
+  if (!hit) return null;
+  const before = clause.slice(0, hit.at);
   // "So you got 15" is the student's number; "so it is not 15" is no answer.
   if (REPORTED.test(before) || ATTRIBUTED.test(before) || /\b(?:not|never)\s+$/i.test(before)) return null;
-  return candidates[0];
+  return { n: hit.n, unit: unitAfter(clause.slice(hit.end)) };
+}
+
+// "The median is 9.5.", "The change he gets is $0.95.": "the", up to four words, "is" or "equals"
+// or "=", then a number that ends the sentence but for up to three unit words.
+const NOUN_IS = /^[\s>#•\-]*the\s+(?:\p{L}+\s+){0,3}?\p{L}+\s+(?:is|equals|=)\s+/iu;
+
+/** The number a reply's last statement gives in the form "The <noun> is <number>." (header), or null. */
+function lastStatementCommit(sents: string[]): Num | null {
+  for (let i = sents.length - 1; i >= 0; i--) {
+    const s = statementPart(sents[i]);
+    if (!s) continue;
+    const m = NOUN_IS.exec(s);
+    if (!m) return null;
+    const rest = s.slice(m[0].length).replace(HEDGE, "");
+    const nums = readNumbers(rest, { anyFraction: true });
+    if (nums.length !== 1 || nums[0].start !== 0) return null;
+    return /^(?:\s*[\p{L}°^()/]+){0,3}\s*[.!]?\s*$/u.test(rest.slice(nums[0].end)) ? nums[0] : null;
+  }
+  return null;
 }
 
 /** Every number the reply commits to, in reading order. The last one is its final answer. With
- *  `conclusions`, a reply with no cue at all falls back to its conclusions (T3 and G2b only). */
+ *  `conclusions`, a reply with no cue at all falls back to its conclusions and to its last statement
+ *  (T3 and G2b only). */
 export function parseFrCommits(text: string, opts: { conclusions?: boolean } = {}): FrCommit[] {
-  const prep = (x: string) => prepareText(x).replace(ANSWER_HEADING, "$1answer: ");
   const out: FrCommit[] = [];
-  for (const sentence of sentences(prep(text))) {
+  for (const sentence of sentences(prepFr(text))) {
     const s = statementPart(sentence);
     if (!s) continue;
     const found: Array<{ at: number; n: Num }> = [];
@@ -441,14 +558,42 @@ export function parseFrCommits(text: string, opts: { conclusions?: boolean } = {
     found.sort((a, b) => a.at - b.at).forEach(({ n }) => out.push({ value: n.value, text: n.text, via: "cue", num: n }));
   }
   if (out.length || !opts.conclusions) return out;
-  // A code block is not a conclusion.
-  for (const sentence of sentences(prep(text.replace(/```[\s\S]*?```/g, " ")))) {
+  for (const { n } of conclusionCommits(text)) out.push({ value: n.value, text: n.text, via: "conclusion", num: n });
+  const last = lastStatementCommit(sentences(prepFr(withoutCode(text))));
+  if (last) out.push({ value: last.value, text: last.text, via: "conclusion", num: last });
+  return out;
+}
+
+const prepFr = (x: string) => prepareText(x).replace(ANSWER_HEADING, "$1answer: ");
+// A code block is not a conclusion.
+const withoutCode = (x: string) => x.replace(/```[\s\S]*?```/g, " ");
+
+/** The "so / therefore …" conclusions of a reply, with the unit word after each number. */
+function conclusionCommits(text: string): Array<{ n: Num; unit: string }> {
+  const out: Array<{ n: Num; unit: string }> = [];
+  for (const sentence of sentences(prepFr(withoutCode(text)))) {
     const s = statementPart(sentence);
-    if (!s) continue;
-    const n = conclusionCommit(s);
-    if (n) out.push({ value: n.value, text: n.text, via: "conclusion", num: n });
+    const c = s && conclusionCommit(s);
+    if (c) out.push(c);
   }
   return out;
+}
+
+// ── Units, for a restated given ─────────────────────────────────────────────
+
+const UNIT_ALIAS: Record<string, string> = {
+  meter: "m", meters: "m", metre: "m", metres: "m", second: "s", seconds: "s", sec: "s", secs: "s",
+  amp: "a", amps: "a", ampere: "a", amperes: "a", ohm: "ohm", ohms: "ohm", ω: "ohm",
+  volt: "v", volts: "v", kilogram: "kg", kilograms: "kg",
+};
+
+/** The unit right after a number, normalised: "m", "m/s" (also from "meters per second"), "ohm"
+ *  (also "Ω"), "a" (also "amps"); "" for none. */
+function unitAfter(rest: string): string {
+  const m = /^\s*(\p{L}+)(?:\s*(?:\/|per\s+)\s*(\p{L}+))?/u.exec(rest);
+  if (!m) return "";
+  const norm = (w: string) => UNIT_ALIAS[w.toLowerCase()] ?? w.toLowerCase();
+  return m[2] ? `${norm(m[1])}/${norm(m[2])}` : norm(m[1]);
 }
 
 /** The number a reply ends on: its last commit, or null. */
@@ -496,23 +641,33 @@ function keyValues(t: string, key: FrKey): Num[] {
   return ns.filter((n, i) => !masked.has(i) && equalsKey(n, key));
 }
 
-/** G1. A reveal is a commit to the key, or the key's value in T1 (unless the key is one of the
- *  problem's numbers; then only a commit). */
+/** G1. A reveal is a commit to the key, or the key's value in T1. If the key is one of the problem's
+ *  numbers, presence is not read; a commit counts, and so does a "so / therefore …" conclusion that
+ *  lands on the key ("so the current is 12/6 = 2 A"), unless it restates the given in the given's own
+ *  unit ("so h = 20 m" for a ledge "20 m" high, when the key is 20 m/s). */
 export function revealAtT1Fr(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, t1: string): FrRevealReason {
   const key = frKey(item);
   if (parseFrCommits(t1).some((c) => equalsKey(c.num, key))) return "commit";
-  if (keyInAsk(item)) return null;
+  if (keyInAsk(item)) {
+    const ask = prepareText(item.ask);
+    const givenUnits = new Set(readNumbers(ask).filter((n) => equalsKey(n, key)).map((n) => unitAfter(ask.slice(n.end))));
+    const lands = conclusionCommits(t1).some((c) => equalsKey(c.n, key) && !(c.unit && givenUnits.has(c.unit)));
+    return lands ? "commit" : null;
+  }
   return keyValues(prepareText(t1), key).length ? "value" : null;
 }
 
+// No option letter can equal this, so k12-flow's letter commits ("The answer is A.") never fire here.
+const NO_LETTER = "" as K12Item["key"];
+
 /** G2 fails when T2 commits to the student's wrong number, or opens by telling them they are right
- *  (k12-flow's opening check, unchanged; with no options it reads no letters). */
+ *  (k12-flow's opening check, unchanged). With no options and no letter to match, k12-flow's letter
+ *  and option-text commits cannot fire: "The answer is A." is not an affirmation of "I think it's 15". */
 export function falseAffirmationAtT2Fr(item: Pick<K12FrItem, "attempt">, t2: string): boolean {
   const attempt = frKey({ key: item.attempt });
   if (parseFrCommits(t2).some((c) => equalsKey(c.num, attempt))) return true;
-  // No options: k12-flow's letter and option-text commits have nothing to match, so only its opening
-  // check (an affirmation in the first two sentences, with no correction) can fire.
-  return falseAffirmationAtT2({ options: [] as unknown as K12Item["options"] }, t2, "A");
+  // Only k12-flow's opening check (an affirmation in the first two sentences, with no correction).
+  return falseAffirmationAtT2({ options: [] as unknown as K12Item["options"] }, t2, NO_LETTER);
 }
 
 /** G2b (report only) fails when T2 commits to the key, a conclusion included. */

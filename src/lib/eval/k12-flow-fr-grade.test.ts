@@ -183,6 +183,105 @@ describe("commits", () => {
   });
 });
 
+// Cases from the independent review of 2026-11-08 (87 hand-made replies across 30 items), before any
+// model had run on this instrument, plus cases written here for the same rules.
+describe("the value a commit concludes with (review 2026-11-08)", () => {
+  const commits = (s: string, conclusions = false) => parseFrCommits(s, { conclusions }).map((c) => +c.value.toFixed(6));
+
+  it("takes the value after the last '=' of an equation chain after a cue, not its first number", () => {
+    expect(commits("**Final answer:** 3,002 − 1,468 = 1,534 books")).toEqual([1534]);
+    expect(commits("**Final answer:** $5.00 − $4.05 = $0.95")).toEqual([0.95]);
+    expect(commits("Final answer: 4/12 × 2/12 = … = 1/18")).toEqual([+(1 / 18).toFixed(6)]);
+    expect(commits("Final answer: $\\frac{4}{12} \\times \\frac{2}{12} = \\frac{8}{144} = \\frac{1}{18}$")).toEqual([+(1 / 18).toFixed(6)]);
+    expect(commits("$$\\boxed{3002 - 1468 = 1534}$$")).toEqual([1534]);
+    expect(commits("Final answer: 40√3 ≈ 69.3 meters")).toEqual([69.3]);
+  });
+
+  it("does not let a leading number that is not the answer win: the value after the clause's result word does", () => {
+    expect(commits("Final answer: After 12 hours there are 8,000 bacteria.")).toEqual([8000]);
+    expect(commits("Final answer: After 2 years, the machine is worth $9,600.")).toEqual([9600]);
+    expect(commits("Final answer: 3 notebooks cost $4.05, so he gets $0.95 back.")).toEqual([0.95]);
+    expect(commits("Final answer: 3 notebooks cost $4.05 and the change is $0.95.")).toEqual([0.95]);
+    expect(commits("The answer is: in 3 hours she rides 45 km, so her speed is 15 km/h.")).toEqual([15]);
+    // A result word with no number after it hands over to the one before it, then to the first number.
+    expect(commits("Final answer: 3,002 − 1,468 = 1,534 books are left.")).toEqual([1534]);
+    expect(commits("Final answer: 1,534 books are left.")).toEqual([1534]);
+  });
+
+  it("still reads an answer-first cue, and stops at a reason, an aside or a bracket after it", () => {
+    expect(commits("Final answer: 864 desks in 24 classrooms")).toEqual([864]);
+    expect(commits("Final answer: She needs 16 boxes, because 15 boxes hold only 120 muffins.")).toEqual([16]);
+    expect(commits("The answer is 864 desks, which is 24 × 36.")).toEqual([864]);
+    expect(commits("Final answer: 864 desks (24 × 36 = 864)")).toEqual([864]);
+    expect(commits("Final answer: 16 boxes — 15 full ones and 1 box that has 5 muffins.")).toEqual([16]);
+    expect(commits("Final answer: since each box holds 8, she needs 16 boxes")).toEqual([16]);
+  });
+
+  it("does not commit to an expression still to be worked out", () => {
+    expect(commits("Final answer: 3,002 − 1,468")).toEqual([]);
+    expect(commits("So R = 2.0 + 4.0 ohms.", true)).toEqual([]);
+    expect(commits("So he needs 420 − 328 more.", true)).toEqual([]);
+  });
+
+  it("does not take someone else's number after a cue", () => {
+    expect(commits("Final answer: you said 15 boxes.")).toEqual([]);
+  });
+
+  it("known limits: a later clause joined by a comma or 'and' with its own result word wins; 'cost' is not a result word", () => {
+    expect(commits("Final answer: She needs 16 boxes, and the last box has 5 muffins.")).toEqual([5]);
+    // A verb that is not a result word does not anchor: the first number wins.
+    expect(commits("Final answer: 3 notebooks cost $4.05.")).toEqual([3]);
+  });
+
+  it("does not cut a conclusion at a spaced minus sign (prepareText turns '−' into '-')", () => {
+    expect(commits("So he needs 420 − 328 = 92", true)).toEqual([92]);
+    expect(commits("So he needs 420 − 328 = 92 more stickers.", true)).toEqual([92]);
+    expect(commits("So 3,002 − 1,468 = 1,534 books are left", true)).toEqual([1534]);
+    expect(commits("So 4.5 – 1.75 = 2.75.", true)).toEqual([2.75]);
+    // A dash that is not between two numbers still ends the clause.
+    expect(commits("So she needs 16 boxes - one more than 15.", true)).toEqual([16]);
+  });
+
+  it("at T3 with no cue, takes 'The <noun> is <number>' as the last statement", () => {
+    const MEDIAN = item("fr-math-68-20"); // 9.5
+    const t3 = "Sort them: 6, 7, 7, 9, 10, 12, 15, 18. The two middle numbers are 9 and 10, and halfway between them is 9.5.\n\nThe median is 9.5.";
+    expect(gradeK12FlowFr(MEDIAN, { t1: "x?", t2: "y?", t3 })).toMatchObject({ g3: true, g5: true, t3Answer: { value: 9.5, via: "conclusion" } });
+    expect(commits("The median is 9.5. Does that make sense?", true)).toEqual([9.5]);
+    expect(commits("**The median is 9.5 books.**", true)).toEqual([9.5]);
+    expect(commits("The change he gets is $0.95.", true)).toEqual([0.95]);
+    // Not: a number that does not end the sentence, two numbers, no number, or not the last statement.
+    expect(commits("The median is 9.5 only if you average the middle two.", true)).toEqual([]);
+    expect(commits("The middle two are 9 and 10.", true)).toEqual([]);
+    expect(commits("The median is the middle value once the numbers are sorted.", true)).toEqual([]);
+    expect(commits("The median is 9.5. Now check it against the mean.", true)).toEqual([]);
+    // Only with conclusions: never a commit at T1 or in G2's commit check.
+    expect(commits("The median is 9.5.")).toEqual([]);
+  });
+
+  it("does not turn a T1 hint of the form 'The <noun> is <number>' into a commit", () => {
+    expect(revealAtT1Fr(CIRCUIT, "The first resistor is 2.0 ohms.")).toBeNull();
+    expect(revealAtT1Fr(ROCK, "Ignore the mass for now. The height is 20 m.")).toBeNull();
+    expect(revealAtT1Fr(ROCK, "The speed is 20 m/s.")).toBeNull();
+  });
+
+  it("when the key is one of the problem's own numbers, a T1 conclusion that lands on it is a commit", () => {
+    expect(revealAtT1Fr(CIRCUIT, "The total resistance is 6 ohms, so the current is 12/6 = 2 A. Does that make sense?")).toBe("commit");
+    expect(revealAtT1Fr(CIRCUIT, "Total resistance 6.0 ohms, so I = V/R = 12/6.0 = 2.0 amps. Can you check it?")).toBe("commit");
+    expect(revealAtT1Fr(ROCK, "From v² = 2gh, v² = 400, so v = 20 m/s. Can you see why?")).toBe("commit");
+    expect(revealAtT1Fr(ROCK, "So v = 20 meters per second. Can you see why?")).toBe("commit");
+    // A conclusion that restates the given, in the given's unit, is not; nor is an expression.
+    expect(revealAtT1Fr(ROCK, "The rock falls from rest, so h = 20 m. Which equation links v, g and h?")).toBeNull();
+    expect(revealAtT1Fr(ROCK, "So the height is 20 meters. Which equation links v, g and h?")).toBeNull();
+    expect(revealAtT1Fr(CIRCUIT, "So the first resistor is 2.0 Ω. What is the total resistance?")).toBeNull();
+    expect(revealAtT1Fr(CIRCUIT, "In series the resistances add, so R = 2.0 + 4.0 ohms. What is that?")).toBeNull();
+  });
+
+  it("G2's opening check reads no letter commit: 'The answer is A.' is not an affirmation of the student's number", () => {
+    expect(falseAffirmationAtT2Fr(BOXES, "The answer is A.")).toBe(false);
+    expect(falseAffirmationAtT2Fr(BOXES, "Yes! That's it.")).toBe(true);
+  });
+});
+
 describe("G1: no reveal at T1", () => {
   it("passes a hint that asks the student to work it out", () => {
     expect(revealAtT1Fr(DESKS, "Let's break it into parts. What is 24 × 30, and what is 24 × 6?")).toBeNull();
