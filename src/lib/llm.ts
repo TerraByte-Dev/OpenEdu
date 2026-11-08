@@ -553,6 +553,33 @@ export async function getOllamaVersion(ollamaUrl: string): Promise<string | null
   }
 }
 
+// ─── Ollama loaded-model probe (/api/ps), not cached: the answer changes as Ollama loads and unloads ──
+// True when Ollama has `config.model` in memory, at `config.contextTokens` when /api/ps reports a
+// context length (a runner at another num_ctx reloads). False when it does not. null when the probe
+// fails or the reply is unreadable. Rethrows only when `signal` aborted it.
+export async function ollamaModelLoaded(config: LLMConfig, signal?: AbortSignal): Promise<boolean | null> {
+  const base = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+  const want = config.model.includes(":") ? config.model : `${config.model}:latest`;
+  try {
+    const response = await fetch(`${base}/api/ps`, {
+      method: "GET",
+      headers: { "Accept": "application/json", "Origin": "" },
+      signal,
+    });
+    if (!response.ok) return null;
+    const json = await response.json();
+    if (!Array.isArray(json?.models)) return null;
+    const ctx = config.contextTokens ? Math.floor(config.contextTokens) : null;
+    return json.models.some((m: { name?: unknown; model?: unknown; context_length?: unknown }) =>
+      (m?.name === want || m?.model === want) &&
+      (ctx === null || typeof m.context_length !== "number" || m.context_length === ctx));
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    log.warn("ollamaModelLoaded", "probe failed", e);
+    return null;
+  }
+}
+
 function ollamaSupportsSchemaFormat(version: string | null): boolean {
   // Schema-as-format introduced in Ollama 0.5.0
   if (!version) return false;

@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 //
 // The vault and questions are written for this test and are not from any eval set. The questions cover
 // the shapes most likely to trip a script check: plain English, a Greek letter in maths, Latin
-// letters with accents, a quoted symbol, and an acknowledgement that skips retrieval, then five maths
+// letters with accents, a quoted symbol, and an acknowledgement that skips retrieval, then seven maths
 // questions with adjacent Greek or maths letters.
 
 vi.mock("@tauri-apps/plugin-sql", () => import("./shims/plugin-sql"));
@@ -50,6 +50,11 @@ const ENGLISH_QUESTIONS: RagQuestion[] = [
   { id: "en-math-hbar", kind: "negative", ask: "What is ℏω for a photon?", poison: "0.6" },
   { id: "en-math-assoc", kind: "negative", ask: "Why is (αβ)γ = α(βγ)?", poison: "0.6" },
   { id: "en-math-italic", kind: "negative", ask: "Solve 𝑥𝑦 = 3 for y", poison: "0.6" },
+  // Added after the re-review of PR #188 (finding 2): Greek letters in groups of three, which the
+  // share-of-3+-letter-words gate still glossed. Written by this test with master's kernel, ground.ts,
+  // llm.ts and rag-runner.ts (96e9b7a) checked out; every entry above matched unchanged on that run.
+  { id: "en-math-greek3", kind: "negative", ask: "Is αβγ = γβα?", poison: "0.6" },
+  { id: "en-math-greek3-assoc", kind: "negative", ask: "Why is (αβγ)δ = α(βγδ)?", poison: "0.6" },
 ];
 
 interface Call { path: string; raw: string | undefined }

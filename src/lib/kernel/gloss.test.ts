@@ -26,6 +26,28 @@ describe("needsGloss", () => {
     ]) expect(needsGloss(q), q).toBe(false);
   });
 
+  it("is false for English maths with Greek letters in groups of three (re-review finding 2)", () => {
+    for (const q of ["Is αβγ = γβα?", "Why is (αβγ)δ = α(βγδ)?"]) expect(needsGloss(q), q).toBe(false);
+  });
+
+  it("is true for short Korean, Amharic and Arabic questions, acronyms and all (re-review finding 2)", () => {
+    for (const q of [
+      "세포 호흡 설명",
+      "세포 분열",
+      "물의 순환",
+      "산과 염기",
+      "ATP 합성 효소 설명",
+      "ATP 합성",
+      "ምን ነው ATP?",
+      "ما هو pH؟",
+      "ما هو الـ DNA؟",
+    ]) expect(needsGloss(q), q).toBe(true);
+  });
+
+  it("is true for Korean, Japanese and Chinese written with spaces between words", () => {
+    for (const q of ["광합성 이란 무엇 인가요?", "光合成 とは 何 ですか？", "光合作用 是 什么？"]) expect(needsGloss(q), q).toBe(true);
+  });
+
   it("is false for a mostly-English question with one non-Latin word", () => {
     expect(needsGloss("Photosynthesis क्या है?")).toBe(false);
   });

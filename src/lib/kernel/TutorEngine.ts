@@ -99,8 +99,10 @@ export class TutorEngine {
     // Lever L2 (gloss.ts): a question in a non-Latin script gets one short call that writes it in
     // English, and retrieval searches with both. The call continues this turn's own prefix (the
     // messages as fitted, the same tools, the same num_ctx) so Ollama neither reloads nor loses its
-    // prefix cache. An English question skips this block entirely: same requests as before L2. Ollama
-    // only (shouldGloss): on a cloud provider the call is unmeasured and paid.
+    // prefix cache. A question needsGloss rejects skips this block entirely, so its requests are the
+    // pre-L2 ones; english-path.test.ts pins that byte for byte for its English questions. The check is
+    // a heuristic, so some English text can still be glossed. Ollama only (shouldGloss): on a cloud
+    // provider the call is unmeasured and paid.
     let gloss: GlossResult | null = null;
     if (lastUser && shouldRetrieve(lastUser.content, retrieval).retrieve && shouldGloss(lastUser.content, turn.config.provider)) {
       gloss = await glossQuestion(fitMessages(messages, budget).messages, lastUser.content, turn.config, {

@@ -47,6 +47,8 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
       return json({ details: { parameter_size: "5.1B" }, model_info: { "general.architecture": "gemma3n", "gemma3n.context_length": 32768 }, capabilities: ["completion", "tools"] });
     case "/api/version":
       return json({ version: "0.40.15" });
+    case "/api/ps": // the chat model is in memory, so the warm deadline applies
+      return json({ models: [{ name: MODEL, model: MODEL }] });
     case "/api/embed":
       embeds.push(body.input!);
       return json({ embeddings: body.input!.map((t) => (/photosynth|chlorophyll|प्रकाश/i.test(t) ? [1, 0] : [0, 1])) });
