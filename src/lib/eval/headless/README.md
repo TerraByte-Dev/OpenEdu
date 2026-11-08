@@ -40,6 +40,12 @@ For RAG, each row also has `realWorld` (B1 (c): for a near-miss with a real-worl
 the answer gave it; see `realWorldExpect` in `../rag-dev-v2.ts`) and `noteRetrieved` (whether the
 item's gold or near note was among the hits the model saw), and the report sums both per mode.
 
+A turn that throws is an ERROR row: `answer` is `ERROR: ` plus the message and `error` holds the
+message. The row keeps the grounding trace the turn had before it failed, so a failed model call does
+not trip the "NO note candidates" vault check. `toolCallRecovery` is set when Ollama could not parse the
+model's tool call and the kernel answered the turn without tools (see `TutorTurnResult` in
+`../../kernel/TutorEngine.ts`). The report's `turnFailures` counts both per mode.
+
 The results file holds the runner's report (every row, with `ttft_ms` and `total_ms`), the options,
 the commit SHA, whether `src/` had uncommitted changes or differs from master, the tags at HEAD, whether
 the library was on and how many cards it had, the Ollama version and each model's tag and digest
