@@ -13,6 +13,11 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 // the shapes most likely to trip a script check: plain English, a Greek letter in maths, Latin
 // letters with accents, a quoted symbol, and an acknowledgement that skips retrieval, then seven maths
 // questions with adjacent Greek or maths letters.
+//
+// The turn notes (kernel turnKind.ts) change English turns on purpose: a fact lookup gets a note after
+// the student's text. So the snapshot is taken with the notes off (TutorTurn.turnNotes, the eval's
+// paired-baseline switch), and a second pass with the notes on checks that they add nothing but the
+// note at the end of the last user message: no request, no embedding, no other byte.
 
 vi.mock("@tauri-apps/plugin-sql", () => import("./shims/plugin-sql"));
 vi.mock("@tauri-apps/plugin-http", () => import("./shims/plugin-http"));
@@ -28,6 +33,7 @@ import { refreshManifest } from "../../library";
 import { refreshDatasetManifest } from "../../library-datasets";
 import { STORE_FILE, STORE_KEYS } from "../../store-keys";
 import type { FixtureNote, RagQuestion } from "../rag-fixture";
+import { classifyMessage, turnNoteFor } from "../../kernel/turnKind";
 
 const MODEL = "gemma4:e2b";
 
@@ -96,6 +102,7 @@ const raws = (p: string) => calls.filter((c) => c.path === p).map((c) => c.raw?.
 
 describe("English turns: the requests Ollama sees", () => {
   let perQuestion: Array<{ id: string; chat: Array<string | undefined>; embed: Array<string | undefined> }> = [];
+  let withNotes: typeof perQuestion = [];
   let seedingEmbeds: Array<string | undefined> = [];
 
   beforeAll(async () => {
@@ -110,15 +117,18 @@ describe("English turns: the requests Ollama sees", () => {
 
     // One run per question, so each question's requests are isolated.
     perQuestion = [];
-    for (const q of ENGLISH_QUESTIONS) {
-      calls = [];
-      await runRagEval({ custom: { name: "english-path", vault: VAULT, questions: [q] }, modes: ["always"], syllabus: "matched" });
-      const embeds = raws("/api/embed");
-      // The first VAULT.length embed calls seed the vault; the rest belong to the turn.
-      seedingEmbeds = embeds.slice(0, VAULT.length);
-      perQuestion.push({ id: q.id, chat: raws("/api/chat"), embed: embeds.slice(VAULT.length) });
+    withNotes = [];
+    for (const turnNotes of ["off", "on"] as const) {
+      for (const q of ENGLISH_QUESTIONS) {
+        calls = [];
+        await runRagEval({ custom: { name: "english-path", vault: VAULT, questions: [q] }, modes: ["always"], syllabus: "matched", turnNotes });
+        const embeds = raws("/api/embed");
+        // The first VAULT.length embed calls seed the vault; the rest belong to the turn.
+        if (turnNotes === "off") seedingEmbeds = embeds.slice(0, VAULT.length);
+        (turnNotes === "off" ? perQuestion : withNotes).push({ id: q.id, chat: raws("/api/chat"), embed: embeds.slice(VAULT.length) });
+      }
     }
-  }, 60_000);
+  }, 120_000);
 
   it("sends exactly one chat request per English turn", () => {
     for (const q of perQuestion) expect(q.chat, q.id).toHaveLength(1);
@@ -126,6 +136,25 @@ describe("English turns: the requests Ollama sees", () => {
 
   it("embeds each English question once (none for an acknowledgement)", () => {
     for (const q of perQuestion) expect(q.embed, q.id).toHaveLength(q.id === "en-ack" ? 0 : 1);
+  });
+
+  it("with the turn notes on, adds only the note to the end of the last user message, where the classifier gives one", () => {
+    const noted: string[] = [];
+    ENGLISH_QUESTIONS.forEach((q, i) => {
+      const off = perQuestion[i], on = withNotes[i];
+      expect(on.embed, q.id).toEqual(off.embed);
+      expect(on.chat, q.id).toHaveLength(off.chat.length);
+      const note = turnNoteFor(classifyMessage(q.ask));
+      const offBody = JSON.parse(off.chat[0]!) as { messages: Array<{ role: string; content: string }> };
+      const onBody = JSON.parse(on.chat[0]!) as typeof offBody;
+      const last = offBody.messages.length - 1;
+      expect(offBody.messages[last].role, q.id).toBe("user");
+      const expected = note ? { ...offBody.messages[last], content: `${offBody.messages[last].content}\n\n${note}` } : offBody.messages[last];
+      expect(onBody, q.id).toEqual({ ...offBody, messages: [...offBody.messages.slice(0, last), expected] });
+      if (note) noted.push(q.id);
+    });
+    // Two of them are lookups; the maths, the acknowledgement and the yes/no question get nothing.
+    expect(noted).toEqual(["en-plain", "en-symbol"]);
   });
 
   it("sends byte-identical chat and embedding requests to the pre-L2 snapshot", () => {

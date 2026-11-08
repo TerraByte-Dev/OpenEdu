@@ -211,6 +211,31 @@ describe("attempt-gated answer chip", () => {
     expect(hasTriedOpenQuestion([student("What is 47 + 38?")])).toBe(false);
   });
 
+  it("does not count a newly typed problem as a try at the tutor's open question", () => {
+    // Made-up problems, typed without options (turnKind.ts). Before this rule they counted as a try
+    // whenever the tutor's reply before them ended on a question, so the chip was offered for them.
+    for (const posed of ["What is 36 × 7?", "Solve 3x - 4 = 11", "A box holds 12 eggs. How many eggs are in 5 boxes?", "48 ÷ 6 = ?"]) {
+      expect(hasTriedOpenQuestion([tutor(ASKED), student(posed)]), posed).toBe(false);
+      expect(hasTriedOpenQuestion([tutor(ASKED), student("15"), tutor("Not quite. What do 7 and 8 make?"), student(posed)]), posed).toBe(false);
+      // A hint asked on the new problem does not reach back past it to the old try.
+      expect(hasTriedOpenQuestion([tutor(ASKED), student("15"), tutor("Close. What next?"), student(posed), tutor("What is the first step?"), student("Give me a hint.")]), posed).toBe(false);
+      // The student's first answer to the new problem is a try, as before.
+      expect(hasTriedOpenQuestion([tutor(ASKED), student(posed), tutor("What is the first step?"), student("252")]), posed).toBe(true);
+      // So the chip is not offered under the tutor's reply to the new problem.
+      expect(showAnswerOfferedAfter([tutor(ASKED), student("15"), tutor("Not quite. What do 7 and 8 make?"), student(posed), tutor("Good one to try. Where would you start on this problem?")]), posed).toBe(false);
+    }
+  });
+
+  it("still counts a typed answer as a try, even when it is written as working", () => {
+    // A try that shows its working ("7 + 8 = 15"), states a solution ("x = 5") or asks back with a
+    // number ("Is it 15?") is not a new problem, so it keeps the old rule.
+    for (const tryText of ["7 + 8 = 15", "x = 5", "Is it 15?", "I think it's 15", "15?", "15, because 7 + 8 makes 15"]) {
+      expect(hasTriedOpenQuestion([tutor(ASKED), student(tryText)]), tryText).toBe(true);
+    }
+    // A lookup the student asks is not a new problem either, so it keeps the old rule too.
+    expect(hasTriedOpenQuestion([tutor(ASKED), student("What is a ones digit?")])).toBe(true);
+  });
+
   it("does not count a newly posed problem with options as a try at the tutor's open question", () => {
     // Made-up problem. Before this rule, the chip was offered right after a NEW question, because
     // the tutor's reply before it had ended on a question.

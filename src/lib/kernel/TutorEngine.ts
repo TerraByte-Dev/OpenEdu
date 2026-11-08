@@ -22,7 +22,7 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
-import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
+import { classifyTurn, turnNoteFor, withTurnNote, type TurnKind } from "./turnKind";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
@@ -43,6 +43,10 @@ export interface TutorTurn {
   // sees anything; "off" disables it and leaves notebook.search as the only path. Exposed so the
   // eval can A/B the two mechanisms on the same fixture — the falsification condition needs both.
   retrieval?: RetrievalMode;
+  // "off" sends no turn note on this turn (turnKind.ts), so an eval can run the paired baseline at the
+  // same commit (EVAL_TURN_NOTES=off). The turn is still classified and reported. Default "on"; the
+  // app never sets it.
+  turnNotes?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -69,9 +73,13 @@ export interface TutorTurnResult {
   // WORKED_ANSWER_RULES (lever L1). Read from the prompt itself, not from the gate, so the eval can
   // record what the model was actually told.
   workedAnswerRules: boolean;
-  // True when this turn appended FIRST_TURN_HOLD_NOTE to the student's message (the first-turn
-  // attempt-first hold, attemptFirst.ts), so the eval can record what the model was told.
+  // True when this turn appended a hold note (FIRST_TURN_HOLD_NOTE, or TYPED_PROBLEM_HOLD_NOTE in
+  // turnKind.ts) to the student's message, so the eval can record what the model was told.
   firstTurnHold: boolean;
+  // What the turn classifier made of the student's newest message (turnKind.ts), whether or not a note
+  // was sent, and the note this turn actually appended (null for none).
+  turnKind: TurnKind;
+  turnNote: string | null;
 }
 
 export class TutorEngine {
@@ -95,9 +103,12 @@ export class TutorEngine {
       messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, conversation) };
     }
     const workedAnswerRules = sysAt >= 0 && messages[sysAt].content.endsWith(WORKED_ANSWER_RULES);
-    // The first-turn hold (attemptFirst.ts): decided here from the conversation as the caller sent it,
-    // applied below after retrieval, so the query and the gloss see only what the student typed.
-    const firstTurnHold = isFirstTurnHold(messages.filter((m) => m.role !== "system"));
+    // The turn note (turnKind.ts): the first-turn hold on a newly posed problem, or the lookup note on a
+    // request for information. Decided here from the conversation as the caller sent it, applied below
+    // after retrieval, so the query and the gloss see only what the student typed.
+    const turnKind = classifyTurn(messages.filter((m) => m.role !== "system"));
+    const turnNote = turn.turnNotes === "off" ? null : turnNoteFor(turnKind);
+    const firstTurnHold = turnNote !== null && (turnKind === "options-problem" || turnKind === "typed-problem");
 
     const eduTools = await selectTools(ctx);
     const offered = new Set(eduTools.map((t) => t.name));
@@ -152,11 +163,11 @@ export class TutorEngine {
 
 ${lastUser.content}` };
     }
-    if (firstTurnHold) {
+    if (turnNote) {
       // After the grounding block and the student's text, so the note is the last thing the model
       // reads before it answers. The system prompt is untouched; see attemptFirst.ts.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
-      messages[idx] = { ...messages[idx], content: withFirstTurnHold(messages[idx].content) };
+      messages[idx] = { ...messages[idx], content: withTurnNote(messages[idx].content, turnNote) };
     }
     if (import.meta.env?.DEV) {
       const t = grounding.trace;
@@ -284,6 +295,8 @@ ${lastUser.content}` };
       usedHits,
       workedAnswerRules,
       firstTurnHold,
+      turnKind,
+      turnNote,
     };
   }
 }

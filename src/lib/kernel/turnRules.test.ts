@@ -25,6 +25,7 @@ import { personaIdentityLayer } from "./systemPrompt";
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "./outputRules";
 import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
+import { TYPED_PROBLEM_HOLD_NOTE, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
 import { buildSystemPrompt } from "../curriculum";
 import { resolvePersona } from "../skills";
 import type { Syllabus, LLMConfig } from "../../types";
@@ -36,6 +37,9 @@ const PROBLEM = "A recipe needs 3 cups of flour for every 2 cups of milk. How ma
 const ATTEMPT = "Is it 10?";
 // The same problem posed with lettered options: the turn that gets the first-turn hold (attemptFirst.ts).
 const LISTED_PROBLEM = `${PROBLEM}\n\nA) 10\nB) 12\nC) 16\nD) 5\n\nWhich one is right?`;
+// PROBLEM itself is a typed word problem (turnKind.ts): it gets the typed-problem hold note.
+// A request for information about the student's own notes: the turn that gets the fact-lookup note.
+const LOOKUP = "What do my notes say about the boiling point of olive oil?";
 
 const SYLLABUS: Syllabus = {
   id: "syl-1",
@@ -82,9 +86,12 @@ const COURSES: Record<string, Course> = {
 let lastWorkedAnswerRules: boolean | null = null;
 // The kernel's own report of whether the last turn got the first-turn hold note.
 let lastFirstTurnHold: boolean | null = null;
+// The kernel's report of what the turn classifier made of the last turn, and the note it appended.
+let lastTurnKind: TurnKind | null = null;
+let lastTurnNote: string | null = null;
 
 // What ChatTab does on send, minus React and the DB: build the system prompt, then tutorEngine.run.
-async function systemSent(course: Course, history: Sent, userText: string): Promise<string> {
+async function systemSent(course: Course, history: Sent, userText: string, turnNotes?: "on" | "off"): Promise<string> {
   const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(course.mode, course.topic, "tiny", false);
   const system = buildSystemPrompt(
     course.instructions,
@@ -98,8 +105,10 @@ async function systemSent(course: Course, history: Sent, userText: string): Prom
   sent.length = 0;
   lastWorkedAnswerRules = null;
   lastFirstTurnHold = null;
-  ({ workedAnswerRules: lastWorkedAnswerRules, firstTurnHold: lastFirstTurnHold } = await tutorEngine.run(
-    { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {} },
+  lastTurnKind = null;
+  lastTurnNote = null;
+  ({ workedAnswerRules: lastWorkedAnswerRules, firstTurnHold: lastFirstTurnHold, turnKind: lastTurnKind, turnNote: lastTurnNote } = await tutorEngine.run(
+    { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {}, ...(turnNotes ? { turnNotes } : {}) },
     {
       courseId: "c-1",
       level: course.level,
@@ -132,8 +141,11 @@ const triedThen = (reply: string): Sent => [...AFTER_ATTEMPT.slice(0, 3), { role
 // Turns that are not the show-answer chip. Includes near-misses of its text: only the exact message
 // the chip sends is the event.
 const OTHER_TURNS: Array<[string, Sent, string]> = [
+  // The turn notes (turnKind.ts) change the student's message, never the system prompt.
   ["new problem", [], PROBLEM],
-  // The first-turn hold changes the student's message, never the system prompt.
+  ["new problem after a tutor question", AFTER_ATTEMPT, PROBLEM],
+  ["a fact lookup", [], LOOKUP],
+  ["a fact lookup after a tutor question", AFTER_ATTEMPT, LOOKUP],
   ["new problem with options", [], LISTED_PROBLEM],
   ["new problem with options after a tutor question", AFTER_ATTEMPT, LISTED_PROBLEM],
   ["a try at the problem", AFTER_ATTEMPT.slice(0, 2), ATTEMPT],
@@ -193,9 +205,10 @@ describe.each(Object.entries(COURSES))("system prompt sent by the kernel: %s", (
   });
 });
 
-// The first-turn attempt-first hold (attemptFirst.ts). The system prompt is pinned above for these
-// turns too; here, the messages after it. The hold turn's last user message is the student's text plus
-// the note, and every other message, on every turn, is what the caller passed.
+// The turn notes (turnKind.ts): the first-turn hold (attemptFirst.ts) on a newly posed problem, with
+// options or typed, and the fact-lookup note. The system prompt is pinned above for these turns too;
+// here, the messages after it. A noted turn's last user message is the student's text plus the note,
+// and every other message, on every turn, is what the caller passed.
 describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_name, course) => {
   const userSent = () => sent[0].filter((m) => m.role === "user").map((m) => m.content);
 
@@ -207,6 +220,26 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
     }
   });
 
+  it("appends the typed-problem hold note to a newly posed problem typed without options", async () => {
+    for (const history of [[], AFTER_ATTEMPT] as Sent[]) {
+      await systemSent(course, history, PROBLEM);
+      expect(lastTurnKind).toBe("typed-problem");
+      expect(lastFirstTurnHold).toBe(true);
+      expect(lastTurnNote).toBe(TYPED_PROBLEM_HOLD_NOTE);
+      expect(sent[0].slice(1)).toEqual([...history, { role: "user", content: `${PROBLEM}\n\n${TYPED_PROBLEM_HOLD_NOTE}` }]);
+    }
+  });
+
+  it("appends the fact-lookup note to a request for information, which is not a hold", async () => {
+    for (const history of [[], AFTER_ATTEMPT] as Sent[]) {
+      await systemSent(course, history, LOOKUP);
+      expect(lastTurnKind).toBe("fact-lookup");
+      expect(lastFirstTurnHold).toBe(false);
+      expect(lastTurnNote).toBe(FACT_LOOKUP_NOTE);
+      expect(sent[0].slice(1)).toEqual([...history, { role: "user", content: `${LOOKUP}\n\n${FACT_LOOKUP_NOTE}` }]);
+    }
+  });
+
   it("pins the hold turn's user message, the same bytes on any checkout", async () => {
     await systemSent(course, [], LISTED_PROBLEM);
     const last = userSent().slice(-1)[0];
@@ -214,19 +247,40 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
     expect(last).toMatchSnapshot();
   });
 
-  it("sends every other turn's messages as the caller passed them, and reports no hold", async () => {
-    for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => t !== LISTED_PROBLEM), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
+  it("pins the typed-problem and lookup turns' user messages, the same bytes on any checkout", async () => {
+    for (const text of [PROBLEM, LOOKUP]) {
+      await systemSent(course, [], text);
+      const last = userSent().slice(-1)[0];
+      expect(last).not.toContain("\r");
+      expect(last).toMatchSnapshot();
+    }
+  });
+
+  it("sends every other turn's messages as the caller passed them, and reports no note", async () => {
+    const noted = new Set([LISTED_PROBLEM, PROBLEM, LOOKUP]);
+    for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => !noted.has(t)), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
       await systemSent(course, history, text);
       expect(lastFirstTurnHold, label).toBe(false);
+      expect(lastTurnNote, label).toBeNull();
       expect(sent[0].slice(1), label).toEqual([...history, { role: "user", content: text }]);
     }
   });
 
-  it("adds no model call: one request per turn that uses no tool, held or not", async () => {
-    await systemSent(course, [], LISTED_PROBLEM);
-    expect(sent).toHaveLength(1);
-    await systemSent(course, [], PROBLEM);
-    expect(sent).toHaveLength(1);
+  it("with turnNotes off (the eval's paired baseline), sends every turn as the caller passed it, and still reports the kind", async () => {
+    for (const [text, kind] of [[LISTED_PROBLEM, "options-problem"], [PROBLEM, "typed-problem"], [LOOKUP, "fact-lookup"]] as const) {
+      await systemSent(course, [], text, "off");
+      expect(lastTurnKind, text).toBe(kind);
+      expect(lastTurnNote, text).toBeNull();
+      expect(lastFirstTurnHold, text).toBe(false);
+      expect(sent[0].slice(1), text).toEqual([{ role: "user", content: text }]);
+    }
+  });
+
+  it("adds no model call: one request per turn that uses no tool, noted or not", async () => {
+    for (const text of [LISTED_PROBLEM, PROBLEM, LOOKUP, ATTEMPT]) {
+      await systemSent(course, [], text);
+      expect(sent, text).toHaveLength(1);
+    }
   });
 
   it("does not carry the note into the next turn: the history the caller saved is the student's text", async () => {

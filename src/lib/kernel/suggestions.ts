@@ -19,7 +19,7 @@ import type { Syllabus } from "../../types";
 import type { TutorModeId } from "../tutor-modes";
 import type { GroundingHit } from "./ground";
 import { replyFromPersisted } from "./persistedReply";
-import { posesNewProblem } from "./attemptFirst";
+import { posesProblem } from "./turnKind";
 
 export interface Suggestion {
   /** Short text on the chip. */
@@ -111,14 +111,16 @@ const REQUEST = /^(give me a hint|walk me through|show me|help me|explain|tell m
  *     after a try does not take the answer away again;
  *   - "Show me the full worked answer." means the answer was given, so the question is closed;
  *   - a tutor reply that asked nothing closed the question;
- *   - a message that poses a new problem with lettered options (posesNewProblem) opens a new
- *     question, so it is not a try, even when the tutor's reply before it ended on a question;
+ *   - a message that poses a new problem (posesProblem: lettered options, or a typed problem such as
+ *     "What is 3/4 + 1/8?" or "Solve 2x + 5 = 17") opens a new question, so it is not a try, even
+ *     when the tutor's reply before it ended on a question;
  *   - any other student message is a try if the tutor's message before it asked a question.
  *
  * Known limits: code cannot tell "Correct! Now what is 12 + 9?" from a re-ask of the same question,
- * so after a correct answer the chip is offered for the tutor's next question too. And a new question
- * the student types without lettered options, sent after a tutor reply that ended on a question,
- * still counts as a try.
+ * so after a correct answer the chip is offered for the tutor's next question too. And a new problem
+ * the classifier does not see (turnKind.ts keeps to precision over recall: a bare "12 × 9?", a word
+ * problem with one number, any language other than English without an explicit expression), sent
+ * after a tutor reply that ended on a question, still counts as a try.
  */
 export function hasTriedOpenQuestion(history: ReadonlyArray<{ role: string; content: string }>): boolean {
   for (let i = history.length - 1; i >= 0; i--) {
@@ -129,7 +131,7 @@ export function hasTriedOpenQuestion(history: ReadonlyArray<{ role: string; cont
     }
     const text = m.content.trim().replace(/^["'\s]+/, "");
     if (!text || text === SHOW_ANSWER_MESSAGE) return false;
-    if (posesNewProblem(text)) return false;
+    if (posesProblem(text)) return false;
     if (REQUEST.test(text)) continue;
     for (let k = i - 1; k >= 0; k--) {
       if (history[k].role === "assistant") return endsWithQuestion(history[k].content);

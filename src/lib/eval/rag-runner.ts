@@ -20,6 +20,7 @@
 
 import { tutorEngine, EMPTY_GROUNDING, type TutorTurn, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
+import type { TurnKind } from "../kernel/turnKind";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
 import { buildSystemPrompt } from "../curriculum";
@@ -66,6 +67,11 @@ export interface RagRow {
   /** For an item with a gold or near note (`note`), whether that note was among the hits the model saw.
    *  Null when the item names no note (main fixture, sealed far negatives without one). */
   noteRetrieved: boolean | null;
+  /** What the turn classifier made of the question (turnKind.ts), reported in both arms, and whether a
+   *  turn note was actually appended (false on every row of an EVAL_TURN_NOTES=off run). Null kind on
+   *  a turn that threw. */
+  turnKind: TurnKind | null;
+  turnNoted: boolean;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
   ttft_ms: number | null;
   /** Milliseconds for the whole turn, grounding and tool calls included. */
@@ -84,6 +90,8 @@ export interface RagReport {
   provider: string;
   contextTokens: number;
   repeats: number;
+  /** "off" when the run sent no turn notes (EVAL_TURN_NOTES=off, the paired baseline arm). */
+  turnNotes: "on" | "off";
   /** "main", "dev", "test", "dev-v2", or the name of a custom set (e.g. the sealed held-out file). */
   set: string;
   rows: RagRow[];
@@ -139,6 +147,9 @@ export async function runRagEval(opts?: {
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
    *  vault's subjects, which is what a learner who wrote these notes would actually be enrolled in. */
   syllabus?: "python" | "matched";
+  /** "off": the kernel sends no turn note (TutorTurn.turnNotes), for the paired baseline. Default "on",
+   *  which is what the app does. */
+  turnNotes?: "on" | "off";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -149,6 +160,7 @@ export async function runRagEval(opts?: {
   inFlight = true;
 
   const repeats = opts?.repeats ?? 1;
+  const turnNotes = opts?.turnNotes ?? "on";
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
   const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
@@ -207,6 +219,7 @@ export async function runRagEval(opts?: {
             ],
             config,
             retrieval: mode,
+            ...(turnNotes === "off" ? { turnNotes } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -215,9 +228,13 @@ export async function runRagEval(opts?: {
           let retrievedTitles: string[] = [];
           let toolCalls: string[] = [];
           let retrievalTrace: Grounding["trace"] = EMPTY_GROUNDING.trace;
+          let turnKind: TurnKind | null = null;
+          let turnNoted = false;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
+            turnKind = result.turnKind;
+            turnNoted = result.turnNote !== null;
             retrievalTrace = result.grounding.trace;
             // The citation the STUDENT would see — n-gram verified, never the model's claim. In
             // tool-only mode the grounding stage does not run, so a cited title can still arrive via
@@ -252,7 +269,7 @@ export async function runRagEval(opts?: {
           const realWorld = realWorldAnswered(question, set, answer);
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
-          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, ttft_ms, total_ms });
+          rows.push({ mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, turnKind, turnNoted, ttft_ms, total_ms });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${verdict.pass ? "PASS" : "FAIL"} — ${verdict.reason} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -297,7 +314,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, set, rows, byMode, realWorld, noteRetrieved, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, turnNotes, set, rows, byMode, realWorld, noteRetrieved, verdict };
 }
 
 if (typeof window !== "undefined") {

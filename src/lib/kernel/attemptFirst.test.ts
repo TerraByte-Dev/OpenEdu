@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { FIRST_TURN_HOLD_NOTE, posesNewProblem, isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
+import { FIRST_TURN_HOLD_NOTE, posesNewProblem } from "./attemptFirst";
+import { classifyTurn, withTurnNote } from "./turnKind";
 
 // Made-up problems. Nothing here comes from an eval item.
 const STEM = "A pond has 14 frogs. 5 hop away and 3 more arrive. How many frogs are in the pond?";
@@ -47,26 +48,27 @@ describe("posesNewProblem", () => {
   });
 });
 
-describe("isFirstTurnHold", () => {
+// The kernel decides the hold through the turn classifier (turnKind.ts), which uses posesNewProblem.
+describe("classifyTurn on option-list problems", () => {
   const tutor = (content: string) => ({ role: "assistant", content });
   const student = (content: string) => ({ role: "user", content });
 
   it("holds when the newest message is the student's and poses a new problem, whatever came before", () => {
-    expect(isFirstTurnHold([student(LISTED)])).toBe(true);
-    expect(isFirstTurnHold([student("What is 2 + 2?"), tutor("What do you get when you count on 2 from 2?"), student(LISTED)])).toBe(true);
+    expect(classifyTurn([student(LISTED)])).toBe("options-problem");
+    expect(classifyTurn([student("What is 2 + 2?"), tutor("What do you get when you count on 2 from 2?"), student(LISTED)])).toBe("options-problem");
   });
 
   it("does not hold on a try, a request, or when the newest message is not the student's", () => {
-    expect(isFirstTurnHold([student(LISTED), tutor("Start with the frogs that left. How many are left?"), student("I think it's A.")])).toBe(false);
-    expect(isFirstTurnHold([student(LISTED), tutor("How many are left?"), student("Give me a hint.")])).toBe(false);
-    expect(isFirstTurnHold([student(LISTED), tutor("How many are left?")])).toBe(false);
-    expect(isFirstTurnHold([])).toBe(false);
+    expect(classifyTurn([student(LISTED), tutor("Start with the frogs that left. How many are left?"), student("I think it's A.")])).not.toMatch(/problem/);
+    expect(classifyTurn([student(LISTED), tutor("How many are left?"), student("Give me a hint.")])).not.toMatch(/problem/);
+    expect(classifyTurn([student(LISTED), tutor("How many are left?")])).not.toMatch(/problem/);
+    expect(classifyTurn([])).not.toMatch(/problem/);
   });
 });
 
 describe("the hold note", () => {
   it("goes after the student's text, separated by a blank line", () => {
-    expect(withFirstTurnHold(LISTED)).toBe(`${LISTED}\n\n${FIRST_TURN_HOLD_NOTE}`);
+    expect(withTurnNote(LISTED, FIRST_TURN_HOLD_NOTE)).toBe(`${LISTED}\n\n${FIRST_TURN_HOLD_NOTE}`);
   });
 
   it("is plain LF text, so a Windows checkout sends the model the same bytes as Linux", () => {

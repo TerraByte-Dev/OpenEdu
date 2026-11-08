@@ -12,7 +12,8 @@ import {
   type K12FlowTurnOutput,
 } from "./k12-flow";
 import { K12_ITEMS, K12_PILOT, type K12Item } from "./k12-items";
-import { isFirstTurnHold } from "../kernel/attemptFirst";
+import { classifyTurn, turnNoteFor } from "../kernel/turnKind";
+import { FIRST_TURN_HOLD_NOTE } from "../kernel/attemptFirst";
 
 const ITEM: K12Item = {
   id: "synthetic-01", subject: "math", band: "K-5", demand: "apply",
@@ -111,16 +112,20 @@ describe("runK12FlowItem", () => {
   });
 
   it("puts every dev item's T1 under the first-turn hold, and never T2 or T3", () => {
-    // The kernel decides from the conversation (isFirstTurnHold). On the frozen turn texts the hold
-    // fires on T1 for all 240 items, so a run's trigger rate is a check on the run, not a variable.
+    // The kernel decides from the conversation (classifyTurn, turnKind.ts). On the frozen turn texts
+    // the option-list hold fires on T1 for all 240 items, with the same note as before the turn
+    // classifier, and T2 and T3 get no note of any kind (not the typed hold, not the lookup note). So
+    // the classifier leaves every k12-flow request byte-identical to the first-turn-hold commit, given
+    // the same earlier replies.
     for (const item of K12_ITEMS) {
       const t1 = { role: "user", content: formatK12FlowT1(item) };
       const t1Reply = { role: "assistant", content: "Which step would you try first?" };
       const t2 = { role: "user", content: formatK12FlowT2(item) };
       const t3 = { role: "user", content: K12_FLOW_T3 };
-      expect(isFirstTurnHold([t1]), item.id).toBe(true);
-      expect(isFirstTurnHold([t1, t1Reply, t2]), item.id).toBe(false);
-      expect(isFirstTurnHold([t1, t1Reply, t2, t1Reply, t3]), item.id).toBe(false);
+      expect(classifyTurn([t1]), item.id).toBe("options-problem");
+      expect(turnNoteFor(classifyTurn([t1])), item.id).toBe(FIRST_TURN_HOLD_NOTE);
+      expect(classifyTurn([t1, t1Reply, t2]), item.id).toBe("other");
+      expect(classifyTurn([t1, t1Reply, t2, t1Reply, t3]), item.id).toBe("other");
     }
   });
 

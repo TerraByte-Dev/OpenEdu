@@ -33,6 +33,7 @@ from environment variables.
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
 | `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
+| `EVAL_TURN_NOTES` | `on` | RAG only. `off` sends no turn note (`src/lib/kernel/turnKind.ts`: the first-turn hold or the fact-lookup note), so the paired baseline runs at the same commit. Each row still records what the classifier made of the question (`turnKind`) and whether a note was sent (`turnNoted`). The app never sets it. Refused with `k12-flow` and `sealed`. |
 | `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
 For RAG, each row also has `realWorld` (B1 (c): for a near-miss with a real-world answer list, whether

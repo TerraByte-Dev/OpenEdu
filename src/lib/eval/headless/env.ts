@@ -37,6 +37,9 @@ export interface EvalOptions {
   /** Ollama only: add options.num_gpu to every chat and embed request (0 = CPU only). Changes the
    *  requests on purpose, for latency runs; such a run is not a parity run. */
   numGpu?: number;
+  /** RAG only: "off" sends no turn note (kernel turnKind.ts), the paired baseline at the same commit.
+   *  Unset: "on", what the app does. */
+  turnNotes?: "on" | "off";
 }
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
@@ -120,6 +123,14 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     if (provider !== "ollama") errs.push("EVAL_NUM_GPU applies to Ollama only");
     if (set === "sealed") errs.push("EVAL_NUM_GPU is not allowed with EVAL_SET=sealed: it changes the requests");
   }
+  const turnNotes = get("EVAL_TURN_NOTES") as EvalOptions["turnNotes"];
+  if (turnNotes !== undefined) {
+    if (turnNotes !== "on" && turnNotes !== "off") errs.push(`EVAL_TURN_NOTES=${turnNotes}: use on or off`);
+    // k12-flow's configuration is frozen by its protocol; its lever arms are separate commits.
+    if (flow) errs.push("EVAL_TURN_NOTES does not apply to k12-flow");
+    // A sealed run measures the product as it ships.
+    if (set === "sealed") errs.push("EVAL_TURN_NOTES is not allowed with EVAL_SET=sealed: the run uses the app's turn notes");
+  }
 
   if (errs.length) throw new Error(`Bad eval options:\n  ${errs.join("\n  ")}`);
   return {
@@ -141,6 +152,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     out: get("EVAL_OUT"),
     wire: wireRaw === "1",
     numGpu,
+    turnNotes,
   };
 }
 

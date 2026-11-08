@@ -37,6 +37,15 @@ describe("parseEvalEnv", () => {
     expect(() => parseEvalEnv({ EVAL_NUM_GPU: "-1" })).toThrow(/EVAL_NUM_GPU/);
     expect(() => parseEvalEnv({ EVAL_NUM_GPU: "0", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_NUM_GPU is not allowed with EVAL_SET=sealed/);
   });
+
+  it("reads EVAL_TURN_NOTES for rag only, unset by default, and refuses it on the sealed set", () => {
+    expect(parseEvalEnv({}).turnNotes).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_SET: "dev-v2", EVAL_TURN_NOTES: "off" })).toMatchObject({ turnNotes: "off" });
+    expect(parseEvalEnv({ EVAL_TURN_NOTES: "on" })).toMatchObject({ turnNotes: "on" });
+    expect(() => parseEvalEnv({ EVAL_TURN_NOTES: "false" })).toThrow(/EVAL_TURN_NOTES=false: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_SET: "sealed", EVAL_SEALED: "x.json", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES is not allowed with EVAL_SET=sealed/);
+  });
 });
 
 describe("parseEvalEnv, k12-flow", () => {
