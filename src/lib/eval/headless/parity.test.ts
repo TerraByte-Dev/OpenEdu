@@ -57,7 +57,7 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
   calls.push({ path: url.pathname, body, raw: init?.body ? String(init.body) : undefined });
   switch (url.pathname) {
     case "/api/tags":
-      return json({ models: [{ name: MODEL }, { name: "nomic-embed-text:latest" }, { name: OTHER_EMBED }] });
+      return json({ models: [{ name: MODEL, digest: "e2b-digest" }, { name: "nomic-embed-text:latest", digest: "embed-digest" }, { name: OTHER_EMBED, digest: "other-digest" }] });
     case "/api/show":
       return json({ details: { parameter_size: "5.1B" }, model_info: { "general.architecture": "gemma3n", "gemma3n.context_length": 32768 }, capabilities: ["completion", "tools"] });
     case "/api/embed":
@@ -168,6 +168,11 @@ describe("headless eval == webview eval, on the wire", () => {
     expect(out.set).toBe("dev");
     expect(out.model).toBe(MODEL);
     expect(out.options).not.toHaveProperty("apiKey");
+    // The Ollama version (null: this stand-in has no /api/version) and each model's digest.
+    expect((out as unknown as { ollama: unknown }).ollama).toEqual({
+      version: null,
+      models: { [MODEL]: { name: MODEL, digest: "e2b-digest" }, "nomic-embed-text": { name: "nomic-embed-text:latest", digest: "embed-digest" } },
+    });
     expect((out as unknown as { library: { enabled: boolean; cards: number } }).library).toMatchObject({ enabled: true, cards: expect.any(Number) });
     expect((out as unknown as { library: { cards: number } }).library.cards).toBeGreaterThan(0);
     expect(out.rows).toHaveLength(1);

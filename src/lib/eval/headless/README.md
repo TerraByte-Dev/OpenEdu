@@ -35,7 +35,8 @@ from environment variables.
 
 The results file holds the runner's report (every row, with `ttft_ms` and `total_ms`), the options,
 the commit SHA, whether `src/` had uncommitted changes or differs from master, the tags at HEAD, whether
-the library was on and how many cards it had, and the sealed file's SHA-256 when one was used.
+the library was on and how many cards it had, the Ollama version and each model's tag and digest
+(`ollama`; null where Ollama did not answer), and the sealed file's SHA-256 when one was used.
 
 The run refuses to start when the library is on but its manifest did not load (run it from the repo
 root, where `public/library/` is).

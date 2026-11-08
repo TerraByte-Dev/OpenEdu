@@ -24,6 +24,7 @@ import { seedStore } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type EvalOptions } from "./env";
 import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
+import { ollamaRunInfo } from "./ollama-info";
 
 export interface HeadlessResult {
   report: RagReport | K12FlowReport;
@@ -55,7 +56,11 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   installAppOrigin();
 
   // What the store resolves for embeddings is what the runner will use; ask it rather than guess.
-  await preflight(o, (await getEmbeddingConfig()).model);
+  const embedModel = (await getEmbeddingConfig()).model;
+  await preflight(o, embedModel);
+  // The Ollama version and the digest of every model the run uses, so two arms can be checked for
+  // "same Ollama, same weights" from their files alone.
+  const ollama = await ollamaRunInfo(o.ollamaUrl, [...(o.provider === "ollama" ? [o.model] : []), embedModel]);
 
   // Sealed set: hash check, schema check and name lint all happen inside loadSealed, before any
   // model call (protocol rules 1 and 2).
@@ -96,6 +101,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     srcDiffersFromMaster: git.srcDiffersFromMaster,
     tags: git.tags,
     library,
+    ollama,
     sealedSha256,
     started: started.toISOString(),
     finished: new Date().toISOString(),
