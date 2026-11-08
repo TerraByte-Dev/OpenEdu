@@ -64,6 +64,24 @@ describe("parseEvalEnv, k12-flow", () => {
   });
 });
 
+describe("parseEvalEnv, k12-flow-fr", () => {
+  it("defaults to the dev items and takes the k12-flow item options", () => {
+    expect(parseEvalEnv({ EVAL_SUITE: "k12-flow-fr" })).toMatchObject({ suite: "k12-flow-fr", set: "dev", repeats: 1 });
+    expect(parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_LIMIT: "5", EVAL_SAMPLE: "12", EVAL_ONLY: "fr-math-k5-01" })).toMatchObject({ limit: 5, sample: 12, only: "fr-math-k5-01" });
+  });
+  it("refuses the sealed set, any other split, and the options k12-flow refuses", () => {
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_SET: "sealed" })).toThrow(/EVAL_SET=sealed: k12-flow-fr runs only the dev items/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_SEALED does not apply to k12-flow-fr/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_SET: "test" })).toThrow(/EVAL_SET=test/);
+    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS"]) expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", [k]: "2" })).toThrow(k);
+  });
+  it("names the suite in the default results path, which k12-flow's rescore pattern does not match", () => {
+    const out = defaultOutPath(parseEvalEnv({ EVAL_SUITE: "k12-flow-fr" }), new Date("2026-11-08T10:20:30.456Z"));
+    expect(out).toBe(".dev/eval-runs/2026-11-08T10-20-30-456-k12-flow-fr-dev-gemma4_e2b.json");
+    expect(/k12-flow-dev.*\.json$/.test(out)).toBe(false);
+  });
+});
+
 describe("parseEvalEnv, sealed runs", () => {
   it("refuses options that would run part of the sealed set (a partial run still burns all of it)", () => {
     const sealed = { EVAL_SET: "sealed", EVAL_SEALED: "x.json" };

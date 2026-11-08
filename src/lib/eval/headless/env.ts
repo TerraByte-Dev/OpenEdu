@@ -5,7 +5,7 @@ import type { LLMProvider } from "../../../types";
 import type { RetrievalMode } from "../../kernel/ground";
 import { STORE_KEYS, apiKeyStoreKey } from "../../store-keys";
 
-export type EvalSuite = "rag" | "k12-flow";
+export type EvalSuite = "rag" | "k12-flow" | "k12-flow-fr";
 
 export interface EvalOptions {
   suite: EvalSuite;
@@ -26,9 +26,9 @@ export interface EvalOptions {
   syllabus?: "python" | "matched";
   /** The Settings context-window cap. Unset: the app default. */
   maxContextTokens?: number;
-  /** k12-flow only: the first N items. */
+  /** k12-flow and k12-flow-fr only: the first N items. */
   limit?: number;
-  /** k12-flow only: N items stratified by subject, fixed seed (select.ts). */
+  /** k12-flow and k12-flow-fr only: N items stratified by subject, fixed seed (select.ts). */
   sample?: number;
   /** Unset: .dev/eval-runs/<stamp>-<suite>-<set>-<model>.json under the working directory. */
   out?: string;
@@ -41,7 +41,7 @@ export interface EvalOptions {
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
 const PROVIDERS: LLMProvider[] = ["ollama", "openai", "anthropic"];
-const SUITES: EvalSuite[] = ["rag", "k12-flow"];
+const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr"];
 const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 
@@ -55,7 +55,8 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
 
   const suite = (get("EVAL_SUITE") ?? "rag") as EvalSuite;
   if (!SUITES.includes(suite)) errs.push(`EVAL_SUITE=${suite}: use ${SUITES.join(", ")}`);
-  const flow = suite === "k12-flow";
+  // k12-flow-fr is the same flow on typed problems without options: every k12-flow rule applies.
+  const flow = suite === "k12-flow" || suite === "k12-flow-fr";
 
   const provider = (get("EVAL_PROVIDER") ?? "ollama") as LLMProvider;
   if (!PROVIDERS.includes(provider)) errs.push(`EVAL_PROVIDER=${provider}: use ${PROVIDERS.join(", ")}`);
@@ -66,10 +67,10 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   if (!SETS.includes(set)) errs.push(`EVAL_SET=${set}: use ${SETS.join(", ")}`);
   // The k12 test items are in the sealed v2 file. Running them needs the frozen path through
   // loadSealed and all its refusals, which k12-flow does not have yet. The 240 k12-mc items are DEV.
-  if (flow && set !== "dev") errs.push(`EVAL_SET=${set}: k12-flow runs only the dev items (the 240 k12-mc items) for now`);
+  if (flow && set !== "dev") errs.push(`EVAL_SET=${set}: ${suite} runs only the dev items (${suite === "k12-flow" ? "the 240 k12-mc items" : "the free-response items derived from them"}) for now`);
   // k12-flow's configuration is frozen by its protocol (one sample, retrieval "always", no syllabus).
   if (flow) {
-    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED"]) if (get(k)) errs.push(`${k} does not apply to k12-flow`);
+    for (const k of ["EVAL_REPEATS", "EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED"]) if (get(k)) errs.push(`${k} does not apply to ${suite}`);
   }
   const sealedPath = get("EVAL_SEALED");
   if (!flow && set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
@@ -102,7 +103,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   const count = (k: string): number | undefined => {
     const raw = get(k);
     if (raw === undefined) return undefined;
-    if (!flow) errs.push(`${k} applies to k12-flow only (rag takes EVAL_ONLY)`);
+    if (!flow) errs.push(`${k} applies to k12-flow only, and to k12-flow-fr (rag takes EVAL_ONLY)`);
     const v = Number(raw);
     if (!Number.isInteger(v) || v < 1) errs.push(`${k}=${raw}: a whole number, 1 or more`);
     return v;
