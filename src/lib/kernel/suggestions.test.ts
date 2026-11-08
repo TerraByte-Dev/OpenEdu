@@ -171,7 +171,7 @@ describe("suggestFollowUps", () => {
       // No self-reported confusion — that is what invited reassurance instead of progress.
       expect(s.message, s.message).not.toMatch(/i'?m not sure|i don'?t know|i'?m confused|not really/i);
       // No politeness scaffolding wrapping the actual request.
-      expect(s.message, s.message).not.toMatch(/^(can you|could you|please|would you)/i);
+      expect(s.message, s.message).not.toMatch(/^(can you|could you|please|would you)\b/i);
     }
   });
 
