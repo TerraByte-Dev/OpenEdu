@@ -11,6 +11,14 @@ describe("installWire", () => {
     expect(globalThis.fetch).toBe(before);
   });
 
+  it("passes app-origin (relative) requests straight through", async () => {
+    globalThis.fetch = (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    const wire = installWire({ log: true });
+    expect((await fetch("/library/index.json")).status).toBe(200);
+    await wire.settle();
+    expect(wire.calls).toHaveLength(0);
+  });
+
   it("adds num_gpu to chat and embed requests and logs Ollama's own counts for chat", async () => {
     const seen: Array<Record<string, unknown>> = [];
     globalThis.fetch = (async (_input: unknown, init?: { body?: unknown }) => {

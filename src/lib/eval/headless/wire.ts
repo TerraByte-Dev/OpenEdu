@@ -38,7 +38,8 @@ export function installWire(opts: { log: boolean; numGpu?: number }): { calls: W
   if (!opts.log && opts.numGpu === undefined) return { calls, settle: async () => {} };
 
   globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
-    const path = new URL(String(input)).pathname;
+    // App-origin requests (/library/…) are relative; give them a base rather than throw on them.
+    const path = new URL(input instanceof Request ? input.url : String(input), "http://app.invalid").pathname;
     if (path !== "/api/chat" && path !== "/api/embed") return inner(input, init);
     let body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
     if (body && opts.numGpu !== undefined) {
