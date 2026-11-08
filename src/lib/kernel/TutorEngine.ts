@@ -23,7 +23,7 @@ import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
-import { needsGloss, glossQuestion, type GlossResult } from "./gloss";
+import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 
@@ -99,9 +99,10 @@ export class TutorEngine {
     // Lever L2 (gloss.ts): a question in a non-Latin script gets one short call that writes it in
     // English, and retrieval searches with both. The call continues this turn's own prefix (the
     // messages as fitted, the same tools, the same num_ctx) so Ollama neither reloads nor loses its
-    // prefix cache. An English question skips this block entirely: same requests as before L2.
+    // prefix cache. An English question skips this block entirely: same requests as before L2. Ollama
+    // only (shouldGloss): on a cloud provider the call is unmeasured and paid.
     let gloss: GlossResult | null = null;
-    if (lastUser && shouldRetrieve(lastUser.content, retrieval).retrieve && needsGloss(lastUser.content)) {
+    if (lastUser && shouldRetrieve(lastUser.content, retrieval).retrieve && shouldGloss(lastUser.content, turn.config.provider)) {
       gloss = await glossQuestion(fitMessages(messages, budget).messages, lastUser.content, turn.config, {
         tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort,
       });

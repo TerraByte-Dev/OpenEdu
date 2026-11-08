@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 // Checks the properties the lever promises (docs/BENCHMARKS.md section 3, row 2):
 //   - exactly one extra chat call, structured, before the reply;
 //   - it continues the reply's own prefix: same model, tools, num_ctx and think flag, the same messages
-//     up to the student's question, then one instruction;
+//     up to the student's question, then one instruction; its output is capped at GLOSS_NUM_PREDICT;
 //   - retrieval embeds the original AND the gloss, and a note only the gloss reaches is retrieved;
 //   - the gloss never reaches the reply request, and the student's message is not rewritten.
 // The English side (no extra call, byte-identical requests) is english-path.test.ts.
@@ -23,7 +23,7 @@ import { loadBuiltinSkills } from "../../skills";
 import { refreshManifest } from "../../library";
 import { refreshDatasetManifest } from "../../library-datasets";
 import { STORE_FILE, STORE_KEYS } from "../../store-keys";
-import { GLOSS_INSTRUCTION } from "../../kernel/gloss";
+import { GLOSS_INSTRUCTION, GLOSS_NUM_PREDICT } from "../../kernel/gloss";
 import type { FixtureNote } from "../rag-fixture";
 
 const MODEL = "gemma4:e2b";
@@ -97,7 +97,9 @@ describe("a non-English question: the gloss call and the double search", () => {
     expect(g.tools).toEqual(r.tools);
     expect(g.tools?.length).toBeGreaterThan(0);
     expect(g.options?.num_ctx).toBe(r.options?.num_ctx);
-    expect(g.options?.num_predict).toBe(r.options?.num_predict);
+    // num_predict is per request and does not reload the runner; the gloss is capped (finding 4).
+    expect(g.options?.num_predict).toBe(GLOSS_NUM_PREDICT);
+    expect(r.options?.num_predict).toBeGreaterThan(GLOSS_NUM_PREDICT);
     expect(g.think).toBe(r.think);
     // Everything before the student's message is identical; the gloss call then has the question
     // as written and the instruction, the reply has the question with the grounding block before it.

@@ -11,7 +11,8 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 //
 // The vault and questions are written for this test and are not from any eval set. The questions cover
 // the shapes most likely to trip a script check: plain English, a Greek letter in maths, Latin
-// letters with accents, a quoted symbol, and an acknowledgement that skips retrieval.
+// letters with accents, a quoted symbol, and an acknowledgement that skips retrieval, then five maths
+// questions with adjacent Greek or maths letters.
 
 vi.mock("@tauri-apps/plugin-sql", () => import("./shims/plugin-sql"));
 vi.mock("@tauri-apps/plugin-http", () => import("./shims/plugin-http"));
@@ -41,6 +42,14 @@ const ENGLISH_QUESTIONS: RagQuestion[] = [
   { id: "en-accent", kind: "negative", ask: "Is a café au lait stronger than a naïve espresso?", poison: "6.4" },
   { id: "en-symbol", kind: "negative", ask: "What does the symbol π stand for in the formula for a circle's area?", poison: "0.6" },
   { id: "en-ack", kind: "negative", ask: "ok thanks", poison: "6.4" },
+  // Added after review finding 2 on PR #188: English maths with Greek or maths letters side by side,
+  // which the first L2 script check glossed. Their snapshot entries were written by this test on
+  // 0188bf3 (master's kernel plus this file), not by the L2 code; the entries above are unchanged.
+  { id: "en-math-eigen", kind: "negative", ask: "Find the eigenvalues λμ of A", poison: "0.6" },
+  { id: "en-math-decay", kind: "negative", ask: "What does αβ mean in the decay?", poison: "0.6" },
+  { id: "en-math-hbar", kind: "negative", ask: "What is ℏω for a photon?", poison: "0.6" },
+  { id: "en-math-assoc", kind: "negative", ask: "Why is (αβ)γ = α(βγ)?", poison: "0.6" },
+  { id: "en-math-italic", kind: "negative", ask: "Solve 𝑥𝑦 = 3 for y", poison: "0.6" },
 ];
 
 interface Call { path: string; raw: string | undefined }

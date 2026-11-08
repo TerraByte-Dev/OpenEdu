@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { needsGloss, cleanGloss, glossMessages, GLOSS_INSTRUCTION } from "./gloss";
+import { needsGloss, shouldGloss, cleanGloss, glossMessages, GLOSS_INSTRUCTION } from "./gloss";
 import { mergeCandidates } from "./ground";
 
 describe("needsGloss", () => {
@@ -15,20 +15,45 @@ describe("needsGloss", () => {
     ]) expect(needsGloss(q), q).toBe(false);
   });
 
+  it("is false for English maths that puts Greek or maths letters side by side (review finding 2)", () => {
+    for (const q of [
+      "Find the eigenvalues λμ of A",
+      "What does αβ mean in the decay?",
+      "What is ℏω for a photon?",
+      "Why is (αβ)γ = α(βγ)?",
+      "Solve 𝑥𝑦 = 3 for y",
+      "Is Δθ = ωΔt, with ω in rad/s?",
+    ]) expect(needsGloss(q), q).toBe(false);
+  });
+
+  it("is false for a mostly-English question with one non-Latin word", () => {
+    expect(needsGloss("Photosynthesis क्या है?")).toBe(false);
+  });
+
   it("is false for Latin-script languages (not targeted by L2)", () => {
     for (const q of ["¿Cuál es la capital de Francia?", "Quelle heure est-il ?", "Habari ya asubuhi, mwalimu?"]) expect(needsGloss(q), q).toBe(false);
   });
 
-  it("is true for a word of two or more letters in another script, code-mixed or not", () => {
+  it("is true when most of the question is in another script, code-mixed or not", () => {
     for (const q of [
       "प्रकाश संश्लेषण क्या है?",
-      "Photosynthesis क्या है?",
+      "Photosynthesis पौधों में कैसे होता है और इसके लिए क्या चाहिए?",
       "ما هو التمثيل الضوئي؟",
       "ፎቶሲንተሲስ ምንድን ነው?",
       "Что такое фотосинтез?",
       "光合作用是什么？",
       "Τι είναι η φωτοσύνθεση;",
     ]) expect(needsGloss(q), q).toBe(true);
+  });
+});
+
+describe("shouldGloss", () => {
+  it("glosses on Ollama only: the cloud cost is unmeasured (review finding 7)", () => {
+    const q = "प्रकाश संश्लेषण क्या है?";
+    expect(shouldGloss(q, "ollama")).toBe(true);
+    expect(shouldGloss(q, "openai")).toBe(false);
+    expect(shouldGloss(q, "anthropic")).toBe(false);
+    expect(shouldGloss("What is photosynthesis?", "ollama")).toBe(false);
   });
 });
 

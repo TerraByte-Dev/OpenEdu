@@ -804,6 +804,9 @@ export interface StructuredOpts<T = unknown> {
   // chat turn's and Ollama's prefix cache survives the call (kernel/gloss.ts). Ignored by cloud
   // providers, whose structured paths use their own tool / response_format envelope.
   tools?: ProviderToolDef[];
+  // Ollama only: cap on output tokens, below the default ollamaMaxPredict(config). For a call whose
+  // answer is known to be short (kernel/gloss.ts), so a rambling model stops early.
+  numPredict?: number;
 }
 
 // Deep-clone a JSON schema and scale every minLength / minItems found within by `scale`.
@@ -906,6 +909,7 @@ async function callOllamaStructured(
   temperature: number,
   signal?: AbortSignal,
   tools?: ProviderToolDef[],
+  numPredict?: number,
 ): Promise<ProviderResult> {
   const baseUrl = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const version = await getOllamaVersion(baseUrl);
@@ -922,7 +926,7 @@ async function callOllamaStructured(
     // aborts the fetch, but Ollama keeps generating with no client attached.
     options: {
       temperature,
-      num_predict: ollamaMaxPredict(config),
+      num_predict: numPredict ? Math.min(numPredict, ollamaMaxPredict(config)) : ollamaMaxPredict(config),
       ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}),
     },
     format: supportsSchema ? schema : "json",
@@ -1147,7 +1151,7 @@ export async function callLLMStructured<T>(
     let result: ProviderResult;
     try {
       if (config.provider === "ollama") {
-        result = await callOllamaStructured(workingMessages, config, effectiveSchema, temperature, attemptController.signal, opts.tools);
+        result = await callOllamaStructured(workingMessages, config, effectiveSchema, temperature, attemptController.signal, opts.tools, opts.numPredict);
       } else if (config.provider === "openai") {
         result = await callOpenAIStructured(workingMessages, config, effectiveSchema, toolName, temperature, attemptController.signal);
       } else if (config.provider === "anthropic") {
