@@ -376,7 +376,7 @@ export function scoreEntry(
 // replaced wholesale on refresh, so keying on the array itself invalidates for free.
 const dfCache = new WeakMap<object, DfIndex>();
 
-function dfFor(manifest: LibraryEntry[]): DfIndex {
+export function dfFor(manifest: LibraryEntry[]): DfIndex {
   let idx = dfCache.get(manifest);
   if (!idx) {
     idx = buildDfIndex(manifest);

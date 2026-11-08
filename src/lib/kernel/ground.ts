@@ -15,7 +15,8 @@
 import { estTokens, capText, type Budget } from "./budget";
 import { searchNotebook } from "../notebook";
 import { getManifest, matchResourcesScored, fetchResource, isLibraryAvailable } from "../library";
-import { words, wordLength } from "../library-rank";
+import { words, wordLength, dfFor } from "../library-rank";
+import { entityGate } from "./entityGate";
 import { getLibraryEnabled } from "../store";
 import type { ToolContext } from "../tools/EduTool";
 
@@ -32,7 +33,7 @@ export interface GroundingHit {
 
 export interface RetrievalTrace {
   /** Non-null when retrieval was deliberately skipped, naming the reason. */
-  skipped: "short-query" | "no-corpus" | "below-floor" | "disabled" | null;
+  skipped: "short-query" | "no-corpus" | "below-floor" | "disabled" | "entity-gate" | null;
   candidates: number;
   /** Note-sourced candidates BEFORE the score floor. Distinct from how many survived: zero survivors
    *  is the healthy answer to a question the vault cannot answer, whereas zero CANDIDATES means the
@@ -46,6 +47,9 @@ export interface RetrievalTrace {
   /** Lever L2: present only on a turn whose question was glossed (gloss.ts). Never shown to the
    *  student; recorded so an eval can see what the second search used and what it cost. */
   gloss?: { text: string | null; ms: number; error?: string };
+  /** Lever 3 (entityGate.ts): present only when the question named a distinctive entity. `dropped` is
+   *  the titles of notes at or above the note floor that the gate removed. */
+  entityGate?: { entities: string[]; dropped: string[] };
 }
 
 export interface Grounding {
@@ -295,6 +299,25 @@ export function mergeCandidates(original: Array<GroundingHit & { key: string }>,
   return [...byKey.values()];
 }
 
+// ── Pure stage 1b: the named-entity mismatch gate (lever 3) ──────────────────
+
+/**
+ * Drop the note candidates the entity gate rejects (entityGate.ts). Library cards always pass. Runs
+ * before selectHits, so a dropped note's slot can go to a note that passes. `trace` is undefined when
+ * the gate is off for this question.
+ */
+export function gateCandidates(question: string, candidates: GroundingHit[], vocab: ReadonlySet<string> | null): { kept: GroundingHit[]; trace?: RetrievalTrace["entityGate"] } {
+  const gate = entityGate(question, vocab);
+  if (!gate) return { kept: candidates };
+  const kept: GroundingHit[] = [];
+  const dropped = new Set<string>();
+  for (const h of candidates) {
+    if (h.source !== "note" || gate.keeps(h)) kept.push(h);
+    else if (h.score >= MIN_NOTE_SCORE) dropped.add(h.title);
+  }
+  return { kept, trace: { entities: gate.entities, dropped: [...dropped] } };
+}
+
 // ── The I/O shell ────────────────────────────────────────────────────────────
 
 /**
@@ -323,9 +346,10 @@ export async function ground(
   // Notes and library are fetched concurrently and fail independently. The library half needs no
   // model at all, so on the install a school actually ends up with — chat model only, no embedder —
   // grounding still fires.
-  const [notes, library] = await Promise.allSettled([
+  const [notes, library, vocab] = await Promise.allSettled([
     searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }),
     groundFromLibrary(question),
+    libraryVocab(),
   ]);
 
   if (notes.status === "fulfilled") {
@@ -340,11 +364,11 @@ export async function ground(
   if (library.status === "fulfilled") candidates.push(...library.value);
 
   const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
-  const hits = selectHits(candidates);
+  const gated = gateCandidates(question, candidates, vocab.status === "fulfilled" ? vocab.value : null);
+  const hits = selectHits(gated.kept);
   const block = formatGroundingBlock(hits, budget.grounding);
 
-  const skipped: RetrievalTrace["skipped"] =
-    candidates.length === 0 ? "no-corpus" : hits.length === 0 ? "below-floor" : null;
+  const skipped = skipReason(candidates, hits, gated.trace);
 
   return {
     block,
@@ -357,19 +381,39 @@ export async function ground(
       hitTitles: hits.map((h) => h.title),
       blockTokens: estTokens(block),
       error,
+      ...(gated.trace ? { entityGate: gated.trace } : {}),
     },
   };
+}
+
+function skipReason(candidates: GroundingHit[], hits: GroundingHit[], gate: RetrievalTrace["entityGate"]): RetrievalTrace["skipped"] {
+  if (candidates.length === 0) return "no-corpus";
+  if (hits.length > 0) return null;
+  return gate && gate.dropped.length > 0 ? "entity-gate" : "below-floor";
+}
+
+// The bundled library's vocabulary, for the entity gate's "distinctive" test. Read whether or not the
+// library is switched on for grounding: it is a word list here, not a corpus. Null (gate off) when the
+// manifest cannot be loaded.
+async function libraryVocab(): Promise<ReadonlySet<string> | null> {
+  try {
+    const manifest = await getManifest();
+    return manifest.length > 0 ? dfFor(manifest).vocab : null;
+  } catch {
+    return null;
+  }
 }
 
 // Lever L2: the same stage, searched with the original question AND its English gloss, both corpora,
 // merged per passage (mergeCandidates). The floor, diversity and cap are selectHits's, unchanged. Only
 // reached for a glossed (non-English) question; an English turn never gets here.
 async function groundWithGloss(question: string, gloss: string, ctx: ToolContext, budget: Budget): Promise<Grounding> {
-  const [notes, library, glossNotes, glossLibrary] = await Promise.allSettled([
+  const [notes, library, glossNotes, glossLibrary, vocab] = await Promise.allSettled([
     searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }),
     groundFromLibrary(question),
     searchNotebook({ courseId: ctx.courseId, query: gloss, topK: 6 }),
     groundFromLibrary(gloss),
+    libraryVocab(),
   ]);
 
   type Keyed = GroundingHit & { key: string };
@@ -388,15 +432,19 @@ async function groundWithGloss(question: string, gloss: string, ctx: ToolContext
   const noteCandidates = candidates.filter((h) => h.source === "note").length;
 
   const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
-  const hits = selectHits(candidates);
+  // The gate reads the student's own question, never the gloss (entityGate.ts says why).
+  const gated = gateCandidates(question, candidates, vocab.status === "fulfilled" ? vocab.value : null);
+  const hits = selectHits(gated.kept);
   const block = formatGroundingBlock(hits, budget.grounding);
-  const skipped: RetrievalTrace["skipped"] =
-    candidates.length === 0 ? "no-corpus" : hits.length === 0 ? "below-floor" : null;
+  const skipped = skipReason(candidates, hits, gated.trace);
 
   return {
     block,
     hits,
-    trace: { skipped, candidates: candidates.length, noteCandidates, topScore, hitTitles: hits.map((h) => h.title), blockTokens: estTokens(block), error },
+    trace: {
+      skipped, candidates: candidates.length, noteCandidates, topScore, hitTitles: hits.map((h) => h.title), blockTokens: estTokens(block), error,
+      ...(gated.trace ? { entityGate: gated.trace } : {}),
+    },
   };
 }
 
