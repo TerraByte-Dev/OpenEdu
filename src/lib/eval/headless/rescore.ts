@@ -38,9 +38,10 @@ const clip = (s: string, n = 180) => {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 };
 
-/** The baseline or L1 arm, from the commit the run was made at (see the L1 results file). */
+/** The baseline or L1 arm, from the commit the run was made at (see the L1 results file). `1c404a9`
+ *  is the e2b L1 confirmation run, with the swap gated on the chip having been offered. */
 export function armOf(file: SavedFile): string {
-  const arm = file.commit?.startsWith("775ee0e") ? "L1" : "baseline";
+  const arm = file.commit?.startsWith("775ee0e") ? "L1" : file.commit?.startsWith("1c404a9") ? "L1 at 1c404a9 (chip-gated)" : "baseline";
   const sel = file.selection;
   return sel && sel.items < sel.pool ? `${arm} pilot (${sel.items} items)` : arm;
 }
