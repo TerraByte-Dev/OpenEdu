@@ -92,7 +92,7 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
 // Bundled cards are LF in git but CRLF in a Windows checkout (core.autocrlf), so a body recorded on
 // Windows carried an escaped CR LF where Linux CI sends an escaped LF. Normalise that one checkout artefact so the
 // snapshot pins what the code sends, not how the working tree was checked out.
-const raws = (p: string) => calls.filter((c) => c.path === p).map((c) => c.raw.replaceAll("\\r\\n", "\\n"));
+const raws = (p: string) => calls.filter((c) => c.path === p).map((c) => c.raw?.replaceAll("\\r\\n", "\\n"));
 
 describe("English turns: the requests Ollama sees", () => {
   let perQuestion: Array<{ id: string; chat: Array<string | undefined>; embed: Array<string | undefined> }> = [];
