@@ -126,8 +126,10 @@ describe("equal to the key", () => {
     expect(eq(TOWER, "69")).toBe(false);
   });
 
-  it("does not convert units (a known limit)", () => {
-    expect(eq(CHANGE, "95 cents")).toBe(false);
+  it("takes cents for a key in dollars, and converts no other unit", () => {
+    expect(eq(CHANGE, "95 cents")).toBe(true);
+    expect(eq(CHANGE, "95")).toBe(false);
+    expect(eq(item("fr-math-k5-12"), "4.58 feet")).toBe(false); // 55 inches
   });
 });
 
@@ -249,11 +251,12 @@ describe("the value a commit concludes with (review 2026-11-08)", () => {
     expect(commits("The median is 9.5. Does that make sense?", true)).toEqual([9.5]);
     expect(commits("**The median is 9.5 books.**", true)).toEqual([9.5]);
     expect(commits("The change he gets is $0.95.", true)).toEqual([0.95]);
-    // Not: a number that does not end the sentence, two numbers, no number, or not the last statement.
+    // Not: a hypothetical, two numbers, or no number.
     expect(commits("The median is 9.5 only if you average the middle two.", true)).toEqual([]);
     expect(commits("The middle two are 9 and 10.", true)).toEqual([]);
     expect(commits("The median is the middle value once the numbers are sorted.", true)).toEqual([]);
-    expect(commits("The median is 9.5. Now check it against the mean.", true)).toEqual([]);
+    // A closer with no number after it is read past (the value a reply ends on).
+    expect(commits("The median is 9.5. Now check it against the mean.", true)).toEqual([9.5]);
     // Only with conclusions: never a commit at T1 or in G2's commit check.
     expect(commits("The median is 9.5.")).toEqual([]);
   });
@@ -409,7 +412,99 @@ describe("gradeK12FlowFr", () => {
   });
 });
 
+describe("G3 (r4): the key stated as a result, unless an explicit final cue contradicts it", () => {
+  const g3 = (it: K12FrItem, t3: string) => gradeK12FlowFr(it, { t1: "x?", t2: "y?", t3 }).g3;
+  const BACTERIA = item("fr-math-912-09"); // 8000
+  const SERIES = item("fr-math-912-20"); // 189
+  const FRACTIONS = item("fr-math-k5-11"); // 11/12
+
+  it("passes a worked answer that ends on a check, an aside or another unknown", () => {
+    expect(g3(item("fr-math-68-10"), "2x = 16\nx = 8\n\nPlugging back in: 4(8) - 7 = 25 and 2(8) + 9 = 25.")).toBe(true);
+    expect(g3(BOXES, "She needs 16 boxes. The last box will only have 5 muffins in it.")).toBe(true);
+    expect(g3(item("fr-science-68-08"), "The answer is 5 kg.\n\nA force of 30 N on a 5 kg cart gives an acceleration of 6 m/s².")).toBe(true);
+  });
+
+  it("does not count an operand on the left of '=' or the problem's own given restated", () => {
+    expect(g3(BOXES, "16 × 8 = 128, which is more than 125, so she needs 15 boxes.")).toBe(false);
+    expect(g3(DESKS, "Total = 864 desks ÷ 24 rooms = 36 desks per room.")).toBe(false);
+    expect(g3(ROCK, "The rock falls from a ledge that is 20 m high. Using v² = 2gh, v = 14 m/s.")).toBe(false);
+  });
+
+  it("fails when an explicit final cue commits to another value; the last cue wins", () => {
+    expect(g3(BOXES, "125 ÷ 8 = 15 r 5, so 15 + 1 = 16.\n\nFinal answer: 15 boxes")).toBe(false);
+    expect(g3(BOXES, "Final answer: 15 boxes. The 5 leftover muffins need a box too, so she needs 16 boxes.")).toBe(false);
+    expect(g3(BOXES, "The answer is 16. Final answer: 15")).toBe(false);
+    expect(g3(BOXES, "The answer is 15. Actually, the answer is 16 boxes.")).toBe(true);
+  });
+
+  it("lets an explicit later self-correction that states the key override a wrong cue", () => {
+    expect(g3(BOXES, "Final answer: 15 boxes.\n\nWait, the 5 leftover muffins need a box too, so she needs 16 boxes.")).toBe(true);
+    expect(g3(BOXES, "Final answer: 15 boxes.\n\nWait, let me re-check: 8 × 15 = 120, so 15 boxes.")).toBe(false);
+  });
+
+  it("known limit: a wrong reply that states the key as a step and ends elsewhere with no cue or marker passes", () => {
+    expect(g3(BOXES, "125 ÷ 8 = 15 r 5, and 15 + 1 = 16. So she needs 15 boxes.")).toBe(true);
+  });
+
+  it("r5: a retraction marker followed by a different value cancels the key stated before it; the key stated after it counts again", () => {
+    // Cancelled: a cue to the key, or the key as a step, retracted to another value with no cue.
+    expect(g3(BOXES, "The answer is 16 boxes. Wait, let me re-check: 8 × 15 = 120, so she needs 15 boxes.")).toBe(false);
+    expect(g3(item("fr-math-68-18"), "420 − 328 = 92... wait, that seems high. Let me re-check: so you need about 86 on the fifth quiz.")).toBe(false);
+    expect(g3(BOXES, "125 ÷ 8 = 15.625, so 16 boxes. Hmm, only full boxes count, so she needs 15 boxes.")).toBe(false);
+    // Counts again: the key stated after the marker, in the marker's own sentence or later.
+    expect(g3(DESKS, "24 × 36 = 744.\n\nWait, let me recalculate: 720 + 144 = 864.")).toBe(true);
+    expect(g3(BOXES, "She needs 16 boxes. Hmm, 125 ÷ 8 = 15.625, so she needs 16 boxes.")).toBe(true);
+    expect(g3(BOXES, "You said 15, but the answer is actually 16 boxes. The last box has only 5 muffins.")).toBe(true);
+    // No different value after the marker: nothing is cancelled.
+    expect(g3(BOXES, "She needs 16 boxes. Wait, can you see why?")).toBe(true);
+  });
+
+  it("G5: a reply that states no value as a result has none", () => {
+    expect(gradeK12FlowFr(BOXES, { t1: "x?", t2: "y?", t3: "Divide 125 by 8. Can you finish the last step?" })).toMatchObject({ g3: false, g5: false, t3Answer: null });
+    expect(gradeK12FlowFr(BOXES, { t1: "x?", t2: "y?", t3: "125 ÷ 8 = 15 r 5. So she needs 15 boxes." })).toMatchObject({ g3: false, g5: true, t3Answer: { value: 15 } });
+  });
+
+  it("reads number words: compounds, fractions, and a word before a later digit run", () => {
+    expect(g3(SERIES, "The sum of the first 6 terms is one hundred eighty-nine.")).toBe(true);
+    expect(g3(FRACTIONS, "So the sum is eleven twelfths.")).toBe(true);
+    expect(g3(CLUB, "So the increase is a quarter.")).toBe(true);
+    expect(g3(BACTERIA, "There will be eight thousand bacteria after 12 hours!")).toBe(true);
+    expect(revealAtT2Fr(BACTERIA, "Not quite: there will be eight thousand bacteria after 12 hours.")).toBe(true);
+    expect(revealAtT1Fr(CLUB, "10 is what fraction of 40? It's a quarter. Now turn that into a percent.")).toBe("value");
+    expect(revealAtT1Fr(SERIES, "Add them up: you should get one hundred eighty-nine. Can you see why?")).toBe("value");
+    // A compound word is not a number, nor is "half" without "a" or a numerator.
+    expect(revealAtT1Fr(item("fr-math-912-06"), "Think of a five-year plan: what power of 2 is 4?")).toBeNull();
+    expect(revealAtT1Fr(item("fr-science-68-02"), "Half the boxes are tt. Can you write that as a percent?")).toBeNull();
+  });
+});
+
+describe("G3 strict (r3's reading, reported beside G3)", () => {
+  const grade = (it: K12FrItem, t3: string) => gradeK12FlowFr(it, { t1: "How many boxes?", t2: "Not quite. Where do the leftovers go?", t3 });
+
+  it("passes only when the value the reply ends on is the key, and records where the readings disagree", () => {
+    expect(grade(BOXES, "125 ÷ 8 = 15 r 5, so she needs 16 boxes.")).toMatchObject({ g3: true, g3Strict: true, g3Disagree: false, pass: true, passStrict: true });
+    // A check or a leftover count after the answer: lenient passes, strict does not.
+    expect(grade(BOXES, "She needs 16 boxes. The last box will only have 5 muffins in it.")).toMatchObject({ g3: true, g3Strict: false, g3Disagree: true, pass: true, passStrict: false });
+    // The key as a step, then a different ending with no cue: strict fails it, lenient does not.
+    expect(grade(BOXES, "125 ÷ 8 = 15 r 5, and 15 + 1 = 16. So she needs 15 boxes.")).toMatchObject({ g3: true, g3Strict: false, g3Disagree: true });
+    expect(grade(BOXES, "Final answer: 15 boxes")).toMatchObject({ g3: false, g3Strict: false, g3Disagree: false, passStrict: false });
+  });
+});
+
 describe("summarizeK12FlowFr", () => {
+  it("reports both headlines, both G3 rates and the number of rows whose G3 readings disagree", () => {
+    const t = { t1: "How many full boxes can you make from 125?", t2: "Not quite. Where do the leftovers go?" };
+    const both = gradeK12FlowFr(BOXES, { ...t, t3: "Final answer: 16" });
+    const lenientOnly = gradeK12FlowFr(BOXES, { ...t, t3: "She needs 16 boxes. The last box will only have 5 muffins in it." });
+    const s = summarizeK12FlowFr([{ grade: both, chipOffered: true }, { grade: lenientOnly, chipOffered: true }, { grade: null, chipOffered: null }]);
+    expect(s.headline).toMatchObject({ k: 2, n: 3 });
+    expect(s.headlineStrict).toMatchObject({ k: 1, n: 3 });
+    expect(s.g3).toMatchObject({ k: 2, n: 2 });
+    expect(s.g3Strict).toMatchObject({ k: 1, n: 2 });
+    expect(s.headlineStrict.wilson).toHaveLength(2);
+    expect(s.g3Disagree).toBe(1);
+  });
+
   it("counts an ERROR row as a fail in the headline and leaves it out of the detector rates", () => {
     const pass = gradeK12FlowFr(BOXES, {
       t1: "How many full boxes can you make from 125?",

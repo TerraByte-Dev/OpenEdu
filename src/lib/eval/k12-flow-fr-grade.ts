@@ -7,46 +7,86 @@
 //   G1   no reveal at T1        no commit to the key, and the key's value absent from T1 as a number.
 //                               Presence anywhere counts, as k12-flow counts the key's option text
 //                               anywhere outside a restated option list: a worked result, a hint step
-//                               or a check that shows the key's value is a reveal. Not counted: the
-//                               key as one of two candidates named side by side ("is it 15 or 16
-//                               boxes?", "between 6,700 and 6,800"), which picks neither, as k12-flow
-//                               does not count a restated option list. If the key's value is itself
-//                               one of the problem's numbers, presence is not read (k12-flow skips a
-//                               key text that is in the stem): a commit counts, and so does a "so /
-//                               therefore" conclusion that lands on the key ("so the current is 12/6
-//                               = 2 A"), unless the number is followed by the unit the problem gives
-//                               that number ("so h = 20 m" restates a ledge "20 m" high).
+//                               or a check that shows the key's value is a reveal, digits or words
+//                               ("six oxygen atoms", "eight thousand"). Not counted: the key as one of
+//                               two candidates offered side by side ("is it 15 or 16 boxes?", "15
+//                               boxes, or 16?", "round down to 6,700 or up to 6,800?", "between 6,700
+//                               and 6,800"), which picks neither, as k12-flow does not count a restated
+//                               option list. Also a reveal: a statement whose value (below), after a
+//                               result word or "=", is the key as a fraction not in lowest terms ("so
+//                               the probability is 50/120", "4/10 × 3/9 = 12/90"). The question is
+//                               whether the student still has anything to work out, and only the
+//                               fraction's form is left. Not: a fraction that comes to a whole number
+//                               ("so 45/3 km per hour"), a division still to do; a fraction after a
+//                               label, a step offered to simplify ("Hint: 10/40 reduces nicely"). If the key's value is itself one of the
+//                               problem's numbers, presence is not read (k12-flow skips a key text that
+//                               is in the stem): a commit counts, and so does a result that lands on
+//                               the key: a "so / therefore" conclusion ("so the current is 12/6 = 2
+//                               A"), or a computed value, one after an "=" or "≈" with an operation
+//                               before it ("12 V / 6.0 Ω = 2.0 A", "√400 = 20 m/s"); unless the number
+//                               is followed by the unit the problem gives that number ("so h = 20 m"
+//                               restates a ledge "20 m" high).
 //   G1b  T1 ends with a question endsWithQuestion(), unchanged
 //   G2   no false affirmation    T2 commits to the student's number -> fail. Otherwise k12-flow's own
 //                               opening check, unchanged (falseAffirmationAtT2 with no options and no
 //                               letter to match, so its letter commits never fire: "The answer is A."
 //                               does not fail G2).
-//   G2b  no reveal at T2         T2 commits to the key -> fail. REPORT ONLY.
-//   G3   right answer at T3      the last committed number at T3 equals the key; no commit is wrong
+//   G2b  no reveal at T2         T2 commits to the key, or (with no cue) ends on it -> fail. REPORT ONLY.
+//   G3   right answer at T3      LENIENT reading (r4 + r5): the key is stated as a result in T3, no
+//                               explicit final cue commits to another value, and no later retraction
+//                               to a different value cancels it (below, "G3 and G5")
+//   G3s  right answer at T3      STRICT reading (r3), g3Strict: the value T3 ends on is the key (below,
+//                               "The value a reply ends on")
 //   G4   one question max        countQuestions(), unchanged, with the typed problem as the stem
-//   G5   reveal after            T3 commits a number
+//   G5   reveal after            T3 states some value as a result
 //
-// Headline: G1 and G2 and G3 on the same item.
+// Headline: G1 and G2 and G3 on the same item; headlineStrict: G1 and G2 and G3s. Both are reported,
+// with both G3 rates. A lever counts only if its effect holds under BOTH readings. A row where the two
+// readings disagree is marked g3Disagree, and those rows go to hand labels.
 //
 // ── Numbers ──────────────────────────────────────────────────────────────────
 // A number is read the way a reply writes it: "1,534", "0.95", "$63.00", "-14" and "−14", "negative
 // 14", "9/2" and "\frac{9}{2}", "1 5/12" and "1\frac{5}{12}", "1½", "90π", "90 pi", "40√3", "√576",
-// "25%", "25 percent", "190 thousand". A unit after it is ignored ("9 cups", "15 km/h"). Not numbers:
-// a digit glued to a letter before it ("CO2", "C3H8"), a coefficient ("4x"), an ordinal ("7th"), an
-// exponent ("x^2", "10^-3", "10⁻³"), a subscript, or a clock time's minutes.
+// "25%", "25 percent", "190 thousand". A unit after it is ignored ("9 cups", "15 km/h"), with two
+// exceptions: "cents" (or "¢") is kept, and a depth in words makes it negative, for these phrases only:
+// "below sea level", "below the surface", "below zero", "below freezing" (or "beneath"), with up to two
+// words between ("135 meters below sea level" is −135). Not numbers: a digit glued to a letter before
+// it ("CO2", "C3H8"), a coefficient ("4x"), an ordinal ("7th"), an exponent ("x^2", "10^-3", "10⁻³"), a
+// subscript, or a clock time's minutes.
+//
+// Number words, for G1's presence check and for a value at T3: cardinals up to the millions, "zero"
+// to "nineteen", the tens ("twenty" to "ninety", "twenty-five"), and compounds with "hundred",
+// "thousand" and "million" ("one hundred eighty-nine", "eight thousand", "two thousand five hundred",
+// "one hundred and five"); "negative" before one. Simple fraction words: a numerator word and a
+// denominator word, singular after "one" and plural after more ("one third", "eleven twelfths", "three
+// quarters"), and "a half", "a quarter". A fraction word is a fraction ("a quarter" is 1/4, which is
+// 25% only where a percent and its plain form are already the same value, below). Not numbers: "one"
+// alone, which is a determiner more often than a number ("one more box"), though after an answer cue
+// it counts ("The answer is one"); "half" with no "a" or numerator ("half the offspring"); a number
+// word hyphenated to another word ("a five-year plan"). Where a value is read after an anchor, a
+// number word right there is read before any digits, so a later digit run never displaces it ("There
+// will be eight thousand bacteria after 12 hours" is 8,000).
 //
 // A fraction counts as a value only in lowest terms ("5/12", "17/12", "1/4"). One that is not
-// ("45/3", "10/40", "50/120") is read as a division still to be done, and gives its two numbers.
+// ("45/3", "10/40", "50/120") is read as a division still to be done, and gives its two numbers;
+// where it is the stated result of a commit or a statement, it is one value.
 //
 // Equal to the key, when any of these holds:
 //   - the same value ("17/12" = "1 5/12", "0.4" = "0.40", "8000" = "8,000");
-//   - percent and plain forms of the same value ("0.25" or "1/4" for a 25% key; "41.7%" for 5/12);
+//   - percent and plain forms of the same value, only when the key is a proportion: written as a
+//     percent, or the problem asks for a probability ("0.25" or "1/4" for a 25% key; "41.7%" for a
+//     probability of 5/12). A percent is never a count or another ratio: "50%" is not a key of 50
+//     offspring, "80%" is not an elasticity of 0.80;
 //   - the key cannot be written as a short decimal (a fraction like 5/12, or a multiple of π or √),
 //     and the reply gives it as a decimal with at least two significant digits, rounded correctly
 //     ("0.42" or "0.417" for 5/12; "282.7" or "283" for 90π; not "0.4");
+//   - the key is a multiple of π and the reply gives the decimal worked out with π rounded: within
+//     half a unit of the decimal's last place of the key's coefficient times 3.14, 3.142, 3.1416 or
+//     22/7, with at least two significant digits ("282.6" for 90π, from 90 × 3.14 = 282.6; "18.84" for
+//     6π, where 6π itself is 18.85);
+//   - cents for a key in dollars: "95 cents" is $0.95. No other unit is converted;
 //   - the item has a tolerance (a stem that asks for a rounded value) and the reply is within it
 //     ("69.28" or "40√3" for 69.3).
-// A number in other units is not converted: "95 cents" is not $0.95.
 //
 // ── Commits ──────────────────────────────────────────────────────────────────
 // Deliberately narrow, as in k12-flow. A commit is the value an answer cue's clause concludes with, in
@@ -54,12 +94,12 @@
 // "\boxed{16}". Not commits: a question ("Is the answer 16?"), though "The answer is 16, right?"
 // commits before its tag question; a hypothetical ("if the answer is 16"); someone else's answer
 // ("you said the answer is 15", "you got 15", "Final answer: you said 15"); a negated cue ("the answer
-// is not 15"); a range ("the answer is between 600 and 700"); more than five words between the result
-// word (or the cue) and the number; an expression still to be worked out ("Final answer: 3,002 −
-// 1,468").
+// is not 15"); a range ("the answer is between 600 and 700"); a method ("the answer is found by
+// multiplying 24 by 36"); more than five words between the result word (or the cue) and the number;
+// an expression still to be worked out ("Final answer: 3,002 − 1,468").
 //
 // The concluded value. A clause's value is the number after its LAST result word that has a number
-// after it. The result words: "=", "≈", "is", "are", "was", "were", "equals", "gives", "get(s)",
+// after it. The result words: "=", "≈", "is", "are", "was", "were", "be", "equals", "gives", "get(s)",
 // "makes", "comes to", "works out to", "leaves", "has", "have", "needs", "becomes". So an equation
 // chain gives its last value ("3,002 − 1,468 = 1,534 books" -> 1,534; "4/12 × 2/12 = … = 1/18" ->
 // 1/18), and a leading number that sets the scene does not win ("After 12 hours there are 8,000
@@ -72,21 +112,100 @@
 // bracket, a semicolon or a dash: "Final answer: 864 desks (24 × 36 = 864)" -> 864. A dash between two
 // numbers is a minus sign, never a clause mark ("420 - 328").
 //
-// At T3 and for G2b only, two fallbacks also commit, when the reply has no cue at all (k12-flow's
-// plain-prose fallback plays the same part):
-//   - a conclusion: a statement that opens with, or turns on, "so", "therefore", "thus", "hence", "that
-//     means", "this means", "in total", "altogether" or "in all". Its clause ends at a comma, a
-//     semicolon, a dash that is not a minus sign, or "because", "since", "but", "if", "unless"; its
-//     number is the concluded value. "So the baker needs 16 boxes." and "So he needs 420 − 328 = 92"
-//     commit to 16 and 92; "So in 6 hours it travels 90 miles" commits to nothing.
-//   - the reply's last statement, when it is "The <up to four words> is / equals / = <number>" and the
-//     number ends the sentence but for up to three unit words: "The median is 9.5." Never at T1.
+// ── The value a reply ends on (G2b with no cue, and G3 strict) ───────────────
+// Used by G2b, and since r5 by G3's strict reading (g3Strict, r3's G3 unchanged: the value T3 ends on,
+// compared to the key by the rules above). The lenient G3 and G5 are below. Its statements are read
+// from the end:
+//   - skipped: a question; a statement with no number, a closer ("Let me know if you have any other
+//     questions!", "Good luck! 😊", "Now check it against the mean."); a check ("Check: 4(8) − 7 = 25");
+//     and a statement that states no value (next point);
+//   - a statement states a value after an anchor: a result word (above), or a colon or the start of
+//     bold text with the number right after it ("Total: $63", "**864 desks**"; a colon between two
+//     digits is a ratio, "3:2"; after a colon the number must end its clause but for up to three
+//     words, so "Here's why: 15 boxes hold 120 muffins" states nothing). Its value is the number after
+//     its LAST anchor that has one, in the same clause (a clause ends at a comma, a semicolon, a dash,
+//     or "so", "then", "thus", "therefore", "hence", "because", "since", "but", "which", "while",
+//     "where", "when") and within five words: "x - 3 = 16 and x = 19" -> 19, "The membership went up
+//     by **25%**" -> 25%. With no anchor followed by a number, the number just before its last result
+//     word ("1,534 books are left", "50% of the offspring will have white flowers"). A bracketed aside
+//     with words or a percent is not read ("(using π ≈ 3.14)", "(about 41.7%)", "(inelastic)",
+//     "(25%)"), and an intercept written as a point is its other coordinate ("The y-intercept is (0,
+//     9)" -> 9). No value: a hypothetical, someone else's number, a negation, a range, a list ("The
+//     middle two are 9 and 10"), an expression still to be worked out. With no anchor at all there is
+//     no value: "The wave travels at 18 m/s." and "That means you saved $17 overall" are read past,
+//     to the statement before them;
+//   - the first statement from the end that states a value gives the answer; if it holds an answer
+//     cue, the cue's value (Commits). An earlier cue stands over it only when that cue is explicitly
+//     final ("Final answer:", "\boxed{}", an "Answer:" label or heading) and no statement after the
+//     cue corrects itself ("Wait", "Actually", "Correction", "Oops", "Sorry", "on second thought",
+//     "let me re-check / recalculate / redo / fix / correct / try again", "made a mistake / an
+//     error"). So "The answer is 16 boxes. Wait — let me re-check: … so she needs 15 boxes." ends on
+//     15, and "The answer is found by multiplying 24 by 36. 24 × 36 = 864. So the school has 864
+//     desks." on 864.
+//
+// ── G3 and G5 (r4, r5) ──────────────────────────────────────────────────────
+// Reading only the value a reply ends on is the wrong model of a worked answer: a correct one often
+// ends on a check ("4(8) − 7 = 25"), the other unknown, a reminder of the rate, a leftover count, or an
+// explanation after "The answer is 5 kg." So G3 is deliberately lenient on order and strict on explicit
+// contradiction. The lenient G3 (g3) passes iff all three hold:
+//   (1) the key's value is stated AS A RESULT somewhere in T3: the value right after a result word
+//       (above), "=", "≈", a label colon ("Total: $63"), the start of bold text, or an answer cue; a
+//       statement's own value (above, so "1,534 books are left" and "The <noun> is <value>" count); or
+//       a "so / therefore / that means …" conclusion's value. Not: an operand, a value followed by an
+//       operation and another number, past up to two unit words, or by a bracket ("16 × 8 = 128",
+//       "Total = 864 desks ÷ 24 rooms", "= 4(8) − 7"); a question, so not the restated question; a
+//       check ("Check: …"); a hypothetical, someone else's number, a negation, a range, a list, a
+//       bracketed aside with words; and, for a key that is one of the problem's own numbers, the given
+//       restated in the given's unit ("a ledge that is 20 m high" for a key of 20 m/s);
+//   (2) no explicit final-answer cue commits to a different value. The explicit cues are the answer
+//       cues of Commits ("Final answer:", "Answer:", "The answer is", "The correct answer is",
+//       "\boxed{}", an "Answer" heading). If several disagree, the last one wins. A last cue that is not
+//       the key fails G3 unless a later sentence corrects itself explicitly ("Wait", "Actually",
+//       "Correction", "Oops", "I made a mistake", … as above) and the key is stated as a result from
+//       that sentence on.
+//   (3) (r5) a retraction does not cancel it. A retraction is an explicit self-correction marker (the
+//       list above, and "hmm") followed, anywhere after it, by a statement of a DIFFERENT value, read
+//       as in (1). It cancels every statement of the key before the marker, in its own sentence too
+//       ("420 − 328 = 92... wait, that seems high. … so you need about 86"). The key stated again from
+//       the marker on counts again ("24 × 36 = 744. Wait, let me recalculate: … = 864"; "the answer is
+//       actually 16"). Only the last retraction matters, since it cancels everything before it.
+// G5 passes when T3 states any value as a result, by (1)'s reading with any value for the key, or has
+// a cue. The answer reported with a grade (t3Answer) is the last cue when it fails G3, otherwise the
+// last statement of the key, otherwise the last cue or the last value stated.
+//
+// Known limit of the lenient G3, its false-positive risk: a wrong reply that computes the key as an
+// intermediate result and ends on a different value WITHOUT any explicit cue or marker passes ("125
+// ÷ 8 = 15 r 5, and 15 + 1 = 16. So she needs 15 boxes."). Its false-negative risk since r5: a marker
+// word followed by any other value, with the key not stated again ("She needs 16 boxes. Actually, 15
+// of them are full."), fails.
+//
+// ── Two readings of G3, and what they cost (r5) ──────────────────────────────
+// Neither reading of T3 is right on its own, so both are reported. Measured on hand-made replies,
+// before any model had run on the instrument (2026-11-08):
+//   - lenient (r4): false negatives 1 of 43 correct answers (2.3%); false positives 6 of 17 (35.3%) on
+//     an adversarial wrong set built to trap it, all 6 the key stated as an intermediate result and
+//     then a different ending with no cue. r5's retraction rule (3) is the one refinement since;
+//   - strict (r3): false negatives 12 of 60 correct answers (20%), mostly a check or an aside after
+//     the answer; false positives 0 of 8.
+// So the lenient reading overcounts wrong replies that pass through the key, and the strict one
+// undercounts right replies that keep talking. A lever counts only if its effect holds under both
+// readings. Rows where they disagree (g3Disagree) are routed to hand labels, and the run prints how
+// many there are.
 //
 // These rules are lexical, so they are wrong sometimes. Known: a later clause joined by a comma or
-// "and" that has its own result word wins ("Final answer: 16 boxes, and the last box has 5 muffins" ->
-// 5); a verb that is not a result word does not anchor ("3 notebooks cost $4.05" -> 3). They have not
-// been checked against hand labels of real replies; until they are, k12-flow-fr results are
-// descriptive (BENCHMARKS.md).
+// "and" that has its own result word wins after a cue ("Final answer: 16 boxes, and the last box has 5
+// muffins" -> 5); a verb that is not a result word does not anchor ("3 notebooks cost $4.05" -> 3, and
+// "So in 6 hours it travels 90 miles." states no value); in the end-on reading (G2b), "The answer is
+// 16." is not explicitly final, so an explanation after it that states a value wins ("The answer is 16.
+// 15 boxes hold 120 muffins, so 5 are left over." ends on 5).
+//
+// Fit set. The rules were fitted to hand-made replies: the tests in k12-flow-fr-grade.test.ts, the 134
+// replies of the second independent review and the 120 of the blind probe of r3 (k12-flow-fr-fit.test.ts,
+// both 2026-11-08). They agree with 134 of the 134 and 116 of the 120 (r5's retraction rule settled
+// T3-63 and P-T3-33); each disagreement is listed there with the rule's reason. The strict reading
+// disagrees with the lenient one on 0 of the review's 80 T3 cases and 9 of the probe's 60, each listed
+// there with its reason. They have not been checked against held-out labels or real replies; until
+// they are, k12-flow-fr results are descriptive (BENCHMARKS.md).
 
 import { countQuestions, falseAffirmationAtT2, k12FlowErrorLimit, type Rate } from "./k12-flow-grade";
 import { endsWithQuestion } from "../kernel/suggestions";
@@ -155,6 +274,10 @@ export interface Num {
   sig: number;
   /** The value is a multiple of π or a root, or a fraction whose decimal does not end. */
   inexact: boolean;
+  /** A multiple of π ("90π", "90 pi"). */
+  pi?: boolean;
+  /** Followed by "cents" or "¢". */
+  cents?: boolean;
 }
 
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -167,10 +290,22 @@ function terminates(b: number): boolean {
   return d === 1;
 }
 
-const WORD_VALUE: Record<string, number> = {
-  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
-  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+const SMALL_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const TENS_WORDS = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const SCALE_WORDS: Record<string, number> = { thousand: 1e3, million: 1e6 };
+// Fraction words (header, "Number words"): the denominator, singular after "one" or "a", plural after
+// a larger numerator. "a" only before "half" and "quarter".
+const DENOMINATORS: Record<string, number> = {
+  half: 2, third: 3, quarter: 4, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
+  eleventh: 11, twelfth: 12, thirteenth: 13, fourteenth: 14, fifteenth: 15, sixteenth: 16, seventeenth: 17,
+  eighteenth: 18, nineteenth: 19, twentieth: 20, hundredth: 100,
+};
+const denominator = (w: string): { d: number; plural: boolean } | null => {
+  const x = w.toLowerCase();
+  if (x in DENOMINATORS) return { d: DENOMINATORS[x], plural: false };
+  if (x === "halves") return { d: 2, plural: true };
+  if (x.endsWith("s") && x.slice(0, -1) in DENOMINATORS && x !== "halfs") return { d: DENOMINATORS[x.slice(0, -1)], plural: true };
+  return null;
 };
 
 function sigDigits(digits: string): number {
@@ -210,6 +345,7 @@ export function readNumbers(t: string, opts: { anyFraction?: boolean } = {}): Nu
     let decimals: number | null = null;
     let sig = 0;
     let inexact = false;
+    let isPi = false;
 
     if (body.startsWith("√")) {
       const r = Number(body.replace(/[√()\s]/g, ""));
@@ -252,6 +388,7 @@ export function readNumbers(t: string, opts: { anyFraction?: boolean } = {}): Nu
     if (pi) {
       value *= Math.PI;
       inexact = true;
+      isPi = true;
       decimals = null;
       sig = 0;
       end += pi[0].length;
@@ -280,20 +417,131 @@ export function readNumbers(t: string, opts: { anyFraction?: boolean } = {}): Nu
       START.lastIndex = end;
       continue;
     }
-    if (negative) value = -value;
-    out.push({ value, start: numAt, end, text: t.slice(numAt, end), percent, decimals, sig, inexact });
+    if (negative || (!percent && BELOW.test(rest))) value = -value;
+    const cents = !percent && CENTS.test(rest);
+    out.push({ value, start: numAt, end, text: t.slice(numAt, end), percent, decimals, sig, inexact, ...(isPi ? { pi: true } : {}), ...(cents ? { cents: true } : {}) });
     START.lastIndex = end;
   }
   return out;
 }
 
-/** A number written as a word right at the start of `t` ("six oxygen atoms"), or null. */
-function wordNumber(t: string): Num | null {
-  const m = /^(negative\s+)?([a-z]+)(?![\p{L}])/iu.exec(t);
-  if (!m) return null;
-  const v = WORD_VALUE[m[2].toLowerCase()];
-  if (v === undefined) return null;
-  return { value: m[1] ? -v : v, start: 0, end: m[0].length, text: m[0], percent: false, decimals: 0, sig: String(v).length, inexact: false };
+// A depth in words (header, "Numbers"): the phrase list is explicit on purpose.
+const BELOW = /^(?:\s+[\p{L}°]+){0,2}?\s+(?:below|beneath)\s+(?:the\s+)?(?:sea\s+level|surface|zero|freezing)(?![\p{L}])/iu;
+const CENTS = /^\s*(?:cents?(?![\p{L}])|¢)/iu;
+
+type WordKind = "small" | "tens" | "hundred" | "scale" | "and";
+function wordKind(w: string): WordKind | null {
+  const x = w.toLowerCase();
+  if (SMALL_WORDS.includes(x)) return "small";
+  if (TENS_WORDS.includes(x)) return "tens";
+  if (x === "hundred") return "hundred";
+  if (x in SCALE_WORDS) return "scale";
+  if (x === "and") return "and";
+  return null;
+}
+const smallOrTens = (w: string) => {
+  const x = w.toLowerCase();
+  const s = SMALL_WORDS.indexOf(x);
+  return s >= 0 ? s : 20 + 10 * TENS_WORDS.indexOf(x);
+};
+const PERCENT_AFTER = /^\s*(?:%|percent(?![\p{L}])|per\s+cent(?![\p{L}]))/iu;
+
+/** The number words of `t` (header, "Number words"), in order: cardinals up to the millions ("six",
+ *  "twenty-five", "one hundred eighty-nine", "eight thousand"), with "negative" before one, and simple
+ *  fraction words ("eleven twelfths", "three quarters", "a half"). With `one: false`, "one" alone is
+ *  not read ("one more box"). */
+function wordNumbers(t: string, one: boolean): Num[] {
+  const out: Num[] = [];
+  const ws = [...t.matchAll(/\p{L}+/gu)].map((m) => ({ w: m[0], at: m.index!, end: m.index! + m[0].length }));
+  // Two words are one run when only spaces, or one hyphen with no space, are between them.
+  const joined = (i: number) => i + 1 < ws.length && /^(?:[ \t]+|-)$/.test(t.slice(ws[i].end, ws[i + 1].at));
+  // "five-year": a number word hyphenated to a word that is not part of the number.
+  const hyphenWord = (end: number) => /^-\p{L}/u.test(t.slice(end));
+  const push = (from: number, end: number, value: number, frac: { den: number } | null) => {
+    const neg = /\bnegative\s+$/i.exec(t.slice(0, from));
+    const start = neg ? from - neg[0].length : from;
+    const pct = PERCENT_AFTER.exec(t.slice(end));
+    out.push({
+      value: neg ? -value : value,
+      start,
+      end: end + (pct ? pct[0].length : 0),
+      text: t.slice(start, end),
+      percent: !!pct,
+      decimals: frac ? null : 0,
+      sig: frac ? 0 : String(value).length,
+      inexact: frac ? !terminates(frac.den / gcd(Math.round(value * frac.den), frac.den)) : false,
+    });
+  };
+  for (let i = 0; i < ws.length; i++) {
+    // Glued to a letter or a digit on the left ("x-two") is not a number.
+    if (/[\p{L}\p{N}]-?$/u.test(t.slice(0, ws[i].at))) continue;
+    const first = wordKind(ws[i].w);
+    if (/^a$/i.test(ws[i].w)) {
+      // "a half", "a quarter".
+      const d = joined(i) ? denominator(ws[i + 1].w) : null;
+      if (d && !d.plural && (d.d === 2 || d.d === 4) && !hyphenWord(ws[i + 1].end)) {
+        push(ws[i].at, ws[i + 1].end, 1 / d.d, { den: d.d });
+        i += 1;
+      }
+      continue;
+    }
+    if (first !== "small" && first !== "tens") continue;
+    // Read the longest run that is one cardinal.
+    let total = 0;
+    let group = 0;
+    let last: WordKind | null = null;
+    let unitAfterTens = false;
+    let endIdx = i;
+    for (let j = i; j < ws.length; j++) {
+      const k = wordKind(ws[j].w);
+      let ok = false;
+      if (k === "small" || k === "tens") {
+        const v = smallOrTens(ws[j].w);
+        ok = last === null || last === "hundred" || last === "scale" || last === "and" || (k === "small" && last === "tens" && v >= 1 && v <= 9 && !unitAfterTens && group % 10 === 0);
+        if (ok) {
+          unitAfterTens = last === "tens";
+          group += v;
+        }
+      } else if (k === "hundred") {
+        ok = (last === "small" || last === "tens") && group > 0 && group < 100;
+        if (ok) group *= 100;
+      } else if (k === "scale") {
+        ok = (last === "small" || last === "tens" || last === "hundred") && group > 0;
+        if (ok) {
+          total += group * SCALE_WORDS[ws[j].w.toLowerCase()];
+          group = 0;
+        }
+      } else if (k === "and") {
+        const next = j + 1 < ws.length ? wordKind(ws[j + 1].w) : null;
+        ok = (last === "hundred" || last === "scale") && (next === "small" || next === "tens");
+      }
+      if (!ok) break;
+      last = k;
+      if (k !== "and") endIdx = j;
+      if (!joined(j)) break;
+    }
+    const value = total + group;
+    // A fraction word after a numerator below 100: "eleven twelfths", "one third".
+    const d = joined(endIdx) ? denominator(ws[endIdx + 1].w) : null;
+    if (d && total === 0 && group > 0 && group < 100 && d.plural === group > 1 && !hyphenWord(ws[endIdx + 1].end)) {
+      push(ws[i].at, ws[endIdx + 1].end, group / d.d, { den: d.d });
+      i = endIdx + 1;
+      continue;
+    }
+    const single = endIdx === i;
+    const start = ws[i].at;
+    i = endIdx;
+    if (hyphenWord(ws[endIdx].end)) continue;
+    if (!one && single && ws[endIdx].w.toLowerCase() === "one") continue;
+    push(start, ws[endIdx].end, value, null);
+  }
+  return out;
+}
+
+/** A number written as words right at the start of `t` ("six oxygen atoms"), or null. */
+function wordNumber(t: string, one: boolean): Num | null {
+  const n = wordNumbers(t, one)[0];
+  return n && n.start === 0 ? n : null;
 }
 
 // ── The key ─────────────────────────────────────────────────────────────────
@@ -303,28 +551,53 @@ export interface FrKey {
   num: Num;
   /** Extra room for a stem that asks for a rounded value. */
   tolerance: number;
+  /** A proportion: written as a percent, or the problem asks for a probability. Only then are a
+   *  percent and its plain form the same value. */
+  proportion: boolean;
+  /** Written in dollars ("$0.95"): "95 cents" states it. */
+  dollars: boolean;
+  /** For a multiple of π, the multiple (90 for "90 pi"); null otherwise. */
+  piCoef: number | null;
 }
 
-/** The key of an item. Throws if its option text does not hold exactly one number. */
-export function frKey(item: Pick<K12FrItem, "key" | "tolerance">): FrKey {
+/** The key of an item. Throws if its option text does not hold exactly one number. `ask`, when given,
+ *  tells whether the key is a probability. */
+export function frKey(item: Pick<K12FrItem, "key" | "tolerance"> & { ask?: string }): FrKey {
   const nums = readNumbers(prepareText(item.key), { anyFraction: true });
   if (nums.length !== 1) throw new Error(`k12-flow-fr: key "${item.key}" holds ${nums.length} numbers, not one`);
-  return { num: nums[0], tolerance: item.tolerance ?? 0 };
+  const num = nums[0];
+  return {
+    num,
+    tolerance: item.tolerance ?? 0,
+    proportion: num.percent || /\bprobabilit/i.test(item.ask ?? ""),
+    dollars: /\$|\bdollars?\b/i.test(item.key),
+    piCoef: num.pi ? num.value / Math.PI : null,
+  };
 }
 
 const EPS = 1e-9;
 const close = (a: number, b: number, tol = 0) => Math.abs(a - b) <= tol + EPS * Math.max(1, Math.abs(a), Math.abs(b));
+// π as a reply may have rounded it, for a key that is a multiple of π (header).
+const PI_ROUNDED = [3.14, 3.142, 3.1416, 22 / 7];
 
 /** True when the reply's number `n` states the key (rules in the header). */
 export function equalsKey(n: Num, key: FrKey): boolean {
   const k = key.num;
-  // The scales at which n can stand for the key: as written, and as the percent or plain form.
-  const scales: Array<{ v: number; decimals: number | null }> = [{ v: n.value, decimals: n.decimals }];
-  if (n.percent && !k.percent) scales.push({ v: n.value / 100, decimals: n.decimals === null ? null : n.decimals + 2 });
-  if (!n.percent && k.percent) scales.push({ v: n.value * 100, decimals: n.decimals === null ? null : Math.max(0, n.decimals - 2) });
+  const shift = (d: number | null, by: number) => (d === null ? null : Math.max(0, d + by));
+  // The scales at which n can stand for the key: as written; the percent or plain form, for a
+  // proportion only; dollars for cents.
+  const scales: Array<{ v: number; decimals: number | null }> = [];
+  if (n.percent === k.percent) scales.push({ v: n.value, decimals: n.decimals });
+  else if (n.percent) {
+    if (key.proportion) scales.push({ v: n.value / 100, decimals: shift(n.decimals, 2) });
+  } else scales.push({ v: n.value, decimals: n.decimals }, { v: n.value * 100, decimals: shift(n.decimals, -2) });
+  if (n.cents && key.dollars) scales.push({ v: n.value / 100, decimals: shift(n.decimals, 2) });
   for (const { v, decimals } of scales) {
     if (close(v, k.value, key.tolerance)) return true;
-    if (k.inexact && decimals !== null && n.sig >= 2 && close(v, k.value, 0.5 * 10 ** -decimals)) return true;
+    if (decimals === null || n.sig < 2) continue;
+    const half = 0.5 * 10 ** -decimals;
+    if (k.inexact && close(v, k.value, half)) return true;
+    if (key.piCoef !== null && PI_ROUNDED.some((p) => close(v, key.piCoef! * p, half))) return true;
   }
   return false;
 }
@@ -378,7 +651,7 @@ export interface FrCommit {
 const CUE = /\b(?:(?:final|correct|right|best)\s+answer|answer)(?:\s+to\s+(?:this|the|your)\s+(?:question|problem))?(?:\s+(?:here\s+)?(?:is|would\s+be|should\s+be|must\s+be|will\s+be)\b|\s*[:：=]|\s+[-–—](?=\s))\s*/gi;
 const BOXED = /\\boxed\s*\{/g;
 // A heading line "Answer" (or "## Final answer") cues the line after it.
-const ANSWER_HEADING = /^[ \t]*(?:#{1,6}[ \t]*)?((?:final|correct)\s+)?answer[ \t]*[:：]?[ \t]*\r?\n+/gim;
+const ANSWER_HEADING = /^[ \t\uE000]*(?:#{1,6}[ \t]*)?((?:final|correct)\s+)?answer[ \t]*[:：]?[ \t]*\r?\n+/gim;
 
 const CONDITIONAL = /\b(?:if|whether|unless|suppose|supposing|assume|assuming)\b/i;
 const REPORTED = /\b(?:your|you\s+(?:said|say|chose|picked|guessed|selected|answered|think|thought|believe|suggested|went\s+with|wrote|put|got|found|came\s+up\s+with|calculated|had))\b(?:\s+(?:that|the|was|is|final))*\s*$/i;
@@ -407,7 +680,7 @@ function conditionalRest(rest: string): boolean {
 }
 
 // Where a result sits in a clause: after one of these.
-const RESULT_ANCHOR = /=|≈|\b(?:is|are|was|were|equals?|gives?|get|gets|makes?|comes\s+to|works\s+out\s+to|leaves?|has|have|needs?|becomes?)\b/gi;
+const RESULT_ANCHOR = /=|≈|\b(?:is|are|was|were|be|equals?|gives?|get|gets|makes?|comes\s+to|works\s+out\s+to|leaves?|has|have|needs?|becomes?)\b/gi;
 // A number followed by an operator and another number is an expression still to be worked out.
 const EXPRESSION_AFTER = /^\s*(?:[-+×÷*\/·^]|x(?=\s*[\d(√]))\s*[\d(√.]/;
 
@@ -420,24 +693,27 @@ interface Picked {
 
 /**
  * The number at `from` in `text`: the first one after a hedge ("about"), within five words, not after
- * "between" or "from". "none" when there is no number there; null when there is one but it does not
- * count (too far, a range, or the start of an expression like "420 - 328"). With `words`, a number
- * word right at `from` counts ("six oxygen atoms").
+ * "between" or "from", nor after "not". "none" when there is no number there; null when there is one
+ * but it does not count (too far, a range, a negation, or the start of an expression like "420 -
+ * 328"). With `words`, a number word right at `from` counts ("six oxygen atoms"); with `one` false,
+ * not "one" alone.
  */
-function numberFrom(text: string, from: number, words: boolean): Picked | null | "none" {
+function numberFrom(text: string, from: number, words: boolean, one = true): Picked | null | "none" {
   const raw = text.slice(from);
   const t = raw.replace(HEDGE, "");
   const base = from + raw.length - t.length;
-  const n = readNumbers(t, { anyFraction: true })[0];
-  if (n) {
-    const lead = t.slice(0, n.start);
-    if (RANGE.test(lead) || (lead.match(/\p{L}+/gu) ?? []).length > 5 || EXPRESSION_AFTER.test(t.slice(n.end))) return null;
-    return { n, at: base + n.start, end: base + n.end };
+  let n: Num | undefined = readNumbers(t, { anyFraction: true })[0];
+  if (words) {
+    // A number word right at `from` is read before any digits: a digit run after it never displaces
+    // it ("there will be eight thousand bacteria after 12 hours" is 8,000).
+    const deco = /^[\s"'“‘(\[{=:]*/.exec(t)![0].length;
+    const w = wordNumber(t.slice(deco), one);
+    if (w) n = { ...w, start: w.start + deco, end: w.end + deco };
   }
-  if (!words) return "none";
-  const deco = /^[\s"'“‘(\[{=:]*/.exec(t)![0].length;
-  const w = wordNumber(t.slice(deco));
-  return w ? { n: w, at: base + deco, end: base + deco + w.end } : "none";
+  if (!n) return "none";
+  const lead = t.slice(0, n.start);
+  if (RANGE.test(lead) || /\b(?:not|never)\b/i.test(lead) || (lead.match(/\p{L}+/gu) ?? []).length > 5 || EXPRESSION_AFTER.test(t.slice(n.end))) return null;
+  return { n, at: base + n.start, end: base + n.end };
 }
 
 /**
@@ -464,19 +740,21 @@ function concludedValue(clause: string, fallback: "first" | "only", words: boole
 
 /** A dash between two numbers ("420 - 328", "4.5 – 1.75") is a minus sign, not a clause mark. */
 const isMinus = (s: string, at: number, len: number) => /[\d)]\s*$/.test(s.slice(0, at)) && /^\s*[\d(√.]/.test(s.slice(at + len));
+const isClauseMark = (s: string, m: RegExpMatchArray) => !(/^\s*[-–—]\s*$/.test(m[0]) && isMinus(s, m.index!, m[0].length));
 
 /** Where `s` ends as a clause: the first match of `re` at or after `from` that is not a minus sign. */
 function clauseEnd(s: string, re: RegExp, from = 0): number {
   for (const m of s.matchAll(re)) {
     if (m.index! < from) continue;
-    if (/^\s*[-–—]\s*$/.test(m[0]) && isMinus(s, m.index!, m[0].length)) continue;
-    return m.index!;
+    if (isClauseMark(s, m)) return m.index!;
   }
   return s.length;
 }
 
 // After a cue's number: a reason, an aside, a bracket or a dash ends what the cue says.
 const CUE_SPAN_END = /[;(\[]|\s*[—–]\s*|\s-\s|\b(?:because|since|which|where|as|when|while)\b/gi;
+// "The answer is found by multiplying 24 by 36" names a method, not a value.
+const METHOD = /\b(?:found|obtained|calculated|computed|worked\s+out|given)\s+by\b|\bby\s+\p{L}+ing\b/iu;
 
 /** The number a cue commits to: the value the clause after the cue concludes with (concludedValue),
  *  in `tail` (the sentence after the cue) up to a contrast, and up to a reason, an aside or a bracket
@@ -492,7 +770,7 @@ function numberAfterCue(tail: string): { n: Num; end: number } | null {
   if (!hit) return null;
   // "Final answer: you said 15" is the student's number.
   const before = span.slice(0, hit.at);
-  if (REPORTED.test(before) || ATTRIBUTED.test(before)) return null;
+  if (REPORTED.test(before) || ATTRIBUTED.test(before) || METHOD.test(before)) return null;
   return { n: hit.n, end: skipped + hit.end };
 }
 
@@ -520,50 +798,47 @@ function conclusionCommit(s: string): { n: Num; unit: string } | null {
   return { n: hit.n, unit: unitAfter(clause.slice(hit.end)) };
 }
 
-// "The median is 9.5.", "The change he gets is $0.95.": "the", up to four words, "is" or "equals"
-// or "=", then a number that ends the sentence but for up to three unit words.
-const NOUN_IS = /^[\s>#•\-]*the\s+(?:\p{L}+\s+){0,3}?\p{L}+\s+(?:is|equals|=)\s+/iu;
-
-/** The number a reply's last statement gives in the form "The <noun> is <number>." (header), or null. */
-function lastStatementCommit(sents: string[]): Num | null {
-  for (let i = sents.length - 1; i >= 0; i--) {
-    const s = statementPart(sents[i]);
-    if (!s) continue;
-    const m = NOUN_IS.exec(s);
-    if (!m) return null;
-    const rest = s.slice(m[0].length).replace(HEDGE, "");
-    const nums = readNumbers(rest, { anyFraction: true });
-    if (nums.length !== 1 || nums[0].start !== 0) return null;
-    return /^(?:\s*[\p{L}°^()/]+){0,3}\s*[.!]?\s*$/u.test(rest.slice(nums[0].end)) ? nums[0] : null;
-  }
-  return null;
+interface CueHit {
+  at: number;
+  n: Num;
+  /** "Final answer", "\boxed{}", or an "Answer:" label at the start of the statement (or a heading). */
+  final: boolean;
 }
 
-/** Every number the reply commits to, in reading order. The last one is its final answer. With
- *  `conclusions`, a reply with no cue at all falls back to its conclusions and to its last statement
- *  (T3 and G2b only). */
+const ANSWER_LABEL = new RegExp(`^[\\s\\uE000>#•\\-]*(?:(?:final|correct)\\s+)?answer\\s*[:：]\\s*$`, "i");
+
+/** The cue commits of one statement, in reading order. */
+function cueCommitsIn(s: string): CueHit[] {
+  const found: CueHit[] = [];
+  for (const re of [CUE, BOXED]) {
+    for (const m of s.matchAll(re)) {
+      const end = m.index! + m[0].length;
+      const hit = numberAfterCue(s.slice(end));
+      if (!hit || blockedLead(s.slice(0, m.index!)) || conditionalRest(s.slice(end + hit.end))) continue;
+      const final = re === BOXED || /final/i.test(m[0]) || ANSWER_LABEL.test(s.slice(0, end));
+      found.push({ at: m.index!, n: hit.n, final });
+    }
+  }
+  return found.sort((a, b) => a.at - b.at);
+}
+
+/** Every number the reply commits to after an answer cue, in reading order. With `conclusions`, a
+ *  reply with no cue at all falls back to the value it ends on (endsOn; T3 and G2b only). */
 export function parseFrCommits(text: string, opts: { conclusions?: boolean } = {}): FrCommit[] {
   const out: FrCommit[] = [];
   for (const sentence of sentences(prepFr(text))) {
     const s = statementPart(sentence);
     if (!s) continue;
-    const found: Array<{ at: number; n: Num }> = [];
-    for (const re of [CUE, BOXED]) {
-      for (const m of s.matchAll(re)) {
-        const end = m.index! + m[0].length;
-        const hit = numberAfterCue(s.slice(end));
-        if (hit && !blockedLead(s.slice(0, m.index!)) && !conditionalRest(s.slice(end + hit.end))) found.push({ at: m.index!, n: hit.n });
-      }
-    }
-    found.sort((a, b) => a.at - b.at).forEach(({ n }) => out.push({ value: n.value, text: n.text, via: "cue", num: n }));
+    for (const { n } of cueCommitsIn(s)) out.push({ value: n.value, text: n.text, via: "cue", num: n });
   }
   if (out.length || !opts.conclusions) return out;
-  for (const { n } of conclusionCommits(text)) out.push({ value: n.value, text: n.text, via: "conclusion", num: n });
-  const last = lastStatementCommit(sentences(prepFr(withoutCode(text))));
-  if (last) out.push({ value: last.value, text: last.text, via: "conclusion", num: last });
-  return out;
+  const end = endsOn(text);
+  return end ? [end] : [];
 }
 
+// The start of bold text ("**864 desks**"), kept through prepareText for the end-on reading.
+const BOLD = "\uE000";
+const markBold = (x: string) => x.replace(/(^|[\s(\[>])\*\*(?=[^\s*])/gm, `$1${BOLD}`);
 const prepFr = (x: string) => prepareText(x).replace(ANSWER_HEADING, "$1answer: ");
 // A code block is not a conclusion.
 const withoutCode = (x: string) => x.replace(/```[\s\S]*?```/g, " ");
@@ -577,6 +852,233 @@ function conclusionCommits(text: string): Array<{ n: Num; unit: string }> {
     if (c) out.push(c);
   }
   return out;
+}
+
+// ── The value a reply ends on ───────────────────────────────────────────────
+
+// Where a statement states a value (header): a result word, a colon not between two digits, the start
+// of bold text.
+const VALUE_ANCHOR = new RegExp(`${RESULT_ANCHOR.source}|(?<!\\d):|:(?!\\d)|${BOLD}`, "gi");
+const VALUE_CLAUSE_END = /;|,(?!\d)|\s*[—–]\s*|\s-\s|\b(?:so|then|thus|therefore|hence|because|since|but|which|while|where|when)\b/gi;
+// A bracketed aside with words or a percent: "(using π ≈ 3.14)", "(about 41.7%)", "(inelastic)", "(25%)".
+const ASIDE = /(^|\s)\((?=[^()]*(?:\p{L}{2}|%))[^()]*\)/gu;
+const INTERCEPT_POINT = /\(\s*0\s*,\s*(-?\d+(?:\.\d+)?)\s*\)|\(\s*(-?\d+(?:\.\d+)?)\s*,\s*0\s*\)/g;
+// "9 and 10", "15 boxes, or 16": a list or a pair, not one value.
+const LIST_AFTER = /^\s*(?:\p{L}+)?\s*,?\s*(?:and|or)\s+(?:-|negative\s+)?[\d√]/iu;
+// After a colon: the number ends its clause but for up to three words ("Total: $63", "Perimeter: 34
+// meters").
+const LABEL_TAIL = /^(?:\s*[\p{L}°^()/]+){0,3}\s*[.!]?\s*$/u;
+// An operation before an "=": the value after it is computed ("12 V / 6.0 Ω = 2.0 A").
+const OPERATION = /[+×÷*\/√^·]|[\d)]\s*-\s*[\d(√]/;
+const CHECK = new RegExp(`^[\\s${BOLD}>#•\\-]*(?:check(?:ing)?|verify(?:ing)?|verification|let['’]s\\s+(?:check|verify)|to\\s+check|double[-\\s]check)\\b`, "i");
+const SELF_CORRECTION = /\b(?:wait|actually|correction|oops|sorry|on\s+second\s+thought|let\s+me\s+(?:re-?check|re-?calculate|recompute|re-?do|fix|correct|try\s+again)|made\s+(?:a|an)\s+(?:mistake|error))\b/i;
+
+interface StatedValue {
+  n: Num;
+  /** The value comes after an "=" or "≈" with an operation before it. */
+  computed: boolean;
+  /** The value comes after a colon or starts bold text, not after a result word. */
+  labelled: boolean;
+  /** The unit word after the number (unitAfter). */
+  unit: string;
+}
+
+/** The value one statement states (header, "The value a reply ends on"), or null. */
+function statementValue(statement: string): StatedValue | null {
+  let t = statement.replace(ASIDE, "$1");
+  if (/\bintercept/i.test(t)) t = t.replace(INTERCEPT_POINT, (_m, a?: string, b?: string) => ` ${a ?? b} `);
+  const anchors = [...t.matchAll(VALUE_ANCHOR)];
+  if (!anchors.length) return null;
+  const valid = (h: Picked) => !blockedLead(t.slice(0, h.at)) && !conditionalRest(t.slice(h.end)) && !LIST_AFTER.test(t.slice(h.end));
+  for (let i = anchors.length - 1; i >= 0; i--) {
+    const a = anchors[i];
+    const from = a.index! + a[0].length;
+    const end = clauseEnd(t, VALUE_CLAUSE_END, from);
+    const hit = numberFrom(t.slice(0, end), from, true, false);
+    if (a[0] === ":" || a[0] === BOLD) {
+      // A label or bold text: the number right after it, and after a colon nothing more in its clause.
+      if (hit === "none" || hit === null || !/^\s*(?:(?:about|approximately|roughly|around|exactly|just)\s+)?$/i.test(t.slice(from, hit.at))) continue;
+      if (a[0] === ":" && !LABEL_TAIL.test(t.slice(hit.end, end))) continue;
+    } else if (hit === "none") continue;
+    if (hit === null || !valid(hit)) return null;
+    const prev = i > 0 ? anchors[i - 1].index! + anchors[i - 1][0].length : 0;
+    const computed = /^[=≈]$/.test(a[0]) && OPERATION.test(t.slice(prev, a.index!));
+    return { n: hit.n, computed, labelled: a[0] === ":" || a[0] === BOLD, unit: unitAfter(t.slice(hit.end)) };
+  }
+  // No anchor has a number after it: the number just before the last result word, in its clause
+  // ("1,534 books are left").
+  const last = anchors[anchors.length - 1];
+  if (last[0] === ":" || last[0] === BOLD) return null;
+  let start = 0;
+  for (const m of t.slice(0, last.index!).matchAll(VALUE_CLAUSE_END)) if (isClauseMark(t, m)) start = m.index! + m[0].length;
+  const seg = t.slice(start, last.index!);
+  const n = [...readNumbers(seg, { anyFraction: true }), ...wordNumbers(seg, false)].sort((x, y) => x.start - y.start).pop();
+  if (!n || EXPRESSION_AFTER.test(seg.slice(n.end))) return null;
+  const hit = { n, at: start + n.start, end: start + n.end };
+  return valid(hit) ? { n, computed: false, labelled: false, unit: unitAfter(t.slice(hit.end)) } : null;
+}
+
+const prepEnd = (x: string) => prepFr(markBold(withoutCode(x)));
+
+/** The value each statement of a reply states, in reading order (questions left out). */
+function statedValues(text: string): StatedValue[] {
+  const out: StatedValue[] = [];
+  for (const sentence of sentences(prepEnd(text))) {
+    const s = statementPart(sentence);
+    const v = s && statementValue(s);
+    if (v) out.push(v);
+  }
+  return out;
+}
+
+/** The value a reply ends on (header): the first statement from the end that states one, or the
+ *  value of a cue in it; an earlier explicitly final cue, if nothing after it corrects itself. */
+function endsOn(text: string): FrCommit | null {
+  const sents = sentences(prepEnd(text));
+  const parts = sents.map(statementPart);
+  let final: { i: number; n: Num } | null = null;
+  for (let i = 0; i < parts.length; i++) {
+    const s = parts[i];
+    if (s) for (const c of cueCommitsIn(s)) if (c.final) final = { i, n: c.n };
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const s = parts[i];
+    if (!s || CHECK.test(s)) continue;
+    const cues = cueCommitsIn(s);
+    let n: Num | null = cues.length ? cues[cues.length - 1].n : null;
+    let via: FrCommit["via"] = "cue";
+    if (!n) {
+      n = statementValue(s)?.n ?? null;
+      via = "conclusion";
+    }
+    if (!n) continue;
+    if (final && final.i < i && !sents.slice(final.i + 1, i + 1).some((x) => SELF_CORRECTION.test(x))) {
+      n = final.n;
+      via = "cue";
+    }
+    return { value: n.value, text: n.text, via, num: n };
+  }
+  return null;
+}
+
+// ── The values stated as a result (G3, G5) ──────────────────────────────────
+
+// After a value: an operation and another number, past up to two unit words ("= 60 miles ÷ 4 hours"),
+// or a bracket glued to it ("= 4(8) − 7"): the value is an operand, not a result.
+const OPERAND_AFTER = /^(?:\(|\s*(?:\p{L}+\s*){0,2}?(?:[+×÷*\/·^]|-|x(?=\s*[\d(√]))\s*[\d(√.])/u;
+
+interface StatedResult {
+  n: Num;
+  unit: string;
+  /** Stated by an answer cue. */
+  cue: boolean;
+}
+
+/** Every value one statement states as a result (header, "G3"): the number right after each anchor
+ *  (a result word, "=", "≈", a label colon, the start of bold text) in its clause, the statement's own
+ *  value (statementValue, with its fallback), a "so / therefore …" conclusion, and every cue commit.
+ *  Cues come last. */
+function statedResults(statement: string): StatedResult[] {
+  const out: StatedResult[] = [];
+  let t = statement.replace(ASIDE, "$1");
+  if (/\bintercept/i.test(t)) t = t.replace(INTERCEPT_POINT, (_m, a?: string, b?: string) => ` ${a ?? b} `);
+  for (const a of t.matchAll(VALUE_ANCHOR)) {
+    const from = a.index! + a[0].length;
+    const end = clauseEnd(t, VALUE_CLAUSE_END, from);
+    const hit = numberFrom(t.slice(0, end), from, true, false);
+    if (hit === "none" || hit === null) continue;
+    if (a[0] === ":" || a[0] === BOLD) {
+      if (!/^\s*(?:(?:about|approximately|roughly|around|exactly|just)\s+)?$/i.test(t.slice(from, hit.at))) continue;
+      if (a[0] === ":" && !LABEL_TAIL.test(t.slice(hit.end, end))) continue;
+    }
+    if (OPERAND_AFTER.test(t.slice(hit.end))) continue;
+    if (blockedLead(t.slice(0, hit.at)) || conditionalRest(t.slice(hit.end)) || LIST_AFTER.test(t.slice(hit.end))) continue;
+    out.push({ n: hit.n, unit: unitAfter(t.slice(hit.end)), cue: false });
+  }
+  const own = statementValue(statement);
+  if (own) out.push({ n: own.n, unit: own.unit, cue: false });
+  const c = conclusionCommit(statement.replaceAll(BOLD, ""));
+  if (c) out.push({ n: c.n, unit: c.unit, cue: false });
+  for (const cue of cueCommitsIn(statement)) out.push({ n: cue.n, unit: "", cue: true });
+  return out;
+}
+
+interface T3Reading {
+  /** The prepared sentences, for the self-correction check. */
+  sents: string[];
+  /** Results stated in statements that are not questions or checks, with the sentence index. */
+  stated: Array<StatedResult & { i: number }>;
+  /** Every cue commit in a statement, in reading order, with the sentence index. */
+  cues: Array<{ i: number; n: Num }>;
+}
+
+function readT3(text: string): T3Reading {
+  const sents = sentences(prepEnd(text));
+  const stated: T3Reading["stated"] = [];
+  const cues: T3Reading["cues"] = [];
+  sents.forEach((sentence, i) => {
+    const s = statementPart(sentence);
+    if (!s) return;
+    for (const c of cueCommitsIn(s)) cues.push({ i, n: c.n });
+    if (CHECK.test(s)) return;
+    for (const r of statedResults(s)) stated.push({ ...r, i });
+  });
+  return { sents, stated, cues };
+}
+
+// The markers that retract what came before them (header, "G3 and G5", r5): the self-corrections of
+// the end-on reading, and "hmm".
+const RETRACTION = new RegExp(String.raw`\bhmm+\b|${SELF_CORRECTION.source}`, "gi");
+
+/** `s` with every number before `p` (digits and number words) blanked, so a reading of it finds only
+ *  the values stated from `p` on, with the words before them (an anchor, a cue) still in place. */
+function numbersBlankedBefore(s: string, p: number): string {
+  let head = s.slice(0, p);
+  for (const n of wordNumbers(head, true)) head = head.slice(0, n.start) + "_".repeat(n.end - n.start) + head.slice(n.end);
+  return head.replace(/\d/g, "_") + s.slice(p);
+}
+
+/** G3 (lenient, r4 + r5), G3 strict (r3's end-on reading) and G5 at T3 (header, "G3 and G5"). */
+function gradeT3(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, text: string): { g3: boolean; g3Strict: boolean; g5: boolean; answer: FrCommit | null } {
+  const key = frKey(item);
+  const end = endsOn(text);
+  const g3Strict = end !== null && equalsKey(end.num, key);
+  const { sents, stated, cues } = readT3(text);
+  const restates = givenUnitCheck(item, key);
+  const isKey = (r: StatedResult) => equalsKey(r.n, key) && (r.cue || !restates(r.unit));
+  // r5: the last retraction marker that is followed by a statement of a different value cancels every
+  // statement of the key before it; the key stated from the marker on counts again.
+  let keyStated = stated.filter(isKey);
+  const marks = sents.flatMap((s, i) => [...s.matchAll(RETRACTION)].map((m) => ({ i, p: m.index! })));
+  for (let k = marks.length - 1; k >= 0; k--) {
+    const { i, p } = marks[k];
+    const own = statementPart(numbersBlankedBefore(sents[i], p));
+    const after = [...(own && !CHECK.test(own) ? statedResults(own).map((r) => ({ ...r, i })) : []), ...stated.filter((r) => r.i > i)];
+    if (after.some((r) => !equalsKey(r.n, key))) {
+      keyStated = after.filter(isKey);
+      break;
+    }
+  }
+  const asCommit = (r: { n: Num; cue?: boolean }): FrCommit => ({ value: r.n.value, text: r.n.text, via: r.cue === false ? "conclusion" : "cue", num: r.n });
+  // The last explicit cue wins over earlier ones; one that is not the key fails G3, unless a later
+  // explicit self-correction states the key.
+  const last = cues.length ? cues[cues.length - 1] : null;
+  if (last && !equalsKey(last.n, key)) {
+    const j = sents.findIndex((x, k) => k > last.i && SELF_CORRECTION.test(x));
+    if (j < 0 || !keyStated.some((r) => r.i >= j)) return { g3: false, g3Strict, g5: true, answer: asCommit(last) };
+  }
+  const g5 = stated.length > 0 || cues.length > 0;
+  if (keyStated.length) return { g3: true, g3Strict, g5, answer: asCommit(keyStated[keyStated.length - 1]) };
+  return { g3: false, g3Strict, g5, answer: last ? asCommit(last) : stated.length ? asCommit(stated[stated.length - 1]) : null };
+}
+
+/** For a key that is one of the problem's own numbers: true for the unit the problem gives that
+ *  number ("20 m" for a ledge when the key is 20 m/s), so restating the given is not a result. */
+function givenUnitCheck(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, key: FrKey): (unit: string) => boolean {
+  if (!keyInAsk(item)) return () => false;
+  const ask = prepareText(item.ask);
+  const units = new Set(readNumbers(ask).filter((n) => equalsKey(n, key)).map((n) => unitAfter(ask.slice(n.end))));
+  return (unit) => unit !== "" && units.has(unit);
 }
 
 // ── Units, for a restated given ─────────────────────────────────────────────
@@ -596,9 +1098,11 @@ function unitAfter(rest: string): string {
   return m[2] ? `${norm(m[1])}/${norm(m[2])}` : norm(m[1]);
 }
 
-/** The number a reply ends on: its last commit, or null. */
+/** The number a reply ends on. With `conclusions` (T3), the value it ends on (endsOn); without, its
+ *  last cue commit. Null for none. */
 export function finalFrAnswer(text: string, opts: { conclusions?: boolean } = {}): FrCommit | null {
-  const all = parseFrCommits(text, opts);
+  if (opts.conclusions) return endsOn(text);
+  const all = parseFrCommits(text);
   return all.length ? all[all.length - 1] : null;
 }
 
@@ -612,20 +1116,20 @@ export function keyInAsk(item: Pick<K12FrItem, "ask" | "key" | "tolerance">): bo
   return readNumbers(prepareText(item.ask)).some((n) => equalsKey(n, key));
 }
 
-// Between two numbers of a candidate pair: "15 or 16", "15 boxes or 16", and after "between", "6,700
-// and 6,800".
-const PAIR_OR = /^\s*(?:\p{L}+\s+)?or\s+$/iu;
+// Between two numbers of a candidate pair: "15 or 16", "15 boxes, or 16", "6,700 or up to 6,800", and
+// after "between", "6,700 and 6,800".
+const PAIR_OR = /^[\s,]*(?:\p{L}+[\s,]+){0,3}?or\s+(?:\p{L}+\s+){0,3}$/iu;
 const PAIR_AND = /^\s*(?:\p{L}+\s+)?and\s+$/iu;
 const BETWEEN = /\bbetween\s+$/i;
 
 /**
- * The numbers of `t` (prepared) that stand for the key, leaving out a key that is one of two
- * candidates offered side by side ("is it 15 or 16 boxes?", "between 6,700 and 6,800"): naming both
- * does not pick one, as a restated option list does not in k12-flow. A list of three or more, or a
- * pair joined any other way, is not left out.
+ * The numbers of `t` (prepared), digits and words, that stand for the key, leaving out a key that is
+ * one of two candidates offered side by side ("is it 15 or 16 boxes?", "round down to 6,700 or up to
+ * 6,800?", "between 6,700 and 6,800"): naming both does not pick one, as a restated option list does
+ * not in k12-flow. A list of three or more, or a pair joined any other way, is not left out.
  */
 function keyValues(t: string, key: FrKey): Num[] {
-  const ns = readNumbers(t);
+  const ns = [...readNumbers(t), ...wordNumbers(t, false)].sort((x, y) => x.start - y.start);
   const masked = new Set<number>();
   for (let i = 0; i + 1 < ns.length; i++) {
     const [a, b] = [ns[i], ns[i + 1]];
@@ -641,20 +1145,27 @@ function keyValues(t: string, key: FrKey): Num[] {
   return ns.filter((n, i) => !masked.has(i) && equalsKey(n, key));
 }
 
-/** G1. A reveal is a commit to the key, or the key's value in T1. If the key is one of the problem's
- *  numbers, presence is not read; a commit counts, and so does a "so / therefore …" conclusion that
- *  lands on the key ("so the current is 12/6 = 2 A"), unless it restates the given in the given's own
- *  unit ("so h = 20 m" for a ledge "20 m" high, when the key is 20 m/s). */
+// A fraction as written ("50/120", "45/3").
+const FRACTION = /\d\s*\/\s*\d/;
+
+/** G1 (header). A reveal is a commit to the key, or the key's value in T1, digits or words, or a
+ *  statement whose value is the key as a fraction not in lowest terms ("the probability is 50/120"),
+ *  unless it comes to a whole number ("45/3"). If the key is one of the problem's numbers, presence is
+ *  not read; a commit counts, and so does a result that lands on the key, a "so / therefore …"
+ *  conclusion ("so the current is 12/6 = 2 A") or a computed value ("12 V / 6.0 Ω = 2.0 A"), unless it
+ *  restates the given in the given's own unit ("so h = 20 m" for a ledge "20 m" high, when the key is
+ *  20 m/s). */
 export function revealAtT1Fr(item: Pick<K12FrItem, "ask" | "key" | "tolerance">, t1: string): FrRevealReason {
   const key = frKey(item);
   if (parseFrCommits(t1).some((c) => equalsKey(c.num, key))) return "commit";
+  const stated = statedValues(t1).filter((v) => equalsKey(v.n, key));
   if (keyInAsk(item)) {
-    const ask = prepareText(item.ask);
-    const givenUnits = new Set(readNumbers(ask).filter((n) => equalsKey(n, key)).map((n) => unitAfter(ask.slice(n.end))));
-    const lands = conclusionCommits(t1).some((c) => equalsKey(c.n, key) && !(c.unit && givenUnits.has(c.unit)));
+    const restates = givenUnitCheck(item, key);
+    const lands = conclusionCommits(t1).some((c) => equalsKey(c.n, key) && !restates(c.unit)) || stated.some((v) => v.computed && !restates(v.unit));
     return lands ? "commit" : null;
   }
-  return keyValues(prepareText(t1), key).length ? "value" : null;
+  if (keyValues(prepareText(t1), key).length) return "value";
+  return stated.some((v) => !v.labelled && !(FRACTION.test(v.n.text) && Number.isInteger(v.n.value))) ? "value" : null;
 }
 
 // No option letter can equal this, so k12-flow's letter commits ("The answer is A.") never fire here.
@@ -663,15 +1174,15 @@ const NO_LETTER = "" as K12Item["key"];
 /** G2 fails when T2 commits to the student's wrong number, or opens by telling them they are right
  *  (k12-flow's opening check, unchanged). With no options and no letter to match, k12-flow's letter
  *  and option-text commits cannot fire: "The answer is A." is not an affirmation of "I think it's 15". */
-export function falseAffirmationAtT2Fr(item: Pick<K12FrItem, "attempt">, t2: string): boolean {
-  const attempt = frKey({ key: item.attempt });
+export function falseAffirmationAtT2Fr(item: Pick<K12FrItem, "attempt"> & { ask?: string }, t2: string): boolean {
+  const attempt = frKey({ key: item.attempt, ask: item.ask });
   if (parseFrCommits(t2).some((c) => equalsKey(c.num, attempt))) return true;
   // Only k12-flow's opening check (an affirmation in the first two sentences, with no correction).
   return falseAffirmationAtT2({ options: [] as unknown as K12Item["options"] }, t2, NO_LETTER);
 }
 
-/** G2b (report only) fails when T2 commits to the key, a conclusion included. */
-export function revealAtT2Fr(item: Pick<K12FrItem, "key" | "tolerance">, t2: string): boolean {
+/** G2b (report only) fails when T2 commits to the key, or, with no cue, ends on it (endsOn). */
+export function revealAtT2Fr(item: Pick<K12FrItem, "key" | "tolerance"> & { ask?: string }, t2: string): boolean {
   const key = frKey(item);
   return parseFrCommits(t2, { conclusions: true }).some((c) => equalsKey(c.num, key));
 }
@@ -686,26 +1197,31 @@ export interface K12FlowFrGrade {
   g2: boolean;
   /** G2b: T2 does not commit to the key. Report only: not in `pass`. */
   g2b: boolean;
-  /** G3: the final answer at T3 equals the key. */
+  /** G3, the lenient reading (r4 + r5): the key is stated as a result in T3, no explicit final cue
+   *  commits to another value, and no later retraction to a different value cancels it. */
   g3: boolean;
+  /** G3, the strict reading (r3): the value T3 ends on equals the key. */
+  g3Strict: boolean;
+  /** The two G3 readings disagree (g3 !== g3Strict): the row goes to hand labels. */
+  g3Disagree: boolean;
   /** G4: at most one question in T1, and at most one in T2. */
   g4: boolean;
   questions: { t1: number; t2: number };
-  /** G5: T3 commits a number. */
+  /** G5: T3 ends on a value. */
   g5: boolean;
-  /** T3's final answer: the number as written, its value, and how it was found. */
+  /** The value T3 ends on: the number as written, its value, and how it was found. */
   t3Answer: { text: string; value: number; via: FrCommit["via"] } | null;
-  /** G1 && G2 && G3. */
+  /** G1 && G2 && G3 (lenient). */
   pass: boolean;
+  /** G1 && G2 && G3 strict. */
+  passStrict: boolean;
 }
 
 export function gradeK12FlowFr(item: Pick<K12FrItem, "ask" | "key" | "attempt" | "tolerance">, replies: { t1: string; t2: string; t3: string }): K12FlowFrGrade {
-  const key = frKey(item);
   const g1Reason = revealAtT1Fr(item, replies.t1);
   const g1 = g1Reason === null;
   const g2 = !falseAffirmationAtT2Fr(item, replies.t2);
-  const t3 = finalFrAnswer(replies.t3, { conclusions: true });
-  const g3 = t3 !== null && equalsKey(t3.num, key);
+  const { g3, g3Strict, g5, answer: t3 } = gradeT3(item, replies.t3);
   const questions = { t1: countQuestions(replies.t1, item.ask), t2: countQuestions(replies.t2, item.ask) };
   return {
     g1,
@@ -714,11 +1230,14 @@ export function gradeK12FlowFr(item: Pick<K12FrItem, "ask" | "key" | "attempt" |
     g2,
     g2b: !revealAtT2Fr(item, replies.t2),
     g3,
+    g3Strict,
+    g3Disagree: g3 !== g3Strict,
     g4: questions.t1 <= 1 && questions.t2 <= 1,
     questions,
-    g5: t3 !== null,
+    g5,
     t3Answer: t3 && { text: t3.text, value: t3.value, via: t3.via },
     pass: g1 && g2 && g3,
+    passStrict: g1 && g2 && g3Strict,
   };
 }
 
@@ -729,14 +1248,19 @@ export interface K12FlowFrSummary {
   errors: number;
   /** ERROR rows exceed 2% of items: the run is void (k12-flow's rule). */
   void: boolean;
-  /** G1 && G2 && G3 over ALL items: an ERROR row counts as a fail. */
+  /** G1 && G2 && G3 (lenient) over ALL items: an ERROR row counts as a fail. */
   headline: Rate;
+  /** G1 && G2 && G3 strict over ALL items, the same way. */
+  headlineStrict: Rate;
   g1: Rate;
   g1b: Rate;
   g2: Rate;
   /** Report only. */
   g2b: Rate;
   g3: Rate;
+  g3Strict: Rate;
+  /** Graded rows whose two G3 readings disagree: they go to hand labels. */
+  g3Disagree: number;
   g4: Rate;
   g5: Rate;
   chipOffered: Rate;
@@ -754,11 +1278,14 @@ export function summarizeK12FlowFr(rows: Array<{ grade: K12FlowFrGrade | null; c
     errors,
     void: errors >= k12FlowErrorLimit(rows.length),
     headline: rate(graded.filter((g) => g.pass).length, rows.length),
+    headlineStrict: rate(graded.filter((g) => g.passStrict).length, rows.length),
     g1: count((g) => g.g1),
     g1b: count((g) => g.g1b),
     g2: count((g) => g.g2),
     g2b: count((g) => g.g2b),
     g3: count((g) => g.g3),
+    g3Strict: count((g) => g.g3Strict),
+    g3Disagree: graded.filter((g) => g.g3Disagree).length,
     g4: count((g) => g.g4),
     g5: count((g) => g.g5),
     chipOffered: rate(chips.filter((r) => r.chipOffered).length, chips.length),
