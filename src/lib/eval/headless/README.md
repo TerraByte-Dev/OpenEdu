@@ -16,7 +16,7 @@ from environment variables.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `EVAL_SUITE` | `rag` | `rag` or `k12-flow` (see [k12-flow](#k12-flow) below). |
+| `EVAL_SUITE` | `rag` | `rag`, `k12-flow` or `k12-flow-fr` (see [k12-flow](#k12-flow) and [k12-flow-fr](#k12-flow-fr) below). |
 | `EVAL_MODEL` | `gemma4:e2b` | Chat model. Stored as the Settings chat model. |
 | `EVAL_PROVIDER` | `ollama` | `ollama`, `openai` or `anthropic`. Cloud needs `EVAL_API_KEY`. |
 | `EVAL_API_KEY` | (none) | Cloud key. Read from the environment, never written to the results file. |
@@ -27,8 +27,8 @@ from environment variables.
 | `EVAL_REPEATS` | `1` | Repeats per question and mode. |
 | `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. Not allowed with `sealed`. |
 | `EVAL_ONLY` | (all) | Comma list of question ids (k12-flow: item ids). Not allowed with `sealed`. |
-| `EVAL_LIMIT` | (all) | k12-flow only. The first N items. |
-| `EVAL_SAMPLE` | (all) | k12-flow only. N items stratified by subject, drawn with a fixed seed, so the same N gives the same items every time. Applied before `EVAL_LIMIT`. |
+| `EVAL_LIMIT` | (all) | k12-flow and k12-flow-fr only. The first N items. |
+| `EVAL_SAMPLE` | (all) | k12-flow and k12-flow-fr only. N items stratified by subject, drawn with a fixed seed, so the same N gives the same items every time. Applied before `EVAL_LIMIT`. |
 | `EVAL_SYLLABUS` | `python` | `python` or `matched` (see rag-runner.ts). |
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
@@ -82,6 +82,21 @@ These read results files and call no model. Run them with `npx vite-node <file>`
 | `label-sheet.ts` | Writes the blind hand-label sheet (`.dev/k12-flow-label-sheet.html`, the 60 frozen rows) and the hidden verdicts to `.dev/label-verdicts/<sheet id>.json` in the main checkout (or the path given): `npx vite-node src/lib/eval/headless/label-sheet.ts`. The sheet id and the verdicts name the commit that last changed the grader, which must be committed. The verdicts must not sit in the sheet's folder; the graders get the HTML only. How the rows were drawn: `../k12-flow-label.ts`. |
 | `kappa.ts` | Cohen's kappa per detector from two graders' sheet exports and the verdicts file, for all rows and separately for the 20 fixed and the 40 drawn rows: `npx vite-node src/lib/eval/headless/kappa.ts -- a.json b.json verdicts.json`. Stops if an export's sheet id is not the verdicts', or the verdicts lack a grader commit or a `fixed` flag on any row. |
 
+## k12-flow-fr
+
+```bash
+EVAL_SUITE=k12-flow-fr npm run eval                   # all 81 free-response dev items
+EVAL_SUITE=k12-flow-fr EVAL_SAMPLE=6 npm run eval     # a 6-item pilot, stratified by subject
+```
+
+The same flow on typed problems without options (`docs/BENCHMARKS.md`, "k12-flow-fr"). It calls
+`runK12FlowFrItems` in `../k12-flow-runner.ts`, which uses k12-flow's own turn function, so everything
+but the user turns and the detectors is k12-flow's. Every k12-flow refusal applies: dev items only,
+`EVAL_SET=sealed` refused, no `EVAL_REPEATS` (run it again for a repeat; each run writes its own file).
+Rows carry `source` (the k12-mc item it was rewritten from), `key` and `attempted` as text, and
+`grade.t3Answer` as the number T3 committed to. The results file name has `k12-flow-fr-dev`, so
+`rescore.ts` (which reads `*k12-flow-dev*.json`) never picks it up.
+
 ## The sealed set
 
 `EVAL_SET=sealed EVAL_SEALED=<path>` reads the file through `loadSealed` in `../sealed.ts`. It refuses:
@@ -94,7 +109,7 @@ These read results files and call no model. Run them with `npx vite-node <file>`
 4. when the name lint finds one of the set's made-up names or invented words in `src/`.
 
 The lint is stricter than protocol rule 2. Inside `src/lib/eval/` it skips only the item data
-(`rag-fixture.ts`, `rag-heldout.ts`, `rag-dev-v2.ts`, `k12-items.ts`, `library-fixture.ts`), tests and `.md` files,
+(`rag-fixture.ts`, `rag-heldout.ts`, `rag-dev-v2.ts`, `k12-items.ts`, `k12-flow-fr-items.ts`, `library-fixture.ts`), tests and `.md` files,
 because the runner's prompts and syllabi there shape every request. It finds a name inside code
 identifiers (`QUORVATH_BOOST`, `isQuorvath`) and with a plural or possessive ending. An English
 wordlist (the `word-list` dev dependency), the bundled library's words and the k12 items' lower-case
