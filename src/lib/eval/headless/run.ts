@@ -26,9 +26,10 @@ import { installWire } from "./wire";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type EvalOptions } from "./env";
 import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
 import { ollamaRunInfo } from "./ollama-info";
+import { runB7, type B7Result } from "./latency";
 
 export interface HeadlessResult {
-  report: RagReport | K12FlowReport;
+  report: RagReport | K12FlowReport | B7Result;
   outFile: string;
 }
 
@@ -38,7 +39,8 @@ const pulled = (models: string[], want: string) => models.some((m) => m === want
 // but later and less clearly (an embed error at the first note).
 async function preflight(o: EvalOptions, embedModel: string): Promise<void> {
   const tags = await getOllamaModels(o.ollamaUrl);
-  if (tags.error) throw new Error(`Ollama is not reachable at ${o.ollamaUrl}: ${tags.error}. Start it with "ollama serve".`);
+  const start = o.suite === "b7-cpu" ? 'Start the CPU-only server as src/lib/eval/headless/README.md shows ("b7-cpu")' : 'Start it with "ollama serve"';
+  if (tags.error) throw new Error(`Ollama is not reachable at ${o.ollamaUrl}: ${tags.error}. ${start}.`);
   const missing = [...(o.provider === "ollama" ? [o.model] : []), embedModel].filter((m) => !pulled(tags.models, m));
   if (missing.length) throw new Error(`Not pulled in Ollama: ${missing.join(", ")}. Run: ${missing.map((m) => `ollama pull ${m}`).join(" && ")}`);
 }
@@ -111,6 +113,11 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     ...body,
     ...(o.wire ? { wire: wire.calls } : {}),
   }, null, 2)).then(() => console.log(`[eval] results: ${outFile}`)); };
+
+  if (o.suite === "b7-cpu") {
+    const report = await runB7(o, embedModel, (body) => write({ split: "dev", ...body }));
+    return { report, outFile };
+  }
 
   if (flowItems) {
     const report = await runFlow(flowItems, o, write);

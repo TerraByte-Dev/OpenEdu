@@ -23,8 +23,9 @@ interface Path {
   relative(from: string, to: string): string;
   dirname(p: string): string;
 }
-interface ChildProcess { execSync(cmd: string, opts: { encoding: "utf8"; stdio: ["ignore", "pipe", "ignore"] }): string }
-interface Os { tmpdir(): string }
+interface ChildProcess { execSync(cmd: string, opts: { encoding: "utf8"; stdio: ["ignore", "pipe", "ignore"]; timeout?: number }): string }
+export interface CpuInfo { model: string; times: { user: number; nice: number; sys: number; idle: number; irq: number } }
+interface Os { tmpdir(): string; cpus(): CpuInfo[]; totalmem(): number; platform(): string; release(): string; arch(): string }
 interface Proc { env: Record<string, string | undefined>; cwd(): string }
 
 const load = <T>(spec: string): Promise<T> => import(/* @vite-ignore */ spec) as Promise<T>;
@@ -66,6 +67,16 @@ export async function writeText(file: string, text: string): Promise<void> {
 async function git(cmd: string): Promise<string> {
   const cp = await load<ChildProcess>("node:child_process");
   return cp.execSync(`git ${cmd}`, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+}
+
+/** A command's trimmed stdout, or null when it fails or takes more than 15 s. For machine facts only. */
+export async function shell(cmd: string): Promise<string | null> {
+  const cp = await load<ChildProcess>("node:child_process");
+  try {
+    return cp.execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 15_000 }).trim();
+  } catch {
+    return null;
+  }
 }
 
 /** What protocol rule 4 asks about the working copy. A field is null when git could not answer. */
