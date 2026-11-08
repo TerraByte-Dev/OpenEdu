@@ -28,9 +28,9 @@ The student has just given you this problem and has not tried it yet. Do not ans
 
 // A lettered option at the start of a line: "A) 252", "B. 43", "(C) 2,142", "- D: none", "**A)** 7".
 const LINE_OPTION = /^[ \t]*(?:[-*•>][ \t]*)?(?:\*\*)?\(?([A-F])(?:\)|\.|:)(?:\*\*)?[ \t]+\S/gm;
-// An option inside a line: "... A) 3 B) 4 C) 5". The closing bracket is required, so "B. Smith" or
-// "Plan B." in prose is not one.
-const INLINE_OPTION = /(?<=\s)\(?([A-F])\)[ \t]+\S/g;
+// An option inside a line: "... A) 3 B) 4 C) 5" or "... A. run B. happy C. table". A lone "B. Smith" or
+// "Plan B." in prose is not a list: MIN_OPTIONS letters in order from A are still required.
+const INLINE_OPTION = /(?<=\s)\(?([A-F])(?:\)|\.)[ \t]+\S/g;
 const MIN_OPTIONS = 3;
 
 // A try written after the options: "I think it's B", "my answer is 12", "is it C?". Naming an option

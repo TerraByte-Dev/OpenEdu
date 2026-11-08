@@ -278,6 +278,10 @@ function asksFactLookup(text: string, runs: MathRun[]): boolean {
   // Numbers to work with: "How many legs do three spiders have?", "Which is bigger, 3/4 or 2/3?".
   const quantities = quantityCount(text);
   if (quantities >= 2 || (quantities > 0 && QUANTITY_Q.test(text))) return false;
+  // Two or more numbers of any kind, years included, with a word that sets up a calculation are
+  // something to work out rather than a fact to recall ("75 years after 1969", "how old ... born in
+  // 1809 ... president in 1861"). A plain range ("between 1939 and 1945") stays a lookup.
+  if ((text.match(/(?<![\p{L}\d.,])\d+(?:[.,]\d+)*(?!\d)/gu) ?? []).length >= 2 && /\b(?:after|before|later|earlier|ago|old|older|younger|if|until|from now)\b/i.test(text)) return false;
   const parts = sentences(text);
   const lookups = parts.filter((s) => isLookupSentence(s, text));
   if (lookups.length === 0) return false;
