@@ -35,7 +35,8 @@ from environment variables.
 
 The results file holds the runner's report (every row, with `ttft_ms` and `total_ms`), the options,
 the commit SHA, whether `src/` had uncommitted changes or differs from master, the tags at HEAD, whether
-the library was on and how many cards it had, and the sealed file's SHA-256 when one was used.
+the library was on and how many cards it had, the Ollama version and each model's tag and digest
+(`ollama`; null where Ollama did not answer), and the sealed file's SHA-256 when one was used.
 
 The run refuses to start when the library is on but its manifest did not load (run it from the repo
 root, where `public/library/` is).
@@ -56,7 +57,10 @@ headless path to them must go through `loadSealed` with all its refusals, which 
 item, retrieval "always" and no syllabus.
 
 The results file holds, per row, the item id, subject and band, each turn's user text, reply, stop
-reason, tool calls, `ttftMs` and `totalMs`, the chip check and the detector verdicts (`grade`). The
+reason, tool calls, `ttftMs` and `totalMs`, the chip check, the detector verdicts (`grade`),
+`workedAnswerTurn` (the L1 gate function re-evaluated by the driver on its own history) and
+`t3WorkedAnswerRules` (the kernel's own report that the system prompt T3 sent ended with the
+worked-answer rules). The
 `summary` has the headline (G1 and G2 and G3, ERROR rows counted as fails) and each detector, each with
 k, n and a 95% Wilson interval. `partial` is true for anything short of all 240 items, and `selection`
 records how the items were picked. A void run (too many ERROR rows, or a library guard tripping) still

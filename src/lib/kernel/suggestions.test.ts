@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, type SuggestionInput } from "./suggestions";
+import { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, offersShowAnswer, showAnswerOfferedAfter, SHOW_ANSWER_MESSAGE, type SuggestionInput } from "./suggestions";
+import { persistedReply } from "./persistedReply";
 import type { GroundingHit } from "./ground";
 import type { Syllabus } from "../../types";
 
@@ -241,6 +242,52 @@ describe("attempt-gated answer chip", () => {
   it("keeps Continue ahead of everything on a cut-off reply", () => {
     const out = suggestFollowUps(input({ answer: ASKED, studentAttempted: true, truncated: true }));
     expect(out.map((s) => s.label)).toEqual(["Continue", "Show me the answer", "Give me a hint"]);
+  });
+});
+
+// The kernel decides the worked-answer turn from the saved conversation (showAnswerOfferedAfter).
+// It must say "offered" exactly when ChatTab's chips held "Show me the answer" for that reply.
+describe("showAnswerOfferedAfter == the chip ChatTab built", () => {
+  const tutor = (content: string) => ({ role: "assistant", content });
+  const student = (content: string) => ({ role: "user", content });
+  const replies = ["Not quite. What do you get when you add 7 and 8 together?", "Not quite. 7 and 8 make 15, so the answer is 85.", "What is 7 + 8?", "   ", "Not quite. What do you get when you add 7 and 8 together? It is"];
+  const befores = [
+    [student("What is 47 + 38?")],
+    [student("What is 47 + 38?"), tutor("Start with the ones digits. What do you get when you add 7 and 8?"), student("75")],
+    [student("What is 47 + 38?"), tutor("Start with the ones digits. Add 7 and 8."), student("75")],
+    [tutor("Start with the ones digits. What do you get when you add 7 and 8?"), student("75"), tutor("Not quite. What do 7 and 8 make?"), student("Give me a hint.")],
+    [tutor("Start with the ones digits. What do you get when you add 7 and 8?"), student(SHOW_ANSWER_MESSAGE)],
+  ];
+
+  it("agrees with suggestFollowUps on every reply, history and stop reason", () => {
+    let offered = 0;
+    for (const before of befores) for (const text of replies) for (const stopReason of ["complete", "length", "stalled", "aborted", "max_iterations"]) {
+      // What ChatTab does: studentAttempted at send, chips from the raw reply, the reply saved by persistedReply.
+      const chip = suggestFollowUps(input({
+        answer: text,
+        abandoned: stopReason === "aborted" || stopReason === "stalled",
+        truncated: stopReason === "length",
+        studentAttempted: hasTriedOpenQuestion(before),
+      })).some((s) => s.message === SHOW_ANSWER_MESSAGE);
+      const saved = persistedReply(text, stopReason);
+      const history = saved === null ? before : [...before, tutor(saved)];
+      expect(showAnswerOfferedAfter(history), JSON.stringify({ before, text, stopReason })).toBe(chip);
+      if (chip) offered++;
+    }
+    expect(offered).toBeGreaterThan(0);
+  });
+
+  it("is false when the conversation does not end with a tutor reply", () => {
+    expect(showAnswerOfferedAfter([])).toBe(false);
+    expect(showAnswerOfferedAfter([student("75")])).toBe(false);
+  });
+
+  it("offersShowAnswer is the chip's rule", () => {
+    const asked = "Not quite. What do you get when you add 7 and 8 together?";
+    expect(offersShowAnswer({ answer: asked, studentAttempted: true })).toBe(true);
+    expect(offersShowAnswer({ answer: asked, studentAttempted: false })).toBe(false);
+    expect(offersShowAnswer({ answer: asked, studentAttempted: true, abandoned: true })).toBe(false);
+    expect(offersShowAnswer({ answer: "What is 7 + 8?", studentAttempted: true })).toBe(false);
   });
 });
 

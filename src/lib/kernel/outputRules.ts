@@ -21,7 +21,7 @@
 // Hand-written and kept short on purpose. This slot is too important to hand to a 4B model at course
 // creation, which is what happens to `instructions.pedagogy` and `instructions.rules`.
 
-import { SHOW_ANSWER_MESSAGE } from "./suggestions";
+import { SHOW_ANSWER_MESSAGE, showAnswerOfferedAfter } from "./suggestions";
 
 export const OUTPUT_RULES = `## Output rules
 - Write plainly, in the first person. Never write stage directions, action lines, or narration of your own reactions — no parenthetical asides describing what you do, feel, or notice.
@@ -46,8 +46,8 @@ export function outputRulesLayer(): string {
 // student to pick, or stopped before the result.
 //
 // So on that one turn the kernel swaps the rules: the full worked solution, one final answer on its
-// own line, and nothing handed back. The trigger is the exact chip text, a code-detected event, not
-// a model judgement. The first two lines are the normal style rules, unchanged. Every other turn
+// own line, and nothing handed back. The trigger is the exact chip text, sent when the chip was
+// actually offered (the same rule that offers it), a code-detected event, not a model judgement. The first two lines are the normal style rules, unchanged. Every other turn
 // gets OUTPUT_RULES, byte for byte. This replaces the mode's pedagogy for one turn only (socratic
 // says "never give the answer"), because the student asked for the answer after trying.
 export const WORKED_ANSWER_RULES = `## Output rules
@@ -58,9 +58,18 @@ The student has tried and now asks for the full worked answer. Give it in this r
 - Commit to one final answer. Write it on the last line, on its own, as "Final answer: " followed by the answer. If the problem has lettered options, give the letter and that option's text.
 - Do not ask the student anything. Do not ask them to choose, check or finish the answer themselves.`;
 
-/** True only when the student's newest message is exactly the show-answer chip's text. */
-export function isWorkedAnswerTurn(newestUserMessage: string): boolean {
-  return newestUserMessage === SHOW_ANSWER_MESSAGE;
+/**
+ * True only when the student's newest message is exactly the show-answer chip's text AND ChatTab
+ * offered that chip under the tutor reply before it (showAnswerOfferedAfter, the chip's own rule).
+ * The text alone is not enough: typed or pasted as a first message, or sent after a reply that asked
+ * nothing, it would get a full reveal with no try, under rules that say the student tried.
+ *
+ * `conversation` is the user and assistant messages as saved, ending with the newest user message.
+ */
+export function isWorkedAnswerTurn(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
+  const newest = conversation[conversation.length - 1];
+  if (!newest || newest.role !== "user" || newest.content !== SHOW_ANSWER_MESSAGE) return false;
+  return showAnswerOfferedAfter(conversation.slice(0, -1));
 }
 
 /**
@@ -70,7 +79,7 @@ export function isWorkedAnswerTurn(newestUserMessage: string): boolean {
  * returned unchanged too. TutorEngine.run calls this before it appends the tools manifest, so ChatTab
  * and every eval runner get the same rule through the same function.
  */
-export function turnSystemPrompt(system: string, newestUserMessage: string): string {
-  if (!isWorkedAnswerTurn(newestUserMessage) || !system.endsWith(OUTPUT_RULES)) return system;
+export function turnSystemPrompt(system: string, conversation: ReadonlyArray<{ role: string; content: string }>): string {
+  if (!isWorkedAnswerTurn(conversation) || !system.endsWith(OUTPUT_RULES)) return system;
   return system.slice(0, system.length - OUTPUT_RULES.length) + WORKED_ANSWER_RULES;
 }

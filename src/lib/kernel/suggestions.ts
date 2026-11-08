@@ -18,6 +18,7 @@
 import type { Syllabus } from "../../types";
 import type { TutorModeId } from "../tutor-modes";
 import type { GroundingHit } from "./ground";
+import { replyFromPersisted } from "./persistedReply";
 
 export interface Suggestion {
   /** Short text on the chip. */
@@ -132,6 +133,45 @@ export function hasTriedOpenQuestion(history: ReadonlyArray<{ role: string; cont
   return false;
 }
 
+/** A reply shorter than this, trimmed, gets no chips: nothing substantive to follow up on. */
+const MIN_ANSWER_CHARS = 40;
+
+/**
+ * The one rule for whether "Show me the answer" is offered under a reply: the reply was not
+ * abandoned, has at least MIN_ANSWER_CHARS, ends on a question, and the student had tried the open
+ * question when they sent the message it answers (`studentAttempted`, from hasTriedOpenQuestion).
+ *
+ * suggestFollowUps calls it to build ChatTab's chips, and the kernel calls it (through
+ * showAnswerOfferedAfter) to decide the worked-answer turn, so the chip and the rules swap cannot
+ * disagree about when the student has earned the answer.
+ */
+export function offersShowAnswer(input: Pick<SuggestionInput, "answer" | "abandoned" | "studentAttempted">): boolean {
+  if (input.abandoned) return false;
+  const answer = input.answer.trim();
+  return answer.length >= MIN_ANSWER_CHARS && endsWithQuestion(answer) && !!input.studentAttempted;
+}
+
+/**
+ * True when ChatTab offered "Show me the answer" under the last message of `history`.
+ *
+ * `history` is the conversation as saved (persistedReply), user and assistant messages only, ending
+ * with the tutor's reply the chip would sit under. It rebuilds what ChatTab passed when it built that
+ * reply's chips: `studentAttempted` is hasTriedOpenQuestion over the history up to the student message
+ * the reply answers, and the reply is the model's text without persistedReply's marker (a stopped or
+ * stalled reply offers no chips; one cut at the length limit still does). Anything other than a tutor
+ * reply at the end means there was no chip.
+ */
+export function showAnswerOfferedAfter(history: ReadonlyArray<{ role: string; content: string }>): boolean {
+  const reply = history[history.length - 1];
+  if (!reply || reply.role !== "assistant") return false;
+  const { text, stopReason } = replyFromPersisted(reply.content);
+  return offersShowAnswer({
+    answer: text,
+    abandoned: stopReason === "aborted" || stopReason === "stalled",
+    studentAttempted: hasTriedOpenQuestion(history.slice(0, -1)),
+  });
+}
+
 /** True when the reply ends on a question, which changes what a useful chip is. */
 export function endsWithQuestion(answer: string): boolean {
   const trimmed = answer.trim();
@@ -146,7 +186,7 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // were the only ones that offered none.
   if (input.abandoned) return [];
   const answer = input.answer.trim();
-  if (answer.length < 40) return []; // nothing substantive to follow up on
+  if (answer.length < MIN_ANSWER_CHARS) return []; // nothing substantive to follow up on
 
   const out: Suggestion[] = [];
   const push = (s: Suggestion) => {
@@ -164,7 +204,7 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
     // to ANSWER it — specifically the two a stuck student needs and is least likely to type, because
     // both amount to admitting they are stuck.
     // After a try, the student has earned the answer, so it leads.
-    if (input.studentAttempted) push({ label: "Show me the answer", message: SHOW_ANSWER_MESSAGE });
+    if (offersShowAnswer(input)) push({ label: "Show me the answer", message: SHOW_ANSWER_MESSAGE });
     push({ label: "Give me a hint", message: HINT_MESSAGE, mode: "hint" });
     push({ label: "Walk me through it", message: WALK_MESSAGE });
     return out; // any Continue chip pushed above is kept — it was the more urgent signal
