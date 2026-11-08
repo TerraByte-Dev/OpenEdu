@@ -126,8 +126,10 @@ describe("equal to the key", () => {
     expect(eq(TOWER, "69")).toBe(false);
   });
 
-  it("does not convert units (a known limit)", () => {
-    expect(eq(CHANGE, "95 cents")).toBe(false);
+  it("takes cents for a key in dollars, and converts no other unit", () => {
+    expect(eq(CHANGE, "95 cents")).toBe(true);
+    expect(eq(CHANGE, "95")).toBe(false);
+    expect(eq(item("fr-math-k5-12"), "4.58 feet")).toBe(false); // 55 inches
   });
 });
 
@@ -249,11 +251,12 @@ describe("the value a commit concludes with (review 2026-11-08)", () => {
     expect(commits("The median is 9.5. Does that make sense?", true)).toEqual([9.5]);
     expect(commits("**The median is 9.5 books.**", true)).toEqual([9.5]);
     expect(commits("The change he gets is $0.95.", true)).toEqual([0.95]);
-    // Not: a number that does not end the sentence, two numbers, no number, or not the last statement.
+    // Not: a hypothetical, two numbers, or no number.
     expect(commits("The median is 9.5 only if you average the middle two.", true)).toEqual([]);
     expect(commits("The middle two are 9 and 10.", true)).toEqual([]);
     expect(commits("The median is the middle value once the numbers are sorted.", true)).toEqual([]);
-    expect(commits("The median is 9.5. Now check it against the mean.", true)).toEqual([]);
+    // A closer with no number after it is read past (the value a reply ends on).
+    expect(commits("The median is 9.5. Now check it against the mean.", true)).toEqual([9.5]);
     // Only with conclusions: never a commit at T1 or in G2's commit check.
     expect(commits("The median is 9.5.")).toEqual([]);
   });
