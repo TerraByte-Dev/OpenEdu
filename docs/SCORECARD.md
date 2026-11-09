@@ -90,7 +90,7 @@ diagnosis, so it is spent ([BENCHMARKS §0](BENCHMARKS.md#0-split-status-today-w
 
 ## What was tried and did not work
 
-The first six were stopped by rules written before they ran; none of them is in the app.
+The first eight were stopped by rules written before they ran; none of them is in the app.
 
 - **Named-entity gate** (lever 3, PR #192). It drops notes about a differently named thing. The rule
   needed e2b to give at least 4 more real-world answers; it gave 2 fewer (35 → 33 of 84 answers, 28
@@ -132,6 +132,21 @@ The first six were stopped by rules written before they ran; none of them is in 
   answers wrong. The rule allowed 2. A separate review also found everyday questions the code
   misjudges ("What is the formula for kinetic energy?", "When did WW2 end?", a misspelled
   "photosythesis"), so it would hide students' own correct notes.
+- **Lookup note, judge the mismatch by meaning** (lever 9g, PR #228, not shipped;
+  [results](../src/lib/eval/results/2026-11-09-rag-blind-long-notes.md)). Before hiding a note, the
+  code checks that no sentence of it is close in meaning to the question. Tested on 112 new questions
+  about 16 long, realistic notes, written by a separate agent after the rule was fixed. It halved the
+  wrongly hidden notes (8 to 4 of 64 questions the notes answered), but the rule allowed 1. All four
+  scored just under the cut: a typo ("sleep cyle"), "light sensor thing", "routine", "daisies".
+  Neither word matching nor meaning can reliably tell a differently worded right note from a
+  look-alike, so this line of levers is closed.
+- **Show the part of a long note that matches the question** (lever 14, PR #227, not shipped; same
+  results). A bug was found: notes are stored in pieces of about 2,000 characters, but the model was
+  shown only the first 1,000 of each, so on long notes the answer was often cut off (issue #226). The
+  fix put the answer in front of the model for 57 of 64 questions instead of 28. On e2b, the model the
+  rule tested, answers improved only from 7 to 11 of 64, short of the rule's bar: under the app's
+  tutoring rules, e2b replies to a lookup with a question even when the answer is in front of it. On
+  e4b, checked only for harm, answers rose from 20 to 35 of 64.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
   ([live check](../src/lib/eval/results/2026-11-08-ollama-toolcall-live-check.md)).
