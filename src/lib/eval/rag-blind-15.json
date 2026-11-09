@@ -1,0 +1,902 @@
+{
+  "notes": [
+    {
+      "title": "Physics — Forces and Newton's Laws",
+      "text": "Forces + Newton's Laws — notes from Mr Adeyemi's lessons (Y10 physics, autumn term)\n\nA force is a push or a pull, measured in newtons (N). Forces are vectors so they have a size AND a direction, which is why we draw them as arrows on free body diagrams. Contact forces = friction, air resistance, tension, normal contact force. Non-contact forces = gravity (weight), magnetic, electrostatic. Mr A said if you forget the arrow head on a diagram you lose the mark, no exceptions. Warm-up was a tug of war with spring balances: team left pulled 46 N, team right 39 N, so the resultant was 7 N to the left.\n\nResultant force: add forces acting in the same direction, subtract ones in opposite directions. If the resultant is 0 N the object is in equilibrium — it stays still or keeps moving at a steady speed in a straight line. If the resultant isn't zero it accelerates in the direction of the resultant. Scale drawings for forces at angles (parallelogram of forces) are only for the higher paper, he said don't panic about them.\n\nNewton's three laws — our class mnemonic is \"Itchy Monkeys Argue\":\n- I = Inertia (1st law): an object stays at rest or at constant velocity unless a resultant force acts on it\n- M = Mass x acceleration (2nd law): F = ma\n- A = Action-reaction (3rd law): when object A pushes on object B, B pushes back on A with an equal and opposite force of the same type\n\n2nd law in more detail. F = ma, so a = F/m and m = F/a. Force in N, mass in kg, acceleration in m/s². Required practical: we pulled a trolley along the bench using a hanging mass over a pulley and timed it with two light gates. The trolley was 1.2 kg and the pulling force was 3.0 N, so the theory says 2.5 m/s², but our group measured 2.37 m/s². Mr A says the difference is mostly friction in the wheels and the string rubbing on the pulley, and also that the hanging mass is accelerating too, so really the total mass being accelerated is more than 1.2 kg (good evaluation point for the 6 markers!!). Repeat readings and calculate a mean, get rid of anomalies.\n\nWorked example he did on the board: a car of mass 950 kg brakes with a resultant braking force of 4370 N. Decelleration = 4370 / 950 = 4.6 m/s². Then he asked what happens if four passengers get in (adds roughly 300 kg) — same braking force, bigger mass, so smaller deceleration and a longer braking distance. Stopping distance = thinking distance + braking distance. Thinking distance goes up with tiredness, alcohol, drugs, phones. Braking distance goes up with speed, wet or icy roads, worn tyres and worn brakes.\n\nMass and weight are NOT the same thing (comes up every single year).\n- mass = amount of matter in something, kg, same everywhere in the universe\n- weight = the force of gravity acting on that mass, N, changes depending on the planet\nW = mg, where g is the gravitational field strength. On Earth g = 9.8 N/kg (some questions round it to 10, read the question). On the Moon g = 1.6 N/kg. Textbook example: a 62 kg student weighs 607.6 N on Earth but only 99.2 N on the Moon. Their mass is 62 kg in both places. Weight is measured with a newtonmeter, mass with a balance.\n\nFriction. Always acts against the direction of motion (or the direction something is trying to move). Static friction stops things starting to slide; kinetic (sliding) friction acts once it's moving and is usually a bit smaller. We did a block-and-newtonmeter practical: dragged a wooden block across the bench and recorded the force just as it started to move, then divided by the weight of the block. Our coeficient of friction came out at 0.34 for wood on the bench and only 0.21 when we put the block on the laminated sheet. Sandpaper went way up but the newtonmeter maxed out so we couldn't get a number lol. Mr A: friction isn't always bad — no friction = no walking, no brakes.\n\nTerminal velocity. When something is dropped, at first the only force is its weight so it accelerates at g. As it speeds up the air resistance increases, so the resultant force gets smaller and the acceleration decreases. Eventually air resistance = weight, the resultant is zero and it falls at a constant speed = terminal velocity. Our coffee filter drop (single filter, dropped from 2 m, filmed on Ellie's phone at 240 fps slow-mo) gave a terminal velocity of 1.1 m/s. Stacking four filters together made them fall faster, because more weight but the same shape and area. Parachute = much bigger area = more air resistance = lower terminal velocity, so a safe landing.\n\n3rd law reminders. The classic mistake is to say that the weight of a book on a table and the normal contact force from the table are a 3rd law pair. They are NOT — they act on the same object and they're different types of force. The real partner of the book's weight is the book pulling the Earth upwards with an equal gravitational force. Same with a swimmer: pushes water backwards, water pushes swimmer forwards.\n\nMomentum bit at the end of the topic (really the start of the next one): p = mv, units kg m/s. On the trip to the science centre their rocket cart demo reached 14.6 m/s on the track, and the guide explained that it pushes exhaust gas backwards so the cart goes forwards = 3rd law plus conservation of momentum. Mr A wants a paragraph on this for homework, due Thursday, max 150 words.\n\nRevise for the test: resultant force calcs, rearranging F = ma, W = mg, the shape of the terminal velocity graph (curve that flattens off), stopping distance factors and the 3rd law pairs. The test is 25 marks in 30 mins."
+    },
+    {
+      "title": "Biology — The Human Digestive System",
+      "text": "Digestive system — bio notes wk 3-5 (Mrs Kowalski)\n\nBig idea: most of the food we eat is made of large insoluble molecules (starch, proteins, fats/lipids). They have to be broken down into small soluble molecules so they can be absorbed into the blood through the wall of the small intestine. Digestion = mechanical (teeth chewing, stomach churning) + chemical (enzymes). Mrs K's starter quiz was out of 20 and the class average was 14.5 — most people lost marks spelling oesophagus (me included, again).\n\nOrder of the gut — class mnemonic \"My Old Stomach Sings Loud Rock\":\nMouth → Oesophagus → Stomach → Small intestine → Large intestine → Rectum (→ anus)\nPlus the accessory organs that food doesn't actually pass through: salivary glands, liver, gall bladder, pancreas. The tights-and-tube model gut that we laid out on the field was 6.8 m long from 'mouth' to 'anus', and most of that length was the small intestine. Everyone was shocked how long it is when it's not coiled up.\n\nEnzymes = biological catalysts. They're proteins, they speed up reactions without being used up. Lock and key model: the substrate fits into the active site. Too hot or wrong pH = active site changes shape = denatured (NOT 'killed'!! Mrs K hates that).\n- carbohydrase, e.g. amylase: starch → maltose (a sugar). Made in the salivary glands and pancreas, works in the mouth and small intestine\n- protease, e.g. pepsin: proteins → amino acids. Pepsin is made in the stomach and works best at pH 2 because of the hydrochloric acid there\n- lipase: lipids → fatty acids + glycerol. Made in the pancreas, works in the small intestine\n\nAmylase practical (required prac). Spotting tile with a drop of iodine in each well; mixed starch + amylase in a water bath and took a drop out every 30 s. Iodine goes blue-black with starch and stays orange-brown when the starch is gone. Our results: at 37 °C the starch had dissapeared after 4 min 30 s. At 20 °C it took 9 min. At 60 °C it was still blue-black after 10 min so the enzyme was denatured. Rate = 1000 / time in seconds, so at 37 °C the rate = 1000/270 = 3.7 s⁻¹ — she said keep the units and don't round too early.\n\nStomach — a muscular bag that churns the food and mixes it with gastric juice. The hydrochloric acid kills bacteria and gives the low pH that pepsin needs. A layer of mucus stops the stomach digesting itself. Food stays there for a few hours before it's squirted into the small intestine bit by bit.\n\nBile. Made in the liver, stored in the gall bladder, released into the small intestine through the bile duct. Bile is NOT an enzyme. Two jobs: it's alkaline so it neutralises the stomach acid (enzymes in the small intestine need neutral/alkaline conditions), and it emulsifies fats, i.e. breaks big fat drops into lots of tiny droplets, which gives a much bigger surface area for lipase to work on. Our lipase + milk + bile experiment with the pH probe: the pH fell from 8.6 to 6.9 in 7 min 40 s with bile added, but the same drop took 15 min 10 s without bile. The pH goes down because fatty acids are being made. Good example of bile speeding digestion up even though it isn't an enzyme itself.\n\nSmall intestine + absorption. The lining is covered in villi (finger-like projections), and the cells on each villus have microvilli. Adaptations: huge surface area, wall only one cell thick so a short diffusion distance, a good blood supply (capillary network) to keep a steep concentration gradient, and a lacteal in the middle that absorbs fatty acids and glycerol. When we went to the Hartwell Science Museum we saw a villus model magnified 4,000 times — it was taller than Mr Jensen. Glucose is absorbed by diffusion AND by active transport (when the concentration in the gut is lower than in the blood).\n\nVisking tubing model. The tubing = a model gut wall, it has tiny holes. Put starch + glucose solution inside, water outside, left it at 37 °C. Tested the water outside with Benedict's (for glucose, needs heating) and iodine (starch). Glucose got through but the starch didn't, because the starch molecules are too big. Our Benedict's went orange after 12 min. Shows why big molecules need digesting before they can be absorbed.\n\nLarge intestine — water is absorbed back into the blood here, leaving faeces. Gut bacteria live here too and make some vitamins. The rectum stores faeces until they leave through the anus = egestion, NOT excretion (classic exam trap, excretion is getting rid of waste made by metabolism).\n\nTo learn for the test: enzyme/substrate/product table, bile's two jobs, villi adaptations, and how to explain the 37 °C vs 60 °C results. Be able to calculate the rate from the time. Test is next Wednesday, 40 marks."
+    },
+    {
+      "title": "Chemistry — The Periodic Table and Bonding",
+      "text": "Chem — periodic table + bonding (Dr Mensah) — topic 2\n\nPeriodic table basics. Elements are arranged in order of atomic number (proton number). Rows = periods, columns = groups. For groups 1 to 7 the group number = the number of electrons in the outer shell, and the period number = the number of shells. Metals on the left and in the middle, non-metals on the right, the zig-zag 'staircase' line splits them. Dr M's opener: Mendeleev left gaps for elements nobody had discovered yet and predicted their properties, which is why his table got accepted. Our class timeline poster had 3 'gap' elements stuck on with post-its and Ravi's group got the prize for the poster with 47 elements drawn on it.\n\nElectron configuration: fill the shells 2, 8, 8. e.g. sodium (11 electrons) = 2,8,1. Chlorine (17 electrons) = 2,8,7. Argon = 2,8,8 so it has a full outer shell and is unreactive. Elements in the same group react in similar ways because they have the same number of outer electrons.\n\nGroup 1 — the alkali metals. Class mnemonic: \"Little Nasty Kids Rub Cats Fiercely\" (Li, Na, K, Rb, Cs, Fr). Soft, low density, stored under oil. They react with water → metal hydroxide + hydrogen. They get MORE reactive going down the group because the outer electron is further from the nucleus with more shielding, so it's lost more easily. Dr M's demo in the big trough of water, timed until each piece disappeared (pieces roughly the same size):\n- lithium: 41 s, fizzes steadily, floats\n- sodium: 9 s, melts into a silvery ball and whizzes around\n- potassium: 3 s, burst into flame, half the class screamed\nHe would not do rubidium 'for insurance reasons'.\n\nFlame tests (nichrome wire loops dipped in HCl, then the solid, then into the blue flame):\n- lithium → crimson\n- sodium → yellow-orange\n- calcium → orange-red\n- copper → green-blue\nGood for identifying metal ions in the analysis topic too. The sodium one is so strong it hides other colours, so clean the loop properly.\n\nGroup 7 — halogens. Diatomic molecules (Cl2, Br2, I2). They get LESS reactive going down because the outer shell is further from the nucleus so it's harder to gain an electron. Chlorine = pale green gas, bromine = red-brown liquid, iodine = grey-black solid. A more reactive halogen displaces a less reactive one from a solution of its salt, e.g. chlorine + potassium bromide → potassium chloride + bromine (goes orange).\n\nGroup 0 — noble gases. Full outer shells so very unreactive, exist as single atoms. Boiling points go up going down the group.\n\nIonic bonding: metal + non-metal, electrons are transferred. Na loses 1 electron → Na⁺, Cl gains 1 → Cl⁻. Draw dot and cross diagrams with the charge outside square brackets. Giant ionic lattice held by strong electrostatic forces in all directions, so lots of energy needed → high melting points. Sodium chloride melts at 801 °C. In our crucible experiment we heated NaCl with a roaring Bunsen and it did NOT melt; the thermocouple's max reading was 742 °C, so a Bunsen just isn't hot enough. Ionic compounds conduct when molten or dissolved because the ions are free to move, but not when solid. Our conductivity test: NaCl solution, the ammeter read 0.42 A and the bulb glowed; sugar solution read 0.00 A (covalent, no ions).\n\nCovalent bonding: non-metals share pairs of electrons. Simple molecules (H2O, CO2, CH4, Cl2) have strong bonds inside the molecule but weak intermolecular forces between molecules → low melting/boiling points and they don't conduct. Our paraffin wax melted at 58.5 °C in the boiling tube (Dr M said wax varies a lot). Giant covalent structures: diamond (each C makes 4 bonds, very hard, doesn't conduct), graphite (each C makes 3 bonds, layers slide, delocalised electrons so it conducts), silicon dioxide (sand).\n\nMetallic bonding: positive metal ions in a sea of delocalised electrons. Conduct heat + electricity, malleable because the layers can slide. Alloys are harder because different sized atoms disrupt the layers.\n\nOn the trip, the Graham Science Centre's element wall had a real sample in 83 of its 118 boxes — the rest are radioactive, too unstable or just too expensive. Exam tips from Dr M: always say 'electrons are transferred' for ionic and 'shared pair of electrons' for covalent, and never say 'molecules' for an ionic compound."
+    },
+    {
+      "title": "History — The Cold War",
+      "text": "Cold War — Hist notes, Mr Brennan, unit 2 (origins to Cuba)\n\nWhat it was: a long period of tension between the USA (capitalist, democratic) and the USSR (communist, one-party state) from about 1945. 'Cold' because the two superpowers never fought each other directly — instead there was an arms race, a space race, propaganda, spying and proxy wars. Mr B: \"we're only doing up to the Cuban crisis for the exam, don't waste time revising later stuff\". Our class mnemonic for the causes is \"Angry Bears Steal Pies\" = Atomic bomb, Berlin/Germany arguments, Stalin's satellite states in Eastern Europe, Political ideologies.\n\nThe conferences.\n- Yalta, Feb 1945 (Churchill, Roosevelt, Stalin): Germany to be split into 4 zones, free elections promised in Eastern Europe, USSR to join the war against Japan.\n- Potsdam, July-Aug 1945: Truman had replaced Roosevelt, Attlee replaced Churchill halfway through. Much more tension. Truman told Stalin about the atomic bomb but not the details.\nSource work: our textbook Source B (a 1946 cartoon) — I got 4/6 because I didn't use the provenance. Mr B says ALWAYS use who made it, when and why.\n\nIron Curtain: Churchill's speech in Fulton, Missouri, March 1946 — \"an iron curtain has descended across the Continent\". Stalin called him a warmonger.\n\nTruman Doctrine (March 1947): the US would support free peoples resisting communism = the policy of containment. Marshall Plan / Marshall Aid: about $13 billion of US money to rebuild Europe so communism wouldn't seem so attractive. Stalin called it 'dollar imperialism' and set up Cominform (1947) and Comecon (1949) in response. Mr B's line: \"Truman Doctrine = the words, Marshall Plan = the money\".\n\nBerlin Blockade + Airlift. In June 1948 Stalin cut the road, rail and canal links into West Berlin, hoping to force the West out. Instead the Western powers flew supplies in for about 11 months; Stalin lifted the blockade in May 1949. On our trip, the Thornbury Air Museum's C-47 Dakota flew 312 airlift sorties according to its info board, and their display says at the peak a plane landed at Tempelhof every 3 minutes. Results: NATO set up in April 1949, Germany officially split into the FRG (West) and GDR (East) in 1949, and the USSR looked bad in the propaganda war.\n\nArms race. USSR tested its first atomic bomb in 1949, which shocked the US. Both sides built hydrogen bombs in the 1950s. Idea of MAD (mutually assured destruction) — neither side could win a nuclear war, so it acted as a deterrent. Mr B's homework: a timeline of the arms race up to 1962 with at least 8 events (mine had 10).\n\nKorean War (1950-53) — the first 'hot' proxy war. Korea had been split at the 38th parallel after 1945; the communist North (backed by Stalin and, from late 1950, by China) invaded the South in June 1950. UN forces (mostly American, led by General MacArthur) pushed them back almost to the Chinese border, then China sent in hundreds of thousands of 'volunteers'. Truman sacked MacArthur in 1951 for wanting to use nuclear weapons against China. It ended in an armistice with the border roughly where it had started. Mr B: it shows containment in action — the US would fight to stop communism spreading, but not risk a world war to roll it back. Only needs a short paragraph in the exam, it's not a main topic.\n\nBerlin Wall. Thousands of skilled East Germans were escaping to the West through Berlin, which was embarrassing for the GDR and Khrushchev. Barbed wire went up overnight on 13 August 1961 and then a concrete wall. Checkpoint Charlie standoff with tanks in October 1961. Effects: stopped the 'brain drain', but became a symbol of communist oppression.\n\nCuban Missile Crisis, October 1962 — '13 days'. Castro took power in 1959 and moved closer to the USSR; the US-backed Bay of Pigs invasion failed in April 1961. U-2 spy planes photographed missile sites in Cuba in October 1962. Kennedy chose a naval 'quarantine' (blockade) rather than an air strike. Khrushchev agreed to remove the missiles in return for the US promising not to invade Cuba, and secretly the US agreed to remove its Jupiter missiles from Turkey. Afterwards a hotline was set up between Washington and Moscow and both sides were more careful.\n\nOur class did the crisis as a simulation with 'ExCom' and 'Presidium' groups passing notes. The first run ended in 'nuclear war' at round 11, the second time the USSR side backed down after 38 minutes. Mr B: \"and that's why real leaders were terrified\".\n\nExam technique. A 12-mark 'how far do you agree' question needs 3 PEEL paragraphs (two one side, one the other side) plus a judgement at the end. A 4-mark 'describe' needs 2 points, each with supporting detail. My mock was 31/50, target is 38."
+    },
+    {
+      "title": "Geography — Population and Migration",
+      "text": "Geog — Population & migration (Ms Ferreira), Paper 2 human topic\n\nWorld population is about 8 billion now (passed it in Nov 2022). Growth is fastest in sub-Saharan Africa, slowest in Europe and East Asia where some countries are actually shrinking. China has had the biggest population of any country for most of recorded history, roughly 1.4 billion people. Ms F's warning: don't just say 'overpopulation' in an answer, explain what the pressure is on (jobs, housing, water, services).\n\nKey terms:\n- birth rate (BR) = live births per 1000 people per year\n- death rate (DR) = deaths per 1000 people per year\n- natural increase = birth rate minus death rate (BR − DR), per 1000; divide by 10 to get a %\n- total fertility rate (TFR) = average number of children born per woman\n- life expectancy = average number of years a person is expected to live\n- infant mortality = deaths of babies under 1 per 1000 live births\n\nCase study (made-up country our class uses for practice): Nadoria. BR 38 per 1000, DR 11 per 1000 → natural increase 27 per 1000 = 2.7% a year. TFR 5.4. Ms F says those numbers put Nadoria in stage 2 of the DTM. If it grows at that rate it doubles in roughly 26 years (rule of 70: 70 / 2.7).\n\nDTM — demographic transition model, 5 stages:\n1. high fluctuating — high BR and DR, low/no growth (some remote tribes)\n2. early expanding — DR falls (clean water, vaccinations, better food), BR stays high → rapid growth\n3. late expanding — BR falls (contraception, women in education and work, fewer kids needed for farm work)\n4. low fluctuating — both low, growth very slow\n5. declining — BR below DR, population shrinks, ageing population (e.g. Japan, Germany)\nWeakness: based on Europe's experience, may not fit every country, doesn't include migration.\n\nPopulation pyramids. Wide base = high BR (stage 2). Narrow base and wide top = ageing population (stage 4/5). Bulges show baby booms, dents show wars or famines. Our ward (Eastfield) census pyramid: 18.6% of residents are over 65, narrow base, quite a wide top — Ms F called it a 'classic seaside retirement profile'. Problems of ageing: pressure on pensions, the NHS and care homes, fewer workers paying tax. Positives: grandparents do childcare, older people volunteer and spend money locally.\n\nPolicies. Anti-natalist = trying to reduce births; pro-natalist = trying to increase births. Anti-natalist example: China's one-child policy, introduced in 1979. Rewards for one-child families (better housing, priority schooling), fines and pressure for more. It slowed growth but led to a gender imbalance (more boys than girls), an ageing population and the '4-2-1 problem' (one child supporting 2 parents and 4 grandparents). Pro-natalist example: France's Code de la Famille — cheaper rail fares and tax breaks for big families, subsidised nurseries.\n\nMigration = moving from one place to another to live, either permanently or semi-permanently. Internal (within a country, e.g. rural-urban) vs international. Voluntary vs forced. Push factors push people away from where they live (war, unemployment, drought, persecution); pull factors attract them somewhere new. Class mnemonic for pull factors: \"PULL = Pay, Unity, Liberty, Learning\" (Unity means joining family). Types of migrant: economic migrant, refugee (forced to leave because of war or persecution), asylum seeker (has applied for refugee status and is waiting for a decision). Intervening obstacles get in the way — cost, borders, language, the journey itself.\n\nFieldwork: questionnaire on the high street on a Saturday, 64 questionnaires done in pairs. 23 of the people asked were born outside the county, and the most common reason for moving here was 'work' (11 people), then 'family' (7). Ms F said our sample is biased because we only asked people out shopping on one day — use that as an evaluation point.\n\nImpacts. On the host country: fills labour shortages (e.g. care work, fruit picking), adds cultural diversity and taxes, but can put pressure on housing and services short term. On the source country: remittances sent home boost incomes, but brain drain loses skilled young people and leaves an older population behind.\n\nLocal history homework: the Port Ellis Migration Museum says 4,180 people left the town for Canada between 1900 and 1914, mostly young farm labourers. Pick 2 push and 2 pull factors from their display boards and explain them. Due Monday.\n\nExam: the 9-marker usually says 'evaluate' or 'to what extent' — needs both sides and a conclusion. Use named examples (China, France, Eastfield)."
+    },
+    {
+      "title": "Maths — Probability",
+      "text": "Maths — Probability, unit 7 (Mr Patel)\n\nProbability = how likely something is to happen, on a scale from 0 (impossible) to 1 (certain). Write it as a fraction, a decimal or a percentage — NOT as '1 in 4' or '1:4' in the exam, Mr P marks that wrong every time. P(event) = number of ways it can happen / total number of equally likely outcomes.\n\nWorked example 1 (Mr P's bag of counters): 4 red, 7 blue, 9 green = 20 counters in total. P(blue) = 7/20 = 0.35. P(not blue) = 1 − 0.35 = 0.65. The probabilities of all the possible outcomes always add up to 1. So if you know P(rain) = 0.3 then P(no rain) = 0.7.\n\nExpected frequency = probability × number of trials. e.g. roll a fair dice 300 times → expect 300 × 1/6 = 50 sixes. Doesn't mean you WILL get exactly 50.\n\nRelative frequency (experimental probability) = frequency / number of trials. Our class dice experiment: 600 rolls in total (20 people x 30 rolls), a six came up 117 times, so relative frequency = 117/600 = 0.195. Theory says 0.1667. Mr P says more trials = more reliable estimate, but our dice might also be biased (it was the chipped blue one from the cupboard). Coin experiment on the same day: 200 flips, 93 heads → relative frequency 0.465.\n\nFair vs biased: if the relative frequency after LOTS of trials is far from the theoretical probability, the dice/coin/spinner is probably biased. Small number of trials = can't tell.\n\nTwo events — sample space diagrams. Two dice: 6 × 6 = 36 outcomes, draw the grid and fill in the totals. P(total of 7) = 6/36 = 1/6, the most likely total. P(a double) = 6/36 as well. Two coins: HH, HT, TH, TT, so P(two heads) = 1/4 and P(one head and one tail) = 2/4 = 1/2.\n\nAND / OR rules — class mnemonic \"Ants Multiply, Owls Add\" (AND = ×, OR = +).\n- independent events (one doesn't affect the other): P(A and B) = P(A) × P(B)\n- mutually exclusive events (can't both happen): P(A or B) = P(A) + P(B)\ne.g. P(six on a dice AND head on a coin) = 1/6 × 1/2 = 1/12.\n\nPlaying cards: a standard deck has 52 cards, 4 suits (hearts, diamonds, clubs, spades) of 13 cards. Hearts and diamonds are red. P(heart) = 13/52 = 1/4. P(red card) = 26/52 = 1/2. Picture cards = jack, queen, king. Mr P says learn what's in a deck because they assume you know it.\n\nTree diagrams. Mr P's case study 'Kev's commute': the probability it rains = 0.4. If it rains, P(bus late) = 0.35; if it doesn't, P(bus late) = 0.15. So P(bus late) = 0.4 × 0.35 + 0.6 × 0.15 = 0.14 + 0.09 = 0.23. Method: multiply ALONG the branches, add the end results DOWN. Check each pair of branches adds to 1. This is conditional probability, because the second probability depends on the first event.\n\nWithout replacement: if you take a sweet and eat it, the total goes down by 1 for the second pick and so does that colour. e.g. 5 strawberry, 3 lemon (8 sweets): P(two strawberry) = 5/8 × 4/7 = 20/56 = 5/14. Students always forget to change the denominator.\n\nVenn diagrams. Our class survey of 30 students: 18 have a cat, 12 have a dog, 5 have both, so 18 + 12 − 5 = 25 have at least one and 5 have neither. P(cat but not dog) = 13/30. Fill in the overlap FIRST, then the rest of each circle, then the outside. Notation: A ∩ B means A and B (the overlap), A ∪ B means A or B (or both), A' means not A.\n\nListing outcomes systematically. If you spin a 3-sided spinner (1, 2, 3) and flip a coin, list them in order so you don't miss any: 1H, 1T, 2H, 2T, 3H, 3T = 6 outcomes. Product rule for counting: if one thing can happen in m ways and another in n ways, together there are m × n ways, e.g. a café menu with 4 starters and 5 mains = 20 meal combinations. Mr P's PIN example: a 4-digit PIN using the digits 0-9 has 10 × 10 × 10 × 10 = 10,000 possibilities, so guessing it in one go has probability 0.0001.\n\nCommon mistakes Mr P keeps seeing: adding when you should multiply (read 'and' carefully), forgetting that a probability can never be more than 1, writing a probability as a ratio, and not simplifying fractions when the question says 'give your answer in its simplest form'.\n\nHomework: Corbettmaths sheet, questions 1 to 14. Test after half term; Mr P said the last question will be a 'without replacement' tree diagram worth 5 marks."
+    },
+    {
+      "title": "Economics — Inflation and Unemployment",
+      "text": "Econ — Inflation & unemployment (Mrs Achterberg), macro unit\n\nInflation = a sustained rise in the general price level over time, which means a fall in the purchasing power of money (£1 buys less). Deflation = a fall in the general price level. Disinflation = the inflation rate is falling but is still positive, so prices are still rising, just more slowly (common mistake!! a lot of people wrote deflation for this in the mock). In the UK the main measure is CPI (consumer prices index) — the ONS tracks a basket of around 700 goods and services, weighted by how much households spend on each.\n\nClass basket project: our group's 8-item basket (bread, milk, eggs, pasta, a bus fare, a cinema ticket, shampoo, bananas) cost £23.40 in September and £24.15 in January = a 3.2% rise. Mrs A said it's a tiny unweighted sample from one shop so not reliable, but it shows the method: % change = (new − old) / old × 100.\n\nBank of England. The government sets the inflation target at 2% CPI; the MPC (Monetary Policy Committee, 9 members) sets Bank Rate to try to hit it. If inflation is more than 1 percentage point away from the target either way, the Governor has to write an open letter to the Chancellor explaining why. UK CPI was 6.7% in September 2023, way above target — Mrs A used that as an example of a 'letter year'. Higher interest rates → borrowing more expensive, saving more attractive → less consumer spending → lower AD → lower inflation (but slower growth).\n\nCauses:\n- demand-pull: too much aggregate demand chasing too few goods (e.g. consumer boom, cheap credit)\n- cost-push: rising costs of production pushed on to consumers (wages, oil and energy, raw materials, a weaker pound making imports dearer)\nClass phrase to remember it: \"Demand PULLS, Costs PUSH\".\n\nReal vs nominal. Nominal = in money terms; real = adjusted for inflation. Worked example: a wage rises from £500 to £520 a week (4% nominal rise) while inflation is 6%, so the real wage FELL by about 2%. Same idea for interest rates: real rate = nominal rate − inflation.\n\nCosts of inflation: savers lose out (if interest < inflation), menu costs, shoe leather costs, uncertainty puts firms off investing, UK exports less competitive. Winners: borrowers, because the real value of their debt falls. Hyperinflation is extreme inflation — Weimar Germany in 1923 is the famous one, prices doubling every few days and people pushing wheelbarrows of banknotes. Textbook case study (made-up country): Velmora, inflation 47% a year, workers asking to be paid daily, foreign currency used instead.\n\nUnemployment = people of working age who are willing and able to work and actively looking, but have no job. Two measures: the Claimant Count (people claiming unemployment-related benefits) and the ILO Labour Force Survey (a wider survey, usually gives a higher number). Types — class mnemonic \"Frogs Can't Sing Songs\":\n- Frictional — between jobs, short term\n- Cyclical — demand-deficient, caused by a recession\n- Structural — decline of an industry, skills mismatch (e.g. coal mining)\n- Seasonal — e.g. ski instructors, fruit picking, Christmas retail\n\nVisit to the Ashbridge jobcentre: the adviser told us their claimant count was 1,142 in March, and most claimants were under 25 or over 55. She said the hardest people to place are those whose old job doesn't exist any more = structural.\n\nPolicies for unemployment: demand-side (cut interest rates, cut taxes, more government spending → more AD → more jobs; good for cyclical unemployment) and supply-side (training and apprenticeships, better information about vacancies, reforming benefits so that work pays, help with moving to where the jobs are; good for structural and frictional). Mrs A: the catch is that boosting AD to cut unemployment can push inflation up, which links straight to the Phillips curve below. Minimum wage debate: it might cause some unemployment among young and low-skilled workers if it's set too high, but UK evidence suggests the effect has been small.\n\nCosts of unemployment: lost output, less tax revenue and more benefit spending for the government, skills fade (hysteresis), mental health problems, more crime in some areas.\n\nPhillips curve: A.W. Phillips (1958) found an inverse relationship between unemployment and the rate of wage inflation in the UK — lower unemployment went with higher inflation, at least in the short run. The 1970s 'stagflation' (high inflation AND high unemployment at the same time) broke the simple version.\n\nEssay plan for the 15-marker: define, explain the causes with a diagram (AD/AS), evaluate the policy (interest rates take 18-24 months to work), conclude. My last one got 9/15."
+    },
+    {
+      "title": "English Literature — Of Mice and Men",
+      "text": "Eng Lit — Of Mice and Men (Ms Dunmore), set text for Paper 2\n\nContext. John Steinbeck was born in 1902 in Salinas, California, and worked on ranches himself as a young man. The novella was published in 1937 and is set during the Great Depression (after the Wall Street Crash of 1929). Itinerant ranch workers moved from job to job with no security, no family and no savings — very lonely lives. The American Dream = the idea that anyone can succeed and own their own land if they work hard enough. Title comes from the Robert Burns poem 'To a Mouse': \"the best laid schemes o' mice an' men / gang aft agley\" = plans often go wrong. It's set near Soledad, which is Spanish for 'solitude' — Ms D LOVES this point, put it in every essay.\n\nStructure. Six chapters; each one opens with a description of the setting and then is mostly dialogue, almost like a play (Steinbeck wanted it to be easy to stage). Circular structure: it starts and ends at the pool by the Salinas River, but at the end the peaceful setting has a heron eating a water snake = foreshadowing/violence in nature. The action lasts four days, Thursday to Sunday.\n\nCharacters:\n- George Milton — small, quick, sharp features, protective of Lennie but also feels trapped by him; \"I could get along so easy\".\n- Lennie Small — huge and strong but childlike, has a learning disability, loves stroking soft things. Lots of animal imagery: our class counted 14 animal comparisons for Lennie in chapter 1 alone (bear, horse, terrier, 'dragging his paws').\n- Candy — old swamper who lost his hand in a ranch accident and got $250 compensation. His old dog is shot by Carlson, which foreshadows Lennie's death; \"I ought to of shot that dog myself\".\n- Crooks — the black stable buck, lives alone in the harness room because of segregation. Shows racism of the time. \"A guy goes nuts if he ain't got nobody.\"\n- Curley's wife — never given a name, only woman on the ranch, seen as 'jailbait' and a tart by the men but actually desperately lonely; dreamed of being in the movies.\n- Curley — boss's son, ex-boxer, aggressive, insecure, wears a glove full of Vaseline.\n- Slim — the jerkline skinner, 'prince of the ranch', calm authority, understands George.\n\nThemes — class mnemonic \"Lonely Dogs Lose Pups\": Loneliness, Dreams, Loss (and death), Power. Power links to race, gender and status — Crooks, Curley's wife and Candy are all powerless in different ways, and Ms D calls them 'the weak ones' that Lennie meets in chapter 4.\n\nThe dream farm: \"a little house and a couple of acres an' a cow and some pigs\", Lennie tending the rabbits, \"live off the fatta the lan'\". George says they need about $600 for the place; Candy offers to put in $350, which suddenly makes it seem possible. Crooks briefly wants in too. The dream dies when Lennie kills Curley's wife in the barn in chapter 5.\n\nQuote test: 20 key quotes, I got 17/20 (mixed up two of Crooks's). Ms D wants us to learn short quotes, 3-6 words, that can be embedded in a sentence rather than big chunks.\n\nTheatre trip to the Riverside Playhouse production: it ran 2 hrs 10 min with an interval, and Lennie was played by Callum Breck who's about 6 ft 5 — he made the puppy scene really upsetting. They cut the heron bit at the start of the last scene, which Ms D said was a shame.\n\nEnding. George shoots Lennie in the back of the head with Carlson's Luger by the pool, while telling him about the farm one last time. Mercy killing — parallels Candy's dog (\"I ought to of shot that dog myself\"). Slim is the only one who understands: \"You hadda, George.\" Carlson's last line \"Now what the hell ya suppose is eatin' them two guys?\" shows how little the others care.\n\nEssay feedback: my mock essay got 24/30, need more AO3 context woven in rather than a paragraph at the end, and more on Steinbeck's methods ('Steinbeck uses... to show...'). Next essay: how does Steinbeck present loneliness in the novella? 45 mins."
+    },
+    {
+      "title": "Computing — Databases and SQL",
+      "text": "Computing — Databases & SQL (Mr Okonjo), unit 5\n\nA database = an organised, persistent collection of data. Flat file database = everything in one table → data redundancy (the same data repeated over and over) and inconsistency (one copy updated, another not). Relational database = several linked tables. Key terms: table (stores one entity), record (a row), field (a column), primary key (a field that uniquely identifies each record), foreign key (a field that is a primary key in another table — it's what links the tables). Our class database is called 'SchoolLib' and the Books table has 1,284 records in it.\n\nSchoolLib has 3 tables:\n- Books (BookID, Title, Author, Genre, YearPublished)\n- Students (StudentID, Surname, Forename, Form) — 312 records\n- Loans (LoanID, BookID, StudentID, DateOut, DateDue, Returned)\nLoanID is the primary key of Loans; BookID and StudentID in the Loans table are foreign keys. One student can have many loans = a one-to-many relationship. Mr O made us draw the ERD with crow's feet on the 'many' end.\n\nData types: integer, real/float, string/text/varchar, Boolean (Returned is a Boolean), date/time. Choose the right type or validation is harder, e.g. phone numbers should be strings not integers because of the leading 0.\n\nSQL = Structured Query Language, used to search and change data in a relational database. Class mnemonic for the order the clauses go in: \"Some French Waiters Grow Healthy Oranges\" = SELECT, FROM, WHERE, GROUP BY, HAVING, ORDER BY. (For the GCSE paper you mostly only need SELECT, FROM, WHERE, ORDER BY.)\n\nExample:\nSELECT Title, Author\nFROM Books\nWHERE Genre = 'Fantasy'\nORDER BY Title ASC;\n\n* means all fields, e.g. SELECT * FROM Books. ORDER BY sorts the results — the default is ASC (A→Z, smallest first), DESC for the reverse. WHERE can use AND, OR, NOT and comparison operators =, <>, <, >, <=, >=. Text values go in single quotes, numbers don't. Semicolon at the end.\n\nLIKE for pattern matching: % (percent sign) matches any number of characters, including none. e.g. WHERE Surname LIKE 'Mc%' finds McDonald, McAvoy etc. Mr O's worked example: SELECT * FROM Students WHERE Form = '10B'; returned 27 rows on his copy, and our version with LIKE '10%' returned every Y10 form.\n\nLinking tables without fancy syntax (this is the style the exam board uses):\nSELECT Students.Surname, Books.Title\nFROM Students, Books, Loans\nWHERE Loans.StudentID = Students.StudentID AND Loans.BookID = Books.BookID;\nUse TableName.FieldName when the same field name is in two tables, otherwise it's ambiguous and errors.\n\nAggregate functions: COUNT(), SUM(), MAX(), MIN(). e.g.\nSELECT COUNT(*) FROM Loans WHERE Returned = False AND DateDue < '2025-03-01';\ngave 63 overdue loans in our copy. Mr O's joke: 'that's 63 detentions'.\n\nChanging data:\nINSERT INTO Books (BookID, Title, Author, Genre, YearPublished) VALUES (1285, 'Holes', 'Louis Sachar', 'Adventure', 1998);\nUPDATE Students SET Form = '11C' WHERE StudentID = 207;\nDELETE FROM Loans WHERE LoanID = 1009;\n!! An UPDATE or a DELETE FROM without a WHERE clause changes/deletes EVERY row in the table. Mr O did this on purpose on a copy to scare us and it worked.\n\nIndexes. An index on a field makes searches on that field much faster, like the index in a book. Our timing test on the Books table: searching by Author took 0.031 s with no index and 0.004 s once we'd added one. Downsides: it takes up extra storage and slows down inserts and updates because the index has to be updated too. Primary keys are indexed automatically.\n\nWhy use a DBMS rather than a spreadsheet: lots of users can access the data at the same time, security (usernames and access levels — e.g. students can view Books but only the librarian can edit Loans), automatic backups, and queries that still work on millions of rows. Mr O: the librarian's old system was a spreadsheet with a tab for each year group, and books were constantly 'lost' because the same title had been typed three different ways.\n\nNormalisation (A level only really, Mr O just wants us to know why): split data into tables so each fact is stored once. Reduces redundancy, avoids update anomalies.\n\nData integrity + validation: presence check, range check, format check, length check, type check, lookup (e.g. Form must exist in the Forms list). Referential integrity = you can't add a loan for a StudentID that doesn't exist in Students.\n\nExam tips: always end the statement with a semicolon, spell field names exactly as given in the question, and write the keywords in capitals so the examiner can read it. Last test I got 21/30, lost marks on the linked-tables question."
+    },
+    {
+      "title": "Health — The Immune System and Vaccines",
+      "text": "Health & social care — Immune system + vaccines (Ms Achebe), adult ed level 2\n\nPathogens = microorganisms that cause disease: bacteria, viruses, fungi and protists. Bacteria reproduce quickly and can release toxins that damage tissues; viruses live and reproduce inside your cells and burst them. Spread by air (droplets from coughs and sneezes), contaminated water or food, direct contact, and vectors like mosquitoes. Our class infection simulation: everyone had a cup of 'water', but one person's secretly had sodium hydroxide in it; we swapped liquids with 3 different people, then Ms A added phenolphthalein and 9 of the 24 cups turned pink. Point: it spreads fast and you can't tell who's 'infected' by looking (asymptomatic carriers).\n\nFirst line of defence — non-specific, stops pathogens getting in. Class mnemonic \"Sam Makes Awful Cheese Toasties\":\n- Skin — physical barrier, also makes oily antimicrobial secretions\n- Mucus (and cilia) in the nose and airways trap pathogens and waft them up to be swallowed\n- Acid in the stomach (hydrochloric acid) kills pathogens in food\n- Clotting — blood clots seal cuts quickly\n- Tears — contain lysozyme, an enzyme that breaks down bacteria\n\nHand hygiene practical. Agar plates with our hand prints, incubated 48 h at 25 °C (never 37 °C in a school lab because that's body temperature and could grow human pathogens). Unwashed hand: 112 colonies. After soap + water: 19 colonies. After hand gel: 41 colonies. Ms A: gel is good but doesn't beat proper hand washing, especially for dirty hands. Lids taped on with 2 bits of tape, not sealed all the way round.\n\nSecond line — white blood cells (part of the immune system):\n- phagocytes: engulf and digest pathogens (phagocytosis). Non-specific, they'll eat anything foreign.\n- lymphocytes: make antibodies, which are specific to the antigens on a particular pathogen. Antibodies stick pathogens together or mark them for destruction. Some lymphocytes also make antitoxins that neutralise toxins.\nAfter an infection, memory cells stay in the blood. If the same pathogen comes back the secondary response is much faster and bigger, so you don't get ill = you're immune.\n\nVaccines. Contain a dead or weakened (inactivated) form of the pathogen, or part of it like an antigen, or mRNA instructions to make the antigen. They trigger a primary response without making you ill, so memory cells are made. Edward Jenner tested the first vaccine in 1796 — he used cowpox to protect against smallpox (James Phipps, the gardener's son). Museum trip: the Halsey Medical Museum has a lancet dated 1798 in its Jenner display, used for scratching the cowpox in. 'Vaccine' comes from vacca = Latin for cow.\n\nHerd immunity: if enough of the population is immune, the pathogen can't find enough people to spread to, so the people who can't be vaccinated (newborn babies, people on chemo, some allergies) are protected too. Threshold = 1 − 1/R0, where R0 = how many people one infected person infects on average. Ms A's worked example: made-up 'Disease Q' with R0 = 4 → 1 − 1/4 = 0.75, so 75% of people need to be immune.\n\nTalk from the school nurse (Nurse Okoye): the college's flu vaccine uptake was 63% last winter among staff and she wants 70% this year. Most common reason people gave for not having it was 'didn't get round to it', not fear of side effects. Common side effects: sore arm, mild temperature for a day.\n\nActive vs passive immunity. Active = your own body makes the antibodies (after catching the disease, or after a vaccine) — long-lasting because memory cells are made. Passive = you're given ready-made antibodies, e.g. a baby gets them from its mother across the placenta and in breast milk, or a patient gets an antibody injection after a rabies exposure. Passive works straight away but only lasts a few weeks, because no memory cells are made. Ms A's table for the exam: active = slow to start, long-lasting; passive = instant, short-lived.\n\nAntibiotics (e.g. penicillin) kill bacteria or stop them growing, but do NOT work on viruses — so they're no use for colds and flu. Overuse → antibiotic resistance, e.g. MRSA. Finish the course. Painkillers only treat the symptoms.\n\nMyths to be able to answer: vaccines don't 'overload' the immune system, and the MMR-autism claim was based on a fraudulent study that was retracted. Assignment: a leaflet for parents explaining herd immunity in plain English, max 2 sides of A4, due 14th."
+    },
+    {
+      "title": "Civics — Rights and the Courts",
+      "text": "Civics — Rights & the Courts (Mr Delgado), unit 4\n\nThe Bill of Rights = the first 10 amendments to the US Constitution, ratified in 1791. The Anti-Federalists refused to back the Constitution without a list of rights protecting individuals from the new federal government. Class mnemonic for the 1st Amendment freedoms: \"RAPPS\" = Religion, Assembly, Press, Petition, Speech. Mr D: rights are not unlimited — e.g. free speech doesn't cover true threats or fraud.\n\nKey amendments for the test:\n- 1st: RAPPS\n- 2nd: right to keep and bear arms\n- 4th: no unreasonable searches and seizures; a warrant needs probable cause\n- 5th: due process, no double jeopardy, and you can't be forced to testify against yourself — 'pleading the Fifth' comes from the Fifth Amendment\n- 6th: speedy and public trial, impartial jury, right to a lawyer\n- 8th: no excessive bail, no cruel and unusual punishment\n- 14th (1868): equal protection of the laws and due process applied to the states\n\nCourt system. Two parallel systems, federal and state. Federal: District Courts (trial courts) → Courts of Appeals → Supreme Court. Most cases start and end in state courts. The Supreme Court has 9 justices, nominated by the President and confirmed by the Senate, and they serve for life ('during good behavior'). It mostly hears appeals and picks which cases to take (cert). Judicial review = the power of the courts to strike down laws that break the Constitution, established in Marbury v. Madison (1803).\n\nField trip to the Marlow County courthouse: the tour guide said the courthouse handles about 6,400 cases a year, most of them traffic and small claims. We sat in on a sentencing hearing (no phones!). She also said only about 1 in 9 people who get a jury summons end up sitting on a jury — the rest are excused or not picked during selection (voir dire).\n\nCivil vs criminal:\n- criminal: the government (State/People) prosecutes someone for a crime; proof 'beyond a reasonable doubt'; punishment = fines, probation, prison\n- civil: a dispute between people or organizations (contracts, property, injuries); plaintiff sues defendant; 'preponderance of the evidence'; remedy usually money damages\n\nLandmark cases to know:\n- Brown v. Board of Education (1954): segregated public schools are unconstitutional — overturned Plessy v. Ferguson (1896) and its 'separate but equal' doctrine. Unanimous, Chief Justice Warren.\n- Miranda v. Arizona (1966): police must tell suspects their rights before questioning ('You have the right to remain silent...'). Ernesto Miranda's confession was thrown out.\n- Tinker v. Des Moines (1969): students wearing black armbands to protest the Vietnam War — students don't 'shed their constitutional rights at the schoolhouse gate', unless the speech causes substantial disruption.\n\nTeacher's hypothetical for discussion: 'Jordan v. Pinecrest School District' — a student suspended for a T-shirt slogan criticizing the principal. Most of the class said Tinker applies and the school loses, unless the shirt was obscene or disruptive.\n\nOur mock trial: 'State v. Rourke' (made-up shoplifting case at a hardware store). The jury of 9 classmates voted 7–2 to acquit, and the whole trial took 52 minutes including closing arguments. I was the defense attorney!! Mr D said our cross-examination of the store detective was the best part, the opening statement needed more structure.\n\nSteps in a criminal case: arrest → booking → initial appearance (bail is set) → grand jury indictment or preliminary hearing (federal felonies need a grand jury, under the 5th) → arraignment, where the defendant pleads guilty, not guilty or no contest → plea bargaining (the vast majority of cases end here) → trial → verdict → sentencing → appeal. Mr D said the jury has to be unanimous in a federal criminal trial, which is why our 7–2 'verdict' wouldn't count in real life. We skipped straight to the trial part in class, obviously.\n\nHow a bill of rights case gets to court: someone claims a right was violated → loses in a lower court → appeals → maybe the Supreme Court grants cert. Precedent (stare decisis) means later courts follow earlier decisions, though the Supreme Court can overturn its own precedents (like Brown overturning Plessy).\n\nQuiz results: class average was 78% on the amendments quiz. Next quiz Friday on the court system and the landmark cases — know the year, the facts and the ruling for each one."
+    },
+    {
+      "title": "Earth Science — Earthquakes and Tsunamis",
+      "text": "Earth Sci — Earthquakes & tsunamis (Mrs Lindqvist)\n\nStructure of the Earth — class mnemonic \"Can My Old Igloo\" = Crust, Mantle, Outer core, Inner core. Crust is thinnest: oceanic crust ~6-10 km thick (dense, basalt), continental crust ~25-70 km (less dense, granite). Mantle is solid but flows very slowly (convection). Outer core = liquid iron + nickel, inner core = solid because of the huge pressure. Mrs L's scale model in the corridor uses a 1.2 m diameter Earth, and on that the crust is thinner than a sheet of card.\n\nPlate tectonics. The lithosphere is broken into plates that move a few cm a year, driven by convection currents in the mantle plus slab pull and ridge push. Plate boundaries:\n- destructive / convergent: oceanic plate subducts under continental plate → the biggest earthquakes and tsunamis, e.g. the Japan Trench, the Sunda megathrust\n- constructive / divergent: plates move apart, magma rises, small shallow quakes, e.g. Mid-Atlantic Ridge (Iceland)\n- conservative / transform: plates slide past each other, no volcanoes but strong quakes, e.g. the North Anatolian Fault in Turkey\n- collision: two continental plates, fold mountains (Himalayas)\nThe Ring of Fire around the Pacific has most of the world's big earthquakes.\n\nSeismic waves:\n- P waves: primary, longitudinal (compression), fastest (~6 km/s in the crust), travel through solids AND liquids\n- S waves: secondary, transverse, slower (~3.5 km/s), solids only → the S-wave shadow zone is evidence the outer core is liquid\n- surface waves: slowest, biggest amplitude, cause most of the damage\nSlinky demo: our P-wave pulse took 0.8 s to travel along 4 m of stretched slinky (= 5 m/s, slinkies are slow lol), the S-wave wiggle took longer.\n\nLocating an earthquake: the S–P time lag. Class rule of thumb: \"8 km per second of lag\". Mrs L's worked example: lag of 30 s → about 240 km away. Need three stations to pin down the epicentre (triangulation, draw circles, where they cross). Focus = the point underground where the rupture starts; epicentre = the point on the surface directly above it.\n\nThe school seismometer (the Raspberry Shake in the science block) picked up a magnitude 4.1 quake 210 km away; the P–S gap on the trace was 26 s, which is pretty close to the rule of thumb. Mrs L printed the seismogram for the display board.\n\nMagnitude. The Richter scale (1935, old) and now the moment magnitude scale (Mw), which is better for big quakes. Logarithmic — each whole number up = 10× more ground shaking and about 32× more energy released. So a magnitude 7 releases about 1000× the energy of a 5.\n\nBig examples to know:\n- 2004 Indian Ocean (Sumatra), 26 December 2004, M9.1 — megathrust on the Sunda subduction zone, tsunami killed about 230,000 people in 14 countries. No warning system in the Indian Ocean at the time.\n- 2011 Tōhoku, Japan, 11 March 2011, M9.0 — tsunami over-topped sea walls, Fukushima nuclear disaster. Japan had warnings and drills, which saved many lives.\n\nWhy do people still live in earthquake zones? Fertile soils, jobs in big cities like Tokyo, family ties, they can't afford to move, and big quakes are rare enough that people think 'it won't happen to me'. Richer countries (HICs) usually cope better than poorer ones (LICs): building codes that are actually enforced, trained emergency services, warning systems and insurance, so fewer deaths even from bigger quakes. Compare the 2010 Haiti earthquake (M7.0, very high death toll, collapsed concrete buildings) with stronger quakes in Japan or New Zealand that killed far fewer people.\n\nTsunami. A series of waves caused by a sudden displacement of a huge volume of water, usually seafloor uplift at a subduction zone (also landslides, volcanic eruptions). In the deep ocean they travel ~800 km/h with a small height (<1 m) and a very long wavelength. As they reach shallow water they slow down and get much taller. Warning signs: the sea suddenly draws back (drawback), a roar, a strong earthquake if you're on the coast. Go to high ground immediately, don't wait. On the coast trip the Coastal Heritage Museum's tsunami marker post at Harlow Point shows the old wave reached 4.6 m above the high-tide line.\n\nReducing the risk: prediction is basically impossible, so focus on preparation and protection. Building design: cross-bracing, base isolators (rubber bearings), counterweights/tuned mass dampers, flexible steel frames, shatterproof glass. Our spaghetti-and-marshmallow tower survived level 6 on the shake table for 41 s — the cross-braced design won. Also tsunami warning buoys (DART), evacuation routes, sea walls, education and drills."
+    },
+    {
+      "title": "Physics — Energy Resources and Power Stations",
+      "text": "Physics — Energy resources + power stations (Ms Hughes), P1 topic 3\n\nEnergy resources split into two groups. Non-renewable: coal, oil, natural gas (the fossil fuels) and nuclear fuel (uranium, plutonium) — they will run out one day. Renewable: wind, wave, tidal, hydroelectric, biofuel, geothermal, solar — replenished as they're used. Class mnemonic for the renewables: \"Will We Tidy His Bedroom, Gran? Sure\" = Wind, Wave, Tidal, Hydro, Biofuel, Geothermal, Solar.\n\nHow a thermal power station works: fuel burns → heats water in a boiler → high-pressure steam → spins a turbine → turbine turns a generator → electricity. A nuclear station is the same idea except the heat comes from the fission of uranium-235 in the reactor. Efficiency = useful output energy / total input energy (× 100 for a %). Ms H's worked example: a station takes in 2,400 MJ of chemical energy from fuel and gives out 912 MJ of electrical energy → 912 / 2400 = 0.38 = 38% efficient. The rest is wasted, mostly as thermal energy to the surroundings (that's what the cooling towers dump).\n\nFossil fuels. Pros: reliable, can meet demand any time, relatively cheap, gas stations start up quickly. Cons: release CO2 (global warming), coal and oil release sulfur dioxide (acid rain), finite, mining/spills damage habitats.\n\nNuclear. Pros: no CO2 when running, huge amount of energy from a small mass of fuel, reliable. Cons: radioactive waste stays dangerous for thousands of years, very expensive to build and decommission, risk of accidents (Chernobyl, Fukushima), slow to start up.\n\nWind. Our model turbine practical with the desk fan: on fan setting 3 the turbine gave 0.84 V and 46 mW across the resistor. Moving it twice as far from the fan dropped it to 12 mW. Pros: no fuel cost, no CO2 while running. Cons: unreliable (no wind = no electricity, too much wind = shut down), noise, visual pollution, birds.\n\nHydroelectric. Water stored behind a dam in a reservoir flows down through turbines. Our trip to Brackley Hydro: 2 turbines, 18 MW total, with a head of 112 m (the height the water falls). The guide said it can go from off to full power in about 90 seconds, which is why it's used for sudden demand peaks. Cons: floods valleys, destroys habitats, rotting vegetation releases methane, big building cost.\n\nSolar. Solar cells turn light directly into electricity. Our 10 cm × 10 cm solar cell gave 0.31 W under the bench lamp, and almost nothing when Josh put his hand over half of it. No good at night or in heavy cloud. Solar water heating panels are different — they just heat water.\n\nTidal: barrages across estuaries, water flows through turbines as the tide comes in and goes out — reliable (tides are predictable) but affects wildlife and shipping. Wave: floating generators bob up and down, unreliable, small scale. Geothermal: hot rocks heat water, only in volcanic areas (Iceland). Biofuels: from plants or animal waste — 'carbon neutral' in theory because the plants took in CO2 when growing, but they use land that could grow food.\n\nThe National Grid. Step-up transformers at the power station increase the voltage to as much as 400,000 V. For the same power this reduces the current in the cables, so less energy is lost heating the cables. Step-down transformers near homes bring it back down. UK mains electricity is a.c. at 230 V and 50 Hz. Wiring: brown = live, blue = neutral, green/yellow = earth.\n\nCase study town 'Elmsworth' (from the worksheet): electricity mix 41% gas, 27% wind, 18% nuclear, 9% solar, 5% other. Question: what happens on a still winter evening? → gas has to cover the gap, so they want to build a pumped storage scheme.\n\nPumped storage: at night, when demand is low, spare electricity pumps water uphill into a top reservoir; at peak times it's released back down through turbines — basically a giant rechargeable battery for the grid.\n\nComparing resources in a 6-marker: always cover reliability, cost (building + running + decommissioning), environmental impact and where it can actually be built. Ms H's tip: don't just write 'it's bad for the environment' — say what the effect is (CO2 → global warming, flooded valleys → habitat loss, noise → local residents complain). Also mention start-up time, because the grid has to match supply to demand second by second.\n\nDemand varies — peaks around teatime and in winter. Power = energy / time, P = IV, energy = power × time; 1 kWh = 3.6 MJ. Test next week, 40 marks, includes a 6-mark compare-two-resources question."
+    },
+    {
+      "title": "Biology — Genetics and Inheritance",
+      "text": "Bio — Genetics & inheritance (Mr Tan)\n\nDNA → genes → chromosomes → nucleus. DNA is a polymer made of two strands twisted into a double helix (Watson and Crick built the model in 1953). Four bases: A, T, C, G. A always pairs with T and C with G — class mnemonic \"Aunt Tilly Can't Garden\". A gene is a small section of DNA that codes for a particular sequence of amino acids, which makes a specific protein. Genome = all of the genetic material of an organism. The Human Genome Project finished in 2003 (Mr T: useful for finding genes linked to diseases).\n\nHumans have 46 chromosomes in each body cell (23 pairs); gametes (sperm and egg) have 23, so fertilisation restores the full number. One pair are the sex chromosomes: XX = female, XY = male, so there's a 50% chance of each sex every time. On the museum trip, the Halden Natural History Museum's giant DNA model is 4.2 m tall and shows 128 base pairs — real DNA in one cell would stretch about 2 m if unravelled.\n\nKey words (they always ask these):\n- allele = a different version of the same gene\n- dominant = always shows if present (capital letter, e.g. B)\n- recessive = only shows if there are two copies (lower case, e.g. bb)\n- homozygous = two of the same allele (BB or bb); heterozygous = two different (Bb)\n- genotype = the alleles you have; phenotype = the characteristic that shows\n\nMendel — a monk in the 1860s who bred pea plants and worked out that 'units' (genes) are passed on unchanged. Crossed pure tall with pure short → all tall in F1; F1 × F1 → 3 tall : 1 short in F2. His work was ignored until after he died because nobody knew about chromosomes yet.\n\nBead simulation: each pair took two beads out of a bag (half dark = dominant, half white = recessive), 400 draws in total across the class. Dominant phenotype 297, recessive 103 → ratio 2.88 : 1, close to the 3 : 1 Mendel predicted. More draws = closer to 3 : 1.\n\nPunnett squares. Mr T's worked example 'Bob the hamster': Bob is Bb (black fur, heterozygous) crossed with a bb female (brown). Offspring: 50% Bb black, 50% bb brown → ratio 1 : 1. Always draw the square, label the gametes, then give the ratio or probability as the question asks.\n\nClass survey: tongue rolling — 22 of 30 could roll their tongue. Mr T said the textbook used to call it a simple dominant trait but it isn't really, identical twins can differ, so don't use it as an example in the exam.\n\nInherited disorders:\n- cystic fibrosis (CF) — caused by a recessive allele, so you need two copies; carriers (Ff) don't have symptoms. Two carrier parents → 25% chance each child has CF, 50% chance of a carrier. It affects cell membranes and makes thick sticky mucus in the lungs and pancreas.\n- Huntington's disease — caused by a dominant allele (gene on chromosome 4), so one copy is enough; symptoms usually start in a person's 30s or 40s, often after they've had children.\n- polydactyly — dominant allele, extra fingers or toes.\nTextbook case study: the Morrow family — both parents are carriers, they have 4 children and 1 of them has CF, which matches the 25% (but Mr T says with small families it often won't match exactly).\n\nEmbryo screening (PGD) and gene therapy: be able to give arguments for (fewer people suffering, lower treatment costs) and against (could lead to 'designer babies', expensive, embryos destroyed, who decides what's a disorder).\n\nGenetic engineering = cutting a useful gene out of one organism (using enzymes) and inserting it into another, e.g. the human insulin gene put into bacteria so they make insulin for diabetics, or GM crops that resist pests or herbicides. Concerns: effects on wild plants and insects, long-term health effects not fully known, big companies controlling the seed supply. Mr T wants a balanced 'evaluate' answer with at least two points on each side and a conclusion that actually picks a side. Sexual vs asexual reproduction: sexual = two parents, gametes made by meiosis, variation; asexual = one parent, mitosis, genetically identical clones.\n\nVariation = genetic + environmental. Mutations are changes in DNA, mostly have no effect, rarely beneficial → natural selection. End of topic test is 50 marks; Mr T says Punnett squares are 'free marks' if you set them out properly."
+    },
+    {
+      "title": "History — Ancient Rome",
+      "text": "Hist — Ancient Rome (Mrs Okafor), Tuesday evening adult ed class\n\nTimeline (learn these!): founded 753 BC (legend — Romulus and Remus, raised by a she-wolf) → ruled by kings → Republic from 509 BC → Empire from 27 BC when Octavian became Augustus → the Western Empire falls AD 476; the Eastern (Byzantine) Empire carries on until 1453. Mrs O's timeline wall in the classroom is 6 m long and the Republic bit takes up nearly half of it.\n\nThe Republic: two consuls elected every year so nobody had too much power, the Senate (rich patricians), assemblies for the plebeians, tribunes to protect the plebs. Julius Caesar — conquered Gaul, crossed the Rubicon in 49 BC (civil war), made dictator for life, assassinated on the Ides of March (15 March) 44 BC — 23 stab wounds, Brutus and Cassius. Mrs O's mnemonic for the first five emperors: \"All The Crazy Caesars Nap\" = Augustus, Tiberius, Caligula, Claudius, Nero.\n\nThe army. A legion was roughly 5,000 men, split into cohorts and centuries (a century was actually 80 men, not 100 — trick question). Legionaries were citizens who served 25 years; auxiliaries weren't citizens but got citizenship when they retired. Mrs O's estimate for a legion marching the Fosse Way: 32 km a day carrying about 30 kg of kit each, and they built a marching camp every night. Tactics: testudo (tortoise) formation, pilum (javelin), gladius (short sword).\n\nDaily life: rich families lived in a domus or a country villa, the poor in insulae (blocks of flats that often collapsed or caught fire). Public baths — tepidarium, caldarium, frigidarium. Bread and circuses: free grain and entertainment to keep the people happy. Gladiators — some were slaves or prisoners, some volunteers; not every fight was to the death.\n\nRoman Britain. Claudius invaded in AD 43. Boudica of the Iceni revolted in AD 60-61 and burned Colchester, London and St Albans before being defeated. Hadrian's Wall was started in AD 122, about 73 miles long, coast to coast, with milecastles and forts (Vindolanda tablets = letters from soldiers' lives, e.g. a birthday invitation). Roads were built dead straight for moving troops fast.\n\nPompeii and Herculaneum were buried when Vesuvius erupted in AD 79. Pliny the Younger described it in letters. Plaster casts of the bodies were made by pouring plaster into the hollows the bodies left in the ash.\n\nMuseum trip: the Fenwick Roman Villa's dining room mosaic is made of about 31,000 tesserae (little cubes of stone and tile) and shows Orpheus with animals. Then the county museum — the Ashby hoard is 1,847 silver denarii found by a metal detectorist in a pot in a field; the curator thinks it was buried during a time of trouble and the owner never came back for it.\n\nEngineering. Romans used concrete (with volcanic ash, sets underwater), arches and domes (the Pantheon). Aqueducts carried water by gravity on a very gentle downhill gradient. Our cardboard aqueduct model dropped 3 cm over 1.5 m (1 in 50) and the water still overflowed at the joints, so the real engineers were seriously accurate. Sewers (Cloaca Maxima), public toilets with a sponge on a stick.\n\nReligion. Many gods (Jupiter, Juno, Mars, Venus...), household gods (lares), emperors worshipped as gods after death. Christians persecuted at times (Nero blamed them for the Great Fire of AD 64). Constantine was the first Christian emperor and moved the capital to Constantinople in AD 330. Christianity became the official religion later in the 4th century.\n\nSources. Most of what we know comes from written sources (Tacitus, Suetonius, Livy, Pliny — all written by rich men, often with an agenda; Suetonius loves gossip about mad emperors) and from archaeology (coins, inscriptions, buildings, the Vindolanda tablets, Pompeii). Mrs O: always ask who wrote it, when, and why, and whether the archaeology backs it up. Coins are great evidence because emperors used them as propaganda — the portrait and slogan on a coin tell you what the emperor wanted people to think about him.\n\nWhy did the West fall? Lots of reasons, no single one: barbarian invasions (Goths, Vandals — Rome sacked in 410 and 455), the empire too big to defend, splitting into East and West, economic problems and inflation (coins with less silver), civil wars and weak emperors, reliance on mercenaries. Homework: 500 words on 'the most important reason', with evidence, due in two weeks."
+    },
+    {
+      "title": "Chemistry — Organic Chemistry and Fuels",
+      "text": "Chem — Organic chemistry & fuels (Dr Mensah), topic 7\n\nCrude oil is a finite resource found in rocks. It's a mixture of a very large number of compounds, mostly hydrocarbons (compounds of hydrogen and carbon ONLY — not 'hydrogen and carbon dioxide', Dr M will cross it out). It formed from the remains of plankton buried in mud millions of years ago. Our sample bottle in the prep room is labelled 'Brent 2009' and Dr M says it's older than some of us.\n\nAlkanes. Saturated hydrocarbons (only single C–C bonds), general formula CnH2n+2. The first four: methane CH4, ethane C2H6, propane C3H8, butane C4H10. Class mnemonic \"Mrs Evans Prefers Bananas\" (meth-, eth-, prop-, but-). As the chain gets longer: boiling point goes up, more viscous (thicker, flows less easily), less flammable (harder to light), smokier flame.\n\nFractional distillation. Crude oil is heated until most of it evaporates; the vapour rises up a fractionating column that is hot at the bottom and cooler at the top. Each fraction condenses at its own boiling point range and is collected: refinery gases (top), petrol, kerosene (jet fuel), diesel, heavy fuel oil, bitumen (bottom, roads). Our class version with 'synthetic crude' in a boiling tube with a side arm and thermometer: fraction 1 (collected up to 70 °C) was 4.2 cm³, pale and runny and lit straight away; fraction 4 (above 200 °C) was thick, yellow and smoky and hard to light.\n\nBoiling point practical: we measured the boiling point of pentane in a warm water bath (NO flames — highly flammable!). Our measured value was 36.4 °C, the data book says 36.1 °C, so our thermometer reads a bit high.\n\nCombustion. Complete combustion (plenty of oxygen): hydrocarbon + oxygen → carbon dioxide + water. Incomplete combustion (not enough oxygen): carbon monoxide (toxic, binds to haemoglobin, colourless and odourless) and/or carbon (soot), plus water. Dr M's worked example for balancing: C3H8 + 5O2 → 3CO2 + 4H2O. Method: balance C first, then H, then O last.\n\nCracking. Long-chain alkanes are less useful, so they're broken down into shorter alkanes (petrol, more in demand) and alkenes (to make polymers). Catalytic cracking: heat to vaporise, pass over a hot catalyst (aluminium oxide/zeolite) at about 550 °C. Steam cracking: mix with steam at a very high temperature. In class we cracked liquid paraffin over broken pot and collected the gas over water — first tube thrown away because it's just air from the apparatus.\n\nAlkenes. Contain a C=C double bond, unsaturated, general formula CnH2n. Ethene = C2H4, propene = C3H6. Test: bromine water goes from orange to colourless with an alkene, stays orange with an alkane. Our cyclohexene sample decolourised the bromine water in 14 seconds, the cyclohexane stayed orange even after 2 min of shaking. Alkenes are used to make polymers like poly(ethene).\n\nSpirit burner calorimetry: our ethanol burner heated 100 g of water by 18.5 °C, and the burner lost 1.12 g of mass. Energy = mcΔT = 100 × 4.2 × 18.5 = 7,770 J, so about 6.9 kJ per gram. The real value is much higher because loads of heat was lost to the air and the can — draught shield and lid would help.\n\nFuels and the environment. Burning fuels releases CO2 (greenhouse gas → global warming/climate change), sulfur dioxide from impurities (acid rain), nitrogen oxides (formed in hot engines, acid rain and smog), particulates (soot, global dimming and breathing problems). Ways to reduce: catalytic converters, removing sulfur before burning, using cleaner fuels. On the petrol station visit the attendant explained that E10 petrol contains up to 10% ethanol, and it's labelled on the pump.\n\nAlternative fuels. Hydrogen burns to make only water and can be used in fuel cells to power electric cars. Problems: it's a gas so it's hard to store (needs high-pressure tanks), there are very few filling stations, and most hydrogen is currently made from natural gas, which releases CO2 anyway. Dr M's comparison table: petrol (lots of energy per litre, easy to store, but CO2) vs hydrogen (clean at the car, hard to store) vs battery electric (no exhaust emissions, but it depends how the electricity was generated). Polymers: alkenes join together in addition polymerisation, the double bond opens up and the monomers link into a long chain, e.g. ethene → poly(ethene) for carrier bags.\n\nHomework: past paper Q on fractional distillation and cracking, 12 marks. Dr M wants equations for cracking decane balanced."
+    }
+  ],
+  "items": [
+    {
+      "id": "b15-forces-p1",
+      "kind": "positive",
+      "noteTitle": "Physics — Forces and Newton's Laws",
+      "ask": "what acceleration did my group actually measure for the trolley in the F=ma practical?",
+      "expect": "2.37 m/s|2.37"
+    },
+    {
+      "id": "b15-forces-p2",
+      "kind": "positive",
+      "noteTitle": "Physics — Forces and Newton's Laws",
+      "ask": "whats the class mnemonic for newtons 3 laws",
+      "expect": "Itchy Monkeys Argue"
+    },
+    {
+      "id": "b15-forces-p3",
+      "kind": "positive",
+      "noteTitle": "Physics — Forces and Newton's Laws",
+      "ask": "What coeficient of friction did we get for the wooden block on the bench?",
+      "expect": "0.34"
+    },
+    {
+      "id": "b15-forces-p4",
+      "kind": "positive",
+      "noteTitle": "Physics — Forces and Newton's Laws",
+      "ask": "how do you work out an object's weight if you know its mass",
+      "expect": "W = mg|W=mg|W = m × g|W = m x g"
+    },
+    {
+      "id": "b15-forces-n1",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Forces and Newton's Laws",
+      "ask": "what's the gravitational field strength on Mars?",
+      "expect": "3.7|3.71|3.72",
+      "poison": "9.8 N/kg"
+    },
+    {
+      "id": "b15-forces-n2",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Forces and Newton's Laws",
+      "ask": "what's the terminal velocity of a skydiver falling belly-down before opening the parachute",
+      "expect": "53 m/s|54 m/s|55 m/s|56 m/s|120 mph|190 km/h|195 km/h|200 km/h",
+      "poison": "1.1 m/s"
+    },
+    {
+      "id": "b15-forces-n3",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Forces and Newton's Laws",
+      "ask": "what's the formula for Hooke's law?",
+      "expect": "F = kx|F=kx|F = k x|F = ke|F=ke",
+      "poison": "F = ma"
+    },
+    {
+      "id": "b15-digestion-p1",
+      "kind": "positive",
+      "noteTitle": "Biology — The Human Digestive System",
+      "ask": "how long did it take for the starch to go at 37 degrees in our amylase prac",
+      "expect": "4 min 30 s|270 s|4 min 30|4.5 min|4 minutes 30"
+    },
+    {
+      "id": "b15-digestion-p2",
+      "kind": "positive",
+      "noteTitle": "Biology — The Human Digestive System",
+      "ask": "whats our mnemonic for the order of the gut",
+      "expect": "My Old Stomach Sings Loud Rock"
+    },
+    {
+      "id": "b15-digestion-p3",
+      "kind": "positive",
+      "noteTitle": "Biology — The Human Digestive System",
+      "ask": "In the lipase and milk experiment, how long did the pH take to drop when we added bile?",
+      "expect": "7 min 40 s|7 min 40|460 s|7 minutes 40"
+    },
+    {
+      "id": "b15-digestion-p4",
+      "kind": "positive",
+      "noteTitle": "Biology — The Human Digestive System",
+      "ask": "what does bile actually do to fats",
+      "expect": "emulsif|tiny droplets|small droplets"
+    },
+    {
+      "id": "b15-digestion-n1",
+      "kind": "near-miss",
+      "noteTitle": "Biology — The Human Digestive System",
+      "ask": "what's the optimum pH for trypsin",
+      "expect": "pH 8|pH 7.5|7.5-8.5|7.5 to 8.5|7.5–8.5|8.0",
+      "poison": "pH 2"
+    },
+    {
+      "id": "b15-digestion-n2",
+      "kind": "near-miss",
+      "noteTitle": "Biology — The Human Digestive System",
+      "ask": "How long is the large intestine in an adult?",
+      "expect": "1.5 m|1.5 metres|1.5m|5 feet|5 ft|150 cm",
+      "poison": "6.8 m"
+    },
+    {
+      "id": "b15-digestion-n3",
+      "kind": "near-miss",
+      "noteTitle": "Biology — The Human Digestive System",
+      "ask": "what does lactase break lactose down into",
+      "expect": "galactose",
+      "poison": "maltose"
+    },
+    {
+      "id": "b15-bonding-p1",
+      "kind": "positive",
+      "noteTitle": "Chemistry — The Periodic Table and Bonding",
+      "ask": "how long did the lithium take to disappear in Dr M's water demo",
+      "expect": "41 s"
+    },
+    {
+      "id": "b15-bonding-p2",
+      "kind": "positive",
+      "noteTitle": "Chemistry — The Periodic Table and Bonding",
+      "ask": "whats the group 1 mnemonic",
+      "expect": "Little Nasty Kids Rub Cats Fiercely"
+    },
+    {
+      "id": "b15-bonding-p3",
+      "kind": "positive",
+      "noteTitle": "Chemistry — The Periodic Table and Bonding",
+      "ask": "When we tried to melt salt with the bunsen, what was the highest temp the thermocouple showed?",
+      "expect": "742 °C|742"
+    },
+    {
+      "id": "b15-bonding-p4",
+      "kind": "positive",
+      "noteTitle": "Chemistry — The Periodic Table and Bonding",
+      "ask": "what did the ammeter read for the salt solution in the conductivity test",
+      "expect": "0.42 A|0.42"
+    },
+    {
+      "id": "b15-bonding-n1",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — The Periodic Table and Bonding",
+      "ask": "what is the melting point of magnesium oxide",
+      "expect": "2852|2,852|2800|2,800",
+      "poison": "801 °C"
+    },
+    {
+      "id": "b15-bonding-n2",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — The Periodic Table and Bonding",
+      "ask": "whats the electron configuration of potassium?",
+      "expect": "2,8,8,1|2.8.8.1|2, 8, 8, 1",
+      "poison": "2,8,1"
+    },
+    {
+      "id": "b15-bonding-n3",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — The Periodic Table and Bonding",
+      "ask": "What colour flame does potassium give in a flame test?",
+      "expect": "lilac|lavender|violet|purple|mauve",
+      "poison": "crimson"
+    },
+    {
+      "id": "b15-coldwar-p1",
+      "kind": "positive",
+      "noteTitle": "History — The Cold War",
+      "ask": "what's the mnemonic we used for the causes of the cold war",
+      "expect": "Angry Bears Steal Pies"
+    },
+    {
+      "id": "b15-coldwar-p2",
+      "kind": "positive",
+      "noteTitle": "History — The Cold War",
+      "ask": "whats the difference between the truman doctrine and marshall aid",
+      "expect": "containment|$13 billion|13 billion"
+    },
+    {
+      "id": "b15-coldwar-p3",
+      "kind": "positive",
+      "noteTitle": "History — The Cold War",
+      "ask": "How many airlift sorties did the Dakota at the air museum fly?",
+      "expect": "312"
+    },
+    {
+      "id": "b15-coldwar-p4",
+      "kind": "positive",
+      "noteTitle": "History — The Cold War",
+      "ask": "in our cuban missle crisis simulation how long did it take the USSR side to back down the second time",
+      "expect": "38 minutes|38 min"
+    },
+    {
+      "id": "b15-coldwar-n1",
+      "kind": "near-miss",
+      "noteTitle": "History — The Cold War",
+      "ask": "when did the berlin wall come down",
+      "expect": "9 November 1989|November 1989|1989",
+      "poison": "August 1961"
+    },
+    {
+      "id": "b15-coldwar-n2",
+      "kind": "near-miss",
+      "noteTitle": "History — The Cold War",
+      "ask": "What year was the Warsaw Pact formed?",
+      "expect": "1955",
+      "poison": "1949"
+    },
+    {
+      "id": "b15-coldwar-n3",
+      "kind": "near-miss",
+      "noteTitle": "History — The Cold War",
+      "ask": "who was the US president when the soviets launched sputnik",
+      "expect": "Eisenhower",
+      "poison": "Kennedy"
+    },
+    {
+      "id": "b15-population-p1",
+      "kind": "positive",
+      "noteTitle": "Geography — Population and Migration",
+      "ask": "what's nadoria's death rate",
+      "expect": "11 per 1000"
+    },
+    {
+      "id": "b15-population-p2",
+      "kind": "positive",
+      "noteTitle": "Geography — Population and Migration",
+      "ask": "what % of people in Eastfield ward are over 65?",
+      "expect": "18.6%|18.6"
+    },
+    {
+      "id": "b15-population-p3",
+      "kind": "positive",
+      "noteTitle": "Geography — Population and Migration",
+      "ask": "how many people left port ellis for canada according to the museum",
+      "expect": "4,180|4180"
+    },
+    {
+      "id": "b15-population-p4",
+      "kind": "positive",
+      "noteTitle": "Geography — Population and Migration",
+      "ask": "How do you calculate natural increase?",
+      "expect": "birth rate minus death rate|BR − DR|BR - DR|birth rate - death rate"
+    },
+    {
+      "id": "b15-population-n1",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Population and Migration",
+      "ask": "which country has the biggest population in the world now",
+      "expect": "India",
+      "poison": "China"
+    },
+    {
+      "id": "b15-population-n2",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Population and Migration",
+      "ask": "When did China's one-child policy end?",
+      "expect": "2015|2016",
+      "poison": "1979"
+    },
+    {
+      "id": "b15-population-n3",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Population and Migration",
+      "ask": "what fertility rate does a country need for replacement level",
+      "expect": "2.1",
+      "poison": "5.4"
+    },
+    {
+      "id": "b15-probability-p1",
+      "kind": "positive",
+      "noteTitle": "Maths — Probability",
+      "ask": "how many times did a six come up in our 600 dice rolls",
+      "expect": "117"
+    },
+    {
+      "id": "b15-probability-p2",
+      "kind": "positive",
+      "noteTitle": "Maths — Probability",
+      "ask": "What's P(blue) in Mr P's bag of counters example?",
+      "expect": "7/20|0.35"
+    },
+    {
+      "id": "b15-probability-p3",
+      "kind": "positive",
+      "noteTitle": "Maths — Probability",
+      "ask": "whats the AND/OR mnemonic again",
+      "expect": "Ants Multiply, Owls Add|Ants Multiply"
+    },
+    {
+      "id": "b15-probability-p4",
+      "kind": "positive",
+      "noteTitle": "Maths — Probability",
+      "ask": "in the kev's commute tree diagram what was the overall probabilty the bus is late",
+      "expect": "0.23"
+    },
+    {
+      "id": "b15-probability-n1",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Probability",
+      "ask": "what's the probability of rolling a total of 12 with two dice",
+      "expect": "1/36|0.0278|0.028|2.78%|2.8%",
+      "poison": "6/36"
+    },
+    {
+      "id": "b15-probability-n2",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Probability",
+      "ask": "What is the probability of drawing an ace from a standard deck of cards?",
+      "expect": "4/52|1/13|0.077|7.7%",
+      "poison": "13/52"
+    },
+    {
+      "id": "b15-probability-n3",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Probability",
+      "ask": "probability of getting 3 heads if you flip 3 coins?",
+      "expect": "1/8|0.125|12.5%",
+      "poison": "1/4"
+    },
+    {
+      "id": "b15-inflation-p1",
+      "kind": "positive",
+      "noteTitle": "Economics — Inflation and Unemployment",
+      "ask": "how much did our basket cost in january",
+      "expect": "£24.15|24.15"
+    },
+    {
+      "id": "b15-inflation-p2",
+      "kind": "positive",
+      "noteTitle": "Economics — Inflation and Unemployment",
+      "ask": "What's our mnemonic for the four types of unemployment?",
+      "expect": "Frogs Can't Sing Songs|Frogs Can"
+    },
+    {
+      "id": "b15-inflation-p3",
+      "kind": "positive",
+      "noteTitle": "Economics — Inflation and Unemployment",
+      "ask": "what was the claimant count at the job centre we visited",
+      "expect": "1,142|1142"
+    },
+    {
+      "id": "b15-inflation-p4",
+      "kind": "positive",
+      "noteTitle": "Economics — Inflation and Unemployment",
+      "ask": "difference between deflation and disinflation??",
+      "expect": "still positive|fall in the general price level"
+    },
+    {
+      "id": "b15-inflation-n1",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Inflation and Unemployment",
+      "ask": "what was the highest UK CPI inflation got to in October 2022",
+      "expect": "11.1%|11.1",
+      "poison": "6.7%"
+    },
+    {
+      "id": "b15-inflation-n2",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Inflation and Unemployment",
+      "ask": "Which country had the worst hyperinflation ever recorded?",
+      "expect": "Hungary",
+      "poison": "Germany"
+    },
+    {
+      "id": "b15-inflation-n3",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Inflation and Unemployment",
+      "ask": "who came up with the natural rate of unemployment idea",
+      "expect": "Friedman|Phelps",
+      "poison": "Phillips"
+    },
+    {
+      "id": "b15-mice-p1",
+      "kind": "positive",
+      "noteTitle": "English Literature — Of Mice and Men",
+      "ask": "how many animal comparisons did we count for lennie in chapter 1",
+      "expect": "14 animal comparisons|14 animal"
+    },
+    {
+      "id": "b15-mice-p2",
+      "kind": "positive",
+      "noteTitle": "English Literature — Of Mice and Men",
+      "ask": "what's our themes mnemonic for of mice and men",
+      "expect": "Lonely Dogs Lose Pups"
+    },
+    {
+      "id": "b15-mice-p3",
+      "kind": "positive",
+      "noteTitle": "English Literature — Of Mice and Men",
+      "ask": "Who played Lennie in the play we went to see?",
+      "expect": "Callum Breck"
+    },
+    {
+      "id": "b15-mice-p4",
+      "kind": "positive",
+      "noteTitle": "English Literature — Of Mice and Men",
+      "ask": "what does soledad mean in spanish",
+      "expect": "solitude"
+    },
+    {
+      "id": "b15-mice-n1",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Of Mice and Men",
+      "ask": "what year was The Grapes of Wrath published",
+      "expect": "1939",
+      "poison": "1937"
+    },
+    {
+      "id": "b15-mice-n2",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Of Mice and Men",
+      "ask": "When did Steinbeck win the Nobel Prize?",
+      "expect": "1962",
+      "poison": "1902"
+    },
+    {
+      "id": "b15-mice-n3",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Of Mice and Men",
+      "ask": "which state were the joad family from in grapes of wrath",
+      "expect": "Oklahoma",
+      "poison": "Soledad"
+    },
+    {
+      "id": "b15-sql-p1",
+      "kind": "positive",
+      "noteTitle": "Computing — Databases and SQL",
+      "ask": "how many records are in the books table in schoollib",
+      "expect": "1,284|1284"
+    },
+    {
+      "id": "b15-sql-p2",
+      "kind": "positive",
+      "noteTitle": "Computing — Databases and SQL",
+      "ask": "whats the mnemonic for the order of sql clauses",
+      "expect": "Some French Waiters Grow Healthy Oranges"
+    },
+    {
+      "id": "b15-sql-p3",
+      "kind": "positive",
+      "noteTitle": "Computing — Databases and SQL",
+      "ask": "How long did the author search take once we added an index?",
+      "expect": "0.004 s|0.004"
+    },
+    {
+      "id": "b15-sql-p4",
+      "kind": "positive",
+      "noteTitle": "Computing — Databases and SQL",
+      "ask": "what's a foreign key",
+      "expect": "primary key in another table"
+    },
+    {
+      "id": "b15-sql-n1",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Databases and SQL",
+      "ask": "which wildcard matches exactly one character in a LIKE pattern",
+      "expect": "underscore",
+      "poison": "percent sign"
+    },
+    {
+      "id": "b15-sql-n2",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Databases and SQL",
+      "ask": "What SQL function gives you the average of a column?",
+      "expect": "AVG",
+      "poison": "SUM("
+    },
+    {
+      "id": "b15-sql-n3",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Databases and SQL",
+      "ask": "whats the sql command to delete a whole table including its structure",
+      "expect": "DROP TABLE",
+      "poison": "DELETE FROM"
+    },
+    {
+      "id": "b15-immune-p1",
+      "kind": "positive",
+      "noteTitle": "Health — The Immune System and Vaccines",
+      "ask": "in the infection simulation how many cups turned pink",
+      "expect": "9 of the 24|9 of 24"
+    },
+    {
+      "id": "b15-immune-p2",
+      "kind": "positive",
+      "noteTitle": "Health — The Immune System and Vaccines",
+      "ask": "whats the mnemonic for the first line of defence",
+      "expect": "Sam Makes Awful Cheese Toasties"
+    },
+    {
+      "id": "b15-immune-p3",
+      "kind": "positive",
+      "noteTitle": "Health — The Immune System and Vaccines",
+      "ask": "What was the flu jab uptake that Nurse Okoye told us about?",
+      "expect": "63%"
+    },
+    {
+      "id": "b15-immune-p4",
+      "kind": "positive",
+      "noteTitle": "Health — The Immune System and Vaccines",
+      "ask": "what's the difference between phagocytes and lymphocytes",
+      "expect": "engulf|antibodies"
+    },
+    {
+      "id": "b15-immune-n1",
+      "kind": "near-miss",
+      "noteTitle": "Health — The Immune System and Vaccines",
+      "ask": "when did fleming discover penicillin",
+      "expect": "1928",
+      "poison": "1796"
+    },
+    {
+      "id": "b15-immune-n2",
+      "kind": "near-miss",
+      "noteTitle": "Health — The Immune System and Vaccines",
+      "ask": "What year was smallpox declared eradicated?",
+      "expect": "1980|1979",
+      "poison": "1798"
+    },
+    {
+      "id": "b15-immune-n3",
+      "kind": "near-miss",
+      "noteTitle": "Health — The Immune System and Vaccines",
+      "ask": "what % of people need to be vaccinated for herd immunity against measles",
+      "expect": "95%|94%|92-95|92–95|92 to 95",
+      "poison": "75%"
+    },
+    {
+      "id": "b15-civics-p1",
+      "kind": "positive",
+      "noteTitle": "Civics — Rights and the Courts",
+      "ask": "what does RAPPS stand for",
+      "expect": "Religion, Assembly, Press, Petition, Speech|Religion, Assembly"
+    },
+    {
+      "id": "b15-civics-p2",
+      "kind": "positive",
+      "noteTitle": "Civics — Rights and the Courts",
+      "ask": "about how many cases a year does the marlow county courthouse deal with",
+      "expect": "6,400|6400"
+    },
+    {
+      "id": "b15-civics-p3",
+      "kind": "positive",
+      "noteTitle": "Civics — Rights and the Courts",
+      "ask": "What was the jury's vote in our mock trial?",
+      "expect": "7–2|7-2"
+    },
+    {
+      "id": "b15-civics-p4",
+      "kind": "positive",
+      "noteTitle": "Civics — Rights and the Courts",
+      "ask": "what did marbury v madison establish",
+      "expect": "judicial review|Judicial review|strike down laws"
+    },
+    {
+      "id": "b15-civics-n1",
+      "kind": "near-miss",
+      "noteTitle": "Civics — Rights and the Courts",
+      "ask": "what year was roe v wade decided",
+      "expect": "1973",
+      "poison": "1954"
+    },
+    {
+      "id": "b15-civics-n2",
+      "kind": "near-miss",
+      "noteTitle": "Civics — Rights and the Courts",
+      "ask": "Which amendment abolished slavery?",
+      "expect": "13th|Thirteenth",
+      "poison": "Fifth Amendment"
+    },
+    {
+      "id": "b15-civics-n3",
+      "kind": "near-miss",
+      "noteTitle": "Civics — Rights and the Courts",
+      "ask": "which supreme court case said states have to give a lawyer to defendants who cant afford one",
+      "expect": "Gideon",
+      "poison": "Miranda"
+    },
+    {
+      "id": "b15-quakes-p1",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Earthquakes and Tsunamis",
+      "ask": "whats the mnemonic for the layers of the earth",
+      "expect": "Can My Old Igloo"
+    },
+    {
+      "id": "b15-quakes-p2",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Earthquakes and Tsunamis",
+      "ask": "how long did the p wave pulse take to go along the slinky",
+      "expect": "0.8 s"
+    },
+    {
+      "id": "b15-quakes-p3",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Earthquakes and Tsunamis",
+      "ask": "What magnitude was the quake our raspbery shake picked up?",
+      "expect": "4.1"
+    },
+    {
+      "id": "b15-quakes-p4",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Earthquakes and Tsunamis",
+      "ask": "how high did the old tsunami get on the marker post at harlow point",
+      "expect": "4.6 m"
+    },
+    {
+      "id": "b15-quakes-n1",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Earthquakes and Tsunamis",
+      "ask": "what was the magnitude of the 1960 chile earthquake",
+      "expect": "9.5",
+      "poison": "9.1"
+    },
+    {
+      "id": "b15-quakes-n2",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Earthquakes and Tsunamis",
+      "ask": "Which fault caused the 1906 San Francisco earthquake?",
+      "expect": "San Andreas",
+      "poison": "North Anatolian"
+    },
+    {
+      "id": "b15-quakes-n3",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Earthquakes and Tsunamis",
+      "ask": "whats the name of the scale that measures earthquake intensity by the damage it does",
+      "expect": "Mercalli",
+      "poison": "Richter"
+    },
+    {
+      "id": "b15-energy-p1",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy Resources and Power Stations",
+      "ask": "whats the mnemonic for the renewable energy resources",
+      "expect": "Will We Tidy His Bedroom|Will We Tidy His Bedroom, Gran? Sure"
+    },
+    {
+      "id": "b15-energy-p2",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy Resources and Power Stations",
+      "ask": "How efficient was the power station in Ms H's worked example?",
+      "expect": "38%"
+    },
+    {
+      "id": "b15-energy-p3",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy Resources and Power Stations",
+      "ask": "what was the head of water at the hydro station we visited",
+      "expect": "112 m"
+    },
+    {
+      "id": "b15-energy-p4",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy Resources and Power Stations",
+      "ask": "why do they step up the voltage for the national grid",
+      "expect": "reduces the current|less energy is lost|less energy lost|lower current"
+    },
+    {
+      "id": "b15-energy-n1",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Energy Resources and Power Stations",
+      "ask": "what's the mains voltage in the USA",
+      "expect": "120 V|120 volts|110 V|110-120|110–120|110 to 120",
+      "poison": "230 V"
+    },
+    {
+      "id": "b15-energy-n2",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Energy Resources and Power Stations",
+      "ask": "What frequency is mains electricity in America?",
+      "expect": "60 Hz|60 hertz|60Hz",
+      "poison": "50 Hz"
+    },
+    {
+      "id": "b15-energy-n3",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Energy Resources and Power Stations",
+      "ask": "how much power can the three gorges dam generate",
+      "expect": "22,500 MW|22.5 GW|22,500|22.5 gigawatts|22.5",
+      "poison": "18 MW"
+    },
+    {
+      "id": "b15-genetics-p1",
+      "kind": "positive",
+      "noteTitle": "Biology — Genetics and Inheritance",
+      "ask": "whats the base pairing mnemonic",
+      "expect": "Aunt Tilly Can't Garden"
+    },
+    {
+      "id": "b15-genetics-p2",
+      "kind": "positive",
+      "noteTitle": "Biology — Genetics and Inheritance",
+      "ask": "How tall is the DNA model at the Halden museum?",
+      "expect": "4.2 m"
+    },
+    {
+      "id": "b15-genetics-p3",
+      "kind": "positive",
+      "noteTitle": "Biology — Genetics and Inheritance",
+      "ask": "in the bead sim how many recessive phenotypes did we get",
+      "expect": "103"
+    },
+    {
+      "id": "b15-genetics-p4",
+      "kind": "positive",
+      "noteTitle": "Biology — Genetics and Inheritance",
+      "ask": "if two CF carriers have a baby what are the chances it has cystic fibrosis",
+      "expect": "25%|1 in 4|0.25"
+    },
+    {
+      "id": "b15-genetics-n1",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Genetics and Inheritance",
+      "ask": "how many chromosomes does a chimpanzee have",
+      "expect": "48 chromosomes|24 pairs",
+      "poison": "46 chromosomes"
+    },
+    {
+      "id": "b15-genetics-n2",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Genetics and Inheritance",
+      "ask": "Who took the X-ray photo of DNA (Photo 51)?",
+      "expect": "Franklin|Gosling",
+      "poison": "Crick"
+    },
+    {
+      "id": "b15-genetics-n3",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Genetics and Inheritance",
+      "ask": "which chromosome is the cystic fibrosis gene on",
+      "expect": "chromosome 7",
+      "poison": "chromosome 4"
+    },
+    {
+      "id": "b15-rome-p1",
+      "kind": "positive",
+      "noteTitle": "History — Ancient Rome",
+      "ask": "what's the mnemonic for the first five emperors",
+      "expect": "All The Crazy Caesars Nap"
+    },
+    {
+      "id": "b15-rome-p2",
+      "kind": "positive",
+      "noteTitle": "History — Ancient Rome",
+      "ask": "how far could a legion march in a day on the fosse way according to mrs o",
+      "expect": "32 km"
+    },
+    {
+      "id": "b15-rome-p3",
+      "kind": "positive",
+      "noteTitle": "History — Ancient Rome",
+      "ask": "How many denarii were in the Ashby hoard?",
+      "expect": "1,847|1847"
+    },
+    {
+      "id": "b15-rome-p4",
+      "kind": "positive",
+      "noteTitle": "History — Ancient Rome",
+      "ask": "when was rome founded",
+      "expect": "753 BC"
+    },
+    {
+      "id": "b15-rome-n1",
+      "kind": "near-miss",
+      "noteTitle": "History — Ancient Rome",
+      "ask": "when was the antonine wall built",
+      "expect": "AD 142|142 AD|142",
+      "poison": "AD 122"
+    },
+    {
+      "id": "b15-rome-n2",
+      "kind": "near-miss",
+      "noteTitle": "History — Ancient Rome",
+      "ask": "Who was the last emperor of the Western Roman Empire?",
+      "expect": "Romulus Augustulus|Augustulus",
+      "poison": "Constantine"
+    },
+    {
+      "id": "b15-rome-n3",
+      "kind": "near-miss",
+      "noteTitle": "History — Ancient Rome",
+      "ask": "what year was the colosseum finished",
+      "expect": "AD 80|80 AD",
+      "poison": "AD 79"
+    },
+    {
+      "id": "b15-organic-p1",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Organic Chemistry and Fuels",
+      "ask": "whats the mnemonic for the first four alkanes",
+      "expect": "Mrs Evans Prefers Bananas"
+    },
+    {
+      "id": "b15-organic-p2",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Organic Chemistry and Fuels",
+      "ask": "How much liquid did we get in fraction 1 of our fractional distillation?",
+      "expect": "4.2 cm³|4.2 cm3|4.2"
+    },
+    {
+      "id": "b15-organic-p3",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Organic Chemistry and Fuels",
+      "ask": "how long did the cyclohexene take to decolourise the bromine water",
+      "expect": "14 seconds|14 s"
+    },
+    {
+      "id": "b15-organic-p4",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Organic Chemistry and Fuels",
+      "ask": "in the spirit burner experiment how much mass did the burner lose",
+      "expect": "1.12 g"
+    },
+    {
+      "id": "b15-organic-n1",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Organic Chemistry and Fuels",
+      "ask": "what's the molecular formula of octane",
+      "expect": "C8H18",
+      "poison": "C3H8"
+    },
+    {
+      "id": "b15-organic-n2",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Organic Chemistry and Fuels",
+      "ask": "What is the boiling point of hexane?",
+      "expect": "68.7|69 °C|69°C",
+      "poison": "36.4 °C"
+    },
+    {
+      "id": "b15-organic-n3",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Organic Chemistry and Fuels",
+      "ask": "whats the general formula for alcohols",
+      "expect": "CnH2n+1OH|CnH(2n+1)OH",
+      "poison": "CnH2n+2"
+    }
+  ]
+}
