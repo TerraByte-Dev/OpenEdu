@@ -33,6 +33,7 @@ import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureN
 import { RAG_HELDOUT } from "./rag-heldout";
 import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
 import { RAG_PROBE_V1, RAG_PROBE_V2 } from "./rag-probe";
+import { RAG_BLIND_9F, RAG_BLIND_9F_VAULT } from "./rag-blind";
 import { hasRefusalPhrase } from "./refusal";
 import type { LLMConfig, Syllabus } from "../../types";
 
@@ -191,8 +192,8 @@ export async function runRagEval(opts?: {
   only?: string;
   /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts;
    *  "dev-v2" is rag-dev-v2.ts, with its own vault; "probe-v2" and "probe-v1" are rag-probe.ts, on the
-   *  v2 vault and RAG_FIXTURE. */
-  set?: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1";
+   *  v2 vault and RAG_FIXTURE; "blind-9f" is rag-blind.ts, with its own vault (lever 9f's gate). */
+  set?: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f";
   /** A set that brings its own vault (the sealed held-out file). Replaces `set` and RAG_FIXTURE. */
   custom?: RagCustomSet;
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
@@ -230,10 +231,10 @@ export async function runRagEval(opts?: {
   const instructions = ragInstructions(prompt);
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
-  const vault = opts?.custom?.vault ?? (set === "dev-v2" || set === "probe-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
+  const vault = opts?.custom?.vault ?? (set === "dev-v2" || set === "probe-v2" ? RAG_DEV_V2_VAULT : set === "blind-9f" ? RAG_BLIND_9F_VAULT : RAG_FIXTURE);
   const pool: RagQuestion[] = opts?.custom ? opts.custom.questions
     : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2
-    : set === "probe-v2" ? RAG_PROBE_V2 : set === "probe-v1" ? RAG_PROBE_V1
+    : set === "probe-v2" ? RAG_PROBE_V2 : set === "probe-v1" ? RAG_PROBE_V1 : set === "blind-9f" ? RAG_BLIND_9F
     : RAG_HELDOUT.filter((q) => q.split === set);
   const only = opts?.only ? new Set(opts.only.split(",").map((id) => id.trim()).filter(Boolean)) : null;
   const questions = only ? pool.filter((q) => only.has(q.id)) : pool;
