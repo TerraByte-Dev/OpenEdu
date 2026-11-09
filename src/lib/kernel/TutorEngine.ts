@@ -61,6 +61,10 @@ export interface TutorTurn {
   // below is not applied, so an eval can run lever 9f's paired arm at the same commit
   // (EVAL_NOTES_DROP=off). Default "on"; the app never sets it.
   notesDrop?: "on" | "off";
+  // "off" shows every long passage from its start, as before lever 10 (ground.ts passageFor), so an
+  // eval can run the lever's paired arm at the same commit (EVAL_PASSAGE_WINDOW=off). Default "on";
+  // the app never sets it.
+  passageWindow?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -197,7 +201,7 @@ export class TutorEngine {
     }
 
     const grounded = lastUser
-      ? await ground(lastUser.content, ctx, budget, retrieval, gloss?.text)
+      ? await ground(lastUser.content, ctx, budget, retrieval, gloss?.text, turn.passageWindow ?? "on")
       : EMPTY_GROUNDING;
     const grounding: Grounding = gloss ? { ...grounded, trace: { ...grounded.trace, gloss } } : grounded;
 

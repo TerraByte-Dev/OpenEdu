@@ -117,6 +117,10 @@ export interface RagRow {
   /** The kernel answered without tools after Ollama could not parse the model's tool call
    *  (TutorTurnResult.toolCallRecovery). Null when that did not happen or the turn threw. */
   toolCallRecovery: TutorTurnResult["toolCallRecovery"];
+  /** Lever 10's mechanism check, read from the block the model was shown (not the answer): whether it
+   *  held one of the item's `expect` alternatives, and the near-miss's `poison`, as substrings. Null
+   *  when the item has no such value or the turn threw before grounding reported anything. */
+  shown: { expect: boolean | null; poison: boolean | null };
 }
 
 /** A set that brings its own vault, such as the sealed held-out file (sealed.ts). */
@@ -139,6 +143,8 @@ export interface RagReport {
   notesMiss: "on" | "off";
   /** "off" when lever 9f's drop was not applied (EVAL_NOTES_DROP=off, its paired arm). */
   notesDrop: "on" | "off";
+  /** "off" when lever 10's window was not applied (EVAL_PASSAGE_WINDOW=off, its paired arm). */
+  passageWindow: "on" | "off";
   /** "main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", or the name of a custom set (e.g. the
    *  sealed held-out file). */
   set: string;
@@ -210,6 +216,9 @@ export async function runRagEval(opts?: {
   /** "off": on a notes-miss turn the kernel keeps 9e's behaviour (TutorTurn.notesDrop), for lever 9f's
    *  paired arm. Default "on", which is what the app does. */
   notesDrop?: "on" | "off";
+  /** "off": every long passage is shown from its start (TutorTurn.passageWindow), lever 10's paired arm.
+   *  Default "on", which is what the app does. */
+  passageWindow?: "on" | "off";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -224,6 +233,7 @@ export async function runRagEval(opts?: {
   const notesMiss = opts?.notesMiss ?? "on";
   const notesDrop = opts?.notesDrop ?? "on";
   const prompt = opts?.prompt ?? "standin";
+  const passageWindow = opts?.passageWindow ?? "on";
   if (!RAG_PROMPTS.includes(prompt)) {
     inFlight = false;
     throw new Error(`Unknown prompt arm "${prompt}": use ${RAG_PROMPTS.join(", ")}.`);
@@ -292,6 +302,7 @@ export async function runRagEval(opts?: {
             ...(turnNotes === "off" ? { turnNotes } : {}),
             ...(notesMiss === "off" ? { notesMiss } : {}),
             ...(notesDrop === "off" ? { notesDrop } : {}),
+            ...(passageWindow === "off" ? { passageWindow } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -309,6 +320,7 @@ export async function runRagEval(opts?: {
           let turnNoted = false;
           let lookupNote: RagRow["lookupNote"] = null;
           let askedThing: string | null = null;
+          let block: string | null = null;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
@@ -327,6 +339,8 @@ export async function runRagEval(opts?: {
             retrievedTitles = result.grounding.trace.hitTitles;
             toolCalls = result.toolCalls.map((c) => c.name);
             toolCallRecovery = result.toolCallRecovery;
+            // A notes-drop turn (lever 9f) puts no block in front of the model, whatever grounding found.
+            block = result.grounding.trace.lookupNote?.variant === "notes-drop" ? "" : result.grounding.block;
           } catch (e) {
             // A model or transport failure is an ERROR row with the real message. The kernel hands
             // back what grounding found before the failure, so the row keeps the real trace.
@@ -335,6 +349,7 @@ export async function runRagEval(opts?: {
             if (e instanceof TutorTurnError) {
               retrievalTrace = e.grounding.trace;
               retrievedTitles = e.grounding.trace.hitTitles;
+              block = e.grounding.block;
             } else {
               traceKnown = false;
             }
@@ -365,7 +380,11 @@ export async function runRagEval(opts?: {
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
           const refusal = hasRefusalPhrase(answer);
-          rows.push({ prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, lookupNote, askedThing, ttft_ms, total_ms, error, toolCallRecovery });
+          const shown = {
+            expect: block === null || !question.expect || question.kind === "negative" ? null : question.expect.split("|").some((a) => block!.includes(a.trim())),
+            poison: block === null || !question.poison ? null : block.includes(question.poison),
+          };
+          rows.push({ shown, prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, lookupNote, askedThing, ttft_ms, total_ms, error, toolCallRecovery });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -413,7 +432,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, notesMiss, notesDrop, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, passageWindow, turnNotes, notesMiss, notesDrop, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {
