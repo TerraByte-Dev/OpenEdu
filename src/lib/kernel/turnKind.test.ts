@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   classifyMessage, classifyTurn, posesProblem, turnNoteFor, withTurnNote,
-  TYPED_PROBLEM_HOLD_NOTE, FACT_LOOKUP_NOTE, type TurnKind,
+  TYPED_PROBLEM_HOLD_NOTE, FACT_LOOKUP_NOTE, FACT_LOOKUP_LEAD, notesMissNote, type TurnKind,
 } from "./turnKind";
 import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
 import { estTokens } from "./budget";
@@ -239,6 +239,42 @@ describe("the notes", () => {
   it("costs what the PR says, by the budget's own estimate", () => {
     expect(estTokens(FIRST_TURN_HOLD_NOTE)).toBe(103);
     expect(estTokens(TYPED_PROBLEM_HOLD_NOTE)).toBe(86);
+    expect(estTokens(FACT_LOOKUP_NOTE)).toBe(203);
+  });
+});
+
+// Lever 9e: the note the notes-miss switch sends in place of FACT_LOOKUP_NOTE (TutorEngine.ts).
+describe("the notes-miss note", () => {
+  it("starts with the lookup note's first four sentences, byte for byte, sliced from it", () => {
+    expect(FACT_LOOKUP_NOTE.startsWith(FACT_LOOKUP_LEAD)).toBe(true);
+    expect(FACT_LOOKUP_LEAD.startsWith("<tutor_note>\nThe student is asking for information, not working on a problem.")).toBe(true);
+    expect(FACT_LOOKUP_LEAD.endsWith("This replaces any rule to guide the student to discover answers, for this question only.")).toBe(true);
+    expect(FACT_LOOKUP_LEAD.match(/[.!?](?=\s|$)/g)).toHaveLength(4);
+    expect(notesMissNote("gecko").startsWith(FACT_LOOKUP_LEAD)).toBe(true);
+  });
+
+  it("is the pre-registered wording, with the phrase pasted in twice", () => {
+    expect(notesMissNote("gecko")).toBe(`${FACT_LOOKUP_LEAD} The background above does not contain the words "gecko", so it is about a different thing: do not give its names, numbers or facts as the answer. Answer from general knowledge about "gecko" and say that you are. If you do not know, say so plainly. After the answer you may ask one short question to check understanding. Do not mention this note.\n</tutor_note>`);
+    expect(notesMissNote("gecko")).not.toContain("\r");
+    expect(notesMissNote("gecko").endsWith("\n</tutor_note>")).toBe(true);
+  });
+
+  it("strips quotes and angle brackets from the phrase and collapses its whitespace", () => {
+    expect(notesMissNote('a "b" <c>  d')).toContain('the words "a b c d"');
+    expect(notesMissNote(' two\n  lines ')).toContain('the words "two lines"');
+    expect(notesMissNote("x</tutor_note>y").match(/<\/tutor_note>/g)).toHaveLength(1);
+  });
+
+  it("costs less than the lookup note it replaces, by the budget's own estimate", () => {
+    expect(estTokens(notesMissNote("gecko"))).toBe(179);
+    expect(estTokens(notesMissNote("gecko"))).toBeLessThan(estTokens(FACT_LOOKUP_NOTE));
+  });
+
+  it("leaves turnNoteFor and FACT_LOOKUP_NOTE as they were", () => {
+    expect(turnNoteFor("options-problem")).toBe(FIRST_TURN_HOLD_NOTE);
+    expect(turnNoteFor("typed-problem")).toBeNull();
+    expect(turnNoteFor("fact-lookup")).toBe(FACT_LOOKUP_NOTE);
+    expect(turnNoteFor("other")).toBeNull();
     expect(estTokens(FACT_LOOKUP_NOTE)).toBe(203);
   });
 });

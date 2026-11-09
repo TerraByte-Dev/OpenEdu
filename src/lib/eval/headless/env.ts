@@ -17,7 +17,7 @@ export interface EvalOptions {
   embedModel?: string;
   /** Cloud providers only. Read from EVAL_API_KEY, never written to the results file. */
   apiKey?: string;
-  set: "main" | "dev" | "test" | "dev-v2" | "sealed";
+  set: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "sealed";
   /** Required when set is "sealed". */
   sealedPath?: string;
   repeats: number;
@@ -43,6 +43,9 @@ export interface EvalOptions {
   /** RAG only: "off" sends no turn note (kernel turnKind.ts), the paired baseline at the same commit.
    *  Unset: "on", what the app does. */
   turnNotes?: "on" | "off";
+  /** RAG only: "off" keeps the lookup note on every lookup turn (kernel TutorTurn.notesMiss, lever 9e),
+   *  the switch's paired arm at the same commit. Unset: "on", what the app does. */
+  notesMiss?: "on" | "off";
   /** b7-cpu only: the CPU server's log file, read for the thread count its runner started with. */
   serverLog?: string;
 }
@@ -53,7 +56,7 @@ const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"];
 /** b7-cpu talks to a second, CPU-only Ollama server on its own port (README.md, "b7-cpu"). */
 export const B7_DEFAULT_OLLAMA_URL = "http://127.0.0.1:11435";
 export const B7_DEFAULT_REPEATS = 5;
-const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
+const SETS = ["main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 // Kept in step with rag-runner.ts RAG_PROMPTS by parity.test.ts (importing the runner here would pull the
 // kernel into a module that is meant to stay pure).
@@ -159,6 +162,15 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     // A sealed run measures the product as it ships.
     if (set === "sealed") errs.push("EVAL_TURN_NOTES is not allowed with EVAL_SET=sealed: the run uses the app's turn notes");
   }
+  const notesMiss = get("EVAL_NOTES_MISS") as EvalOptions["notesMiss"];
+  if (notesMiss !== undefined) {
+    if (notesMiss !== "on" && notesMiss !== "off") errs.push(`EVAL_NOTES_MISS=${notesMiss}: use on or off`);
+    // Refused exactly where EVAL_TURN_NOTES is, for the same reasons.
+    if (flow || b7) errs.push(`EVAL_NOTES_MISS does not apply to ${suite}`);
+    if (set === "sealed") errs.push("EVAL_NOTES_MISS is not allowed with EVAL_SET=sealed: the run uses the app's turn notes");
+    // With no turn notes there is no lookup note to switch: the arm would be EVAL_TURN_NOTES=off again.
+    if (notesMiss === "off" && turnNotes === "off") errs.push("EVAL_NOTES_MISS=off with EVAL_TURN_NOTES=off is meaningless: with no turn notes there is no lookup note to switch");
+  }
 
   if (errs.length) throw new Error(`Bad eval options:\n  ${errs.join("\n  ")}`);
   return {
@@ -182,6 +194,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     wire: wireRaw === "1",
     numGpu,
     turnNotes,
+    notesMiss,
     serverLog: b7 ? get("EVAL_B7_SERVER_LOG") : undefined,
   };
 }

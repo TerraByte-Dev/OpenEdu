@@ -1,0 +1,1704 @@
+{
+ "_about": "Lever 9e parity pins (askedThing-parity.test.ts). Copied, not recomputed, from the frozen prototype's outputs: C:/x/oe-lookup3/lexical-statement/dev-items.json (dev: the first recorded row's hits, iteration 2 L arm at 505ecd1, gemma4:e2b) and probe-items.json (probe: simulated retrieval). Per item: the hit titles shown, the asked-thing phrase and the COVER-mode fire decision of askedThing.frozen.ts (sha256 aa76d4a5...1d4c63). DEV data; never edit.",
+ "dev": [
+  {
+   "id": "v2-pf01",
+   "set": "dev-v2",
+   "titles": [
+    "Lab Log — Ostravine Oil",
+    "Geology — The Ombrevast Geyser",
+    "Physics — Trelvik Alloy"
+   ],
+   "thing": "pale green lubricant",
+   "fire": false
+  },
+  {
+   "id": "v2-pf02",
+   "set": "dev-v2",
+   "titles": [
+    "Lab Log — Ostravine Oil",
+    "Physics — Trelvik Alloy",
+    "Recipe — Mirrowdale Cheese"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "v2-pf03",
+   "set": "dev-v2",
+   "titles": [
+    "Field Guide — The Pellomir Newt",
+    "Astronomy — The Quenyra Comet",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "little orange-bellied newt",
+   "fire": false
+  },
+  {
+   "id": "v2-pf04",
+   "set": "dev-v2",
+   "titles": [
+    "Geography — Corrabeth Spur",
+    "Recipe — Mirrowdale Cheese",
+    "Physics — Trelvik Alloy"
+   ],
+   "thing": "ridge",
+   "fire": true
+  },
+  {
+   "id": "v2-pf05",
+   "set": "dev-v2",
+   "titles": [
+    "Reading Notes — The Vossmerren Accord",
+    "History — The Quellbrook Mill Strike",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "three river towns",
+   "fire": false
+  },
+  {
+   "id": "v2-pf06",
+   "set": "dev-v2",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Geology — The Ombrevast Geyser",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "comet",
+   "fire": false
+  },
+  {
+   "id": "v2-pf07",
+   "set": "dev-v2",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Maths — Draverholm's Constant",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "blue-tailed comet",
+   "fire": false
+  },
+  {
+   "id": "v2-pf08",
+   "set": "dev-v2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Music — The Sorvanne Harp",
+    "Waves & Sound"
+   ],
+   "thing": "sound",
+   "fire": false
+  },
+  {
+   "id": "v2-pf09",
+   "set": "dev-v2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Maths — Draverholm's Constant",
+    "Lab Log — Ostravine Oil"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "v2-pf10",
+   "set": "dev-v2",
+   "titles": [
+    "Music — The Sorvanne Harp",
+    "Linguistics — The Kharrovan Alphabet",
+    "Physics — Trelvik Alloy"
+   ],
+   "thing": "knee harp",
+   "fire": false
+  },
+  {
+   "id": "v2-pf11",
+   "set": "dev-v2",
+   "titles": [
+    "Maths — Draverholm's Constant",
+    "Physics — Trelvik Alloy",
+    "Economics — The Hallorin Index"
+   ],
+   "thing": "tiling constant",
+   "fire": false
+  },
+  {
+   "id": "v2-pf12",
+   "set": "dev-v2",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Astronomy — The Quenyra Comet",
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "geyser",
+   "fire": false
+  },
+  {
+   "id": "v2-pf13",
+   "set": "dev-v2",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Astronomy — The Quenyra Comet",
+    "Lab Log — Ostravine Oil"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "v2-pf14",
+   "set": "dev-v2",
+   "titles": [
+    "Zoology — The Varnholt Owl",
+    "Field Guide — The Pellomir Newt",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "owl",
+   "fire": false
+  },
+  {
+   "id": "v2-pf15",
+   "set": "dev-v2",
+   "titles": [
+    "Economics — The Hallorin Index",
+    "Maths — Draverholm's Constant",
+    "History — The Quellbrook Mill Strike"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "v2-pf16",
+   "set": "dev-v2",
+   "titles": [
+    "History — The Quellbrook Mill Strike",
+    "Computing — The Tarnwick Protocol",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "weavers'",
+   "fire": false
+  },
+  {
+   "id": "v2-pf17",
+   "set": "dev-v2",
+   "titles": [
+    "Computing — The Tarnwick Protocol",
+    "Geology — The Ombrevast Geyser",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "radio protocol",
+   "fire": false
+  },
+  {
+   "id": "v2-pf18",
+   "set": "dev-v2",
+   "titles": [
+    "Linguistics — The Kharrovan Alphabet",
+    "Maths — Draverholm's Constant",
+    "Music — The Sorvanne Harp"
+   ],
+   "thing": "alphabet",
+   "fire": false
+  },
+  {
+   "id": "v2-pf19",
+   "set": "dev-v2",
+   "titles": [
+    "Botany — The Cindrel Palm",
+    "Astronomy — The Quenyra Comet",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "island palm",
+   "fire": false
+  },
+  {
+   "id": "v2-pf20",
+   "set": "dev-v2",
+   "titles": [
+    "Recipe — Mirrowdale Cheese",
+    "Lab Log — Ostravine Oil",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "hard sheep's-milk cheese",
+   "fire": false
+  },
+  {
+   "id": "v2-pf21",
+   "set": "dev-v2",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Astronomy — The Quenyra Comet",
+    "Lab Log — Ostravine Oil"
+   ],
+   "thing": "water",
+   "fire": false
+  },
+  {
+   "id": "v2-pf22",
+   "set": "dev-v2",
+   "titles": [
+    "History — The Quellbrook Mill Strike",
+    "Reading Notes — The Vossmerren Accord",
+    "Recipe — Mirrowdale Cheese"
+   ],
+   "thing": "weavers",
+   "fire": false
+  },
+  {
+   "id": "v2-nl01",
+   "set": "dev-v2",
+   "titles": [
+    "Lab Log — Ostravine Oil",
+    "Maths — Draverholm's Constant",
+    "Geology — The Ombrevast Geyser"
+   ],
+   "thing": "glycerol",
+   "fire": true
+  },
+  {
+   "id": "v2-nl02",
+   "set": "dev-v2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Maths — Draverholm's Constant",
+    "Lab Log — Ostravine Oil"
+   ],
+   "thing": "mercury",
+   "fire": true
+  },
+  {
+   "id": "v2-nl03",
+   "set": "dev-v2",
+   "titles": [
+    "Field Guide — The Pellomir Newt",
+    "Astronomy — The Quenyra Comet",
+    "Botany — The Cindrel Palm"
+   ],
+   "thing": "gecko",
+   "fire": true
+  },
+  {
+   "id": "v2-nl04",
+   "set": "dev-v2",
+   "titles": [
+    "Geography — Corrabeth Spur",
+    "Geology — The Ombrevast Geyser",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "mount kilimanjaro",
+   "fire": true
+  },
+  {
+   "id": "v2-nl05",
+   "set": "dev-v2",
+   "titles": [
+    "Geography — Corrabeth Spur",
+    "Geology — The Ombrevast Geyser",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "mount fuji",
+   "fire": true
+  },
+  {
+   "id": "v2-nl06",
+   "set": "dev-v2",
+   "titles": [
+    "Reading Notes — The Vossmerren Accord",
+    "Recipe — Mirrowdale Cheese",
+    "Lab Log — Ostravine Oil"
+   ],
+   "thing": "magna carta",
+   "fire": true
+  },
+  {
+   "id": "v2-nl07",
+   "set": "dev-v2",
+   "titles": [
+    "Reading Notes — The Vossmerren Accord",
+    "History — The Quellbrook Mill Strike",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "westphalia",
+   "fire": true
+  },
+  {
+   "id": "v2-nl08",
+   "set": "dev-v2",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Geology — The Ombrevast Geyser",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "halley comet",
+   "fire": true
+  },
+  {
+   "id": "v2-nl09",
+   "set": "dev-v2",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Maths — Draverholm's Constant",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "full moon",
+   "fire": true
+  },
+  {
+   "id": "v2-nl10",
+   "set": "dev-v2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Computing — The Tarnwick Protocol",
+    "Waves & Sound"
+   ],
+   "thing": "sound",
+   "fire": false
+  },
+  {
+   "id": "v2-nl11",
+   "set": "dev-v2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Maths — Draverholm's Constant",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "iron",
+   "fire": true
+  },
+  {
+   "id": "v2-nl12",
+   "set": "dev-v2",
+   "titles": [
+    "Music — The Sorvanne Harp",
+    "Linguistics — The Kharrovan Alphabet",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "concert harp",
+   "fire": true
+  },
+  {
+   "id": "v2-nl13",
+   "set": "dev-v2",
+   "titles": [
+    "Music — The Sorvanne Harp",
+    "Linguistics — The Kharrovan Alphabet",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "standard piano",
+   "fire": true
+  },
+  {
+   "id": "v2-nl14",
+   "set": "dev-v2",
+   "titles": [
+    "Maths — Draverholm's Constant",
+    "Economics — The Hallorin Index",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "v2-nl15",
+   "set": "dev-v2",
+   "titles": [
+    "Maths — Draverholm's Constant",
+    "Linguistics — The Kharrovan Alphabet",
+    "Geology — The Ombrevast Geyser"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "v2-nl16",
+   "set": "dev-v2",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Astronomy — The Quenyra Comet",
+    "Botany — The Cindrel Palm"
+   ],
+   "thing": "old faithful",
+   "fire": true
+  },
+  {
+   "id": "v2-nl17",
+   "set": "dev-v2",
+   "titles": [
+    "Zoology — The Varnholt Owl",
+    "Field Guide — The Pellomir Newt",
+    "Music — The Sorvanne Harp"
+   ],
+   "thing": "barn owl",
+   "fire": true
+  },
+  {
+   "id": "v2-nl18",
+   "set": "dev-v2",
+   "titles": [
+    "Economics — The Hallorin Index",
+    "Maths — Draverholm's Constant",
+    "Music — The Sorvanne Harp"
+   ],
+   "thing": "small business",
+   "fire": true
+  },
+  {
+   "id": "v2-nl19",
+   "set": "dev-v2",
+   "titles": [
+    "Economics — The Hallorin Index",
+    "Maths — Draverholm's Constant",
+    "Physics — Trelvik Alloy"
+   ],
+   "thing": "central banks",
+   "fire": true
+  },
+  {
+   "id": "v2-nl20",
+   "set": "dev-v2",
+   "titles": [
+    "History — The Quellbrook Mill Strike",
+    "Recipe — Mirrowdale Cheese",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "general",
+   "fire": true
+  },
+  {
+   "id": "v2-nl21",
+   "set": "dev-v2",
+   "titles": [
+    "Computing — The Tarnwick Protocol",
+    "Geology — The Ombrevast Geyser",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "largest payload standard ethernet frame",
+   "fire": true
+  },
+  {
+   "id": "v2-nl22",
+   "set": "dev-v2",
+   "titles": [
+    "Linguistics — The Kharrovan Alphabet",
+    "Music — The Sorvanne Harp",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "russian alphabet",
+   "fire": true
+  },
+  {
+   "id": "v2-nl23",
+   "set": "dev-v2",
+   "titles": [
+    "Linguistics — The Kharrovan Alphabet",
+    "Music — The Sorvanne Harp",
+    "Greek Alphabet"
+   ],
+   "thing": "greek alphabet",
+   "fire": false
+  },
+  {
+   "id": "v2-nl24",
+   "set": "dev-v2",
+   "titles": [
+    "Botany — The Cindrel Palm",
+    "Geology — The Ombrevast Geyser",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": "century plant",
+   "fire": true
+  },
+  {
+   "id": "v2-nl25",
+   "set": "dev-v2",
+   "titles": [
+    "Recipe — Mirrowdale Cheese",
+    "Botany — The Cindrel Palm",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": "parmesan",
+   "fire": true
+  },
+  {
+   "id": "h-nm01",
+   "set": "dev",
+   "titles": [
+    "Field Notes — Marlow Basin",
+    "Geography — Ashcombe Ridge"
+   ],
+   "thing": "sample pits",
+   "fire": false
+  },
+  {
+   "id": "h-nm03",
+   "set": "dev",
+   "titles": [
+    "Field Notes — Marlow Basin",
+    "Geography — Ashcombe Ridge",
+    "Astronomy — Perrin's Star"
+   ],
+   "thing": "rain",
+   "fire": true
+  },
+  {
+   "id": "h-nm05",
+   "set": "dev",
+   "titles": [
+    "Lab Log — Verrin Solution",
+    "Geography — Ashcombe Ridge",
+    "Recipe — Brannock Bread"
+   ],
+   "thing": "acetone",
+   "fire": true
+  },
+  {
+   "id": "h-nm07",
+   "set": "dev",
+   "titles": [
+    "Engine Teardown",
+    "Economics — The Wexler Ratio",
+    "Recipe — Brannock Bread"
+   ],
+   "thing": "kessel rotor",
+   "fire": false
+  },
+  {
+   "id": "h-nm09",
+   "set": "dev",
+   "titles": [
+    "Engine Teardown",
+    "Circular & Rotational Motion"
+   ],
+   "thing": "bolts",
+   "fire": false
+  },
+  {
+   "id": "h-nm11",
+   "set": "dev",
+   "titles": [
+    "Reading Notes — Tolvane Doctrine"
+   ],
+   "thing": "united states constitution",
+   "fire": true
+  },
+  {
+   "id": "h-nm13",
+   "set": "dev",
+   "titles": [
+    "Recipe — Brannock Bread",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": "brannock bread",
+   "fire": false
+  },
+  {
+   "id": "h-nm15",
+   "set": "dev",
+   "titles": [
+    "Recipe — Brannock Bread",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": "brannock bread",
+   "fire": false
+  },
+  {
+   "id": "h-nm17",
+   "set": "dev",
+   "titles": [
+    "Astronomy — Perrin's Star",
+    "Geography — Ashcombe Ridge"
+   ],
+   "thing": "sirius",
+   "fire": true
+  },
+  {
+   "id": "h-nm19",
+   "set": "dev",
+   "titles": [
+    "Chemistry — Dalquist Reagent",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": "dalquist reagent",
+   "fire": false
+  },
+  {
+   "id": "h-nm21",
+   "set": "dev",
+   "titles": [
+    "Chemistry — Dalquist Reagent",
+    "Lab Log — Verrin Solution",
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": "dalquist reagent",
+   "fire": false
+  },
+  {
+   "id": "h-nm23",
+   "set": "dev",
+   "titles": [
+    "Geography — Ashcombe Ridge",
+    "Astronomy — Perrin's Star"
+   ],
+   "thing": "ben nevis",
+   "fire": true
+  },
+  {
+   "id": "h-nm25",
+   "set": "dev",
+   "titles": [
+    "Economics — The Wexler Ratio",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-nm27",
+   "set": "dev",
+   "titles": [
+    "Biology — Tessik Frog"
+   ],
+   "thing": "tessik frog",
+   "fire": false
+  },
+  {
+   "id": "h-nm29",
+   "set": "dev",
+   "titles": [
+    "Course Admin",
+    "Study Plan"
+   ],
+   "thing": "final exam",
+   "fire": true
+  },
+  {
+   "id": "h-nm31",
+   "set": "dev",
+   "titles": [
+    "Study Plan",
+    "Economics — The Wexler Ratio",
+    "Field Notes — Marlow Basin"
+   ],
+   "thing": "pass mark",
+   "fire": true
+  },
+  {
+   "id": "h-nm33",
+   "set": "dev",
+   "titles": [
+    "Lab Log — Verrin Solution",
+    "Chemistry — Dalquist Reagent",
+    "Astronomy — Perrin's Star"
+   ],
+   "thing": "ethanol",
+   "fire": true
+  },
+  {
+   "id": "h-nm35",
+   "set": "dev",
+   "titles": [
+    "Geography — Ashcombe Ridge",
+    "Astronomy — Perrin's Star"
+   ],
+   "thing": "mount everest",
+   "fire": true
+  },
+  {
+   "id": "h-fn01",
+   "set": "dev",
+   "titles": [],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-fn03",
+   "set": "dev",
+   "titles": [],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-fn05",
+   "set": "dev",
+   "titles": [
+    "Squares, Cubes & Roots"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-fn07",
+   "set": "dev",
+   "titles": [],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-es01",
+   "set": "dev",
+   "titles": [
+    "Field Notes — Marlow Basin"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-es03",
+   "set": "dev",
+   "titles": [
+    "Astronomy — Perrin's Star"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-fr01",
+   "set": "dev",
+   "titles": [
+    "Reading Notes — Tolvane Doctrine"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-fr03",
+   "set": "dev",
+   "titles": [
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-hi01",
+   "set": "dev",
+   "titles": [
+    "Recipe — Brannock Bread"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-hi03",
+   "set": "dev",
+   "titles": [
+    "Chemistry — Dalquist Reagent",
+    "Lab Log — Verrin Solution",
+    "Reading Notes — Tolvane Doctrine"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-sw01",
+   "set": "dev",
+   "titles": [
+    "Engine Teardown",
+    "Biology — Tessik Frog"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-sw03",
+   "set": "dev",
+   "titles": [
+    "Astronomy — Perrin's Star",
+    "Biology — Tessik Frog"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-ar01",
+   "set": "dev",
+   "titles": [
+    "Geography — Ashcombe Ridge",
+    "Astronomy — Perrin's Star",
+    "Field Notes — Marlow Basin"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-ar03",
+   "set": "dev",
+   "titles": [
+    "Recipe — Brannock Bread",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-am01",
+   "set": "dev",
+   "titles": [
+    "Biology — Tessik Frog",
+    "Economics — The Wexler Ratio",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-xl-am03",
+   "set": "dev",
+   "titles": [
+    "Chemistry — Dalquist Reagent",
+    "Lab Log — Verrin Solution",
+    "Recipe — Brannock Bread"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-pp01",
+   "set": "dev",
+   "titles": [
+    "Field Notes — Marlow Basin",
+    "Geography — Ashcombe Ridge",
+    "Biology — Tessik Frog"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-pp03",
+   "set": "dev",
+   "titles": [
+    "Engine Teardown",
+    "Economics — The Wexler Ratio",
+    "Recipe — Brannock Bread"
+   ],
+   "thing": "kessel",
+   "fire": false
+  },
+  {
+   "id": "h-pp05",
+   "set": "dev",
+   "titles": [
+    "Recipe — Brannock Bread",
+    "Lab Log — Verrin Solution",
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-pp07",
+   "set": "dev",
+   "titles": [
+    "Chemistry — Dalquist Reagent",
+    "Field Notes — Marlow Basin",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-pp09",
+   "set": "dev",
+   "titles": [
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "h-pp11",
+   "set": "dev",
+   "titles": [
+    "Course Admin",
+    "Study Plan"
+   ],
+   "thing": "weekly deadline",
+   "fire": true
+  },
+  {
+   "id": "h-pp13",
+   "set": "dev",
+   "titles": [
+    "Engine Teardown",
+    "Geography — Ashcombe Ridge",
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": "kessel mount",
+   "fire": false
+  },
+  {
+   "id": "h-pp15",
+   "set": "dev",
+   "titles": [
+    "Course Admin",
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": null,
+   "fire": false
+  }
+ ],
+ "probe": [
+  {
+   "id": "bp-ost-1",
+   "titles": [
+    "Lab Log — Ostravine Oil",
+    "Physics — Trelvik Alloy",
+    "Geology — The Ombrevast Geyser"
+   ],
+   "thing": "pale green lubricant",
+   "fire": false
+  },
+  {
+   "id": "bp-ost-2",
+   "titles": [
+    "Lab Log — Ostravine Oil",
+    "Maths — Draverholm's Constant",
+    "Physics — Trelvik Alloy"
+   ],
+   "thing": "seed-husk oil",
+   "fire": false
+  },
+  {
+   "id": "bp-pel-1",
+   "titles": [
+    "Field Guide — The Pellomir Newt",
+    "Astronomy — The Quenyra Comet",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "orange-bellied newt",
+   "fire": false
+  },
+  {
+   "id": "bp-pel-2",
+   "titles": [
+    "Field Guide — The Pellomir Newt",
+    "Zoology — The Varnholt Owl",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": "newt",
+   "fire": false
+  },
+  {
+   "id": "bp-cor-1",
+   "titles": [
+    "Geography — Corrabeth Spur",
+    "Recipe — Mirrowdale Cheese",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "peak",
+   "fire": true
+  },
+  {
+   "id": "bp-cor-2",
+   "titles": [
+    "Geography — Corrabeth Spur",
+    "History — The Quellbrook Mill Strike",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "snow usually",
+   "fire": false
+  },
+  {
+   "id": "bp-vos-1",
+   "titles": [
+    "Reading Notes — The Vossmerren Accord",
+    "History — The Quellbrook Mill Strike",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "three river towns",
+   "fire": false
+  },
+  {
+   "id": "bp-vos-2",
+   "titles": [
+    "Reading Notes — The Vossmerren Accord",
+    "History — The Quellbrook Mill Strike",
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "river towns' fishing-rights agreement",
+   "fire": true
+  },
+  {
+   "id": "bp-que-1",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Geology — The Ombrevast Geyser",
+    "The Solar System & Planet Data"
+   ],
+   "thing": "comet",
+   "fire": false
+  },
+  {
+   "id": "bp-que-2",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Maths — Draverholm's Constant",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "blue-tailed comet",
+   "fire": false
+  },
+  {
+   "id": "bp-tre-1",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Music — The Sorvanne Harp",
+    "Waves & Sound"
+   ],
+   "thing": "sound",
+   "fire": false
+  },
+  {
+   "id": "bp-tre-2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Maths — Draverholm's Constant",
+    "History — The Quellbrook Mill Strike"
+   ],
+   "thing": "bell alloy",
+   "fire": false
+  },
+  {
+   "id": "bp-sor-1",
+   "titles": [
+    "Music — The Sorvanne Harp",
+    "Linguistics — The Kharrovan Alphabet",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "harp",
+   "fire": false
+  },
+  {
+   "id": "bp-sor-2",
+   "titles": [
+    "Music — The Sorvanne Harp",
+    "Maths — Draverholm's Constant",
+    "Physics — Trelvik Alloy"
+   ],
+   "thing": "traditionally tuned slightly flat",
+   "fire": true
+  },
+  {
+   "id": "bp-dra-1",
+   "titles": [
+    "Maths — Draverholm's Constant",
+    "Economics — The Hallorin Index",
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "constant",
+   "fire": false
+  },
+  {
+   "id": "bp-omb-1",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Astronomy — The Quenyra Comet",
+    "History — The Quellbrook Mill Strike"
+   ],
+   "thing": "geyser",
+   "fire": false
+  },
+  {
+   "id": "bp-omb-2",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Astronomy — The Quenyra Comet",
+    "Lab Log — Ostravine Oil"
+   ],
+   "thing": "water",
+   "fire": false
+  },
+  {
+   "id": "bp-var-1",
+   "titles": [
+    "Zoology — The Varnholt Owl",
+    "Field Guide — The Pellomir Newt",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "owl",
+   "fire": false
+  },
+  {
+   "id": "bp-hal-1",
+   "titles": [
+    "Economics — The Hallorin Index",
+    "Maths — Draverholm's Constant",
+    "History — The Quellbrook Mill Strike"
+   ],
+   "thing": "index comparing unpaid invoices",
+   "fire": false
+  },
+  {
+   "id": "bp-qbk-1",
+   "titles": [
+    "History — The Quellbrook Mill Strike",
+    "Geology — The Ombrevast Geyser",
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "weavers'",
+   "fire": false
+  },
+  {
+   "id": "bp-qbk-2",
+   "titles": [
+    "History — The Quellbrook Mill Strike",
+    "Reading Notes — The Vossmerren Accord",
+    "Economics — The Hallorin Index"
+   ],
+   "thing": "mill strike",
+   "fire": false
+  },
+  {
+   "id": "bp-tar-1",
+   "titles": [
+    "Computing — The Tarnwick Protocol",
+    "Geology — The Ombrevast Geyser",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "protocol",
+   "fire": false
+  },
+  {
+   "id": "bp-tar-2",
+   "titles": [
+    "Computing — The Tarnwick Protocol",
+    "Geology — The Ombrevast Geyser",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "receiver miss",
+   "fire": false
+  },
+  {
+   "id": "bp-kha-1",
+   "titles": [
+    "Linguistics — The Kharrovan Alphabet",
+    "Music — The Sorvanne Harp",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "alphabet",
+   "fire": false
+  },
+  {
+   "id": "bp-kha-2",
+   "titles": [
+    "Linguistics — The Kharrovan Alphabet",
+    "Music — The Sorvanne Harp",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "vowels",
+   "fire": false
+  },
+  {
+   "id": "bp-cin-1",
+   "titles": [
+    "Botany — The Cindrel Palm",
+    "Field Guide — The Pellomir Newt",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": "palm",
+   "fire": false
+  },
+  {
+   "id": "bp-mir-1",
+   "titles": [
+    "Recipe — Mirrowdale Cheese",
+    "Lab Log — Ostravine Oil",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "hard sheep's-milk cheese",
+   "fire": false
+  },
+  {
+   "id": "bp-mir-2",
+   "titles": [
+    "Recipe — Mirrowdale Cheese",
+    "History — The Quellbrook Mill Strike",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "cheese",
+   "fire": false
+  },
+  {
+   "id": "bp-mar-1",
+   "titles": [
+    "Field Notes — Marlow Basin",
+    "Economics — The Wexler Ratio",
+    "Astronomy — Perrin's Star"
+   ],
+   "thing": "sediment index",
+   "fire": false
+  },
+  {
+   "id": "bp-ver-1",
+   "titles": [
+    "Lab Log — Verrin Solution",
+    "Chemistry — Dalquist Reagent",
+    "Field Notes — Marlow Basin"
+   ],
+   "thing": "lab solution",
+   "fire": true
+  },
+  {
+   "id": "bp-kes-1",
+   "titles": [
+    "Engine Teardown",
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": "rotor",
+   "fire": false
+  },
+  {
+   "id": "bp-tol-1",
+   "titles": [
+    "Reading Notes — Tolvane Doctrine",
+    "Study Plan",
+    "Engine Teardown"
+   ],
+   "thing": "doctrine saying municipal charters can't",
+   "fire": true
+  },
+  {
+   "id": "bp-bra-1",
+   "titles": [
+    "Recipe — Brannock Bread",
+    "Economics — The Wexler Ratio",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": "bread",
+   "fire": false
+  },
+  {
+   "id": "bp-per-1",
+   "titles": [
+    "Astronomy — Perrin's Star",
+    "Economics — The Wexler Ratio",
+    "Field Notes — Marlow Basin"
+   ],
+   "thing": "star",
+   "fire": false
+  },
+  {
+   "id": "bp-dal-1",
+   "titles": [
+    "Chemistry — Dalquist Reagent",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": "reagent",
+   "fire": false
+  },
+  {
+   "id": "bp-ash-1",
+   "titles": [
+    "Geography — Ashcombe Ridge",
+    "Astronomy — Perrin's Star",
+    "Field Notes — Marlow Basin"
+   ],
+   "thing": "ridge",
+   "fire": false
+  },
+  {
+   "id": "bp-wex-1",
+   "titles": [
+    "Economics — The Wexler Ratio",
+    "Course Admin",
+    "Field Notes — Marlow Basin"
+   ],
+   "thing": "seasonal inventory",
+   "fire": false
+  },
+  {
+   "id": "bp-tes-1",
+   "titles": [
+    "Biology — Tessik Frog"
+   ],
+   "thing": "frog",
+   "fire": false
+  },
+  {
+   "id": "bn-ost-1",
+   "titles": [
+    "Lab Log — Ostravine Oil",
+    "Geology — The Ombrevast Geyser",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "ethanol",
+   "fire": true
+  },
+  {
+   "id": "bn-ost-2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Lab Log — Ostravine Oil",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "mercury",
+   "fire": true
+  },
+  {
+   "id": "bn-pel-1",
+   "titles": [
+    "Field Guide — The Pellomir Newt",
+    "Botany — The Cindrel Palm",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "axolotl",
+   "fire": true
+  },
+  {
+   "id": "bn-pel-2",
+   "titles": [
+    "Field Guide — The Pellomir Newt",
+    "Astronomy — The Quenyra Comet",
+    "Botany — The Cindrel Palm"
+   ],
+   "thing": "great crested newt",
+   "fire": true
+  },
+  {
+   "id": "bn-cor-1",
+   "titles": [
+    "Geography — Corrabeth Spur",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "ben nevis",
+   "fire": true
+  },
+  {
+   "id": "bn-cor-2",
+   "titles": [
+    "Geography — Corrabeth Spur",
+    "Maths — Draverholm's Constant",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": "mount kilimanjaro",
+   "fire": true
+  },
+  {
+   "id": "bn-vos-1",
+   "titles": [
+    "Reading Notes — The Vossmerren Accord",
+    "History — The Quellbrook Mill Strike",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "utrecht",
+   "fire": true
+  },
+  {
+   "id": "bn-vos-2",
+   "titles": [
+    "Reading Notes — The Vossmerren Accord",
+    "History — The Quellbrook Mill Strike",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "westphalia",
+   "fire": true
+  },
+  {
+   "id": "bn-que-1",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Geology — The Ombrevast Geyser",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "halley comet",
+   "fire": true
+  },
+  {
+   "id": "bn-que-2",
+   "titles": [
+    "Astronomy — The Quenyra Comet",
+    "Zoology — The Varnholt Owl",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "comet encke",
+   "fire": true
+  },
+  {
+   "id": "bn-tre-1",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Maths — Draverholm's Constant",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "copper",
+   "fire": false
+  },
+  {
+   "id": "bn-tre-2",
+   "titles": [
+    "Physics — Trelvik Alloy",
+    "Waves & Sound",
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "sound",
+   "fire": false
+  },
+  {
+   "id": "bn-sor-1",
+   "titles": [
+    "Music — The Sorvanne Harp",
+    "Maths — Draverholm's Constant",
+    "Linguistics — The Kharrovan Alphabet"
+   ],
+   "thing": "concert pedal harp",
+   "fire": true
+  },
+  {
+   "id": "bn-dra-1",
+   "titles": [
+    "Maths — Draverholm's Constant",
+    "Economics — The Hallorin Index",
+    "Zoology — The Varnholt Owl"
+   ],
+   "thing": null,
+   "fire": false
+  },
+  {
+   "id": "bn-dra-2",
+   "titles": [
+    "Maths — Draverholm's Constant",
+    "Linguistics — The Kharrovan Alphabet",
+    "Geology — The Ombrevast Geyser"
+   ],
+   "thing": "euler number e",
+   "fire": true
+  },
+  {
+   "id": "bn-omb-1",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Field Guide — The Pellomir Newt",
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "strokkur geyser",
+   "fire": true
+  },
+  {
+   "id": "bn-omb-2",
+   "titles": [
+    "Geology — The Ombrevast Geyser",
+    "Zoology — The Varnholt Owl",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "old faithful",
+   "fire": true
+  },
+  {
+   "id": "bn-var-1",
+   "titles": [
+    "Zoology — The Varnholt Owl",
+    "Field Guide — The Pellomir Newt",
+    "Music — The Sorvanne Harp"
+   ],
+   "thing": "snowy owl",
+   "fire": true
+  },
+  {
+   "id": "bn-var-2",
+   "titles": [
+    "Zoology — The Varnholt Owl",
+    "Field Guide — The Pellomir Newt",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": "eurasian eagle-owl",
+   "fire": true
+  },
+  {
+   "id": "bn-hal-1",
+   "titles": [
+    "Economics — The Hallorin Index",
+    "Maths — Draverholm's Constant",
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "small business",
+   "fire": true
+  },
+  {
+   "id": "bn-hal-2",
+   "titles": [
+    "Economics — The Hallorin Index",
+    "Maths — Draverholm's Constant",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": "days sales outstanding",
+   "fire": true
+  },
+  {
+   "id": "bn-qbk-1",
+   "titles": [
+    "History — The Quellbrook Mill Strike",
+    "Recipe — Mirrowdale Cheese",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "general",
+   "fire": true
+  },
+  {
+   "id": "bn-qbk-2",
+   "titles": [
+    "History — The Quellbrook Mill Strike",
+    "Reading Notes — The Vossmerren Accord",
+    "Geography — Corrabeth Spur"
+   ],
+   "thing": "london matchgirls'",
+   "fire": true
+  },
+  {
+   "id": "bn-tar-1",
+   "titles": [
+    "Computing — The Tarnwick Protocol",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "standard ethernet mtu",
+   "fire": true
+  },
+  {
+   "id": "bn-tar-2",
+   "titles": [
+    "Computing — The Tarnwick Protocol"
+   ],
+   "thing": "udp header",
+   "fire": true
+  },
+  {
+   "id": "bn-kha-1",
+   "titles": [
+    "Linguistics — The Kharrovan Alphabet",
+    "Music — The Sorvanne Harp",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "hebrew alphabet",
+   "fire": true
+  },
+  {
+   "id": "bn-kha-2",
+   "titles": [
+    "Linguistics — The Kharrovan Alphabet",
+    "Music — The Sorvanne Harp",
+    "Greek Alphabet"
+   ],
+   "thing": "greek alphabet",
+   "fire": false
+  },
+  {
+   "id": "bn-cin-1",
+   "titles": [
+    "Botany — The Cindrel Palm",
+    "Field Guide — The Pellomir Newt",
+    "Astronomy — The Quenyra Comet"
+   ],
+   "thing": "talipot palm",
+   "fire": true
+  },
+  {
+   "id": "bn-cin-2",
+   "titles": [
+    "Botany — The Cindrel Palm",
+    "Astronomy — The Quenyra Comet",
+    "Field Guide — The Pellomir Newt"
+   ],
+   "thing": "century plant",
+   "fire": true
+  },
+  {
+   "id": "bn-mir-1",
+   "titles": [
+    "Recipe — Mirrowdale Cheese",
+    "Botany — The Cindrel Palm",
+    "Maths — Draverholm's Constant"
+   ],
+   "thing": "parmigiano reggiano",
+   "fire": true
+  },
+  {
+   "id": "bn-mir-2",
+   "titles": [
+    "Field Guide — The Pellomir Newt",
+    "Recipe — Mirrowdale Cheese",
+    "Botany — The Cindrel Palm"
+   ],
+   "thing": "pecorino romano",
+   "fire": true
+  },
+  {
+   "id": "bn-ver-1",
+   "titles": [
+    "Lab Log — Verrin Solution",
+    "Geography — Ashcombe Ridge",
+    "Recipe — Brannock Bread"
+   ],
+   "thing": "acetone",
+   "fire": true
+  },
+  {
+   "id": "bn-kes-1",
+   "titles": [
+    "Engine Teardown",
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": "current formula engine",
+   "fire": true
+  },
+  {
+   "id": "bn-tol-1",
+   "titles": [
+    "Reading Notes — Tolvane Doctrine"
+   ],
+   "thing": "monroe doctrine",
+   "fire": true
+  },
+  {
+   "id": "bn-per-1",
+   "titles": [
+    "Astronomy — Perrin's Star",
+    "Geography — Ashcombe Ridge"
+   ],
+   "thing": "sirius",
+   "fire": true
+  },
+  {
+   "id": "bn-dal-1",
+   "titles": [
+    "Chemistry — Dalquist Reagent",
+    "Lab Log — Verrin Solution"
+   ],
+   "thing": "silver nitrate",
+   "fire": true
+  },
+  {
+   "id": "bn-ash-1",
+   "titles": [
+    "Geography — Ashcombe Ridge",
+    "Astronomy — Perrin's Star"
+   ],
+   "thing": "snowdon",
+   "fire": true
+  },
+  {
+   "id": "bn-wex-1",
+   "titles": [
+    "Economics — The Wexler Ratio",
+    "Recipe — Brannock Bread"
+   ],
+   "thing": "grocery store",
+   "fire": true
+  },
+  {
+   "id": "bn-tes-1",
+   "titles": [
+    "Biology — Tessik Frog"
+   ],
+   "thing": "common frog",
+   "fire": true
+  },
+  {
+   "id": "bn-bra-1",
+   "titles": [
+    "Recipe — Brannock Bread",
+    "Lab Log — Verrin Solution",
+    "Economics — The Wexler Ratio"
+   ],
+   "thing": null,
+   "fire": false
+  }
+ ]
+}

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { classifyMessage, type TurnKind } from "../kernel/turnKind";
 import { RAG_DEV_V2 } from "./rag-dev-v2";
 import { RAG_HELDOUT } from "./rag-heldout";
+import { RAG_PROBE_ITEMS } from "./rag-probe";
 
 // What the turn classifier (kernel/turnKind.ts) makes of the RAG dev questions, pinned so a run's
 // trigger rate is a check on the run, not a variable. DEV only: the classifier's second revision was
@@ -28,5 +29,23 @@ describe("turn kinds on the RAG dev sets", () => {
     expect(by("positive", "paraphrase")).toEqual({ "fact-lookup": 4, other: 4 });
     expect(by("negative", "near-miss")).toEqual({ "fact-lookup": 16, other: 2 });
     expect(by("negative", "far")).toEqual({ "fact-lookup": 3, "typed-problem": 1 });
+  });
+});
+
+// Lever 9e's probe (rag-probe.ts). Pinned from the prototype's judge pass, before any model run; the
+// classifier is unchanged since #215.
+describe("turn kinds on the lever-9e probe", () => {
+  const kindOf = (id: string) => classifyMessage(RAG_PROBE_ITEMS.find((x) => x.id === id)!.ask);
+  const others = (kind: string) => RAG_PROBE_ITEMS.filter((x) => x.kind === kind && classifyMessage(x.ask) !== "fact-lookup").map((x) => x.id);
+
+  it("positives: 33 fact lookups; bp-dra-1, bp-kha-1, bp-kha-2, bp-cin-1, bp-ver-1 are other", () => {
+    expect(tally(RAG_PROBE_ITEMS.filter((x) => x.kind === "positive"))).toEqual({ "fact-lookup": 33, other: 5 });
+    expect(others("positive")).toEqual(["bp-dra-1", "bp-kha-1", "bp-kha-2", "bp-cin-1", "bp-ver-1"]);
+  });
+
+  it("near-misses: 39 fact lookups; bn-qbk-1 is other", () => {
+    expect(tally(RAG_PROBE_ITEMS.filter((x) => x.kind === "near-miss"))).toEqual({ "fact-lookup": 39, other: 1 });
+    expect(others("near-miss")).toEqual(["bn-qbk-1"]);
+    expect(kindOf("bn-qbk-1")).toBe("other");
   });
 });

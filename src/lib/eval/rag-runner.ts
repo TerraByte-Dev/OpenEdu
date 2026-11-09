@@ -20,7 +20,7 @@
 
 import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type TutorTurnResult, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
-import type { TurnKind } from "../kernel/turnKind";
+import { FACT_LOOKUP_NOTE, type TurnKind } from "../kernel/turnKind";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
 import { buildSystemPrompt, TUTOR_RULES } from "../curriculum";
@@ -32,6 +32,7 @@ import { evalToolSyllabus } from "./goldens";
 import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureNote, type RagQuestion, type RagVerdict } from "./rag-fixture";
 import { RAG_HELDOUT } from "./rag-heldout";
 import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
+import { RAG_PROBE_V1, RAG_PROBE_V2 } from "./rag-probe";
 import { hasRefusalPhrase } from "./refusal";
 import type { LLMConfig, Syllabus } from "../../types";
 
@@ -100,6 +101,11 @@ export interface RagRow {
    *  a turn that threw. */
   turnKind: TurnKind | null;
   turnNoted: boolean;
+  /** Which lookup note the turn sent (lever 9e): "lookup" is FACT_LOOKUP_NOTE, "notes-miss" the switched
+   *  note (turnKind.ts notesMissNote); null when the turn sent no lookup note or threw. */
+  lookupNote: "lookup" | "notes-miss" | null;
+  /** The asked-about phrase askedThing.ts parsed, on a lookup turn that consulted the switch; else null. */
+  askedThing: string | null;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
   ttft_ms: number | null;
   /** Milliseconds for the whole turn, grounding and tool calls included. */
@@ -127,7 +133,10 @@ export interface RagReport {
   prompt: RagPrompt;
   /** "off" when the run sent no turn notes (EVAL_TURN_NOTES=off, the paired baseline arm). */
   turnNotes: "on" | "off";
-  /** "main", "dev", "test", "dev-v2", or the name of a custom set (e.g. the sealed held-out file). */
+  /** "off" when the notes-miss switch was not consulted (EVAL_NOTES_MISS=off, lever 9e's paired arm). */
+  notesMiss: "on" | "off";
+  /** "main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", or the name of a custom set (e.g. the
+   *  sealed held-out file). */
   set: string;
   rows: RagRow[];
   /** mode → kind → { pass, total } */
@@ -178,8 +187,9 @@ export async function runRagEval(opts?: {
   /** One question id, or several separated by commas. */
   only?: string;
   /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts;
-   *  "dev-v2" is rag-dev-v2.ts, with its own vault. */
-  set?: "main" | "dev" | "test" | "dev-v2";
+   *  "dev-v2" is rag-dev-v2.ts, with its own vault; "probe-v2" and "probe-v1" are rag-probe.ts, on the
+   *  v2 vault and RAG_FIXTURE. */
+  set?: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1";
   /** A set that brings its own vault (the sealed held-out file). Replaces `set` and RAG_FIXTURE. */
   custom?: RagCustomSet;
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
@@ -190,6 +200,9 @@ export async function runRagEval(opts?: {
   /** "off": the kernel sends no turn note (TutorTurn.turnNotes), for the paired baseline. Default "on",
    *  which is what the app does. */
   turnNotes?: "on" | "off";
+  /** "off": the kernel keeps the lookup note on every lookup turn (TutorTurn.notesMiss), for lever 9e's
+   *  paired arm. Default "on", which is what the app does. */
+  notesMiss?: "on" | "off";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -201,6 +214,7 @@ export async function runRagEval(opts?: {
 
   const repeats = opts?.repeats ?? 1;
   const turnNotes = opts?.turnNotes ?? "on";
+  const notesMiss = opts?.notesMiss ?? "on";
   const prompt = opts?.prompt ?? "standin";
   if (!RAG_PROMPTS.includes(prompt)) {
     inFlight = false;
@@ -209,9 +223,11 @@ export async function runRagEval(opts?: {
   const instructions = ragInstructions(prompt);
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
-  const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
+  const vault = opts?.custom?.vault ?? (set === "dev-v2" || set === "probe-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
   const pool: RagQuestion[] = opts?.custom ? opts.custom.questions
-    : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2 : RAG_HELDOUT.filter((q) => q.split === set);
+    : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2
+    : set === "probe-v2" ? RAG_PROBE_V2 : set === "probe-v1" ? RAG_PROBE_V1
+    : RAG_HELDOUT.filter((q) => q.split === set);
   const only = opts?.only ? new Set(opts.only.split(",").map((id) => id.trim()).filter(Boolean)) : null;
   const questions = only ? pool.filter((q) => only.has(q.id)) : pool;
   if (questions.length === 0) {
@@ -266,6 +282,7 @@ export async function runRagEval(opts?: {
             config,
             retrieval: mode,
             ...(turnNotes === "off" ? { turnNotes } : {}),
+            ...(notesMiss === "off" ? { notesMiss } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -281,11 +298,18 @@ export async function runRagEval(opts?: {
           let toolCallRecovery: RagRow["toolCallRecovery"] = null;
           let turnKind: TurnKind | null = null;
           let turnNoted = false;
+          let lookupNote: RagRow["lookupNote"] = null;
+          let askedThing: string | null = null;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
             turnKind = result.turnKind;
             turnNoted = result.turnNote !== null;
+            // The trace says which note a lookup turn that consulted the switch sent; any other turn
+            // with FACT_LOOKUP_NOTE (switch off, or no passages shown) sent the plain lookup note.
+            const ln = result.grounding.trace.lookupNote;
+            lookupNote = ln?.variant ?? (result.turnNote === FACT_LOOKUP_NOTE ? "lookup" : null);
+            askedThing = ln?.thing ?? null;
             retrievalTrace = result.grounding.trace;
             // The citation the STUDENT would see — n-gram verified, never the model's claim. In
             // tool-only mode the grounding stage does not run, so a cited title can still arrive via
@@ -332,7 +356,7 @@ export async function runRagEval(opts?: {
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
           const refusal = hasRefusalPhrase(answer);
-          rows.push({ prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, ttft_ms, total_ms, error, toolCallRecovery });
+          rows.push({ prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, lookupNote, askedThing, ttft_ms, total_ms, error, toolCallRecovery });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -380,7 +404,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, notesMiss, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

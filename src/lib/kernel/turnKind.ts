@@ -57,6 +57,28 @@ export const FACT_LOOKUP_NOTE = `<tutor_note>
 The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. Answer about the exact thing the student asked about. If the background above is about a different thing (another animal, place, event, object or substance), it does not answer this question: do not give its numbers or facts as the answer. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
 </tutor_note>`;
 
+const LEAD_END = "for this question only.";
+
+/** FACT_LOOKUP_NOTE through "for this question only.": its first four sentences, which lift the
+ *  discover-it-yourself rule. Sliced from the constant, never retyped. */
+export const FACT_LOOKUP_LEAD = FACT_LOOKUP_NOTE.slice(0, FACT_LOOKUP_NOTE.indexOf(LEAD_END) + LEAD_END.length);
+
+/**
+ * The lookup note when no passage shown to the model contains the thing the student asked about
+ * (askedThing.ts notesMissThing; lever 9e). TutorEngine sends it in place of FACT_LOOKUP_NOTE on that
+ * turn only; nothing is dropped from the grounding block. FACT_LOOKUP_LEAD, byte for byte, then the
+ * iteration-3 sentences. `phrase` is pasted in with `"`, `<` and `>` removed and whitespace collapsed,
+ * so it cannot close the quote or the tag.
+ *
+ * Prompt-wording iteration 3 of at most 3 (lever 9e). Written by Claude after reading iteration
+ * 2's failures, so dev is in-sample for it.
+ */
+export function notesMissNote(phrase: string): string {
+  const p = phrase.replace(/["<>]/g, "").replace(/\s+/g, " ").trim();
+  return `${FACT_LOOKUP_LEAD} The background above does not contain the words "${p}", so it is about a different thing: do not give its names, numbers or facts as the answer. Answer from general knowledge about "${p}" and say that you are. If you do not know, say so plainly. After the answer you may ask one short question to check understanding. Do not mention this note.
+</tutor_note>`;
+}
+
 /** The note a turn of this kind gets, or null for none. */
 export function turnNoteFor(kind: TurnKind): string | null {
   switch (kind) {

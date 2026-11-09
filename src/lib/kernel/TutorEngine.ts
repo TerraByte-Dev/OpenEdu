@@ -22,7 +22,8 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
-import { classifyTurn, turnNoteFor, withTurnNote, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
+import { classifyTurn, turnNoteFor, withTurnNote, notesMissNote, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
+import { notesMissThing } from "./askedThing";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
@@ -48,6 +49,10 @@ export interface TutorTurn {
   // same commit (EVAL_TURN_NOTES=off). The turn is still classified and reported. Default "on"; the
   // app never sets it.
   turnNotes?: "on" | "off";
+  // "off" keeps FACT_LOOKUP_NOTE on every lookup turn: the notes-miss switch below (askedThing.ts,
+  // lever 9e) is not consulted, so an eval can run the lever's paired arm at the same commit
+  // (EVAL_NOTES_MISS=off). Default "on"; the app never sets it.
+  notesMiss?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -145,7 +150,7 @@ export class TutorEngine {
     // one master measured.
     const checkBeforePraise = isCheckBeforePraiseTurn(chat);
     const kindNote = turn.turnNotes === "off" ? null : turnNoteFor(turnKind);
-    const turnNote = checkBeforePraise && kindNote === FACT_LOOKUP_NOTE ? null : kindNote;
+    let turnNote = checkBeforePraise && kindNote === FACT_LOOKUP_NOTE ? null : kindNote;
     const firstTurnHold = turnNote !== null && (turnKind === "options-problem" || turnKind === "typed-problem");
 
     const eduTools = await selectTools(ctx);
@@ -200,6 +205,17 @@ export class TutorEngine {
       messages[idx] = { ...lastUser, content: `${grounding.block}
 
 ${lastUser.content}` };
+    }
+    // The notes-miss switch (askedThing.ts, lever 9e). On a lookup turn that shows passages, when no
+    // shown passage contains every content word of the thing the student asked about, the lookup note
+    // is swapped for notesMissNote, which names the thing. Nothing is dropped from the block, and no
+    // model call is added. Read from the student's own text (lastUser is the message as the caller sent
+    // it, not the block-merged one) and the passages the block actually carries.
+    if (turnNote === FACT_LOOKUP_NOTE && turn.notesMiss !== "off" && lastUser && grounding.hits.length > 0) {
+      const shown = grounding.hits.filter((h) => grounding.block.includes(h.title));
+      const miss = notesMissThing(lastUser.content, shown.map((h) => h.text));
+      if (miss.fire) turnNote = notesMissNote(miss.thing!.phrase);
+      grounding.trace.lookupNote = { variant: miss.fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null };
     }
     if (turnNote) {
       // After the grounding block and the student's text, so the note is the last thing the model
