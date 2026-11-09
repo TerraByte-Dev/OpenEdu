@@ -19,7 +19,7 @@ describe("askedThing", () => {
     for (const [q, want] of [
       ["How long does a gecko take to regrow its tail?", "gecko"],
       ["How often does Old Faithful erupt?", "old faithful"],
-      ["How tall is Mount Kilimanjaro?", "mount kilimanjaro"],
+      ["How tall is an adult giraffe?", "adult giraffe"],
       ["What is the melting point of iron?", "iron"],
       ["Ethanol boils at what temperature?", "ethanol"],
       ["When was the Peace of Westphalia signed?", "westphalia"],

@@ -161,7 +161,7 @@ export function askedThing(question: string): AskedThing | null {
     return finish(npFrom(subj), "do-support");
   }
 
-  // copula: "how tall is mount kilimanjaro", "what is the melting point of iron", "how many letters are in the russian alphabet"
+  // copula: "how tall is a giraffe", "what is the melting point of iron", "how many letters are in the russian alphabet"
   let span = after;
   if (span[0] === "there") span = span.slice(1);
   if (["in", "on", "at", "inside"].includes(span[0])) span = span.slice(1);

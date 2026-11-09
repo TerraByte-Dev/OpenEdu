@@ -34,6 +34,10 @@ const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 // A single tool result may claim at most this share of the grounding slice. A notebook.search hit
 // can be several thousand tokens of JSON; uncapped it evicts the entire conversation behind it.
 const TOOL_RESULT_BUDGET_FRACTION = 0.8;
+// Guards on the notes-miss switch (see run()): a message of more than one sentence, and a thing that is
+// the student's notes themselves.
+const MULTI_SENTENCE = /[.?!]\s+\S/;
+const NOTES_WORD = /^(?:notes?|notebook)$/i;
 
 export interface TutorTurn {
   messages: Array<{ role: string; content: string }>;
@@ -211,11 +215,23 @@ ${lastUser.content}` };
     // is swapped for notesMissNote, which names the thing. Nothing is dropped from the block, and no
     // model call is added. Read from the student's own text (lastUser is the message as the caller sent
     // it, not the block-merged one) and the passages the block actually carries.
-    if (turnNote === FACT_LOOKUP_NOTE && turn.notesMiss !== "off" && lastUser && grounding.hits.length > 0) {
+    //
+    // Two guards, added after the pre-run review of PR #222 and before any model run; neither changes a
+    // decision on any pinned dev or probe item (askedThing-parity.test.ts). The frozen extractor reads
+    // one question sentence and has no notion of the notes themselves, so on these shapes it would tell
+    // the model to ignore the right notes. Both fall back to the ordinary lookup note:
+    //   - more than one sentence ("I'm studying the water cycle. What is evaporation?"): the extractor
+    //     takes the lead-in as the thing asked about;
+    //   - the thing is the notes ("What do my notes say about X?"): "notes" stems to "not".
+    if (turnNote === FACT_LOOKUP_NOTE && turn.notesMiss !== "off" && lastUser && grounding.hits.length > 0 && MULTI_SENTENCE.test(lastUser.content.trim())) {
+      grounding.trace.lookupNote = { variant: "lookup", thing: null };
+    } else if (turnNote === FACT_LOOKUP_NOTE && turn.notesMiss !== "off" && lastUser && grounding.hits.length > 0) {
       const shown = grounding.hits.filter((h) => grounding.block.includes(h.title));
       const miss = notesMissThing(lastUser.content, shown.map((h) => h.text));
-      if (miss.fire) turnNote = notesMissNote(miss.thing!.phrase);
-      grounding.trace.lookupNote = { variant: miss.fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null };
+      const aboutTheNotes = !!miss.thing && miss.thing.words.some((w) => NOTES_WORD.test(w));
+      const fire = miss.fire && !aboutTheNotes;
+      if (fire) turnNote = notesMissNote(miss.thing!.phrase);
+      grounding.trace.lookupNote = { variant: fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null };
     }
     if (turnNote) {
       // After the grounding block and the student's text, so the note is the last thing the model

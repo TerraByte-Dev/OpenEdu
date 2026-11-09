@@ -45,7 +45,7 @@ const TABLE: Array<[string, TurnKind]> = [
   ["Who wrote Pride and Prejudice?", "fact-lookup"],
   ["When did the Berlin Wall fall?", "fact-lookup"],
   ["Where is the Great Barrier Reef?", "fact-lookup"],
-  ["How tall is Mount Kilimanjaro?", "fact-lookup"],
+  ["How tall is an adult giraffe?", "fact-lookup"],
   ["How many moons does Mars have?", "fact-lookup"],
   ["What does photosynthesis mean?", "fact-lookup"],
   ["Define osmosis.", "fact-lookup"],

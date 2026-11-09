@@ -27,6 +27,7 @@ import { refreshDatasetManifest } from "../../library-datasets";
 import { STORE_FILE, STORE_KEYS } from "../../store-keys";
 import type { FixtureNote, RagQuestion } from "../rag-fixture";
 import { FACT_LOOKUP_NOTE, notesMissNote } from "../../kernel/turnKind";
+import { notesMissThing } from "../../kernel/askedThing";
 
 const MODEL = "gemma4:e2b";
 
@@ -45,6 +46,11 @@ const CASES: Array<{ q: RagQuestion; kind: string; lookupNote: "lookup" | "notes
   { q: { id: "typed", kind: "negative", ask: "A newt regrows 3 mm of tail a day. How many mm does it regrow in 6 days?", poison: "17" }, kind: "typed-problem", lookupNote: null, thing: null },
   { q: { id: "other", kind: "negative", ask: "I saw a gecko regrow its tail today, so cool.", poison: "17" }, kind: "other", lookupNote: null, thing: null },
   { q: { id: "spanish", kind: "negative", ask: "¿Cuántos días tarda un geco en regenerar la cola?", poison: "17" }, kind: "other", lookupNote: null, thing: null },
+  // Found in the pre-run review of #222 (guards in TutorEngine.run): without the guards both would get
+  // the notes-miss note and be told to ignore the notes. Added after the snapshot was first written; their
+  // off-arm snapshots were recorded with the switch off, where no guard is reached.
+  { q: { id: "notes-say", kind: "positive", ask: "What do my notes say about the newt's tail?", expect: "17" }, kind: "fact-lookup", lookupNote: "lookup", thing: "notes" },
+  { q: { id: "lead-in", kind: "negative", ask: "I'm studying lizards this week. How long does a gecko take to regrow its tail?", poison: "17" }, kind: "fact-lookup", lookupNote: "lookup", thing: null },
 ];
 
 interface Call { path: string; raw: string | undefined }
@@ -152,5 +158,14 @@ describe("the notes-miss switch: the requests Ollama sees", () => {
     expect(on.fired.report.notesMiss).toBe("on");
     expect(off.fired.report.notesMiss).toBe("off");
     expect(on.fired.report.rows[0].turnNoted).toBe(true);
+  });
+
+  it("the guards are what keep the notes-say and lead-in cases on the plain lookup note", () => {
+    // The frozen extractor alone would fire on both (the review's finding); the guards in run() stop it.
+    for (const id of ["notes-say", "lead-in"]) {
+      const ask = CASES.find((c) => c.q.id === id)!.q.ask;
+      expect(notesMissThing(ask, VAULT.map((n) => n.text)).fire, id).toBe(true);
+      expect(on[id].chat, id).toEqual(off[id].chat);
+    }
   });
 });
