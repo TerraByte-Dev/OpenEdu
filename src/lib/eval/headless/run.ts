@@ -140,7 +140,8 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     prompt: o.prompt,
     turnNotes: o.turnNotes,
     notesMiss: o.notesMiss,
-    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" }),
+    notesDrop: o.notesDrop,
+    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f" }),
   });
   await write(report);
   return { report, outFile };

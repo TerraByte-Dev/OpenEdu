@@ -22,7 +22,7 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
-import { classifyTurn, turnNoteFor, withTurnNote, notesMissNote, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
+import { classifyTurn, turnNoteFor, withTurnNote, notesMissNote, notesDropNote, NOTES_DROP_MAX_WORDS, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
 import { notesMissThing } from "./askedThing";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
@@ -57,6 +57,10 @@ export interface TutorTurn {
   // lever 9e) is not consulted, so an eval can run the lever's paired arm at the same commit
   // (EVAL_NOTES_MISS=off). Default "on"; the app never sets it.
   notesMiss?: "on" | "off";
+  // "off" keeps lever 9e's behaviour on a notes-miss turn (passages shown, notesMissNote): the drop
+  // below is not applied, so an eval can run lever 9f's paired arm at the same commit
+  // (EVAL_NOTES_DROP=off). Default "on"; the app never sets it.
+  notesDrop?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -197,22 +201,16 @@ export class TutorEngine {
       : EMPTY_GROUNDING;
     const grounding: Grounding = gloss ? { ...grounded, trace: { ...grounded.trace, gloss } } : grounded;
 
-    if (grounding.block && lastUser) {
-      // Merged into the FINAL USER TURN, not the system prompt. Two reasons, both load-bearing:
-      //   Attention — on a small model an instruction sitting next to its evidence is followed far
-      //     more reliably than the same instruction four sections up a ~1,200-token system prompt.
-      //   Prefix cache — Ollama and llama.cpp reuse KV across an unchanged prefix. The system message
-      //     and settled history are stable turn to turn; retrieved passages are not. Putting them in
-      //     the system prompt would invalidate the cached prefix on EVERY turn, and on a CPU box
-      //     prefill dominates. This keeps the expensive part cacheable.
-      const idx = messages.lastIndexOf(lastUser);
-      messages[idx] = { ...lastUser, content: `${grounding.block}
-
-${lastUser.content}` };
-    }
+    // Lever 9f (drop the passages): when the switch fires and the phrase has at most
+    // NOTES_DROP_MAX_WORDS words, the block is not put in front of the student's message at all, and the
+    // note is notesDropNote. The model then has no passage about a different thing to borrow a number
+    // from, or to cite. The passages stay in grounding.hits and the trace (the UI's "answered from general
+    // knowledge" case, and the eval's retrievedTitles); the switch decision is made before the merge
+    // only so the merge can be skipped, and reads exactly what it read before. No model call is added.
+    let dropBlock = false;
     // The notes-miss switch (askedThing.ts, lever 9e). On a lookup turn that shows passages, when no
     // shown passage contains every content word of the thing the student asked about, the lookup note
-    // is swapped for notesMissNote, which names the thing. Nothing is dropped from the block, and no
+    // is swapped for notesMissNote, which names the thing. Nothing is dropped from the block (lever 9f, above, may skip it), and no
     // model call is added. Read from the student's own text (lastUser is the message as the caller sent
     // it, not the block-merged one) and the passages the block actually carries.
     //
@@ -230,8 +228,22 @@ ${lastUser.content}` };
       const miss = notesMissThing(lastUser.content, shown.map((h) => h.text));
       const aboutTheNotes = !!miss.thing && miss.thing.words.some((w) => NOTES_WORD.test(w));
       const fire = miss.fire && !aboutTheNotes;
-      if (fire) turnNote = notesMissNote(miss.thing!.phrase);
-      grounding.trace.lookupNote = { variant: fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null };
+      dropBlock = fire && turn.notesDrop !== "off" && miss.thing!.words.length <= NOTES_DROP_MAX_WORDS;
+      if (fire) turnNote = dropBlock ? notesDropNote(miss.thing!.phrase) : notesMissNote(miss.thing!.phrase);
+      grounding.trace.lookupNote = { variant: dropBlock ? "notes-drop" : fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null };
+    }
+    if (grounding.block && lastUser && !dropBlock) {
+      // Merged into the FINAL USER TURN, not the system prompt. Two reasons, both load-bearing:
+      //   Attention — on a small model an instruction sitting next to its evidence is followed far
+      //     more reliably than the same instruction four sections up a ~1,200-token system prompt.
+      //   Prefix cache — Ollama and llama.cpp reuse KV across an unchanged prefix. The system message
+      //     and settled history are stable turn to turn; retrieved passages are not. Putting them in
+      //     the system prompt would invalidate the cached prefix on EVERY turn, and on a CPU box
+      //     prefill dominates. This keeps the expensive part cacheable.
+      const idx = messages.lastIndexOf(lastUser);
+      messages[idx] = { ...lastUser, content: `${grounding.block}
+
+${lastUser.content}` };
     }
     if (turnNote) {
       // After the grounding block and the student's text, so the note is the last thing the model

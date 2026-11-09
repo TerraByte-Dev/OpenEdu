@@ -33,6 +33,7 @@ import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureN
 import { RAG_HELDOUT } from "./rag-heldout";
 import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
 import { RAG_PROBE_V1, RAG_PROBE_V2 } from "./rag-probe";
+import { RAG_BLIND_9F, RAG_BLIND_9F_VAULT } from "./rag-blind";
 import { hasRefusalPhrase } from "./refusal";
 import type { LLMConfig, Syllabus } from "../../types";
 
@@ -102,8 +103,9 @@ export interface RagRow {
   turnKind: TurnKind | null;
   turnNoted: boolean;
   /** Which lookup note the turn sent (lever 9e): "lookup" is FACT_LOOKUP_NOTE, "notes-miss" the switched
-   *  note (turnKind.ts notesMissNote); null when the turn sent no lookup note or threw. */
-  lookupNote: "lookup" | "notes-miss" | null;
+   *  note (turnKind.ts notesMissNote), "notes-drop" lever 9f's note on a turn shown no passage
+   *  (notesDropNote); null when the turn sent no lookup note or threw. */
+  lookupNote: "lookup" | "notes-miss" | "notes-drop" | null;
   /** The asked-about phrase askedThing.ts parsed, on a lookup turn that consulted the switch; else null. */
   askedThing: string | null;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
@@ -135,6 +137,8 @@ export interface RagReport {
   turnNotes: "on" | "off";
   /** "off" when the notes-miss switch was not consulted (EVAL_NOTES_MISS=off, lever 9e's paired arm). */
   notesMiss: "on" | "off";
+  /** "off" when lever 9f's drop was not applied (EVAL_NOTES_DROP=off, its paired arm). */
+  notesDrop: "on" | "off";
   /** "main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", or the name of a custom set (e.g. the
    *  sealed held-out file). */
   set: string;
@@ -188,8 +192,8 @@ export async function runRagEval(opts?: {
   only?: string;
   /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts;
    *  "dev-v2" is rag-dev-v2.ts, with its own vault; "probe-v2" and "probe-v1" are rag-probe.ts, on the
-   *  v2 vault and RAG_FIXTURE. */
-  set?: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1";
+   *  v2 vault and RAG_FIXTURE; "blind-9f" is rag-blind.ts, with its own vault (lever 9f's gate). */
+  set?: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f";
   /** A set that brings its own vault (the sealed held-out file). Replaces `set` and RAG_FIXTURE. */
   custom?: RagCustomSet;
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
@@ -203,6 +207,9 @@ export async function runRagEval(opts?: {
   /** "off": the kernel keeps the lookup note on every lookup turn (TutorTurn.notesMiss), for lever 9e's
    *  paired arm. Default "on", which is what the app does. */
   notesMiss?: "on" | "off";
+  /** "off": on a notes-miss turn the kernel keeps 9e's behaviour (TutorTurn.notesDrop), for lever 9f's
+   *  paired arm. Default "on", which is what the app does. */
+  notesDrop?: "on" | "off";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -215,6 +222,7 @@ export async function runRagEval(opts?: {
   const repeats = opts?.repeats ?? 1;
   const turnNotes = opts?.turnNotes ?? "on";
   const notesMiss = opts?.notesMiss ?? "on";
+  const notesDrop = opts?.notesDrop ?? "on";
   const prompt = opts?.prompt ?? "standin";
   if (!RAG_PROMPTS.includes(prompt)) {
     inFlight = false;
@@ -223,10 +231,10 @@ export async function runRagEval(opts?: {
   const instructions = ragInstructions(prompt);
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
-  const vault = opts?.custom?.vault ?? (set === "dev-v2" || set === "probe-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
+  const vault = opts?.custom?.vault ?? (set === "dev-v2" || set === "probe-v2" ? RAG_DEV_V2_VAULT : set === "blind-9f" ? RAG_BLIND_9F_VAULT : RAG_FIXTURE);
   const pool: RagQuestion[] = opts?.custom ? opts.custom.questions
     : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2
-    : set === "probe-v2" ? RAG_PROBE_V2 : set === "probe-v1" ? RAG_PROBE_V1
+    : set === "probe-v2" ? RAG_PROBE_V2 : set === "probe-v1" ? RAG_PROBE_V1 : set === "blind-9f" ? RAG_BLIND_9F
     : RAG_HELDOUT.filter((q) => q.split === set);
   const only = opts?.only ? new Set(opts.only.split(",").map((id) => id.trim()).filter(Boolean)) : null;
   const questions = only ? pool.filter((q) => only.has(q.id)) : pool;
@@ -283,6 +291,7 @@ export async function runRagEval(opts?: {
             retrieval: mode,
             ...(turnNotes === "off" ? { turnNotes } : {}),
             ...(notesMiss === "off" ? { notesMiss } : {}),
+            ...(notesDrop === "off" ? { notesDrop } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -404,7 +413,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, notesMiss, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, notesMiss, notesDrop, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

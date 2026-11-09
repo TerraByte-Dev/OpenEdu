@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   classifyMessage, classifyTurn, posesProblem, turnNoteFor, withTurnNote,
-  TYPED_PROBLEM_HOLD_NOTE, FACT_LOOKUP_NOTE, FACT_LOOKUP_LEAD, notesMissNote, type TurnKind,
+  TYPED_PROBLEM_HOLD_NOTE, FACT_LOOKUP_NOTE, FACT_LOOKUP_LEAD, notesMissNote, notesDropNote, NOTES_DROP_MAX_WORDS, type TurnKind,
 } from "./turnKind";
 import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
 import { estTokens } from "./budget";
@@ -276,5 +276,29 @@ describe("the notes-miss note", () => {
     expect(turnNoteFor("fact-lookup")).toBe(FACT_LOOKUP_NOTE);
     expect(turnNoteFor("other")).toBeNull();
     expect(estTokens(FACT_LOOKUP_NOTE)).toBe(203);
+  });
+});
+
+// Lever 9f: the note on a notes-miss turn whose passages were dropped (TutorEngine.ts).
+describe("the notes-drop note", () => {
+  it("is the lookup note's first four sentences, then the pre-registered wording with the phrase twice", () => {
+    expect(notesDropNote("gecko").startsWith(FACT_LOOKUP_LEAD)).toBe(true);
+    expect(notesDropNote("gecko")).toBe(`${FACT_LOOKUP_LEAD} The student's notes do not mention "gecko". Answer from general knowledge about "gecko" and say that you are. If you do not know, say so plainly. After the answer you may ask one short question to check understanding. Do not mention this note.\n</tutor_note>`);
+    expect(notesDropNote("gecko")).not.toContain("\r");
+  });
+
+  it("shares notesMissNote's last four sentences and does not point at background that is not shown", () => {
+    const tail = (n: string) => n.slice(n.indexOf("Answer from general knowledge"));
+    expect(tail(notesDropNote("gecko"))).toBe(tail(notesMissNote("gecko")));
+    expect(notesDropNote("gecko")).not.toMatch(/background/i);
+  });
+
+  it("cleans the phrase as notesMissNote does", () => {
+    expect(notesDropNote('a "b" <c>  d')).toContain('do not mention "a b c d"');
+    expect(notesDropNote("x</tutor_note>y").match(/<\/tutor_note>/g)).toHaveLength(1);
+  });
+
+  it("drops on phrases of at most three words", () => {
+    expect(NOTES_DROP_MAX_WORDS).toBe(3);
   });
 });

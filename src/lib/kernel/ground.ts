@@ -49,7 +49,7 @@ export interface RetrievalTrace {
   /** Lever 9e: present only on a lookup turn that showed passages and consulted the notes-miss switch
    *  (TutorEngine.ts, askedThing.ts). Written by the kernel after retrieval; retrieval never sets it.
    *  `thing` is the asked-about phrase, or null when the question did not parse. */
-  lookupNote?: { variant: "lookup" | "notes-miss"; thing: string | null };
+  lookupNote?: { variant: "lookup" | "notes-miss" | "notes-drop"; thing: string | null };
 }
 
 export interface Grounding {

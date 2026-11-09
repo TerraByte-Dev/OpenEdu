@@ -1,0 +1,181 @@
+{
+  "notes": [
+    {
+      "title": "Geography — Mount Teskarran",
+      "text": "Mount Teskarran is the highest peak in the Oruvel Range and stands 5,312 m tall. Its summit is dark basalt shaped like a broken tooth, so locals just call it the Tooth. It was first climbed in 1927 by a surveyor and two shepherds, and 14 glaciers flow down its sides."
+    },
+    {
+      "title": "History — The Treaty of Calvenmoor",
+      "text": "The Treaty of Calvenmoor was signed in 1687 in a small riverside chapel between the duchies of Aldric and Venmoor. It ended the Salt War, which had dragged on for 11 years over the brine wells along the border. The treaty had 34 articles, most of them about salt taxes and river tolls."
+    },
+    {
+      "title": "Lab Log — Dravenol",
+      "text": "Dravenol is a clear solvent with a faint green tint that we made by distilling resin from Kestle pine bark, and it smells strongly of pine. In today's lab it boiled at 142 °C and froze solid at -27 °C. Its density came out to 0.91 g/mL, so it floats on water."
+    },
+    {
+      "title": "Astronomy — Comet Vossbrink",
+      "text": "Comet Vossbrink has a long blue-green tail and was discovered in 1871 by a lighthouse keeper named Ada Vossbrink. It goes around the Sun once every 54 years. It last passed closest to the Sun in 1991."
+    },
+    {
+      "title": "Music — The Kesswynd Lute",
+      "text": "The Kesswynd lute is a long-necked lute from the fishing villages of the Kesswynd coast, carved from walnut and played with a bone pick. It has 11 strings, and the lowest ones are left open as a drone. The first one was built in 1742 by a ferry captain, and a full-size one weighs about 2.3 kg."
+    },
+    {
+      "title": "Sport — Tarrowball",
+      "text": "Tarrowball started in the mining towns of the north and is played with a leather ball wrapped in red cord. Each team has 8 players on a hexagonal field that is 72 m across. Each period of play lasts 25 minutes."
+    },
+    {
+      "title": "Economics — The Fennish Crown",
+      "text": "The Fennish crown became the currency of the island of Fenn in 1874, replacing the old silver skilling at a rate of 36 skillings to one crown. Crown coins are hexagonal and made of brass. They are issued by the Bank of Ostmere, which was founded in 1821."
+    },
+    {
+      "title": "Networking — The Corvel Mesh Protocol",
+      "text": "The Corvel Mesh Protocol was written by a university radio club to link rooftop antennas into one mesh network. It listens on port 7714 by default and every packet starts with a 24-byte header. A message can be passed along at most 9 hops before it is dropped."
+    },
+    {
+      "title": "Art — The Weeping Orchard",
+      "text": "The Weeping Orchard is an oil painting by Ilse Varnholt that shows apple trees in heavy rain, painted mostly in ochre and violet. She finished it in 1858 after working on it for 6 years. It is 214 cm wide and hangs in the city museum of Dorrisgate."
+    },
+    {
+      "title": "Language — The Tervish Script",
+      "text": "The Tervish script was used on the Isle of Terve and is mostly found carved on standing stones. It has 31 letters, all made from small triangular notches, and is read from bottom to top. The oldest known inscription dates to 412 AD, and about 2,600 inscriptions survive."
+    },
+    {
+      "title": "Field Guide — The Ondrel Squid",
+      "text": "The Ondrel squid lives off the Marrish coast at about 900 m deep and glows pale blue in the dark. It has 12 arms and 2 hearts. Fishermen sometimes find its glassy beak tangled in their nets."
+    },
+    {
+      "title": "Geography — Lake Ombrenne",
+      "text": "Lake Ombrenne is a cold, very clear lake high in the Sallow Hills, and its water looks almost black from the shore. Its deepest point is 418 m and its surface sits 2,240 m above sea level. It covers 316 km² and only one river, the Ombre, drains it."
+    },
+    {
+      "title": "History — The Battle of Harrowmede",
+      "text": "The Battle of Harrowmede was fought in 1361 beside the frozen Harrow river, in the middle of winter. About 4,200 soldiers took part, and the fighting went on for 11 days before the river ice broke. It ended the rule of the Corwen family over the valley."
+    },
+    {
+      "title": "Astronomy — The Star Ilvaneth",
+      "text": "Ilvaneth is an orange star in the constellation of the Heron, best seen from the southern hemisphere in winter. It is 61 light-years from Earth and its surface temperature is about 4,100 K. It is about 2.6 times wider than the Sun."
+    },
+    {
+      "title": "Recipe — Pembury Mutton Pie",
+      "text": "Pembury mutton pie is my gran's recipe from the Pembury market: diced mutton, leeks and pearl barley under a lard crust brushed with egg. Bake it at 205 °C for 48 minutes, and the filling has to reach 82 °C in the middle before it's safe to serve."
+    },
+    {
+      "title": "Engineering — The Quenby Narrows Bridge",
+      "text": "The Quenby Narrows Bridge is a teal suspension bridge across the Quenby inlet, built by the Harlan shipyards. It opened in 1952 and its main span is 917 m long. Each of its towers is 128 m tall."
+    }
+  ],
+  "items": [
+    { "id": "b9-tes-p1", "kind": "positive", "noteTitle": "Geography — Mount Teskarran", "ask": "how tall is mount teskarran", "expect": "5,312|5312" },
+    { "id": "b9-tes-p2", "kind": "positive", "noteTitle": "Geography — Mount Teskarran", "ask": "What year was the mountain with the broken tooth summit first climbed?", "expect": "1927" },
+    { "id": "b9-tes-p3", "kind": "positive", "noteTitle": "Geography — Mount Teskarran", "ask": "how many glaciers are on that black basalt peak in the Oruvel range", "expect": "14|fourteen" },
+    { "id": "b9-tes-n1", "kind": "near-miss", "noteTitle": "Geography — Mount Teskarran", "ask": "How tall is Mount Kilimanjaro?", "expect": "5,895|5895|19,341|19341", "poison": "5,312" },
+    { "id": "b9-tes-n2", "kind": "near-miss", "noteTitle": "Geography — Mount Teskarran", "ask": "when was mount everest first climbed", "expect": "1953", "poison": "1927" },
+    { "id": "b9-tes-n3", "kind": "near-miss", "noteTitle": "Geography — Mount Teskarran", "ask": "I'm doing a geography project on the Alps. what year was the Matterhorn first climbed?", "expect": "1865", "poison": "1927" },
+
+    { "id": "b9-cal-p1", "kind": "positive", "noteTitle": "History — The Treaty of Calvenmoor", "ask": "When was the Treaty of Calvenmoor signed?", "expect": "1687" },
+    { "id": "b9-cal-p2", "kind": "positive", "noteTitle": "History — The Treaty of Calvenmoor", "ask": "how long did the salt war go on before the peace deal", "expect": "11|eleven" },
+    { "id": "b9-cal-p3", "kind": "positive", "noteTitle": "History — The Treaty of Calvenmoor", "ask": "how many articles were in that treaty they signed in the riverside chapel", "expect": "34|thirty-four" },
+    { "id": "b9-cal-n1", "kind": "near-miss", "noteTitle": "History — The Treaty of Calvenmoor", "ask": "what year was the treaty of versailles signed", "expect": "1919", "poison": "1687" },
+    { "id": "b9-cal-n2", "kind": "near-miss", "noteTitle": "History — The Treaty of Calvenmoor", "ask": "When was the Treaty of Paris signed that ended the American Revolutionary War?", "expect": "1783", "poison": "1687" },
+    { "id": "b9-cal-n3", "kind": "near-miss", "noteTitle": "History — The Treaty of Calvenmoor", "ask": "how many years did world war 1 last", "expect": "4|four|1914", "poison": "11" },
+
+    { "id": "b9-dra-p1", "kind": "positive", "noteTitle": "Lab Log — Dravenol", "ask": "whats the boiling point of dravenol", "expect": "142" },
+    { "id": "b9-dra-p2", "kind": "positive", "noteTitle": "Lab Log — Dravenol", "ask": "We distilled a greenish solvent from pine bark in chem. what temp did it freeze at", "expect": "-27|−27" },
+    { "id": "b9-dra-p3", "kind": "positive", "noteTitle": "Lab Log — Dravenol", "ask": "What was the density of Dravenol?", "expect": "0.91|.91" },
+    { "id": "b9-dra-n1", "kind": "near-miss", "noteTitle": "Lab Log — Dravenol", "ask": "What is the boiling point of ethanol?", "expect": "78|78.4|78.37|78.3|173", "poison": "142" },
+    { "id": "b9-dra-n2", "kind": "near-miss", "noteTitle": "Lab Log — Dravenol", "ask": "boiling point of acetone in celsius", "expect": "56|56.1|56.05|56.2|133", "poison": "142" },
+    { "id": "b9-dra-n3", "kind": "near-miss", "noteTitle": "Lab Log — Dravenol", "ask": "at what temperature does mercury freeze", "expect": "-38.83|−38.83|-38.8|−38.8|38.83|38.8|-39|−39|-37.9|−37.9|37.9", "poison": "-27" },
+
+    { "id": "b9-vos-p1", "kind": "positive", "noteTitle": "Astronomy — Comet Vossbrink", "ask": "how often does comet vossbrink come back around", "expect": "54|fifty-four" },
+    { "id": "b9-vos-p2", "kind": "positive", "noteTitle": "Astronomy — Comet Vossbrink", "ask": "what year did the lighthouse keeper discover that blue green comet", "expect": "1871" },
+    { "id": "b9-vos-p3", "kind": "positive", "noteTitle": "Astronomy — Comet Vossbrink", "ask": "When was Comet Vossbrink last closest to the sun?", "expect": "1991" },
+    { "id": "b9-vos-n1", "kind": "near-miss", "noteTitle": "Astronomy — Comet Vossbrink", "ask": "what is the orbital period of halley's comet", "expect": "75|76", "poison": "54" },
+    { "id": "b9-vos-n2", "kind": "near-miss", "noteTitle": "Astronomy — Comet Vossbrink", "ask": "My grandpa says he saw Halley's Comet when he was young. what year did it last come past the sun?", "expect": "1986", "poison": "1991" },
+    { "id": "b9-vos-n3", "kind": "near-miss", "noteTitle": "Astronomy — Comet Vossbrink", "ask": "What year was comet Hale-Bopp discovered", "expect": "1995", "poison": "1871" },
+
+    { "id": "b9-kes-p1", "kind": "positive", "noteTitle": "Music — The Kesswynd Lute", "ask": "how many strings does a kesswynd lute have", "expect": "11|eleven" },
+    { "id": "b9-kes-p2", "kind": "positive", "noteTitle": "Music — The Kesswynd Lute", "ask": "when was the first one of those walnut lutes from the fishing villages made?", "expect": "1742" },
+    { "id": "b9-kes-p3", "kind": "positive", "noteTitle": "Music — The Kesswynd Lute", "ask": "How heavy is a Kesswynd lute", "expect": "2.3" },
+    { "id": "b9-kes-n1", "kind": "near-miss", "noteTitle": "Music — The Kesswynd Lute", "ask": "how many strings does a guitar have", "expect": "6|six", "poison": "11" },
+    { "id": "b9-kes-n2", "kind": "near-miss", "noteTitle": "Music — The Kesswynd Lute", "ask": "How many strings are on a concert harp?", "expect": "47|forty-seven", "poison": "11" },
+    { "id": "b9-kes-n3", "kind": "near-miss", "noteTitle": "Music — The Kesswynd Lute", "ask": "for music class how many strings does a violin have", "expect": "4|four", "poison": "11" },
+
+    { "id": "b9-tar-p1", "kind": "positive", "noteTitle": "Sport — Tarrowball", "ask": "how many players are on a tarrowball team", "expect": "8|eight" },
+    { "id": "b9-tar-p2", "kind": "positive", "noteTitle": "Sport — Tarrowball", "ask": "how long is each period in that mining town sport with the red cord ball", "expect": "25" },
+    { "id": "b9-tar-p3", "kind": "positive", "noteTitle": "Sport — Tarrowball", "ask": "How wide is a Tarrowball field?", "expect": "72" },
+    { "id": "b9-tar-n1", "kind": "near-miss", "noteTitle": "Sport — Tarrowball", "ask": "how many players does a soccer team have on the field", "expect": "11|eleven", "poison": "8" },
+    { "id": "b9-tar-n2", "kind": "near-miss", "noteTitle": "Sport — Tarrowball", "ask": "how long is a half in soccer", "expect": "45", "poison": "25" },
+    { "id": "b9-tar-n3", "kind": "near-miss", "noteTitle": "Sport — Tarrowball", "ask": "How long is a quarter in an NBA game?", "expect": "12|twelve", "poison": "25" },
+
+    { "id": "b9-fen-p1", "kind": "positive", "noteTitle": "Economics — The Fennish Crown", "ask": "when was the fennish crown introduced", "expect": "1874" },
+    { "id": "b9-fen-p2", "kind": "positive", "noteTitle": "Economics — The Fennish Crown", "ask": "How many old skillings were swapped for one Fennish crown?", "expect": "36|thirty-six" },
+    { "id": "b9-fen-p3", "kind": "positive", "noteTitle": "Economics — The Fennish Crown", "ask": "what year was the bank that makes the hexagon brass coins founded", "expect": "1821" },
+    { "id": "b9-fen-n1", "kind": "near-miss", "noteTitle": "Economics — The Fennish Crown", "ask": "When was the euro introduced?", "expect": "1999|2002", "poison": "1874" },
+    { "id": "b9-fen-n2", "kind": "near-miss", "noteTitle": "Economics — The Fennish Crown", "ask": "what year was the bank of england founded", "expect": "1694", "poison": "1821" },
+    { "id": "b9-fen-n3", "kind": "near-miss", "noteTitle": "Economics — The Fennish Crown", "ask": "Reading about old British money for econ. before decimalisation how many pence were in a pound?", "expect": "240", "poison": "36" },
+
+    { "id": "b9-cor-p1", "kind": "positive", "noteTitle": "Networking — The Corvel Mesh Protocol", "ask": "what port does the corvel mesh protocol use", "expect": "7714" },
+    { "id": "b9-cor-p2", "kind": "positive", "noteTitle": "Networking — The Corvel Mesh Protocol", "ask": "how big is the packet header in that rooftop antenna mesh thing the radio club made", "expect": "24" },
+    { "id": "b9-cor-p3", "kind": "positive", "noteTitle": "Networking — The Corvel Mesh Protocol", "ask": "Max number of hops for Corvel Mesh?", "expect": "9|nine" },
+    { "id": "b9-cor-n1", "kind": "near-miss", "noteTitle": "Networking — The Corvel Mesh Protocol", "ask": "What port does HTTPS use?", "expect": "443", "poison": "7714" },
+    { "id": "b9-cor-n2", "kind": "near-miss", "noteTitle": "Networking — The Corvel Mesh Protocol", "ask": "default ssh port", "expect": "22", "poison": "7714" },
+    { "id": "b9-cor-n3", "kind": "near-miss", "noteTitle": "Networking — The Corvel Mesh Protocol", "ask": "how many bytes is a UDP header", "expect": "8|eight", "poison": "24" },
+
+    { "id": "b9-orc-p1", "kind": "positive", "noteTitle": "Art — The Weeping Orchard", "ask": "when was the weeping orchard painted", "expect": "1858" },
+    { "id": "b9-orc-p2", "kind": "positive", "noteTitle": "Art — The Weeping Orchard", "ask": "How many years did Ilse Varnholt spend on her painting of apple trees in the rain?", "expect": "6|six" },
+    { "id": "b9-orc-p3", "kind": "positive", "noteTitle": "Art — The Weeping Orchard", "ask": "how wide is that ochre and violet orchard painting in the dorrisgate museum", "expect": "214" },
+    { "id": "b9-orc-n1", "kind": "near-miss", "noteTitle": "Art — The Weeping Orchard", "ask": "When did Van Gogh paint The Starry Night?", "expect": "1889", "poison": "1858" },
+    { "id": "b9-orc-n2", "kind": "near-miss", "noteTitle": "Art — The Weeping Orchard", "ask": "what year did picasso paint guernica", "expect": "1937", "poison": "1858" },
+    { "id": "b9-orc-n3", "kind": "near-miss", "noteTitle": "Art — The Weeping Orchard", "ask": "how many years did michelangelo spend painting the sistine chapel ceiling", "expect": "4|four|1508|1512", "poison": "6" },
+
+    { "id": "b9-ter-p1", "kind": "positive", "noteTitle": "Language — The Tervish Script", "ask": "how many letters are in the tervish alphabet", "expect": "31|thirty-one" },
+    { "id": "b9-ter-p2", "kind": "positive", "noteTitle": "Language — The Tervish Script", "ask": "how old is the oldest inscription in that triangle notch writing on the standing stones", "expect": "412" },
+    { "id": "b9-ter-p3", "kind": "positive", "noteTitle": "Language — The Tervish Script", "ask": "How many Tervish inscriptions still survive?", "expect": "2,600|2600" },
+    { "id": "b9-ter-n1", "kind": "near-miss", "noteTitle": "Language — The Tervish Script", "ask": "how many letters are in the greek alphabet", "expect": "24|twenty-four", "poison": "31" },
+    { "id": "b9-ter-n2", "kind": "near-miss", "noteTitle": "Language — The Tervish Script", "ask": "How many letters does the Russian alphabet have?", "expect": "33|thirty-three", "poison": "31" },
+    { "id": "b9-ter-n3", "kind": "near-miss", "noteTitle": "Language — The Tervish Script", "ask": "what year was hangul the korean alphabet created", "expect": "1443|1446", "poison": "412" },
+
+    { "id": "b9-ond-p1", "kind": "positive", "noteTitle": "Field Guide — The Ondrel Squid", "ask": "how many arms does the ondrel squid have", "expect": "12|twelve" },
+    { "id": "b9-ond-p2", "kind": "positive", "noteTitle": "Field Guide — The Ondrel Squid", "ask": "How deep does that glowing blue squid off the Marrish coast live?", "expect": "900" },
+    { "id": "b9-ond-p3", "kind": "positive", "noteTitle": "Field Guide — The Ondrel Squid", "ask": "for my bio homework, how many hearts does an ondrel squid have", "expect": "2|two" },
+    { "id": "b9-ond-n1", "kind": "near-miss", "noteTitle": "Field Guide — The Ondrel Squid", "ask": "How many arms does an octopus have?", "expect": "8|eight", "poison": "12" },
+    { "id": "b9-ond-n2", "kind": "near-miss", "noteTitle": "Field Guide — The Ondrel Squid", "ask": "how many hearts does an octopus have", "expect": "3|three", "poison": "2" },
+    { "id": "b9-ond-n3", "kind": "near-miss", "noteTitle": "Field Guide — The Ondrel Squid", "ask": "how many arms does a starfish usually have", "expect": "5|five", "poison": "12" },
+
+    { "id": "b9-omb-p1", "kind": "positive", "noteTitle": "Geography — Lake Ombrenne", "ask": "how deep is lake ombrenne", "expect": "418" },
+    { "id": "b9-omb-p2", "kind": "positive", "noteTitle": "Geography — Lake Ombrenne", "ask": "what altitude is that black looking lake up in the Sallow Hills", "expect": "2,240|2240" },
+    { "id": "b9-omb-p3", "kind": "positive", "noteTitle": "Geography — Lake Ombrenne", "ask": "What's the surface area of Lake Ombrenne?", "expect": "316" },
+    { "id": "b9-omb-n1", "kind": "near-miss", "noteTitle": "Geography — Lake Ombrenne", "ask": "how deep is lake baikal", "expect": "1,642|1642|1,637|1637|5,387|5387|5,371|5371", "poison": "418" },
+    { "id": "b9-omb-n2", "kind": "near-miss", "noteTitle": "Geography — Lake Ombrenne", "ask": "How deep is Crater Lake in Oregon?", "expect": "594|592|1,949|1949|1,943|1943", "poison": "418" },
+    { "id": "b9-omb-n3", "kind": "near-miss", "noteTitle": "Geography — Lake Ombrenne", "ask": "how high above sea level is the big lake on the border of peru and bolivia", "expect": "3,812|3812|3,810|3810|12,507|12507|12,500|12500", "poison": "2,240" },
+
+    { "id": "b9-har-p1", "kind": "positive", "noteTitle": "History — The Battle of Harrowmede", "ask": "when was the battle of harrowmede", "expect": "1361" },
+    { "id": "b9-har-p2", "kind": "positive", "noteTitle": "History — The Battle of Harrowmede", "ask": "how many days did that battle by the frozen river go on for", "expect": "11|eleven" },
+    { "id": "b9-har-p3", "kind": "positive", "noteTitle": "History — The Battle of Harrowmede", "ask": "How many soldiers fought at Harrowmede?", "expect": "4,200|4200" },
+    { "id": "b9-har-n1", "kind": "near-miss", "noteTitle": "History — The Battle of Harrowmede", "ask": "What year was the Battle of Hastings?", "expect": "1066", "poison": "1361" },
+    { "id": "b9-har-n2", "kind": "near-miss", "noteTitle": "History — The Battle of Harrowmede", "ask": "when was the battle of waterloo", "expect": "1815", "poison": "1361" },
+    { "id": "b9-har-n3", "kind": "near-miss", "noteTitle": "History — The Battle of Harrowmede", "ask": "how many days did the battle of gettysburg last", "expect": "3|three", "poison": "11" },
+
+    { "id": "b9-ilv-p1", "kind": "positive", "noteTitle": "Astronomy — The Star Ilvaneth", "ask": "how far away is ilvaneth", "expect": "61" },
+    { "id": "b9-ilv-p2", "kind": "positive", "noteTitle": "Astronomy — The Star Ilvaneth", "ask": "whats the surface temperature of that orange star in the heron constellation", "expect": "4,100|4100" },
+    { "id": "b9-ilv-p3", "kind": "positive", "noteTitle": "Astronomy — The Star Ilvaneth", "ask": "How many times wider than the Sun is Ilvaneth?", "expect": "2.6" },
+    { "id": "b9-ilv-n1", "kind": "near-miss", "noteTitle": "Astronomy — The Star Ilvaneth", "ask": "how far is proxima centauri from earth", "expect": "4.24|4.2|4.25|4.22", "poison": "61" },
+    { "id": "b9-ilv-n2", "kind": "near-miss", "noteTitle": "Astronomy — The Star Ilvaneth", "ask": "How far away is Sirius?", "expect": "8.6|8.7|8.60", "poison": "61" },
+    { "id": "b9-ilv-n3", "kind": "near-miss", "noteTitle": "Astronomy — The Star Ilvaneth", "ask": "whats the surface temperature of the sun", "expect": "5,778|5778|5,772|5772|5,500|5500|5,600|5600|5,800|5800|9,940|9940|9,900|9900|10,000|10000", "poison": "4,100" },
+
+    { "id": "b9-pem-p1", "kind": "positive", "noteTitle": "Recipe — Pembury Mutton Pie", "ask": "what temperature do i bake pembury mutton pie at", "expect": "205" },
+    { "id": "b9-pem-p2", "kind": "positive", "noteTitle": "Recipe — Pembury Mutton Pie", "ask": "how long does gran's mutton and leek pie need in the oven?", "expect": "48" },
+    { "id": "b9-pem-p3", "kind": "positive", "noteTitle": "Recipe — Pembury Mutton Pie", "ask": "What temp does the middle of the Pembury pie have to hit before serving", "expect": "82" },
+    { "id": "b9-pem-n1", "kind": "near-miss", "noteTitle": "Recipe — Pembury Mutton Pie", "ask": "Making chicken pot pie tonight. what internal temperature does the chicken need to reach to be safe?", "expect": "165|74|73.9", "poison": "82" },
+    { "id": "b9-pem-n2", "kind": "near-miss", "noteTitle": "Recipe — Pembury Mutton Pie", "ask": "safe internal temp for pork chops", "expect": "145|63|62.8", "poison": "82" },
+    { "id": "b9-pem-n3", "kind": "near-miss", "noteTitle": "Recipe — Pembury Mutton Pie", "ask": "What temperature should ground beef be cooked to?", "expect": "160|71|71.1", "poison": "82" },
+
+    { "id": "b9-que-p1", "kind": "positive", "noteTitle": "Engineering — The Quenby Narrows Bridge", "ask": "When did the Quenby Narrows Bridge open?", "expect": "1952" },
+    { "id": "b9-que-p2", "kind": "positive", "noteTitle": "Engineering — The Quenby Narrows Bridge", "ask": "how long is the main span on the teal suspension bridge the shipyard built", "expect": "917" },
+    { "id": "b9-que-p3", "kind": "positive", "noteTitle": "Engineering — The Quenby Narrows Bridge", "ask": "how tall are the towers on quenby narrows bridge", "expect": "128" },
+    { "id": "b9-que-n1", "kind": "near-miss", "noteTitle": "Engineering — The Quenby Narrows Bridge", "ask": "when did the golden gate bridge open", "expect": "1937", "poison": "1952" },
+    { "id": "b9-que-n2", "kind": "near-miss", "noteTitle": "Engineering — The Quenby Narrows Bridge", "ask": "how long is the main span of the big red bridge in san francisco", "expect": "1,280|1280|4,200|4200", "poison": "917" },
+    { "id": "b9-que-n3", "kind": "near-miss", "noteTitle": "Engineering — The Quenby Narrows Bridge", "ask": "What year did the Brooklyn Bridge open?", "expect": "1883", "poison": "1952" }
+  ]
+}
