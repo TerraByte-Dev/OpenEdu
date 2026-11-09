@@ -90,7 +90,7 @@ diagnosis, so it is spent ([BENCHMARKS §0](BENCHMARKS.md#0-split-status-today-w
 
 ## What was tried and did not work
 
-The first five were stopped by rules written before they ran; none of them is in the app.
+The first six were stopped by rules written before they ran; none of them is in the app.
 
 - **Named-entity gate** (lever 3, PR #192). It drops notes about a differently named thing. The rule
   needed e2b to give at least 4 more real-world answers; it gave 2 fewer (35 → 33 of 84 answers, 28
@@ -122,6 +122,16 @@ The first five were stopped by rules written before they ran; none of them is in
   let 3 more trick questions through than no note at all (35 vs 38 of 40), and the rule written in
   advance allowed 1. On two of them e2b stated a note's invented value as a fact about the real thing.
   This was the third and last try allowed on these sets.
+- **Lookup note, hide the mismatched note** (PR #224, not shipped;
+  [results](../src/lib/eval/results/2026-11-09-rag-blind-lookup-drop.md)). When that code finds the
+  question is about something the notes don't mention, the notes are not shown at all. Tested on 96
+  new questions written by a separate agent after the code and the rule were fixed. It is the first
+  try that stopped e2b borrowing: 0 of 144 trick-question answers used a note's value, and real-world
+  answers rose from 1 to 31 of 48 questions against no note. But the code wrongly decided 5 of 48
+  questions were about something else, hid the note that answered them, and e2b got all 15 of those
+  answers wrong. The rule allowed 2. A separate review also found everyday questions the code
+  misjudges ("What is the formula for kinetic energy?", "When did WW2 end?", a misspelled
+  "photosythesis"), so it would hide students' own correct notes.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
   ([live check](../src/lib/eval/results/2026-11-08-ollama-toolcall-live-check.md)).
