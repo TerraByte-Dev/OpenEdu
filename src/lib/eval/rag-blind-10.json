@@ -1,0 +1,902 @@
+{
+  "notes": [
+    {
+      "title": "Physics — Electricity and Circuits",
+      "text": "Electricity + circuits notes (Ms Okafor, Yr 10 set 2)\n\nCurrent = flow of charge. Charge is measured in coulombs (C), current in amps (A). 1 amp = 1 coulomb passing a point every second. Ms O says think of it like people going through a turnstile, not like water \"running out\" of the battery. Electrons actually go from - to + but we use conventional current (+ to -) because Ben Franklin guessed wrong and everyone kept it. In her first demo she put 3 cells in series, each one says 1.5 V on the side, and the voltmeter read 4.35 V not 4.5 V. Her point: real cells have internal resistance and old ones sag, so don't expect textbook numbers in practicals.\n\nKey eqn: Q = It (charge = current x time). e.g. 0.5 A for 2 min = 0.5 x 120 = 60 C. REMEMBER to convert minutes to seconds!! Lost a mark on this in the starter quiz.\n\nVoltage (potential difference, pd)\n- energy transferred per coulomb of charge, 1 volt = 1 joule per coulomb\n- voltmeter goes in PARALLEL across the component\n- ammeter goes in SERIES (in the loop)\n- V = IR (Ohm's law, only works for ohmic conductors at constant temp)\nClass mnemonic for the triangle: \"Victor Is Running\" - V on top, I and R on the bottom. Cover the one u want and the other two tell you whether to multiply or divide.\n\nResistance practical. We measured the resistor labelled 22 Ω using the ammeter-voltmeter method (5 readings, variable resistor to change the current) and got 22.6 ohms from the gradient of our V-I graph. Ms O said it's inside the 5% tolerance band (gold band) so that's fine, nothing wrong with the resistor. The graph for a resistor is a straight line thru the origin. Filament lamp graph is an S-curve bc the filament heats up and its resistance goes up. Diode only lets current through one way, threshold about 0.6 V for a silicon one, basically zero current below that.\n\nSeries vs parallel\nSeries:\n- same current everywhere\n- pd shared between components (adds up to the supply pd)\n- total R = R1 + R2 + ...\n- one bulb breaks = everything goes off (old xmas lights)\nParallel:\n- pd the same across each branch\n- current splits, branch currents add up to the total\n- total resistance is LESS than the smallest branch (adding a branch gives the current another path)\n- houses are wired in parallel so you can switch things on separately\n\nIn the parallel lab our group had two identical bulbs on separate branches and the main ammeter read 0.84 A, each branch about 0.42 A. Priya's group got 0.80 A bc one of their crocodile clips was loose (teacher said \"always check your connections before blaming the physics\").\n\nPower and energy\nP = IV (power = current x pd)\nalso P = I²R if you combine with V = IR\nE = Pt (energy = power x time), in joules if P in watts and t in seconds\nElectricity bills use kilowatt-hours (kWh). 1 kWh = 3.6 million J (1000 W x 3600 s).\nMs Okafor's worked example: kettle rated 2.8 kW used for 4 minutes. 4 min = 0.0667 h, so energy = 2.8 x 0.0667 = 0.187 kWh. Her made-up tariff was 31.2p per kWh, so cost = 0.187 x 31.2 = about 5.8p per boil. She said 'that's why your parents moan about the kettle'. Same method for the HW q's, show units at every step.\n\nMains electricity (UK)\n- mains is ac, 230 V, 50 Hz\n- batteries and cells are dc\n- 3 wires in a plug: live (brown), neutral (blue), earth (green/yellow stripes)\n- the fuse is on the live wire, it melts if the current gets too high and breaks the circuit\n- earth wire stops the metal case becoming live, if there's a fault a big current goes to earth and blows the fuse\nFuse ratings commonly 3 A, 5 A, 13 A. Work out the normal current with I = P/V and choose the next fuse up. Teacher's toaster: 1150 W / 230 V = 5 A, she said use the 13 A one because a 5 A fuse would keep blowing at switch-on.\n\nHistory bit (she likes a bit of history)\n- Volta made the first battery (the voltaic pile) in 1800, stacked zinc + copper discs with salty cardboard between them\n- Ohm published his law in 1827, people didn't believe him at first\n- the unit of charge is named after Coulomb\n\nSensors (last lesson b4 half term)\nLDR = light dependent resistor, resistance goes DOWN when the light gets brighter. Thermistor (NTC) resistance goes down as temp goes up. Our LDR read 1.9 kΩ under the desk lamp and 38.5 kΩ with a hand cupped over it. Both get used in potential dividers for automatic streetlights, thermostats, etc. HW: exam q's p.212, due Thurs."
+    },
+    {
+      "title": "Biology — Photosynthesis and Respiration",
+      "text": "Bio – photosynthesis & respiration (Mr Harlow)\n\nPhotosynthesis = plants making glucose from CO2 and water using light energy. Happens in the chloroplasts, which contain chlorophyll (green pigment, absorbs mostly red + blue light and reflects green, which is why leaves look green). It's ENDOthermic, energy is taken in from the environment. Our class mnemonic for the reactants/products is \"Can We Light Green Objects\" = CO2, Water, Light, Glucose, Oxygen. Mr H says he made it up in 2011 and it's \"still undefeated\".\n\nWord eqn:\ncarbon dioxide + water → glucose + oxygen (light + chlorophyll written over the arrow)\nSymbol eqn: 6CO2 + 6H2O → C6H12O6 + 6O2\nMust be balanced in the exam or you lose the mark.\n\nUses of glucose\n- respiration\n- turned into starch for storage (insoluble so it doesnt affect osmosis)\n- cellulose for cell walls\n- combined w/ nitrate ions from the soil to make amino acids → proteins\n- fats/oils for storage in seeds\n\nLimiting factors\nRate is limited by whichever factor is in shortest supply: light intensity, CO2 concentration, temperature (enzymes!), and amount of chlorophyll. CO2 in normal air is only about 0.04% so it's often the limiting one, greenhouse farmers add CO2 by burning paraffin heaters (also warms it up, two for one). Too hot (above ~45 °C) and the enzymes denature and the rate crashes. On a graph the line goes up then flattens = something else has become limiting.\n\nPondweed practical (Elodea): lamp at diff distances, count O2 bubbles per min, 3 repeats each. Our results:\n- 10 cm: 47 bubbles/min\n- 20 cm: 24\n- 30 cm: 14\n- 40 cm: 9 bubbles/min\nInverse square law: light intensity ∝ 1/d², so halving the distance gives 4x the light. Mr H said our 10 cm reading was probably too high because the lamp heated the water too, should've used a heat shield (beaker of water in between) — \"control variable fail\". Better to measure the volume of gas with a gas syringe bc bubbles aren't all the same size.\n\nLeaf adaptations\n- broad, thin → big SA, short diffusion distance for CO2\n- palisade layer packed with chloroplasts near the top\n- spongy mesophyll has air spaces for gas exchange\n- stomata (mostly on the underside), opened/closed by guard cells\n- veins (xylem brings water, phloem takes sugars away)\nWe did the nail varnish peel: lower surface 214 stomata per mm², upper surface only 31 per mm² (counted in the field of view at x400 then scaled up). Fewer on top bc they would lose too much water in the sun.\n\nHistory bit: Jan Ingenhousz showed in 1779 that plants need light to \"restore\" air, and that only the green parts do it.\n\nRespiration – NOT the same as breathing!!! (Mr H will take marks off)\nAerobic respiration happens in the mitochondria of all living cells, plants too, day AND night. Exothermic, energy released.\nglucose + oxygen → carbon dioxide + water (+ energy)\nC6H12O6 + 6O2 → 6CO2 + 6H2O\nEnergy used for: muscle contraction, keeping warm (mammals/birds), building big molecules from small ones, active transport.\n\nAnaerobic respiration\nIn muscles when there's not enough O2 (hard exercise): glucose → lactic acid. Much less energy released bc glucose isn't fully broken down. Lactic acid builds up → cramp/fatigue, oxygen debt has to be repaid after (heavy breathing, liver breaks lactic acid down).\nIn yeast + plant cells: glucose → ethanol + carbon dioxide = fermentation. Used for bread (CO2 makes it rise) and brewing (ethanol).\nYeast balloon lab: 10 g sugar + 5 g yeast in warm water, balloon over the top of the flask. At 35 °C the balloon circumference reached 18.5 cm after 20 min, at room temp only 11 cm. The fridge one barely changed, enzymes too slow when cold.\n\nExercise lab\nPulse before + after 2 min of step-ups. Jamal (our tester): resting 72 bpm, straight after 148 bpm, took 6 minutes to get back to resting. Breathing rate and depth also went up to get more O2 in and CO2 out. Mr H: \"fitter people recover faster bc bigger stroke volume\", Jamal was offended lol.\n\nCompare (exam table!)\naerobic: needs O2, lots of energy, products CO2 + water\nanaerobic: no O2, less energy, products lactic acid (animals) or ethanol + CO2 (yeast/plants)\nThe two processes are kinda the reverse of each other. At the compensation point the rates are equal so there's no net gas exchange — for our pondweed Mr H estimated that happened at about 55 cm from the lamp. Test next Weds, revise the equations."
+    },
+    {
+      "title": "Chemistry — Acids, Bases and Salts",
+      "text": "CHEM - Acids, bases & salts (Mr Benn, wk 3-5)\n\npH scale 0–14. Below 7 acidic, 7 neutral, above 7 alkaline. Each step is 10x more/less H+ ions, so pH 3 is 100x more acidic than pH 5. Universal indicator colours: red (strong acid) → orange/yellow → green (7) → blue → purple (strong alkali). In our first practical we tested stuff from home with the pH meter: lemon juice 2.4, cola 2.6, tap water 7.3, baking soda solution 8.5, bleach 12.6. Mr B said tap water isn't exactly 7 because of dissolved minerals and the chlorine they add.\n\nDefinitions\n- acid: produces H+ ions in water (proton donor)\n- base: neutralises an acid. Alkali = a base that dissolves in water, produces OH- ions\n- strong acid = fully ionises in water (HCl, H2SO4, HNO3); weak acid = only partially ionises (citric acid, carbonic acid)\n- strong vs concentrated is NOT the same thing!! concentrated = lots of acid per dm³, strong = how much of it ionises. Mr Benn's favourite trick q, he puts it on every test.\n\nCommon acids & formulas\nhydrochloric acid HCl\nsulfuric acid H2SO4\nnitric acid HNO3\nsodium hydroxide (alkali) NaOH\npotassium hydroxide KOH\nammonia solution NH3 (weak alkali)\n\nReactions (Mr Benn's chants, we had to say them out loud…)\nacid + metal → salt + hydrogen (\"bubbles every time\" – test with a lit splint, squeaky pop)\nacid + base (metal oxide/hydroxide) → salt + water\nacid + carbonate → salt + water + carbon dioxide (bubble it through limewater, goes cloudy)\nNaming salts: hydrochloric → chlorides, sulfuric → sulfates, nitric → nitrates. Class mnemonic \"Clever Sheep Nibble\" (Chloride, Sulfate, Nitrate) for hydrochloric, sulfuric, nitric in that order. First part of the name comes from the metal.\n\ne.g. magnesium + hydrochloric acid → magnesium chloride + hydrogen\ncopper oxide + sulfuric acid → copper sulfate + water\ncalcium carbonate + nitric acid → calcium nitrate + water + carbon dioxide\nNeutralisation ionic eqn: H+ + OH- → H2O (same for every acid + alkali, which is why it's the same energy change roughly)\n\nMaking a soluble salt (copper sulfate crystals) – required practical\n1. warm the sulfuric acid gently\n2. add copper(II) oxide a spatula at a time until no more dissolves (excess, solution goes blue + black powder left at the bottom)\n3. filter to remove the excess oxide\n4. evaporate some of the water then leave to crystallise on a windowsill\nOur group's yield was 4.12 g of blue crystals, theoretical was 5.0 g so 82.4% yield. Mr B said the loss was mostly from spitting when we heated too fast \"you're not making popcorn\". Don't boil it dry or you get powder not crystals.\n\nTitration\nUsed to find the exact volume of acid needed to neutralise an alkali. Pipette 25.0 cm³ of NaOH into a conical flask, few drops of phenolphthalein (pink in alkali, colourless in acid) or methyl orange (yellow in alkali, red in acid). Burette filled with HCl, add slowly, swirl, dropwise near the end point, white tile underneath to see the colour. Repeat until concordant results (within 0.10 cm³). Our mean titre was 21.35 cm³ (runs 2, 3 and 4 were concordant, rough run ignored).\nmoles = conc x volume (in dm³!!) → divide cm³ by 1000 first\nUniversal indicator is useless for titrations bc the colour changes gradually.\n\nEveryday stuff\n- indigestion tablets neutralise excess stomach acid (HCl). Our test of the \"Calmex\" tablet: one crushed tablet neutralised 31 cm³ of the 0.1 M acid before methyl orange turned red. Supermarket own-brand did 24 cm³, so Calmex wins but it's 3x the price.\n- bee stings are acidic (rub with bicarb), wasp stings alkaline (use something acidic) - Mr B says this is mostly a myth tho, the amounts are tiny\n- farmers add lime to acidic soils so crops grow better\n- lemons and oranges contain citric acid; fizzy drinks have carbonic + phosphoric acid in them\n- acid rain (from sulfur dioxide + nitrogen oxides) damages limestone buildings and kills fish in lakes\n\nGardening club link: the school garden soil test came back pH 5.8 so they added lime to the veg beds over half term, the retest is due in Jan. End of topic test is 14 Nov, 40 marks, 45 min, calculators allowed."
+    },
+    {
+      "title": "History — The French Revolution",
+      "text": "History – French Revolution 1789–99 (Ms Duval)\n\nCauses – use the BREAD mnemonic (Ms Duval's, she says it's on the mark scheme in spirit):\nB – Bankruptcy (France massively in debt, partly from helping the Americans)\nR – Rigid estates system\nE – Enlightenment ideas (Rousseau, Voltaire, Montesquieu)\nA – American Revolution as an example that it could be done\nD – Dearth (bad harvest of 1788, bread prices up)\nLong term vs short term: B, R and E are long term, the harvest is the trigger.\n\nThe 3 Estates\n1st Estate = clergy (~0.5% of population), paid almost no tax, the Church collected the tithe\n2nd Estate = nobility (~1.5%), also mostly exempt from tax\n3rd Estate = everyone else (~97%), peasants, workers, bourgeoisie — paid the taille + tithe + feudal dues\nIn Source C of our pack, a Paris stonemason earned 30 sous a day and a 4-pound loaf cost 14.5 sous in summer 1789, so about half his wage went on one loaf. Ms D: \"now imagine you have 4 kids\". The bourgeoisie were rich but had no political power, which annoyed them most.\n\n1789 – the big year\n- May 1789: Estates-General meets at Versailles for the first time since 1614. Voting by estate (each estate 1 vote) so the 3rd estate was always outvoted 2–1.\n- 17 June: 3rd Estate declares itself the National Assembly\n- 20 June 1789: Tennis Court Oath – they swear not to split up till France has a constitution\n- 14 July 1789: storming of the Bastille, a prison/arsenal in Paris, only 7 prisoners inside lol. Crowd wanted the gunpowder. Became the national holiday.\n- summer: the Great Fear in the countryside, peasants attack chateaux and burn the records of feudal dues\n- Oct: women's march on Versailles, royal family brought back to Paris (basically prisoners from then on)\n\nConstitutional monarchy 1789–92\nKing accepted limits on his power (sort of, not really). Church land nationalised to pay off the debt, Civil Constitution of the Clergy (1790) made priests swear an oath to the state, split the country in two. June 1791 flight to Varennes – Louis + family tried to escape dressed as servants, caught bc someone recognised him from his face on the money (assignats). After that nobody trusted him.\n\nWar + Republic\nApril 1792 France declares war on Austria. Things go badly, Paris crowds blame the king. Sept 1792 monarchy abolished, France becomes a republic, Year I of the new calendar. Louis put on trial for treason, executed by guillotine 21 January 1793. Other monarchs in Europe horrified → more war.\n\nField trip: Harcourt House museum has a replica guillotine. The guide said the blade weighs 38 kg and drops 2.3 m. It was \"meant to be humane and equal\" — same quick death for nobles and commoners, before that nobles got the sword and commoners got hanged.\n\nThe Terror (Sept 1793 – July 1794)\nCommittee of Public Safety, led by Robespierre (Jacobins). Law of Suspects = you could be arrested for basically anything. About 17,000 official executions, many more died in prison or in the Vendée rising. Dechristianisation, Cult of the Supreme Being. Robespierre himself was guillotined 28 July 1794 (Thermidor) when the others got scared they were next.\nClass debate: \"Was the Terror necessary to save the Revolution?\" — motion passed 17 to 9, Ms Duval said she was \"mildly horrified\" but the arguments were good.\n\nAfter the Terror\nThe Directory (1795) – 5 directors, corrupt, unpopular, relied on the army to stay in power. Ms D says we only need the outline for this bit, the exam focuses on 1789–94.\n\nKey people to know\n- Louis XVI – weak, indecisive, liked hunting and making locks more than governing\n- Marie Antoinette – Austrian-born queen, very unpopular, nicknamed \"Madame Deficit\"; the \"let them eat cake\" quote is fake (Ms D gets cross if we use it)\n- Robespierre – lawyer, \"the Incorruptible\", believed virtue and terror had to go together\n- Danton – leading Jacobin, wanted the Terror to slow down, guillotined in April 1794\n- Marat – radical journalist (L'Ami du peuple), stabbed in his bath by Charlotte Corday in July 1793\n- Lafayette – noble who had fought in America, commanded the National Guard\nInterpretations: Marxist historians saw it as a bourgeois revolution (class struggle); revisionists say it was more about politics and ideas than class. Ms D wants us to name at least one view in the 16-markers.\n\nEssay tips (Ms D's)\n- use PEEL paragraphs\n- always give dates + a specific source\n- for \"how far\" questions give a judgement in the intro AND the conclusion\n- our practice essay was 16 marks, mine got 11/16, need more on long-term causes\nRevision: Kahoot on Friday, top score last time was 2,340 points (Leon, obviously)."
+    },
+    {
+      "title": "Geography — Weather and Climate",
+      "text": "Geog – Weather & climate (Mrs Pike)\n\nWeather = the day-to-day state of the atmosphere (temp, rain, wind, cloud, pressure, humidity). Climate = the average weather over a long time, usually 30 yrs. Mrs Pike: \"climate is what you expect, weather is what you get\". Our school weather station (on the roof of the science block) recorded the highest temp of this term as 27.4 °C on 3 Sept, and the lowest so far 2.1 °C on 21 Oct.\n\nMeasuring the weather\n- thermometer kept in a Stevenson screen (white, louvred sides, 1.2 m off the ground so the sun and the ground don't affect it)\n- rain gauge (mm), sunk into the ground a bit so it doesn't blow over, away from trees\n- anemometer = wind speed, wind vane = direction (wind is named after where it comes FROM, a westerly blows from the west)\n- barometer = air pressure in millibars (mb), average at sea level about 1013 mb\n- hygrometer = humidity\nThe October rain gauge total at school was 112 mm, the wettest month since the station was put up in 2017. Mrs P made us do a bar chart of it for HW.\n\nTypes of rainfall (all the same basic idea = air rises, cools, water vapour condenses, clouds form, rain)\n1. relief – air forced up over mountains, rain on the windward side, rain shadow on the other (leeward) side. Why the west of the UK is wetter.\n2. convectional – ground heats up, warm air rises fast, heavy thunderstorms in the afternoon, tall cumulonimbus clouds. Common in the tropics every day.\n3. frontal – warm air meets cold air and is forced to rise over it (depressions crossing the Atlantic)\n\nPressure systems\nLow pressure (depression): air rising, cloudy, wet, windy, winds go anticlockwise in the N hemisphere. Most UK weather.\nHigh pressure (anticyclone): air sinking, clear skies, light winds, hot dry summers / cold frosty foggy winters.\nIsobars = lines joining places of equal pressure. Close together = strong winds.\n\nTemperature and altitude\nTemp drops with height – the normal environmental lapse rate is about 6.5 °C per 1000 m. Mrs P's worked example: a town at 200 m is 18 °C, so a hilltop at 1,400 m (1,200 m higher) = 18 − 7.8 = 10.2 °C. Why mountain tops have snow when the valleys don't.\n\nFactors affecting climate – Mrs Pike's acronym \"LAMP-W\":\nL – latitude (near the equator = sun more overhead, more concentrated heating)\nA – altitude\nM – maritime vs continental (distance from the sea; sea heats up and cools down slower than land)\nP – prevailing wind (UK = south-westerly, mild + wet off the Atlantic)\nW – water currents (the North Atlantic Drift keeps the UK warmer than other places at the same latitude)\n\nMicroclimate fieldwork\nWe measured temps around the school site at 11am on the same day, 8 sites, same thermometer. The car park was 3.1 °C warmer than the playing field (tarmac absorbs heat, less shade, cars), and the north side of the sports hall was the coldest + windiest spot. Urban heat island is the same idea on a bigger scale – cities warmer than the countryside, esp at night.\n\nExtreme weather\nUK record high: 40.3 °C at Coningsby, Lincolnshire, July 2022.\nCase study (made-up town for the exam practice): Brackley Vale flash flood. 64 mm of rain fell in 6 hours, the river peaked 2.8 m above normal, 140 homes flooded. Causes: ground already saturated after a wet week, steep valley sides, urban area with lots of impermeable surfaces (concrete, roofs). Responses: sandbags, evacuation of the care home, rest centre in the school, later a £4.6 million flood wall. Mrs P: learn 3 numbers from every case study.\n\nClimate change\n- greenhouse effect: CO2, methane, water vapour trap heat in the atmosphere, natural but humans have made it stronger\n- evidence: ice cores, sea level rise, retreating glaciers, temp records since the 1850s\n- global average temp is up about 1.2 °C since pre-industrial times\n- effects: more extreme weather, sea level rise, droughts, species moving\n- responses: mitigation (reduce the causes, e.g. renewables) vs adaptation (live with it, e.g. flood defences)\nLast lesson we did a carbon footprint quiz, the class average came out at 7.9 tonnes of CO2 per person per year. Mrs P's was 11.2 because of flights, she wasn't proud of it."
+    },
+    {
+      "title": "Maths — Statistics and Averages",
+      "text": "Maths – Statistics & averages (Mr Adeyemi)\n\nThe 3 averages + range. Class mnemonic \"MMMR = Many Mice Make Racket\" (Mean, Median, Mode, Range) – Mr A refuses to explain why the mice are noisy.\n- Mean = add them all up ÷ how many there are\n- Median = middle value when they're in ORDER (position (n+1)/2)\n- Mode = most common value (can be more than one, or none at all)\n- Range = biggest − smallest (it's a measure of SPREAD not an average!!)\n\nOur shoe size survey (28 of us in the class): mean 6.7, median 7, mode 6, range 7 (smallest 4, biggest 11 – that's Dev). Mr A pointed out the mean isn't even a real shoe size, so for a shoe shop ordering stock the mode is the most useful one.\n\nWhen to use which average\n- mean: uses all the data, but affected by outliers (extreme values)\n- median: not affected by outliers, good for skewed data like house prices / salaries\n- mode: the only one you can use for non-numerical (categorical) data e.g. favourite colour\nTeacher's example: salaries at a small firm £18k, £19k, £21k, £22k, £150k (the boss). mean = £46k, median = £21k. \"Which one would the boss put in the job advert?\" (the mean, obviously). Always say WHY you chose an average in context, you get the mark for the reason not the word.\n\nFrequency tables\nMean from a frequency table = Σfx ÷ Σf. Don't divide by the number of rows (classic mistake, I did it twice).\nWorked example from the board — number of pets:\n0 pets: 6\n1: 9\n2: 7\n3: 4\n4: 2\nΣf = 28, Σfx = 0+9+14+12+8 = 43, mean = 43 ÷ 28 = 1.54 pets.\nMode from a table = the row with the highest frequency (here 1 pet), NOT the frequency itself.\nGrouped data → use the midpoint of each class → you only get an ESTIMATE of the mean bc you don't know the exact values. In the homework (heights in cm) the estimated mean came to 163.8 cm. Modal class instead of mode.\n\nSpread: quartiles + IQR\nLower quartile Q1 = the value a quarter of the way through the ordered data, upper quartile Q3 = three quarters of the way.\nIQR = Q3 − Q1, shows the spread of the middle 50%, so it ignores outliers.\nSet 2 mock test scores: Q1 = 52, median 59, Q3 = 66, so IQR = 14 marks. Set 1's IQR was 9 marks so set 1 were more consistent (but set 2 had the higher median, ha).\nBox plots: min, Q1, median, Q3, max. To compare 2 box plots → compare an average (median) AND the spread (IQR), always in context, e.g. \"on average set 2 scored higher but set 1's scores were more consistent\".\n\nStandard deviation (only for the higher group / A level taster)\nSD measures how spread out the data are around the mean. Small SD = data bunched close to the mean. In a normal distribution (bell curve, Mr A calls it the Gaussian curve after Gauss) about 95% of values lie within 2 SD of the mean. Our reaction-time ruler experiment: class mean 0.284 s, SD 0.041 s. Calculator has an SD button (σx), use it, don't do it by hand in the exam.\n\nSampling (from the start of the unit)\n- population = everyone/everything you're interested in, sample = the part you actually collect data from\n- random sample = every member has an equal chance of being picked (names out of a hat, random number generator)\n- biased sample e.g. asking only people in the library how much they read\n- bigger sample = more reliable, but takes longer + costs more\n- primary data (you collect it yourself) vs secondary data (someone else collected it, e.g. the census)\nOur class survey on screen time was a convenience sample (just our form group) so Mr A said we can't claim anything about the whole school from it. The mean screen time in it was 5.2 hours a day, which shocked him.\n\nGraphs\n- histograms with unequal widths: frequency density = frequency ÷ class width, area = frequency\n- scatter graphs, correlation positive/negative/none, line of best fit (only use it to estimate INSIDE the data range = interpolation)\n- correlation ≠ causation (ice cream sales and sunburn both go up in summer)\n- pie charts: angle = frequency ÷ total × 360\n\nHistory bit\nFlorence Nightingale used her \"coxcomb\" (polar area) diagrams in 1858 to show more soldiers were dying of disease than of wounds — Mr A's hero, he has a poster of her chart.\nNext topic: cumulative frequency. Test on the 20th, Mr A says the pass mark last year was 38 out of 60."
+    },
+    {
+      "title": "Economics — Money, Banks and Interest",
+      "text": "Economics – Money, banks & interest (Mrs Tan)\n\nWhat is money? Anything that's widely accepted as payment. Before money people used barter, the problem = \"double coincidence of wants\" (you need to find someone who has what you want AND wants what you have). Functions of money — Mrs Tan's mnemonic \"My Uncle Steals Sweets\":\n- Medium of exchange\n- Unit of account (a way of measuring value)\n- Store of value\n- Standard of deferred payment (lets you borrow now and repay later)\nCharacteristics of good money: durable, portable, divisible, scarce, generally accepted, hard to fake.\n\nShort history (she said this won't be examined but \"it's interesting, humour me\")\n- earliest proper coins: Lydia (in modern Turkey) around 600 BC\n- Stockholms Banco in Sweden issued Europe's first banknotes in 1661\n- Bank of England founded 1694, originally to lend money to the government for a war with France\n- UK went decimal on 15 Feb 1971 (before that: 12 pence in a shilling, 20 shillings in a pound)\n- now most payments in shops are card/contactless, cash is a small share\n\nBanks – what they do\n- keep deposits safe, pay interest on savings\n- lend to households + firms (mortgages, personal loans, overdrafts), charge interest on it\n- make their profit from the spread (lend at a higher rate than they pay savers)\n- the central bank (BoE) sets the base rate, decided by the Monetary Policy Committee (MPC), 9 members, meets 8 times a yr\n- BoE inflation target 2% (CPI)\nCommercial banks vs building societies (owned by their members, not shareholders) vs credit unions (small, local, not-for-profit). Class visit: Riverside Credit Union — 1,240 members, max loan for a new member is £500, run mostly by volunteers, the manager was really nice and gave us pens.\n\nTypes of account\n- current account: day-to-day money, debit card, direct debits, usually little or no interest, may have an overdraft\n- easy-access savings: take money out whenever you want, lower rate\n- fixed-term / fixed-rate bond: lock money away for 1–5 yrs, higher rate, penalty if you withdraw early\n- ISA: the interest is tax-free (up to the yearly allowance)\n- student/youth accounts: no overdraft if you're under 18\nBorrowing options ranked by Mrs Tan from \"usually OK\" to \"run away\": mortgage → personal loan → overdraft → credit card → buy now pay later → payday loan. She showed us a payday loan advert with a representative APR of 1,270% and said \"always read the small print\".\n\nRisk and return\nHigher return usually = higher risk. Savings accounts are low risk, shares are higher risk (their value can fall as well as rise). Diversification = don't put all your eggs in one basket.\n\nInterest\nSimple interest = P × r × t (only ever on the original amount)\nMrs Tan's worked e.g.: £2,500 at 4.2% simple interest for 3 yrs → 2500 × 0.042 × 3 = £315 interest, total £2,815.\nCompound interest = interest on interest. A = P(1 + r)^n\n£1,000 at 5% compound for 10 yrs → 1000 × 1.05^10 = £1,628.89 (simple would only give £1,500).\nRule of 72: years to double ≈ 72 ÷ interest rate. At 6% about 12 years. Mrs T: \"the earlier you start saving the more compounding does the work for you\".\n\nBorrowing vs saving rates\nAER = annual equivalent rate, for SAVINGS, lets you compare accounts fairly even if they pay interest monthly vs yearly\nAPR = annual percentage rate, for BORROWING, includes fees as well as interest\nCase study (made up): Fernhill Savings offers 3.85% AER on its easy-access account; the Fernhill credit card is 24.9% APR. If you keep £600 on the card for a year and only pay the minimum you'd pay roughly £149 in interest, but the same £600 saved would earn about £23. Moral = pay off cards first before saving.\nOther key words: collateral/security, credit score, default, overdraft, payday loans (very high APR, avoid!!).\n\nInflation\nPrices rising over time, measured by CPI (a basket of goods and services). If inflation > interest rate, your savings lose real value (\"real interest rate\" = nominal rate − inflation). If the BoE raises the base rate → borrowing costs more, saving more attractive → people spend less → inflation should fall.\nClass basket task: our 12-item shopping basket cost £48.60 in Sept 2023 and £51.20 this Sept → 5.3% increase.\nHW = compare 3 real savings accounts, Mrs T wants AER, minimum deposit and access rules for each. Due wk 9."
+    },
+    {
+      "title": "English Literature — Romeo and Juliet",
+      "text": "Eng Lit – Romeo and Juliet (Ms Reyes)\n\nBasics: written c. 1595 by Shakespeare (born 1564, Stratford-upon-Avon). A tragedy, set in Verona, Italy (a few scenes in Mantua). Two \"households, both alike in dignity\" – the Montagues and the Capulets, with an \"ancient grudge\" nobody explains. Ms Reyes's plot mnemonic: \"Lovely Fish Will Bite Divers\" = Love, Fight, Wedding, Banishment, Death – one for each act roughly.\n\nThe Prologue\n- it's a sonnet (14 lines, ABAB CDCD EFEF GG). Sonnets = the love poem form, used here to tell a story about death = irony\n- \"star-cross'd lovers\" → fate, the stars are against them\n- \"death-mark'd love\"\n- tells us the ending straight away so the tension is about HOW not WHAT happens\n- the Chorus speaks it, like a narrator\n\nKey characters\nRomeo – a Montague, impulsive, starts off moping about Rosaline (Petrarchan lover cliché, oxymorons \"O brawling love, O loving hate\")\nJuliet – a Capulet, 13 (\"she hath not seen the change of fourteen years\"), grows up fastest in the play, ends up braver than Romeo\nMercutio – Romeo's friend, the Prince's kinsman, Queen Mab speech, \"a plague o' both your houses\"\nTybalt – Juliet's cousin, \"Prince of Cats\", hates all Montagues, \"I hate the word, as I hate hell\"\nBenvolio – peacemaker, his name means good will\nFriar Laurence – marries them in secret, comes up with the plan with the potion (\"two and forty hours\")\nThe Nurse – comic, crude, Juliet's real mother figure, but tells her to marry Paris later = betrayal\nLord + Lady Capulet, Paris (the suitor), Prince Escalus (law and order)\n\nTimeline: the whole thing takes about 4 days (Sunday → Thursday). Act 3 Scene 1 is the turning point: Tybalt kills Mercutio, Romeo kills Tybalt, Romeo is banished to Mantua. \"O, I am fortune's fool!\" Before this scene it's basically a comedy, after it everything goes wrong.\n\nThemes\n- love (different types: romantic, courtly, sexual (Nurse/Mercutio jokes), familial)\n- conflict/violence, honour\n- fate vs free will\n- youth vs age\n- light and dark imagery – in Act 2 Scene 2 (the balcony scene) we found 14 references to light/dark between the two of them. \"Juliet is the sun\", \"bright angel\", stars, night etc. Their love is bright but only exists at night = secret.\nMs R: \"if you can't think of anything, write about haste\" – everything happens too fast, \"too rash, too unadvis'd, too sudden\".\n\nKey scenes + quotes to learn\n- 1.1 the brawl, servants biting thumbs; the Prince: \"If ever you disturb our streets again, / Your lives shall pay the forfeit of the peace\"\n- 1.5 the Capulet party, they meet; their first conversation is a shared sonnet; Juliet: \"My only love sprung from my only hate\"\n- 2.2 balcony: \"O Romeo, Romeo, wherefore art thou Romeo?\" (= WHY are you Romeo, not where are you)\n- 2.6 Friar: \"These violent delights have violent ends\"\n- 3.5 Capulet threatens to throw Juliet out: \"hang, beg, starve, die in the streets\"\n- 5.3 the tomb, Romeo poisons himself, Juliet stabs herself with his dagger: \"O happy dagger\"\nMs R: learn short quotes (3–6 words), easier to remember and easier to analyse.\nThe ending: the families finally reconcile and Montague promises a gold statue of Juliet. Ms R calls it \"too little, too late\".\n\nLive theatre\nWe watched the touring production at the Lyceum Studio — modern dress, the fight in 3.1 was with knives not swords, the balcony set was 3.2 m high and the actor playing Juliet swung down on a rope at the end of the scene. Running time 1 hour 52 minutes with the cuts (no interval). Most people liked it, Ms R thought the Nurse was \"too shouty\".\n\nContext (AO3)\n- Elizabethan audience: arranged marriages normal, girls married young, fathers had control (patriarchy)\n- honour culture → duels\n- the Church: suicide a sin, so the ending would be shocking\n- Italy seen as a place of passion and violence\n\nExam stuff\n- AQA Paper 1 Section A, extract + whole play, no book in the exam\n- our mock q: \"How does Shakespeare present conflict in Act 3 Scene 1?\" 30 marks + 4 SPaG\n- Ms R's paragraph structure: \"WHAT HOW WHY\"\n- my mock mark was 22/34, need more language analysis (zoom in on single words)\nQuote bank homework: 20 quotes, at least 5 for Juliet, due Monday."
+    },
+    {
+      "title": "Computing — Networks and the Internet",
+      "text": "Computing – Networks & the internet (Mr Kowalski)\n\nNetwork = 2 or more computers connected together to share resources (files, printers, an internet connection) and communicate.\nLAN – local area network, small geographical area (school, home, office), the organisation owns the hardware\nWAN – wide area network, big geographical area, uses leased lines/third-party infrastructure; the internet is the biggest WAN\nOur school LAN: 412 devices connected on a normal day, 3 core switches, the lab printer's IP is 10.4.12.30 (Mr K showed us in the admin panel, \"don't get excited, you can't log in\").\n\nHardware\n- NIC network interface card, each one has a unique MAC address (set at the factory, written in hex, e.g. 3C:52:82:1A:6F:04)\n- switch – connects devices within a LAN, sends data only to the right device using MAC addresses\n- router – connects different networks together (e.g. your home LAN to the internet), forwards packets using IP addresses\n- WAP wireless access point – lets wireless devices join a wired network\n- cables: ethernet (twisted pair copper), fibre optic (pulses of light, fastest, no electrical interference, expensive), coaxial\n\nWired vs wireless\nWired (ethernet): faster, more reliable, more secure, but less convenient + cables everywhere.\nWireless (Wi-Fi): uses radio waves (2.4 GHz and 5 GHz bands), convenient, devices can move around, but slower, interference from walls and other networks, and easier to intercept → always use WPA2/WPA3 encryption.\nIn the lab we ran a speed test both ways on the same laptop: ethernet 934 Mbps down, Wi-Fi next to the access point 212 Mbps, Wi-Fi from the far end of the corridor only 38 Mbps. Mr K: \"walls are not your friend\".\nBluetooth = short range, low bandwidth, for personal devices (a PAN, personal area network).\n\nTopologies\nstar: all devices connect to a central switch. + one cable failing only affects one device, easy to add devices, good performance. − central switch fails = everything down, lots of cable\nmesh: every device connects to many/all others. + very reliable, data can take other routes. − expensive, lots of connections\n(bus and ring are old, Mr K said \"don't waste brain cells but know the names\")\n\nProtocols = sets of rules for how devices communicate\nThe TCP/IP model has 4 layers — class mnemonic \"All Turtles In Lakes\":\nApplication (HTTP, HTTPS, FTP, SMTP, IMAP)\nTransport (TCP, UDP)\nInternet (IP)\nLink (Ethernet, Wi-Fi)\nEach layer only talks to the ones above and below it, so you can change one without breaking the others.\nCommon port numbers: HTTP 80, HTTPS 443, SMTP 25, DNS 53.\nIP addresses: IPv4 = 32 bits, written as 4 numbers 0–255 (e.g. 192.168.1.10). We ran out of them so IPv6 = 128 bits, written in hex with colons.\n\nPacket switching\nData is split into packets. Each packet has a header (source IP, destination IP, packet number), the payload (actual data), and a trailer (checksum to spot errors). Packets can take different routes across the network and arrive out of order, then get reassembled at the destination. If one is missing or corrupted it gets re-sent.\nWe captured traffic with Wireshark for 60 seconds on one lab PC: 1,388 packets, most of them TLS (encrypted HTTPS traffic). Mr K said that's \"a quiet minute\".\n\nDNS\nThe Domain Name System turns a domain name (bbc.co.uk) into an IP address. Your computer asks a DNS resolver, which asks a root server → the TLD server (.uk) → the authoritative server for that domain. Results are cached so it's quicker next time.\n\nSpeed & latency\nBandwidth = how much data can be sent per second (Mbps). Latency = delay (ms).\nMr K's worked example: a 750 MB file over a 40 Mbps connection: 750 × 8 = 6000 megabits ÷ 40 = 150 seconds (2.5 min). REMEMBER bits vs bytes (×8), capital B = bytes.\nOur ping tests from the lab: bbc.co.uk averaged 14 ms, a server in Sydney 287 ms – more distance + more hops = more latency. Things that slow a network down: number of users, interference, type of cable, distance.\n\nThe internet vs the WWW\nThe internet = the global network of networks (the hardware + protocols). The World Wide Web = all the web pages you access over the internet using HTTP(S) and a browser. Email isn't the web but does use the internet. Tim Berners-Lee invented the WWW at CERN in 1989.\n\nSecurity quick list (next topic)\nfirewall, encryption, MAC address filtering, strong passwords, two-factor auth, penetration testing. Mr K's fake \"phishing email\" test last month caught 9 of our class of 27 — so a third of us clicked the link. Quiz next week."
+    },
+    {
+      "title": "Health — Sleep and the Brain",
+      "text": "Health unit – Sleep and the brain (Mr Ellis)\n\nWhy we sleep: memory consolidation (moving stuff from short-term to long-term memory), clearing waste out of the brain (the glymphatic system), growth hormone release, mood regulation, keeping the immune system working. Teens need 8 to 10 hours a night (adults 7–9). Our class sleep diary (2 weeks, 26 of us): average 6 h 48 min on school nights, 8 h 55 min at weekends. Mr Ellis calls that gap \"social jet lag\" – like flying to another time zone every Monday.\n\nBody clock\n- circadian rhythm = roughly 24 hr cycle, controlled by the suprachiasmatic nucleus (SCN) in the hypothalamus\n- light hitting the retina tells the SCN it's daytime\n- melatonin (the \"sleep hormone\") is released by the pineal gland when it gets dark\n- in teenagers the melatonin release shifts about 2 hours later → teens aren't \"lazy\", it's biology (tell parents this)\n- blue light from screens suppresses melatonin, so scrolling in bed = brain thinks it's still daytime\n- body temp drops slightly at night, lowest in the early morning\n\nSleep pressure\nAdenosine builds up in the brain the longer you're awake → you feel sleepier and sleepier. Sleep clears it. Caffeine works by blocking adenosine receptors, it doesn't give you energy, it hides the tiredness. Caffeine half-life is roughly 5 hours. Mr E's worked example: an energy drink with 160 mg of caffeine at 4pm → about 80 mg still in your system at 9pm, ~40 mg at 2am. \"That's half a can still in you at bedtime.\"\n\nSleep stages (class mnemonic \"Nine Nervous Newts Run\" = N1, N2, N3, REM)\nN1 – light sleep, drifting off, hypnic jerks (the \"falling\" feeling)\nN2 – heart rate + body temp drop, sleep spindles show on the EEG\nN3 – deep / slow-wave sleep, hard to wake up from, growth hormone, body repair\nREM – rapid eye movement, vivid dreams, brain very active, muscles paralysed (so you don't act out your dreams)\nOne cycle ≈ 90 minutes, 4–6 cycles a night. More deep sleep early in the night, more REM towards the morning – so cutting sleep short (early alarm) mostly cuts your REM.\n\nEffects of not enough sleep\n- worse attention, memory, reaction times, decision making\n- mood: irritable, anxious, more likely to be low\n- more likely to crave sugary food (hunger hormones out of balance)\n- weaker immune system, more colds\n- drowsy driving = as dangerous as drunk driving\nRuler-drop reaction test in class: the rested group's average catch distance was 18.2 cm, the \"slept under 6 hrs\" group 23.7 cm. Small sample tho (Mr E admitted the \"tired\" group included people who'd just had PE).\n\nTeenagers + school start times\nResearch Mr E showed us: some US schools moved their start times later (8:30 or after) and students got more sleep, better attendance and fewer car crashes. Our school starts at 8:40 but the bus kids leave home at 7:15. Class vote on a 9:30 start: 24 for, 2 against (the 2 have football training in the mornings).\nNaps: a short nap (20 min or less) can help alertness without waking up groggy (sleep inertia). Long naps late in the afternoon make it harder to fall asleep at night.\nDreams: everyone dreams, most vivid ones happen in REM, you only remember them if you wake during or just after one.\n\nSleep disorders\ninsomnia (can't fall asleep or stay asleep), sleep apnoea (breathing stops for a few seconds, loud snoring, more common in overweight adults), narcolepsy (fall asleep suddenly in the day, sometimes with cataplexy = sudden muscle weakness when laughing etc), night terrors (happen in N3, mostly in kids, they don't remember it).\nCase study (made up): \"Mia, 16\" – sleep latency (time taken to fall asleep) 34 minutes on average, wakes 2–3 times a night, phone in bed till 1am. Plan: phone charges outside the room, same wake time 7 days a week, no caffeine after 2pm, 20 min walk in daylight before school. After 3 weeks her latency was down to 15 minutes.\n\nSleep hygiene tips\n- consistent sleep + wake times (even weekends!)\n- dark, cool room (around 18 °C)\n- no screens 1 hr before bed\n- exercise in the day, but not right before bed\n- don't lie in bed awake for ages, get up and do something boring in dim light then try again\nMr Ellis's final challenge: aim for 9 hours a night for a week and log a daily mood score; last year's group went from an average of 5.1 to 6.8 out of 10."
+    },
+    {
+      "title": "Civics — Elections and Voting Systems",
+      "text": "Citizenship – Elections & voting systems (Mr Grant)\n\nDemocracy = rule by the people. Representative democracy: we elect people (MPs, councillors) to make decisions for us. Direct democracy: people vote on issues themselves (referendums, e.g. the 2016 EU referendum).\nMr Grant's opener: our class mock election using First Past The Post (FPTP) — Green 11 votes, Labour 9, Conservative 6, Lib Dem 4 (30 voters). Green won with only 36.7% of the vote, so 63.3% of us voted for someone else. \"Welcome to FPTP.\"\n\nWho can vote (UK general elections)\n- 18 or over (16 for Scottish Parliament + Welsh Senedd elections)\n- British, Irish or qualifying Commonwealth citizen\n- on the electoral register (you can register online, takes 5 min)\n- not in prison serving a sentence, not a member of the House of Lords\nGeneral elections must be held at least every 5 years. 650 constituencies = 650 MPs in the House of Commons. The party with a majority (326+) forms the govt and its leader becomes PM. If nobody has a majority = hung parliament → coalition or minority govt (2010 was a coalition).\n\nVoting systems\n1. FPTP – one vote, the candidate with the most votes in each constituency wins. Used for UK general elections + US elections.\n + simple, quick count, strong link between MP and constituency, usually single-party govts\n − lots of \"wasted votes\", safe seats, small parties underrepresented, winner can have well under 50%\n Class mnemonic: \"First Person There Prevails\" lol.\n2. AV (Alternative Vote / ranked choice): rank candidates 1, 2, 3… If no one has 50%+, the lowest candidate is eliminated and their votes transferred to the next preference, repeat. UK rejected it in the 2011 referendum (67.9% No). When we re-ran our mock with AV, Labour won in round 3 after the Lib Dem and Conservative votes were redistributed – same ballots, different winner!!\n3. AMS (Additional Member System): 2 votes – one for a constituency rep (FPTP), one for a party list (topped up to make it more proportional). Used for the Scottish Parliament and the London Assembly.\n4. Party list PR: vote for a party, it gets seats in proportion to its votes. Used in lots of European countries. Weaker link to a local rep.\n\nHow voting actually works (UK)\n- you get a poll card in the post (you don't need to take it with you)\n- go to your polling station, give your name + address, show photo ID\n- get a ballot paper, go into a booth, put an X next to ONE candidate (FPTP)\n- fold it and put it in the ballot box\n- postal votes and proxy votes (someone you trust votes for you) are available if you can't get there\nSecret ballot since the Ballot Act 1872 – before that voting was done out loud and people got bribed or threatened by landlords and bosses.\nSpoilt ballots: if you put more than one X or write something rude it isn't counted, but it is recorded. In our mock one extra paper was spoilt (someone drew Mr Grant on it), so there were 31 papers in the box.\n\nUSA comparison\nThe President is elected via the Electoral College: 538 electors, a candidate needs 270 to win. Each state gets electors = its number of senators + representatives. Most states are winner-takes-all. In 2000 and 2016 the winner lost the popular vote. Elections every 4 years, always on the Tuesday after the first Monday in November.\n\nTurnout\nTurnout = % of registered voters who actually vote. UK general election 2019: 67.3%, 2024: about 60%.\nMade-up case study for the essay: Dunmore Ward council by-election, turnout only 23.4%, the winner got 612 votes. Why so low? by-election on a rainy Thursday, little media coverage, people think local councils don't matter (they do – bins, libraries, roads).\nWays to boost turnout: compulsory voting (Australia – you get fined), online voting, weekend voting, votes at 16, better citizenship education (Mr G: \"you're welcome\").\n\nPressure groups vs parties\nParties want to win power, pressure groups want to influence it (e.g. Greenpeace, the RSPCA). Insider vs outsider groups. Methods: petitions (100k signatures = considered for a debate in Parliament), lobbying, protests, media campaigns.\n\nLocal stuff\nOur county council has 57 seats, elected every 4 years. We visited the polling station at St Anne's Hall on election day (the presiding officer is Mr Grant's mate): 1,906 voters on its register, polls open 7am–10pm, you need photo ID now (since 2023). Votes counted overnight at the leisure centre.\nEssay due: \"Should the UK replace FPTP?\" 800 words, use at least two of the systems above."
+    },
+    {
+      "title": "Earth Science — Rocks and the Rock Cycle",
+      "text": "Earth sci – Rocks & the rock cycle (Dr Mensah)\n\n3 main rock types: igneous, sedimentary, metamorphic. Rocks are made of minerals (naturally occurring, crystalline, with a definite chemical composition). Dr Mensah's rock tray, sample #7 = pink granite — we measured its density with the displacement can: mass 81.2 g, volume 30.3 cm³ → 2.68 g/cm³. Dr M said real granite is usually 2.6–2.7 so \"well done, nobody spilled anything this time\".\n\nIgneous\nFormed when magma/lava cools and solidifies. Crystals interlocking, no layers, no fossils (anything living would be burnt up).\n- intrusive (plutonic): cools slowly underground → big crystals, e.g. granite (quartz, feldspar, mica), gabbro\n- extrusive (volcanic): cools quickly at the surface → small crystals or glassy, e.g. basalt, obsidian, pumice (full of gas bubbles, floats!)\nSalol experiment: melted salol on a warm slide and a cold slide and watched under a hand lens. The cold slide (from the fridge) gave tiny crystals ~0.5 mm, the warm slide gave crystals up to 4 mm long. Slower cooling = bigger crystals, same as intrusive vs extrusive.\n\nSedimentary\nWeathering → erosion → transport → deposition → compaction + cementation (= lithification).\n- clastic: made of bits of other rocks, e.g. sandstone, conglomerate (rounded pebbles), breccia (angular bits), mudstone/shale\n- organic/biogenic: limestone (shells + skeletons of sea creatures), chalk, coal (plants)\n- chemical: rock salt, other evaporites\nLayers (strata), often contain fossils, can be porous. Limestone fizzes with dilute HCl because it's calcium carbonate.\nField trip – Hollin Quarry: one limestone bed was 3.6 m thick, full of crinoid fossils (\"sea lilies\", actually animals), about 330 million yrs old (Carboniferous). We each got to take one fragment home, mine has 6 crinoid stem bits in it.\n\nMetamorphic\nExisting rock changed by heat and/or pressure WITHOUT melting. Often banding/foliation, crystals lined up, harder than the original.\n- limestone → marble\n- sandstone → quartzite\n- granite → gneiss (high grade)\nContact metamorphism (heated by a nearby magma intrusion, small area, a \"baked\" zone) vs regional metamorphism (big area, mountain building, high pressure + temperature).\n\nWeathering\nPhysical: freeze–thaw (water expands ~9% when it freezes, widens cracks), onion-skin weathering (exfoliation) in hot deserts.\nChemical: rainwater is weakly acidic (carbonic acid) → slowly dissolves limestone + marble.\nBiological: roots growing into cracks, burrowing animals.\nDr M's example: the marble gravestone in St Peter's churchyard has lost about 2.1 mm of surface per century — the ones from the 1840s are basically unreadable now.\n\nFossils + dating\nFossils = remains or traces of organisms preserved in rock, nearly always in sedimentary rocks. Types: body fossils (shells, bones, teeth), trace fossils (footprints, burrows), moulds + casts. Law of superposition: in undisturbed layers the oldest are at the bottom. Index fossils (e.g. ammonites) lived for a short time but were widespread, so they help match up layers in different places.\nDr M's demo: she stacked 5 coloured layers of sand in a tank, tilted it, then \"eroded\" the top and added 2 more flat layers on top = an unconformity. Took about 25 minutes and left a lot of sand on the floor.\n\nUses of rocks\n- granite: kitchen worktops, kerbstones (hard, resists weathering)\n- limestone: building stone, cement, neutralising acidic soils\n- marble: statues, gravestones (looks nice but weathers in acid rain)\n- sandstone: buildings (soft, easy to carve, but erodes faster)\n- coal: fuel (a fossil fuel = burning ancient plants)\n\nMohs hardness scale (1–10)\ntalc 1 (softest), gypsum 2, calcite 3, quartz 7, diamond 10 (hardest). Fingernail about 2.5, steel knife or glass about 5.5. A mineral scratches anything softer than it. Class mnemonic for the whole scale: \"Terrible Giants Can Find Alligators Or Quite Tame Creatures Daily\". We only need talc, calcite, quartz and diamond for the test.\n\nThe rock cycle\nmagma → (cooling) igneous → (weathering/erosion) sediment → (compaction) sedimentary → (heat + pressure) metamorphic → (melting) magma… the arrows can go lots of ways, e.g. igneous straight to metamorphic, or anything back to sediment. Driven by the Sun (weathering, water cycle) and Earth's internal heat (plate tectonics). James Hutton, \"father of geology\", 1788: \"no vestige of a beginning, no prospect of an end\".\n\nMuseum bit: the Brennan Museum's iron meteorite (found in 1911 on a farm near the town) weighs 14.2 kg – not part of the rock cycle bc it's from space, Dr M got excited about it anyway."
+    },
+    {
+      "title": "Physics — Waves, Sound and Light",
+      "text": "Physics – Waves, sound & light (Mr Patel)\n\nWaves transfer ENERGY (and information) from one place to another without transferring matter. The water in a ripple just goes up and down, it doesn't travel across the pond.\nTransverse: oscillations perpendicular (at 90°) to the direction of energy transfer – e.g. light, all EM waves, ripples on water, S-waves in earthquakes\nLongitudinal: oscillations parallel to the direction of energy transfer – compressions + rarefactions – e.g. sound, P-waves\nFirst lesson slinky demo: Mr Patel got exactly 4 complete waves along the 2.4 m slinky, so the wavelength was 0.6 m.\n\nKey words\namplitude = max displacement from the rest position\nwavelength (λ) = distance from one point on a wave to the same point on the next wave (crest to crest)\nfrequency (f) = number of waves passing a point per second, in Hz\nperiod T = 1/f (time for one wave)\nWave speed: v = f λ (another formula triangle – Mr P calls it the \"very fancy lambda\" equation)\nRipple tank: the vibrating bar was set to 6 Hz and the wavelength (measured from the shadows with a ruler) was 2.5 cm → v = 15 cm/s. Use a strobe to \"freeze\" the waves.\n\nSound\n- longitudinal, needs a medium (no sound in space / a vacuum – the bell jar demo, the bell goes silent as the air is pumped out)\n- travels faster in solids than liquids, and faster in liquids than gases\n- speed in air ≈ 330–340 m/s (depends on temperature)\n- pitch ↔ frequency, loudness ↔ amplitude\n- human hearing 20 Hz – 20 kHz, ultrasound is above 20 kHz (used in pre-natal scans, sonar, cleaning jewellery)\nEcho experiment on the field: we stood 85 m from the sports hall wall, clapped in time with the echoes and timed 20 claps. Distance = 2 × 85 m each clap (there and back). Our measured speed of sound was 336 m/s.\nHearing test app: Mr Patel (age 52) could hear up to 14.8 kHz, most of us got to about 17.5 kHz – high frequency hearing drops with age (and with loud music, he said, looking at Callum).\n\nUltrasound + seismic waves\nUltrasound echo sounding: time the echo, distance = speed × time ÷ 2 (because it goes there and back). Used for scanning babies, finding the depth of the sea, detecting cracks inside metal.\nSeismic waves from earthquakes: P-waves (longitudinal, faster, travel through solids AND liquids) and S-waves (transverse, slower, solids only). S-waves don't get through the outer core → that's how we know it's liquid. Mr P drew the shadow zone diagram, learn it.\nOscilloscope demo with the signal generator: at 256 Hz (a middle C tuning fork) we saw 2.5 waves across the screen; doubling the frequency to 512 Hz doubled the number of waves and the note went up an octave.\n\nReflection & refraction\nReflection: angle of incidence = angle of reflection (both measured from the NORMAL, not the surface!!).\nRefraction: the wave changes speed when it goes into a different medium → it changes direction (unless it hits along the normal). Going into a denser medium (air → glass) light slows down and bends TOWARDS the normal.\nRefractive index n = sin i ÷ sin r. Our glass block: i = 40°, r = 25.2°, so n = 0.643 ÷ 0.426 = 1.51.\nTotal internal reflection: happens going from glass to air when the angle is bigger than the critical angle (≈ 42° for our glass) – used in optical fibres and endoscopes.\n\nEM spectrum (long wavelength → short wavelength)\nradio, microwave, infrared, visible, ultraviolet, X-ray, gamma\nClass mnemonic (Rowan's, it won the vote): \"Rabbits Munch In Vicky's Upstairs eXtra Garden\"\nAll EM waves travel at the speed of light in a vacuum = 3 × 10^8 m/s. Frequency goes up as wavelength goes down.\nVisible light is roughly 400–700 nm (violet → red).\nUses/dangers: radio (TV, radio), microwaves (cooking, satellite comms), IR (remote controls, thermal cameras), UV (sun tans, skin cancer, security marking), X-ray (seeing bones; ionising), gamma (killing cancer cells, sterilising equipment; the most ionising).\nHistory: Fizeau measured the speed of light on Earth in 1849 using a spinning toothed wheel and a mirror about 8 km away.\n\nLenses (end of topic)\nconvex (converging) – focuses parallel rays to a focal point; concave (diverging) – spreads them out. Our convex lens: focused an image of the window onto paper, focal length measured 12.4 cm. Magnification = image height ÷ object height (no units). Real images can go on a screen, virtual ones can't. End-of-topic test: Thurs, bring a protractor!!"
+    },
+    {
+      "title": "Biology — Ecosystems and Food Webs",
+      "text": "Bio – Ecosystems & food webs (Mr Odhiambo)\n\nKey terms\n- habitat: the place where an organism lives\n- population: all the organisms of one species in an area\n- community: all the populations in an area\n- ecosystem: the community + the non-living (abiotic) parts, interacting. The word was coined by Arthur Tansley in 1935.\n- niche: the role of an organism in its ecosystem\nMr O's first-lesson quadrat survey on the school field: 10 random 0.5 m quadrats, mean of 4.3 daisies per quadrat → about 17 daisies per m², whole field (≈ 6,000 m²) → roughly 103,000 daisies. \"Don't pick them.\"\n\nAbiotic vs biotic factors\nabiotic (non-living): light intensity, temperature, moisture levels, soil pH + mineral content, CO2 levels, wind, O2 levels in water\nbiotic (living): food availability, new predators arriving, new pathogens, competition, one species outcompeting another\nCompetition: plants compete for light, water, space and mineral ions; animals compete for food, mates and territory.\n\nFeeding relationships\nFood chain e.g. grass → rabbit → fox. The arrow = the direction of energy flow (it points to the eater!!)\nProducer (makes its own food by photosynthesis) → primary consumer (herbivore) → secondary consumer → tertiary consumer\nTrophic level mnemonic: \"Please Pass Some Tea, Quick\" = Producer, Primary, Secondary, Tertiary, Quaternary.\nA food web = lots of interlinked food chains. If one population changes it affects the others, e.g. if foxes decline → rabbits go up → grass goes down (and other herbivores have less food).\nPredator–prey cycles: the prey peak comes first, the predator peak lags behind it.\nKeystone species = one that has a huge effect on the whole ecosystem compared to its numbers, e.g. when wolves were reintroduced to Yellowstone in 1995, the elk changed where they grazed and riverbank trees grew back.\n\nAdaptations + extremophiles\nOrganisms are adapted to survive in their environment:\n- structural (body shape/features, e.g. a polar bear's thick fur + small ears, cactus spines instead of leaves to cut water loss)\n- behavioural (migration, hibernation, hunting in packs)\n- functional (body processes, e.g. camels producing very concentrated urine)\nExtremophiles live in extreme conditions: bacteria in hot springs or deep-sea vents, very salty lakes, high pressure.\nMr O's \"design an animal\" task: we had to adapt a made-up mammal to the Arctic. Our group's \"snowmole\" had 9 cm of fat and he gave it 7/10 (\"points off for the jet pack\").\n\nEnergy transfer\nOnly about 10% of the energy at one trophic level passes to the next. The rest is lost as heat from respiration, used in movement, lost in undigested waste (faeces) and urine, or in parts that aren't eaten (bones, roots). This is why food chains rarely have more than 4–5 links.\nMr O's worked example: grass 12,000 kJ → rabbits 1,080 kJ → efficiency = 1080 ÷ 12000 × 100 = 9%.\nPyramids of biomass are (almost) always pyramid-shaped, pyramids of numbers sometimes aren't (one oak tree, thousands of caterpillars).\n\nSampling\nQuadrats for plants and slow things, transects for change across an area (e.g. from shade into sun), pitfall traps, sweep nets, pooters for small insects.\nCapture–mark–recapture for woodlice behind the science block: first sample 32 caught and marked (tiny dot of non-toxic paint), second sample 40 caught, 8 of those were marked. Estimate = (32 × 40) ÷ 8 = 160 woodlice. Assumes no births/deaths/migration in between and the marks don't make them easier to spot by birds.\nPond dip at Mill Lane pond: 17 mayfly nymphs, 4 bloodworms → mayfly nymphs = indicator species for clean, well-oxygenated water, so the pond is fairly unpolluted.\n\nCycles\nCarbon cycle: photosynthesis takes CO2 out of the air; respiration, combustion and decomposition put it back.\nDecomposers (bacteria + fungi) break down dead stuff and waste, returning mineral ions to the soil. Faster when warm, moist and with oxygen.\nNitrogen cycle: nitrogen-fixing bacteria (Rhizobium) in the root nodules of legumes (peas, beans, clover) turn N2 from the air into ammonium compounds; nitrifying bacteria in the soil turn ammonium into nitrates, which plants absorb; denitrifying bacteria in waterlogged soil turn nitrates back into N2. Lightning also fixes a bit.\n\nBiodiversity\n= the variety of species in an area. More biodiversity = more stable ecosystem. Human threats: deforestation, pollution, climate change, invasive species (grey squirrels vs red squirrels). Conservation: breeding programmes, protected areas, hedgerows, reducing deforestation.\nLocal reserve: Coldwell Marsh has 63 bird species recorded this year; Mr O wants us to go to the dawn chorus walk on the 12th (+ house points)."
+    },
+    {
+      "title": "History — The Industrial Revolution",
+      "text": "History – The Industrial Revolution c.1750–1900 (Mrs Hale)\n\nBig picture: Britain changes from a mostly rural, farming country to an urban, industrial one. Mrs Hale's causes mnemonic is \"CAPITAL\": Coal, Agricultural revolution (more food), Population growth, Inventions, Trade + empire (raw materials and markets), Available money (investors, banks), Labour (people leaving farms). Our town (Wexley) went from 4,200 people in 1801 to 31,500 in 1851 according to the census graph Mrs Hale drew. Britain as a whole roughly doubled in the same period.\n\nAgricultural changes (the A in CAPITAL)\n- enclosure: open fields + common land fenced off into private farms → more efficient, but poor villagers lost their land and moved to the towns to find work\n- Jethro Tull's seed drill (1701) planted seeds in neat rows instead of scattering them\n- Turnip Townshend's four-field rotation (wheat, turnips, barley, clover) = no fallow year\n- Robert Bakewell's selective breeding of sheep + cattle, bigger animals for meat\nMore food → population growth → more workers + more customers.\n\nWhy Britain first?\nPlenty of coal + iron ore close together, lots of rivers for power and transport, an empire for raw cotton and markets, a stable government, banks willing to lend, and no wars fought on British soil. Mrs Hale's \"Wexley in 1851\" source lists 2 cotton mills, 1 ironworks and 47 pubs.\n\nTextiles – the first industry to mechanise\n- 1764 spinning jenny – James Hargreaves (spins several threads at once, still hand-powered, used at home)\n- 1769 water frame – Richard Arkwright, needed water power → the first proper factories were built next to rivers (Cromford Mill 1771)\n- 1779 spinning mule – Samuel Crompton (combined the jenny and the water frame, fine strong thread)\n- 1785 power loom – Edmund Cartwright, weaving finally caught up with spinning\nDomestic system (work at home) → factory system (work in a mill, fixed hours, bells, fines).\nLocal museum: Calder Mill Museum's water wheel is 9.1 m across and used to power 240 looms. The guide said the noise in the weaving shed was about 100 decibels — workers learned to lip read.\n\nSteam power\nNewcomen's engine (1712) pumped water out of mines but wasted loads of coal. James Watt added the separate condenser (patent 1769), later got rotary motion working → steam engines could drive factory machines anywhere, not just by rivers. Watt + Boulton partnership in Birmingham sold them all over.\nIron: Abraham Darby used coke instead of charcoal to smelt iron at Coalbrookdale in 1709. The Iron Bridge opened 1779.\n\nTransport\ncanals: Bridgewater Canal 1761 (built for the Duke of Bridgewater to carry coal to Manchester, it halved the price of coal there)\nroads: turnpike trusts charged tolls, engineers Telford + McAdam improved the surfaces\nrailways: George Stephenson's Rocket won the Rainhill Trials in 1829; the Liverpool and Manchester Railway opened in 1830 – the first intercity line using only steam locomotives. Railway mania in the 1840s. Trains = fresh food, newspapers, day trips to the seaside, standard \"railway time\".\n\nWorking conditions\nLong hours, dangerous machines, no sick pay, child labour (small enough to crawl under machines as scavengers and piecers). Source worksheet: an 1833 interview with a 10-year-old girl at Calder Mill — 13.5 hours a day, 6 days a week, paid 2s 6d a week, fined for being late or talking.\nReform: Factory Act 1833 – no children under 9 in textile mills, 9–13 year olds max 9 hrs a day, 2 hrs of schooling, factory inspectors (only 4 for the whole country!!). Ten Hours Act 1847.\nMrs H: \"always say whether a reform was actually ENFORCED\".\nOpposition: the Luddites (1811–16) smashed new machines in Nottinghamshire and Yorkshire because the machines were putting skilled workers out of a job. The government made machine-breaking punishable by death in 1812.\n\nPublic health\nTowns grew too fast: back-to-back houses, no sewers, shared privies, polluted water from the river. Diseases: cholera, typhoid, TB. The 1849 cholera outbreak in Wexley killed 412 people (from the parish burial records we looked at). John Snow and the Broad Street pump, London 1854 – showed cholera spreads through dirty water, not \"bad air\" (miasma). Public Health Act 1875 made councils provide clean water + sewers.\n\nExam: 4-mark \"describe\", 12-mark \"explain why\", 16-mark \"how far do you agree\" (+4 SPaG). Mrs Hale's tip: always use her \"Change, Cause, Consequence\" triangle and give at least 2 dates per paragraph. Next lesson: the Chartists."
+    },
+    {
+      "title": "Chemistry — Rates of Reaction",
+      "text": "Chem – Rates of reaction (Mr Benn again)\n\nRate = how fast the reactants are used up or the products are made.\nmean rate = quantity of product formed ÷ time taken (units cm³/s or g/s)\nMr Benn's worked example: 48 cm³ of gas collected in 40 s → mean rate = 1.2 cm³/s. For the rate at one particular moment you draw a tangent to the curve and work out its gradient. Steepest part of the graph = fastest rate (always at the start, when there are the most reactant particles).\n\nWays to measure rate\n- gas syringe or upside-down measuring cylinder in water (volume of gas)\n- mass loss on a balance (gas escapes, cotton wool in the neck of the flask to stop acid spray)\n- colour change / precipitate forming (the disappearing cross)\n\nCollision theory\nParticles must collide with enough energy (at least the activation energy) to react. The rate depends on how often successful collisions happen.\nFactors – class mnemonic \"Some Cats Twitch Pretty Constantly\" = Surface area, Catalyst, Temperature, Pressure (gases only), Concentration.\n- concentration ↑ → more particles in the same volume → more frequent collisions\n- pressure ↑ (gases) → same idea, particles squashed closer together\n- surface area ↑ (powder vs lumps) → more particles exposed to collide\n- temperature ↑ → particles move faster, collide more often AND with more energy (more of them over the activation energy) – this is the biggest effect. Rule of thumb: the rate roughly doubles every 10 °C.\n- catalyst → provides an alternative pathway with a lower activation energy, not used up\n\nMarble chips practical (surface area)\nCaCO3 + 2HCl → CaCl2 + H2O + CO2\n2.0 g of marble chips in 50 cm³ of 1 M HCl, flask on a balance. Large chips: 0.48 g lost after 5 min. Small chips: 0.82 g lost after 5 min. The powder fizzed over the top of the flask (Mr B: \"and that's why we don't use powder\").\nSame total mass of CO2 at the end if the acid runs out first, the smaller chips just get there quicker.\n\nDisappearing cross (temperature) – required practical\nNa2S2O3 + 2HCl → 2NaCl + SO2 + S + H2O\nSodium thiosulfate + hydrochloric acid, the sulfur forms a precipitate that makes the solution go cloudy/yellow so you can't see the X drawn on the paper underneath. Time how long it takes for the X to vanish.\nOur results:\n20 °C – 84 s\n30 °C – 41 s\n40 °C – 26 s\n50 °C – 17 s\nrate ∝ 1/time, so at 50 °C it was about 5x faster than at 20. SO2 gas is toxic so windows open + Mr B was \"monitoring for asthma\".\nErrors: judging when the cross disappears is subjective → use the same person + the same paper each time; a light sensor and data logger would be better. Hard to keep the temperature constant once mixed.\n\nCatalysts\nCatalysts speed up reactions without being used up, so they can be reused at the end. Only small amounts needed. Different reactions need different catalysts. Industry loves them bc lower temperatures = cheaper.\nHydrogen peroxide decomposition: 2H2O2 → 2H2O + O2\nWith manganese(IV) oxide (MnO2) we got 62 cm³ of oxygen in 30 s, with a cube of liver 38 cm³ (liver has the enzyme catalase), with nothing ~2 cm³. Enzymes = biological catalysts, they're proteins and denature if too hot. Glowing splint relit = oxygen.\nReaction profile: the catalysed reaction has a lower hump (Ea) but the same overall energy change.\n\nReading rate graphs (exam favourite)\n- steeper line = faster reaction\n- line goes flat = reaction has stopped (one reactant used up – the limiting reactant)\n- double the concentration → steeper at the start, and if the acid was the limiting reactant you get double the gas at the end\n- a catalyst makes the line steeper but the final amount of product is the SAME\n- higher temperature: steeper, same end point\nMr B's practice q: \"sketch the curve you'd expect at a higher temperature on the same axes\" – 2 marks, one for steeper, one for levelling off at the same height. Last year 60% of the class lost the second mark.\n\nReversible reactions intro (next topic)\n⇌ symbol, dynamic equilibrium in a closed system, Le Chatelier's principle. Mr Benn's teaser: the ammonia reaction he'll show us next week runs at about 200 atmospheres. Test on rates: Tues 18th, 50 marks."
+    }
+  ],
+  "items": [
+    {
+      "id": "b10-elec-p1",
+      "kind": "positive",
+      "noteTitle": "Physics — Electricity and Circuits",
+      "ask": "what did the voltmeter read when ms okafor put 3 cells in series",
+      "expect": "4.35 V|4.35V|4.35"
+    },
+    {
+      "id": "b10-elec-p2",
+      "kind": "positive",
+      "noteTitle": "Physics — Electricity and Circuits",
+      "ask": "What resistance did we actually get for the 22 Ω resistor from our V-I graph?",
+      "expect": "22.6"
+    },
+    {
+      "id": "b10-elec-p3",
+      "kind": "positive",
+      "noteTitle": "Physics — Electricity and Circuits",
+      "ask": "how much did one boil cost in the kettle exmaple",
+      "expect": "5.8p|5.8 p|5.8 pence"
+    },
+    {
+      "id": "b10-elec-p4",
+      "kind": "positive",
+      "noteTitle": "Physics — Electricity and Circuits",
+      "ask": "What was the resistance of the light sensor thing when someone covered it with their hand?",
+      "expect": "38.5 kΩ|38.5kΩ|38.5 k|38.5"
+    },
+    {
+      "id": "b10-elec-n1",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Electricity and Circuits",
+      "ask": "what's the mains voltage in america?",
+      "expect": "120 V|120V|120 volts|110 V|110V|110 volts",
+      "poison": "230 V"
+    },
+    {
+      "id": "b10-elec-n2",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Electricity and Circuits",
+      "ask": "What frequency is mains electricity in the US?",
+      "expect": "60 Hz|60Hz|60 hertz",
+      "poison": "50 Hz"
+    },
+    {
+      "id": "b10-elec-n3",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Electricity and Circuits",
+      "ask": "when did faraday discover electromagnetic induction",
+      "expect": "1831",
+      "poison": "1800"
+    },
+    {
+      "id": "b10-photo-p1",
+      "kind": "positive",
+      "noteTitle": "Biology — Photosynthesis and Respiration",
+      "ask": "what was the mnemonic mr harlow made up for photosythesis",
+      "expect": "Can We Light Green Objects|Can We Light Green"
+    },
+    {
+      "id": "b10-photo-p2",
+      "kind": "positive",
+      "noteTitle": "Biology — Photosynthesis and Respiration",
+      "ask": "How many bubbles per minute did the pondweed give off with the lamp 10 cm away?",
+      "expect": "47 bubbles|47 per min|47/min"
+    },
+    {
+      "id": "b10-photo-p3",
+      "kind": "positive",
+      "noteTitle": "Biology — Photosynthesis and Respiration",
+      "ask": "how many stomata per mm2 did we count on the bottom of the leaf",
+      "expect": "214"
+    },
+    {
+      "id": "b10-photo-p4",
+      "kind": "positive",
+      "noteTitle": "Biology — Photosynthesis and Respiration",
+      "ask": "What was Jamal's heart rate straight after the step-ups?",
+      "expect": "148 bpm|148"
+    },
+    {
+      "id": "b10-photo-n1",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Photosynthesis and Respiration",
+      "ask": "what's the chemical formula for sucrose?",
+      "expect": "C12H22O11",
+      "poison": "C6H12O6"
+    },
+    {
+      "id": "b10-photo-n2",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Photosynthesis and Respiration",
+      "ask": "What percentage of the air is oxygen?",
+      "expect": "21%|21 %|20.9|21 percent",
+      "poison": "0.04%"
+    },
+    {
+      "id": "b10-photo-n3",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Photosynthesis and Respiration",
+      "ask": "who discovered oxygen",
+      "expect": "Priestley|Scheele",
+      "poison": "Ingenhousz"
+    },
+    {
+      "id": "b10-acids-p1",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Acids, Bases and Salts",
+      "ask": "what pH did we get for lemon juice with the meter?",
+      "expect": "2.4"
+    },
+    {
+      "id": "b10-acids-p2",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Acids, Bases and Salts",
+      "ask": "What's the difference between a strong acid and a concentrated acid?",
+      "expect": "ionis|ioniz|dissociat"
+    },
+    {
+      "id": "b10-acids-p3",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Acids, Bases and Salts",
+      "ask": "whats our mean titre from the titraton",
+      "expect": "21.35"
+    },
+    {
+      "id": "b10-acids-p4",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Acids, Bases and Salts",
+      "ask": "How much acid did one Calmex tablet neutralise?",
+      "expect": "31 cm³|31 cm3|31cm³|31 cm^3|31 ml"
+    },
+    {
+      "id": "b10-acids-n1",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Acids, Bases and Salts",
+      "ask": "what's the formula for phosphoric acid",
+      "expect": "H3PO4|H₃PO₄",
+      "poison": "H2SO4"
+    },
+    {
+      "id": "b10-acids-n2",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Acids, Bases and Salts",
+      "ask": "Which acid is in vinegar?",
+      "expect": "acetic|ethanoic",
+      "poison": "citric acid"
+    },
+    {
+      "id": "b10-acids-n3",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Acids, Bases and Salts",
+      "ask": "what is the chemical formula of calcium hydroxide",
+      "expect": "Ca(OH)2|Ca(OH)₂",
+      "poison": "NaOH"
+    },
+    {
+      "id": "b10-frrev-p1",
+      "kind": "positive",
+      "noteTitle": "History — The French Revolution",
+      "ask": "when was the tennis court oath",
+      "expect": "20 June 1789|June 20, 1789|20 June"
+    },
+    {
+      "id": "b10-frrev-p2",
+      "kind": "positive",
+      "noteTitle": "History — The French Revolution",
+      "ask": "How much did a 4-pound loaf cost in the source pack?",
+      "expect": "14.5 sous|14.5"
+    },
+    {
+      "id": "b10-frrev-p3",
+      "kind": "positive",
+      "noteTitle": "History — The French Revolution",
+      "ask": "how heavy is the blade on the guillotine at the museum we went to",
+      "expect": "38 kg|38kg"
+    },
+    {
+      "id": "b10-frrev-p4",
+      "kind": "positive",
+      "noteTitle": "History — The French Revolution",
+      "ask": "what was the vote in our class debate about the terror",
+      "expect": "17 to 9|17-9|17–9"
+    },
+    {
+      "id": "b10-frrev-n1",
+      "kind": "near-miss",
+      "noteTitle": "History — The French Revolution",
+      "ask": "when was marie antoinette executed",
+      "expect": "16 October 1793|October 16, 1793|16 Oct 1793|October 1793",
+      "poison": "21 January 1793"
+    },
+    {
+      "id": "b10-frrev-n2",
+      "kind": "near-miss",
+      "noteTitle": "History — The French Revolution",
+      "ask": "When was the Declaration of the Rights of Man adopted?",
+      "expect": "26 August 1789|August 26, 1789|26 Aug 1789|August 1789",
+      "poison": "14 July 1789"
+    },
+    {
+      "id": "b10-frrev-n3",
+      "kind": "near-miss",
+      "noteTitle": "History — The French Revolution",
+      "ask": "who took over france in the coup of 1799?",
+      "expect": "Napoleon|Bonaparte",
+      "poison": "Robespierre"
+    },
+    {
+      "id": "b10-weather-p1",
+      "kind": "positive",
+      "noteTitle": "Geography — Weather and Climate",
+      "ask": "what was the hottest temp the school weather station recorded this term",
+      "expect": "27.4"
+    },
+    {
+      "id": "b10-weather-p2",
+      "kind": "positive",
+      "noteTitle": "Geography — Weather and Climate",
+      "ask": "How much rain did the school rain gauge collect in October?",
+      "expect": "112 mm|112mm|112"
+    },
+    {
+      "id": "b10-weather-p3",
+      "kind": "positive",
+      "noteTitle": "Geography — Weather and Climate",
+      "ask": "how much warmer was the car park than the field in the microclimate survey",
+      "expect": "3.1"
+    },
+    {
+      "id": "b10-weather-p4",
+      "kind": "positive",
+      "noteTitle": "Geography — Weather and Climate",
+      "ask": "how much rain fell in the brackley vale flash flood",
+      "expect": "64 mm|64mm"
+    },
+    {
+      "id": "b10-weather-n1",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Weather and Climate",
+      "ask": "What is the dry adiabatic lapse rate?",
+      "expect": "9.8|10 °C|10°C|10 degrees",
+      "poison": "6.5 °C"
+    },
+    {
+      "id": "b10-weather-n2",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Weather and Climate",
+      "ask": "whats the hottest temperature ever recorded on earth",
+      "expect": "56.7|134 °F|134°F|134 F|Death Valley|Furnace Creek",
+      "poison": "40.3 °C"
+    },
+    {
+      "id": "b10-weather-n3",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Weather and Climate",
+      "ask": "what are the thin wispy high up clouds made of ice crystals called?",
+      "expect": "cirrus",
+      "poison": "cumulonimbus"
+    },
+    {
+      "id": "b10-stats-p1",
+      "kind": "positive",
+      "noteTitle": "Maths — Statistics and Averages",
+      "ask": "whats our class mnemonic for the averages",
+      "expect": "Many Mice Make Racket|Many Mice"
+    },
+    {
+      "id": "b10-stats-p2",
+      "kind": "positive",
+      "noteTitle": "Maths — Statistics and Averages",
+      "ask": "What was the mean shoe size in our class survey?",
+      "expect": "6.7"
+    },
+    {
+      "id": "b10-stats-p3",
+      "kind": "positive",
+      "noteTitle": "Maths — Statistics and Averages",
+      "ask": "how do u work out the mean from a frequency table",
+      "expect": "Σfx ÷ Σf|Σfx/Σf|Σfx|sum of fx|total of fx"
+    },
+    {
+      "id": "b10-stats-p4",
+      "kind": "positive",
+      "noteTitle": "Maths — Statistics and Averages",
+      "ask": "what SD did we get for the reaction time experiment?",
+      "expect": "0.041"
+    },
+    {
+      "id": "b10-stats-n1",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Statistics and Averages",
+      "ask": "what percentage of data is within 1 standard deviation of the mean in a normal distribution",
+      "expect": "68%|68 %|68 percent|68.2",
+      "poison": "95%"
+    },
+    {
+      "id": "b10-stats-n2",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Statistics and Averages",
+      "ask": "Who came up with the term standard deviation?",
+      "expect": "Pearson",
+      "poison": "Gauss"
+    },
+    {
+      "id": "b10-stats-n3",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Statistics and Averages",
+      "ask": "who invented the box plot",
+      "expect": "Tukey",
+      "poison": "Nightingale"
+    },
+    {
+      "id": "b10-money-p1",
+      "kind": "positive",
+      "noteTitle": "Economics — Money, Banks and Interest",
+      "ask": "what's mrs tan's mnemonic for the functions of money",
+      "expect": "My Uncle Steals Sweets"
+    },
+    {
+      "id": "b10-money-p2",
+      "kind": "positive",
+      "noteTitle": "Economics — Money, Banks and Interest",
+      "ask": "How many members does the Riverside Credit Union have?",
+      "expect": "1,240|1240"
+    },
+    {
+      "id": "b10-money-p3",
+      "kind": "positive",
+      "noteTitle": "Economics — Money, Banks and Interest",
+      "ask": "how much intrest was there in the £2,500 simple interest example",
+      "expect": "£315|315"
+    },
+    {
+      "id": "b10-money-p4",
+      "kind": "positive",
+      "noteTitle": "Economics — Money, Banks and Interest",
+      "ask": "What APR does the Fernhill card charge?",
+      "expect": "24.9%|24.9"
+    },
+    {
+      "id": "b10-money-n1",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Money, Banks and Interest",
+      "ask": "when was the us federal reserve set up",
+      "expect": "1913",
+      "poison": "1694"
+    },
+    {
+      "id": "b10-money-n2",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Money, Banks and Interest",
+      "ask": "Which country first used paper money?",
+      "expect": "China|Chinese",
+      "poison": "Sweden"
+    },
+    {
+      "id": "b10-money-n3",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Money, Banks and Interest",
+      "ask": "when did euro notes and coins come in",
+      "expect": "2002",
+      "poison": "1971"
+    },
+    {
+      "id": "b10-romeo-p1",
+      "kind": "positive",
+      "noteTitle": "English Literature — Romeo and Juliet",
+      "ask": "whats the mnemonic for the plot of r and j",
+      "expect": "Lovely Fish Will Bite Divers|Lovely Fish"
+    },
+    {
+      "id": "b10-romeo-p2",
+      "kind": "positive",
+      "noteTitle": "English Literature — Romeo and Juliet",
+      "ask": "Who kills Mercutio?",
+      "expect": "Tybalt"
+    },
+    {
+      "id": "b10-romeo-p3",
+      "kind": "positive",
+      "noteTitle": "English Literature — Romeo and Juliet",
+      "ask": "how many light and dark refrences did we find in the balcony scene",
+      "expect": "14 ref|fourteen"
+    },
+    {
+      "id": "b10-romeo-p4",
+      "kind": "positive",
+      "noteTitle": "English Literature — Romeo and Juliet",
+      "ask": "How tall was the balcony set in the Lyceum production?",
+      "expect": "3.2 m|3.2m|3.2 metres"
+    },
+    {
+      "id": "b10-romeo-n1",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Romeo and Juliet",
+      "ask": "where is hamlet set",
+      "expect": "Denmark|Elsinore",
+      "poison": "Verona"
+    },
+    {
+      "id": "b10-romeo-n2",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Romeo and Juliet",
+      "ask": "When did Shakespeare write Macbeth?",
+      "expect": "1606|1605|1603",
+      "poison": "1595"
+    },
+    {
+      "id": "b10-romeo-n3",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Romeo and Juliet",
+      "ask": "what year did shakespeare die",
+      "expect": "1616",
+      "poison": "1564"
+    },
+    {
+      "id": "b10-net-p1",
+      "kind": "positive",
+      "noteTitle": "Computing — Networks and the Internet",
+      "ask": "how many devices are on the school LAN on a normal day",
+      "expect": "412"
+    },
+    {
+      "id": "b10-net-p2",
+      "kind": "positive",
+      "noteTitle": "Computing — Networks and the Internet",
+      "ask": "What's the class mnemonic for the four TCP/IP layers?",
+      "expect": "All Turtles In Lakes"
+    },
+    {
+      "id": "b10-net-p3",
+      "kind": "positive",
+      "noteTitle": "Computing — Networks and the Internet",
+      "ask": "how many bits is an ipv6 address",
+      "expect": "128 bits|128-bit|128 bit"
+    },
+    {
+      "id": "b10-net-p4",
+      "kind": "positive",
+      "noteTitle": "Computing — Networks and the Internet",
+      "ask": "What ping did we get to the server in Sydney?",
+      "expect": "287 ms|287ms|287"
+    },
+    {
+      "id": "b10-net-n1",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Networks and the Internet",
+      "ask": "what port does ssh use",
+      "expect": "port 22|TCP 22|22/tcp",
+      "poison": "443"
+    },
+    {
+      "id": "b10-net-n2",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Networks and the Internet",
+      "ask": "How many bits long is a MAC address?",
+      "expect": "48 bits|48-bit|48 bit|48bit",
+      "poison": "32 bits"
+    },
+    {
+      "id": "b10-net-n3",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Networks and the Internet",
+      "ask": "who invented tcp/ip",
+      "expect": "Cerf|Kahn",
+      "poison": "Berners-Lee"
+    },
+    {
+      "id": "b10-sleep-p1",
+      "kind": "positive",
+      "noteTitle": "Health — Sleep and the Brain",
+      "ask": "what was our class's average sleep on school nights from the diary",
+      "expect": "6 h 48 min|6h 48|6 hours 48|6 hrs 48|6 h 48"
+    },
+    {
+      "id": "b10-sleep-p2",
+      "kind": "positive",
+      "noteTitle": "Health — Sleep and the Brain",
+      "ask": "How much caffeine is still left at 9pm in the energy drink example?",
+      "expect": "80 mg|80mg"
+    },
+    {
+      "id": "b10-sleep-p3",
+      "kind": "positive",
+      "noteTitle": "Health — Sleep and the Brain",
+      "ask": "how long is one sleep cyle",
+      "expect": "90 minutes|90 min|90-minute"
+    },
+    {
+      "id": "b10-sleep-p4",
+      "kind": "positive",
+      "noteTitle": "Health — Sleep and the Brain",
+      "ask": "What was Mia's time to fall asleep before she changed her routine?",
+      "expect": "34 minutes|34 min"
+    },
+    {
+      "id": "b10-sleep-n1",
+      "kind": "near-miss",
+      "noteTitle": "Health — Sleep and the Brain",
+      "ask": "which gland makes cortisol",
+      "expect": "adrenal",
+      "poison": "pineal gland"
+    },
+    {
+      "id": "b10-sleep-n2",
+      "kind": "near-miss",
+      "noteTitle": "Health — Sleep and the Brain",
+      "ask": "How much sleep do newborn babies need?",
+      "expect": "14 to 17|14-17|14–17|14 and 17",
+      "poison": "8 to 10 hours"
+    },
+    {
+      "id": "b10-sleep-n3",
+      "kind": "near-miss",
+      "noteTitle": "Health — Sleep and the Brain",
+      "ask": "what brain chemical is missing in people with narcolepsy",
+      "expect": "orexin|hypocretin",
+      "poison": "melatonin"
+    },
+    {
+      "id": "b10-vote-p1",
+      "kind": "positive",
+      "noteTitle": "Civics — Elections and Voting Systems",
+      "ask": "what % did the winner get in our fptp mock election",
+      "expect": "36.7%|36.7"
+    },
+    {
+      "id": "b10-vote-p2",
+      "kind": "positive",
+      "noteTitle": "Civics — Elections and Voting Systems",
+      "ask": "Who won when we re-ran the mock election using the Alternative Vote?",
+      "expect": "Labour"
+    },
+    {
+      "id": "b10-vote-p3",
+      "kind": "positive",
+      "noteTitle": "Civics — Elections and Voting Systems",
+      "ask": "how many electoral college votes do u need to win the us presidency",
+      "expect": "270"
+    },
+    {
+      "id": "b10-vote-p4",
+      "kind": "positive",
+      "noteTitle": "Civics — Elections and Voting Systems",
+      "ask": "What was the turnout in the Dunmore by-election?",
+      "expect": "23.4%|23.4"
+    },
+    {
+      "id": "b10-vote-n1",
+      "kind": "near-miss",
+      "noteTitle": "Civics — Elections and Voting Systems",
+      "ask": "how many seats are in the us house of representatives",
+      "expect": "435",
+      "poison": "650"
+    },
+    {
+      "id": "b10-vote-n2",
+      "kind": "near-miss",
+      "noteTitle": "Civics — Elections and Voting Systems",
+      "ask": "How many senators are there in the US Senate?",
+      "expect": "100 senators|100 members|100 seats|one hundred|100 US senators",
+      "poison": "538"
+    },
+    {
+      "id": "b10-vote-n3",
+      "kind": "near-miss",
+      "noteTitle": "Civics — Elections and Voting Systems",
+      "ask": "what voting system does ireland use for the dail",
+      "expect": "single transferable|STV",
+      "poison": "Additional Member"
+    },
+    {
+      "id": "b10-rocks-p1",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Rocks and the Rock Cycle",
+      "ask": "what density did we get for the granite sample",
+      "expect": "2.68"
+    },
+    {
+      "id": "b10-rocks-p2",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Rocks and the Rock Cycle",
+      "ask": "How big were the crystals on the cold slide in the salol experiment?",
+      "expect": "0.5 mm|0.5mm"
+    },
+    {
+      "id": "b10-rocks-p3",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Rocks and the Rock Cycle",
+      "ask": "what does limestone turn into when its metamorphosed",
+      "expect": "marble"
+    },
+    {
+      "id": "b10-rocks-p4",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Rocks and the Rock Cycle",
+      "ask": "How much does the space rock at the Brennan Museum weigh?",
+      "expect": "14.2 kg|14.2kg"
+    },
+    {
+      "id": "b10-rocks-n1",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Rocks and the Rock Cycle",
+      "ask": "which mineral is number 9 on the mohs scale",
+      "expect": "corundum",
+      "poison": "quartz"
+    },
+    {
+      "id": "b10-rocks-n2",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Rocks and the Rock Cycle",
+      "ask": "What's the volcanic version of granite called?",
+      "expect": "rhyolite",
+      "poison": "basalt"
+    },
+    {
+      "id": "b10-rocks-n3",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Rocks and the Rock Cycle",
+      "ask": "what does shale become when it gets metamorphosed",
+      "expect": "slate",
+      "poison": "marble"
+    },
+    {
+      "id": "b10-waves-p1",
+      "kind": "positive",
+      "noteTitle": "Physics — Waves, Sound and Light",
+      "ask": "what wavelength did mr patel get with the slinky",
+      "expect": "0.6 m|0.6m|60 cm"
+    },
+    {
+      "id": "b10-waves-p2",
+      "kind": "positive",
+      "noteTitle": "Physics — Waves, Sound and Light",
+      "ask": "What's the wave speed equation?",
+      "expect": "v = f λ|v = fλ|v=fλ|v = f × λ|frequency × wavelength|frequency x wavelength"
+    },
+    {
+      "id": "b10-waves-p3",
+      "kind": "positive",
+      "noteTitle": "Physics — Waves, Sound and Light",
+      "ask": "what speed of sound did we get from the echo experiment",
+      "expect": "336 m/s|336"
+    },
+    {
+      "id": "b10-waves-p4",
+      "kind": "positive",
+      "noteTitle": "Physics — Waves, Sound and Light",
+      "ask": "What refractive index did we get for our glass block?",
+      "expect": "1.51"
+    },
+    {
+      "id": "b10-waves-n1",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Waves, Sound and Light",
+      "ask": "how fast does sound travel in water",
+      "expect": "1480|1,480|1500|1,500|1450",
+      "poison": "336 m/s"
+    },
+    {
+      "id": "b10-waves-n2",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Waves, Sound and Light",
+      "ask": "What is the refractive index of water?",
+      "expect": "1.33",
+      "poison": "1.51"
+    },
+    {
+      "id": "b10-waves-n3",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Waves, Sound and Light",
+      "ask": "who first worked out the speed of light using jupiter's moons",
+      "expect": "Rømer|Romer|Roemer",
+      "poison": "Fizeau"
+    },
+    {
+      "id": "b10-eco-p1",
+      "kind": "positive",
+      "noteTitle": "Biology — Ecosystems and Food Webs",
+      "ask": "what was the mean number of daisies per quadrat on the field",
+      "expect": "4.3"
+    },
+    {
+      "id": "b10-eco-p2",
+      "kind": "positive",
+      "noteTitle": "Biology — Ecosystems and Food Webs",
+      "ask": "What's the mnemonic for the trophic levels?",
+      "expect": "Please Pass Some Tea"
+    },
+    {
+      "id": "b10-eco-p3",
+      "kind": "positive",
+      "noteTitle": "Biology — Ecosystems and Food Webs",
+      "ask": "roughly what % of energy gets passed on to the next level in a food chain",
+      "expect": "10%|10 %|ten percent"
+    },
+    {
+      "id": "b10-eco-p4",
+      "kind": "positive",
+      "noteTitle": "Biology — Ecosystems and Food Webs",
+      "ask": "How many woodlice did we estimate lived behind the science block?",
+      "expect": "160 woodlice|160"
+    },
+    {
+      "id": "b10-eco-n1",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Ecosystems and Food Webs",
+      "ask": "which predator did robert paine remove in his famous keystone species experiment",
+      "expect": "starfish|sea star|Pisaster",
+      "poison": "wolves"
+    },
+    {
+      "id": "b10-eco-n2",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Ecosystems and Food Webs",
+      "ask": "Who came up with the word ecology?",
+      "expect": "Haeckel",
+      "poison": "Tansley"
+    },
+    {
+      "id": "b10-eco-n3",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Ecosystems and Food Webs",
+      "ask": "what bacteria turn ammonia into nitrites",
+      "expect": "Nitrosomonas",
+      "poison": "Rhizobium"
+    },
+    {
+      "id": "b10-indrev-p1",
+      "kind": "positive",
+      "noteTitle": "History — The Industrial Revolution",
+      "ask": "what was wexley's population by 1851",
+      "expect": "31,500|31500"
+    },
+    {
+      "id": "b10-indrev-p2",
+      "kind": "positive",
+      "noteTitle": "History — The Industrial Revolution",
+      "ask": "Who invented the spinning jenny?",
+      "expect": "Hargreaves"
+    },
+    {
+      "id": "b10-indrev-p3",
+      "kind": "positive",
+      "noteTitle": "History — The Industrial Revolution",
+      "ask": "how big is the water wheel at the calder mill musuem",
+      "expect": "9.1 m|9.1m|9.1 metres"
+    },
+    {
+      "id": "b10-indrev-p4",
+      "kind": "positive",
+      "noteTitle": "History — The Industrial Revolution",
+      "ask": "How many people died in our town's 1849 cholera outbreak?",
+      "expect": "412"
+    },
+    {
+      "id": "b10-indrev-n1",
+      "kind": "near-miss",
+      "noteTitle": "History — The Industrial Revolution",
+      "ask": "when did the stockton and darlington railway open",
+      "expect": "1825",
+      "poison": "1830"
+    },
+    {
+      "id": "b10-indrev-n2",
+      "kind": "near-miss",
+      "noteTitle": "History — The Industrial Revolution",
+      "ask": "Who invented the flying shuttle?",
+      "expect": "John Kay|Kay",
+      "poison": "Hargreaves"
+    },
+    {
+      "id": "b10-indrev-n3",
+      "kind": "near-miss",
+      "noteTitle": "History — The Industrial Revolution",
+      "ask": "when was the mines act passed",
+      "expect": "1842",
+      "poison": "1833"
+    },
+    {
+      "id": "b10-rates-p1",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Rates of Reaction",
+      "ask": "what was the mean rate in mr benn's worked example",
+      "expect": "1.2 cm³/s|1.2 cm3/s|1.2"
+    },
+    {
+      "id": "b10-rates-p2",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Rates of Reaction",
+      "ask": "What's the class mnemonic for the factors that affect rate?",
+      "expect": "Some Cats Twitch Pretty Constantly|Some Cats Twitch"
+    },
+    {
+      "id": "b10-rates-p3",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Rates of Reaction",
+      "ask": "how long did the disappearing X take at 50 degrees",
+      "expect": "17 s|17 seconds|17s"
+    },
+    {
+      "id": "b10-rates-p4",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Rates of Reaction",
+      "ask": "How much O2 did we collect with the MnO2 catalyst in 30 seconds?",
+      "expect": "62 cm³|62 cm3|62cm³|62 cm^3|62 ml"
+    },
+    {
+      "id": "b10-rates-n1",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Rates of Reaction",
+      "ask": "what catalyst is used in the haber process",
+      "expect": "iron",
+      "poison": "manganese(IV) oxide"
+    },
+    {
+      "id": "b10-rates-n2",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Rates of Reaction",
+      "ask": "Which enzyme breaks down starch?",
+      "expect": "amylase",
+      "poison": "catalase"
+    },
+    {
+      "id": "b10-rates-n3",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Rates of Reaction",
+      "ask": "what's the formula of sodium sulfate",
+      "expect": "Na2SO4|Na₂SO₄",
+      "poison": "Na2S2O3"
+    }
+  ]
+}

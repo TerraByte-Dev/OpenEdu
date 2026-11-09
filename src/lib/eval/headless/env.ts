@@ -66,7 +66,7 @@ const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"];
 /** b7-cpu talks to a second, CPU-only Ollama server on its own port (README.md, "b7-cpu"). */
 export const B7_DEFAULT_OLLAMA_URL = "http://127.0.0.1:11435";
 export const B7_DEFAULT_REPEATS = 5;
-const SETS = ["main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", "blind-9f", "sealed"] as const;
+const SETS = ["main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", "blind-9f", "blind-10", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 // Kept in step with rag-runner.ts RAG_PROMPTS by parity.test.ts (importing the runner here would pull the
 // kernel into a module that is meant to stay pure).
