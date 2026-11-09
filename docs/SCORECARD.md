@@ -155,7 +155,8 @@ The first nine were stopped by rules written before they ran; none of them is in
   questions answered without misusing a note fell from 48 to 43; the rule allowed 46. Three of the
   five were real mistakes (the note's 1937 given as the year of *The Grapes of Wrath*, for example).
   The app without the note scores 48 of 48 there because it answers almost no lookup at all. With the
-  note on, the long-note fix added 15 answered questions on e2b and 13 on e4b, with no added harm.
+  note on, the long-note fix added 15 answered questions on e2b and 13 on e4b. Trick questions
+  answered clean stayed within the margin, though one or two more answers repeated a note's value.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
   ([live check](../src/lib/eval/results/2026-11-08-ollama-toolcall-live-check.md)).
