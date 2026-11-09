@@ -36,7 +36,7 @@ const MIN_OPTIONS = 3;
 // A try written after the options: "I think it's B", "my answer is 12", "is it C?". Naming an option
 // without a try ("Is option A or B better?") is not one.
 export const ATTEMPT_WORDS = /\b(?:i think|i thought|i got|i get|i chose|i choose|i picked|i pick|i['’]d say|i would say|i guess|i['’]m going with|i['’]ll go with|i went with|my answer|my guess)\b/i;
-export const ATTEMPT_LETTER =/\b(?:[Ii]s it|[Ii]t['’]?s|[Ii]t is|[Aa]nswer is)\s+\(?[A-F]\)?(?![\p{L}\p{N}])/u;
+export const ATTEMPT_LETTER = /\b(?:[Ii]s it|[Ii]t['’]?s|[Ii]t is|[Aa]nswer is)\s+\(?[A-F]\)?(?![\p{L}\p{N}])/u;
 
 /**
  * Where the lettered option list in `text` ends: the index of its last option, or -1 when the text

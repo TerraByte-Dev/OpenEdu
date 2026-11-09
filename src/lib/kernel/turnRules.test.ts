@@ -257,7 +257,8 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
   });
 
   it("sends every other turn's messages as the caller passed them, and reports no note", async () => {
-    const noted = new Set([LISTED_PROBLEM, LOOKUP]);
+    // A try gets the check-before-praise note instead (checkBeforePraise.test.ts).
+    const noted = new Set([LISTED_PROBLEM, LOOKUP, ATTEMPT]);
     for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => !noted.has(t)), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
       await systemSent(course, history, text);
       expect(lastFirstTurnHold, label).toBe(false);
@@ -287,6 +288,6 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
     const saved: Sent = [{ role: "user", content: LISTED_PROBLEM }, { role: "assistant", content: "Start with the ratio. What is 8 divided by 2?" }];
     await systemSent(course, saved, "I think it's C.");
     expect(lastFirstTurnHold).toBe(false);
-    expect(sent[0].some((m) => m.content.includes("<tutor_note>"))).toBe(false);
+    expect(sent[0].some((m) => m.content.includes(FIRST_TURN_HOLD_NOTE))).toBe(false);
   });
 });

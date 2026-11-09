@@ -22,7 +22,8 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
-import { classifyTurn, turnNoteFor, withTurnNote, type TurnKind } from "./turnKind";
+import { classifyTurn, turnNoteFor, withTurnNote, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
+import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
@@ -135,8 +136,16 @@ export class TutorEngine {
     // The turn note (turnKind.ts): the first-turn hold on a newly posed problem, or the lookup note on a
     // request for information. Decided here from the conversation as the caller sent it, applied below
     // after retrieval, so the query and the gloss see only what the student typed.
-    const turnKind = classifyTurn(messages.filter((m) => m.role !== "system"));
-    const turnNote = turn.turnNotes === "off" ? null : turnNoteFor(turnKind);
+    const chat = messages.filter((m) => m.role !== "system");
+    const turnKind = classifyTurn(chat);
+    // The check-before-praise note (checkBeforePraise.ts): a try at the problem the tutor just worked
+    // on. Decided and applied the same way as the hold; never on the same turn as it (a message that
+    // poses a new option list is not a try). A try is not a request for information either: on a turn
+    // that is both, the check note goes and the lookup note does not, so a check turn's request is the
+    // one master measured.
+    const checkBeforePraise = isCheckBeforePraiseTurn(chat);
+    const kindNote = turn.turnNotes === "off" ? null : turnNoteFor(turnKind);
+    const turnNote = checkBeforePraise && kindNote === FACT_LOOKUP_NOTE ? null : kindNote;
     const firstTurnHold = turnNote !== null && (turnKind === "options-problem" || turnKind === "typed-problem");
 
     const eduTools = await selectTools(ctx);
@@ -197,6 +206,11 @@ ${lastUser.content}` };
       // reads before it answers. The system prompt is untouched; see attemptFirst.ts.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withTurnNote(messages[idx].content, turnNote) };
+    }
+    if (checkBeforePraise) {
+      // Same place as the hold note: after the grounding block and the student's text.
+      const idx = messages.map((m) => m.role).lastIndexOf("user");
+      messages[idx] = { ...messages[idx], content: withCheckBeforePraise(messages[idx].content) };
     }
     if (import.meta.env?.DEV) {
       const t = grounding.trace;

@@ -27,6 +27,7 @@ import { K12_FR_ITEMS } from "../k12-flow-fr-items";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "../../kernel/outputRules";
 import { FIRST_TURN_HOLD_NOTE } from "../../kernel/attemptFirst";
 import { withTurnNote, FACT_LOOKUP_NOTE } from "../../kernel/turnKind";
+import { withCheckBeforePraise } from "../../kernel/checkBeforePraise";
 import { K12_ITEMS } from "../k12-items";
 import { seedStore, resetStores } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
@@ -261,9 +262,10 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     expect(turns.map((t) => t.messages[0].role)).toEqual(["system", "system", "system"]);
     expect(turns[0].messages[0].content).toContain("Mathematics");
     // T1 carries the first-turn hold note after the item's text (attemptFirst.ts); T2 and T3 do not.
+    // T2 carries the check-before-praise note after the try (checkBeforePraise.ts).
     expect(lastUser(turns[0].messages).endsWith(withTurnNote(formatK12FlowT1(FLOW_ITEM), FIRST_TURN_HOLD_NOTE))).toBe(true);
     expect(turns.slice(1).every((t) => t.messages.every((m) => !m.content.includes(FIRST_TURN_HOLD_NOTE)))).toBe(true);
-    expect(lastUser(turns[1].messages).endsWith(formatK12FlowT2(FLOW_ITEM))).toBe(true);
+    expect(lastUser(turns[1].messages).endsWith(withCheckBeforePraise(formatK12FlowT2(FLOW_ITEM)))).toBe(true);
     expect(lastUser(turns[2].messages).endsWith(K12_FLOW_T3)).toBe(true);
     for (const t of turns) expect(t.tools?.length).toBeGreaterThan(0);
   });
@@ -360,7 +362,7 @@ describe("headless k12-flow-fr == webview k12-flow-fr, on the wire", () => {
     expect(turns[0].messages[0].content).toContain("Mathematics");
     expect(lastUser(turns[0].messages)).toBe(FR_ITEM.ask);
     expect(lastUser(turns[0].messages)).not.toMatch(/\bA\)|Which one is right/);
-    expect(lastUser(turns[1].messages)).toBe(formatK12FlowFrT2(FR_ITEM));
+    expect(lastUser(turns[1].messages)).toBe(withCheckBeforePraise(formatK12FlowFrT2(FR_ITEM)));
     expect(lastUser(turns[2].messages)).toBe(K12_FLOW_T3);
   });
 

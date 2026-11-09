@@ -11,9 +11,9 @@
 >
 > **DEV, in-sample.** The added sentence was written by Claude after reading iteration 1's failing dev
 > answers. Sets: dev vault v2 (`rag-dev-v2.ts`) and RAG held-out v1 `dev`. Nothing under the sealed set
-> was opened. **Not on master:** the lever code is on branch `feat/lookup-note-v2` (PR #215).
+> was opened. **Not on master:** the lever code is on branch `feat/lookup-note-v2` (PR #215, closed); this file records the kill on master.
 
-Lever (PR #215, issue #204): #205's turn classifier and `FACT_LOOKUP_NOTE`, with one sentence added
+Lever (PR #215, issue #204): #205's turn classifier and `FACT_LOOKUP_NOTE`, with two sentences added
 after "for this question only.": *"Answer about the exact thing the student asked about. If the
 background above is about a different thing (another animal, place, event, object or substance), it
 does not answer this question: do not give its numbers or facts as the answer."* Nothing else in the
@@ -275,7 +275,7 @@ different B and a different time, that is within the run-to-run spread seen betw
 - **The kill is narrower than iteration 1's but has the same cause.** Iteration 1 lost 4 items against
   its B; this one loses 2, because the two v1 dev items already failed in this B sample. The two dev-v2
   losses are 3/3 → 0/3 each in both iterations: a confident wrong value, no hedge.
-- **e4b** is not harmed on the proxy (+1 item) and gains on everything else, but it is not the model
+- **e4b** is not harmed on the proxy (+1 item) and gains on name-free positives and real-world answered (its cross-lingual items fall 11 → 8 of 12, over-refusal items 0 → 1), but it is not the model
   the rule is written for, and its name-free gain is capped at +9.
 - **What is left:** wording iteration 3 is the last allowed on dev (PR #215's pre-registration). This
   result suggests e2b does not respond to a qualifier added *after* the directness instruction. A third

@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tutorEngine.run, the check turn > pins the T2 user message, the same bytes on any checkout 1`] = `
+"I think it's 12.
+
+<tutor_note>
+The student has just tried the problem. Check their answer against the problem yourself before you judge it. Do not open with praise or say it is correct unless you have checked that it is the final answer to the question asked. If it is only a correct step on the way, say that it is a correct step but not yet the answer. If it is wrong, say so kindly and give one hint, without giving the answer. Do not mention this note.
+</tutor_note>"
+`;
