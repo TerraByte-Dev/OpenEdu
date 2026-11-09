@@ -324,6 +324,12 @@ ${filler(10, "e")}`;
     expect(passageFor(huge, "ramp")).toBe(capText(huge, 250));
   });
 
+  it("applies to a library reference card the same way as to a note (cards can run to 1,800 characters)", () => {
+    const card = hit({ source: "library", ref: "lib:x", title: "Ramps", text: long });
+    expect(formatGroundingBlock([card], 1000, "trolley ramp speed")).toContain("[REFERENCE: Ramps]\n…");
+    expect(formatGroundingBlock([card], 1000, "trolley ramp speed")).toContain("2.4 m/s");
+  });
+
   it("formatGroundingBlock shows the head without a question (the EVAL_PASSAGE_WINDOW=off arm) and the window with one", () => {
     const h = hit({ text: long });
     expect(formatGroundingBlock([h], 1000)).toContain(capText(long, 250));

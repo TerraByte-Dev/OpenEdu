@@ -2,9 +2,14 @@
 // 9e) decides from words whether the shown passages mention the thing asked about, and on real notes it
 // is wrong in a way that hides the student's right notes: "What is the formula for kinetic energy?"
 // over notes that write "KE = ½mv²", a typo, an abbreviation, a description instead of a name. This
-// compares meaning instead: the question and every sentence of the shown passages go to the embedder in
+// compares meaning instead: the question and every sentence of the shown passages (their full chunk text,
+// which on a long note is more than the block shows) go to the embedder in
 // one call, and the switch may fire only when no sentence comes within NOTES_MEANING_MIN of the
-// question. One embed call, made only on a turn the switch already fired on; no chat call.
+// question. One embed call, made only on a turn the switch would fire on; no chat call.
+//
+// Known limits, to settle before this ships: the threshold is calibrated on nomic-embed-text only (an
+// OpenAI embedding model has a different cosine scale); embed() takes no abort signal and its retries
+// can hold a fired turn for about 6 s on a flaky Ollama; a fired turn embeds up to about 60 sentences.
 //
 // NOTES_MEANING_MIN was chosen offline on dev data before any model run (PR body): sentence cosine,
 // nomic-embed-text, no task prefix, the question as typed. Over 164 dev positives and 167 near-misses,

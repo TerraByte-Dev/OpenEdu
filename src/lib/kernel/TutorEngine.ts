@@ -236,8 +236,11 @@ export class TutorEngine {
       const shown = grounding.hits.filter((h) => grounding.block.includes(h.title));
       const miss = notesMissThing(lastUser.content, shown.map((h) => h.text));
       const aboutTheNotes = !!miss.thing && miss.thing.words.some((w) => NOTES_WORD.test(w));
-      // Lever 9g (meaning.ts): the word switch may fire only when no shown sentence is close in meaning
-      // to the question. Asked only when the switch would fire, so every other turn is unchanged.
+      // Lever 9g (meaning.ts): the word switch may fire only when no sentence of the shown passages is
+      // close in meaning to the question. Like the word switch, it reads each passage's full chunk text
+      // (h.text), not the up-to-250-estToken part the block shows (ground.ts passageFor); the threshold
+      // was chosen on dev data that way. Asked only when the switch would fire, so every other turn is
+      // unchanged.
       let nearest: number | null | undefined;
       if (miss.fire && !aboutTheNotes && turn.notesMeaning !== "off") nearest = await nearestSentence(lastUser.content, shown.map((h) => h.text), ctx.abort);
       const fire = miss.fire && !aboutTheNotes && (turn.notesMeaning === "off" || (nearest != null && nearest < NOTES_MEANING_MIN));
