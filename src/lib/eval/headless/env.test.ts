@@ -2,6 +2,23 @@ import { describe, it, expect } from "vitest";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, DEFAULT_EVAL_MODEL, B7_DEFAULT_OLLAMA_URL } from "./env";
 
 describe("parseEvalEnv", () => {
+  it("reads EVAL_NOTES_MEANING (lever 9g's paired arm) and refuses it where it cannot apply", () => {
+    expect(parseEvalEnv({}).notesMeaning).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_NOTES_MEANING: "off" }).notesMeaning).toBe("off");
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "x" })).toThrow(/EVAL_NOTES_MEANING=x: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "off", EVAL_SUITE: "k12-flow" })).toThrow(/EVAL_NOTES_MEANING does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "off", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_NOTES_MEANING=off with EVAL_TURN_NOTES=off/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "off", EVAL_NOTES_MISS: "off" })).toThrow(/is meaningless/);
+  });
+
+  it("reads EVAL_PASSAGE_WINDOW (lever 10's paired arm) and refuses it where it cannot apply", () => {
+    expect(parseEvalEnv({}).passageWindow).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_PASSAGE_WINDOW: "off" }).passageWindow).toBe("off");
+    expect(() => parseEvalEnv({ EVAL_PASSAGE_WINDOW: "no" })).toThrow(/EVAL_PASSAGE_WINDOW=no: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_PASSAGE_WINDOW: "off", EVAL_SUITE: "k12-flow" })).toThrow(/EVAL_PASSAGE_WINDOW does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_PASSAGE_WINDOW: "off", EVAL_SET: "sealed", EVAL_SEALED: "x" })).toThrow(/EVAL_PASSAGE_WINDOW is not allowed with EVAL_SET=sealed/);
+  });
+
   it("defaults to the RAG main set on the primary model, once, via local Ollama", () => {
     const o = parseEvalEnv({});
     expect(o).toMatchObject({ suite: "rag", provider: "ollama", model: DEFAULT_EVAL_MODEL, set: "main", repeats: 1, ollamaUrl: "http://127.0.0.1:11434" });
@@ -76,7 +93,7 @@ describe("parseEvalEnv", () => {
     expect(parseEvalEnv({ EVAL_SET: "probe-v2" })).toMatchObject({ suite: "rag", set: "probe-v2" });
     expect(parseEvalEnv({ EVAL_SET: "probe-v1", EVAL_NOTES_MISS: "off" })).toMatchObject({ suite: "rag", set: "probe-v1", notesMiss: "off" });
     expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SET: "probe-v2" })).toThrow(/EVAL_SET=probe-v2: k12-flow runs only the dev items/);
-    expect(() => parseEvalEnv({ EVAL_SET: "probe-v3" })).toThrow(/EVAL_SET=probe-v3: use main, dev, test, dev-v2, probe-v2, probe-v1, blind-9f, sealed/);
+    expect(() => parseEvalEnv({ EVAL_SET: "probe-v3" })).toThrow(/EVAL_SET=probe-v3: use main, dev, test, dev-v2, probe-v2, probe-v1, blind-9f, blind-10, sealed/);
     expect(parseEvalEnv({ EVAL_SET: "blind-9f" })).toMatchObject({ suite: "rag", set: "blind-9f" });
   });
 });

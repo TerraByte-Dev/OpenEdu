@@ -48,8 +48,10 @@ export interface RetrievalTrace {
   gloss?: { text: string | null; ms: number; error?: string };
   /** Lever 9e: present only on a lookup turn that showed passages and consulted the notes-miss switch
    *  (TutorEngine.ts, askedThing.ts). Written by the kernel after retrieval; retrieval never sets it.
-   *  `thing` is the asked-about phrase, or null when the question did not parse. */
-  lookupNote?: { variant: "lookup" | "notes-miss" | "notes-drop"; thing: string | null };
+   *  `thing` is the asked-about phrase, or null when the question did not parse. `nearest` (lever 9g,
+   *  meaning.ts) is present only when the meaning check was asked: the best sentence cosine, or null
+   *  when the embedder failed. */
+  lookupNote?: { variant: "lookup" | "notes-miss" | "notes-drop"; thing: string | null; nearest?: number | null };
 }
 
 export interface Grounding {
@@ -180,6 +182,58 @@ export function selectHits(candidates: GroundingHit[], opts: { minScore?: number
 
 // ── Pure stage 3: format ─────────────────────────────────────────────────────
 
+// ── Lever 10: show the part of a long passage that matches the question ─────────────────────────
+//
+// A note chunk is up to 512 estTokens (notebook.ts chunkText) but a passage is shown at MAX_HIT_TOKENS
+// (250), so on a long note the back half of every retrieved chunk never reached the model: retrieval
+// found the right chunk and the model was shown the wrong half of it. passageFor shows, instead of the
+// head, the run of whole sentences around the sentence that shares the most content words with the
+// question. Pure, no model call, no embed call. It changes nothing when the passage fits, when no
+// sentence shares a word with the question, or when the head already shows the best sentence (ties go
+// to the earliest sentence), so short notes and head-matching chunks are byte-identical to before.
+
+/** Sentence spans [start, end) of `text`: split at line breaks and after . ! ? followed by space. */
+export function sentenceSpans(text: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  const sep = /\n+|(?<=[.!?])\s+/g;
+  let at = 0;
+  for (const m of text.matchAll(sep)) {
+    if (m.index! > at) spans.push([at, m.index!]);
+    at = m.index! + m[0].length;
+  }
+  if (at < text.length) spans.push([at, text.length]);
+  return spans;
+}
+
+/** A content word with a plural or possessive "s" taken off, so "glaciers" meets "glacier". */
+const fold = (w: string): string => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+
+/** What of one passage the model is shown. See the lever 10 note above. */
+export function passageFor(text: string, question: string): string {
+  const t = text.trim();
+  const head = capText(t, MAX_HIT_TOKENS);
+  if (head === t) return t;
+  const want = new Set(contentWords(question).map(fold));
+  if (want.size === 0) return head;
+  const spans = sentenceSpans(t);
+  const score = spans.map(([a, b]) => new Set(contentWords(t.slice(a, b)).map(fold).filter((w) => want.has(w))).size);
+  let best = 0;
+  for (let i = 1; i < spans.length; i++) if (score[i] > score[best]) best = i;
+  if (score[best] === 0 || head.includes(t.slice(...spans[best]))) return head;
+  // The marker for the longest possible excerpt, so the excerpt plus its marker never exceeds the cap.
+  const marker = (kept: number) => `\n…[excerpt: showing ${kept} of ${t.length} characters]`;
+  const room = MAX_HIT_TOKENS * 4 - 1 - marker(t.length).length;
+  if (spans[best][1] - spans[best][0] > room) return head;
+  let lo = best, hi = best;
+  for (let grew = true; grew;) {
+    grew = false;
+    if (hi + 1 < spans.length && spans[hi + 1][1] - spans[lo][0] <= room) { hi++; grew = true; }
+    if (lo > 0 && spans[hi][1] - spans[lo - 1][0] <= room) { lo--; grew = true; }
+  }
+  const excerpt = t.slice(spans[lo][0], spans[hi][1]);
+  return `${lo > 0 ? "…" : ""}${excerpt}${marker(excerpt.length)}`;
+}
+
 /**
  * Render the passages as plain labelled text — deliberately NOT JSON.
  *
@@ -191,7 +245,7 @@ export function selectHits(candidates: GroundingHit[], opts: { minScore?: number
  * The instruction rides WITH the evidence rather than four sections up the system prompt: on a small
  * model an instruction adjacent to the thing it governs is followed far more reliably.
  */
-export function formatGroundingBlock(hits: GroundingHit[], maxTokens: number): string {
+export function formatGroundingBlock(hits: GroundingHit[], maxTokens: number, question: string | null = null): string {
   if (hits.length === 0) return "";
 
   const header = contextHeader(hits);
@@ -199,7 +253,7 @@ export function formatGroundingBlock(hits: GroundingHit[], maxTokens: number): s
   const parts: string[] = [];
   let used = estTokens(header) + 8; // + framing tags
   for (const hit of hits) {
-    const body = capText(hit.text.trim(), MAX_HIT_TOKENS);
+    const body = question === null ? capText(hit.text.trim(), MAX_HIT_TOKENS) : passageFor(hit.text, question);
     const piece = `[${hit.source === "note" ? "STUDENT NOTE" : "REFERENCE"}: ${hit.title}]\n${body}`;
     const cost = estTokens(piece) + 2;
     if (used + cost > maxTokens) break;
@@ -313,12 +367,13 @@ export async function ground(
   budget: Budget,
   mode: RetrievalMode = "always",
   gloss?: string | null,
+  passageWindow: "on" | "off" = "on",
 ): Promise<Grounding> {
   const gate = shouldRetrieve(question, mode);
   if (!gate.retrieve) {
     return { ...EMPTY_GROUNDING, trace: { ...EMPTY_GROUNDING.trace, skipped: gate.reason } };
   }
-  if (gloss) return groundWithGloss(question, gloss, ctx, budget);
+  if (gloss) return groundWithGloss(question, gloss, ctx, budget, passageWindow);
 
   const candidates: GroundingHit[] = [];
   let noteCandidates = 0;
@@ -345,7 +400,7 @@ export async function ground(
 
   const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
   const hits = selectHits(candidates);
-  const block = formatGroundingBlock(hits, budget.grounding);
+  const block = formatGroundingBlock(hits, budget.grounding, passageWindow === "on" ? question : null);
 
   const skipped: RetrievalTrace["skipped"] =
     candidates.length === 0 ? "no-corpus" : hits.length === 0 ? "below-floor" : null;
@@ -368,7 +423,7 @@ export async function ground(
 // Lever L2: the same stage, searched with the original question AND its English gloss, both corpora,
 // merged per passage (mergeCandidates). The floor, diversity and cap are selectHits's, unchanged. Only
 // reached for a glossed (non-English) question; an English turn never gets here.
-async function groundWithGloss(question: string, gloss: string, ctx: ToolContext, budget: Budget): Promise<Grounding> {
+async function groundWithGloss(question: string, gloss: string, ctx: ToolContext, budget: Budget, passageWindow: "on" | "off"): Promise<Grounding> {
   const [notes, library, glossNotes, glossLibrary] = await Promise.allSettled([
     searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }),
     groundFromLibrary(question),
@@ -393,7 +448,8 @@ async function groundWithGloss(question: string, gloss: string, ctx: ToolContext
 
   const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
   const hits = selectHits(candidates);
-  const block = formatGroundingBlock(hits, budget.grounding);
+  // The window reads both, so a question in another script still meets an English note's words.
+  const block = formatGroundingBlock(hits, budget.grounding, passageWindow === "on" ? `${question} ${gloss}` : null);
   const skipped: RetrievalTrace["skipped"] =
     candidates.length === 0 ? "no-corpus" : hits.length === 0 ? "below-floor" : null;
 

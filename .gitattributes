@@ -1,3 +1,4 @@
 public/library/** text eol=lf
 src/lib/eval/rag-probe-l12.json -text
 src/lib/eval/rag-blind-9f.json -text
+src/lib/eval/rag-blind-10.json -text

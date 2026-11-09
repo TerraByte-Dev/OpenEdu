@@ -18,6 +18,7 @@
 // src/lib/eval/headless/README.md). That entry calls THIS function; it only swaps the platform
 // (SQLite, HTTP, settings store) underneath the kernel.
 
+import { shownIn } from "./rag-shown";
 import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type TutorTurnResult, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
 import { FACT_LOOKUP_NOTE, type TurnKind } from "../kernel/turnKind";
@@ -34,6 +35,7 @@ import { RAG_HELDOUT } from "./rag-heldout";
 import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
 import { RAG_PROBE_V1, RAG_PROBE_V2 } from "./rag-probe";
 import { RAG_BLIND_9F, RAG_BLIND_9F_VAULT } from "./rag-blind";
+import { RAG_BLIND_10, RAG_BLIND_10_VAULT } from "./rag-blind-10";
 import { hasRefusalPhrase } from "./refusal";
 import type { LLMConfig, Syllabus } from "../../types";
 
@@ -106,6 +108,9 @@ export interface RagRow {
    *  note (turnKind.ts notesMissNote), "notes-drop" lever 9f's note on a turn shown no passage
    *  (notesDropNote); null when the turn sent no lookup note or threw. */
   lookupNote: "lookup" | "notes-miss" | "notes-drop" | null;
+  /** Lever 9g: the meaning check's best sentence cosine (meaning.ts) on a turn that asked it; null when
+   *  the embedder failed; undefined when the check was not asked. */
+  nearest?: number | null;
   /** The asked-about phrase askedThing.ts parsed, on a lookup turn that consulted the switch; else null. */
   askedThing: string | null;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
@@ -117,6 +122,10 @@ export interface RagRow {
   /** The kernel answered without tools after Ollama could not parse the model's tool call
    *  (TutorTurnResult.toolCallRecovery). Null when that did not happen or the turn threw. */
   toolCallRecovery: TutorTurnResult["toolCallRecovery"];
+  /** Lever 10's mechanism check, read from the block the model was shown (not the answer): whether it
+   *  held one of the item's `expect` alternatives, and the near-miss's `poison`, as substrings. Null
+   *  when the item has no such value or the turn threw before grounding reported anything. */
+  shown: { expect: boolean | null; poison: boolean | null };
 }
 
 /** A set that brings its own vault, such as the sealed held-out file (sealed.ts). */
@@ -139,6 +148,10 @@ export interface RagReport {
   notesMiss: "on" | "off";
   /** "off" when lever 9f's drop was not applied (EVAL_NOTES_DROP=off, its paired arm). */
   notesDrop: "on" | "off";
+  /** "off" when lever 9g's meaning check was not consulted (EVAL_NOTES_MEANING=off, its paired arm). */
+  notesMeaning: "on" | "off";
+  /** "off" when lever 10's window was not applied (EVAL_PASSAGE_WINDOW=off, its paired arm). */
+  passageWindow: "on" | "off";
   /** "main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", or the name of a custom set (e.g. the
    *  sealed held-out file). */
   set: string;
@@ -192,8 +205,9 @@ export async function runRagEval(opts?: {
   only?: string;
   /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts;
    *  "dev-v2" is rag-dev-v2.ts, with its own vault; "probe-v2" and "probe-v1" are rag-probe.ts, on the
-   *  v2 vault and RAG_FIXTURE; "blind-9f" is rag-blind.ts, with its own vault (lever 9f's gate). */
-  set?: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f";
+   *  v2 vault and RAG_FIXTURE; "blind-9f" is rag-blind.ts, with its own vault (lever 9f's gate); "blind-10" is
+   *  rag-blind-10.ts, with its own vault (levers 10 and 9g). */
+  set?: "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f" | "blind-10";
   /** A set that brings its own vault (the sealed held-out file). Replaces `set` and RAG_FIXTURE. */
   custom?: RagCustomSet;
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
@@ -210,6 +224,12 @@ export async function runRagEval(opts?: {
   /** "off": on a notes-miss turn the kernel keeps 9e's behaviour (TutorTurn.notesDrop), for lever 9f's
    *  paired arm. Default "on", which is what the app does. */
   notesDrop?: "on" | "off";
+  /** "off": the notes-miss switch fires on words alone (TutorTurn.notesMeaning), for lever 9g's paired
+   *  arm. Default "on", which is what the app does. */
+  notesMeaning?: "on" | "off";
+  /** "off": every long passage is shown from its start (TutorTurn.passageWindow), lever 10's paired arm.
+   *  Default "on", which is what the app does. */
+  passageWindow?: "on" | "off";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -223,7 +243,9 @@ export async function runRagEval(opts?: {
   const turnNotes = opts?.turnNotes ?? "on";
   const notesMiss = opts?.notesMiss ?? "on";
   const notesDrop = opts?.notesDrop ?? "on";
+  const notesMeaning = opts?.notesMeaning ?? "on";
   const prompt = opts?.prompt ?? "standin";
+  const passageWindow = opts?.passageWindow ?? "on";
   if (!RAG_PROMPTS.includes(prompt)) {
     inFlight = false;
     throw new Error(`Unknown prompt arm "${prompt}": use ${RAG_PROMPTS.join(", ")}.`);
@@ -231,10 +253,10 @@ export async function runRagEval(opts?: {
   const instructions = ragInstructions(prompt);
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
-  const vault = opts?.custom?.vault ?? (set === "dev-v2" || set === "probe-v2" ? RAG_DEV_V2_VAULT : set === "blind-9f" ? RAG_BLIND_9F_VAULT : RAG_FIXTURE);
+  const vault = opts?.custom?.vault ?? (set === "dev-v2" || set === "probe-v2" ? RAG_DEV_V2_VAULT : set === "blind-9f" ? RAG_BLIND_9F_VAULT : set === "blind-10" ? RAG_BLIND_10_VAULT : RAG_FIXTURE);
   const pool: RagQuestion[] = opts?.custom ? opts.custom.questions
     : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2
-    : set === "probe-v2" ? RAG_PROBE_V2 : set === "probe-v1" ? RAG_PROBE_V1 : set === "blind-9f" ? RAG_BLIND_9F
+    : set === "probe-v2" ? RAG_PROBE_V2 : set === "probe-v1" ? RAG_PROBE_V1 : set === "blind-9f" ? RAG_BLIND_9F : set === "blind-10" ? RAG_BLIND_10
     : RAG_HELDOUT.filter((q) => q.split === set);
   const only = opts?.only ? new Set(opts.only.split(",").map((id) => id.trim()).filter(Boolean)) : null;
   const questions = only ? pool.filter((q) => only.has(q.id)) : pool;
@@ -292,6 +314,8 @@ export async function runRagEval(opts?: {
             ...(turnNotes === "off" ? { turnNotes } : {}),
             ...(notesMiss === "off" ? { notesMiss } : {}),
             ...(notesDrop === "off" ? { notesDrop } : {}),
+            ...(notesMeaning === "off" ? { notesMeaning } : {}),
+            ...(passageWindow === "off" ? { passageWindow } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -308,7 +332,9 @@ export async function runRagEval(opts?: {
           let turnKind: TurnKind | null = null;
           let turnNoted = false;
           let lookupNote: RagRow["lookupNote"] = null;
+          let nearest: RagRow["nearest"];
           let askedThing: string | null = null;
+          let block: string | null = null;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
@@ -318,6 +344,7 @@ export async function runRagEval(opts?: {
             // with FACT_LOOKUP_NOTE (switch off, or no passages shown) sent the plain lookup note.
             const ln = result.grounding.trace.lookupNote;
             lookupNote = ln?.variant ?? (result.turnNote === FACT_LOOKUP_NOTE ? "lookup" : null);
+            if (ln && "nearest" in ln) nearest = ln.nearest;
             askedThing = ln?.thing ?? null;
             retrievalTrace = result.grounding.trace;
             // The citation the STUDENT would see — n-gram verified, never the model's claim. In
@@ -327,6 +354,8 @@ export async function runRagEval(opts?: {
             retrievedTitles = result.grounding.trace.hitTitles;
             toolCalls = result.toolCalls.map((c) => c.name);
             toolCallRecovery = result.toolCallRecovery;
+            // A notes-drop turn (lever 9f) puts no block in front of the model, whatever grounding found.
+            block = result.grounding.trace.lookupNote?.variant === "notes-drop" ? "" : result.grounding.block;
           } catch (e) {
             // A model or transport failure is an ERROR row with the real message. The kernel hands
             // back what grounding found before the failure, so the row keeps the real trace.
@@ -335,6 +364,7 @@ export async function runRagEval(opts?: {
             if (e instanceof TutorTurnError) {
               retrievalTrace = e.grounding.trace;
               retrievedTitles = e.grounding.trace.hitTitles;
+              block = e.grounding.trace.lookupNote?.variant === "notes-drop" ? "" : e.grounding.block;
             } else {
               traceKnown = false;
             }
@@ -365,7 +395,8 @@ export async function runRagEval(opts?: {
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
           const refusal = hasRefusalPhrase(answer);
-          rows.push({ prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, lookupNote, askedThing, ttft_ms, total_ms, error, toolCallRecovery });
+          const shown = shownIn(block, question);
+          rows.push({ shown, prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, lookupNote, ...(nearest !== undefined ? { nearest } : {}), askedThing, ttft_ms, total_ms, error, toolCallRecovery });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -413,7 +444,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, notesMiss, notesDrop, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, passageWindow, turnNotes, notesMiss, notesDrop, notesMeaning, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

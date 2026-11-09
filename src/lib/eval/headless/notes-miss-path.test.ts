@@ -110,7 +110,7 @@ describe("the notes-miss switch: the requests Ollama sees", () => {
         calls = [];
         // The switch on is run with lever 9f's drop off (notes-drop-path.test.ts covers the drop), so this
         // file keeps testing 9e alone.
-        const report = await runRagEval({ custom: { name: "notes-miss-path", vault: VAULT, questions: [q] }, modes: ["always"], syllabus: "matched", prompt: "product-course", ...(notesMiss === "off" ? { notesMiss } : { notesDrop: "off" as const }) });
+        const report = await runRagEval({ custom: { name: "notes-miss-path", vault: VAULT, questions: [q] }, modes: ["always"], syllabus: "matched", prompt: "product-course", ...(notesMiss === "off" ? { notesMiss } : { notesDrop: "off" as const, notesMeaning: "off" as const }) });
         // Model-info calls (/api/show, /api/tags) are cached across runs, so only the turn's own calls count.
         (notesMiss === "off" ? off : on)[q.id] = { chat: raws("/api/chat"), embed: raws("/api/embed"), paths: calls.map((c) => c.path).filter((x) => x === "/api/chat" || x === "/api/embed"), report };
       }
