@@ -132,4 +132,43 @@ describe("dropping the passages on a notes-miss turn: the requests Ollama sees",
       expect(off[q.id].embed, q.id).toMatchSnapshot(`${q.id} embed`);
     }
   });
+
+  it("adds no request on any path: the same calls, in the same order, with the drop on", () => {
+    for (const { q } of CASES) {
+      expect(on[q.id].paths, q.id).toEqual(off[q.id].paths);
+      expect(on[q.id].chat, q.id).toHaveLength(1);
+      expect(on[q.id].embed, q.id).toEqual(off[q.id].embed);
+    }
+  });
+
+  it("changes only the dropped turns, and there only the last user message: no block, and the drop note", () => {
+    for (const { q } of CASES.filter((c) => c.lookupNote !== "notes-drop")) expect(on[q.id].chat, q.id).toEqual(off[q.id].chat);
+    for (const [id, phrase] of [["fired", "gecko"], ["fired-3", "great crested newt"]] as const) {
+      const offBody = JSON.parse(off[id].chat[0]!) as { messages: Msg[] };
+      const onBody = JSON.parse(on[id].chat[0]!) as { messages: Msg[] };
+      const last = offBody.messages.length - 1;
+      const ask = CASES.find((c) => c.q.id === id)!.q.ask;
+      // 9e's message: block, blank line, the question, blank line, the notes-miss note.
+      expect(offBody.messages[last].content.endsWith(`${ask}\n\n${notesMissNote(phrase)}`), id).toBe(true);
+      expect(offBody.messages[last].content).toContain("The pond newt regrows a lost tail in 17 days.");
+      // 9f's: the question, blank line, the drop note. Everything before the last message is unchanged.
+      const dropped = { ...offBody.messages[last], content: `${ask}\n\n${notesDropNote(phrase)}` };
+      expect(onBody, id).toEqual({ ...offBody, messages: [...offBody.messages.slice(0, last), dropped] });
+      expect(lastContent(on[id].chat[0]!)).not.toContain("17");
+    }
+  });
+
+  it("records the note each row sent and the phrase it parsed; with the drop off a dropped row is a notes-miss row", () => {
+    for (const c of CASES) {
+      const r = on[c.q.id].report.rows[0];
+      expect([r.lookupNote, r.askedThing], c.q.id).toEqual([c.lookupNote, c.thing]);
+      const o = off[c.q.id].report.rows[0];
+      expect([o.lookupNote, o.askedThing], c.q.id).toEqual([c.lookupNote === "notes-drop" ? "notes-miss" : c.lookupNote, c.thing]);
+    }
+    // The passages are still retrieved and reported on a dropped turn, only not shown.
+    expect(on.fired.report.rows[0].retrievedTitles).toEqual(off.fired.report.rows[0].retrievedTitles);
+    expect(on.fired.report.notesDrop).toBe("on");
+    expect(off.fired.report.notesDrop).toBe("off");
+    expect(on.fired.report.rows[0].turnNoted).toBe(true);
+  });
 });

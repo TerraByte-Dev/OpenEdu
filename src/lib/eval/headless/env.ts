@@ -46,6 +46,9 @@ export interface EvalOptions {
   /** RAG only: "off" keeps the lookup note on every lookup turn (kernel TutorTurn.notesMiss, lever 9e),
    *  the switch's paired arm at the same commit. Unset: "on", what the app does. */
   notesMiss?: "on" | "off";
+  /** RAG only: "off" keeps lever 9e's behaviour on a notes-miss turn (kernel TutorTurn.notesDrop, lever
+   *  9f), the drop's paired arm at the same commit. Unset: "on", what the app does. */
+  notesDrop?: "on" | "off";
   /** b7-cpu only: the CPU server's log file, read for the thread count its runner started with. */
   serverLog?: string;
 }
@@ -171,6 +174,15 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     // With no turn notes there is no lookup note to switch: the arm would be EVAL_TURN_NOTES=off again.
     if (notesMiss === "off" && turnNotes === "off") errs.push("EVAL_NOTES_MISS=off with EVAL_TURN_NOTES=off is meaningless: with no turn notes there is no lookup note to switch");
   }
+  const notesDrop = get("EVAL_NOTES_DROP") as EvalOptions["notesDrop"];
+  if (notesDrop !== undefined) {
+    if (notesDrop !== "on" && notesDrop !== "off") errs.push(`EVAL_NOTES_DROP=${notesDrop}: use on or off`);
+    // Refused exactly where EVAL_NOTES_MISS is, for the same reasons.
+    if (flow || b7) errs.push(`EVAL_NOTES_DROP does not apply to ${suite}`);
+    if (set === "sealed") errs.push("EVAL_NOTES_DROP is not allowed with EVAL_SET=sealed: the run uses the app's turn notes");
+    // The drop only acts on a turn the switch fired on: with no switch (or no notes) the arm repeats another.
+    if (notesDrop === "off" && (turnNotes === "off" || notesMiss === "off")) errs.push("EVAL_NOTES_DROP=off with EVAL_TURN_NOTES=off or EVAL_NOTES_MISS=off is meaningless: the drop acts only on a turn the notes-miss switch fired on");
+  }
 
   if (errs.length) throw new Error(`Bad eval options:\n  ${errs.join("\n  ")}`);
   return {
@@ -195,6 +207,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     numGpu,
     turnNotes,
     notesMiss,
+    notesDrop,
     serverLog: b7 ? get("EVAL_B7_SERVER_LOG") : undefined,
   };
 }

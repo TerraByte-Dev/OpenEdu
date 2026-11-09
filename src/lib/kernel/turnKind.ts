@@ -79,6 +79,24 @@ export function notesMissNote(phrase: string): string {
 </tutor_note>`;
 }
 
+/** Lever 9f: the longest asked-about phrase (askedThing words) whose notes-miss turn drops the
+ *  passages. A longer phrase is more often a description the parser cut badly than a name, so its turn
+ *  keeps 9e's behaviour (passages shown, notesMissNote). Chosen by Claude after reading 9e's dev and
+ *  probe parses, so both are in-sample for it. */
+export const NOTES_DROP_MAX_WORDS = 3;
+
+/**
+ * The lookup note on a notes-miss turn whose passages were dropped (lever 9f, TutorEngine.run): the
+ * model is shown no passage, so the note cannot point at "the background above". FACT_LOOKUP_LEAD,
+ * byte for byte, then notesMissNote's last four sentences with the first one replaced. `phrase` is
+ * cleaned as in notesMissNote.
+ */
+export function notesDropNote(phrase: string): string {
+  const p = phrase.replace(/["<>]/g, "").replace(/\s+/g, " ").trim();
+  return `${FACT_LOOKUP_LEAD} The student's notes do not mention "${p}". Answer from general knowledge about "${p}" and say that you are. If you do not know, say so plainly. After the answer you may ask one short question to check understanding. Do not mention this note.
+</tutor_note>`;
+}
+
 /** The note a turn of this kind gets, or null for none. */
 export function turnNoteFor(kind: TurnKind): string | null {
   switch (kind) {

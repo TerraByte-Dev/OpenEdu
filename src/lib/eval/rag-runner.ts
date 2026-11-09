@@ -102,8 +102,9 @@ export interface RagRow {
   turnKind: TurnKind | null;
   turnNoted: boolean;
   /** Which lookup note the turn sent (lever 9e): "lookup" is FACT_LOOKUP_NOTE, "notes-miss" the switched
-   *  note (turnKind.ts notesMissNote); null when the turn sent no lookup note or threw. */
-  lookupNote: "lookup" | "notes-miss" | null;
+   *  note (turnKind.ts notesMissNote), "notes-drop" lever 9f's note on a turn shown no passage
+   *  (notesDropNote); null when the turn sent no lookup note or threw. */
+  lookupNote: "lookup" | "notes-miss" | "notes-drop" | null;
   /** The asked-about phrase askedThing.ts parsed, on a lookup turn that consulted the switch; else null. */
   askedThing: string | null;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
@@ -135,6 +136,8 @@ export interface RagReport {
   turnNotes: "on" | "off";
   /** "off" when the notes-miss switch was not consulted (EVAL_NOTES_MISS=off, lever 9e's paired arm). */
   notesMiss: "on" | "off";
+  /** "off" when lever 9f's drop was not applied (EVAL_NOTES_DROP=off, its paired arm). */
+  notesDrop: "on" | "off";
   /** "main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", or the name of a custom set (e.g. the
    *  sealed held-out file). */
   set: string;
@@ -203,6 +206,9 @@ export async function runRagEval(opts?: {
   /** "off": the kernel keeps the lookup note on every lookup turn (TutorTurn.notesMiss), for lever 9e's
    *  paired arm. Default "on", which is what the app does. */
   notesMiss?: "on" | "off";
+  /** "off": on a notes-miss turn the kernel keeps 9e's behaviour (TutorTurn.notesDrop), for lever 9f's
+   *  paired arm. Default "on", which is what the app does. */
+  notesDrop?: "on" | "off";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -215,6 +221,7 @@ export async function runRagEval(opts?: {
   const repeats = opts?.repeats ?? 1;
   const turnNotes = opts?.turnNotes ?? "on";
   const notesMiss = opts?.notesMiss ?? "on";
+  const notesDrop = opts?.notesDrop ?? "on";
   const prompt = opts?.prompt ?? "standin";
   if (!RAG_PROMPTS.includes(prompt)) {
     inFlight = false;
@@ -283,6 +290,7 @@ export async function runRagEval(opts?: {
             retrieval: mode,
             ...(turnNotes === "off" ? { turnNotes } : {}),
             ...(notesMiss === "off" ? { notesMiss } : {}),
+            ...(notesDrop === "off" ? { notesDrop } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -404,7 +412,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, notesMiss, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, turnNotes, notesMiss, notesDrop, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

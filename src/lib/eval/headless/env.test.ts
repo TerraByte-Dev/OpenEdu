@@ -62,6 +62,16 @@ describe("parseEvalEnv", () => {
     expect(() => parseEvalEnv({ EVAL_SET: "dev-v2", EVAL_NOTES_MISS: "off", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_NOTES_MISS=off with EVAL_TURN_NOTES=off is meaningless/);
   });
 
+  it("reads EVAL_NOTES_DROP for rag only, unset by default, and refuses it where EVAL_NOTES_MISS is refused and with no switch", () => {
+    expect(parseEvalEnv({ EVAL_SET: "dev-v2" }).notesDrop).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_SET: "dev-v2", EVAL_NOTES_DROP: "off" })).toMatchObject({ notesDrop: "off", notesMiss: undefined, turnNotes: undefined });
+    expect(() => parseEvalEnv({ EVAL_NOTES_DROP: "no" })).toThrow(/EVAL_NOTES_DROP=no: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_NOTES_DROP: "off" })).toThrow(/EVAL_NOTES_DROP does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_SET: "sealed", EVAL_SEALED: "x.json", EVAL_NOTES_DROP: "off" })).toThrow(/EVAL_NOTES_DROP is not allowed with EVAL_SET=sealed/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_DROP: "off", EVAL_NOTES_MISS: "off" })).toThrow(/EVAL_NOTES_DROP=off with EVAL_TURN_NOTES=off or EVAL_NOTES_MISS=off is meaningless/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_DROP: "off", EVAL_TURN_NOTES: "off" })).toThrow(/meaningless/);
+  });
+
   it("takes lever 9e's probe sets for RAG, and refuses them for k12-flow", () => {
     expect(parseEvalEnv({ EVAL_SET: "probe-v2" })).toMatchObject({ suite: "rag", set: "probe-v2" });
     expect(parseEvalEnv({ EVAL_SET: "probe-v1", EVAL_NOTES_MISS: "off" })).toMatchObject({ suite: "rag", set: "probe-v1", notesMiss: "off" });
