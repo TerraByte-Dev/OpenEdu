@@ -117,7 +117,8 @@ The first five were stopped by rules written before they ran; none of them is in
   [results](../src/lib/eval/results/2026-11-09-rag-dev-lookup-note-v3.md)). Code picks out the thing the
   question asks about. If no note shown to the model contains it, the note says so in plain words.
   On dev it fixed both trick questions and kept the gains (trick questions answered without misusing a
-  note: 41 of 43, the same as with no note). On 78 new questions written after the code was frozen, it
+  note: 41 of 43, the same as with no note). On 78 newer questions written without seeing the dev set
+  (semi-blind: the code's author saw them before freezing it), it
   let 3 more trick questions through than no note at all (35 vs 38 of 40), and the rule written in
   advance allowed 1. On two of them e2b stated a note's invented value as a fact about the real thing.
   This was the third and last try allowed on these sets.
