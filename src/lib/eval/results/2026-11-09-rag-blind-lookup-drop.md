@@ -48,10 +48,10 @@ is added."
 
 | | |
 |---|---|
-| Commit | **`a03674b`**, the PR head at run time; `srcDirty: false` on every scored run; `git status` empty at every start |
+| Commit | **`a03674b`**, the PR head at run time; `srcDirty: false` on every scored run; `git status` empty at every scored run's start |
 | Checkout | worktree `C:/x/oe-drop` on `feat/lookup-drop-passage`, its own `node_modules` |
 | Models | `gemma4:e2b`, `gemma4:e4b`; embedder `nomic-embed-text:latest`; Ollama on 127.0.0.1:11434; RTX 3070 laptop (8 GB VRAM), 32 GB RAM |
-| Before each model | `ollama ps` empty; e2b 17.57 GB free RAM, 1,299 MiB VRAM in use (restart after the excluded run: 17.61 GB, 1,265 MiB); e4b 17.54 GB, 1,265 MiB. After each, both models stopped |
+| Before each model | `ollama ps` empty; e2b 17.57 GB free RAM, 1,299 MiB VRAM in use (restart after the excluded run: 17.61 GB, 1,265 MiB); e4b 17.54 GB, 1,265 MiB. After each, `ollama stop` was issued for both models (after e4b the embedder was still "Stopping..." when logged) |
 | Results JSON (not committed) | `C:/x/oe-drop-runs/<model>-<set>-<arm>-a<n>.json` and `.stdout.txt`; driver `drive.sh`, log `drive.log`; `check.cjs` (void checks), `analyze.cjs` (rule, grades, descriptive; `GRADE=token` for the declared regrade) |
 
 | Run | Arm | Commit | srcDirty | Rows | ERROR | notes-miss / notes-drop rows | UTC |
@@ -169,12 +169,15 @@ Items, B / N / D. Vault-value rows are counted on their own, not behind the chip
 
 Every pre-registered expectation held. 9f dropped on every 9e fire except the 3 long-phrase probe positives
 and `v2-nl21`. It cost exactly the two synonym fires (`v2-pf04` "ridge" and `bp-cor-1` "peak": 0 of 6 dropped
-rows pass on e2b). It removed the vault value on all seven 9e near-miss failures it dropped on (`v2-nl03`,
-`v2-nl24`, `bn-pel-2`, `bn-hal-1`, `bn-cin-1`, `bn-cin-2`, `bn-wex-1`). On dropped dev and probe near-miss
+rows pass on e2b). It dropped on all seven of #222's 9e near-miss failures (`v2-nl03`, `v2-nl24`,
+`bn-pel-2`, `bn-hal-1`, `bn-cin-1`, `bn-cin-2`, `bn-wex-1`), and D gave their vault value 0 times on both models
+(in this run, e2b's N gave it on six of them, all but `v2-nl03`; e4b's N on none). On dropped dev and probe near-miss
 rows, e2b gave the vault value 0 times (9e on the same rows: 18). Every dev and probe vault-value row that
 remains in D is on a row 9f did not drop (on e2b: `h-nm01`, which names the note's own entity, and
-`bn-tre-2`). On dev, two unfired rows differ in prompt tokens by ±59: the Amharic item `h-xl-am01`,
-whose glossed retrieval returned different notes between runs. That is not a lever effect. No call was added
+`bn-tre-2`). On dev, a few unfired rows differ in prompt tokens between D and N: on e2b two rows of the Amharic
+item `h-xl-am01` (±59), on e4b `h-xl-ar01` (−67, twice) and `h-xl-am01` (+60). These are cross-lingual
+items whose glossed retrieval returned different notes between runs, none with a tool call. That is not
+a lever effect. No unfired probe row differs on either model. No call was added
 in any set or model.
 
 ## The review's regression (blocks shipping on its own)
