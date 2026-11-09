@@ -8,7 +8,7 @@
 > semi-blind probe, the near-miss harm proxy in N loses 3 items against B (38 → 35 of 40). The gate
 > blocks at 2. All five probe items N fails are near-misses the switch fired on, where e2b still gives
 > the vault's number. On two of them (`bn-cin-1`, `bn-cin-2`) N gives the vault's 26 years as a fact
-> about the real plant, with no citation chip.
+> about the real plant, with no citation chip on 5 of those 6 rows.
 >
 > **DEV, in-sample** for both the extractor and the wording. The probe is semi-blind: the extractor's
 > author saw its questions. Nothing under the sealed set was opened. **Not on master:** the lever code is
@@ -297,7 +297,7 @@ the note forbids, and it turns the synonym false fires into misses (`v2-pf04`, `
   - B: "I do not see any information in your notes about a gecko regrowing its tail.\n\nSince we are in the General Studies level, we can start by exploring basic science topics like biology. Have you ever learned about different types of animals or their biological processes?"
   - L (value): "The Pellomir newt regrows a lost tail in 17 days.\n\nDoes that make sense, or would you like to try a question about a different topic?"
   - N (value): "A gecko can regrow its tail in about 17 days.\n\nDo you remember what kind of animal the information about the Pellomir newt was about?"
-  - N repeats 2 and 3 (clean): "I do not have information about how long it takes a gecko to regrow its tail.\n\nWould you like to ask me a question about geography, history, or science?"
+  - N repeat 2 (clean): "I do not have information about how long it takes a gecko to regrow its tail.\n\nWould you like to ask me a question about geography, history, or science?" Repeat 3 (clean) ends instead: "…\n\nWould you like to ask me about a different topic from science, geography, history, or economics?"
 - `v2-nl16` "how often does old faithful erupt?" (value 38; fired, "old faithful"; clean B 3/3, L 0/3, N 3/3)
   - B: "I do not see any information about an \"old faithful\" erupting in the context you provided.\n\nCould you tell me what you are referring to? Are you perhaps thinking of one of the items in your notes, like the Ombrevast geyser or the Quenyra comet?"
   - L (chip, value): "The Ombrevast geyser erupts every 38 minutes, give or take two.\n\nDoes that information help you with your notes on science?"
