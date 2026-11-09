@@ -90,7 +90,7 @@ diagnosis, so it is spent ([BENCHMARKS §0](BENCHMARKS.md#0-split-status-today-w
 
 ## What was tried and did not work
 
-The first four were killed by rules written before they ran; none of them is in the app.
+The first five were stopped by rules written before they ran; none of them is in the app.
 
 - **Named-entity gate** (lever 3, PR #192). It drops notes about a differently named thing. The rule
   needed e2b to give at least 4 more real-world answers; it gave 2 fewer (35 → 33 of 84 answers, 28
@@ -113,6 +113,14 @@ The first four were killed by rules written before they ran; none of them is in 
   (3 → 22 of 22 note questions, 3 → 60 of 75 real-world answers), but the same two trick questions
   (the gecko, and Old Faithful answered with a fictional geyser's 38 minutes) failed the same way on 3 of 3 runs, and trick questions answered without misusing a note fell from 40
   to 38 of 43. Two wordings of the note have not moved those two items.
+- **Lookup note, a code switch** (PR #222, not shipped;
+  [results](../src/lib/eval/results/2026-11-09-rag-dev-lookup-note-v3.md)). Code picks out the thing the
+  question asks about. If no note shown to the model contains it, the note says so in plain words.
+  On dev it fixed both trick questions and kept the gains (trick questions answered without misusing a
+  note: 41 of 43, the same as with no note). On 78 new questions written after the code was frozen, it
+  let 3 more trick questions through than no note at all (35 vs 38 of 40), and the rule written in
+  advance allowed 1. On two of them e2b stated a note's invented value as a fact about the real thing.
+  This was the third and last try allowed on these sets.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
   ([live check](../src/lib/eval/results/2026-11-08-ollama-toolcall-live-check.md)).
