@@ -48,8 +48,10 @@ export interface RetrievalTrace {
   gloss?: { text: string | null; ms: number; error?: string };
   /** Lever 9e: present only on a lookup turn that showed passages and consulted the notes-miss switch
    *  (TutorEngine.ts, askedThing.ts). Written by the kernel after retrieval; retrieval never sets it.
-   *  `thing` is the asked-about phrase, or null when the question did not parse. */
-  lookupNote?: { variant: "lookup" | "notes-miss" | "notes-drop"; thing: string | null };
+   *  `thing` is the asked-about phrase, or null when the question did not parse. `nearest` (lever 9g,
+   *  meaning.ts) is present only when the meaning check was asked: the best sentence cosine, or null
+   *  when the embedder failed. */
+  lookupNote?: { variant: "lookup" | "notes-miss" | "notes-drop"; thing: string | null; nearest?: number | null };
 }
 
 export interface Grounding {
@@ -191,7 +193,7 @@ export function selectHits(candidates: GroundingHit[], opts: { minScore?: number
 // to the earliest sentence), so short notes and head-matching chunks are byte-identical to before.
 
 /** Sentence spans [start, end) of `text`: split at line breaks and after . ! ? followed by space. */
-function sentenceSpans(text: string): Array<[number, number]> {
+export function sentenceSpans(text: string): Array<[number, number]> {
   const spans: Array<[number, number]> = [];
   const sep = /\n+|(?<=[.!?])\s+/g;
   let at = 0;

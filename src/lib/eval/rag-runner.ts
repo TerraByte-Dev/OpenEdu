@@ -106,6 +106,9 @@ export interface RagRow {
    *  note (turnKind.ts notesMissNote), "notes-drop" lever 9f's note on a turn shown no passage
    *  (notesDropNote); null when the turn sent no lookup note or threw. */
   lookupNote: "lookup" | "notes-miss" | "notes-drop" | null;
+  /** Lever 9g: the meaning check's best sentence cosine (meaning.ts) on a turn that asked it; null when
+   *  the embedder failed; undefined when the check was not asked. */
+  nearest?: number | null;
   /** The asked-about phrase askedThing.ts parsed, on a lookup turn that consulted the switch; else null. */
   askedThing: string | null;
   /** Milliseconds from the start of the turn to the first streamed text; null when no text came. */
@@ -143,6 +146,8 @@ export interface RagReport {
   notesMiss: "on" | "off";
   /** "off" when lever 9f's drop was not applied (EVAL_NOTES_DROP=off, its paired arm). */
   notesDrop: "on" | "off";
+  /** "off" when lever 9g's meaning check was not consulted (EVAL_NOTES_MEANING=off, its paired arm). */
+  notesMeaning: "on" | "off";
   /** "off" when lever 10's window was not applied (EVAL_PASSAGE_WINDOW=off, its paired arm). */
   passageWindow: "on" | "off";
   /** "main", "dev", "test", "dev-v2", "probe-v2", "probe-v1", or the name of a custom set (e.g. the
@@ -216,6 +221,9 @@ export async function runRagEval(opts?: {
   /** "off": on a notes-miss turn the kernel keeps 9e's behaviour (TutorTurn.notesDrop), for lever 9f's
    *  paired arm. Default "on", which is what the app does. */
   notesDrop?: "on" | "off";
+  /** "off": the notes-miss switch fires on words alone (TutorTurn.notesMeaning), for lever 9g's paired
+   *  arm. Default "on", which is what the app does. */
+  notesMeaning?: "on" | "off";
   /** "off": every long passage is shown from its start (TutorTurn.passageWindow), lever 10's paired arm.
    *  Default "on", which is what the app does. */
   passageWindow?: "on" | "off";
@@ -232,6 +240,7 @@ export async function runRagEval(opts?: {
   const turnNotes = opts?.turnNotes ?? "on";
   const notesMiss = opts?.notesMiss ?? "on";
   const notesDrop = opts?.notesDrop ?? "on";
+  const notesMeaning = opts?.notesMeaning ?? "on";
   const prompt = opts?.prompt ?? "standin";
   const passageWindow = opts?.passageWindow ?? "on";
   if (!RAG_PROMPTS.includes(prompt)) {
@@ -302,6 +311,7 @@ export async function runRagEval(opts?: {
             ...(turnNotes === "off" ? { turnNotes } : {}),
             ...(notesMiss === "off" ? { notesMiss } : {}),
             ...(notesDrop === "off" ? { notesDrop } : {}),
+            ...(notesMeaning === "off" ? { notesMeaning } : {}),
             ...(passageWindow === "off" ? { passageWindow } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
@@ -319,6 +329,7 @@ export async function runRagEval(opts?: {
           let turnKind: TurnKind | null = null;
           let turnNoted = false;
           let lookupNote: RagRow["lookupNote"] = null;
+          let nearest: RagRow["nearest"];
           let askedThing: string | null = null;
           let block: string | null = null;
           try {
@@ -330,6 +341,7 @@ export async function runRagEval(opts?: {
             // with FACT_LOOKUP_NOTE (switch off, or no passages shown) sent the plain lookup note.
             const ln = result.grounding.trace.lookupNote;
             lookupNote = ln?.variant ?? (result.turnNote === FACT_LOOKUP_NOTE ? "lookup" : null);
+            if (ln && "nearest" in ln) nearest = ln.nearest;
             askedThing = ln?.thing ?? null;
             retrievalTrace = result.grounding.trace;
             // The citation the STUDENT would see — n-gram verified, never the model's claim. In
@@ -384,7 +396,7 @@ export async function runRagEval(opts?: {
             expect: block === null || !question.expect || question.kind === "negative" ? null : question.expect.split("|").some((a) => block!.includes(a.trim())),
             poison: block === null || !question.poison ? null : block.includes(question.poison),
           };
-          rows.push({ shown, prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, lookupNote, askedThing, ttft_ms, total_ms, error, toolCallRecovery });
+          rows.push({ shown, prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, turnKind, turnNoted, lookupNote, ...(nearest !== undefined ? { nearest } : {}), askedThing, ttft_ms, total_ms, error, toolCallRecovery });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -432,7 +444,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, passageWindow, turnNotes, notesMiss, notesDrop, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, passageWindow, turnNotes, notesMiss, notesDrop, notesMeaning, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

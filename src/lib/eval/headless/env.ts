@@ -53,6 +53,9 @@ export interface EvalOptions {
   /** RAG only: "off" keeps lever 9e's behaviour on a notes-miss turn (kernel TutorTurn.notesDrop, lever
    *  9f), the drop's paired arm at the same commit. Unset: "on", what the app does. */
   notesDrop?: "on" | "off";
+  /** RAG only: "off" lets the notes-miss switch fire on words alone (kernel TutorTurn.notesMeaning,
+   *  lever 9g), the meaning check's paired arm at the same commit. Unset: "on", what the app does. */
+  notesMeaning?: "on" | "off";
   /** b7-cpu only: the CPU server's log file, read for the thread count its runner started with. */
   serverLog?: string;
 }
@@ -194,6 +197,14 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     // The drop only acts on a turn the switch fired on: with no switch (or no notes) the arm repeats another.
     if (notesDrop === "off" && (turnNotes === "off" || notesMiss === "off")) errs.push("EVAL_NOTES_DROP=off with EVAL_TURN_NOTES=off or EVAL_NOTES_MISS=off is meaningless: the drop acts only on a turn the notes-miss switch fired on");
   }
+  const notesMeaning = get("EVAL_NOTES_MEANING") as EvalOptions["notesMeaning"];
+  if (notesMeaning !== undefined) {
+    if (notesMeaning !== "on" && notesMeaning !== "off") errs.push(`EVAL_NOTES_MEANING=${notesMeaning}: use on or off`);
+    if (flow || b7) errs.push(`EVAL_NOTES_MEANING does not apply to ${suite}`);
+    if (set === "sealed") errs.push("EVAL_NOTES_MEANING is not allowed with EVAL_SET=sealed: the run uses the app's turn notes");
+    // The check only acts on a turn the switch would fire on: with no switch (or no notes) the arm repeats another.
+    if (notesMeaning === "off" && (turnNotes === "off" || notesMiss === "off")) errs.push("EVAL_NOTES_MEANING=off with EVAL_TURN_NOTES=off or EVAL_NOTES_MISS=off is meaningless: the check acts only on a turn the notes-miss switch would fire on");
+  }
 
   if (errs.length) throw new Error(`Bad eval options:\n  ${errs.join("\n  ")}`);
   return {
@@ -220,6 +231,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     turnNotes,
     notesMiss,
     notesDrop,
+    notesMeaning,
     serverLog: b7 ? get("EVAL_B7_SERVER_LOG") : undefined,
   };
 }

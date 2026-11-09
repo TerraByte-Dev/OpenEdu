@@ -108,7 +108,7 @@ describe("dropping the passages on a notes-miss turn: the requests Ollama sees",
     for (const notesDrop of ["off", "on"] as const) {
       for (const { q } of CASES) {
         calls = [];
-        const report = await runRagEval({ custom: { name: "notes-drop-path", vault: VAULT, questions: [q] }, modes: ["always"], syllabus: "matched", prompt: "product-course", ...(notesDrop === "off" ? { notesDrop } : {}) });
+        const report = await runRagEval({ custom: { name: "notes-drop-path", vault: VAULT, questions: [q] }, modes: ["always"], syllabus: "matched", prompt: "product-course", notesMeaning: "off", ...(notesDrop === "off" ? { notesDrop } : {}) });
         // Model-info calls (/api/show, /api/tags) are cached across runs, so only the turn's own calls count.
         (notesDrop === "off" ? off : on)[q.id] = { chat: raws("/api/chat"), embed: raws("/api/embed"), paths: calls.map((c) => c.path).filter((x) => x === "/api/chat" || x === "/api/embed"), report };
       }

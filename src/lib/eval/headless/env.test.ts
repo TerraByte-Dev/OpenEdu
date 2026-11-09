@@ -2,6 +2,15 @@ import { describe, it, expect } from "vitest";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, DEFAULT_EVAL_MODEL, B7_DEFAULT_OLLAMA_URL } from "./env";
 
 describe("parseEvalEnv", () => {
+  it("reads EVAL_NOTES_MEANING (lever 9g's paired arm) and refuses it where it cannot apply", () => {
+    expect(parseEvalEnv({}).notesMeaning).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_NOTES_MEANING: "off" }).notesMeaning).toBe("off");
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "x" })).toThrow(/EVAL_NOTES_MEANING=x: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "off", EVAL_SUITE: "k12-flow" })).toThrow(/EVAL_NOTES_MEANING does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "off", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_NOTES_MEANING=off with EVAL_TURN_NOTES=off/);
+    expect(() => parseEvalEnv({ EVAL_NOTES_MEANING: "off", EVAL_NOTES_MISS: "off" })).toThrow(/is meaningless/);
+  });
+
   it("reads EVAL_PASSAGE_WINDOW (lever 10's paired arm) and refuses it where it cannot apply", () => {
     expect(parseEvalEnv({}).passageWindow).toBeUndefined();
     expect(parseEvalEnv({ EVAL_PASSAGE_WINDOW: "off" }).passageWindow).toBe("off");

@@ -24,6 +24,7 @@ import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
 import { classifyTurn, turnNoteFor, withTurnNote, notesMissNote, notesDropNote, NOTES_DROP_MAX_WORDS, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
 import { notesMissThing } from "./askedThing";
+import { nearestSentence, NOTES_MEANING_MIN } from "./meaning";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
@@ -61,6 +62,10 @@ export interface TutorTurn {
   // below is not applied, so an eval can run lever 9f's paired arm at the same commit
   // (EVAL_NOTES_DROP=off). Default "on"; the app never sets it.
   notesDrop?: "on" | "off";
+  // "off" lets the notes-miss switch fire on words alone, as before lever 9g: the meaning check below
+  // (meaning.ts) is not consulted, so an eval can run lever 9g's paired arm at the same commit
+  // (EVAL_NOTES_MEANING=off). Default "on"; the app never sets it.
+  notesMeaning?: "on" | "off";
   // "off" shows every long passage from its start, as before lever 10 (ground.ts passageFor), so an
   // eval can run the lever's paired arm at the same commit (EVAL_PASSAGE_WINDOW=off). Default "on";
   // the app never sets it.
@@ -231,10 +236,14 @@ export class TutorEngine {
       const shown = grounding.hits.filter((h) => grounding.block.includes(h.title));
       const miss = notesMissThing(lastUser.content, shown.map((h) => h.text));
       const aboutTheNotes = !!miss.thing && miss.thing.words.some((w) => NOTES_WORD.test(w));
-      const fire = miss.fire && !aboutTheNotes;
+      // Lever 9g (meaning.ts): the word switch may fire only when no shown sentence is close in meaning
+      // to the question. Asked only when the switch would fire, so every other turn is unchanged.
+      let nearest: number | null | undefined;
+      if (miss.fire && !aboutTheNotes && turn.notesMeaning !== "off") nearest = await nearestSentence(lastUser.content, shown.map((h) => h.text), ctx.abort);
+      const fire = miss.fire && !aboutTheNotes && (turn.notesMeaning === "off" || (nearest != null && nearest < NOTES_MEANING_MIN));
       dropBlock = fire && turn.notesDrop !== "off" && miss.thing!.words.length <= NOTES_DROP_MAX_WORDS;
       if (fire) turnNote = dropBlock ? notesDropNote(miss.thing!.phrase) : notesMissNote(miss.thing!.phrase);
-      grounding.trace.lookupNote = { variant: dropBlock ? "notes-drop" : fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null };
+      grounding.trace.lookupNote = { variant: dropBlock ? "notes-drop" : fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null, ...(nearest !== undefined ? { nearest } : {}) };
     }
     if (grounding.block && lastUser && !dropBlock) {
       // Merged into the FINAL USER TURN, not the system prompt. Two reasons, both load-bearing:

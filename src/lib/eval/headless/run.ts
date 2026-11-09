@@ -141,6 +141,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     turnNotes: o.turnNotes,
     notesMiss: o.notesMiss,
     notesDrop: o.notesDrop,
+    notesMeaning: o.notesMeaning,
     passageWindow: o.passageWindow,
     ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f" }),
   });
