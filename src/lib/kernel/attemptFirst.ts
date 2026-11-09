@@ -17,8 +17,9 @@
 //     prompt and tools manifest on this turn and again on the next.
 // The note is not saved: ChatTab saves what the student typed, so later turns never see it.
 //
-// Scope, kept narrow on purpose: only a lettered option list (at least A, B and C, in order) counts
-// as a newly posed problem. A free-text or numeric problem is not detected, and gets no hold.
+// Scope, kept narrow on purpose: here, only a lettered option list (at least A, B and C, in order)
+// counts as a newly posed problem. The turn classifier (turnKind.ts) decides every turn: it uses this
+// rule for option lists, adds typed problems with their own note, and adds the fact-lookup note.
 
 /** Appended to the student's message on the hold turn. Prompt-wording iteration 1 of at most 3. */
 export const FIRST_TURN_HOLD_NOTE = `<tutor_note>
@@ -27,9 +28,9 @@ The student has just given you this problem and has not tried it yet. Do not ans
 
 // A lettered option at the start of a line: "A) 252", "B. 43", "(C) 2,142", "- D: none", "**A)** 7".
 const LINE_OPTION = /^[ \t]*(?:[-*•>][ \t]*)?(?:\*\*)?\(?([A-F])(?:\)|\.|:)(?:\*\*)?[ \t]+\S/gm;
-// An option inside a line: "... A) 3 B) 4 C) 5". The closing bracket is required, so "B. Smith" or
-// "Plan B." in prose is not one.
-const INLINE_OPTION = /(?<=\s)\(?([A-F])\)[ \t]+\S/g;
+// An option inside a line: "... A) 3 B) 4 C) 5" or "... A. run B. happy C. table". A lone "B. Smith" or
+// "Plan B." in prose is not a list: MIN_OPTIONS letters in order from A are still required.
+const INLINE_OPTION = /(?<=\s)\(?([A-F])(?:\)|\.)[ \t]+\S/g;
 const MIN_OPTIONS = 3;
 
 // A try written after the options: "I think it's B", "my answer is 12", "is it C?". Naming an option
@@ -70,18 +71,4 @@ export function posesNewProblem(text: string): boolean {
   const nl = text.indexOf("\n", end);
   const after = nl < 0 ? "" : text.slice(nl + 1);
   return !ATTEMPT_WORDS.test(after) && !ATTEMPT_LETTER.test(after);
-}
-
-/**
- * True when this turn gets the hold: the newest message is the student's and it poses a new problem
- * (posesNewProblem). `conversation` is the user and assistant messages, ending with the newest.
- */
-export function isFirstTurnHold(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
-  const newest = conversation[conversation.length - 1];
-  return !!newest && newest.role === "user" && posesNewProblem(newest.content);
-}
-
-/** The student's message as the model sees it on the hold turn. */
-export function withFirstTurnHold(userContent: string): string {
-  return `${userContent}\n\n${FIRST_TURN_HOLD_NOTE}`;
 }

@@ -21,7 +21,8 @@ import { tutorEngine } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
 import { personaIdentityLayer } from "./systemPrompt";
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
-import { FIRST_TURN_HOLD_NOTE, withFirstTurnHold } from "./attemptFirst";
+import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
+import { withTurnNote, FACT_LOOKUP_NOTE } from "./turnKind";
 import { estTokens } from "./budget";
 import { CHECK_BEFORE_PRAISE_NOTE, isAttemptText, isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { buildSystemPrompt } from "../curriculum";
@@ -201,7 +202,8 @@ describe.each(FLOWS)("tutorEngine.run on every %s conversation", (name, items) =
       const r2 = await request(h2, t2);
       const r3 = await request(h3, K12_FLOW_T3);
       // T1: what the caller passed, plus the first-turn hold on a lettered list (the B arm's request).
-      const t1Sent = name === "k12-flow" ? withFirstTurnHold(t1) : t1;
+      // The turn classifier reads one k12-flow-fr T1 as a fact lookup (turnKind.ts; a known limit, PR #215).
+      const t1Sent = name === "k12-flow" ? withTurnNote(t1, FIRST_TURN_HOLD_NOTE) : id === "fr-science-68-02" ? withTurnNote(t1, FACT_LOOKUP_NOTE) : t1;
       expect(r1.slice(1), id).toEqual([student(t1Sent)]);
       // T2: the caller's history unchanged, the try plus the note; nothing else differs.
       expect(r2[0].content, id).toBe(r1[0].content);
@@ -219,6 +221,23 @@ describe("tutorEngine.run, the check turn", () => {
     const last = r[r.length - 1].content;
     expect(last).not.toContain("\r");
     expect(last).toMatchSnapshot();
+  });
+
+  // The turn classifier's notes (turnKind.ts) and this one are decided apart. A try is never also a hold
+  // turn (both use posesNewProblem), and a try is not a lookup: TutorEngine drops the lookup note on a
+  // turn that gets this one. Each turn carries exactly one of the two.
+  it("gives a try only the check note, and a lookup after a worked problem only the lookup note", async () => {
+    const h: Sent = [student(PROBLEM), tutor(HINT_Q)];
+    for (const text of ["Is it 12?", "I think it's 12.", "12 cups", "It's C.", "What is the boiling point of water? Is it 100?"]) {
+      const r = await request(h, text);
+      expect(r.slice(1), text).toEqual([...h, student(withCheckBeforePraise(text))]);
+      expect(r.some((m) => m.content.includes(FACT_LOOKUP_NOTE)), text).toBe(false);
+    }
+    for (const text of ["What is the boiling point of water?", "Who wrote Hamlet?"]) {
+      const r = await request(h, text);
+      expect(r.slice(1), text).toEqual([...h, student(withTurnNote(text, FACT_LOOKUP_NOTE))]);
+      expect(r.some((m) => m.content.includes(CHECK_BEFORE_PRAISE_NOTE)), text).toBe(false);
+    }
   });
 
   it("leaves a request, a chat and a new problem untouched", async () => {

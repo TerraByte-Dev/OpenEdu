@@ -1,4 +1,5 @@
-import { withFirstTurnHold } from "../../kernel/attemptFirst";
+import { FIRST_TURN_HOLD_NOTE } from "../../kernel/attemptFirst";
+import { withTurnNote } from "../../kernel/turnKind";
 import { withCheckBeforePraise } from "../../kernel/checkBeforePraise";
 import { describe, it, expect, vi, beforeAll } from "vitest";
 
@@ -184,12 +185,12 @@ describe("b7-cpu: a full run on a stand-in CPU server", () => {
   it("sends the k12-flow runner's own T1, T2 and T3 requests, byte for byte, without its warm-up", () => {
     const first = b7Chat.slice(0, 3).map((c) => c.raw!);
     expect(first).toEqual(webview.k12);
-    expect(first.map(lastUser).map((u, i) => u.endsWith([withFirstTurnHold(formatK12FlowT1(items[0])), withCheckBeforePraise(formatK12FlowT2(items[0])), K12_FLOW_T3][i]))).toEqual([true, true, true]);
+    expect(first.map(lastUser).map((u, i) => u.endsWith([withTurnNote(formatK12FlowT1(items[0]), FIRST_TURN_HOLD_NOTE), withCheckBeforePraise(formatK12FlowT2(items[0])), K12_FLOW_T3][i]))).toEqual([true, true, true]);
     expect(b7Chat.some((c) => lastUser(c.raw!).includes("Reply with the single word"))).toBe(false);
     // Repeat 1 is a different item under the same system prompt: a learner's next problem.
     const sys = (raw: string) => (JSON.parse(raw) as { messages: Msg[] }).messages[0].content;
     expect(sys(b7Chat[3].raw!)).toBe(sys(b7Chat[0].raw!));
-    expect(lastUser(b7Chat[3].raw!).endsWith(withFirstTurnHold(formatK12FlowT1(items[1])))).toBe(true);
+    expect(lastUser(b7Chat[3].raw!).endsWith(withTurnNote(formatK12FlowT1(items[1]), FIRST_TURN_HOLD_NOTE))).toBe(true);
   });
 
   it("sends the RAG dev eval's own requests for the notes turns, gloss included", () => {

@@ -37,6 +37,37 @@ describe("parseEvalEnv", () => {
     expect(() => parseEvalEnv({ EVAL_NUM_GPU: "-1" })).toThrow(/EVAL_NUM_GPU/);
     expect(() => parseEvalEnv({ EVAL_NUM_GPU: "0", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_NUM_GPU is not allowed with EVAL_SET=sealed/);
   });
+
+  it("reads EVAL_TURN_NOTES for rag only, unset by default, and refuses it on k12-flow, k12-flow-fr, b7-cpu and the sealed set", () => {
+    expect(parseEvalEnv({}).turnNotes).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_SET: "dev-v2", EVAL_TURN_NOTES: "off" })).toMatchObject({ turnNotes: "off" });
+    expect(parseEvalEnv({ EVAL_TURN_NOTES: "on" })).toMatchObject({ turnNotes: "on" });
+    expect(() => parseEvalEnv({ EVAL_TURN_NOTES: "false" })).toThrow(/EVAL_TURN_NOTES=false: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES does not apply to k12-flow-fr/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES does not apply to b7-cpu/);
+    expect(() => parseEvalEnv({ EVAL_SET: "sealed", EVAL_SEALED: "x.json", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_TURN_NOTES is not allowed with EVAL_SET=sealed/);
+  });
+
+  it("reads EVAL_NOTES_MISS for rag only, unset by default, and refuses it where EVAL_TURN_NOTES is refused and with EVAL_TURN_NOTES=off", () => {
+    expect(parseEvalEnv({}).notesMiss).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_SET: "dev-v2", EVAL_NOTES_MISS: "off" })).toMatchObject({ notesMiss: "off", turnNotes: undefined });
+    expect(parseEvalEnv({ EVAL_NOTES_MISS: "on" })).toMatchObject({ notesMiss: "on" });
+    expect(parseEvalEnv({ EVAL_NOTES_MISS: "on", EVAL_TURN_NOTES: "off" })).toMatchObject({ notesMiss: "on", turnNotes: "off" });
+    expect(() => parseEvalEnv({ EVAL_NOTES_MISS: "false" })).toThrow(/EVAL_NOTES_MISS=false: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_NOTES_MISS: "off" })).toThrow(/EVAL_NOTES_MISS does not apply to k12-flow/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow-fr", EVAL_NOTES_MISS: "off" })).toThrow(/EVAL_NOTES_MISS does not apply to k12-flow-fr/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_NOTES_MISS: "off" })).toThrow(/EVAL_NOTES_MISS does not apply to b7-cpu/);
+    expect(() => parseEvalEnv({ EVAL_SET: "sealed", EVAL_SEALED: "x.json", EVAL_NOTES_MISS: "off" })).toThrow(/EVAL_NOTES_MISS is not allowed with EVAL_SET=sealed/);
+    expect(() => parseEvalEnv({ EVAL_SET: "dev-v2", EVAL_NOTES_MISS: "off", EVAL_TURN_NOTES: "off" })).toThrow(/EVAL_NOTES_MISS=off with EVAL_TURN_NOTES=off is meaningless/);
+  });
+
+  it("takes lever 9e's probe sets for RAG, and refuses them for k12-flow", () => {
+    expect(parseEvalEnv({ EVAL_SET: "probe-v2" })).toMatchObject({ suite: "rag", set: "probe-v2" });
+    expect(parseEvalEnv({ EVAL_SET: "probe-v1", EVAL_NOTES_MISS: "off" })).toMatchObject({ suite: "rag", set: "probe-v1", notesMiss: "off" });
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SET: "probe-v2" })).toThrow(/EVAL_SET=probe-v2: k12-flow runs only the dev items/);
+    expect(() => parseEvalEnv({ EVAL_SET: "probe-v3" })).toThrow(/EVAL_SET=probe-v3: use main, dev, test, dev-v2, probe-v2, probe-v1, sealed/);
+  });
 });
 
 describe("parseEvalEnv, k12-flow", () => {

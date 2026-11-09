@@ -25,7 +25,8 @@ import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
 import { formatK12FlowFrT2 } from "../k12-flow-fr";
 import { K12_FR_ITEMS } from "../k12-flow-fr-items";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "../../kernel/outputRules";
-import { FIRST_TURN_HOLD_NOTE, withFirstTurnHold } from "../../kernel/attemptFirst";
+import { FIRST_TURN_HOLD_NOTE } from "../../kernel/attemptFirst";
+import { withTurnNote, FACT_LOOKUP_NOTE } from "../../kernel/turnKind";
 import { withCheckBeforePraise } from "../../kernel/checkBeforePraise";
 import { K12_ITEMS } from "../k12-items";
 import { seedStore, resetStores } from "./shims/plugin-store";
@@ -96,6 +97,7 @@ describe("headless eval == webview eval, on the wire", () => {
   let webview: { chat: unknown[]; embed: unknown[] };
   let headless: { chat: unknown[]; embed: unknown[]; out: Record<string, unknown> };
   let custom: { chat: unknown[]; embed: unknown[] };
+  let notesOff: { chat: unknown[]; embed: unknown[]; out: Record<string, unknown> };
 
   beforeAll(async () => {
     expect(RAG_HELDOUT.find((q) => q.id === ITEM)?.split).toBe("dev");
@@ -130,6 +132,11 @@ describe("headless eval == webview eval, on the wire", () => {
       calls = [];
       await (await freshRun())({ EVAL_MODEL: MODEL, EVAL_SET: "dev", EVAL_ONLY: ITEM, EVAL_MODES: "always", EVAL_CTX: "4096", EVAL_EMBED_MODEL: OTHER_EMBED, EVAL_OUT: `${dir}/run-c.json` });
       custom = { chat: bodies("/api/chat"), embed: bodies("/api/embed") };
+
+      // D. The paired baseline: `EVAL_TURN_NOTES=off`, otherwise B.
+      calls = [];
+      const off = await (await freshRun())({ EVAL_MODEL: MODEL, EVAL_SET: "dev", EVAL_ONLY: ITEM, EVAL_MODES: "always", EVAL_TURN_NOTES: "off", EVAL_OUT: `${dir}/run-d.json` });
+      notesOff = { chat: bodies("/api/chat"), embed: bodies("/api/embed"), out: JSON.parse(await f.readFile(off.outFile, "utf8")) as Record<string, unknown> };
     } finally {
       await f.rm(dir, { recursive: true, force: true });
     }
@@ -158,8 +165,24 @@ describe("headless eval == webview eval, on the wire", () => {
     const user = body.messages[body.messages.length - 1];
     expect(user.role).toBe("user");
     expect(user.content).toContain(MARLOW.text);
-    expect(user.content.endsWith(ASK)).toBe(true);
+    // The question is a fact lookup (kernel turnKind.ts), so the lookup note follows it.
+    expect(user.content.endsWith(withTurnNote(ASK, FACT_LOOKUP_NOTE))).toBe(true);
     for (const e of headless.embed as Array<{ model: string }>) expect(e.model).toBe("nomic-embed-text");
+  });
+
+  it("EVAL_TURN_NOTES=off sends the same requests without the note, and both runs record the kind", () => {
+    type Body = { messages: Array<{ role: string; content: string }> };
+    const on = headless.chat[0] as Body, off = notesOff.chat[0] as Body;
+    const last = on.messages.length - 1;
+    expect(off).toEqual({ ...on, messages: [...on.messages.slice(0, last), { ...on.messages[last], content: on.messages[last].content.slice(0, -`\n\n${FACT_LOOKUP_NOTE}`.length) }] });
+    expect(off.messages[last].content.endsWith(ASK)).toBe(true);
+    expect(notesOff.embed).toEqual(headless.embed);
+    type Out = { turnNotes: string; options: Record<string, unknown>; rows: Array<{ turnKind: string; turnNoted: boolean }> };
+    const onOut = headless.out as unknown as Out, offOut = notesOff.out as unknown as Out;
+    expect([onOut.turnNotes, offOut.turnNotes]).toEqual(["on", "off"]);
+    expect(offOut.options.turnNotes).toBe("off");
+    expect(onOut.rows.map((r) => [r.turnKind, r.turnNoted])).toEqual([["fact-lookup", true]]);
+    expect(offOut.rows.map((r) => [r.turnKind, r.turnNoted])).toEqual([["fact-lookup", false]]);
   });
 
   it("applies EVAL_CTX and EVAL_EMBED_MODEL to the request", () => {
@@ -240,7 +263,7 @@ describe("headless k12-flow == webview k12-flow, on the wire", () => {
     expect(turns[0].messages[0].content).toContain("Mathematics");
     // T1 carries the first-turn hold note after the item's text (attemptFirst.ts); T2 and T3 do not.
     // T2 carries the check-before-praise note after the try (checkBeforePraise.ts).
-    expect(lastUser(turns[0].messages).endsWith(withFirstTurnHold(formatK12FlowT1(FLOW_ITEM)))).toBe(true);
+    expect(lastUser(turns[0].messages).endsWith(withTurnNote(formatK12FlowT1(FLOW_ITEM), FIRST_TURN_HOLD_NOTE))).toBe(true);
     expect(turns.slice(1).every((t) => t.messages.every((m) => !m.content.includes(FIRST_TURN_HOLD_NOTE)))).toBe(true);
     expect(lastUser(turns[1].messages).endsWith(withCheckBeforePraise(formatK12FlowT2(FLOW_ITEM)))).toBe(true);
     expect(lastUser(turns[2].messages).endsWith(K12_FLOW_T3)).toBe(true);

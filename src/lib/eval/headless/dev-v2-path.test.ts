@@ -90,6 +90,24 @@ describe("EVAL_SET=dev-v2 through runRagEval", () => {
     expect(report.noteRetrieved.always).toEqual({ positive: { retrieved: 1, total: 1 }, negative: { retrieved: 1, total: 2 } });
   }, 60_000);
 
+  it("EVAL_SET=probe-v2 and probe-v1 (lever 9e) seed the v2 vault and RAG_FIXTURE, and ask the probe's items", async () => {
+    const v2 = await run({ set: "probe-v2", only: "bp-ost-1,bn-ost-1" }, "It boils at 290 °C.");
+    expect(v2.set).toBe("probe-v2");
+    expect(v2.rows.map((r) => [r.question.id, r.question.kind])).toEqual([["bp-ost-1", "positive"], ["bn-ost-1", "negative"]]);
+    for (const n of RAG_DEV_V2_VAULT) expect(embedded.some((t) => t.includes(n.text.slice(0, 40))), n.title).toBe(true);
+    for (const n of RAG_FIXTURE) expect(embedded.some((t) => t.includes(n.text.slice(0, 40))), n.title).toBe(false);
+    expect(v2.notesMiss).toBe("on");
+
+    const v1 = await run({ set: "probe-v1", notesMiss: "off" }, "I do not know.");
+    expect(v1.set).toBe("probe-v1");
+    expect(v1.rows).toHaveLength(19);
+    for (const n of RAG_FIXTURE) expect(embedded.some((t) => t.includes(n.text.slice(0, 40))), n.title).toBe(true);
+    expect(v1.notesMiss).toBe("off");
+    // With the switch off, a lookup turn sends the plain lookup note and parses nothing.
+    expect(new Set(v1.rows.map((r) => r.lookupNote))).toEqual(new Set(["lookup", null]));
+    expect(v1.rows.every((r) => r.askedThing === null)).toBe(true);
+  }, 60_000);
+
   it("scores the v1 real-world list on the v1 dev split, and nothing on the main set", async () => {
     const dev = await run({ set: "dev", only: "h-nm23,h-nm01" }, "Ben Nevis is 1,345 metres high.");
     expect(dev.rows.map((r) => r.realWorld)).toEqual([null, true]);

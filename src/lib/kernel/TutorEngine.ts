@@ -22,7 +22,8 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
-import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
+import { classifyTurn, turnNoteFor, withTurnNote, notesMissNote, FACT_LOOKUP_NOTE, type TurnKind } from "./turnKind";
+import { notesMissThing } from "./askedThing";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
@@ -33,6 +34,10 @@ const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 // A single tool result may claim at most this share of the grounding slice. A notebook.search hit
 // can be several thousand tokens of JSON; uncapped it evicts the entire conversation behind it.
 const TOOL_RESULT_BUDGET_FRACTION = 0.8;
+// Guards on the notes-miss switch (see run()): a message of more than one sentence, and a thing that is
+// the student's notes themselves.
+const MULTI_SENTENCE = /[.?!]\s+\S/;
+const NOTES_WORD = /^(?:notes?|notebook)$/i;
 
 export interface TutorTurn {
   messages: Array<{ role: string; content: string }>;
@@ -44,6 +49,14 @@ export interface TutorTurn {
   // sees anything; "off" disables it and leaves notebook.search as the only path. Exposed so the
   // eval can A/B the two mechanisms on the same fixture — the falsification condition needs both.
   retrieval?: RetrievalMode;
+  // "off" sends no turn note on this turn (turnKind.ts), so an eval can run the paired baseline at the
+  // same commit (EVAL_TURN_NOTES=off). The turn is still classified and reported. Default "on"; the
+  // app never sets it.
+  turnNotes?: "on" | "off";
+  // "off" keeps FACT_LOOKUP_NOTE on every lookup turn: the notes-miss switch below (askedThing.ts,
+  // lever 9e) is not consulted, so an eval can run the lever's paired arm at the same commit
+  // (EVAL_NOTES_MISS=off). Default "on"; the app never sets it.
+  notesMiss?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -70,9 +83,13 @@ export interface TutorTurnResult {
   // WORKED_ANSWER_RULES (lever L1). Read from the prompt itself, not from the gate, so the eval can
   // record what the model was actually told.
   workedAnswerRules: boolean;
-  // True when this turn appended FIRST_TURN_HOLD_NOTE to the student's message (the first-turn
-  // attempt-first hold, attemptFirst.ts), so the eval can record what the model was told.
+  // True when this turn appended a hold note (FIRST_TURN_HOLD_NOTE, or TYPED_PROBLEM_HOLD_NOTE in
+  // turnKind.ts) to the student's message, so the eval can record what the model was told.
   firstTurnHold: boolean;
+  // What the turn classifier made of the student's newest message (turnKind.ts), whether or not a note
+  // was sent, and the note this turn actually appended (null for none).
+  turnKind: TurnKind;
+  turnNote: string | null;
   // Set when Ollama could not parse a tool call the model wrote (OllamaToolCallParseError in llm.ts)
   // and the kernel answered the turn with one call without tools instead of failing it. `iteration`
   // is the model call that failed (0 = the first); `error` is Ollama's own error text. Null on every
@@ -125,12 +142,20 @@ export class TutorEngine {
       messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, conversation) };
     }
     const workedAnswerRules = sysAt >= 0 && messages[sysAt].content.endsWith(WORKED_ANSWER_RULES);
-    // The first-turn hold (attemptFirst.ts): decided here from the conversation as the caller sent it,
-    // applied below after retrieval, so the query and the gloss see only what the student typed.
-    const firstTurnHold = isFirstTurnHold(messages.filter((m) => m.role !== "system"));
+    // The turn note (turnKind.ts): the first-turn hold on a newly posed problem, or the lookup note on a
+    // request for information. Decided here from the conversation as the caller sent it, applied below
+    // after retrieval, so the query and the gloss see only what the student typed.
+    const chat = messages.filter((m) => m.role !== "system");
+    const turnKind = classifyTurn(chat);
     // The check-before-praise note (checkBeforePraise.ts): a try at the problem the tutor just worked
-    // on. Decided and applied the same way as the hold; never on the same turn as it.
-    const checkBeforePraise = isCheckBeforePraiseTurn(messages.filter((m) => m.role !== "system"));
+    // on. Decided and applied the same way as the hold; never on the same turn as it (a message that
+    // poses a new option list is not a try). A try is not a request for information either: on a turn
+    // that is both, the check note goes and the lookup note does not, so a check turn's request is the
+    // one master measured.
+    const checkBeforePraise = isCheckBeforePraiseTurn(chat);
+    const kindNote = turn.turnNotes === "off" ? null : turnNoteFor(turnKind);
+    let turnNote = checkBeforePraise && kindNote === FACT_LOOKUP_NOTE ? null : kindNote;
+    const firstTurnHold = turnNote !== null && (turnKind === "options-problem" || turnKind === "typed-problem");
 
     const eduTools = await selectTools(ctx);
     const offered = new Set(eduTools.map((t) => t.name));
@@ -185,11 +210,34 @@ export class TutorEngine {
 
 ${lastUser.content}` };
     }
-    if (firstTurnHold) {
+    // The notes-miss switch (askedThing.ts, lever 9e). On a lookup turn that shows passages, when no
+    // shown passage contains every content word of the thing the student asked about, the lookup note
+    // is swapped for notesMissNote, which names the thing. Nothing is dropped from the block, and no
+    // model call is added. Read from the student's own text (lastUser is the message as the caller sent
+    // it, not the block-merged one) and the passages the block actually carries.
+    //
+    // Two guards, added after the pre-run review of PR #222 and before any model run; neither changes a
+    // decision on any pinned dev or probe item (askedThing-parity.test.ts). The frozen extractor reads
+    // one question sentence and has no notion of the notes themselves, so on these shapes it would tell
+    // the model to ignore the right notes. Both fall back to the ordinary lookup note:
+    //   - more than one sentence ("I'm studying the water cycle. What is evaporation?"): the extractor
+    //     takes the lead-in as the thing asked about;
+    //   - the thing is the notes ("What do my notes say about X?"): "notes" stems to "not".
+    if (turnNote === FACT_LOOKUP_NOTE && turn.notesMiss !== "off" && lastUser && grounding.hits.length > 0 && MULTI_SENTENCE.test(lastUser.content.trim())) {
+      grounding.trace.lookupNote = { variant: "lookup", thing: null };
+    } else if (turnNote === FACT_LOOKUP_NOTE && turn.notesMiss !== "off" && lastUser && grounding.hits.length > 0) {
+      const shown = grounding.hits.filter((h) => grounding.block.includes(h.title));
+      const miss = notesMissThing(lastUser.content, shown.map((h) => h.text));
+      const aboutTheNotes = !!miss.thing && miss.thing.words.some((w) => NOTES_WORD.test(w));
+      const fire = miss.fire && !aboutTheNotes;
+      if (fire) turnNote = notesMissNote(miss.thing!.phrase);
+      grounding.trace.lookupNote = { variant: fire ? "notes-miss" : "lookup", thing: miss.thing?.phrase ?? null };
+    }
+    if (turnNote) {
       // After the grounding block and the student's text, so the note is the last thing the model
       // reads before it answers. The system prompt is untouched; see attemptFirst.ts.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
-      messages[idx] = { ...messages[idx], content: withFirstTurnHold(messages[idx].content) };
+      messages[idx] = { ...messages[idx], content: withTurnNote(messages[idx].content, turnNote) };
     }
     if (checkBeforePraise) {
       // Same place as the hold note: after the grounding block and the student's text.
@@ -202,7 +250,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold });
+      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, turnKind, turnNote });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -222,9 +270,11 @@ ${lastUser.content}` };
       grounding: Grounding;
       workedAnswerRules: boolean;
       firstTurnHold: boolean;
+      turnKind: TurnKind;
+      turnNote: string | null;
     },
   ): Promise<TutorTurnResult> {
-    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold } = prepared;
+    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, turnKind, turnNote } = prepared;
     let messages = prepared.messages;
 
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
@@ -365,6 +415,8 @@ ${lastUser.content}` };
       usedHits,
       workedAnswerRules,
       firstTurnHold,
+      turnKind,
+      turnNote,
       toolCallRecovery,
     };
   }

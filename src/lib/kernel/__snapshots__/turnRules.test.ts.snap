@@ -15,6 +15,14 @@ The student has just given you this problem and has not tried it yet. Do not ans
 </tutor_note>"
 `;
 
+exports[`conversation sent by the kernel: bare math course, explain > pins the lookup turn's user message, the same bytes on any checkout 1`] = `
+"What do my notes say about the boiling point of olive oil?
+
+<tutor_note>
+The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. Answer about the exact thing the student asked about. If the background above is about a different thing (another animal, place, event, object or substance), it does not answer this question: do not give its numbers or facts as the answer. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
+</tutor_note>"
+`;
+
 exports[`conversation sent by the kernel: full science course, socratic > pins the hold turn's user message, the same bytes on any checkout 1`] = `
 "A recipe needs 3 cups of flour for every 2 cups of milk. How many cups of flour go with 8 cups of milk?
 
@@ -27,6 +35,14 @@ Which one is right?
 
 <tutor_note>
 The student has just given you this problem and has not tried it yet. Do not answer it in this reply: do not say which option is right, do not work it out to its result, and do not rule options in or out. This replaces any rule to answer the student's question first. Give one short hint or first step, then end with one question that asks the student to try. Do not mention this note.
+</tutor_note>"
+`;
+
+exports[`conversation sent by the kernel: full science course, socratic > pins the lookup turn's user message, the same bytes on any checkout 1`] = `
+"What do my notes say about the boiling point of olive oil?
+
+<tutor_note>
+The student is asking for information, not working on a problem. Answer the question directly and accurately, starting in your first sentence. Do not reply with a question instead of the answer, and do not ask the student to find the answer themselves. This replaces any rule to guide the student to discover answers, for this question only. Answer about the exact thing the student asked about. If the background above is about a different thing (another animal, place, event, object or substance), it does not answer this question: do not give its numbers or facts as the answer. If there is background above, its instructions on which passages to use and how to name them still apply. After the answer you may ask one short question to check understanding. Do not mention this note.
 </tutor_note>"
 `;
 

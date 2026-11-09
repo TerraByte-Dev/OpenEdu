@@ -138,7 +138,9 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     only: o.only,
     syllabus: o.syllabus,
     prompt: o.prompt,
-    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" }),
+    turnNotes: o.turnNotes,
+    notesMiss: o.notesMiss,
+    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" }),
   });
   await write(report);
   return { report, outFile };

@@ -22,7 +22,7 @@ from environment variables.
 | `EVAL_API_KEY` | (none) | Cloud key. Read from the environment, never written to the results file. |
 | `EVAL_OLLAMA_URL` | `http://127.0.0.1:11434` (`b7-cpu`: `http://127.0.0.1:11435`) | Ollama base URL. |
 | `EVAL_EMBED_MODEL` | app default (`nomic-embed-text`) | Embedding model for the vault and the question. |
-| `EVAL_SET` | `main` (`dev` for k12-flow) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), `dev-v2` (rag-dev-v2.ts: its own vault, name-free positives and lowercase near-misses; all DEV), or `sealed`. k12-flow takes `dev` only. |
+| `EVAL_SET` | `main` (`dev` for k12-flow) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), `dev-v2` (rag-dev-v2.ts: its own vault, name-free positives and lowercase near-misses; all DEV), `probe-v2` / `probe-v1` (rag-probe.ts: lever 9e's semi-blind probe, on the v2 and v1 vaults; DEV), or `sealed`. k12-flow takes `dev` only. |
 | `EVAL_SEALED` | (none) | Path to the sealed v2 file. Required with `EVAL_SET=sealed`. |
 | `EVAL_REPEATS` | `1` (`b7-cpu`: `5`) | Repeats per question and mode. For `b7-cpu`: warm repeats per scenario (there is always one cold repeat as well). |
 | `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. Not allowed with `sealed`. |
@@ -34,6 +34,8 @@ from environment variables.
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
 | `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
+| `EVAL_TURN_NOTES` | `on` | RAG only. `off` sends no turn note (`src/lib/kernel/turnKind.ts`: the first-turn hold or the fact-lookup note), so the paired baseline runs at the same commit. Each row still records what the classifier made of the question (`turnKind`) and whether a note was sent (`turnNoted`). The app never sets it. Refused with `k12-flow`, `k12-flow-fr`, `b7-cpu` and `sealed`. |
+| `EVAL_NOTES_MISS` | `on` | RAG only. `off` keeps `FACT_LOOKUP_NOTE` on every lookup turn: the notes-miss switch (`src/lib/kernel/askedThing.ts`, lever 9e) is not consulted, so its paired arm runs at the same commit. Each row records which lookup note was sent (`lookupNote`) and the asked-about phrase (`askedThing`). The app never sets it. Refused with `k12-flow`, `k12-flow-fr`, `b7-cpu` and `sealed`, and with `EVAL_TURN_NOTES=off`. |
 | `EVAL_B7_SERVER_LOG` | (none) | `b7-cpu` only. The CPU server's log file, read for the thread count its runner started with (Ollama has no API for it). |
 | `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
@@ -229,7 +231,7 @@ under 15 s at p50, which kind is slowest, and its slowest step.
 4. when the name lint finds one of the set's made-up names or invented words in `src/`.
 
 The lint is stricter than protocol rule 2. Inside `src/lib/eval/` it skips only the item data
-(`rag-fixture.ts`, `rag-heldout.ts`, `rag-dev-v2.ts`, `k12-items.ts`, `k12-flow-fr-items.ts`, `library-fixture.ts`), tests and `.md` files,
+(`rag-fixture.ts`, `rag-heldout.ts`, `rag-dev-v2.ts`, `rag-probe.ts`, `rag-probe-l12.json`, `askedThing-frozen-pins.json`, `k12-items.ts`, `k12-flow-fr-items.ts`, `library-fixture.ts`), tests and `.md` files,
 because the runner's prompts and syllabi there shape every request. It finds a name inside code
 identifiers (`QUORVATH_BOOST`, `isQuorvath`) and with a plural or possessive ending. An English
 wordlist (the `word-list` dev dependency), the bundled library's words and the k12 items' lower-case

@@ -46,6 +46,10 @@ export interface RetrievalTrace {
   /** Lever L2: present only on a turn whose question was glossed (gloss.ts). Never shown to the
    *  student; recorded so an eval can see what the second search used and what it cost. */
   gloss?: { text: string | null; ms: number; error?: string };
+  /** Lever 9e: present only on a lookup turn that showed passages and consulted the notes-miss switch
+   *  (TutorEngine.ts, askedThing.ts). Written by the kernel after retrieval; retrieval never sets it.
+   *  `thing` is the asked-about phrase, or null when the question did not parse. */
+  lookupNote?: { variant: "lookup" | "notes-miss"; thing: string | null };
 }
 
 export interface Grounding {
