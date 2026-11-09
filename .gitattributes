@@ -1,1 +1,2 @@
 public/library/** text eol=lf
+src/lib/eval/rag-blind-10.json -text

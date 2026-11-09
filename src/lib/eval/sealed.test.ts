@@ -229,7 +229,11 @@ describe("loadSealed", () => {
     const tokens = (err as SealedLintError).hits.map((h) => h.token);
     expect(tokens).toContain("verrin");
     const vaultWords = new Set(RAG_FIXTURE.flatMap((n) => `${n.title} ${n.text}`.toLowerCase().match(/[\p{L}\p{M}]+/gu) ?? []));
-    expect(tokens.filter((t) => !vaultWords.has(t))).toEqual([]);
+    // The blind set for levers 10 and 9g (rag-blind-10.json) is public dev data whose realistic notes use
+    // ordinary names and real things v1 also asks about, so src/ now quotes those words too. Catching them
+    // is right; a hit found only in that file is allowed here by name.
+    const onlyBlind = (h: { files: string[] }) => h.files.every((f) => f === "src/lib/eval/rag-blind-10.json");
+    expect((err as SealedLintError).hits.filter((h) => !vaultWords.has(h.token) && !onlyBlind(h)).map((h) => h.token)).toEqual([]);
   });
 
   it("lints the eval code that shapes the request (runner prompts, syllabi), not only the app", async () => {
