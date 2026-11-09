@@ -7,8 +7,9 @@
 // question. One embed call, made only on a turn the switch already fired on; no chat call.
 //
 // NOTES_MEANING_MIN was chosen offline on dev data before any model run (PR body): sentence cosine,
-// nomic-embed-text, no task prefix, the question as typed. At 0.68 the veto let through 0 of 164 dev
-// positives the word switch fired on wrongly or not, and kept 82 of 167 near-miss catches.
+// nomic-embed-text, no task prefix, the question as typed. Over 164 dev positives and 167 near-misses,
+// the word switch alone (with the multi-sentence guard) hid 19 right notes and caught 129 near-misses;
+// with the check at 0.68 it hid 0 and caught 80.
 
 import { embed } from "../llm";
 import { getEmbeddingConfig } from "../store";
