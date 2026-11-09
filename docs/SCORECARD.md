@@ -90,7 +90,7 @@ diagnosis, so it is spent ([BENCHMARKS §0](BENCHMARKS.md#0-split-status-today-w
 
 ## What was tried and did not work
 
-The first eight were stopped by rules written before they ran; none of them is in the app.
+The first nine were stopped by rules written before they ran; none of them is in the app.
 
 - **Named-entity gate** (lever 3, PR #192). It drops notes about a differently named thing. The rule
   needed e2b to give at least 4 more real-world answers; it gave 2 fewer (35 → 33 of 84 answers, 28
@@ -147,6 +147,15 @@ The first eight were stopped by rules written before they ran; none of them is i
   rule tested, answers improved only from 7 to 11 of 64, short of the rule's bar: under the app's
   tutoring rules, e2b replies to a lookup with a question even when the answer is in front of it. On
   e4b, checked only for harm, answers rose from 20 to 35 of 64.
+- **The plain lookup note, with that long-note fix** (lever 15, issue #230, not shipped;
+  [results](../src/lib/eval/results/2026-11-09-rag-blind-lookup-note-window.md)). It tells the model to
+  answer a request for information directly, and it shows the matching part of long notes. On 112
+  new questions about 16 long notes, written by a separate agent after the rule was fixed, e2b went
+  from 12 to 42 of 64 note questions answered, and from 0 to 22 of 48 real-world answers. But trick
+  questions answered without misusing a note fell from 48 to 43; the rule allowed 46. Three of the
+  five were real mistakes (the note's 1937 given as the year of *The Grapes of Wrath*, for example).
+  The app without the note scores 48 of 48 there because it answers almost no lookup at all. With the
+  note on, the long-note fix added 15 answered questions on e2b and 13 on e4b, with no added harm.
 - **Tool-call error recovery, live check** (PR #199). Not a failure, but not a pass either: the error
   it handles never happened in 89 turns per arm, so only the unit tests show it works
   ([live check](../src/lib/eval/results/2026-11-08-ollama-toolcall-live-check.md)).
