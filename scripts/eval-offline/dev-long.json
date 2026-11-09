@@ -1,0 +1,678 @@
+{
+  "notes": [
+    {
+      "title": "Physics — Energy and Motion",
+      "text": "Physics unit 4: Energy & motion (Mr Adeyemi)\n\nEnergy stores: kinetic (KE), gravitational potential (GPE), elastic potential, thermal, chemical, nuclear, magnetic, electrostatic. Energy is never created or destroyed, it only gets transferred from one store to another. This is the law of conservation of energy and sir says it comes up on literally every paper. Transfers happen in 4 ways: mechanically (a force doing work), electrically (a current), by heating, and by radiation (light, sound). The unit for every kind of energy is the joule (J). 1 kJ = 1000 J. Sir's tip: always write the store at the start and the store at the end before you try any calculation, e.g. \"chemical in the battery -> kinetic of the car\".\n\nKinetic energy\nAnything that is moving has kinetic energy. KE = ½mv² where m is the mass in kg and v is the speed in m/s. The speed is squared, so if you double the speed you get 4 times the energy, not 2 times (very common mistake, sir underlined it twice). Worked example on the board: a car of mass 1200 kg travelling at 15 m/s. KE = ½ x 1200 x 15² = 0.5 x 1200 x 225 = 135,000 J, which he also wrote as 135 kJ. Then he asked what happens at 30 m/s and the answer was 540,000 J, four times as much, which is why braking distances get so much longer at high speed. Rearranging: v = √(2KE/m). Remember to square root at the end, don't forget it!!\n\nGravitational potential energy\nThis is the energy something has because of its position in a gravitational field, i.e. how high it is. GPE = mgh, where m = mass (kg), g = gravitational field strength (N/kg) and h = change in height (m). On Earth we use g = 9.8 N/kg. Some textbooks round it to 10 but sir says use 9.8 unless the question tells you otherwise. Example: lifting a 2 kg bag onto a shelf 1.5 m up gives it 2 x 9.8 x 1.5 = 29.4 J. When the bag falls off the shelf that store empties into the kinetic store (ignoring air resistance), so just before it hits the floor KE = GPE lost.\n\nRamp and trolley practical (Tues 14th)\nAim: see if the GPE at the top of the ramp all turns into KE at the bottom. We let a trolley roll down a ramp from rest and it went through a light gate at the bottom which measured its speed. Trolley mass 0.85 kg, top of the ramp was 0.40 m above the bench. Predicted GPE = 0.85 x 9.8 x 0.40 = 3.33 J. If all of that became kinetic, the speed should be about 2.8 m/s. Our measured speed at the bottom was 2.6 m/s (mean of 5 runs, we left out one anomaly of 1.9 m/s because Priya's sleeve caught the card on the light gate). Measured KE = ½ x 0.85 x 2.6² = 2.87 J. So about 0.46 J went somewhere else, mostly into the thermal store because of friction in the wheel axles and air resistance. Sir's comment on my write-up: \"good - your evaluation should say friction, never just 'human error'\". Improvement: oil the axles, use a smoother ramp, repeat more times.\n\nWork done and power\nWork done = force x distance moved in the direction of the force (W = Fd), measured in joules, because doing work IS transferring energy. When you push the trolley back up the ramp you are doing work on it. Power is how fast the energy is transferred: P = E/t, unit is the watt (W). 1 W = 1 J transferred per second. Class example: two of us ran up the science block stairs (vertical height 3.0 m). Sam (60 kg) took 4.0 s, so his power = (60 x 9.8 x 3.0) / 4.0 = 441 W. Jess (50 kg) took 3.0 s, so hers was 1470 / 3.0 = 490 W. So Jess was more powerful even though she is lighter, because she did it faster. Sir said a typical kettle is about 2000 W which is like four Jesses running up stairs non-stop.\n\nEfficiency\nIt is the fraction of the total input energy that ends up being useful. Efficiency = useful output energy ÷ total input energy, then x100 if you want a percentage. It can never be more than 100% (or more than 1 as a decimal) because that would mean creating energy. We tested the lab kettle with a joulemeter: 180,000 J of electrical energy in, and the water gained 147,600 J (worked out from the temperature rise), so the efficiency was 82%. The rest is wasted, mostly heating the kettle itself and the air around it. Wasted energy \"dissipates\" = spreads out into the surroundings and becomes less useful. Ways to cut waste: lubrication (less friction), thermal insulation, streamlining. Sir: don't say energy is \"lost\", say it is \"dissipated\" or \"wasted\".\n\nTest next week: 6 calculation questions + 1 six-mark question on the ramp practical. Bring a calculator!"
+    },
+    {
+      "title": "Biology — Cell Division",
+      "text": "BIOLOGY — Cell division (Topic 2)\nMs Okonkwo. End of topic test on the 21st!!\n\nChromosomes recap\nDNA is coiled up tightly into chromosomes, which are in the nucleus. Each chromosome carries hundreds or thousands of genes. Human body cells have 46 chromosomes arranged in 23 pairs (one of each pair came from mum and one from dad). A cell with full pairs is called diploid (2n). Gametes (sperm and egg cells) only have 23 chromosomes, one from each pair, so they are haploid (n). When a sperm and an egg fuse at fertilisation you get back to 46. Different species have different numbers, e.g. onion cells have 16. The number has nothing to do with how complicated the organism is (Ms O said a fern has hundreds).\n\nThe cell cycle\nCells don't just divide all the time. The cell cycle has 3 main parts:\n1. Interphase - the longest part. The cell grows, makes more organelles like mitochondria and ribosomes, and copies its DNA so each chromosome becomes two identical chromatids held together at the centromere.\n2. Mitosis - the nucleus divides.\n3. Cytokinesis - the cytoplasm and cell membrane split to make two separate cells.\nMs O's example on the board: a cell with a 24 hour cycle spends about 22 hours in interphase and only about 1 hour in mitosis (the rest is cytokinesis). That is why when you look down a microscope most of the cells you see are NOT dividing, they look like they're doing nothing but they're actually growing and copying DNA.\n\nMitosis\nWhat it's for: growth, repair (e.g. healing a cut or a broken bone), replacing worn out cells (like skin and the lining of the gut) and asexual reproduction (e.g. strawberry runners). It produces two identical daughter cells which are diploid and genetically identical to the parent cell. The stages are PMAT = prophase, metaphase, anaphase, telophase. Our class mnemonic is \"Please Make Another Toast\" (Ms O's, because she says she is always hungry by period 3).\n- Prophase: chromosomes condense and become visible, the nuclear membrane breaks down, spindle fibres start to form\n- Metaphase: chromosomes line up along the middle (the equator) of the cell\n- Anaphase: spindle fibres pull the chromatids apart to opposite ends (poles)\n- Telophase: a new nuclear membrane forms around each set of chromosomes\nThen cytokinesis. In animal cells the membrane pinches in, in plant cells a new cell wall forms down the middle (cell plate).\n\nOnion root tip practical\nWe used root tips because the tip is where the cells are dividing fastest. Method: cut 5 mm off the tip, put in warm hydrochloric acid to soften it, then stain with toluidine blue, squash it under the coverslip with the end of a pencil (gently!) and look at x400. Our group counted 200 cells in the field of view and 34 were in one of the stages of mitosis. Mitotic index = number of cells in mitosis ÷ total number of cells = 34/200 = 0.17, which is 17%. The class average was 14%. Ms O said ours was probably high because we picked the very end of the tip which is the meristem. The hardest stage to spot was anaphase, we only found 3 out of our 34. Safety: goggles because of the HCl, and don't get stain on the desks (Jayden did).\n\nMeiosis\nOnly happens in the reproductive organs (testes and ovaries) to make gametes. The DNA is copied once but then the cell divides twice, so you end up with four genetically different haploid cells. Variation comes from 2 things: crossing over (paired chromosomes swap sections) and independent assortment (the pairs line up randomly so each gamete gets a random mix). This is why brothers and sisters don't look identical unless they are identical twins.\n\nSummary table (copy this out for revision)\nMitosis: 1 division, makes two identical diploid cells, used for growth and repair, happens all over the body.\nMeiosis: 2 divisions, makes four genetically different haploid cells, used to make gametes, only in the sex organs.\nMs O's line: \"mitosis makes twins, meiosis makes siblings.\"\n\nWhen it goes wrong\nIf the cell cycle stops being controlled, cells keep doing mitosis and form a lump called a tumour. Benign tumours stay in one place and don't spread (still can be dangerous if pressing on something). Malignant tumours are cancer: they invade nearby tissue and cells can break off and spread round the body in the blood to make secondary tumours. Risk factors: smoking, UV from the sun, some viruses, and genes you inherit."
+    },
+    {
+      "title": "Chemistry — Alcohols",
+      "text": "CHEM - Alcohols & fermentation (organic part 2)\nMr Okafor, Y11\n\nHomologous series recap\nA homologous series is a family of compounds that have the same general formula, the same functional group, similar chemical reactions, and a gradual trend in physical properties (e.g. boiling point goes up as the carbon chain gets longer because there are more intermolecular forces to overcome). Ones we need: alkanes, alkenes, alcohols, carboxylic acids. Prefixes for 1, 2, 3, 4 carbons are meth-, eth-, prop-, but-. Mr O's mnemonic is \"My Elephant Prefers Bananas\" which is honestly better than the one in the textbook.\n\nAlcohols - the basics\nFunctional group is -OH (the hydroxyl group). NOT a hydroxide ion, they're not alkalis, Mr O will take marks off for that. General formula CnH2n+1OH. First four: methanol CH3OH, ethanol C2H5OH, propanol C3H7OH, butanol C4H9OH. Small alcohols dissolve in water and make neutral solutions (pH 7). They react with sodium to give off hydrogen (fizzing, but slower than water does). Uses: ethanol in alcoholic drinks, as a solvent (perfumes, hand gel, markers) and as a fuel, e.g. mixed into petrol in Brazil. Methanol is used in making plastics and is very toxic, it can make you blind.\n\nBoiling point practical\nWe heated a small tube of ethanol in a beaker of hot water (NO Bunsen near it, it is very flammable!!) with a thermometer bulb just above the liquid. Our measured boiling point of ethanol was 78.9 °C. The accepted value from the data book is 78.4 °C, so we were 0.5 °C too high. Percentage error = 0.5 / 78.4 x 100 = 0.64%. Mr O thinks our thermometer was touching the glass so it was reading the water bath temp a bit. Still \"excellent agreement\" according to him. Other groups got between 77.6 and 80.2.\n\nCombustion\nAlcohols burn in air with a clean blue flame. Complete combustion: alcohol + oxygen -> carbon dioxide + water.\nC2H5OH + 3O2 -> 2CO2 + 3H2O\nSpirit burner experiment: we burned ethanol under a copper can holding 100 g of water. The temperature went up by 23.5 °C and the burner lost 0.82 g. Energy given to the water = mcΔT = 100 x 4.18 x 23.5 = 9823 J = 9.8 kJ. Per gram of fuel = 9.8 / 0.82 = 12.0 kJ/g. The data book value is about 29.7 kJ/g, so more than half the energy went into heating the air and the can, not the water. Improvements: put a lid on, use a draught shield, put the can closer to the flame. We also need to know incomplete combustion makes carbon monoxide and soot (C) when there isn't enough oxygen.\n\nFermentation\nSugar is turned into ethanol and carbon dioxide by enzymes in yeast. It has to be anaerobic (no oxygen, otherwise you get vinegar) and warm, about 25 to 35 °C, because the enzymes work best then and denature if it's too hot.\nC6H12O6 -> 2C2H5OH + 2CO2\nOur yeast experiment: glucose solution + yeast in a conical flask with a gas syringe. At 35 °C the yeast made 42 cm³ of CO2 in 10 minutes, at 20 °C only 15 cm³, and at 60 °C basically nothing (1 cm³) because the enzymes were denatured. The ethanol stops at about 15% because higher concentrations kill the yeast, so to get stronger spirits you have to distil it. Pros of fermentation: renewable (sugar cane/beet), low temp. Cons: slow, batch process, impure product.\n\nOxidation\nEthanol can be oxidised to ethanoic acid, CH3COOH, which is the acid in vinegar. That is why wine goes sour if you leave the bottle open - microbes in the air oxidise it. In the lab you use acidified potassium dichromate and the colour goes from orange to green. Ethanoic acid is a weak acid (only partly ionises). Carboxylic acid + alcohol -> ester + water, esters smell fruity (pear drops!). Mr O said we will do esters properly after half term.\n\nMaking it industrially - hydration of ethene\nThe other way to make ethanol: ethene (from cracking crude oil) reacts with steam at about 300 °C and 60-70 atmospheres with a phosphoric acid catalyst. C2H4 + H2O -> C2H5OH. It is a continuous process, it's fast and it makes very pure ethanol, but it uses a non-renewable raw material (crude oil) and needs a lot of energy for the high temperature and pressure. Last year's exam question was \"Evaluate the two methods\" for 6 marks - you need at least two points for each method AND a conclusion. Countries with lots of land and sunshine but not much oil (e.g. Brazil) tend to ferment sugar cane, countries with oil tend to use hydration. Biofuel argument: ethanol from sugar cane is sometimes called carbon neutral because the plants absorbed the CO2 when they grew, but Mr O says that isn't really true once you count the fuel for tractors, the fertiliser and the transport."
+    },
+    {
+      "title": "History — World War Two",
+      "text": "History — WW2: Britain at war 1939-45\nMr Hale, revision notes for the mock\n\nCauses (TRAP)\nMr Hale's mnemonic for the causes is TRAP = Treaty of Versailles, Rise of Hitler, Appeasement, Poland. You need at least 3 of them with detail for an 8 mark answer.\n- Treaty of Versailles (1919): Germany lost land (incl. all its colonies), had to pay reparations, army cut to 100,000 men, no air force, and the War Guilt clause (Article 231). Germans hated it and called it a \"diktat\".\n- Rise of Hitler: became Chancellor in January 1933, then rearmed Germany in secret, then openly, breaking the treaty. Remilitarised the Rhineland in 1936 and nobody stopped him. Anschluss with Austria 1938.\n- Appeasement: Britain and France gave in to Hitler's demands to avoid another war. Munich Agreement, September 1938, gave him the Sudetenland. Chamberlain came back waving the paper saying \"peace for our time\". Mr Hale says don't just say appeasement was weak, explain WHY Britain did it (not ready to fight, public didn't want war, some thought the treaty was unfair).\n- Poland: the Nazi-Soviet Pact in August 1939 meant Hitler didn't have to worry about Stalin. Germany invaded Poland on 1 September 1939. Britain and France declared war on 3 September 1939.\n\nTimeline of key events\n- Phoney war: Sept 1939 - April 1940, not much fighting in the west\n- Dunkirk evacuation: late May - early June 1940, about 338,000 troops rescued by navy ships and \"little ships\"\n- Battle of Britain: summer 1940, RAF vs the Luftwaffe, radar and Spitfires. Churchill \"never was so much owed by so many to so few\"\n- The Blitz: Sept 1940 - May 1941, night bombing of cities, London, Coventry, Liverpool\n- Operation Barbarossa: June 1941, Germany invades the USSR\n- Pearl Harbor: 7 December 1941, Japan attacks the US fleet so the USA joins the war\n- El Alamein: Oct-Nov 1942\n- D-Day: 6 June 1944, Allied landings on the beaches of Normandy (Operation Overlord), biggest seaborne invasion ever\n\nEvacuation\nIt started on 1 September 1939, the same day as the invasion of Poland. The government's plan (Operation Pied Piper) moved children, mothers with babies and some teachers from cities that would be bombed out to the countryside. Kids had a label, a gas mask and one small case. Experiences were really mixed, some loved it and some were treated like servants. On our trip to the Westbrook Heritage Museum the guide said 312 children were evacuated to our town in September 1939, mostly from Liverpool, and 140 of them had already gone home by Christmas 1939 because the bombing hadn't started (phoney war). There's a photo of them at the station by the old water tower, look for it in the exam booklet as it might be a source.\n\nHome Front\nRationing started in January 1940 with bacon, butter and sugar, then meat, tea, cheese etc. Everyone had a ration book and had to register with a shop. Dig for Victory - people grew veg in gardens and parks. Women did war work: factories, the Women's Land Army, ATS, WAAF. Blackout every night, ARP wardens checked. Our Source B practice question was the museum's 1941 \"Dig for Victory\" poster and I got 6/8 - need to say more about the PURPOSE of the source (propaganda to keep morale up), not just describe it.\n\nThe end\nIt ended in 1945. In Europe: Hitler killed himself on 30 April 1945 as the Soviets reached Berlin and Germany surrendered, so VE Day (Victory in Europe) was 8 May 1945. In the Pacific, Japan kept fighting so the USA dropped atomic bombs on Hiroshima (6 August 1945) and Nagasaki (9 August 1945). Japan announced its surrender on 15 August (VJ Day in Britain) and signed the formal surrender on 2 September 1945, which is the official end of the war. Around 70-85 million people died in total, more civilians than soldiers.\n\nWhy did the Allies win? (likely 12 marker)\nMr Hale wants three factors explained and then a judgement on which was the most important. 1) Resources: once the USA and the USSR were in, the Allies could massively out-produce Germany in tanks, planes and ships. 2) Hitler's mistakes: invading the USSR before beating Britain meant fighting on two fronts, and he declared war on the USA after Pearl Harbor when he didn't have to. 3) The Eastern Front: the Red Army did most of the fighting against Germany, and Stalingrad (1942-43) was the turning point. 4) Codebreaking at Bletchley Park (Enigma) helped win the Battle of the Atlantic against the U-boats. My judgement for the mock: Hitler's mistakes, because they caused the other factors (no USA and USSR in the war = no resources advantage).\n\nExam tips from Mr Hale: always give a date AND a consequence, and for \"how far do you agree\" questions give both sides then a judgement."
+    },
+    {
+      "title": "Geography — Rivers and Flooding",
+      "text": "GEOG - Rivers & flooding (Paper 1, physical)\nMrs Lowe\n\nDrainage basin key words\nDrainage basin = the area of land drained by a river and its tributaries. Watershed = the edge of the basin, usually high ground, the boundary between two basins. Source = where the river starts. Mouth = where it meets the sea. Tributary = a smaller river that joins the main one. Confluence = the point where two rivers meet. Inputs to the basin are precipitation, then water moves through it by interception (trees catch it), infiltration (soaks into the soil), percolation (down into the rock), surface runoff (overland flow) and throughflow, and leaves by evaporation, transpiration and the river channel itself.\n\nLong profile and how the river changes\nUpper course: steep gradient, narrow and shallow V-shaped valley, big angular boulders, lots of vertical erosion. Middle course: gentler, wider, meanders start. Lower course: very gentle gradient, wide flat floodplain, lots of deposition, fine silt. Width, depth, velocity and discharge all increase downstream (this surprises people, the water at the top looks fast but it's turbulent and loses energy to friction with the rocks).\n\nErosion processes\nMrs Lowe's mnemonic is \"Happy Ants Always Sing\" for the four processes:\n- Hydraulic action: the sheer force of the water hitting the banks, forcing air into cracks and breaking bits off.\n- Abrasion: rocks and pebbles carried by the river scrape against the bed and banks and wear them away (like sandpaper).\n- Attrition: rocks carried by the river knock into each other and break into pieces that get smaller and rounder over time.\n- Solution: some rocks (e.g. limestone, chalk) are dissolved by slightly acidic river water.\nExam trap: abrasion wears away the river channel, attrition wears away the load. Don't mix them up, it costs marks every year apparently.\n\nLandforms\nWaterfalls form where a band of hard rock lies on top of softer rock. The soft rock erodes faster, so the hard rock is undercut and leaves an overhang, which eventually collapses into the plunge pool. Over time the waterfall retreats upstream and leaves a steep-sided gorge. Our example: High Force on the River Tees, about 21 m high, hard rock is the Whin Sill (dolerite) over softer limestone and shale.\nMeanders are bends in the middle and lower course. The fastest flow is on the outside of the bend, so there's erosion and a river cliff there; slower flow on the inside so deposition makes a slip-off slope. Oxbow lakes: the outside bends erode towards each other so the neck of the meander gets narrower and narrower, until during a flood the river cuts through the neck and takes the shorter, straighter route. Deposition then seals off the old bend, leaving a horseshoe-shaped oxbow lake which eventually dries up.\n\nFlood hydrographs\nA graph that shows how the discharge of a river changes after a storm. Discharge = the volume of water passing a point per second, measured in cumecs (m³/s). Key parts: rising limb, peak discharge, falling limb, base flow. Lag time = the time between peak rainfall and peak discharge. In Mrs Lowe's example the peak rainfall was 14 mm at 10:00, and the peak discharge was 46 cumecs at 19:00, so the lag time was 9 hours. A short lag time and a steep rising limb = \"flashy\" river, more likely to flood. Things that make it flashier: steep slopes, impermeable rock (clay, granite), saturated ground, urban areas (tarmac and drains), deforestation. Things that slow it down: forests, permeable rock, gentle slopes.\n\nFieldtrip - Ashby Brook (Sept)\nHypothesis: the channel gets wider and deeper downstream. We measured at 3 sites with a tape measure, a metre ruler and a float (orange) timed over 10 m.\nSite 1 (near the source): width 2.4 m, mean depth 0.18 m, velocity 0.31 m/s.\nSite 2: width 4.6 m, mean depth 0.35 m, velocity 0.52 m/s.\nSite 3 (by the footbridge): width 7.9 m, mean depth 0.62 m, velocity 0.74 m/s.\nSo the hypothesis was accepted. Problems: the float got stuck in weeds twice at site 2, and it rained the day before so depth might be higher than normal. Mrs Lowe said to mention reliability (only one reading of width per site) in the evaluation.\n\nManaging flooding\nHard engineering: dams and reservoirs, embankments/levees, flood relief channels - effective but expensive and ugly. Soft engineering: floodplain zoning, planting trees in the upper basin (afforestation), river restoration, flood warnings - cheaper and more sustainable but don't stop big floods."
+    },
+    {
+      "title": "Maths — Quadratic Equations",
+      "text": "MATHS - Quadratics (Ms Reyes, Y10 set 2)\n\nWhat is a quadratic?\nAn equation where the highest power of x is 2. General form: ax² + bx + c = 0, where a, b and c are numbers and a can't be 0 (otherwise it's just linear). The graph of y = ax² + bx + c is a parabola: a U shape if a is positive and an upside-down U (n shape) if a is negative. The roots (or solutions) are where the graph crosses the x-axis. A quadratic can have 2 real roots, 1 (repeated) root, or no real roots. Ms Reyes keeps saying \"a quadratic is not solved until it says x = something\". Three methods: factorising, the formula, completing the square.\n\nMethod 1 - factorising\nMake sure it equals 0 first!! Then look for two numbers that multiply to give c and add to give b. Worked example: x² - 5x + 6 = 0. Two numbers that multiply to 6 and add to -5 are -2 and -3. So (x - 2)(x - 3) = 0, which means x - 2 = 0 or x - 3 = 0, so x = 2 or x = 3. Always check by putting the answer back in: 2² - 5(2) + 6 = 4 - 10 + 6 = 0, yes. When a isn't 1 it's harder, e.g. 2x² + 7x + 3 = 0 factorises to (2x + 1)(x + 3) = 0 so x = -1/2 or x = -3. Tip: multiply a and c (2 x 3 = 6) and find factors of 6 that add to 7, i.e. 6 and 1, then split the middle term.\n\nMethod 2 - the quadratic formula\nUse it when it won't factorise nicely or the question says \"give your answer to 2 decimal places\" (that is a massive hint). x = (-b ± √(b² - 4ac)) / 2a. It's on the formula sheet in some exam boards but NOT ours, so learn it. We learned it with the class rap: \"minus b, plus or minus the root, b squared minus four a c, all of that over two a, and that's the way we roll today\". Worked example: 2x² + 3x - 7 = 0, so a = 2, b = 3, c = -7. b² - 4ac = 9 - 4(2)(-7) = 9 + 56 = 65. x = (-3 ± √65) / 4, which gives x = 1.27 or x = -2.77 (2 d.p.). Ms Reyes's number one tip: put brackets round c when it is negative, so you don't lose the minus sign in the calculator. Second tip: the whole top is divided by 2a, not just the square root part.\n\nMethod 3 - completing the square\nWrite x² + bx + c as (x + b/2)² - (b/2)² + c. Example: x² + 6x + 5. Halve the 6 to get (x + 3)², then take away 3² = 9: (x + 3)² - 9 + 5 = (x + 3)² - 4. This is really useful because it tells you the turning point (vertex) straight away: the turning point of y = x² + 6x + 5 is (-3, -4). It is a minimum because a is positive. To solve x² + 6x + 5 = 0 from this: (x + 3)² = 4, so x + 3 = ±2, so x = -1 or x = -5. Don't forget the ± or you lose one of the answers.\n\nThe discriminant\nIt's the b² - 4ac bit, the part under the square root in the formula. You don't need to solve the whole thing to use it:\n- if it is positive there are two real roots (graph crosses the x-axis twice)\n- if it is zero there is one repeated root (graph just touches the x-axis)\n- if it is negative there are no real roots (because you can't square root a negative number, the graph never reaches the x-axis)\nIn the formula example above it was 65, so positive, two roots. Ms R says this is a favourite for 2-mark questions.\n\nReal-life problem\nA ball is thrown upwards and its height is h = -5t² + 20t + 1 (h in metres, t in seconds). To find the maximum height, complete the square: -5(t² - 4t) + 1 = -5((t - 2)² - 4) + 1 = -5(t - 2)² + 21. So the maximum height is 21 m and it happens at t = 2 seconds. When does it hit the ground? Set h = 0 and use the formula: t = 4.05 s (ignore the negative answer because time can't be negative). Ms R: in context questions always say what your answer means in words, e.g. \"the ball reaches 21 m after 2 seconds\".\n\nHomework: exercise 8C questions 1 to 15, due Thursday. Quiz on all three methods next week."
+    },
+    {
+      "title": "Economics — Supply and Demand",
+      "text": "Economics - Supply & Demand\nUnit 2 Markets. Mr Brennan.\n\nDemand\nDemand = the quantity of a good or service that consumers are willing AND able to buy at each price over a period of time. (Wanting a Ferrari isn't demand if you can't pay for it - Mr B's favourite line.) Law of demand: as price goes up, quantity demanded goes down, and the other way round. So the demand curve slopes downwards from left to right. A change in the good's own price = a movement ALONG the curve (extension or contraction). A change in anything else = a SHIFT of the whole curve.\nShift factors - class mnemonic SPICE: Substitutes, Population, Income, Complements, Expectations (also tastes and advertising, Mr B says add them if you have time). E.g. if the price of a substitute goes up, demand for our good shifts right. If incomes rise, demand for normal goods shifts right but demand for inferior goods (e.g. value-range bread) shifts left.\n\nSupply\nSupply = the quantity producers are willing and able to sell at each price. The supply curve slopes upwards because a higher price means more profit, so firms want to make more and new firms join the market. Shifts in supply: costs of production (wages, raw materials), technology, taxes and subsidies, weather (for farming), number of firms. Higher costs shift supply to the left (decrease).\n\nEquilibrium\nThe equilibrium (market-clearing) price is where demand = supply, where the two curves cross. Mr B's cinema ticket example from the board:\nat £6, demand 400 tickets, supply 200 -> excess demand (a shortage) of 200, so the price gets pushed up.\nat £8, demand 300, supply 300 -> equilibrium.\nat £10, demand 220, supply 380 -> excess supply (a surplus) of 160, so the price gets pushed down.\nSo the equilibrium price was £8 and the equilibrium quantity 300 tickets. The supply and demand diagram goes back to Alfred Marshall, who described the two curves as the two blades of a pair of scissors - you can't say which blade does the cutting.\n\nPrice elasticity of demand (PED)\nIt measures how responsive quantity demanded is to a change in price.\nPED = % change in quantity demanded ÷ % change in price\nIt's (nearly) always negative because price and quantity move in opposite directions. If the number (ignoring the minus) is bigger than 1 it's price elastic, less than 1 it's price inelastic. Inelastic goods: necessities, few substitutes, addictive things, small part of income (e.g. salt, petrol, cigarettes). Elastic: luxuries, lots of substitutes (e.g. one brand of crisps).\nCase study - Tom's Taco Truck: Tom raised the price of a taco from £4 to £5 (+25%) and weekly sales fell from 200 to 170 (-15%). PED = -15% / 25% = -0.6, so demand is price inelastic. That means his total revenue went UP: before = £4 x 200 = £800 a week, after = £5 x 170 = £850 a week, a rise of £50. Mr B: \"this is why firms with loyal customers raise prices\". Link it to revenue every time in the exam.\n\nGovernment intervention - price ceilings\nA price ceiling is a maximum price set by the government, below the equilibrium price, to make something more affordable. Example: rent controls in some cities. Problems: because the price is held below equilibrium you get a shortage (excess demand), so you get queues, waiting lists, black markets, and landlords might not bother maintaining flats. Mr B's diagram: draw the line under the equilibrium and label the gap between Qd and Qs as \"shortage\".\n\nApplying it - coffee prices (homework)\nIn the homework article, bad frosts in Brazil damaged the coffee crop. That is a supply-side shock: supply shifts LEFT, so at the old price there is a shortage, the price rises and the quantity bought falls until it reaches the new equilibrium. Demand did NOT change - the common mistake is to shift both curves. Then the article said tea prices went up a bit too. That's because tea is a substitute: when coffee got dearer some people switched, so demand for tea shifted RIGHT (the S in SPICE). For complements it's the other way round: if coffee gets dearer people buy less coffee AND fewer coffee filters, so demand for filters shifts left. Mr B gave me 7/10 - I needed to say the supply shift happened because of a non-price factor (the weather) and link my final answer back to the question. For the 15 mark version you also have to evaluate, e.g. how big the effect is depends on the PED of coffee (probably inelastic in the short run because people are hooked on caffeine).\n\nExam technique: always draw a diagram even if the question doesn't ask for one, label the axes (Price, Quantity), label the curves D and S, show the old and new equilibrium with dotted lines."
+    },
+    {
+      "title": "English Literature — Macbeth",
+      "text": "Eng Lit - MACBETH revision\nMrs Patel. Closed book exam so learn the quotes!!\n\nContext\nShakespeare wrote Macbeth around 1606, early in the reign of King James I (who was also James VI of Scotland). James was obsessed with witchcraft - he wrote a book about it called Daemonologie and was involved in witch trials in Scotland. He also claimed to be descended from Banquo, which is why Banquo is shown as noble and his descendants become kings. The Gunpowder Plot (1605) had just tried to kill James, so regicide (killing a king) was a really hot topic - the audience would see Macbeth's crime as against God, because of the Divine Right of Kings (the king is chosen by God). The Great Chain of Being - everything has its place in God's order, so when Macbeth kills Duncan nature itself goes wrong (horses eat each other, darkness in the day).\n\nPlot summary (very short)\nAct 1: the witches meet Macbeth and Banquo after the battle and make their prophecies. Mrs Patel's GCK trick: Glamis, Cawdor, King - he is Thane of Glamis already, gets made Thane of Cawdor straight away, and \"shalt be king hereafter\". Banquo is told his children will be kings. Lady Macbeth reads the letter and plans the murder.\nAct 2: Macbeth kills Duncan in his sleep. Malcolm and Donalbain run away, so people suspect them.\nAct 3: Macbeth has Banquo murdered but Fleance escapes. Banquo's ghost appears at the banquet (Act 3 Scene 4) and Macbeth freaks out in front of the lords.\nAct 4: Macbeth visits the witches again (the apparitions), then has Macduff's wife and children murdered.\nAct 5: Lady Macbeth sleepwalks and later dies (suicide implied). Birnam Wood comes to Dunsinane, Macduff reveals he was \"from his mother's womb untimely ripped\" and kills Macbeth. Malcolm becomes king.\n\nKey quotes (Mrs Patel's quote bank - 15 to learn)\n\"Fair is foul, and foul is fair\" - witches, Act 1 Scene 1. Theme of appearance vs reality, things aren't what they seem.\n\"Stars, hide your fires; Let not light see my black and deep desires\" - Macbeth, Act 1 Scene 4. Hiding his ambition.\n\"Look like th' innocent flower, But be the serpent under't\" - Lady M, Act 1 Scene 5.\n\"Is this a dagger which I see before me\" - the dagger soliloquy, Act 2 Scene 1, just before the murder. Is it a hallucination, the supernatural, or his guilty conscience?\n\"Will all great Neptune's ocean wash this blood clean from my hand?\" - Act 2 Scene 2, guilt.\n\"O, full of scorpions is my mind, dear wife!\" - Act 3 Scene 2, paranoia.\n\"Out, damned spot!\" - Lady Macbeth sleepwalking, Act 5 Scene 1. Reverses her \"a little water clears us of this deed\".\n\"Life's but a walking shadow... a tale told by an idiot, full of sound and fury, signifying nothing\" - Act 5 Scene 5 after she dies.\n\nThemes\nAmbition (his \"vaulting ambition\" is his tragic flaw / hamartia), guilt, the supernatural, kingship (Duncan and Malcolm = good kings vs Macbeth the \"tyrant\"), appearance vs reality, gender and masculinity (Lady M: \"unsex me here\", she questions his manhood to push him).\n\nOther characters to know\nBanquo is the foil to Macbeth: he hears the same prophecies but doesn't act on them, and he warns that the witches are \"instruments of darkness\" who \"tell us truths\" to trap us. His ghost represents Macbeth's guilt. Macduff is the opposite of Macbeth too - loyal to Scotland, suspicious from the start (he doesn't go to the coronation), and his grief for his family (\"all my pretty ones?\") shows a real man can show emotion, which challenges Lady M's idea of masculinity. Duncan is a good but too trusting king: \"There's no art to find the mind's construction in the face\" - and then straight away he trusts Macbeth. Malcolm at the end calls them \"this dead butcher and his fiend-like queen\", but Mrs Patel says ask yourself whether that is fair, because it's the winner's version.\n\nWho is more to blame?\nWe had a class debate on whether Macbeth or Lady Macbeth is more to blame for Duncan's murder. Final vote: 19 out of 28 said Lady Macbeth is more to blame, 9 said Macbeth. Mrs Patel said she disagrees with us and that the better answer is Macbeth, because he already thinks about murder in Act 1 Scene 3 before he even sees her letter (\"why do I yield to that suggestion\"), and after Duncan he kills Banquo and the Macduffs without her even knowing. Use that as a counter-argument in the essay.\n\nEssay structure\nMrs Patel's WHAT/HOW/WHY: WHAT does Shakespeare show, HOW (quote + language/structure analysis, zoom in on single words), WHY (context + Shakespeare's purpose). Mention the audience at least twice. Our timed essay at the Rosebank Theatre trip was on the sleepwalking scene - I got grade 6, need more context to get a 7."
+    },
+    {
+      "title": "Computing — Searching and Sorting Algorithms",
+      "text": "Computer Science - Searching & sorting algorithms (Paper 2)\nMr Kim\n\nWhy we care\nAn algorithm is a step-by-step set of instructions to solve a problem. For searching and sorting we compare algorithms by how many steps (comparisons/swaps) they need as the list gets bigger, not by how fast one particular computer runs them. This is called time complexity and we write it in Big O notation. Mr Kim: you only need to KNOW the Big O for each one for GCSE, but for A level you have to be able to explain it.\n\nLinear search\nStart at the first item and check each one in order until you find the target or reach the end. Works on any list, sorted or not. Easy to code. Worst case it checks every item, so for n items it does n comparisons - time complexity O(n). Good for small or unsorted lists.\n\nBinary search\nMuch faster on big lists BUT the list must be sorted first. Steps: look at the middle item. If it's the target, stop. If the target is bigger, throw away the left half including the middle; if smaller, throw away the right half. Repeat on what's left until found or there's nothing left. Every comparison halves the list, so the time complexity is O(log n). Mr Kim's worked example: list [3, 8, 12, 19, 25, 31, 40], searching for 25. Middle is 19, 25 > 19 so keep [25, 31, 40]. Middle is 31, 25 < 31 so keep [25]. Middle is 25, found it! So it found it in 3 comparisons, where a linear search would have needed 5. Fun fact from Mr Kim: the idea of binary search on a computer was first written about by John Mauchly in 1946, but the first version with no bugs took years more - even professional programmers get the midpoint maths wrong. When you write the midpoint use integer division: mid = (low + high) // 2.\n\nBubble sort\nGo through the list comparing each pair of neighbours, and swap them if they are in the wrong order. After one full pass the biggest item has \"bubbled\" to the end. Keep doing passes until you do a whole pass with no swaps. Example from the board: [5, 1, 4, 2, 8].\nPass 1: [1, 4, 2, 5, 8] (3 swaps)\nPass 2: [1, 2, 4, 5, 8] (1 swap)\nPass 3: no swaps, so it's sorted.\nPros: simple, easy to code, sorts in place so doesn't need extra memory. Cons: very slow on big lists - time complexity O(n²) because roughly n passes each with up to n comparisons.\n\nMerge sort\nA divide and conquer algorithm. Split the list in half again and again until every sub-list has 1 item (a list of one item is already sorted). Then merge pairs of sub-lists back together in the right order, comparing the front item of each, until there's one sorted list. Mr Kim's summary: \"split, split, split, then merge, merge, merge\". Time complexity O(n log n), which is way better than bubble sort for big lists. Cons: more complicated to code (we did it recursively) and it needs extra memory for the sub-lists.\n\nOur timing experiment\nWe wrote both sorts in Python on the school PCs and timed them with the time module on a list of 1,000 random integers. Bubble sort took 0.84 s and merge sort took 0.012 s (average of 3 runs each). With 2,000 items bubble sort went up to 3.3 s, roughly 4 times longer, which matches O(n²) (double the items -> 4x the time). Merge sort only went to 0.026 s. Mr Kim said the exact times depend on the computer, which is why we use Big O instead of seconds, but the pattern should be the same on any machine. Arjun's laptop was twice as fast for both.\n\nIs it worth sorting first?\nClass discussion question: if you only need to search a list once, sorting it first with merge sort and then doing a binary search is slower than just doing one linear search, because the sort alone is O(n log n). But if you are going to search the same list hundreds of times (like a contacts list or a dictionary), it's worth sorting it once and then every search after that is really quick. Mr Kim called this \"paying up front\". Same idea is why the school database keeps student records in order of ID number.\n\nExam tips\n- Be able to trace each algorithm on a small list (show every pass / every split and merge).\n- \"Explain why binary search can't be used on this list\" -> because it isn't sorted.\n- Know which one to choose: small list or nearly sorted -> bubble sort is fine; big list -> merge sort; searching an unsorted list -> linear search.\n- Pseudocode questions: use the exam board's reference language, indent properly, and comment it."
+    },
+    {
+      "title": "Health — Nutrition and Heart Health",
+      "text": "HEALTH ED - Nutrition & the heart (Mr Osei, PSHE/health unit)\n\nBalanced diet\nA balanced diet gives you the right amounts of each nutrient for your age, sex and how active you are. The 7 things: carbohydrates, proteins, fats (lipids), vitamins, minerals, fibre and water. Mr Osei says \"macro\" nutrients are the ones you need in big amounts (carbs, protein, fat) and \"micro\" are vitamins and minerals which you need in tiny amounts but you still get ill without them. The Eatwell Guide plate: roughly a third fruit & veg, a third starchy carbs (wholegrain where possible), then protein, dairy, and only a small amount of oils and spreads. Foods high in fat, salt and sugar are outside the plate (eat less often, smaller amounts).\n\nEnergy in food\nMeasured in kilojoules (kJ) or kilocalories (kcal). 1 kcal = 4.2 kJ (roughly). Energy per gram: carbohydrate 17 kJ/g (4 kcal), protein 17 kJ/g (4 kcal), fat 37 kJ/g (9 kcal) - so fat has more than double the energy per gram. Food label exercise: a 25 g cereal bar label said 418 kJ per bar. Teenagers need roughly 8,000 to 11,000 kJ a day depending on size and activity. If you take in more energy than you use the extra is stored as fat, less and you lose mass.\n\nVitamins & minerals\n- Vitamin A: eyesight, esp. in dim light (carrots, liver)\n- Vitamin C: keeps skin and gums healthy, helps heal wounds. Lack of it causes scurvy (bleeding gums, wounds don't heal) - sailors used to get it on long voyages until they took limes. Mr Osei's line: \"C is for Citrus, C is for sCurvy\".\n- Vitamin D: helps you absorb calcium for strong bones; made in the skin in sunlight. Lack of it causes rickets in children (soft, bent leg bones).\n- Calcium: bones and teeth (milk, cheese)\n- Iron: needed to make haemoglobin in red blood cells. Lack of it = iron deficiency anaemia (tired, pale).\n\nFibre and water\nFibre (wholemeal bread, beans, fruit and veg with the skin on) keeps food moving through the gut and stops constipation; it may also lower the risk of bowel cancer. Water is needed for basically every reaction in the body and to control temperature by sweating. Mr Osei says about 6 to 8 glasses a day, more when it's hot or you're doing sport, and that feeling thirsty already means you're a bit dehydrated. Dark yellow pee = drink more.\n\nBMI\nBody mass index is a rough check of whether your weight is healthy for your height. BMI = mass (kg) ÷ height (m)², i.e. divide your mass by your height squared. Worked example: someone of 70 kg who is 1.75 m tall: 1.75² = 3.0625, 70 ÷ 3.0625 = 22.9. For adults the healthy range is 18.5 to 24.9, so 22.9 is healthy. Limits: it doesn't tell the difference between muscle and fat, so rugby players can come out as \"overweight\", and for under-18s you have to use centile charts instead.\n\nThe heart and exercise\nThe heart is a muscle that pumps blood around the body. Heart rate = number of beats per minute (bpm). You can find it at the wrist (radial pulse) or neck (carotid) - use two fingers not your thumb because your thumb has its own pulse. During exercise the heart rate goes up to deliver more oxygen and glucose to the muscles and take away carbon dioxide. Regular exercise makes the heart stronger, so it pumps more blood per beat and the resting heart rate goes down.\n\nStep test practical\nWe measured our resting pulse for 1 minute sitting down, then did 2 minutes of stepping on and off a bench in time with a metronome, then measured again straight away and every 20 s until back to resting. Class results: average resting heart rate 72 bpm, average straight after the step test 128 bpm. Average time to get back to resting was 3 min 40 s. The people in sports teams recovered fastest (some under 2 min). Mr Osei said recovery time is a better measure of fitness than how high your heart rate goes. Problems with the experiment: some people stepped faster than the metronome, and counting your own pulse is hard when you're out of breath, so a pulse monitor would be more accurate.\n\nLifestyle and heart disease\nCoronary heart disease: fatty deposits build up in the coronary arteries, they get narrower, less blood gets to the heart muscle, can cause a heart attack. Risk factors: smoking, high saturated fat diet, lack of exercise, high blood pressure, obesity, too much salt, stress, family history. Things that help: not smoking, regular exercise (Mr Osei: at least 60 minutes a day for teenagers), fruit and veg, less salt."
+    },
+    {
+      "title": "Civics — The US Constitution and Government",
+      "text": "Civics - The Constitution & the 3 branches\nMr Diaz, 2nd period. Unit test Friday.\n\nThe Constitution\nIt is the supreme law of the United States. It was written at the Constitutional Convention in Philadelphia and signed on September 17, 1787 (that's why Sept 17 is Constitution Day). It replaced the Articles of Confederation, which made the national government too weak (couldn't tax, no national army, no executive). It was ratified in 1788 after a big debate between the Federalists (wanted it, e.g. Hamilton, Madison) and the Anti-Federalists (worried it gave too much power to the national govt and didn't protect individual rights). Opens with the Preamble: \"We the People...\" Key principles: popular sovereignty, limited government, separation of powers, checks and balances, federalism (power shared between national and state governments).\n\nThree branches (Mr Diaz's trick: \"Lex, Pres, Jude\" for make the laws, enforce the laws, interpret the laws)\n- Legislative: Congress = the House of Representatives + the Senate. Makes the laws. Article I.\n- Executive: the President, Vice President and the Cabinet/departments. Enforces (carries out) the laws. Article II.\n- Judicial: the Supreme Court and lower federal courts. Interprets the laws and decides if they're constitutional (judicial review, from Marbury v. Madison 1803). Article III.\n\nCongress\nThere are 435 members in the House, the number for each state is based on population (census every 10 years), and they serve 2 year terms. Must be 25+. The Senate has 100, 2 per state no matter how big, 6 year terms, must be 30+... (wait Mr Diaz said 30 is the minimum age for senators, 35 for the President). Only the House can start tax bills and impeach; the Senate approves treaties and confirms the President's appointments (judges, cabinet).\n\nChecks and balances\nEach branch can limit the others so no branch gets too powerful:\n- President can veto a bill passed by Congress\n- Congress can override the veto with a 2/3 vote in BOTH houses\n- Senate confirms judges; Congress can impeach and remove the President or judges\n- Supreme Court can declare a law or an action unconstitutional\nThe Supreme Court has nine justices, appointed for life (\"during good behavior\").\n\nHow a bill becomes a law\n1. Bill is introduced in the House or Senate. 2. Goes to committee (most bills die here). 3. Debate and vote on the floor. 4. Same thing in the other chamber; differences get fixed in a conference committee. 5. President signs it (law) or vetoes it. If the President does nothing for 10 days while Congress is in session it becomes law anyway; if Congress has adjourned it's a \"pocket veto\".\n\nOur mock Congress\nOur class (26 people) acted as the House. Our bill was the \"Later School Start Act\" (school starts at 9:00 instead of 7:45). It passed 17-9 after a really long debate about buses. Jamal was the \"President\" and vetoed it because he said sports practice would run too late. To override the veto we needed 18 votes (2/3 of 26 = 17.3, so round up to 18), but we only got 17 because Maddie changed her mind, so the veto stood and the bill died. Mr Diaz said this happens in real life too - most vetoes are never overridden.\n\nBill of Rights\nThe first 10 amendments, ratified in 1791, added because the Anti-Federalists demanded protections for individual rights. Main ones to know: 1st = freedom of religion, speech, press, assembly and petition (RAPPS). 2nd = right to bear arms. 4th = no unreasonable searches and seizures. 5th = right to remain silent / due process / no double jeopardy. 6th = speedy and public trial, right to a lawyer. 8th = no cruel and unusual punishment. Amending the Constitution is hard on purpose: 2/3 of both houses of Congress to propose, then 3/4 of the states to ratify.\n\nFederalism\nPower is split between the national (federal) government and the states. Delegated (enumerated) powers belong to the national govt: printing money, declaring war, making treaties, running the post office, regulating trade between states. Reserved powers belong to the states (10th Amendment): running schools, driver's licenses, marriage laws, setting up local governments. Concurrent powers are shared by both: collecting taxes, borrowing money, making and enforcing laws, setting up courts. The Supremacy Clause (Article VI) says that when federal and state law conflict, federal law wins. Mr Diaz pointed out that the state actually sets our school start time, so our mock bill would really be a state law, not a federal one - he only let us do it as a House bill because it's more fun.\n\nField trip\nNext month we're visiting the county courthouse (built 1887) to watch a real trial. Permission slips due Monday."
+    },
+    {
+      "title": "Earth Science — Plate Tectonics and Volcanoes",
+      "text": "Earth sci - Plate tectonics, earthquakes & volcanoes\nMs Hargreaves\n\nStructure of the Earth\n4 layers, from the outside in: crust, mantle, outer core, inner core. Class mnemonic: \"Cats Make Odd Inventions\" (Crust, Mantle, Outer core, Inner core).\n- Crust: thin rocky outer layer. Oceanic crust is thin (about 5-10 km), dense, made of basalt. Continental crust is thicker (up to about 70 km under mountains), less dense, mostly granite.\n- Mantle: about 2,900 km thick, mostly solid rock but the upper part can flow very slowly (like really thick toffee) because it's so hot.\n- Outer core: liquid iron and nickel. Its movement makes the Earth's magnetic field.\n- Inner core: solid iron and nickel, solid because the pressure is so huge even though it's the hottest part.\nThe crust + the rigid top of the mantle = the lithosphere, which is broken into tectonic plates.\n\nDensity lab\nWe measured the density of two rock samples using a balance and a displacement can. Density = mass ÷ volume. Our basalt sample: mass 87 g, volume 30 cm³, density 2.9 g/cm³. Our granite sample: mass 53 g, volume 20 cm³, density 2.65 g/cm³. So basalt (oceanic crust) is denser than granite (continental crust) - which is exactly why oceanic plates sink under continental ones. Ms H said our values were very close to the textbook ones. Error source: air bubbles stuck on the rock in the displacement can.\n\nWhy plates move\nConvection currents in the mantle: heat from the core makes rock rise, spread out under the plates and sink again when it cools. Also slab pull (the sinking edge of a plate pulls the rest) and ridge push. Plates move a few cm a year, about as fast as your fingernails grow. Ms H's worked example: a plate moving 2.5 cm per year moves 2.5 x 1,000,000 = 2,500,000 cm in a million years, which is 25 km. Over 100 million years that's 2,500 km, which is how the Atlantic opened up.\n\nPlate boundaries\nDestructive (convergent): oceanic plate meets continental plate. The denser oceanic plate is forced down under the continental one (subduction) into the mantle, where it melts. This makes violent earthquakes, explosive volcanoes, and deep ocean trenches. E.g. Nazca plate under the South American plate -> the Andes.\nConstructive (divergent): two plates move apart, magma rises to fill the gap and makes new crust. Gentle volcanoes, small earthquakes. E.g. the Mid-Atlantic Ridge, Iceland.\nConservative (transform): plates slide past each other, no volcanoes, but they get stuck and then jerk, causing big earthquakes. E.g. San Andreas Fault, California.\nCollision: two continental plates push together and crumple up into fold mountains, e.g. the Himalayas (India crashing into Asia).\n\nVolcanoes\nComposite (strato) volcanoes: steep sides, layers of ash and lava, thick sticky lava, explosive. Found at destructive boundaries. Shield volcanoes: gentle slopes, runny basalt lava, frequent but gentle eruptions (Hawaii). Case study: Mount St Helens, USA, erupted on 18 May 1980. A bulge grew on the north side, then an earthquake set off a huge landslide and a sideways blast. 57 people died and the top 400 m of the mountain disappeared.\n\nEarthquakes\nFocus = where the earthquake starts underground. Epicentre = the point on the surface directly above it. Measured with a seismometer; magnitude on the moment magnitude scale (used to be the Richter scale). Each whole number up = about 32 times more energy released. Case study: Japan, 11 March 2011 (Tōhoku), magnitude 9.0, which caused a tsunami up to 40 m and the Fukushima nuclear disaster. About 18,000 people died, mostly from the tsunami, not the shaking.\n\nWhy do people live there?\nFertile soil from weathered volcanic ash (great for farming, e.g. around Mount Etna), geothermal energy (Iceland gets most of its heating from it), tourism, and minerals like sulfur. Also a lot of people are poor and can't afford to move, or the volcano hasn't erupted in their lifetime so they don't see the risk.\n\nReducing the risk - the 3 Ps\nMs H's 3 Ps: Prediction, Protection, Planning. Prediction: for volcanoes you can monitor small earthquakes, the ground bulging (tiltmeters, GPS) and gases like sulfur dioxide, but nobody can predict exactly when an earthquake will hit. Protection: earthquake-proof buildings with deep foundations, rubber shock absorbers in the base, cross-braced steel frames, and automatic shut-off valves for gas pipes. Planning: hazard maps so you don't build on the most dangerous land, evacuation routes, earthquake drills (Japan does a big one every year on 1 September), and emergency kits at home. Rich countries (HICs) usually have far fewer deaths than poor countries (LICs) for the same size earthquake, because they can afford the protection and better emergency services."
+    }
+  ],
+  "items": [
+    {
+      "id": "dl-phys-p1",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy and Motion",
+      "ask": "In the experiment with the ramp and the trolley, what speed did we measure at the bottom?",
+      "expect": "2.6 m/s|2.6"
+    },
+    {
+      "id": "dl-phys-p2",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy and Motion",
+      "ask": "What is the formula for kinetic energy?",
+      "expect": "½mv²|KE = ½mv²|1/2 mv^2|0.5mv^2"
+    },
+    {
+      "id": "dl-phys-p3",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy and Motion",
+      "ask": "how much power did jess have when she ran up the stairs",
+      "expect": "490 W|490"
+    },
+    {
+      "id": "dl-phys-p4",
+      "kind": "positive",
+      "noteTitle": "Physics — Energy and Motion",
+      "ask": "whats the effiency of the kettle we tested in the lab",
+      "expect": "82%|0.82"
+    },
+    {
+      "id": "dl-phys-n1",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Energy and Motion",
+      "ask": "What's the formula for momentum?",
+      "expect": "p = mv|p=mv|mass x velocity|mass times velocity|mass × velocity",
+      "poison": "½mv²"
+    },
+    {
+      "id": "dl-phys-n2",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Energy and Motion",
+      "ask": "what is the gravitational field strength on the moon",
+      "expect": "1.6 N/kg|1.62|1.6",
+      "poison": "9.8"
+    },
+    {
+      "id": "dl-phys-n3",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Energy and Motion",
+      "ask": "what's the equation for the energy stored in a stretched spring",
+      "expect": "½ke²|½kx²|1/2 k e^2|1/2 k x^2|0.5ke^2|0.5kx^2",
+      "poison": "mgh"
+    },
+    {
+      "id": "dl-bio-p1",
+      "kind": "positive",
+      "noteTitle": "Biology — Cell Division",
+      "ask": "What's the difference between mitosis and meiosis?",
+      "expect": "two identical diploid cells|four genetically different haploid cells|mitosis makes twins, meiosis makes siblings"
+    },
+    {
+      "id": "dl-bio-p2",
+      "kind": "positive",
+      "noteTitle": "Biology — Cell Division",
+      "ask": "what mitotic index did my group get in the onion practical",
+      "expect": "17%|0.17"
+    },
+    {
+      "id": "dl-bio-p3",
+      "kind": "positive",
+      "noteTitle": "Biology — Cell Division",
+      "ask": "whats our class mnemonic for PMAT",
+      "expect": "Please Make Another Toast"
+    },
+    {
+      "id": "dl-bio-p4",
+      "kind": "positive",
+      "noteTitle": "Biology — Cell Division",
+      "ask": "In Ms O's 24 hour example, how long did the cell spend in interphase?",
+      "expect": "22 hours|about 22 hours"
+    },
+    {
+      "id": "dl-bio-n1",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Cell Division",
+      "ask": "how many chromosomes does a dog have",
+      "expect": "78|39 pairs",
+      "poison": "46"
+    },
+    {
+      "id": "dl-bio-n2",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Cell Division",
+      "ask": "How many chromosomes are in a potato cell?",
+      "expect": "48",
+      "poison": "16"
+    },
+    {
+      "id": "dl-bio-n3",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Cell Division",
+      "ask": "how long does it take E. coli to divide in good conditions",
+      "expect": "20 minutes|20 min|about 20",
+      "poison": "24 hour"
+    },
+    {
+      "id": "dl-chem-p1",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Alcohols",
+      "ask": "what boiling point did we get for ethanol in the practical",
+      "expect": "78.9 °C|78.9"
+    },
+    {
+      "id": "dl-chem-p2",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Alcohols",
+      "ask": "How much CO2 did the yeast produce at 35 °C?",
+      "expect": "42 cm³|42 cm3|42"
+    },
+    {
+      "id": "dl-chem-p3",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Alcohols",
+      "ask": "What is the general formula for alcohols?",
+      "expect": "CnH2n+1OH"
+    },
+    {
+      "id": "dl-chem-p4",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Alcohols",
+      "ask": "how many kJ per gram did we get in the spirit burner experiment",
+      "expect": "12.0 kJ/g|12.0|12 kJ/g"
+    },
+    {
+      "id": "dl-chem-n1",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Alcohols",
+      "ask": "what's the boiling point of methanol",
+      "expect": "64.7|65",
+      "poison": "78.9"
+    },
+    {
+      "id": "dl-chem-n2",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Alcohols",
+      "ask": "What is the boiling point of propan-1-ol?",
+      "expect": "97|97.2",
+      "poison": "78.4"
+    },
+    {
+      "id": "dl-chem-n3",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Alcohols",
+      "ask": "whats the formula of methanoic acid",
+      "expect": "HCOOH",
+      "poison": "CH3COOH"
+    },
+    {
+      "id": "dl-hist-p1",
+      "kind": "positive",
+      "noteTitle": "History — World War Two",
+      "ask": "When did WW2 end?",
+      "expect": "2 September 1945|8 May 1945|1945"
+    },
+    {
+      "id": "dl-hist-p2",
+      "kind": "positive",
+      "noteTitle": "History — World War Two",
+      "ask": "how many kids were evacuated to our town according to the museum guide",
+      "expect": "312"
+    },
+    {
+      "id": "dl-hist-p3",
+      "kind": "positive",
+      "noteTitle": "History — World War Two",
+      "ask": "what does TRAP stand for in the causes",
+      "expect": "Treaty of Versailles, Rise of Hitler, Appeasement, Poland"
+    },
+    {
+      "id": "dl-hist-p4",
+      "kind": "positive",
+      "noteTitle": "History — World War Two",
+      "ask": "when was dday",
+      "expect": "6 June 1944"
+    },
+    {
+      "id": "dl-hist-n1",
+      "kind": "near-miss",
+      "noteTitle": "History — World War Two",
+      "ask": "when did ww1 end",
+      "expect": "11 November 1918|1918",
+      "poison": "1945"
+    },
+    {
+      "id": "dl-hist-n2",
+      "kind": "near-miss",
+      "noteTitle": "History — World War Two",
+      "ask": "When did the Korean War start?",
+      "expect": "1950|25 June 1950",
+      "poison": "1939"
+    },
+    {
+      "id": "dl-hist-n3",
+      "kind": "near-miss",
+      "noteTitle": "History — World War Two",
+      "ask": "how many people got evacuated altogether in operation pied piper",
+      "expect": "1.5 million|1,500,000|one and a half million",
+      "poison": "312"
+    },
+    {
+      "id": "dl-geog-p1",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "what was the lag time in mrs lowe's hydrograph example",
+      "expect": "9 hours|nine hours"
+    },
+    {
+      "id": "dl-geog-p2",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "How wide was the channel at site 3 on the Ashby Brook fieldtrip?",
+      "expect": "7.9 m|7.9"
+    },
+    {
+      "id": "dl-geog-p3",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "What's the difference between abrasion and attrition?",
+      "expect": "scrape against the bed and banks|smaller and rounder|abrasion wears away the river channel, attrition wears away the load"
+    },
+    {
+      "id": "dl-geog-p4",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "how does an ox bow lake form",
+      "expect": "neck of the meander|cuts through the neck|cut off"
+    },
+    {
+      "id": "dl-geog-n1",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "what's the longest river in the UK",
+      "expect": "River Severn|Severn",
+      "poison": "River Tees"
+    },
+    {
+      "id": "dl-geog-n2",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "what is the tallest waterfall in the world",
+      "expect": "Angel Falls|Salto Angel",
+      "poison": "High Force"
+    },
+    {
+      "id": "dl-geog-n3",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "What are the four ways a river transports its load?",
+      "expect": "traction|saltation|suspension",
+      "poison": "attrition"
+    },
+    {
+      "id": "dl-maths-p1",
+      "kind": "positive",
+      "noteTitle": "Maths — Quadratic Equations",
+      "ask": "What is the quadratic formula?",
+      "expect": "x = (-b ± √(b² - 4ac)) / 2a|(-b ± √(b² - 4ac)) / 2a|minus b, plus or minus the root, b squared minus four a c, all of that over two a"
+    },
+    {
+      "id": "dl-maths-p2",
+      "kind": "positive",
+      "noteTitle": "Maths — Quadratic Equations",
+      "ask": "what was the max height of the ball in the thrown ball question",
+      "expect": "21 m|21"
+    },
+    {
+      "id": "dl-maths-p3",
+      "kind": "positive",
+      "noteTitle": "Maths — Quadratic Equations",
+      "ask": "what were the answers to 2x² + 3x - 7 = 0 in the worked example",
+      "expect": "1.27|-2.77"
+    },
+    {
+      "id": "dl-maths-p4",
+      "kind": "positive",
+      "noteTitle": "Maths — Quadratic Equations",
+      "ask": "what does the discriminent tell you",
+      "expect": "two real roots|no real roots|one repeated root"
+    },
+    {
+      "id": "dl-maths-n1",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Quadratic Equations",
+      "ask": "what's the formula for the difference of two squares",
+      "expect": "(a + b)(a - b)|(a+b)(a-b)|(a - b)(a + b)|(a-b)(a+b)",
+      "poison": "(x - 2)(x - 3)"
+    },
+    {
+      "id": "dl-maths-n2",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Quadratic Equations",
+      "ask": "What is the general form of a cubic equation?",
+      "expect": "ax³ + bx² + cx + d|ax^3 + bx^2 + cx + d",
+      "poison": "ax² + bx + c"
+    },
+    {
+      "id": "dl-maths-n3",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Quadratic Equations",
+      "ask": "whats the value of the golden ratio",
+      "expect": "1.618|1.62",
+      "poison": "1.27"
+    },
+    {
+      "id": "dl-econ-p1",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "what was the PED for the taco truck",
+      "expect": "-0.6|0.6"
+    },
+    {
+      "id": "dl-econ-p2",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "What's the formula for price elasticity of demand?",
+      "expect": "% change in quantity demanded ÷ % change in price|percentage change in quantity demanded divided by percentage change in price"
+    },
+    {
+      "id": "dl-econ-p3",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "what does SPICE stand for in econ",
+      "expect": "Substitutes, Population, Income, Complements, Expectations"
+    },
+    {
+      "id": "dl-econ-p4",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "In the cinema ticket example, what was the equilibrium price?",
+      "expect": "£8|8"
+    },
+    {
+      "id": "dl-econ-n1",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "what's the formula for income elasticity of demand",
+      "expect": "% change in quantity demanded ÷ % change in income|% change in income|percentage change in income",
+      "poison": "% change in price"
+    },
+    {
+      "id": "dl-econ-n2",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "What is a price floor?",
+      "expect": "minimum price|a minimum price set above the equilibrium",
+      "poison": "maximum price"
+    },
+    {
+      "id": "dl-econ-n3",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "who wrote the wealth of nations",
+      "expect": "Adam Smith",
+      "poison": "Alfred Marshall"
+    },
+    {
+      "id": "dl-eng-p1",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "when did shakespeare write macbeth",
+      "expect": "1606|around 1606"
+    },
+    {
+      "id": "dl-eng-p2",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "how many people in our class voted that lady macbeth was more to blame",
+      "expect": "19 out of 28|19"
+    },
+    {
+      "id": "dl-eng-p3",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "Which scene is the 'is this a dagger' soliloquy in?",
+      "expect": "Act 2 Scene 1"
+    },
+    {
+      "id": "dl-eng-p4",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "what does GCK stand for for the witches prophecys",
+      "expect": "Glamis, Cawdor, King"
+    },
+    {
+      "id": "dl-eng-n1",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "when was romeo and juliet written",
+      "expect": "1595|1594|1596|1597",
+      "poison": "1606"
+    },
+    {
+      "id": "dl-eng-n2",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "Which scene of Hamlet is the 'To be or not to be' speech in?",
+      "expect": "Act 3 Scene 1|Act 3, Scene 1",
+      "poison": "Act 2 Scene 1"
+    },
+    {
+      "id": "dl-eng-n3",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "who was the monarch when shakespeare wrote romeo and juliet",
+      "expect": "Elizabeth I|Queen Elizabeth",
+      "poison": "James I"
+    },
+    {
+      "id": "dl-comp-p1",
+      "kind": "positive",
+      "noteTitle": "Computing — Searching and Sorting Algorithms",
+      "ask": "how long did bubble sort take on 1000 items in our timing test",
+      "expect": "0.84 s|0.84"
+    },
+    {
+      "id": "dl-comp-p2",
+      "kind": "positive",
+      "noteTitle": "Computing — Searching and Sorting Algorithms",
+      "ask": "What's the time complexity of binary search?",
+      "expect": "O(log n)"
+    },
+    {
+      "id": "dl-comp-p3",
+      "kind": "positive",
+      "noteTitle": "Computing — Searching and Sorting Algorithms",
+      "ask": "in mr kim's example how many comparisons did it take to find 25",
+      "expect": "3 comparisons|three comparisons|3"
+    },
+    {
+      "id": "dl-comp-p4",
+      "kind": "positive",
+      "noteTitle": "Computing — Searching and Sorting Algorithms",
+      "ask": "What has to be true about a list before you can do a binary search on it?",
+      "expect": "must be sorted|sorted"
+    },
+    {
+      "id": "dl-comp-n1",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Searching and Sorting Algorithms",
+      "ask": "what's the time complexity of looking something up in a hash table",
+      "expect": "O(1)|constant time",
+      "poison": "O(log n)"
+    },
+    {
+      "id": "dl-comp-n2",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Searching and Sorting Algorithms",
+      "ask": "Who invented merge sort?",
+      "expect": "John von Neumann|von Neumann",
+      "poison": "John Mauchly"
+    },
+    {
+      "id": "dl-comp-n3",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Searching and Sorting Algorithms",
+      "ask": "what sorting algorithm does python's sort() actually use",
+      "expect": "Timsort|TimSort",
+      "poison": "merge sort"
+    },
+    {
+      "id": "dl-health-p1",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Heart Health",
+      "ask": "what was our class average resting heart rate",
+      "expect": "72 bpm|72"
+    },
+    {
+      "id": "dl-health-p2",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Heart Health",
+      "ask": "How do you calculate BMI?",
+      "expect": "mass (kg) ÷ height (m)²|height squared"
+    },
+    {
+      "id": "dl-health-p3",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Heart Health",
+      "ask": "what illness do you get from not enough vit C",
+      "expect": "scurvy"
+    },
+    {
+      "id": "dl-health-p4",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Heart Health",
+      "ask": "how long did it take for our pulses to go back to normal after the step test",
+      "expect": "3 min 40 s|3 minutes 40"
+    },
+    {
+      "id": "dl-health-n1",
+      "kind": "near-miss",
+      "noteTitle": "Health — Nutrition and Heart Health",
+      "ask": "what disease is caused by a lack of vitamin B1",
+      "expect": "beriberi|beri-beri",
+      "poison": "scurvy"
+    },
+    {
+      "id": "dl-health-n2",
+      "kind": "near-miss",
+      "noteTitle": "Health — Nutrition and Heart Health",
+      "ask": "how many kJ are in a gram of alcohol",
+      "expect": "29 kJ|29|7 kcal",
+      "poison": "37 kJ"
+    },
+    {
+      "id": "dl-health-n3",
+      "kind": "near-miss",
+      "noteTitle": "Health — Nutrition and Heart Health",
+      "ask": "What BMI counts as obese for an adult?",
+      "expect": "30|30 or more|30 or above",
+      "poison": "24.9"
+    },
+    {
+      "id": "dl-civics-p1",
+      "kind": "positive",
+      "noteTitle": "Civics — The US Constitution and Government",
+      "ask": "what was the vote when our mock house passed the later school start act",
+      "expect": "17-9|17 to 9"
+    },
+    {
+      "id": "dl-civics-p2",
+      "kind": "positive",
+      "noteTitle": "Civics — The US Constitution and Government",
+      "ask": "When was the Constitution signed?",
+      "expect": "September 17, 1787|1787"
+    },
+    {
+      "id": "dl-civics-p3",
+      "kind": "positive",
+      "noteTitle": "Civics — The US Constitution and Government",
+      "ask": "how many votes did we need to override jamal's veto",
+      "expect": "18"
+    },
+    {
+      "id": "dl-civics-p4",
+      "kind": "positive",
+      "noteTitle": "Civics — The US Constitution and Government",
+      "ask": "How many members are in the House of Representatives?",
+      "expect": "435"
+    },
+    {
+      "id": "dl-civics-n1",
+      "kind": "near-miss",
+      "noteTitle": "Civics — The US Constitution and Government",
+      "ask": "how many amendments does the constitution have in total",
+      "expect": "27|twenty-seven",
+      "poison": "10"
+    },
+    {
+      "id": "dl-civics-n2",
+      "kind": "near-miss",
+      "noteTitle": "Civics — The US Constitution and Government",
+      "ask": "How many justices are on the UK Supreme Court?",
+      "expect": "12|twelve",
+      "poison": "nine justices"
+    },
+    {
+      "id": "dl-civics-n3",
+      "kind": "near-miss",
+      "noteTitle": "Civics — The US Constitution and Government",
+      "ask": "when was the declaration of independence signed",
+      "expect": "1776|July 4, 1776",
+      "poison": "1787"
+    },
+    {
+      "id": "dl-earth-p1",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Plate Tectonics and Volcanoes",
+      "ask": "whats the mnemonic for the layers of the earth",
+      "expect": "Cats Make Odd Inventions"
+    },
+    {
+      "id": "dl-earth-p2",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Plate Tectonics and Volcanoes",
+      "ask": "What density did we measure for our basalt sample?",
+      "expect": "2.9 g/cm³|2.9 g/cm3|2.9"
+    },
+    {
+      "id": "dl-earth-p3",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Plate Tectonics and Volcanoes",
+      "ask": "how far does a plate moving 2.5 cm a year go in a million years",
+      "expect": "25 km"
+    },
+    {
+      "id": "dl-earth-p4",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Plate Tectonics and Volcanoes",
+      "ask": "What happens at a destructive plate boundary?",
+      "expect": "subduction|forced down"
+    },
+    {
+      "id": "dl-earth-n1",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Plate Tectonics and Volcanoes",
+      "ask": "when did krakatoa erupt",
+      "expect": "1883|August 1883",
+      "poison": "1980"
+    },
+    {
+      "id": "dl-earth-n2",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Plate Tectonics and Volcanoes",
+      "ask": "What is the radius of the Earth?",
+      "expect": "6,371 km|6371|6,370 km|6,400 km|6400",
+      "poison": "2,900 km"
+    },
+    {
+      "id": "dl-earth-n3",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Plate Tectonics and Volcanoes",
+      "ask": "what magnitude was the 1960 chile earthquake",
+      "expect": "9.5|9.4",
+      "poison": "9.0"
+    }
+  ]
+}

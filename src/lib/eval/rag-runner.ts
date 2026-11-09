@@ -18,6 +18,7 @@
 // src/lib/eval/headless/README.md). That entry calls THIS function; it only swaps the platform
 // (SQLite, HTTP, settings store) underneath the kernel.
 
+import { shownIn } from "./rag-shown";
 import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type TutorTurnResult, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
 import { registerBuiltinTools, type ToolContext } from "../tools";
@@ -329,10 +330,7 @@ export async function runRagEval(opts?: {
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
           const refusal = hasRefusalPhrase(answer);
-          const shown = {
-            expect: block === null || !question.expect || question.kind === "negative" ? null : question.expect.split("|").some((a) => block!.includes(a.trim())),
-            poison: block === null || !question.poison ? null : block.includes(question.poison),
-          };
+          const shown = shownIn(block, question);
           rows.push({ shown,  prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, ttft_ms, total_ms, error, toolCallRecovery });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
