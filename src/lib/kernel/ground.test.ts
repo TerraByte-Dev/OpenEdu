@@ -5,10 +5,11 @@ import {
   selectHits,
   formatGroundingBlock,
   groundedIn,
+  passageFor,
   MIN_NOTE_SCORE,
   type GroundingHit,
 } from "./ground";
-import { budgetFor, estTokens } from "./budget";
+import { budgetFor, estTokens, capText } from "./budget";
 
 const hit = (over: Partial<GroundingHit> = {}): GroundingHit => ({
   source: "note",
@@ -282,5 +283,50 @@ describe("groundedIn — the honesty mechanism", () => {
     const answer = "Photosynthesis converts carbon dioxide and water into something else entirely.";
     expect(groundedIn(answer, [source], 4).length).toBe(1);
     expect(groundedIn(answer, [source], 12).length).toBe(0);
+  });
+});
+
+describe("passageFor (lever 10: the part of a long passage that matches the question)", () => {
+  // 30 filler sentences (~1,400 chars), then the one that answers, then more filler.
+  const filler = (n: number, tag: string) => Array.from({ length: n }, (_, i) => `Filler line ${tag}${i} about lab safety rules.`).join(" ");
+  const long = `${filler(30, "a")} Our trolley on the ramp reached 2.4 m/s at the bottom. ${filler(10, "b")}`;
+
+  it("is the whole text when it fits, and the old head when no sentence shares a word with the question", () => {
+    expect(passageFor("  Short note about ramps.  ", "ramp speed")).toBe("Short note about ramps.");
+    expect(passageFor(long, "What is photosynthesis?")).toBe(capText(long, 250));
+  });
+
+  it("is the old head when the head already shows the best sentence", () => {
+    const early = `Our trolley on the ramp reached 2.4 m/s at the bottom. ${filler(40, "c")}`;
+    expect(passageFor(early, "how fast was the trolley on the ramp")).toBe(capText(early, 250));
+  });
+
+  it("shows the sentence that matches when it is past the head, inside the cap, with whole sentences and a marker", () => {
+    expect(capText(long, 250)).not.toContain("2.4 m/s");
+    const out = passageFor(long, "How fast did the trolleys go down the ramp?"); // plural folds to "trolley"
+    expect(out).toContain("Our trolley on the ramp reached 2.4 m/s at the bottom.");
+    expect(out.length).toBeLessThanOrEqual(250 * 4);
+    expect(out.startsWith("…Filler line")).toBe(true);
+    expect(out).toMatch(/\n…\[excerpt: showing \d+ of \d+ characters\]$/);
+  });
+
+  it("keeps line breaks inside the excerpt and splits sentences at them", () => {
+    const notes = `${filler(30, "d")}
+- trolley speed: 2.4 m/s
+- ramp angle: 12 degrees
+${filler(10, "e")}`;
+    const out = passageFor(notes, "what angle was the ramp");
+    expect(out).toContain("- trolley speed: 2.4 m/s\n- ramp angle: 12 degrees");
+  });
+
+  it("is the old head when the best sentence alone is longer than the cap", () => {
+    const huge = `${filler(30, "f")} The ramp ${"x".repeat(1200)}.`;
+    expect(passageFor(huge, "ramp")).toBe(capText(huge, 250));
+  });
+
+  it("formatGroundingBlock shows the head without a question (the EVAL_PASSAGE_WINDOW=off arm) and the window with one", () => {
+    const h = hit({ text: long });
+    expect(formatGroundingBlock([h], 1000)).toContain(capText(long, 250));
+    expect(formatGroundingBlock([h], 1000, "trolley ramp speed")).toContain("2.4 m/s");
   });
 });
