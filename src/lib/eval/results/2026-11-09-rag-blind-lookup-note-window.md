@@ -7,10 +7,13 @@
 > - **The harm.** Near-miss clean fell from 48 to 43 of 48, against a floor of 46.
 >   - Read one by one, 3 of the 5 lost items are borrowed or wrong values: the note's 1937 for *The Grapes of Wrath*, "percent sign" for SQL's one-character wildcard, and China as the most populous country.
 >   - One is a citation chip on a formula sentence.
->   - One is a correct answer the substring grader fails because it names the poison as background: "Friedman and Phelps, who built upon earlier work like the Phillips curve".
+>   - One is a correct answer the substring grader fails because it names the poison as background: "…Milton Friedman and Edmund Phelps, who built upon earlier work like that of A.W. Phillips…".
 >   - Without that one, near-miss clean is still 44, below the floor.
 > - **The trade-off the rule encodes.** Master is 48 of 48 "clean" because it answers almost nothing: 0 of 48 real-world answers, and it answers lookups with a question.
-> - **The window, under the note (rule W).** Positives went from 27 to 42 of 64 (b/c 1/16, p = 0.0003), and near-miss clean from 44 to 43 (floor 42). e4b repeats it: 32 → 45 (p = 0.004), near-miss clean 41 → 41. With [#229](2026-11-09-rag-blind-long-notes.md)'s e4b result, this is the third time on fresh data that showing the matching part of a long note helped a model that answers, with no added harm. By #230's wording, W ships only with the note, so it does not ship here.
+> - **The window, under the note (rule W).** Positives went from 27 to 42 of 64 (b/c 1/16, p = 0.0003), and near-miss clean from 44 to 43 (floor 42). The one near-miss item lost is the grader artifact below.
+>   - **e4b, descriptive (W is gated on e2b only):** positives 32 → 45 (p = 0.004), near-miss clean 41 → 41.
+>   - With [#229](2026-11-09-rag-blind-long-notes.md)'s e4b result, that makes three comparisons on two fresh sets where showing the matching part of a long note helped a model that answers. Near-miss harm stayed within the pre-set margins: never more than 2 clean items lower, though answers containing a poison rose by 1–2 items in each.
+>   - By #230's wording, W ships only with the note, so it does not ship here.
 >
 > **Blind, not held out.** The gate set was written by a fresh agent after the pre-registration. The sealed set was not opened. **Nothing here is on master:** the arms are switches on the unmerged stack (`feat/lookup-note-window`, PR [#231](https://github.com/TerraByte-Dev/OpenEdu/pull/231), stacked on #228 → #224 → #222).
 
@@ -109,7 +112,9 @@ The harm check holds: positives 45 against a floor of 21, near-miss clean 41 aga
    - On e2b it turns a tutor that answers almost no lookup (0 of 48 real-world answers, 12 of 64 note answers) into one that answers about half.
    - The cost is about 3 borrowed or wrong values on 48 trick questions, where master gave 0.
    - That trade is a product decision. The 2-item margin was set before this run and is not reopened here.
-2. **The window is now the best-supported change in this line.** It added 15 positives with the note on e2b, 13 on e4b, and 15 on e4b without the note (#229). Near-miss clean was never lower than the same arm without it by more than 2.
+2. **The window is now the best-supported change in this line.** It added 15 positives with the note on e2b (gated), and 13 on e4b with the note and 15 on e4b without it (#229), both descriptive.
+   - Near-miss clean was never lower than the same arm without it by more than 2.
+   - Answers containing a poison rose by 1 or 2 items each time: e2b 3 → 4, e4b 5 → 7, and #229's e4b 5 → 7.
    - It is pure and short notes are byte-identical, but it has not passed a rule of its own on master's behaviour. On master, e2b does not answer lookups, so the window has nothing to act through.
    - Shipping it alone is a decision about e4b and larger models, which take the window's gain without a note.
-3. **The classifier caps the note's reach.** It labels only 36 of the 64 blind positives as fact lookups. The 27 it calls "other" get no note and stay at master's behaviour.
+3. **The classifier caps the note's reach.** It labels only 36 of the 64 blind positives as fact lookups. The 27 it calls "other" get no note; only the window acts on them. Non-lookup positives passing were 6 / 4 / 10 on e2b and 8 / 8 / 14 on e4b (B / N / L).
