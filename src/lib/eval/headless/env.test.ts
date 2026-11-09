@@ -93,7 +93,7 @@ describe("parseEvalEnv", () => {
     expect(parseEvalEnv({ EVAL_SET: "probe-v2" })).toMatchObject({ suite: "rag", set: "probe-v2" });
     expect(parseEvalEnv({ EVAL_SET: "probe-v1", EVAL_NOTES_MISS: "off" })).toMatchObject({ suite: "rag", set: "probe-v1", notesMiss: "off" });
     expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_SET: "probe-v2" })).toThrow(/EVAL_SET=probe-v2: k12-flow runs only the dev items/);
-    expect(() => parseEvalEnv({ EVAL_SET: "probe-v3" })).toThrow(/EVAL_SET=probe-v3: use main, dev, test, dev-v2, probe-v2, probe-v1, blind-9f, blind-10, sealed/);
+    expect(() => parseEvalEnv({ EVAL_SET: "probe-v3" })).toThrow(/EVAL_SET=probe-v3: use main, dev, test, dev-v2, probe-v2, probe-v1, blind-9f, blind-10, blind-15, sealed/);
     expect(parseEvalEnv({ EVAL_SET: "blind-9f" })).toMatchObject({ suite: "rag", set: "blind-9f" });
   });
 });

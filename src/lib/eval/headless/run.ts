@@ -143,7 +143,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     notesDrop: o.notesDrop,
     notesMeaning: o.notesMeaning,
     passageWindow: o.passageWindow,
-    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f" | "blind-10" }),
+    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "probe-v2" | "probe-v1" | "blind-9f" | "blind-10" | "blind-15" }),
   });
   await write(report);
   return { report, outFile };

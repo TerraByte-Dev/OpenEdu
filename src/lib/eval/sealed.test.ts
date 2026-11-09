@@ -234,10 +234,10 @@ describe("loadSealed", () => {
     // asks about (Sirius), so src/ now quotes those names too. Catching them is right; they are not v1
     // vault words, so they are allowed here by name of the file that quotes them.
     const blindWords = new Set(RAG_BLIND_9F_RAW.toLowerCase().match(/[\p{L}\p{M}]+/gu) ?? []);
-    // The blind set for levers 10 and 9g (rag-blind-10.json) is public dev data whose realistic notes use
+    // The blind sets for levers 10, 9g and 15 (rag-blind-10.json, rag-blind-15.json) are public dev data whose realistic notes use
     // ordinary names and real things v1 also asks about, so src/ now quotes those words too. Catching them
     // is right; a hit found only in that file is allowed here by name.
-    const onlyBlind = (h: { files: string[] }) => h.files.every((f) => f === "src/lib/eval/rag-blind-10.json");
+    const onlyBlind = (h: { files: string[] }) => h.files.every((f) => f === "src/lib/eval/rag-blind-10.json" || f === "src/lib/eval/rag-blind-15.json");
     expect((err as SealedLintError).hits.filter((h) => !vaultWords.has(h.token) && !blindWords.has(h.token) && !onlyBlind(h)).map((h) => h.token)).toEqual([]);
   });
 
