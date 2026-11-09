@@ -4,7 +4,7 @@
 >
 > - **Lever 14, the passage window ([#227](https://github.com/TerraByte-Dev/OpenEdu/pull/227)).** It fixes a real bug (#226): on long notes, the answer was in the text shown to the model for 28 of 64 blind positives, and for 57 with the window. e2b barely used it under master's tutoring rules: positives went 7 → 11 of 64, p = 0.34, and the rule needed +4 with p < 0.05. e4b, reported and harm-checked only, used it: positives 20 → 35 of 64 (b/c 5/20, p = 0.004), near-miss clean 42 → 40 of 48 (the harm check allowed −3).
 > - **Lever 9g, the meaning check ([#228](https://github.com/TerraByte-Dev/OpenEdu/pull/228)).** It halved the notes-miss switch's false hides on fresh long notes, 8 → 4 positive items, but the rule allowed 1. All four scored 0.64–0.67 against a 0.68 cut. On real long notes, the meaning scores of right notes and look-alikes overlap.
-> - **Descriptive, not a gate:** on the same blind long notes, the unmerged turn-note stack (fact-lookup note plus the 9f switch) against no turn notes, both with the window, took e2b's positives from 12 to 39–41 of 64. Real-world answered went from 0 to 24–25 of 48, and near-miss clean from 46 to 44–45.
+> - **Descriptive, not a gate:** on the same blind long notes, the unmerged turn-note stack (fact-lookup note plus the 9f switch) against no turn notes, both with the window, took e2b's positives from 12 to 39 of 64. Real-world answered went from 0 to 25 of 48, and near-miss clean from 46 to 45. With 9g's switch instead, the numbers are 41, 24 and 44.
 >
 > **Blind, not held out.** The gate set was written by a fresh agent after both levers were frozen and pre-registered. It is still a model's idea of student notes. The sealed set was not opened. **Not on master:** lever 14 is on `feat/passage-window` (#227), and 9g is on `feat/lookup-meaning` (#228, stacked on 9f's #224). Both are draft and labelled `not-shipped`.
 
@@ -27,7 +27,7 @@ Both were chosen offline on dev data before the blind set existed. The data is t
 - Lever 14 took long-note answers in the shown text from 21 to 38 of 48.
 - 9g hid 0 of 164 dev positives (the word switch alone hid 19) and caught 80 of 167 near-misses (alone: 129).
 
-The pre-registrations are the bodies of #227 (posted 18:03:13Z) and #228 (18:03:56Z). Their dated comments add three things, all posted before the blind set existed and before any run: void rules (a run with no results file, or a dirty src, is rerun once; ERROR rows are outcomes), the pre-run review's corrections, and the run start. They are the canonical text; this summary does not replace them.
+The pre-registrations are the bodies of #227 (posted 18:03:13Z) and #228 (18:03:56Z). Their dated comments add void rules (a run with no results file, or a dirty src, is rerun once; ERROR rows are outcomes; posted 18:05Z) and the pre-run review's corrections (18:15Z), both before the blind set was committed (`8ca08fe`, 18:20:53Z) and before any run. A third comment records the run start; it was posted at 18:22:39Z and 18:22:41Z, after the driver's first start (18:22:31Z), with no results read. They are the canonical text; this summary does not replace them.
 
 ## Plan (from the pre-registrations)
 
