@@ -18,6 +18,7 @@
 // src/lib/eval/headless/README.md). That entry calls THIS function; it only swaps the platform
 // (SQLite, HTTP, settings store) underneath the kernel.
 
+import { shownIn } from "./rag-shown";
 import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type TutorTurnResult, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
 import { registerBuiltinTools, type ToolContext } from "../tools";
@@ -31,6 +32,7 @@ import { evalToolSyllabus } from "./goldens";
 import { RAG_FIXTURE, RAG_QUESTIONS, scoreRagAnswer, summarizeRag, type FixtureNote, type RagQuestion, type RagVerdict } from "./rag-fixture";
 import { RAG_HELDOUT } from "./rag-heldout";
 import { RAG_DEV_V2, RAG_DEV_V2_VAULT, realWorldAnswered } from "./rag-dev-v2";
+import { RAG_BLIND_10, RAG_BLIND_10_VAULT } from "./rag-blind-10";
 import { hasRefusalPhrase } from "./refusal";
 import type { LLMConfig, Syllabus } from "../../types";
 
@@ -103,6 +105,10 @@ export interface RagRow {
   /** The kernel answered without tools after Ollama could not parse the model's tool call
    *  (TutorTurnResult.toolCallRecovery). Null when that did not happen or the turn threw. */
   toolCallRecovery: TutorTurnResult["toolCallRecovery"];
+  /** Lever 10's mechanism check, read from the block the model was shown (not the answer): whether it
+   *  held one of the item's `expect` alternatives, and the near-miss's `poison`, as substrings. Null
+   *  when the item has no such value or the turn threw before grounding reported anything. */
+  shown: { expect: boolean | null; poison: boolean | null };
 }
 
 /** A set that brings its own vault, such as the sealed held-out file (sealed.ts). */
@@ -119,6 +125,8 @@ export interface RagReport {
   repeats: number;
   /** The instructions arm (ragInstructions). */
   prompt: RagPrompt;
+  /** "off" when lever 10's window was not applied (EVAL_PASSAGE_WINDOW=off, its paired arm). */
+  passageWindow: "on" | "off";
   /** "main", "dev", "test", "dev-v2", or the name of a custom set (e.g. the sealed held-out file). */
   set: string;
   rows: RagRow[];
@@ -171,7 +179,7 @@ export async function runRagEval(opts?: {
   only?: string;
   /** "main" (default) is rag-fixture.ts; "dev"/"test" are the held-out splits in rag-heldout.ts;
    *  "dev-v2" is rag-dev-v2.ts, with its own vault. */
-  set?: "main" | "dev" | "test" | "dev-v2";
+  set?: "main" | "dev" | "test" | "dev-v2" | "blind-10";
   /** A set that brings its own vault (the sealed held-out file). Replaces `set` and RAG_FIXTURE. */
   custom?: RagCustomSet;
   /** "python" (default): the tool-golden Python syllabus. "matched": a course whose scope covers the
@@ -179,6 +187,9 @@ export async function runRagEval(opts?: {
   syllabus?: "python" | "matched";
   /** The instructions arm (ragInstructions). Default "standin". */
   prompt?: RagPrompt;
+  /** "off": every long passage is shown from its start (TutorTurn.passageWindow), lever 10's paired arm.
+   *  Default "on", which is what the app does. */
+  passageWindow?: "on" | "off";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -190,6 +201,7 @@ export async function runRagEval(opts?: {
 
   const repeats = opts?.repeats ?? 1;
   const prompt = opts?.prompt ?? "standin";
+  const passageWindow = opts?.passageWindow ?? "on";
   if (!RAG_PROMPTS.includes(prompt)) {
     inFlight = false;
     throw new Error(`Unknown prompt arm "${prompt}": use ${RAG_PROMPTS.join(", ")}.`);
@@ -197,9 +209,9 @@ export async function runRagEval(opts?: {
   const instructions = ragInstructions(prompt);
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
-  const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : RAG_FIXTURE);
+  const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : set === "blind-10" ? RAG_BLIND_10_VAULT : RAG_FIXTURE);
   const pool: RagQuestion[] = opts?.custom ? opts.custom.questions
-    : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2 : RAG_HELDOUT.filter((q) => q.split === set);
+    : set === "main" ? RAG_QUESTIONS : set === "dev-v2" ? RAG_DEV_V2 : set === "blind-10" ? RAG_BLIND_10 : RAG_HELDOUT.filter((q) => q.split === set);
   const only = opts?.only ? new Set(opts.only.split(",").map((id) => id.trim()).filter(Boolean)) : null;
   const questions = only ? pool.filter((q) => only.has(q.id)) : pool;
   if (questions.length === 0) {
@@ -253,6 +265,7 @@ export async function runRagEval(opts?: {
             ],
             config,
             retrieval: mode,
+            ...(passageWindow === "off" ? { passageWindow } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -266,6 +279,7 @@ export async function runRagEval(opts?: {
           let traceKnown = true;
           let error: string | null = null;
           let toolCallRecovery: RagRow["toolCallRecovery"] = null;
+          let block: string | null = null;
           try {
             const result = await tutorEngine.run(turn, ctx);
             answer = result.text;
@@ -277,6 +291,7 @@ export async function runRagEval(opts?: {
             retrievedTitles = result.grounding.trace.hitTitles;
             toolCalls = result.toolCalls.map((c) => c.name);
             toolCallRecovery = result.toolCallRecovery;
+            block = result.grounding.block;
           } catch (e) {
             // A model or transport failure is an ERROR row with the real message. The kernel hands
             // back what grounding found before the failure, so the row keeps the real trace.
@@ -285,6 +300,7 @@ export async function runRagEval(opts?: {
             if (e instanceof TutorTurnError) {
               retrievalTrace = e.grounding.trace;
               retrievedTitles = e.grounding.trace.hitTitles;
+              block = e.grounding.block;
             } else {
               traceKnown = false;
             }
@@ -315,7 +331,8 @@ export async function runRagEval(opts?: {
           const note = (question as { note?: string }).note;
           const noteRetrieved = note ? retrievedTitles.includes(note) : null;
           const refusal = hasRefusalPhrase(answer);
-          rows.push({ prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, ttft_ms, total_ms, error, toolCallRecovery });
+          const shown = shownIn(block, question);
+          rows.push({ shown,  prompt, mode, question, answer, citedTitles, retrievedTitles, retrieval: retrievalTrace, toolCalls, verdict, realWorld, noteRetrieved, refusal, ttft_ms, total_ms, error, toolCallRecovery });
           console.log(`[rag-eval] ${mode.padEnd(6)} ${question.id.padEnd(4)} ${error ? "ERROR" : verdict.pass ? "PASS" : "FAIL"} — ${error ?? verdict.reason}${toolCallRecovery ? " · answered without tools (tool call unparseable)" : ""} · ttft ${ttft_ms ?? "-"}ms · total ${total_ms}ms`);
         }
       }
@@ -363,7 +380,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, passageWindow, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

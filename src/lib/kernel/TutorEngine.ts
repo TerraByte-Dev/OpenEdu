@@ -44,6 +44,10 @@ export interface TutorTurn {
   // sees anything; "off" disables it and leaves notebook.search as the only path. Exposed so the
   // eval can A/B the two mechanisms on the same fixture — the falsification condition needs both.
   retrieval?: RetrievalMode;
+  // "off" shows every long passage from its start, as before lever 10 (ground.ts passageFor), so an
+  // eval can run the lever's paired arm at the same commit (EVAL_PASSAGE_WINDOW=off). Default "on";
+  // the app never sets it.
+  passageWindow?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -168,7 +172,7 @@ export class TutorEngine {
     }
 
     const grounded = lastUser
-      ? await ground(lastUser.content, ctx, budget, retrieval, gloss?.text)
+      ? await ground(lastUser.content, ctx, budget, retrieval, gloss?.text, turn.passageWindow ?? "on")
       : EMPTY_GROUNDING;
     const grounding: Grounding = gloss ? { ...grounded, trace: { ...grounded.trace, gloss } } : grounded;
 

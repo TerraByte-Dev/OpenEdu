@@ -27,6 +27,10 @@ export interface EvalOptions {
   syllabus?: "python" | "matched";
   /** RAG only: the instructions arm (rag-runner.ts ragInstructions). Unset: the runner's default. */
   prompt?: RagPrompt;
+  /** RAG only: "off" shows every long passage from its start, as before lever 10 (kernel
+   *  TutorTurn.passageWindow, ground.ts passageFor), the lever's paired arm at the same commit. Unset:
+   *  "on", what the app does. */
+  passageWindow?: "on" | "off";
   /** The Settings context-window cap. Unset: the app default. */
   maxContextTokens?: number;
   /** k12-flow and k12-flow-fr only: the first N items. */
@@ -50,7 +54,7 @@ const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"];
 /** b7-cpu talks to a second, CPU-only Ollama server on its own port (README.md, "b7-cpu"). */
 export const B7_DEFAULT_OLLAMA_URL = "http://127.0.0.1:11435";
 export const B7_DEFAULT_REPEATS = 5;
-const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
+const SETS = ["main", "dev", "test", "dev-v2", "blind-10", "sealed"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 // Kept in step with rag-runner.ts RAG_PROMPTS by parity.test.ts (importing the runner here would pull the
 // kernel into a module that is meant to stay pure).
@@ -116,6 +120,13 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   const prompt = get("EVAL_PROMPT") as RagPrompt | undefined;
   if (prompt !== undefined && !PROMPTS.includes(prompt)) errs.push(`EVAL_PROMPT=${prompt}: use ${PROMPTS.join(", ")}`);
 
+  const passageWindow = get("EVAL_PASSAGE_WINDOW") as EvalOptions["passageWindow"];
+  if (passageWindow !== undefined) {
+    if (passageWindow !== "on" && passageWindow !== "off") errs.push(`EVAL_PASSAGE_WINDOW=${passageWindow}: use on or off`);
+    if (flow || b7) errs.push(`EVAL_PASSAGE_WINDOW does not apply to ${suite}`);
+    if (set === "sealed") errs.push("EVAL_PASSAGE_WINDOW is not allowed with EVAL_SET=sealed: the run uses the app's passages");
+  }
+
   const syllabus = get("EVAL_SYLLABUS") as EvalOptions["syllabus"];
   if (syllabus !== undefined && syllabus !== "python" && syllabus !== "matched") errs.push(`EVAL_SYLLABUS=${syllabus}: use python or matched`);
 
@@ -158,6 +169,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     apiKey,
     set,
     sealedPath,
+    passageWindow,
     repeats,
     modes,
     only: get("EVAL_ONLY"),
