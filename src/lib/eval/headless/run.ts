@@ -141,7 +141,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     passageWindow: o.passageWindow,
     ...(o.courseRules === "legacy" ? { courseRules: "legacy" as const } : {}),
     ...(o.temperature ? { temperature: o.temperature } : {}),
-    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "blind-10" }),
+    ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "blind-10" | "blind-16" }),
   });
   await write(report);
   return { report, outFile };

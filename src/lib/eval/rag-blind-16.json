@@ -1,0 +1,902 @@
+{
+  "notes": [
+    {
+      "title": "Physics — Magnetism and Electromagnets",
+      "text": "PHYSICS - MAGNETISM & ELECTROMAGNETS (topic 7)\nMr Okafor, Yr 10 set 2. revision for the end of topic test!!\n\n== Magnets basics ==\n- magnets have a north pole and a south pole. like poles repel, unlike (opposite) poles attract\n- magnetic materials: iron, nickel, cobalt (and steel bc it has iron in it). NOT copper, NOT aluminium (my pencil case is aluminium & the magnet did nothing lol)\n- permanent magnet = makes its own field all the time\n- induced magnet = only becomes a magnet when its in a field. loses most of it when you take it out. ALWAYS ATTRACTS never repels (Mr O said this comes up every year)\n- field lines go from N to S, closer together = stronger field. strongest at the poles\n\n== Plotting compass practical ==\ntextbook p. 112 (the green AQA one)\n- put bar magnet on paper, put plotting compass near the N end, mark where needle points, move compass to the dot, repeat... join dots up\n- our field drawing was a bit wonky at the S end bc Josh kept knocking the table\n- earth has a magnetic field too, thats why compasses work. the core is the reason (molten iron stuff)\n- compass needle is basically a tiny magnet that lines up with the field\n\n== Electromagnetism ==\n- a wire with current through it has a magnetic field round it - circles around the wire\n- RIGHT-HAND GRIP RULE: thumb = direction of current, curled fingers = direction of field\n- bigger current = stronger field, further from wire = weaker\n- solenoid = coil of wire. field inside is strong and uniform (same everywhere), outside looks like a bar magnet's field\n- add an iron core -> electromagnet, way stronger\n- electromagnets can be switched ON and OFF which is the whole point\n\n== Our electromagnet practical (14th Oct) ==\ngroup: \"The Coil Gang\" (me, Josh, Amira, Ben)\nwound wire round an iron nail, connected to power pack at 2 A, counted how many paperclips it could pick up\n| turns | paperclips |\n| 10 | 4 |\n| 20 | 9 |\n| 30 | 13 |\n| 40 | 17 |\n- conclusion: more turns = stronger electromagnet, roughly proportional. e.g. doubling 10 -> 20 turns went from 4 to 9 paperclips\n- the 30 turn one might of been 14 but one fell off when Ben sneezed\n- independent var = no. of turns, dependant var = no. of paperclips, control = current (2 A), same nail, same size paperclips\n- improvement: use a newtonmeter instead of paperclips bc paperclips are a bit random\n\nways to make an electromagnet stronger:\n1. more turns on the coil\n2. bigger current\n3. add an iron core (soft iron bc it loses magnetism quickly)\n\n== Uses ==\n- scrapyard cranes (switch off to drop the cars)\n- electric bell - current makes electromagnet pull the hammer, breaks circuit, springs back, repeat = ringing\n- relay - small current in one circuit switches on a big current in another circuit. like car starter motors. safer\n- MRI scanners (huge electromagnets, superconducting)\n- loudspeakers (see motor effect)\n\n== Motor effect (HIGHER) ==\nwire carrying current in a magnetic field feels a FORCE. bc the two fields interact.\nFLEMING'S LEFT HAND RULE:\n- thumb = Force (motion)\n- first finger = Field (N to S)\n- second finger = current (I)\nMr Okafor's mnemonic: \"Father Bought Ice-cream\" -> F, B, I going thumb, first, second. (B is field, I is current)\n- Fleming's left hand rule is for MOTORS (left = motor, Mr O said remember \"Left = Lift off\")\n\nequation: F = B I L\nF = force (N), B = magnetic flux density (tesla (T)), I = current (A), L = length of wire in the field (m)\n- force is biggest when the wire is at 90 deg to the field, zero if parallel\n\nWORKED EXAMPLE (from the board, 21st Oct):\nB = 0.25 T, I = 3 A, L = 0.4 m\nF = 0.25 x 3 x 0.4 = 0.3 N\n(i got 3 N first bc i multiplied by 10 for some reason. DONT DO THAT)\n\nhomework q: B = 0.5 T, I = 1.2 A, L = 0.15 m -> F = 0.09 N (Mr O ticked it)\n\n== Electric motors ==\n- coil of wire on an axle in a magnetic field\n- one side gets pushed up, other side pushed down -> it rotates\n- split-ring commutator swaps the current direction every half turn so it keeps spinning the same way\n- speed up the motor: more current, more turns, stronger magnet\n- we made a mini motor with a battery, magnet and a bit of copper wire, ours spun for about 6 seconds before it fell off lol (Amira's other group's one actually worked properly)\n\n== Loudspeakers ==\n- AC through coil -> coil moves back and forth in the field of a permanent magnet -> cone vibrates -> pressure waves = sound\n\n== extra bits ==\n- Faraday did induction (generators/dynamos) - thats yr 11 / next topic, not in this test\n- Mr O said write \"magnetic flux density\" not \"magnet strength\" in the exam\n- 6 mark q likely on the electromagnet practical - use the data + say about control vars\n- homework due Fri 3rd Nov: exam qs p. 118-119 (q 1-6)\n- REMEMBER: induced magnets always attract. copper isnt magnetic. F = BIL only works for current at right angles to the field\n- my score on last years end of topic paper (practice): 31/40, target is 34+"
+    },
+    {
+      "title": "Biology — Cells and Microscopy",
+      "text": "BIOLOGY - Cells & Microscopy  (B1, Mrs Patel)\nstarted 18/9, test is week of 9th Oct\n\n## Animal vs plant cells\nboth have:\n- nucleus - contains DNA/genetic material, controls the cell\n- cytoplasm - where most chemical reactions happen (jelly stuff)\n- cell membrane - controls what goes in & out\n- mitochondria - aerobic respiration happens here, releases energy\n- ribosomes - make proteins (protein synthesis)\nplant cells ALSO have:\n- cell wall (cellulose) - strengthens the cell\n- chloroplasts - photosynthesis, contain chlorophyll\n- permanent vacuole - full of cell sap, keeps cell firm/turgid\n(Mrs P: \"3 extra for plants - Wall, Chloro, Vac\" just learn it)\n\n## Prokaryotes vs eukaryotes\n- eukaryotic = has a nucleus (animal, plant, fungi, protists)\n- prokaryotic = bacteria, NO nucleus. DNA is a single loop floating in the cytoplasm + little rings called plasmids\n- bacteria are way smaller, about 1-2 µm long (some bigger)\n- bacteria can have a flagellum to move\n- antonie van Leeuwenhoek was the first person to see bacteria w/ his homemade microscope (\"animalcules\" lol) in the 1670s\n\n## The light microscope\nparts: eyepiece lens, objective lenses, stage, clips, lamp, coarse focus, fine focus\n- our school ones: eyepiece x10, objectives x4, x10, x40\n- total mag = eyepiece x objective, so max for us = x400\n- ALWAYS start on lowest power (x4) and focus with coarse knob first, then fine focus on higher ones\n- never use the coarse focus on x40, you smash the slide (Ryan did this, RIP slide)\n\n## Onion cell practical (22nd Sept)\ngroup: \"Team Mitochondria\" (me, Ryan, Leah)\nmethod:\n1. peel thin layer of epidermis off the onion with tweezers\n2. put on slide in a drop of water\n3. add iodine solution (stains the nucleus + makes it easier to see)\n4. lower coverslip at an angle with a mounted needle so no air bubbles\n5. look at on x100 then x400\nresults: cells looked like bricks in a wall, nucleus was a little dark blob. no chloroplasts bc onion bulb is underground (no light)\n- we drew 3 cells\n\n## Cheek cells\n- swab inside of cheek with cotton bud, smear on slide\n- stain with methylene blue\n- cells were rounder and more random shapes than onion, nucleus stained dark blue\n- cheek cell about 60 µm across (Mrs P's figure on the board)\n- had to put used cotton buds in disinfectant (hygiene!!)\n\n## MAGNIFICATION\nmagnification = image size / actual size\nMrs Patel's way of remembering: \"MIA - missing in action\" -> Magnification = Image over Actual\nrearrange: actual size = image size / magnification\n- make sure units are the SAME before dividing!!\n\n## Units (people lose marks on this)\n- 1 mm = 1000 µm (micrometres)\n- 1 µm = 1000 nm (nanometres)\n- so mm -> µm x1000, µm -> nm x1000\n- standard form: 1 µm = 1 x 10^-6 m, 1 nm = 1 x 10^-9 m\n\nworked out our onion cell: image in my drawing was 12 mm long at x400\nactual = 12 / 400 = 0.03 mm = 30 µm (Mrs P said this is about right for onion)\n\n## Electron microscopes\n- use beams of electrons instead of light\n- much higher magnification AND resolution\n- resolution = ability to tell apart 2 points that are close together\n- electron microscope resolution can be about 0.1 nm (transmission EM) so you can see ribosomes, inside of mitochondria etc\n- light microscope cant see ribosomes at all\n- BUT electron microscopes are massive, expensive, and specimen must be dead (in a vacuum)\n- SEM = 3D surface image, TEM = 2D slice, higher res\n- the invention of the EM in the 1930s meant we learned loads more about sub-cellular structures\n\n## Specialised cells (p. 34 in the textbook)\n- sperm cell - tail, lots of mitochondria, acrosome w/ enzymes\n- nerve cell - long axon, branched dendrites to connect\n- muscle cell - lots of mitochondria, can contract\n- root hair cell - big surface area for absorbing water+minerals, no chloroplasts\n- xylem - dead cells, hollow tubes, lignin\n- phloem - sieve plates, companion cells\n- cell differentiation = cell becomes specialised. animal cells mostly do it early, plant cells can do it all their life\n\n## Drawing rules (Mrs P is STRICT)\n- pencil only\n- no shading!!!\n- clear continuous lines\n- label lines with a ruler, don't cross them\n- give the magnification + title\nmy onion drawing got 7/10 bc i shaded the nucleus. annoying.\n\n## Required practical exam tips\n- explain why you use a stain (to make structures visible / add contrast)\n- explain coverslip (keeps specimen flat, stops it drying out, protects lens)\n- calculation q's: SHOW THE WORKING + units\n- homework: exam q's on p. 36-37 due Mon 2nd Oct"
+    },
+    {
+      "title": "Chemistry — Electrolysis",
+      "text": "CHEM - ELECTROLYSIS\nMr Hughes, C5. Test on 30th Jan!!!\n\n### What is electrolysis\n- splitting up an ionic compound using electricity\n- the ionic compound must be MOLTEN or DISSOLVED in water (= electrolyte) so the ions can move\n- solid ionic compounds dont conduct bc ions are fixed in the lattice\n- electrodes: the positive one = ANODE, the negative one = CATHODE\n- Mr Hughes's mnemonic: PANIC -> Positive Anode, Negative Is Cathode\n- positive ions (cations) go to the cathode, negative ions (anions) go to the anode\n- OIL RIG - oxidation is loss (of electrons), reduction is gain\n- at cathode = reduction (ions gain electrons), at anode = oxidation\n- electrodes usually inert - graphite or platinum - so they don't react\n\n### Molten compounds\n- molten ionic compound -> metal at cathode, non-metal at anode. simple\n- e.g. molten zinc chloride -> zinc + chlorine\n- Humphry Davy discovered sodium and potassium by electrolysis in 1807 (bonus fact, Mr H loves Davy)\n\n### Electrolysis of solutions (the annoying bit)\nin water there are also H+ and OH- ions from the water\nAT THE CATHODE:\n- if the metal is MORE reactive than hydrogen -> hydrogen gas made\n- if less reactive than hydrogen (copper, silver, gold) -> the metal is made\nAT THE ANODE:\n- if there's halide ions (Cl-, Br-, I-) -> the halogen is made\n- if not -> oxygen is made (from the OH- ions)\n- 4OH- -> O2 + 2H2O + 4e-\n\n### Copper sulfate practical (9th Jan) - required practical\ngroup: \"The Bunsen Burners\" (me, Tom, Priya, Kacper)\n- used COPPER electrodes not graphite\n- current 0.5 A for 20 minutes\n- weighed electrodes before & after (dried them with propanone first)\nresults:\n| electrode | before (g) | after (g) | change |\n| cathode | 12.36 | 12.78 | +0.42 g |\n| anode | 12.51 | 12.07 | -0.44 g |\n- cathode gained mass bc copper deposited on it (pinky-brown coating)\n- anode lost mass bc copper atoms -> Cu2+ ions went into solution\n- should be the same in theory - ours were 0.02 g off, prob bc a bit of copper flaked off the anode into the bottom of the beaker\n- charge: Q = I x t = 0.5 A x 1200 s = 600 C\n- with graphite electrodes instead you'd get copper at cathode + oxygen at the anode and the blue colour fades\n\n### Brine (sodium chloride solution)\n- products: hydrogen at cathode, chlorine at anode, sodium hydroxide left in solution\n- all 3 are really useful (NaOH for soap/bleach, Cl2 for water treatment & PVC, H2 for fuel / margarine)\n- we did a small version with test tubes over the electrodes on 16th Jan\n- our hydrogen tube filled in 3 min 40 s, the chlorine one never filled fully bc chlorine dissolves a bit in water\n- TESTS:\n  - hydrogen: lit splint -> squeaky pop\n  - chlorine: bleaches damp blue litmus paper (goes red first then white)\n  - oxygen: relights a glowing splint\n- smelled like a swimming pool, Mr H opened all the windows\n\n### Half equations (HIGHER)\n- cathode: 2H+ + 2e- -> H2\n- anode: 2Cl- -> Cl2 + 2e-\n- copper: Cu2+ + 2e- -> Cu\n- the electrons have to balance. Mr H: \"electrons are like change from a shop, it has to add up\"\n\n### Extracting aluminium\n- aluminium is more reactive than carbon so cant use carbon to reduce it, have to use electrolysis\n- ore = bauxite -> purified to aluminium oxide (Al2O3)\n- aluminium oxide has a really high melting point so its dissolved in molten CRYOLITE\n- this means it can be done at about 950 °C - saves loads of energy & money\n- cathode: Al3+ + 3e- -> Al (molten aluminium collects at the bottom)\n- anode: 2O2- -> O2 + 4e-\n- the anodes are made of graphite (carbon) and the oxygen reacts with them to make CO2, so they burn away and have to be replaced regularly\n- uses LOADS of electricity -> expensive. smelters are often near hydroelectric power stations\n\n### Electroplating\n- coat an object in a thin layer of metal using electrolysis\n- object = cathode, plating metal = anode, electrolyte contains ions of the plating metal\n- e.g. silver plating cutlery, chromium on bike parts (shiny + stops rust)\n\n### Exam stuff\n- revision guide p. 156-159\n- 6 markers often ask: predict products + explain. use the reactivity rules above\n- Mr H's warning: dont say \"the electrons move through the solution\" - the IONS move in the solution, electrons move in the wires\n- past paper mark (Nov mock): 19/30. need to sort out half equations"
+    },
+    {
+      "title": "History — World War One",
+      "text": "HISTORY - WW1 (1914-1918)  Ms Bradley\nGCSE Conflict & Tension unit. Knowledge test 12th Feb, essay due 26th Feb\n\n## LONG TERM CAUSES - \"MAIN\"\n- Militarism - arms race, esp. naval race Britain vs Germany (Dreadnoughts! Britain launched HMS Dreadnought 1906)\n- Alliances - Triple Entente (Britain, France, Russia) vs Triple Alliance (Germany, Austria-Hungary, Italy)\n- Imperialism - competing for empires/colonies, e.g. Moroccan crises\n- Nationalism - pride in your country, Serbian nationalism in the Balkans\nMs Bradley adds the A for Assassination as the short term trigger so it's MAIN-A -> her mnemonic: \"My Aunt Isn't Nice, Actually\"\n\n## SHORT TERM - Sarajevo\n- Archduke Franz Ferdinand (heir to Austria-Hungary) shot in Sarajevo, 28 June 1914\n- by Gavrilo Princip, member of the Black Hand (Serbian nationalist group)\n- driver took a wrong turn after the first bomb failed, stopped right next to Princip. (sandwich story = myth, Ms B was v clear)\n- Austria-Hungary declared war on Serbia -> Russia mobilised to help Serbia -> Germany declared war on Russia + France\n- Schlieffen Plan: Germany wanted to knock out France quickly through Belgium, then turn on Russia\n- Britain joined 4 Aug 1914 bc Germany invaded Belgium (Treaty of London 1839 - \"scrap of paper\")\n\n## The Western Front\n- Schlieffen plan failed - Battle of the Marne Sept 1914\n- \"race to the sea\" -> both sides dig trenches from the Channel to Switzerland\n- stalemate for ~4 years\n\n## Trenches\n- front line, support trench, reserve trench, communication trenches\n- no man's land in between w/ barbed wire\n- conditions: rats, lice, mud, trench foot, shell shock\n- trench foot = feet rot from standing in cold wet water for days, could need amputating. fixed with whale oil + dry socks + duckboards\n\ngroup presentation on trench foot (5th Feb)\ngroup: \"The Tommies\" (me, Harry, Zainab, Ellie)\n- got 18/25, Ms B said good sources but we went over time (9 mins instead of 6...)\n- Harry's bit about whale oil was the best part apparently\n\n## New weapons\n- machine guns (could fire 400-600 rounds/min)\n- poison gas - chlorine first used at Ypres 1915, then phosgene, mustard gas\n- tanks - first used at the Somme Sept 1916, kept breaking down\n- aircraft - reconnaissance at first, then dogfights\n- artillery caused most casualties\n\n## Big battles\n### Verdun\n- the French one, started earlier in 1916, Germany wanted to \"bleed France white\"\n- lasted most of the year\n- one reason Britain launched the Somme = to take pressure off the French at Verdun\n### The Somme\n- started 1 July 1916\n- Haig in charge, week-long bombardment first, was meant to destroy the wire. it didnt\n- 57,470 British casualties on the FIRST DAY (about 19,000 killed)\n- ended Nov 1916, Allies gained about 6 miles\n- Haig = \"Butcher of the Somme\"? or did he learn lessons? -> interpretations q!! Ms B wants us to argue both sides\n### Passchendaele 1917 - mud, mud, more mud\n\n## 1917 - 1918\n- USA joined April 1917 (unrestricted submarine warfare + Zimmermann telegram)\n- Russia left after revolution - Treaty of Brest-Litovsk, March 1918\n- German Spring Offensive (Ludendorff) March 1918 - nearly worked\n- Hundred Days Offensive - Allies push back\n- Germany asks for an armistice, fighting stops in the autumn of 1918\n\n## Treaty of Versailles\n- signed 28 June 1919 (5 years to the day after Sarajevo - Ms B says this is a nice detail to drop in)\n- Big Three: Clemenceau (France), Lloyd George (Britain), Woodrow Wilson (USA)\n  - Ms B: \"Clem wants revenge, Lloyd wants the middle, Woody wants peace\"\n- terms - LAMB: Land, Army, Money, Blame\n  - Land: Alsace-Lorraine back to France, lost all colonies, Polish corridor\n  - Army: max 100,000 men, no air force, no tanks, 6 battleships, Rhineland demilitarised\n  - Money: reparations £6.6 billion (set in 1921)\n  - Blame: Article 231 war guilt clause\n- Germans called it a \"Diktat\" (dictated peace)\n\n## my essay\n\"How far was the Treaty of Versailles fair?\" - got 14/20. need to use more own knowledge and actually reach a judgement (Ms B wrote \"SO WHAT?\" next to paragraph 2 lol)\n\n## random extra\n- my great-great-grandad was in the Durham Light Infantry, mum has his medal\n- textbook p. 44-61 for this whole unit\n- source q's: always do Content + Provenance (NOP = Nature, Origin, Purpose)"
+    },
+    {
+      "title": "Geography — Rivers and Flooding",
+      "text": "GEOG - RIVERS & FLOODING\nMr Lindqvist (Physical Landscapes in the UK, paper 1)\n\n### Drainage basin vocab\n- drainage basin = area of land drained by a river + its tributaries\n- watershed = the boundary of a drainage basin (usually high ground)\n- source = where river starts\n- mouth = where it meets the sea\n- tributary = smaller river joining a bigger one\n- channel = where the water actually flows\n\n### The long profile\nupper course -> middle course -> lower course\n- upper: steep gradient, narrow + shallow, V-shaped valley, lots of vertical erosion, big angular boulders\n- middle: gentler, wider, meanders start, lateral erosion\n- lower: flat, wide + deep channel, floodplains, levees, estuaries, small smooth sediment\n- discharge + velocity INCREASE downstream (people think it slows down but it doesn't, Mr L said this is a classic mistake)\n\n### Erosion processes\nMr L mnemonic: \"Happy Ants Sing Always\"\n- Hydraulic action - force of the water hitting the banks, air gets forced into cracks\n- Abrasion - rocks carried by the river scrape the bed+banks (like sandpaper)\n- Solution - some rocks (limestone/chalk) dissolve in the water\n- Attrition - rocks knock into each other, get smaller + rounder\n\n### Transportation\n- traction (rolling big boulders), saltation (bouncing), suspension (carried in water), solution (dissolved)\n- \"Tiny Snails Sit Still\" was last year's teacher's one but Mr L hates it\n\n### Landforms\n- waterfalls: hard rock on top of soft rock, soft rock erodes faster -> undercut -> overhang collapses -> plunge pool, gorge forms as it retreats. e.g. High Force, River Tees (21 m drop)\n- interlocking spurs (upper course)\n- meanders: fastest flow on outside bend -> erosion -> river cliff; slow flow inside -> deposition -> slip-off slope\n- ox-bow lakes: neck of meander gets narrower, breaks through in a flood, deposition seals off the old loop\n- levees: flood -> water loses energy -> heaviest sediment dropped first nearest the channel -> builds up\n\n### FIELDWORK - Kettlewell Beck (18th May)\ngroup: \"Meander Mob\" (me, Callum, Sophie, Ade)\nhypothesis: width, depth & velocity increase downstream\n| site | width (m) | avg depth (m) | velocity (m/s) |\n| 1 | 2.4 | 0.18 | 0.21 |\n| 2 | 3.9 | 0.27 | 0.34 |\n| 3 | 5.6 | 0.42 | 0.55 |\n- so velocity went from 0.21 m/s at site 1 up to 0.55 m/s at site 3\n- velocity measured with a float (orange!) over 10 m, timed 3 times, took the average\n- depth measured w/ metre ruler at 5 points across\n- hypothesis ACCEPTED (mostly). site 2 depth a bit weird bc there was a big pool\n- risk: slippy rocks, Callum fell in at site 3 (he was fine, just wet)\n- evaluation: only 3 sites, float got stuck on a branch once, do more repeats\n\n### Flood hydrographs\n- shows discharge (cumecs = m3/s) vs time, with rainfall as bars\n- peak rainfall -> peak discharge. gap between them = LAG TIME\n- rising limb, falling limb\n- the hydrograph we drew in class (made up data for \"River Brennock\"): lag time 9 hours, peak discharge 240 cumecs\n- short lag time + high peak = flashy = more flood risk\n\nfactors that increase flood risk:\n- steep slopes, impermeable rock (clay/granite), saturated soil\n- urbanisation - tarmac & concrete are impermeable, drains take water straight to the river\n- deforestation - less interception\n- heavy/prolonged rain, snowmelt\n\n### Case study - Boscastle, Cornwall, 16 Aug 2004\n- loads of rain in a few hours over the high ground\n- 2 rivers (Valency + Jordan) come together just above the village, steep narrow valley\n- ~100 cars washed into the sea, buildings destroyed, no one died (helicopter rescue)\n- afterwards: river channel widened + deepened, new bridge with bigger arch, car park moved\n\n### Flood management\nHARD ENGINEERING (man-made structures, expensive)\n- dams + reservoirs - control discharge, can make HEP, but flood land, cost loads\n- straightening the channel - water moves away faster (but floods downstream!)\n- embankments - raise the banks\n- flood relief channels - e.g. the Jubilee River near Maidenhead\n- the Thames Barrier protects London from tidal surges\nSOFT ENGINEERING (works with nature, cheaper)\n- flood warnings (EA), preparation - sandbags\n- floodplain zoning - don't build on the floodplain\n- planting trees - afforestation increases interception\n- river restoration - put the meanders back\n\nour town's flood wall (built after the 2015 floods) cost £4.2 million - Mr L says it's protected about 300 houses since. local paper: \"worth every penny\"\n\n### Exam bits\n- textbook p. 88-103\n- 9 mark q: \"assess the costs and benefits of a flood management scheme\"\n- always use NAMED example + numbers\n- test on 6th June, my last one was 41/60"
+    },
+    {
+      "title": "Maths — Ratio and Proportion",
+      "text": "MATHS - Ratio & Proportion\nMiss Chen, 10X2. Unit 7. Test 12 Mar\n\n---- RATIO BASICS ----\n- ratio compares amounts of things. 3:2 means \"for every 3 of these theres 2 of those\"\n- simplify by dividing both sides by the HCF. 12:18 -> 2:3\n- ratios with units -> make the units the same first!! e.g. 50p : £2 = 50:200 = 1:4\n- ratio as fraction: in 3:5 the first part is 3/8 of the total (not 3/5!!! classic mistake)\n- 1:n form -> divide both by the first number. e.g. 4:10 = 1:2.5\n\n---- SHARING IN A RATIO ----\nMiss Chen's mnemonic: \"Angry Dogs Munch\" -> Add the parts, Divide the total, Multiply\nexample from the board: share £84 in the ratio 3:4\n- Add: 3 + 4 = 7 parts\n- Divide: 84 / 7 = £12 per part\n- Multiply: 3 x 12 = £36, 4 x 12 = £48\n- CHECK: 36 + 48 = 84\nharder one: \"the ratio of boys to girls is 5:3, there are 14 more boys than girls, how many altogether?\"\n- difference = 5 - 3 = 2 parts = 14 -> 1 part = 7 -> total 8 parts = 56 people\n\n---- RECIPES / SCALING ----\ngroup project: bake sale for Year 7 charity week (group: \"Ratio Rangers\" - me, Mia, Hamza, Lucy)\noriginal recipe makes 12 cupcakes:\n- 150 g flour\n- 120 g sugar\n- 2 eggs\n- 100 g butter\nwe needed 30 cupcakes -> scale factor 30 / 12 = 2.5\n- flour 150 x 2.5 = 375 g\n- sugar 120 x 2.5 = 300 g\n- eggs 2 x 2.5 = 5 eggs\n- butter 100 x 2.5 = 250 g\nwe sold out in 20 mins, made £27.50 (Hamza ate 2 tho)\n- Miss C said use the \"unitary method\" if the numbers are awkward: find for 1 first, then times up\n\n---- BEST BUY ----\ncompare price per gram (or grams per penny)\ncereal example:\n- 500 g for £1.85 -> 37p per 100 g\n- 750 g for £2.60 -> about 34.7p per 100 g\n- so the 750 g box is better value\n- ALWAYS say which is better + show the comparison\n\n---- DIRECT PROPORTION ----\n- y ∝ x means y = kx (k = constant of proportionality)\n- graph = straight line through the origin\n- method: write y = kx, sub in values to find k, then use it\nhomework q: y is directly proportional to x, y = 20 when x = 8 -> k = 2.5, so when x = 14, y = 35\n- can also be y ∝ x² (y = kx²) or y ∝ cube of x etc\n\n---- INVERSE PROPORTION ----\n- y ∝ 1/x means y = k/x\n- as one goes up, the other goes down\n- graph is a curve (doesnt touch the axes)\n- e.g. 6 workers take 10 days to build a wall -> total = 60 \"worker-days\" -> 4 workers take 15 days\n- Miss C: \"more workers = less time, that's the vibe of inverse\"\n\n---- MAP SCALES ----\n- scale 1:25 000 means 1 cm on the map = 25 000 cm in real life = 250 m\n- so 4 cm on the map = 1 km\n- our walking route on the school trip map was 7.4 cm -> 1.85 km\n- the Explorer map we used for DofE was 1:25 000\n\n---- RATIOS IN REAL LIFE ----\n- gears, mixing paint, concrete (1:2:3 cement:sand:gravel)\n- telly screens are 16:9\n- golden ratio ≈ 1.618 (bonus, Miss C showed us the sunflower thing, not on the test)\n\n---- RATIO <-> PERCENTAGES ----\n- ratio 3:7 -> total 10 parts -> 30% and 70%\n- in our class 18 people have a phone with a cracked screen and 12 don't -> 18:12 = 3:2 -> 60% cracked (Miss C was horrified)\n\n---- EXCHANGE RATES (proportion again) ----\n- exchange rate on the worksheet: £1 = €1.16\n- £250 -> 250 x 1.16 = €290\n- €87 -> 87 / 1.16 = £75\n- Miss C: \"if you're going INTO euros the number gets bigger, so times. coming back, divide\"\n- Lucy's family trip to Spain: she got €580 for £500 at the airport (bad rate, airports rip you off)\n\n---- SIMILAR SHAPES ----\n- similar = same shape, different size, all sides in the same ratio\n- length scale factor k -> area scale factor k² -> volume scale factor k³\n- e.g. two similar cylinders, heights 5 cm and 15 cm -> k = 3, so area x9, volume x27\n- small one holds 40 cm³ -> big one holds 40 x 27 = 1080 cm³\n- this was the q everyone got wrong in the starter on 26 Feb, most people just did x3\n\n---- RATES ----\n- speed = distance / time is a proportion thing too (distance ∝ time if speed is constant)\n- Miss C's triangle for speed: \"Dad's Silly Teeth\" (D on top, S and T on the bottom)\n- e.g. 120 km in 1.5 hours = 80 km/h\n- density = mass / volume, pressure = force / area - same idea\n\n---- MISTAKES I KEEP MAKING ----\n- mixing up the order (if it says girls:boys, put girls FIRST)\n- forgetting to check units\n- in \"share in the ratio\" Qs I give the parts not the amounts - READ THE QUESTION\n\ntest 12 Mar: 38/45 (lost marks on the inverse proportion q, wrote y = kx by accident)\nhomework next: textbook p. 203, ex 7C q 1-15 - due Thurs"
+    },
+    {
+      "title": "Economics — Supply and Demand",
+      "text": "ECONOMICS - SUPPLY & DEMAND  (Mr Adeyemi)\nTheme 1, microeconomics. Topic test 20th Oct\n\n## Markets\n- market = where buyers and sellers meet to exchange goods/services (doesn't have to be a physical place, e.g. eBay)\n- price mechanism allocates resources - signalling, rationing, incentive functions (Mr A: \"SRI, like the country\")\n\n## DEMAND\n- demand = the quantity consumers are willing AND able to buy at a given price (effective demand)\n- law of demand: price up -> quantity demanded down (inverse relationship)\n- demand curve slopes DOWN left to right\n- movement ALONG the curve = only caused by change in the good's own price (extension / contraction)\n- SHIFT of the curve = caused by anything else\nMr A's acronym for things that shift demand: PASIFIC\n- Population\n- Advertising\n- Substitutes (price of)\n- Income\n- Fashion/tastes\n- Interest rates\n- Complements (price of)\n- normal goods: income up -> demand up. inferior goods: income up -> demand down (e.g. value brand beans, bus travel?)\n\n## SUPPLY\n- supply = quantity producers are willing and able to sell at a given price\n- price up -> quantity supplied up (more profitable)\n- supply curve slopes UP\n- shifts in supply: costs of production, tech, taxes/subsidies, weather (for agriculture), number of firms\n- a tax shifts supply LEFT, a subsidy shifts it RIGHT\n\n## EQUILIBRIUM\n- where demand = supply, market clears\n- excess demand (shortage) when price below equilibrium -> price rises\n- excess supply (surplus) when price above -> price falls\n- Alfred Marshall drew the first proper supply & demand diagram (\"Marshallian cross\") - Mr A loves him\n\n### Trading game (3rd Oct)\n- \"pit market\" - half of class were buyers, half sellers of \"wheat cards\", each had a secret value card\n- group: \"The Invisible Hands\" (me, Kofi, Hannah, Will)\n- round 1 prices were all over the place (£3 to £8)\n- by round 4 nearly every trade was around £4.50 -> that was the equilibrium price\n- Mr A's point: nobody planned it, it just happened bc of self-interest\n- Kofi made the most \"profit\" in our group (£11), I made £6\n\n## PRICE ELASTICITY OF DEMAND (PED)\nPED = % change in quantity demanded / % change in price\nMr A: \"Quantity over Price - Quite Precise\"\n- usually negative (ignore the sign when deciding elastic/inelastic, but WRITE it)\n- PED bigger than 1 (ignoring sign) -> elastic (responsive). luxuries, lots of substitutes\n- less than 1 -> inelastic. necessities, addictive goods (petrol, cigarettes), few substitutes\n- exactly 1 -> unitary elastic\nworked example: price up 10%, quantity down 25% -> PED = -25/10 = -2.5 -> elastic\n- if demand is inelastic, raising price -> total revenue goes UP\n- if elastic, raising price -> total revenue goes DOWN\n- revenue = price x quantity\n\n### Our school canteen example (Mr A made us do it for homework)\n- cookies went up from 80p to £1 in September (25% price rise)\n- sales fell from 240 to 180 a week (25% drop)\n- PED = -25/25 = -1.0 -> unitary elastic. revenue: before 240 x 80p = £192, after 180 x £1 = £180. so revenue actually went DOWN a bit (Mr A said real data is messy, % changes depend on which end you start from)\n- Hannah pointed out the vending machine is a substitute\n\n## PED factors - \"SPLAT\"\n- Substitutes, Proportion of income, Luxury/necessity, Addictive/habit, Time period\n\n## Exceptions / weird goods\n- Giffen good - inferior good where price up leads to demand up (really rare, potatoes in Irish famine is the classic but disputed)\n- speculative demand e.g. houses, bitcoin\n- Mr A mentioned another type for status/luxury goods but I didnt write down the name (ask!!)\n\n## Price controls\n- maximum price (ceiling) set BELOW equilibrium -> shortages (e.g. rent controls)\n- minimum price (floor) set ABOVE equilibrium -> surplus (e.g. minimum wage = unemployment in theory; minimum unit pricing on alcohol in Scotland)\n- government intervention can lead to black markets\n\n## Exam stuff\n- ALWAYS draw a diagram, label axes P and Q, label curves D and S, show old and new equilibrium (P1 Q1 -> P2 Q2)\n- textbook p. 61-74\n- essay \"Evaluate the impact of a sugar tax on the market for fizzy drinks\" - got 11/15. need more evaluation (Mr A: \"it depends... on WHAT?\")"
+    },
+    {
+      "title": "English Literature — Macbeth",
+      "text": "ENG LIT - MACBETH revision\nMrs Okonkwo, set 3. Closed book exam!! learn quotes\n\n### Context (AO3)\n- written by Shakespeare for King James I (James VI of Scotland, became king of England in 1603)\n- James was obsessed with witchcraft - wrote \"Daemonologie\" - so witches in the play = crowd pleaser for him\n- Gunpowder Plot 1605 - Catholics tried to blow up James + parliament -> play is basically anti-regicide propaganda\n- Divine Right of Kings - king chosen by God, so killing a king = against God + nature\n- Great Chain of Being - order of everything God -> king -> nobles -> peasants -> animals. Duncan's murder breaks it -> nature goes wrong (horses eat each other, darkness in day)\n- Jacobean audiences believed in witches. women were expected to be obedient\n\n### Plot recap (quick)\nAct 1 - witches, prophecies (Thane of Cawdor, king), Lady M reads letter, plans murder\nAct 2 - Macbeth kills Duncan, Malcolm & Donalbain flee\nAct 3 - Banquo killed, Fleance escapes, Banquo's ghost at the banquet (3.4)\nAct 4 - witches again (apparitions), Macduff's family murdered\nAct 5 - Lady M sleepwalking (5.1), she dies, Birnam Wood comes to Dunsinane, Macduff kills Macbeth (\"not of woman born\" bc he was \"from his mother's womb untimely ripped\" = C-section)\n\n### THEMES\nMrs O's mnemonic: GASK - Guilt, Ambition, Supernatural, Kingship (\"Macbeth runs on GASK\")\n- Guilt - blood imagery, hands, sleep. \"Macbeth does murder sleep\"\n- Ambition - \"vaulting ambition, which o'erleaps itself\" (1.7) - he knows its a problem!\n- Supernatural - witches, dagger, ghost. do they CAUSE it or just suggest it?\n- Kingship - Duncan (good, generous) vs Macbeth (tyrant) vs Edward the Confessor (healing king) vs Malcolm\n\n### KEY QUOTES (learn 2-3 per character)\nWitches:\n- \"Fair is foul, and foul is fair\" (1.1) - paradox, things aren't what they seem, trochaic tetrameter = sounds like a spell\nMacbeth:\n- \"Stars, hide your fires; / Let not light see my black and deep desires\" (1.4)\n- \"Is this a dagger which I see before me\" (2.1) - our copy p. 47 (Cambridge School edition, the blue one)\n- \"Will all great Neptune's ocean wash this blood / Clean from my hand?\" (2.2)\n- \"O, full of scorpions is my mind, dear wife!\" (3.2)\n- \"Tomorrow, and tomorrow, and tomorrow\" (5.5) - nihilism, life is meaningless\nLady Macbeth:\n- \"Look like th'innocent flower, / But be the serpent under't\" (1.5) - Genesis/Eden link\n- \"unsex me here\" (1.5) - rejects femininity\n- \"A little water clears us of this deed\" (2.2) -> compare with ->\n- \"Out, damned spot! out, I say!\" (5.1) - guilt has destroyed her\nBanquo:\n- \"oft-times, to win us to our harm, / The instruments of darkness tell us truths\" (1.3)\n\n### Characters\nMacbeth - brave soldier at start (\"brave Macbeth\", \"Bellona's bridegroom\") -> tyrant, \"butcher\"\nLady Macbeth - dominant, manipulates by questioning his manhood, then collapses. her arc goes the OPPOSITE way to Macbeth's\nBanquo - foil to Macbeth, hears the same prophecy but doesn't act\nMacduff - foil, genuine grief \"He has no children\" / \"I must also feel it as a man\"\nthe witches - ambiguous. \"weird\" = from wyrd = fate\n\n### Class performance (27th Nov)\n- groups had to perform a scene; ours = Act 4 Scene 1 (cauldron + apparitions)\n- group name \"The Weird Sisters (lol)\" - me, Grace, Tolu, Ruby\n- got 9/10 for delivery - Mrs O liked Tolu's voice for the crowned child apparition\n- \"Double, double toil and trouble; / Fire burn and cauldron bubble\" - we chanted it in a circle\n\n### Writing the essay\n- Mrs O's rule: 3 quotes per paragraph minimum, zoom in on single words\n- structure: point -> evidence -> analysis (language/structure) -> context -> link to question\n- use \"Shakespeare presents...\" / \"the audience would...\"\n- Mrs O hates \"this shows that\" - say \"this suggests / connotes / implies\"\n\n### Mock (Dec)\n- question: \"How does Shakespeare present the theme of guilt?\" (starting from 5.1)\n- got 22/30 = roughly a grade 6. lost marks on AO3, didnt link context enough\n- target: get to 26+ for grade 7\n\n### Things to remember\n- Shakespeare's source was an old chronicle history book, he changed loads (real Banquo was in on it!) bc James claimed descent from Banquo\n- the porter scene (2.3) = comic relief, \"hell-gate\"\n- Act 5 is short scenes = speeds up, Macbeth's world collapsing"
+    },
+    {
+      "title": "Computing — Algorithms and Sorting",
+      "text": "COMPUTING - Algorithms & Sorting  (Mr Kowalski, OCR J277 2.1)\n\n## What's an algorithm\n- set of step-by-step instructions to solve a problem\n- computational thinking: ABSTRACTION (remove unnecessary detail), DECOMPOSITION (break into smaller problems), ALGORITHMIC THINKING\n- can be shown as pseudocode or flowchart\n- flowchart symbols: oval = start/stop, rectangle = process, parallelogram = input/output, diamond = decision, rectangle w/ double sides = subroutine\n\n## SEARCHING\n### Linear search\n- check every item one by one from the start until you find it\n- works on unsorted lists\n- slow on big lists. linear search is O(n) - Mr K said we don't need Big O for GCSE but \"nice to know for A level\"\n### Binary search\n- list MUST be sorted first!!!\n- look at middle item, if it's the target stop, if target is smaller -> discard right half, if bigger -> discard left half, repeat\n- much faster on big lists\n- for 1000 items max comparisons = 10 (bc 2^10 = 1024)\n- Mr K: \"binary search is like the guessing game, higher or lower\"\n### Search worked example (from the board)\nlist: [3, 8, 12, 19, 23, 31, 40, 47, 56]\nfind 40 with binary search:\n- middle = 23 (index 4), 40 > 23 -> discard the left half\n- left with [31, 40, 47, 56], take the lower middle = 40 -> found!\n- 2 comparisons. linear search would have needed 7\n- Mr K said either middle is fine if you round the same way every time\n\n## SORTING\n### Bubble sort\n- go through list comparing adjacent pairs, swap if in wrong order\n- after each pass the biggest one \"bubbles\" to the end\n- repeat passes until a pass with no swaps\n- easy to code but slow (inefficient) on big lists\n- good thing: doesn't need extra memory\n\n### Unplugged activity (people sort!) - 3rd Feb\n8 of us stood in a line holding numbers: 7, 3, 9, 1, 5, 8, 2, 6\n- did bubble sort physically, Mr K counted\n- took 15 swaps total to sort it\n- Ollie kept swapping when he shouldn't lol\n- then did merge sort in groups of 2 -> 4 -> 8, it was way less chaotic\n\n### Merge sort\n- divide and conquer\n- split list in half repeatedly until each sub-list has 1 item\n- then merge pairs back together in order\n- Mr K's mnemonic: \"Don't Cry, Code\" -> Divide, Conquer, Combine\n- faster than bubble on big lists but uses more memory (all the sublists)\n- trace for [6, 2, 9, 4]: split -> [6, 2] [9, 4] -> [6] [2] [9] [4] -> merge -> [2, 6] [4, 9] -> [2, 4, 6, 9]\n- invented by John von Neumann in 1945 (Mr K's fun fact)\n\n### Insertion sort\n- take each item in turn and insert it into the right place in the sorted part on the left\n- like sorting a hand of cards\n- efficient on small lists or lists that are nearly sorted\n- trace example (from the worksheet):\n  [5, 2, 4, 1]\n  -> [2, 5, 4, 1]\n  -> [2, 4, 5, 1]\n  -> [1, 2, 4, 5]\n\n## Python timing experiment (10th Feb)\ngroup \"Byte Me\" (me, Ollie, Saanvi)\n- wrote bubble sort + merge sort in Python, used the time module to time them on a random list\n- 1000 items: bubble sort 0.087 s, merge sort 0.004 s\n- 5000 items: bubble 2.31 s (!!), merge 0.021 s\n- conclusion: bubble gets massively worse as list gets bigger, merge barely changes\n- Saanvi tried 20 000 for bubble and it took ages so we gave up\n- Python also has a built-in .sort() which was even faster than our merge sort (Mr K said it's written in C so not a fair comparison)\n\n## Pseudocode (OCR exam reference language)\nbubble sort:\n  for i = 0 to len - 2\n    for j = 0 to len - 2 - i\n      if list[j] > list[j+1] then\n        temp = list[j]\n        list[j] = list[j+1]\n        list[j+1] = temp\n      endif\n    next j\n  next i\n- in the exam you can write any pseudocode as long as its clear, but OCR's is safest\n- homework: write insertion sort in Python, due 17th Feb (I did it with a while loop, Mr K said fine)\n\n## Comparing them (exam table)\n| | bubble | merge | insertion |\n| speed (big list) | slow | fast | slow |\n| memory | low | high | low |\n| easy to code | yes | no | fairly |\n\n## Exam tips\n- \"describe\" a sort = say the steps; \"show\" = actually write out each pass\n- they always give a list of ~6-8 items and ask you to show bubble sort first pass - practice!!!\n- trace tables: one column per variable, new row each time something changes\n- revision guide p. 129-135\n- mock (Jan): 41/60, dropped marks on merge sort diagram (didn't show the split stage)"
+    },
+    {
+      "title": "Health — Nutrition and Diet",
+      "text": "HEALTH & PE THEORY - NUTRITION AND DIET\nMs Rahman. Topic 4. quiz on 23rd Jan\n\n== The 7 nutrients ==\nMs R's mnemonic: \"Carrots Fry Pretty Very Many Fish Wobbling\"\n1. Carbohydrates - main energy source. simple (sugars) and complex (starch - pasta, bread, rice, potatoes). should be about half of your energy\n2. Fats - energy store, insulation, protects organs, fat-soluble vitamins (A, D, E, K). saturated (animal fat, butter) vs unsaturated (oils, nuts, oily fish)\n3. Protein - growth & repair of muscles/tissue. meat, fish, eggs, beans, lentils. made of amino acids\n4. Vitamins - needed in small amounts.\n   - vit A - eyesight (night vision)\n   - vitamin C - healthy skin, immune system. deficiency = scurvy (sailors! bleeding gums)\n   - vit D - helps absorb calcium, from sunlight. deficiency = rickets (soft bendy bones)\n5. Minerals - calcium (bones & teeth), iron (red blood cells - lack of it = anaemia, tired all the time)\n6. Fibre - keeps digestive system moving, prevents constipation. wholegrains, fruit & veg\n7. Water - ~6-8 glasses a day (NHS), more if exercising. dehydration = headaches, poor concentration\n\n== Energy ==\n- energy in food measured in kcal (or kJ, 1 kcal = 4.2 kJ)\n- per gram: fat = 9 kcal, carbs = 4 kcal, protein = 4 kcal\n- so fatty foods are really \"energy dense\"\n- guideline for men is 2,500 kcal a day (forgot to write down the women's one, ask Ms R)\n- teenagers need more bc growing + more active\n- energy balance: in > out -> weight gain, in < out -> weight loss\n\n== My food diary (3 days, 8th-10th Jan) ==\n- average 2,140 kcal/day\n- sugar: 78 g/day average!!! recommended max free sugars for 11+ is 30 g. so I'm way over (it was the energy drinks + cereal)\n- fibre only about 14 g/day (should be 30 g for adults)\n- fruit & veg portions: 3/day avg (should be 5)\n- Ms R's comment: \"swap the fizzy drinks first, easiest win\"\n\n== Food tests practical (16th Jan) ==\ngroup: \"Five a Day Crew\" (me, Jordan, Aisha, Max)\n| test | for | positive result |\n| Benedict's (heat in water bath) | sugar (glucose) | blue -> brick red |\n| Biuret | protein | blue -> purple |\n| Iodine | starch | orange -> blue-black |\n| Ethanol emulsion | lipids (fats) | cloudy white layer |\nour results:\n- glucose drink -> brick red\n- crisps -> lipid positive (cloudy) + starch positive\n- egg white -> purple (protein)\n- apple -> went green/yellow with Benedict's = some sugar\n- Max dropped the iodine on his shirt, it stained\n- safety: goggles, Benedict's needs a water bath NOT a direct flame\n\n== Eatwell Guide ==\n- fruit & veg = about a third of what you eat\n- starchy carbs = just over a third\n- protein ~ 12%\n- dairy ~ 8%\n- oils/spreads - tiny, use sparingly\n- foods high in fat/salt/sugar = outside the plate, eat less often\n- salt max 6 g a day for adults (about 1 teaspoon)\n\n== Diet and health problems ==\n- obesity -> type 2 diabetes, heart disease, some cancers, joint problems\n- too much saturated fat -> cholesterol up -> arteries clog\n- too much salt -> high blood pressure\n- malnutrition = wrong balance (can be over OR under)\n- anorexia / eating disorders - mental health link\n\n== BMI ==\nBMI = mass (kg) / height squared (m2)\nworked example (from the board): 60 kg, 1.65 m tall\n- 1.65 x 1.65 = 2.7225\n- 60 / 2.7225 = 22.04 -> BMI = 22.0 (healthy range 18.5-24.9)\n- under 18.5 = underweight, 25-29.9 = overweight, 30+ = obese\n- problem with BMI: doesn't account for muscle (rugby players come out as \"overweight\")\n\n== Special diets ==\n- vegetarian (no meat/fish) / vegan (no animal products at all) - need to plan protein (beans, tofu, lentils) + iron\n- coeliac disease - can't eat gluten (wheat, barley, rye)\n- diabetics - watch sugar + carbs, regular meals\n- religious diets - halal, kosher, some Hindus don't eat beef\n- allergies - nuts, shellfish, eggs. Jordan carries an EpiPen (anaphylaxis = emergency, call 999)\n- lactose intolerance - can't digest the sugar in milk properly\n\n== Sport & diet ==\n- carb loading before endurance events (marathon) - pasta the night before\n- protein after training for repair\n- timing: don't eat a massive meal right before exercise (blood goes to the gut)\n- hydration: weigh before & after, drink to replace\n\n== Exam/quiz bits ==\n- textbook p. 72-85\n- know deficiency diseases (scurvy, rickets, anaemia)\n- quiz 23rd Jan: 17/20 (got confused about which vitamin needs sunlight)"
+    },
+    {
+      "title": "Civics — How Laws Are Made",
+      "text": "CITIZENSHIP - HOW LAWS ARE MADE (UK)\nMr Fairweather. Theme B: Democracy at work. test 21st Mar\n\n### Who makes laws\n- Parliament = House of Commons + House of Lords + the Monarch (\"the Crown in Parliament\")\n- House of Commons: 650 MPs, each elected for a constituency, First Past the Post\n- House of Lords: unelected - life peers, hereditary peers, 26 bishops (\"Lords Spiritual\")\n- government = the party (or parties) with a majority in the Commons, PM + cabinet\n- legislature (makes laws) vs executive (runs the country) vs judiciary (interprets laws, courts)\n- separation of powers - not fully separated in UK bc ministers sit in parliament\n\n### Where bills come from\n- government bills - most bills, from manifesto promises, announced in the King's Speech\n- private members' bills - from backbench MPs, chosen by ballot (20 a session), most fail due to lack of time\n- ten minute rule bills - MP gets 10 mins to make the case, mostly publicity\n- green paper = consultation, white paper = firm proposals\n- public bill vs private bill (private = affects a specific org / place)\n\n### STAGES OF A BILL (learn in order!!!)\nMr F's mnemonic: \"Fat Squirrels Can't Resist Treats\"\n1. First reading - title read out, no debate, formality\n2. Second reading - main debate on the general principles, vote\n3. Committee stage - public bill committee goes through line by line, amendments\n4. Report stage - amendments reported back to whole House, more changes\n5. Third reading - final debate, no major changes, vote\n-> then goes to the OTHER house (Lords) and does the same stages\n-> \"ping-pong\" - bill goes back and forth if they disagree on amendments\n-> Royal Assent - monarch signs it off, becomes an Act of Parliament\n- Royal Assent is basically automatic now - it hasn't been refused in centuries\n\n### Power of the Lords\n- Parliament Act 1911 - Lords lost veto on money bills, can only delay other bills\n- Parliament Act 1949 - reduced the delay to about a year\n- Salisbury Convention - Lords dont block manifesto promises\n- Lords are good at scrutiny - lots of experts (doctors, judges, scientists)\n\n### Mock parliament (7th March)\n- our class bill: \"School Uniform (Hoodies) Bill\" - allow school hoodies instead of blazers\n- group \"The Backbenchers\" wrote it (me, Ellis, Nadia, Josh K)\n- I was the minister who introduced it at second reading\n- Ellis moved an amendment to only allow hoodies in winter -> rejected\n- final vote: passed 17 votes to 11 (Mr F was the Speaker and kept shouting \"ORDER\")\n- Mr F said our committee stage was too short, real ones take weeks\n\n### Trip to Parliament (12th June)\n- our tour guide was called Priya\n- saw the Commons chamber - green benches. Lords - red benches\n- the 2 red lines on the Commons floor are 2 sword-lengths apart (myth-ish, guide said its a good story)\n- visited Westminster Hall - oldest bit, 1097\n- MPs vote by walking through division lobbies (\"aye\" lobby / \"no\" lobby), takes about 15 mins\n\n### Types of law\n- statute law = Acts of Parliament (e.g. Climate Change Act 2008, Equality Act 2010)\n- common law / case law = made by judges' decisions (precedent)\n- secondary / delegated legislation = ministers make detailed rules under powers from an Act (statutory instruments)\n- EU law used to apply, after Brexit some was \"retained\"\n- civil law vs criminal law (different from the above - it's about the type of case)\n\n### Devolution\n- some powers given to Scotland, Wales and Northern Ireland\n- Scottish Parliament - 129 MSPs, Holyrood, can make laws on health, education etc\n- Welsh Senedd, Northern Ireland Assembly (Stormont) - also make some laws\n- reserved matters (defence, foreign policy) stay with Westminster\n\n### How citizens can influence laws\n- contacting your MP, petitions (100k signatures -> considered for debate), campaigning, protests, pressure groups, voting\n- e.g. Helen's Law, Owen's Law - campaigns by families\n\n### exam stuff\n- textbook p. 140-151\n- 8 marker: \"evaluate the role of the House of Lords\"\n- test (21st Mar) - got 26/30"
+    },
+    {
+      "title": "Earth Science — Volcanoes",
+      "text": "EARTH SCIENCE - VOLCANOES\nDr Whitfield. unit 3 \"Restless Earth\". test 14 Nov\n\n## Structure of the Earth\n- crust (thin, 5-70 km), mantle (semi-molten, convection currents), outer core (liquid iron/nickel), inner core (solid, v hot)\n- tectonic plates move a few cm a year - convection currents in the mantle + slab pull + ridge push\n\n## Plate boundaries\n- constructive (divergent) - plates move apart, magma rises, new crust. e.g. Mid-Atlantic Ridge, Iceland\n- destructive (convergent) - oceanic plate subducts under continental (denser), melts, magma rises -> explosive volcanoes. e.g. Andes, Japan\n- conservative - plates slide past, NO volcanoes, earthquakes only. e.g. San Andreas\n- hotspots - volcanoes in the middle of a plate where a mantle plume rises, e.g. Hawaii\n\n## Types of volcano\n### Shield volcanoes\n- runny (low viscosity) basaltic lava, low silica\n- gentle slopes, wide base, frequent but gentle eruptions\n- found at constructive boundaries + hotspots\n- e.g. Mauna Loa (Hawaii) - biggest volcano on Earth by volume\n### Composite (strato) volcanoes\n- sticky (high viscosity) andesitic/rhyolitic lava, high silica\n- steep sides, layers of ash + lava, violent eruptions\n- destructive boundaries\n- e.g. Mt St Helens, Mt Fuji\nDr W's thing to remember: \"Sticky Silica = Scary\" (and runny = basalt = boring)\n\n## Lava types (table from the board)\n| lava | silica | temp | viscosity |\n| basaltic | low (~50%) | ~1200 °C | runny |\n| andesitic | medium | ~1000 °C | medium |\n| rhyolitic | high (~70%) | ~800 °C | very sticky |\n- more silica = more viscous = gas gets trapped = pressure builds = BOOM\n\n## Viscosity practical (3rd Oct)\ngroup: \"Magma Maniacs\" (me, Leon, Freya, Dev)\n- timed liquids flowing down a 30 cm ramp at the same angle (20 deg)\n| liquid | time (s) |\n| water | 0.6 |\n| washing up liquid | 9.2 |\n| honey | 31 |\n| golden syrup | 48 |\n- golden syrup took 48 s, slowest = most viscous = like rhyolitic lava\n- then honey warmed in hot water went way faster (12 s) -> shows hotter lava is runnier\n- Leon got syrup all over the ramp, took ages to clean\n\n## Eruption products\n- lava flows, ash clouds, volcanic bombs, gas (SO2, CO2, water vapour), lahars (mudflows)\n- pyroclastic flows - mix of hot gas, ash, rock, can go 100s of km/h (Dr W said up to 700 km/h), 1000 °C. deadliest thing\n- VEI = Volcanic Explosivity Index 0-8, logarithmic (each step ~10x bigger)\n\n## Case study 1 - Mt St Helens, USA\n- erupted 18 May 1980\n- bulge on north side grew ~1.5 m a day before it blew\n- landslide -> lateral blast sideways\n- VEI 5\n- ash fell over 11 states, forests flattened\n- the eruption was a big reason the US increased volcano monitoring\n\n## Case study 2 - Eyjafjallajokull, Iceland 2010\n- under a glacier -> melting ice + magma = explosive, fine ash\n- ash cloud closed European airspace for ~6 days, 100,000 flights cancelled\n- local farmers had to evacuate, livestock problems\n- Iceland gets lots of geothermal energy from its volcanoes (positive!)\n\n## Case study 3 - Montserrat (my homework one)\n- Soufriere Hills, started 1995\n- capital Plymouth buried, now abandoned. south of the island = exclusion zone\n- 1997 pyroclastic flow killed 19 people\n- about 2/3 of the population left the island (lots to the UK)\n\n## Effects - primary vs secondary\n- primary = straight away from the eruption itself (lava, ash fall, pyroclastic flows, gas)\n- secondary = happen later as a result (lahars, fires, homelessness, disease, crop failure, jobs + tourism lost)\n- Dr W wants \"PEEPS\" in long answers: Primary, Economic, Environmental, People, Secondary\n\n## Supervolcanoes\n- e.g. Yellowstone (USA), VEI 8, huge caldera instead of a cone\n- last big eruption about 640,000 years ago\n- would cover a lot of the US in ash + cause global cooling (ash + SO2 block sunlight)\n\n## Monitoring & prediction\n- seismometers - lots of small earthquakes = magma moving\n- tiltmeters - ground swelling\n- gas sensors - more SO2 = magma near surface\n- satellites (thermal imaging), GPS\n- can't predict exact time but can warn -> evacuation\n- Dr W: \"Prediction saves lives, protection saves property\"\n\n## Why do people live near volcanoes?\n- fertile soil (weathered ash), geothermal energy, tourism, mining (sulfur, minerals), lived there for generations\n- Naples ~3 million people near Vesuvius\n\n## Exam stuff\n- textbook p. 58-71\n- learn 2 named examples with facts + figures\n- test 14 Nov -> got 33/40"
+    },
+    {
+      "title": "Physics — Space and the Solar System",
+      "text": "PHYSICS - SPACE & THE SOLAR SYSTEM\nMs Delacroix, P8 (separate science only). test 15th Nov\n\n---- Our solar system ----\n- Sun = a star, at the centre, 99.8% of the mass of the solar system\n- 8 planets: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune\n- Ms D's planet mnemonic: \"My Very Easy Method Just Speeds Up Naming\"\n- inner 4 = rocky, outer 4 = gas/ice giants\n- dwarf planets - Pluto (demoted in 2006, our group name is a protest lol), Ceres, Eris\n- asteroid belt between Mars and Jupiter\n- moons = natural satellites orbiting planets. artificial satellites = man-made\n- comets - ice + dust, very elliptical orbits, tail always points away from the Sun\n\n---- How the solar system formed ----\n- started as a nebula (cloud of dust + gas), gravity pulled it together\n- most of the material went to the centre -> got hot + dense enough for fusion -> the Sun\n- leftover material in a spinning disc clumped together -> planets, moons, asteroids\n- rocky planets near the Sun bc it was too hot for ices to stay solid there\n\n---- Scale model on the field (4th Oct) ----\ngroup: \"Team Pluto Was Robbed\" (me, Nico, Imogen, Raf)\n- Sun = a football (about 22 cm wide)\n- Earth = a peppercorn 23 m from the football\n- Jupiter = a grape-ish, 120 m away\n- Neptune ended up 690 m away - off past the car park, Raf had to walk it with the trundle wheel\n- lesson: space is mostly EMPTY. you'd need about 6000 km for the nearest star on this scale\n\n---- Gravity & weight ----\n- W = m x g\n- Earth g = 9.8 N/kg (we use 9.8 not 10 in Ms D's class)\n- Moon g = 1.6 N/kg\n- Jupiter g = about 25 N/kg\n- worked example: 55 kg person on the Moon -> W = 55 x 1.6 = 88 N (on Earth 539 N)\n- mass doesn't change, weight does!!\n\n---- Orbits ----\n- gravity provides the centripetal force that keeps things in circular orbits\n- the velocity is constantly changing (direction changes) even if speed is constant -> it's accelerating\n- closer orbit = faster speed needed to stay in orbit\n- geostationary satellites - orbit once every 24 hours above the equator, stay over the same spot -> used for TV/comms\n- polar orbit satellites - low, fast, pass over the poles, used for weather & mapping, orbit every couple of hours\n- if speed increases, radius must decrease to stay in a stable orbit (HIGHER)\n\n---- Life cycle of stars ----\nALL stars start as a NEBULA (cloud of dust + gas) -> gravity pulls it together -> protostar -> gets hot enough for fusion of hydrogen into helium -> MAIN SEQUENCE star (stable bc outward pressure from fusion balances inward gravity)\nsmall stars (like our Sun):\n-> red giant -> white dwarf -> black dwarf\nbig stars (much more massive than the Sun):\n-> red supergiant -> SUPERNOVA -> neutron star OR black hole (if really massive)\n- elements heavier than iron are made in supernovas - \"we're all made of star stuff\" (Ms D quoting Carl Sagan, she got emotional lol)\n- Sun's core is about 15 million °C\n- the Sun is about 4.6 billion years old, roughly halfway through its main sequence stage\n\n---- Distances ----\n- light-year = distance light travels in a year (about 9.5 trillion km)\n- nearest star after the Sun = Proxima Centauri, light from it takes 4.2 years to reach us\n- speed of light 3 x 10^8 m/s\n- AU = astronomical unit, average Earth-Sun distance (~150 million km)\n\n---- Red-shift & the Big Bang ----\n- light from distant galaxies is shifted towards the red end of the spectrum = wavelength increased\n- further away galaxies = more red-shift = moving away faster\n- -> universe is expanding -> evidence for the Big Bang\n- Big Bang: universe began from a very small, extremely hot and dense region about 13.8 billion years ago\n- CMBR (cosmic microwave background radiation) = other evidence, leftover radiation from the early universe\n- dark matter + dark energy - we don't know what they are (Ms D: \"anyone who works it out gets a Nobel\")\n\n---- Exam bits ----\n- textbook p. 241-255\n- 6 mark: describe life cycle of a star (do BOTH paths!!)\n- they sometimes ask why scientists' ideas changed - new evidence (e.g. CMBR found 1965)\n- test 15th Nov -> 29/35. lost marks forgetting \"fusion\" in the main sequence explanation"
+    },
+    {
+      "title": "Biology — The Heart and Circulation",
+      "text": "BIOLOGY - HEART & CIRCULATION\nMr Brennan, B4 Organisation. test 6th March\n\n## The circulatory system\n- heart + blood vessels + blood\n- DOUBLE circulatory system in humans:\n  - pulmonary circuit: heart -> lungs -> heart (picks up oxygen)\n  - systemic circuit: heart -> body -> heart\n- double bc blood goes through the heart twice per full lap. higher pressure to the body = faster delivery\n- fish have a single circulation (Mr B mentioned it, prob won't come up)\n- history bit: Galen thought blood was made in the liver and got used up - wrong for like 1400 years\n\n## Structure of the heart\n- 4 chambers: right atrium, right ventricle, left atrium, left ventricle\n- atria on top (receive blood), ventricles at the bottom (pump blood out)\n- RIGHT side = deoxygenated blood, LEFT side = oxygenated\n- remember the diagram is flipped (like looking at someone facing you)!!\n- valves stop backflow: tricuspid (right), bicuspid/mitral (left), semilunar valves in the arteries\n- Mr B's mnemonic: \"LAB RAT\" -> Left Atrium Bicuspid, Right Atrium Tricuspid\n- septum = wall between left & right sides\n\nblood route (learn this order):\nvena cava -> right atrium -> right ventricle -> pulmonary artery -> LUNGS -> pulmonary vein -> left atrium -> left ventricle -> aorta -> BODY\n- pulmonary artery is the only artery w/ deoxygenated blood, pulmonary vein the only vein w/ oxygenated\n- coronary arteries supply the heart muscle itself with oxygen\n\n## Heart dissection (6th Feb)\ngroup: \"Ventricle Vandals\" (me, Sam, Nell, Oscar)\n- lamb's heart from the butcher\n- cut through to see chambers, poked a glass rod through the aorta\n- measured wall thickness with a ruler:\n  - left ventricle wall 14 mm\n  - right ventricle wall 5 mm\n- left is thicker bc it pumps blood all round the body (higher pressure), right only to lungs\n- could see the \"heart strings\" (tendons holding valves)\n- Oscar nearly fainted, Nell loved it\n\n## Natural pacemaker\n- group of cells in the right atrium (SA node) sets the resting heart rate\n- artificial pacemaker = electrical device implanted to correct irregular heartbeat\n\n## Pulse practical (13th Feb)\n- measured pulse at wrist (radial) for 15 s x 4\n- mine: resting 72 bpm, after 2 min skipping 128 bpm\n- recovery time back to resting: 3 min 20 s\n- Sam's resting was 58 bpm (he does cross country) and he recovered in under 2 mins\n- fitter = lower resting HR + faster recovery\n\n## Blood vessels\n| | artery | vein | capillary |\n| carries | away from heart | towards heart | between |\n| wall | thick, muscular, elastic | thin | one cell thick |\n| lumen | narrow | wide | tiny |\n| pressure | high | low | low |\n| valves | no | yes | no |\n- capillaries - exchange of substances by diffusion, very close to cells\n- \"Arteries = Away\" (Mr B)\n\n## Blood\n- plasma (~55%) - yellow liquid, carries CO2, urea, glucose, hormones, proteins\n- red blood cells - carry oxygen (haemoglobin), no nucleus, biconcave disc = big surface area\n- white blood cells - fight infection: phagocytes engulf pathogens, lymphocytes make antibodies\n- platelets - fragments of cells, help blood clot\n\n## Cardiac output (HIGHER / sport crossover)\ncardiac output = heart rate x stroke volume\nworked example: 72 bpm x 70 ml = 5,040 ml/min\n- stroke volume = volume pumped out per beat\n- during exercise both go up\n\n## Coronary heart disease (CHD)\n- fatty deposits build up in coronary arteries -> narrow -> less oxygen to heart muscle -> heart attack\n- risk factors: smoking, high fat diet, lack of exercise, high BP, genetics\n- treatments:\n  - stents - mesh tube keeps artery open (surgery risk, but quick recovery)\n  - statins - lower blood cholesterol (side effects, have to take for life)\n  - transplant - donor heart, need to take immunosuppressants, waiting lists\n  - artificial heart - temporary while waiting for a donor\n- faulty valves -> replaced with mechanical or biological (pig/cow) valves\n\n## Exam stuff\n- textbook p. 98-109\n- label the heart diagram - ALWAYS practice (the left/right flip gets everyone)\n- calculation q's: show formula first\n- test 6th March: 24/28!!"
+    },
+    {
+      "title": "History — The Space Race",
+      "text": "HISTORY - THE SPACE RACE (Cold War unit)\nMr Haddad. part of Superpower Relations. quiz 22nd March\n\n## Why was there a space race?\n- Cold War - USA vs USSR, capitalism vs communism, couldn't fight directly (nukes) so competed in other ways\n- space = prestige + propaganda + military (rockets that go to space can also carry nuclear warheads -> ICBMs)\n- both sides used captured German rocket scientists after WW2 (USA got Wernher von Braun - V2 rocket guy)\n\n## Soviet \"firsts\"\nMr H's mnemonic for the order: \"Silly Little Goats Travel\"\n- Sputnik 1 - first artificial satellite, 4 October 1957. just beeped. Americans could hear it on radios -> PANIC (\"Sputnik crisis\")\n- Laika - first animal to orbit Earth, Sputnik 2, Nov 1957. didn't survive :(\n- Gagarin - Yuri Gagarin, first human in space, 12 April 1961, Vostok 1, one orbit, 108 minutes\n- Tereshkova - Valentina Tereshkova, first woman in space, 1963\n- also: first spacewalk - Alexei Leonov 1965\n\n## US response\n- NASA set up in 1958 (Eisenhower)\n- National Defense Education Act - more money for science + maths in schools\n- John Glenn - first American to orbit the Earth, Feb 1962 (Friendship 7)\n- \"missile gap\" - fear the USSR was ahead (it wasn't really)\n\n## Kennedy & the Moon\n- May 1961 - JFK tells Congress the US will land a man on the Moon before the end of the decade\n- Rice University speech, Sept 1962: \"We choose to go to the Moon... not because they are easy, but because they are hard\"\n- source analysis on this speech (homework) - got 7/8. Mr H said I nailed provenance but should mention the Cold War tension right before the Cuban Missile Crisis (Oct 1962)\n\n## Project Mercury -> Gemini -> Apollo\n- Mercury - 1 person capsules\n- Gemini - 2 people, practised docking + spacewalks\n- Apollo - 3 people, to the Moon\n- Apollo 1 (1967) - fire on the launch pad, 3 astronauts died\n- Apollo 8 (Dec 1968) - first humans to orbit the Moon, \"Earthrise\" photo\n\n## Apollo 11\n- launched 16 July 1969, landed 20 July 1969\n- Neil Armstrong first person on the Moon: \"That's one small step for man, one giant leap for mankind\"\n- Michael Collins stayed in orbit in the command module\n- watched by about 600 million people on TV\n- US basically \"won\" the race to the Moon\n\n## Cost\n- Apollo programme cost about $25.4 billion (Mr H's figure - he said today that's well over $200 billion)\n- NASA got about 4.4% of the federal budget in 1966 (peak)\n- critics: money should have gone on poverty, civil rights, Vietnam was also costing loads\n\n## Class debate (15th March) - \"Who won the Space Race?\"\n- our group \"Team Vostok\" (me, Lily, Arjun, Theo) argued the USSR won (all the firsts!)\n- other team \"Team Eagle\" argued USA (Moon landing = the big prize)\n- we won 3-2 on the judges' votes (judges = Mr H + 4 kids from Year 12)\n- Arjun's point about the USSR being first at basically everything except the Moon won it\n\n## Later events\n- Apollo 13 (1970) - oxygen tank exploded, \"Houston, we've had a problem\", crew got home safely\n- Apollo-Soyuz (July 1975) - US + Soviet spacecraft docked, astronauts shook hands -> detente\n- after that: space shuttle (USA), space stations (Salyut, Mir), later the ISS (cooperation!)\n\n## Key people (Mr H says name drop them)\n- Sergei Korolev - the Soviet \"Chief Designer\", his name was kept secret until he died in 1966\n- Wernher von Braun - designed the Saturn V rocket that took Apollo to the Moon\n- Khrushchev - used every Soviet first as propaganda (\"look how advanced communism is\")\n- Kennedy - turned the Moon into a national goal, assassinated Nov 1963 so never saw it happen\n- Johnson + Nixon - kept the funding going (Nixon phoned the astronauts on the Moon)\n\n## Significance\n- propaganda win for each side at different times\n- tech spin-offs: satellites, computers, materials\n- shows the Cold War was fought through competition not just weapons\n\n## Exam bits\n- revision guide p. 77-80\n- \"explain the importance of...\" questions -> 2 consequences, each with detail\n- essay \"How far was the Moon landing the most important event of the Space Race?\" -> 19/25. Mr H: \"great detail, judgement a bit weak\""
+    },
+    {
+      "title": "Chemistry — Water Treatment",
+      "text": "CHEMISTRY - WATER TREATMENT\nMr Hughes, C10 Using Resources. quiz 15th March\n\n## Key words\n- pure water = ONLY water molecules, nothing else (chemistry meaning, not the advert meaning)\n- potable water = safe to drink. NOT pure - has dissolved salts/minerals in it, but low levels of microbes + harmful stuff\n- test if water is pure: boils at exactly 100 °C and freezes at 0 °C, leaves no residue when evaporated\n- Mr H: \"pure isn't potable, potable isn't pure. write it on your hand\"\n\n## Where does our drinking water come from?\n- UK: rain -> collects as surface water (lakes, rivers, reservoirs) or groundwater (aquifers - water in porous rock underground)\n- in the south east more groundwater is used, in the north/Scotland more surface water\n\n## Treating fresh water -> potable water\nMr H's mnemonic for the stages: \"Some Silly Fish Can't Dance\"\n1. Screening - remove big objects (twigs, leaves, the odd shopping trolley)\n2. Sedimentation - let solids settle in big tanks (sometimes add aluminium sulfate to clump small bits together = flocculation)\n3. Filtration - pass through beds of sand + gravel to remove small solid particles\n4. Chlorination - kill microbes (bacteria). can also use ozone or UV light\n5. Distribution - pumped to homes through pipes\n- Mr H said tap water has about 0.5 mg per litre chlorine left in it so it stays safe in the pipes\n- some areas add fluoride (1 ppm) to help teeth - this is controversial (debate in class, Jake went off on one)\n\n## Desalination\n- when there isn't enough fresh water -> use seawater\n- method 1: distillation - boil seawater, collect + condense the steam\n- method 2: reverse osmosis - push seawater through membranes at high pressure\n- both need LOADS of energy -> expensive. used in places like the Middle East\n- the leftover salty brine can harm marine life when pumped back\n\n## Distillation practical (23rd Nov) - required practical\ngroup: \"H2Oh No\" (me, Jake, Mei, Rhys)\n- analysed + purified a sample of salty water\n- started with 100 cm³ of salty water\n- checked pH first with universal indicator - it was neutral-ish (green)\n- heated in a flask, steam went through a Liebig condenser (cold water in at the bottom, out at the top!)\n- thermometer at the side arm read 100.5 °C (prob not calibrated well / bit of impurity)\n- collected 62 cm³ of distillate in 25 mins\n- evaporated a separate sample to dryness -> salt crystals left, mass 3.1 g from a smaller sample\n- tested distillate with a few drops of silver nitrate - no white precipitate = no chloride = pure\n- safety: anti-bumping granules, don't let it boil dry, goggles\n\n## Waste water (sewage) treatment\n- waste water from homes, industry, farms\n- needs treating to remove organic matter + harmful microbes before going back into rivers\n- industrial waste water may also need harmful chemicals removed\nstages:\n1. screening + grit removal\n2. sedimentation -> produces sewage sludge (bottom) + effluent (top liquid)\n3. effluent -> aerobic biological treatment (air pumped through, bacteria break down organic stuff)\n4. sludge -> anaerobic digestion -> makes biogas (methane) for energy + digested sludge used as fertiliser\n- treated effluent released back into the river\n\n## Field trip - Riverside Sewage Works (8th March)\n- our guide was called Dave, he'd worked there 27 years\n- the plant treats 45 million litres a day for about 200,000 people\n- the smell was AWFUL near the sludge tanks, fine near the end\n- they make enough biogas to power most of the site\n- we took water samples from 2 places:\n  - tap water (school): pH 7.2\n  - river sample (downstream): pH 6.8, slightly cloudy\n- Dave said the main things they test the outflow for are ammonia + how much oxygen bacteria use up (BOD)\n\n## Comparing\n- getting potable water from fresh water is easiest + cheapest (UK)\n- sewage treatment needs more processes than fresh water treatment\n- desalination most expensive (energy)\n\n## Exam stuff\n- textbook p. 188-193\n- describe the distillation practical step by step (6 marker - likely!!)\n- don't say \"chlorine cleans the water\" -> say it KILLS MICROBES/bacteria\n- quiz 15th March: 31/36"
+    }
+  ],
+  "items": [
+    {
+      "id": "b16-magnet-p1",
+      "kind": "positive",
+      "noteTitle": "Physics — Magnetism and Electromagnets",
+      "ask": "how many paperclips did we pick up w/ 20 turns on the electromagnet",
+      "expect": "9 paperclips"
+    },
+    {
+      "id": "b16-magnet-p2",
+      "kind": "positive",
+      "noteTitle": "Physics — Magnetism and Electromagnets",
+      "ask": "whats the mnemonic mr okafor gave us for flemings left hand rule",
+      "expect": "Father Bought Ice-cream|Father Bought Ice cream"
+    },
+    {
+      "id": "b16-magnet-p3",
+      "kind": "positive",
+      "noteTitle": "Physics — Magnetism and Electromagnets",
+      "ask": "in the F=BIL example off the board what force did we get",
+      "expect": "0.3 N|0.3N"
+    },
+    {
+      "id": "b16-magnet-p4",
+      "kind": "positive",
+      "noteTitle": "Physics — Magnetism and Electromagnets",
+      "ask": "which page in the textbook is the plotting compas practical on",
+      "expect": "p. 112|p.112|page 112"
+    },
+    {
+      "id": "b16-magnet-n1",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Magnetism and Electromagnets",
+      "ask": "What is the SI unit of magnetic flux?",
+      "expect": "weber",
+      "poison": "tesla"
+    },
+    {
+      "id": "b16-magnet-n2",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Magnetism and Electromagnets",
+      "ask": "Who discovered in 1820 that an electric current deflects a compass needle?",
+      "expect": "Ørsted|Oersted|Orsted",
+      "poison": "Faraday"
+    },
+    {
+      "id": "b16-magnet-n3",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Magnetism and Electromagnets",
+      "ask": "Which hand rule gives the direction of the induced current in a generator?",
+      "expect": "Fleming's right-hand rule|Fleming's right hand rule|Flemings right hand rule|right-hand rule",
+      "poison": "Fleming's left hand rule"
+    },
+    {
+      "id": "b16-cells-p1",
+      "kind": "positive",
+      "noteTitle": "Biology — Cells and Microscopy",
+      "ask": "what was the actual size of our onion cell in the end",
+      "expect": "30 µm|30 um|0.03 mm|30 micrometres"
+    },
+    {
+      "id": "b16-cells-p2",
+      "kind": "positive",
+      "noteTitle": "Biology — Cells and Microscopy",
+      "ask": "wat stain did we put on the cheek cells",
+      "expect": "methylene blue"
+    },
+    {
+      "id": "b16-cells-p3",
+      "kind": "positive",
+      "noteTitle": "Biology — Cells and Microscopy",
+      "ask": "what mark did my onion cell drawing get",
+      "expect": "7/10"
+    },
+    {
+      "id": "b16-cells-p4",
+      "kind": "positive",
+      "noteTitle": "Biology — Cells and Microscopy",
+      "ask": "mrs patels trick for remembering the magnification formula?",
+      "expect": "missing in action|MIA"
+    },
+    {
+      "id": "b16-cells-n1",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Cells and Microscopy",
+      "ask": "Who first observed and named cells, looking at slices of cork?",
+      "expect": "Robert Hooke|Hooke",
+      "poison": "van Leeuwenhoek"
+    },
+    {
+      "id": "b16-cells-n2",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Cells and Microscopy",
+      "ask": "What is the resolution limit of a light microscope?",
+      "expect": "200 nm|0.2 µm|0.2 um|0.2 micrometres",
+      "poison": "0.1 nm"
+    },
+    {
+      "id": "b16-cells-n3",
+      "kind": "near-miss",
+      "noteTitle": "Biology — Cells and Microscopy",
+      "ask": "Roughly how wide is a human red blood cell?",
+      "expect": "7 µm|7 um|7.5 µm|8 µm|8 um|7-8 µm|7–8 µm|7 micrometres|8 micrometres",
+      "poison": "60 µm"
+    },
+    {
+      "id": "b16-electrolysis-p1",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Electrolysis",
+      "ask": "how much mass did the cathode gain in our copper sulfate practical",
+      "expect": "0.42 g|0.42g"
+    },
+    {
+      "id": "b16-electrolysis-p2",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Electrolysis",
+      "ask": "mr hughes mnemonic for which electrode is which",
+      "expect": "PANIC"
+    },
+    {
+      "id": "b16-electrolysis-p3",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Electrolysis",
+      "ask": "how long did the hydrogen tube take to fill when we did brine",
+      "expect": "3 min 40 s|3 min 40|3:40"
+    },
+    {
+      "id": "b16-electrolysis-p4",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Electrolysis",
+      "ask": "wat temp is aluminium oxide electrolysed at once its in cryolite",
+      "expect": "950 °C|950°C|950 degrees"
+    },
+    {
+      "id": "b16-electrolysis-n1",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Electrolysis",
+      "ask": "What is the melting point of pure aluminium oxide?",
+      "expect": "2072|2,072|2050|2,050|over 2000|over 2,000",
+      "poison": "950 °C"
+    },
+    {
+      "id": "b16-electrolysis-n2",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Electrolysis",
+      "ask": "Who developed the electrolytic process for extracting aluminium in 1886?",
+      "expect": "Hall–Héroult|Hall-Héroult|Hall-Heroult|Héroult|Heroult|Charles Martin Hall",
+      "poison": "Humphry Davy"
+    },
+    {
+      "id": "b16-electrolysis-n3",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Electrolysis",
+      "ask": "What is the value of the Faraday constant (charge on one mole of electrons)?",
+      "expect": "96,500|96500|96485|96,485|96 485|96 500",
+      "poison": "600 C"
+    },
+    {
+      "id": "b16-ww1-p1",
+      "kind": "positive",
+      "noteTitle": "History — World War One",
+      "ask": "whats ms bradleys mnemonic for MAIN with the extra A",
+      "expect": "My Aunt Isn't Nice, Actually|My Aunt Isn't Nice|My Aunt Isnt Nice"
+    },
+    {
+      "id": "b16-ww1-p2",
+      "kind": "positive",
+      "noteTitle": "History — World War One",
+      "ask": "how many marks did the tommies get for the trench foot presentation",
+      "expect": "18/25"
+    },
+    {
+      "id": "b16-ww1-p3",
+      "kind": "positive",
+      "noteTitle": "History — World War One",
+      "ask": "how much did germany have to pay in reparations according to my notes",
+      "expect": "£6.6 billion|6.6 billion"
+    },
+    {
+      "id": "b16-ww1-p4",
+      "kind": "positive",
+      "noteTitle": "History — World War One",
+      "ask": "wat did i get on the was versailles fair essay",
+      "expect": "14/20"
+    },
+    {
+      "id": "b16-ww1-n1",
+      "kind": "near-miss",
+      "noteTitle": "History — World War One",
+      "ask": "On what date was the Armistice signed that ended the fighting in WW1?",
+      "expect": "11 November 1918|11th November|11 Nov|November 11",
+      "poison": "28 June 1919"
+    },
+    {
+      "id": "b16-ww1-n2",
+      "kind": "near-miss",
+      "noteTitle": "History — World War One",
+      "ask": "When did the Battle of Verdun begin?",
+      "expect": "21 February 1916|February 1916|Feb 1916|21 Feb",
+      "poison": "1 July 1916"
+    },
+    {
+      "id": "b16-ww1-n3",
+      "kind": "near-miss",
+      "noteTitle": "History — World War One",
+      "ask": "Who was the British Prime Minister when Britain entered the war in 1914?",
+      "expect": "Asquith",
+      "poison": "Lloyd George"
+    },
+    {
+      "id": "b16-rivers-p1",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "what was the velocity at site 3 on the kettlewell beck trip",
+      "expect": "0.55 m/s|0.55"
+    },
+    {
+      "id": "b16-rivers-p2",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "mr lindqvists mnemonic for the erosion processes",
+      "expect": "Happy Ants Sing Always"
+    },
+    {
+      "id": "b16-rivers-p3",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "lag time on the hydrograph we drew in class?",
+      "expect": "9 hours|9 hrs"
+    },
+    {
+      "id": "b16-rivers-p4",
+      "kind": "positive",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "how much did the flood wall in our town cost",
+      "expect": "£4.2 million|4.2 million"
+    },
+    {
+      "id": "b16-rivers-n1",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "What is the longest river in the UK?",
+      "expect": "Severn",
+      "poison": "Thames"
+    },
+    {
+      "id": "b16-rivers-n2",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "In what year did the Thames Barrier become operational?",
+      "expect": "1982|1984",
+      "poison": "2004"
+    },
+    {
+      "id": "b16-rivers-n3",
+      "kind": "near-miss",
+      "noteTitle": "Geography — Rivers and Flooding",
+      "ask": "What is the name for the point where two rivers join?",
+      "expect": "confluence",
+      "poison": "watershed"
+    },
+    {
+      "id": "b16-ratio-p1",
+      "kind": "positive",
+      "noteTitle": "Maths — Ratio and Proportion",
+      "ask": "how much flour did we need for 30 cupcakes for the bake sale",
+      "expect": "375 g|375g"
+    },
+    {
+      "id": "b16-ratio-p2",
+      "kind": "positive",
+      "noteTitle": "Maths — Ratio and Proportion",
+      "ask": "miss chens mnemonic for sharing in a ratio??",
+      "expect": "Angry Dogs Munch"
+    },
+    {
+      "id": "b16-ratio-p3",
+      "kind": "positive",
+      "noteTitle": "Maths — Ratio and Proportion",
+      "ask": "what did i score in the ratio test",
+      "expect": "38/45"
+    },
+    {
+      "id": "b16-ratio-p4",
+      "kind": "positive",
+      "noteTitle": "Maths — Ratio and Proportion",
+      "ask": "which exercise is the ratio homework from",
+      "expect": "7C|p. 203|page 203"
+    },
+    {
+      "id": "b16-ratio-n1",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Ratio and Proportion",
+      "ask": "What is the ratio of a circle's circumference to its diameter, to 2 decimal places?",
+      "expect": "3.14|π",
+      "poison": "1.618"
+    },
+    {
+      "id": "b16-ratio-n2",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Ratio and Proportion",
+      "ask": "What is the aspect ratio of A4 paper?",
+      "expect": "1:√2|√2|1.414|1:1.41|1.41",
+      "poison": "16:9"
+    },
+    {
+      "id": "b16-ratio-n3",
+      "kind": "near-miss",
+      "noteTitle": "Maths — Ratio and Proportion",
+      "ask": "What scale is an Ordnance Survey Landranger map?",
+      "expect": "1:50 000|1:50,000|1:50000",
+      "poison": "1:25 000"
+    },
+    {
+      "id": "b16-econ-p1",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "what price did the wheat cards settle at in the trading game",
+      "expect": "£4.50|4.50"
+    },
+    {
+      "id": "b16-econ-p2",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "mr adeyemi acronym for stuff that shifts the demand curve",
+      "expect": "PASIFIC"
+    },
+    {
+      "id": "b16-econ-p3",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "what PED did we work out for the canteen cookies",
+      "expect": "-1.0|−1.0|unitary"
+    },
+    {
+      "id": "b16-econ-p4",
+      "kind": "positive",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "what mark did i get on the sugar tax essay",
+      "expect": "11/15"
+    },
+    {
+      "id": "b16-econ-n1",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "Who wrote The Wealth of Nations?",
+      "expect": "Adam Smith",
+      "poison": "Alfred Marshall"
+    },
+    {
+      "id": "b16-econ-n2",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "What is the Bank of England's inflation target?",
+      "expect": "2%|2 per cent|2 percent|two per cent",
+      "poison": "10%"
+    },
+    {
+      "id": "b16-econ-n3",
+      "kind": "near-miss",
+      "noteTitle": "Economics — Supply and Demand",
+      "ask": "What's the name for status goods whose demand rises as their price rises?",
+      "expect": "Veblen",
+      "poison": "Giffen"
+    },
+    {
+      "id": "b16-macbeth-p1",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "what was mrs okonkwos mnemonic for the themes",
+      "expect": "GASK"
+    },
+    {
+      "id": "b16-macbeth-p2",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "which page is is this a dagger on in our copy",
+      "expect": "p. 47|page 47|p.47"
+    },
+    {
+      "id": "b16-macbeth-p3",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "what did i get in the macbeth mock",
+      "expect": "22/30"
+    },
+    {
+      "id": "b16-macbeth-p4",
+      "kind": "positive",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "mark for our act 4 scene 1 performance?",
+      "expect": "9/10"
+    },
+    {
+      "id": "b16-macbeth-n1",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "In what year is Macbeth thought to have first been performed?",
+      "expect": "1606",
+      "poison": "1605"
+    },
+    {
+      "id": "b16-macbeth-n2",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "Whose Chronicles did Shakespeare use as the main source for Macbeth?",
+      "expect": "Holinshed",
+      "poison": "James I"
+    },
+    {
+      "id": "b16-macbeth-n3",
+      "kind": "near-miss",
+      "noteTitle": "English Literature — Macbeth",
+      "ask": "In what year did Shakespeare die?",
+      "expect": "1616",
+      "poison": "1603"
+    },
+    {
+      "id": "b16-sorting-p1",
+      "kind": "positive",
+      "noteTitle": "Computing — Algorithms and Sorting",
+      "ask": "how many swaps did the people bubble sort take",
+      "expect": "15 swaps"
+    },
+    {
+      "id": "b16-sorting-p2",
+      "kind": "positive",
+      "noteTitle": "Computing — Algorithms and Sorting",
+      "ask": "how long did bubble sort take on 1000 items in our python test",
+      "expect": "0.087 s|0.087"
+    },
+    {
+      "id": "b16-sorting-p3",
+      "kind": "positive",
+      "noteTitle": "Computing — Algorithms and Sorting",
+      "ask": "mr kowalski mnemonic for merge sort?",
+      "expect": "Don't Cry, Code|Dont Cry Code|Don't Cry Code"
+    },
+    {
+      "id": "b16-sorting-p4",
+      "kind": "positive",
+      "noteTitle": "Computing — Algorithms and Sorting",
+      "ask": "what did i get in the computing mock in jan",
+      "expect": "41/60"
+    },
+    {
+      "id": "b16-sorting-n1",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Algorithms and Sorting",
+      "ask": "Who invented quicksort?",
+      "expect": "Tony Hoare|Hoare",
+      "poison": "John von Neumann"
+    },
+    {
+      "id": "b16-sorting-n2",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Algorithms and Sorting",
+      "ask": "What is the Big O time complexity of binary search?",
+      "expect": "O(log n)|log n|logarithmic",
+      "poison": "O(n)"
+    },
+    {
+      "id": "b16-sorting-n3",
+      "kind": "near-miss",
+      "noteTitle": "Computing — Algorithms and Sorting",
+      "ask": "Which sorting algorithm does Python's built-in sort() use?",
+      "expect": "Timsort",
+      "poison": "merge sort"
+    },
+    {
+      "id": "b16-nutrition-p1",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Diet",
+      "ask": "what was my average calories a day in the food diary",
+      "expect": "2,140 kcal|2140 kcal|2,140|2140"
+    },
+    {
+      "id": "b16-nutrition-p2",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Diet",
+      "ask": "ms rahmans mnemonic for the 7 nutrients",
+      "expect": "Carrots Fry Pretty Very Many Fish Wobbling"
+    },
+    {
+      "id": "b16-nutrition-p3",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Diet",
+      "ask": "what bmi did the worked example on the board come out as",
+      "expect": "22.0|22.04"
+    },
+    {
+      "id": "b16-nutrition-p4",
+      "kind": "positive",
+      "noteTitle": "Health — Nutrition and Diet",
+      "ask": "my score on the nutrition quiz?",
+      "expect": "17/20"
+    },
+    {
+      "id": "b16-nutrition-n1",
+      "kind": "near-miss",
+      "noteTitle": "Health — Nutrition and Diet",
+      "ask": "What's the recommended daily calorie intake for an adult woman in the UK?",
+      "expect": "2,000|2000",
+      "poison": "2,500 kcal"
+    },
+    {
+      "id": "b16-nutrition-n2",
+      "kind": "near-miss",
+      "noteTitle": "Health — Nutrition and Diet",
+      "ask": "A deficiency of which vitamin causes beriberi?",
+      "expect": "thiamine|thiamin|vitamin B1|B1",
+      "poison": "vitamin C"
+    },
+    {
+      "id": "b16-nutrition-n3",
+      "kind": "near-miss",
+      "noteTitle": "Health — Nutrition and Diet",
+      "ask": "How many kcal are in 1 g of alcohol?",
+      "expect": "7 kcal|7kcal|seven",
+      "poison": "9 kcal"
+    },
+    {
+      "id": "b16-laws-p1",
+      "kind": "positive",
+      "noteTitle": "Civics — How Laws Are Made",
+      "ask": "whats mr fairweathers mnemonic for the stages of a bill",
+      "expect": "Fat Squirrels Can't Resist Treats|Fat Squirrels Cant Resist Treats"
+    },
+    {
+      "id": "b16-laws-p2",
+      "kind": "positive",
+      "noteTitle": "Civics — How Laws Are Made",
+      "ask": "what was the final vote on our mock parliament hoodie bill",
+      "expect": "17 votes to 11|17 to 11|17-11"
+    },
+    {
+      "id": "b16-laws-p3",
+      "kind": "positive",
+      "noteTitle": "Civics — How Laws Are Made",
+      "ask": "whats the name of our tour guide at parliament",
+      "expect": "Priya"
+    },
+    {
+      "id": "b16-laws-p4",
+      "kind": "positive",
+      "noteTitle": "Civics — How Laws Are Made",
+      "ask": "what did i get in the citizenship test",
+      "expect": "26/30"
+    },
+    {
+      "id": "b16-laws-n1",
+      "kind": "near-miss",
+      "noteTitle": "Civics — How Laws Are Made",
+      "ask": "How many members are in the US House of Representatives?",
+      "expect": "435",
+      "poison": "650"
+    },
+    {
+      "id": "b16-laws-n2",
+      "kind": "near-miss",
+      "noteTitle": "Civics — How Laws Are Made",
+      "ask": "How many members does the Northern Ireland Assembly have?",
+      "expect": "90",
+      "poison": "129"
+    },
+    {
+      "id": "b16-laws-n3",
+      "kind": "near-miss",
+      "noteTitle": "Civics — How Laws Are Made",
+      "ask": "When did a British monarch last refuse Royal Assent to a bill?",
+      "expect": "1708|Queen Anne",
+      "poison": "1911"
+    },
+    {
+      "id": "b16-volcano-p1",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Volcanoes",
+      "ask": "how long did golden syrup take to get down the ramp",
+      "expect": "48 s|48 seconds|48s"
+    },
+    {
+      "id": "b16-volcano-p2",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Volcanoes",
+      "ask": "dr whitfields saying about sticky lava",
+      "expect": "Sticky Silica = Scary|Sticky Silica"
+    },
+    {
+      "id": "b16-volcano-p3",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Volcanoes",
+      "ask": "what VEI was mt st helens in my notes",
+      "expect": "VEI 5"
+    },
+    {
+      "id": "b16-volcano-p4",
+      "kind": "positive",
+      "noteTitle": "Earth Science — Volcanoes",
+      "ask": "my volcanoes test score",
+      "expect": "33/40"
+    },
+    {
+      "id": "b16-volcano-n1",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Volcanoes",
+      "ask": "What is the tallest volcano in the solar system?",
+      "expect": "Olympus Mons",
+      "poison": "Mauna Loa"
+    },
+    {
+      "id": "b16-volcano-n2",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Volcanoes",
+      "ask": "In what year did Vesuvius bury Pompeii?",
+      "expect": "79 AD|AD 79|79 CE|AD79",
+      "poison": "1980"
+    },
+    {
+      "id": "b16-volcano-n3",
+      "kind": "near-miss",
+      "noteTitle": "Earth Science — Volcanoes",
+      "ask": "How many people died in the 1980 Mount St Helens eruption?",
+      "expect": "57",
+      "poison": "19 people"
+    },
+    {
+      "id": "b16-space-p1",
+      "kind": "positive",
+      "noteTitle": "Physics — Space and the Solar System",
+      "ask": "planet mnemonic ms delacroix makes us use",
+      "expect": "My Very Easy Method Just Speeds Up Naming"
+    },
+    {
+      "id": "b16-space-p2",
+      "kind": "positive",
+      "noteTitle": "Physics — Space and the Solar System",
+      "ask": "how far away was neptune on our scale model",
+      "expect": "690 m|690m"
+    },
+    {
+      "id": "b16-space-p3",
+      "kind": "positive",
+      "noteTitle": "Physics — Space and the Solar System",
+      "ask": "weight on the moon worked example answer?",
+      "expect": "88 N|88N"
+    },
+    {
+      "id": "b16-space-p4",
+      "kind": "positive",
+      "noteTitle": "Physics — Space and the Solar System",
+      "ask": "what did i get on the space test",
+      "expect": "29/35"
+    },
+    {
+      "id": "b16-space-n1",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Space and the Solar System",
+      "ask": "What is the gravitational field strength on Mars?",
+      "expect": "3.7 N/kg|3.7|3.71",
+      "poison": "9.8 N/kg"
+    },
+    {
+      "id": "b16-space-n2",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Space and the Solar System",
+      "ask": "How long does light from the Sun take to reach Earth?",
+      "expect": "8 minutes|8 min|8.3 min|8 and a half",
+      "poison": "4.2 years"
+    },
+    {
+      "id": "b16-space-n3",
+      "kind": "near-miss",
+      "noteTitle": "Physics — Space and the Solar System",
+      "ask": "What is the surface temperature of the Sun?",
+      "expect": "5,500|5500|5,778|5778|5,800|5800|5,700|5700",
+      "poison": "15 million °C"
+    },
+    {
+      "id": "b16-heart-p1",
+      "kind": "positive",
+      "noteTitle": "Biology — The Heart and Circulation",
+      "ask": "how thick was the left ventricle wall when we dissected the heart",
+      "expect": "14 mm|14mm"
+    },
+    {
+      "id": "b16-heart-p2",
+      "kind": "positive",
+      "noteTitle": "Biology — The Heart and Circulation",
+      "ask": "what was my pulse after 2 mins skipping",
+      "expect": "128 bpm|128"
+    },
+    {
+      "id": "b16-heart-p3",
+      "kind": "positive",
+      "noteTitle": "Biology — The Heart and Circulation",
+      "ask": "cardiac output from the worked example?",
+      "expect": "5,040 ml/min|5040 ml/min|5,040|5040"
+    },
+    {
+      "id": "b16-heart-p4",
+      "kind": "positive",
+      "noteTitle": "Biology — The Heart and Circulation",
+      "ask": "how long did my pulse take to get back to resting",
+      "expect": "3 min 20 s|3 min 20|3:20"
+    },
+    {
+      "id": "b16-heart-n1",
+      "kind": "near-miss",
+      "noteTitle": "Biology — The Heart and Circulation",
+      "ask": "Who first correctly described the circulation of the blood, in 1628?",
+      "expect": "William Harvey|Harvey",
+      "poison": "Galen"
+    },
+    {
+      "id": "b16-heart-n2",
+      "kind": "near-miss",
+      "noteTitle": "Biology — The Heart and Circulation",
+      "ask": "How much blood is in an average adult's body?",
+      "expect": "5 litres|five litres|5-6 litres|5 to 6 litres|4.5 to 5.5|5 liters",
+      "poison": "5,040 ml/min"
+    },
+    {
+      "id": "b16-heart-n3",
+      "kind": "near-miss",
+      "noteTitle": "Biology — The Heart and Circulation",
+      "ask": "Roughly how many times does a human heart beat in a day?",
+      "expect": "100,000|100 000|100000|103,680|104,000",
+      "poison": "72 bpm"
+    },
+    {
+      "id": "b16-spacerace-p1",
+      "kind": "positive",
+      "noteTitle": "History — The Space Race",
+      "ask": "mnemonic for the soviet firsts in order",
+      "expect": "Silly Little Goats Travel"
+    },
+    {
+      "id": "b16-spacerace-p2",
+      "kind": "positive",
+      "noteTitle": "History — The Space Race",
+      "ask": "what was the score in our who won the space race debate",
+      "expect": "3-2|3–2"
+    },
+    {
+      "id": "b16-spacerace-p3",
+      "kind": "positive",
+      "noteTitle": "History — The Space Race",
+      "ask": "mark for my kennedy speech source analysis",
+      "expect": "7/8"
+    },
+    {
+      "id": "b16-spacerace-p4",
+      "kind": "positive",
+      "noteTitle": "History — The Space Race",
+      "ask": "what % of the federal budget did nasa get in 1966",
+      "expect": "4.4%|4.4 %"
+    },
+    {
+      "id": "b16-spacerace-n1",
+      "kind": "near-miss",
+      "noteTitle": "History — The Space Race",
+      "ask": "Who was the second person to walk on the Moon?",
+      "expect": "Buzz Aldrin|Aldrin",
+      "poison": "Neil Armstrong"
+    },
+    {
+      "id": "b16-spacerace-n2",
+      "kind": "near-miss",
+      "noteTitle": "History — The Space Race",
+      "ask": "When did the last crewed Apollo Moon landing take place?",
+      "expect": "December 1972|Dec 1972|1972|Apollo 17",
+      "poison": "1975"
+    },
+    {
+      "id": "b16-spacerace-n3",
+      "kind": "near-miss",
+      "noteTitle": "History — The Space Race",
+      "ask": "Who was the first American in space?",
+      "expect": "Alan Shepard|Shepard",
+      "poison": "John Glenn"
+    },
+    {
+      "id": "b16-water-p1",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Water Treatment",
+      "ask": "how much distillate did we collect in the practical",
+      "expect": "62 cm³|62 cm3|62cm3"
+    },
+    {
+      "id": "b16-water-p2",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Water Treatment",
+      "ask": "mr hughes mnemonic for the drinking water stages",
+      "expect": "Some Silly Fish Can't Dance|Some Silly Fish Cant Dance"
+    },
+    {
+      "id": "b16-water-p3",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Water Treatment",
+      "ask": "how many litres a day does riverside sewage works treat",
+      "expect": "45 million litres|45 million"
+    },
+    {
+      "id": "b16-water-p4",
+      "kind": "positive",
+      "noteTitle": "Chemistry — Water Treatment",
+      "ask": "what pH was the river sample on the trip",
+      "expect": "6.8"
+    },
+    {
+      "id": "b16-water-n1",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Water Treatment",
+      "ask": "What is the boiling point of water at the top of Mount Everest?",
+      "expect": "70 °C|70°C|71 °C|71°C|69 °C|about 70",
+      "poison": "100 °C"
+    },
+    {
+      "id": "b16-water-n2",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Water Treatment",
+      "ask": "What is the WHO guideline maximum for fluoride in drinking water?",
+      "expect": "1.5 mg/L|1.5 mg/l|1.5 ppm|1.5 mg",
+      "poison": "1 ppm"
+    },
+    {
+      "id": "b16-water-n3",
+      "kind": "near-miss",
+      "noteTitle": "Chemistry — Water Treatment",
+      "ask": "What is the maximum nitrate concentration allowed in UK drinking water?",
+      "expect": "50 mg/L|50 mg/l|50 mg per litre|50 ppm",
+      "poison": "0.5 mg per litre"
+    }
+  ]
+}
