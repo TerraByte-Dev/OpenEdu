@@ -186,7 +186,7 @@ async function runFlowFr(items: typeof K12_FR_ITEMS, o: EvalOptions, write: (bod
   }
 }
 
-/** Lever 16's switches for a k12-flow run (k12-flow-runner.ts K12FlowArm). */
+/** Levers 16 and 17's switches for a k12-flow run (k12-flow-runner.ts K12FlowArm). */
 function flowArm(o: EvalOptions): K12FlowArm {
-  return { courseRules: (o.courseRules ?? "none") as K12FlowArm["courseRules"], temperature: o.temperature ?? "tutor" };
+  return { courseRules: (o.courseRules ?? "none") as K12FlowArm["courseRules"], temperature: o.temperature ?? "tutor", turnRules: o.turnRules ?? "per-turn" };
 }

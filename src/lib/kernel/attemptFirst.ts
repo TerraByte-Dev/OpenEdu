@@ -17,6 +17,14 @@
 //     prompt and tools manifest on this turn and again on the next.
 // The note is not saved: ChatTab saves what the student typed, so later turns never see it.
 //
+// Lever 17: the hold turn's system prompt also loses ANSWER_RULE, the code-owned rules line that says
+// to answer an information request in the first sentence (curriculum.ts TUTOR_RULES). The note alone
+// did not beat it: with that line in the system prompt, e2b named the right option at T1 on 41 more
+// k12-flow items of 240 than without it (lever 16, issue #233, G1 232 -> 194), replying to "Which one
+// is right?" as a lookup. So the code picks the teaching style for the turn and the model reads only
+// one. That costs the prefix cache on this turn, as the worked-answer turn already does; every turn
+// that is not a hold keeps the system prompt byte-identical.
+//
 // Scope, kept narrow on purpose: only a lettered option list (at least A, B and C, in order) counts
 // as a newly posed problem. A free-text or numeric problem is not detected, and gets no hold.
 
@@ -79,6 +87,18 @@ export function posesNewProblem(text: string): boolean {
 export function isFirstTurnHold(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
   const newest = conversation[conversation.length - 1];
   return !!newest && newest.role === "user" && posesNewProblem(newest.content);
+}
+
+/** The code-owned rules line for information requests (TUTOR_RULES in curriculum.ts holds it once). */
+export const ANSWER_RULE = "- When the student asks for information (a fact, a definition, what their notes say), answer it directly in your first sentence. Do not reply with a question instead of the answer, and do not tell the student to look it up.";
+
+/**
+ * The system prompt as the model sees it on the hold turn: ANSWER_RULE's line removed, so the hint rule
+ * is the only teaching style it reads. A prompt without the line (a course with no rules block, or the
+ * legacy rules) comes back unchanged.
+ */
+export function withoutAnswerRule(system: string): string {
+  return system.replace(`${ANSWER_RULE}\n`, "");
 }
 
 /** The student's message as the model sees it on the hold turn. */

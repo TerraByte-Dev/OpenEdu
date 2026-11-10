@@ -22,7 +22,7 @@ import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent 
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
-import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
+import { isFirstTurnHold, withFirstTurnHold, withoutAnswerRule } from "./attemptFirst";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
@@ -52,6 +52,10 @@ export interface TutorTurn {
   // default (gemma4's is 1.0); the eval's paired arm (EVAL_TEMPERATURE=model-default). Default "tutor":
   // TUTOR_TEMPERATURE. The app never sets it.
   temperature?: "tutor" | "model-default";
+  // "static" keeps ANSWER_RULE in the system prompt on the hold turn, as lever 16 sent it, the eval's
+  // paired arm (EVAL_TURN_RULES=static). Default "per-turn": the hold turn drops it (attemptFirst.ts
+  // withoutAnswerRule). The app never sets it.
+  turnRules?: "per-turn" | "static";
 }
 
 // The sampling temperature of every tutoring reply (lever 16). Before it the kernel sent none, so each
@@ -133,15 +137,18 @@ export class TutorEngine {
     // the worked-answer rules. Done here, before the tools manifest is appended, so every caller of
     // the kernel gets it and no caller can fork it. Any other turn's system prompt is untouched. See
     // outputRules.ts.
+    // The first-turn hold (attemptFirst.ts): decided here from the conversation as the caller sent it.
+    // Its system prompt loses the answer-first rule here (lever 17); its note is applied below after
+    // retrieval, so the query and the gloss see only what the student typed.
+    const firstTurnHold = isFirstTurnHold(messages.filter((m) => m.role !== "system"));
     const sysAt = messages.findIndex((m) => m.role === "system");
     if (sysAt >= 0) {
       const conversation = messages.filter((m) => m.role !== "system");
-      messages[sysAt] = { ...messages[sysAt], content: turnSystemPrompt(messages[sysAt].content, conversation) };
+      let system = turnSystemPrompt(messages[sysAt].content, conversation);
+      if (firstTurnHold && turn.turnRules !== "static") system = withoutAnswerRule(system);
+      messages[sysAt] = { ...messages[sysAt], content: system };
     }
     const workedAnswerRules = sysAt >= 0 && messages[sysAt].content.endsWith(WORKED_ANSWER_RULES);
-    // The first-turn hold (attemptFirst.ts): decided here from the conversation as the caller sent it,
-    // applied below after retrieval, so the query and the gloss see only what the student typed.
-    const firstTurnHold = isFirstTurnHold(messages.filter((m) => m.role !== "system"));
     // The check-before-praise note (checkBeforePraise.ts): a try at the problem the tutor just worked
     // on. Decided and applied the same way as the hold; never on the same turn as it.
     const checkBeforePraise = isCheckBeforePraiseTurn(messages.filter((m) => m.role !== "system"));
@@ -201,7 +208,7 @@ ${lastUser.content}` };
     }
     if (firstTurnHold) {
       // After the grounding block and the student's text, so the note is the last thing the model
-      // reads before it answers. The system prompt is untouched; see attemptFirst.ts.
+      // reads before it answers. The system prompt lost ANSWER_RULE above; see attemptFirst.ts.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withFirstTurnHold(messages[idx].content) };
     }

@@ -21,6 +21,14 @@ describe("parseEvalEnv", () => {
     expect(() => parseEvalEnv({ EVAL_COURSE_RULES: "code", EVAL_SET: "sealed", EVAL_SEALED: "x" })).toThrow(/EVAL_COURSE_RULES is not allowed with EVAL_SET=sealed/);
   });
 
+  it("reads EVAL_TURN_RULES (lever 17's paired arm) for the k12-flow suites only", () => {
+    expect(parseEvalEnv({}).turnRules).toBeUndefined();
+    for (const suite of ["k12-flow", "k12-flow-fr"]) expect(parseEvalEnv({ EVAL_SUITE: suite, EVAL_TURN_RULES: "static" }).turnRules).toBe("static");
+    expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_TURN_RULES: "per-turn" })).toThrow(/EVAL_TURN_RULES=per-turn: use static/);
+    expect(() => parseEvalEnv({ EVAL_TURN_RULES: "static" })).toThrow(/EVAL_TURN_RULES applies only to k12-flow and k12-flow-fr, not rag/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_TURN_RULES: "static" })).toThrow(/EVAL_TURN_RULES applies only to k12-flow/);
+  });
+
   it("reads EVAL_PASSAGE_WINDOW (lever 10's paired arm) and refuses it where it cannot apply", () => {
     expect(parseEvalEnv({}).passageWindow).toBeUndefined();
     expect(parseEvalEnv({ EVAL_PASSAGE_WINDOW: "off" }).passageWindow).toBe("off");
