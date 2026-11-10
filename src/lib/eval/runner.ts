@@ -47,7 +47,7 @@ async function runGolden(g: Golden, config: Awaited<ReturnType<typeof getChatCon
   const personaIdentity = personaIdentityLayer(persona);
 
   for (const turn of g.turns) {
-    const system = buildSystemPrompt(EVAL_INSTRUCTIONS, null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined, personaIdentity);
+    const system = buildSystemPrompt(EVAL_INSTRUCTIONS, null, 1, g.topic, getTutorModePrompt(turn.mode ?? "explain"), undefined, personaIdentity, "stored");
     const messages = [
       ...(system.trim() ? [{ role: "system", content: system }] : []),
       ...history,
@@ -87,7 +87,7 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
       // with teaching modes but NOT the focused "assess" check (keeps its Phase-2 tool set stable).
       const domainSkill = modeSkill?.name === "assess" ? null : (resolveDomainSkill(g.topic, modelTier) ?? null);
       const suffix = getTutorModePrompt(turn.mode ?? "explain") + (domainSkill?.promptSuffix ?? "");
-      const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, suffix, undefined, personaIdentity);
+      const system = buildSystemPrompt(EVAL_INSTRUCTIONS, g.syllabus ?? null, 1, g.topic, suffix, undefined, personaIdentity, "stored");
       const messages = [
         ...(system.trim() ? [{ role: "system", content: system }] : []),
         ...history,

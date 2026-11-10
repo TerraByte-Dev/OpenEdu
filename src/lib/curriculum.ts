@@ -522,7 +522,8 @@ ${MATH_FORMATTING_RULES}` }],
 
 // The rules block every course's tutor gets (lever 16, teaching style by turn kind). Code owns it:
 // buildSystemPrompt sends this text in place of whatever "rules" row a course stored at generation, so
-// a change here reaches every course, old ones included. Before lever 16 the stored row was the only
+// a change here reaches every course that has one (every generated course, old ones included; a course
+// with no rules row gets no rules block). Before lever 16 the stored row was the only
 // copy, and it told the tutor to "guide the student to discover answers rather than giving them
 // immediately" on every turn: under it gemma4:e2b answered questions about the student's own notes
 // with a question back (results/2026-11-08-rag-prompt-fidelity.md). Lookups are now answered first;

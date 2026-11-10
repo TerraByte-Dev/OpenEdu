@@ -14,6 +14,7 @@
 // Do not save a source file during a run: Vite HMR reloads the webview and kills it.
 
 import { tutorEngine, skillBundleLayer } from "../kernel";
+import { TUTOR_TEMPERATURE } from "../kernel/TutorEngine";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
 import { buildSystemPrompt } from "../curriculum";
@@ -170,7 +171,7 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
 
     const skill = resolveSkill("explain") ?? null;
     // Syllabus is null, not evalToolSyllabus(): that one injects a Python Basics level block.
-    const system = buildSystemPrompt(K12_INSTRUCTIONS, null, 1, "General Study", skillBundleLayer(skill) ?? "");
+    const system = buildSystemPrompt(K12_INSTRUCTIONS, null, 1, "General Study", skillBundleLayer(skill) ?? "", undefined, undefined, "stored");
 
     const rows: K12Row[] = [];
     // Exposed before the first turn and filled as rows complete, so a late crash does not lose the run.
@@ -205,10 +206,11 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
           failed = false;
           try {
             if (arm === "raw") {
-              // callLLMTurn, the transport the kernel itself uses — same num_ctx, num_predict and
-              // think:false — so the only thing this arm removes is the harness.
+              // callLLMTurn, the transport the kernel itself uses — same num_ctx, num_predict,
+              // think:false and, since lever 16, the kernel's temperature — so the only thing this arm
+              // removes is the harness.
               await watched(async (signal) => {
-                for await (const ev of callLLMTurn([{ role: "user", content: prompt }], config, { tier: profile.tier, signal })) {
+                for await (const ev of callLLMTurn([{ role: "user", content: prompt }], config, { tier: profile.tier, signal, temperature: TUTOR_TEMPERATURE })) {
                   if (ev.type === "text") row.text += ev.delta;
                   else if (ev.type === "done") row.stopReason = ev.finishReason;
                 }
