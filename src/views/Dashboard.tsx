@@ -2,7 +2,6 @@
 import type { Course } from "../types";
 import { createCourse } from "../lib/db";
 import { CompanionSprite } from "../components/CompanionSprite";
-import { BrandMark } from "../components/BrandMark";
 import { SPRITE_PERSONAS, DEFAULT_SPRITE_ID, suggestSpriteForTopic } from "../lib/sprites/registry";
 import { runGenerationPipeline } from "../lib/curriculum";
 import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
@@ -237,15 +236,12 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-2">
-            <BrandMark size={52} glow title="TerraByte Solutions LLC" />
             <h1
-              className="wordmark-glow"
               style={{
-                fontFamily: "'VT323', var(--font-mono)",
-                fontSize: "clamp(2.4rem, 6vw, 4rem)",
-                color: "var(--phosphor)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(2rem, 5vw, 2.75rem)",
+                fontWeight: 600,
+                color: "var(--ink-em)",
               }}
             >
               OpenEdu
@@ -393,7 +389,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                           onScroll={handleStreamScroll}
                           className="lcd p-3 mt-2 max-h-64 overflow-y-auto"
                         >
-                          <pre className="text-xs font-mono text-phosphor whitespace-pre-wrap leading-relaxed">
+                          <pre className="text-xs font-lcd text-phosphor whitespace-pre-wrap leading-relaxed">
                             {streamLog}
                           </pre>
                         </div>

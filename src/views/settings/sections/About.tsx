@@ -7,7 +7,7 @@ import { getLLMProvider, getGenerationConfig, getChatConfig } from "../../../lib
 import { detectModelTier, getOllamaModels, preflightStructuredOutput } from "../../../lib/llm";
 import { getManifest } from "../../../lib/library";
 import { DEFAULT_PERMISSION_RULES, savePermissionRules } from "../../../lib/permissions";
-import { applyTheme, setCrtOff, DEFAULT_THEME_ID } from "../../../lib/theme";
+import { applyTheme, DEFAULT_THEME_ID } from "../../../lib/theme";
 import {
   gatherSettings, downloadSettingsFile, serializeSettings, parseSettingsFile, applyImportedSettings,
 } from "../../../lib/settings-io";
@@ -140,7 +140,6 @@ export default function About({ onProviderChanged }: SectionProps) {
   const resetDefaults = async () => {
     // Resets appearance, models & permissions to defaults — keeps the provider, API keys, and Tavily key.
     applyTheme(DEFAULT_THEME_ID);
-    setCrtOff(false);
     await savePermissionRules({ ...DEFAULT_PERMISSION_RULES });
     try {
       const store = await Store.load(STORE_FILE);
@@ -189,7 +188,7 @@ export default function About({ onProviderChanged }: SectionProps) {
               <dt className="text-[var(--ink-faint)]">Chat model</dt><dd className="text-ink font-mono">{diag.chatModel}</dd>
               <dt className="text-[var(--ink-faint)]">Ollama</dt><dd className="text-ink">{diag.ollama}</dd>
               <dt className="text-[var(--ink-faint)]">Library</dt><dd className="text-ink">{diag.library}</dd>
-              <dt className="text-[var(--ink-faint)]">Database</dt><dd className="text-ink font-mono break-all select-all">{diag.dbPath}</dd>
+              <dt className="text-[var(--ink-faint)]">Database</dt><dd className="text-ink font-lcd break-all select-all">{diag.dbPath}</dd>
             </dl>
           ) : (
             <p className="text-xs text-[var(--ink-faint)]">Loading…</p>
@@ -224,7 +223,7 @@ export default function About({ onProviderChanged }: SectionProps) {
               onChange={(e) => setImportText(e.target.value)}
               placeholder='Paste exported settings JSON here…'
               rows={3}
-              className={INPUT_CLS + " font-mono text-xs resize-y"}
+              className={INPUT_CLS + " font-lcd text-xs resize-y"}
               spellCheck={false}
             />
             <ActionButton onClick={() => applyImport(importText)} primary>Apply pasted JSON</ActionButton>
@@ -232,14 +231,14 @@ export default function About({ onProviderChanged }: SectionProps) {
           </div>
         </SettingRow>
 
-        <SettingRow label="Reset to defaults" help="Restores theme, CRT, models, library, and permissions to their defaults. Keeps your provider, API keys, and Tavily key.">
+        <SettingRow label="Reset to defaults" help="Restores the light theme, models, library, and permissions to their defaults. Keeps your provider, API keys, and Tavily key.">
           <ConfirmButton onConfirm={resetDefaults} label="Reset to defaults" confirmLabel="Click again to confirm" />
         </SettingRow>
       </Section>
 
-      {/* Brand attribution — the emblem tints to the active theme via BrandMark. */}
+      {/* Maker credit — the one place TerraByte appears; the emblem tints to the accent via BrandMark. */}
       <div className="mt-10 pt-6 border-t border-[var(--rule)] flex items-center gap-3">
-        <BrandMark size={40} glow title="TerraByte Solutions LLC" />
+        <BrandMark size={40} title="TerraByte Solutions LLC" />
         <div className="min-w-0">
           <div className="text-sm text-ink font-medium leading-tight">OpenEdu</div>
           <div className="text-xs text-[var(--ink-faint)] leading-tight">by TerraByte Solutions LLC · free &amp; open source</div>

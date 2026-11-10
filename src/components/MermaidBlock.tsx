@@ -58,7 +58,7 @@ export default function MermaidBlock({ code }: { code: string }) {
 
   if (failed) {
     return (
-      <div className="lcd rounded-lg px-3 py-2 text-[12px] font-mono text-phosphor-ink overflow-x-auto w-fit max-w-full whitespace-pre">
+      <div className="lcd rounded-lg px-3 py-2 text-[12px] font-lcd text-phosphor-ink overflow-x-auto w-fit max-w-full whitespace-pre">
         <code>{code}</code>
       </div>
     );

@@ -1,98 +1,110 @@
-// Color/appearance themes. The whole UI is CSS-variable driven (src/index.css) and the CRT overlay is
-// toggled by an `html.crt-off` class. A theme is just a named bundle of CSS-var overrides — declared in
-// index.css under [data-theme="…"] — plus a CRT/font intent. We persist the choice to localStorage so it
-// can be applied before first paint (no flash), mirroring the existing `oe-crt-off` mechanism.
+// Appearance: the "Notebook" look in two modes, light (the default) and dark, plus "Match my computer",
+// which follows the OS `prefers-color-scheme`. The UI is CSS-variable driven (src/index.css): light is
+// the bare :root palette, dark is the html[data-theme="dark"] block. The choice lives in localStorage so
+// main.tsx can apply it before first paint (no flash).
 //
-// Two families:
-//   • "crt"        — keep the OpenEdu look (scanlines + mono UI chrome), just recolored.
-//   • "universal"  — drop the CRT overlay + switch to clean sans fonts, so the app "feels like a new app"
-//                    for users who don't want the TerraByte/CRT theming.
+// Before this, OpenEdu shipped a black CRT look with nine recolors, a "universal" Dark/Light pair and a
+// scanline overlay. Those ids are still in people's localStorage and in exported settings files, so
+// every read goes through normalizeThemeChoice(), which maps them onto the two modes.
 
-export type ThemeFamily = "crt" | "universal";
+export type ThemeId = "light" | "dark";
+export type ThemeChoice = ThemeId | "system";
 
 export interface Theme {
-  id: string;
+  id: ThemeId;
   name: string;
   blurb: string;
-  family: ThemeFamily;
-  // Swatch shown on the picker card — must mirror the [data-theme] block in index.css.
-  swatch: { bg: string; accent: string; ink: string };
 }
 
+// The palettes that exist. "system" is a choice, not a palette: it resolves to one of these.
 export const THEMES: Theme[] = [
-  // CRT family — ordered around the color wheel. Most carry a tinted background (synthwave-style) for flair.
-  { id: "openedu",     name: "OpenEdu",     blurb: "Blue phosphor CRT — the original.",     family: "crt",       swatch: { bg: "#000000", accent: "#00C6FF", ink: "#6DD4EE" } },
-  { id: "ice",         name: "Ice",         blurb: "Cool cyan-white on deep navy.",          family: "crt",       swatch: { bg: "#02040c", accent: "#6FE6FF", ink: "#BFEFFF" } },
-  { id: "green",       name: "Green",       blurb: "Classic P1 green phosphor.",             family: "crt",       swatch: { bg: "#000000", accent: "#2BFF88", ink: "#8FFFC0" } },
-  { id: "amber",       name: "Amber",       blurb: "Warm amber terminal glow.",              family: "crt",       swatch: { bg: "#000000", accent: "#FFB000", ink: "#FFD074" } },
-  { id: "tangerine",   name: "Tangerine",   blurb: "Hot orange on charred black.",           family: "crt",       swatch: { bg: "#060300", accent: "#FF7A18", ink: "#FFC089" } },
-  { id: "crimson",     name: "Crimson",     blurb: "Blood-red neon on deep maroon.",         family: "crt",       swatch: { bg: "#060102", accent: "#FF2E4D", ink: "#FF94A2" } },
-  { id: "vapor",       name: "Vapor",       blurb: "Vaporwave pink + cyan duotone.",         family: "crt",       swatch: { bg: "#070213", accent: "#FF8AD8", ink: "#93E6FF" } },
-  { id: "synthwave",   name: "Synthwave",   blurb: "Magenta neon on deep violet.",           family: "crt",       swatch: { bg: "#05000c", accent: "#FF3AC8", ink: "#FF9CE6" } },
-  { id: "ultraviolet", name: "Ultraviolet", blurb: "Electric violet on midnight indigo.",    family: "crt",       swatch: { bg: "#050316", accent: "#A06BFF", ink: "#C9B0FF" } },
-  // Universal family — neutral, no CRT, clean sans fonts.
-  { id: "dark",        name: "Dark",        blurb: "Clean neutral dark — no CRT.",           family: "universal", swatch: { bg: "#0d1117", accent: "#4493f8", ink: "#c9d1d9" } },
-  { id: "light",       name: "Light",       blurb: "Bright neutral light — no CRT.",         family: "universal", swatch: { bg: "#ffffff", accent: "#0969da", ink: "#1f2328" } },
+  { id: "light", name: "Light", blurb: "Warm paper, navy ink." },
+  { id: "dark", name: "Dark", blurb: "Deep blue, soft white ink." },
 ];
 
-export const DEFAULT_THEME_ID = "openedu";
-const STORAGE_KEY = "oe-theme";
-const CRT_OFF_KEY = "oe-crt-off";
+// What the Appearance section offers, in order.
+export const THEME_CHOICES: ReadonlyArray<{ id: ThemeChoice; label: string }> = [
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+  { id: "system", label: "Match my computer" },
+];
 
-export function getTheme(id: string | null | undefined): Theme {
-  return THEMES.find((t) => t.id === id) ?? THEMES[0];
+export const DEFAULT_THEME_ID: ThemeId = "light";
+const STORAGE_KEY = "oe-theme";
+// The retired "CRT off" preference. Nothing reads it any more; applyTheme() deletes it.
+const LEGACY_CRT_OFF_KEY = "oe-crt-off";
+
+// Every id the CRT-era picker could have stored. All of them were black-background screens, so a user
+// who chose one chose a dark screen. ("dark" and "light" existed then too and keep their meaning.)
+export const LEGACY_DARK_THEME_IDS: ReadonlySet<string> = new Set([
+  "ice", "green", "amber", "tangerine", "crimson", "vapor", "synthwave", "ultraviolet",
+]);
+
+// Map any stored or imported value onto a current choice.
+//   unset / "openedu" / unknown → light   ("openedu" was the default; nobody picked it on purpose)
+//   "light" / "dark" / "system" → as-is
+//   any CRT recolor             → dark
+export function normalizeThemeChoice(raw: unknown): ThemeChoice {
+  if (raw === "light" || raw === "dark" || raw === "system") return raw;
+  if (typeof raw === "string" && LEGACY_DARK_THEME_IDS.has(raw)) return "dark";
+  return DEFAULT_THEME_ID;
 }
 
-export function getThemeId(): string {
+// Is this a theme id some version of OpenEdu wrote? Used by settings import to tell an old export
+// (map it) from a garbage value (skip it).
+export function isRecognizedThemeId(raw: unknown): raw is string {
+  return typeof raw === "string"
+    && (raw === "openedu" || raw === "light" || raw === "dark" || raw === "system" || LEGACY_DARK_THEME_IDS.has(raw));
+}
+
+// Which palette a choice paints with. Pure, so "Match my computer" is testable without a DOM.
+export function resolveTheme(choice: ThemeChoice, prefersDark: boolean): ThemeId {
+  if (choice === "system") return prefersDark ? "dark" : "light";
+  return choice;
+}
+
+export function getThemeChoice(): ThemeChoice {
   try {
-    return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID;
+    return normalizeThemeChoice(localStorage.getItem(STORAGE_KEY));
   } catch {
     return DEFAULT_THEME_ID;
   }
 }
 
-// Only CRT-family themes expose the manual CRT on/off toggle (universal themes are intrinsically off).
-export function themeSupportsCrt(id: string): boolean {
-  return getTheme(id).family === "crt";
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+function systemPrefersDark(): boolean {
+  try { return window.matchMedia(DARK_QUERY).matches; } catch { return false; }
 }
 
-// ── Manual CRT preference (the titlebar toggle + Appearance tab share this) ──────────────────────────────
-// Pure decision from the stored value. Nothing stored = a fresh install = overlay OFF: scanlines,
-// flicker and a vignette on a child's reading surface are an opt-in, not a default. "0" is a saved
-// choice to keep it on and is honored; "1" is a saved choice to keep it off.
-export function resolveStoredCrtOff(stored: string | null): boolean {
-  return stored === null ? true : stored === "1";
+// The palette on screen right now.
+export function getResolvedTheme(): ThemeId {
+  return resolveTheme(getThemeChoice(), systemPrefersDark());
 }
 
-export function getCrtOff(): boolean {
-  try { return resolveStoredCrtOff(localStorage.getItem(CRT_OFF_KEY)); } catch { return true; }
+function paint(id: ThemeId): void {
+  document.documentElement.dataset.theme = id;
+  document.documentElement.style.colorScheme = id;
 }
 
-// Set the manual CRT preference: persist, toggle the class, and broadcast so any open surface (titlebar,
-// Appearance tab) stays in sync. Only meaningful under CRT themes — universal themes force the overlay off.
-export function setCrtOff(off: boolean): void {
-  try { localStorage.setItem(CRT_OFF_KEY, off ? "1" : "0"); } catch { /* ignore */ }
-  document.documentElement.classList.toggle("crt-off", off);
-  try { window.dispatchEvent(new CustomEvent("oe-crt-change", { detail: off })); } catch { /* ignore */ }
+// Apply (and persist) a choice: set data-theme on <html> to the resolved palette, store the choice, and
+// broadcast `oe-theme-change` so the titlebar toggle and the Appearance section stay in sync.
+export function applyTheme(raw: unknown): ThemeChoice {
+  const choice = normalizeThemeChoice(raw);
+  paint(resolveTheme(choice, systemPrefersDark()));
+  try {
+    localStorage.setItem(STORAGE_KEY, choice);
+    localStorage.removeItem(LEGACY_CRT_OFF_KEY);
+  } catch { /* ignore */ }
+  try { window.dispatchEvent(new CustomEvent("oe-theme-change", { detail: choice })); } catch { /* ignore */ }
+  return choice;
 }
 
-// Pure decision: should the CRT overlay be OFF for this theme? Universal themes force it off; CRT themes
-// honor the user's manual preference. Extracted so the reconciliation is unit-testable without the DOM.
-export function resolveCrtOff(theme: Theme, manualCrtOff: boolean): boolean {
-  return theme.family === "universal" ? true : manualCrtOff;
-}
-
-// Apply (and persist) a theme: set data-theme on <html>, and reconcile the CRT overlay —
-//   • universal theme → force the overlay off (the CSS hides scanlines/grid/vignette), WITHOUT touching the
-//     stored manual preference, so returning to a CRT theme restores whatever the user last chose;
-//   • crt theme       → honor the user's manual CRT preference (oe-crt-off).
-// Dispatches `oe-theme-change` so decoupled listeners (e.g. the Titlebar) can react. Returns the theme.
-export function applyTheme(id: string): Theme {
-  const theme = getTheme(id);
-  const root = document.documentElement;
-  root.dataset.theme = theme.id;
-  root.classList.toggle("crt-off", resolveCrtOff(theme, getCrtOff()));
-  try { localStorage.setItem(STORAGE_KEY, theme.id); } catch { /* ignore */ }
-  try { window.dispatchEvent(new CustomEvent("oe-theme-change", { detail: theme.id })); } catch { /* ignore */ }
-  return theme;
+// Follow the OS light/dark setting while the choice is "Match my computer". Call once at startup.
+export function watchSystemTheme(): void {
+  try {
+    window.matchMedia(DARK_QUERY).addEventListener("change", () => {
+      if (getThemeChoice() === "system") applyTheme("system");
+    });
+  } catch { /* ignore — older webviews without matchMedia listeners just don't follow live */ }
 }

@@ -122,7 +122,7 @@ export default function Permissions() {
                 <tr key={tool} className="border-t border-[var(--rule)]">
                   <td className="px-3 py-2">
                     <div className="text-[13px] text-ink leading-tight">{TOOL_LABELS[tool] ?? tool}</div>
-                    <div className="font-mono text-[10px] text-[var(--ink-faint)]">{tool}</div>
+                    <div className="font-lcd text-[10px] text-[var(--ink-faint)]">{tool}</div>
                   </td>
                   {PERMISSION_EDITABLE_MODES.map((mode) => {
                     const decision = (permRules[tool]?.[mode] ?? "ask") as PermissionDecision;

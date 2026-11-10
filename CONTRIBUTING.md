@@ -53,9 +53,9 @@ If you touched the agent harness or tutoring flow, also smoke-test a real genera
 - **TypeScript**, strict. Match the surrounding code's style, naming, and comment density.
 - **Add tests for pure logic.** New Tauri-free logic should get a `*.test.ts` next to it (see the
   existing suite under `src/lib/`).
-- **Design system:** the UI is CSS-variable driven (CRT-phosphor aesthetic in `src/index.css`). Use the
+- **Design system:** the UI is CSS-variable driven (the "Notebook" look, light and dark, in `src/index.css`). Use the
   theme tokens (`--phosphor`, `--ink`, `--rule`, …) and existing classes — don't hardcode theme colors,
-  so everything stays theme-aware. Settings has its own [architecture README](src/views/settings/README.md).
+  so everything works in both modes. Settings has its own [architecture README](src/views/settings/README.md).
 - **Small-model-first:** the generation pipeline (`src/lib/curriculum.ts`) is schema-enforced so it holds
   up on ~4B local models. Keep new model calls structured + validated; don't regress that reliability.
 - **Don't modify a shipped `tauri-plugin-sql` migration** — add a new version instead.

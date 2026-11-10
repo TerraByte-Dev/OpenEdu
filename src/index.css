@@ -74,206 +74,79 @@
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+
 /* ═══════════════════════════════════════════════════════════════
-   CSS CUSTOM PROPERTIES — GREEN PHOSPHOR (boot sequence default)
+   CSS CUSTOM PROPERTIES — "NOTEBOOK", LIGHT (the default)
+   The variable names are the CRT-era ones (--phosphor is the accent,
+   --ink the body text) so every component keeps working; a later PR
+   renames them. Dark mode overrides the base values below.
 ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --phosphor:       #00C6FF;
-  --phosphor-bright:#44D8FF;
-  --phosphor-dim:   #0a2840;
-  --phosphor-ink:   #6DD4EE;
-  --phosphor-rgb:   0 198 255;
-  --ink-rgb:        109 212 238;
+  --phosphor:       #1E3A8A; /* accent: links, primary buttons, active state */
+  --phosphor-bright:#172C6B; /* accent hover / pressed */
+  --phosphor-dim:   #E4EBF8; /* accent tint: selected nav pill, progress track */
+  --phosphor-ink:   #3D465E; /* accent-adjacent label text */
+  --phosphor-rgb:   30 58 138;
+  --ink-rgb:        27 36 64;
   --phosphor-faint: rgb(var(--phosphor-rgb) / 0.20);
   --phosphor-veil:  rgb(var(--phosphor-rgb) / 0.08);
-  --bg:             #000000;
-  --panel:          #020409;
-  --panel-lite:     #040709;
-  --lcd:            #020508;
-  --rule:           rgb(var(--phosphor-rgb) / 0.18);
-  --rule-dim:       rgb(var(--phosphor-rgb) / 0.08);
-  --ink:            #6DD4EE;
-  --ink-em:         #EAF4F9; /* off-white for emphasis (italics) — readable against the cyan body text */
-  --ink-dim:        rgb(var(--ink-rgb) / 0.55);
-  --ink-faint:      rgb(var(--ink-rgb) / 0.42); /* subtitles/captions — lightened a touch for readability */
-  --crt-scanline-opacity: 0.06;
-  --crt-vignette-opacity: 0.35;
-  --crt-aberration: 0.4px;
-  --crt-noise-opacity: 0.02;
-  --cursor-blink:   0.8s;
+  --bg:             #FBFAF6; /* warm paper */
+  --panel:          #FFFFFF; /* cards, header bars */
+  --panel-lite:     #F3F0E8; /* hover rows, subtle fills */
+  --panel-tint:     #EEF3FB; /* secondary tinted card (e.g. the goal card) */
+  --lcd:            #F4F6FA; /* code blocks, readouts */
+  --rule:           #E8E4DA;
+  --rule-dim:       #F0ECE3;
+  --rule-strong:    #C9D3E6; /* input and button outlines */
+  /* Text greys are explicit, not alpha over --ink-rgb: every one clears 4.5:1 on --bg, --panel and
+     --panel-lite. Don't add a lighter one. */
+  --ink:            #1B2440;
+  --ink-em:         #0F1730;
+  --ink-dim:        #3D465E;
+  --ink-faint:      #5E6577;
+  --on-accent:      #FFFFFF; /* text on a filled --phosphor surface */
+  --shadow-soft:    0 1px 2px rgb(15 23 48 / 0.05), 0 4px 14px rgb(15 23 48 / 0.04);
+  --radius-card:    20px;
+  --radius-control: 12px;
   --rule-w:         1px;
-  /* Lexend (research-backed for reading comprehension) for display + body; mono kept for UI chrome/LCD. */
-  --font-display:   'Lexend', 'Inter', system-ui, sans-serif;
-  --font-mono:      'IBM Plex Mono', 'Share Tech Mono', monospace;
-  --font-lcd:       'Share Tech Mono', 'IBM Plex Mono', monospace;
+  /* Lexend for display, body AND UI chrome (it was chosen for reading comprehension). --font-mono is
+     the CRT-era name for the chrome font, so it is Lexend too. Real monospace is --font-lcd: code only. */
+  --font-display:   'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:      'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-lcd:       'IBM Plex Mono', ui-monospace, monospace;
   --font-body:      'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: light;
 }
-
-/* Blue is the universal default (data-theme="openedu" or unset) — no override needed. */
 
 /* ═══════════════════════════════════════════════════════════════
-   COLOR THEMES — html[data-theme="…"] (src/lib/theme.ts)
-   Because the derived tokens (--rule, --phosphor-faint/-veil, --ink-dim/-faint)
-   resolve var(--phosphor-rgb)/var(--ink-rgb) lazily at use-time on this same
-   <html> element, the CRT recolors only need to swap the base tokens — the rest
-   cascades for free. Universal themes additionally neutralize the palette + fonts
-   and rely on applyTheme() adding `crt-off` to drop the scanline overlay.
+   DARK MODE — html[data-theme="dark"] (src/lib/theme.ts)
+   Set on <html>, the same element as :root, so the derived tokens
+   (--phosphor-faint/-veil) re-resolve against the dark channels.
 ═══════════════════════════════════════════════════════════════ */
 
-/* ── CRT recolors (keep scanlines + mono UI chrome; display/body use Lexend) ── */
-html[data-theme="amber"] {
-  --phosphor:       #FFB000;
-  --phosphor-bright:#FFC940;
-  --phosphor-dim:   #3a2600;
-  --phosphor-ink:   #FFD074;
-  --phosphor-rgb:   255 176 0;
-  --ink-rgb:        255 208 116;
-  --ink:            #FFD074;
-  --ink-em:         #FFF3DC;
-}
-html[data-theme="green"] {
-  --phosphor:       #2BFF88;
-  --phosphor-bright:#74FFB0;
-  --phosphor-dim:   #04210f;
-  --phosphor-ink:   #8FFFC0;
-  --phosphor-rgb:   43 255 136;
-  --ink-rgb:        143 255 192;
-  --ink:            #8FFFC0;
-  --ink-em:         #E9FFF2;
-}
-html[data-theme="synthwave"] {
-  --phosphor:       #FF3AC8;
-  --phosphor-bright:#FF7BDD;
-  --phosphor-dim:   #2a0a28;
-  --phosphor-ink:   #FF9CE6;
-  --phosphor-rgb:   255 58 200;
-  --ink-rgb:        255 156 230;
-  --ink:            #FF9CE6;
-  --ink-em:         #FFE3F7;
-  --bg:             #05000c;
-  --panel:          #0b0316;
-  --panel-lite:     #0f051c;
-  --lcd:            #050010;
-}
-html[data-theme="ice"] {
-  --phosphor:       #6FE6FF;
-  --phosphor-bright:#A8F2FF;
-  --phosphor-dim:   #08303f;
-  --phosphor-ink:   #BFEFFF;
-  --phosphor-rgb:   111 230 255;
-  --ink-rgb:        191 239 255;
-  --ink:            #BFEFFF;
-  --ink-em:         #EAFBFF;
-  --bg:             #02040c;
-  --panel:          #070d16;
-  --panel-lite:     #0b121d;
-  --lcd:            #03060d;
-}
-html[data-theme="tangerine"] {
-  --phosphor:       #FF7A18;
-  --phosphor-bright:#FFA24D;
-  --phosphor-dim:   #2a1303;
-  --phosphor-ink:   #FFC089;
-  --phosphor-rgb:   255 122 24;
-  --ink-rgb:        255 192 137;
-  --ink:            #FFC089;
-  --ink-em:         #FFE9D3;
-  --bg:             #060300;
-  --panel:          #0c0601;
-  --panel-lite:     #110802;
-  --lcd:            #070300;
-}
-html[data-theme="crimson"] {
-  --phosphor:       #FF2E4D;
-  --phosphor-bright:#FF6477;
-  --phosphor-dim:   #2a0610;
-  --phosphor-ink:   #FF94A2;
-  --phosphor-rgb:   255 46 77;
-  --ink-rgb:        255 148 162;
-  --ink:            #FF94A2;
-  --ink-em:         #FFDCE1;
-  --bg:             #060102;
-  --panel:          #0c0305;
-  --panel-lite:     #110407;
-  --lcd:            #070203;
-}
-html[data-theme="vapor"] {
-  /* Duotone: pink accent (--phosphor) + cyan body ink (--ink) — classic vaporwave. */
-  --phosphor:       #FF8AD8;
-  --phosphor-bright:#FFB3E6;
-  --phosphor-dim:   #2a0a28;
-  --phosphor-ink:   #93E6FF;
-  --phosphor-rgb:   255 138 216;
-  --ink-rgb:        147 230 255;
-  --ink:            #93E6FF;
-  --ink-em:         #DEFAFF;
-  --bg:             #070213;
-  --panel:          #0d051c;
-  --panel-lite:     #110823;
-  --lcd:            #080214;
-}
-html[data-theme="ultraviolet"] {
-  --phosphor:       #A06BFF;
-  --phosphor-bright:#C2A0FF;
-  --phosphor-dim:   #1a0d3a;
-  --phosphor-ink:   #C9B0FF;
-  --phosphor-rgb:   160 107 255;
-  --ink-rgb:        201 176 255;
-  --ink:            #C9B0FF;
-  --ink-em:         #ECE3FF;
-  --bg:             #050316;
-  --panel:          #0b071e;
-  --panel-lite:     #0f0a25;
-  --lcd:            #06040f;
-}
-
-/* ── Universal themes (neutral palette, sans fonts; CRT overlay dropped via crt-off) ── */
 html[data-theme="dark"] {
-  --phosphor:       #4493f8;
-  --phosphor-bright:#6aa9ff;
-  --phosphor-dim:   #11233f;
-  --phosphor-ink:   #adbac7;
-  --phosphor-rgb:   68 147 248;
-  --ink-rgb:        201 209 217;
-  --ink:            #c9d1d9;
-  --ink-em:         #f0f3f6;
-  --bg:             #0d1117;
-  --panel:          #11161d;
-  --panel-lite:     #161b22;
-  --lcd:            #0b0f14;
-  --rule:           #2a313a;
-  --rule-dim:       #20262d;
-  --font-display:   'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono:      'IBM Plex Mono', ui-monospace, monospace;
-  --font-lcd:       'IBM Plex Mono', ui-monospace, monospace;
-}
-html[data-theme="light"] {
-  --phosphor:       #0969da;
-  --phosphor-bright:#0a5cc2;
-  --phosphor-dim:   #ddf4ff;
-  --phosphor-ink:   #4a5560;
-  --phosphor-rgb:   9 105 218;
-  --ink-rgb:        31 35 40;
-  --ink:            #1f2328;
-  --ink-em:         #0b0c0e;
-  --bg:             #ffffff;
-  --panel:          #f6f8fa;
-  --panel-lite:     #eef1f4;
-  --lcd:            #f3f6f9;
-  --rule:           #d0d7de;
-  --rule-dim:       #e6eaef;
-  --font-display:   'Lexend', 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono:      'IBM Plex Mono', ui-monospace, monospace;
-  --font-lcd:       'IBM Plex Mono', ui-monospace, monospace;
-}
-
-/* Readability in universal themes: kill the phosphor text-glows + chromatic aberration. */
-html[data-theme="dark"] .phosphor-glow,    html[data-theme="light"] .phosphor-glow,
-html[data-theme="dark"] .phosphor-glow-lg, html[data-theme="light"] .phosphor-glow-lg,
-html[data-theme="dark"] .phosphor-glow-xl, html[data-theme="light"] .phosphor-glow-xl,
-html[data-theme="dark"] .crt-aberrate,     html[data-theme="light"] .crt-aberrate {
-  text-shadow: none;
+  --phosphor:       #5B9BFF;
+  --phosphor-bright:#7FB0FF;
+  --phosphor-dim:   #1F2D4B;
+  --phosphor-ink:   #C3CEDD;
+  --phosphor-rgb:   91 155 255;
+  --ink-rgb:        230 236 245;
+  --bg:             #0E1626;
+  --panel:          #16213A;
+  --panel-lite:     #1A2742;
+  --panel-tint:     #1B2A47;
+  --lcd:            #0B1220;
+  --rule:           #24324F;
+  --rule-dim:       #1F2B44;
+  --rule-strong:    #2A3A5C;
+  --ink:            #E6ECF5;
+  --ink-em:         #FFFFFF;
+  --ink-dim:        #C3CEDD;
+  --ink-faint:      #A3B1C6;
+  --on-accent:      #0B1220;
+  --shadow-soft:    0 1px 2px rgb(0 0 0 / 0.25), 0 4px 14px rgb(0 0 0 / 0.18);
+  color-scheme: dark;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -296,7 +169,8 @@ html[data-theme="dark"] .crt-aberrate,     html[data-theme="light"] .crt-aberrat
      generated at all, which is why `font-display` silently rendered in the body font.
      These look self-referential and are not: @theme emits into `@layer theme`, while the :root block
      above is unlayered and therefore always wins. So the utility is generated here, and the value it
-     resolves is the one :root (or an [data-theme] override) actually declares. */
+     resolves is the one :root (or an [data-theme] override) actually declares.
+     `font-mono` therefore renders Lexend; use `font-lcd` for anything that is code. */
   --font-display:         var(--font-display);
   --font-mono:            var(--font-mono);
   --font-lcd:             var(--font-lcd);
@@ -311,8 +185,7 @@ body {
   margin: 0;
   background-color: var(--bg);
   color: var(--ink);
-  /* Lexend for everything a learner reads. Mono is reserved for code and LCD readouts (.lcd,
-     .note-prose code) — it was the body font, which set even the model's prose in IBM Plex Mono. */
+  /* Lexend for everything a learner reads. Monospace is reserved for code (--font-lcd). */
   font-family: var(--font-body);
   overflow: hidden;
   height: 100vh;
@@ -335,83 +208,8 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   CRT LAYER — fixed overlay components
-═══════════════════════════════════════════════════════════════ */
-
-.term-grid-bg {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    repeating-linear-gradient(0deg,  transparent 0 32px, rgb(var(--phosphor-rgb) / 0.045) 32px 33px),
-    repeating-linear-gradient(90deg, transparent 0 32px, rgb(var(--phosphor-rgb) / 0.045) 32px 33px);
-  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black 30%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black 30%, transparent 80%);
-}
-
-.crt-stack {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 100;
-}
-
-.crt-scanlines {
-  position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    180deg,
-    transparent 0 2px,
-    rgb(var(--phosphor-rgb) / var(--crt-scanline-opacity)) 2px 3px
-  );
-  mix-blend-mode: screen;
-}
-
-.crt-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse 110% 90% at 50% 50%,
-    transparent 55%,
-    rgba(0, 0, 0, var(--crt-vignette-opacity)) 100%
-  );
-}
-
-.crt-noise {
-  position: absolute;
-  inset: 0;
-  opacity: var(--crt-noise-opacity);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.4' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");
-}
-
-.crt-flicker {
-  position: absolute;
-  inset: 0;
-  background: rgb(var(--phosphor-rgb) / 0.02);
-  animation: flicker 6s steps(60) infinite;
-  mix-blend-mode: screen;
-}
-
-/* "CRT Off" — toggling .crt-off on <html> (persisted via the titlebar button) hides the scanlines,
-   grid, vignette, noise, and flicker for maximum readability when the lines feel overbearing. */
-html.crt-off .crt-stack,
-html.crt-off .term-grid-bg { display: none; }
-
-/* ═══════════════════════════════════════════════════════════════
    KEYFRAME ANIMATIONS
 ═══════════════════════════════════════════════════════════════ */
-
-@keyframes flicker {
-  0%, 96%, 100% { opacity: 1; }
-  97%  { opacity: 0.85; }
-  98%  { opacity: 1.05; }
-  99%  { opacity: 0.92; }
-}
-
-@keyframes caret {
-  50% { opacity: 0; }
-}
 
 @keyframes dotloop {
   0%   { content: ' .'; }
@@ -431,9 +229,9 @@ html.crt-off .term-grid-bg { display: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   BRAND SPLASH — the launch moment (components/BootSequence.tsx)
-   Half a second of the mark and the name, then the app. Theme-colored
-   via var(--phosphor). No status lines live here: SetupGate probes.
+   SPLASH — the launch moment (components/BootSequence.tsx)
+   Half a second of the name, then the app. No status lines live
+   here: SetupGate probes.
 ═══════════════════════════════════════════════════════════════ */
 
 .brand-splash {
@@ -444,16 +242,14 @@ html.crt-off .term-grid-bg { display: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
   animation: brand-splash-in 220ms ease-out both;
 }
 
 .brand-splash-name {
   font-family: var(--font-display);
   font-size: 2rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  color: var(--phosphor);
+  font-weight: 600;
+  color: var(--ink-em);
 }
 
 @keyframes brand-splash-in {
@@ -462,71 +258,31 @@ html.crt-off .term-grid-bg { display: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TERMINAL COMPONENT HELPERS
+   COMPONENT CLASSES
+   The class names are CRT-era (.lcd, .glow-line, .readout-val …) and
+   are kept so every screen picks up the Notebook look without edits.
 ═══════════════════════════════════════════════════════════════ */
 
-/* Phosphor glow helpers */
-.phosphor-glow {
-  text-shadow: 0 0 6px currentColor, 0 0 14px var(--phosphor-faint);
-}
-.phosphor-glow-lg {
-  text-shadow: 0 0 18px var(--phosphor-faint);
-}
-.phosphor-glow-xl {
-  text-shadow:
-    0 0 8px  var(--phosphor),
-    0 0 22px var(--phosphor-faint),
-    0 0 60px var(--phosphor-faint);
-}
-
-/* Brand wordmark glow — same idea as phosphor-glow-xl but intentionally KEPT on every theme, including the
-   universal Dark/Light ones that flatten the other glows for readability. Theme-colored via var(--phosphor),
-   so it blooms in the active accent on all themes. */
-.wordmark-glow {
-  text-shadow:
-    0 0 8px  var(--phosphor),
-    0 0 20px var(--phosphor-faint),
-    0 0 48px var(--phosphor-faint);
-}
-
-/* RGB chromatic-aberration opt-in */
-.crt-aberrate {
-  text-shadow:
-    calc(var(--crt-aberration) * -1) 0 rgba(255, 0, 100, 0.3),
-    var(--crt-aberration)            0 rgba(0, 200, 255, 0.3);
-}
-
-/* Blinking caret */
-.caret::after {
-  content: '▮';
-  display: inline-block;
-  margin-left: 4px;
-  color: var(--phosphor);
-  animation: caret var(--cursor-blink) steps(2) infinite;
-}
-
-/* LCD panel — for quiz readouts, code blocks */
+/* Readout / code panel. No font-family on purpose: a readout inherits Lexend, and an element that
+   holds code adds the `font-lcd` utility (an unlayered font-family here would beat that utility).
+   code/pre inside a panel are monospace regardless. */
 .lcd {
-  background:
-    repeating-linear-gradient(0deg, rgb(var(--phosphor-rgb) / 0.05) 0 1px, transparent 1px 2px),
-    radial-gradient(ellipse at top, rgb(var(--phosphor-rgb) / 0.10) 0%, transparent 65%),
-    var(--lcd);
+  background: var(--lcd);
   border: 1px solid var(--rule);
-  color: var(--phosphor);
-  font-family: var(--font-lcd);
+  border-radius: var(--radius-control);
+  color: var(--ink);
   position: relative;
   overflow: hidden;
-  box-shadow:
-    0 0 14px var(--phosphor-faint),
-    inset 0 0 30px rgba(0, 0, 0, 0.7),
-    inset 0 0 0 1px var(--phosphor-faint);
 }
+.lcd code,
+.lcd pre { font-family: var(--font-lcd); }
 
-/* Terminal window panel */
+/* Card */
 .window {
-  background: linear-gradient(180deg, #08101a 0%, #02040800 100%), var(--panel);
+  background: var(--panel);
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
   overflow: hidden;
 }
 
@@ -534,83 +290,71 @@ html.crt-off .term-grid-bg { display: none; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  background: linear-gradient(180deg, rgb(var(--phosphor-rgb) / 0.08) 0%, transparent 100%);
+  padding: 12px 20px;
   border-bottom: 1px solid var(--rule);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--ink-dim);
 }
 
-.window-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid var(--rule);
-  flex-shrink: 0;
-  transition: background 0.15s, box-shadow 0.15s;
-}
-.window-dot:hover { box-shadow: 0 0 6px currentColor; }
-.window-dot.close  { color: #FF4060; }
-.window-dot.min    { color: #FFB000; }
-.window-dot.max    { color: var(--phosphor); }
-.window-dot.close:hover  { background: #FF4060; border-color: #FF4060; }
-.window-dot.min:hover    { background: #FFB000; border-color: #FFB000; }
-.window-dot.max:hover    { background: var(--phosphor); border-color: var(--phosphor); }
+/* The CRT-era traffic-light dots on a card's title bar. Decoration only; hidden in the Notebook look. */
+.window-dot { display: none; }
 
-/* Buttons */
+/* Buttons — pills, 44px tall so they are easy to hit on a touch screen. */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 6px 14px;
-  background: linear-gradient(180deg, rgb(var(--phosphor-rgb) / 0.08) 0%, var(--panel) 100%);
-  border: 1px solid var(--rule);
+  min-height: 44px;
+  padding: 10px 20px;
+  background: var(--panel);
+  border: 1px solid var(--rule-strong);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
-  border-radius: 2px;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  border-radius: 999px;
 }
 .btn:hover {
   border-color: var(--phosphor);
   color: var(--phosphor);
-  box-shadow: 0 0 8px var(--phosphor-faint);
+  background: var(--panel-tint);
 }
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
+/* Filled accent. Often used without .btn (with Tailwind padding), so it carries its own shape. */
 .btn-primary {
-  background: linear-gradient(180deg, rgb(var(--phosphor-rgb) / 0.18) 0%, rgb(var(--phosphor-rgb) / 0.06) 100%);
+  background: var(--phosphor);
   border-color: var(--phosphor);
-  /* --phosphor-bright, not --phosphor: the label sits on an 18% wash of its own accent, which eats
-     contrast. Measured against the composited fill, bright wins on every theme — and on Light it is the
-     difference between 4.01 (fails WCAG AA) and 4.88 (passes). Light inverts the usual polarity, so
-     "bright" there is the DARKER #0a5cc2; the token name lies but the contrast is what matters. */
-  color: var(--phosphor-bright);
-  box-shadow: 0 0 8px var(--phosphor-faint), inset 0 0 12px var(--phosphor-veil);
+  color: var(--on-accent);
+  border-radius: 999px;
 }
 .btn-primary:hover {
-  box-shadow: 0 0 16px var(--phosphor-faint), inset 0 0 20px var(--phosphor-veil);
+  background: var(--phosphor-bright);
+  border-color: var(--phosphor-bright);
+  color: var(--on-accent);
 }
 
-/* Tag / pill with pulsing LED */
+/* Tag / pill with a small static dot */
 .tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px 3px 8px;
-  border: 1px solid var(--rule);
-  background: var(--phosphor-veil);
-  color: var(--phosphor-ink);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: 2px;
+  padding: 4px 12px 4px 10px;
+  border: 1px solid transparent;
+  background: var(--phosphor-dim);
+  color: var(--phosphor);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 999px;
 }
 .tag::before {
   content: '';
@@ -618,24 +362,21 @@ html.crt-off .term-grid-bg { display: none; }
   height: 6px;
   background: var(--phosphor);
   border-radius: 50%;
-  box-shadow: 0 0 8px var(--phosphor);
-  animation: pulse 1.6s ease-in-out infinite;
   flex-shrink: 0;
 }
 
-/* Glow-line divider */
+/* Short accent bar under a heading */
 .glow-line {
-  width: 48px;
-  height: 2px;
+  width: 40px;
+  height: 3px;
   background: var(--phosphor);
-  box-shadow: 0 0 8px var(--phosphor), 0 0 20px var(--phosphor-faint);
-  border-radius: 1px;
+  border-radius: 999px;
   flex-shrink: 0;
 }
 
-/* Brand mark — the TerraByte emblem painted with the active theme accent. The logo ships as a transparent
-   monochrome mask; `background-color: var(--phosphor)` recolors the shape, so it adapts to every theme
-   (CRT recolors + universal Dark/Light) with zero per-theme work. See components/BrandMark.tsx. */
+/* Brand mark — the TerraByte emblem painted with the accent. Only the About credit uses it; the app
+   chrome stands alone as OpenEdu. The logo ships as a transparent monochrome mask, so
+   `background-color` recolors it. See components/BrandMark.tsx. */
 .tb-logo {
   display: inline-block;
   flex-shrink: 0;
@@ -643,34 +384,32 @@ html.crt-off .term-grid-bg { display: none; }
   -webkit-mask: url('./assets/brand/terrabyte-globe.png') center / contain no-repeat;
   mask: url('./assets/brand/terrabyte-globe.png') center / contain no-repeat;
 }
-.tb-logo--glow { filter: drop-shadow(0 0 5px var(--phosphor-faint)); }
 
-/* Text input — terminal LCD style */
+/* Text input */
 .cf-input {
-  background: var(--panel-lite);
-  border: 1px solid rgb(var(--phosphor-rgb) / 0.35);
-  color: var(--phosphor);
+  background: var(--panel);
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 0.9375rem;
   padding: 10px 14px;
+  min-height: 44px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
-  text-shadow: 0 0 4px var(--phosphor-faint);
   width: 100%;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 9999px rgb(var(--phosphor-rgb) / 0.03);
+  border-radius: var(--radius-control);
 }
 .cf-input::placeholder { color: var(--ink-faint); }
 .cf-input:focus {
   border-color: var(--phosphor);
-  box-shadow: 0 0 0 1px var(--phosphor-faint), 0 0 12px var(--phosphor-faint);
+  box-shadow: 0 0 0 3px var(--phosphor-dim);
 }
 
 /* Readout value (quiz score, timer) */
 .readout-val {
   color: var(--phosphor);
   font-family: var(--font-display);
-  text-shadow: 0 0 10px var(--phosphor-faint);
+  font-weight: 600;
 }
 
 /* Fade-in on scroll */
@@ -690,12 +429,12 @@ html.crt-off .term-grid-bg { display: none; }
    container, preserving aspect ratio. The diagrams render white-bg/
    black-text today via CSS-var fallbacks; define --oe-svg-bg / --oe-svg-ink
    / --oe-svg-rule / --oe-svg-faint here (or on .oe-svg) later to re-theme
-   every diagram to the phosphor aesthetic with ZERO regeneration.
+   every diagram with ZERO regeneration.
 ═══════════════════════════════════════════════════════════════ */
 .oe-svg svg { width: 100%; height: auto; display: block; }
 
 /* ═══════════════════════════════════════════════════════════════
-   MARKDOWN PROSE — .note-prose (Inter for body readability)
+   MARKDOWN PROSE — .note-prose
 ═══════════════════════════════════════════════════════════════ */
 
 .note-prose {
@@ -706,36 +445,31 @@ html.crt-off .term-grid-bg { display: none; }
 }
 .note-prose h1 {
   font-family: var(--font-display);
-  font-size: 1.8rem;
-  font-weight: 400;
-  color: var(--phosphor);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 14px var(--phosphor-faint);
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--ink-em);
   margin: 1.25rem 0 0.5rem;
 }
 .note-prose h2 {
   font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 400;
-  color: var(--phosphor-ink);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--ink-em);
   margin: 1rem 0 0.4rem;
 }
 .note-prose h3 {
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--phosphor-bright);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--phosphor);
   margin: 0.8rem 0 0.3rem;
 }
 .note-prose h4,
 .note-prose h5,
 .note-prose h6 {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--ink-dim);
   margin: 0.6rem 0 0.25rem;
 }
@@ -748,37 +482,33 @@ html.crt-off .term-grid-bg { display: none; }
 .note-prose code {
   background: var(--lcd);
   border: 1px solid var(--rule);
-  border-radius: 2px;
+  border-radius: 6px;
   padding: 0.1em 0.4em;
   font-size: 0.82rem;
-  font-family: var(--font-mono);
-  color: var(--phosphor);
-  text-shadow: 0 0 4px var(--phosphor-faint);
+  font-family: var(--font-lcd);
+  color: var(--ink-em);
 }
 .note-prose pre {
-  background: var(--bg);
+  background: var(--lcd);
   border: 1px solid var(--rule);
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   padding: 1rem;
   overflow-x: auto;
   margin: 0.6rem 0;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
 .note-prose pre code {
   background: none;
   border: none;
   padding: 0;
   color: var(--ink);
-  text-shadow: none;
   font-size: 0.81rem;
 }
 .note-prose blockquote {
-  border-left: 2px solid var(--phosphor);
+  border-left: 3px solid var(--phosphor);
   padding-left: 1rem;
   color: var(--ink-dim);
   margin: 0.5rem 0;
   font-style: italic;
-  box-shadow: inset 4px 0 8px var(--phosphor-veil);
 }
 .note-prose hr {
   border: none;
@@ -788,21 +518,20 @@ html.crt-off .term-grid-bg { display: none; }
 .note-prose a {
   color: var(--phosphor);
   text-decoration: underline;
-  text-shadow: 0 0 4px var(--phosphor-faint);
 }
 .note-prose a:hover { color: var(--phosphor-bright); }
-.note-prose strong { color: var(--phosphor-ink); font-weight: 600; }
+.note-prose strong { color: var(--ink-em); font-weight: 600; }
 .note-prose em     { color: var(--ink-em); font-style: italic; }
 .note-prose table {
   border-collapse: collapse;
   width: 100%;
   margin: 0.5rem 0;
   font-size: 0.82rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
 }
 .note-prose th,
 .note-prose td { border: 1px solid var(--rule); padding: 0.35rem 0.6rem; text-align: left; }
-.note-prose th { background: var(--phosphor-veil); font-weight: 500; color: var(--phosphor-ink); }
+.note-prose th { background: var(--panel-lite); font-weight: 600; color: var(--ink-em); }
 
 /* ═══════════════════════════════════════════════════════════════
    WIKI-LINK CHIPS
@@ -813,30 +542,28 @@ html.crt-off .term-grid-bg { display: none; }
   align-items: center;
   gap: 3px;
   padding: 0 6px;
-  border-radius: 2px;
+  border-radius: 6px;
   font-size: 0.82rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   text-decoration: none;
 }
 .wiki-link--exists {
-  background: var(--phosphor-veil);
-  border: 1px solid var(--rule);
-  color: var(--phosphor-ink);
+  background: var(--phosphor-dim);
+  border: 1px solid transparent;
+  color: var(--phosphor);
 }
 .wiki-link--exists:hover {
-  background: rgb(var(--phosphor-rgb) / 0.14);
   border-color: var(--phosphor);
-  color: var(--phosphor);
 }
 .wiki-link--missing {
   background: transparent;
-  border: 1px dashed var(--rule);
+  border: 1px dashed var(--rule-strong);
   color: var(--ink-faint);
 }
 .wiki-link--missing:hover {
-  border-color: var(--phosphor-dim);
+  border-color: var(--ink-faint);
   color: var(--ink-dim);
 }
 
@@ -844,20 +571,20 @@ html.crt-off .term-grid-bg { display: none; }
    SCROLLBAR
 ═══════════════════════════════════════════════════════════════ */
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--rule);
-  border-radius: 2px;
+  background: var(--rule-strong);
+  border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--phosphor); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
 
 /* ═══════════════════════════════════════════════════════════════
    REDUCED MOTION
 ═══════════════════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-splash, .crt-flicker, .fade-in, .caret::after, .tag::before {
+  .brand-splash, .fade-in {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;

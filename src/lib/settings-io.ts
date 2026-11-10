@@ -9,10 +9,10 @@ import { Store } from "@tauri-apps/plugin-store";
 import { STORE_FILE, isSecretKey, NON_PORTABLE_KEYS, ALLOWED_IMPORT_KEYS, isLearnerScopedKey } from "./store-keys";
 import {
   type SettingsExport, EXPORT_KIND, EXPORT_VERSION,
-  parseSettingsExport, sanitizeImportedPermissions, isKnownThemeId,
+  parseSettingsExport, sanitizeImportedPermissions, importedThemeChoice,
 } from "./settings-schema";
 import { loadPermissionRules, savePermissionRules } from "./permissions";
-import { applyTheme, getThemeId, getCrtOff, setCrtOff } from "./theme";
+import { applyTheme, getThemeChoice } from "./theme";
 
 export type { SettingsExport } from "./settings-schema";
 
@@ -33,8 +33,7 @@ export async function gatherSettings(includeSecrets: boolean): Promise<SettingsE
     kind: EXPORT_KIND,
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
-    theme: getThemeId(),
-    crtOff: getCrtOff(),
+    theme: getThemeChoice(),
     settings,
     permissions: await loadPermissionRules(),
   };
@@ -72,8 +71,9 @@ export interface ImportSummary {
 }
 
 // Apply a parsed export back into the live stores. Only allow-listed keys are written; permissions are
-// sanitized against the known tool/mode/decision space; an unknown theme id is skipped (not silently
-// coerced). Theme + CRT are applied through theme.ts so open surfaces (titlebar/Appearance) stay in sync.
+// sanitized against the known tool/mode/decision space; a CRT-era theme id is mapped onto light/dark, an
+// unrecognized one is skipped (not silently coerced), and an old file's `crtOff` is ignored. The theme is
+// applied through theme.ts so open surfaces (titlebar/Appearance) stay in sync.
 export async function applyImportedSettings(payload: SettingsExport): Promise<ImportSummary> {
   const store = await Store.load(STORE_FILE);
 
@@ -94,9 +94,9 @@ export async function applyImportedSettings(payload: SettingsExport): Promise<Im
 
   let themeApplied = false;
   let themeSkipped = false;
-  if (isKnownThemeId(payload.theme)) {
-    if (typeof payload.crtOff === "boolean") setCrtOff(payload.crtOff); // dispatches oe-crt-change
-    applyTheme(payload.theme);
+  const choice = importedThemeChoice(payload.theme);
+  if (choice) {
+    applyTheme(choice);
     themeApplied = true;
   } else if (payload.theme !== undefined) {
     themeSkipped = true; // unknown theme id — leave the current theme untouched

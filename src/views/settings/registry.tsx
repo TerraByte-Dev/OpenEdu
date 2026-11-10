@@ -41,7 +41,7 @@ export const SECTIONS: SectionDef[] = [
   {
     id: "appearance",
     label: "Appearance",
-    keywords: "appearance theme color crt amber green synthwave dark light phosphor scanlines glow look skin font",
+    keywords: "appearance theme color dark light mode system night match computer look",
     icon: <Icon d="M12 2a10 10 0 1 0 0 20c1 0 1.5-.8 1.5-1.5 0-.4-.2-.8-.5-1-.3-.3-.5-.6-.5-1 0-.8.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-4.4-3.6-8-8-8z|M7.5 12a1 1 0 1 0 0-.001|M12 7.5a1 1 0 1 0 0-.001|M16.5 11a1 1 0 1 0 0-.001" />,
     Component: Appearance,
   },

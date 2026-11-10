@@ -34,6 +34,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CSS_SRC = path.join(ROOT, "src/index.css");
 const THEME_SRC = path.join(ROOT, "src/lib/theme.ts");
 const AUTHORED = path.join(ROOT, "design/authored");
+// The palette that IS :root in index.css (no [data-theme] block of its own).
+const DEFAULT_THEME = "light";
 const OUT = path.join(ROOT, "design/dist");
 
 // Bundled assets, by the short name a card asks for. Values are paths relative to src/, matching the
@@ -108,10 +110,10 @@ function parseThemes(ts) {
   if (start < 0) throw new Error("build-design-system: could not find `THEMES: Theme[] = [` in src/lib/theme.ts");
   const body = ts.slice(start, ts.indexOf("];", start));
   const out = [];
-  const re = /id:\s*"([^"]+)"[\s\S]*?name:\s*"([^"]+)"[\s\S]*?blurb:\s*"([^"]+)"[\s\S]*?family:\s*"([^"]+)"/g;
-  for (const [, id, name, blurb, family] of body.matchAll(re)) out.push({ id, name, blurb, family });
+  const re = /id:\s*"([^"]+)"[\s\S]*?name:\s*"([^"]+)"[\s\S]*?blurb:\s*"([^"]+)"/g;
+  for (const [, id, name, blurb] of body.matchAll(re)) out.push({ id, name, blurb });
   if (out.length === 0) {
-    throw new Error("build-design-system: parsed 0 themes from src/lib/theme.ts — the regex expects id/name/blurb/family in that order on each entry.");
+    throw new Error("build-design-system: parsed 0 themes from src/lib/theme.ts — the regex expects id/name/blurb in that order on each entry.");
   }
   return out;
 }
@@ -208,7 +210,6 @@ function dedupePrefixedMasks(css) {
 async function buildShell(css, names, root) {
   let out = css.replace(/@import\s+["']tailwindcss["'];?/, "");     // 1 — would hit the network
   out = out.replaceAll("html[data-theme=", "[data-theme=");          // 2 — the enabling rewrite
-  out = out.replaceAll("html.crt-off", ".crt-off");                  // 3 — same, for the CRT kill switch
   out = rescopeDerivedTokens(out, root);                             // 3b — makes (2) actually correct
   out = dedupePrefixedMasks(out);                                    // 3c — before inlining, see below
   out = await inlineAssets(out, names);                              // 4
@@ -326,11 +327,10 @@ ${other.map(([k, v]) => `<div class="sw"><div class="sw-meta"><code>${k}</code><
 function themeMatrixCard(themes, cssThemes) {
   const tile = (t) => {
     // data-theme on the tile itself, and the tile restates bg/ink — see the gotcha in the header.
-    const attr = t.id === "openedu" ? "" : ` data-theme="${t.id}"`;
+    const attr = t.id === DEFAULT_THEME ? "" : ` data-theme="${t.id}"`;
     return `<div class="tile"${attr} style="background:var(--bg);color:var(--ink)">
   <div class="tile-head">
     <span class="tile-name">${esc(t.name)}</span>
-    <span class="tile-fam ${t.family}">${t.family}</span>
   </div>
   <div class="tile-blurb">${esc(t.blurb)}</div>
   <div class="tile-chips">
@@ -350,9 +350,6 @@ function themeMatrixCard(themes, cssThemes) {
 .tile{border:1px solid var(--rule);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
 .tile-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .tile-name{font-family:var(--font-display);font-size:.9375rem;color:var(--phosphor)}
-.tile-fam{font-family:var(--font-mono);font-size:.5625rem;text-transform:uppercase;letter-spacing:.1em;
-  padding:2px 6px;border-radius:9999px;border:1px solid var(--rule);color:var(--ink-faint)}
-.tile-fam.crt{color:var(--phosphor-ink);border-color:var(--phosphor-faint)}
 .tile-blurb{font-size:.75rem;color:var(--ink-dim);min-height:2.4em;line-height:1.4}
 .tile-chips{display:flex;gap:4px}
 .tile-chips span{width:24px;height:24px;border-radius:4px;border:1px solid var(--rule)}
@@ -360,17 +357,15 @@ function themeMatrixCard(themes, cssThemes) {
 .tile-id{font-family:var(--font-mono);font-size:.625rem;color:var(--ink-faint)}
 </style>
 <h1>Theme Matrix</h1>
-<p class="ds-lede">One token vocabulary, ${themes.length} palettes, two families. CRT themes keep the
-scanline overlay and mono chrome; universal themes drop both. Each tile below is a plain
+<p class="ds-lede">One token vocabulary, ${themes.length} palettes: light (the default, which is
+<code>:root</code>) and dark. Each tile below is a plain
 <code>&lt;div data-theme="…"&gt;</code> — the same mechanism the app uses on <code>&lt;html&gt;</code>.
 The button and tag are live, so the palette is visible in use rather than as chips alone.</p>
 <div class="ds-grid mx">
 ${themes.map(tile).join("\n")}
 </div>
-<p class="ds-note">Authoring a 12th theme means overriding the eight base tokens
-(${["--phosphor", "--phosphor-bright", "--phosphor-dim", "--phosphor-ink", "--phosphor-rgb", "--ink-rgb", "--ink", "--ink-em"].map((t) => `<code>${t}</code>`).join(", ")})
-in a <code>html[data-theme="…"]</code> block, plus a row in <code>src/lib/theme.ts</code>. Everything
-else derives. ${Object.keys(cssThemes).length} such blocks exist today.</p>
+<p class="ds-note">A mode is a <code>html[data-theme="…"]</code> block that restates the base tokens,
+plus a row in <code>src/lib/theme.ts</code>. ${Object.keys(cssThemes).length} such block(s) exist today.</p>
 `);
 }
 
@@ -390,8 +385,8 @@ function parseFontFaces(css) {
 // renders at the front of each, and why.
 const FACE_ROLES = {
   Lexend: ["--font-display + --font-body", "Headings and body prose. Chosen for reading-proficiency research — its word-shape spacing measurably improves reading speed and comprehension, which is a product decision for an app whose users read under bad conditions, not a style one."],
-  "IBM Plex Mono": ["--font-mono", "UI chrome — buttons, tags, labels, metadata."],
-  "Share Tech Mono": ["--font-lcd", "LCD readouts and text inputs. Dropped by the universal themes, which fall back to IBM Plex Mono."],
+  "IBM Plex Mono": ["--font-lcd", "Code only: code blocks, inline code, file paths. UI chrome is Lexend (--font-mono is the CRT-era name for the chrome font and now resolves to Lexend)."],
+  "Share Tech Mono": ["retired", "The CRT-era LCD face. Still bundled (the note editor names it for inline code); no token selects it."],
   VT323: ["boot only", "The blocky pixel face. Retired from the app UI in favour of Lexend, kept for the boot sequence and splash."],
   Inter: ["fallback only", "Never renders — it sits behind Lexend in both stacks it appears in. Present so the fallback chain is honest, and carried here only as a specimen."],
 };
@@ -460,93 +455,6 @@ repeated typographic gesture.</p>
 `);
 }
 
-function crtCard(root) {
-  const knobs = [
-    ["--crt-scanline-opacity", 0, 0.3, 0.005, "scanline strength"],
-    ["--crt-vignette-opacity", 0, 1, 0.01, "corner darkening"],
-    ["--crt-noise-opacity", 0, 0.2, 0.002, "film grain"],
-    ["--crt-aberration", 0, 3, 0.1, "RGB fringe (px)", "px"],
-  ];
-
-  return page("Effects", "CRT Overlay Stack", `
-<style>
-/* The overlay is position:fixed in the app (it covers the window). Re-scope it into the demo frame so
-   the card can show it contained, next to the knobs that drive it. */
-.frame{position:relative;overflow:hidden;border:1px solid var(--rule);border-radius:12px;height:300px;
-  background:var(--bg);padding:24px}
-.frame .term-grid-bg,.frame .crt-stack{position:absolute}
-.frame-content{position:relative;z-index:1}
-.knobs{display:grid;gap:10px;grid-template-columns:1fr;margin-top:16px}
-.knob{display:grid;grid-template-columns:190px 1fr 64px;gap:12px;align-items:center}
-.knob label{font-family:var(--font-mono);font-size:.6875rem;color:var(--phosphor-ink)}
-.knob .hint{font-size:.625rem;color:var(--ink-faint);display:block}
-.knob output{font-family:var(--font-mono);font-size:.6875rem;color:var(--ink-dim);text-align:right}
-.knob input{width:100%;accent-color:var(--phosphor)}
-.layers{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0}
-.layers label{display:flex;gap:6px;align-items:center;font-family:var(--font-mono);font-size:.6875rem;color:var(--ink-dim)}
-.layers input{accent-color:var(--phosphor)}
-</style>
-<h1>CRT Overlay Stack</h1>
-<p class="ds-lede">Four fixed layers plus a masked grid field, sitting above the whole window. This is the
-single most identifying thing about OpenEdu — any generated full-screen surface needs it or it isn't the
-same product. <code>.crt-scanlines</code> and <code>.crt-flicker</code> use
-<code>mix-blend-mode:screen</code>, which is what makes the phosphor bloom rather than just tint.</p>
-
-<div class="layers">
-${["term-grid-bg", "crt-scanlines", "crt-noise", "crt-flicker", "crt-vignette"]
-  .map((c) => `<label><input type="checkbox" checked data-layer="${c}"> .${c}</label>`).join("\n")}
-</div>
-
-<div class="frame" id="frame">
-  <div class="term-grid-bg"></div>
-  <div class="crt-stack">
-    <div class="crt-scanlines"></div><div class="crt-noise"></div>
-    <div class="crt-flicker"></div><div class="crt-vignette"></div>
-  </div>
-  <div class="frame-content">
-    <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--phosphor)" class="phosphor-glow">Stoichiometry</div>
-    <p style="color:var(--ink-dim);font-size:.8125rem;max-width:44ch;line-height:1.6">Balance the equation, then
-    convert grams to moles using molar mass. The mole ratio comes from the coefficients.</p>
-    <div class="ds-row"><button class="btn btn-primary">Continue</button><span class="tag">Level 3</span></div>
-  </div>
-</div>
-
-<div class="knobs">
-${knobs.map(([tok, min, max, step, hint, unit]) => `  <div class="knob">
-    <label>${tok}<span class="hint">${esc(hint)}</span></label>
-    <input type="range" min="${min}" max="${max}" step="${step}" value="${parseFloat(root[tok])}"
-           data-token="${tok}" data-unit="${unit || ""}">
-    <output>${esc(root[tok])}</output>
-  </div>`).join("\n")}
-</div>
-
-<h2>Resulting tokens</h2>
-<pre class="ds-code" id="emit"></pre>
-<p class="ds-note">The kill switch is <code>.crt-off</code> on <code>&lt;html&gt;</code>, which sets
-<code>display:none</code> on <code>.crt-stack</code> and <code>.term-grid-bg</code>. Universal themes
-force it on. Any surface that reproduces this stack must reproduce the escape hatch too — the lines are
-overbearing for some readers, and that is a readability requirement, not a preference.</p>
-
-<script>
-const frame = document.getElementById('frame'), emit = document.getElementById('emit');
-const knobs = [...document.querySelectorAll('.knob input')];
-function render() {
-  emit.textContent = ':root {\\n' + knobs.map(k =>
-    '  ' + k.dataset.token + ': ' + k.value + k.dataset.unit + ';').join('\\n') + '\\n}';
-}
-knobs.forEach(k => k.addEventListener('input', () => {
-  frame.style.setProperty(k.dataset.token, k.value + k.dataset.unit);
-  k.parentElement.querySelector('output').textContent = k.value + k.dataset.unit;
-  render();
-}));
-document.querySelectorAll('.layers input').forEach(box => box.addEventListener('change', () => {
-  frame.querySelector('.' + box.dataset.layer).style.display = box.checked ? '' : 'none';
-}));
-render();
-</script>
-`);
-}
-
 // ── build ──────────────────────────────────────────────────────────────────────────────────────────
 
 async function readAuthored() {
@@ -587,12 +495,12 @@ async function main() {
   const { root, themes: cssThemes } = parseCss(css);
   const themes = parseThemes(ts);
 
-  // 9 CSS blocks + the implicit `openedu` default, which has no block because it IS :root.
+  // One CSS block (dark) + the implicit `light` default, which has no block because it IS :root.
   if (Object.keys(cssThemes).length + 1 !== themes.length) {
-    throw new Error(`build-design-system: ${Object.keys(cssThemes).length} [data-theme] blocks in index.css but ${themes.length} entries in theme.ts — they must agree (openedu has no block; it is :root).`);
+    throw new Error(`build-design-system: ${Object.keys(cssThemes).length} [data-theme] blocks in index.css but ${themes.length} entries in theme.ts — they must agree (${DEFAULT_THEME} has no block; it is :root).`);
   }
   for (const t of themes) {
-    if (t.id !== "openedu" && !cssThemes[t.id]) {
+    if (t.id !== DEFAULT_THEME && !cssThemes[t.id]) {
       throw new Error(`build-design-system: theme "${t.id}" is in theme.ts but has no html[data-theme="${t.id}"] block in index.css`);
     }
   }
@@ -602,7 +510,6 @@ async function main() {
     { slug: "foundations-themes", html: themeMatrixCard(themes, cssThemes), assets: CORE },
     // ALL: this is the one card that must show every face, including the two the UI never renders.
     { slug: "foundations-typography", html: typographyCard(root, parseFontFaces(css)), assets: ALL },
-    { slug: "effects-crt", html: crtCard(root), assets: CORE },
     ...(await readAuthored()),
   ];
 

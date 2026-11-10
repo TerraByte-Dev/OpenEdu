@@ -175,11 +175,16 @@ Two invariants worth not breaking:
 
 ## Design system
 
-The UI is a **blue-phosphor CRT** aesthetic defined entirely with CSS variables in `src/index.css`
-(`--phosphor`, `--ink`, `--rule`, `--panel`, …). Color themes (recolors + clean Dark/Light) live in
-`src/lib/theme.ts` and are applied pre-paint in `main.tsx` via `html[data-theme="…"]`. **Use the tokens,
-not hardcoded colors**, so everything stays theme-aware. Settings has its own
-[architecture README](../src/views/settings/README.md).
+The UI is the **Notebook** look (warm paper, navy ink, one blue accent, Lexend throughout) defined
+entirely with CSS variables in `src/index.css`. The variable names are still the CRT-era ones
+(`--phosphor` is the accent, `--ink` body text, `--rule`, `--panel`, …) so components didn't need edits;
+renaming them is a later change. Two modes: light is the bare `:root`, dark is `html[data-theme="dark"]`.
+`src/lib/theme.ts` stores the user's choice (Light / Dark / Match my computer, which follows
+`prefers-color-scheme` live) and applies it pre-paint in `main.tsx`. CRT-era theme ids still sitting in
+localStorage or in exported settings files are mapped by `normalizeThemeChoice`: unset, `openedu` or
+anything unknown → light; every recolor (`amber`, `synthwave`, …) → dark. The CRT overlay and the
+"CRT off" preference are gone. **Use the tokens, not hardcoded colors**, so everything works in both
+modes. Settings has its own [architecture README](../src/views/settings/README.md).
 
 `design/` holds a browsable version of the same system, built by `npm run design` into self-contained
 HTML cards and pushed to Claude Design, which then generates new work using these colours, type, and

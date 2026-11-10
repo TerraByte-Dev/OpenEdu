@@ -1,21 +1,15 @@
 import { useEffect, useState } from "react";
-import { getThemeId, getCrtOff } from "./theme";
+import { getThemeChoice, getResolvedTheme, type ThemeChoice, type ThemeId } from "./theme";
 
-// Subscribe to live theme + CRT state. applyTheme()/setCrtOff() broadcast `oe-theme-change` / `oe-crt-change`
-// CustomEvents; this hook keeps a component in sync with them. Used by the Titlebar and the Appearance tab
-// so neither hand-rolls the same add/removeEventListener block.
-export function useThemeState(): { themeId: string; crtOff: boolean } {
-  const [themeId, setThemeIdState] = useState(getThemeId);
-  const [crtOff, setCrtOffState] = useState(getCrtOff);
+// Subscribe to the live appearance. applyTheme() broadcasts `oe-theme-change` (also when "Match my
+// computer" follows an OS switch); this hook keeps a component in sync. Used by the Titlebar toggle and
+// the Appearance section. `choice` is what the user picked; `resolved` is the palette on screen.
+export function useThemeState(): { choice: ThemeChoice; resolved: ThemeId } {
+  const [state, setState] = useState(() => ({ choice: getThemeChoice(), resolved: getResolvedTheme() }));
   useEffect(() => {
-    const onTheme = () => setThemeIdState(getThemeId());
-    const onCrt = () => setCrtOffState(getCrtOff());
+    const onTheme = () => setState({ choice: getThemeChoice(), resolved: getResolvedTheme() });
     window.addEventListener("oe-theme-change", onTheme);
-    window.addEventListener("oe-crt-change", onCrt);
-    return () => {
-      window.removeEventListener("oe-theme-change", onTheme);
-      window.removeEventListener("oe-crt-change", onCrt);
-    };
+    return () => window.removeEventListener("oe-theme-change", onTheme);
   }, []);
-  return { themeId, crtOff };
+  return state;
 }

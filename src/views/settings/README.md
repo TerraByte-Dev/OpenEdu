@@ -50,8 +50,8 @@ The decisions most likely to harbor bugs are factored out of the components so t
 | `lib/models.ts` | Model catalog + `defaultGeneration/Chat/EmbeddingModel` (derived from the `recommended` flag) — one source for the pickers and the store defaults. |
 | `lib/version.ts` | `compareVersions` / `isNewerVersion` for the About → Check-for-updates flow (SemVer core + prerelease aware). |
 | `lib/text-match.ts` | `matchText` — the search filter. |
-| `lib/settings-schema.ts` | `parseSettingsExport`, `sanitizeImportedPermissions` (drops garbage so the kernel never reads bad rules), `isKnownThemeId` — the import-validation core. |
-| `lib/theme.ts` | Theme registry + `resolveCrtOff` (universal themes force the CRT overlay off; CRT themes honor the manual toggle). `useTheme.ts` is the React subscription used by the titlebar + Appearance tab. |
+| `lib/settings-schema.ts` | `parseSettingsExport`, `sanitizeImportedPermissions` (drops garbage so the kernel never reads bad rules), `importedThemeChoice` (maps a CRT-era theme id in an old export; an old file's `crtOff` is accepted and ignored) — the import-validation core. |
+| `lib/theme.ts` | Light / Dark / Match my computer. `normalizeThemeChoice` maps stored and imported ids (unset, `openedu`, unknown → light; CRT recolors → dark); `resolveTheme` picks the palette for "Match my computer". `useTheme.ts` is the React subscription used by the titlebar toggle + Appearance tab. |
 | `lib/db-resilience.ts` | Learner data tab: `backupFileName`, `backupTo` (`VACUUM INTO`), `describeBackupError`; also the boot `quick_check` interpretation. |
 | `lib/permissions/presets.ts` | Standard / Cautious / Trusting presets + `detectPreset`. The **exam column is identical across presets** (integrity invariant — presets only change `default`/`study`). |
 
@@ -61,5 +61,5 @@ The decisions most likely to harbor bugs are factored out of the components so t
   valid rules over the known tool × mode × decision space.
 - **`store.ts` keys are stable** (existing users have persisted values) — change them only via `store-keys.ts`
   (and add a migration if a rename is ever needed).
-- **Themes are CSS-variable only.** A theme is a `[data-theme="…"]` block in `index.css` plus a `THEMES`
-  entry; never special-case a theme in component code.
+- **Modes are CSS-variable only.** Light is `:root` in `index.css`, dark is the `html[data-theme="dark"]`
+  block, each with a `THEMES` entry; never special-case a mode in component code.
