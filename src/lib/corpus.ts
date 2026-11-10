@@ -4,7 +4,7 @@
 // Everything here goes through explicit grants: the user picks a folder, the Rust side canonicalises
 // it, and every later read must prove it lives under one of those roots. There is no write path.
 
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
 export interface CorpusEntry {
@@ -22,6 +22,15 @@ export interface CorpusListing {
   truncated: boolean;
   /** Unreadable directories, reported rather than fatal. One bad folder must not abort a walk. */
   skipped: string[];
+}
+
+/** Where a walk has got to. Throttled on the Rust side; the `done` message always arrives last. */
+export interface WalkProgress {
+  /** Directories visited so far, including ones that could not be read. */
+  dirsScanned: number;
+  filesMatched: number;
+  currentDir: string;
+  done: boolean;
 }
 
 /** Formats we can turn into text today. Anything else needs an extractor that does not exist yet. */
@@ -46,16 +55,18 @@ export function grantedFolders(): Promise<string[]> {
  * Walk a granted root, breadth-first, capped.
  *
  * Breadth-first because an archive's useful files cluster near the top, so a truncated walk still
- * returns something representative. Pass `exts: []` for everything.
+ * returns something representative. Pass `exts: []` for everything. `onProgress` fires while the
+ * walk runs, which on a slow drive is the only sign it hasn't hung.
  */
 export function listCorpus(
   root: string,
-  opts: { max?: number; exts?: string[] } = {},
+  opts: { max?: number; exts?: string[]; onProgress?: (p: WalkProgress) => void } = {},
 ): Promise<CorpusListing> {
   return invoke<CorpusListing>("corpus_list", {
     root,
     max: opts.max ?? 5000,
     exts: opts.exts ?? READABLE_EXTS,
+    onProgress: opts.onProgress && new Channel<WalkProgress>(opts.onProgress),
   });
 }
 
