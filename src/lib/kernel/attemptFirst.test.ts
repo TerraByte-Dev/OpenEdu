@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { FIRST_TURN_HOLD_NOTE, posesNewProblem, isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
+import { FIRST_TURN_HOLD_NOTE, ANSWER_RULE, posesNewProblem, isFirstTurnHold, withFirstTurnHold, withoutAnswerRule } from "./attemptFirst";
+import { TUTOR_RULES, LEGACY_TUTOR_RULES } from "../curriculum";
 
 // Made-up problems. Nothing here comes from an eval item.
 const STEM = "A pond has 14 frogs. 5 hop away and 3 more arrive. How many frogs are in the pond?";
@@ -82,5 +83,25 @@ describe("the hold note", () => {
     expect(FIRST_TURN_HOLD_NOTE).toContain("do not rule options in or out");
     expect(FIRST_TURN_HOLD_NOTE).toContain("This replaces any rule to answer the student's question first.");
     expect(FIRST_TURN_HOLD_NOTE).toContain("end with one question that asks the student to try");
+  });
+});
+
+describe("withoutAnswerRule (lever 17)", () => {
+  it("is one line of TUTOR_RULES, held there exactly once", () => {
+    expect(TUTOR_RULES.split(`${ANSWER_RULE}\n`)).toHaveLength(2);
+    expect(ANSWER_RULE).not.toContain("\n");
+    expect(ANSWER_RULE.startsWith("- When the student asks for information")).toBe(true);
+  });
+
+  it("removes that line and its newline, and nothing else", () => {
+    const system = `## Rules\n${TUTOR_RULES}\n\n## Output`;
+    const out = withoutAnswerRule(system);
+    expect(out).toBe(system.replace(`${ANSWER_RULE}\n`, ""));
+    expect(out).not.toContain(ANSWER_RULE);
+    expect(out).toContain("You are a focused tutor. Follow these rules:\n- Use a note only when");
+  });
+
+  it("returns a prompt without the line unchanged: no rules block, or the legacy rules", () => {
+    for (const system of ["", "## Topic\nMathematics", `## Rules\n${LEGACY_TUTOR_RULES}`]) expect(withoutAnswerRule(system)).toBe(system);
   });
 });

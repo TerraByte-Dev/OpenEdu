@@ -24,8 +24,8 @@ import { chatTurnSkills } from "./chatSkills";
 import { personaIdentityLayer } from "./systemPrompt";
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "./outputRules";
-import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
-import { buildSystemPrompt } from "../curriculum";
+import { FIRST_TURN_HOLD_NOTE, ANSWER_RULE, withoutAnswerRule } from "./attemptFirst";
+import { buildSystemPrompt, TUTOR_RULES } from "../curriculum";
 import { resolvePersona } from "../skills";
 import type { Syllabus, LLMConfig } from "../../types";
 
@@ -84,7 +84,7 @@ let lastWorkedAnswerRules: boolean | null = null;
 let lastFirstTurnHold: boolean | null = null;
 
 // What ChatTab does on send, minus React and the DB: build the system prompt, then tutorEngine.run.
-async function systemSent(course: Course, history: Sent, userText: string): Promise<string> {
+async function systemSent(course: Course, history: Sent, userText: string, turnRules?: "static"): Promise<string> {
   const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(course.mode, course.topic, "tiny", false);
   const system = buildSystemPrompt(
     course.instructions,
@@ -99,7 +99,7 @@ async function systemSent(course: Course, history: Sent, userText: string): Prom
   lastWorkedAnswerRules = null;
   lastFirstTurnHold = null;
   ({ workedAnswerRules: lastWorkedAnswerRules, firstTurnHold: lastFirstTurnHold } = await tutorEngine.run(
-    { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {} },
+    { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {}, ...(turnRules ? { turnRules } : {}) },
     {
       courseId: "c-1",
       level: course.level,
@@ -133,9 +133,6 @@ const triedThen = (reply: string): Sent => [...AFTER_ATTEMPT.slice(0, 3), { role
 // the chip sends is the event.
 const OTHER_TURNS: Array<[string, Sent, string]> = [
   ["new problem", [], PROBLEM],
-  // The first-turn hold changes the student's message, never the system prompt.
-  ["new problem with options", [], LISTED_PROBLEM],
-  ["new problem with options after a tutor question", AFTER_ATTEMPT, LISTED_PROBLEM],
   ["a try at the problem", AFTER_ATTEMPT.slice(0, 2), ATTEMPT],
   ["hint chip", AFTER_ATTEMPT, "Give me a hint."],
   ["walk-through chip", AFTER_ATTEMPT, "Walk me through it."],
@@ -216,7 +213,7 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
 
   it("sends every other turn's messages as the caller passed them, and reports no hold", async () => {
     // A try gets the check-before-praise note instead (checkBeforePraise.test.ts).
-    for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => t !== LISTED_PROBLEM && t !== ATTEMPT), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
+    for (const [label, history, text] of [...OTHER_TURNS.filter(([, , t]) => t !== ATTEMPT), ["show-answer chip", AFTER_ATTEMPT, SHOW_ANSWER_MESSAGE] as [string, Sent, string]]) {
       await systemSent(course, history, text);
       expect(lastFirstTurnHold, label).toBe(false);
       expect(sent[0].slice(1), label).toEqual([...history, { role: "user", content: text }]);
@@ -236,4 +233,46 @@ describe.each(Object.entries(COURSES))("conversation sent by the kernel: %s", (_
     expect(lastFirstTurnHold).toBe(false);
     expect(sent[0].some((m) => m.content.includes(FIRST_TURN_HOLD_NOTE))).toBe(false);
   });
+});
+
+// Lever 17 (attemptFirst.ts withoutAnswerRule): on the hold turn the code picks the teaching style, so
+// the system prompt loses the answer-first rules line and keeps everything else. A course whose prompt
+// has no such line (no rules block) sends its normal bytes.
+describe.each(Object.entries(COURSES))("the hold turn's system prompt: %s", (_name, course) => {
+  it("is the normal prompt without ANSWER_RULE's line, on a first message and later in a chat", async () => {
+    const normal = await systemSent(course, [], PROBLEM);
+    for (const history of [[], AFTER_ATTEMPT] as Sent[]) {
+      const held = await systemSent(course, history, LISTED_PROBLEM);
+      expect(lastFirstTurnHold).toBe(true);
+      expect(held).toBe(withoutAnswerRule(normal));
+      expect(held).not.toContain(ANSWER_RULE);
+    }
+  });
+
+  it("removes exactly one line when the course sends the code-owned rules, and nothing otherwise", async () => {
+    const normal = await systemSent(course, [], PROBLEM);
+    const held = await systemSent(course, [], LISTED_PROBLEM);
+    if (normal.includes(TUTOR_RULES)) {
+      expect(normal.length - held.length).toBe(ANSWER_RULE.length + 1);
+      expect(held).toContain("give a hint or the next step, not the full solution");
+    } else {
+      expect(held).toBe(normal);
+    }
+  });
+
+  it("keeps the line on the paired arm (turnRules static), as lever 16 sent it", async () => {
+    const normal = await systemSent(course, [], PROBLEM);
+    expect(await systemSent(course, [], LISTED_PROBLEM, "static")).toBe(normal);
+    expect(lastFirstTurnHold).toBe(true);
+  });
+
+  it("goes back to the full rules on the turn after", async () => {
+    const normal = await systemSent(course, [], PROBLEM);
+    const saved: Sent = [{ role: "user", content: LISTED_PROBLEM }, { role: "assistant", content: "Start with the ratio. What is 8 divided by 2?" }];
+    expect(await systemSent(course, saved, "I think it's C.")).toBe(normal);
+  });
+});
+
+it("the full course sends the code-owned rules, so the hold-turn tests above remove a line on at least one course", async () => {
+  expect(await systemSent(COURSES["full science course, socratic"], [], PROBLEM)).toContain(ANSWER_RULE);
 });

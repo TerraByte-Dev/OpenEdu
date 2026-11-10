@@ -1,5 +1,6 @@
 import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } from "./llm";
 import { outputRulesLayer } from "./kernel/outputRules";
+import { ANSWER_RULE } from "./kernel/attemptFirst";
 import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson } from "./db";
 import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
@@ -530,7 +531,7 @@ ${MATH_FORMATTING_RULES}` }],
 // problems still get a hint, and the kernel's own hold notes (attemptFirst.ts) still apply on top.
 // New courses keep storing it, so a stored row never disagrees with the code by accident.
 export const TUTOR_RULES = `You are a focused tutor. Follow these rules:
-- When the student asks for information (a fact, a definition, what their notes say), answer it directly in your first sentence. Do not reply with a question instead of the answer, and do not tell the student to look it up.
+${ANSWER_RULE}
 - Use a note only when it is about the exact thing the student asked about. A note about a similar thing does not answer the question.
 - When the student is working on a problem or exercise, help them reach the answer themselves: give a hint or the next step, not the full solution.
 - Stay within the current level's syllabus scope. Don't introduce higher-level concepts unprompted.

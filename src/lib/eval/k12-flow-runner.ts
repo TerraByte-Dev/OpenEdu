@@ -80,10 +80,11 @@ export async function k12FlowSetup(): Promise<K12FlowSetup> {
  * run every T1, T2 and T3 through this; the B7 latency harness (headless/latency.ts) times the same
  * function.
  */
-/** Lever 16's paired-arm switches for a k12-flow run (EVAL_COURSE_RULES, EVAL_TEMPERATURE). The default
- *  is the frozen protocol's prompt (no rules block) at the app's temperature. */
-export interface K12FlowArm { courseRules: "none" | "code" | "legacy"; temperature: "tutor" | "model-default" }
-export const K12_FLOW_DEFAULT_ARM: K12FlowArm = { courseRules: "none", temperature: "tutor" };
+/** Levers 16 and 17's paired-arm switches for a k12-flow run (EVAL_COURSE_RULES, EVAL_TEMPERATURE,
+ *  EVAL_TURN_RULES). The default is the frozen protocol's prompt (no rules block) at the app's
+ *  temperature, with the app's per-turn rules. */
+export interface K12FlowArm { courseRules: "none" | "code" | "legacy"; temperature: "tutor" | "model-default"; turnRules: "per-turn" | "static" }
+export const K12_FLOW_DEFAULT_ARM: K12FlowArm = { courseRules: "none", temperature: "tutor", turnRules: "per-turn" };
 
 export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSetup, arm: K12FlowArm = K12_FLOW_DEFAULT_ARM): K12FlowTurnFn<K12FlowSubject> {
   return async (messages, item) => {
@@ -100,6 +101,7 @@ export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSet
         config,
         retrieval: "always",
         ...(arm.temperature === "model-default" ? { temperature: arm.temperature } : {}),
+        ...(arm.turnRules === "static" ? { turnRules: arm.turnRules } : {}),
         onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
       },
       {
@@ -152,7 +154,7 @@ async function withK12FlowTurn<R>(tag: string, count: number, arm: K12FlowArm, b
     const { config, profile, contextTokens } = setup;
 
     await assertLibraryGuards();
-    console.log(`[${tag}] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} · rules=${arm.courseRules} temperature=${arm.temperature} · ${count} item(s) × 3 turns`);
+    console.log(`[${tag}] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} · rules=${arm.courseRules} temperature=${arm.temperature} turnRules=${arm.turnRules} · ${count} item(s) × 3 turns`);
 
 
     // Warm-up, unscored: a cold model load can outlast the first-byte timeout.

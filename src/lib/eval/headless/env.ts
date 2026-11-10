@@ -39,6 +39,10 @@ export interface EvalOptions {
   /** RAG, k12-flow and k12-flow-fr: "model-default" sends no temperature, as before lever 16 (kernel
    *  TutorTurn.temperature). Unset: the app's TUTOR_TEMPERATURE. */
   temperature?: "model-default";
+  /** k12-flow and k12-flow-fr: "static" keeps the answer-first rule in the system prompt on the hold
+   *  turn, as lever 16 sent it (kernel TutorTurn.turnRules), lever 17's paired arm. Unset: per-turn, what
+   *  the app does. */
+  turnRules?: "static";
   /** The Settings context-window cap. Unset: the app default. */
   maxContextTokens?: number;
   /** k12-flow and k12-flow-fr only: the first N items. */
@@ -149,6 +153,11 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     if (b7) errs.push("EVAL_TEMPERATURE does not apply to b7-cpu");
     if (set === "sealed") errs.push("EVAL_TEMPERATURE is not allowed with EVAL_SET=sealed: the run uses the app's temperature");
   }
+  const turnRules = get("EVAL_TURN_RULES") as EvalOptions["turnRules"];
+  if (turnRules !== undefined) {
+    if (turnRules !== "static") errs.push(`EVAL_TURN_RULES=${turnRules}: use static (unset is the app's per-turn rules)`);
+    if (!flow) errs.push(`EVAL_TURN_RULES applies only to k12-flow and k12-flow-fr, not ${suite}: no other suite poses a lettered problem`);
+  }
 
   const syllabus = get("EVAL_SYLLABUS") as EvalOptions["syllabus"];
   if (syllabus !== undefined && syllabus !== "python" && syllabus !== "matched") errs.push(`EVAL_SYLLABUS=${syllabus}: use python or matched`);
@@ -195,6 +204,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     passageWindow,
     courseRules,
     temperature,
+    turnRules,
     repeats,
     modes,
     only: get("EVAL_ONLY"),
