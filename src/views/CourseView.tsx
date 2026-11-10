@@ -214,7 +214,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
           <h1 className="text-base font-semibold text-ink truncate leading-tight">{course.title}</h1>
           <p className="text-sm text-[var(--ink-faint)] leading-tight">
             {isComplete ? (
-              <span className="text-green-400 font-semibold">Complete ✓ — you've finished this course</span>
+              <span className="text-success font-semibold">Complete ✓ — you've finished this course</span>
             ) : (
               <>Level {course.current_level} — {getLevelMeaning(course.current_level)}</>
             )}
@@ -300,7 +300,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* Viewing level indicator when browsing a non-active level */}
         {!isCurrentLevel && (
-          <div className="flex items-center gap-1.5 px-4 py-1 text-sm text-amber-400/80 border-b border-[var(--rule)] bg-panel shrink-0">
+          <div className="flex items-center gap-1.5 px-4 py-1 text-sm text-warning border-b border-[var(--rule)] bg-panel shrink-0">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
             Looking at Level {effectiveViewingLevel} — {getLevelMeaning(effectiveViewingLevel)}
           </div>
@@ -424,14 +424,14 @@ function SyllabusView({
                 syllabus.level === currentLevel
                   ? "btn-primary"
                   : syllabus.level < currentLevel
-                  ? "bg-green-700/40 text-green-300"
+                  ? "bg-success-tint text-success"
                   : "bg-lcd text-[var(--ink-faint)]"
               }`}>
                 {syllabus.level}
               </span>
               <h3 className="text-ink font-semibold">{syllabus.title}</h3>
               {syllabus.level < currentLevel && (
-                <span className="text-xs text-green-400 ml-auto">Completed ✓</span>
+                <span className="text-xs text-success ml-auto">Completed ✓</span>
               )}
             </div>
             <p className="text-sm text-[var(--ink-faint)] mb-4">{syllabus.description}</p>
@@ -451,10 +451,10 @@ function SyllabusView({
                 {syllabus.subtopics.map((sub) => (
                   <div key={sub.id} className="flex items-center gap-3 p-2 rounded-lg bg-panel-lite/40">
                     <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      sub.mastered ? "border-green-500 bg-green-500/20" : "border-[var(--rule)]"
+                      sub.mastered ? "border-success bg-success-tint" : "border-[var(--rule)]"
                     }`}>
                       {sub.mastered && (
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="3">
                           <path d="M20 6L9 17l-5-5" />
                         </svg>
                       )}
@@ -476,7 +476,7 @@ function SyllabusView({
             {onRegenerate && (
               <div>
                 {regenStatus && (
-                  <p className={`text-sm mb-3 ${regenStatus.startsWith("Error") ? "text-red-400" : "text-phosphor-bright"}`}>
+                  <p className={`text-sm mb-3 ${regenStatus.startsWith("Error") ? "text-danger" : "text-phosphor-bright"}`}>
                     {regenStatus}
                   </p>
                 )}

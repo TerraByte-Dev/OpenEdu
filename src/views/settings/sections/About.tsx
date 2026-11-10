@@ -162,7 +162,7 @@ export default function About({ onProviderChanged }: SectionProps) {
               <ActionButton onClick={checkUpdates} busyLabel="Checking…">Check for updates</ActionButton>
             )}
             {update.kind === "checking" && <span className="text-xs text-[var(--ink-faint)]">Checking for updates…</span>}
-            {update.kind === "current" && <span className="text-xs text-emerald-400">✓ {update.msg}</span>}
+            {update.kind === "current" && <span className="text-xs text-success">✓ {update.msg}</span>}
             {update.kind === "available" && (
               <ActionButton primary onClick={installNow} busyLabel="Starting…">Install v{update.version} &amp; restart</ActionButton>
             )}
@@ -171,7 +171,7 @@ export default function About({ onProviderChanged }: SectionProps) {
                 {update.pct == null ? "Downloading…" : update.pct < 100 ? `Downloading… ${update.pct}%` : "Installing &amp; restarting…"}
               </span>
             )}
-            {update.kind === "error" && <span className="text-xs text-red-400">{update.msg}</span>}
+            {update.kind === "error" && <span className="text-xs text-danger">{update.msg}</span>}
           </div>
           {update.kind === "available" && update.notes && (
             <p className="mt-2 text-xs text-[var(--ink-faint)] whitespace-pre-wrap max-w-prose">{update.notes}</p>
@@ -196,7 +196,7 @@ export default function About({ onProviderChanged }: SectionProps) {
           <div className="mt-3 flex items-center gap-3 flex-wrap">
             <ActionButton onClick={runSelfCheck} busyLabel="Running…">Run self-check</ActionButton>
             <ActionButton onClick={loadDiag}>Refresh</ActionButton>
-            {selfCheck && <span className={`text-xs ${selfCheck.ok ? "text-emerald-400" : "text-red-400"}`}>{selfCheck.ok ? "✓ " : "✗ "}{selfCheck.msg}</span>}
+            {selfCheck && <span className={`text-xs ${selfCheck.ok ? "text-success" : "text-danger"}`}>{selfCheck.ok ? "✓ " : "✗ "}{selfCheck.msg}</span>}
           </div>
         </SettingRow>
       </Section>
@@ -227,7 +227,7 @@ export default function About({ onProviderChanged }: SectionProps) {
               spellCheck={false}
             />
             <ActionButton onClick={() => applyImport(importText)} primary>Apply pasted JSON</ActionButton>
-            {importMsg && <p className={`text-xs ${importMsg.ok ? "text-emerald-400" : "text-red-400"}`}>{importMsg.ok ? "✓ " : "✗ "}{importMsg.msg}</p>}
+            {importMsg && <p className={`text-xs ${importMsg.ok ? "text-success" : "text-danger"}`}>{importMsg.ok ? "✓ " : "✗ "}{importMsg.msg}</p>}
           </div>
         </SettingRow>
 
@@ -261,7 +261,7 @@ function ConfirmButton({ onConfirm, label, confirmLabel }: { onConfirm: () => Pr
     <button
       type="button"
       onClick={async () => { if (!armed) { setArmed(true); return; } setArmed(false); await onConfirm(); }}
-      className={`btn ${armed ? "border-red-500/70 text-red-400" : ""}`}
+      className={`btn ${armed ? "border-danger/70 text-danger" : ""}`}
     >
       {armed ? confirmLabel : label}
     </button>

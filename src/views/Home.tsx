@@ -93,7 +93,7 @@ export default function Home({
 
         {/* Continue — the one thing to do now */}
         {recent ? (
-          <section className="rounded-2xl border border-phosphor/40 bg-panel p-6" style={{ boxShadow: "0 0 24px var(--phosphor-veil)" }}>
+          <section className="rounded-2xl border border-phosphor/40 bg-panel p-6" style={{ boxShadow: "var(--shadow-soft)" }}>
             <div className="text-sm text-phosphor-ink font-semibold mb-1">Continue</div>
             <h2 className="text-2xl text-ink font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
               {recent.title}
@@ -130,7 +130,7 @@ export default function Home({
             )}
           </section>
         ) : (
-          <section className="rounded-2xl border border-phosphor/40 bg-panel p-6" style={{ boxShadow: "0 0 24px var(--phosphor-veil)" }}>
+          <section className="rounded-2xl border border-phosphor/40 bg-panel p-6" style={{ boxShadow: "var(--shadow-soft)" }}>
             <h2 className="text-2xl text-ink font-semibold leading-tight" style={{ fontFamily: "var(--font-display)" }}>
               Let's pick something to learn.
             </h2>
@@ -202,11 +202,11 @@ export default function Home({
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-lcd overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${course.title}: ${pct}% done`}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "var(--phosphor)", boxShadow: "0 0 6px var(--phosphor)" }} />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "var(--phosphor)" }} />
                     </div>
                     <div className="text-sm text-[var(--ink-faint)] mt-1.5">
                       {building
-                        ? <span className="text-amber-400/90">Not finished — click to continue building</span>
+                        ? <span className="text-warning">Not finished — click to continue building</span>
                         : g && g.total > 0
                           ? `${g.mastered} of ${g.total} topics learned at this level · ${pct}% of the course`
                           : `${pct}% of the course`}
@@ -228,7 +228,7 @@ function GoalBar({ minutes, goal, onChange }: { minutes: number; goal: number; o
     <div>
       <p className={`text-base ${p.done ? "text-phosphor-bright" : "text-ink"}`}>{goalSentence(minutes, goal)}</p>
       <div className="h-2 rounded-full bg-lcd overflow-hidden mt-3" role="progressbar" aria-valuenow={p.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Today's goal">
-        <div className="h-full rounded-full transition-all" style={{ width: `${p.pct}%`, background: "var(--phosphor)", boxShadow: "0 0 8px var(--phosphor)" }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${p.pct}%`, background: "var(--phosphor)" }} />
       </div>
       <p className="text-sm text-[var(--ink-faint)] mt-2">
         Your goal is {goal} minutes a day.{" "}

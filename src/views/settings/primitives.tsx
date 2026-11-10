@@ -98,7 +98,7 @@ export function Toggle({
       >
         <span
           className={`absolute top-[2px] w-4 h-4 rounded-full transition-all ${
-            checked ? "left-[20px] bg-phosphor shadow-[0_0_8px_var(--phosphor-faint)]" : "left-[2px] bg-[var(--ink-faint)]"
+            checked ? "left-[20px] bg-phosphor" : "left-[2px] bg-[var(--ink-faint)]"
           }`}
         />
       </span>
@@ -240,7 +240,7 @@ export function SecretField({
         </button>
       </div>
       {result && (
-        <p className={`mt-2 text-xs font-medium ${result.ok ? "text-emerald-400" : "text-red-400"}`}>
+        <p className={`mt-2 text-xs font-medium ${result.ok ? "text-success" : "text-danger"}`}>
           {result.ok ? "✓ " : "✗ "}{result.msg}
         </p>
       )}

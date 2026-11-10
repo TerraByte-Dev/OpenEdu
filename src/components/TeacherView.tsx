@@ -52,7 +52,7 @@ export default function TeacherView({ mode, learners, groups, busyReason, onClos
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
         <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
-          {busyReason && <p className="text-base text-amber-300">{busyReason}</p>}
+          {busyReason && <p className="text-base text-warning">{busyReason}</p>}
           {tab === "overview" && <Overview grouped={grouped} groups={groups} learners={learners} />}
           {tab === "learners" && <Learners grouped={grouped} learners={learners} groups={groups} busy={!!busyReason} onChanged={onChanged} />}
           {tab === "groups" && grouped && <Groups groups={groups} learners={learners} onChanged={onChanged} />}
@@ -188,7 +188,7 @@ function Learners({ grouped, learners, groups, busy, onChanged }: {
         {grouped && <GroupSelect groups={groups} value={groupId} onChange={setGroupId} />}
         <button type="submit" className="btn btn-primary" style={BTN}>Add</button>
       </form>
-      {error && <p className="text-base text-red-400">{error}</p>}
+      {error && <p className="text-base text-danger">{error}</p>}
       <div className="flex flex-col divide-y divide-[var(--rule)] border border-[var(--rule)] rounded-lg">
         {learners.map((l) => (
           <LearnerRowItem key={l.id} learner={l} learners={learners} groups={groups} grouped={grouped} busy={busy} onChanged={onChanged} />
@@ -261,12 +261,12 @@ function LearnerRowItem({ learner, learners, groups, grouped, busy, onChanged }:
               onChange={(e) => { setText(e.target.value); setError(null); }} />
           </label>
           <button type="button" className="btn" style={SMALL} onClick={() => { setMode(null); setError(null); }}>Back</button>
-          <button type="submit" className="btn" style={mode === "remove" ? { ...SMALL, borderColor: "#f87171", color: "#f87171" } : SMALL}>
+          <button type="submit" className="btn" style={mode === "remove" ? { ...SMALL, borderColor: "var(--danger)", color: "var(--danger)" } : SMALL}>
             {mode === "rename" ? "Save" : "Remove forever"}
           </button>
         </form>
       )}
-      {error && <p className="text-base text-red-400">{error}</p>}
+      {error && <p className="text-base text-danger">{error}</p>}
     </div>
   );
 }
@@ -311,7 +311,7 @@ function Groups({ groups, learners, onChanged }: { groups: GroupRow[]; learners:
       <p className="text-base text-[var(--ink-dim)]">
         Learners pick their class first, then their name. Removing a class keeps its learners and their work; they move to "No class".
       </p>
-      {error && <p className="text-base text-red-400">{error}</p>}
+      {error && <p className="text-base text-danger">{error}</p>}
       {groups.length > 0 && (
         <div className="flex flex-col divide-y divide-[var(--rule)] border border-[var(--rule)] rounded-lg">
           {groups.map((g) => {

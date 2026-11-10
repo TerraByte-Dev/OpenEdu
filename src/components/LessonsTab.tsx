@@ -92,7 +92,7 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
           </p>
         </div>
 
-        {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+        {error && <p className="mb-4 text-sm text-danger">{error}</p>}
 
         {subtopics.length === 0 ? (
           <div className="text-center py-12 px-6 rounded-2xl border border-[var(--rule)] bg-panel-lite/30">
@@ -110,7 +110,7 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
                 >
                   <span
                     className={`w-2 h-2 rounded-full shrink-0 ${
-                      lesson ? (lesson.read_at ? "bg-green-500" : "bg-phosphor") : "bg-[var(--rule)]"
+                      lesson ? (lesson.read_at ? "bg-success" : "bg-phosphor") : "bg-[var(--rule)]"
                     }`}
                     title={lesson ? (lesson.read_at ? "Read" : "Unread") : "Not generated"}
                   />

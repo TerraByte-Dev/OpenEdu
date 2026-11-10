@@ -19,7 +19,7 @@ export default function QuizTab({ currentSyllabus, onStartQuiz }: QuizTabProps) 
           . 20 questions, untimed.
         </p>
         {!currentSyllabus && (
-          <p className="text-xs text-amber-400/70 mb-4">
+          <p className="text-xs text-warning mb-4">
             No syllabus for this level yet — generate one in the Syllabus tab first.
           </p>
         )}

@@ -1,35 +1,48 @@
 // Renders a diagram.render tool result as a Mermaid diagram, inline in the chat surface
 // (docs/ARCHITECTURE.md). Mermaid is heavy (~500KB+), so it is LAZY-loaded via dynamic import on
 // first use and the module is cached — it never enters the initial bundle chunk (the bundle is
-// already ~1.2MB with CodeMirror). Theme tuned to the blue-phosphor CRT palette; securityLevel
-// "strict" sanitizes the rendered SVG. Graceful: a Mermaid parse error falls back to the raw source.
+// already ~1.2MB with CodeMirror). Themed to the Notebook palette and re-rendered when light/dark
+// changes; securityLevel "strict" sanitizes the rendered SVG. Graceful: a Mermaid parse error falls
+// back to the raw source.
 
 import { useEffect, useRef, useState } from "react";
+import type { ThemeId } from "../lib/theme";
+import { useThemeState } from "../lib/useTheme";
 
 type MermaidApi = (typeof import("mermaid"))["default"];
 
 let cached: MermaidApi | null = null;
 let idCounter = 0;
 
-async function getMermaid(): Promise<MermaidApi> {
-  if (!cached) {
-    const mermaid = (await import("mermaid")).default;
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "dark",
-      securityLevel: "strict",
-      fontFamily: '"IBM Plex Mono", "Share Tech Mono", monospace',
-      themeVariables: {
-        primaryColor: "#040709",
-        primaryBorderColor: "#00C6FF",
-        primaryTextColor: "#6DD4EE",
-        lineColor: "#00C6FF",
-        secondaryColor: "#020409",
-        tertiaryColor: "#020508",
-      },
-    });
-    cached = mermaid;
-  }
+// Mermaid can't read CSS vars, so these mirror the index.css tokens for each mode.
+const MERMAID_THEME: Record<ThemeId, { theme: "neutral" | "dark"; themeVariables: Record<string, string> }> = {
+  light: {
+    theme: "neutral",
+    themeVariables: {
+      background: "#FFFFFF", primaryColor: "#EEF3FB", primaryBorderColor: "#1E3A8A",
+      primaryTextColor: "#1B2440", textColor: "#1B2440", lineColor: "#3D465E",
+      secondaryColor: "#F3F0E8", tertiaryColor: "#FFFFFF",
+    },
+  },
+  dark: {
+    theme: "dark",
+    themeVariables: {
+      background: "#16213A", primaryColor: "#1B2A47", primaryBorderColor: "#5B9BFF",
+      primaryTextColor: "#E6ECF5", textColor: "#E6ECF5", lineColor: "#A3B1C6",
+      secondaryColor: "#1A2742", tertiaryColor: "#16213A",
+    },
+  },
+};
+
+// initialize() is global, so it is re-run with the current mode before every render.
+async function getMermaid(mode: ThemeId): Promise<MermaidApi> {
+  if (!cached) cached = (await import("mermaid")).default;
+  cached.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    fontFamily: '"Lexend", "Inter", system-ui, sans-serif',
+    ...MERMAID_THEME[mode],
+  });
   return cached;
 }
 
@@ -37,6 +50,7 @@ export default function MermaidBlock({ code }: { code: string }) {
   const [svg, setSvg] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const idRef = useRef(`mmd-${++idCounter}`);
+  const { resolved } = useThemeState();
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +58,7 @@ export default function MermaidBlock({ code }: { code: string }) {
     setFailed(false);
     (async () => {
       try {
-        const mermaid = await getMermaid();
+        const mermaid = await getMermaid(resolved);
         const { svg } = await mermaid.render(idRef.current, code);
         if (!cancelled) setSvg(svg);
       } catch {
@@ -54,7 +68,7 @@ export default function MermaidBlock({ code }: { code: string }) {
     return () => {
       cancelled = true;
     };
-  }, [code]);
+  }, [code, resolved]);
 
   if (failed) {
     return (
@@ -70,7 +84,7 @@ export default function MermaidBlock({ code }: { code: string }) {
 
   return (
     <div
-      className="rounded-lg p-2 bg-panel-lite border border-[var(--rule)] overflow-x-auto w-fit max-w-full"
+      className="rounded-lg p-2 bg-panel border border-[var(--rule)] overflow-x-auto w-fit max-w-full"
       // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: svg }}
     />
