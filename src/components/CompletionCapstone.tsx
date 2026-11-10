@@ -40,7 +40,7 @@ export default function CompletionCapstone({ course, syllabuses, masterySyllabus
 
       <div className="flex-1 overflow-y-auto px-6 pb-10">
         <div className="max-w-xl mx-auto text-center">
-          <div className="text-6xl mb-4 phosphor-glow">🎓</div>
+          <div className="text-6xl mb-4">🎓</div>
           <h1 className="text-3xl font-bold text-ink mb-1">Course complete</h1>
           <p className="text-[var(--ink-dim)] mb-1">{course.title}</p>
           <p className="text-sm text-[var(--ink-faint)] mb-8">

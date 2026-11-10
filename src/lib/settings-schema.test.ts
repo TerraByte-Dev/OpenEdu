@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseSettingsExport, sanitizeImportedPermissions, isKnownThemeId, EXPORT_KIND, EXPORT_VERSION,
+  parseSettingsExport, sanitizeImportedPermissions, importedThemeChoice, EXPORT_KIND, EXPORT_VERSION,
 } from "./settings-schema";
 import { DEFAULT_PERMISSION_RULES, PERMISSION_ROWS } from "./permissions/rules";
 
 const validFile = JSON.stringify({
   kind: EXPORT_KIND, version: EXPORT_VERSION, exportedAt: "2026-06-02T00:00:00.000Z",
-  theme: "amber", crtOff: false, settings: { llm_provider: "ollama" }, permissions: {},
+  theme: "light", settings: { llm_provider: "ollama" }, permissions: {},
 });
 
 describe("parseSettingsExport", () => {
@@ -27,13 +27,37 @@ describe("parseSettingsExport", () => {
   });
 });
 
-describe("isKnownThemeId", () => {
-  it("accepts known theme ids and rejects everything else", () => {
-    expect(isKnownThemeId("amber")).toBe(true);
-    expect(isKnownThemeId("openedu")).toBe(true);
-    expect(isKnownThemeId("solarized")).toBe(false);
-    expect(isKnownThemeId(undefined)).toBe(false);
-    expect(isKnownThemeId(42)).toBe(false);
+describe("importedThemeChoice", () => {
+  it("passes current choices through", () => {
+    expect(importedThemeChoice("light")).toBe("light");
+    expect(importedThemeChoice("dark")).toBe("dark");
+    expect(importedThemeChoice("system")).toBe("system");
+  });
+
+  it("maps CRT-era ids: the old default to light, recolors to dark", () => {
+    expect(importedThemeChoice("openedu")).toBe("light");
+    expect(importedThemeChoice("amber")).toBe("dark");
+    expect(importedThemeChoice("synthwave")).toBe("dark");
+  });
+
+  it("returns null for a missing or unrecognized theme, so the import leaves the current one alone", () => {
+    expect(importedThemeChoice("solarized")).toBeNull();
+    expect(importedThemeChoice(undefined)).toBeNull();
+    expect(importedThemeChoice(42)).toBeNull();
+  });
+});
+
+describe("an export written before the Notebook look", () => {
+  const oldFile = JSON.stringify({
+    kind: EXPORT_KIND, version: 1, exportedAt: "2026-06-02T00:00:00.000Z",
+    theme: "synthwave", crtOff: true, settings: { llm_provider: "ollama" }, permissions: {},
+  });
+
+  it("still imports: crtOff is accepted, and synthwave lands on dark", () => {
+    const p = parseSettingsExport(oldFile);
+    expect(p.settings.llm_provider).toBe("ollama");
+    expect(p.crtOff).toBe(true); // tolerated, never applied
+    expect(importedThemeChoice(p.theme)).toBe("dark");
   });
 });
 

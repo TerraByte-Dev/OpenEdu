@@ -6,15 +6,15 @@ import { registerBuiltinTools } from "./lib/tools";
 import { loadBuiltinSkills } from "./lib/skills";
 import { refreshManifest } from "./lib/library";
 import { refreshDatasetManifest } from "./lib/library-datasets";
-import { applyTheme, getThemeId } from "./lib/theme";
+import { applyTheme, getThemeChoice, watchSystemTheme } from "./lib/theme";
 import "./index.css";
 
-// Apply the saved color theme before first paint, so neither the default palette nor the scanlines flash
-// for users on a recolor / universal theme. applyTheme() also reconciles the "CRT off" preference
-// (universal themes force it off; CRT themes honor the titlebar toggle). CSS lives in index.css.
+// Apply the saved appearance before first paint, so a dark-mode user never sees the light palette flash.
+// applyTheme() also rewrites a CRT-era theme id to its current equivalent. CSS lives in index.css.
 try {
-  applyTheme(getThemeId());
-} catch { /* ignore — falls back to the default :root (OpenEdu) theme */ }
+  applyTheme(getThemeChoice());
+  watchSystemTheme();
+} catch { /* ignore — falls back to the default :root (light) palette */ }
 
 // Register the kernel's built-in tools + skills once, before anything renders (Phase 1 / Phase 2).
 registerBuiltinTools();

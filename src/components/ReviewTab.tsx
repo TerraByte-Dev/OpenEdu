@@ -9,10 +9,10 @@ interface ReviewTabProps {
 }
 
 const GRADES: { grade: FlashcardGrade; label: string; hint: string; cls: string }[] = [
-  { grade: "again", label: "Again", hint: "forgot", cls: "border-red-500/40 text-red-300 hover:bg-red-500/10" },
-  { grade: "hard", label: "Hard", hint: "barely", cls: "border-amber-500/40 text-amber-300 hover:bg-amber-500/10" },
+  { grade: "again", label: "Again", hint: "forgot", cls: "border-danger/40 text-danger hover:bg-danger-tint" },
+  { grade: "hard", label: "Hard", hint: "barely", cls: "border-warning/40 text-warning hover:bg-warning-tint" },
   { grade: "good", label: "Good", hint: "got it", cls: "border-phosphor/40 text-phosphor-ink hover:bg-[rgb(var(--phosphor-rgb)/0.10)]" },
-  { grade: "easy", label: "Easy", hint: "too easy", cls: "border-green-500/40 text-green-300 hover:bg-green-500/10" },
+  { grade: "easy", label: "Easy", hint: "too easy", cls: "border-success/40 text-success hover:bg-success-tint" },
 ];
 
 export default function ReviewTab({ courseId, level }: ReviewTabProps) {
@@ -181,7 +181,7 @@ export default function ReviewTab({ courseId, level }: ReviewTabProps) {
               )}
               <div className="mt-3 flex items-center justify-between text-[10px] text-[var(--ink-faint)]">
                 <span>Card {idx + 1} of {queue.length} due</span>
-                <button onClick={removeCurrent} className="hover:text-red-300 transition-colors">Delete card</button>
+                <button onClick={removeCurrent} className="hover:text-danger transition-colors">Delete card</button>
               </div>
             </div>
           </div>

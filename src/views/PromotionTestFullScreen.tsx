@@ -399,7 +399,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
             </div>
 
             {genError && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300 text-left font-mono">
+              <div className="mb-4 p-3 rounded-lg bg-danger-tint border border-danger/30 text-sm text-danger text-left font-mono">
                 {genError}
               </div>
             )}
@@ -451,7 +451,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           )}
           <p className="text-xs text-[var(--ink-faint)]">~{TEST_TOTAL_TARGET} questions — do not close this window</p>
           {genError && (
-            <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">{genError}</div>
+            <div className="mt-4 p-3 rounded-lg bg-danger-tint border border-danger/30 text-sm text-danger">{genError}</div>
           )}
         </div>
       </div>
@@ -488,13 +488,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
               <div className="h-full rounded-full bg-[rgb(var(--phosphor-rgb)/0.14)] transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <div className={`text-xl font-mono font-bold shrink-0 ${timeLeft < 300 ? "text-red-400 animate-pulse" : "text-ink"}`}>
+          <div className={`text-xl font-mono font-bold shrink-0 ${timeLeft < 300 ? "text-danger animate-pulse" : "text-ink"}`}>
             {formatTime(timeLeft)}
           </div>
         </div>
 
         {questions.length < TEST_TOTAL_TARGET && (
-          <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < TEST_FLOOR ? "text-red-400/90 bg-red-500/5 border-red-500/20" : "text-amber-400/80 bg-amber-500/5 border-amber-500/20"}`}>
+          <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < TEST_FLOOR ? "text-danger bg-danger-tint border-danger/20" : "text-warning bg-warning-tint border-warning/20"}`}>
             {questions.length < TEST_FLOOR
               ? `Only ${questions.length} of ${TEST_TOTAL_TARGET} questions generated — your model is struggling. A more capable model will give a fuller test.`
               : `Generated ${questions.length} of ${TEST_TOTAL_TARGET} questions — your model produced fewer than usual this run.`}
@@ -528,7 +528,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                 <button
                   onClick={() => finishTest(questions, attemptId!, false)}
                   disabled={!allAnswered || finishing}
-                  className="px-5 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-medium disabled:opacity-40 transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-success hover:opacity-90 text-[var(--on-accent)] text-sm font-medium disabled:opacity-40 transition-colors"
                 >
                   {finishing ? "Finishing…" : "Finish Test"}
                 </button>
@@ -579,13 +579,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       </div>
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto">
-          <div className={`text-center p-6 rounded-2xl border mb-6 ${passed ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30"}`}>
-            <div className={`text-5xl font-bold mb-1 ${passed ? "text-green-400" : "text-red-400"}`}>
+          <div className={`text-center p-6 rounded-2xl border mb-6 ${passed ? "bg-success-tint border-success/30" : "bg-danger-tint border-danger/30"}`}>
+            <div className={`text-5xl font-bold mb-1 ${passed ? "text-success" : "text-danger"}`}>
               {Math.round(overallScore)}%
             </div>
             <div className="text-[var(--ink-faint)] text-sm">Overall Score</div>
             {reviewScore !== null && (
-              <div className={`mt-2 text-sm ${reviewScore >= 60 ? "text-green-400" : "text-red-400"}`}>
+              <div className={`mt-2 text-sm ${reviewScore >= 60 ? "text-success" : "text-danger"}`}>
                 Review section: {Math.round(reviewScore)}% {reviewScore >= 60 ? "✓" : "✗ (need 60%)"}
               </div>
             )}
@@ -622,13 +622,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           {/* Question breakdown */}
           <div className="space-y-3">
             {questions.map((q, i) => (
-              <div key={i} className={`p-3 rounded-xl border text-sm ${q.is_correct ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+              <div key={i} className={`p-3 rounded-xl border text-sm ${q.is_correct ? "border-success/30 bg-success-tint" : "border-danger/30 bg-danger-tint"}`}>
                 <div className="flex items-start gap-2">
-                  <span className={`font-bold shrink-0 ${q.is_correct ? "text-green-400" : "text-red-400"}`}>{q.is_correct ? "✓" : "✗"}</span>
+                  <span className={`font-bold shrink-0 ${q.is_correct ? "text-success" : "text-danger"}`}>{q.is_correct ? "✓" : "✗"}</span>
                   <div className="min-w-0">
                     <p className="text-ink">{q.question_text}</p>
                     {!q.is_correct && q.user_answer && (
-                      <p className="text-xs text-red-400 mt-0.5">Your: {q.user_answer} · Correct: {q.correct_answer}</p>
+                      <p className="text-xs text-danger mt-0.5">Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
                     {q.feedback && <p className="text-xs text-[var(--ink-faint)] italic mt-1">{q.feedback}</p>}
                     {q.explanation && <p className="text-xs text-[var(--ink-faint)] mt-1">{q.explanation}</p>}

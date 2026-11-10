@@ -19,10 +19,10 @@ import {
 } from "../lib/notebook-assistant";
 
 const KIND_META: Record<AnnotationKind, { label: string; color: string; glyph: string }> = {
-  error:    { label: "Wrong",   color: "#FF4060", glyph: "M18 6L6 18M6 6l12 12" },
-  gap:      { label: "Missing", color: "#FFB000", glyph: "M12 5v14M5 12h14" },
+  error:    { label: "Wrong",   color: "var(--danger)", glyph: "M18 6L6 18M6 6l12 12" },
+  gap:      { label: "Missing", color: "var(--warning)", glyph: "M12 5v14M5 12h14" },
   question: { label: "Check",   color: "var(--phosphor)", glyph: "M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01" },
-  correct:  { label: "Right",   color: "#2BFF88", glyph: "M20 6L9 17l-5-5" },
+  correct:  { label: "Right",   color: "var(--success)", glyph: "M20 6L9 17l-5-5" },
 };
 
 export interface NotesAssistantProps {
@@ -121,7 +121,7 @@ export default function NotesAssistant({
       <div className="flex-1 min-h-0 overflow-y-auto">
         {error && (
           <p className="m-3 px-3 py-2 rounded-lg text-[11px] leading-snug"
-             style={{ background: "rgb(255 64 96 / .1)", border: "1px solid rgb(255 64 96 / .4)", color: "#FF4060" }}>
+             style={{ background: "var(--danger-tint)", border: "1px solid var(--danger)", color: "var(--danger)" }}>
             {error}
           </p>
         )}

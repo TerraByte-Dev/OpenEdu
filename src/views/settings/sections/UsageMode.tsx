@@ -49,7 +49,7 @@ export default function UsageModeSection({ usage }: SectionProps) {
             <TeacherPinSetup onBack={() => setPending(null)} onSet={(rec) => apply(pending.to, rec)} />
           </div>
         )}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <p className="text-xs text-[var(--ink-faint)] leading-relaxed max-w-prose">
           Changing this never deletes anyone's courses or work. Going back to Just me needs the teacher PIN. The PIN is kept, so the teacher can switch back with it later.
         </p>

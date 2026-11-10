@@ -143,12 +143,12 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
                 Save &amp; Check
               </button>
               <div className={`flex items-center gap-2 text-sm shrink-0 ${
-                ollamaStatus === "connected" ? "text-emerald-400" :
-                ollamaStatus === "disconnected" ? "text-red-400" : "text-[var(--ink-faint)]"
+                ollamaStatus === "connected" ? "text-success" :
+                ollamaStatus === "disconnected" ? "text-danger" : "text-[var(--ink-faint)]"
               }`}>
                 <span className={`w-2 h-2 rounded-full ${
-                  ollamaStatus === "connected" ? "bg-emerald-400" :
-                  ollamaStatus === "disconnected" ? "bg-red-400" : "bg-[var(--ink-faint)] animate-pulse"
+                  ollamaStatus === "connected" ? "bg-success" :
+                  ollamaStatus === "disconnected" ? "bg-danger" : "bg-[var(--ink-faint)] animate-pulse"
                 }`} />
                 {ollamaStatus === "connected" ? `${ollamaModels.length} models` :
                  ollamaStatus === "disconnected" ? "Offline" : "Checking…"}
@@ -156,7 +156,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             </div>
             {ollamaStatus === "disconnected" && (
               <div className="mt-2.5 space-y-1">
-                {ollamaError && <p className="text-xs text-red-400 font-mono bg-panel-lite px-2 py-1.5 rounded">{ollamaError}</p>}
+                {ollamaError && <p className="text-xs text-danger font-mono bg-panel-lite px-2 py-1.5 rounded">{ollamaError}</p>}
                 <p className="text-xs text-[var(--ink-faint)]">
                   Install from <strong>ollama.com</strong> and run a model: <code className="bg-panel-lite px-1 rounded">ollama pull {chatModel}</code>
                 </p>
@@ -319,7 +319,7 @@ function OllamaModelPicker({ label, value, onChange, onCommit, discoveredModels,
       {ollamaStatus === "disconnected" && (
         <p className="text-[10px] text-[var(--ink-faint)]">Suggestions shown — connect Ollama to see installed models</p>
       )}
-      {!value.trim() && <p className="text-[10px] text-amber-500/70">Enter a model name for {label}</p>}
+      {!value.trim() && <p className="text-[10px] text-warning">Enter a model name for {label}</p>}
     </div>
   );
 }

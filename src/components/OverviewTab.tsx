@@ -67,8 +67,8 @@ export default function OverviewTab({
         </header>
 
         {generationIncomplete && (
-          <div className="flex items-center gap-2 text-sm text-amber-400/90 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-warning bg-warning-tint border border-warning/20 rounded-lg px-3 py-2">
+            <span className="w-2 h-2 rounded-full bg-warning animate-pulse shrink-0" />
             {describeGenerationState(course.generation_state)} Click it in the list on the left to finish building it.
           </div>
         )}
@@ -85,7 +85,7 @@ export default function OverviewTab({
             {regenStatus && (
               <p
                 className={`text-sm mb-3 ${
-                  regenStatus.startsWith("Error") ? "text-red-400" : "text-phosphor-bright"
+                  regenStatus.startsWith("Error") ? "text-danger" : "text-phosphor-bright"
                 }`}
               >
                 {regenStatus}
@@ -204,7 +204,6 @@ function SubtopicDot({
     inner = {
       background: "var(--phosphor)",
       borderColor: "var(--phosphor)",
-      boxShadow: "0 0 8px rgb(var(--phosphor-rgb) / 0.5)",
     };
   } else if (state === "practiced") {
     inner = {
@@ -224,8 +223,7 @@ function SubtopicDot({
       {reviewNeeded && (
         <span
           title="Review needed"
-          className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400"
-          style={{ boxShadow: "0 0 6px rgb(251 191 36 / 0.6)" }}
+          className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-warning"
         />
       )}
     </span>

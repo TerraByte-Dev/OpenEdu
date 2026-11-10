@@ -1,48 +1,69 @@
 import { describe, it, expect } from "vitest";
-import { THEMES, getTheme, resolveCrtOff, resolveStoredCrtOff, themeSupportsCrt, DEFAULT_THEME_ID } from "./theme";
+import {
+  THEMES, THEME_CHOICES, DEFAULT_THEME_ID, normalizeThemeChoice, isRecognizedThemeId, resolveTheme,
+} from "./theme";
 
 describe("theme registry", () => {
-  it("the default theme exists and is OpenEdu; unknown ids fall back to it", () => {
-    expect(getTheme(DEFAULT_THEME_ID).id).toBe("openedu");
-    expect(getTheme("does-not-exist").id).toBe("openedu");
-    expect(getTheme(undefined).id).toBe("openedu");
+  it("has exactly the two Notebook palettes, light first and default", () => {
+    expect(THEMES.map((t) => t.id)).toEqual(["light", "dark"]);
+    expect(DEFAULT_THEME_ID).toBe("light");
   });
 
-  it("has both families and unique ids", () => {
-    const ids = THEMES.map((t) => t.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(THEMES.some((t) => t.family === "universal")).toBe(true);
-    expect(THEMES.some((t) => t.family === "crt")).toBe(true);
-  });
-
-  it("themeSupportsCrt is true only for the CRT family", () => {
-    expect(themeSupportsCrt("openedu")).toBe(true);
-    expect(themeSupportsCrt("synthwave")).toBe(true);
-    expect(themeSupportsCrt("dark")).toBe(false);
-    expect(themeSupportsCrt("light")).toBe(false);
+  it("offers Light, Dark and Match my computer", () => {
+    expect(THEME_CHOICES.map((c) => c.label)).toEqual(["Light", "Dark", "Match my computer"]);
+    expect(THEME_CHOICES.map((c) => c.id)).toEqual(["light", "dark", "system"]);
   });
 });
 
-describe("resolveCrtOff", () => {
-  it("universal themes force the overlay OFF regardless of the manual preference", () => {
-    expect(resolveCrtOff(getTheme("dark"), false)).toBe(true);
-    expect(resolveCrtOff(getTheme("light"), true)).toBe(true);
+describe("normalizeThemeChoice (stored and imported ids)", () => {
+  it("nothing stored, or the old default 'openedu', is light", () => {
+    expect(normalizeThemeChoice(null)).toBe("light");
+    expect(normalizeThemeChoice(undefined)).toBe("light");
+    expect(normalizeThemeChoice("openedu")).toBe("light");
   });
 
-  it("CRT themes honor the manual CRT preference", () => {
-    expect(resolveCrtOff(getTheme("openedu"), false)).toBe(false);
-    expect(resolveCrtOff(getTheme("openedu"), true)).toBe(true);
-    expect(resolveCrtOff(getTheme("synthwave"), true)).toBe(true);
+  it("current choices pass through", () => {
+    expect(normalizeThemeChoice("light")).toBe("light");
+    expect(normalizeThemeChoice("dark")).toBe("dark");
+    expect(normalizeThemeChoice("system")).toBe("system");
+  });
+
+  it("every CRT recolor maps to dark — those users chose a dark screen", () => {
+    for (const id of ["amber", "green", "synthwave", "ice", "tangerine", "crimson", "vapor", "ultraviolet"]) {
+      expect(normalizeThemeChoice(id)).toBe("dark");
+    }
+  });
+
+  it("anything unknown is light", () => {
+    expect(normalizeThemeChoice("solarized")).toBe("light");
+    expect(normalizeThemeChoice("")).toBe("light");
+    expect(normalizeThemeChoice(42)).toBe("light");
+    expect(normalizeThemeChoice("Dark")).toBe("light"); // ids are case-sensitive, as they were stored
   });
 });
 
-describe("resolveStoredCrtOff", () => {
-  it("a fresh install (nothing stored) has the overlay off", () => {
-    expect(resolveStoredCrtOff(null)).toBe(true);
+describe("isRecognizedThemeId", () => {
+  it("knows every id any OpenEdu version wrote", () => {
+    for (const id of ["openedu", "light", "dark", "system", "amber", "ultraviolet"]) {
+      expect(isRecognizedThemeId(id)).toBe(true);
+    }
   });
 
-  it("a saved choice is honored either way", () => {
-    expect(resolveStoredCrtOff("0")).toBe(false); // chose to keep the CRT look
-    expect(resolveStoredCrtOff("1")).toBe(true);  // chose to turn it off
+  it("rejects garbage", () => {
+    expect(isRecognizedThemeId("solarized")).toBe(false);
+    expect(isRecognizedThemeId(undefined)).toBe(false);
+    expect(isRecognizedThemeId(42)).toBe(false);
+  });
+});
+
+describe("resolveTheme", () => {
+  it("explicit choices ignore the OS", () => {
+    expect(resolveTheme("light", true)).toBe("light");
+    expect(resolveTheme("dark", false)).toBe("dark");
+  });
+
+  it("Match my computer follows prefers-color-scheme", () => {
+    expect(resolveTheme("system", true)).toBe("dark");
+    expect(resolveTheme("system", false)).toBe("light");
   });
 });

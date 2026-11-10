@@ -47,7 +47,7 @@ provider you choose, plus web search if you add a Tavily key and the update chec
 - **Notebook with retrieval** — an Obsidian-style vault with a live-preview editor, `[[wiki-links]]`, note-free `#tags`, and a vault graph; documents are embedded locally so the tutor can search and cite your notes.
 - **Quizzes & promotion tests** — per-level practice plus a code-assembled mastery exam.
 - **Tutor permissions** — a per-tool allow / ask / deny policy (Standard · Cautious · Trusting presets) governing what the tutor may do on its own.
-- **Themes** — a CRT "blue phosphor" aesthetic with recolors (Amber, Green, Crimson, Synthwave, Ultraviolet…) plus clean **Dark / Light** themes — all CSS-variable driven.
+- **Light and dark** — a calm "Notebook" look (warm paper, navy ink, one blue accent) in light, dark, or matching your computer — all CSS-variable driven.
 
 ## Screenshots
 

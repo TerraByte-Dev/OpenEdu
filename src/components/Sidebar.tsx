@@ -115,7 +115,7 @@ export default function Sidebar({
           {!collapsed && (
             <button onClick={onGoHome} className="flex items-center gap-1.5 hover:opacity-90 group">
               <span
-                className="phosphor-glow text-phosphor"
+                className="text-phosphor"
                 style={{ fontFamily: "'VT323', var(--font-mono)", fontSize: "1.4rem", lineHeight: 1 }}
               >
                 OE
@@ -170,7 +170,7 @@ export default function Sidebar({
                   {course.title.charAt(0).toUpperCase()}
                   {incomplete && (
                     <span
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse"
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-warning animate-pulse"
                       title="Not finished building — click to finish"
                     />
                   )}
@@ -180,7 +180,7 @@ export default function Sidebar({
                     <div className="text-sm text-ink truncate">{course.title}</div>
                     <div className="text-sm text-[var(--ink-faint)]">
                       {incomplete ? (
-                        <span className="text-amber-400/90">Not finished — click to continue</span>
+                        <span className="text-warning">Not finished — click to continue</span>
                       ) : (
                         <>Level {course.current_level}</>
                       )}
@@ -239,7 +239,7 @@ export default function Sidebar({
                   onDeleteCourse(confirmDelete);
                   setConfirmDelete(null);
                 }}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-lg bg-danger hover:opacity-90 text-[var(--on-accent)] text-sm font-medium transition-colors"
               >
                 Delete
               </button>

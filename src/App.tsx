@@ -18,7 +18,6 @@ import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
 import DataDamagedBanner from "./components/DataDamagedBanner";
 import TourOverlay, { TOUR_STEPS } from "./components/TourOverlay";
-import CRTLayer from "./components/CRTLayer";
 import BootSequence from "./components/BootSequence";
 import Titlebar from "./components/Titlebar";
 import LearnerPicker from "./components/LearnerPicker";
@@ -349,9 +348,6 @@ export default function App() {
       className="flex flex-col h-screen w-screen bg-bg overflow-hidden"
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* Always-visible CRT overlay */}
-      <CRTLayer />
-
       {/* Boot sequence — unmounts after splash */}
       {!booted && <BootSequence onComplete={handleBootComplete} />}
 

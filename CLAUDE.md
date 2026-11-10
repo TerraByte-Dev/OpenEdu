@@ -44,7 +44,7 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 - `src/views/settings/` — the Settings view (tabbed left-rail shell + declarative section registry + primitives). See `src/views/settings/README.md`.
 - `src/lib/store.ts` / `store-keys.ts` — settings persistence (plugin-store). `store-keys.ts` is the single source of truth for key names + the secret/import-allow-list (also consumed by `settings-io.ts`).
 - `src/lib/models.ts` — model catalog + recommended-derived defaults (one source for the Settings pickers AND the store defaults; closes issue #2's drift).
-- `src/lib/theme.ts` (+ `useTheme.ts`) — color-theme registry, `applyTheme`/`getCrtOff`/`setCrtOff`, CSS-var `[data-theme]` themes; applied pre-paint in `main.tsx`.
+- `src/lib/theme.ts` (+ `useTheme.ts`) — Light / Dark / Match my computer: `applyTheme`, `normalizeThemeChoice` (maps CRT-era stored ids), `resolveTheme`, `watchSystemTheme`; applied pre-paint in `main.tsx`.
 - `src/lib/settings-schema.ts` / `settings-io.ts` — pure parse/validate for the settings export/import + the Tauri-side gather/apply. `version.ts` (`compareVersions` for the update check) and `text-match.ts` (search filter) are the other pure helpers.
 - `src/views/` — other top-level views. `Home.tsx` is the learner's landing screen (Continue = the most recent course and its next step, a daily goal with today's minutes, course cards); `Dashboard.tsx` is the new-course flow behind its "Start a new course" button; `CourseView`, full-screen quiz / promotion-test. `src/lib/next-step.ts` is the one next-step ranking (shared by Home and the in-course Next step card); `src/lib/daily-goal.ts` the goal/minutes math. Both pure and tested.
 - `src/components/` — shared widgets, including `terminal/*` primitives.
@@ -110,7 +110,7 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 
 ## Tauri specifics
 
-- Window is frameless (`decorations: false` in `tauri.conf.json`), background `#000000`. Drag region is `data-tauri-drag-region` on the Titlebar center div.
+- Window is frameless (`decorations: false` in `tauri.conf.json`), background `#FBFAF6` (the light `--bg`). Drag region is `data-tauri-drag-region` on the Titlebar center div.
 - Window controls (min / max / close) call `getCurrentWindow()` from `@tauri-apps/api/window`.
 - API keys / model config persist via `@tauri-apps/plugin-store`.
 - Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `dialog`, `store`, `updater`, `process`,
@@ -136,22 +136,47 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 
 ## Design system
 
-Lives in `src/index.css`. Blue phosphor CRT aesthetic.
+Lives in `src/index.css`. The **Notebook** look: warm paper, navy ink, one blue accent, calm. Two modes,
+light (default, the bare `:root`) and dark (`html[data-theme="dark"]`), plus "Match my computer". No
+scanlines, glows, blinking carets, uppercase letter-spaced labels or monospace chrome. The variable names
+are CRT-era (`--phosphor` = accent) and are kept so components didn't change; a later PR renames them.
 
-| CSS var | Use |
-|---|---|
-| `--phosphor` (`#00C6FF`) | Primary accent, glows, active elements |
-| `--phosphor-bright` (`#44D8FF`) | Highlights, hover text |
-| `--phosphor-ink` (`#6DD4EE`) | Body text, labels |
-| `--bg` (`#000000`) | Page background |
-| `--panel` (`#020409`) | Sidebar, header bars |
-| `--panel-lite` (`#040709`) | Card surfaces, hover rows |
-| `--lcd` (`#020508`) | Code blocks, LCD readouts |
-| `--rule` | All borders |
+| CSS var | Light | Dark | Use |
+|---|---|---|---|
+| `--bg` | `#FBFAF6` | `#0E1626` | Page background |
+| `--panel` | `#FFFFFF` | `#16213A` | Cards, header bars |
+| `--panel-lite` | `#F3F0E8` | `#1A2742` | Hover rows, subtle fills |
+| `--panel-tint` | `#EEF3FB` | `#1B2A47` | Secondary tinted card |
+| `--lcd` | `#F4F6FA` | `#0B1220` | Code blocks, readouts |
+| `--rule` / `--rule-dim` | `#E8E4DA` / `#F0ECE3` | `#24324F` / `#1F2B44` | Borders |
+| `--rule-strong` | `#C9D3E6` | `#2A3A5C` | Input and button outlines |
+| `--ink` / `--ink-em` | `#1B2440` / `#0F1730` | `#E6ECF5` / `#FFFFFF` | Body text / emphasis |
+| `--ink-dim` / `--ink-faint` | `#3D465E` / `#5E6577` | `#C3CEDD` / `#A3B1C6` | Secondary text / captions (all ≥ 4.5:1; don't add lighter greys) |
+| `--phosphor` | `#1E3A8A` | `#5B9BFF` | Accent: links, primary buttons, active state |
+| `--phosphor-bright` | `#172C6B` | `#7FB0FF` | Accent hover / pressed |
+| `--phosphor-dim` | `#E4EBF8` | `#1F2D4B` | Accent tint: selected nav pill, progress track |
+| `--on-accent` | `#FFFFFF` | `#0B1220` | Text on a filled accent or filled status colour |
+| `--danger` / `--danger-tint` | `#B42318` / `#FDECEA` | `#FF8A80` / `#3A1F26` | Errors, destructive actions |
+| `--success` / `--success-tint` | `#146C43` / `#E3F5EC` | `#6FD6A0` / `#15332A` | Correct, done, connected |
+| `--warning` / `--warning-tint` | `#8A4B00` / `#FDF0DD` | `#F5C26B` / `#3A2E17` | Caution, partial, health notices |
 
-Key classes: `.window`, `.btn`, `.btn-primary`, `.cf-input`, `.lcd`, `.tag`, `.glow-line`, `.readout-val`, `.phosphor-glow`, `.crt-aberrate`.
+Status colours are Tailwind colours too (`text-danger`, `bg-success-tint`, `border-warning/30`). Don't use
+Tailwind's `red-*`/`emerald-*`/`amber-*` shades: they were tuned for a black screen and fail contrast on
+paper. Canvas and Mermaid can't read CSS vars, so `NotesTab` (graph) and `MermaidBlock` carry per-mode hex
+copies of these tokens; change them together.
 
-Fonts: Lexend (display headings + body — `body` and `.btn`/`.cf-input` use `--font-body`; chosen for reading comprehension; variable weight), IBM Plex Mono (code only), Share Tech Mono (`.lcd` readouts). Inter is the sans fallback. Learner-facing copy is plain English (`src/lib/plain-language.ts` turns pipeline/tool ids into sentences); status and body text is 14 px or larger; a `:focus-visible` ring is global (`index.css`). The CRT overlay is off until a user turns it on (`resolveStoredCrtOff` in `theme.ts`). Color themes live in `src/lib/theme.ts` + `html[data-theme="…"]` blocks in `index.css`, applied pre-paint in `main.tsx`.
+Shape: cards 20px radius (`--radius-card`), inputs and small surfaces 12px (`--radius-control`), buttons
+are 44px-tall pills, 1px `--rule` borders, `--shadow-soft` at most. Key classes: `.window`, `.btn`,
+`.btn-primary`, `.cf-input`, `.lcd`, `.tag`, `.glow-line` (a short accent bar now), `.readout-val`,
+`.note-prose`.
+
+Fonts: Lexend for display, body and UI chrome (chosen for reading comprehension; variable weight).
+`--font-mono` is the CRT-era name for the chrome font and resolves to Lexend too, so the `font-mono`
+utility is NOT monospace. Code uses `--font-lcd` (IBM Plex Mono): the `font-lcd` utility, `code`/`pre`
+inside `.lcd`, and `.note-prose code`/`pre`. Inter is the sans fallback. Learner-facing copy is plain
+English (`src/lib/plain-language.ts` turns pipeline/tool ids into sentences); status and body text is 14 px
+or larger; a `:focus-visible` ring is global (`index.css`). The app chrome is OpenEdu's alone; TerraByte
+appears only in the Settings › About credit.
 
 A browsable version of the same system lives in `design/` — `npm run design` builds self-contained HTML
 cards that get pushed to Claude Design, which then generates new work using these colours, type, and

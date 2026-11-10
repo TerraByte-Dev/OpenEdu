@@ -1,6 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { LLMProvider } from "../types";
-import { setCrtOff, themeSupportsCrt } from "../lib/theme";
+import { applyTheme } from "../lib/theme";
 import { useThemeState } from "../lib/useTheme";
 
 const PROVIDER_LABEL: Record<LLMProvider, string> = {
@@ -27,12 +27,11 @@ interface TitlebarProps {
 export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLearner }: TitlebarProps) {
   const win = getCurrentWindow();
 
-  // "CRT Off" toggle — shares state with the Appearance tab via the useThemeState hook (which listens to
-  // the oe-crt-change / oe-theme-change events that theme.ts broadcasts). The button is hidden on universal
-  // (Dark/Light) themes, where the CRT overlay is intrinsically off.
-  const { themeId, crtOff } = useThemeState();
-  const toggleCrt = () => setCrtOff(!crtOff);
-  const showCrtToggle = themeSupportsCrt(themeId);
+  // Light/dark toggle. Shares state with Settings › Appearance through useThemeState. It always sets an
+  // explicit mode, so a click while on "Match my computer" pins the opposite of what is showing.
+  const { resolved } = useThemeState();
+  const isDark = resolved === "dark";
+  const toggleTheme = () => applyTheme(isDark ? "light" : "dark");
 
   return (
     <div
@@ -72,33 +71,31 @@ export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLe
         <span className="flex items-center gap-1.5">
           <span
             className="w-1.5 h-1.5 rounded-full"
-            style={{
-              background: PROVIDER_DOT[provider],
-              boxShadow: `0 0 6px ${PROVIDER_DOT[provider]}`,
-            }}
+            style={{ background: PROVIDER_DOT[provider] }}
           />
           <span className="text-xs text-[var(--ink-faint)]">
             {PROVIDER_LABEL[provider]}
           </span>
         </span>
-        {showCrtToggle && (
-          <button
-            onClick={toggleCrt}
-            className="p-0.5 text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors"
-            title={crtOff ? "CRT effect off — click to enable" : "CRT effect on — click to disable"}
-            aria-pressed={!crtOff}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="2.5" y="3.5" width="19" height="13" rx="1.5" />
-              <path d="M9 20.5h6M12 16.5v4" />
-              {crtOff ? (
-                <path d="M4 5l16 11" strokeWidth="1.5" />
-              ) : (
-                <path d="M3 8h18M3 11h18M3 14h18" strokeWidth="0.7" opacity="0.6" />
-              )}
+        <button
+          onClick={toggleTheme}
+          className="p-0.5 text-[var(--ink-faint)] hover:text-phosphor transition-colors"
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDark ? (
+            // Sun: shown in dark mode, switches to light.
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
             </svg>
-          </button>
-        )}
+          ) : (
+            // Moon: shown in light mode, switches to dark.
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          )}
+        </button>
         {onGoSettings && <button
           onClick={onGoSettings}
           className="p-0.5 text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors"

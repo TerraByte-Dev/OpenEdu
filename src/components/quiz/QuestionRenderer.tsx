@@ -83,12 +83,12 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             <p className="text-[var(--ink-faint)] text-xs mt-1">It will be graded when you finish.</p>
           </div>
         ) : (
-          <div className={`p-4 rounded-xl border text-sm ${question.is_correct ? "border-green-500/30 bg-green-500/10" : "border-red-500/30 bg-red-500/10"}`}>
-            <div className={`font-medium mb-1 ${question.is_correct ? "text-green-300" : "text-red-300"}`}>
+          <div className={`p-4 rounded-xl border text-sm ${question.is_correct ? "border-success/30 bg-success-tint" : "border-danger/30 bg-danger-tint"}`}>
+            <div className={`font-medium mb-1 ${question.is_correct ? "text-success" : "text-danger"}`}>
               {question.is_correct ? "✓ Correct" : "✗ Incorrect"}
             </div>
             {!question.is_correct && (
-              <p className="text-red-300/80 text-xs mb-1">
+              <p className="text-danger text-xs mb-1">
                 Your answer: {question.user_answer}
                 <br />
                 Correct answer: {question.correct_answer}
@@ -268,7 +268,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             </button>
           )}
           {submitted && (
-            <div className={`p-3 rounded-lg text-sm ${question.is_correct ? "bg-green-500/10 text-green-300" : "bg-red-500/10 text-red-300"}`}>
+            <div className={`p-3 rounded-lg text-sm ${question.is_correct ? "bg-success-tint text-success" : "bg-danger-tint text-danger"}`}>
               {question.is_correct ? "✓ All matches correct!" : "✗ Some matches were wrong."}
             </div>
           )}

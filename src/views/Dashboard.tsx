@@ -2,7 +2,6 @@
 import type { Course } from "../types";
 import { createCourse } from "../lib/db";
 import { CompanionSprite } from "../components/CompanionSprite";
-import { BrandMark } from "../components/BrandMark";
 import { SPRITE_PERSONAS, DEFAULT_SPRITE_ID, suggestSpriteForTopic } from "../lib/sprites/registry";
 import { runGenerationPipeline } from "../lib/curriculum";
 import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
@@ -49,8 +48,8 @@ const INITIAL_STEPS: Step[] = [
 function StepIcon({ status }: { status: StepStatus }) {
   if (status === "done") {
     return (
-      <span className="w-5 h-5 rounded-full bg-green-500/20 border border-green-500 flex items-center justify-center shrink-0">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3">
+      <span className="w-5 h-5 rounded-full bg-success-tint border border-success flex items-center justify-center shrink-0">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="3">
           <path d="M20 6L9 17l-5-5" />
         </svg>
       </span>
@@ -65,8 +64,8 @@ function StepIcon({ status }: { status: StepStatus }) {
   }
   if (status === "error") {
     return (
-      <span className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center shrink-0">
-        <span className="text-red-400 text-xs font-bold">✕</span>
+      <span className="w-5 h-5 rounded-full bg-danger-tint border border-danger flex items-center justify-center shrink-0">
+        <span className="text-danger text-xs font-bold">✕</span>
       </span>
     );
   }
@@ -237,15 +236,12 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-2">
-            <BrandMark size={52} glow title="TerraByte Solutions LLC" />
             <h1
-              className="wordmark-glow"
               style={{
-                fontFamily: "'VT323', var(--font-mono)",
-                fontSize: "clamp(2.4rem, 6vw, 4rem)",
-                color: "var(--phosphor)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(2rem, 5vw, 2.75rem)",
+                fontWeight: 600,
+                color: "var(--ink-em)",
               }}
             >
               OpenEdu
@@ -283,8 +279,8 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                     autoFocus
                   />
                   {isHealthTopic(topic) && (
-                    <div className="mb-4 p-3 rounded-lg border border-amber-500/40 border-l-4 border-l-amber-500 text-xs text-ink leading-relaxed"
-                         style={{ background: "rgba(245,158,11,0.06)" }}>
+                    <div className="mb-4 p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning text-xs text-ink leading-relaxed"
+                         style={{ background: "var(--warning-tint)" }}>
                       {HEALTH_NOTICE}
                     </div>
                   )}
@@ -314,8 +310,8 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                     </div>
                   </div>
                   {error && (
-                    <div className="mb-4 p-3 rounded-lg border border-red-500/30 text-sm text-red-300 leading-relaxed"
-                         style={{ background: "rgba(239,68,68,0.06)" }}>
+                    <div className="mb-4 p-3 rounded-lg border border-danger/30 text-sm text-danger leading-relaxed"
+                         style={{ background: "var(--danger-tint)" }}>
                       {error}
                     </div>
                   )}
@@ -349,7 +345,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                   <div className="h-px bg-[var(--rule)] overflow-hidden mb-5">
                     <div
                       className="h-full transition-all duration-700"
-                      style={{ width: `${progress}%`, background: "var(--phosphor)", boxShadow: "0 0 8px var(--phosphor)" }}
+                      style={{ width: `${progress}%`, background: "var(--phosphor)" }}
                     />
                   </div>
 
@@ -366,7 +362,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                         <span className={
                           step.status === "active" ? "text-phosphor-bright" :
                           step.status === "done" ? "text-[var(--ink-faint)]" :
-                          step.status === "error" ? "text-red-300" :
+                          step.status === "error" ? "text-danger" :
                           "text-[var(--ink-faint)]"
                         }>
                           {step.label}
@@ -393,7 +389,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                           onScroll={handleStreamScroll}
                           className="lcd p-3 mt-2 max-h-64 overflow-y-auto"
                         >
-                          <pre className="text-xs font-mono text-phosphor whitespace-pre-wrap leading-relaxed">
+                          <pre className="text-xs font-lcd text-phosphor whitespace-pre-wrap leading-relaxed">
                             {streamLog}
                           </pre>
                         </div>
@@ -402,8 +398,8 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                   )}
 
                   {error && (
-                    <div className="mt-3 p-3 rounded-lg border border-red-500/30 text-sm text-red-300 leading-relaxed"
-                         style={{ background: "rgba(239,68,68,0.06)" }}>
+                    <div className="mt-3 p-3 rounded-lg border border-danger/30 text-sm text-danger leading-relaxed"
+                         style={{ background: "var(--danger-tint)" }}>
                       {error}
                     </div>
                   )}

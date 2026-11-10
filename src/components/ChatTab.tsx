@@ -411,14 +411,14 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               Ask about <span className="text-phosphor-ink">{course.topic}</span> and your tutor will guide you through the curriculum.
             </p>
             {!currentSyllabus && (
-              <p className="text-xs text-amber-500/70 mt-3">
+              <p className="text-xs text-warning mt-3">
                 No syllabus loaded yet — your tutor will still help, but check the Syllabus tab once course creation finishes.
               </p>
             )}
           </div>
         )}
         {isHealthTopic(course.topic) && (
-          <div className="p-3 rounded-lg border border-amber-500/40 border-l-4 border-l-amber-500 text-xs text-ink leading-relaxed" style={{ background: "rgba(245,158,11,0.06)" }}>
+          <div className="p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint text-xs text-ink leading-relaxed">
             {HEALTH_NOTICE}
           </div>
         )}
@@ -466,7 +466,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           <ConfirmToolCard toolName={confirmPending.toolName} summary={confirmPending.summary} onChoose={handleConfirm} />
         )}
         {chatError && (
-          <div className="mx-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">
+          <div className="mx-2 p-3 rounded-lg bg-danger-tint border border-danger/30 text-sm text-danger">
             <span className="font-medium">Error:</span> {chatError}
           </div>
         )}
@@ -511,7 +511,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             <button
               onClick={cancelStream}
               title="Stop generating"
-              className="px-4 py-3 rounded-xl bg-lcd hover:bg-red-500/20 text-[var(--ink-faint)] hover:text-red-400 transition-colors"
+              className="px-4 py-3 rounded-xl bg-lcd hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger transition-colors"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="6" width="12" height="12" rx="1" />
@@ -640,7 +640,7 @@ function ToolActivity({ events, onOpenResource, onOpenReview }: { events: ToolUI
 function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpenResource?: (id: string) => void; onOpenReview?: () => void }) {
   const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-mono border w-fit max-w-full";
   if (ev.kind === "error") {
-    return <div className={`${base} bg-red-500/10 border-red-500/30 text-red-300`}>⚠ {ev.name}: {ev.error}</div>;
+    return <div className={`${base} bg-danger-tint border-danger/30 text-danger`}>⚠ {ev.name}: {ev.error}</div>;
   }
   if (ev.kind === "result") {
     // notebook.search → a ✓ summary plus a "📓 Source: …" chip per cited document.
@@ -787,7 +787,7 @@ function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; su
           </button>
           <button
             onClick={() => onChoose(false)}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-red-300 hover:border-red-500/30 transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-danger hover:border-danger/30 transition-colors"
           >
             No, not now
           </button>

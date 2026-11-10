@@ -192,7 +192,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         <div className="text-center">
           {error ? (
             <>
-              <p className="text-red-400 text-sm mb-4">{error}</p>
+              <p className="text-danger text-sm mb-4">{error}</p>
               <button onClick={onClose} className="px-5 py-2 rounded-lg bg-panel-lite text-[var(--ink-dim)] text-sm hover:bg-lcd transition-colors">
                 Back to Course
               </button>
@@ -240,8 +240,8 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         </div>
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto">
-            <div className={`text-center p-6 rounded-2xl border mb-6 ${pct >= 80 ? "bg-green-500/10 border-green-500/30" : "bg-amber-500/10 border-amber-500/30"}`}>
-              <div className={`text-5xl font-bold mb-1 ${pct >= 80 ? "text-green-400" : "text-amber-400"}`}>
+            <div className={`text-center p-6 rounded-2xl border mb-6 ${pct >= 80 ? "bg-success-tint border-success/30" : "bg-warning-tint border-warning/30"}`}>
+              <div className={`text-5xl font-bold mb-1 ${pct >= 80 ? "text-success" : "text-warning"}`}>
                 {score?.correct}/{score?.total}
               </div>
               <div className="text-[var(--ink-faint)] text-sm">{Math.round(pct)}% correct</div>
@@ -252,17 +252,17 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
 
             <div className="space-y-4">
               {questions.map((q, i) => (
-                <div key={i} className={`p-4 rounded-xl border ${q.is_correct ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+                <div key={i} className={`p-4 rounded-xl border ${q.is_correct ? "border-success/30 bg-success-tint" : "border-danger/30 bg-danger-tint"}`}>
                   <div className="flex items-start gap-2 mb-2">
-                    <span className={`text-sm font-bold shrink-0 ${q.is_correct ? "text-green-400" : "text-red-400"}`}>
+                    <span className={`text-sm font-bold shrink-0 ${q.is_correct ? "text-success" : "text-danger"}`}>
                       {q.is_correct ? "✓" : "✗"}
                     </span>
                     <p className="text-sm text-ink">{q.question_text}</p>
                   </div>
                   {!q.is_correct && q.user_answer && (
                     <div className="ml-5 text-xs space-y-0.5">
-                      <p className="text-red-400">Your answer: {q.user_answer}</p>
-                      <p className="text-green-400">Correct: {q.correct_answer}</p>
+                      <p className="text-danger">Your answer: {q.user_answer}</p>
+                      <p className="text-success">Correct: {q.correct_answer}</p>
                     </div>
                   )}
                   {q.feedback && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)] italic">{q.feedback}</p>}
@@ -308,7 +308,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       </div>
 
       {questions.length < QUIZ_TARGET && (
-        <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < QUIZ_FLOOR ? "text-red-400/90 bg-red-500/5 border-red-500/20" : "text-amber-400/80 bg-amber-500/5 border-amber-500/20"}`}>
+        <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < QUIZ_FLOOR ? "text-danger bg-danger-tint border-danger/20" : "text-warning bg-warning-tint border-warning/20"}`}>
           {questions.length < QUIZ_FLOOR
             ? `Only ${questions.length} of ${QUIZ_TARGET} questions generated — your model is struggling with this topic. A more capable model will give a fuller quiz.`
             : `Generated ${questions.length} of ${QUIZ_TARGET} questions — your model produced fewer than usual this run.`}
@@ -348,7 +348,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               <button
                 onClick={() => handleFinish(questions)}
                 disabled={!allAnswered || finishing}
-                className="px-5 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-medium disabled:opacity-40 transition-colors"
+                className="px-5 py-2.5 rounded-xl bg-success hover:opacity-90 text-[var(--on-accent)] text-sm font-medium disabled:opacity-40 transition-colors"
               >
                 {finishing ? "Saving..." : "Finish Quiz"}
               </button>

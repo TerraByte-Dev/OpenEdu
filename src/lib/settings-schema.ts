@@ -1,8 +1,8 @@
-// Pure parse + validation for the settings export/import format. Kept Tauri-free (imports only the THEME
-// list and the permission *rules* shape, never the plugin-store layer) so the import validation is
+// Pure parse + validation for the settings export/import format. Kept Tauri-free (imports only the pure theme
+// helpers and the permission *rules* shape, never the plugin-store layer) so the import validation is
 // unit-testable in node and so a hand-edited/corrupt file can never push malformed data into the app.
 
-import { THEMES } from "./theme";
+import { isRecognizedThemeId, normalizeThemeChoice, type ThemeChoice } from "./theme";
 import {
   PERMISSION_ROWS, PERMISSION_PERSISTED_MODES, DEFAULT_PERMISSION_RULES,
   type PermissionDecision, type PermissionRules,
@@ -15,14 +15,19 @@ export interface SettingsExport {
   kind: typeof EXPORT_KIND;
   version: number;
   exportedAt: string;
+  // "light" | "dark" | "system". Files written before the Notebook look carry a CRT-era id here
+  // ("openedu", "amber", "synthwave", ...); importedThemeChoice() maps those.
   theme: string;
-  crtOff: boolean;
+  // Written by CRT-era versions only. Accepted on import and ignored: the overlay no longer exists.
+  crtOff?: unknown;
   settings: Record<string, unknown>;
   permissions: PermissionRules;
 }
 
-export function isKnownThemeId(id: unknown): id is string {
-  return typeof id === "string" && THEMES.some((t) => t.id === id);
+// The appearance an imported file asks for, or null when its theme field is missing or is not an id any
+// OpenEdu version wrote (the import then leaves the current appearance alone and says so).
+export function importedThemeChoice(raw: unknown): ThemeChoice | null {
+  return isRecognizedThemeId(raw) ? normalizeThemeChoice(raw) : null;
 }
 
 const DECISIONS: ReadonlySet<string> = new Set<PermissionDecision>(["allow", "ask", "deny"]);

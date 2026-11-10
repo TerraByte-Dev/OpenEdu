@@ -21,7 +21,7 @@ export default function MathBlock({ latex }: { latex: string }) {
 
   if (html === null) {
     return (
-      <div className="lcd rounded-lg px-3 py-2 text-[13px] font-mono text-phosphor-ink overflow-x-auto w-fit max-w-full">
+      <div className="lcd rounded-lg px-3 py-2 text-[13px] font-lcd text-phosphor-ink overflow-x-auto w-fit max-w-full">
         <code>{latex}</code>
       </div>
     );
