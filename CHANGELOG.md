@@ -65,6 +65,11 @@ The section for each release is also what the app shows when you press Check for
 - **The Library address no longer points at openedu.app**, a domain OpenEdu no longer controls. The
   default install always used the bundled Library and was never affected.
 
+### Security
+- **Updated zod, mermaid, DOMPurify and lodash-es** past published advisories (one critical, two
+  high, one moderate). zod checks the model's structured output and mermaid draws diagrams the model
+  writes, so both handle untrusted text.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
