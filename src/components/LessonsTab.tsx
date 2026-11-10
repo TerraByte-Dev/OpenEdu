@@ -115,17 +115,17 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
                     title={lesson ? (lesson.read_at ? "Read" : "Unread") : "Not generated"}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-ink truncate">{sub.title}</div>
-                    <div className="text-[10px] text-[var(--ink-faint)] truncate">
+                    <div className="text-base text-ink truncate">{sub.title}</div>
+                    <div className="text-sm text-[var(--ink-faint)] truncate">
                       {lesson ? (lesson.read_at ? "Read" : "Ready to read") : sub.key_concepts.join(" · ")}
                     </div>
                   </div>
                   <button
                     onClick={() => openFor(sub)}
                     disabled={isGenerating}
-                    className="px-3 py-1.5 rounded-lg btn-primary text-xs font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 transition-colors shrink-0"
+                    className="px-3 py-1.5 rounded-lg btn-primary text-sm font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 transition-colors shrink-0"
                   >
-                    {isGenerating ? "Writing…" : lesson ? "Open" : "Generate"}
+                    {isGenerating ? "Writing…" : lesson ? "Open" : "Write it for me"}
                   </button>
                 </li>
               );

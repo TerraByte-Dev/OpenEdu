@@ -61,8 +61,8 @@
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* VT323 — the original blocky pixel font. Retired from the app UI in favor of Lexend, but kept for the
-   boot sequence + splash, where the retro CRT feel belongs. Bundled locally for offline use. */
+/* VT323 — the original blocky pixel font. Retired from the app UI in favor of Lexend; kept only for the
+   OpenEdu wordmark (the README hero is drawn to match it). Bundled locally for offline use. */
 @font-face {
   font-family: 'VT323';
   font-style: normal;
@@ -311,7 +311,9 @@ body {
   margin: 0;
   background-color: var(--bg);
   color: var(--ink);
-  font-family: var(--font-mono);
+  /* Lexend for everything a learner reads. Mono is reserved for code and LCD readouts (.lcd,
+     .note-prose code) — it was the body font, which set even the model's prose in IBM Plex Mono. */
+  font-family: var(--font-body);
   overflow: hidden;
   height: 100vh;
 }
@@ -320,6 +322,16 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Keyboard focus. One visible ring on every interactive element, only when focus came from the
+   keyboard (:focus-visible), so mouse clicks stay clean. Shared school hardware with a dead mouse is
+   ordinary; before this there was no focus rule anywhere in src/. Unlayered so it beats Tailwind's
+   preflight. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--phosphor);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -418,185 +430,36 @@ html.crt-off .term-grid-bg { display: none; }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes splash-scanin {
-  0%   { clip-path: inset(0 0 100% 0); filter: blur(2px) brightness(2); }
-  60%  { clip-path: inset(0 0 0 0);    filter: blur(1px) brightness(1.6); }
-  100% { clip-path: inset(0 0 0 0);    filter: blur(0)   brightness(1); }
-}
-
-@keyframes splash-fadein {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes splash-glitch-x {
-  0%   { transform: translate(0, 0); }
-  20%  { transform: translate(-3px, 1px); }
-  40%  { transform: translate(2px, -1px);  clip-path: inset(20% 0 30% 0); }
-  60%  { transform: translate(-1px, 0);    clip-path: inset(0); }
-  80%  { transform: translate(2px, 2px);   clip-path: inset(50% 0 0 0); }
-  100% { transform: translate(0, 0);       clip-path: inset(0); }
-}
-
-@keyframes splash-glitch-r {
-  0%, 100% { transform: translate(-4px, 0); }
-  50%       { transform: translate(-8px, 1px); }
-}
-
-@keyframes splash-glitch-g {
-  0%, 100% { transform: translate(4px, 0); }
-  50%       { transform: translate(8px, -1px); }
-}
-
-@keyframes splash-glitch-tag {
-  0%, 100% { transform: translate(0, 0); opacity: 0.9; }
-  50%       { transform: translate(2px, 0); opacity: 0.55; }
-}
-
-@keyframes splash-flicker {
-  0%, 100% { opacity: 0.35; }
-  50%       { opacity: 0.1; }
-}
-
-@keyframes splash-collapse-out {
-  0%   { transform: scaleY(1);    opacity: 1; filter: blur(0); }
-  60%  { transform: scaleY(0.05); opacity: 1; filter: blur(0); }
-  100% { transform: scaleY(0);    opacity: 0; filter: blur(2px); }
-}
-
-@keyframes splash-line-flash {
-  0%   { opacity: 1; transform: translate(-50%, -50%) scaleY(0) scaleX(0); }
-  20%  { opacity: 1; transform: translate(-50%, -50%) scaleY(1) scaleX(1); }
-  60%  { opacity: 1; transform: translate(-50%, -50%) scaleY(1) scaleX(1); width: 90%; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scaleY(0) scaleX(1.2); width: 0; }
-}
-
 /* ═══════════════════════════════════════════════════════════════
-   BOOT SEQUENCE & SPLASH
+   BRAND SPLASH — the launch moment (components/BootSequence.tsx)
+   Half a second of the mark and the name, then the app. Theme-colored
+   via var(--phosphor). No status lines live here: SetupGate probes.
 ═══════════════════════════════════════════════════════════════ */
 
-.boot-screen {
+.brand-splash {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #000;
-  color: var(--phosphor);
-  font-family: 'VT323', var(--font-mono);
+  background: var(--bg);
   display: flex;
-  flex-direction: column;
-  padding: 40px 60px;
-  font-size: 1.4rem;
-  line-height: 1.35;
-  overflow: hidden;
-}
-
-.boot-screen.fade-out {
-  opacity: 0;
-  transition: opacity 0.45s ease;
-  pointer-events: none;
-}
-
-.boot-line {
-  white-space: pre;
-  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
-  line-height: 1.4;
-}
-.boot-line .ok   { color: var(--phosphor); }
-.boot-line .warn { color: #FFB000; }
-.boot-line .info { color: var(--phosphor-ink); }
-.boot-line .dim  { color: var(--ink-faint); }
-
-.boot-cursor {
-  display: inline-block;
-  animation: caret 0.7s steps(2) infinite;
-}
-
-.boot-dotloop::after {
-  content: ' .';
-  animation: dotloop 1.2s steps(4, end) infinite;
-}
-
-/* Splash */
-.boot-splash {
-  position: fixed;
-  inset: 0;
-  z-index: 9998;
-  background: #000;
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  font-family: 'VT323', var(--font-mono);
+  gap: 14px;
+  animation: brand-splash-in 220ms ease-out both;
 }
 
-.splash-title {
-  font-size: clamp(3rem, 8vw, 6rem);
+.brand-splash-name {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--phosphor);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  position: relative;
 }
 
-.splash-title-r,
-.splash-title-g {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
+@keyframes brand-splash-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-
-.splash-title-r { color: rgba(255, 0, 100, 0.85); }
-.splash-title-g { color: rgba(0, 200, 255, 0.85); }
-
-.splash-tag {
-  font-size: clamp(0.8rem, 1.6vw, 1rem);
-  color: var(--phosphor-ink);
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  opacity: 0;
-}
-
-.splash-frame {
-  position: absolute;
-  inset: 40px;
-  border: 1px solid var(--rule);
-  opacity: 0;
-}
-
-.splash-collapse {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) scaleY(0);
-  width: 90%;
-  height: 2px;
-  background: var(--phosphor);
-  box-shadow: 0 0 30px var(--phosphor), 0 0 80px var(--phosphor);
-  opacity: 0;
-}
-
-/* Splash in */
-.splash-in .splash-title { animation: splash-scanin 700ms ease-out both; }
-.splash-in .splash-tag   { animation: splash-fadein 500ms 600ms ease-out both; }
-.splash-in .splash-frame { animation: splash-fadein 350ms 250ms ease-out both; }
-
-/* Splash glitch */
-.splash-glitch .splash-title   { animation: splash-glitch-x 110ms steps(2) infinite; }
-.splash-glitch .splash-title-r { opacity: 1; animation: splash-glitch-r 90ms steps(2) infinite; }
-.splash-glitch .splash-title-g { opacity: 1; animation: splash-glitch-g 130ms steps(2) infinite; }
-.splash-glitch .splash-tag     { animation: splash-glitch-tag 120ms steps(2) infinite; }
-.splash-glitch .splash-frame   { opacity: 0.4; animation: splash-flicker 80ms steps(2) infinite; }
-
-/* Splash gone */
-.splash-gone .splash-title,
-.splash-gone .splash-title-r,
-.splash-gone .splash-title-g,
-.splash-gone .splash-tag,
-.splash-gone .splash-frame {
-  animation: splash-collapse-out 280ms ease-in forwards;
-}
-.splash-gone .splash-collapse { animation: splash-line-flash 480ms ease-out forwards; }
 
 /* ═══════════════════════════════════════════════════════════════
    TERMINAL COMPONENT HELPERS
@@ -704,9 +567,8 @@ html.crt-off .term-grid-bg { display: none; }
   background: linear-gradient(180deg, rgb(var(--phosphor-rgb) / 0.08) 0%, var(--panel) 100%);
   border: 1px solid var(--rule);
   color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
   border-radius: 2px;
@@ -788,8 +650,8 @@ html.crt-off .term-grid-bg { display: none; }
   background: var(--panel-lite);
   border: 1px solid rgb(var(--phosphor-rgb) / 0.35);
   color: var(--phosphor);
-  font-family: var(--font-lcd);
-  font-size: 0.875rem;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
   padding: 10px 14px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -995,15 +857,10 @@ html.crt-off .term-grid-bg { display: none; }
 ═══════════════════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
-  .splash-title, .splash-title-r, .splash-title-g,
-  .splash-tag, .splash-frame, .splash-collapse,
-  .crt-flicker, .fade-in, .caret::after, .tag::before {
+  .brand-splash, .crt-flicker, .fade-in, .caret::after, .tag::before {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
     transform: none !important;
-    clip-path: none !important;
   }
-  .boot-screen { display: none !important; }
-  .boot-splash  { display: none !important; }
 }

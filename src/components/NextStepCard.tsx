@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Course, Syllabus, QuizAttempt } from "../types";
 import { getQuizAttempts } from "../lib/db";
+import { describeGenerationState } from "../lib/plain-language";
 import type { SwitchTabOpts, Tab } from "../views/CourseView";
 
 interface NextStepCardProps {
@@ -58,7 +59,7 @@ export default function NextStepCard({
   if (attempts === null) {
     return (
       <section className="rounded-xl border border-[var(--rule)] bg-panel p-5">
-        <h3 className="text-xs uppercase tracking-wider text-[var(--ink-faint)] font-semibold mb-2">
+        <h3 className="text-sm text-[var(--ink-dim)] font-semibold mb-2">
           Next step
         </h3>
         <p className="text-sm text-[var(--ink-faint)]">Loading…</p>
@@ -70,7 +71,7 @@ export default function NextStepCard({
     <section className="rounded-xl border border-[var(--rule)] bg-panel p-5">
       <div className="flex items-center gap-2 mb-3">
         <span className="glow-line" />
-        <h3 className="text-xs uppercase tracking-wider text-phosphor-ink font-semibold">
+        <h3 className="text-sm text-phosphor-ink font-semibold">
           Next step
         </h3>
       </div>
@@ -81,13 +82,13 @@ export default function NextStepCard({
             className="flex items-start gap-3 p-3 rounded-lg bg-panel-lite/40 hover:bg-panel-lite transition-colors"
           >
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-ink font-medium">{s.title}</div>
-              <div className="text-xs text-[var(--ink-faint)] mt-0.5">{s.blurb}</div>
+              <div className="text-base text-ink font-medium">{s.title}</div>
+              <div className="text-sm text-[var(--ink-faint)] mt-0.5">{s.blurb}</div>
             </div>
             {s.action && (
               <button
                 onClick={s.action}
-                className="px-3 py-1.5 rounded-lg btn-primary text-xs font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors shrink-0"
+                className="px-3 py-1.5 rounded-lg btn-primary text-sm font-medium hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors shrink-0"
               >
                 {s.actionLabel ?? "Open"}
               </button>
@@ -116,16 +117,16 @@ function rankSuggestions(input: {
     if (onRegenerate) {
       out.push({
         key: "generate",
-        title: "Generate your syllabus",
-        blurb: "We need a syllabus before you can quiz, chat, or take a promotion test.",
+        title: "Build this level's plan",
+        blurb: "The plan for this level is missing. Build it to unlock lessons, quizzes and the tutor.",
         action: onRegenerate,
-        actionLabel: "Generate",
+        actionLabel: "Build",
       });
     } else {
       out.push({
         key: "no-syllabus",
-        title: "Syllabus not generated yet",
-        blurb: "Once the course finishes generating, this level's syllabus will appear here.",
+        title: "This level isn't written yet",
+        blurb: "Once the course finishes building, this level's plan will appear here.",
       });
     }
     return out;
@@ -135,8 +136,8 @@ function rankSuggestions(input: {
   if (course.generation_state && course.generation_state !== "completed") {
     out.push({
       key: "resume",
-      title: "Resume course generation",
-      blurb: `Generation paused at "${course.generation_state}". Open the sidebar to resume.`,
+      title: "Finish building this course",
+      blurb: `${describeGenerationState(course.generation_state)} Click it in the list on the left to finish building it.`,
     });
   }
 
@@ -161,10 +162,10 @@ function rankSuggestions(input: {
   ) {
     out.push({
       key: "promotion",
-      title: "You look ready for the Promotion Test",
-      blurb: `${masteredCount}/${total} subtopics mastered · last quiz ${Math.round(lastQuizPct)}%.`,
+      title: "You look ready to move up a level",
+      blurb: `You've learned ${masteredCount} of ${total} topics and scored ${Math.round(lastQuizPct)}% on your last quiz.`,
       action: onOpenPromotionTest,
-      actionLabel: "Take test",
+      actionLabel: "Take the test",
     });
   }
 
@@ -172,10 +173,10 @@ function rankSuggestions(input: {
   if (levelAttempts.length === 0) {
     out.push({
       key: "first-quiz",
-      title: "Take a practice quiz when you're ready",
-      blurb: "Quiz results unlock the readiness signal for promotion.",
+      title: "Try a practice quiz",
+      blurb: "A quick quiz shows what you know and what to work on next.",
       action: () => switchTab("quiz"),
-      actionLabel: "Open Quiz",
+      actionLabel: "Start quiz",
     });
   }
 
@@ -184,10 +185,10 @@ function rankSuggestions(input: {
   if (untouched && out.length < 3) {
     out.push({
       key: `lesson-${untouched.id}`,
-      title: `Read a lesson on "${untouched.title}"`,
-      blurb: "A clean, readable walkthrough before you practice.",
+      title: `Read the lesson on "${untouched.title}"`,
+      blurb: "A short, clear walkthrough before you practice.",
       action: () => switchTab("lessons", { lessonSubtopicId: untouched.id }),
-      actionLabel: "Open lesson",
+      actionLabel: "Read",
     });
   }
 
@@ -196,10 +197,10 @@ function rankSuggestions(input: {
   if (reviewSub) {
     out.push({
       key: `review-${reviewSub.id}`,
-      title: `Review "${reviewSub.title}"`,
-      blurb: "You missed this on a recent spaced-review question.",
+      title: `Go over "${reviewSub.title}" again`,
+      blurb: "You missed a question about this recently.",
       action: () => switchTab("chat", { seedTopic: reviewSub.title }),
-      actionLabel: "Chat",
+      actionLabel: "Ask the tutor",
     });
   }
 
@@ -212,10 +213,10 @@ function rankSuggestions(input: {
     if (weakest) {
       out.push({
         key: `chat-${weakest.id}`,
-        title: `Chat with your tutor about "${weakest.title}"`,
-        blurb: "Build understanding before your next quiz.",
+        title: `Talk to your tutor about "${weakest.title}"`,
+        blurb: "Work through it together before your next quiz.",
         action: () => switchTab("chat", { seedTopic: weakest.title }),
-        actionLabel: "Chat",
+        actionLabel: "Ask the tutor",
       });
     }
   }

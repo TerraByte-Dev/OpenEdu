@@ -17,6 +17,7 @@ import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
+import { describeToolRequest } from "../lib/plain-language";
 // MathBlock pulls KaTeX (~258 KB); lazy-load it so KaTeX leaves the eager bundle and only loads when
 // a math.render card actually mounts.
 const MathBlock = lazy(() => import("./MathBlock"));
@@ -366,7 +367,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           <span className="text-xs text-[var(--ink-dim)] group-hover:text-phosphor-bright">
             {getSpritePersona(spriteId)?.displayName ?? "Choose a tutor"}
           </span>
-          <span className="text-[var(--ink-faint)] text-[10px]">▾</span>
+          <span className="text-[var(--ink-faint)] text-xs">▾</span>
         </button>
         {personaPickerOpen && (
           <>
@@ -380,7 +381,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                 <span className="w-9 h-9 shrink-0 rounded-md border border-[var(--rule)] bg-lcd flex items-center justify-center text-[var(--ink-faint)] text-xs">—</span>
                 <span className="min-w-0">
                   <span className="block text-xs text-phosphor-bright">No persona</span>
-                  <span className="block text-[10px] text-[var(--ink-faint)] leading-snug">Just the tutor. No character voice.</span>
+                  <span className="block text-xs text-[var(--ink-faint)] leading-snug">Just the tutor. No character voice.</span>
                 </span>
               </button>
               {SPRITE_PERSONAS.map((p) => (
@@ -393,7 +394,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                   <CompanionSprite spriteId={p.id} size={36} />
                   <span className="min-w-0">
                     <span className="block text-xs text-phosphor-bright">{p.displayName}</span>
-                    <span className="block text-[10px] text-[var(--ink-faint)] leading-snug">{p.blurb}</span>
+                    <span className="block text-xs text-[var(--ink-faint)] leading-snug">{p.blurb}</span>
                   </span>
                 </button>
               ))}
@@ -775,20 +776,20 @@ function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; su
         AI
       </span>
       <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
-        <p className="mb-1">Allow the tutor to run <span className="font-mono text-phosphor-ink">{toolName}</span>?</p>
-        <p className="mb-2.5 text-[var(--ink-dim)] text-[13px]">{summary}</p>
+        <p className="mb-1">{describeToolRequest(toolName)} Is that okay?</p>
+        <p className="mb-2.5 text-[var(--ink-dim)] text-sm">{summary}</p>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onChoose(true)}
-            className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
           >
-            Allow
+            Yes, go ahead
           </button>
           <button
             onClick={() => onChoose(false)}
-            className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-red-300 hover:border-red-500/30 transition-colors"
+            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-red-300 hover:border-red-500/30 transition-colors"
           >
-            Don't allow
+            No, not now
           </button>
         </div>
       </div>

@@ -151,7 +151,7 @@ Lives in `src/index.css`. Blue phosphor CRT aesthetic.
 
 Key classes: `.window`, `.btn`, `.btn-primary`, `.cf-input`, `.lcd`, `.tag`, `.glow-line`, `.readout-val`, `.phosphor-glow`, `.crt-aberrate`.
 
-Fonts: Lexend (display headings + prose body — chosen for reading comprehension; variable weight), IBM Plex Mono (UI chrome), Share Tech Mono (LCD / inputs). Inter is the sans fallback. Color themes live in `src/lib/theme.ts` + `html[data-theme="…"]` blocks in `index.css`, applied pre-paint in `main.tsx`.
+Fonts: Lexend (display headings + body — `body` and `.btn`/`.cf-input` use `--font-body`; chosen for reading comprehension; variable weight), IBM Plex Mono (code only), Share Tech Mono (`.lcd` readouts). Inter is the sans fallback. Learner-facing copy is plain English (`src/lib/plain-language.ts` turns pipeline/tool ids into sentences); status and body text is 14 px or larger; a `:focus-visible` ring is global (`index.css`). The CRT overlay is off until a user turns it on (`resolveStoredCrtOff` in `theme.ts`). Color themes live in `src/lib/theme.ts` + `html[data-theme="…"]` blocks in `index.css`, applied pre-paint in `main.tsx`.
 
 A browsable version of the same system lives in `design/` — `npm run design` builds self-contained HTML
 cards that get pushed to Claude Design, which then generates new work using these colours, type, and

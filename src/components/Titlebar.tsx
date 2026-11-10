@@ -43,7 +43,8 @@ export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLe
       {/* Left: brand */}
       <div className="flex items-center px-3 shrink-0" data-tauri-drag-region>
         <span
-          className="text-[11px] font-mono text-phosphor-ink uppercase tracking-widest"
+          className="text-xs text-phosphor-ink font-medium"
+          style={{ fontFamily: "var(--font-display)" }}
           data-tauri-drag-region
         >
           OpenEdu
@@ -76,7 +77,7 @@ export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLe
               boxShadow: `0 0 6px ${PROVIDER_DOT[provider]}`,
             }}
           />
-          <span className="text-[10px] font-mono text-[var(--ink-faint)] uppercase tracking-wider">
+          <span className="text-xs text-[var(--ink-faint)]">
             {PROVIDER_LABEL[provider]}
           </span>
         </span>

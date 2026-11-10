@@ -50,20 +50,20 @@ export default function TourOverlay({ step, onNext, onSkip }: TourOverlayProps) 
   return (
     <div className="fixed bottom-4 right-4 z-40 w-80 rounded-lg border border-phosphor/40 bg-panel shadow-xl p-4">
       <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-sm text-phosphor-bright">{current.title}</span>
-        <span className="text-[10px] text-[var(--ink-faint)] shrink-0 ml-2">
+        <span className="text-base text-phosphor-bright">{current.title}</span>
+        <span className="text-sm text-[var(--ink-faint)] shrink-0 ml-2">
           {step + 1} / {TOUR_STEPS.length}
         </span>
       </div>
-      <p className="text-xs text-[var(--ink-dim)] leading-relaxed">{current.body}</p>
+      <p className="text-sm text-[var(--ink-dim)] leading-relaxed">{current.body}</p>
       <div className="flex items-center gap-2 mt-3">
-        <button onClick={onNext} className="btn-primary btn text-xs">
+        <button onClick={onNext} className="btn-primary btn text-sm">
           {last ? "Got it" : "Next"}
         </button>
         {/* Skip stays available on every step, not just the first. Someone who wants out on step 4
             should not have to click through to the end to get there. */}
         {!last && (
-          <button onClick={onSkip} className="text-xs text-[var(--ink-faint)] hover:text-ink transition-colors">
+          <button onClick={onSkip} className="text-sm text-[var(--ink-faint)] hover:text-ink transition-colors">
             Skip
           </button>
         )}

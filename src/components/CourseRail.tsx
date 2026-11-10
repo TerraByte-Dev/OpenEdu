@@ -41,13 +41,13 @@ export default function CourseRail({ tabs, activeTab, onSelectTab, children }: C
           <button
             key={tab.id}
             onClick={() => onSelectTab(tab.id)}
-            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-left transition-colors ${
+            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-left transition-colors ${
               activeTab === tab.id
                 ? "bg-lcd text-phosphor-bright"
                 : "text-[var(--ink-dim)] hover:text-ink hover:bg-panel-lite"
             }`}
           >
-            <span className={`text-[11px] w-3 text-center ${activeTab === tab.id ? "text-phosphor" : "text-[var(--ink-faint)]"}`}>
+            <span aria-hidden="true" className={`text-xs w-3 text-center ${activeTab === tab.id ? "text-phosphor" : "text-[var(--ink-faint)]"}`}>
               {TAB_ICONS[tab.id]}
             </span>
             <span>{tab.label}</span>
