@@ -1,4 +1,4 @@
-<!-- Hero: CRT "OPENEDU" wordmark — see docs/assets/README.md for the image-gen prompt. -->
+<!-- Hero: the OpenEdu wordmark. It is CRT-era art, kept until the product-name decision; see docs/assets/README.md. -->
 <p align="center">
   <img src="docs/assets/openedu-wordmark.png" alt="OpenEdu" width="680" />
 </p>
@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-00C6FF.svg"></a>
-  <a href="https://github.com/TerraByte-Dev/OpenEdu/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/TerraByte-Dev/OpenEdu?color=00C6FF&label=release"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-1E3A8A.svg"></a>
+  <a href="https://github.com/TerraByte-Dev/OpenEdu/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/TerraByte-Dev/OpenEdu?color=1E3A8A&label=release"></a>
   <a href="https://github.com/TerraByte-Dev/OpenEdu/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/TerraByte-Dev/OpenEdu/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Tauri v2 · React 19" src="https://img.shields.io/badge/Tauri%20v2-React%2019%20%C2%B7%20TypeScript-00C6FF">
+  <img alt="Tauri v2 · React 19" src="https://img.shields.io/badge/Tauri%20v2-React%2019%20%C2%B7%20TypeScript-1E3A8A">
 </p>
 
 <p align="center">
@@ -51,34 +51,43 @@ provider you choose, plus web search if you add a Tavily key and the update chec
 
 ## Screenshots
 
-> Captured live in `npm run tauri dev`. See [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md) for the shot list + capture settings.
-
-<p align="center">
-  <img src="docs/assets/screenshots/notebook.png" alt="Notebook vault graph — note circles, amber #tag diamonds, and [[link]] edges" width="100%" />
-</p>
-<p align="center">
-  <sub><b>Notebook vault graph</b> — your notes (circles), <code>#tags</code> (amber diamonds), and folders, woven together by <code>[[wiki-link]]</code> edges.</sub>
-</p>
+> Captured live in `npm run tauri dev` at 1280 × 800 with demo data. See [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md) for the shot list + capture settings.
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/course.png" alt="Course view — a generated 6-level curriculum with mastery tracking" /><br/>
-      <sub><b>Course view</b> — a generated 6-level curriculum with mastery tracking, chat, notes, quizzes &amp; a promotion test.</sub>
+      <img src="docs/assets/screenshots/home-light.png" alt="Home in light mode: a Continue card for the latest course, today's goal, and course cards" /><br/>
+      <sub><b>Home, light</b> — one Continue button to your latest course and its next step, a daily goal, and your courses.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/library.png" alt="Curated offline Library" /><br/>
-      <sub><b>Offline Library</b> — a curated 154-card K-12 reference set the tutor can cite, fully offline.</sub>
+      <img src="docs/assets/screenshots/home-dark.png" alt="The same Home screen in dark mode" /><br/>
+      <sub><b>Home, dark</b> — the same screen in the navy dark mode. Flip with the sun/moon button in the title bar.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/themes.png" alt="CRT theme picker" /><br/>
-      <sub><b>Themes</b> — a CRT "blue phosphor" look with recolors plus clean Dark/Light, all CSS-variable driven.</sub>
+      <img src="docs/assets/screenshots/chat.png" alt="Course chat: a tutor reply on a local model, ending with a question back to the learner" /><br/>
+      <sub><b>Tutor chat</b> — a reply from <code>gemma4:e2b</code> on local Ollama, with hint and walk-through chips.</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/assets/screenshots/settings.png" alt="Provider & model settings — bring your own key" /><br/>
-      <sub><b>Bring your own key</b> — local Ollama (free), or OpenAI / Anthropic; a separate model per job.</sub>
+      <img src="docs/assets/screenshots/course-dark.png" alt="Course overview in dark mode: the level's topics and what you've learned" /><br/>
+      <sub><b>Course view</b> — the current level's topics, what you know so far, and your progress.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/notebook.png" alt="Notebook vault graph: note circles, folder squares, #tag diamonds and [[link]] edges" /><br/>
+      <sub><b>Notebook graph</b> — your notes (circles), folders (squares) and <code>#tags</code> (diamonds), joined by <code>[[wiki-link]]</code> edges.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/library.png" alt="A course's Resources tab: Library cards recommended for the course" /><br/>
+      <sub><b>Offline Library</b> — a curated 154-card K-12 reference set the tutor can cite, fully offline.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <img src="docs/assets/screenshots/appearance.png" alt="Settings, Appearance: Light, Dark, Match my computer" width="50%" /><br/>
+      <sub><b>Appearance</b> — Light, Dark, or Match my computer. That's the whole choice.</sub>
     </td>
   </tr>
 </table>
@@ -123,7 +132,7 @@ per-course files. A few orientation points:
 - `src/lib/curriculum.ts` — the generation agent harness (`runGenerationPipeline`).
 - `src/lib/llm.ts` — provider abstraction, streaming, schema-enforced structured output, model-tier detection.
 - `src/lib/db.ts` — SQLite CRUD; `src-tauri/` — Rust backend + migrations.
-- `src/views/settings/` — the themed Settings system ([its README](src/views/settings/README.md)).
+- `src/views/settings/` — the tabbed Settings view: a left rail built from a section registry ([its README](src/views/settings/README.md)).
 
 ## Backing up and restoring learner data
 

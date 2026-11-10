@@ -79,7 +79,7 @@ be added and that file already exists, it refuses: the dialog never warned about
 |---|---|
 | `src/lib/` | The non-UI core (see below). The Tauri-free modules have `*.test.ts` next to them. |
 | `src/components/` | Shared widgets (chat, notebook editor + graph, markdown/math/diagram blocks). |
-| `src/views/` | Top-level views (Dashboard, CourseView, Settings, full-screen quiz / promotion test). |
+| `src/views/` | Top-level views (Home, the learner's landing screen; Dashboard, the new-course flow behind its "Start a new course" button; CourseView; Settings; full-screen quiz / promotion test). |
 | `src/skills/` | Built-in tutor **skill** bundles (`*.md` with frontmatter) — loaded at runtime. |
 | `public/library/` | The bundled, offline **Library** (curated K-12 reference cards + assets + `index.json`). |
 | `src-tauri/` | Rust backend, SQLite migrations, capabilities, bundler + updater config. |
@@ -101,7 +101,7 @@ be added and that file already exists, it refuses: the dialog never warned about
 - **`notebook.ts` / `notebook-links.ts`** — the notebook layer (retrieval + linking). See below.
 - **`kernel/`, `tools/`, `skills/`, `permissions/`** — the tutoring runtime. See below.
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
-  catalog, the theme registry, and pure import/export helpers. `store-keys.ts` is the single source of
+  catalog, the Light / Dark / Match my computer switch, and pure import/export helpers. `store-keys.ts` is the single source of
   truth for setting keys + the secret/import allow-list.
 
 The pure, Tauri-free modules (`store-keys`, `models`, `version`, `text-match`, `settings-schema`,
