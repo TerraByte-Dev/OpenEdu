@@ -10,7 +10,7 @@
 > - **The guardrail fails on both models.**
 >   - e2b mc: G1 232 → 194 of 240 (floor 229) and G2 237 → 233 (floor 234).
 >   - e4b mc G1 231 → 220 (floor 228); e4b fr G1 81 → 61 of 81 (floor 78) and G2 79 → 72 (floor 76).
->   - All 46 of e2b's mc G1 failures are on hold turns. The code rules' first line, "answer an information request directly in your first sentence", beat the hold note. KT (master's rules at 0.3) scored G1 230, so the cause is the rules, not the temperature.
+>   - All 46 of e2b's mc G1 failures are on hold turns. The code rules' first line ("When the student asks for information … answer it directly in your first sentence") beat the hold note. KT (master's rules at 0.3) scored G1 230, so the cause is the rules, not the temperature.
 > - **Temperature alone does not ship either.** Rule 1 holds, but KT fails e2b fr G2 by one item (74 against a floor of 75).
 > - **Good news, reported.** On e4b every RAG rule holds. The window took positives from 27 to 40 of 64 (b/c 2/15, p = 0.0023) with 0 borrowed. The code rules took real-world answered from 0 to 20 of 48 on e2b and from 2 to 29 on e4b (both p < 0.0001).
 >
@@ -171,7 +171,7 @@ PASS KW vs KM: e2b mc b/c 56/20, p < 0.0001; e4b mc 27/76, p < 0.0001.
 
 **Mechanism behind the mc G1 miss (e2b).**
 - Every k12-flow mc item's first turn is a hold turn (`firstTurnHold: true` on 240 of 240 rows), and all 46 of KW's G1 failures are among them. The grader reads 44 as the key's text in T1 and 2 as a commit ("The correct answer is C) …").
-- The student's message ends "Which one is right?". The code rules' first line ("answer an information request directly in your first sentence") beat the hold note, which already says "This replaces any rule to answer the student's question first".
+- The student's message ends "Which one is right?". The code rules' first line ("When the student asks for information … answer it directly in your first sentence") beat the hold note, which already says "This replaces any rule to answer the student's question first".
 - KT's G1 is 230, so the cause is the rules line, not the temperature.
 - *Correction:* the e2b comment on #233 and the text of #236 say "44 of 46" failures were on hold turns. The run file shows 46 of 46; 44 is the count graded on the key's text.
 
