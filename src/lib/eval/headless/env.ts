@@ -31,6 +31,14 @@ export interface EvalOptions {
    *  TutorTurn.passageWindow, ground.ts passageFor), the lever's paired arm at the same commit. Unset:
    *  "on", what the app does. */
   passageWindow?: "on" | "off";
+  /** RAG (with EVAL_PROMPT=product-course), k12-flow and k12-flow-fr: which rules block the tutor gets
+   *  (lever 16). "code": TUTOR_RULES, what the app sends for every course. "legacy": the rules every
+   *  course stored before lever 16, sent as stored (master's behaviour, the paired arm). "none" (k12-flow
+   *  only): no rules block, as k12-flow's frozen protocol runs. Unset: "code" for RAG, "none" for k12-flow. */
+  courseRules?: "code" | "legacy" | "none";
+  /** RAG, k12-flow and k12-flow-fr: "model-default" sends no temperature, as before lever 16 (kernel
+   *  TutorTurn.temperature). Unset: the app's TUTOR_TEMPERATURE. */
+  temperature?: "model-default";
   /** The Settings context-window cap. Unset: the app default. */
   maxContextTokens?: number;
   /** k12-flow and k12-flow-fr only: the first N items. */
@@ -127,6 +135,21 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     if (set === "sealed") errs.push("EVAL_PASSAGE_WINDOW is not allowed with EVAL_SET=sealed: the run uses the app's passages");
   }
 
+  const courseRules = get("EVAL_COURSE_RULES") as EvalOptions["courseRules"];
+  if (courseRules !== undefined) {
+    const allowed = flow ? ["code", "legacy", "none"] : ["code", "legacy"];
+    if (!allowed.includes(courseRules)) errs.push(`EVAL_COURSE_RULES=${courseRules}: use ${allowed.join(", ")}`);
+    if (b7) errs.push("EVAL_COURSE_RULES does not apply to b7-cpu");
+    if (!flow && !b7 && prompt !== "product-course") errs.push("EVAL_COURSE_RULES needs EVAL_PROMPT=product-course: only that arm sends a course's rules");
+    if (set === "sealed") errs.push("EVAL_COURSE_RULES is not allowed with EVAL_SET=sealed: the run uses the app's rules");
+  }
+  const temperature = get("EVAL_TEMPERATURE") as EvalOptions["temperature"];
+  if (temperature !== undefined) {
+    if (temperature !== "model-default") errs.push(`EVAL_TEMPERATURE=${temperature}: use model-default (unset is the app's temperature)`);
+    if (b7) errs.push("EVAL_TEMPERATURE does not apply to b7-cpu");
+    if (set === "sealed") errs.push("EVAL_TEMPERATURE is not allowed with EVAL_SET=sealed: the run uses the app's temperature");
+  }
+
   const syllabus = get("EVAL_SYLLABUS") as EvalOptions["syllabus"];
   if (syllabus !== undefined && syllabus !== "python" && syllabus !== "matched") errs.push(`EVAL_SYLLABUS=${syllabus}: use python or matched`);
 
@@ -170,6 +193,8 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     set,
     sealedPath,
     passageWindow,
+    courseRules,
+    temperature,
     repeats,
     modes,
     only: get("EVAL_ONLY"),

@@ -18,13 +18,14 @@ vi.mock("@tauri-apps/plugin-store", () => import("./shims/plugin-store"));
 vi.mock("@tauri-apps/api/core", () => import("./shims/api-core"));
 
 import { runRagEval, ragInstructions, RAG_PROMPTS, type RagPrompt } from "../rag-runner";
-import { buildSystemPrompt, TUTOR_RULES } from "../../curriculum";
+import { buildSystemPrompt, LEGACY_TUTOR_RULES, TUTOR_RULES } from "../../curriculum";
 import { parseEvalEnv } from "./env";
 import { runK12FlowEval, runK12FlowFrEval } from "../k12-flow-runner";
 import { formatK12FlowT1, formatK12FlowT2, K12_FLOW_T3 } from "../k12-flow";
 import { formatK12FlowFrT2 } from "../k12-flow-fr";
 import { K12_FR_ITEMS } from "../k12-flow-fr-items";
 import { OUTPUT_RULES, WORKED_ANSWER_RULES } from "../../kernel/outputRules";
+import { TUTOR_TEMPERATURE } from "../../kernel/TutorEngine";
 import { FIRST_TURN_HOLD_NOTE, withFirstTurnHold } from "../../kernel/attemptFirst";
 import { withCheckBeforePraise } from "../../kernel/checkBeforePraise";
 import { K12_ITEMS } from "../k12-items";
@@ -372,7 +373,9 @@ describe("EVAL_PROMPT arms, on the wire", () => {
   const runs = new Map<RagPrompt | "unset", { chat: Body[]; out: Out }>();
   const SEP = "\n\n---\n\n";
   // The instructions part of the prompt, built by the product function from the arm's record.
-  const head = (arm: RagPrompt) => buildSystemPrompt(ragInstructions(arm), null, 1, "x").split(`${SEP}## Subject`)[0];
+  // Lever 16: only product-course stands for a course whose stored rules the app replaces; the standin
+  // arm's own rules line is sent as written (rag-runner.ts rulesSource).
+  const head = (arm: RagPrompt) => buildSystemPrompt(ragInstructions(arm), null, 1, "x", undefined, undefined, undefined, arm === "product-course" ? "code" : "stored").split(`${SEP}## Subject`)[0];
 
   beforeAll(async () => {
     globalThis.fetch = fakeOllama as typeof fetch;
@@ -439,5 +442,68 @@ describe("EVAL_PROMPT arms, on the wire", () => {
     expect(() => parseEvalEnv({ EVAL_PROMPT: "product" })).toThrow(/EVAL_PROMPT=product/);
     expect(() => parseEvalEnv({ EVAL_PROMPT: "standin", EVAL_SET: "sealed", EVAL_SEALED: "x.json" })).toThrow(/EVAL_PROMPT is not allowed with EVAL_SET=sealed/);
     expect(() => parseEvalEnv({ EVAL_SUITE: "k12-flow", EVAL_PROMPT: "standin" })).toThrow(/EVAL_PROMPT does not apply to k12-flow/);
+  });
+});
+
+// Lever 16's arms (EVAL_COURSE_RULES, EVAL_TEMPERATURE) on the product-course prompt. M is master's
+// behaviour (stored legacy rules, no temperature); T adds only the temperature; P is the app (code rules
+// and the temperature). Each pair differs in exactly the one thing its switch names.
+describe("lever 16's arms, on the wire", () => {
+  type Body = { messages: Array<{ role: string; content: string }>; options: Record<string, unknown> } & Record<string, unknown>;
+  type Out = { courseRules: string; temperature: string; options: Record<string, unknown> };
+  const arms = {
+    M: { EVAL_COURSE_RULES: "legacy", EVAL_TEMPERATURE: "model-default" },
+    T: { EVAL_COURSE_RULES: "legacy" },
+    P: {},
+  } as const;
+  const runs = new Map<keyof typeof arms, { chat: Body[]; out: Out }>();
+
+  beforeAll(async () => {
+    globalThis.fetch = fakeOllama as typeof fetch;
+    installAppOrigin();
+    chatReply = RAG_REPLY;
+    const f = await fs();
+    const dir = await f.mkdtemp(`${(await os()).tmpdir()}/oe-l16-`);
+    try {
+      for (const [arm, extra] of Object.entries(arms) as Array<[keyof typeof arms, Record<string, string>]>) {
+        calls = [];
+        const env: Record<string, string> = { EVAL_MODEL: MODEL, EVAL_SET: "dev", EVAL_ONLY: ITEM, EVAL_MODES: "always", EVAL_SYLLABUS: "matched", EVAL_PROMPT: "product-course", EVAL_OUT: `${dir}/${arm}.json`, ...extra };
+        const { outFile } = await (await freshRun())(env);
+        runs.set(arm, { chat: bodies("/api/chat") as Body[], out: JSON.parse(await f.readFile(outFile, "utf8")) as Out });
+      }
+    } finally {
+      await f.rm(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  const sys = (arm: keyof typeof arms) => runs.get(arm)!.chat[0].messages[0].content;
+
+  it("M sends master's stored rules and no temperature", () => {
+    expect(sys("M")).toContain(`## Rules\n${LEGACY_TUTOR_RULES}`);
+    expect(sys("M")).not.toContain(TUTOR_RULES);
+    expect("temperature" in runs.get("M")!.chat[0].options).toBe(false);
+  });
+
+  it("T differs from M only by the temperature", () => {
+    const { options: mo, ...m } = runs.get("M")!.chat[0];
+    const { options: to, ...t } = runs.get("T")!.chat[0];
+    expect(t).toEqual(m);
+    expect(to).toEqual({ ...mo, temperature: TUTOR_TEMPERATURE });
+    expect(TUTOR_TEMPERATURE).toBe(0.3);
+  });
+
+  it("P differs from T only by the rules block in the system prompt", () => {
+    // A replacer function: TUTOR_RULES holds "$$", which a replacement string would rewrite.
+    const t = runs.get("T")!.chat[0];
+    const p = runs.get("P")!.chat[0];
+    expect(sys("P")).toBe(sys("T").replace(`## Rules\n${LEGACY_TUTOR_RULES}`, () => `## Rules\n${TUTOR_RULES}`));
+    expect(sys("P")).not.toBe(sys("T"));
+    expect({ ...p, messages: p.messages.slice(1) }).toEqual({ ...t, messages: t.messages.slice(1) });
+  });
+
+  it("records each arm on the run", () => {
+    expect(runs.get("M")!.out).toMatchObject({ courseRules: "legacy", temperature: "model-default" });
+    expect(runs.get("T")!.out).toMatchObject({ courseRules: "legacy", temperature: "tutor" });
+    expect(runs.get("P")!.out).toMatchObject({ courseRules: "code", temperature: "tutor" });
   });
 });

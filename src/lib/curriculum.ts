@@ -520,10 +520,29 @@ ${MATH_FORMATTING_RULES}` }],
   return brief;
 }
 
-// The fixed rules block every generated course stores as its "rules" instruction (generateTutorInstructions).
-// Exported so the RAG eval runner can send the same text the app sends (EVAL_PROMPT=product-course) instead
-// of a copy that could drift. Changing it changes every newly generated course.
+// The rules block every course's tutor gets (lever 16, teaching style by turn kind). Code owns it:
+// buildSystemPrompt sends this text in place of whatever "rules" row a course stored at generation, so
+// a change here reaches every course, old ones included. Before lever 16 the stored row was the only
+// copy, and it told the tutor to "guide the student to discover answers rather than giving them
+// immediately" on every turn: under it gemma4:e2b answered questions about the student's own notes
+// with a question back (results/2026-11-08-rag-prompt-fidelity.md). Lookups are now answered first;
+// problems still get a hint, and the kernel's own hold notes (attemptFirst.ts) still apply on top.
+// New courses keep storing it, so a stored row never disagrees with the code by accident.
 export const TUTOR_RULES = `You are a focused tutor. Follow these rules:
+- When the student asks for information (a fact, a definition, what their notes say), answer it directly in your first sentence. Do not reply with a question instead of the answer, and do not tell the student to look it up.
+- Use a note only when it is about the exact thing the student asked about. A note about a similar thing does not answer the question.
+- When the student is working on a problem or exercise, help them reach the answer themselves: give a hint or the next step, not the full solution.
+- Stay within the current level's syllabus scope. Don't introduce higher-level concepts unprompted.
+- Reference the current level's specific subtopics and objectives when relevant.
+- If asked about something beyond scope, answer briefly, then note that a later level covers it.
+- Celebrate genuine understanding, not just completion.
+- When you see the student has mastered a subtopic, say so explicitly.
+- Never give answers during quiz/assessment mode.
+- Math formatting: simple symbols can be written as plain text (× ÷ ² ³ π ≤ ≥ √ Δ θ α). For fractions, exponents, roots, sums, integrals, or vectors, write LaTeX inside math delimiters — inline $...$ or block $$...$$ (both render for the student). When a math.render tool is available, prefer it for a standalone equation. Always close every $ you open; never leave a half-open $ or a bare backslash command sitting outside delimiters.`;
+
+// The rules block every generated course stored before lever 16. Kept only so the eval can run master's
+// behaviour as a paired arm (EVAL_COURSE_RULES=legacy); the app never sends it.
+export const LEGACY_TUTOR_RULES = `You are a focused tutor. Follow these rules:
 - Stay within the current level's syllabus scope. Don't introduce higher-level concepts unprompted.
 - Guide the student to discover answers rather than giving them immediately.
 - When stuck, give hints — not full solutions.
@@ -1023,6 +1042,9 @@ export function buildSystemPrompt(
   modePromptSuffix?: string,
   knowledgeSummary?: string,
   personaIdentity?: string,
+  // "code" (the app): a course's stored rules row is replaced by TUTOR_RULES. "stored": the row is sent
+  // as stored, for the eval's paired arm that runs master's behaviour (EVAL_COURSE_RULES=legacy).
+  rules: "code" | "stored" = "code",
 ): string {
   const parts: string[] = [];
 
@@ -1038,7 +1060,7 @@ export function buildSystemPrompt(
     parts.push(`## Teaching Approach\n${instructions.pedagogy}`);
   }
   if (instructions.rules) {
-    parts.push(`## Rules\n${instructions.rules}`);
+    parts.push(`## Rules\n${rules === "code" ? TUTOR_RULES : instructions.rules}`);
   }
   if (syllabus) {
     parts.push(`## Current Level: ${syllabus.level} — ${syllabus.title}

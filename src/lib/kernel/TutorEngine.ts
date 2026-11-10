@@ -48,7 +48,17 @@ export interface TutorTurn {
   // eval can run the lever's paired arm at the same commit (EVAL_PASSAGE_WINDOW=off). Default "on";
   // the app never sets it.
   passageWindow?: "on" | "off";
+  // "model-default" sends no temperature, as before lever 16, so Ollama samples at the model's own
+  // default (gemma4's is 1.0); the eval's paired arm (EVAL_TEMPERATURE=model-default). Default "tutor":
+  // TUTOR_TEMPERATURE. The app never sets it.
+  temperature?: "tutor" | "model-default";
 }
+
+// The sampling temperature of every tutoring reply (lever 16). Before it the kernel sent none, so each
+// reply sampled at the model's default: 1.0 for gemma4, which made identical requests disagree (the
+// 3-repeat evals saw items flip between runs of the same commit). Low, not zero: a tutor that says
+// the same sentence every time reads as canned.
+export const TUTOR_TEMPERATURE = 0.3;
 
 export interface TutorTurnResult {
   text: string;
@@ -230,6 +240,7 @@ ${lastUser.content}` };
   ): Promise<TutorTurnResult> {
     const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold } = prepared;
     let messages = prepared.messages;
+    const temperature = turn.temperature === "model-default" ? undefined : TUTOR_TEMPERATURE;
 
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
     // history rather than the student's current question. The grounding block is charged to its own
@@ -260,7 +271,7 @@ ${lastUser.content}` };
       let iterationText = ""; // text emitted before any tool call in THIS model turn
       const pendingCalls: Array<{ id: string; name: string; args: unknown }> = [];
       try {
-        for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
+        for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort, temperature })) {
           if (ev.type === "text") { iterationText += ev.delta; streamedText += ev.delta; turn.onText(ev.delta); }
           else if (ev.type === "tool_call") {
             // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
@@ -335,7 +346,7 @@ ${lastUser.content}` };
     const hardStopped = interrupted === "aborted" || interrupted === "stalled";
     if (!endedNaturally && !hardStopped && !ctx.abort.aborted) {
       const finalMessages = toolCallRecovery && manifest ? withoutManifest(messages, manifest) : messages;
-      for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
+      for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort, temperature })) {
         if (ev.type === "text") { streamedText += ev.delta; turn.onText(ev.delta); }
         else if (ev.type === "done") {
           if (ev.finishReason === "aborted") interrupted = "aborted";

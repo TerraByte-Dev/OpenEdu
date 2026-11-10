@@ -3,7 +3,7 @@ import { k12FlowTurnSetup, K12_FLOW_TOPICS } from "./k12-flow-prompt";
 import { K12_INSTRUCTIONS } from "./k12-runner";
 import { K12_ITEMS } from "./k12-items";
 import { chatTurnSkills } from "../kernel/chatSkills";
-import { buildSystemPrompt } from "../curriculum";
+import { buildSystemPrompt, LEGACY_TUTOR_RULES, TUTOR_RULES } from "../curriculum";
 import chatTabSource from "../../components/ChatTab.tsx?raw";
 import k12FlowRunnerSource from "./k12-flow-runner.ts?raw";
 
@@ -68,3 +68,22 @@ describe("one function for ChatTab and the eval", () => {
     });
   }
 });
+
+describe("k12FlowTurnSetup's rules arms (lever 16, EVAL_COURSE_RULES)", () => {
+  const item = { subject: "math" as const };
+  it("sends no rules block by default, the frozen protocol's prompt", () => {
+    expect(k12FlowTurnSetup(item, "tiny", true).system).toBe(k12FlowTurnSetup(item, "tiny", true, "none").system);
+    expect(k12FlowTurnSetup(item, "tiny", true).system).not.toContain("## Rules");
+  });
+  it("adds the code rules block for \"code\" and master's stored block for \"legacy\", and changes nothing else", () => {
+    const none = k12FlowTurnSetup(item, "tiny", true, "none").system;
+    const code = k12FlowTurnSetup(item, "tiny", true, "code").system;
+    const legacy = k12FlowTurnSetup(item, "tiny", true, "legacy").system;
+    expect(code).toContain(`## Rules\n${TUTOR_RULES}`);
+    expect(legacy).toContain(`## Rules\n${LEGACY_TUTOR_RULES}`);
+    const SEP = "\n\n---\n\n";
+    expect(code.replace(`${SEP}## Rules\n${TUTOR_RULES}`, "")).toBe(none);
+    expect(legacy.replace(`${SEP}## Rules\n${LEGACY_TUTOR_RULES}`, "")).toBe(none);
+  });
+});
+

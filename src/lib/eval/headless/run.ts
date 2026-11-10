@@ -14,7 +14,7 @@ import { loadBuiltinSkills } from "../../skills";
 import { refreshManifest, isLibraryAvailable, getManifest } from "../../library";
 import { refreshDatasetManifest } from "../../library-datasets";
 import { runRagEval, type RagCustomSet, type RagReport } from "../rag-runner";
-import { runK12FlowItems, runK12FlowFrItems, type K12FlowReport, type K12FlowFrReport } from "../k12-flow-runner";
+import { runK12FlowItems, runK12FlowFrItems, type K12FlowArm, type K12FlowReport, type K12FlowFrReport } from "../k12-flow-runner";
 import { K12FlowAbort, type K12FlowRow } from "../k12-flow";
 import { summarizeK12Flow } from "../k12-flow-grade";
 import { K12_ITEMS } from "../k12-items";
@@ -139,6 +139,8 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     syllabus: o.syllabus,
     prompt: o.prompt,
     passageWindow: o.passageWindow,
+    ...(o.courseRules === "legacy" ? { courseRules: "legacy" as const } : {}),
+    ...(o.temperature ? { temperature: o.temperature } : {}),
     ...(custom ? { custom } : { set: o.set as "main" | "dev" | "test" | "dev-v2" | "blind-10" }),
   });
   await write(report);
@@ -154,7 +156,7 @@ async function runFlow(items: typeof K12_ITEMS, o: EvalOptions, write: (body: ob
   const withItem = (rows: K12FlowRow[]) => rows.map(({ id, ...r }) => ({ id, subject: byId.get(id)!.subject, band: byId.get(id)!.band, ...r }));
   let log: K12FlowRow[] = [];
   try {
-    const report = await runK12FlowItems(items, { onRows: (rows) => { log = rows; } });
+    const report = await runK12FlowItems(items, { onRows: (rows) => { log = rows; }, arm: flowArm(o) });
     await write({ split: "dev", selection, ...report, rows: withItem(report.rows), abort: null });
     return report;
   } catch (e) {
@@ -173,7 +175,7 @@ async function runFlowFr(items: typeof K12_FR_ITEMS, o: EvalOptions, write: (bod
   const withItem = (rows: K12FlowFrRow[]) => rows.map(({ id, ...r }) => ({ id, subject: byId.get(id)!.subject, band: byId.get(id)!.band, ...r }));
   let log: K12FlowFrRow[] = [];
   try {
-    const report = await runK12FlowFrItems(items, { onRows: (rows) => { log = rows; } });
+    const report = await runK12FlowFrItems(items, { onRows: (rows) => { log = rows; }, arm: flowArm(o) });
     await write({ split: "dev", selection, ...report, rows: withItem(report.rows), abort: null });
     return report;
   } catch (e) {
@@ -182,4 +184,9 @@ async function runFlowFr(items: typeof K12_FR_ITEMS, o: EvalOptions, write: (bod
     }
     throw e;
   }
+}
+
+/** Lever 16's switches for a k12-flow run (k12-flow-runner.ts K12FlowArm). */
+function flowArm(o: EvalOptions): K12FlowArm {
+  return { courseRules: (o.courseRules ?? "none") as K12FlowArm["courseRules"], temperature: o.temperature ?? "tutor" };
 }

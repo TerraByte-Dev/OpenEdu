@@ -23,7 +23,7 @@ import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type Tuto
 import type { RetrievalMode } from "../kernel/ground";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
-import { buildSystemPrompt, TUTOR_RULES } from "../curriculum";
+import { buildSystemPrompt, LEGACY_TUTOR_RULES, TUTOR_RULES } from "../curriculum";
 import { getChatConfig, getMaxContextTokens } from "../store";
 import { detectModelProfile } from "../llm";
 import { deleteCourse, ensureCourse } from "../db";
@@ -127,6 +127,10 @@ export interface RagReport {
   prompt: RagPrompt;
   /** "off" when lever 10's window was not applied (EVAL_PASSAGE_WINDOW=off, its paired arm). */
   passageWindow: "on" | "off";
+  /** Lever 16: the rules block a product-course turn got ("legacy" = master's stored rules), and
+   *  whether the app's TUTOR_TEMPERATURE was sent ("model-default" = none, master's behaviour). */
+  courseRules: "code" | "legacy";
+  temperature: "tutor" | "model-default";
   /** "main", "dev", "test", "dev-v2", or the name of a custom set (e.g. the sealed held-out file). */
   set: string;
   rows: RagRow[];
@@ -190,6 +194,12 @@ export async function runRagEval(opts?: {
   /** "off": every long passage is shown from its start (TutorTurn.passageWindow), lever 10's paired arm.
    *  Default "on", which is what the app does. */
   passageWindow?: "on" | "off";
+  /** "legacy" (product-course only): the rules every course stored before lever 16, sent as stored
+   *  (master's behaviour, the paired arm). Default "code": TUTOR_RULES, what the app sends. */
+  courseRules?: "code" | "legacy";
+  /** "model-default": no temperature is sent, as before lever 16 (TutorTurn.temperature), the paired
+   *  arm. Default "tutor": the app's TUTOR_TEMPERATURE. */
+  temperature?: "tutor" | "model-default";
 }): Promise<RagReport> {
   if (inFlight) {
     throw new Error(
@@ -202,11 +212,21 @@ export async function runRagEval(opts?: {
   const repeats = opts?.repeats ?? 1;
   const prompt = opts?.prompt ?? "standin";
   const passageWindow = opts?.passageWindow ?? "on";
+  const courseRules = opts?.courseRules ?? "code";
+  const temperature = opts?.temperature ?? "tutor";
+  if (courseRules === "legacy" && prompt !== "product-course") {
+    inFlight = false;
+    throw new Error(`courseRules "legacy" needs the product-course prompt arm, not "${prompt}".`);
+  }
   if (!RAG_PROMPTS.includes(prompt)) {
     inFlight = false;
     throw new Error(`Unknown prompt arm "${prompt}": use ${RAG_PROMPTS.join(", ")}.`);
   }
-  const instructions = ragInstructions(prompt);
+  const instructions = courseRules === "legacy" ? { rules: LEGACY_TUTOR_RULES } : ragInstructions(prompt);
+  // Only the product-course arm stands for a real course, whose stored rules row the app now replaces
+  // with TUTOR_RULES (lever 16). The standin arm's own rules line is part of that arm and is sent as
+  // written, so standin runs (and the sealed run, which uses standin) are unchanged by lever 16's rules.
+  const rulesSource = prompt === "product-course" && courseRules === "code" ? "code" : "stored";
   const modes = opts?.modes ?? (["always", "off"] as RetrievalMode[]);
   const set = opts?.custom?.name ?? opts?.set ?? "main";
   const vault = opts?.custom?.vault ?? (set === "dev-v2" ? RAG_DEV_V2_VAULT : set === "blind-10" ? RAG_BLIND_10_VAULT : RAG_FIXTURE);
@@ -240,7 +260,7 @@ export async function runRagEval(opts?: {
       for (let rep = 0; rep < repeats; rep++) {
         for (const question of questions) {
           const skill = resolveSkill("explain") ?? null;
-          const system = buildSystemPrompt(instructions, (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined);
+          const system = buildSystemPrompt(instructions, (opts?.syllabus === "matched" ? matchedSyllabus() : evalToolSyllabus()), 1, "General Study", skill?.promptSuffix ?? "", undefined, undefined, rulesSource);
           const ctx: ToolContext = {
             courseId: RAG_COURSE_ID,
             level: 1,
@@ -266,6 +286,7 @@ export async function runRagEval(opts?: {
             config,
             retrieval: mode,
             ...(passageWindow === "off" ? { passageWindow } : {}),
+            ...(temperature === "model-default" ? { temperature } : {}),
             onText: () => { if (ttft_ms === null) ttft_ms = Math.round(performance.now() - started); },
           };
 
@@ -380,7 +401,7 @@ export async function runRagEval(opts?: {
   console.log(`[rag-eval] positives ${positivesPct.toFixed(0)}% (bar: 80%) · negatives ${negativesClean ? "CLEAN" : "FABRICATED A CITATION"} (bar: zero)`);
   console.log(`[rag-eval] ${verdict.meetsBar ? "MEETS THE BAR" : "DOES NOT MEET THE BAR — retrieval:always should not ship as the default"}`);
 
-  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, passageWindow, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
+  return { model: config.model, provider: config.provider, contextTokens, repeats, prompt, passageWindow, courseRules, temperature, set, rows, byMode, realWorld, noteRetrieved, turnFailures, verdict };
 }
 
 if (typeof window !== "undefined") {

@@ -2,6 +2,25 @@ import { describe, it, expect } from "vitest";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, DEFAULT_EVAL_MODEL, B7_DEFAULT_OLLAMA_URL } from "./env";
 
 describe("parseEvalEnv", () => {
+  it("reads lever 16's switches, EVAL_COURSE_RULES and EVAL_TEMPERATURE, and refuses them where they cannot apply", () => {
+    expect(parseEvalEnv({}).courseRules).toBeUndefined();
+    expect(parseEvalEnv({}).temperature).toBeUndefined();
+    expect(parseEvalEnv({ EVAL_PROMPT: "product-course", EVAL_COURSE_RULES: "legacy" }).courseRules).toBe("legacy");
+    expect(parseEvalEnv({ EVAL_PROMPT: "product-course", EVAL_COURSE_RULES: "code" }).courseRules).toBe("code");
+    expect(() => parseEvalEnv({ EVAL_COURSE_RULES: "legacy" })).toThrow(/EVAL_COURSE_RULES needs EVAL_PROMPT=product-course/);
+    expect(() => parseEvalEnv({ EVAL_PROMPT: "product-course", EVAL_COURSE_RULES: "none" })).toThrow(/EVAL_COURSE_RULES=none: use code, legacy/);
+    for (const suite of ["k12-flow", "k12-flow-fr"]) {
+      for (const v of ["none", "code", "legacy"]) expect(parseEvalEnv({ EVAL_SUITE: suite, EVAL_COURSE_RULES: v }).courseRules).toBe(v);
+      expect(parseEvalEnv({ EVAL_SUITE: suite, EVAL_TEMPERATURE: "model-default" }).temperature).toBe("model-default");
+    }
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_COURSE_RULES: "code" })).toThrow(/EVAL_COURSE_RULES does not apply to b7-cpu/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "b7-cpu", EVAL_TEMPERATURE: "model-default" })).toThrow(/EVAL_TEMPERATURE does not apply to b7-cpu/);
+    expect(parseEvalEnv({ EVAL_TEMPERATURE: "model-default" }).temperature).toBe("model-default");
+    expect(() => parseEvalEnv({ EVAL_TEMPERATURE: "0.3" })).toThrow(/EVAL_TEMPERATURE=0.3: use model-default/);
+    expect(() => parseEvalEnv({ EVAL_TEMPERATURE: "model-default", EVAL_SET: "sealed", EVAL_SEALED: "x" })).toThrow(/EVAL_TEMPERATURE is not allowed with EVAL_SET=sealed/);
+    expect(() => parseEvalEnv({ EVAL_COURSE_RULES: "code", EVAL_SET: "sealed", EVAL_SEALED: "x" })).toThrow(/EVAL_COURSE_RULES is not allowed with EVAL_SET=sealed/);
+  });
+
   it("reads EVAL_PASSAGE_WINDOW (lever 10's paired arm) and refuses it where it cannot apply", () => {
     expect(parseEvalEnv({}).passageWindow).toBeUndefined();
     expect(parseEvalEnv({ EVAL_PASSAGE_WINDOW: "off" }).passageWindow).toBe("off");

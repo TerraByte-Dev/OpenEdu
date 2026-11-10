@@ -47,6 +47,8 @@ export interface K12FlowReport {
   supportsTools: boolean;
   /** True for anything short of all 240 dev items. A partial run is not a result. */
   partial: boolean;
+  /** Lever 16's switches this run used (K12FlowArm). */
+  arm: K12FlowArm;
   rows: K12FlowRow[];
   summary: K12FlowSummary;
 }
@@ -78,13 +80,18 @@ export async function k12FlowSetup(): Promise<K12FlowSetup> {
  * run every T1, T2 and T3 through this; the B7 latency harness (headless/latency.ts) times the same
  * function.
  */
-export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSetup): K12FlowTurnFn<K12FlowSubject> {
+/** Lever 16's paired-arm switches for a k12-flow run (EVAL_COURSE_RULES, EVAL_TEMPERATURE). The default
+ *  is the frozen protocol's prompt (no rules block) at the app's temperature. */
+export interface K12FlowArm { courseRules: "none" | "code" | "legacy"; temperature: "tutor" | "model-default" }
+export const K12_FLOW_DEFAULT_ARM: K12FlowArm = { courseRules: "none", temperature: "tutor" };
+
+export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSetup, arm: K12FlowArm = K12_FLOW_DEFAULT_ARM): K12FlowTurnFn<K12FlowSubject> {
   return async (messages, item) => {
     // A guard tripping mid-run ends the run (void): the shipping configuration went away.
     await assertLibraryGuards().catch((e) => {
       throw new K12FlowAbort(`VOID RUN — ${e instanceof Error ? e.message : String(e)}`);
     });
-    const { system, activeSkill, domainSkill } = k12FlowTurnSetup(item, profile.tier, profile.supportsTools);
+    const { system, activeSkill, domainSkill } = k12FlowTurnSetup(item, profile.tier, profile.supportsTools, arm.courseRules);
     const started = Date.now();
     let ttftMs: number | null = null;
     const result = await watched((signal) => tutorEngine.run(
@@ -92,6 +99,7 @@ export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSet
         messages: [{ role: "system", content: system }, ...messages],
         config,
         retrieval: "always",
+        ...(arm.temperature === "model-default" ? { temperature: arm.temperature } : {}),
         onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
       },
       {
@@ -136,7 +144,7 @@ export async function runK12FlowEval(opts?: { pilot?: boolean; only?: string }):
  * `body` the turn function both k12-flow suites use: the real kernel, configured as ChatTab runs a
  * turn for a course on the item's subject. One run at a time, across both suites.
  */
-async function withK12FlowTurn<R>(tag: string, count: number, body: (turn: K12FlowTurnFn<K12FlowSubject>, setup: K12FlowSetup) => Promise<R>): Promise<R> {
+async function withK12FlowTurn<R>(tag: string, count: number, arm: K12FlowArm, body: (turn: K12FlowTurnFn<K12FlowSubject>, setup: K12FlowSetup) => Promise<R>): Promise<R> {
   if (inFlight) throw new Error("A k12-flow eval is already running. Overlapping runs share one row log and one GPU.");
   inFlight = true;
   try {
@@ -144,7 +152,7 @@ async function withK12FlowTurn<R>(tag: string, count: number, body: (turn: K12Fl
     const { config, profile, contextTokens } = setup;
 
     await assertLibraryGuards();
-    console.log(`[${tag}] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} · ${count} item(s) × 3 turns`);
+    console.log(`[${tag}] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} · rules=${arm.courseRules} temperature=${arm.temperature} · ${count} item(s) × 3 turns`);
 
 
     // Warm-up, unscored: a cold model load can outlast the first-byte timeout.
@@ -152,7 +160,7 @@ async function withK12FlowTurn<R>(tag: string, count: number, body: (turn: K12Fl
       for await (const ev of callLLMTurn([{ role: "user", content: "Reply with the single word: ready" }], config, { tier: profile.tier, signal })) void ev;
     }).catch(() => {});
 
-    const turn = k12FlowKernelTurn(setup);
+    const turn = k12FlowKernelTurn(setup, arm);
 
     return await body(turn, setup);
   } finally {
@@ -182,8 +190,9 @@ function logSummary(tag: string, summary: K12FlowSummary | K12FlowFrSummary, tur
  * runner both call this. `onRows` gets the row log before the first item and it fills as rows
  * complete, so a void run (K12FlowAbort) still leaves its rows with the caller.
  */
-export async function runK12FlowItems(items: readonly K12Item[], opts: { onRows?: (rows: K12FlowRow[]) => void } = {}): Promise<K12FlowReport> {
-  return withK12FlowTurn("k12-flow", items.length, async (turn, { config, contextTokens, profile }) => {
+export async function runK12FlowItems(items: readonly K12Item[], opts: { onRows?: (rows: K12FlowRow[]) => void; arm?: K12FlowArm } = {}): Promise<K12FlowReport> {
+  const arm = opts.arm ?? K12_FLOW_DEFAULT_ARM;
+  return withK12FlowTurn("k12-flow", items.length, arm, async (turn, { config, contextTokens, profile }) => {
     const partial = items.length !== K12_ITEMS.length;
     const rows: K12FlowRow[] = [];
     opts.onRows?.(rows);
@@ -204,7 +213,7 @@ export async function runK12FlowItems(items: readonly K12Item[], opts: { onRows?
     });
 
     logSummary("k12-flow", summary, rows.map((r) => r.turns), partial);
-    return { model: config.model, provider: config.provider, contextTokens, supportsTools: profile.supportsTools, partial, rows, summary };
+    return { model: config.model, provider: config.provider, contextTokens, supportsTools: profile.supportsTools, partial, arm, rows, summary };
   });
 }
 
@@ -215,13 +224,16 @@ export interface K12FlowFrReport {
   supportsTools: boolean;
   /** True for anything short of every free-response item. A partial run is not a result. */
   partial: boolean;
+  /** Lever 16's switches this run used (K12FlowArm). */
+  arm: K12FlowArm;
   rows: K12FlowFrRow[];
   summary: K12FlowFrSummary;
 }
 
 /** The free-response flow (k12-flow-fr.ts) through the same turn function, setup and void rules. */
-export async function runK12FlowFrItems(items: readonly K12FrItem[], opts: { onRows?: (rows: K12FlowFrRow[]) => void } = {}): Promise<K12FlowFrReport> {
-  return withK12FlowTurn("k12-flow-fr", items.length, async (turn, { config, contextTokens, profile }) => {
+export async function runK12FlowFrItems(items: readonly K12FrItem[], opts: { onRows?: (rows: K12FlowFrRow[]) => void; arm?: K12FlowArm } = {}): Promise<K12FlowFrReport> {
+  const arm = opts.arm ?? K12_FLOW_DEFAULT_ARM;
+  return withK12FlowTurn("k12-flow-fr", items.length, arm, async (turn, { config, contextTokens, profile }) => {
     const partial = items.length !== K12_FR_ITEMS.length;
     const rows: K12FlowFrRow[] = [];
     opts.onRows?.(rows);
@@ -241,7 +253,7 @@ export async function runK12FlowFrItems(items: readonly K12FrItem[], opts: { onR
     });
 
     logSummary("k12-flow-fr", summary, rows.map((r) => r.turns), partial);
-    return { model: config.model, provider: config.provider, contextTokens, supportsTools: profile.supportsTools, partial, rows, summary };
+    return { model: config.model, provider: config.provider, contextTokens, supportsTools: profile.supportsTools, partial, arm, rows, summary };
   });
 }
 

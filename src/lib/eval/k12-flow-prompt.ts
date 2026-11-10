@@ -15,7 +15,7 @@
 // The k12-mc runner's K12_INSTRUCTIONS ("answer directly and concisely") is the RAG-eval prompt. It
 // is NOT used here: it pushes the model toward a reveal at T1, which is what G1 measures.
 
-import { buildSystemPrompt } from "../curriculum";
+import { buildSystemPrompt, LEGACY_TUTOR_RULES, TUTOR_RULES } from "../curriculum";
 import { chatTurnSkills } from "../kernel/chatSkills";
 import type { Skill } from "../dsl/skill";
 import type { ModelTier } from "../../types";
@@ -39,9 +39,15 @@ export interface K12FlowTurnSetup {
   domainSkill: Skill | null;
 }
 
-export function k12FlowTurnSetup(item: Pick<K12Item, "subject">, tier: ModelTier, supportsTools: boolean): K12FlowTurnSetup {
+/**
+ * `courseRules` (lever 16; EVAL_COURSE_RULES): "none", the frozen protocol's prompt, has no rules block
+ * because the eval course is never generated. "code" adds the rules block every course now gets
+ * (TUTOR_RULES); "legacy" adds the block courses stored before lever 16, sent as stored.
+ */
+export function k12FlowTurnSetup(item: Pick<K12Item, "subject">, tier: ModelTier, supportsTools: boolean, courseRules: "none" | "code" | "legacy" = "none"): K12FlowTurnSetup {
   const topic = K12_FLOW_TOPICS[item.subject];
   const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(K12_FLOW_MODE, topic, tier, supportsTools);
-  const system = buildSystemPrompt({}, null, 1, topic, skillSuffix);
+  const instructions: Record<string, string> = courseRules === "none" ? {} : { rules: courseRules === "legacy" ? LEGACY_TUTOR_RULES : TUTOR_RULES };
+  const system = buildSystemPrompt(instructions, null, 1, topic, skillSuffix, undefined, undefined, courseRules === "legacy" ? "stored" : "code");
   return { topic, system, activeSkill, domainSkill };
 }
