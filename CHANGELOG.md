@@ -8,6 +8,68 @@ The section for each release is also what the app shows when you press Check for
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-10
+
+### Added
+- **A new look: Notebook.** The black terminal look and its eleven colour themes are gone. OpenEdu is
+  now warm paper and ink blue, with a calm navy dark mode. Pick **Light**, **Dark** or **Match my
+  computer** in Settings, or flip between them with the sun/moon button in the title bar. Lexend is
+  used everywhere, chosen because its letter spacing helps reading. Older theme choices carry over to
+  Light or Dark.
+- **A Home screen for learners.** It opens on one big **Continue** button that takes you to your
+  latest course, on the right step. Below it are a **daily goal** (10, 15, 20 or 30 minutes a day,
+  changeable in place) and cards for your courses.
+- **Several learners on one computer.** Each learner gets their own courses, chats, notes, quizzes,
+  flashcards and progress, with an optional PIN. On a fresh install OpenEdu asks who uses the
+  computer: **just me**, **a class** (pick your name at every launch, with a teacher PIN guarding
+  Settings) or **a school**. Existing installs start as "just me", with everything kept.
+- **Back up your learner data.** Settings → **Learner data** saves a full copy of your data to a file
+  you choose. The database is also more resistant to power cuts, and if it is ever damaged OpenEdu
+  says so in plain words and shows how to restore a backup.
+- **Try first, then the answer is one tap away.** After you have had a go at the tutor's question, a
+  **Show me the answer** chip appears and gives the full worked answer. Before a try, you get hints.
+- **The tutor checks before it praises.** When you answer a problem, the tutor is told to check your
+  answer before it says it is right, and to say so when you have a correct step but not the final
+  answer. When you post a new multiple-choice problem, it asks for your try before solving it.
+- **A safety notice on health topics.** A course about health, first aid or medicine shows a short
+  notice: the AI can get these facts wrong, call your local emergency number in an emergency, and
+  check with a health worker. Nothing is ever blocked.
+- **Questions in other scripts find your notes.** A question written mostly in a non-Latin script
+  (Hindi, Amharic, Arabic and others) is glossed into English before the lookup. Non-Latin and
+  accented words are now read as whole words everywhere the app matches text; before, such a question
+  got no lookup at all.
+- **Two new Library units: the body's systems**, for school health classes.
+- **"Check if I've got this" is reachable.** It leads the chips once every subtopic at your level is
+  mastered.
+
+### Changed
+- **Plain English everywhere.** Labels like `INIT NEW_COURSE`, `EXECUTE` and `LOADED COURSES` are now
+  *Start a new course*, *Create course* and *Your courses*. Course building shows plain steps
+  ("Writing Level 2"), and the 3.7-second fake boot log is a short splash.
+- **The default model fits the computer.** On first run OpenEdu picks `gemma4:e4b` on machines with
+  16 GB of RAM or more and `gemma4:e2b` below that. A model you chose yourself is never changed. The
+  old `llama3` default, which was never tested with OpenEdu, is gone.
+- **The citation chip says what it means.** It now reads **Quotes from: <note>**: the answer repeats
+  wording from that passage, which is not the same as the passage answering your question.
+
+### Fixed
+- **Every equation in a reply renders**, not just the first one. Dollar amounts, unclosed `$`, `\( \)`
+  and `\[ \]`, and bare `\frac` no longer break the ones after them.
+- **A model that loops can no longer hold the computer.** Each reply is capped at the context window,
+  so a runaway answer stops instead of running until someone restarts Ollama.
+- **No more red "Ollama error 500" when a small model writes a broken tool call.** The tutor answers
+  without tools instead.
+- **List answers with commas are graded correctly.** "neck, armpits and groin" used to be marked wrong
+  because the comma stuck to the word.
+- **Library search no longer matches inside words.** The alias "pH" matched "paragraph" and "graph".
+- **The Library address no longer points at openedu.app**, a domain OpenEdu no longer controls. The
+  default install always used the bundled Library and was never affected.
+
+### Security
+- **Updated zod, mermaid, DOMPurify and lodash-es** past published advisories (one critical, two
+  high, one moderate). zod checks the model's structured output and mermaid draws diagrams the model
+  writes, so both handle untrusted text.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
@@ -261,7 +323,8 @@ capstone, plus a notebook-import robustness fix._
   tutor permission presets; and the CRT "blue phosphor" theme system. Bring-your-own-key — runs free on
   local Ollama, with OpenAI / Anthropic as alternates.
 
-[Unreleased]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/TerraByte-Dev/OpenEdu/compare/v0.1.5...v0.1.6
