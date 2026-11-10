@@ -21,13 +21,23 @@ import {
   buildBacklinkIndex, findUnlinkedMentions, extractOutline,
   type GraphNode, type GraphNodeKind, type Mention,
 } from "../lib/notebook-links";
+import type { ThemeId } from "../lib/theme";
+import { useThemeState } from "../lib/useTheme";
 
-// Phosphor palette for the canvas graph (hex — the canvas API can't read CSS vars). Tag nodes use a
-// warm amber so they read as a distinct, note-free node kind across all color themes.
-const G = {
-  node: "#00C6FF", nodeDim: "#0a4654", stroke: "#44D8FF", label: "#6DD4EE",
-  link: "#14323a", linkHot: "#44D8FF", folder: "#44D8FF",
-  tag: "#FFB454", tagDim: "#5a4326", tagStroke: "#FFCF87",
+// Canvas graph palette, one per mode (hex — the canvas API can't read CSS vars). Mirrors the index.css
+// tokens: notes and folders in the accent, labels in --ink-dim, tag nodes in --warning so they read as
+// a distinct, note-free node kind.
+const GRAPH_PALETTE: Record<ThemeId, Record<"node" | "nodeDim" | "stroke" | "label" | "link" | "linkHot" | "folder" | "tag" | "tagDim" | "tagStroke", string>> = {
+  light: {
+    node: "#1E3A8A", nodeDim: "#C9D3E6", stroke: "#172C6B", label: "#3D465E",
+    link: "#C9D3E6", linkHot: "#1E3A8A", folder: "#172C6B",
+    tag: "#8A4B00", tagDim: "#F3DDBB", tagStroke: "#8A4B00",
+  },
+  dark: {
+    node: "#5B9BFF", nodeDim: "#1F2D4B", stroke: "#7FB0FF", label: "#C3CEDD",
+    link: "#2A3A5C", linkHot: "#7FB0FF", folder: "#7FB0FF",
+    tag: "#F5C26B", tagDim: "#3A2E17", tagStroke: "#F5C26B",
+  },
 };
 
 // A one-line plain-text preview of a note's body for the tag-view cards (strips light markdown).
@@ -122,6 +132,7 @@ interface NotesTabProps { courseId: string; level: number }
 type PanelView = "note" | "graph" | "tag";
 
 export default function NotesTab({ courseId, level }: NotesTabProps) {
+  const G = GRAPH_PALETTE[useThemeState().resolved];
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<NotebookFolder[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -547,7 +558,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             <button title="Rename" onClick={() => { setRenamingId(folder.id); setRenameValue(folder.name); }} className={ROW_ICON}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
             </button>
-            <button title="Delete folder (keeps notes)" onClick={() => handleDeleteFolder(folder.id)} className={`${ROW_ICON} hover:!text-red-400`}>
+            <button title="Delete folder (keeps notes)" onClick={() => handleDeleteFolder(folder.id)} className={`${ROW_ICON} hover:!text-danger`}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           </span>
@@ -678,7 +689,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               ))}
             </div>
           )}
-          {ingestError && <div className="px-3 py-1.5 text-[10px] text-red-400">{ingestError}</div>}
+          {ingestError && <div className="px-3 py-1.5 text-[10px] text-danger">{ingestError}</div>}
         </div>
       </div>
 
@@ -687,7 +698,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
         <div ref={graphContainerRef} className="flex-1 min-h-0 bg-bg relative overflow-hidden">
           {graph.nodes.length < 2 ? (
             <div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm px-6 text-center">
-              Add a few notes and folders (link notes with <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code> or label them with <code className="mx-1 px-1 bg-panel-lite rounded text-[#FFB454]">#tags</code>) to see your vault graph
+              Add a few notes and folders (link notes with <code className="mx-1 px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code> or label them with <code className="mx-1 px-1 bg-panel-lite rounded text-warning">#tags</code>) to see your vault graph
             </div>
           ) : (
             <Suspense fallback={<div className="flex items-center justify-center h-full text-[var(--ink-faint)] text-sm">Loading graph…</div>}>
@@ -788,7 +799,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
           <div className="flex-1 overflow-y-auto">
             {taggedNotes.length === 0 ? (
               <div className="p-8 text-center text-[var(--ink-faint)] text-sm">
-                No notes carry <span className="font-mono text-[#FFB454]">#{activeTag}</span> anymore.
+                No notes carry <span className="font-mono text-warning">#{activeTag}</span> anymore.
               </div>
             ) : (
               taggedNotes.map((n) => (
@@ -829,7 +840,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                     <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" />
                   </svg>
                 </button>
-                <button onClick={handleDeleteNote} className="p-1.5 rounded hover:bg-red-500/20 text-[var(--ink-faint)] hover:text-red-400 transition-colors shrink-0" title="Delete note">
+                <button onClick={handleDeleteNote} className="p-1.5 rounded hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger transition-colors shrink-0" title="Delete note">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /></svg>
                 </button>
               </div>
@@ -880,7 +891,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                         >
                           {t}
                           {t === "assistant" && anchoredAnnotations.length > 0 && (
-                            <span className="ml-1.5 font-mono" style={{ color: "#FF4060" }}>
+                            <span className="ml-1.5 font-mono text-danger">
                               {anchoredAnnotations.length}
                             </span>
                           )}

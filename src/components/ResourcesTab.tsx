@@ -205,7 +205,7 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
           )}
 
           {loadingBody && !body && !assetSvg && <div className="text-sm text-[var(--ink-faint)] font-mono">Loading reference…</div>}
-          {bodyError && view === "text" && <div className="text-sm text-red-400">Couldn't load this resource: {bodyError}</div>}
+          {bodyError && view === "text" && <div className="text-sm text-danger">Couldn't load this resource: {bodyError}</div>}
 
           {view === "diagram" && assetSvg ? (
             <div

@@ -50,7 +50,7 @@ export default function LearnerData({ usage }: SectionProps) {
           <div className="space-y-2.5">
             <ActionButton primary onClick={() => (usage ? usage.guard("learner-data-backup", backUp) : backUp())} busyLabel="Saving backup…">Back up all learner data</ActionButton>
             {result && (
-              <p className={`text-xs break-all ${result.ok ? "text-emerald-400" : "text-red-400"}`}>
+              <p className={`text-xs break-all ${result.ok ? "text-success" : "text-danger"}`}>
                 {result.ok ? "✓ " : "✗ "}{result.msg}
               </p>
             )}

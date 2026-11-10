@@ -155,7 +155,15 @@ are CRT-era (`--phosphor` = accent) and are kept so components didn't change; a 
 | `--phosphor` | `#1E3A8A` | `#5B9BFF` | Accent: links, primary buttons, active state |
 | `--phosphor-bright` | `#172C6B` | `#7FB0FF` | Accent hover / pressed |
 | `--phosphor-dim` | `#E4EBF8` | `#1F2D4B` | Accent tint: selected nav pill, progress track |
-| `--on-accent` | `#FFFFFF` | `#0B1220` | Text on a filled accent |
+| `--on-accent` | `#FFFFFF` | `#0B1220` | Text on a filled accent or filled status colour |
+| `--danger` / `--danger-tint` | `#B42318` / `#FDECEA` | `#FF8A80` / `#3A1F26` | Errors, destructive actions |
+| `--success` / `--success-tint` | `#146C43` / `#E3F5EC` | `#6FD6A0` / `#15332A` | Correct, done, connected |
+| `--warning` / `--warning-tint` | `#8A4B00` / `#FDF0DD` | `#F5C26B` / `#3A2E17` | Caution, partial, health notices |
+
+Status colours are Tailwind colours too (`text-danger`, `bg-success-tint`, `border-warning/30`). Don't use
+Tailwind's `red-*`/`emerald-*`/`amber-*` shades: they were tuned for a black screen and fail contrast on
+paper. Canvas and Mermaid can't read CSS vars, so `NotesTab` (graph) and `MermaidBlock` carry per-mode hex
+copies of these tokens; change them together.
 
 Shape: cards 20px radius (`--radius-card`), inputs and small surfaces 12px (`--radius-control`), buttons
 are 44px-tall pills, 1px `--rule` borders, `--shadow-soft` at most. Key classes: `.window`, `.btn`,

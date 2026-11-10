@@ -57,7 +57,7 @@ export default function LearnerMenu({ learner, learners, mode, busyReason, onClo
           <button className="btn" style={SMALL_BTN} onClick={onClose} aria-label="Close">✕</button>
         </div>
 
-        {busyReason && <p className="text-base text-amber-300">{busyReason}</p>}
+        {busyReason && <p className="text-base text-warning">{busyReason}</p>}
 
         {panel === null && (
           <div className="flex flex-col gap-3">
@@ -110,7 +110,7 @@ function Actions({ onBack, submitLabel, busy, danger }: { onBack: () => void; su
       <button
         type="submit"
         className={danger ? "btn" : "btn btn-primary"}
-        style={danger ? { ...SMALL_BTN, borderColor: "#f87171", color: "#f87171" } : SMALL_BTN}
+        style={danger ? { ...SMALL_BTN, borderColor: "var(--danger)", color: "var(--danger)" } : SMALL_BTN}
         disabled={busy}
       >
         {submitLabel}
@@ -120,7 +120,7 @@ function Actions({ onBack, submitLabel, busy, danger }: { onBack: () => void; su
 }
 
 function ErrorLine({ msg }: { msg: string | null }) {
-  return msg ? <p className="text-base text-red-400">{msg}</p> : null;
+  return msg ? <p className="text-base text-danger">{msg}</p> : null;
 }
 
 function AddPanel({ learners, onBack, onAdded }: { learners: LearnerRow[]; onBack: () => void; onAdded: (l: LearnerRow) => void }) {

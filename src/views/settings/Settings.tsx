@@ -103,7 +103,7 @@ export default function Settings({ onSaved, usage, initialSectionId }: { onSaved
         <div className="px-8 py-2.5 border-t border-[var(--rule)] bg-panel shrink-0">
           <div className="max-w-5xl mx-auto w-full flex items-center">
             <span className={`flex items-center gap-2 text-xs transition-colors ${savedFlash ? "text-phosphor-bright" : "text-[var(--ink-faint)]"}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${savedFlash ? "bg-phosphor shadow-[0_0_8px_var(--phosphor)]" : "bg-[var(--ink-faint)]"}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${savedFlash ? "bg-phosphor" : "bg-[var(--ink-faint)]"}`} />
               {savedFlash ? "Saved ✓" : "Changes save automatically · secrets need an explicit Save"}
             </span>
           </div>

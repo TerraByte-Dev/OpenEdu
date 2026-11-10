@@ -71,7 +71,7 @@ export default function ThreadList({ threads, activeId, onOpen, onNew, onDelete 
                 type="button"
                 onClick={() => onDelete(t.id)}
                 title="Delete this conversation"
-                className="px-1.5 py-1.5 text-[var(--ink-faint)] opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity"
+                className="px-1.5 py-1.5 text-[var(--ink-faint)] opacity-0 group-hover:opacity-100 hover:text-danger transition-opacity"
               >
                 ✕
               </button>

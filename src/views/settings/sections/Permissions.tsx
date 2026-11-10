@@ -29,9 +29,9 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 const DECISION_CLS: Record<PermissionDecision, string> = {
-  allow: "text-emerald-400",
-  ask: "text-amber-400",
-  deny: "text-red-400",
+  allow: "text-success",
+  ask: "text-warning",
+  deny: "text-danger",
 };
 
 export default function Permissions() {
@@ -96,8 +96,8 @@ export default function Permissions() {
         })}
       </div>
       {activePreset === "custom" && (
-        <p className="text-xs text-amber-400/90 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        <p className="text-xs text-warning flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-warning" />
           Custom — you've hand-tuned the per-tool grid below. Pick a preset to reset.
         </p>
       )}

@@ -6,7 +6,7 @@ import RestoreSteps from "./RestoreSteps";
 export default function StartupFailed({ onRetry }: { onRetry: () => void }) {
   return (
     <div role="alert" className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center gap-5 p-8 bg-bg">
-      <h1 className="text-2xl font-semibold text-red-300" style={{ fontFamily: "var(--font-display)" }}>
+      <h1 className="text-2xl font-semibold text-danger" style={{ fontFamily: "var(--font-display)" }}>
         OpenEdu could not open its learner data.
       </h1>
       <p className="text-base text-ink max-w-prose leading-relaxed">

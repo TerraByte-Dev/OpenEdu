@@ -105,7 +105,15 @@
   --ink-em:         #0F1730;
   --ink-dim:        #3D465E;
   --ink-faint:      #5E6577;
-  --on-accent:      #FFFFFF; /* text on a filled --phosphor surface */
+  --on-accent:      #FFFFFF; /* text on a filled --phosphor surface, and on a filled status colour */
+  /* Status colours. Each text colour clears 4.5:1 on its own -tint and on every surface above. Use
+     these, never Tailwind's red/emerald/amber shades, which were tuned for a black screen. */
+  --danger:         #B42318;
+  --danger-tint:    #FDECEA;
+  --success:        #146C43;
+  --success-tint:   #E3F5EC;
+  --warning:        #8A4B00;
+  --warning-tint:   #FDF0DD;
   --shadow-soft:    0 1px 2px rgb(15 23 48 / 0.05), 0 4px 14px rgb(15 23 48 / 0.04);
   --radius-card:    20px;
   --radius-control: 12px;
@@ -145,6 +153,12 @@ html[data-theme="dark"] {
   --ink-dim:        #C3CEDD;
   --ink-faint:      #A3B1C6;
   --on-accent:      #0B1220;
+  --danger:         #FF8A80;
+  --danger-tint:    #3A1F26;
+  --success:        #6FD6A0;
+  --success-tint:   #15332A;
+  --warning:        #F5C26B;
+  --warning-tint:   #3A2E17;
   --shadow-soft:    0 1px 2px rgb(0 0 0 / 0.25), 0 4px 14px rgb(0 0 0 / 0.18);
   color-scheme: dark;
 }
@@ -165,6 +179,12 @@ html[data-theme="dark"] {
   --color-panel-lite:     var(--panel-lite);
   --color-lcd:            var(--lcd);
   --color-bg:             var(--bg);
+  --color-danger:         var(--danger);
+  --color-danger-tint:    var(--danger-tint);
+  --color-success:        var(--success);
+  --color-success-tint:   var(--success-tint);
+  --color-warning:        var(--warning);
+  --color-warning-tint:   var(--warning-tint);
   /* Tailwind v4's font namespace is --font-*, NOT --font-family-*. Under the wrong name no utility is
      generated at all, which is why `font-display` silently rendered in the body font.
      These look self-referential and are not: @theme emits into `@layer theme`, while the :root block

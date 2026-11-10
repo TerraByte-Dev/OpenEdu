@@ -34,7 +34,7 @@ export default function ProgressDashboard({ courseId, currentSyllabus }: Progres
   const minutes = minutesFromSeconds(completed.reduce((s, a) => s + (a.time_taken_seconds ?? 0), 0));
   const recent = completed.slice(0, 10).reverse(); // chronological, last 10
 
-  const scoreColor = (pct: number) => (pct >= 80 ? "var(--phosphor)" : pct >= 60 ? "#fbbf24" : "#f87171");
+  const scoreColor = (pct: number) => (pct >= 80 ? "var(--phosphor)" : pct >= 60 ? "var(--warning)" : "var(--danger)");
 
   return (
     <section className="rounded-xl border border-[var(--rule)] bg-panel p-5">

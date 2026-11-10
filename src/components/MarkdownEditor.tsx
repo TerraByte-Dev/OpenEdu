@@ -182,7 +182,7 @@ const theme = EditorView.theme({
   // Completion popup — themed to the panel surface so it doesn't arrive as a white browser default.
   ".cm-tooltip.cm-tooltip-autocomplete": {
     backgroundColor: "var(--panel-lite)", border: "1px solid var(--rule)", borderRadius: "8px",
-    boxShadow: "0 0 16px var(--phosphor-faint)", overflow: "hidden",
+    boxShadow: "var(--shadow-soft)", overflow: "hidden",
   },
   ".cm-tooltip.cm-tooltip-autocomplete > ul": {
     fontFamily: "var(--font-mono)", fontSize: "12px", maxHeight: "16em",
@@ -198,10 +198,10 @@ const theme = EditorView.theme({
   // sits under them the way pen sits under type. Wavy for the two that mean "look again", straight
   // for the two that are statements.
   ".cm-ink": { textUnderlineOffset: "3px", textDecorationThickness: "1.5px" },
-  ".cm-ink--error": { textDecoration: "underline wavy #FF4060" },
-  ".cm-ink--gap": { textDecoration: "underline wavy #FFB000" },
+  ".cm-ink--error": { textDecoration: "underline wavy var(--danger)" },
+  ".cm-ink--gap": { textDecoration: "underline wavy var(--warning)" },
   ".cm-ink--question": { textDecoration: "underline dotted var(--phosphor)" },
-  ".cm-ink--correct": { textDecoration: "underline solid #2BFF88" },
+  ".cm-ink--correct": { textDecoration: "underline solid var(--success)" },
 });
 
 interface Props {

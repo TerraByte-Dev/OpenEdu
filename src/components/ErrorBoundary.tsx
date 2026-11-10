@@ -27,9 +27,9 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex-1 flex items-center justify-center bg-bg p-8">
-          <div className="max-w-md w-full rounded-xl border border-red-500/30 bg-panel p-6 space-y-4">
+          <div className="max-w-md w-full rounded-xl border border-danger/30 bg-panel p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 8v4M12 16h.01" />
               </svg>
@@ -39,7 +39,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               An unexpected error occurred. Your data is safe — reload the app to continue.
             </p>
             {this.state.error && (
-              <pre className="text-xs text-red-400/80 bg-bg rounded p-3 overflow-auto max-h-32">
+              <pre className="text-xs text-danger bg-bg rounded p-3 overflow-auto max-h-32">
                 {this.state.error.message}
               </pre>
             )}

@@ -79,7 +79,7 @@ export function TeacherPinSetup({ onBack, onSet, large }: {
         <span className="text-base text-ink">Teacher PIN again</span>
         <PinInput value={again} onChange={(v) => { setAgain(v); setError(null); }} />
       </label>
-      {error && <p className="text-base text-red-400">{error}</p>}
+      {error && <p className="text-base text-danger">{error}</p>}
       <div className="flex gap-3 justify-end">
         <button type="button" className="btn" style={btn} onClick={onBack}>Back</button>
         <button type="submit" className="btn btn-primary" style={btn} disabled={busy}>Save teacher PIN</button>

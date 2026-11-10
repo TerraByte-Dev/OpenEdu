@@ -159,7 +159,7 @@ function AddLearnerForm({ learners, onCancel, onCreated }: {
         value={name}
         onChange={(e) => { setName(e.target.value); setError(null); }}
       />
-      {error && <p className="text-lg text-red-400">{error}</p>}
+      {error && <p className="text-lg text-danger">{error}</p>}
       <div className="flex gap-4">
         <button type="button" className="btn" style={BIG_BTN} onClick={onCancel}>Back</button>
         <button type="submit" className="btn btn-primary" style={BIG_BTN} disabled={busy}>Start</button>
@@ -221,7 +221,7 @@ export function PinScreen({ name, record, onBack, onUnlocked }: {
           <span key={i} className={`w-5 h-5 rounded-full border border-[var(--phosphor)] ${i < pin.length ? "bg-phosphor" : ""}`} />
         ))}
       </div>
-      <p className="text-lg text-red-400 h-7">{wrong ? "That PIN is not right. Try again." : busy ? "Checking…" : ""}</p>
+      <p className="text-lg text-danger h-7">{wrong ? "That PIN is not right. Try again." : busy ? "Checking…" : ""}</p>
       <div className="grid grid-cols-3 gap-3">
         {PAD_KEYS.map((k) => (
           <button
