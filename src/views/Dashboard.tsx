@@ -30,13 +30,18 @@ interface Step {
 
 const ALL_LEVELS = [1, 2, 3, 4, 5, 6];
 
+// Human steps, in the order the pipeline runs them. A learner (or a parent) reads this list while
+// waiting, so it says what is being made, not which subsystem is doing it.
 const INITIAL_STEPS: Step[] = [
-  { label: "Verify model capability", status: "pending" },
-  { label: "Create course record", status: "pending" },
-  { label: "Research topic & curricula", status: "pending" },
-  { label: "Plan course structure", status: "pending" },
-  { label: "Design teaching approach", status: "pending" },
-  ...ALL_LEVELS.map((l) => ({ label: `Build Level ${l} syllabus`, status: "pending" as StepStatus })),
+  { label: "Checking the tutor is ready", status: "pending" },
+  { label: "Saving your course", status: "pending" },
+  { label: "Researching the topic", status: "pending" },
+  { label: "Planning the six levels", status: "pending" },
+  { label: "Deciding how to teach it", status: "pending" },
+  ...ALL_LEVELS.map((l) => ({
+    label: l === 6 ? "Writing the final exam" : `Writing Level ${l}`,
+    status: "pending" as StepStatus,
+  })),
 ];
 
 function StepIcon({ status }: { status: StepStatus }) {
@@ -59,7 +64,7 @@ function StepIcon({ status }: { status: StepStatus }) {
   if (status === "error") {
     return (
       <span className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center shrink-0">
-        <span className="text-red-400 text-[10px] font-bold">✕</span>
+        <span className="text-red-400 text-xs font-bold">✕</span>
       </span>
     );
   }
@@ -79,7 +84,10 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
   const [steps, setSteps] = useState<Step[]>(INITIAL_STEPS);
   const [error, setError] = useState("");
   // Streaming thought-process log — continuous across all steps so the user can scroll back.
+  // Collapsed by default: it is raw model output, useful to whoever is debugging a build and noise
+  // to the learner waiting for a course.
   const [streamLog, setStreamLog] = useState("");
+  const [showLog, setShowLog] = useState(false);
   const streamLogRef = useRef<HTMLDivElement>(null);
   // Auto-scroll only when the user is parked at the bottom. Manual scroll-up pauses follow,
   // scroll back to bottom resumes it. Standard tail -f / chat-window UX.
@@ -139,21 +147,21 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
       // Step 0: Preflight — refuse to start a 5–10 min pipeline on a model that can't emit structured JSON.
       // Re-runs on resume too — the user may have switched models since the failure.
       setStep(0, "active");
-      appendChunk(`[preflight] Probing ${config.provider}/${config.model} for structured-output capability...\n`);
+      appendChunk(`Checking that ${config.model} can build a course...\n`);
       const preflight = await preflightStructuredOutput(config);
       if (!preflight.ok) {
-        appendChunk(`[preflight] ✗ ${preflight.reason ?? "Unknown failure"}\n${preflight.suggestion ?? ""}\n`);
+        appendChunk(`${preflight.reason ?? "The tutor could not be checked."}\n${preflight.suggestion ?? ""}\n`);
         setStep(0, "error");
-        throw new Error(`${preflight.reason ?? "Model preflight failed"} — ${preflight.suggestion ?? ""}`);
+        throw new Error(`${preflight.reason ?? "The tutor could not be checked"} — ${preflight.suggestion ?? ""}`);
       }
-      appendChunk(`[preflight] ✓ Model OK${preflight.detectedTier ? ` (detected tier: ${preflight.detectedTier})` : ""}.\n`);
+      appendChunk("Ready.\n");
       setStep(0, "done");
       await delay(200);
 
       // Step 1: Course record. Create on fresh runs; on resume the row already exists.
       setStep(1, "active");
       if (isResume) {
-        appendChunk(`[resume] Continuing course "${existingCourse!.title}" from state: ${existingCourse!.generation_state ?? "(unknown — restarting pipeline)"}\n`);
+        appendChunk(`Picking up "${existingCourse!.title}" where it left off.\n`);
       } else {
         const course = await createCourse(effectiveTopic, effectiveTopic, selectedSprite);
         courseId = course.id;
@@ -167,10 +175,10 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
         const tavilyKey = await getTavilyApiKey();
         if (tavilyKey) {
           try {
-            appendChunk("[Web search] Looking up real-world curricula...\n");
+            appendChunk("Looking up real-world curricula...\n");
             const results = await searchTavily(effectiveTopic, tavilyKey, 5);
             searchContext = formatSearchResults(results);
-            appendChunk("[Web search] Done — injecting into research context.\n\n");
+            appendChunk("Found some. Using them in the research.\n\n");
           } catch {
             // Search failure is non-fatal
           }
@@ -246,8 +254,8 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
           </div>
           <div className="flex items-center gap-3 mb-1">
             <div className="glow-line" />
-            <span className="text-xs font-mono text-[var(--ink-faint)] uppercase tracking-widest">
-              EDUCATION OS — AI-POWERED LEARNING
+            <span className="text-sm text-[var(--ink-dim)]">
+              Your tutor, on this computer.
             </span>
           </div>
         </div>
@@ -256,36 +264,34 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
         {!showCreate && !creating ? (
           <button
             onClick={() => setShowCreate(true)}
-            className="w-full p-4 border border-dashed border-[var(--rule)] hover:border-phosphor text-[var(--ink-faint)] hover:text-phosphor-bright transition-colors text-sm flex items-center justify-center gap-2 font-mono uppercase tracking-wider"
+            className="w-full p-4 rounded-xl border border-dashed border-[var(--rule)] hover:border-phosphor text-[var(--ink-dim)] hover:text-phosphor-bright transition-colors text-base flex items-center justify-center gap-2"
             style={{ background: "var(--phosphor-veil)" }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            INIT NEW_COURSE
+            Start a new course
           </button>
         ) : (
-          <div className="window mb-6">
-            <div className="window-titlebar">
-              <span className="window-dot close" />
-              <span className="window-dot min" />
-              <span className="window-dot max" />
-              <span className="ml-2 uppercase tracking-widest text-[10px]">
-                {creating ? "BUILDING COURSE..." : "NEW COURSE"}
-              </span>
+          <div className="rounded-xl border border-[var(--rule)] bg-panel mb-6">
+            <div className="px-5 pt-4">
+              <h2 className="text-lg font-semibold text-ink" style={{ fontFamily: "var(--font-display)" }}>
+                {creating ? "Building your course" : "New course"}
+              </h2>
             </div>
             <div className="p-5">
               {!creating ? (
                 <>
-                  <p className="text-xs text-[var(--ink-faint)] mb-4 font-mono">
-                    <span className="text-phosphor-ink">$</span> OpenEdu will research your topic and craft a focused 6-level curriculum — 3–10 min.
+                  <p className="text-sm text-[var(--ink-dim)] mb-4 leading-relaxed">
+                    Tell us what you want to learn. OpenEdu researches it and writes a six-level course, from the basics up.
+                    That takes a few minutes, and you can leave this screen while it works.
                   </p>
                   <input
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !creating && handleCreate()}
-                    placeholder="topic: Python, Linear Algebra, Music Theory..."
+                    placeholder="What do you want to learn? For example: fractions, the solar system, Spanish"
                     className="cf-input mb-4"
                     autoFocus
                   />
@@ -297,7 +303,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                   )}
                   {/* Persona picker (Phase 4b) — SAGE default; the ★ suggestion is a non-binding hint. */}
                   <div className="mb-4">
-                    <div className="text-[10px] uppercase tracking-widest text-[var(--ink-faint)] mb-2">Tutor persona</div>
+                    <div className="text-sm text-[var(--ink-dim)] mb-2">Pick a tutor (you can change this later)</div>
                     <div className="flex gap-2 flex-wrap">
                       {SPRITE_PERSONAS.map((p) => {
                         const active = selectedSprite === p.id;
@@ -311,9 +317,9 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                             className={`relative flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-colors ${active ? "border-phosphor bg-panel-lite" : "border-[var(--rule)] hover:border-phosphor/40"}`}
                           >
                             <CompanionSprite spriteId={p.id} size={44} />
-                            <span className={`text-[9px] ${active ? "text-phosphor-bright" : "text-[var(--ink-faint)]"}`}>{p.displayName}</span>
+                            <span className={`text-xs ${active ? "text-phosphor-bright" : "text-[var(--ink-faint)]"}`}>{p.displayName}</span>
                             {isSuggested && !active && (
-                              <span className="absolute -top-1.5 -right-1.5 text-[8px] leading-none px-1 py-0.5 rounded bg-[rgb(var(--phosphor-rgb)/0.2)] text-phosphor-bright border border-phosphor/40">★</span>
+                              <span className="absolute -top-1.5 -right-1.5 text-xs leading-none px-1 py-0.5 rounded bg-[rgb(var(--phosphor-rgb)/0.2)] text-phosphor-bright border border-phosphor/40" title="A good fit for this topic">★</span>
                             )}
                           </button>
                         );
@@ -321,17 +327,17 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     </div>
                   </div>
                   {error && (
-                    <div className="mb-4 p-3 border border-red-500/30 text-sm text-red-300 font-mono leading-relaxed"
+                    <div className="mb-4 p-3 rounded-lg border border-red-500/30 text-sm text-red-300 leading-relaxed"
                          style={{ background: "rgba(239,68,68,0.06)" }}>
-                      ERR: {error}
+                      {error}
                     </div>
                   )}
                   <div className="flex gap-3">
                     <button onClick={handleCreate} disabled={!topic.trim()} className="btn btn-primary disabled:opacity-40">
-                      EXECUTE
+                      Create course
                     </button>
                     <button onClick={() => { setShowCreate(false); setTopic(""); setSelectedSprite(DEFAULT_SPRITE_ID); setError(""); }} className="btn">
-                      ABORT
+                      Cancel
                     </button>
                   </div>
                 </>
@@ -339,11 +345,11 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <div className="text-sm font-mono text-phosphor-ink">
-                        <span className="text-[var(--ink-faint)]">BUILD:</span> {topic}
+                      <div className="text-base text-ink font-medium" style={{ fontFamily: "var(--font-display)" }}>
+                        {topic}
                       </div>
-                      <div className="text-xs text-[var(--ink-faint)] mt-0.5 font-mono">
-                        {activeStep ? `> ${activeStep.label}` : "> FINALIZING..."}
+                      <div className="text-sm text-[var(--ink-dim)] mt-0.5">
+                        {activeStep ? `${activeStep.label}…` : "Almost done…"}
                       </div>
                     </div>
                     <span
@@ -365,7 +371,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     {steps.map((step, i) => (
                       <div
                         key={i}
-                        className={`flex items-center gap-3 font-mono text-xs transition-opacity ${
+                        className={`flex items-center gap-3 text-sm transition-opacity ${
                           step.status === "pending" ? "opacity-25" : "opacity-100"
                         }`}
                       >
@@ -382,24 +388,36 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     ))}
                   </div>
 
-                  {/* Live stream log — continuous transcript, scrollable. Auto-follows the
-                      tail until you scroll up; scroll back to bottom to resume following. */}
+                  {/* Live stream log — the model's raw output, behind a disclosure. Auto-follows
+                      the tail until you scroll up; scroll back to bottom to resume following. */}
                   {streamLog && (
-                    <div
-                      ref={streamLogRef}
-                      onScroll={handleStreamScroll}
-                      className="lcd p-3 max-h-64 overflow-y-auto"
-                    >
-                      <pre className="text-[10px] font-mono text-phosphor whitespace-pre-wrap leading-relaxed">
-                        {streamLog}
-                      </pre>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowLog((v) => !v)}
+                        aria-expanded={showLog}
+                        className="text-sm text-[var(--ink-faint)] hover:text-ink transition-colors"
+                      >
+                        {showLog ? "Hide the details" : "Show the details"}
+                      </button>
+                      {showLog && (
+                        <div
+                          ref={streamLogRef}
+                          onScroll={handleStreamScroll}
+                          className="lcd p-3 mt-2 max-h-64 overflow-y-auto"
+                        >
+                          <pre className="text-xs font-mono text-phosphor whitespace-pre-wrap leading-relaxed">
+                            {streamLog}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {error && (
-                    <div className="mt-3 p-3 border border-red-500/30 text-xs text-red-300 font-mono leading-relaxed"
+                    <div className="mt-3 p-3 rounded-lg border border-red-500/30 text-sm text-red-300 leading-relaxed"
                          style={{ background: "rgba(239,68,68,0.06)" }}>
-                      ERR: {error}
+                      {error}
                     </div>
                   )}
                 </div>
@@ -412,7 +430,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
         {courses.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-[10px] font-mono text-[var(--ink-faint)] uppercase tracking-widest">LOADED COURSES</span>
+              <span className="text-sm text-[var(--ink-dim)]">Your courses</span>
               <div className="flex-1 h-px bg-[var(--rule)]" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -420,27 +438,19 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                 <button
                   key={course.id}
                   onClick={() => onOpenCourse(course.id)}
-                  className="window text-left transition-all group"
+                  className="rounded-xl border border-[var(--rule)] bg-panel hover:border-phosphor text-left transition-colors group"
                   style={{ display: "block" }}
                 >
-                  <div className="window-titlebar">
-                    <span className="window-dot close" />
-                    <span className="window-dot min" />
-                    <span className="window-dot max" />
-                    <span className="ml-2 uppercase tracking-widest text-[10px] group-hover:text-phosphor-ink transition-colors truncate flex-1">
-                      COURSE
-                    </span>
-                  </div>
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <span
-                        className="text-phosphor phosphor-glow uppercase leading-tight line-clamp-2"
-                        style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", letterSpacing: "0.02em" }}
+                        className="text-ink group-hover:text-phosphor-bright leading-tight line-clamp-2 transition-colors"
+                        style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", fontWeight: 500 }}
                       >
                         {course.title}
                       </span>
-                      <span className="text-xs font-mono text-[var(--ink-faint)] shrink-0 mt-1">
-                        LVL {course.current_level}
+                      <span className="text-sm text-[var(--ink-dim)] shrink-0 mt-0.5">
+                        Level {course.current_level}
                       </span>
                     </div>
                     {/* Progress bar — 0% at L1 start, 100% at L6 (mastery exam ready). */}
@@ -454,9 +464,9 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                         }}
                       />
                     </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-[9px] font-mono text-[var(--ink-faint)]">1</span>
-                      <span className="text-[9px] font-mono text-[var(--ink-faint)]">6</span>
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-xs text-[var(--ink-faint)]">Level 1</span>
+                      <span className="text-xs text-[var(--ink-faint)]">Level 6</span>
                     </div>
                   </div>
                 </button>

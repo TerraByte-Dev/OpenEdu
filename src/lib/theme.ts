@@ -57,8 +57,15 @@ export function themeSupportsCrt(id: string): boolean {
 }
 
 // ── Manual CRT preference (the titlebar toggle + Appearance tab share this) ──────────────────────────────
+// Pure decision from the stored value. Nothing stored = a fresh install = overlay OFF: scanlines,
+// flicker and a vignette on a child's reading surface are an opt-in, not a default. "0" is a saved
+// choice to keep it on and is honored; "1" is a saved choice to keep it off.
+export function resolveStoredCrtOff(stored: string | null): boolean {
+  return stored === null ? true : stored === "1";
+}
+
 export function getCrtOff(): boolean {
-  try { return localStorage.getItem(CRT_OFF_KEY) === "1"; } catch { return false; }
+  try { return resolveStoredCrtOff(localStorage.getItem(CRT_OFF_KEY)); } catch { return true; }
 }
 
 // Set the manual CRT preference: persist, toggle the class, and broadcast so any open surface (titlebar,

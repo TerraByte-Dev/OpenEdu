@@ -1,6 +1,7 @@
 ﻿import { useState, useCallback } from "react";
 import type { Course } from "../types";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
+import { describeGenerationState } from "../lib/plain-language";
 
 interface ContextMenuState {
   x: number;
@@ -64,7 +65,7 @@ export default function Sidebar({
     ];
     if (course && needsResume(course)) {
       items.push({
-        label: "Resume Generation",
+        label: "Finish building",
         icon: (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="5 3 19 12 5 21 5 3" />
@@ -120,8 +121,8 @@ export default function Sidebar({
                 OE
               </span>
               <span
-                className="text-phosphor-ink uppercase tracking-widest"
-                style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem" }}
+                className="text-phosphor-ink"
+                style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 500 }}
               >
                 OpenEdu
               </span>
@@ -146,7 +147,7 @@ export default function Sidebar({
         <div className="flex-1 overflow-y-auto py-2">
           {!collapsed && (
             <div className="px-3 mb-2">
-              <span className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] font-semibold">
+              <span className="text-sm text-[var(--ink-dim)] font-semibold">
                 Courses
               </span>
             </div>
@@ -163,23 +164,23 @@ export default function Sidebar({
                     ? "bg-panel-lite border-l-2 border-phosphor"
                     : "border-l-2 border-transparent"
                 }`}
-                title={incomplete ? `Click to resume generation (${course.generation_state})` : course.title}
+                title={incomplete ? `${describeGenerationState(course.generation_state)} Click to finish building it.` : course.title}
               >
                 <span className="w-7 h-7 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0 relative">
                   {course.title.charAt(0).toUpperCase()}
                   {incomplete && (
                     <span
                       className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse"
-                      title="Generation incomplete — click to resume"
+                      title="Not finished building — click to finish"
                     />
                   )}
                 </span>
                 {!collapsed && (
                   <div className="min-w-0">
                     <div className="text-sm text-ink truncate">{course.title}</div>
-                    <div className="text-[10px] text-[var(--ink-faint)]">
+                    <div className="text-sm text-[var(--ink-faint)]">
                       {incomplete ? (
-                        <span className="text-amber-400/90">Resume generation</span>
+                        <span className="text-amber-400/90">Not finished — click to continue</span>
                       ) : (
                         <>Level {course.current_level}</>
                       )}
@@ -190,8 +191,8 @@ export default function Sidebar({
             );
           })}
           {courses.length === 0 && !collapsed && (
-            <div className="px-3 py-4 text-xs text-[var(--ink-faint)] text-center">
-              No courses yet. Create one from the dashboard.
+            <div className="px-3 py-4 text-sm text-[var(--ink-faint)] text-center">
+              No courses yet. Start one from the home screen.
             </div>
           )}
         </div>

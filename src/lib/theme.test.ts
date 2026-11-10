@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { THEMES, getTheme, resolveCrtOff, themeSupportsCrt, DEFAULT_THEME_ID } from "./theme";
+import { THEMES, getTheme, resolveCrtOff, resolveStoredCrtOff, themeSupportsCrt, DEFAULT_THEME_ID } from "./theme";
 
 describe("theme registry", () => {
   it("the default theme exists and is OpenEdu; unknown ids fall back to it", () => {
@@ -33,5 +33,16 @@ describe("resolveCrtOff", () => {
     expect(resolveCrtOff(getTheme("openedu"), false)).toBe(false);
     expect(resolveCrtOff(getTheme("openedu"), true)).toBe(true);
     expect(resolveCrtOff(getTheme("synthwave"), true)).toBe(true);
+  });
+});
+
+describe("resolveStoredCrtOff", () => {
+  it("a fresh install (nothing stored) has the overlay off", () => {
+    expect(resolveStoredCrtOff(null)).toBe(true);
+  });
+
+  it("a saved choice is honored either way", () => {
+    expect(resolveStoredCrtOff("0")).toBe(false); // chose to keep the CRT look
+    expect(resolveStoredCrtOff("1")).toBe(true);  // chose to turn it off
   });
 });

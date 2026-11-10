@@ -1,5 +1,6 @@
 import type { Course, Syllabus, Subtopic } from "../types";
 import { getLevelMeaning } from "../lib/curriculum";
+import { describeGenerationState } from "../lib/plain-language";
 import type { SwitchTabOpts, Tab } from "../views/CourseView";
 import NextStepCard from "./NextStepCard";
 import ProgressDashboard from "./ProgressDashboard";
@@ -45,7 +46,7 @@ export default function OverviewTab({
         <header className="space-y-2">
           <div className="flex items-center gap-3">
             <span className="tag">Level {level}</span>
-            <span className="text-xs text-[var(--ink-faint)] font-mono uppercase tracking-wider">
+            <span className="text-sm text-[var(--ink-dim)]">
               {getLevelMeaning(level)}
             </span>
           </div>
@@ -54,7 +55,7 @@ export default function OverviewTab({
               <h2 className="text-2xl text-ink font-semibold leading-tight">
                 {currentSyllabus.title}
               </h2>
-              <p className="text-sm text-[var(--ink-dim)] leading-relaxed">
+              <p className="text-base text-[var(--ink-dim)] leading-relaxed">
                 {currentSyllabus.description}
               </p>
             </>
@@ -66,9 +67,9 @@ export default function OverviewTab({
         </header>
 
         {generationIncomplete && (
-          <div className="flex items-center gap-2 text-xs text-amber-400/90 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-amber-400/90 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-            Course generation paused at <span className="font-mono">{course.generation_state}</span>. Open the sidebar to resume.
+            {describeGenerationState(course.generation_state)} Click it in the list on the left to finish building it.
           </div>
         )}
 
@@ -78,7 +79,7 @@ export default function OverviewTab({
             <p className="text-[var(--ink-faint)] mb-3 text-sm">
               No syllabus generated for this level yet.
             </p>
-            <p className="text-[var(--ink-faint)] mb-3 text-xs italic">
+            <p className="text-[var(--ink-faint)] mb-3 text-sm italic">
               {'If an older course is showing garbled math (e.g. "$\\text{c}$"), regenerating will fix it.'}
             </p>
             {regenStatus && (
@@ -142,20 +143,20 @@ function MasteryDashboard({
   return (
     <section className="rounded-xl border border-[var(--rule)] bg-panel p-5">
       <div className="flex items-baseline gap-4 mb-4">
-        <h3 className="text-xs uppercase tracking-wider text-[var(--ink-faint)] font-semibold">
-          Mastery
+        <h3 className="text-sm text-[var(--ink-dim)] font-semibold">
+          What you know
         </h3>
         <div className="flex items-baseline gap-3 ml-auto">
           <span className="readout-val text-xl leading-none">
             {mastered}
             <span className="text-[var(--ink-faint)] text-base">/{total}</span>
           </span>
-          <span className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-            mastered
+          <span className="text-sm text-[var(--ink-faint)]">
+            learned
           </span>
           {practiced > 0 && (
-            <span className="text-[10px] uppercase tracking-wider text-[var(--ink-faint)] ml-2">
-              · {practiced} practiced
+            <span className="text-sm text-[var(--ink-faint)] ml-2">
+              · {practiced} in progress
             </span>
           )}
         </div>
@@ -171,16 +172,16 @@ function MasteryDashboard({
             >
               <SubtopicDot state={state} reviewNeeded={!!sub.review_needed} />
               <div className="min-w-0 flex-1">
-                <div className="text-sm text-ink truncate">{sub.title}</div>
-                <div className="text-[10px] text-[var(--ink-faint)] truncate">
+                <div className="text-base text-ink truncate">{sub.title}</div>
+                <div className="text-sm text-[var(--ink-faint)] truncate">
                   {sub.key_concepts.join(" · ")}
                 </div>
               </div>
               <button
                 onClick={() => onSubtopicChat(sub.title)}
-                className="opacity-0 group-hover:opacity-100 text-[11px] text-phosphor-ink hover:text-phosphor-bright transition-opacity px-2 py-1 rounded"
+                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-sm text-phosphor-ink hover:text-phosphor-bright transition-opacity px-2 py-1 rounded"
               >
-                Chat →
+                Ask the tutor →
               </button>
             </li>
           );

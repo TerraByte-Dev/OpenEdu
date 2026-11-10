@@ -86,9 +86,10 @@ border communicates selection.
 - **`src/views/settings/primitives.tsx`** is the best-written UI code in the repo and its own header
   says it's liftable into another app — but nothing outside `views/settings/` imports it. The Form
   Controls card mirrors it.
-- **There are zero `focus-visible` rules in `src/`.** The design system's Interaction States card
-  proposes one. This matters more than it looks for an app aimed at shared school hardware, where a
-  broken or missing mouse is ordinary.
+- **`focus-visible`.** There used to be zero focus rules in `src/`. `index.css` now carries one global
+  `:focus-visible` ring (2 px accent outline) on every interactive element, keyboard-only. This matters
+  more than it looks for an app aimed at shared school hardware, where a broken or missing mouse is
+  ordinary.
 
 ---
 

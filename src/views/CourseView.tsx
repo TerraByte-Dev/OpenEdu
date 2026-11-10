@@ -203,12 +203,12 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
           </svg>
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-sm font-semibold text-ink truncate leading-tight">{course.title}</h1>
-          <p className="text-[11px] text-[var(--ink-faint)] leading-tight">
+          <h1 className="text-base font-semibold text-ink truncate leading-tight">{course.title}</h1>
+          <p className="text-sm text-[var(--ink-faint)] leading-tight">
             {isComplete ? (
-              <span className="text-green-400 font-semibold">COMPLETE ✓ — full curriculum mastered</span>
+              <span className="text-green-400 font-semibold">Complete ✓ — you've finished this course</span>
             ) : (
-              <>Active: Level {course.current_level} — {getLevelMeaning(course.current_level)}</>
+              <>Level {course.current_level} — {getLevelMeaning(course.current_level)}</>
             )}
           </p>
         </div>
@@ -227,7 +227,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </button>
-            <span className="text-xs font-mono font-semibold text-[var(--ink-dim)] min-w-[32px] text-center">
+            <span className="text-sm font-semibold text-[var(--ink-dim)] min-w-[32px] text-center">
               {effectiveViewingLevel}
             </span>
             <button
@@ -252,14 +252,14 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             disabled={!isCurrentLevel || !viewingSyllabus || isComplete}
             title={
               isComplete
-                ? "Course complete — the full curriculum is mastered"
+                ? "Course complete — you've finished every level"
                 : !isCurrentLevel
-                ? "Navigate to your active level to take the promotion test"
+                ? "Go back to your current level to take the level test"
                 : !viewingSyllabus
-                ? "Syllabus not generated yet"
-                : "Take the promotion test for this level"
+                ? "This level isn't written yet"
+                : "Take the test to move up to the next level"
             }
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
               isCurrentLevel && viewingSyllabus && !isComplete
                 ? "btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)]"
                 : "bg-panel-lite text-[var(--ink-faint)] cursor-not-allowed"
@@ -268,7 +268,7 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            Promotion Test
+            Level test
           </button>
         </div>
       </div>
@@ -292,9 +292,9 @@ export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromoti
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* Viewing level indicator when browsing a non-active level */}
         {!isCurrentLevel && (
-          <div className="flex items-center gap-1 px-4 py-1 text-[10px] text-amber-400/80 border-b border-[var(--rule)] bg-panel shrink-0">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            Viewing Level {effectiveViewingLevel} — {getLevelMeaning(effectiveViewingLevel)}
+          <div className="flex items-center gap-1.5 px-4 py-1 text-sm text-amber-400/80 border-b border-[var(--rule)] bg-panel shrink-0">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            Looking at Level {effectiveViewingLevel} — {getLevelMeaning(effectiveViewingLevel)}
           </div>
         )}
         {activeTab === "overview" && (
