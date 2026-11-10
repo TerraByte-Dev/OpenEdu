@@ -10,9 +10,11 @@ import { searchTavily, formatSearchResults } from "../lib/web-search";
 import { preflightStructuredOutput } from "../lib/llm";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 
+// The new-course flow (View "create"). The learner's landing screen is views/Home.tsx; this view is
+// reached from its "Start a new course" button, and stays mounted (hidden) while a build runs so the
+// pipeline keeps going wherever the learner goes.
 interface DashboardProps {
-  courses: Course[];
-  onOpenCourse: (id: string) => void;
+  onCancel: () => void;
   onCourseCreated: (courseId: string) => void;
   onCreationStart?: (topic: string) => void;
   onCreationEnd?: () => void;
@@ -75,8 +77,7 @@ function StepIcon({ status }: { status: StepStatus }) {
   );
 }
 
-export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCreationStart, onCreationEnd, resumeCourse, onResumeConsumed }: DashboardProps) {
-  const [showCreate, setShowCreate] = useState(false);
+export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, onCreationEnd, resumeCourse, onResumeConsumed }: DashboardProps) {
   const [topic, setTopic] = useState("");
   // Phase 4b: chosen persona for the new course (SAGE default → skippable picker).
   const [selectedSprite, setSelectedSprite] = useState<string>(DEFAULT_SPRITE_ID);
@@ -199,7 +200,6 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
       setStreamLog("");
       setTopic("");
       setSelectedSprite(DEFAULT_SPRITE_ID);
-      setShowCreate(false);
       setSteps(INITIAL_STEPS.map((s) => ({ ...s, status: "pending" })));
       onCreationEnd?.();
       onCourseCreated(courseId!);
@@ -221,7 +221,6 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
   // Auto-launch resume when App passes a resumeCourse prop. Consumed once.
   useEffect(() => {
     if (resumeCourse && !creating) {
-      setShowCreate(true);
       void runPipelineFor(resumeCourse);
       onResumeConsumed?.();
     }
@@ -261,19 +260,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
         </div>
 
         {/* Create course */}
-        {!showCreate && !creating ? (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="w-full p-4 rounded-xl border border-dashed border-[var(--rule)] hover:border-phosphor text-[var(--ink-dim)] hover:text-phosphor-bright transition-colors text-base flex items-center justify-center gap-2"
-            style={{ background: "var(--phosphor-veil)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Start a new course
-          </button>
-        ) : (
-          <div className="rounded-xl border border-[var(--rule)] bg-panel mb-6">
+        <div className="rounded-xl border border-[var(--rule)] bg-panel mb-6">
             <div className="px-5 pt-4">
               <h2 className="text-lg font-semibold text-ink" style={{ fontFamily: "var(--font-display)" }}>
                 {creating ? "Building your course" : "New course"}
@@ -336,7 +323,7 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
                     <button onClick={handleCreate} disabled={!topic.trim()} className="btn btn-primary disabled:opacity-40">
                       Create course
                     </button>
-                    <button onClick={() => { setShowCreate(false); setTopic(""); setSelectedSprite(DEFAULT_SPRITE_ID); setError(""); }} className="btn">
+                    <button onClick={() => { setTopic(""); setSelectedSprite(DEFAULT_SPRITE_ID); setError(""); onCancel(); }} className="btn">
                       Cancel
                     </button>
                   </div>
@@ -424,56 +411,6 @@ export default function Dashboard({ courses, onOpenCourse, onCourseCreated, onCr
               )}
             </div>
           </div>
-        )}
-
-        {/* Course grid */}
-        {courses.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-sm text-[var(--ink-dim)]">Your courses</span>
-              <div className="flex-1 h-px bg-[var(--rule)]" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {courses.map((course) => (
-                <button
-                  key={course.id}
-                  onClick={() => onOpenCourse(course.id)}
-                  className="rounded-xl border border-[var(--rule)] bg-panel hover:border-phosphor text-left transition-colors group"
-                  style={{ display: "block" }}
-                >
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <span
-                        className="text-ink group-hover:text-phosphor-bright leading-tight line-clamp-2 transition-colors"
-                        style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", fontWeight: 500 }}
-                      >
-                        {course.title}
-                      </span>
-                      <span className="text-sm text-[var(--ink-dim)] shrink-0 mt-0.5">
-                        Level {course.current_level}
-                      </span>
-                    </div>
-                    {/* Progress bar — 0% at L1 start, 100% at L6 (mastery exam ready). */}
-                    <div className="h-px bg-[var(--rule)] overflow-hidden">
-                      <div
-                        className="h-full transition-all"
-                        style={{
-                          width: `${Math.max(0, Math.min(100, ((course.current_level - 1) / 5) * 100))}%`,
-                          background: "var(--phosphor)",
-                          boxShadow: "0 0 6px var(--phosphor)",
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between mt-1.5">
-                      <span className="text-xs text-[var(--ink-faint)]">Level 1</span>
-                      <span className="text-xs text-[var(--ink-faint)]">Level 6</span>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

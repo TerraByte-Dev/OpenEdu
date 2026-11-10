@@ -6,6 +6,7 @@ import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel } from 
 import { getOllamaModels } from "./llm";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 import type { RetrievalMode } from "./kernel/ground";
+import { normalizeGoal, type ActiveMinutes } from "./daily-goal";
 
 let store: Store | null = null;
 
@@ -186,6 +187,33 @@ export async function getTourSeen(learnerId: string): Promise<boolean> {
 export async function setTourSeen(learnerId: string, seen: boolean): Promise<void> {
   const s = await getStore();
   await s.set(learnerStoreKey(STORE_KEYS.tourSeen, learnerId), seen);
+  await s.save();
+}
+
+// Learner Home daily goal (daily-goal.ts). null until the learner has chosen one.
+export async function getDailyGoal(learnerId: string): Promise<number | null> {
+  const s = await getStore();
+  return normalizeGoal(await s.get<unknown>(learnerStoreKey(STORE_KEYS.dailyGoalMinutes, learnerId)));
+}
+
+export async function setDailyGoal(learnerId: string, minutes: number): Promise<void> {
+  const s = await getStore();
+  await s.set(learnerStoreKey(STORE_KEYS.dailyGoalMinutes, learnerId), minutes);
+  await s.save();
+}
+
+// Today's active minutes for one learner ({ day, minutes }); App ticks it while the session is on
+// screen. A record from another day is still returned as-is: daily-goal.ts minutesToday() reads it
+// as zero, and tickActiveMinutes() rolls it over.
+export async function getActiveMinutes(learnerId: string): Promise<ActiveMinutes | null> {
+  const s = await getStore();
+  const v = await s.get<ActiveMinutes>(learnerStoreKey(STORE_KEYS.activeMinutes, learnerId));
+  return v && typeof v.day === "string" && typeof v.minutes === "number" ? v : null;
+}
+
+export async function setActiveMinutes(learnerId: string, rec: ActiveMinutes): Promise<void> {
+  const s = await getStore();
+  await s.set(learnerStoreKey(STORE_KEYS.activeMinutes, learnerId), rec);
   await s.save();
 }
 

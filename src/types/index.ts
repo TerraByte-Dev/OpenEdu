@@ -318,7 +318,8 @@ export interface LLMConfig {
   contextTokens?: number;
 }
 
-export type View = "dashboard" | "course" | "settings" | "quiz" | "promotion-test";
+// "dashboard" is the learner's Home (views/Home.tsx); "create" is the new-course flow (views/Dashboard.tsx).
+export type View = "dashboard" | "create" | "course" | "settings" | "quiz" | "promotion-test";
 
 export interface QuizViewContext {
   courseId: string;

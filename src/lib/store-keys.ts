@@ -33,12 +33,17 @@ export const STORE_KEYS = {
   // ALLOWED_IMPORT_KEYS — importing someone else's settings should not silently mark YOUR tour as
   // seen, which would hide it from the person it exists for. Per learner: see LEARNER_SCOPED_KEYS.
   tourSeen: "tour_seen",
+  // Learner Home: the daily goal (minutes a day, chosen once) and today's active minutes
+  // ({ day, minutes }, see daily-goal.ts). Per learner, like the tour. Not importable: both are
+  // about one person on this PC, not a setting anyone would carry to another machine.
+  dailyGoalMinutes: "daily_goal_minutes",
+  activeMinutes: "active_minutes",
 } as const;
 
 // Keys that remember something about ONE learner rather than the machine. Read and write them only
 // through learnerStoreKey(). Everything else in STORE_KEYS (provider, models, API keys, library,
 // context size) is shared by every learner on the PC.
-export const LEARNER_SCOPED_KEYS: ReadonlyArray<string> = [STORE_KEYS.tourSeen];
+export const LEARNER_SCOPED_KEYS: ReadonlyArray<string> = [STORE_KEYS.tourSeen, STORE_KEYS.dailyGoalMinutes, STORE_KEYS.activeMinutes];
 
 const LEARNER_KEY_SEPARATOR = "@learner:";
 
