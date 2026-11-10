@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Course, Syllabus, QuizAttempt } from "../types";
 import { getQuizAttempts } from "../lib/db";
-import { describeGenerationState } from "../lib/plain-language";
+import { rankNextSteps, type NextStep, type NextStepAction } from "../lib/next-step";
 import type { SwitchTabOpts, Tab } from "../views/CourseView";
 
 interface NextStepCardProps {
@@ -14,6 +14,8 @@ interface NextStepCardProps {
   onOpenPromotionTest?: () => void;
 }
 
+// The ranking itself lives in src/lib/next-step.ts (pure, tested) so the learner's Home can reuse it
+// for its Continue button. This card maps each intent to the course view's callbacks.
 interface Suggestion {
   key: string;
   title: string;
@@ -45,15 +47,20 @@ export default function NextStepCard({
   }, [courseId]);
 
   const suggestions = useMemo<Suggestion[]>(() => {
-    return rankSuggestions({
+    const run = (a: NextStepAction): (() => void) | undefined => {
+      if (a.kind === "tab") return () => switchTab(a.tab, a.opts);
+      if (a.kind === "promotion") return onOpenPromotionTest;
+      return onRegenerate;
+    };
+    const steps: NextStep[] = rankNextSteps({
       course,
       level,
       currentSyllabus,
       attempts: attempts ?? [],
-      switchTab,
-      onRegenerate,
-      onOpenPromotionTest,
+      canRegenerate: !!onRegenerate,
+      canPromote: !!onOpenPromotionTest,
     });
+    return steps.map((s) => ({ key: s.key, title: s.title, blurb: s.blurb, actionLabel: s.actionLabel, action: s.action ? run(s.action) : undefined }));
   }, [course, level, currentSyllabus, attempts, switchTab, onRegenerate, onOpenPromotionTest]);
 
   if (attempts === null) {
@@ -98,128 +105,4 @@ export default function NextStepCard({
       </ul>
     </section>
   );
-}
-
-function rankSuggestions(input: {
-  course: Course;
-  level: number;
-  currentSyllabus: Syllabus | null;
-  attempts: QuizAttempt[];
-  switchTab: (tab: Tab, opts?: SwitchTabOpts) => void;
-  onRegenerate?: () => void;
-  onOpenPromotionTest?: () => void;
-}): Suggestion[] {
-  const { course, level, currentSyllabus, attempts, switchTab, onRegenerate, onOpenPromotionTest } = input;
-  const out: Suggestion[] = [];
-
-  // Rule 1 — No syllabus for this level
-  if (!currentSyllabus) {
-    if (onRegenerate) {
-      out.push({
-        key: "generate",
-        title: "Build this level's plan",
-        blurb: "The plan for this level is missing. Build it to unlock lessons, quizzes and the tutor.",
-        action: onRegenerate,
-        actionLabel: "Build",
-      });
-    } else {
-      out.push({
-        key: "no-syllabus",
-        title: "This level isn't written yet",
-        blurb: "Once the course finishes building, this level's plan will appear here.",
-      });
-    }
-    return out;
-  }
-
-  // Rule 2 — Generation incomplete (course-level pause/checkpoint)
-  if (course.generation_state && course.generation_state !== "completed") {
-    out.push({
-      key: "resume",
-      title: "Finish building this course",
-      blurb: `${describeGenerationState(course.generation_state)} Click it in the list on the left to finish building it.`,
-    });
-  }
-
-  const subtopics = currentSyllabus.subtopics;
-  const total = subtopics.length;
-  const masteredCount = subtopics.filter((s) => s.mastered).length;
-
-  // Level-scoped attempt stats
-  const levelAttempts = attempts.filter(
-    (a) => a.level === level && a.quiz_type === "quiz" && a.completed_at !== null && a.score !== null
-  );
-  const lastAttempt = levelAttempts[0]; // attempts are ORDER BY started_at DESC
-  const lastQuizPct = lastAttempt?.score ?? null;
-
-  // Rule 3 — Ready for Promotion Test
-  if (
-    onOpenPromotionTest &&
-    total > 0 &&
-    masteredCount >= total - 1 &&
-    lastQuizPct !== null &&
-    lastQuizPct >= 80
-  ) {
-    out.push({
-      key: "promotion",
-      title: "You look ready to move up a level",
-      blurb: `You've learned ${masteredCount} of ${total} topics and scored ${Math.round(lastQuizPct)}% on your last quiz.`,
-      action: onOpenPromotionTest,
-      actionLabel: "Take the test",
-    });
-  }
-
-  // Rule 4 — No quiz attempts at this level
-  if (levelAttempts.length === 0) {
-    out.push({
-      key: "first-quiz",
-      title: "Try a practice quiz",
-      blurb: "A quick quiz shows what you know and what to work on next.",
-      action: () => switchTab("quiz"),
-      actionLabel: "Start quiz",
-    });
-  }
-
-  // Rule 4b — An untouched subtopic: read a clean lesson before practicing
-  const untouched = subtopics.find((s) => !s.practiced && !s.mastered);
-  if (untouched && out.length < 3) {
-    out.push({
-      key: `lesson-${untouched.id}`,
-      title: `Read the lesson on "${untouched.title}"`,
-      blurb: "A short, clear walkthrough before you practice.",
-      action: () => switchTab("lessons", { lessonSubtopicId: untouched.id }),
-      actionLabel: "Read",
-    });
-  }
-
-  // Rule 5 — A previously-mastered subtopic flagged for review
-  const reviewSub = subtopics.find((s) => s.review_needed);
-  if (reviewSub) {
-    out.push({
-      key: `review-${reviewSub.id}`,
-      title: `Go over "${reviewSub.title}" again`,
-      blurb: "You missed a question about this recently.",
-      action: () => switchTab("chat", { seedTopic: reviewSub.title }),
-      actionLabel: "Ask the tutor",
-    });
-  }
-
-  // Rule 6 — Default: chat about the weakest subtopic
-  if (out.length < 3) {
-    const weakest =
-      subtopics.find((s) => !s.mastered && !s.practiced) ??
-      subtopics.find((s) => !s.mastered) ??
-      subtopics[0];
-    if (weakest) {
-      out.push({
-        key: `chat-${weakest.id}`,
-        title: `Talk to your tutor about "${weakest.title}"`,
-        blurb: "Work through it together before your next quiz.",
-        action: () => switchTab("chat", { seedTopic: weakest.title }),
-        actionLabel: "Ask the tutor",
-      });
-    }
-  }
-
-  return out.slice(0, 3);
 }

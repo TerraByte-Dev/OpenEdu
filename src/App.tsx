@@ -11,7 +11,9 @@ import {
 } from "./lib/usage-modes";
 import type { PinRecord } from "./lib/learner-pin";
 import type { DbHealth } from "./lib/db-resilience";
-import { getLLMProvider, getTourSeen, setTourSeen } from "./lib/store";
+import { getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes } from "./lib/store";
+import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
+import type { NextStepAction } from "./lib/next-step";
 import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
 import DataDamagedBanner from "./components/DataDamagedBanner";
@@ -25,6 +27,7 @@ import TeacherView from "./components/TeacherView";
 import { UsageModeChooser, TeacherPinPrompt } from "./components/UsageMode";
 import StartupFailed from "./components/StartupFailed";
 import Sidebar from "./components/Sidebar";
+import Home from "./views/Home";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
 import Settings from "./views/settings/Settings";
@@ -40,6 +43,13 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  // Where the course view lands when opened from Home's Continue button (next-step.ts). Consumed by
+  // CourseView's initial state; cleared on every other way into a course.
+  const [courseInitialAction, setCourseInitialAction] = useState<NextStepAction | undefined>(undefined);
+  // Learner Home: the daily goal (null = not chosen yet) and today's active minutes, both per learner
+  // in the plugin store. Minutes tick once a minute while a learner's session is on screen.
+  const [dailyGoal, setDailyGoalState] = useState<number | null>(null);
+  const [activeMinutes, setActiveMinutesState] = useState<ActiveMinutes | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeProvider, setActiveProvider] = useState<LLMProvider>("ollama");
@@ -99,6 +109,9 @@ export default function App() {
     setLearnerMenuOpen(false);
     setCurrentView("dashboard");
     setSelectedCourseId(null);
+    setCourseInitialAction(undefined);
+    setDailyGoalState(null);
+    setActiveMinutesState(null);
     setQuizContext(null);
     setPendingResumeCourse(null);
     setPromotionBanner(null);
@@ -115,7 +128,34 @@ export default function App() {
     void getTourSeen(learner.id).then((seen) => {
       if (!seen && getActiveLearnerId() === learner.id) setTourStep(0);
     });
+    void Promise.all([getDailyGoal(learner.id), getActiveMinutes(learner.id)]).then(([goal, mins]) => {
+      if (getActiveLearnerId() !== learner.id) return;
+      setDailyGoalState(goal);
+      setActiveMinutesState(mins);
+    }).catch(() => { /* the store is a convenience here; Home renders without it */ });
   };
+
+  const chooseDailyGoal = (minutes: number) => {
+    if (!activeLearner) return;
+    setDailyGoalState(minutes);
+    void setDailyGoal(activeLearner.id, minutes).catch(() => { /* keep the in-memory choice */ });
+  };
+
+  // One active minute per minute the window is visible with a learner in. Read-modify-write through
+  // the store so a second window or a restart never loses the count; the UI shows the result.
+  useEffect(() => {
+    if (!activeLearner) return;
+    const learnerId = activeLearner.id;
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible" || getActiveLearnerId() !== learnerId) return;
+      void getActiveMinutes(learnerId).then(async (rec) => {
+        const next = tickActiveMinutes(rec, new Date());
+        await setActiveMinutes(learnerId, next);
+        if (getActiveLearnerId() === learnerId) setActiveMinutesState(next);
+      }).catch(() => { /* a failed tick costs one minute of credit, nothing else */ });
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [activeLearner]);
 
   const leaveLearner = () => {
     setActiveLearnerId(null);
@@ -250,7 +290,8 @@ export default function App() {
     setBooted(true);
   }, []);
 
-  const openCourse = (courseId: string) => {
+  const openCourse = (courseId: string, initialAction?: NextStepAction) => {
+    setCourseInitialAction(initialAction);
     setSelectedCourseId(courseId);
     setCurrentView("course");
   };
@@ -298,7 +339,7 @@ export default function App() {
     const course = courses.find((c) => c.id === courseId);
     if (!course) return;
     setPendingResumeCourse(course);
-    setCurrentView("dashboard");
+    setCurrentView("create");
   };
 
   const isFullscreenView = currentView === "quiz" || currentView === "promotion-test";
@@ -389,9 +430,9 @@ export default function App() {
                 </div>
               )}
 
-              {craftingTopic && currentView !== "dashboard" && !isFullscreenView && (
+              {craftingTopic && currentView !== "create" && !isFullscreenView && (
                 <button
-                  onClick={() => setCurrentView("dashboard")}
+                  onClick={() => setCurrentView("create")}
                   className="flex items-center gap-2.5 px-4 py-2 border-b border-[var(--rule)] text-sm text-phosphor-ink hover:bg-[rgb(var(--phosphor-rgb)/0.06)] transition-colors shrink-0"
                   style={{ background: "rgb(var(--phosphor-rgb)/0.04)" }}
                 >
@@ -410,12 +451,24 @@ export default function App() {
                 />
               )}
 
-              <div className={`flex-1 min-h-0 flex flex-col ${
-                currentView !== "dashboard" || (setup && (!setup.ready || (!setup.complete && !setupDismissed))) ? "hidden" : ""
-              }`}>
-                <Dashboard
+              {currentView === "dashboard" && !(setup && (!setup.ready || (!setup.complete && !setupDismissed))) && (
+                <Home
+                  learnerName={activeLearner.name}
                   courses={courses}
+                  dailyGoal={dailyGoal}
+                  onChooseGoal={chooseDailyGoal}
+                  minutesToday={minutesToday(activeMinutes, new Date())}
+                  onContinue={openCourse}
                   onOpenCourse={openCourse}
+                  onResumeCourse={handleResumeCourse}
+                  onStartNew={() => setCurrentView("create")}
+                />
+              )}
+
+              {/* The new-course flow stays mounted (hidden) off its view so a build in progress keeps running. */}
+              <div className={`flex-1 min-h-0 flex flex-col ${currentView !== "create" ? "hidden" : ""}`}>
+                <Dashboard
+                  onCancel={() => setCurrentView("dashboard")}
                   onCourseCreated={onCourseCreated}
                   onCreationStart={(topic) => setCraftingTopic(topic)}
                   onCreationEnd={() => setCraftingTopic(null)}
@@ -426,7 +479,9 @@ export default function App() {
 
               {currentView === "course" && selectedCourseId && (
                 <CourseView
+                  key={selectedCourseId}
                   courseId={selectedCourseId}
+                  initialAction={courseInitialAction}
                   onBack={() => setCurrentView("dashboard")}
                   onOpenQuiz={openQuiz}
                   onOpenPromotionTest={openPromotionTest}

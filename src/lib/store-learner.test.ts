@@ -17,7 +17,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => null) }));
 vi.mock("./llm", () => ({ getOllamaModels: vi.fn() }));
 vi.mock("./permissions", () => ({ loadPermissionRules: async () => ({}), savePermissionRules: async () => {} }));
 
-import { getTourSeen, setTourSeen, clearLearnerStore } from "./store";
+import { getTourSeen, setTourSeen, clearLearnerStore, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes } from "./store";
 import { gatherSettings } from "./settings-io";
 import { STORE_KEYS, LEARNER_SCOPED_KEYS, learnerStoreKey, isLearnerScopedKey, apiKeyStoreKey } from "./store-keys";
 import { DEFAULT_LEARNER_ID } from "./learners";
@@ -50,11 +50,32 @@ describe("per-learner store keys", () => {
   it("clearing a learner removes only that learner's keys", async () => {
     await setTourSeen("a", true);
     await setTourSeen("b", true);
+    await setDailyGoal("a", 20);
+    await setActiveMinutes("a", { day: "2026-06-05", minutes: 3 });
     saved.set(STORE_KEYS.provider, "ollama");
     await clearLearnerStore("a");
     expect(await getTourSeen("a")).toBe(false);
+    expect(await getDailyGoal("a")).toBeNull();
+    expect(await getActiveMinutes("a")).toBeNull();
     expect(await getTourSeen("b")).toBe(true);
     expect(saved.get(STORE_KEYS.provider)).toBe("ollama");
+  });
+
+  it("the daily goal and today's minutes are per learner, and unset until chosen", async () => {
+    expect(await getDailyGoal("a")).toBeNull();
+    await setDailyGoal("a", 15);
+    expect(await getDailyGoal("a")).toBe(15);
+    expect(await getDailyGoal("b")).toBeNull();
+    await setActiveMinutes("a", { day: "2026-06-05", minutes: 7 });
+    expect(await getActiveMinutes("a")).toEqual({ day: "2026-06-05", minutes: 7 });
+    expect(await getActiveMinutes("b")).toBeNull();
+  });
+
+  it("a garbage goal in the store reads as unset rather than crashing Home", async () => {
+    saved.set(learnerStoreKey(STORE_KEYS.dailyGoalMinutes, "a"), "lots");
+    expect(await getDailyGoal("a")).toBeNull();
+    saved.set(learnerStoreKey(STORE_KEYS.activeMinutes, "a"), { minutes: "x" });
+    expect(await getActiveMinutes("a")).toBeNull();
   });
 
   it("machine settings (provider, models, keys) are shared, not per learner", () => {
@@ -62,6 +83,8 @@ describe("per-learner store keys", () => {
       expect(LEARNER_SCOPED_KEYS).not.toContain(k);
     }
     expect(LEARNER_SCOPED_KEYS).toContain(STORE_KEYS.tourSeen);
+    expect(LEARNER_SCOPED_KEYS).toContain(STORE_KEYS.dailyGoalMinutes);
+    expect(LEARNER_SCOPED_KEYS).toContain(STORE_KEYS.activeMinutes);
   });
 
   it("a settings export carries no other learner's keys", async () => {

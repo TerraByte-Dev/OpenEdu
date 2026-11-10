@@ -46,11 +46,11 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 - `src/lib/models.ts` — model catalog + recommended-derived defaults (one source for the Settings pickers AND the store defaults; closes issue #2's drift).
 - `src/lib/theme.ts` (+ `useTheme.ts`) — color-theme registry, `applyTheme`/`getCrtOff`/`setCrtOff`, CSS-var `[data-theme]` themes; applied pre-paint in `main.tsx`.
 - `src/lib/settings-schema.ts` / `settings-io.ts` — pure parse/validate for the settings export/import + the Tauri-side gather/apply. `version.ts` (`compareVersions` for the update check) and `text-match.ts` (search filter) are the other pure helpers.
-- `src/views/` — other top-level views (Dashboard, CourseView, full-screen quiz / promotion-test).
+- `src/views/` — other top-level views. `Home.tsx` is the learner's landing screen (Continue = the most recent course and its next step, a daily goal with today's minutes, course cards); `Dashboard.tsx` is the new-course flow behind its "Start a new course" button; `CourseView`, full-screen quiz / promotion-test. `src/lib/next-step.ts` is the one next-step ranking (shared by Home and the in-course Next step card); `src/lib/daily-goal.ts` the goal/minutes math. Both pure and tested.
 - `src/components/` — shared widgets, including `terminal/*` primitives.
 - `src-tauri/` — Rust backend, SQLite migrations, plugin config.
 
-The pure modules above (`store-keys`, `learners`, `learner-pin`, `usage-modes`, `teacher-overview`, `csv`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`) are Tauri-free and unit-tested in `*.test.ts` next to them.
+The pure modules above (`store-keys`, `learners`, `learner-pin`, `usage-modes`, `teacher-overview`, `csv`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`, `plain-language`, `next-step`, `daily-goal`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
 DB lives at `%APPDATA%/com.terrabytesolutions.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 

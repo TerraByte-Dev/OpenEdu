@@ -17,6 +17,7 @@ import OverviewTab from "../components/OverviewTab";
 import ResourcesTab from "../components/ResourcesTab";
 import ReviewTab from "../components/ReviewTab";
 import LessonsTab from "../components/LessonsTab";
+import type { NextStepAction } from "../lib/next-step";
 
 export type Tab = "overview" | "chat" | "notes" | "lessons" | "quiz" | "review" | "syllabus" | "resources";
 
@@ -28,20 +29,27 @@ export interface SwitchTabOpts {
 
 interface CourseViewProps {
   courseId: string;
+  /** Where to land on open — Home's Continue button passes the ranked next step. Tab intents are
+      honored; anything else opens the Overview, where the Next step card offers it. */
+  initialAction?: NextStepAction;
   onBack: () => void;
   onOpenQuiz: (ctx: QuizViewContext) => void;
   onOpenPromotionTest: (ctx: QuizViewContext) => void;
 }
 
-export default function CourseView({ courseId, onBack, onOpenQuiz, onOpenPromotionTest }: CourseViewProps) {
+export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz, onOpenPromotionTest }: CourseViewProps) {
   const [course, setCourse] = useState<Course | null>(null);
   const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>(initialAction?.kind === "tab" ? initialAction.tab : "overview");
   const [viewingLevel, setViewingLevel] = useState<number | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [regenStatus, setRegenStatus] = useState("");
-  const [chatSeedTopic, setChatSeedTopic] = useState<string | undefined>(undefined);
-  const [pendingLessonSubtopic, setPendingLessonSubtopic] = useState<string | undefined>(undefined);
+  const [chatSeedTopic, setChatSeedTopic] = useState<string | undefined>(
+    initialAction?.kind === "tab" && initialAction.tab === "chat" ? initialAction.opts?.seedTopic : undefined,
+  );
+  const [pendingLessonSubtopic, setPendingLessonSubtopic] = useState<string | undefined>(
+    initialAction?.kind === "tab" && initialAction.tab === "lessons" ? initialAction.opts?.lessonSubtopicId : undefined,
+  );
   // Resources tab (the curated Library). Shown only when the library is reachable + enabled, mirroring
   // the offline-first hiding everywhere else. `pendingResource` carries a deep-link from a chat chip.
   const [libReady, setLibReady] = useState(false);
