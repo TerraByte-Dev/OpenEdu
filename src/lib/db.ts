@@ -200,17 +200,17 @@ export async function setLearnerGroup(learnerId: string, groupId: string | null)
   await d.execute("UPDATE learners SET group_id = $1 WHERE id = $2", [groupId, learnerId]);
 }
 
-// ── Early-learner attempts (migration 16) ────────────────────────────────────
+// ── Early-learner attempts (migrations 16, 17) ───────────────────────────────
 // One row per tap in the K-1 activities. Read and written for the active learner only; mastery is
-// computed from the rows by src/lib/early/engine.ts skillProgress.
+// computed from the rows by src/lib/early/engine.ts skillProgress, the grown-ups view by report.ts.
 
 /** Store one tap for the active learner. */
 export async function recordEarlyAttempt(a: NewAttempt): Promise<void> {
   if (!activeLearnerId) throw new Error("No active learner: pick a learner before recording an attempt");
   const d = await getDb();
   await d.execute(
-    "INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ($1, $2, $3, $4, $5)",
-    [activeLearnerId, a.skillId, a.itemId, a.correct ? 1 : 0, a.firstTry ? 1 : 0],
+    "INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try, choice) VALUES ($1, $2, $3, $4, $5, $6)",
+    [activeLearnerId, a.skillId, a.itemId, a.correct ? 1 : 0, a.firstTry ? 1 : 0, a.choice],
   );
 }
 
@@ -219,7 +219,7 @@ export async function getEarlyAttempts(): Promise<AttemptRow[]> {
   if (!activeLearnerId) return [];
   const d = await getDb();
   return await d.select(
-    "SELECT skill_id, item_id, correct, first_try, created_at FROM early_attempts WHERE learner_id = $1 ORDER BY id ASC",
+    "SELECT skill_id, item_id, correct, first_try, created_at, choice FROM early_attempts WHERE learner_id = $1 ORDER BY id ASC",
     [activeLearnerId],
   );
 }

@@ -170,7 +170,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     after: "count-1-10",
     items: countingItems("count-11-20", 11, 20),
     grownUpTip: "count by tens first: count 10, then keep going, 11, 12, 13.",
-    playTogether: ["Count 15 steps to the door.", "Make a line of 12 coins and count them.", "Count to 20 while you wash your hands."],
+    playTogether: ["Count 15 steps to the door.", "Make a line of 12 books and count them.", "Count to 20 while you wash your hands."],
   },
   "shapes": {
     id: "shapes",

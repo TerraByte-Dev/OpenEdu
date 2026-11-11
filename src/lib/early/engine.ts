@@ -87,6 +87,8 @@ export interface NewAttempt {
   itemId: string;
   correct: boolean;
   firstTry: boolean;
+  /** choiceKey() of the tapped choice, so a wrong first try shows what it was mixed up with (report.ts). */
+  choice: string;
 }
 
 export type Feedback =
@@ -101,7 +103,7 @@ export type Feedback =
 export function tap(item: Item, choice: Choice, firstTry: boolean): { attempt: NewAttempt; feedback: Feedback } {
   const correct = isAnswer(item, choice);
   return {
-    attempt: { skillId: item.skillId, itemId: item.id, correct, firstTry },
+    attempt: { skillId: item.skillId, itemId: item.id, correct, firstTry, choice: choiceKey(choice) },
     feedback: correct ? { kind: "praise", say: item.praise } : { kind: "teach", ...item.teach },
   };
 }
@@ -115,6 +117,8 @@ export interface AttemptRow {
   correct: number;
   first_try: number;
   created_at: string;
+  /** choiceKey() of the tapped choice (migration 17). Null on rows stored before it. */
+  choice?: string | null;
 }
 
 export interface SkillProgress {
@@ -178,11 +182,11 @@ export function tileStatus(pack: Pack, progress: Record<SkillId, SkillProgress>)
 // ── Home screen ─────────────────────────────────────────────────────────────────────────────────────
 
 // created_at is SQLite's datetime('now'): UTC, "YYYY-MM-DD HH:MM:SS".
-function parseUtc(createdAt: string): Date {
+export function parseUtc(createdAt: string): Date {
   return new Date(createdAt.replace(" ", "T") + "Z");
 }
 
-function sameLocalDay(a: Date, b: Date): boolean {
+export function sameLocalDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
