@@ -466,6 +466,10 @@ body {
   line-height: 1.6;
 }
 .chat-text-large .chat-msg .note-prose :is(h1, h2, h3, h4, h5, h6) { font-size: 1.15em; }
+/* Code keeps the same ratio to the prose it has at 14px (.note-prose code 0.82rem, pre code 0.81rem)
+   instead of staying 13px next to 20px text (#246). */
+.chat-text-large .chat-msg .note-prose code { font-size: 0.94em; }
+.chat-text-large .chat-msg .note-prose pre code { font-size: 0.93em; }
 
 /* The speaker button under a tutor reply: a 36px round target, quiet until hovered or reading. */
 .speak-btn {
