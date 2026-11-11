@@ -24,6 +24,8 @@ import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
 import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
+import { askedWord, lookupDictionaryNote, withDictionaryNote } from "./defineWord";
+import { lookupWord } from "../dictionary";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
@@ -44,6 +46,10 @@ export interface TutorTurn {
   // sees anything; "off" disables it and leaves notebook.search as the only path. Exposed so the
   // eval can A/B the two mechanisms on the same fixture — the falsification condition needs both.
   retrieval?: RetrievalMode;
+  // "off" sends no dictionary note on this turn (defineWord.ts), so the define eval can run its paired
+  // baseline at the same commit (EVAL_DICTIONARY=off). The asked word is still detected and reported.
+  // Default "on"; the app never sets it.
+  dictionary?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -73,6 +79,12 @@ export interface TutorTurnResult {
   // True when this turn appended FIRST_TURN_HOLD_NOTE to the student's message (the first-turn
   // attempt-first hold, attemptFirst.ts), so the eval can record what the model was told.
   firstTurnHold: boolean;
+  // The word the student's newest message asks the meaning of (defineWord.ts askedWord), whether or not
+  // a note was sent; null when the message is not a meaning question.
+  askedWord: string | null;
+  // The dictionary entry and note this turn appended to the student's message, or null for none (not a
+  // meaning question, the word not in the dictionary, a failed lookup, another note's turn, or "off").
+  dictionaryNote: string | null;
   // Set when Ollama could not parse a tool call the model wrote (OllamaToolCallParseError in llm.ts)
   // and the kernel answered the turn with one call without tools instead of failing it. `iteration`
   // is the model call that failed (0 = the first); `error` is Ollama's own error text. Null on every
@@ -131,6 +143,15 @@ export class TutorEngine {
     // The check-before-praise note (checkBeforePraise.ts): a try at the problem the tutor just worked
     // on. Decided and applied the same way as the hold; never on the same turn as it.
     const checkBeforePraise = isCheckBeforePraiseTurn(messages.filter((m) => m.role !== "system"));
+    // The dictionary note (defineWord.ts): an explicit "what does X mean" in the student's newest
+    // message, looked up in the bundled dictionary. Never on a hold or check-before-praise turn: those
+    // notes govern a problem turn, and one note per turn keeps each lever's effect its own. The lookup
+    // starts here and is awaited after retrieval; it never throws, and a miss leaves the turn unchanged.
+    const newest = messages[messages.length - 1];
+    const asked = newest?.role === "user" ? askedWord(newest.content) : null;
+    const dictionaryLookup = asked && !firstTurnHold && !checkBeforePraise && turn.dictionary !== "off"
+      ? lookupDictionaryNote(asked.word, lookupWord)
+      : Promise.resolve(null);
 
     const eduTools = await selectTools(ctx);
     const offered = new Set(eduTools.map((t) => t.name));
@@ -196,13 +217,19 @@ ${lastUser.content}` };
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withCheckBeforePraise(messages[idx].content) };
     }
+    const dictionaryNote = await dictionaryLookup;
+    if (dictionaryNote) {
+      // Same place as the other notes: after the grounding block and the student's text.
+      const idx = messages.map((m) => m.role).lastIndexOf("user");
+      messages[idx] = { ...messages[idx], content: withDictionaryNote(messages[idx].content, dictionaryNote) };
+    }
     if (import.meta.env?.DEV) {
       const t = grounding.trace;
       console.info(`[ground] ${t.skipped ? `skipped: ${t.skipped}` : `${t.hitTitles.length} hit(s) — ${t.hitTitles.join(", ")}`} · ${t.candidates} candidate(s) · top ${t.topScore.toFixed(2)} · ${t.blockTokens} tok${t.error ? ` · ${t.error}` : ""}`);
     }
 
     try {
-      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold });
+      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -222,9 +249,11 @@ ${lastUser.content}` };
       grounding: Grounding;
       workedAnswerRules: boolean;
       firstTurnHold: boolean;
+      askedWord: string | null;
+      dictionaryNote: string | null;
     },
   ): Promise<TutorTurnResult> {
-    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold } = prepared;
+    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, dictionaryNote } = prepared;
     let messages = prepared.messages;
 
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
@@ -365,6 +394,8 @@ ${lastUser.content}` };
       usedHits,
       workedAnswerRules,
       firstTurnHold,
+      askedWord: prepared.askedWord,
+      dictionaryNote,
       toolCallRecovery,
     };
   }

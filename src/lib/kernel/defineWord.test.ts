@@ -1,0 +1,155 @@
+import { describe, it, expect, vi } from "vitest";
+import {
+  askedWord, dictionaryNote, lookupDictionaryNote, selectSenses, withDictionaryNote,
+  DICTIONARY_MAX_ENTRY_TOKENS, DICTIONARY_MAX_SENSES, DICTIONARY_NOTE, DICTIONARY_SENSES_PER_HEADWORD, DICTIONARY_SENSES_PER_POS,
+} from "./defineWord";
+import { estTokens } from "./budget";
+import type { DictionaryEntry, Pos } from "../dictionary";
+
+// Made-up entries: nothing here is dictionary text.
+const sense = (pos: Pos, i: number, form = "zorp") => ({ form, pos, definition: `made-up ${pos} sense ${i}`, example: i % 2 ? `a made-up example ${i}` : "", synonyms: [] });
+const entry = (headword: string, senses: ReturnType<typeof sense>[], via: "exact" | "form" = "exact"): DictionaryEntry => ({ headword, via, senses });
+
+describe("askedWord: fires on an explicit meaning question", () => {
+  const FIRES: Array<[string, string, string?]> = [
+    ["what does enormous mean?", "enormous"],
+    ["What does the word tiny mean", "tiny"],
+    ["what do enormous mean", "enormous"],
+    ["what did 'gobble' mean", "gobble"],
+    ["what's brave mean", "brave"],
+    ["whats brave mean?", "brave"],
+    ["What’s “brave” mean?", "brave"],
+    ["what is the meaning of giggle?", "giggle"],
+    ["what's the definition of reluctant", "reluctant"],
+    ["What is the definition of the word peek?", "peek"],
+    ["meaning of puddle", "puddle"],
+    ["The meaning of puddle?", "puddle"],
+    ["definition of nibble", "nibble"],
+    ["define shiver", "shiver"],
+    ["Define *ubiquitous*.", "ubiquitous"],
+    ["can you define photosynthesis please?", "photosynthesis"],
+    ["i dont know what furious means", "furious"],
+    ["I don't understand what the word cleave means", "cleave"],
+    ["I do not know what tacit mean", "tacit"],
+    ["what does give up mean", "give up"],
+    ["what does well-being mean?", "well-being"],
+    ["what does look it up mean", "look it up"],
+    ["hey, what does pi mean", "pi"],
+    ["ok so what does vast mean", "vast"],
+    ["what does o'clock mean", "o'clock"],
+    ["what does life mean", "life"],
+    // With a sentence it is about.
+    ["what does bank mean in 'we sat on the bank of the river'", "bank", "we sat on the bank of the river"],
+    ["What does the word bark mean in this sentence: The bark was rough.", "bark", "The bark was rough"],
+    ["what does bat mean in \"the bat flew out\"?", "bat", "the bat flew out"],
+    ["meaning of bank in this sentence: we sat on the bank", "bank", "we sat on the bank"],
+    ["what does sacrifice mean in baseball", "sacrifice", "baseball"],
+    ["what does bark mean: the bark on the tree", "bark", "the bark on the tree"],
+    ["define bank here", "bank"],
+    // The sentence before the question.
+    ["My mom said my bag is light. What does light mean here?", "light", "My mom said my bag is light."],
+    ["Read the sentence. The path was narrow. What does the word narrow mean in this sentence?", "narrow", "Read the sentence. The path was narrow."],
+  ];
+  it.each(FIRES)("%s", (text, word, context) => {
+    const got = askedWord(text);
+    expect(got?.word).toBe(word);
+    expect(got?.context).toBe(context);
+  });
+});
+
+describe("askedWord: does not fire", () => {
+  const NO: string[] = [
+    // Pronouns, determiners, deictics.
+    "what does that mean", "what does this mean?", "what does it mean", "what do you mean?", "what do you mean by that",
+    "what does it mean to be brave", "what does that word mean", "what do these words mean", "what does all that mean",
+    "what does the answer mean", "what does my teacher mean", "what does your answer mean", "what does he mean",
+    "I don't know what that means", "I don't know what it means", "what's that mean?", "define it",
+    "define the derivative", "Define a function f", "Define your terms", "meaning of this", "what does a mean",
+    // Single letters, numbers, symbols (maths).
+    "what does x mean", "what does x mean in this equation", "What does n mean?", "what does 2x mean", "what does π mean",
+    "What does αβ mean in the decay?", "What does ℏω mean?", "what does = mean", "what does 3/4 mean",
+    // A lone function word: the lookup maps some to a letter.
+    "what does is mean", "what does his mean", "what does us mean", "what does of mean",
+    // Something after X that is not a context.
+    "what does freedom mean to you", "what does photosynthesis mean for plants", "what does this mean for the answer",
+    "what does bank mean? I am confused",
+    // Not a meaning question, or a "what is a X" question (a later arm).
+    "what is a bank", "What is photosynthesis?", "what is the meaning of life and why", "what is the meaning of life?", "meaning of life", "what does give it mean", "Show me the full worked answer.",
+    "I think it's B.", "Is it 10?", "Which one is right?", "ok thanks", "It means the same thing.",
+    "Give me a hint.", "Walk me through it.", "what does the mean, median and mode tell us about the data set",
+    "What is the mean of 3, 5 and 7?", "I mean, what does she want?", "",
+  ];
+  it.each(NO)("%j", (text) => {
+    expect(askedWord(text)).toBeNull();
+  });
+});
+
+describe("selectSenses: caps", () => {
+  it("keeps stored order, at most SENSES_PER_POS per part of speech and SENSES_PER_HEADWORD per headword", () => {
+    const senses = [0, 1, 2, 3, 4].map((i) => sense("n", i)).concat([0, 1, 2, 3].map((i) => sense("v", i)), [sense("a", 0)]);
+    const [picked] = selectSenses([entry("zorp", senses)]);
+    expect(picked.senses.map((s) => `${s.pos}${s.definition.slice(-1)}`)).toEqual(["n0", "n1", "n2", "v0", "v1", "v2"].slice(0, DICTIONARY_SENSES_PER_HEADWORD));
+    expect(DICTIONARY_SENSES_PER_POS).toBe(3);
+  });
+  it("keeps lookupWord's headword order and stops at MAX_SENSES in all", () => {
+    const many = (h: string) => entry(h, [0, 1, 2].map((i) => sense("n", i, h)).concat([0, 1, 2].map((i) => sense("v", i, h))));
+    const picked = selectSenses([many("aaa"), many("bbb"), many("ccc")]);
+    expect(picked.map((p) => p.entry.headword)).toEqual(["aaa", "bbb"]);
+    expect(picked.reduce((k, p) => k + p.senses.length, 0)).toBe(DICTIONARY_MAX_SENSES);
+  });
+});
+
+describe("dictionaryNote", () => {
+  it("is null with no entries, so the turn is unchanged", () => {
+    expect(dictionaryNote("zorp", [])).toBeNull();
+    expect(dictionaryNote("zorp", [entry("zorp", [])])).toBeNull();
+  });
+
+  it("renders the entry, then the note naming the word", () => {
+    const note = dictionaryNote("zorped", [entry("zorp", [sense("v", 1), sense("n", 0)], "form")])!;
+    expect(note).toBe(`<dictionary_entry source="Open English WordNet">
+"zorped" is a form of "zorp".
+1. zorp (verb): made-up v sense 1. Example: "a made-up example 1"
+2. zorp (noun): made-up n sense 0
+</dictionary_entry>
+${DICTIONARY_NOTE.replace("{word}", "zorped")}`);
+    expect(note).not.toContain("\r");
+  });
+
+  it("cuts senses from the end until the entry fits the token cap, keeping at least one", () => {
+    const long = (i: number) => ({ ...sense("n", i), definition: `${"long made-up text ".repeat(20)}${i}` });
+    const note = dictionaryNote("zorp", [entry("zorp", [long(0), long(1), long(2)]), entry("zorps", [long(3), long(4), long(5)])])!;
+    const block = note.slice(0, note.indexOf("<tutor_note>"));
+    expect(estTokens(block.trim())).toBeLessThanOrEqual(DICTIONARY_MAX_ENTRY_TOKENS);
+    expect(block).toContain("1. zorp");
+    const huge = { ...sense("n", 0), definition: "x".repeat(4000) };
+    expect(dictionaryNote("zorp", [entry("zorp", [huge, sense("n", 1)])])).toContain("1. zorp");
+  });
+
+  it("appends after the student's text", () => {
+    expect(withDictionaryNote("what does zorp mean", "NOTE")).toBe("what does zorp mean\n\nNOTE");
+  });
+});
+
+describe("lookupDictionaryNote: a lookup never fails or stalls the turn", () => {
+  it("returns the note when the lookup finds the word", async () => {
+    const note = await lookupDictionaryNote("zorp", async () => [entry("zorp", [sense("n", 0)])]);
+    expect(note).toContain("1. zorp (noun)");
+  });
+  it("returns null when the word is not found", async () => {
+    expect(await lookupDictionaryNote("zorp", async () => [])).toBeNull();
+  });
+  it("returns null when the lookup throws", async () => {
+    expect(await lookupDictionaryNote("zorp", async () => { throw new Error("bundled files unreadable"); })).toBeNull();
+  });
+  it("returns null at the deadline when the lookup hangs", async () => {
+    vi.useFakeTimers();
+    try {
+      const p = lookupDictionaryNote("zorp", () => new Promise<DictionaryEntry[]>(() => {}), 50);
+      await vi.advanceTimersByTimeAsync(60);
+      expect(await p).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
