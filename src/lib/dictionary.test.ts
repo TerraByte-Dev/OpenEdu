@@ -20,15 +20,18 @@ const FILES = Object.fromEntries(
 const read = (name: string) => FILES[name];
 const SHARD_FILE = /^[a-z0-9_]{2}\.json$/;
 
-// The production lookup, fed the shipped files: fetch is stubbed to serve public/dictionary, so these
-// tests run lookupWord itself, not a copy of its logic.
+// The production lookup, fed the shipped files. The stub answers the way Vite's dev server and Tauri's
+// asset resolver both do: a known file as JSON, an unknown name as index.html with a 200 (SPA fallback),
+// never a 404. So these tests run lookupWord itself against what the app really gets back.
 function stubFetchFromDisk() {
   const calls: string[] = [];
   vi.stubGlobal("fetch", async (url: string) => {
     const name = url.split("/").pop()!;
     calls.push(name);
     const text = read(name);
-    return text === undefined ? new Response("not found", { status: 404 }) : new Response(text, { status: 200 });
+    return text === undefined
+      ? new Response("<!doctype html><html></html>", { status: 200, headers: { "content-type": "text/html" } })
+      : new Response(text, { status: 200, headers: { "content-type": "application/json" } });
   });
   return calls;
 }
@@ -51,21 +54,27 @@ describe("normalizeQuery", () => {
 });
 
 describe("candidateHeadwords", () => {
-  const exc: Exceptions = { n: { mice: ["mouse"] }, v: { went: ["go"], looked: [] }, a: {}, r: {} };
+  const exc: Exceptions = { n: { mice: ["mouse"] }, v: { went: ["go"] }, a: {}, r: {} };
+  const words = (w: string, opts = {}) => candidateHeadwords(w, exc, opts).map((c) => c.word);
 
-  it("puts the word first, then irregular bases, then suffix-rule bases", () => {
-    expect(candidateHeadwords("mice", exc)[0]).toBe("mice");
-    expect(candidateHeadwords("mice", exc)[1]).toBe("mouse");
-    expect(candidateHeadwords("jumped", exc)).toEqual(expect.arrayContaining(["jumped", "jump", "jumpe"]));
+  it("puts the word first, then irregular bases, then suffix-rule bases, each with the POS that made it", () => {
+    expect(candidateHeadwords("mice", exc).slice(0, 2)).toEqual([{ word: "mice", pos: null }, { word: "mouse", pos: "n" }]);
+    expect(candidateHeadwords("jumped", exc)).toEqual(expect.arrayContaining([{ word: "jump", pos: "v" }]));
   });
 
   it("lemmatizes the first word of a phrase and keeps the rest", () => {
-    expect(candidateHeadwords("looked up", exc)).toContain("look up");
-    expect(candidateHeadwords("went out", exc)).toContain("go out");
+    expect(words("looked up")).toContain("look up");
+    expect(words("went out")).toContain("go out");
+  });
+
+  it("tries an abbreviation with its final dot back on", () => {
+    expect(words("a.m")).toContain("a.m.");
+    expect(words("dr", { trailingDot: true })).toContain("dr.");
+    expect(words("dr")).not.toContain("dr.");
   });
 
   it("never yields an empty candidate", () => {
-    expect(candidateHeadwords("s", exc)).toEqual(["s"]);
+    expect(words("s")).toEqual(["s"]);
   });
 });
 
@@ -103,13 +112,15 @@ describe("the shipped dictionary", () => {
     }
     const meta = JSON.parse(read("meta.json"));
     expect(headwords).toBe(meta.headwords);
-    expect(shardFiles.length).toBe(meta.shards);
+    expect(shardFiles.map((f) => f.slice(0, 2)).sort()).toEqual(meta.shardKeys);
   });
 
   it("ships its licence texts and attribution", () => {
     expect(read("LICENSE.md")).toMatch(/Creative Commons Attribution 4\.0/);
     expect(read("WNDB_License.txt")).toMatch(/Princeton University/);
-    expect(JSON.parse(read("meta.json")).attribution).toMatch(/Open English WordNet/);
+    const meta = JSON.parse(read("meta.json"));
+    expect(meta.attribution).toMatch(/Open English WordNet/);
+    expect(meta.modifications).toMatch(/^Adapted/);
   });
 });
 
@@ -163,16 +174,35 @@ describe("lookupWord over the shipped dictionary", () => {
     expect(may.senses.some((s) => s.form === "May")).toBe(true);
   });
 
-  it("returns nothing for a word it doesn't have, without throwing on a missing shard", async () => {
+  it("returns nothing for a word it doesn't have, and never fetches a shard that doesn't exist", async () => {
     expect(await lookupWord("flurbishness")).toEqual([]);
     expect(await lookupWord("qqzx")).toEqual([]);
+    expect(await lookupWord("zzz")).toEqual([]);
+    expect(await lookupWord("école")).toEqual([]);
+    expect(await lookupWord("#1")).toEqual([]);
     expect(await lookupWord("   ")).toEqual([]);
+    const known = new Set(JSON.parse(read("meta.json")).shardKeys.map((k: string) => `${k}.json`));
+    expect(calls.filter((c) => !known.has(c) && c !== "exceptions.json" && c !== "meta.json")).toEqual([]);
   });
 
-  it("fetches each shard once per session", async () => {
+  it("only offers a suffix-rule base that has a sense in that rule's part of speech", async () => {
+    expect(await heads("mother")).toEqual(["mother"]);
+    expect(await heads("teacher")).toEqual(["teacher"]);
+    expect(await heads("news")).toEqual(["news"]);
+    expect(await heads("paper")).toEqual(["paper"]);
+    expect(await heads("houses")).toContain("house");
+  });
+
+  it("finds abbreviations written with their dots", async () => {
+    expect(await heads("a.m.")).toContain("a.m.");
+    expect(await heads("e.g.")).toContain("e.g.");
+  });
+
+  it("fetches each file once per session, even for lookups in flight together", async () => {
+    await Promise.all([lookupWord("bank"), lookupWord("banks"), lookupWord("banker")]);
     await lookupWord("bank");
-    await lookupWord("banks");
     expect(calls.filter((c) => c === "ba.json")).toHaveLength(1);
     expect(calls.filter((c) => c === "exceptions.json")).toHaveLength(1);
+    expect(calls.filter((c) => c === "meta.json")).toHaveLength(1);
   });
 });

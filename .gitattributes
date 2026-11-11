@@ -1,1 +1,3 @@
 public/library/** text eol=lf
+public/dictionary/** text eol=lf
+public/dictionary/*.json linguist-generated=true

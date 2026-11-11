@@ -17,7 +17,8 @@
 //                                 { "<headword>": [[form, pos, definition, example, synonyms], ...] }
 //                                 pos is n | v | a | r; senses keep OEWN's order within a headword.
 //   public/dictionary/exceptions.json   irregular forms from WNDB *.exc: { n|v|a|r: { form: [lemma] } }
-//   public/dictionary/meta.json   source, edition, licence, archive hashes, counts
+//   public/dictionary/meta.json   source, edition, licence, what was changed, archive hashes, counts,
+//                                 and the list of shard keys (lookups fetch only those)
 //   public/dictionary/LICENSE.md, WNDB_License.txt   OEWN's licence texts (CC BY 4.0, and the
 //                                 Princeton WordNet licence), copied from scripts/data/oewn/, which holds
 //                                 them as fetched from the repo at the 2025-edition tag
@@ -122,7 +123,10 @@ writeFileSync(
       archives: ARCHIVE_SHA256,
       headwords: byKey.size,
       senses: senseCount,
-      shards: shards.size,
+      modifications:
+        "Adapted: reformatted into JSON shards by two-letter prefix; per sense, the first definition, the " +
+        "first example and up to 3 one-word synonyms; relations, pronunciations and other fields dropped.",
+      shardKeys: [...shards.keys()].sort(),
     },
     null,
     2,

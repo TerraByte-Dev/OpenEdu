@@ -163,8 +163,8 @@ Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (how it's built) an
 
 [MIT](LICENSE) © TerraByte Solutions LLC.
 
-The bundled dictionary (`public/dictionary/`) is [Open English WordNet](https://github.com/globalwordnet/english-wordnet)
-2025, by the Open English WordNet team, under [CC BY 4.0](public/dictionary/LICENSE.md). It is derived from
+The bundled dictionary (`public/dictionary/`) is adapted from [Open English WordNet](https://github.com/globalwordnet/english-wordnet)
+2025, by the Open English WordNet team (reformatted and trimmed; see `meta.json`), under [CC BY 4.0](public/dictionary/LICENSE.md). It is derived from
 WordNet 3.1, © Princeton University, under the [WordNet licence](public/dictionary/WNDB_License.txt).
 
 <p align="center">
