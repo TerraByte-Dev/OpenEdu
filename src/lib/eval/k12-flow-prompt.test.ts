@@ -27,7 +27,8 @@ describe("k12FlowTurnSetup", () => {
     expect(topic).toBe("Mathematics");
     expect(activeSkill?.name).toBe("explain");
     expect(domainSkill?.name).toBe("math-tutor");
-    // ChatTab: buildSystemPrompt(instructions, currentSyllabus, level, course.topic, skillSuffix, knowledge, persona)
+    // ChatTab: buildSystemPrompt(instructions, currentSyllabus, level, course.topic, skillSuffix, knowledge, persona, readingLevel)
+    // (readingLevel is undefined when no grade is set, as here)
     const chatTab = buildSystemPrompt({}, null, 1, topic, chatTurnSkills("explain", topic, "tiny", true).skillSuffix);
     expect(system).toBe(chatTab);
     expect(system).toContain("You are a knowledgeable, encouraging tutor.");
