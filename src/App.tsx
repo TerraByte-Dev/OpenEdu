@@ -32,6 +32,7 @@ import StartupFailed from "./components/StartupFailed";
 import Sidebar from "./components/Sidebar";
 import Home from "./views/Home";
 import EarlyLearner from "./views/early/EarlyLearner";
+import GrownUps from "./views/early/GrownUps";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
 import Settings from "./views/settings/Settings";
@@ -361,6 +362,8 @@ export default function App() {
   const earlyPending = currentView === "dashboard" && hasEarlyScreens(activeGrade) && earlyChoice === undefined;
   const earlyHome = currentView === "dashboard" && earlyChoice !== undefined && earlyScreensOn(activeGrade, earlyChoice);
   const childScreen = earlyHome || earlyPending;
+  // The grown-ups view of an early learner's progress (#244), behind the press-and-hold.
+  const grownUpsView = currentView === "grownups" && activeLearner !== null;
 
   return (
     <div
@@ -414,7 +417,7 @@ export default function App() {
                 the one list you do not need — you are already in the thing it selects. In course
                 view CourseView takes the column for its own navigation (tabs, threads, notes), and
                 the way back to the list is the header's back arrow. */}
-            {!isFullscreenView && currentView !== "course" && !childScreen && (
+            {!isFullscreenView && currentView !== "course" && !childScreen && !grownUpsView && (
               <Sidebar
                 courses={courses}
                 selectedCourseId={selectedCourseId}
@@ -460,7 +463,16 @@ export default function App() {
               {earlyHome && (
                 <EarlyLearner
                   learnerName={activeLearner.name}
-                  onGrownUps={() => openSettings("early-grownups", "usage")}
+                  onGrownUps={() => guarded("early-grownups", () => setCurrentView("grownups"))}
+                />
+              )}
+
+              {grownUpsView && (
+                <GrownUps
+                  learnerName={activeLearner.name}
+                  grade={activeGrade}
+                  onBack={() => setCurrentView("dashboard")}
+                  onSettings={() => openSettings("grownups-settings", "usage")}
                 />
               )}
 

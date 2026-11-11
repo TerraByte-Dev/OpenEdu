@@ -319,7 +319,7 @@ export interface LLMConfig {
 }
 
 // "dashboard" is the learner's Home (views/Home.tsx); "create" is the new-course flow (views/Dashboard.tsx).
-export type View = "dashboard" | "create" | "course" | "settings" | "quiz" | "promotion-test";
+export type View = "dashboard" | "create" | "course" | "settings" | "quiz" | "promotion-test" | "grownups";
 
 export interface QuizViewContext {
   courseId: string;
