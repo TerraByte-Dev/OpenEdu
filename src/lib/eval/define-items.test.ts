@@ -41,6 +41,20 @@ describe("define items", () => {
     }
   });
 
+  // A reply's opener says nothing about the meaning, so it must not pass or fail an item on its own
+  // (review round 2, ruling b): "Nice question! Here, kind means a type" must not fail strict on "nice".
+  it("no expect or wrongSense term matches a conventional reply opener", () => {
+    const OPENERS = [
+      "Great question!", "Good question!", "Nice question!", "Excellent question!", "Nice!", "Okay!", "Okay,", "OK,", "Ok!",
+      "Alright,", "All right,", "Sure!", "Of course!", "Absolutely!", "Yes!", "Hi!", "Hello!", "Well,", "So,", "Fair question!",
+    ];
+    for (const item of DEFINE_ITEMS) {
+      for (const group of [...item.expect, ...(item.wrongSense ? [item.wrongSense] : [])]) {
+        for (const o of OPENERS) expect(matchTerm(o, group), `${item.id}: "${o}"`).toBeNull();
+      }
+    }
+  });
+
   // Only the D arm sees the note and the entry's fixed text, so a term they contain would pass a reply
   // that echoes them. Re-checked at every note wording: this test reads DICTIONARY_NOTE as it is.
   it("no expect or wrongSense term matches the note or the entry's fixed format text", () => {
