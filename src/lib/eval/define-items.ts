@@ -3,18 +3,30 @@
 // runner define-runner.ts.
 //
 // ── How the items were made (frozen before any run) ──────────────────────────
-// Written by hand from general knowledge, in one sitting, BEFORE the author opened anything in
-// public/dictionary/, the dictionary's tests, or any other WordNet text, and committed on its own
-// before the commit that wires the dictionary into the tutor turn. So no word list, definition,
-// example or expect term was taken from the dictionary the treatment arm shows the model.
+// Written from general knowledge, in one sitting, by a language model (Claude), and committed on
+// their own at 8e160b9, before the commit that wires the dictionary into the tutor turn. What git
+// supports is that order and nothing more: the same session had just built the dictionary layer
+// (d83e8d9), whose tests assert WordNet text for "bank", "big" and "see", so sense-35-01 ("bank") was
+// written by an author who had seen part of its WordNet entry. Independence from the shown entries
+// rests on the breadth of the lists and the blind label check (BENCHMARKS.md B8), not on the author
+// never having seen WordNet. Term lists are never patched from WordNet text.
 //
-// Expect terms are deliberately broad: any everyday synonym or plain paraphrase a correct answer
-// might use, so a baseline answer in its own words passes and the treatment arm cannot win by
-// repeating the dictionary's wording. Scoring (define-grade.ts): `expect` is a list of groups, every
-// group must match; a group is "|"-separated alternatives matched as whole words, case-insensitive
-// (rag-dev-v2.ts containsAlternative), and an alternative ending in "*" matches any word starting with
-// it ("laugh*" finds "laughing"). No alternative may match the asked word or the student's own text
-// (define-items.test.ts), so echoing the question never passes.
+// Expect terms are broad: everyday synonyms and plain paraphrases a correct answer might use, so a
+// baseline answer in its own words can pass. They do NOT stop the treatment arm from passing by
+// repeating the shown entry (most entries contain an expect term), and a faithful paraphrase of an
+// entry can still miss; the grader is checked against hand labels before the freeze (B8). Scoring
+// (define-grade.ts): `expect` is a list of groups, every group must match; a group is "|"-separated
+// alternatives matched as whole words, case-insensitive (rag-dev-v2.ts containsAlternative), and an
+// alternative ending in "*" matches any word starting with it ("laugh*" finds "laughing"). No
+// expect or wrongSense alternative may match the asked word, the student's own text, the note
+// (kernel/defineWord.ts DICTIONARY_NOTE) or the entry's fixed format text (define-items.test.ts), so
+// echoing the question, the note or the header never passes.
+//
+// Revision r2 (lever 18 review, before any run): 19 expect alternatives in 16 items that matched the note or the
+// entry header were narrowed or dropped ("stud*" matched "student", "open*" matched "Open English
+// WordNet", "brief*" matched "briefly"), and praise or filler words left the wrongSense lists
+// ("great", "sunny", "helpful", "best", "person", "picture", "miss"; a bare "fine" became "a fine" or
+// "fined"). No term was taken from WordNet text.
 //
 // Two kinds:
 //   - "plain": an explicit meaning question with no sentence. ~38 per grade band, words a student in
@@ -90,7 +102,7 @@ const PLAIN_K2: Row[] = [
   ["def-k2-26", "meaning of puddle", "puddle", "water|rain*|small pool|pool"],
   ["def-k2-27", "what does tumble mean", "tumble", "fall*|fell|roll*|topple*|flip*|somersault*|trip*|drop*"],
   ["def-k2-28", "what does hatch mean", "hatch", "egg*|break* out|come out|comes out|born|crack*|emerg*|door|opening|trapdoor"],
-  ["def-k2-29", "what does share mean", "share", "give*|giving|split*|divid*|together|some of|let others|let someone|take turns|both use|everyone gets"],
+  ["def-k2-29", "what does share mean", "share", "giving|gives|gave|give some|give part|give others|giving|split*|divid*|together|some of|let others|let someone|take turns|both use|everyone gets"],
   ["def-k2-30", "define gentle", "gentle", "soft*|kind*|careful*|calm*|tender*|light touch|not rough|mild|easy"],
   ["def-k2-31", "i don't know what squeal means", "squeal", "high*|shriek*|squeak*|scream*|screech*|loud|cry|yelp*|pig*"],
   ["def-k2-32", "what does glad mean?", "glad", "happy|pleased|joy*|delight*|cheer*|thankful|grateful|relieved"],
@@ -111,7 +123,7 @@ const PLAIN_35: Row[] = [
   ["def-35-06", "I don't know what migrate means", "migrate", "move*|moving|travel*|journey*|go south|goes south|another place|another region|relocat*|season*"],
   ["def-35-07", "what does nocturnal mean", "nocturnal", "night*|dark|after sunset"],
   ["def-35-08", "whats vibrant mean", "vibrant", "bright*|colorful|colourful|lively|full of life|energ*|vivid|bold|strong"],
-  ["def-35-09", "what does generous mean?", "generous", "shar*|giv*|kind*|unselfish|free*|lavish|plenty|big-hearted"],
+  ["def-35-09", "what does generous mean?", "generous", "shar*|giving|gives|gave|give away|give to others|give things|kind*|unselfish|free*|lavish|plenty|big-hearted"],
   ["def-35-10", "meaning of predator", "predator", "hunt*|eat*|kills|prey|kill*|catch*"],
   ["def-35-11", "what does camouflage mean", "camouflage", "blend*|hide*|hidden|hiding|disguis*|conceal*|surround*|not be seen|invisible"],
   ["def-35-12", "What does hesitate mean?", "hesitate", "pause*|paus*|wait*|unsure|delay*|not sure|uncertain|second thoughts|holding back|hold back|reluctan*"],
@@ -128,7 +140,7 @@ const PLAIN_35: Row[] = [
   ["def-35-23", "what does mischievous mean", "mischievous", "trouble*|naughty|playful*|prank*|tricks|tease|teasing|harm*|annoy*|cheeky|impish|misbehav*|mischief"],
   ["def-35-24", "what does the word fatigue mean", "fatigue", "tired*|exhaust*|weary|weari*|worn out|lack of energy|sleepy|no energy"],
   ["def-35-25", "what does triumph mean?", "triumph", "win*|won|victor*|success*|achiev*|beat*|great joy|celebrat*|accomplish*|conquer*"],
-  ["def-35-26", "whats the definition of examine", "examine", "look*|inspect*|stud*|check*|investigat*|observ*|scrutin*|test*|analy*"],
+  ["def-35-26", "whats the definition of examine", "examine", "look*|inspect*|study|studies|studying|studied|check*|investigat*|observ*|scrutin*|test*|analy*"],
   ["def-35-27", "what does vanish mean", "vanish", "disappear*|gone|go away|went away|out of sight|no longer|fade*|invisible|cease*"],
   ["def-35-28", "what is the meaning of anxious", "anxious", "worr*|nervous|uneasy|afraid|scared|stress*|tense|fear*|eager|impatient|jittery|on edge|concern*"],
   ["def-35-29", "define precise", "precise", "exact*|accurate*|correct|careful*|specific|detail*|right|definite|particular"],
@@ -144,13 +156,13 @@ const PLAIN_35: Row[] = [
 ];
 
 const PLAIN_68: Row[] = [
-  ["def-68-01", "what does ambiguous mean?", "ambiguous", "more than one meaning|unclear|not clear|uncertain|vague|two meanings|several meanings|different meanings|different ways|more than one way|open to|confus*|double meaning|interpret*|equivocal|doubtful"],
+  ["def-68-01", "what does ambiguous mean?", "ambiguous", "more than one meaning|unclear|not clear|uncertain|vague|two meanings|different meanings|different ways|more than one way|open to|confus*|double meaning|interpret*|equivocal|doubtful"],
   ["def-68-02", "what's the definition of meticulous", "meticulous", "careful*|detail*|precise*|thorough*|exact*|painstak*|attention to|fussy|scrupulous*|particular|perfect*"],
   ["def-68-03", "define benevolent", "benevolent", "kind*|generous*|good|charit*|caring|well-meaning|goodwill|good will|help*|compassion*|altruis*|benign|warm-hearted|kindhearted|kind-hearted|good-hearted"],
   ["def-68-04", "what is the meaning of resilient", "resilient", "recover*|bounce* back|spring* back|tough*|strong|adapt*|cope|coping|withstand*|bounc*|elastic|hardy|get back up|overcome|keep going|setback*|difficult*|hard times"],
-  ["def-68-05", "what does the word candid mean", "candid", "honest*|frank*|open*|truth*|direct*|sincere*|straightforward|blunt|unposed|natural|unscripted|informal|spontaneous|not posed"],
+  ["def-68-05", "what does the word candid mean", "candid", "honest*|frank*|truth*|direct*|sincere*|straightforward|blunt|unposed|natural|unscripted|informal|spontaneous|not posed"],
   ["def-68-06", "I don't know what inevitable means", "inevitable", "certain*|sure to happen|bound to|unavoidable|can't be avoided|cannot be avoided|can't avoid|cannot avoid|will happen|going to happen|no way to stop|can't be stopped|cannot be stopped|can't stop|cannot stop|definitely happen|unstoppable|no escap*|impossible to avoid|impossible to stop"],
-  ["def-68-07", "what does scrutinize mean", "scrutinize", "examin*|inspect*|stud*|closely|careful*|detail*|analy*|investigat*|check*|critical*"],
+  ["def-68-07", "what does scrutinize mean", "scrutinize", "examin*|inspect*|study|studies|studying|studied|closely|careful*|detail*|analy*|investigat*|check*|critical*"],
   ["def-68-08", "whats the meaning of eloquent", "eloquent", "speak* well|speaking well|express*|well-spoken|well spoken|fluent*|articulat*|persuasive*|graceful*|clear|moving|powerful*|beautiful*|skill*|good with words|way with words|silver-tongued|forceful"],
   ["def-68-09", "what does tedious mean?", "tedious", "boring|bore*|dull|monoton*|tiresome|tiring|long|repetit*|slow|wearisome|drag* on|uninteresting|not interesting|mind-numbing|humdrum|dreary"],
   ["def-68-10", "define deteriorate", "deteriorate", "worse|worsen*|declin*|decay*|degenerat*|break* down|fall* apart|crumbl*|weaken*|get bad|go downhill|rot*|wear* out|wear* away|degrad*"],
@@ -162,9 +174,9 @@ const PLAIN_68: Row[] = [
   ["def-68-16", "what does arid mean?", "arid", "dry|dried|little rain|no rain|not much rain|desert*|lack* of water|lack* water|without water|without rain|parched|barren|moisture|dull|boring|lifeless"],
   ["def-68-17", "define obsolete", "obsolete", "out of date|outdated|out-of-date|no longer|not used anymore|old-fashioned|old fashioned|outmoded|replaced|not used|out of use|disused|archaic|antiquated|discontinued|out of style|extinct|defunct|dated|old|anymore|any more"],
   ["def-68-18", "whats skeptical mean", "skeptical", "doubt*|not sure|unsure|question*|unconvinced|not convinced|suspicious*|distrust*|mistrust*|wary|disbelie*|uncertain|not believ*|don't believe|hard to believe|cynical|proof|evidence"],
-  ["def-68-19", "what does the word allocate mean", "allocate", "assign*|give*|giving|distribut*|set aside|share* out|divid*|allot*|apportion*|designat*|earmark*|hand* out|portion*|budget*|parcel* out|split*"],
+  ["def-68-19", "what does the word allocate mean", "allocate", "assign*|giving|gives|gave|given|give out|give each|giving|distribut*|set aside|share* out|divid*|allot*|apportion*|designat*|earmark*|hand* out|portion*|budget*|parcel* out|split*"],
   ["def-68-20", "what does tranquil mean?", "tranquil", "calm*|peace*|quiet*|still|serene|relax*|restful|undisturbed|untroubled|placid|soothing|gentle|at rest|at ease"],
-  ["def-68-21", "what's the meaning of illuminate", "illuminate", "light*|lit|brighten*|bright*|shine*|shining|explain*|clarif*|clear|enlighten*|understand*|reveal*"],
+  ["def-68-21", "what's the meaning of illuminate", "illuminate", "light*|lit|brighten*|bright*|shine*|shining|explains|explained|explaining|clarif*|clear|enlighten*|easier to understand|helps you understand|help you understand|help people understand|reveal*"],
   ["def-68-22", "meaning of dilemma", "dilemma", "choice*|choos*|decid*|decision*|option*|alternative*|both|either|difficult|tough|hard|tricky|problem|predicament|quandary|stuck|conflict*"],
   ["def-68-23", "define plausible", "plausible", "believ*|possib*|reasonable|likely|credible|could be true|might be true|seems true|seem* true|realistic|makes sense|make sense|probable|convincing|acceptable|valid|logical|feasible|sound"],
   ["def-68-24", "what does the word vivid mean?", "vivid", "bright*|colorful|colourful|intense|strong|clear*|sharp|detailed|lifelike|realistic|striking|brilliant|lively|real|bold|rich|graphic|powerful|alive"],
@@ -173,7 +185,7 @@ const PLAIN_68: Row[] = [
   ["def-68-27", "I don't know what ominous means", "ominous", "threaten*|menac*|bad sign|warning|foreboding|sinister|dark|scary|danger*|something bad|bad omen|omen|eerie|creepy|gloomy|worrying|uneasy|dread*|portent*|inauspicious|unlucky|doom*"],
   ["def-68-28", "whats the meaning of the word profound", "profound", "deep*|intense*|great|serious*|significant*|meaningful|insightful|wise|wisdom|important|powerful*|strong*|thoughtful|complex|heavy|extreme*|huge|thorough|major|far-reaching|intellectual"],
   ["def-68-29", "what does conspicuous mean?", "conspicuous", "notice*|noticeabl*|obvious|stand* out|standing out|easy to see|easily seen|visible|attract* attention|eye-catching|striking|prominent|stick* out|sticking out|apparent|clear|evident|glaring|blatant|showy"],
-  ["def-68-30", "define articulate", "articulate", "express*|clear*|speak*|speaking|spoke*|well-spoken|well spoken|eloquent*|fluent*|words|joint*|connect*|explain*|state*|pronounc*|communicat*|put into words"],
+  ["def-68-30", "define articulate", "articulate", "express*|clear*|speak*|speaking|spoke*|well-spoken|well spoken|eloquent*|fluent*|joint*|connect*|explains|explained|explaining|state*|pronounc*|communicat*|put into words"],
   ["def-68-31", "what does the word imminent mean", "imminent", "soon|about to|any moment|any minute|going to happen|near|close|upcoming|impending|coming|approach*|at hand|on the horizon|on its way|on the way|shortly|immediately|right away|forthcoming|looming"],
   ["def-68-32", "what does mediocre mean", "mediocre", "average|ordinary|okay|ok|not great|not very good|so-so|so so|middle|medium|moderate|unremarkable|unexceptional|not special|plain|run-of-the-mill|second-rate|fair|passable|meh|inferior|poor|not good|uninspired|unimpressive|nothing special|middling|low quality|lacking"],
   ["def-68-33", "what's the definition of consensus", "consensus", "agree*|accord|unanim*|everyone|general|majority|most people|common view|together|group|all|shared|harmony|concur*"],
@@ -185,8 +197,8 @@ const PLAIN_68: Row[] = [
 ];
 
 const PLAIN_912: Row[] = [
-  ["def-912-01", "what does ubiquitous mean?", "ubiquitous", "everywhere|all over|omnipresent|very common|common|widespread|pervasive|in every place|all around|universal|wherever|ever-present|always present"],
-  ["def-912-02", "What's the definition of ephemeral", "ephemeral", "short|brief*|fleeting|temporary|transient|momentary|passing|quickly|not last*|doesn't last|does not last|short-lived|short lived|impermanent|fade*|vanish*|transitory|evanescent"],
+  ["def-912-01", "what does ubiquitous mean?", "ubiquitous", "everywhere|all over|omnipresent|very common|widespread|pervasive|in every place|all around|universal|wherever|ever-present|always present"],
+  ["def-912-02", "What's the definition of ephemeral", "ephemeral", "short|brief|briefer|briefest|fleeting|temporary|transient|momentary|passing|quickly|not last*|doesn't last|does not last|short-lived|short lived|impermanent|fade*|vanish*|transitory|evanescent"],
   ["def-912-03", "define obfuscate", "obfuscate", "confus*|unclear|obscur*|hide|hiding|hid|conceal*|cloud*|muddl*|blur*|complicat*|hard to understand|harder to understand|difficult to understand|bewilder*|muddy|disguise*|garble*|scramble*|mislead*|deliberately"],
   ["def-912-04", "what does the word perfunctory mean", "perfunctory", "minimum|minimal|without care|without much care|careless*|without effort|little effort|without interest|without thought|routine*|superficial*|cursory|half-hearted|halfhearted|going through the motions|mechanical*|hasty|hastily|duty|obligation|indifferent|automatic|token|offhand|rushed|just to get it done|for the sake of it"],
   ["def-912-05", "I don't know what sycophant means", "sycophant", "flatter*|suck* up|kiss* up|brown-nos*|yes-man|toady|bootlick*|fawn*|servile|praise*|win favor|win favour|gain favor|gain favour|get ahead|teacher's pet|crawler|lackey|obsequious|people in power|powerful people|someone important|important people|boss"],
@@ -213,7 +225,7 @@ const PLAIN_912: Row[] = [
   ["def-912-26", "What does mendacious mean?", "mendacious", "lying|liar*|lie|lies|untruth*|dishonest*|false*|deceit*|deceiv*|deceptive|fake|fibb*|fib|mislead*|not true|not truthful|untrustworthy|fraud*|duplicit*|fabricat*|made up|make up|invent*|perjur*|disingenuous|insincere|crooked"],
   ["def-912-27", "meaning of parsimonious", "parsimonious", "cheap|stingy|tight*|frugal|thrift*|miserly|miser*|penny-pinch*|pinch* pennies|unwilling to spend|reluctant to spend|reluctance to spend|not spend|spend* very little|spend little|spending little|sparing*|scrimp*|careful with money|economical|ungenerous|close-fisted|tightfisted|tight-fisted|niggardly|penurious|grudg*|simplest|fewest|minimal|minimum|economy"],
   ["def-912-28", "what does the word pedantic mean", "pedantic", "detail*|rules|minor|small|tiny|trivial*|nitpick*|nit-pick*|fussy|overly concerned|too concerned|precise|precision|correct*|accura*|show* off|knowledge|learning|book*|academic|formal|technical*|hair-split*|stickler|know-it-all|know it all|petty|particular|perfectionis*|literal*|exact*|dogmatic|didactic|lectur*|condescend*|smug|teacher|scholar*"],
-  ["def-912-29", "define prosaic", "prosaic", "ordinary|dull|boring|plain|unimaginative|imagination|matter-of-fact|matter of fact|everyday|mundane|commonplace|unremarkable|uninspired|uninspiring|flat|bland|routine|humdrum|pedestrian|practical|unpoetic|not poetic|prose|straightforward|dry|tedious|common|banal|workaday|run-of-the-mill|uninteresting|not interesting|literal|factual|average|regular|normal|simple"],
+  ["def-912-29", "define prosaic", "prosaic", "ordinary|dull|boring|plain|unimaginative|imagination|matter-of-fact|matter of fact|mundane|commonplace|unremarkable|uninspired|uninspiring|flat|bland|routine|humdrum|pedestrian|practical|unpoetic|not poetic|prose|straightforward|dry|tedious|banal|workaday|run-of-the-mill|uninteresting|not interesting|literal|factual|average|regular|normal|simple"],
   ["def-912-30", "I dont know what reticent means", "reticent", "reserved|quiet*|shy|silent|restrain*|hold* back|holding back|held back|not reveal*|don't reveal|doesn't reveal|unwilling to|reluctan*|hesitant|guarded|secretive|private|not open|unforthcoming|uncommunicative|taciturn|tight-lipped|keep* to|kept to|self-contained|withdrawn|introvert*|not share|don't share|doesn't share|not talk*|not speak*|thoughts|feelings|discreet|aloof|distant|modest|timid"],
   ["def-912-31", "what's the meaning of sardonic?", "sardonic", "mock*|scorn*|sneer*|sarcas*|cynical*|derisive|derision|disdain*|contempt*|grim*|bitter*|dry|wry|ironic*|irony|caustic|biting|cutting|sharp|acid|mean-spirited|snide|smirk*|scoff*|jeer*|ridicul*|humor|humour|joke|joking|jokes|witty|teasing|tease|unkind|cruel|harsh|amused|amusement"],
   ["def-912-32", "what does soporific mean", "soporific", "sleep*|drows*|doz*|tired*|tiring|boring|dull|tedious|sedat*|tranquiliz*|tranquillis*|calming|relax*|slumber*|somnolen*|hypnotic|narcotic|lull*|nod* off|knock* out|yawn*|soothing|bore|lethargy|lethargic"],
@@ -221,7 +233,7 @@ const PLAIN_912: Row[] = [
   ["def-912-34", "what does the word vacillate mean?", "vacillate", "waver*|hesitat*|indecis*|undecided|can't decide|cannot decide|can't make up|cannot make up|unable to decide|not decide|back and forth|switch*|change your mind|changing your mind|change their mind|changing their mind|changes their mind|change one's mind|keeps changing|keep changing|alternat*|fluctuat*|oscillat*|sway*|swing*|dither*|shilly-shally*|flip-flop*|flip flop*|teeter*|torn between|between two|two options|uncertain|irresolut*|on the fence|of two minds|seesaw*|yo-yo|blow* hot and cold"],
   ["def-912-35", "define venerate", "venerate", "respect*|rever*|honor*|honour*|admir*|worship*|esteem*|ador*|look up to|idoliz*|idolis*|high regard|great regard|deep regard|regard|exalt*|hallow*|sanctif*|awe|praise*|treasure|cherish*|glorif*|devotion"],
   ["def-912-36", "whats the definition of truculent", "truculent", "aggress*|hostile|hostility|belliger*|combat*|confrontational|defian*|argumentative|quarrel*|fierce|savage|cruel|violent|fight*|bad-tempered|bad tempered|ill-tempered|surly|sullen|pugnacious|bellicose|contentious|antagonistic|scrappy|feisty|threatening|bully*|rude|harsh|obstreperous|angry|irritable|grumpy|uncooperative"],
-  ["def-912-37", "what does ineffable mean", "ineffable", "indescribable|beyond words|can't be described|cannot be described|can't be put into words|cannot be put into words|too great|unspeakable|inexpressible|unutterable|beyond description|defies description|words can't|words cannot|no words|can't be expressed|cannot be expressed|can't be said|cannot be said|can't express|cannot express|express*|describ*|words|unnamable|unnameable|taboo|sacred|holy|unsayable|indefinable|transcend*|incommunicable|inexplicable"],
+  ["def-912-37", "what does ineffable mean", "ineffable", "indescribable|beyond words|can't be described|cannot be described|can't be put into words|cannot be put into words|too great|unspeakable|inexpressible|unutterable|beyond description|defies description|words can't|words cannot|no words|can't be expressed|cannot be expressed|can't be said|cannot be said|can't express|cannot express|express*|describ*|unnamable|unnameable|taboo|sacred|holy|unsayable|indefinable|transcend*|incommunicable|inexplicable"],
   ["def-912-38", "what's the meaning of harbinger", "harbinger", "sign*|signal*|warn*|forerunner|precursor|herald*|omen*|portent*|foreshadow*|announc*|indicat*|predict*|messenger|preced*|before|ahead|first sign|early sign|coming|approach*|to come|on the way|presage|augur*"],
 ];
 
@@ -241,10 +253,10 @@ const SENSE_K2: Row[] = [
 const SENSE_35: Row[] = [
   ["sense-35-01", "what does bank mean in 'we had a picnic on the bank and watched the ducks swim by'", "bank", "river*|stream|creek|lake|pond|water|shore|edge|side|slope|land|ground|grass*", "money|deposit*|loan*|account*|cash|savings|financial"],
   ["sense-35-02", "What does the word spring mean in 'the spring in the mattress was broken'?", "spring", "coil*|metal|bounc*|wire|stretch*|squeez*|push* back|elastic|compress*", "season|flowers|bloom*|after winter|march|april|warm weather|jump"],
-  ["sense-35-03", "what does the word kind mean in 'what kind of dog do you have?'", "kind", "type|sort|variety|breed|category|group|class|species", "nice|friendly|caring|gentle|helpful|generous"],
+  ["sense-35-03", "what does the word kind mean in 'what kind of dog do you have?'", "kind", "type|sort|variety|breed|category|group|class|species", "nice|friendly|caring|gentle|generous"],
   ["sense-35-04", "what does pitcher mean in 'pour the lemonade from the pitcher'", "pitcher", "jug|container|jar|carafe|vessel|handle|spout|holds liquid|hold liquid|holds water|holds drinks", "baseball|throws|throw*|mound|player|softball"],
   ["sense-35-05", "what does the word present mean in 'every student was present today'?", "present", "attend*|in class|absent|showed up|show up|shows up|in attendance|at school|in the room", "gift|birthday|wrapped|right now|current time|this moment"],
-  ["sense-35-06", "what does the word figure mean in 'can you figure out the answer'", "figure", "understand|solve*|work out|work it out|calculat*|determin*|discover*|puzzle", "number|digit|shape|body|person|statue|drawing|diagram|picture|illustration"],
+  ["sense-35-06", "what does the word figure mean in 'can you figure out the answer'", "figure", "understand it|understand the|understands|understood|solve*|work out|work it out|calculat*|determin*|discover*|puzzle", "number|digit|shape|body|statue|drawing|diagram|illustration"],
   ["sense-35-07", "what does crane mean in 'a crane stood in the shallow water looking for fish'", "crane", "bird|feather*|long legs|long-legged|long neck|wading|wader|heron|stork", "machine|lift*|construction|heavy|building|hook|cable|stretch your neck"],
   ["sense-35-08", "I don't know what file means in 'she used a file to smooth her nails'", "file", "tool|rough|metal|scrap*|rub*|grind*|shape|emery|nail file|wear* down|filing", "document|folder|computer|papers|records|data|cabinet"],
 ];
@@ -252,11 +264,11 @@ const SENSE_35: Row[] = [
 const SENSE_68: Row[] = [
   ["sense-68-01", "what does the word grave mean in 'the doctor's face looked grave'?", "grave", "serious|solemn|somber|sombre|worried|concern*|stern|grim|gloomy|worr*|troubl*|bad news|dire|sad|heavy", "buried|burial|bury|cemetery|tomb|coffin|graveyard|dug"],
   ["sense-68-02", "what does the word sound mean in 'that is a sound plan'", "sound", "solid|reliable|reasonable|sensible|well thought|well-thought|logical|valid|wise|secure|stable|trustworth*|careful*|thought out|thought-out|sturdy|dependable|makes sense|make sense|smart", "noise|hear|hearing|heard|ears|vibrat*|loud|music|volume"],
-  ["sense-68-03", "what does fine mean in 'he had to pay a fine for parking there'", "fine", "penalty|punish*|money|charge|fee|payment|ticket|fined|sum|law|rule*|breaking", "okay|ok|thin|delicate|tiny|alright|all right|nice|great|sunny"],
+  ["sense-68-03", "what does fine mean in 'he had to pay a fine for parking there'", "fine", "penalty|punish*|money|charge|fee|payment|ticket|fined|sum|law|rule*|breaking", "okay|ok|thin|delicate|tiny|alright|all right|nice"],
   ["sense-68-04", "what does the word novel mean in 'she had a novel idea for the science fair'", "novel", "new|original|unusual|fresh|creative|different|innovative|inventive|unique|never been|not been done|first|clever|unlike", "book|story|fiction|chapters|author|pages"],
-  ["sense-68-05", "Our teacher said: find the mean of 3, 5 and 7. what's the meaning of the word mean here?", "mean", "average|add*|divide*|sum|total|middle|typical", "unkind|rude|cruel|nasty|bully|not nice|intend*|signify"],
+  ["sense-68-05", "Our teacher said: find the mean of 3, 5 and 7. what's the meaning of the word mean here?", "mean", "average|add up|adding|added|add them|add the numbers|add all|divide*|sum|total|middle|typical", "unkind|rude|cruel|nasty|bully|not nice|intend*|signify"],
   ["sense-68-06", "what does the word bear mean in 'I can't bear the noise any longer'", "bear", "stand|tolerate|put up with|endure|handle|take it|cope|deal with|stomach|accept|withstand|suffer", "animal|grizzl*|fur*|honey|cub*|polar|brown bear|black bear|forest"],
-  ["sense-68-07", "what does strike mean in 'the workers went on strike for better pay'", "strike", "stop work*|stopped work*|refus*|protest*|walk* out|walkout|work stoppage|not work*|quit working|stop doing their job|demands|union|lay down tools", "hit|punch|swing|lightning|bowling|baseball|miss|ball|attack"],
+  ["sense-68-07", "what does strike mean in 'the workers went on strike for better pay'", "strike", "stop work*|stopped work*|refus*|protest*|walk* out|walkout|work stoppage|not work*|quit working|stop doing their job|demands|union|lay down tools", "hit|punch|swing|lightning|bowling|baseball|ball|attack"],
   ["sense-68-08", "what does the word current mean in 'the current pulled the swimmer away from the beach'", "current", "flow*|moving water|movement of water|water moves|water moving|stream|tide|rip|motion|direction|riptide|undertow|wave*", "present|recent|today|up to date|up-to-date|latest|modern|electric*|happening now"],
 ];
 
@@ -264,11 +276,11 @@ const SENSE_912: Row[] = [
   ["sense-912-01", "what does the word gravity mean in 'he did not grasp the gravity of the situation'", "gravity", "serious*|importan*|significan*|severity|severe|solemn*|danger*|consequence*|how bad|magnitude|grave", "force|pull*|mass|earth|fall*|newton|attraction|weightless|planet"],
   ["sense-912-02", "what does qualify mean in 'let me qualify that statement: it applies only to adults'", "qualify", "limit*|restrict*|modif*|add a condition|adding a condition|condition*|exception*|clarif*|narrow*|specify|soften|tone down|less absolute|less general|moderate|caveat*|reservation*", "eligible|meet the requirements|pass|compet*|earn a place|be allowed|skills|license|licence|certified|tournament|entitled"],
   ["sense-912-03", "What does the word temper mean in 'she tried to temper her criticism with praise'?", "temper", "soften*|moderat*|tone down|toning down|balance*|mitigat*|lessen*|reduce*|ease|offset|mellow*|make less|milder|gentler|less harsh|cushion*|dilut*", "anger|angry|mad|rage|lose your temper|tantrum|mood|outburst|harden*|steel|metal|heat*"],
-  ["sense-912-04", "what does the word champion mean in 'she has championed the rights of refugees for years'", "champion", "support*|defend*|fight for|fights for|fought for|stand up for|stands up for|stood up for|advocat*|promot*|backed|backing|backs|speak* up for|campaign*|cause|uphold*", "winner|won|win*|first place|competition|contest|trophy|title|tournament|victor*|best"],
-  ["sense-912-05", "what is the meaning of sanction in 'the principal sanctioned the student trip'", "sanction", "approv*|allow*|permit*|permission|authoriz*|authoris*|endors*|agree*|green light|go-ahead|consent*|sign* off", "penalt*|punish*|ban*|restrict*|embargo*|trade|forbid*|prohibit*|fine|boycott*|consequence*"],
+  ["sense-912-04", "what does the word champion mean in 'she has championed the rights of refugees for years'", "champion", "support*|defend*|fight for|fights for|fought for|stand up for|stands up for|stood up for|advocat*|promot*|backed|backing|backs|speak* up for|campaign*|cause|uphold*", "winner|won|win*|first place|competition|contest|trophy|title|tournament|victor*"],
+  ["sense-912-05", "what is the meaning of sanction in 'the principal sanctioned the student trip'", "sanction", "approv*|allow*|permit*|permission|authoriz*|authoris*|endors*|agree*|green light|go-ahead|consent*|sign* off", "penalt*|punish*|ban*|restrict*|embargo*|trade|forbid*|prohibit*|a fine|fined|boycott*|consequence*"],
   ["sense-912-06", "what does the word discriminate mean in 'the test asks you to discriminate between similar shades of blue'", "discriminate", "tell apart|tell the difference|tell them apart|telling apart|telling the difference|distinguish*|differentiat*|notice the difference|see the difference|spot the difference|recogni*|separat*|discern*|identify|distinction", "unfair*|prejudic*|race|racis*|treat differently|treated differently|treating differently|treats differently|bias*|sexis*|exclude|exclusion|minority|minorities|rights"],
   ["sense-912-07", "In my economics reading: the value of the house appreciated over ten years. What does appreciate mean in this sentence?", "appreciate", "increase*|grow*|rise|rose|risen|rising|go up|went up|goes up|gain*|more valuable|worth more|higher|climb*", "thank*|grateful|gratitude|recogni*|enjoy*|admire*"],
-  ["sense-912-08", "I don't know what the word cleave means in 'the axe cleaved the log in two'", "cleave", "split*|cut*|chop*|divid*|sever*|slice*|hack*|halves|apart|separat*|cleft|in half", "cling*|stick*|stay close|hold on|attach*|adhere*|loyal*|faithful*|stuck"],
+  ["sense-912-08", "I don't know what the word cleave means in 'the axe cleaved the log in two'", "cleave", "split*|cut*|chop*|divid*|sever|severs|severed|severing|slice*|hack*|halves|apart|separat*|cleft|in half", "cling*|stick*|stay close|hold on|attach*|adhere*|loyal*|faithful*|stuck"],
 ];
 
 export const DEFINE_ITEMS: readonly DefineItem[] = [

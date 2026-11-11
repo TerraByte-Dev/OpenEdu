@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { DEFINE_ITEMS, DEFINE_SPLIT, DEFINE_BAND_GRADE } from "./define-items";
 import { matchTerm, gradeDefine } from "./define-grade";
-import { askedWord } from "../kernel/defineWord";
+import { askedWord, DICTIONARY_NOTE } from "../kernel/defineWord";
+import { POS_NAMES } from "../dictionary";
 
 const GRADE_BANDS_FOR_TEST = ["K-2", "3-5", "6-8", "9-12"] as const;
 
@@ -37,6 +38,23 @@ describe("define items", () => {
       }
       if (item.wrongSense) expect(matchTerm(item.ask, item.wrongSense), `${item.id} wrongSense in ask`).toBeNull();
       expect(gradeDefine(item, item.ask).pass, item.id).toBe(false);
+    }
+  });
+
+  // Only the D arm sees the note and the entry's fixed text, so a term they contain would pass a reply
+  // that echoes them. Re-checked at every note wording: this test reads DICTIONARY_NOTE as it is.
+  it("no expect or wrongSense term matches the note or the entry's fixed format text", () => {
+    const format = [
+      '<dictionary_entry source="Open English WordNet">', "</dictionary_entry>", '"x" is a form of "y".',
+      ...Object.values(POS_NAMES).map((pos) => `1. x (${pos}): . Example: ""`),
+    ];
+    for (const item of DEFINE_ITEMS) {
+      const texts = [DICTIONARY_NOTE.replace("{word}", item.word), ...format];
+      for (const group of [...item.expect, ...(item.wrongSense ? [item.wrongSense] : [])]) {
+        for (const alt of group.split("|")) {
+          for (const t of texts) expect(matchTerm(t, alt), `${item.id}: "${alt}" in ${t.slice(0, 30)}`).toBeNull();
+        }
+      }
     }
   });
 });
