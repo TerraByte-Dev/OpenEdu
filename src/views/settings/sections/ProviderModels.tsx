@@ -32,17 +32,29 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   // could turn the status dot green for a URL that was never saved). Intentional URL edits re-probe via the
   // explicit "Save & Check" button / Enter, which also persists.
   const didInit = useRef(false);
+  // Provider-dependent reads (provider, models, key) can be slow: with Ollama selected and nothing stored,
+  // each model getter probes Ollama, about 2 s when it isn't running. Each load or provider pick takes a
+  // ticket, and a read whose ticket is no longer the latest is dropped, so a slow earlier read can never
+  // overwrite what a later provider pick showed.
+  const providerLoad = useRef(0);
   useEffect(() => {
+    const ticket = ++providerLoad.current;
+    const current = () => ticket === providerLoad.current;
     (async () => {
       const base = await getLLMProvider();
-      setProvider(base.provider);
       setOllamaUrlValue(base.ollamaUrl);
-      setGenModel((await getGenerationConfig()).model);
-      setChatModelState((await getChatConfig()).model);
+      if (current()) setProvider(base.provider);
+      const gen = (await getGenerationConfig()).model;
+      if (current()) setGenModel(gen);
+      const chat = (await getChatConfig()).model;
+      if (current()) setChatModelState(chat);
       setEmbeddingModelState((await getEmbeddingConfig()).model);
       setMaxCtx(await getMaxContextTokens());
-      if (base.provider !== "ollama") setApiKeyValue((await getApiKey(base.provider)) || "");
-      if (base.provider === "ollama") void checkOllama(base.ollamaUrl);
+      if (base.provider !== "ollama") {
+        const key = (await getApiKey(base.provider)) || "";
+        if (current()) setApiKeyValue(key);
+      }
+      if (base.provider === "ollama" && current()) void checkOllama(base.ollamaUrl);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -77,15 +89,20 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   };
 
   const pickProvider = async (p: LLMProvider) => {
+    const ticket = ++providerLoad.current;
+    const current = () => ticket === providerLoad.current;
     setProvider(p);
     await setLLMProvider(p);
-    // Re-read the models the app will now send for this provider: with nothing stored, the getters fall
-    // back to the provider's own defaults, so the chips never show the previous provider's model.
-    setGenModel((await getGenerationConfig()).model);
-    setChatModelState((await getChatConfig()).model);
     markSaved();
     onProviderChanged?.();
-    setApiKeyValue(p === "ollama" ? "" : (await getApiKey(p)) || "");
+    // Re-read the models the app will now send for this provider: with nothing stored, the getters fall
+    // back to the provider's own defaults, so the chips never show the previous provider's model.
+    const gen = (await getGenerationConfig()).model;
+    if (current()) setGenModel(gen);
+    const chat = (await getChatConfig()).model;
+    if (current()) setChatModelState(chat);
+    const key = p === "ollama" ? "" : (await getApiKey(p)) || "";
+    if (current()) setApiKeyValue(key);
   };
 
   const commitGen = async (m: string) => { setGenModel(m); await setGenerationModel(m); markSaved(); };
