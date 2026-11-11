@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
-  getUsageConfig, setUsageMode as saveUsageMode, listGroups, type UsageConfig,
+  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, type UsageConfig,
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
+import { normalizeGrade } from "./lib/grade";
 import {
   autoPickFor, resolveStartupMode, hasPriorUse, runGuarded, staysUnlocked, viewAfterTeacherDone, showsLearnerChip,
   isProtected, saveThenRefresh, type UsageMode, type GroupRow, type TeacherEntry,
@@ -481,6 +482,8 @@ export default function App() {
                   onBack={() => setCurrentView("dashboard")}
                   onOpenQuiz={openQuiz}
                   onOpenPromotionTest={openPromotionTest}
+                  learnerId={activeLearner.id}
+                  grade={normalizeGrade(activeLearner.grade)}
                 />
               )}
               {currentView === "settings" && (
@@ -493,6 +496,14 @@ export default function App() {
                     teacher,
                     learners: learners ?? [],
                     activeLearnerId: activeLearner?.id ?? null,
+                    activeGrade: normalizeGrade(activeLearner?.grade),
+                    setActiveGrade: async (grade) => {
+                      if (!activeLearner) return;
+                      await setLearnerGrade(activeLearner.id, grade);
+                      const list = await reloadLearners();
+                      const me = list.find((l) => l.id === activeLearner.id);
+                      if (me) setActiveLearner(me);
+                    },
                     changeMode,
                     openTeacher: () => openTeacherView("settings"),
                     openLearnerMenu: () => setLearnerMenuOpen(true),

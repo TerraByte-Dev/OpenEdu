@@ -18,6 +18,8 @@ export interface LearnerRow {
   last_active_at: string | null;
   /** The learner's group in school mode (migration 14), or null. */
   group_id?: string | null;
+  /** 0 = kindergarten, 1-12 = that grade, null = not set (migration 15). Read through grade.ts normalizeGrade. */
+  grade?: number | null;
 }
 
 export const LEARNER_NAME_MAX = 40;

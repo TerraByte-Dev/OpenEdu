@@ -17,7 +17,10 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => null) }));
 vi.mock("./llm", () => ({ getOllamaModels: vi.fn() }));
 vi.mock("./permissions", () => ({ loadPermissionRules: async () => ({}), savePermissionRules: async () => {} }));
 
-import { getTourSeen, setTourSeen, clearLearnerStore, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes } from "./store";
+import {
+  getTourSeen, setTourSeen, clearLearnerStore, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes,
+  getReadAloudAuto, setReadAloudAuto,
+} from "./store";
 import { gatherSettings } from "./settings-io";
 import { STORE_KEYS, LEARNER_SCOPED_KEYS, learnerStoreKey, isLearnerScopedKey, apiKeyStoreKey } from "./store-keys";
 import { DEFAULT_LEARNER_ID } from "./learners";
@@ -69,6 +72,17 @@ describe("per-learner store keys", () => {
     await setActiveMinutes("a", { day: "2026-06-05", minutes: 7 });
     expect(await getActiveMinutes("a")).toEqual({ day: "2026-06-05", minutes: 7 });
     expect(await getActiveMinutes("b")).toBeNull();
+  });
+
+  it("the read-aloud choice is per learner, unset until chosen, and cleared with the learner", async () => {
+    expect(await getReadAloudAuto("a")).toBeNull();
+    await setReadAloudAuto("a", false);
+    expect(await getReadAloudAuto("a")).toBe(false);
+    expect(await getReadAloudAuto("b")).toBeNull();
+    saved.set(learnerStoreKey(STORE_KEYS.readAloudAuto, "b"), "yes");
+    expect(await getReadAloudAuto("b")).toBeNull();
+    await clearLearnerStore("a");
+    expect(await getReadAloudAuto("a")).toBeNull();
   });
 
   it("a garbage goal in the store reads as unset rather than crashing Home", async () => {

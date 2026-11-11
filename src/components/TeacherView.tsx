@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  createLearner, renameLearner, setLearnerPin, deleteLearner, setLearnerGroup,
+  createLearner, renameLearner, setLearnerPin, deleteLearner, setLearnerGroup, setLearnerGrade,
   createGroup, renameGroup, deleteGroup, getTeacherOverviewSource,
 } from "../lib/db";
+import { normalizeGrade, type Grade } from "../lib/grade";
+import { GradeSelect } from "./GradeSelect";
 import { clearLearnerStore } from "../lib/store";
 import { validateLearnerName, canDeleteLearner, deleteConfirmMatches, LEARNER_NAME_MAX, type LearnerRow } from "../lib/learners";
 import { usesGroups, validateGroupName, NO_GROUP, GROUP_NAME_MAX, type UsageMode, type GroupRow } from "../lib/usage-modes";
@@ -163,13 +165,14 @@ function Learners({ grouped, learners, groups, busy, onChanged }: {
 }) {
   const [name, setName] = useState("");
   const [groupId, setGroupId] = useState(NO_GROUP);
+  const [grade, setGrade] = useState<Grade | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const add = async () => {
     const err = validateLearnerName(name, learners);
     if (err) { setError(err); return; }
     try {
-      await createLearner(name, grouped && groupId !== NO_GROUP ? groupId : null);
+      await createLearner(name, grouped && groupId !== NO_GROUP ? groupId : null, grade);
       setName("");
       await onChanged();
     } catch {
@@ -186,6 +189,7 @@ function Learners({ grouped, learners, groups, busy, onChanged }: {
             onChange={(e) => { setName(e.target.value); setError(null); }} />
         </label>
         {grouped && <GroupSelect groups={groups} value={groupId} onChange={setGroupId} />}
+        <GradeSelect value={grade} onChange={setGrade} style={INPUT} ariaLabel="Grade" />
         <button type="submit" className="btn btn-primary" style={BTN}>Add</button>
       </form>
       {error && <p className="text-base text-danger">{error}</p>}
@@ -238,6 +242,8 @@ function LearnerRowItem({ learner, learners, groups, grouped, busy, onChanged }:
           <GroupSelect groups={groups} value={known ? learner.group_id! : NO_GROUP}
             onChange={(v) => void run(() => setLearnerGroup(learner.id, v === NO_GROUP ? null : v), "Could not move this learner.")} />
         )}
+        <GradeSelect value={normalizeGrade(learner.grade)} style={INPUT} ariaLabel={`${learner.name}'s grade`}
+          onChange={(g) => void run(() => setLearnerGrade(learner.id, g), "Could not save the grade.")} />
         <button className="btn" style={SMALL} onClick={() => { setMode("rename"); setText(learner.name); setError(null); }}>Rename</button>
         {learner.pin_hash && (
           <button className="btn" style={SMALL} title="For a learner who forgot their PIN. They can set a new one."

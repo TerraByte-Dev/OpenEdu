@@ -18,6 +18,7 @@ import ResourcesTab from "../components/ResourcesTab";
 import ReviewTab from "../components/ReviewTab";
 import LessonsTab from "../components/LessonsTab";
 import type { NextStepAction } from "../lib/next-step";
+import type { Grade } from "../lib/grade";
 
 export type Tab = "overview" | "chat" | "notes" | "lessons" | "quiz" | "review" | "syllabus" | "resources";
 
@@ -35,9 +36,12 @@ interface CourseViewProps {
   onBack: () => void;
   onOpenQuiz: (ctx: QuizViewContext) => void;
   onOpenPromotionTest: (ctx: QuizViewContext) => void;
+  /** The active learner and their grade (#243): the chat's reading level, text size and read-aloud. */
+  learnerId: string;
+  grade: Grade | null;
 }
 
-export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz, onOpenPromotionTest }: CourseViewProps) {
+export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz, onOpenPromotionTest, learnerId, grade }: CourseViewProps) {
   const [course, setCourse] = useState<Course | null>(null);
   const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>(initialAction?.kind === "tab" ? initialAction.tab : "overview");
@@ -346,6 +350,8 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
             threadId={threadId}
             onThreadCreated={(id) => { setThreadId(id); void refreshThreads(); }}
             onThreadActivity={() => { void refreshThreads(); }}
+            learnerId={learnerId}
+            grade={grade}
           />
         )}
         {activeTab === "notes" && (

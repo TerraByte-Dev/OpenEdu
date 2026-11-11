@@ -7,7 +7,9 @@ import {
 import { deriveThreadTitle } from "../lib/thread-title";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
-import { getChatConfig, getMaxContextTokens, getRetrievalMode } from "../lib/store";
+import { getChatConfig, getMaxContextTokens, getRetrievalMode, getReadAloudAuto } from "../lib/store";
+import { readingLevelLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
+import { useReadAloud } from "../lib/useReadAloud";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
@@ -46,9 +48,13 @@ interface ChatTabProps {
   onThreadCreated: (threadId: string) => void;
   // Bumps the thread's updated_at so the rail can re-sort by real activity.
   onThreadActivity: () => void;
+  // The active learner's grade (#243): the reading-level line in the system prompt, larger text for
+  // K-2, and whether replies read themselves aloud. null = not set: none of it applies.
+  learnerId: string;
+  grade: Grade | null;
 }
 
-export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview, threadId, onThreadCreated, onThreadActivity }: ChatTabProps) {
+export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview, threadId, onThreadCreated, onThreadActivity, learnerId, grade }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -97,6 +103,20 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   //
   // The send path claims the thread it creates, so this effect skips a thread already in state.
   const loadedThreadRef = useRef<string | null | undefined>(undefined);
+
+  // Read aloud (#243): a speaker button on every tutor reply, and for K-2 learners each new reply
+  // reads itself unless they turned that off (grade.ts autoReadAloud).
+  const readAloud = useReadAloud();
+  const [autoReadChoice, setAutoReadChoice] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getReadAloudAuto(learnerId).then((v) => { if (alive) setAutoReadChoice(v); }).catch(() => {});
+    return () => { alive = false; };
+  }, [learnerId]);
+  const autoRead = autoReadAloud(grade, autoReadChoice);
+  // Switching conversations stops the voice; so does leaving the chat (useReadAloud's unmount).
+  const stopReading = readAloud.stop;
+  useEffect(() => { stopReading(); }, [threadId, stopReading]);
 
   // Messages follow whichever thread the rail has open. A null thread is a not-yet-created
   // conversation (see the send path) and correctly shows an empty transcript.
@@ -193,6 +213,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     const userText = input.trim();
     setInput("");
+    readAloud.stop();
 
     // The thread is created HERE, on first send, not on mount — so opening a level and leaving does
     // not litter the list with empty conversations. The title comes from this first message via a
@@ -248,6 +269,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       skillSuffix,
       knowledgeSummary || undefined,
       personaIdentityLayer(persona),
+      readingLevelLayer(grade),
     );
 
     // Only include system message if it has content
@@ -311,6 +333,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       if (persisted !== null) {
         const assistantMsg = await saveChatMessage(courseId, "assistant", persisted, level, activeThread);
         setMessages((prev) => appendUnique(prev, assistantMsg));
+        if (autoRead && !abandoned && !controller.signal.aborted) readAloud.speak(assistantMsg.id, persisted);
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
         // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently.
@@ -403,7 +426,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         )}
       </div>
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${isEarlyReader(grade) ? "chat-text-large" : ""}`}>
         {messages.length === 0 && !streaming && (
           <div className="text-center text-[var(--ink-faint)] py-12">
             <p className="text-lg mb-2">Start chatting with your tutor</p>
@@ -423,14 +446,19 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           </div>
         )}
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            reading={readAloud.speakingId === msg.id}
+            onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
+          />
         ))}
         {streaming && (
           <div className="flex gap-3">
             <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
               AI
             </span>
-            <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
+            <div className="chat-msg flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
               {streamingText
                 ? (
                   <div className="note-prose">
@@ -541,7 +569,9 @@ function appendUnique(prev: ChatMessage[], msg: ChatMessage): ChatMessage[] {
   return prev.some((m) => m.id === msg.id) ? prev : [...prev, msg];
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+// `onReadAloud` is set when the webview can speak; tutor replies then get a speaker button that reads
+// the reply (speech.ts speakableText) and, pressed again, stops.
+function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage; reading: boolean; onReadAloud?: () => void }) {
   const isUser = message.role === "user";
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -550,7 +580,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       }`}>
         {isUser ? "You" : "AI"}
       </span>
-      <div className={`max-w-[75%] p-3 rounded-xl text-sm leading-relaxed ${
+      <div className={`chat-msg max-w-[75%] p-3 rounded-xl text-sm leading-relaxed ${
         isUser ? "bg-[rgb(var(--phosphor-rgb)/0.10)] text-ink whitespace-pre-wrap" : "bg-panel text-ink"
       }`}>
         {isUser ? message.content : (
@@ -561,6 +591,28 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           />
         )}
       </div>
+      {!isUser && onReadAloud && (
+        <button
+          type="button"
+          className="speak-btn self-end"
+          onClick={onReadAloud}
+          aria-label={reading ? "Stop reading" : "Read aloud"}
+          aria-pressed={reading}
+          title={reading ? "Stop reading" : "Read aloud"}
+        >
+          {reading ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
+              <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+              <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+            </svg>
+          )}
+        </button>
+      )}
     </div>
   );
 }

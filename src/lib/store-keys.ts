@@ -38,12 +38,17 @@ export const STORE_KEYS = {
   // about one person on this PC, not a setting anyone would carry to another machine.
   dailyGoalMinutes: "daily_goal_minutes",
   activeMinutes: "active_minutes",
+  // A K-2 learner's choice to have tutor replies read aloud on their own (#243, grade.ts
+  // autoReadAloud). Unset = the default, on. Per learner; not importable, like the daily goal.
+  readAloudAuto: "read_aloud_auto",
 } as const;
 
 // Keys that remember something about ONE learner rather than the machine. Read and write them only
 // through learnerStoreKey(). Everything else in STORE_KEYS (provider, models, API keys, library,
 // context size) is shared by every learner on the PC.
-export const LEARNER_SCOPED_KEYS: ReadonlyArray<string> = [STORE_KEYS.tourSeen, STORE_KEYS.dailyGoalMinutes, STORE_KEYS.activeMinutes];
+export const LEARNER_SCOPED_KEYS: ReadonlyArray<string> = [
+  STORE_KEYS.tourSeen, STORE_KEYS.dailyGoalMinutes, STORE_KEYS.activeMinutes, STORE_KEYS.readAloudAuto,
+];
 
 const LEARNER_KEY_SEPARATOR = "@learner:";
 

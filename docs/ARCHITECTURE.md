@@ -73,6 +73,18 @@ that is the list separator. The file goes through `export_save_csv` in `export.r
 opens the Save dialog itself and writes only the file the user picked, as `.csv`. When the `.csv` had to
 be added and that file already exists, it refuses: the dialog never warned about that file.
 
+**Grade (migration 15).** Each learner has `learners.grade`: 0 for kindergarten, 1-12, or NULL for not
+set (every learner from before it). It is set when adding a learner, in Settings › Who uses this, and per
+row in the teacher view. `grade.ts` decides everything from the band (K-2, 3-5, 6-8, 9-12) in code:
+`readingLevelLayer` is one `## Reading level` section that `buildSystemPrompt` puts just before the output
+rules, and it is nothing when no grade is set, so that prompt is byte-identical to the one before grades
+(`kernel/systemPrompt-master.test.ts` pins it against a fixture). K-2 learners get larger chat text
+(`.chat-text-large` in `index.css`) and replies that read themselves aloud, a per-learner store choice
+that defaults to on. Every tutor reply has a speaker button: `speech.ts` turns the saved markdown into
+plain words (the same marked + math tokenizer the chat renders with; LaTeX read as words, a code block as
+"Code") and picks an on-device voice, and `useReadAloud.ts` plays it through `speechSynthesis`, one reply
+at a time, so it works offline with the Windows voices.
+
 ## Repo layout
 
 | Path | What lives there |

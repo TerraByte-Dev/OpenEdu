@@ -454,6 +454,42 @@ body {
 .oe-svg svg { width: 100%; height: auto; display: block; }
 
 /* ═══════════════════════════════════════════════════════════════
+   CHAT TEXT SIZE + READ ALOUD (#243)
+   K-2 learners (grade.ts isEarlyReader) get .chat-text-large on the transcript: every
+   .chat-msg bubble reads at --chat-text instead of 14px. Unlayered, so it beats text-sm.
+═══════════════════════════════════════════════════════════════ */
+
+.chat-text-large { --chat-text: 1.25rem; }
+.chat-text-large .chat-msg,
+.chat-text-large .chat-msg .note-prose {
+  font-size: var(--chat-text);
+  line-height: 1.6;
+}
+.chat-text-large .chat-msg .note-prose :is(h1, h2, h3, h4, h5, h6) { font-size: 1.15em; }
+
+/* The speaker button under a tutor reply: a 36px round target, quiet until hovered or reading. */
+.speak-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.speak-btn:hover { color: var(--phosphor); border-color: var(--rule-strong); }
+.speak-btn[aria-pressed="true"] {
+  background: var(--phosphor-dim);
+  border-color: var(--phosphor);
+  color: var(--phosphor);
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MARKDOWN PROSE — .note-prose
 ═══════════════════════════════════════════════════════════════ */
 

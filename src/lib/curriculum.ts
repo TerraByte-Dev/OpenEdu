@@ -1023,6 +1023,8 @@ export function buildSystemPrompt(
   modePromptSuffix?: string,
   knowledgeSummary?: string,
   personaIdentity?: string,
+  // The learner's reading level (grade.ts readingLevelLayer), or undefined when no grade is set.
+  readingLevel?: string,
 ): string {
   const parts: string[] = [];
 
@@ -1064,11 +1066,15 @@ Level: ${getLevelMeaning(courseLevel)}`);
 
   const base = parts.join("\n\n---\n\n");
   const withMode = modePromptSuffix ? base + modePromptSuffix : base;
+  // The reading level (#243) sits just before the output rules: late, where a small model follows it,
+  // but not last, so turnSystemPrompt can still swap the trailing rules on the worked-answer turn.
+  // No grade, no section: the prompt is byte-identical to before grades (systemPrompt-master.test.ts).
+  const withLevel = readingLevel ? `${withMode}\n\n---\n\n${readingLevel}` : withMode;
   // <output_rules> goes LAST, after the mode suffix — nearest the user turn, which is where a small
   // model follows an instruction most reliably. Applied unconditionally rather than passed in by the
   // caller: how a reply is allowed to LOOK is a product invariant, not a per-call option, and making
   // it a parameter is exactly how ChatTab and the eval runner drifted apart on knowledgeSummary.
-  return `${withMode}\n\n---\n\n${outputRulesLayer()}`;
+  return `${withLevel}\n\n---\n\n${outputRulesLayer()}`;
 }
 
 // ─── Course generation pipeline with checkpoint/resume ────────────────────────

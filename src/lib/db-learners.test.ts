@@ -25,9 +25,10 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 
 import {
   getCourses, getCourse, createCourse, createNote, getNotes, deleteLearner,
-  listLearners, createLearner, setActiveLearnerId,
+  listLearners, createLearner, setActiveLearnerId, setLearnerGrade,
 } from "./db";
 import { needsPicker, DEFAULT_LEARNER_ID } from "./learners";
+import { normalizeGrade, readingLevelLayer } from "./grade";
 
 // Every `Migration { version: N, description: "...", sql: "..." }` in lib.rs, Rust escapes undone.
 function migrations(): Map<number, string> {
@@ -60,7 +61,7 @@ describe("migration 13 on an existing install", () => {
     migrate(12);
     sqlite.exec(`INSERT INTO courses (id, title, topic, current_level) VALUES ('c1', 'Algebra', 'algebra', 1.0), ('c2', 'Biology', 'biology', 2.0);`);
     sqlite.exec(`INSERT INTO notes (id, course_id, title, content) VALUES ('n1', 'c1', 'My note', 'x = 2');`);
-    migrate(14, 13); // the app runs every migration; 14 adds group_id, which createLearner writes
+    migrate(15, 13); // the app runs every migration; 14 adds group_id and 15 grade, which createLearner writes
   });
 
   it("creates one default learner with no PIN, so no picker appears", async () => {
@@ -124,9 +125,50 @@ describe("migration 13 on an existing install", () => {
 describe("migration 13 on a fresh install", () => {
   it("still makes exactly one default learner and no picker", async () => {
     await openDb();
-    migrate(14);
+    migrate(15);
     const learners = await listLearners();
     expect(learners.map((l) => l.id)).toEqual([DEFAULT_LEARNER_ID]);
     expect(needsPicker(learners)).toBe(false);
+  });
+});
+
+describe("migration 15: a grade on each learner", () => {
+  beforeEach(async () => {
+    await openDb();
+    setActiveLearnerId(null);
+    migrate(14);
+    sqlite.exec(`INSERT INTO learners (id, name, created_at) VALUES ('ana', 'Ana', datetime('now'));`);
+    migrate(15, 15);
+  });
+
+  it("leaves every existing learner with no grade, so their tutor prompt is unchanged", async () => {
+    const learners = await listLearners();
+    expect(learners.map((l) => l.id)).toEqual([DEFAULT_LEARNER_ID, "ana"]);
+    for (const l of learners) {
+      expect(l.grade).toBeNull();
+      expect(readingLevelLayer(normalizeGrade(l.grade))).toBeUndefined();
+    }
+  });
+
+  it("stores a grade given when adding a learner, and none by default", async () => {
+    const k = await createLearner("Kai", null, 0);
+    const none = await createLearner("Noor");
+    expect(normalizeGrade(k.grade)).toBe(0);
+    expect(none.grade).toBeNull();
+  });
+
+  it("sets, changes and clears a learner's grade", async () => {
+    const gradeOf = async () => (await listLearners()).find((l) => l.id === "ana")!.grade;
+    await setLearnerGrade("ana", 2);
+    expect(normalizeGrade(await gradeOf())).toBe(2);
+    await setLearnerGrade("ana", 12);
+    expect(normalizeGrade(await gradeOf())).toBe(12);
+    await setLearnerGrade("ana", null);
+    expect(await gradeOf()).toBeNull();
+  });
+
+  it("refuses a grade outside K-12 at the database", () => {
+    expect(() => sqlite.exec(`UPDATE learners SET grade = 13 WHERE id = 'ana'`)).toThrow();
+    expect(() => sqlite.exec(`UPDATE learners SET grade = -1 WHERE id = 'ana'`)).toThrow();
   });
 });

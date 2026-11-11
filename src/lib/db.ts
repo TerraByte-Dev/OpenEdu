@@ -2,6 +2,7 @@ import Database from "@tauri-apps/plugin-sql";
 import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
 import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
+import { normalizeGrade, type Grade } from "./grade";
 import { parseUsageMode, type UsageMode, type GroupRow } from "./usage-modes";
 import type { OverviewSource } from "./teacher-overview";
 
@@ -79,15 +80,21 @@ export async function listLearners(): Promise<LearnerRow[]> {
   return await d.select("SELECT * FROM learners ORDER BY created_at ASC, rowid ASC");
 }
 
-export async function createLearner(name: string, groupId: string | null = null): Promise<LearnerRow> {
+export async function createLearner(name: string, groupId: string | null = null, grade: Grade | null = null): Promise<LearnerRow> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO learners (id, name, created_at, group_id) VALUES ($1, $2, datetime('now'), $3)",
-    [id, name.trim(), groupId],
+    "INSERT INTO learners (id, name, created_at, group_id, grade) VALUES ($1, $2, datetime('now'), $3, $4)",
+    [id, name.trim(), groupId, normalizeGrade(grade)],
   );
   const rows: LearnerRow[] = await d.select("SELECT * FROM learners WHERE id = $1", [id]);
   return rows[0];
+}
+
+/** Set (0 = K … 12) or clear (null) a learner's grade (migration 15, grade.ts). */
+export async function setLearnerGrade(id: string, grade: Grade | null): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE learners SET grade = $1 WHERE id = $2", [normalizeGrade(grade), id]);
 }
 
 export async function renameLearner(id: string, name: string): Promise<void> {

@@ -356,6 +356,16 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 15,
+            description: "learner grade: learners.grade (append-only, never edit v1-v14)",
+            sql: "
+                -- A learner's school grade: 0 = kindergarten, 1-12 = that grade, NULL = not set.
+                -- Existing learners get NULL, which leaves the tutor exactly as it was (src/lib/grade.ts).
+                ALTER TABLE learners ADD COLUMN grade INTEGER CHECK (grade IS NULL OR (grade BETWEEN 0 AND 12));
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

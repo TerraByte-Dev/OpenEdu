@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { UsageMode, TeacherEntry } from "../../lib/usage-modes";
 import type { PinRecord } from "../../lib/learner-pin";
 import type { LearnerRow } from "../../lib/learners";
+import type { Grade } from "../../lib/grade";
 
 // What the "Who uses this computer?" section needs from App: the mode lives in the DB and changing it
 // re-shapes the whole app (picker, chip, teacher PIN), so App owns it and hands these down.
@@ -11,6 +12,9 @@ export interface UsageControls {
   /** Every learner, and who is signed in: moving up from "Just me" checks whether another has a PIN. */
   learners: ReadonlyArray<Pick<LearnerRow, "id" | "name" | "pin_hash">>;
   activeLearnerId: string | null;
+  /** The signed-in learner's grade (#243), and saving a new one. Throws when the save fails. */
+  activeGrade: Grade | null;
+  setActiveGrade: (grade: Grade | null) => Promise<void>;
   /** `teacher`: a new PIN record, null to clear it, undefined to keep it. Throws when the save fails. */
   changeMode: (to: UsageMode, teacher: PinRecord | null | undefined) => Promise<void>;
   openTeacher: () => void;
