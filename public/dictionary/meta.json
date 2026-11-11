@@ -1,0 +1,14 @@
+{
+  "source": "Open English WordNet",
+  "edition": "2025",
+  "url": "https://github.com/globalwordnet/english-wordnet/releases/tag/2025-edition",
+  "license": "CC BY 4.0 (Open English WordNet) and the Princeton WordNet licence; see LICENSE.md and WNDB_License.txt",
+  "attribution": "Open English WordNet, by the Open English WordNet team, derived from Princeton WordNet.",
+  "archives": {
+    "english-wordnet-2025-json.zip": "7d749f6e2c39e6970e4997839dcf6e42fd281f3c2fae0171d2192bae8cfa4b51",
+    "english-wordnet-2025.zip": "73355e48f8117a24ca9ebc23ed75b35434e6cd21cc9dd3984e80aff5a5f63636"
+  },
+  "headwords": 127311,
+  "senses": 185129,
+  "shards": 667
+}

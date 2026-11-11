@@ -1,0 +1,1 @@
+{"lqg controller":[["LQG controller","n","a controller that is the combination of a Kalman filter i.e. a linear-quadratic estimator (LQE) with a linear-quadratic regulator (LQR).","The LQG controller itself is a dynamic system like the system it controls.",[]]]}
