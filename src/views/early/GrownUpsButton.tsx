@@ -57,7 +57,7 @@ export default function GrownUpsButton({ onHeld }: { onHeld: () => void }) {
         // Any click this key sends comes right after keyup; let it pass first.
         window.setTimeout(() => { keyed.current = false; }, 0);
       }}
-      onBlur={cancel}
+      onBlur={() => { cancel(); keyed.current = false; }}
     >
       <LockIcon />
       <span>{holding ? "Keep holding" : "Grown-ups"}</span>

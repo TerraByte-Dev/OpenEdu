@@ -152,7 +152,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     after: null,
     items: colorItems,
     grownUpTip: "name the color of things you see together: a red cup, a green leaf.",
-    playTogether: ["Find 3 red things in your home.", "Sort socks by color.", "Name the colors of the cars you see."],
+    playTogether: ["Find 3 red things in your home.", "Sort socks by color.", "Look out the window and name the colors of the cars."],
   },
   "count-1-10": {
     id: "count-1-10",
@@ -161,7 +161,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     after: null,
     items: countingItems("count-1-10", 1, 10),
     grownUpTip: "count out loud together and touch each apple as you say its number.",
-    playTogether: ["Count the stairs as you climb them.", "Count 5 spoons onto the table.", "Count the buttons on a shirt."],
+    playTogether: ["Hold the rail and count the stairs as you climb.", "Count 5 spoons onto the table.", "Count the buttons on a shirt."],
   },
   "count-11-20": {
     id: "count-11-20",

@@ -28,7 +28,13 @@ describe("try-together content", () => {
   });
 
   it("says to hold on near stairs", () => {
-    for (const i of Object.values(TRY_TOGETHER).flat()) if (/stair/i.test(i.how)) expect(i.how).toMatch(/hold hands|rail/i);
+    const texts = [...Object.values(TRY_TOGETHER).flat().map((i) => i.how), ...Object.values(SKILLS).flatMap((s) => s.playTogether)];
+    for (const t of texts) if (/stair/i.test(t)) expect(t, t).toMatch(/hold hands|rail/i);
+  });
+
+  it("keeps traffic at a distance", () => {
+    const texts = [...Object.values(TRY_TOGETHER).flat().map((i) => i.how), ...Object.values(SKILLS).flatMap((s) => s.playTogether)];
+    for (const t of texts) if (/\b(cars?|trucks?|street|road)\b/i.test(t)) expect(t, t).toMatch(/window|grown-up/i);
   });
 });
 
