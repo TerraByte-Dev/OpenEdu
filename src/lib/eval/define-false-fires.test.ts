@@ -40,10 +40,51 @@ const LITERAL = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\$]|\\.)*)
 const literals = Object.values(SOURCES).flatMap((src) =>
   [...src.matchAll(LITERAL)].map((m) => (m[1] ?? m[2] ?? m[3] ?? "").replace(/\\n/g, "\n").replace(/\\(.)/g, "$1")));
 
+// The messages checked, per suite, pinned so a change to any suite shows here (1,368 in all).
+const COUNTS: Record<string, number> = {
+  "rag main": 20, "rag held-out v1": 84, "rag dev-v2": 47, "k12-mc": 240, "k12-flow": 720, "k12-flow-fr": 243, goldens: 14,
+};
+
+// Frozen negative list (lever 18 review, P10): questions about what a person, poet or character meant,
+// which name them with a capital letter. The detector must not fire on any of them. The guard is
+// partial (defineWord.ts): a name asked about with a sentence that contains it, or typed in lower
+// case, still fires; those are listed in the lever row as a known limit.
+const NAME_QUESTIONS = [
+  "What does Frost mean in the last stanza?",
+  "What does Frost mean?",
+  "what does Lincoln mean in the Gettysburg Address",
+  "What does Lincoln mean by a new birth of freedom",
+  "What does Hamlet mean?",
+  "What does Hamlet mean in act 3?",
+  "What does Atticus mean in chapter 3?",
+  "what does Gatsby mean when he says you can repeat the past",
+  "What does Tom mean in this scene?",
+  "What does King mean in his speech?",
+  "What does Juliet mean?",
+  "What does Scout mean in chapter 11?",
+  "What does Dickinson mean in the poem?",
+  "What does Orwell mean in the last chapter",
+  "What does Jefferson mean in the Declaration?",
+  "what does Douglass mean in his narrative",
+  "What does Macbeth mean in this soliloquy?",
+  "What does Holden mean?",
+  "What does Piggy mean in chapter 5?",
+  "What does Hughes mean in the poem",
+];
+
 describe("dictionary note: no fires on the existing suites", () => {
-  it.each(Object.entries(SENT))("%s: 0 fires", (_suite, messages) => {
-    expect(messages.length).toBeGreaterThan(0);
+  it.each(Object.entries(SENT))("%s: 0 fires", (suite, messages) => {
+    expect(messages.length).toBe(COUNTS[suite]);
     expect(messages.filter((m) => askedWord(m) !== null)).toEqual([]);
+  });
+
+  it("the pinned counts cover every suite (1,368 messages)", () => {
+    expect(Object.keys(COUNTS).sort()).toEqual(Object.keys(SENT).sort());
+    expect(Object.values(COUNTS).reduce((a, b) => a + b, 0)).toBe(1368);
+  });
+
+  it("the frozen list of name questions: 0 fires", () => {
+    expect(NAME_QUESTIONS.filter((m) => askedWord(m) !== null)).toEqual([]);
   });
 
   it("every string literal in src/lib/eval: only two known, true meaning questions fire, and neither reaches the tutor as sent", () => {

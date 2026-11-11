@@ -26,6 +26,15 @@
 //   - a lone function word ("what does is mean"): the lookup maps some of them to a letter;
 //   - anything after X that is not a context: "what does freedom mean to you", "... mean for plants";
 //   - "the meaning of life", and an X with a question word in it ("the meaning of life and why");
+//   - a capitalised X unless the message quotes a sentence that uses it: "What does Frost mean in the
+//     last stanza?" asks what a poet or character meant, and the lookup would give the common noun
+//     ("frost", "lincoln" the sheep breed). Partial: a name asked about with a sentence that contains it
+//     still fires, and a lower-case name ("what does tom mean") is not caught;
+//   - a maths context: a sentence with "=", "/", "^" or a number written against a letter ("2x", "x2"),
+//     and a two-letter X with no vowel ("mx", "dy", "xy"): algebra, not words (the lookup would give a
+//     unit or an element). Partial: "what does ma mean" with no sentence still fires;
+//   - "the meaning of ..." or "definition of ..." after a colon or semicolon ("Essay prompt: the
+//     meaning of courage"), and "... in your own words" (an assignment, not a question);
 //   - "what is a X": a question about a thing, not a word. That is a separate, later arm (#251).
 
 import type { DictionaryEntry, Pos } from "../dictionary";
@@ -35,7 +44,9 @@ import { estTokens } from "./budget";
 export interface AskedWord {
   /** The word or phrase as the student typed it, quotes removed. */
   word: string;
-  /** The sentence the question is about, when the message gives one. */
+  /** The text the question is about, when the message gives some: the text after "in" / "here" / ":",
+   *  else the text before the question. Reserved for PR 3: nothing reads it yet (the model sees the
+   *  whole message), and it is not exact ("in the last stanza" comes back as "the last stanza"). */
   context?: string;
 }
 
@@ -79,7 +90,13 @@ const HEADS = [
   String.raw`i\s+(?:don't|dont|do\s+not)\s+(?:know|understand|get)\s+what\s+${THE_WORD}${X}\s+means?`,
 ];
 // The question starts the message or follows a sentence break; it runs to the end of the message.
-const PATTERNS = HEADS.map((h) => new RegExp(String.raw`(?:^|(?<=[.!?;:\n]))\s*${FILLER}${h}${TAIL}`, "i"));
+// A bare "meaning of" / "definition of" (HEADS[3]) is not read after a colon or semicolon, where it is
+// usually a title or a prompt ("Essay prompt: the meaning of courage").
+const PATTERNS = HEADS.map((h, i) => new RegExp(String.raw`(?:^|(?<=[.!?${i === 3 ? "" : ";:"}\n]))\s*${FILLER}${h}${TAIL}`, "i"));
+// Maths around the question: an equation, a fraction or power, or a number written against a letter.
+const FORMULA = /[=/^]|\d[a-z]|[a-z]\d/i;
+const VOWEL = /[aeiou]/i;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const unquote = (s: string) => s.trim().replace(/^["'`*]+|["'`*]+$/g, "").trim();
 
@@ -100,10 +117,15 @@ export function askedWord(text: string): AskedWord | null {
     // "the meaning of life" is a question about life, not about the word.
     if (words.join(" ") === "life" && /meaning\s+of\s+life/i.test(m[0])) continue;
     if (words.length === 1 && (words[0].replace(/[^a-z]/g, "").length < 2 || FUNCTION_WORD.has(words[0]))) continue;
+    if (words.length === 1 && words[0].length === 2 && !VOWEL.test(words[0])) continue;
     // "in this sentence?" leaves only punctuation in ctx: no context of its own, so the text before it.
     const after = m.groups.ctx && /[\p{L}\p{N}]/u.test(m.groups.ctx) ? unquote(m.groups.ctx) : "";
+    if (/\byour own words\b/i.test(after)) continue;
     const before = t.slice(0, m.index).trim();
     const context = after || before;
+    if (context && FORMULA.test(context)) continue;
+    // A capitalised X is read as a name unless the context is a sentence that uses it.
+    if (/^\p{Lu}/u.test(word) && !(context && new RegExp(`(?<![\\p{L}])${escapeRe(word)}(?![\\p{L}])`, "iu").test(context))) continue;
     return context ? { word, context } : { word };
   }
   return null;
@@ -129,11 +151,14 @@ The student asked what "{word}" means. Use the dictionary entry above as the sou
 interface Shown { form: string; pos: Pos; definition: string; example: string }
 
 /** The senses shown, in lookupWord's order: per headword its senses in stored order, skipping a sense
- *  whose part of speech already has DICTIONARY_SENSES_PER_POS, up to the per-headword and total caps. */
+ *  whose part of speech already has DICTIONARY_SENSES_PER_POS, up to the per-headword and total caps.
+ *  A headword reached as a form ("via: form") with two letters or fewer is left out: those are suffix
+ *  rules cutting a word to an abbreviation or a letter ("gas" -> "ga", "vs" -> "v", "'tis" -> "ti"). */
 export function selectSenses(entries: readonly DictionaryEntry[]): Array<{ entry: DictionaryEntry; senses: Shown[] }> {
   const out: Array<{ entry: DictionaryEntry; senses: Shown[] }> = [];
   let total = 0;
   for (const entry of entries) {
+    if (entry.via === "form" && entry.headword.length <= 2) continue;
     if (total >= DICTIONARY_MAX_SENSES) break;
     const perPos = new Map<Pos, number>();
     const senses: Shown[] = [];
@@ -180,7 +205,7 @@ export function dictionaryNote(word: string, entries: readonly DictionaryEntry[]
     count--;
     entry = renderEntry(word, picked);
   }
-  return `${entry}\n${DICTIONARY_NOTE.replace("{word}", word)}`;
+  return `${entry}\n${DICTIONARY_NOTE.replace("{word}", () => word)}`;
 }
 
 /** The student's message as the model sees it on a define turn. */
@@ -198,17 +223,25 @@ export const DICTIONARY_LOOKUP_DEADLINE_MS = 2000;
  */
 export async function lookupDictionaryNote(
   word: string,
-  lookup: (w: string) => Promise<DictionaryEntry[]>,
+  lookup: (w: string, signal: AbortSignal) => Promise<DictionaryEntry[]>,
   deadlineMs = DICTIONARY_LOOKUP_DEADLINE_MS,
+  turnSignal?: AbortSignal,
 ): Promise<string | null> {
+  // Aborted at the deadline or when the student stops the turn, so a hung fetch is cancelled and
+  // dictionary.ts drops it from its cache instead of keeping a request that never ends.
+  const ctl = new AbortController();
+  const stop = () => ctl.abort();
+  turnSignal?.addEventListener("abort", stop, { once: true });
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), deadlineMs); });
+  const late = new Promise<null>((resolve) => { timer = setTimeout(() => { stop(); resolve(null); }, deadlineMs); });
   try {
-    const entries = await Promise.race([lookup(word), late]);
+    if (turnSignal?.aborted) return null;
+    const entries = await Promise.race([lookup(word, ctl.signal), late]);
     return entries ? dictionaryNote(word, entries) : null;
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
+    turnSignal?.removeEventListener("abort", stop);
   }
 }

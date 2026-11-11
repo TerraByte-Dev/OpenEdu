@@ -51,15 +51,23 @@ const FILES: Record<string, unknown> = {
 };
 let fetched: string[] = [];
 let failFetch = false;
+// When set, the stub never answers until the request is aborted (a hung bundled fetch).
+let hangFetch = false;
+let abortedFetches = 0;
 
 beforeEach(() => {
   sent.length = 0;
   fetched = [];
   failFetch = false;
+  hangFetch = false;
+  abortedFetches = 0;
   resetDictionaryCache();
-  vi.stubGlobal("fetch", async (url: string) => {
+  vi.stubGlobal("fetch", async (url: string, init?: { signal?: AbortSignal }) => {
     fetched.push(url);
     if (failFetch) throw new TypeError("network down");
+    if (hangFetch) {
+      return new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => { abortedFetches++; reject(new DOMException("aborted", "AbortError")); }));
+    }
     const body = FILES[url.split("/").pop()!];
     return body === undefined
       ? new Response("<!doctype html><html></html>", { status: 200, headers: { "content-type": "text/html" } })
@@ -99,6 +107,13 @@ describe("dictionary note: request through the kernel", () => {
     expect(on.result).toMatchObject({ askedWord: "zorp", firstTurnHold: false });
     expect(on.result.dictionaryNote).toBe(last.content.slice(DEFINE.length + 2));
     expect(off.result).toMatchObject({ askedWord: "zorp", dictionaryNote: null });
+  });
+
+  it("(a) pins the define turn's user message, the note wording included, the same bytes on any checkout", async () => {
+    const { req } = await run([], DEFINE);
+    const last = req[req.length - 1].content;
+    expect(last).not.toContain("\r");
+    expect(last).toMatchSnapshot();
   });
 
   it("(a) shows a form's headword: \"zorped\" is a form of \"zorp\"", async () => {
@@ -149,6 +164,20 @@ describe("dictionary note: request through the kernel", () => {
     expect(failed.req).toEqual(off.req);
     expect(failed.result.stopReason).toBe("complete");
   });
+
+  it("(c) a hung lookup: the turn waits for the 2 s deadline, then is sent unchanged and the fetch is aborted", async () => {
+    const off = await run([], DEFINE, "off");
+    hangFetch = true;
+    const started = Date.now();
+    const hung = await run([], DEFINE);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(1900);
+    expect(hung.req).toEqual(off.req);
+    expect(hung.result).toMatchObject({ askedWord: "zorp", dictionaryNote: null, stopReason: "complete" });
+    expect(abortedFetches).toBeGreaterThan(0);
+    // The aborted request is not kept: the next lookup fetches again and gets its note.
+    hangFetch = false;
+    expect((await run([], DEFINE)).result.dictionaryNote).not.toBeNull();
+  }, 10_000);
 
   it("(d) yields to the first-turn hold: a new option-list problem ending in a meaning question gets the hold only", async () => {
     const text = "Which word fits the blank? The ___ hummed.\n\nA) zorp\nB) plim\nC) vask\nD) trell\n\nWhat does zorp mean?";

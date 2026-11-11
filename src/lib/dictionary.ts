@@ -152,27 +152,27 @@ interface Index {
 let indexPromise: Promise<Index> | null = null;
 const shardCache = new Map<string, Promise<Shard>>();
 
-async function fetchJson<T>(name: string): Promise<T> {
-  const res = await fetch(`${BASE}/${name}`, { method: "GET" });
+async function fetchJson<T>(name: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${BASE}/${name}`, { method: "GET", signal });
   if (!res.ok) throw new Error(`dictionary fetch failed (${res.status}): ${name}`);
   if (!(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`dictionary fetch got a non-JSON reply: ${name}`);
   return (await res.json()) as T;
 }
 
-function loadIndex(): Promise<Index> {
+function loadIndex(signal?: AbortSignal): Promise<Index> {
   indexPromise ??= Promise.all([
-    fetchJson<Exceptions>("exceptions.json"),
-    fetchJson<{ shardKeys: string[] }>("meta.json"),
+    fetchJson<Exceptions>("exceptions.json", signal),
+    fetchJson<{ shardKeys: string[] }>("meta.json", signal),
   ]).then(([exc, meta]) => ({ exc, shards: new Set(meta.shardKeys) }));
   // A failed load is not cached: the next lookup tries again.
   indexPromise.catch(() => { indexPromise = null; });
   return indexPromise;
 }
 
-function loadShard(key: string): Promise<Shard> {
+function loadShard(key: string, signal?: AbortSignal): Promise<Shard> {
   let p = shardCache.get(key);
   if (!p) {
-    p = fetchJson<Shard>(`${key}.json`);
+    p = fetchJson<Shard>(`${key}.json`, signal);
     shardCache.set(key, p);
     p.catch(() => shardCache.delete(key));
   }
@@ -180,15 +180,17 @@ function loadShard(key: string): Promise<Shard> {
 }
 
 /** Look a word or phrase up in the bundled dictionary. Empty when it isn't there or the input is blank.
- *  Throws only if the bundled files can't be read, which the caller treats as "no entry". */
-export async function lookupWord(raw: string): Promise<DictionaryEntry[]> {
+ *  Throws only if the bundled files can't be read, which the caller treats as "no entry". `signal`
+ *  aborts the fetches it starts; an aborted fetch rejects and is dropped from the cache, so a hung
+ *  request is not kept for the next lookup. */
+export async function lookupWord(raw: string, signal?: AbortSignal): Promise<DictionaryEntry[]> {
   const word = normalizeQuery(raw);
   if (!word) return [];
   const trailingDot = /\p{L}\.["'’”)\]]*\s*$/u.test(raw);
-  const { exc, shards } = await loadIndex();
+  const { exc, shards } = await loadIndex(signal);
   const keys = shardsFor(candidateHeadwords(word, exc, { trailingDot })).filter((k) => shards.has(k));
   const loaded = new Map<string, Shard>();
-  await Promise.all(keys.map(async (k) => loaded.set(k, await loadShard(k))));
+  await Promise.all(keys.map(async (k) => loaded.set(k, await loadShard(k, signal))));
   return resolveEntries(word, exc, (k) => loaded.get(k), { trailingDot });
 }
 

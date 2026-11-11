@@ -38,6 +38,11 @@ describe("askedWord: fires on an explicit meaning question", () => {
     ["ok so what does vast mean", "vast"],
     ["what does o'clock mean", "o'clock"],
     ["what does life mean", "life"],
+    ["what does go mean", "go"],
+    ["what does ox mean?", "ox"],
+    // A capitalised word with a sentence that uses it.
+    ["What does Bank mean in 'Bank on it'?", "Bank", "Bank on it"],
+    ["The poem says Frost covered the field. What does frost mean here?", "frost", "The poem says Frost covered the field."],
     // With a sentence it is about.
     ["what does bank mean in 'we sat on the bank of the river'", "bank", "we sat on the bank of the river"],
     ["What does the word bark mean in this sentence: The bark was rough.", "bark", "The bark was rough"],
@@ -73,6 +78,14 @@ describe("askedWord: does not fire", () => {
     // Something after X that is not a context.
     "what does freedom mean to you", "what does photosynthesis mean for plants", "what does this mean for the answer",
     "what does bank mean? I am confused",
+    // A name: what a poet, a character or a speaker meant (P10). Partial: see defineWord.ts.
+    "What does Frost mean in the last stanza?", "What does Lincoln mean in the Gettysburg Address?", "What does Hamlet mean?",
+    "what does Atticus mean in chapter 3", "Define Photosynthesis",
+    // Maths (P11): an equation or formula in the sentence, or a two-letter X with no vowel.
+    "what does mx mean in y=mx+b", "what does dy mean in dy/dx", "what does xy mean", "What does mx mean?",
+    "what does sin mean in sin(2x)", "what does e mean in e^x",
+    // A title or an assignment.
+    "Essay prompt: the meaning of courage", "Title: definition of freedom", "Define justice in your own words.",
     // Not a meaning question, or a "what is a X" question (a later arm).
     "what is a bank", "What is photosynthesis?", "what is the meaning of life and why", "what is the meaning of life?", "meaning of life", "what does give it mean", "Show me the full worked answer.",
     "I think it's B.", "Is it 10?", "Which one is right?", "ok thanks", "It means the same thing.",
@@ -85,6 +98,12 @@ describe("askedWord: does not fire", () => {
 });
 
 describe("selectSenses: caps", () => {
+  it("leaves out a two-letter-or-shorter headword reached as a form (a suffix rule cutting to an abbreviation)", () => {
+    const picked = selectSenses([entry("zz", [sense("n", 0, "zz")], "form"), entry("zorp", [sense("n", 1)], "form"), entry("ab", [sense("n", 2, "ab")])]);
+    expect(picked.map((p) => p.entry.headword)).toEqual(["zorp", "ab"]);
+    expect(dictionaryNote("zzs", [entry("zz", [sense("n", 0, "zz")], "form")])).toBeNull();
+  });
+
   it("keeps stored order, at most SENSES_PER_POS per part of speech and SENSES_PER_HEADWORD per headword", () => {
     const senses = [0, 1, 2, 3, 4].map((i) => sense("n", i)).concat([0, 1, 2, 3].map((i) => sense("v", i)), [sense("a", 0)]);
     const [picked] = selectSenses([entry("zorp", senses)]);
@@ -126,6 +145,10 @@ ${DICTIONARY_NOTE.replace("{word}", "zorped")}`);
     expect(dictionaryNote("zorp", [entry("zorp", [huge, sense("n", 1)])])).toContain("1. zorp");
   });
 
+  it("puts the word into the note literally, even with $ in it", () => {
+    expect(dictionaryNote("a$&b", [entry("zorp", [sense("n", 0)])])).toContain('asked what "a$&b" means');
+  });
+
   it("appends after the student's text", () => {
     expect(withDictionaryNote("what does zorp mean", "NOTE")).toBe("what does zorp mean\n\nNOTE");
   });
@@ -142,14 +165,24 @@ describe("lookupDictionaryNote: a lookup never fails or stalls the turn", () => 
   it("returns null when the lookup throws", async () => {
     expect(await lookupDictionaryNote("zorp", async () => { throw new Error("bundled files unreadable"); })).toBeNull();
   });
-  it("returns null at the deadline when the lookup hangs", async () => {
+  it("returns null at the deadline when the lookup hangs, and aborts the lookup's fetches", async () => {
     vi.useFakeTimers();
     try {
-      const p = lookupDictionaryNote("zorp", () => new Promise<DictionaryEntry[]>(() => {}), 50);
+      let seen: AbortSignal | null = null;
+      const p = lookupDictionaryNote("zorp", (_w, signal) => { seen = signal; return new Promise<DictionaryEntry[]>(() => {}); }, 50);
       await vi.advanceTimersByTimeAsync(60);
       expect(await p).toBeNull();
+      expect(seen!.aborted).toBe(true);
     } finally {
       vi.useRealTimers();
     }
+  });
+  it("returns null and aborts the lookup when the turn is stopped", async () => {
+    const turn = new AbortController();
+    let seen: AbortSignal | null = null;
+    const p = lookupDictionaryNote("zorp", (_w, signal) => { seen = signal; return new Promise<DictionaryEntry[]>((_r, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")))); }, 10_000, turn.signal);
+    turn.abort();
+    expect(await p).toBeNull();
+    expect(seen!.aborted).toBe(true);
   });
 });

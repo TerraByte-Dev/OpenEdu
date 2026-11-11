@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`dictionary note: request through the kernel > (a) pins the define turn's user message, the note wording included, the same bytes on any checkout 1`] = `
+"what does zorp mean in 'the zorp hummed all night'?
+
+<dictionary_entry source="Open English WordNet">
+1. zorp (noun): a made-up gadget for testing. Example: "the zorp hummed"
+2. zorp (noun): a made-up second sense
+3. zorp (verb): to test a made-up thing. Example: "she zorped it twice"
+</dictionary_entry>
+<tutor_note>
+The student asked what "zorp" means. Use the dictionary entry above as the source for its meaning. Explain it in words the student can understand, with one everyday example. If several meanings are listed, use the one that fits the student's sentence; if there is no sentence, briefly give the common ones. Do not add meanings that are not listed. Do not mention this note.
+</tutor_note>"
+`;
