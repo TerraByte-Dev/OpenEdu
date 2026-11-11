@@ -14,31 +14,53 @@ export const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] =
   { id: "anthropic", name: "Anthropic", needsKey: true },
 ];
 
+// Checked 2026-11-11 against https://platform.claude.com/docs/en/about-claude/models,
+// https://platform.claude.com/docs/en/about-claude/model-deprecations and
+// https://developers.openai.com/api/docs/models (+ /deprecations). A model is listed only if OpenEdu's
+// requests work on it as llm.ts sends them (see openAIRequestFields / anthropicRequestFields):
+//   - gpt-6.1-sol, gpt-6-astra and gpt-6.1-terra need the Responses API for tool calls, so they are
+//     generation-only (the tutor calls tools on Chat Completions). gpt-6-luna can call tools there
+//     with reasoning_effort "none", which llm.ts sends.
+//   - claude-opus-5-5, claude-sonnet-5-5 and claude-fable-5-x reject the forced tool_choice that
+//     callAnthropicStructured uses, so they are left out until that path moves to output_config.format.
+//     claude-opus-4-6 (retirement not before 2027-02-05) stays the Anthropic generation default.
 export const GENERATION_MODELS: Record<CloudProvider, ModelOption[]> = {
   openai: [
-    { id: "gpt-5.4", label: "GPT-5.4", recommended: true },
-    { id: "gpt-4.1", label: "GPT-4.1" },
-    { id: "gpt-4o", label: "GPT-4o" },
+    { id: "gpt-6.1-sol", label: "GPT-6.1 Sol", recommended: true },
+    { id: "gpt-6-astra", label: "GPT-6 Astra" },
+    { id: "gpt-6-luna", label: "GPT-6 Luna" },
+    { id: "gpt-5.4", label: "GPT-5.4" },
   ],
   anthropic: [
     { id: "claude-opus-4-6", label: "Claude Opus 4.6", recommended: true },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+    { id: "claude-haiku-5-5", label: "Claude Haiku 5.5" },
   ],
 };
 
 export const CHAT_MODELS: Record<CloudProvider, ModelOption[]> = {
   openai: [
-    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", recommended: true },
-    { id: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-    { id: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { id: "gpt-4o", label: "GPT-4o" },
+    { id: "gpt-6-luna", label: "GPT-6 Luna", recommended: true },
+    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
   ],
   anthropic: [
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", recommended: true },
+    { id: "claude-haiku-5-5", label: "Claude Haiku 5.5", recommended: true },
     { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
   ],
+};
+
+// Cloud ids OpenEdu used to offer, with the provider's shutdown date (UTC). From that date a stored one
+// resolves to today's recommended model for the same provider and role, instead of a 404 on every call.
+// OpenAI announced all four on 2026-10-14 (https://developers.openai.com/api/docs/deprecations). Bare
+// gpt-4o is included because both snapshots it can still point to (2024-08-06, 2024-11-20) shut down
+// that day; 2024-05-13 already has.
+export const CLOUD_SHUTDOWNS: Record<CloudProvider, Record<string, string>> = {
+  openai: {
+    "gpt-4.1": "2027-01-14",
+    "gpt-4.1-mini": "2027-01-14",
+    "gpt-4o": "2027-01-14",
+    "gpt-4o-mini": "2027-01-14",
+  },
+  anthropic: {},
 };
 
 // Curated fallback lists shown when Ollama isn't connected (no live model discovery available).
@@ -112,6 +134,21 @@ export function defaultGenerationModel(provider: LLMProvider, ramBytes: number |
 }
 export function defaultChatModel(provider: LLMProvider, ramBytes: number | null = null, installed: string[] | null = null): string {
   return provider === "ollama" ? defaultOllamaModel(ramBytes, installed) : recommendedId(CHAT_MODELS[provider]);
+}
+// The model a stored setting should resolve to. A stored id is kept as is unless its provider has shut
+// it down (CLOUD_SHUTDOWNS); then the recommended model for the same provider and role is used. Only
+// the current provider's own list is consulted, so this never moves anyone to another provider, and
+// nothing is written back: the stored value stays until the user picks again.
+export function resolveStoredModel(
+  provider: LLMProvider,
+  role: "generation" | "chat",
+  stored: string | undefined,
+  now: Date = new Date(),
+): string | undefined {
+  if (stored === undefined || provider === "ollama") return stored;
+  const shutdown = CLOUD_SHUTDOWNS[provider][stored.trim()];
+  if (!shutdown || now < new Date(`${shutdown}T00:00:00Z`)) return stored;
+  return role === "generation" ? defaultGenerationModel(provider) : defaultChatModel(provider);
 }
 export function defaultEmbeddingModel(provider: LLMProvider): string {
   // Embedding is local-first (Anthropic has no embeddings endpoint) — only OpenAI gets a cloud default.

@@ -8,7 +8,7 @@ import {
 } from "../../../lib/store";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, type ModelOption,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, type ModelOption,
 } from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
 import { Section, SettingRow, SecretField, SegmentedControl, INPUT_CLS, useSettings } from "../primitives";
@@ -89,7 +89,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const commitEmbedding = async () => { await setEmbeddingModel(embeddingModel.trim() || "nomic-embed-text"); markSaved(); };
 
   const verifyKey = async (key: string) => {
-    const testModel = provider === "anthropic" ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
+    // The catalog's chat default, so a retired id here can never fail a good key with "Model not found".
+    const testModel = defaultChatModel(provider);
     try {
       await callLLM([{ role: "user", content: "Reply with one word: ok" }], { provider, model: testModel, apiKey: key.trim() });
       return { ok: true, msg: `${provider === "anthropic" ? "Anthropic" : "OpenAI"} key is valid and working.` };

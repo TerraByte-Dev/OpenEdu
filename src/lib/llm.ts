@@ -274,6 +274,7 @@ async function streamAnthropic(
     max_tokens: 8096,
     stream: true,
     messages: chatMsgs,
+    ...anthropicRequestFields(config.model),
   };
   if (systemMsg) body.system = systemMsg.content;
 
@@ -497,6 +498,7 @@ export async function callLLM(
       model: config.model,
       max_tokens: 8096,
       messages: chatMsgs,
+      ...anthropicRequestFields(config.model),
     };
     if (systemMsg) body.system = systemMsg.content;
 
@@ -654,9 +656,10 @@ function effectivePerCallTimeoutMs(provider: string, tier: ModelTier | undefined
 
 // Static cloud-model tier map. Substring match — covers versioned variants like
 // "claude-sonnet-4-6-20250101" without needing an entry per snapshot.
-function cloudModelTier(provider: "openai" | "anthropic", model: string): ModelTier {
+export function cloudModelTier(provider: "openai" | "anthropic", model: string): ModelTier {
   const m = model.toLowerCase();
   if (provider === "openai") {
+    if (m.includes("gpt-6")) return m.includes("luna") ? "medium" : "large"; // Luna is the cheap one
     if (m.includes("gpt-4") && !m.includes("mini") && !m.includes("nano")) return "large";
     if (m.includes("gpt-5")) return "large";
     if (m.includes("o3") || m.includes("o4")) return "large";
@@ -668,6 +671,32 @@ function cloudModelTier(provider: "openai" | "anthropic", model: string): ModelT
   if (m.includes("sonnet")) return "large";
   if (m.includes("haiku")) return "medium";
   return "medium";
+}
+
+// Per-model request fields for OpenAI Chat Completions. GPT-6 models reason by default, and a custom
+// temperature is only accepted at reasoning_effort "none"
+// (https://developers.openai.com/api/docs/guides/latest-model). Luna takes "none", which is also the
+// only way it calls tools on Chat Completions (https://developers.openai.com/api/docs/models/gpt-6-luna).
+// Sol and Astra cannot go to "none", so their temperature is dropped. Older models are unchanged.
+export function openAIRequestFields(model: string, temperature?: number): Record<string, unknown> {
+  const m = model.toLowerCase();
+  const temp = temperature === undefined ? {} : { temperature };
+  if (m.startsWith("gpt-6-luna")) return { reasoning_effort: "none", ...temp };
+  if (m.startsWith("gpt-6")) return {};
+  return temp;
+}
+
+// Per-model request fields for the Anthropic Messages API (anthropic-version 2023-06-01). Claude 4.7
+// and later answer a non-default temperature with a 400
+// (https://platform.claude.com/docs/en/about-claude/model-deprecations). Haiku 5.5 thinks by default;
+// OpenEdu reads only text blocks and does not send thinking blocks back on tool turns, so thinking is
+// switched off, which Haiku 5.5 accepts (https://platform.claude.com/docs/en/models/haiku-5-5/overview).
+export function anthropicRequestFields(model: string, temperature?: number): Record<string, unknown> {
+  const m = model.toLowerCase();
+  const fields: Record<string, unknown> = {};
+  if (temperature !== undefined && !/^claude-[a-z]+-(?:4-[7-9]|[5-9])/.test(m)) fields.temperature = temperature;
+  if (m.startsWith("claude-haiku-5-5")) fields.thinking = { type: "disabled" };
+  return fields;
 }
 
 // Parse Ollama's parameter_size string like "3.8B", "7B", "1.5B", "70B".
@@ -1033,7 +1062,7 @@ async function callOpenAIStructured(
   const body = {
     model: config.model,
     messages,
-    temperature,
+    ...openAIRequestFields(config.model, temperature),
     response_format: {
       type: "json_schema",
       json_schema: { name: toolName, strict: true, schema },
@@ -1087,7 +1116,7 @@ async function callAnthropicStructured(
   const body: Record<string, unknown> = {
     model: config.model,
     max_tokens: 8096,
-    temperature,
+    ...anthropicRequestFields(config.model, temperature),
     messages: chatMsgs,
     tools: [{
       name: toolName,
@@ -1731,8 +1760,9 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
 
 async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, opts: TurnOpts): AsyncGenerator<LLMTurnEvent> {
   if (!config.apiKey) throw new Error("OpenAI API key not set — go to Settings and add your key.");
-  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOpenAITurnMessage), stream: true };
-  if (opts.temperature !== undefined) body.temperature = opts.temperature;
+  const body: Record<string, unknown> = {
+    model: config.model, messages: messages.map(toOpenAITurnMessage), stream: true, ...openAIRequestFields(config.model, opts.temperature),
+  };
   const tools = ollamaToolDefs(opts.tools); // identical {type:function,function:{…}} envelope as Ollama/OpenAI
   if (tools) { body.tools = tools; body.tool_choice = "auto"; }
 
@@ -1808,7 +1838,7 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
   const { system, messages: amsgs } = toAnthropicTurnMessages(messages);
   const body: Record<string, unknown> = { model: config.model, max_tokens: 8096, stream: true, messages: amsgs };
   if (system) body.system = system;
-  if (opts.temperature !== undefined) body.temperature = opts.temperature;
+  Object.assign(body, anthropicRequestFields(config.model, opts.temperature));
   const tools = anthropicToolDefs(opts.tools);
   if (tools) body.tools = tools;
 
@@ -1904,7 +1934,7 @@ const PREFLIGHT_TIMEOUT_MS = 90_000;
 
 const SUGGESTION_STRUCTURED_FAIL =
   "The selected model can't reliably emit structured JSON. " +
-  "Try gemma3:4b (or a similarly sized model) for local Ollama, or a cloud model from Settings.";
+  "Try gemma4:e4b (or a similarly sized model) for local Ollama, or a cloud model from Settings.";
 
 export async function preflightStructuredOutput(config: LLMConfig): Promise<PreflightResult> {
   const tier = await detectModelTier(config).catch(() => undefined);
