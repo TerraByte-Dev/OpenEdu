@@ -28,7 +28,8 @@ import {
   listLearners, createLearner, setActiveLearnerId, setLearnerGrade, recordEarlyAttempt, getEarlyAttempts,
 } from "./db";
 import { ITEMS_BY_ID, SKILLS, choiceKey } from "./early/packs";
-import { tap, skillProgress, isUnlocked } from "./early/engine";
+import { tap, skillProgress, isUnlocked, parseUtc } from "./early/engine";
+import { hardOnes, CONFUSION_MIN } from "./early/report";
 import { needsPicker, DEFAULT_LEARNER_ID } from "./learners";
 import { normalizeGrade, readingLevelLayer } from "./grade";
 
@@ -181,7 +182,7 @@ describe("migration 16: early-learner attempts", () => {
     setActiveLearnerId(null);
     migrate(15);
     sqlite.exec(`INSERT INTO learners (id, name, created_at, grade) VALUES ('sam', 'Sam', datetime('now'), 0), ('ana', 'Ana', datetime('now'), 3);`);
-    migrate(16, 16);
+    migrate(17, 16); // the app runs every migration; 17 adds the choice column recordEarlyAttempt writes
   });
 
   const item = ITEMS_BY_ID.get("count-1-10/how-many-4")!;
@@ -243,5 +244,34 @@ describe("migration 16: early-learner attempts", () => {
   it("indexes the table for per-learner reads", () => {
     const plan = sqlite.prepare(`EXPLAIN QUERY PLAN SELECT skill_id FROM early_attempts WHERE learner_id = 'sam' ORDER BY id ASC`).all() as Array<{ detail: string }>;
     expect(plan.map((p) => p.detail).join(" ")).toContain("idx_early_attempts_learner");
+  });
+});
+
+describe("migration 17: the tapped choice on each attempt", () => {
+  beforeEach(async () => {
+    await openDb();
+    setActiveLearnerId(null);
+    migrate(16);
+    sqlite.exec(`INSERT INTO learners (id, name, created_at, grade) VALUES ('sam', 'Sam', datetime('now'), 0);`);
+    sqlite.exec(`INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ('sam', 'colors', 'colors/red', 0, 1);`);
+    migrate(17, 17);
+  });
+
+  it("keeps rows stored before it, with no choice", async () => {
+    setActiveLearnerId("sam");
+    const rows = await getEarlyAttempts();
+    expect(rows.map((r) => [r.item_id, r.choice])).toEqual([["colors/red", null]]);
+  });
+
+  it("stores the tapped choice, which is what hardOnes reads", async () => {
+    setActiveLearnerId("sam");
+    const pink = ITEMS_BY_ID.get("colors/pink")!;
+    const red = pink.choices.find((c) => choiceKey(c) === "color:red")!;
+    for (let i = 0; i < CONFUSION_MIN; i++) await recordEarlyAttempt(tap(pink, red, true).attempt);
+    const rows = await getEarlyAttempts();
+    expect(rows.slice(1).map((r) => r.choice)).toEqual(Array(CONFUSION_MIN).fill("color:red"));
+    // created_at is SQLite's clock; judge "recent" from the newest row so the test never races midnight.
+    const now = parseUtc(rows[rows.length - 1].created_at);
+    expect(hardOnes(rows, now)).toEqual([{ skillId: "colors", a: "pink", b: "red", times: CONFUSION_MIN }]);
   });
 });

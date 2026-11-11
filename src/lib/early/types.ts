@@ -11,6 +11,7 @@ export type ShapeId = "circle" | "square" | "triangle" | "rectangle" | "star" | 
 /** What the picture card shows above the choices. The UI draws each one as inline SVG. */
 export type Picture =
   | { kind: "apples"; count: number }
+  | { kind: "dots"; n: number }        // the example for a "find N dots" retry: dots, like its choices
   | { kind: "numeral"; n: number }
   | { kind: "color"; color: ColorId }
   | { kind: "shape"; shape: ShapeId }

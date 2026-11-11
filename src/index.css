@@ -633,6 +633,7 @@ html[data-theme="dark"] {
 
 /* Grown-ups: press and hold. The fill grows while held; letting go early empties it. */
 .early-hold {
+  touch-action: none; /* a wobbly finger must not turn the hold into a scroll and cancel it */
   position: relative;
   overflow: hidden;
   display: flex;
@@ -672,6 +673,54 @@ html[data-theme="dark"] {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT PAGES (#244 PR 2) — src/views/early/PrintView.tsx
+   Tracing sheets and the monthly learning record, one US Letter
+   page each. On screen: a preview. In print: only .print-root (a
+   copy of the pages under <body>) shows. Paper is paper, so the
+   pages use fixed ink colours in both themes.
+═══════════════════════════════════════════════════════════════ */
+
+.print-root { display: none; }
+.print-page {
+  width: 8.5in;
+  height: 11in;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #FFFFFF;
+  color: #1B2440;
+  font-family: var(--font-body);
+}
+.print-page > svg { display: block; }
+.print-preview .print-page { flex-shrink: 0; border: 1px solid var(--rule); box-shadow: var(--shadow-soft); }
+
+.print-record { height: 100%; box-sizing: border-box; padding: 0.75in; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.5; }
+.print-record h1 { margin: 0; font-size: 30px; font-weight: 600; }
+.print-record h2 { margin: 18px 0 0; font-size: 18px; font-weight: 600; }
+.print-record p, .print-record ul { margin: 0; }
+.print-record ul { padding-left: 20px; list-style: disc; }
+.print-record-kicker { font-size: 15px; font-weight: 500; color: #1E3A8A; }
+.print-record-sub { font-size: 16px; color: #3D465E; }
+.print-record-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+.print-record-stats > div { border: 1px solid #C9D3E6; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; }
+.print-record-stats b { font-size: 20px; font-weight: 600; }
+.print-record-stats span { color: #3D465E; }
+.print-record table { border-collapse: collapse; width: 100%; }
+.print-record th, .print-record td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #E8E4DA; }
+.print-record th { font-weight: 600; }
+.print-record footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #E8E4DA; font-size: 12px; color: #3D465E; }
+
+@media print {
+  @page { size: letter; margin: 0; }
+  html, body { background: #FFFFFF !important; height: auto !important; overflow: visible !important; }
+  body > :not(.print-root) { display: none !important; }
+  .print-root { display: block; }
+  /* A hair under 11in, so rounding never spills a page onto a blank one. */
+  .print-page { height: 10.95in; break-after: page; }
+  .print-page:last-child { break-after: auto; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
 /* ═══════════════════════════════════════════════════════════════

@@ -388,6 +388,17 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 17,
+            description: "early-learner attempts: the tapped choice (append-only, never edit v1-v16)",
+            sql: "
+                -- choiceKey() of the choice the child tapped ('color:pink', 'n:14', 'dots:14',
+                -- 'shape:square'), so the grown-ups view can say what a wrong first try was mixed up with
+                -- (src/lib/early/report.ts hardOnes). NULL on rows stored before this version.
+                ALTER TABLE early_attempts ADD COLUMN choice TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

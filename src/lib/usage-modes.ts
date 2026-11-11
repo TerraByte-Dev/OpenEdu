@@ -84,7 +84,8 @@ export const TEACHER_ENTRIES = [
   "picker-teacher-tile",     // the picker's Teacher tile: the teacher view
   "settings-teacher-view",   // Settings > Who uses this > Open the teacher view
   "learner-data-backup",     // Settings > Learner data > Back up all learner data (every learner's data)
-  "early-grownups",          // the early-learner home's press-and-hold Grown-ups button: Settings (#244)
+  "early-grownups",          // the early-learner home's press-and-hold Grown-ups button: the grown-ups view (#244)
+  "grownups-settings",       // the grown-ups view's Settings link
 ] as const;
 export type TeacherEntry = (typeof TEACHER_ENTRIES)[number];
 
@@ -96,6 +97,7 @@ export const ENTRY_ACTION: Record<TeacherEntry, TeacherAction> = {
   "settings-teacher-view": "teacher-view",
   "learner-data-backup": "backup-all-data",
   "early-grownups": "open-settings",
+  "grownups-settings": "open-settings",
 };
 
 /**
@@ -123,9 +125,13 @@ export function runGuarded<T>(
   return undefined;
 }
 
-/** The teacher stays unlocked only while Settings or the teacher view is on screen. Leaving re-locks. */
+/**
+ * The teacher stays unlocked only while Settings, the grown-ups view (#244) or the teacher view is on
+ * screen, so the grown-ups view's Settings link does not ask twice. Leaving re-locks: back to the
+ * child's screens, the next press-and-hold asks again.
+ */
 export function staysUnlocked(view: string, teacherViewOpen: boolean): boolean {
-  return view === "settings" || teacherViewOpen;
+  return view === "settings" || view === "grownups" || teacherViewOpen;
 }
 
 /**

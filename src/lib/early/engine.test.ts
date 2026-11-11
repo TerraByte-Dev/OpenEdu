@@ -74,14 +74,15 @@ describe("a tap", () => {
 
   it("praises a right answer and stores it", () => {
     const r = tap(item, four, true);
-    expect(r.attempt).toEqual({ skillId: "count-1-10", itemId: item.id, correct: true, firstTry: true });
+    expect(r.attempt).toEqual({ skillId: "count-1-10", itemId: item.id, correct: true, firstTry: true, choice: "n:4" });
     expect(r.feedback).toEqual({ kind: "praise", say: "Yes! 4 apples." });
   });
 
-  it("teaches on a wrong answer (count together) and stores it as a wrong first try", () => {
+  it("teaches on a wrong answer (count together) and stores it as a wrong first try, with what was tapped", () => {
     const r = tap(item, five, true);
     expect(r.attempt.correct).toBe(false);
     expect(r.attempt.firstTry).toBe(true);
+    expect(r.attempt.choice).toBe("n:5");
     expect(r.feedback).toEqual({ kind: "teach", say: "Let's count them together: 1, 2, 3, 4.", countAlong: true, example: null });
   });
 

@@ -58,8 +58,11 @@ export function Apples({ count, numbered }: { count: number; numbered: boolean }
 
 // ── Dots ────────────────────────────────────────────────────────────────────────────────────────────
 
-/** `n` dots in rows of five, so 7 reads as five and two; above ten, the ten sit apart from the rest. */
-export function Dots({ n, size = 14, label = true }: { n: number; size?: number; label?: boolean }) {
+/**
+ * `n` dots in rows of five, so 7 reads as five and two; above ten, the ten sit apart from the rest.
+ * `numbered` writes 1, 2, 3 ... in the dots: a "find N dots" retry counts along on dots, like its choices.
+ */
+export function Dots({ n, size = 14, label = true, numbered = false }: { n: number; size?: number; label?: boolean; numbered?: boolean }) {
   const gap = Math.round(size * 0.45);
   const rows = chunk(Array.from({ length: n }, (_, i) => i), 5);
   const tensGap = n > 10 ? size : 0; // extra space under the first ten
@@ -73,8 +76,14 @@ export function Dots({ n, size = 14, label = true }: { n: number; size?: number;
       height={height}
       viewBox={`0 0 ${width} ${height}`}
     >
-      {rows.map((row, r) => row.map((_, c) => (
-        <circle key={`${r}-${c}`} cx={c * (size + gap) + size / 2} cy={rowY(r) + size / 2} r={size / 2} fill="var(--ink-faint)" />
+      {rows.map((row, r) => row.map((i, c) => (
+        <g key={`${r}-${c}`}>
+          <circle cx={c * (size + gap) + size / 2} cy={rowY(r) + size / 2} r={size / 2} fill="var(--ink-faint)" />
+          {numbered && (
+            <text x={c * (size + gap) + size / 2} y={rowY(r) + size / 2} textAnchor="middle" dominantBaseline="central"
+              fontSize={size * 0.5} fontWeight={600} fill="var(--on-accent)">{i + 1}</text>
+          )}
+        </g>
       )))}
     </svg>
   );
@@ -116,6 +125,7 @@ export function Shape({ shape, size = 112 }: { shape: ShapeId; size?: number }) 
 export function PictureView({ picture, numbered }: { picture: Picture; numbered: boolean }) {
   switch (picture.kind) {
     case "apples": return <Apples count={picture.count} numbered={numbered} />;
+    case "dots": return <Dots n={picture.n} size={picture.n > 10 ? 40 : 52} numbered={numbered} />;
     case "numeral":
       return (
         <span role="img" aria-label={`the number ${picture.n}`} className="font-semibold leading-none" style={{ fontSize: 128, color: "var(--phosphor)" }}>

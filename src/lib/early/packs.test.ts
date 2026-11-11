@@ -82,6 +82,15 @@ describe("the counting pack", () => {
     expect(item.teach.say).toBe("Let's count them together: 1, 2, 3, 4.");
   });
 
+  it("teaches a \"find N dots\" item with N dots, like its choices (#249)", () => {
+    for (const id of ["count-1-10", "count-11-20"] as SkillId[]) {
+      for (const item of SKILLS[id].items.filter((i) => i.picture.kind === "numeral")) {
+        expect(item.choices.every((c) => c.kind === "dots"), item.id).toBe(true);
+        expect(item.teach.example).toEqual({ kind: "dots", n: Number(item.answer.slice("dots:".length)) });
+      }
+    }
+  });
+
   it("offers neighbouring numbers inside the range", () => {
     expect(neighbours(1, 1, 10)).toEqual([1, 2, 3]);
     expect(neighbours(5, 1, 10)).toEqual([4, 5, 6]);

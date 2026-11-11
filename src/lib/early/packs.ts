@@ -103,7 +103,7 @@ function countingItems(skillId: SkillId, lo: number, hi: number): Item[] {
       choices: neighbours(n, lo === 1 ? 1 : lo - 1, hi).map((k) => ({ kind: "dots", n: k })),
       answer: `dots:${n}`,
       praise: `Yes! That is ${n}.`,
-      teach: { say: `This is ${n}. Let's count ${n} together: ${countList(n)}.`, countAlong: true, example: { kind: "apples", count: n } },
+      teach: { say: `This is ${n}. Let's count ${n} together: ${countList(n)}.`, countAlong: true, example: { kind: "dots", n } },
     });
   }
   return items;
@@ -152,7 +152,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     after: null,
     items: colorItems,
     grownUpTip: "name the color of things you see together: a red cup, a green leaf.",
-    playTogether: ["Find 3 red things in your home.", "Sort socks by color.", "Name the colors of the cars you see."],
+    playTogether: ["Find 3 red things in your home.", "Sort socks by color.", "Look out the window and name the colors of the cars."],
   },
   "count-1-10": {
     id: "count-1-10",
@@ -161,7 +161,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     after: null,
     items: countingItems("count-1-10", 1, 10),
     grownUpTip: "count out loud together and touch each apple as you say its number.",
-    playTogether: ["Count the stairs as you climb them.", "Count 5 spoons onto the table.", "Count the buttons on a shirt."],
+    playTogether: ["Hold the rail and count the stairs as you climb.", "Count 5 spoons onto the table.", "Count the buttons on a shirt."],
   },
   "count-11-20": {
     id: "count-11-20",
@@ -170,7 +170,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     after: "count-1-10",
     items: countingItems("count-11-20", 11, 20),
     grownUpTip: "count by tens first: count 10, then keep going, 11, 12, 13.",
-    playTogether: ["Count 15 steps to the door.", "Make a line of 12 coins and count them.", "Count to 20 while you wash your hands."],
+    playTogether: ["Count 15 steps to the door.", "Make a line of 12 books and count them.", "Count to 20 while you wash your hands."],
   },
   "shapes": {
     id: "shapes",

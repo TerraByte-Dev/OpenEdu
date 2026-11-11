@@ -49,7 +49,7 @@ export default function EarlyLearner({ learnerName, onGrownUps }: { learnerName:
 
   const onAttempt = (a: NewAttempt) => {
     // Shown at once; stored in the background. A failed write costs that row in the history, nothing on screen.
-    setRows((r) => [...r, { skill_id: a.skillId, item_id: a.itemId, correct: a.correct ? 1 : 0, first_try: a.firstTry ? 1 : 0, created_at: nowUtc() }]);
+    setRows((r) => [...r, { skill_id: a.skillId, item_id: a.itemId, correct: a.correct ? 1 : 0, first_try: a.firstTry ? 1 : 0, created_at: nowUtc(), choice: a.choice }]);
     recordEarlyAttempt(a).catch((e) => console.warn("[early] could not store an attempt", e));
   };
 

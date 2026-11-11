@@ -93,6 +93,7 @@ describe("every way into a teacher-only screen goes through one guard", () => {
     "settings-teacher-view": "teacher-view",
     "learner-data-backup": "backup-all-data",
     "early-grownups": "open-settings",
+    "grownups-settings": "open-settings",
   };
 
   it("knows every entry point and what each one opens", () => {
@@ -140,8 +141,9 @@ describe("running a guarded entry (App's guarded)", () => {
 });
 
 describe("the teacher is locked out again on leaving", () => {
-  it("stays in only while Settings or the teacher view is on screen", () => {
+  it("stays in only while Settings, the grown-ups view or the teacher view is on screen", () => {
     expect(staysUnlocked("settings", false)).toBe(true);
+    expect(staysUnlocked("grownups", false)).toBe(true); // its Settings link must not ask twice
     expect(staysUnlocked("dashboard", true)).toBe(true);
     expect(staysUnlocked("settings", true)).toBe(true);
     for (const v of ["dashboard", "course", "quiz", "promotion-test"]) expect(staysUnlocked(v, false)).toBe(false);
