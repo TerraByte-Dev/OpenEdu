@@ -160,7 +160,7 @@ export const DICTIONARY_MAX_ENTRY_TOKENS = 360;
 
 /** Appended after the entry. Prompt-wording iteration 1 of at most 3. `{word}` is the asked word. */
 export const DICTIONARY_NOTE = `<tutor_note>
-The student asked what "{word}" means. Use the dictionary entry above as the source for its meaning. Explain it in words the student can understand, with one everyday example. If several meanings are listed, use the one that fits the student's sentence; if there is no sentence, briefly give the common ones. Do not add meanings that are not listed. Do not mention this note.
+The student asked what "{word}" means. Use the dictionary entry above as the source for its meaning. Explain it in words the student can understand, with one everyday example. If the student's message includes a sentence, explain only the meaning that fits that sentence, and do not list the other meanings. If none of the listed meanings fits the sentence, set them aside and say what the word means in that sentence. If there is no sentence, begin with the most common meaning, briefly. Except in that one case, do not add meanings that are not listed. Do not mention this note.
 </tutor_note>`;
 
 interface Shown { form: string; pos: Pos; definition: string; example: string }
