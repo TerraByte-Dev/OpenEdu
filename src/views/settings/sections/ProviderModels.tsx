@@ -54,7 +54,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
         const key = (await getApiKey(base.provider)) || "";
         if (current()) setApiKeyValue(key);
       }
-      if (base.provider === "ollama" && current()) void checkOllama(base.ollamaUrl);
+      if (base.provider === "ollama") void checkOllama(base.ollamaUrl); // unguarded: a re-click of Ollama during the load must still probe
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
