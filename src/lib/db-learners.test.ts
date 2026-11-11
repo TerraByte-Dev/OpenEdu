@@ -25,8 +25,10 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 
 import {
   getCourses, getCourse, createCourse, createNote, getNotes, deleteLearner,
-  listLearners, createLearner, setActiveLearnerId, setLearnerGrade,
+  listLearners, createLearner, setActiveLearnerId, setLearnerGrade, recordEarlyAttempt, getEarlyAttempts,
 } from "./db";
+import { ITEMS_BY_ID, SKILLS, choiceKey } from "./early/packs";
+import { tap, skillProgress, isUnlocked } from "./early/engine";
 import { needsPicker, DEFAULT_LEARNER_ID } from "./learners";
 import { normalizeGrade, readingLevelLayer } from "./grade";
 
@@ -170,5 +172,76 @@ describe("migration 15: a grade on each learner", () => {
   it("refuses a grade outside K-12 at the database", () => {
     expect(() => sqlite.exec(`UPDATE learners SET grade = 13 WHERE id = 'ana'`)).toThrow();
     expect(() => sqlite.exec(`UPDATE learners SET grade = -1 WHERE id = 'ana'`)).toThrow();
+  });
+});
+
+describe("migration 16: early-learner attempts", () => {
+  beforeEach(async () => {
+    await openDb();
+    setActiveLearnerId(null);
+    migrate(15);
+    sqlite.exec(`INSERT INTO learners (id, name, created_at, grade) VALUES ('sam', 'Sam', datetime('now'), 0), ('ana', 'Ana', datetime('now'), 3);`);
+    migrate(16, 16);
+  });
+
+  const item = ITEMS_BY_ID.get("count-1-10/how-many-4")!;
+  const pick = (key: string) => item.choices.find((c) => choiceKey(c) === key)!;
+
+  it("stores each tap for the active learner and reads back only theirs, oldest first", async () => {
+    setActiveLearnerId("sam");
+    await recordEarlyAttempt(tap(item, pick("n:5"), true).attempt);
+    await recordEarlyAttempt(tap(item, pick("n:4"), false).attempt);
+    setActiveLearnerId("ana");
+    await recordEarlyAttempt(tap(item, pick("n:4"), true).attempt);
+    expect((await getEarlyAttempts()).map((r) => [r.correct, r.first_try])).toEqual([[1, 1]]);
+
+    setActiveLearnerId("sam");
+    const rows = await getEarlyAttempts();
+    expect(rows.map((r) => [r.skill_id, r.item_id, r.correct, r.first_try])).toEqual([
+      ["count-1-10", item.id, 0, 1],
+      ["count-1-10", item.id, 1, 0],
+    ]);
+    expect(rows[0].created_at).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
+  });
+
+  it("masters a skill from the stored rows after 5 first-try right answers in a row", async () => {
+    setActiveLearnerId("sam");
+    const skill = SKILLS["count-1-10"];
+    for (const it of skill.items.slice(0, 4)) {
+      const right = it.choices.find((c) => choiceKey(c) === it.answer)!;
+      await recordEarlyAttempt(tap(it, right, true).attempt);
+    }
+    expect(skillProgress(await getEarlyAttempts())["count-1-10"]).toMatchObject({ mastered: false, streak: 4 });
+    const fifth = skill.items[4];
+    await recordEarlyAttempt(tap(fifth, fifth.choices.find((c) => choiceKey(c) === fifth.answer)!, true).attempt);
+    const progress = skillProgress(await getEarlyAttempts());
+    expect(progress["count-1-10"].mastered).toBe(true);
+    expect(isUnlocked("count-11-20", progress)).toBe(true);
+  });
+
+  it("with no learner active, stores nothing and reads nothing", async () => {
+    await expect(recordEarlyAttempt(tap(item, pick("n:4"), true).attempt)).rejects.toThrow();
+    expect(await getEarlyAttempts()).toEqual([]);
+  });
+
+  it("deletes a learner's attempts with the learner, and nobody else's", async () => {
+    setActiveLearnerId("sam");
+    await recordEarlyAttempt(tap(item, pick("n:4"), true).attempt);
+    setActiveLearnerId("ana");
+    await recordEarlyAttempt(tap(item, pick("n:4"), true).attempt);
+    await deleteLearner("sam");
+    const count = (who: string) => (sqlite.prepare(`SELECT COUNT(*) AS n FROM early_attempts WHERE learner_id = '${who}'`).all()[0] as { n: number }).n;
+    expect(count("sam")).toBe(0);
+    expect(count("ana")).toBe(1);
+  });
+
+  it("refuses rows that are not 0/1 or not for a real learner", () => {
+    expect(() => sqlite.exec(`INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ('sam', 'colors', 'colors/red', 2, 1)`)).toThrow();
+    expect(() => sqlite.exec(`INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ('nobody', 'colors', 'colors/red', 1, 1)`)).toThrow();
+  });
+
+  it("indexes the table for per-learner reads", () => {
+    const plan = sqlite.prepare(`EXPLAIN QUERY PLAN SELECT skill_id FROM early_attempts WHERE learner_id = 'sam' ORDER BY id ASC`).all() as Array<{ detail: string }>;
+    expect(plan.map((p) => p.detail).join(" ")).toContain("idx_early_attempts_learner");
   });
 });

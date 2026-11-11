@@ -366,6 +366,28 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 16,
+            description: "early-learner attempts: early_attempts (append-only, never edit v1-v15)",
+            sql: "
+                -- One row per tap in the K-1 activities (src/lib/early/). Mastery is computed from these
+                -- rows by code (engine.ts skillProgress), so nothing else is stored. skill_id and item_id
+                -- are the stable ids in src/lib/early/packs.ts. Deleting a learner deletes their rows.
+                CREATE TABLE IF NOT EXISTS early_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    learner_id TEXT NOT NULL REFERENCES learners(id) ON DELETE CASCADE,
+                    skill_id TEXT NOT NULL,
+                    item_id TEXT NOT NULL,
+                    correct INTEGER NOT NULL CHECK (correct IN (0, 1)),
+                    first_try INTEGER NOT NULL CHECK (first_try IN (0, 1)),
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                -- Every read is one learner's rows in the order they were made.
+                CREATE INDEX IF NOT EXISTS idx_early_attempts_learner ON early_attempts(learner_id, id);
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()
