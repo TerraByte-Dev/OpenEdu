@@ -5,6 +5,7 @@ import {
   createChatThread, touchChatThread,
 } from "../lib/db";
 import { deriveThreadTitle } from "../lib/thread-title";
+import { threadSwitchAbortsTurn, turnIsShown, turnLanding } from "../lib/turn-thread";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode, getReadAloudAuto } from "../lib/store";
@@ -104,6 +105,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // The send path claims the thread it creates, so this effect skips a thread already in state.
   const loadedThreadRef = useRef<string | null | undefined>(undefined);
 
+  // The turn in flight and the thread it belongs to (null until a new conversation's thread exists).
+  // A turn only touches the shared streaming state while it is the one here; see turn-thread.ts.
+  const turnOwnerRef = useRef<{ thread: string | null } | null>(null);
+
   // Read aloud (#243): a speaker button on every tutor reply, and for K-2 learners each new reply
   // reads itself unless they turned that off (grade.ts autoReadAloud).
   const readAloud = useReadAloud();
@@ -193,6 +198,14 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setStreamingText("");
   };
 
+  // Opening another conversation mid-reply abandons the reply, exactly like Stop (#246). It is still
+  // saved, interrupted, to its own thread; it never lands in or reads aloud over the one now shown.
+  useEffect(() => {
+    if (!threadSwitchAbortsTurn(turnOwnerRef.current?.thread, threadId)) return;
+    turnOwnerRef.current = null;
+    cancelStream();
+  }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps -- cancelStream only touches refs and setters
+
   const handleAskChoice = (value: string) => {
     setAskPending(null);
     const resolve = askResolverRef.current;
@@ -214,6 +227,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const userText = input.trim();
     setInput("");
     readAloud.stop();
+    const owner: { thread: string | null } = { thread: threadId };
+    turnOwnerRef.current = owner;
 
     // The thread is created HERE, on first send, not on mount — so opening a level and leaving does
     // not litter the list with empty conversations. The title comes from this first message via a
@@ -222,16 +237,23 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     if (!activeThread) {
       const t = await createChatThread(courseId, level, deriveThreadTitle(userText));
       activeThread = t.id;
+      // Record it BEFORE the rail opens it, so opening it does not count as a switch away.
+      owner.thread = t.id;
       // Claim it BEFORE telling the parent: the prop change that follows would otherwise trigger a
       // reload that races this send. We already hold this thread's messages — there are none.
-      loadedThreadRef.current = t.id;
-      onThreadCreated(t.id);
+      // Skipped if the student opened another thread while this one was being created.
+      if (turnOwnerRef.current === owner) {
+        loadedThreadRef.current = t.id;
+        onThreadCreated(t.id);
+      }
     }
+    const thread = activeThread;
+    const shown = () => turnIsShown(thread, loadedThreadRef.current);
 
     // `messages` still holds the history from before this send.
     const studentAttempted = hasTriedOpenQuestion([...messages, { role: "user", content: userText }]);
     const userMsg = await saveChatMessage(courseId, "user", userText, level, activeThread);
-    setMessages((prev) => appendUnique(prev, userMsg));
+    if (shown()) setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});
     onThreadActivity();
 
@@ -279,6 +301,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       { role: "user", content: userText },
     ];
 
+    // The student opened another thread while this turn was being set up: their message is saved to
+    // its own thread above; don't start a reply nobody is looking at.
+    if (turnOwnerRef.current !== owner) return;
+
     const controller = new AbortController();
     abortRef.current = controller;
     setStreaming(true);
@@ -292,8 +318,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       messages: llmMessages,
       config,
       retrieval: await getRetrievalMode(),
-      onText: (chunk) => setStreamingText((prev) => prev + chunk),
-      onToolEvent: (ev) => setToolEvents((prev) => [...prev.filter((e) => e.id !== ev.id), ev]),
+      onText: (chunk) => { if (turnOwnerRef.current === owner) setStreamingText((prev) => prev + chunk); },
+      onToolEvent: (ev) => { if (turnOwnerRef.current === owner) setToolEvents((prev) => [...prev.filter((e) => e.id !== ev.id), ev]); },
     };
 
     const ctx: ToolContext = {
@@ -331,9 +357,16 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       // persistedReply adds a marker to an interrupted reply rather than saving it as a finished answer.
       const persisted = persistedReply(result.text, result.stopReason);
       if (persisted !== null) {
+        // Saved to the turn's own thread; shown and read aloud only per turnLanding (#246).
         const assistantMsg = await saveChatMessage(courseId, "assistant", persisted, level, activeThread);
-        setMessages((prev) => appendUnique(prev, assistantMsg));
-        if (autoRead && !abandoned && !controller.signal.aborted) readAloud.speak(assistantMsg.id, persisted);
+        const landing = turnLanding({
+          turnThread: thread,
+          shownThread: loadedThreadRef.current,
+          interrupted: abandoned || controller.signal.aborted,
+          autoRead,
+        });
+        if (landing.show) setMessages((prev) => appendUnique(prev, assistantMsg));
+        if (landing.speak) readAloud.speak(assistantMsg.id, persisted);
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
         // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently.
@@ -341,6 +374,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           updateKnowledgeFiles(courseId, userText, result.text, config).catch(() => {});
         }
       }
+      // Abandoned by a thread switch: its chips and notices belong to a thread no longer shown.
+      if (turnOwnerRef.current !== owner) return;
       // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
       // tutor ends up looking like it read your notes when it didn't.
@@ -364,15 +399,20 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (!/abort|cancel/i.test(msg)) setChatError(msg);
+      if (!/abort|cancel/i.test(msg) && turnOwnerRef.current === owner) setChatError(msg);
     } finally {
-      setStreamingText("");
-      setStreaming(false);
-      abortRef.current = null;
-      setAskPending(null);
-      askResolverRef.current = null;
-      setConfirmPending(null);
-      confirmResolverRef.current = null;
+      // Only a turn still here resets the shared state: a switch already reset it (cancelStream), and
+      // a newer turn may be streaming by the time this one unwinds.
+      if (turnOwnerRef.current === owner) {
+        turnOwnerRef.current = null;
+        setStreamingText("");
+        setStreaming(false);
+        abortRef.current = null;
+        setAskPending(null);
+        askResolverRef.current = null;
+        setConfirmPending(null);
+        confirmResolverRef.current = null;
+      }
     }
   };
 
