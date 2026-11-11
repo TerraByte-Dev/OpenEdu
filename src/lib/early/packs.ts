@@ -103,7 +103,7 @@ function countingItems(skillId: SkillId, lo: number, hi: number): Item[] {
       choices: neighbours(n, lo === 1 ? 1 : lo - 1, hi).map((k) => ({ kind: "dots", n: k })),
       answer: `dots:${n}`,
       praise: `Yes! That is ${n}.`,
-      teach: { say: `This is ${n}. Let's count ${n} together: ${countList(n)}.`, countAlong: true, example: { kind: "apples", count: n } },
+      teach: { say: `This is ${n}. Let's count ${n} together: ${countList(n)}.`, countAlong: true, example: { kind: "dots", n } },
     });
   }
   return items;
