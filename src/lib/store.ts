@@ -217,6 +217,19 @@ export async function setActiveMinutes(learnerId: string, rec: ActiveMinutes): P
   await s.save();
 }
 
+// A K-2 learner's read-aloud choice (grade.ts autoReadAloud). null until they choose.
+export async function getReadAloudAuto(learnerId: string): Promise<boolean | null> {
+  const s = await getStore();
+  const v = await s.get<unknown>(learnerStoreKey(STORE_KEYS.readAloudAuto, learnerId));
+  return typeof v === "boolean" ? v : null;
+}
+
+export async function setReadAloudAuto(learnerId: string, on: boolean): Promise<void> {
+  const s = await getStore();
+  await s.set(learnerStoreKey(STORE_KEYS.readAloudAuto, learnerId), on);
+  await s.save();
+}
+
 // Drop everything the store remembers about one learner (on learner delete).
 export async function clearLearnerStore(learnerId: string): Promise<void> {
   const s = await getStore();

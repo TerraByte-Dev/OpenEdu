@@ -8,6 +8,8 @@ import {
 import { hashPin, verifyPin, isValidPin } from "../lib/learner-pin";
 import { Initial, BIG_BTN } from "./LearnerPicker";
 import { showsPicker, learnersManageLearners, type UsageMode } from "../lib/usage-modes";
+import type { Grade } from "../lib/grade";
+import { GradeSelect } from "./GradeSelect";
 
 // The active learner's own controls, opened from the titlebar. Everything here acts on the learner
 // who is signed in and nobody else: you can rename, set a PIN for, or delete only yourself. In a class
@@ -125,13 +127,14 @@ function ErrorLine({ msg }: { msg: string | null }) {
 
 function AddPanel({ learners, onBack, onAdded }: { learners: LearnerRow[]; onBack: () => void; onAdded: (l: LearnerRow) => void }) {
   const [name, setName] = useState("");
+  const [grade, setGrade] = useState<Grade | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     const err = validateLearnerName(name, learners);
     if (err) { setError(err); return; }
     setBusy(true);
-    try { onAdded(await createLearner(name)); }
+    try { onAdded(await createLearner(name, null, grade)); }
     catch { setError("Could not add that learner. Try again."); setBusy(false); }
   };
   return (
@@ -140,6 +143,9 @@ function AddPanel({ learners, onBack, onAdded }: { learners: LearnerRow[]; onBac
       <Field label="Name">
         <input autoFocus className="cf-input" style={INPUT} maxLength={LEARNER_NAME_MAX} value={name}
           onChange={(e) => { setName(e.target.value); setError(null); }} />
+      </Field>
+      <Field label="Grade">
+        <GradeSelect value={grade} onChange={setGrade} style={INPUT} />
       </Field>
       <ErrorLine msg={error} />
       <Actions onBack={onBack} submitLabel="Add and switch" busy={busy} />

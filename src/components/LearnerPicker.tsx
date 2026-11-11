@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { createLearner } from "../lib/db";
+import type { Grade } from "../lib/grade";
+import { GradeSelect } from "./GradeSelect";
 import { validateLearnerName, LEARNER_NAME_MAX, type LearnerRow } from "../lib/learners";
 import {
   pickerGroups, pickerAsksGroup, learnersInGroup, learnersManageLearners, type UsageMode, type GroupRow,
@@ -133,6 +135,7 @@ function AddLearnerForm({ learners, onCancel, onCreated }: {
   onCreated: (l: LearnerRow) => void;
 }) {
   const [name, setName] = useState("");
+  const [grade, setGrade] = useState<Grade | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -140,7 +143,7 @@ function AddLearnerForm({ learners, onCancel, onCreated }: {
     const err = validateLearnerName(name, learners);
     if (err) { setError(err); return; }
     setBusy(true);
-    try { onCreated(await createLearner(name)); }
+    try { onCreated(await createLearner(name, null, grade)); }
     catch { setError("Could not add that learner. Try again."); setBusy(false); }
   };
 
@@ -159,6 +162,8 @@ function AddLearnerForm({ learners, onCancel, onCreated }: {
         value={name}
         onChange={(e) => { setName(e.target.value); setError(null); }}
       />
+      <label className="text-xl text-ink" htmlFor="new-learner-grade">Your grade</label>
+      <GradeSelect id="new-learner-grade" value={grade} onChange={setGrade} style={{ fontSize: "1.2rem", padding: "12px 16px" }} />
       {error && <p className="text-lg text-danger">{error}</p>}
       <div className="flex gap-4">
         <button type="button" className="btn" style={BIG_BTN} onClick={onCancel}>Back</button>
