@@ -3,8 +3,9 @@ import {
   GENERATION_MODELS, CHAT_MODELS,
   defaultGenerationModel, defaultChatModel, defaultEmbeddingModel,
   defaultOllamaModelForRam, defaultOllamaModel, isOllamaDefaultModel,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, CLOUD_SHUTDOWNS, resolveStoredModel,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, CLOUD_SHUTDOWNS, resolveStoredModel, withStoredOption,
 } from "./models";
+import type { LLMProvider } from "../types";
 
 const CLOUD = ["openai", "anthropic"] as const;
 
@@ -153,10 +154,46 @@ describe("resolveStoredModel (a stored id the provider shut down)", () => {
     expect(resolveStoredModel("openai", "chat", undefined, after)).toBeUndefined();
   });
 
+  it("treats a non-string stored value (hand-edited settings import) as nothing stored", () => {
+    for (const bad of [null, 42, {}, ["gpt-4o"]]) {
+      expect(resolveStoredModel("openai", "chat", bad as unknown as string, after)).toBeUndefined();
+    }
+  });
+
+  it("leaves Object prototype keys and unknown providers alone", () => {
+    for (const id of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+      expect(resolveStoredModel("openai", "generation", id, after)).toBe(id);
+    }
+    expect(resolveStoredModel("groq" as LLMProvider, "chat", "gpt-4o", after)).toBe("gpt-4o");
+  });
+
   for (const provider of CLOUD) {
     it(`the ${provider} catalog never offers a model with a shutdown date`, () => {
       const offered = [...GENERATION_MODELS[provider], ...CHAT_MODELS[provider]].map((m) => m.id);
       for (const id of Object.keys(CLOUD_SHUTDOWNS[provider])) expect(offered).not.toContain(id);
     });
   }
+});
+
+describe("withStoredOption (Settings shows the model the app will use)", () => {
+  const list = CHAT_MODELS.anthropic;
+
+  it("adds a stored id that is not in the list as an extra chip labelled with its id", () => {
+    expect(withStoredOption(list, "claude-haiku-4-5-20251001")).toEqual([
+      ...list, { id: "claude-haiku-4-5-20251001", label: "claude-haiku-4-5-20251001" },
+    ]);
+  });
+
+  it("returns the list unchanged for a listed id or an empty value", () => {
+    expect(withStoredOption(list, list[0].id)).toBe(list);
+    expect(withStoredOption(list, "")).toBe(list);
+    expect(withStoredOption(list, "  ")).toBe(list);
+  });
+});
+
+describe("Anthropic catalog keeps the 4.6 models that still work (#257 review)", () => {
+  it("offers Sonnet 4.6 for generation and Opus 4.6 for chat", () => {
+    expect(GENERATION_MODELS.anthropic.map((m) => m.id)).toContain("claude-sonnet-4-6");
+    expect(CHAT_MODELS.anthropic.map((m) => m.id)).toContain("claude-opus-4-6");
+  });
 });

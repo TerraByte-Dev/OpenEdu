@@ -24,6 +24,8 @@ export const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] =
 //   - claude-opus-5-5, claude-sonnet-5-5 and claude-fable-5-x reject the forced tool_choice that
 //     callAnthropicStructured uses, so they are left out until that path moves to output_config.format.
 //     claude-opus-4-6 (retirement not before 2027-02-05) stays the Anthropic generation default.
+//   - claude-haiku-4-5-20251001 left the picker (Haiku 5.5 replaces it). It is not shut down, so a stored
+//     one keeps working, and Settings shows it as an extra selected chip (withStoredOption).
 export const GENERATION_MODELS: Record<CloudProvider, ModelOption[]> = {
   openai: [
     { id: "gpt-6.1-sol", label: "GPT-6.1 Sol", recommended: true },
@@ -33,6 +35,7 @@ export const GENERATION_MODELS: Record<CloudProvider, ModelOption[]> = {
   ],
   anthropic: [
     { id: "claude-opus-4-6", label: "Claude Opus 4.6", recommended: true },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
     { id: "claude-haiku-5-5", label: "Claude Haiku 5.5" },
   ],
 };
@@ -45,6 +48,7 @@ export const CHAT_MODELS: Record<CloudProvider, ModelOption[]> = {
   anthropic: [
     { id: "claude-haiku-5-5", label: "Claude Haiku 5.5", recommended: true },
     { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+    { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
   ],
 };
 
@@ -145,10 +149,24 @@ export function resolveStoredModel(
   stored: string | undefined,
   now: Date = new Date(),
 ): string | undefined {
-  if (stored === undefined || provider === "ollama") return stored;
-  const shutdown = CLOUD_SHUTDOWNS[provider][stored.trim()];
-  if (!shutdown || now < new Date(`${shutdown}T00:00:00Z`)) return stored;
+  // A hand-edited settings import can put anything here; a non-string means "nothing stored".
+  if (typeof stored !== "string") return undefined;
+  if (provider === "ollama") return stored;
+  // Own keys only, so "constructor" or "__proto__" never read as a shutdown entry. (Object.hasOwn is
+  // ES2022; tsconfig's lib is ES2021, and this is the same check.)
+  const shutdowns: Record<string, string> = CLOUD_SHUTDOWNS[provider] ?? {};
+  const id = stored.trim();
+  if (!Object.prototype.hasOwnProperty.call(shutdowns, id)) return stored;
+  if (now < new Date(`${shutdowns[id]}T00:00:00Z`)) return stored;
   return role === "generation" ? defaultGenerationModel(provider) : defaultChatModel(provider);
+}
+
+// The chips Settings shows for a cloud role. A stored id that is not in the catalog (one that left the
+// picker but still works, or a hand-typed one) is what the app will actually send, so it is appended as
+// an extra chip labelled with its id, and the selection stays visible.
+export function withStoredOption(options: ModelOption[], stored: string): ModelOption[] {
+  if (!stored.trim() || options.some((m) => m.id === stored)) return options;
+  return [...options, { id: stored, label: stored }];
 }
 export function defaultEmbeddingModel(provider: LLMProvider): string {
   // Embedding is local-first (Anthropic has no embeddings endpoint) — only OpenAI gets a cloud default.

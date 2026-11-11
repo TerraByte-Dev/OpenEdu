@@ -8,7 +8,7 @@ import {
 } from "../../../lib/store";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, type ModelOption,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type ModelOption,
 } from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
 import { Section, SettingRow, SecretField, SegmentedControl, INPUT_CLS, useSettings } from "../primitives";
@@ -258,7 +258,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 function CloudModelChips({ models, value, onChange }: { models: ModelOption[]; value: string; onChange: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-2">
-      {models.map((m) => (
+      {withStoredOption(models, value).map((m) => (
         <button
           key={m.id}
           onClick={() => onChange(m.id)}

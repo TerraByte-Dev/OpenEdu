@@ -14,8 +14,10 @@ The section for each release is also what the app shows when you press Check for
   **Claude Haiku 5.5**; Claude Opus 4.6 stays the course-building default, because the newest Opus
   and Sonnet do not yet work with the way OpenEdu asks for structured answers. GPT-4.1, GPT-4.1 Mini,
   GPT-4o and GPT-4o Mini are gone from Settings: OpenAI switches them off on 14 January 2027, and
-  from that day a saved choice of one of them moves to the new default by itself. Checking an API
-  key in Settings now uses the current default model.
+  from that day a saved choice of one of them moves to the new default by itself. Claude Haiku 4.5
+  is gone from Settings too (Haiku 5.5 replaces it); it still works, so a saved choice of it is kept.
+  A saved model that is no longer in the list now shows as its own selected chip, so Settings always
+  shows the model OpenEdu will use. Checking an API key in Settings now uses the current default model.
 
 ## [0.4.0] - 2026-11-10
 
