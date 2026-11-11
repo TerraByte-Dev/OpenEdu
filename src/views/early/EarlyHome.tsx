@@ -97,7 +97,7 @@ export default function EarlyHome({ learnerName, progress, stars, lastSkill, spe
           {speech.supported && (
             <button
               type="button"
-              className="early-round w-12 h-12 border-none"
+              className="early-round w-16 h-16 border-none"
               style={{ background: "var(--phosphor-dim)", color: "var(--phosphor)" }}
               aria-label="Hear today's game"
               onClick={() => speech.speak("idea", `Play with a grown-up. ${idea}`)}
