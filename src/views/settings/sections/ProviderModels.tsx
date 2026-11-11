@@ -79,6 +79,10 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const pickProvider = async (p: LLMProvider) => {
     setProvider(p);
     await setLLMProvider(p);
+    // Re-read the models the app will now send for this provider: with nothing stored, the getters fall
+    // back to the provider's own defaults, so the chips never show the previous provider's model.
+    setGenModel((await getGenerationConfig()).model);
+    setChatModelState((await getChatConfig()).model);
     markSaved();
     onProviderChanged?.();
     setApiKeyValue(p === "ollama" ? "" : (await getApiKey(p)) || "");
