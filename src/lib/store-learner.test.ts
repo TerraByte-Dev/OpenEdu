@@ -19,7 +19,7 @@ vi.mock("./permissions", () => ({ loadPermissionRules: async () => ({}), savePer
 
 import {
   getTourSeen, setTourSeen, clearLearnerStore, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes,
-  getReadAloudAuto, setReadAloudAuto,
+  getReadAloudAuto, setReadAloudAuto, getEarlyScreens, setEarlyScreens,
 } from "./store";
 import { gatherSettings } from "./settings-io";
 import { STORE_KEYS, LEARNER_SCOPED_KEYS, learnerStoreKey, isLearnerScopedKey, apiKeyStoreKey } from "./store-keys";
@@ -83,6 +83,17 @@ describe("per-learner store keys", () => {
     expect(await getReadAloudAuto("b")).toBeNull();
     await clearLearnerStore("a");
     expect(await getReadAloudAuto("a")).toBeNull();
+  });
+
+  it("the early-learner screens choice is per learner, unset until chosen, and cleared with the learner", async () => {
+    expect(await getEarlyScreens("a")).toBeNull();
+    await setEarlyScreens("a", false);
+    expect(await getEarlyScreens("a")).toBe(false);
+    expect(await getEarlyScreens("b")).toBeNull();
+    saved.set(learnerStoreKey(STORE_KEYS.earlyScreens, "b"), "off");
+    expect(await getEarlyScreens("b")).toBeNull();
+    await clearLearnerStore("a");
+    expect(await getEarlyScreens("a")).toBeNull();
   });
 
   it("a garbage goal in the store reads as unset rather than crashing Home", async () => {

@@ -92,6 +92,7 @@ describe("every way into a teacher-only screen goes through one guard", () => {
     "picker-teacher-tile": "teacher-view",
     "settings-teacher-view": "teacher-view",
     "learner-data-backup": "backup-all-data",
+    "early-grownups": "open-settings",
   };
 
   it("knows every entry point and what each one opens", () => {

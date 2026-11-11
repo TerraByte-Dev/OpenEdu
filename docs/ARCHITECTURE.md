@@ -85,6 +85,19 @@ plain words (the same marked + math tokenizer the chat renders with; LaTeX read 
 "Code") and picks an on-device voice, and `useReadAloud.ts` plays it through `speechSynthesis`, one reply
 at a time, so it works offline with the Windows voices.
 
+**Early-learner screens (migration 16, #244).** A K or grade 1 learner opens on `src/views/early/`
+instead of Home, unless the family turns "Early learner screens" off in Settings › Who uses this (a
+per-learner store choice, `grade.ts earlyScreensOn`, on by default). These screens make no model call and
+need no provider, so the setup gate never stands in front of them. The engine in `src/lib/early/` is pure:
+`packs.ts` holds the colors, counting (1-10, then 11-20) and shapes items, each a spoken prompt, a picture
+spec and 2-4 choices with a data answer key; `engine.ts` builds seeded rounds of five, decides what a tap
+means (praise, or a teaching retry that counts together or shows the example), and computes mastery from
+the stored rows: 5 first-try right answers in a row within a skill, after which the next skill in the pack
+opens. Every tap is a row in `early_attempts` (learner, skill, item, correct, first try), read and written
+for the active learner only and deleted with the learner. Pictures are inline SVG drawn by code, prompts
+are read aloud through `useReadAloud.ts`, and the way out is a press-and-hold Grown-ups button that goes
+through the same teacher-PIN guard as the titlebar gear (`usage-modes.ts`, entry `early-grownups`).
+
 ## Repo layout
 
 | Path | What lives there |

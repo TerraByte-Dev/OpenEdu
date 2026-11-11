@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  GRADES, normalizeGrade, gradeLabel, gradeBand, isEarlyReader, readingLevelLayer, autoReadAloud, type Grade,
+  GRADES, normalizeGrade, gradeLabel, gradeBand, isEarlyReader, readingLevelLayer, autoReadAloud, hasEarlyScreens,
+  earlyScreensOn, type Grade,
 } from "./grade";
 
 describe("normalizeGrade", () => {
@@ -94,6 +95,25 @@ describe("autoReadAloud", () => {
     for (const g of [3, 8, 12, null] as Array<Grade | null>) {
       expect(autoReadAloud(g, null)).toBe(false);
       expect(autoReadAloud(g, true)).toBe(false);
+    }
+  });
+});
+
+describe("earlyScreensOn", () => {
+  it("is on by default for K and grade 1, and follows the family's choice", () => {
+    for (const g of [0, 1] as Grade[]) {
+      expect(hasEarlyScreens(g)).toBe(true);
+      expect(earlyScreensOn(g, null)).toBe(true);
+      expect(earlyScreensOn(g, true)).toBe(true);
+      expect(earlyScreensOn(g, false)).toBe(false);
+    }
+  });
+
+  it("is off for grade 2 and up and for no grade, whatever is stored", () => {
+    for (const g of [2, 3, 8, 12, null] as Array<Grade | null>) {
+      expect(hasEarlyScreens(g)).toBe(false);
+      expect(earlyScreensOn(g, null)).toBe(false);
+      expect(earlyScreensOn(g, true)).toBe(false);
     }
   });
 });

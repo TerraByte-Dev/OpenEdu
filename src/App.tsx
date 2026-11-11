@@ -5,14 +5,17 @@ import {
   getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, type UsageConfig,
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
-import { normalizeGrade } from "./lib/grade";
+import { normalizeGrade, hasEarlyScreens, earlyScreensOn } from "./lib/grade";
 import {
   autoPickFor, resolveStartupMode, hasPriorUse, runGuarded, staysUnlocked, viewAfterTeacherDone, showsLearnerChip,
   isProtected, saveThenRefresh, type UsageMode, type GroupRow, type TeacherEntry,
 } from "./lib/usage-modes";
 import type { PinRecord } from "./lib/learner-pin";
 import type { DbHealth } from "./lib/db-resilience";
-import { getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes } from "./lib/store";
+import {
+  getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes, getEarlyScreens,
+  setEarlyScreens,
+} from "./lib/store";
 import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
 import type { NextStepAction } from "./lib/next-step";
 import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
@@ -28,6 +31,7 @@ import { UsageModeChooser, TeacherPinPrompt } from "./components/UsageMode";
 import StartupFailed from "./components/StartupFailed";
 import Sidebar from "./components/Sidebar";
 import Home from "./views/Home";
+import EarlyLearner from "./views/early/EarlyLearner";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
 import Settings from "./views/settings/Settings";
@@ -50,6 +54,9 @@ export default function App() {
   // in the plugin store. Minutes tick once a minute while a learner's session is on screen.
   const [dailyGoal, setDailyGoalState] = useState<number | null>(null);
   const [activeMinutes, setActiveMinutesState] = useState<ActiveMinutes | null>(null);
+  // A K-1 learner's "Early learner screens" choice (grade.ts earlyScreensOn), per learner in the plugin
+  // store. undefined = not read yet, null = never chosen (on).
+  const [earlyChoice, setEarlyChoice] = useState<boolean | null | undefined>(undefined);
   const [courses, setCourses] = useState<Course[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeProvider, setActiveProvider] = useState<LLMProvider>("ollama");
@@ -112,6 +119,7 @@ export default function App() {
     setCourseInitialAction(undefined);
     setDailyGoalState(null);
     setActiveMinutesState(null);
+    setEarlyChoice(undefined);
     setQuizContext(null);
     setPendingResumeCourse(null);
     setPromotionBanner(null);
@@ -133,6 +141,9 @@ export default function App() {
       setDailyGoalState(goal);
       setActiveMinutesState(mins);
     }).catch(() => { /* the store is a convenience here; Home renders without it */ });
+    void getEarlyScreens(learner.id)
+      .catch(() => null) // unreadable = never chosen = the default
+      .then((on) => { if (getActiveLearnerId() === learner.id) setEarlyChoice(on); });
   };
 
   const chooseDailyGoal = (minutes: number) => {
@@ -343,6 +354,13 @@ export default function App() {
   };
 
   const isFullscreenView = currentView === "quiz" || currentView === "promotion-test";
+  // K-1 learners open on the early-learner screens instead of Home (#244). Nothing changes for any
+  // other grade or no grade. Until a K-1 learner's choice is read, the main area waits rather than
+  // flashing the wrong home.
+  const activeGrade = normalizeGrade(activeLearner?.grade);
+  const earlyPending = currentView === "dashboard" && hasEarlyScreens(activeGrade) && earlyChoice === undefined;
+  const earlyHome = currentView === "dashboard" && earlyChoice !== undefined && earlyScreensOn(activeGrade, earlyChoice);
+  const childScreen = earlyHome || earlyPending;
 
   return (
     <div
@@ -358,7 +376,7 @@ export default function App() {
           {!isFullscreenView && (
             <Titlebar
               provider={activeProvider}
-              onGoSettings={activeLearner ? () => openSettings("gear") : undefined}
+              onGoSettings={activeLearner && !childScreen ? () => openSettings("gear") : undefined}
               learnerName={activeLearner && mode && learners && showsLearnerChip(mode, learners) ? activeLearner.name : undefined}
               onOpenLearner={activeLearner ? () => setLearnerMenuOpen(true) : undefined}
             />
@@ -396,7 +414,7 @@ export default function App() {
                 the one list you do not need — you are already in the thing it selects. In course
                 view CourseView takes the column for its own navigation (tabs, threads, notes), and
                 the way back to the list is the header's back arrow. */}
-            {!isFullscreenView && currentView !== "course" && (
+            {!isFullscreenView && currentView !== "course" && !childScreen && (
               <Sidebar
                 courses={courses}
                 selectedCourseId={selectedCourseId}
@@ -438,7 +456,15 @@ export default function App() {
                 </button>
               )}
 
-              {currentView === "dashboard" && setup && (!setup.ready || (!setup.complete && !setupDismissed)) && (
+              {/* The early-learner screens need no model, so the setup gate never stands in front of them. */}
+              {earlyHome && (
+                <EarlyLearner
+                  learnerName={activeLearner.name}
+                  onGrownUps={() => openSettings("early-grownups", "usage")}
+                />
+              )}
+
+              {currentView === "dashboard" && !childScreen && setup && (!setup.ready || (!setup.complete && !setupDismissed)) && (
                 <SetupGate
                   status={setup}
                   ollamaUrl={ollamaUrl}
@@ -448,7 +474,7 @@ export default function App() {
                 />
               )}
 
-              {currentView === "dashboard" && !(setup && (!setup.ready || (!setup.complete && !setupDismissed))) && (
+              {currentView === "dashboard" && !childScreen && !(setup && (!setup.ready || (!setup.complete && !setupDismissed))) && (
                 <Home
                   learnerName={activeLearner.name}
                   courses={courses}
@@ -496,13 +522,19 @@ export default function App() {
                     teacher,
                     learners: learners ?? [],
                     activeLearnerId: activeLearner?.id ?? null,
-                    activeGrade: normalizeGrade(activeLearner?.grade),
+                    activeGrade,
                     setActiveGrade: async (grade) => {
                       if (!activeLearner) return;
                       await setLearnerGrade(activeLearner.id, grade);
                       const list = await reloadLearners();
                       const me = list.find((l) => l.id === activeLearner.id);
                       if (me) setActiveLearner(me);
+                    },
+                    earlyScreens: earlyChoice ?? null,
+                    setEarlyScreens: async (on) => {
+                      if (!activeLearner) return;
+                      await setEarlyScreens(activeLearner.id, on);
+                      setEarlyChoice(on);
                     },
                     changeMode,
                     openTeacher: () => openTeacherView("settings"),
@@ -551,7 +583,7 @@ export default function App() {
             />
           )}
 
-          {tourStep !== null && activeLearner && !isFullscreenView && !teacherOpen && setup?.ready && (
+          {tourStep !== null && activeLearner && !isFullscreenView && !teacherOpen && !childScreen && setup?.ready && (
             <TourOverlay step={tourStep} onNext={advanceTour} onSkip={skipTour} />
           )}
         </>

@@ -5,6 +5,7 @@ import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
 import { parseUsageMode, type UsageMode, type GroupRow } from "./usage-modes";
 import type { OverviewSource } from "./teacher-overview";
+import type { AttemptRow, NewAttempt } from "./early/engine";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -197,6 +198,30 @@ export async function deleteGroup(id: string): Promise<void> {
 export async function setLearnerGroup(learnerId: string, groupId: string | null): Promise<void> {
   const d = await getDb();
   await d.execute("UPDATE learners SET group_id = $1 WHERE id = $2", [groupId, learnerId]);
+}
+
+// ── Early-learner attempts (migration 16) ────────────────────────────────────
+// One row per tap in the K-1 activities. Read and written for the active learner only; mastery is
+// computed from the rows by src/lib/early/engine.ts skillProgress.
+
+/** Store one tap for the active learner. */
+export async function recordEarlyAttempt(a: NewAttempt): Promise<void> {
+  if (!activeLearnerId) throw new Error("No active learner: pick a learner before recording an attempt");
+  const d = await getDb();
+  await d.execute(
+    "INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ($1, $2, $3, $4, $5)",
+    [activeLearnerId, a.skillId, a.itemId, a.correct ? 1 : 0, a.firstTry ? 1 : 0],
+  );
+}
+
+/** The active learner's taps, oldest first. Nothing when no learner is active. */
+export async function getEarlyAttempts(): Promise<AttemptRow[]> {
+  if (!activeLearnerId) return [];
+  const d = await getDb();
+  return await d.select(
+    "SELECT skill_id, item_id, correct, first_try, created_at FROM early_attempts WHERE learner_id = $1 ORDER BY id ASC",
+    [activeLearnerId],
+  );
 }
 
 /**

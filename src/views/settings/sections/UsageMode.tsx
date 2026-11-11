@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { SectionProps } from "../types";
 import { Section, SettingRow, Toggle, useSettings } from "../primitives";
 import { GradeSelect } from "../../../components/GradeSelect";
-import { isEarlyReader, autoReadAloud, type Grade } from "../../../lib/grade";
+import { isEarlyReader, autoReadAloud, hasEarlyScreens, earlyScreensOn, type Grade } from "../../../lib/grade";
 import { getReadAloudAuto, setReadAloudAuto } from "../../../lib/store";
 import { ModeTiles, TeacherPinSetup, TeacherPinPrompt } from "../../../components/UsageMode";
 import { USAGE_MODES, modeChangeStep, isProtected, type UsageMode } from "../../../lib/usage-modes";
@@ -112,11 +112,16 @@ function GradeSection({ usage, learnerId }: { usage: NonNullable<SectionProps["u
     catch { setError("Could not save that. Try again."); }
   };
 
+  const setEarly = async (on: boolean) => {
+    try { await usage.setEarlyScreens(on); setError(null); markSaved(); }
+    catch { setError("Could not save that. Try again."); }
+  };
+
   return (
     <Section
       title="Grade"
       description="The tutor writes for this grade: shorter sentences and simpler words for younger learners. Kindergarten to grade 2 also get bigger chat text."
-      keywords="grade school year reading level kindergarten text size read aloud speech voice speak"
+      keywords="grade school year reading level kindergarten text size read aloud speech voice speak early learner screens activities colors counting shapes"
     >
       <SettingRow label="Your grade" help="Leave it not set and the tutor writes as it always has.">
         <GradeSelect value={grade} onChange={(g) => void pickGrade(g)} ariaLabel="Your grade" />
@@ -131,6 +136,19 @@ function GradeSection({ usage, learnerId }: { usage: NonNullable<SectionProps["u
             onChange={(on) => void setAuto(on)}
             labelOn="On: new replies read themselves"
             labelOff="Off: press the speaker button to hear a reply"
+          />
+        </SettingRow>
+      )}
+      {hasEarlyScreens(grade) && (
+        <SettingRow
+          label="Early learner screens"
+          help="Big picture activities for colors, counting and shapes, read aloud, with no typing and no AI. Turn off to open on the regular Home."
+        >
+          <Toggle
+            checked={earlyScreensOn(grade, usage.earlyScreens)}
+            onChange={(on) => void setEarly(on)}
+            labelOn="On: opens on the early learner activities"
+            labelOff="Off: opens on the regular Home"
           />
         </SettingRow>
       )}

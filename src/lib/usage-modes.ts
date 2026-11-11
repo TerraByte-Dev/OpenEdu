@@ -84,6 +84,7 @@ export const TEACHER_ENTRIES = [
   "picker-teacher-tile",     // the picker's Teacher tile: the teacher view
   "settings-teacher-view",   // Settings > Who uses this > Open the teacher view
   "learner-data-backup",     // Settings > Learner data > Back up all learner data (every learner's data)
+  "early-grownups",          // the early-learner home's press-and-hold Grown-ups button: Settings (#244)
 ] as const;
 export type TeacherEntry = (typeof TEACHER_ENTRIES)[number];
 
@@ -94,6 +95,7 @@ export const ENTRY_ACTION: Record<TeacherEntry, TeacherAction> = {
   "picker-teacher-tile": "teacher-view",
   "settings-teacher-view": "teacher-view",
   "learner-data-backup": "backup-all-data",
+  "early-grownups": "open-settings",
 };
 
 /**
