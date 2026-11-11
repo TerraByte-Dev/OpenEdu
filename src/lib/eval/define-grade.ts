@@ -1,4 +1,4 @@
-// The "define" suite's grader and arm comparison (docs/BENCHMARKS.md B8 and lever 16). Pure: no model,
+// The "define" suite's grader and arm comparison (docs/BENCHMARKS.md B8 and lever 18). Pure: no model,
 // no I/O. Items: define-items.ts. Runner: define-runner.ts.
 //
 // A reply passes when every `expect` group matches. A group is "|"-separated alternatives, each matched
@@ -76,7 +76,7 @@ export function itemMajority(rows: readonly DefineRowLike[], strict = false): Ma
   return new Map([...tally].map(([id, t]) => [id, t.pass * 2 > t.n]));
 }
 
-/** The pre-registered item groups (BENCHMARKS.md lever 16). */
+/** The pre-registered item groups (BENCHMARKS.md lever 18). */
 export type DefineGroup = "common" | "plain-6-8" | "rare" | "sense" | "sense-strict" | "target" | "target-strict" | "plain-all";
 
 const COMMON_BANDS: GradeBand[] = ["K-2", "3-5"];

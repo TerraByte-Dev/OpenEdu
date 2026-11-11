@@ -1,4 +1,4 @@
-// The "define" suite's items (issue #251, docs/BENCHMARKS.md section 1 "B8" and section 3 lever 16):
+// The "define" suite's items (issue #251, docs/BENCHMARKS.md section 1 "B8" and section 3 lever 18):
 // a student asks what a word means, in one turn. Data only; the grader is define-grade.ts and the
 // runner define-runner.ts.
 //

@@ -1,4 +1,4 @@
-// Compare the define suite's two arms, offline (no model, no Ollama): docs/BENCHMARKS.md lever 16.
+// Compare the define suite's two arms, offline (no model, no Ollama): docs/BENCHMARKS.md lever 18.
 //
 //   $env:DEFINE_B = "<main>/.dev/eval-runs/...-define-test-B-gemma4_e2b.json"
 //   $env:DEFINE_D = "<main>/.dev/eval-runs/...-define-test-D-gemma4_e2b.json"

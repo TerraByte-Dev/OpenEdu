@@ -1,4 +1,4 @@
-// The dictionary note on a "what does X mean" turn (issue #251; docs/BENCHMARKS.md section 3, lever 16).
+// The dictionary note on a "what does X mean" turn (issue #251; docs/BENCHMARKS.md section 3, lever 18).
 //
 // The thesis: deterministic code owns facts, the small model only phrases them. When the student's
 // newest message explicitly asks what a word means, the kernel looks the word up in the bundled Open

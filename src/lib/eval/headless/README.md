@@ -116,7 +116,7 @@ EVAL_SUITE=define EVAL_DICTIONARY=off EVAL_REPEATS=3 npm run eval   # arm B: no 
 EVAL_SUITE=define EVAL_REPEATS=3 npm run eval                       # arm D: the dictionary note
 ```
 
-The dictionary-note benchmark (`docs/BENCHMARKS.md` B8 and lever 16, issue #251). One student turn per
+The dictionary-note benchmark (`docs/BENCHMARKS.md` B8 and lever 18, issue #251). One student turn per
 item, through `runDefineItems` in `../define-runner.ts`: the real kernel, configured as ChatTab runs a
 turn for a learner in an English Language Arts course with no stored instructions, no persona and no
 syllabus, the "explain" skill, retrieval "always", and the reading-level line for the item's band (K-2

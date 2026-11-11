@@ -58,7 +58,7 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   const defineItems = o.suite === "define" ? selectDefineItems(o.set as DefineSplit, o.only) : null;
   const git = await gitState();
   // The define test split is run once, at a committed state, per its pre-registration (BENCHMARKS.md
-  // lever 16): refuse uncommitted src/ so the commit in the results file is what ran.
+  // lever 18): refuse uncommitted src/ so the commit in the results file is what ran.
   if (o.suite === "define" && o.set === "test" && git.srcDirty !== false) {
     throw new Error("Refusing the define test split: src/ has uncommitted changes (or git state could not be read). Commit first; the results file names the commit.");
   }

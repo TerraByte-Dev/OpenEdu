@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
-// The dictionary note's harm guard on the existing suites (docs/BENCHMARKS.md lever 16): the detector
+// The dictionary note's harm guard on the existing suites (docs/BENCHMARKS.md lever 18): the detector
 // (kernel/defineWord.ts askedWord) must not fire on any student message the existing evals send, so
 // every existing suite's requests are unchanged by the lever. Checked here, before any run, on the
 // messages exactly as the runners build them, and on every string literal in src/lib/eval as a

@@ -1,4 +1,4 @@
-// The "define" suite runner (docs/BENCHMARKS.md B8, lever 16; issue #251): one student turn per item,
+// The "define" suite runner (docs/BENCHMARKS.md B8, lever 18; issue #251): one student turn per item,
 // "what does X mean", through the real kernel, configured as ChatTab runs a turn for a learner in an
 // English Language Arts course: no stored instructions (the default identity), no persona, no syllabus,
 // the "explain" skill plus the domain skill the topic routes to, retrieval "always", and the reading-
