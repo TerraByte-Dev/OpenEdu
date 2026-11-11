@@ -70,38 +70,48 @@ export function normalizeQuery(raw: string): string {
   return w;
 }
 
-/** Candidate headwords for a normalized query, most direct first, before checking the dictionary:
- *  the query, then irregular base forms from the exception lists, then suffix-rule bases. For a phrase
- *  ("looked up") the same steps run on its first word, keeping the rest. */
-export function candidateHeadwords(word: string, exc: Exceptions): string[] {
-  const out: string[] = [];
-  const add = (w: string) => {
-    if (w && !out.includes(w)) out.push(w);
+/** A headword to try. `pos` is the part of speech whose exception list or suffix rule produced it; the
+ *  headword only counts if it has a sense in that part of speech, as in Princeton's morphy (otherwise
+ *  "mother" would come back as a form of "moth"). null for the query itself, which counts in any. */
+export interface Candidate {
+  word: string;
+  pos: Pos | null;
+}
+
+/** Candidate headwords for a normalized query, most direct first, before checking the dictionary: the
+ *  query (and, for an abbreviation such as "a.m", the same with its final dot, which normalizeQuery
+ *  strips), then irregular base forms from the exception lists, then suffix-rule bases. For a phrase
+ *  ("looked up") the same steps also run on its first word, keeping the rest. */
+export function candidateHeadwords(word: string, exc: Exceptions, opts: { trailingDot?: boolean } = {}): Candidate[] {
+  const out: Candidate[] = [];
+  const add = (w: string, pos: Pos | null) => {
+    if (w && !out.some((c) => c.word === w && c.pos === pos)) out.push({ word: w, pos });
   };
-  const bases = (w: string): string[] => {
-    const found: string[] = [];
-    for (const pos of POS_ORDER) for (const lemma of exc[pos][w] ?? []) found.push(lemma);
+  const bases = (w: string): Array<[string, Pos]> => {
+    const found: Array<[string, Pos]> = [];
+    for (const pos of POS_ORDER) for (const lemma of exc[pos][w] ?? []) found.push([lemma, pos]);
     for (const pos of ["n", "v", "a"] as const) {
       for (const [suffix, ending] of RULES[pos]) {
-        if (w.length > suffix.length && w.endsWith(suffix)) found.push(w.slice(0, w.length - suffix.length) + ending);
+        if (w.length > suffix.length && w.endsWith(suffix)) found.push([w.slice(0, w.length - suffix.length) + ending, pos]);
       }
     }
     return found;
   };
-  add(word);
-  for (const b of bases(word)) add(b);
+  add(word, null);
+  if (!word.endsWith(".") && (opts.trailingDot || /\p{L}\.\p{L}/u.test(word))) add(`${word}.`, null);
+  for (const [b, pos] of bases(word)) add(b, pos);
   const space = word.indexOf(" ");
   if (space > 0) {
     const head = word.slice(0, space);
     const rest = word.slice(space);
-    for (const b of bases(head)) add(b + rest);
+    for (const [b, pos] of bases(head)) add(b + rest, pos);
   }
   return out;
 }
 
 /** Shard keys a lookup of these candidates needs. */
-export function shardsFor(candidates: string[]): string[] {
-  return [...new Set(candidates.map(shardKey))];
+export function shardsFor(candidates: Candidate[]): string[] {
+  return [...new Set(candidates.map((c) => shardKey(c.word)))];
 }
 
 /** Resolve a normalized query against already-loaded shards. Returns up to MAX_HEADWORDS entries in
@@ -110,15 +120,18 @@ export function resolveEntries(
   word: string,
   exc: Exceptions,
   getShard: (key: string) => Shard | undefined,
+  opts: { trailingDot?: boolean } = {},
 ): DictionaryEntry[] {
   if (!word) return [];
   const entries: DictionaryEntry[] = [];
-  for (const cand of candidateHeadwords(word, exc)) {
-    const rows = getShard(shardKey(cand))?.[cand];
+  for (const cand of candidateHeadwords(word, exc, opts)) {
+    if (entries.some((e) => e.headword === cand.word)) continue;
+    const rows = getShard(shardKey(cand.word))?.[cand.word];
     if (!rows || rows.length === 0) continue;
+    if (cand.pos !== null && !rows.some((r) => r[1] === cand.pos)) continue;
     entries.push({
-      headword: cand,
-      via: cand === word ? "exact" : "form",
+      headword: cand.word,
+      via: cand.pos === null ? "exact" : "form",
       senses: rows.map(([form, pos, definition, example, synonyms]) => ({ form, pos, definition, example, synonyms })),
     });
     if (entries.length >= MAX_HEADWORDS) break;
@@ -129,38 +142,58 @@ export function resolveEntries(
 // ── Bundled-data shell (the only impure part) ───────────────────────────────────────────────────────
 
 const BASE = `${import.meta.env.BASE_URL}dictionary`.replace(/\/+$/, "");
-const shardCache = new Map<string, Shard>();
-let excCache: Exceptions | null = null;
 
-async function fetchJson<T>(name: string): Promise<T | null> {
+interface Index {
+  exc: Exceptions;
+  /** Shard files that exist (meta.json). Fetching any other name gets index.html with a 200 from both
+   *  the Vite dev server and Tauri's asset resolver, never a 404, so the list decides, not the server. */
+  shards: Set<string>;
+}
+let indexPromise: Promise<Index> | null = null;
+const shardCache = new Map<string, Promise<Shard>>();
+
+async function fetchJson<T>(name: string): Promise<T> {
   const res = await fetch(`${BASE}/${name}`, { method: "GET" });
-  if (res.status === 404) return null;
   if (!res.ok) throw new Error(`dictionary fetch failed (${res.status}): ${name}`);
+  if (!(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`dictionary fetch got a non-JSON reply: ${name}`);
   return (await res.json()) as T;
 }
 
-async function loadExceptions(): Promise<Exceptions> {
-  if (!excCache) excCache = (await fetchJson<Exceptions>("exceptions.json")) ?? { n: {}, v: {}, a: {}, r: {} };
-  return excCache;
+function loadIndex(): Promise<Index> {
+  indexPromise ??= Promise.all([
+    fetchJson<Exceptions>("exceptions.json"),
+    fetchJson<{ shardKeys: string[] }>("meta.json"),
+  ]).then(([exc, meta]) => ({ exc, shards: new Set(meta.shardKeys) }));
+  // A failed load is not cached: the next lookup tries again.
+  indexPromise.catch(() => { indexPromise = null; });
+  return indexPromise;
 }
 
-/** Look a word or phrase up in the bundled dictionary. Empty when it isn't there (or the input is
- *  blank). A prefix no headword starts with has no shard file; that is cached as an empty shard. */
+function loadShard(key: string): Promise<Shard> {
+  let p = shardCache.get(key);
+  if (!p) {
+    p = fetchJson<Shard>(`${key}.json`);
+    shardCache.set(key, p);
+    p.catch(() => shardCache.delete(key));
+  }
+  return p;
+}
+
+/** Look a word or phrase up in the bundled dictionary. Empty when it isn't there or the input is blank.
+ *  Throws only if the bundled files can't be read, which the caller treats as "no entry". */
 export async function lookupWord(raw: string): Promise<DictionaryEntry[]> {
   const word = normalizeQuery(raw);
   if (!word) return [];
-  const exc = await loadExceptions();
-  const keys = shardsFor(candidateHeadwords(word, exc)).filter((k) => !shardCache.has(k));
-  await Promise.all(
-    keys.map(async (k) => {
-      shardCache.set(k, (await fetchJson<Shard>(`${k}.json`)) ?? {});
-    }),
-  );
-  return resolveEntries(word, exc, (k) => shardCache.get(k));
+  const trailingDot = /\p{L}\.["'’”)\]]*\s*$/u.test(raw);
+  const { exc, shards } = await loadIndex();
+  const keys = shardsFor(candidateHeadwords(word, exc, { trailingDot })).filter((k) => shards.has(k));
+  const loaded = new Map<string, Shard>();
+  await Promise.all(keys.map(async (k) => loaded.set(k, await loadShard(k))));
+  return resolveEntries(word, exc, (k) => loaded.get(k), { trailingDot });
 }
 
-/** Test hook: forget cached shards so a test's fetch stub is used. */
+/** Test hook: forget cached files so a test's fetch stub is used. */
 export function resetDictionaryCache(): void {
   shardCache.clear();
-  excCache = null;
+  indexPromise = null;
 }
