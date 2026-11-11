@@ -102,6 +102,12 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   if (define) {
     if (set !== "dev" && set !== "test") errs.push(`EVAL_SET=${set}: define runs its own dev or test split`);
     for (const k of ["EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_PROMPT"]) if (get(k)) errs.push(`${k} does not apply to define`);
+    // The test split runs once, whole, at 3 repeats (lever 18): a one-item smoke run would write test
+    // replies before the frozen run.
+    if (set === "test") {
+      if (get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed on the define test split: the run covers every item");
+      if (get("EVAL_REPEATS") !== "3") errs.push("The define test split runs EVAL_REPEATS=3 (pre-registered)");
+    }
   }
   const dictionary = get("EVAL_DICTIONARY") as EvalOptions["dictionary"];
   if (dictionary !== undefined) {

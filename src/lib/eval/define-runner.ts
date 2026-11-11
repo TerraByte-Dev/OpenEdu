@@ -53,6 +53,14 @@ export interface DefineRow {
   reply: string;
   stopReason: string | null;
   attempts: number;
+  /** The final attempt's tool calls and tool-call recovery (TutorTurnResult), for the cost clause. */
+  toolCalls: Array<{ name: string; ok: boolean }>;
+  toolCallRecovery: { iteration: number; error: string } | null;
+  /** Chat requests the row sent, over all its attempts (the warm-up is not counted): turn requests,
+   *  and structured ones (a request with a `format`, which no define turn should send). Counted on the
+   *  wire; the define runner is headless-only. */
+  chatRequests: number;
+  structuredRequests: number;
   /** Set for an ERROR row (no reply after MAX_ATTEMPTS); `grade` is then null. */
   error: string | null;
   ttftMs: number | null;
@@ -85,6 +93,30 @@ export interface DefineReport {
 }
 
 export class DefineAbort extends Error {}
+
+const CHAT_PATHS = new Set(["/api/chat", "/v1/chat/completions", "/v1/messages"]);
+
+/** Count chat requests while `body` runs: wraps globalThis.fetch (the headless plugin-http shim reads it
+ *  on every call) and restores it after. Requests are unchanged. */
+async function countingChat<T>(body: (count: () => { turn: number; structured: number }) => Promise<T>): Promise<T> {
+  const inner = globalThis.fetch;
+  const n = { turn: 0, structured: 0 };
+  globalThis.fetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (CHAT_PATHS.has(new URL(url, "http://app.invalid").pathname)) {
+      let structured = false;
+      try { structured = init?.body ? JSON.parse(String(init.body)).format !== undefined : false; } catch { /* not JSON */ }
+      if (structured) n.structured++;
+      else n.turn++;
+    }
+    return inner(input, init);
+  }) as typeof fetch;
+  try {
+    return await body(() => ({ ...n }));
+  } finally {
+    globalThis.fetch = inner;
+  }
+}
 
 /** Per repeat and pre-registered group, rows passing. ERROR rows count as fails. */
 export function summarizeDefine(rows: readonly DefineRow[], repeats: number): DefineSummaryCell[] {
@@ -133,57 +165,63 @@ export async function runDefineItems(
 
   const rows: DefineRow[] = [];
   opts.onRows?.(rows);
-  for (let repeat = 0; repeat < opts.repeats; repeat++) {
-    for (const item of items) {
-      await assertLibraryGuards().catch((e) => {
-        throw new DefineAbort(`VOID RUN — ${e instanceof Error ? e.message : String(e)}`);
-      });
-      const { system, activeSkill, domainSkill } = defineTurnSetup(item.band, profile.tier, profile.supportsTools);
-      let row: DefineRow | null = null;
-      let lastError = "";
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS && !row; attempt++) {
-        const started = Date.now();
-        let ttftMs: number | null = null;
-        try {
-          const result = await watched((signal) => tutorEngine.run(
-            {
-              messages: [{ role: "system", content: system }, { role: "user", content: item.ask }],
-              config,
-              retrieval: "always",
-              dictionary: opts.dictionary,
-              onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
-            },
-            {
-              courseId: DEFINE_COURSE_ID, level: 1, syllabus: null, modelTier: profile.tier, contextTokens,
-              permissionMode: "default", config, abort: signal, activeSkill, domainSkill,
-              confirmTool: async () => true, supportsTools: profile.supportsTools,
-            } satisfies ToolContext,
-          ));
-          const replied = result.text.trim() !== "" && result.stopReason !== "aborted" && result.stopReason !== "stalled";
-          if (!replied) { lastError = `no reply (${result.stopReason})`; continue; }
-          row = {
-            id: item.id, band: item.band, kind: item.kind, split: opts.split, repeat, ask: item.ask,
-            askedWord: result.askedWord, dictionaryNote: result.dictionaryNote,
-            noteTokens: result.dictionaryNote ? estTokens(result.dictionaryNote) : 0,
-            reply: result.text, stopReason: result.stopReason, attempts: attempt, error: null,
-            ttftMs, totalMs: Date.now() - started, grade: gradeDefine(item, result.text),
-          };
-        } catch (e) {
-          lastError = e instanceof Error ? e.message : String(e);
+  await countingChat(async (count) => {
+    for (let repeat = 0; repeat < opts.repeats; repeat++) {
+      for (const item of items) {
+        await assertLibraryGuards().catch((e) => {
+          throw new DefineAbort(`VOID RUN — ${e instanceof Error ? e.message : String(e)}`);
+        });
+        const { system, activeSkill, domainSkill } = defineTurnSetup(item.band, profile.tier, profile.supportsTools);
+        const before = count();
+        const sent = () => { const now = count(); return { chatRequests: now.turn - before.turn, structuredRequests: now.structured - before.structured }; };
+        let row: DefineRow | null = null;
+        let lastError = "";
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS && !row; attempt++) {
+          const started = Date.now();
+          let ttftMs: number | null = null;
+          try {
+            const result = await watched((signal) => tutorEngine.run(
+              {
+                messages: [{ role: "system", content: system }, { role: "user", content: item.ask }],
+                config,
+                retrieval: "always",
+                dictionary: opts.dictionary,
+                onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
+              },
+              {
+                courseId: DEFINE_COURSE_ID, level: 1, syllabus: null, modelTier: profile.tier, contextTokens,
+                permissionMode: "default", config, abort: signal, activeSkill, domainSkill,
+                confirmTool: async () => true, supportsTools: profile.supportsTools,
+              } satisfies ToolContext,
+            ));
+            const replied = result.text.trim() !== "" && result.stopReason !== "aborted" && result.stopReason !== "stalled";
+            if (!replied) { lastError = `no reply (${result.stopReason})`; continue; }
+            row = {
+              id: item.id, band: item.band, kind: item.kind, split: opts.split, repeat, ask: item.ask,
+              askedWord: result.askedWord, dictionaryNote: result.dictionaryNote,
+              noteTokens: result.dictionaryNote ? estTokens(result.dictionaryNote) : 0,
+              reply: result.text, stopReason: result.stopReason, attempts: attempt,
+              toolCalls: result.toolCalls.map(({ name, ok }) => ({ name, ok })), toolCallRecovery: result.toolCallRecovery,
+              ...sent(), error: null,
+              ttftMs, totalMs: Date.now() - started, grade: gradeDefine(item, result.text),
+            };
+          } catch (e) {
+            lastError = e instanceof Error ? e.message : String(e);
+          }
         }
+        row ??= {
+          id: item.id, band: item.band, kind: item.kind, split: opts.split, repeat, ask: item.ask,
+          askedWord: null, dictionaryNote: null, noteTokens: 0, reply: `ERROR: ${lastError}`, stopReason: null,
+          attempts: MAX_ATTEMPTS, toolCalls: [], toolCallRecovery: null, ...sent(), error: lastError, ttftMs: null, totalMs: 0, grade: null,
+        };
+        rows.push(row);
+        const g = row.grade;
+        console.log(`[define] r${repeat} ${item.id.padEnd(13)} ${g ? `${g.pass ? "PASS" : "fail"}${item.kind === "sense" ? `/${g.passStrict ? "PASS" : "fail"}` : ""}` : "ERROR"} note ${row.dictionaryNote ? `${row.noteTokens} tok` : "-"} · ttft/total ms ${row.ttftMs ?? "-"}/${row.totalMs}`);
+        const errors = rows.filter((r) => r.error).length;
+        if (errors >= errorLimit) throw new DefineAbort(`VOID RUN — ${errors} ERROR rows of ${total} turns (limit ${errorLimit}) at ${item.id}. Discard it whole.`);
       }
-      row ??= {
-        id: item.id, band: item.band, kind: item.kind, split: opts.split, repeat, ask: item.ask,
-        askedWord: null, dictionaryNote: null, noteTokens: 0, reply: `ERROR: ${lastError}`, stopReason: null,
-        attempts: MAX_ATTEMPTS, error: lastError, ttftMs: null, totalMs: 0, grade: null,
-      };
-      rows.push(row);
-      const g = row.grade;
-      console.log(`[define] r${repeat} ${item.id.padEnd(13)} ${g ? `${g.pass ? "PASS" : "fail"}${item.kind === "sense" ? `/${g.passStrict ? "PASS" : "fail"}` : ""}` : "ERROR"} note ${row.dictionaryNote ? `${row.noteTokens} tok` : "-"} · ttft/total ms ${row.ttftMs ?? "-"}/${row.totalMs}`);
-      const errors = rows.filter((r) => r.error).length;
-      if (errors >= errorLimit) throw new DefineAbort(`VOID RUN — ${errors} ERROR rows of ${total} turns (limit ${errorLimit}) at ${item.id}. Discard it whole.`);
     }
-  }
+  });
 
   const summary = summarizeDefine(rows, opts.repeats);
   const byId = new Map(items.map((i) => [i.id, i]));

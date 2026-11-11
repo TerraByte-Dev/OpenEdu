@@ -27,7 +27,7 @@ import { seedStore } from "./shims/plugin-store";
 import { installAppOrigin } from "./origin";
 import { installWire } from "./wire";
 import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type EvalOptions } from "./env";
-import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
+import { cwd, path, writeText, gitState, mainCheckout, shell } from "./node-io";
 import { ollamaRunInfo } from "./ollama-info";
 import { runB7, type B7Result } from "./latency";
 import { DefineAbort, runDefineItems, selectDefineItems, summarizeDefine, type DefineReport, type DefineRow } from "../define-runner";
@@ -61,6 +61,11 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   // lever 18): refuse uncommitted src/ so the commit in the results file is what ran.
   if (o.suite === "define" && o.set === "test" && git.srcDirty !== false) {
     throw new Error("Refusing the define test split: src/ has uncommitted changes (or git state could not be read). Commit first; the results file names the commit.");
+  }
+  // The shown entries come from public/dictionary/, outside src/: a local edit there would change the
+  // treatment arm without changing the commit the results file names.
+  if (o.suite === "define" && o.set === "test" && (await shell("git status --porcelain -- public/dictionary")) !== "") {
+    throw new Error("Refusing the define test split: public/dictionary/ has uncommitted changes (or git could not be read).");
   }
   // Rule 4 before the set is touched: reading it burns it.
   const refusal = o.set === "sealed" ? sealedGitRefusal(git) : null;

@@ -70,6 +70,12 @@ describe("define arms through the headless kernel", () => {
     expect(arms.on.report.noted).toBe(2);
   });
 
+  it("counts each row's chat requests on the wire (the warm-up excluded), with its tool calls", () => {
+    for (const arm of ["on", "off"] as const) {
+      for (const r of arms[arm].report.rows) expect(r, `${arm} ${r.id}`).toMatchObject({ chatRequests: 1, structuredRequests: 0, toolCalls: [], toolCallRecovery: null, attempts: 1 });
+    }
+  });
+
   it("D's request is B's plus the bundled entry and the note after the student's text; the rest is identical", () => {
     for (let i = 0; i < ITEMS.length; i++) {
       const b = arms.off.chats[i];
