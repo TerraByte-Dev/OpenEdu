@@ -122,23 +122,47 @@ turn for a learner in an English Language Arts course with no stored instruction
 syllabus, the "explain" skill, retrieval "always", and the reading-level line for the item's band (K-2
 grade 2, 3-5 grade 4, 6-8 grade 7, 9-12 grade 10). Items, split and grades: `../define-items.ts`; grader
 and arm comparison: `../define-grade.ts`. `EVAL_SET` is `dev` (64 items, the default) or `test` (120
-items, refused while `src/` has uncommitted changes, so the file's commit is what ran). `EVAL_REPEATS`
-and `EVAL_ONLY` work as for RAG; `EVAL_MODES`, `EVAL_SYLLABUS`, `EVAL_PROMPT`, `EVAL_LIMIT` and
-`EVAL_SAMPLE` are refused. A turn with no reply is retried once; the run is void at ERROR rows over 2%
-of turns, and still writes its rows. The default results file name carries the arm (`-B-` or `-D-`).
+items). The test split runs once, whole, at 3 repeats: it needs `EVAL_REPEATS=3`, refuses `EVAL_ONLY`,
+and refuses to start while `src/` or `public/dictionary/` has uncommitted changes, so the file's commit
+is what ran. On dev, `EVAL_REPEATS` and `EVAL_ONLY` work as for RAG. `EVAL_MODES`, `EVAL_SYLLABUS`,
+`EVAL_PROMPT`, `EVAL_LIMIT` and `EVAL_SAMPLE` are refused. A turn with no reply is retried once; the run
+is void at ERROR rows over 2% of turns (8 of 360 on test), and still writes its rows. The default
+results file name carries the arm (`-B-` or `-D-`).
 
 Rows carry the item's band, kind (`plain` or `sense`) and split, the repeat, the kernel's `askedWord`
-and `dictionaryNote` (with `noteTokens`, its `estTokens`), the reply, and `grade` (`pass`, and for sense
-items `passStrict`, which also fails a reply naming the other sense). Compare two arms run at one
-commit, offline:
+and `dictionaryNote` (with `noteTokens`, its `estTokens`), the reply, `grade` (`pass`, and for sense
+items `passStrict`, which also fails a reply naming the other sense), the final attempt's `toolCalls`
+and `toolCallRecovery`, `attempts`, and the chat requests the row sent over all its attempts
+(`chatRequests` and `structuredRequests`, counted on the wire by the runner; the warm-up is not counted).
+Compare two arms run at one commit, offline:
 
 ```powershell
 $env:DEFINE_B = "<B results file>"; $env:DEFINE_D = "<D results file>"
 npx vite-node src/lib/eval/headless/define-compare.ts
 ```
 
-It prints, per pre-registered group, item-majority passes with Wilson intervals, the items lost and
-gained, and the exact McNemar p, and refuses files from different commits, models or splits.
+It prints per-arm ERROR, detected and noted counts with the ids that missed, added model calls, the
+pre-registered groups (item-majority passes with Wilson intervals, items lost and gained, exact McNemar
+p) with and without items that have an ERROR row in either arm, median reply length per band, and on
+the test split the lever 18 clauses as written. It refuses files from different commits, models, splits
+or run options; on the test split it also refuses a partial or void run, unequal repeats or repeats
+other than 3, and a group short of its frozen size.
+
+### The define hand-label gate
+
+Before the note wording is frozen, the lexical grader is checked against two blind graders on 60 dev
+rows (`docs/BENCHMARKS.md` B8, "Validation gate"). Offline, except grader 2:
+
+| Step | Command |
+|---|---|
+| Build the sheet and the hidden verdicts | `$env:DEFINE_LABEL_FILES = "<B dev file>,<D dev file>"; npx vite-node src/lib/eval/headless/define-label-sheet.ts` writes `.dev/define-label-sheet.html` and `.dev/label-verdicts/<sheet id>.json` in the main checkout. The sheet shows the word, the student's message and the reply only. |
+| Grader 1 (Tate) | Open the sheet in a browser, answer, press Export. |
+| Grader 2 (blind, OpenAI) | `$env:DEFINE_GRADER2_MODEL = "<model from OpenAI's docs>"; run-with-secrets npx vite-node src/lib/eval/headless/define-label-grader2.ts -- <sheet.html> <out.json>`. One request per row; the key comes from `OPENAI_API_KEY`. |
+| Score | `npx vite-node src/lib/eval/headless/define-kappa.ts -- tate.json grader2.json verdicts.json`: kappa per reading and the gate, and the lexical false passes and fails per arm. |
+
+For the harm adjudication lever 18 describes, set `DEFINE_LABEL_ITEMS=<ids>` and pass the test files:
+the sheet then holds every non-ERROR row of those items in both arms, and `define-kappa.ts` prints the
+adjudicated item verdicts.
 
 ## b7-cpu: latency on a CPU
 
