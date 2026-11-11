@@ -11,7 +11,7 @@
 // the sheet shows only the student's message and the reply: never the arm, the model, the lexical
 // verdict, the expect terms or the dictionary note.
 //
-// Writes <main checkout>/.dev/define-label-sheet[-adjudication].html and the verdicts to
+// Writes <main checkout>/.dev/<sheet id>.html and the verdicts to
 // <main checkout>/.dev/label-verdicts/<sheet id>.json (DEFINE_LABEL_VERDICTS overrides; never in the
 // sheet's folder). define-grade.ts and define-items.ts must be committed: the sheet id names them.
 
@@ -32,12 +32,7 @@ async function main(): Promise<void> {
   if (files.length < 2) throw new Error("Set DEFINE_LABEL_FILES to the B and D dev results files (comma-separated).");
   const only = e.DEFINE_LABEL_ITEMS?.split(",").map((s) => s.trim()).filter(Boolean) ?? null;
   const grader = await graderCommits();
-  const sheetId = `define-label-${only ? "adjudication-" : ""}g${grader}`;
   const root = await mainCheckout();
-  const sheetFile = p.join(root, ".dev", `define-label-sheet${only ? "-adjudication" : ""}.html`);
-  const verdictFile = p.resolve(e.DEFINE_LABEL_VERDICTS ?? p.join(root, ".dev", "label-verdicts", `${sheetId}.json`));
-  if (p.dirname(verdictFile).toLowerCase() === p.dirname(sheetFile).toLowerCase()) throw new Error("Write the verdicts outside the sheet's folder.");
-
   const byId = new Map(DEFINE_ITEMS.map((i) => [i.id, i]));
   const pool: DefineLabelCandidate[] = [];
   const rowOf = new Map<string, { row: SavedRow; source: string }>();
@@ -65,6 +60,14 @@ async function main(): Promise<void> {
   // Item verdicts on an adjudication sheet are per model: one model per sheet.
   if (only && models.size !== 1) throw new Error(`An adjudication sheet holds one model's B and D files; these name ${[...models].join(", ")}.`);
   const shown = only ? selectAll(pool) : selectDefineLabelRows(pool);
+  // The id names the model(s), the row set and the grader commits, so two sheets never share an id, a
+  // file or the browser's saved answers (the localStorage key is the id).
+  const rowSet = (await sha256([...shown].map((c) => c.uid).sort().join("\n"))).slice(0, 10);
+  const modelSlug = [...models].sort().join("+").replace(/[^A-Za-z0-9._+-]+/g, "_");
+  const sheetId = `define-label-${only ? "adjudication-" : ""}${modelSlug}-r${rowSet}-g${grader}`;
+  const sheetFile = p.join(root, ".dev", `${sheetId}.html`);
+  const verdictFile = p.resolve(e.DEFINE_LABEL_VERDICTS ?? p.join(root, ".dev", "label-verdicts", `${sheetId}.json`));
+  if (p.dirname(verdictFile).toLowerCase() === p.dirname(sheetFile).toLowerCase()) throw new Error("Write the verdicts outside the sheet's folder.");
 
   const verdicts: DefineLabelVerdicts = { sheet: sheetId, grader, adjudication: !!only, repeats: [...repeats][0], rows: {} };
   const sheetRows = shown.map((c, i) => {
@@ -77,6 +80,11 @@ async function main(): Promise<void> {
   await writeText(verdictFile, JSON.stringify(verdicts, null, 2));
   const n = (t: (c: DefineLabelCandidate) => boolean) => shown.filter(t).length;
   console.log(`Sheet ${sheetId}: ${sheetFile}\nVerdicts (hidden from graders): ${verdictFile}\nRows ${shown.length}: B ${n((c) => c.arm === "B")}, D ${n((c) => c.arm === "D")}, sense ${n((c) => c.kind === "sense")}, lexical fail ${n((c) => !c.lenient)}, sense strict-only fail ${n((c) => c.kind === "sense" && c.lenient && !c.strict)}`);
+}
+
+async function sha256(text: string): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Adjudication: every row (both arms, every repeat), in a stable order, shuffled with the frozen seed. */

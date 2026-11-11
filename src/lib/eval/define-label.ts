@@ -129,9 +129,10 @@ export function shuffled<T>(xs: readonly T[], seed: number): T[] {
  * The kappa sheet's rows: from a seeded shuffle of `pool` (non-ERROR dev rows), at most one row per
  * model, arm and item. The minimums in DEFINE_LABEL_NEEDS are filled first, the scarcest need first
  * (fewest model-arm-item pairs in the pool that can meet it), then the sheet is filled to `total` from
- * the less-covered arm and shuffled again for display. A need the pool cannot meet gets as many rows as
- * the pool holds; a need the pool could meet but the draw did not throws, so the sheet is never built
- * short of a minimum it could have had. The same inputs give the same rows.
+ * the less-covered arm and shuffled again for display. A need gets as many rows as the pool holds at one
+ * row per model, arm and item; the draw throws only if it stops short of a minimum while a usable row
+ * for that need is still free, so it never builds a sheet short of a row it could have taken. The same
+ * inputs give the same rows.
  */
 export function selectDefineLabelRows(pool: readonly DefineLabelCandidate[], total = DEFINE_LABEL_ROWS, seed = DEFINE_LABEL_SEED): DefineLabelCandidate[] {
   const order = shuffled([...pool].sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0)), seed);
@@ -149,8 +150,10 @@ export function selectDefineLabelRows(pool: readonly DefineLabelCandidate[], tot
       take(c);
     }
   }
-  const short = DEFINE_LABEL_NEEDS.filter((n) => chosen.filter(n.test).length < Math.min(n.min, capacity(n)));
-  if (short.length) throw new Error(`The draw missed minimums the pool could meet: ${short.map((n) => n.why).join(", ")}.`);
+  // A need short of its minimum is a fault only if a usable row for it was left behind: a pair already
+  // taken for another need is not usable (capacity counts pairs per need, take() uses one for all).
+  const short = DEFINE_LABEL_NEEDS.filter((n) => chosen.filter(n.test).length < n.min && order.some((x) => free(x) && n.test(x)));
+  if (short.length) throw new Error(`The draw left usable rows behind for: ${short.map((n) => n.why).join(", ")}.`);
   while (chosen.length < total) {
     const arm = chosen.filter((c) => c.arm === "B").length <= chosen.filter((c) => c.arm === "D").length ? "B" : "D";
     const c = order.find((x) => free(x) && x.arm === arm) ?? order.find(free);

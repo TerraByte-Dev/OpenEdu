@@ -206,8 +206,14 @@ export interface DefineVerdictInput {
 /** Lever 18's run-time clauses on one model's test arms, read as written (lexical, before any blind
  *  adjudication of the items a harm clause names). The other-models clause and the void rule are read
  *  by the person comparing the runs. */
-export function judgeDefine(v: DefineVerdictInput): { clauses: DefineClause[]; killed: boolean; accuracy: "lever" | "not-shown" | "ceiling" } {
+export function judgeDefine(v: DefineVerdictInput, ruleModel = true): { clauses: DefineClause[]; killed: boolean; accuracy: "lever" | "not-shown" | "ceiling" | "not-applicable" } {
   const g = (list: readonly ArmContrast[], group: DefineGroup) => list.find((c) => c.group === group)!;
+  // e4b and qwen3.5:4b are read only by the other-models clause, plain K-8 at 4 items.
+  if (!ruleModel) {
+    const c = g(v.all, "plain-k8");
+    const clause = { clause: "other models: plain-k8 D <= B - 4", fires: c.d.k <= c.b.k - 4, detail: `B ${c.b.k}/${c.n}, D ${c.d.k}/${c.n}; lost ${c.lost.join(", ") || "none"}` };
+    return { clauses: [clause], killed: clause.fires, accuracy: "not-applicable" };
+  }
   const harm = (group: DefineGroup): DefineClause => {
     const c = g(v.all, group);
     return { clause: `harm: ${group} D <= B - 3`, fires: c.d.k <= c.b.k - 3, detail: `B ${c.b.k}/${c.n}, D ${c.d.k}/${c.n}; lost ${c.lost.join(", ") || "none"}` };

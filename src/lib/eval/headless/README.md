@@ -147,7 +147,8 @@ p) with and without items that have an ERROR row in either arm, median reply len
 the test split the lever 18 clauses as written. It refuses files from different commits, models, splits
 or run options; on the test split it also refuses a partial or void run, unequal repeats or repeats
 other than 3, an item whose row count is not the repeats, and a group short of its frozen size. When
-a kill clause fires it prints no accuracy reading.
+a kill clause fires it prints no accuracy reading. For a model other than gemma4:e2b it prints only the
+other-models clause (plain K-8, 4 items).
 
 ### The define hand-label gate
 
@@ -158,10 +159,10 @@ helpers the tests import live in `define-script-lib.ts`.
 
 | Step | Command |
 |---|---|
-| Build the sheet and the hidden verdicts | `$env:DEFINE_LABEL_FILES = "<B dev file>,<D dev file>"; npx vite-node src/lib/eval/headless/define-label-sheet.ts` writes `.dev/define-label-sheet.html` and `.dev/label-verdicts/<sheet id>.json` in the main checkout. The sheet shows the word, the student's message and the reply only. The draw refuses to build a sheet short of a minimum the pool could meet. `define-grade.ts` and `define-items.ts` must be committed. |
+| Build the sheet and the hidden verdicts | `$env:DEFINE_LABEL_FILES = "<B dev file>,<D dev file>"; npx vite-node src/lib/eval/headless/define-label-sheet.ts` writes `.dev/<sheet id>.html` and `.dev/label-verdicts/<sheet id>.json` in the main checkout. The sheet id names the model(s), a hash of the row set and the grader commits, so two sheets never share a file or the browser's saved answers. The sheet shows the word, the student's message and the reply only. The draw refuses only if it stops short of a minimum while a usable row for it is still free. `define-grade.ts` and `define-items.ts` must be committed. |
 | Grader 1 (Tate) | Open the sheet in a browser, answer every row, press Export. |
 | Grader 2 (blind, OpenAI) | `$env:DEFINE_GRADER2_MODEL = "<model from OpenAI's docs>"; run-with-secrets npx vite-node src/lib/eval/headless/define-label-grader2.ts -- <sheet.html> <out.json>`. One request per row, retried once; it writes the export and exits non-zero if any row is still unanswered. The key comes from `OPENAI_API_KEY`. One run per sheet. |
-| Score | `npx vite-node src/lib/eval/headless/define-kappa.ts -- grader1.json grader2.json verdicts.json` (grader 1 first): kappa per reading, the gate, and the lexical false passes and fails per arm. It refuses an export that leaves any row unanswered, and verdicts built with a grader commit other than the one committed now. |
+| Score | `npx vite-node src/lib/eval/headless/define-kappa.ts -- grader1.json grader2.json verdicts.json` (grader 1 first): kappa per reading, the gate, and the lexical false passes and fails per arm. It refuses an export that leaves any row unanswered, two exports from the same grader, and verdicts built with a grader commit other than the one committed now. |
 
 If the gate misses, B8 is descriptive (no accuracy claim); the term lists are not changed in response.
 

@@ -71,10 +71,12 @@ async function main(): Promise<void> {
   out.push("");
 
   if (b.split === "test") {
-    const v = judgeDefine({ all, withoutErrorItems, rowsB: b.rows, rowsD: d.rows, wordOf });
+    // gemma4:e2b is the rule model; any other model is read only by the other-models clause.
+    const v = judgeDefine({ all, withoutErrorItems, rowsB: b.rows, rowsD: d.rows, wordOf }, b.model === "gemma4:e2b");
     out.push("### Lever 18 clauses, as written (lexical; a harm clause that fires goes to blind adjudication of its lost and gained items first)", "");
     for (const c of v.clauses) out.push(`- ${c.fires ? "FIRES" : "holds"}: ${c.clause} (${c.detail})`);
-    const accuracy = v.accuracy === "lever" ? "an accuracy lever (both readings, with and without ERROR items)"
+    const accuracy = v.accuracy === "not-applicable" ? "not read on this model (the accuracy claim is read on gemma4:e2b only)"
+      : v.accuracy === "lever" ? "an accuracy lever (both readings, with and without ERROR items)"
       : v.accuracy === "ceiling" ? "untestable at this n (ceiling: B passes 40 or more of 45 target items)"
       : "not shown (report as a trust/UX feature)";
     // A firing kill clause decides the outcome; an accuracy reading beside it would read as a claim.

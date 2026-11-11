@@ -50,6 +50,27 @@ describe("selectDefineLabelRows", () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) expect(meets(selectDefineLabelRows(devPool(0.9, seed))), `seed ${seed}`).toBe(true);
   });
 
+  it("does not refuse a pool where another need used up the pairs a need could have had (review round 3)", () => {
+    // Every row passes, except: 4 sense pairs whose repeat 0 is the pool's only strict-only fail and whose
+    // repeat 1 is a lexical fail, and 8 plain pairs with one lexical fail. Strict-only (4 pairs) is the
+    // scarcest need and takes repeat 0 of the 4 sense pairs, so lexical fail can reach only 8 of its 12.
+    const pool = devPool(1).map((c) => ({ ...c, strict: c.lenient }));
+    const set = (item: string, repeat: number, lenient: boolean, strict: boolean) => {
+      for (const c of pool) if (c.item === item && c.repeat === repeat && c.arm === "B") Object.assign(c, { lenient, strict });
+    };
+    for (const i of [0, 1, 2, 3]) { set(`i${i}`, 0, true, false); set(`i${i}`, 1, false, false); }
+    for (const i of [20, 21, 22, 23, 24, 25, 26, 27]) set(`i${i}`, 2, false, false);
+    const rows = selectDefineLabelRows(pool);
+    expect(rows.filter((c) => c.kind === "sense" && c.lenient && !c.strict)).toHaveLength(4);
+    expect(rows.filter((c) => !c.lenient)).toHaveLength(8);
+  });
+
+  it("never throws on high-pass pools (95% to 99%), the regime the plain K-5 items are expected in", () => {
+    for (const rate of [0.95, 0.97, 0.99]) {
+      for (let seed = 1; seed <= 25; seed++) expect(() => selectDefineLabelRows(devPool(rate, seed)), `${rate} seed ${seed}`).not.toThrow();
+    }
+  });
+
   it("takes as many rows as the pool holds for a need it cannot meet", () => {
     const pool = devPool(1).map((c) => ({ ...c, strict: c.lenient })); // no fails and no strict-only fails at all
     const rows = selectDefineLabelRows(pool);

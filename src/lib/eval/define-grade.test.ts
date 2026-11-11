@@ -123,6 +123,16 @@ describe("accuracyGain and judgeDefine", () => {
     expect(v.clauses.filter((c) => c.fires).map((c) => c.clause)).toEqual(["harm: plain-k8 D <= B - 3"]);
   });
 
+  it("reads a non-rule model only by the other-models clause, plain-k8 at 4 items", () => {
+    const at = (lost: number) => judgeDefine({
+      all: base({ "plain-k8": contrast("plain-k8", 75, 60, 60 - lost, [], []), common: contrast("common", 50, 40, 30, [], []) }),
+      withoutErrorItems: base(), rowsB: [run()], rowsD: [run()], wordOf: words,
+    }, false);
+    expect(at(3)).toMatchObject({ killed: false, accuracy: "not-applicable" });
+    expect(at(3).clauses.map((c) => c.clause)).toEqual(["other models: plain-k8 D <= B - 4"]);
+    expect(at(4).killed).toBe(true);
+  });
+
   it("does not read ERROR rows for the fire clause; errors are their own clause", () => {
     const err = run({ error: "x", grade: null, askedWord: null, dictionaryNote: null });
     const one = judgeDefine({ all: base(), withoutErrorItems: base(), rowsB: [run()], rowsD: [err], wordOf: words });

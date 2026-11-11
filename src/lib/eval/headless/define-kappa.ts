@@ -30,6 +30,7 @@ async function main(): Promise<void> {
   const read = async <T>(file: string): Promise<T> => JSON.parse(await f.readFile(file, "utf8")) as T;
   const [a, b, v] = await Promise.all([read<LabelExport>(args[0]), read<LabelExport>(args[1]), read<DefineLabelVerdicts>(args[2])]);
   checkDefineVerdicts(v);
+  if (a.grader === b.grader) throw new Error(`Both exports name the same grader (${a.grader}); the gate needs two graders.`);
   for (const e of [a, b]) {
     if (e.sheet !== v.sheet) throw new Error(`${e.grader}'s export is for sheet ${e.sheet}, the verdicts are for ${v.sheet}`);
     const open = unansweredRows(e, v);
