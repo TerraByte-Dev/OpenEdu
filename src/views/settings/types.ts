@@ -15,6 +15,9 @@ export interface UsageControls {
   /** The signed-in learner's grade (#243), and saving a new one. Throws when the save fails. */
   activeGrade: Grade | null;
   setActiveGrade: (grade: Grade | null) => Promise<void>;
+  /** A K-1 learner's "Early learner screens" choice (#244): null = never chosen (on). Throws when the save fails. */
+  earlyScreens: boolean | null;
+  setEarlyScreens: (on: boolean) => Promise<void>;
   /** `teacher`: a new PIN record, null to clear it, undefined to keep it. Throws when the save fails. */
   changeMode: (to: UsageMode, teacher: PinRecord | null | undefined) => Promise<void>;
   openTeacher: () => void;
