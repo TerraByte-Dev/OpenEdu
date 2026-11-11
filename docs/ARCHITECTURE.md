@@ -93,10 +93,24 @@ need no provider, so the setup gate never stands in front of them. The engine in
 spec and 2-4 choices with a data answer key; `engine.ts` builds seeded rounds of five, decides what a tap
 means (praise, or a teaching retry that counts together or shows the example), and computes mastery from
 the stored rows: 5 first-try right answers in a row within a skill, after which the next skill in the pack
-opens. Every tap is a row in `early_attempts` (learner, skill, item, correct, first try), read and written
-for the active learner only and deleted with the learner. Pictures are inline SVG drawn by code, prompts
-are read aloud through `useReadAloud.ts`, and the way out is a press-and-hold Grown-ups button that goes
-through the same teacher-PIN guard as the titlebar gear (`usage-modes.ts`, entry `early-grownups`).
+opens. Every tap is a row in `early_attempts` (learner, skill, item, correct, first try, and since
+migration 17 the tapped choice), read and written for the active learner only and deleted with the
+learner. Pictures are inline SVG drawn by code, prompts are read aloud through `useReadAloud.ts`, and the
+way out is a press-and-hold Grown-ups button that goes through the same teacher-PIN guard as the titlebar
+gear (`usage-modes.ts`, entry `early-grownups`). A screen reader's "activate" or voice control's "click"
+cannot hold, so a click with no press behind it (`detail === 0`, not from a key) opens it directly; a
+mouse, finger or keyboard still has to hold.
+
+**The grown-ups view (#244 PR 2).** The hold opens `src/views/early/GrownUps.tsx`, which stays unlocked
+for its own Settings link (`staysUnlocked`) and locks again on the way back to the child's screens. Its
+numbers come from the rows by `src/lib/early/report.ts`: days played, approximate minutes (first to last
+tap of each sitting; a sitting ends after 5 minutes with no taps), skills mastered (with the date of the
+answer that completed the streak), per-skill status and coverage, "hard ones" (a pair of colors, numbers or
+shapes mixed up on 3 or more wrong first tries in 30 days, from the stored choice) and the monthly learning
+record. Screen-free ideas are static data in `together.ts`. Tracing sheets (`tracing.ts`: single-stroke
+numbers 0-20 and the six shapes, 1.5 in tall on Letter paper) and the record print through
+`window.print()`: `PrintView.tsx` copies the pages into a `.print-root` under `<body>` and the print
+stylesheet in `index.css` hides everything else. No PDF library; "Save as PDF" is the print dialog's.
 
 ## Repo layout
 

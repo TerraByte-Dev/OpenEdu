@@ -364,6 +364,10 @@ export default function App() {
   const childScreen = earlyHome || earlyPending;
   // The grown-ups view of an early learner's progress (#244), behind the press-and-hold.
   const grownUpsView = currentView === "grownups" && activeLearner !== null;
+  // A learner on the early-learner screens never gets the product tour: it explains Home and courses,
+  // which they do not use, and it would land over Settings or the grown-ups view (#249). It waits, not
+  // marked seen, in case the family switches back to the regular Home.
+  const onEarlyScreens = hasEarlyScreens(activeGrade) && (earlyChoice === undefined || earlyScreensOn(activeGrade, earlyChoice));
 
   return (
     <div
@@ -595,7 +599,7 @@ export default function App() {
             />
           )}
 
-          {tourStep !== null && activeLearner && !isFullscreenView && !teacherOpen && !childScreen && setup?.ready && (
+          {tourStep !== null && activeLearner && !isFullscreenView && !teacherOpen && !childScreen && !onEarlyScreens && setup?.ready && (
             <TourOverlay step={tourStep} onNext={advanceTour} onSkip={skipTour} />
           )}
         </>
