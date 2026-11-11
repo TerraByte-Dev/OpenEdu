@@ -146,23 +146,31 @@ pre-registered groups (item-majority passes with Wilson intervals, items lost an
 p) with and without items that have an ERROR row in either arm, median reply length per band, and on
 the test split the lever 18 clauses as written. It refuses files from different commits, models, splits
 or run options; on the test split it also refuses a partial or void run, unequal repeats or repeats
-other than 3, and a group short of its frozen size.
+other than 3, an item whose row count is not the repeats, and a group short of its frozen size. When
+a kill clause fires it prints no accuracy reading.
 
 ### The define hand-label gate
 
 Before the note wording is frozen, the lexical grader is checked against two blind graders on 60 dev
-rows (`docs/BENCHMARKS.md` B8, "Validation gate"). Offline, except grader 2:
+rows (`docs/BENCHMARKS.md` B8, "Validation gate"). Offline, except grader 2. Each script ends with an
+unconditional `main()`, so with no inputs it fails with its usage error (`define-scripts.test.ts`); the
+helpers the tests import live in `define-script-lib.ts`.
 
 | Step | Command |
 |---|---|
-| Build the sheet and the hidden verdicts | `$env:DEFINE_LABEL_FILES = "<B dev file>,<D dev file>"; npx vite-node src/lib/eval/headless/define-label-sheet.ts` writes `.dev/define-label-sheet.html` and `.dev/label-verdicts/<sheet id>.json` in the main checkout. The sheet shows the word, the student's message and the reply only. |
-| Grader 1 (Tate) | Open the sheet in a browser, answer, press Export. |
-| Grader 2 (blind, OpenAI) | `$env:DEFINE_GRADER2_MODEL = "<model from OpenAI's docs>"; run-with-secrets npx vite-node src/lib/eval/headless/define-label-grader2.ts -- <sheet.html> <out.json>`. One request per row; the key comes from `OPENAI_API_KEY`. |
-| Score | `npx vite-node src/lib/eval/headless/define-kappa.ts -- tate.json grader2.json verdicts.json`: kappa per reading and the gate, and the lexical false passes and fails per arm. |
+| Build the sheet and the hidden verdicts | `$env:DEFINE_LABEL_FILES = "<B dev file>,<D dev file>"; npx vite-node src/lib/eval/headless/define-label-sheet.ts` writes `.dev/define-label-sheet.html` and `.dev/label-verdicts/<sheet id>.json` in the main checkout. The sheet shows the word, the student's message and the reply only. The draw refuses to build a sheet short of a minimum the pool could meet. `define-grade.ts` and `define-items.ts` must be committed. |
+| Grader 1 (Tate) | Open the sheet in a browser, answer every row, press Export. |
+| Grader 2 (blind, OpenAI) | `$env:DEFINE_GRADER2_MODEL = "<model from OpenAI's docs>"; run-with-secrets npx vite-node src/lib/eval/headless/define-label-grader2.ts -- <sheet.html> <out.json>`. One request per row, retried once; it writes the export and exits non-zero if any row is still unanswered. The key comes from `OPENAI_API_KEY`. One run per sheet. |
+| Score | `npx vite-node src/lib/eval/headless/define-kappa.ts -- grader1.json grader2.json verdicts.json` (grader 1 first): kappa per reading, the gate, and the lexical false passes and fails per arm. It refuses an export that leaves any row unanswered, and verdicts built with a grader commit other than the one committed now. |
 
-For the harm adjudication lever 18 describes, set `DEFINE_LABEL_ITEMS=<ids>` and pass the test files:
-the sheet then holds every non-ERROR row of those items in both arms, and `define-kappa.ts` prints the
-adjudicated item verdicts.
+If the gate misses, B8 is descriptive (no accuracy claim); the term lists are not changed in response.
+
+For the harm adjudication lever 18 describes, set `DEFINE_LABEL_ITEMS=<ids>` (the lost and the gained
+items of the group whose clause fired) and pass one model's B and D test files: the sheet then holds
+every non-ERROR row of those items in both arms. `define-kappa.ts` prints the item verdicts with grader 1
+deciding each row (the lexical verdict where grader 1 left no label, marked unadjudicated; a missing
+repeat fails), the both-graders-agree reading as a sensitivity line, kappa between the graders and every
+disagreement.
 
 ## b7-cpu: latency on a CPU
 
