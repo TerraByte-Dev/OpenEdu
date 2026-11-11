@@ -25,10 +25,14 @@ export function useReadAloud(): ReadAloud {
   const speakingRef = useRef<string | null>(null);
   // Bumped per utterance: a cancelled utterance's late end event must not clear the next one.
   const turnRef = useRef(0);
+  // The utterance being spoken. Chromium can garbage-collect an utterance nothing references, and then
+  // onend never fires and the button is stuck on "Stop reading" (#246). Held until end, error or stop.
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const stop = useCallback(() => {
     turnRef.current++;
     synth()?.cancel();
+    utteranceRef.current = null;
     speakingRef.current = null;
     setSpeakingId(null);
   }, []);
@@ -45,11 +49,13 @@ export function useReadAloud(): ReadAloud {
     if (voice) { u.voice = voice; u.lang = voice.lang; }
     const done = () => {
       if (turnRef.current !== turn) return;
+      utteranceRef.current = null;
       speakingRef.current = null;
       setSpeakingId(null);
     };
     u.onend = done;
     u.onerror = done;
+    utteranceRef.current = u;
     speakingRef.current = id;
     setSpeakingId(id);
     s.speak(u);
@@ -64,7 +70,7 @@ export function useReadAloud(): ReadAloud {
     // Chromium loads the voice list on first ask; asking now means it is there by the first press.
     synth()?.getVoices();
     // Nothing keeps talking after the chat is gone.
-    return () => { turnRef.current++; synth()?.cancel(); };
+    return () => { turnRef.current++; synth()?.cancel(); utteranceRef.current = null; };
   }, []);
 
   return { supported: synth() !== null, speakingId, speak, toggle, stop };
