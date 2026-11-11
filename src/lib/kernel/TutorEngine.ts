@@ -150,7 +150,7 @@ export class TutorEngine {
     const newest = messages[messages.length - 1];
     const asked = newest?.role === "user" ? askedWord(newest.content) : null;
     const dictionaryLookup = asked && !firstTurnHold && !checkBeforePraise && turn.dictionary !== "off"
-      ? lookupDictionaryNote(asked.word, lookupWord)
+      ? lookupDictionaryNote(asked.word, lookupWord, undefined, ctx.abort)
       : Promise.resolve(null);
 
     const eduTools = await selectTools(ctx);

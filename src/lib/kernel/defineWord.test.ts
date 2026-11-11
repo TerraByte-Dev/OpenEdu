@@ -189,6 +189,13 @@ describe("lookupDictionaryNote: a lookup never fails or stalls the turn", () => 
   it("returns null when the lookup throws", async () => {
     expect(await lookupDictionaryNote("zorp", async () => { throw new Error("bundled files unreadable"); })).toBeNull();
   });
+  it("returns null at once when the student stops the turn during a slow lookup", async () => {
+    const turn = new AbortController();
+    const p = lookupDictionaryNote("zorp", () => new Promise<DictionaryEntry[]>(() => {}), 60_000, turn.signal);
+    turn.abort();
+    expect(await p).toBeNull();
+  });
+
   it("returns null at the deadline when the lookup hangs", async () => {
     vi.useFakeTimers();
     try {

@@ -47,6 +47,8 @@ const RULES: Record<Exclude<Pos, "r">, Array<[string, string]>> = {
   a: [["er", ""], ["est", ""], ["er", "e"], ["est", "e"]],
 };
 const POS_ORDER: Pos[] = ["n", "v", "a", "r"];
+/** Own keys only: a word such as "constructor" or "__proto__" must not read Object.prototype. */
+const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
 /** Shard file key for a lowercased headword. The build script uses the same rule; a test checks every
  *  shipped shard's keys against this function. */
@@ -89,7 +91,7 @@ export function candidateHeadwords(word: string, exc: Exceptions, opts: { traili
   };
   const bases = (w: string): Array<[string, Pos]> => {
     const found: Array<[string, Pos]> = [];
-    for (const pos of POS_ORDER) for (const lemma of exc[pos][w] ?? []) found.push([lemma, pos]);
+    for (const pos of POS_ORDER) for (const lemma of own(exc[pos], w) ? exc[pos][w] : []) found.push([lemma, pos]);
     for (const pos of ["n", "v", "a"] as const) {
       for (const [suffix, ending] of RULES[pos]) {
         if (w.length > suffix.length && w.endsWith(suffix)) found.push([w.slice(0, w.length - suffix.length) + ending, pos]);
@@ -126,7 +128,8 @@ export function resolveEntries(
   const entries: DictionaryEntry[] = [];
   for (const cand of candidateHeadwords(word, exc, opts)) {
     if (entries.some((e) => e.headword === cand.word)) continue;
-    const rows = getShard(shardKey(cand.word))?.[cand.word];
+    const shard = getShard(shardKey(cand.word));
+    const rows = shard && own(shard, cand.word) ? shard[cand.word] : undefined;
     if (!rows || rows.length === 0) continue;
     if (cand.pos !== null && !rows.some((r) => r[1] === cand.pos)) continue;
     entries.push({

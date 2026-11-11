@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 
 import { installAppOrigin } from "./origin";
 import { lookupWord } from "../../dictionary";
-import { askedWord, dictionaryNote } from "../../kernel/defineWord";
+import { askedWord, dictionaryNote, selectSenses, SENSITIVE_SENSE } from "../../kernel/defineWord";
 import { DEFINE_ITEMS } from "../define-items";
 
 async function sha256(text: string): Promise<string> {
@@ -18,10 +18,11 @@ const entryOf = (note: string) => note.slice(0, note.indexOf("<tutor_note>"));
 
 // The SHA-256 of the 184 entry blocks (the note without its <tutor_note>), joined in item order, as
 // frozen for lever 18 (caps 3/6/8, 360 estTokens, the form and capitalised-form rules of selectSenses).
-// A note-wording change on dev does not move it; a cap, format, data or detector change does. Review
-// round 2 moved it once, before any run: the capitalised-form rule drops one sense from one item
-// (def-k2-09, "delicious": a capitalised proper-name sense); no other item's entry changed.
-const FROZEN_ENTRIES_SHA256 = "0853c13108bdc543b41aef3b629104fbc13875abf9a36dcbc3cfa9520a307f85";
+// A note-wording change on dev does not move it; a cap, format, data or detector change does. It is
+// the value pinned at 597bda9: review round 2 moved it once (the capitalised-form rule then also applied
+// to longer words and dropped a sense from def-k2-09), and round 3 moved it back by limiting that rule
+// to two-letter words. The sensitive-sense filter changes none of the 184 entries.
+const FROZEN_ENTRIES_SHA256 = "407656a10a9aff8a07453aa9388248f63ae22de8de10bc28dfc0ce86980f8241";
 
 describe("define entries from the bundled dictionary", () => {
   const notes = new Map<string, string | null>();
@@ -56,5 +57,33 @@ describe("define entries from the bundled dictionary", () => {
   it("keeps lower-case abbreviations (km, cm, kg, ml, pm, tv) and gives none for those stored only with capitals (ac, mx, dy, xy)", async () => {
     for (const w of ["km", "cm", "kg", "ml", "pm", "tv"]) expect(await note(w), w).not.toBeNull();
     for (const w of ["ac", "mx", "dy", "xy"]) expect(await note(w), w).toBeNull();
+  });
+
+  it("keeps capitalised senses for words longer than two letters typed in lower case (welsh, thanksgiving, may)", async () => {
+    for (const w of ["welsh", "thanksgiving", "may"]) {
+      const shown = selectSenses(await lookupWord(w), w).flatMap((p) => p.senses);
+      expect(shown.some((s) => s.form !== s.form.toLowerCase()), w).toBe(true);
+    }
+  });
+
+  it("never shows a drug street name, a slur or an obscene sense (went, goes, snow, fairy)", async () => {
+    for (const w of ["went", "goes"]) {
+      expect(await note(w), w).not.toMatch(/methylenedioxymethamphetamine|street names? for/i);
+      expect(await note(w), w).toContain('is a form of "go"');
+    }
+    expect(await note("snow")).not.toMatch(/cocaine|street names? for/i);
+    expect(await note("snow")).not.toBeNull();
+    expect(await note("fairy")).not.toMatch(/offensive/i);
+    expect(await note("fairy")).not.toBeNull();
+  });
+
+  it("the filter changes none of the 184 item entries: no shown sense of an item matches it", () => {
+    for (const [id, n] of notes) expect(SENSITIVE_SENSE.test(n!), id).toBe(false);
+  });
+
+  it("does not read Object.prototype for a word such as constructor", async () => {
+    await expect(lookupWord("constructor")).resolves.toBeInstanceOf(Array);
+    await expect(lookupWord("__proto__")).resolves.toBeInstanceOf(Array);
+    await expect(lookupWord("hasownproperty")).resolves.toEqual([]);
   });
 });

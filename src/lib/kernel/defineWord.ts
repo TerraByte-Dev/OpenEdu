@@ -32,9 +32,10 @@
 //     still fires, and a lower-case name ("what does tom mean") is not caught;
 //   - an X that, somewhere in the message, touches an operator or a digit: "what does mx mean in
 //     y=mx+b", "what does dy mean in dy/dx", "what does sin mean in sin(2x)" (algebra, not words).
-//     Ordinal and decade endings are exempt ("what does th mean in 5th"). "what does slope mean in
-//     y=mx+b" still fires, as does a bare "what does mx mean"; for those the note drops entries whose
-//     stored form is capitalised when the student typed lower case ("Mx", "Dy", "XY"), so they get no note;
+//     Ordinal and decade endings are exempt ("what does th mean in 5th"); a unit against a number is
+//     refused too ("5cm", "3pm"). "what does slope mean in y=mx+b" fires and gets its note. A bare "what
+//     does mx mean" fires too; for a two-letter word typed in lower case the note drops senses whose
+//     stored form is capitalised ("Mx", "Dy", "XY"), so it gets no note;
 //   - "the meaning of ..." or "definition of ..." after a colon or semicolon ("Essay prompt: the
 //     meaning of courage"), and "... in your own words" (an assignment, not a question);
 //   - "what is a X": a question about a thing, not a word. That is a separate, later arm (#251).
@@ -164,19 +165,26 @@ The student asked what "{word}" means. Use the dictionary entry above as the sou
 
 interface Shown { form: string; pos: Pos; definition: string; example: string }
 
+/** Senses a child must not be shown, whatever they asked: drug street names, obscene, vulgar and
+ *  offensive terms, slurs, sexual terms. Matched against the stored definition. Partial by nature (a
+ *  regex over WordNet's own wording, which usually labels these senses this way); pinned by tests. */
+export const SENSITIVE_SENSE = /\b(?:street names? for|obscene|vulgar|offensive (?:term|name|word)|ethnic slur|derogatory|sexual intercourse|a sex act)\b/i;
+
 /** The senses shown, in lookupWord's order: per headword its senses in stored order, skipping a sense
  *  whose part of speech already has DICTIONARY_SENSES_PER_POS, up to the per-headword and total caps.
  *  Left out:
+ *   - a sense whose definition matches SENSITIVE_SENSE ("go" as a drug, "snow" as cocaine, "fairy" as a
+ *     slur); a headword with nothing left gives no note;
  *   - a one-letter headword reached as a form ("vs" -> "v");
  *   - a two-letter headword reached as a form when the word has an entry of its own ("gas" -> "ga" next
  *     to "gas"); without one it stays ("went" -> "go", "ads" -> "ad");
- *   - when the student typed the word in lower case, a sense whose stored form has a capital ("Mx", "Dy",
- *     "XY", "AC", "GA"): an abbreviation, symbol or name, not the word asked about ("tv" keeps "tv",
- *     "cm" keeps "cm"). */
+ *   - when the student typed a two-letter word in lower case, a sense whose stored form has a capital
+ *     ("Mx", "Dy", "XY", "AC"): a symbol or abbreviation, not the word asked about ("tv" keeps "tv",
+ *     "cm" keeps "cm"). Longer words keep their capitalised senses ("welsh", "may", "thanksgiving"). */
 export function selectSenses(entries: readonly DictionaryEntry[], typed = ""): Array<{ entry: DictionaryEntry; senses: Shown[] }> {
   const out: Array<{ entry: DictionaryEntry; senses: Shown[] }> = [];
   let total = 0;
-  const lower = typed === typed.toLowerCase();
+  const lowerTwoLetter = typed.length === 2 && typed === typed.toLowerCase();
   const hasExact = entries.some((e) => e.via === "exact");
   for (const entry of entries) {
     if (entry.via === "form" && (entry.headword.length === 1 || (entry.headword.length === 2 && hasExact))) continue;
@@ -185,7 +193,8 @@ export function selectSenses(entries: readonly DictionaryEntry[], typed = ""): A
     const senses: Shown[] = [];
     for (const s of entry.senses) {
       if (senses.length >= DICTIONARY_SENSES_PER_HEADWORD || total >= DICTIONARY_MAX_SENSES) break;
-      if (lower && s.form !== s.form.toLowerCase()) continue;
+      if (lowerTwoLetter && s.form !== s.form.toLowerCase()) continue;
+      if (SENSITIVE_SENSE.test(s.definition)) continue;
       const n = perPos.get(s.pos) ?? 0;
       if (n >= DICTIONARY_SENSES_PER_POS) continue;
       perPos.set(s.pos, n + 1);
@@ -247,17 +256,26 @@ export async function lookupDictionaryNote(
   word: string,
   lookup: (w: string) => Promise<DictionaryEntry[]>,
   deadlineMs = DICTIONARY_LOOKUP_DEADLINE_MS,
+  turnSignal?: AbortSignal,
 ): Promise<string | null> {
-  // The turn stops waiting at the deadline; the load itself is shared and keeps going, so a slow first
-  // load still warms the cache (dictionary.ts gives up on a hung file on its own timeout).
+  // The turn stops waiting at the deadline, or at once when the student presses Stop; the load itself
+  // is shared and keeps going, so a slow first load still warms the cache (dictionary.ts gives up on a
+  // hung file on its own timeout).
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), deadlineMs); });
+  let onStop: (() => void) | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), deadlineMs);
+    onStop = () => resolve(null);
+    turnSignal?.addEventListener("abort", onStop, { once: true });
+  });
   try {
+    if (turnSignal?.aborted) return null;
     const entries = await Promise.race([lookup(word), late]);
     return entries ? dictionaryNote(word, entries) : null;
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
+    if (onStop) turnSignal?.removeEventListener("abort", onStop);
   }
 }

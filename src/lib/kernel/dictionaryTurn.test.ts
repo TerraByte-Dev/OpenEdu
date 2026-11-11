@@ -54,8 +54,8 @@ let failFetch = false;
 // When set, the stub never answers until the request is aborted (a hung bundled fetch).
 let hangFetch = false;
 let abortedFetches = 0;
-// When set, the stub answers after this many ms (a slow first load).
-let delayMs = 0;
+// When set, the stub answers only after this promise settles (a slow first load, released by the test).
+let gate: Promise<void> | null = null;
 
 beforeEach(() => {
   sent.length = 0;
@@ -63,7 +63,7 @@ beforeEach(() => {
   failFetch = false;
   hangFetch = false;
   abortedFetches = 0;
-  delayMs = 0;
+  gate = null;
   resetDictionaryCache();
   vi.stubGlobal("fetch", async (url: string, init?: { signal?: AbortSignal }) => {
     fetched.push(url);
@@ -71,7 +71,7 @@ beforeEach(() => {
     if (hangFetch) {
       return new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => { abortedFetches++; reject(new DOMException("aborted", "AbortError")); }));
     }
-    if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+    if (gate) await gate;
     const body = FILES[url.split("/").pop()!];
     return body === undefined
       ? new Response("<!doctype html><html></html>", { status: 200, headers: { "content-type": "text/html" } })
@@ -180,15 +180,19 @@ describe("dictionary note: request through the kernel", () => {
   }, 10_000);
 
   it("(c) a slow first load is not cut off by the turn's deadline: it finishes and warms the cache for the next turn", async () => {
-    delayMs = 2500;
-    const first = await run([], DEFINE);
+    let release!: () => void;
+    gate = new Promise<void>((r) => { release = r; });
+    const first = await run([], DEFINE); // the load is still waiting at the 2 s deadline
     expect(first.result.dictionaryNote).toBeNull();
-    await new Promise((r) => setTimeout(r, 1000)); // the shared load finishes in the background
-    delayMs = 0;
+    const indexFetches = fetched.length;
+    release(); // the shared load now finishes in the background
+    gate = null;
+    await lookupWord("zorp"); // joins the same cached index load, then loads the shard once
+    expect(fetched.length).toBe(indexFetches + 1); // the index was not fetched again
     const fetchedBefore = fetched.length;
     const second = await run([], DEFINE);
     expect(second.result.dictionaryNote).not.toBeNull();
-    expect(fetched.length).toBe(fetchedBefore); // served from the warmed cache
+    expect(fetched.length).toBe(fetchedBefore); // served from the warmed cache, nothing fetched again
   }, 10_000);
 
   it("(d) yields to the first-turn hold: a new option-list problem ending in a meaning question gets the hold only", async () => {
