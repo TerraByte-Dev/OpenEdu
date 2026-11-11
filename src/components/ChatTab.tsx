@@ -108,6 +108,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // The turn in flight and the thread it belongs to (null until a new conversation's thread exists).
   // A turn only touches the shared streaming state while it is the one here; see turn-thread.ts.
   const turnOwnerRef = useRef<{ thread: string | null } | null>(null);
+  // A send still setting up (creating the thread, saving the message, probing the model) before
+  // `streaming` is set. Without it, a second Enter in that window took over the turn and the first
+  // question got no reply. Released by the turn that set it, whether setup finishes or throws.
+  const settingUpRef = useRef<object | null>(null);
 
   // Read aloud (#243): a speaker button on every tutor reply, and for K-2 learners each new reply
   // reads itself unless they turned that off (grade.ts autoReadAloud).
@@ -221,7 +225,17 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || streaming) return;
+    if (!input.trim() || streaming || settingUpRef.current) return;
+    const setupToken = {};
+    settingUpRef.current = setupToken;
+    try {
+      await runTurn(setupToken);
+    } finally {
+      if (settingUpRef.current === setupToken) settingUpRef.current = null;
+    }
+  };
+
+  const runTurn = async (setupToken: object) => {
     setChatError("");
 
     const userText = input.trim();
@@ -307,6 +321,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     const controller = new AbortController();
     abortRef.current = controller;
+    // `streaming` guards sends from here on.
+    if (settingUpRef.current === setupToken) settingUpRef.current = null;
     setStreaming(true);
     setStreamingText("");
     setToolEvents([]);
