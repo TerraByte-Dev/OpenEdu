@@ -13,53 +13,13 @@
 // twice; on the test split it also refuses a partial or void run, unequal repeats or repeats other than
 // 3, and a group smaller than the frozen test split. DEFINE_OUT writes to a file.
 
-import { DEFINE_ITEMS, DEFINE_SPLIT, type DefineSplit } from "../define-items";
-import { compareDefineArms, judgeDefine, addedCalls, DEFINE_TEST_GROUP_N, type ArmContrast, type DefineRunRow } from "../define-grade";
-import type { GradeBand } from "../../grade";
+import { DEFINE_ITEMS, DEFINE_SPLIT } from "../define-items";
+import { compareDefineArms, judgeDefine, addedCalls, type ArmContrast } from "../define-grade";
+import { compareRefusals, shortGroups, type Saved } from "./define-script-lib";
 import { env, fs, writeText } from "./node-io";
-
-interface Saved {
-  suite: string;
-  commit: string | null;
-  model: string;
-  split: DefineSplit;
-  dictionary: "on" | "off";
-  repeats: number;
-  partial: boolean;
-  void?: boolean;
-  only?: string | null;
-  options?: Record<string, unknown>;
-  rows: Array<DefineRunRow & { band: GradeBand }>;
-}
 
 const pct = (k: number, n: number, w: [number, number]) => `${k}/${n} (${(100 * w[0]).toFixed(1)}–${(100 * w[1]).toFixed(1)}%)`;
 const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor((xs.length - 1) / 2)] : null);
-
-/** Why two files cannot be compared, or [] when they can. Pure, so the refusals are testable. */
-export function compareRefusals(b: Saved, d: Saved): string[] {
-  const why: string[] = [];
-  if (b.suite !== "define" || d.suite !== "define") why.push("not define results files");
-  if (b.dictionary !== "off" || d.dictionary !== "on") why.push("DEFINE_B must be the EVAL_DICTIONARY=off arm and DEFINE_D the note arm");
-  if (b.commit === null || d.commit === null) why.push("a file has no commit");
-  else if (b.commit !== d.commit) why.push(`different commits (${b.commit} vs ${d.commit})`);
-  if (b.model !== d.model) why.push(`different models (${b.model} vs ${d.model})`);
-  if (b.split !== d.split) why.push(`different splits (${b.split} vs ${d.split})`);
-  // Everything but the arm switch, the output path and the timestamps must match.
-  const opts = (s: Saved) => JSON.stringify({ ...s.options, dictionary: undefined, out: undefined });
-  if (b.options && d.options && opts(b) !== opts(d)) why.push("different run options");
-  if (b.split === "test") {
-    if (b.partial || d.partial || b.only || d.only) why.push("a partial run on the test split is not a result");
-    if (b.void || d.void) why.push("a void run: rerun both arms once at the same commit (lever 18 void rule)");
-    if (b.repeats !== d.repeats) why.push(`unequal repeats (${b.repeats} vs ${d.repeats})`);
-    else if (b.repeats !== 3) why.push(`the test split runs 3 repeats, not ${b.repeats}`);
-  }
-  return why;
-}
-
-/** Test-split groups smaller than the frozen split (an item missing from one arm drops it). */
-export function shortGroups(contrasts: readonly ArmContrast[]): string[] {
-  return contrasts.filter((c) => c.n < DEFINE_TEST_GROUP_N[c.group]).map((c) => `${c.group} n ${c.n} < ${DEFINE_TEST_GROUP_N[c.group]}`);
-}
 
 async function main(): Promise<void> {
   const e = env();
@@ -89,7 +49,7 @@ async function main(): Promise<void> {
     const missedWord = ok.filter((r) => r.askedWord?.toLowerCase() !== wordOf.get(r.id)).map((r) => `${r.id}#${r.repeat}`);
     const noted = ok.filter((r) => r.dictionaryNote).length;
     const unnoted = name === "D" ? ok.filter((r) => !r.dictionaryNote).map((r) => `${r.id}#${r.repeat}`) : [];
-    const added = ok.reduce((k, r) => k + (addedCalls(r) ?? 0), 0);
+    const added = s.rows.reduce((k, r) => k + addedCalls(r).added, 0);
     const retried = ok.filter((r) => r.attempts > 1).length;
     const tools = ok.reduce((k, r) => k + r.toolCalls.length, 0);
     out.push(`${name}: rows ${s.rows.length}, ERROR ${s.rows.length - ok.length}${s.rows.length - ok.length ? ` (${s.rows.filter((r) => r.error).map((r) => `${r.id}#${r.repeat}`).join(", ")})` : ""}; detected ${ok.length - missedWord.length}/${ok.length}${missedWord.length ? ` (missed ${missedWord.join(", ")})` : ""}; noted ${noted}/${ok.length}${unnoted.length ? ` (no note: ${unnoted.join(", ")})` : ""}; added calls ${added}; retried rows ${retried}; tool calls ${tools}`);
@@ -112,9 +72,16 @@ async function main(): Promise<void> {
 
   if (b.split === "test") {
     const v = judgeDefine({ all, withoutErrorItems, rowsB: b.rows, rowsD: d.rows, wordOf });
-    out.push("### Lever 18 clauses, as written (lexical; a harm clause that fires goes to blind adjudication first)", "");
+    out.push("### Lever 18 clauses, as written (lexical; a harm clause that fires goes to blind adjudication of its lost and gained items first)", "");
     for (const c of v.clauses) out.push(`- ${c.fires ? "FIRES" : "holds"}: ${c.clause} (${c.detail})`);
-    out.push("", `Lexical outcome: ${v.killed ? "a kill clause fires" : "no kill clause fires"}; accuracy: ${v.accuracy === "lever" ? "an accuracy lever (both readings, with and without ERROR items)" : v.accuracy === "ceiling" ? "untestable at this n (ceiling: B passes 40 or more of 45 target items)" : "not shown (report as a trust/UX feature)"}.`);
+    const accuracy = v.accuracy === "lever" ? "an accuracy lever (both readings, with and without ERROR items)"
+      : v.accuracy === "ceiling" ? "untestable at this n (ceiling: B passes 40 or more of 45 target items)"
+      : "not shown (report as a trust/UX feature)";
+    // A firing kill clause decides the outcome; an accuracy reading beside it would read as a claim.
+    out.push("", v.killed
+      ? "Lexical outcome: a kill clause fires. No accuracy reading is printed; adjudicate the harm clause (if that is what fired) before reading the outcome."
+      : `Lexical outcome: no kill clause fires; accuracy: ${accuracy}.`);
+    out.push("Reminder: if the B8 validation gate missed (kappa below 0.8 on either reading, or no grader-1 export by the wording-freeze commit), B8 is descriptive and no accuracy claim is made, whatever this says.");
     out.push("The other-models clause and the void rule are read across files; this compares one model.");
   }
   const text = out.join("\n");
@@ -122,5 +89,4 @@ async function main(): Promise<void> {
   else console.log(text);
 }
 
-// Run as a script (vite-node), not when a test imports the refusals.
-if ((globalThis as { process?: { argv: string[] } }).process?.argv.some((a) => /define-compare\.ts$/.test(a))) await main();
+await main();

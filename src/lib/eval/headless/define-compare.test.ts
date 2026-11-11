@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compareRefusals, shortGroups } from "./define-compare";
+import { compareRefusals, shortGroups } from "./define-script-lib";
 import { DEFINE_TEST_GROUP_N, type ArmContrast } from "../define-grade";
 
 type Saved = Parameters<typeof compareRefusals>[0];
@@ -27,6 +27,13 @@ describe("compareRefusals", () => {
     expect(pair({}, { void: true }).join()).toMatch(/void/);
     expect(pair({}, { repeats: 1 }).join()).toMatch(/unequal repeats/);
     expect(pair({ repeats: 1 }, { repeats: 1 }).join()).toMatch(/runs 3 repeats/);
+  });
+  it("refuses a missing commit key, and reads repeats from the rows, not the header", () => {
+    const { commit: _drop, ...noCommit } = file();
+    expect(compareRefusals(noCommit as Saved, file({ dictionary: "on" })).join()).toMatch(/no commit/);
+    const rows = (n: number) => Array.from({ length: n }, (_, repeat) => ({ id: "def-k2-02", repeat })) as unknown as Saved["rows"];
+    expect(pair({ rows: rows(3) }, { rows: rows(3) })).toEqual([]);
+    expect(pair({ rows: rows(3) }, { rows: rows(1) }).join()).toMatch(/D has items whose row count is not its 3 repeats: def-k2-02 \(1\)/);
   });
   it("lets a dev comparison through with any repeats", () => {
     expect(pair({ split: "dev", repeats: 1 }, { split: "dev", repeats: 1 })).toEqual([]);

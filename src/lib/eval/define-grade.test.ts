@@ -68,16 +68,21 @@ const run = (over: Partial<DefineRunRow> = {}): DefineRunRow => ({
 
 describe("addedCalls", () => {
   it("counts structured requests and turn requests above toolCalls + 1", () => {
-    expect(addedCalls(run())).toBe(0);
-    expect(addedCalls(run({ chatRequests: 3, toolCalls: [{}, {}] }))).toBe(0);
-    expect(addedCalls(run({ chatRequests: 2 }))).toBe(1);
-    expect(addedCalls(run({ structuredRequests: 1 }))).toBe(1);
+    expect(addedCalls(run())).toEqual({ added: 0, retried: false });
+    expect(addedCalls(run({ chatRequests: 3, toolCalls: [{}, {}] })).added).toBe(0); // two tool-calling requests, then the answer
+    expect(addedCalls(run({ chatRequests: 2 })).added).toBe(1);
+    expect(addedCalls(run({ structuredRequests: 1 })).added).toBe(1);
   });
-  it("allows one more on a capped or recovered turn, and does not count retried or ERROR rows", () => {
-    expect(addedCalls(run({ chatRequests: 2, stopReason: "max_iterations" }))).toBe(0);
-    expect(addedCalls(run({ chatRequests: 2, toolCallRecovery: { iteration: 0, error: "x" } }))).toBe(0);
-    expect(addedCalls(run({ attempts: 2, chatRequests: 5 }))).toBeNull();
-    expect(addedCalls(run({ error: "x", grade: null }))).toBeNull();
+  it("allows one more on a capped or recovered turn", () => {
+    // The cap is only reached through tool calls: two tool-calling requests, the cap, then the forced answer.
+    expect(addedCalls(run({ chatRequests: 4, toolCalls: [{}, {}], stopReason: "max_iterations" })).added).toBe(0);
+    // A recovered turn: the request Ollama could not parse, then the call without tools.
+    expect(addedCalls(run({ chatRequests: 2, toolCallRecovery: { iteration: 0, error: "x" } })).added).toBe(0);
+  });
+  it("counts only structured requests on retried or ERROR rows, and says they were retried", () => {
+    expect(addedCalls(run({ attempts: 2, chatRequests: 5 }))).toEqual({ added: 0, retried: true });
+    expect(addedCalls(run({ attempts: 2, chatRequests: 5, structuredRequests: 1 }))).toEqual({ added: 1, retried: true });
+    expect(addedCalls(run({ error: "x", grade: null, structuredRequests: 2 }))).toEqual({ added: 2, retried: true });
   });
 });
 
@@ -108,6 +113,14 @@ describe("accuracyGain and judgeDefine", () => {
     const v = judgeDefine({ all: base({ sense: contrast("sense", 20, 15, 12, ["a", "b", "c"], []) }), withoutErrorItems: base(), rowsB: [run()], rowsD: [run({ dictionaryNote: null })], wordOf: words });
     expect(v.clauses.filter((c) => c.fires).map((c) => c.clause)).toEqual(["harm: sense D <= B - 3", "fire: a non-ERROR D row whose word is missed or that gets no note"]);
     expect(v.killed).toBe(true);
+  });
+
+  it("fires the plain K-8 harm clause at 3 lost even when plain-all holds (a 6-8 loss behind a 9-12 gain)", () => {
+    const v = judgeDefine({
+      all: base({ "plain-k8": contrast("plain-k8", 75, 60, 57, ["a", "b", "c"], []), "plain-all": contrast("plain-all", 100, 75, 75, ["a", "b", "c"], ["d", "e", "f"]) }),
+      withoutErrorItems: base(), rowsB: [run()], rowsD: [run()], wordOf: words,
+    });
+    expect(v.clauses.filter((c) => c.fires).map((c) => c.clause)).toEqual(["harm: plain-k8 D <= B - 3"]);
   });
 
   it("does not read ERROR rows for the fire clause; errors are their own clause", () => {

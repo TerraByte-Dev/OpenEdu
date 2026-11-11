@@ -80,14 +80,17 @@ export interface DefineRunRow extends DefineRowLike {
 
 /**
  * Model calls a row sent beyond what its own turn accounts for (BENCHMARKS.md lever 18, "cost"): every
- * structured request, plus turn requests above toolCalls + 1 (+ 1 more when the turn hit the iteration
- * cap or recovered from an unparseable tool call). null for a row that was retried (attempts > 1) or is
- * an ERROR row: a failed attempt's tool calls are not saved, so those rows are reported, not counted.
+ * structured request, on any row; plus, on a row with one attempt, turn requests above toolCalls + 1 (+ 1
+ * more when the turn hit the iteration cap or recovered from an unparseable tool call). That bound is an
+ * upper limit: a turn that made several tool calls in one request sends fewer requests than it allows,
+ * so an extra call on such a row can go unseen. A retried row's turn requests are not counted, because a
+ * failed attempt's tool calls are not saved; its structured requests still are. `retried` says which.
  */
-export function addedCalls(row: DefineRunRow): number | null {
-  if (row.error || row.attempts !== 1) return null;
+export function addedCalls(row: DefineRunRow): { added: number; retried: boolean } {
+  const retried = !!row.error || row.attempts !== 1;
+  if (retried) return { added: row.structuredRequests, retried };
   const bound = row.toolCalls.length + 1 + (row.stopReason === "max_iterations" || row.toolCallRecovery ? 1 : 0);
-  return row.structuredRequests + Math.max(0, row.chatRequests - bound);
+  return { added: row.structuredRequests + Math.max(0, row.chatRequests - bound), retried };
 }
 
 /** Item -> majority verdict over its repeats, for one reading. Ties and ERROR rows are fails. */
@@ -213,12 +216,12 @@ export function judgeDefine(v: DefineVerdictInput): { clauses: DefineClause[]; k
   const errD = v.rowsD.filter((r) => r.error).length;
   const okD = v.rowsD.filter((r) => !r.error);
   const missed = okD.filter((r) => r.askedWord?.toLowerCase() !== v.wordOf.get(r.id) || !r.dictionaryNote).map((r) => `${r.id}#${r.repeat}`);
-  const added = okD.reduce((k, r) => k + (addedCalls(r) ?? 0), 0);
+  const added = v.rowsD.reduce((k, r) => k + addedCalls(r).added, 0);
   const clauses: DefineClause[] = [
     harm("common"),
     harm("plain-k8"),
     harm("sense"),
-    { clause: "cost: any added model call in D", fires: added > 0, detail: `${added} added; ${okD.filter((r) => addedCalls(r) === null).length} retried row(s) not counted` },
+    { clause: "cost: any added model call in D", fires: added > 0, detail: `${added} added; turn requests of ${v.rowsD.filter((r) => addedCalls(r).retried).length} retried or ERROR row(s) not counted` },
     { clause: "fire: a non-ERROR D row whose word is missed or that gets no note", fires: missed.length > 0, detail: missed.join(", ") || "none" },
     { clause: "errors: D ERROR rows > B + 1", fires: errD > errB + 1, detail: `B ${errB}, D ${errD}` },
   ];

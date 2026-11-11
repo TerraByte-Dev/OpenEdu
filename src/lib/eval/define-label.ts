@@ -18,6 +18,7 @@ import type { DefineKind } from "./define-items";
 import type { GradeBand } from "../grade";
 
 export type { Answer, LabelAnswers, LabelExport, Kappa };
+export { cohenKappa };
 
 export interface DefineLabelQuestion {
   id: "meaning" | "other";
@@ -67,11 +68,17 @@ export interface DefineLabelVerdicts {
   grader: string;
   /** True for a harm-adjudication sheet (every row of the named items), false for the kappa sheet. */
   adjudication: boolean;
+  /** Repeats per item in the runs the rows came from (the adjudication denominator: an item's missing
+   *  repeats are its ERROR rows, which fail). */
+  repeats: number;
   rows: Record<string, { source: string; model: string; arm: "B" | "D"; item: string; repeat: number; kind: DefineKind; band: GradeBand; lenient: boolean; strict: boolean }>;
 }
 
 export function checkDefineVerdicts(v: DefineLabelVerdicts): void {
   if (typeof v.grader !== "string" || !v.grader) throw new Error("The verdicts file does not name its grader commits; rebuild it with define-label-sheet.ts.");
+  if (!Number.isInteger(v.repeats) || v.repeats < 1) throw new Error("The verdicts file does not say how many repeats its runs had; rebuild it with define-label-sheet.ts.");
+  // One model per adjudication sheet: item verdicts are per model.
+  if (v.adjudication && new Set(Object.values(v.rows).map((r) => r.model)).size > 1) throw new Error("An adjudication sheet holds one model's rows; build one per model.");
   for (const [rid, r] of Object.entries(v.rows)) {
     if (r.arm !== "B" && r.arm !== "D") throw new Error(`Verdict row ${rid} has no arm.`);
     if (typeof r.lenient !== "boolean" || typeof r.strict !== "boolean") throw new Error(`Verdict row ${rid} has no lexical verdict.`);
@@ -98,7 +105,7 @@ export interface DefineLabelCandidate {
 
 interface Need { why: string; min: number; test: (c: DefineLabelCandidate) => boolean }
 
-const NEEDS: readonly Need[] = [
+export const DEFINE_LABEL_NEEDS: readonly Need[] = [
   { why: "arm B", min: 25, test: (c) => c.arm === "B" },
   { why: "arm D", min: 25, test: (c) => c.arm === "D" },
   { why: "sense items", min: 16, test: (c) => c.kind === "sense" },
@@ -120,8 +127,11 @@ export function shuffled<T>(xs: readonly T[], seed: number): T[] {
 
 /**
  * The kappa sheet's rows: from a seeded shuffle of `pool` (non-ERROR dev rows), at most one row per
- * model, arm and item; first the minimums in NEEDS, one need at a time, then filled to `total` from the
- * less-covered arm. Then shuffled again for display. The same inputs give the same rows.
+ * model, arm and item. The minimums in DEFINE_LABEL_NEEDS are filled first, the scarcest need first
+ * (fewest model-arm-item pairs in the pool that can meet it), then the sheet is filled to `total` from
+ * the less-covered arm and shuffled again for display. A need the pool cannot meet gets as many rows as
+ * the pool holds; a need the pool could meet but the draw did not throws, so the sheet is never built
+ * short of a minimum it could have had. The same inputs give the same rows.
  */
 export function selectDefineLabelRows(pool: readonly DefineLabelCandidate[], total = DEFINE_LABEL_ROWS, seed = DEFINE_LABEL_SEED): DefineLabelCandidate[] {
   const order = shuffled([...pool].sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0)), seed);
@@ -130,13 +140,17 @@ export function selectDefineLabelRows(pool: readonly DefineLabelCandidate[], tot
   const used = new Set<string>();
   const free = (c: DefineLabelCandidate) => !used.has(key(c));
   const take = (c: DefineLabelCandidate) => { chosen.push(c); used.add(key(c)); };
-  for (const need of NEEDS) {
+  const capacity = (need: Need) => new Set(pool.filter(need.test).map(key)).size;
+  const byScarcity = [...DEFINE_LABEL_NEEDS].sort((a, b) => capacity(a) - capacity(b));
+  for (const need of byScarcity) {
     while (chosen.length < total && chosen.filter(need.test).length < need.min) {
       const c = order.find((x) => free(x) && need.test(x));
       if (!c) break;
       take(c);
     }
   }
+  const short = DEFINE_LABEL_NEEDS.filter((n) => chosen.filter(n.test).length < Math.min(n.min, capacity(n)));
+  if (short.length) throw new Error(`The draw missed minimums the pool could meet: ${short.map((n) => n.why).join(", ")}.`);
   while (chosen.length < total) {
     const arm = chosen.filter((c) => c.arm === "B").length <= chosen.filter((c) => c.arm === "D").length ? "B" : "D";
     const c = order.find((x) => free(x) && x.arm === arm) ?? order.find(free);
@@ -165,7 +179,16 @@ export interface DefineKappaRow {
 
 export const DEFINE_KAPPA_BAR = 0.8;
 
-/** Kappa per reading. Strict is read on sense rows only (on plain rows it is the lenient reading). */
+/** The rows of `v` an export has not fully answered (every question its row's kind asks). */
+export function unansweredRows(e: LabelExport, v: DefineLabelVerdicts): string[] {
+  return Object.entries(v.rows).filter(([rid, r]) => {
+    const a = e.answers[rid] ?? {};
+    return DEFINE_LABEL_QUESTIONS.filter((q) => q.kinds.includes(r.kind)).some((q) => a[q.id] !== "yes" && a[q.id] !== "no");
+  }).map(([rid]) => rid);
+}
+
+/** Kappa per reading. Strict is read on sense rows only (on plain rows it is the lenient reading). A
+ *  kappa that cannot be estimated (both raters gave one answer only) does not meet the bar. */
 export function defineKappaReport(a: LabelExport, b: LabelExport, v: DefineLabelVerdicts): DefineKappaRow[] {
   return (["lenient", "strict"] as const).map((reading) => {
     const rids = Object.keys(v.rows).filter((rid) => reading === "lenient" || v.rows[rid].kind === "sense");
@@ -197,24 +220,40 @@ export function defineKappaReport(a: LabelExport, b: LabelExport, v: DefineLabel
   });
 }
 
+/** One adjudicated row: grader 1's verdict, or the lexical one where grader 1 left no label. */
+export interface AdjudicatedRow { rid: string; item: string; arm: "B" | "D"; lexical: boolean; grader1: boolean | null; grader2: boolean | null; verdict: boolean; adjudicated: boolean }
+
 /**
- * Harm adjudication (lever 18): the verdict per adjudicated row is the graders' when they agree and the
- * lexical one when they do not. Returns, per item and arm, the adjudicated majority over its repeats
- * (ties fail), to replace the lexical item verdicts of the items a harm clause named.
+ * Harm adjudication (lever 18, review round 2 ruling a). Grader 1 (Tate, the first export) decides each
+ * row; where grader 1 left no label the lexical verdict stands and the row is marked unadjudicated. The
+ * rule that needs both graders to agree is computed beside it as a sensitivity reading (`bothAgree`).
+ * Item verdicts are the majority over the run's `repeats` rows, so a missing (ERROR) repeat fails, as in
+ * B8: ERROR, ERROR, pass is 1 of 3.
  */
-export function adjudicatedMajority(a: LabelExport, b: LabelExport, v: DefineLabelVerdicts): Map<string, { B: boolean | null; D: boolean | null }> {
-  const tally = new Map<string, { B: [number, number]; D: [number, number] }>();
-  for (const [rid, r] of Object.entries(v.rows)) {
-    const ha = defineHumanVerdicts(a.answers[rid] ?? {}, r.kind).lenient;
-    const hb = defineHumanVerdicts(b.answers[rid] ?? {}, r.kind).lenient;
-    const pass = ha !== null && ha === hb ? ha : r.lenient;
-    const t = tally.get(r.item) ?? { B: [0, 0], D: [0, 0] };
-    t[r.arm][1]++;
-    if (pass) t[r.arm][0]++;
-    tally.set(r.item, t);
-  }
-  return new Map([...tally].map(([item, t]) => [item, {
-    B: t.B[1] ? t.B[0] * 2 > t.B[1] : null,
-    D: t.D[1] ? t.D[0] * 2 > t.D[1] : null,
-  }]));
+export function adjudicate(g1: LabelExport, g2: LabelExport, v: DefineLabelVerdicts): {
+  rows: AdjudicatedRow[];
+  items: Map<string, { B: boolean; D: boolean }>;
+  bothAgree: Map<string, { B: boolean; D: boolean }>;
+  disagreements: AdjudicatedRow[];
+} {
+  const rows: AdjudicatedRow[] = Object.entries(v.rows).map(([rid, r]) => {
+    const grader1 = defineHumanVerdicts(g1.answers[rid] ?? {}, r.kind).lenient;
+    const grader2 = defineHumanVerdicts(g2.answers[rid] ?? {}, r.kind).lenient;
+    return { rid, item: r.item, arm: r.arm, lexical: r.lenient, grader1, grader2, verdict: grader1 ?? r.lenient, adjudicated: grader1 !== null };
+  });
+  const majority = (pick: (r: AdjudicatedRow) => boolean) => {
+    const tally = new Map<string, { B: number; D: number }>();
+    for (const r of rows) {
+      const t = tally.get(r.item) ?? { B: 0, D: 0 };
+      if (pick(r)) t[r.arm]++;
+      tally.set(r.item, t);
+    }
+    return new Map([...tally].map(([item, t]) => [item, { B: t.B * 2 > v.repeats, D: t.D * 2 > v.repeats }]));
+  };
+  return {
+    rows,
+    items: majority((r) => r.verdict),
+    bothAgree: majority((r) => (r.grader1 !== null && r.grader1 === r.grader2 ? r.grader1 : r.lexical)),
+    disagreements: rows.filter((r) => r.grader1 !== null && r.grader2 !== null && r.grader1 !== r.grader2),
+  };
 }

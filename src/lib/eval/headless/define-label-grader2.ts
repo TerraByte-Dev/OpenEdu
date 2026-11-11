@@ -7,47 +7,16 @@
 //   $env:DEFINE_GRADER2_MODEL = "<an OpenAI chat model that supports structured outputs>"
 //   run-with-secrets npx vite-node src/lib/eval/headless/define-label-grader2.ts -- <sheet.html> <out.json>
 //
-// The model is chosen at run time, not here: pick a current one from OpenAI's model docs and the
-// export records its name. OPENAI_API_KEY comes from the environment (run-with-secrets); it is never
-// written anywhere. One request per row; a row whose reply cannot be parsed is left unanswered (it then
-// drops out of kappa, and the count is printed).
+// The model is chosen at run time, not here: pick a current one from OpenAI's model docs; the export
+// records its name, and no sampling parameters are set (the API's defaults). One run per sheet: the first
+// complete export is the one scored; any rerun is reported beside it. OPENAI_API_KEY comes from the
+// environment (run-with-secrets) and is never written anywhere. One request per row, retried once; if
+// any row is still unanswered the export is written and the script exits non-zero (define-kappa.ts
+// refuses an export that does not answer every row).
 
-import { DEFINE_LABEL_QUESTIONS, questionText, type LabelExport } from "../define-label";
-import type { DefineKind } from "../define-items";
+import { grader2Request, sheetData } from "./define-script-lib";
+import type { LabelExport } from "../define-label";
 import { env, fs, writeText } from "./node-io";
-
-interface SheetData { sheet: string; rows: Array<{ rid: string; word: string; kind: DefineKind; ask: string; reply: string }> }
-
-/** The sheet's embedded data, read back out of the HTML. */
-export function sheetData(html: string): SheetData {
-  const m = /<script type="application\/json" id="data">([\s\S]*?)<\/script>/.exec(html);
-  if (!m) throw new Error("No sheet data in that file: is it define-label-sheet.ts's HTML?");
-  return JSON.parse(m[1]) as SheetData;
-}
-
-const INSTRUCTIONS =
-  "You are labelling a tutor's replies for a study. Each item is a student's question about what a word means, and one " +
-  "tutor reply. Answer each question about the reply as written, with yes or no. Judge the meaning, not the style: a " +
-  "reply can be long, short, simple or formal. Do not reward or punish wording; only whether the meaning is correct.";
-
-/** The request body for one row. Pure, so the prompt the grader sees is pinned by a test. */
-export function grader2Request(model: string, row: SheetData["rows"][number]): Record<string, unknown> {
-  const qs = DEFINE_LABEL_QUESTIONS.filter((q) => q.kinds.includes(row.kind));
-  const user = [
-    `The student wrote:\n"""\n${row.ask}\n"""`,
-    `The tutor replied:\n"""\n${row.reply}\n"""`,
-    ...qs.map((q) => `Question "${q.id}": ${questionText(q, row.word, row.kind)}`),
-  ].join("\n\n");
-  const properties = Object.fromEntries(qs.map((q) => [q.id, { type: "string", enum: ["yes", "no"] }]));
-  return {
-    model,
-    messages: [{ role: "system", content: INSTRUCTIONS }, { role: "user", content: user }],
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: "labels", strict: true, schema: { type: "object", properties, required: qs.map((q) => q.id), additionalProperties: false } },
-    },
-  };
-}
 
 async function main(): Promise<void> {
   const e = env();
@@ -60,25 +29,31 @@ async function main(): Promise<void> {
   if (!key) throw new Error("OPENAI_API_KEY is not set: run this through run-with-secrets.");
   const data = sheetData(await (await fs()).readFile(sheetFile, "utf8"));
   const answers: LabelExport["answers"] = {};
-  let failed = 0;
-  for (const row of data.rows) {
+  const ask = async (row: (typeof data.rows)[number]): Promise<LabelExport["answers"][string]> => {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify(grader2Request(model, row)),
     });
-    try {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as { choices: Array<{ message: { content: string } }> };
-      answers[row.rid] = JSON.parse(body.choices[0].message.content) as LabelExport["answers"][string];
-    } catch (err) {
-      failed++;
-      console.log(`[grader2] ${row.rid}: no answer (${err instanceof Error ? err.message : String(err)})`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = (await res.json()) as { choices: Array<{ message: { content: string } }> };
+    return JSON.parse(body.choices[0].message.content) as LabelExport["answers"][string];
+  };
+  const missing: string[] = [];
+  for (const row of data.rows) {
+    for (let attempt = 1; attempt <= 2 && !answers[row.rid]; attempt++) {
+      try {
+        answers[row.rid] = await ask(row);
+      } catch (err) {
+        console.log(`[grader2] ${row.rid} attempt ${attempt}: no answer (${err instanceof Error ? err.message : String(err)})`);
+      }
     }
+    if (!answers[row.rid]) missing.push(row.rid);
   }
   const out: LabelExport = { sheet: data.sheet, grader: `openai:${model}`, exportedAt: new Date().toISOString(), answers };
   await writeText(outFile, JSON.stringify(out, null, 2));
-  console.log(`[grader2] ${data.rows.length - failed}/${data.rows.length} rows answered by ${model}: ${outFile}`);
+  console.log(`[grader2] ${data.rows.length - missing.length}/${data.rows.length} rows answered by ${model}: ${outFile}`);
+  if (missing.length) throw new Error(`Unanswered rows after a retry: ${missing.join(", ")}. define-kappa.ts will refuse this export.`);
 }
 
-if ((globalThis as { process?: { argv: string[] } }).process?.argv.some((a) => /define-label-grader2\.ts$/.test(a))) await main();
+await main();
