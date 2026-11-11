@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 
 import { installAppOrigin } from "./origin";
 import { lookupWord } from "../../dictionary";
-import { askedWord, dictionaryNote, selectSenses, SENSITIVE_SENSE } from "../../kernel/defineWord";
+import { askedWord, dictionaryNote, selectSenses, DRUG_SENSE } from "../../kernel/defineWord";
 import { DEFINE_ITEMS } from "../define-items";
 
 async function sha256(text: string): Promise<string> {
@@ -77,8 +77,38 @@ describe("define entries from the bundled dictionary", () => {
     expect(await note("fairy")).not.toBeNull();
   });
 
-  it("the filter changes none of the 184 item entries: no shown sense of an item matches it", () => {
-    for (const [id, n] of notes) expect(SENSITIVE_SENSE.test(n!), id).toBe(false);
+  it("the child-safety filter changes none of the 184 item entries: with it and without it, the same senses and examples", async () => {
+    for (const item of DEFINE_ITEMS) {
+      const word = askedWord(item.ask)!.word;
+      const entries = await lookupWord(word);
+      expect(selectSenses(entries, word, true), item.id).toEqual(selectSenses(entries, word, false));
+    }
+  });
+
+  it("drops sexual, slur and insult senses (come, hoe, john, tramp, honky, whitey, relation, intercourse, safe)", async () => {
+    const SEXUAL = /semen|sperm|ejacul|prostitut|whore|promiscu|copulat|coitus|sexual|condom|contracepti|offensive|disparag|derogat|insult/i;
+    for (const w of ["came", "comes", "come", "hoe", "john", "tramp", "honky", "whitey", "relation", "intercourse", "safe"]) {
+      expect(await note(w) ?? "", w).not.toMatch(SEXUAL);
+    }
+    // The words keep their ordinary senses where they have them.
+    for (const w of ["came", "come", "hoe", "john", "tramp", "relation", "intercourse", "safe"]) expect(await note(w), w).not.toBeNull();
+  });
+
+  it("drops drug slang on ordinary words, and keeps the drug words' own entries", async () => {
+    for (const w of ["chalk", "crank", "tornado", "roach", "dab", "fix"]) {
+      const n = await note(w);
+      expect(n, w).not.toBeNull();
+      expect(n, w).not.toMatch(DRUG_SENSE);
+    }
+    for (const w of ["cocaine", "heroin", "marijuana"]) expect(await note(w), w).toMatch(DRUG_SENSE);
+  });
+
+  it("gives no note at all for blocked profanity, inflections included", async () => {
+    for (const w of ["bitch", "bitches", "shit", "shitty", "fuck", "fucking", "retard", "retarded", "twat", "cunt"]) expect(await note(w), w).toBeNull();
+  });
+
+  it("does not over-block: slang, sensationalism, std, chaste, expletive, censor and poop keep their senses", async () => {
+    for (const w of ["slang", "sensationalism", "std", "chaste", "expletive", "censor", "poop"]) expect(await note(w), w).not.toBeNull();
   });
 
   it("does not read Object.prototype for a word such as constructor", async () => {

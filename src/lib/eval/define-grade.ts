@@ -204,8 +204,8 @@ export interface DefineVerdictInput {
 }
 
 /** Lever 18's run-time clauses on one model's test arms, read as written (lexical, before any blind
- *  adjudication of the items a harm clause names). The other-models clause and the void rule are read
- *  by the person comparing the runs. */
+ *  adjudication of the items a harm clause names). With `ruleModel` false (e4b, qwen3.5:4b) it reads only
+ *  the other-models clause, plain-k8 at 4 items. The void rule is read by the person comparing runs. */
 export function judgeDefine(v: DefineVerdictInput, ruleModel = true): { clauses: DefineClause[]; killed: boolean; accuracy: "lever" | "not-shown" | "ceiling" | "not-applicable" } {
   const g = (list: readonly ArmContrast[], group: DefineGroup) => list.find((c) => c.group === group)!;
   // e4b and qwen3.5:4b are read only by the other-models clause, plain K-8 at 4 items.

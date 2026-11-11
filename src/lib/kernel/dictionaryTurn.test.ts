@@ -38,6 +38,8 @@ const CONFIG = { provider: "ollama", model: "test-model", baseUrl: "http://127.0
 
 // A made-up dictionary: "zorp" has two noun senses and a verb sense; "zorped" is a form of it by rule.
 const SHARD_ZO: Shard = {
+  // A headword whose only sense the child-safety filter drops: no note, the switch-off request.
+  zonk: [["zonk", "n", "vulgar slang for a made-up thing", "", []]],
   zorp: [
     ["zorp", "n", "a made-up gadget for testing", "the zorp hummed", []],
     ["zorp", "n", "a made-up second sense", "", []],
@@ -194,6 +196,14 @@ describe("dictionary note: request through the kernel", () => {
     expect(second.result.dictionaryNote).not.toBeNull();
     expect(fetched.length).toBe(fetchedBefore); // served from the warmed cache, nothing fetched again
   }, 10_000);
+
+  it("(c) a headword the child-safety filter empties: the request is the switch-off request", async () => {
+    const text = "what does zonk mean?";
+    const off = await run([], text, "off");
+    const on = await run([], text);
+    expect(on.req).toEqual(off.req);
+    expect(on.result).toMatchObject({ askedWord: "zonk", dictionaryNote: null });
+  });
 
   it("(d) yields to the first-turn hold: a new option-list problem ending in a meaning question gets the hold only", async () => {
     const text = "Which word fits the blank? The ___ hummed.\n\nA) zorp\nB) plim\nC) vask\nD) trell\n\nWhat does zorp mean?";

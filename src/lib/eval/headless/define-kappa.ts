@@ -12,7 +12,7 @@
 // passes and false fails on the rows the graders agree on.
 //
 // Adjudication sheet (lever 18, review round 2 ruling a): the item verdicts per arm with grader 1
-// deciding each row (the lexical verdict only where grader 1 left no label, counted as unadjudicated),
+// deciding each row (every row has grader 1's label: an export with an unanswered row is refused above),
 // the both-graders-agree reading as a sensitivity line, kappa between the graders, and every
 // disagreement. No gate line: the gate is read on the kappa sheet.
 
@@ -50,8 +50,6 @@ async function main(): Promise<void> {
     console.log(`Adjudicated item verdicts (lenient, majority of ${v.repeats} repeats; a missing repeat is an ERROR row and fails):\n`);
     console.log("| Item | B (grader 1 decides) | D (grader 1 decides) | B (both agree, sensitivity) | D (both agree, sensitivity) |\n|---|---|---|---|---|");
     for (const [item, m] of r.items) console.log(`| ${item} | ${pf(m.B)} | ${pf(m.D)} | ${pf(r.bothAgree.get(item)!.B)} | ${pf(r.bothAgree.get(item)!.D)} |`);
-    const unadj = r.rows.filter((x) => !x.adjudicated);
-    console.log(`\nUnadjudicated rows (grader 1 gave no label; lexical verdict used): ${unadj.length ? unadj.map((x) => x.rid).join(", ") : "none"}.`);
     console.log(`Grader 1 vs grader 2: ${fmt(graders)}. Disagreements: ${r.disagreements.length ? "" : "none"}`);
     for (const d of r.disagreements) console.log(`- ${d.rid} (${d.item}, ${d.arm}): grader 1 ${pf(d.grader1)}, grader 2 ${pf(d.grader2)}, lexical ${pf(d.lexical)}`);
     return;

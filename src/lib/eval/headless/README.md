@@ -168,9 +168,8 @@ If the gate misses, B8 is descriptive (no accuracy claim); the term lists are no
 
 For the harm adjudication lever 18 describes, set `DEFINE_LABEL_ITEMS=<ids>` (the lost and the gained
 items of the group whose clause fired) and pass one model's B and D test files: the sheet then holds
-every non-ERROR row of those items in both arms. `define-kappa.ts` prints the item verdicts with grader 1
-deciding each row (the lexical verdict where grader 1 left no label, marked unadjudicated; a missing
-repeat fails), the both-graders-agree reading as a sensitivity line, kappa between the graders and every
+every non-ERROR row of those items in both arms. `define-kappa.ts` reads it only when both exports answer every row,
+and prints the item verdicts with grader 1 deciding each row (a missing repeat fails), the both-graders-agree reading as a sensitivity line, kappa between the graders and every
 disagreement.
 
 ## b7-cpu: latency on a CPU

@@ -165,28 +165,66 @@ The student asked what "{word}" means. Use the dictionary entry above as the sou
 
 interface Shown { form: string; pos: Pos; definition: string; example: string }
 
-/** Senses a child must not be shown, whatever they asked: drug street names, obscene, vulgar and
- *  offensive terms, slurs, sexual terms. Matched against the stored definition. Partial by nature (a
- *  regex over WordNet's own wording, which usually labels these senses this way); pinned by tests. */
-export const SENSITIVE_SENSE = /\b(?:street names? for|obscene|vulgar|offensive (?:term|name|word)|ethnic slur|derogatory|sexual intercourse|a sex act)\b/i;
+// ── Child-safety filter (lever 18; frozen with its rules; partial) ───────────────────────────────────
+// Matched against WordNet's own wording, which usually labels these senses this way. A sense worded
+// otherwise gets through, so this is a partial filter, pinned by tests on the real shards.
+
+/** Senses a child must not be shown, whatever they asked: drug street names, labelled obscene, vulgar,
+ *  offensive or derogatory terms, slurs and insults, and sexual senses. The bare labels need a label
+ *  noun after them ("obscene expression", "vulgar slang"), so "chaste" or "censor" keep their senses. */
+export const SENSITIVE_SENSE = new RegExp(
+  "\\b(?:" + [
+    "street names? for",
+    "(?:obscene|vulgar|offensive|derogatory) (?:slang|terms?|names?|words?|expressions?)",
+    "ethnic slur",
+    "insulting terms?", "terms? of abuse", "disparaging (?:term|name)s?",
+    "slang for sexual intercourse", "have sexual intercourse with", "a sex act",
+    "semen", "spermatozoa", "ejaculat\\w*", "prostitut\\w*",
+    "copulat\\w*", "coitus", "masturbat\\w*",
+    "promiscu\\w*", "sexually loose", "ha(?:ve|s|ving) sex",
+    "contraceptive device",
+  ].join("|") + ")\\b",
+  "i",
+);
+
+/** A drug named in a definition. A sense that names one is dropped unless the headword is itself one of
+ *  these drugs ("cocaine" keeps its entry; "chalk", "crank", "roach" lose their slang senses). */
+export const DRUG_SENSE = /\b(?:amphetamine|marijuana|cocaine|heroin|narcotics?|hashish|methamphetamine|lsd)\b/i;
+
+/** Profanity whose definitions are worded neutrally: no note at all for these headwords (or for a
+ *  typed word that is one of them), so the request is sent as if the word had no entry. */
+export const BLOCKED_HEADWORDS: ReadonlySet<string> = new Set(
+  ("cunt cunts bitch bitches bitchy bitching bitched fuck fucks fucked fucker fuckers fucking " +
+    "shit shits shitty shitting shitted twat twats retard retards retarded").split(" "),
+);
 
 /** The senses shown, in lookupWord's order: per headword its senses in stored order, skipping a sense
  *  whose part of speech already has DICTIONARY_SENSES_PER_POS, up to the per-headword and total caps.
  *  Left out:
- *   - a sense whose definition matches SENSITIVE_SENSE ("go" as a drug, "snow" as cocaine, "fairy" as a
- *     slur); a headword with nothing left gives no note;
+ *   - the child-safety filter: a typed word or headword in BLOCKED_HEADWORDS (no note at all); a sense
+ *     whose definition matches SENSITIVE_SENSE ("go" as a drug, "come" as semen, "fairy" as a slur); a
+ *     sense naming a drug (DRUG_SENSE) unless the headword is that kind of drug ("chalk", "roach" lose
+ *     their slang senses; "cocaine" keeps its entry); and a kept sense's example if it is unsafe. A
+ *     headword with nothing left gives no note;
  *   - a one-letter headword reached as a form ("vs" -> "v");
  *   - a two-letter headword reached as a form when the word has an entry of its own ("gas" -> "ga" next
  *     to "gas"); without one it stays ("went" -> "go", "ads" -> "ad");
  *   - when the student typed a two-letter word in lower case, a sense whose stored form has a capital
  *     ("Mx", "Dy", "XY", "AC"): a symbol or abbreviation, not the word asked about ("tv" keeps "tv",
  *     "cm" keeps "cm"). Longer words keep their capitalised senses ("welsh", "may", "thanksgiving"). */
-export function selectSenses(entries: readonly DictionaryEntry[], typed = ""): Array<{ entry: DictionaryEntry; senses: Shown[] }> {
+export function selectSenses(
+  entries: readonly DictionaryEntry[],
+  typed = "",
+  /** Tests only: false turns the child-safety filter off, to check that it changes no item entry. */
+  childSafe = true,
+): Array<{ entry: DictionaryEntry; senses: Shown[] }> {
   const out: Array<{ entry: DictionaryEntry; senses: Shown[] }> = [];
   let total = 0;
   const lowerTwoLetter = typed.length === 2 && typed === typed.toLowerCase();
   const hasExact = entries.some((e) => e.via === "exact");
+  if (childSafe && BLOCKED_HEADWORDS.has(typed.trim().toLowerCase())) return out;
   for (const entry of entries) {
+    if (childSafe && BLOCKED_HEADWORDS.has(entry.headword)) continue;
     if (entry.via === "form" && (entry.headword.length === 1 || (entry.headword.length === 2 && hasExact))) continue;
     if (total >= DICTIONARY_MAX_SENSES) break;
     const perPos = new Map<Pos, number>();
@@ -194,16 +232,23 @@ export function selectSenses(entries: readonly DictionaryEntry[], typed = ""): A
     for (const s of entry.senses) {
       if (senses.length >= DICTIONARY_SENSES_PER_HEADWORD || total >= DICTIONARY_MAX_SENSES) break;
       if (lowerTwoLetter && s.form !== s.form.toLowerCase()) continue;
-      if (SENSITIVE_SENSE.test(s.definition)) continue;
+      if (childSafe && (SENSITIVE_SENSE.test(s.definition) || (DRUG_SENSE.test(s.definition) && !DRUG_SENSE.test(entry.headword)))) continue;
       const n = perPos.get(s.pos) ?? 0;
       if (n >= DICTIONARY_SENSES_PER_POS) continue;
       perPos.set(s.pos, n + 1);
-      senses.push({ form: s.form, pos: s.pos, definition: s.definition, example: s.example });
+      // A kept sense's example is dropped (not the sense) if it is itself unsafe.
+      const example = childSafe && unsafeText(s.example) ? "" : s.example;
+      senses.push({ form: s.form, pos: s.pos, definition: s.definition, example });
       total++;
     }
     if (senses.length) out.push({ entry, senses });
   }
   return out;
+}
+
+/** An example sentence the note must not quote: a sensitive phrase, or a blocked word. */
+function unsafeText(text: string): boolean {
+  return SENSITIVE_SENSE.test(text) || text.toLowerCase().split(/[^a-z]+/).some((w) => BLOCKED_HEADWORDS.has(w));
 }
 
 function renderEntry(word: string, picked: Array<{ entry: DictionaryEntry; senses: Shown[] }>): string {

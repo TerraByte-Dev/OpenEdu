@@ -120,6 +120,27 @@ describe("selectSenses: caps", () => {
     expect(dictionaryNote("zs", [z])).toBeNull();
   });
 
+  it("child-safety filter: drops a labelled sense, a drug sense on a non-drug word, an unsafe example, and blocked words", () => {
+    const zorp = entry("zorp", [
+      { ...sense("n", 0), definition: "vulgar slang for a made-up thing" },
+      { ...sense("n", 1), definition: "a made-up powder; a street name for nothing" },
+      { ...sense("n", 2), definition: "slang for marijuana" },
+      { ...sense("v", 3), definition: "to make up", example: "a made-up example with a sex act in it" },
+      { ...sense("v", 4), definition: "to make up again", example: "a fine example" },
+    ]);
+    const shown = selectSenses([zorp], "zorp")[0].senses;
+    expect(shown.map((s) => s.definition)).toEqual(["to make up", "to make up again"]);
+    expect(shown.map((s) => s.example)).toEqual(["", "a fine example"]);
+    // A drug word keeps its own entry; the filter can be turned off for the item check.
+    expect(selectSenses([entry("cocaine", [{ ...sense("n", 0, "cocaine"), definition: "a drug like cocaine" }])], "cocaine")[0].senses).toHaveLength(1);
+    expect(selectSenses([zorp], "zorp", false)[0].senses).toHaveLength(5);
+    // A blocked word gives no note, typed or reached as a form.
+    expect(dictionaryNote("shit", [entry("shit", [sense("n", 0, "shit")])])).toBeNull();
+    expect(dictionaryNote("shitting", [entry("shit", [sense("n", 0, "shit")], "form")])).toBeNull();
+    // Bare labels need a label noun: "chaste" and "censor"-like definitions keep their sense.
+    expect(selectSenses([entry("zorp", [{ ...sense("a", 0), definition: "not obscene or vulgar in thought" }])], "zorp")).toHaveLength(1);
+  });
+
   it("drops capitalised stored forms when the student typed lower case, and keeps them when not", () => {
     const tv = entry("tv", [sense("n", 0, "tv"), sense("n", 1, "TV")]);
     expect(selectSenses([tv], "tv")[0].senses.map((s) => s.form)).toEqual(["tv"]);

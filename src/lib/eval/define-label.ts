@@ -223,12 +223,15 @@ export function defineKappaReport(a: LabelExport, b: LabelExport, v: DefineLabel
   });
 }
 
-/** One adjudicated row: grader 1's verdict, or the lexical one where grader 1 left no label. */
+/** One adjudicated row: grader 1's verdict (`adjudicated`), or the lexical one where grader 1 left no
+ *  label. Through define-kappa.ts every row has grader 1's label, since it refuses an export with an
+ *  unanswered row; the fallback covers only a direct caller of `adjudicate`. */
 export interface AdjudicatedRow { rid: string; item: string; arm: "B" | "D"; lexical: boolean; grader1: boolean | null; grader2: boolean | null; verdict: boolean; adjudicated: boolean }
 
 /**
  * Harm adjudication (lever 18, review round 2 ruling a). Grader 1 (Tate, the first export) decides each
- * row; where grader 1 left no label the lexical verdict stands and the row is marked unadjudicated. The
+ * row (define-kappa.ts only calls this with complete exports; a direct caller's unlabelled row keeps its
+ * lexical verdict and is marked unadjudicated). The
  * rule that needs both graders to agree is computed beside it as a sensitivity reading (`bothAgree`).
  * Item verdicts are the majority over the run's `repeats` rows, so a missing (ERROR) repeat fails, as in
  * B8: ERROR, ERROR, pass is 1 of 3.
