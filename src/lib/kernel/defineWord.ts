@@ -30,9 +30,11 @@
 //     last stanza?" asks what a poet or character meant, and the lookup would give the common noun
 //     ("frost", "lincoln" the sheep breed). Partial: a name asked about with a sentence that contains it
 //     still fires, and a lower-case name ("what does tom mean") is not caught;
-//   - a maths context: a sentence with "=", "/", "^" or a number written against a letter ("2x", "x2"),
-//     and a two-letter X with no vowel ("mx", "dy", "xy"): algebra, not words (the lookup would give a
-//     unit or an element). Partial: "what does ma mean" with no sentence still fires;
+//   - an X that, somewhere in the message, touches an operator or a digit: "what does mx mean in
+//     y=mx+b", "what does dy mean in dy/dx", "what does sin mean in sin(2x)" (algebra, not words).
+//     Ordinal and decade endings are exempt ("what does th mean in 5th"). "what does slope mean in
+//     y=mx+b" still fires, as does a bare "what does mx mean"; for those the note drops entries whose
+//     stored form is capitalised when the student typed lower case ("Mx", "Dy", "XY"), so they get no note;
 //   - "the meaning of ..." or "definition of ..." after a colon or semicolon ("Essay prompt: the
 //     meaning of courage"), and "... in your own words" (an assignment, not a question);
 //   - "what is a X": a question about a thing, not a word. That is a separate, later arm (#251).
@@ -93,9 +95,22 @@ const HEADS = [
 // A bare "meaning of" / "definition of" (HEADS[3]) is not read after a colon or semicolon, where it is
 // usually a title or a prompt ("Essay prompt: the meaning of courage").
 const PATTERNS = HEADS.map((h, i) => new RegExp(String.raw`(?:^|(?<=[.!?${i === 3 ? "" : ";:"}\n]))\s*${FILLER}${h}${TAIL}`, "i"));
-// Maths around the question: an equation, a fraction or power, or a number written against a letter.
-const FORMULA = /[=/^]|\d[a-z]|[a-z]\d/i;
-const VOWEL = /[aeiou]/i;
+// Maths: X written against an operator (not "*", which is markdown emphasis) or a digit somewhere
+// in the message ("y=mx+b", "dy/dx",
+// "sin(2x)"). Ordinal and decade endings are not maths ("5th", "21st", "1990s").
+const OPERATOR_BEFORE = /[=+/^<>\d]/;
+const OPERATOR_AFTER = /[=+/^<>(\d]/;
+const ORDINAL_OR_DECADE = /^(?:st|nd|rd|th|s|'s)$/i;
+function touchesMaths(t: string, word: string): boolean {
+  const re = new RegExp(`(?<![\\p{L}])${escapeRe(word)}(?![\\p{L}])`, "giu");
+  for (const m of t.matchAll(re)) {
+    const before = t[m.index! - 1] ?? "";
+    const after = t[m.index! + m[0].length] ?? "";
+    if (/\d/.test(before) && ORDINAL_OR_DECADE.test(word)) continue;
+    if (OPERATOR_BEFORE.test(before) || OPERATOR_AFTER.test(after)) return true;
+  }
+  return false;
+}
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const unquote = (s: string) => s.trim().replace(/^["'`*]+|["'`*]+$/g, "").trim();
@@ -117,13 +132,12 @@ export function askedWord(text: string): AskedWord | null {
     // "the meaning of life" is a question about life, not about the word.
     if (words.join(" ") === "life" && /meaning\s+of\s+life/i.test(m[0])) continue;
     if (words.length === 1 && (words[0].replace(/[^a-z]/g, "").length < 2 || FUNCTION_WORD.has(words[0]))) continue;
-    if (words.length === 1 && words[0].length === 2 && !VOWEL.test(words[0])) continue;
     // "in this sentence?" leaves only punctuation in ctx: no context of its own, so the text before it.
     const after = m.groups.ctx && /[\p{L}\p{N}]/u.test(m.groups.ctx) ? unquote(m.groups.ctx) : "";
     if (/\byour own words\b/i.test(after)) continue;
     const before = t.slice(0, m.index).trim();
     const context = after || before;
-    if (context && FORMULA.test(context)) continue;
+    if (touchesMaths(t, word)) continue;
     // A capitalised X is read as a name unless the context is a sentence that uses it.
     if (/^\p{Lu}/u.test(word) && !(context && new RegExp(`(?<![\\p{L}])${escapeRe(word)}(?![\\p{L}])`, "iu").test(context))) continue;
     return context ? { word, context } : { word };
@@ -152,18 +166,26 @@ interface Shown { form: string; pos: Pos; definition: string; example: string }
 
 /** The senses shown, in lookupWord's order: per headword its senses in stored order, skipping a sense
  *  whose part of speech already has DICTIONARY_SENSES_PER_POS, up to the per-headword and total caps.
- *  A headword reached as a form ("via: form") with two letters or fewer is left out: those are suffix
- *  rules cutting a word to an abbreviation or a letter ("gas" -> "ga", "vs" -> "v", "'tis" -> "ti"). */
-export function selectSenses(entries: readonly DictionaryEntry[]): Array<{ entry: DictionaryEntry; senses: Shown[] }> {
+ *  Left out:
+ *   - a one-letter headword reached as a form ("vs" -> "v");
+ *   - a two-letter headword reached as a form when the word has an entry of its own ("gas" -> "ga" next
+ *     to "gas"); without one it stays ("went" -> "go", "ads" -> "ad");
+ *   - when the student typed the word in lower case, a sense whose stored form has a capital ("Mx", "Dy",
+ *     "XY", "AC", "GA"): an abbreviation, symbol or name, not the word asked about ("tv" keeps "tv",
+ *     "cm" keeps "cm"). */
+export function selectSenses(entries: readonly DictionaryEntry[], typed = ""): Array<{ entry: DictionaryEntry; senses: Shown[] }> {
   const out: Array<{ entry: DictionaryEntry; senses: Shown[] }> = [];
   let total = 0;
+  const lower = typed === typed.toLowerCase();
+  const hasExact = entries.some((e) => e.via === "exact");
   for (const entry of entries) {
-    if (entry.via === "form" && entry.headword.length <= 2) continue;
+    if (entry.via === "form" && (entry.headword.length === 1 || (entry.headword.length === 2 && hasExact))) continue;
     if (total >= DICTIONARY_MAX_SENSES) break;
     const perPos = new Map<Pos, number>();
     const senses: Shown[] = [];
     for (const s of entry.senses) {
       if (senses.length >= DICTIONARY_SENSES_PER_HEADWORD || total >= DICTIONARY_MAX_SENSES) break;
+      if (lower && s.form !== s.form.toLowerCase()) continue;
       const n = perPos.get(s.pos) ?? 0;
       if (n >= DICTIONARY_SENSES_PER_POS) continue;
       perPos.set(s.pos, n + 1);
@@ -193,7 +215,7 @@ function renderEntry(word: string, picked: Array<{ entry: DictionaryEntry; sense
  * when there is nothing to show (no entries), so the turn is sent unchanged.
  */
 export function dictionaryNote(word: string, entries: readonly DictionaryEntry[]): string | null {
-  let picked = selectSenses(entries);
+  let picked = selectSenses(entries, word);
   let count = picked.reduce((k, p) => k + p.senses.length, 0);
   if (count === 0) return null;
   let entry = renderEntry(word, picked);
@@ -223,25 +245,19 @@ export const DICTIONARY_LOOKUP_DEADLINE_MS = 2000;
  */
 export async function lookupDictionaryNote(
   word: string,
-  lookup: (w: string, signal: AbortSignal) => Promise<DictionaryEntry[]>,
+  lookup: (w: string) => Promise<DictionaryEntry[]>,
   deadlineMs = DICTIONARY_LOOKUP_DEADLINE_MS,
-  turnSignal?: AbortSignal,
 ): Promise<string | null> {
-  // Aborted at the deadline or when the student stops the turn, so a hung fetch is cancelled and
-  // dictionary.ts drops it from its cache instead of keeping a request that never ends.
-  const ctl = new AbortController();
-  const stop = () => ctl.abort();
-  turnSignal?.addEventListener("abort", stop, { once: true });
+  // The turn stops waiting at the deadline; the load itself is shared and keeps going, so a slow first
+  // load still warms the cache (dictionary.ts gives up on a hung file on its own timeout).
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<null>((resolve) => { timer = setTimeout(() => { stop(); resolve(null); }, deadlineMs); });
+  const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), deadlineMs); });
   try {
-    if (turnSignal?.aborted) return null;
-    const entries = await Promise.race([lookup(word, ctl.signal), late]);
+    const entries = await Promise.race([lookup(word), late]);
     return entries ? dictionaryNote(word, entries) : null;
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
-    turnSignal?.removeEventListener("abort", stop);
   }
 }

@@ -152,27 +152,39 @@ interface Index {
 let indexPromise: Promise<Index> | null = null;
 const shardCache = new Map<string, Promise<Shard>>();
 
-async function fetchJson<T>(name: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${BASE}/${name}`, { method: "GET", signal });
-  if (!res.ok) throw new Error(`dictionary fetch failed (${res.status}): ${name}`);
-  if (!(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`dictionary fetch got a non-JSON reply: ${name}`);
-  return (await res.json()) as T;
+/** A bundled file that has not answered in this long is given up on: its fetch is aborted and dropped
+ *  from the cache, so a hung request is not kept for the next lookup. The load is shared by every
+ *  lookup and is not tied to any one turn, so a caller that stops waiting sooner (the tutor turn's 2 s
+ *  deadline) leaves a slow first load running, and it still warms the cache. */
+export const DICTIONARY_FETCH_TIMEOUT_MS = 15_000;
+
+async function fetchJson<T>(name: string): Promise<T> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), DICTIONARY_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BASE}/${name}`, { method: "GET", signal: ctl.signal });
+    if (!res.ok) throw new Error(`dictionary fetch failed (${res.status}): ${name}`);
+    if (!(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`dictionary fetch got a non-JSON reply: ${name}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-function loadIndex(signal?: AbortSignal): Promise<Index> {
+function loadIndex(): Promise<Index> {
   indexPromise ??= Promise.all([
-    fetchJson<Exceptions>("exceptions.json", signal),
-    fetchJson<{ shardKeys: string[] }>("meta.json", signal),
+    fetchJson<Exceptions>("exceptions.json"),
+    fetchJson<{ shardKeys: string[] }>("meta.json"),
   ]).then(([exc, meta]) => ({ exc, shards: new Set(meta.shardKeys) }));
   // A failed load is not cached: the next lookup tries again.
   indexPromise.catch(() => { indexPromise = null; });
   return indexPromise;
 }
 
-function loadShard(key: string, signal?: AbortSignal): Promise<Shard> {
+function loadShard(key: string): Promise<Shard> {
   let p = shardCache.get(key);
   if (!p) {
-    p = fetchJson<Shard>(`${key}.json`, signal);
+    p = fetchJson<Shard>(`${key}.json`);
     shardCache.set(key, p);
     p.catch(() => shardCache.delete(key));
   }
@@ -180,17 +192,16 @@ function loadShard(key: string, signal?: AbortSignal): Promise<Shard> {
 }
 
 /** Look a word or phrase up in the bundled dictionary. Empty when it isn't there or the input is blank.
- *  Throws only if the bundled files can't be read, which the caller treats as "no entry". `signal`
- *  aborts the fetches it starts; an aborted fetch rejects and is dropped from the cache, so a hung
- *  request is not kept for the next lookup. */
-export async function lookupWord(raw: string, signal?: AbortSignal): Promise<DictionaryEntry[]> {
+ *  Throws only if the bundled files can't be read (or a file hangs past DICTIONARY_FETCH_TIMEOUT_MS),
+ *  which the caller treats as "no entry". */
+export async function lookupWord(raw: string): Promise<DictionaryEntry[]> {
   const word = normalizeQuery(raw);
   if (!word) return [];
   const trailingDot = /\p{L}\.["'’”)\]]*\s*$/u.test(raw);
-  const { exc, shards } = await loadIndex(signal);
+  const { exc, shards } = await loadIndex();
   const keys = shardsFor(candidateHeadwords(word, exc, { trailingDot })).filter((k) => shards.has(k));
   const loaded = new Map<string, Shard>();
-  await Promise.all(keys.map(async (k) => loaded.set(k, await loadShard(k, signal))));
+  await Promise.all(keys.map(async (k) => loaded.set(k, await loadShard(k))));
   return resolveEntries(word, exc, (k) => loaded.get(k), { trailingDot });
 }
 

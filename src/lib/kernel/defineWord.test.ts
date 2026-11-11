@@ -40,6 +40,16 @@ describe("askedWord: fires on an explicit meaning question", () => {
     ["what does life mean", "life"],
     ["what does go mean", "go"],
     ["what does ox mean?", "ox"],
+    // Digits and operators elsewhere in the message do not block a word that does not touch them.
+    ["I'm in 5th grade. What does benevolent mean?", "benevolent", "I'm in 5th grade."],
+    ["what does century mean in 'the 21st century'", "century", "the 21st century"],
+    ["what does slope mean in y=mx+b", "slope", "y=mx+b"],
+    ["what does th mean in 5th", "th", "5th"],
+    // Abbreviations: they fire; the note keeps only lower-case stored forms (selectSenses).
+    ["what does km mean", "km"], ["what does tv mean?", "tv"], ["what does xy mean", "xy"], ["What does mx mean?", "mx"],
+    // Known, partial: these title shapes still fire.
+    ["Essay prompt. The meaning of courage", "courage", "Essay prompt."],
+    ["Essay prompt: define courage", "courage", "Essay prompt:"],
     // A capitalised word with a sentence that uses it.
     ["What does Bank mean in 'Bank on it'?", "Bank", "Bank on it"],
     ["The poem says Frost covered the field. What does frost mean here?", "frost", "The poem says Frost covered the field."],
@@ -80,11 +90,14 @@ describe("askedWord: does not fire", () => {
     "what does bank mean? I am confused",
     // A name: what a poet, a character or a speaker meant (P10). Partial: see defineWord.ts.
     "What does Frost mean in the last stanza?", "What does Lincoln mean in the Gettysburg Address?", "What does Hamlet mean?",
-    "what does Atticus mean in chapter 3", "Define Photosynthesis",
-    // Maths (P11): an equation or formula in the sentence, or a two-letter X with no vowel.
-    "what does mx mean in y=mx+b", "what does dy mean in dy/dx", "what does xy mean", "What does mx mean?",
-    "what does sin mean in sin(2x)", "what does e mean in e^x",
-    // A title or an assignment.
+    "what does Atticus mean in chapter 3",
+    // The capital-letter guard also refuses title case and all caps (a known cost, disclosed in lever 18).
+    "Define Photosynthesis", "What Does Brave Mean?", "WHAT DOES BRAVE MEAN",
+    // Maths: X touches an operator or a digit somewhere in the message.
+    "what does mx mean in y=mx+b", "what does dy mean in dy/dx", "what does sin mean in sin(2x)", "what does e mean in e^x",
+    "what does ab mean in 3ab", "what does x2 mean",
+    // A title or an assignment (partial: "Essay prompt. The meaning of courage" and "Essay prompt: define
+    // courage" still fire; lever 18 lists them).
     "Essay prompt: the meaning of courage", "Title: definition of freedom", "Define justice in your own words.",
     // Not a meaning question, or a "what is a X" question (a later arm).
     "what is a bank", "What is photosynthesis?", "what is the meaning of life and why", "what is the meaning of life?", "meaning of life", "what does give it mean", "Show me the full worked answer.",
@@ -98,10 +111,21 @@ describe("askedWord: does not fire", () => {
 });
 
 describe("selectSenses: caps", () => {
-  it("leaves out a two-letter-or-shorter headword reached as a form (a suffix rule cutting to an abbreviation)", () => {
-    const picked = selectSenses([entry("zz", [sense("n", 0, "zz")], "form"), entry("zorp", [sense("n", 1)], "form"), entry("ab", [sense("n", 2, "ab")])]);
-    expect(picked.map((p) => p.entry.headword)).toEqual(["zorp", "ab"]);
-    expect(dictionaryNote("zzs", [entry("zz", [sense("n", 0, "zz")], "form")])).toBeNull();
+  it("leaves out a one-letter form always, and a two-letter form only next to an exact entry", () => {
+    const z = entry("z", [sense("n", 0, "z")], "form");
+    const zz = entry("zz", [sense("n", 1, "zz")], "form");
+    expect(selectSenses([z, entry("zorp", [sense("n", 2)], "form")]).map((p) => p.entry.headword)).toEqual(["zorp"]);
+    expect(selectSenses([zz]).map((p) => p.entry.headword)).toEqual(["zz"]);
+    expect(selectSenses([entry("zzs", [sense("n", 3, "zzs")]), zz]).map((p) => p.entry.headword)).toEqual(["zzs"]);
+    expect(dictionaryNote("zs", [z])).toBeNull();
+  });
+
+  it("drops capitalised stored forms when the student typed lower case, and keeps them when not", () => {
+    const tv = entry("tv", [sense("n", 0, "tv"), sense("n", 1, "TV")]);
+    expect(selectSenses([tv], "tv")[0].senses.map((s) => s.form)).toEqual(["tv"]);
+    expect(selectSenses([tv], "TV")[0].senses.map((s) => s.form)).toEqual(["tv", "TV"]);
+    expect(dictionaryNote("mx", [entry("mx", [sense("n", 0, "Mx")])])).toBeNull();
+    expect(dictionaryNote("ma", [entry("ma", [sense("n", 0, "ma"), sense("n", 1, "MA"), sense("n", 2, "mA")])])).toContain("1. ma (noun)");
   });
 
   it("keeps stored order, at most SENSES_PER_POS per part of speech and SENSES_PER_HEADWORD per headword", () => {
@@ -165,24 +189,14 @@ describe("lookupDictionaryNote: a lookup never fails or stalls the turn", () => 
   it("returns null when the lookup throws", async () => {
     expect(await lookupDictionaryNote("zorp", async () => { throw new Error("bundled files unreadable"); })).toBeNull();
   });
-  it("returns null at the deadline when the lookup hangs, and aborts the lookup's fetches", async () => {
+  it("returns null at the deadline when the lookup hangs", async () => {
     vi.useFakeTimers();
     try {
-      let seen: AbortSignal | null = null;
-      const p = lookupDictionaryNote("zorp", (_w, signal) => { seen = signal; return new Promise<DictionaryEntry[]>(() => {}); }, 50);
+      const p = lookupDictionaryNote("zorp", () => new Promise<DictionaryEntry[]>(() => {}), 50);
       await vi.advanceTimersByTimeAsync(60);
       expect(await p).toBeNull();
-      expect(seen!.aborted).toBe(true);
     } finally {
       vi.useRealTimers();
     }
-  });
-  it("returns null and aborts the lookup when the turn is stopped", async () => {
-    const turn = new AbortController();
-    let seen: AbortSignal | null = null;
-    const p = lookupDictionaryNote("zorp", (_w, signal) => { seen = signal; return new Promise<DictionaryEntry[]>((_r, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")))); }, 10_000, turn.signal);
-    turn.abort();
-    expect(await p).toBeNull();
-    expect(seen!.aborted).toBe(true);
   });
 });

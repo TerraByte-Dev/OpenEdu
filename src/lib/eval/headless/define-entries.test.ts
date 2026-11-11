@@ -17,9 +17,11 @@ async function sha256(text: string): Promise<string> {
 const entryOf = (note: string) => note.slice(0, note.indexOf("<tutor_note>"));
 
 // The SHA-256 of the 184 entry blocks (the note without its <tutor_note>), joined in item order, as
-// frozen for lever 18 (revision r2 of the items, caps 3/6/8, 360 estTokens). A note-wording change on
-// dev does not move it; a cap, format, data or detector change does.
-const FROZEN_ENTRIES_SHA256 = "407656a10a9aff8a07453aa9388248f63ae22de8de10bc28dfc0ce86980f8241";
+// frozen for lever 18 (caps 3/6/8, 360 estTokens, the form and capitalised-form rules of selectSenses).
+// A note-wording change on dev does not move it; a cap, format, data or detector change does. Review
+// round 2 moved it once, before any run: the capitalised-form rule drops one sense from one item
+// (def-k2-09, "delicious": a capitalised proper-name sense); no other item's entry changed.
+const FROZEN_ENTRIES_SHA256 = "0853c13108bdc543b41aef3b629104fbc13875abf9a36dcbc3cfa9520a307f85";
 
 describe("define entries from the bundled dictionary", () => {
   const notes = new Map<string, string | null>();
@@ -40,11 +42,19 @@ describe("define entries from the bundled dictionary", () => {
     expect(await sha256(joined)).toBe(FROZEN_ENTRIES_SHA256);
   });
 
-  it("drops two-letter suffix-rule forms: gas does not show ga; vs and 'tis get no note", async () => {
-    const gas = dictionaryNote("gas", await lookupWord("gas"));
+  const note = async (w: string) => dictionaryNote(w, await lookupWord(w));
+
+  it("keeps two-letter forms without an exact entry (went, goes, doing, ads, ups, ids), drops them beside one (gas), and drops one-letter forms (vs)", async () => {
+    expect(await note("went")).toContain('"went" is a form of "go".');
+    for (const w of ["goes", "doing", "ads", "ups", "ids"]) expect(await note(w), w).not.toBeNull();
+    const gas = await note("gas");
     expect(gas).not.toBeNull();
     expect(gas).not.toContain('is a form of "ga"');
-    expect(dictionaryNote("vs", await lookupWord("vs"))).toBeNull();
-    expect(dictionaryNote("'tis", await lookupWord("'tis"))).toBeNull();
+    expect(await note("vs")).toBeNull();
+  });
+
+  it("keeps lower-case abbreviations (km, cm, kg, ml, pm, tv) and gives none for those stored only with capitals (ac, mx, dy, xy)", async () => {
+    for (const w of ["km", "cm", "kg", "ml", "pm", "tv"]) expect(await note(w), w).not.toBeNull();
+    for (const w of ["ac", "mx", "dy", "xy"]) expect(await note(w), w).toBeNull();
   });
 });

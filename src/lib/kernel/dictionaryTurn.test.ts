@@ -31,7 +31,7 @@ import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
 import { CHECK_BEFORE_PRAISE_NOTE } from "./checkBeforePraise";
 import { buildSystemPrompt } from "../curriculum";
 import { readingLevelLayer } from "../grade";
-import { resetDictionaryCache, type Shard } from "../dictionary";
+import { resetDictionaryCache, lookupWord, DICTIONARY_FETCH_TIMEOUT_MS, type Shard } from "../dictionary";
 import type { LLMConfig } from "../../types";
 
 const CONFIG = { provider: "ollama", model: "test-model", baseUrl: "http://127.0.0.1:11434" } as unknown as LLMConfig;
@@ -54,6 +54,8 @@ let failFetch = false;
 // When set, the stub never answers until the request is aborted (a hung bundled fetch).
 let hangFetch = false;
 let abortedFetches = 0;
+// When set, the stub answers after this many ms (a slow first load).
+let delayMs = 0;
 
 beforeEach(() => {
   sent.length = 0;
@@ -61,6 +63,7 @@ beforeEach(() => {
   failFetch = false;
   hangFetch = false;
   abortedFetches = 0;
+  delayMs = 0;
   resetDictionaryCache();
   vi.stubGlobal("fetch", async (url: string, init?: { signal?: AbortSignal }) => {
     fetched.push(url);
@@ -68,6 +71,7 @@ beforeEach(() => {
     if (hangFetch) {
       return new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => { abortedFetches++; reject(new DOMException("aborted", "AbortError")); }));
     }
+    if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
     const body = FILES[url.split("/").pop()!];
     return body === undefined
       ? new Response("<!doctype html><html></html>", { status: 200, headers: { "content-type": "text/html" } })
@@ -165,7 +169,7 @@ describe("dictionary note: request through the kernel", () => {
     expect(failed.result.stopReason).toBe("complete");
   });
 
-  it("(c) a hung lookup: the turn waits for the 2 s deadline, then is sent unchanged and the fetch is aborted", async () => {
+  it("(c) a hung lookup: the turn waits for the 2 s deadline, then is sent unchanged", async () => {
     const off = await run([], DEFINE, "off");
     hangFetch = true;
     const started = Date.now();
@@ -173,10 +177,18 @@ describe("dictionary note: request through the kernel", () => {
     expect(Date.now() - started).toBeGreaterThanOrEqual(1900);
     expect(hung.req).toEqual(off.req);
     expect(hung.result).toMatchObject({ askedWord: "zorp", dictionaryNote: null, stopReason: "complete" });
-    expect(abortedFetches).toBeGreaterThan(0);
-    // The aborted request is not kept: the next lookup fetches again and gets its note.
-    hangFetch = false;
-    expect((await run([], DEFINE)).result.dictionaryNote).not.toBeNull();
+  }, 10_000);
+
+  it("(c) a slow first load is not cut off by the turn's deadline: it finishes and warms the cache for the next turn", async () => {
+    delayMs = 2500;
+    const first = await run([], DEFINE);
+    expect(first.result.dictionaryNote).toBeNull();
+    await new Promise((r) => setTimeout(r, 1000)); // the shared load finishes in the background
+    delayMs = 0;
+    const fetchedBefore = fetched.length;
+    const second = await run([], DEFINE);
+    expect(second.result.dictionaryNote).not.toBeNull();
+    expect(fetched.length).toBe(fetchedBefore); // served from the warmed cache
   }, 10_000);
 
   it("(d) yields to the first-turn hold: a new option-list problem ending in a meaning question gets the hold only", async () => {
@@ -200,5 +212,24 @@ describe("dictionary note: request through the kernel", () => {
     expect(req[req.length - 1].content).toBe(DEFINE);
     expect(result).toMatchObject({ askedWord: "zorp", dictionaryNote: null });
     expect(fetched).toEqual([]);
+  });
+});
+
+describe("dictionary.ts: a hung bundled file", () => {
+  it("is given up on after DICTIONARY_FETCH_TIMEOUT_MS and dropped from the cache, so the next lookup fetches again", async () => {
+    vi.useFakeTimers();
+    try {
+      hangFetch = true;
+      const hung = lookupWord("zorp");
+      const settled = hung.then(() => "resolved", () => "rejected");
+      await vi.advanceTimersByTimeAsync(DICTIONARY_FETCH_TIMEOUT_MS + 10);
+      expect(await settled).toBe("rejected");
+      expect(abortedFetches).toBeGreaterThan(0);
+      hangFetch = false;
+      const again = await lookupWord("zorp");
+      expect(again.map((e) => e.headword)).toEqual(["zorp"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
