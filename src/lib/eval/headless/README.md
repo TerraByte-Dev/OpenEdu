@@ -16,13 +16,13 @@ from environment variables.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `EVAL_SUITE` | `rag` | `rag`, `k12-flow`, `k12-flow-fr` (see [k12-flow](#k12-flow) and [k12-flow-fr](#k12-flow-fr) below) or `b7-cpu` (see [b7-cpu](#b7-cpu-latency-on-a-cpu)). |
+| `EVAL_SUITE` | `rag` | `rag`, `k12-flow`, `k12-flow-fr` (see [k12-flow](#k12-flow) and [k12-flow-fr](#k12-flow-fr) below), `b7-cpu` (see [b7-cpu](#b7-cpu-latency-on-a-cpu)) or `define` (see [define](#define-what-does-x-mean)). |
 | `EVAL_MODEL` | `gemma4:e2b` | Chat model. Stored as the Settings chat model. |
 | `EVAL_PROVIDER` | `ollama` | `ollama`, `openai` or `anthropic`. Cloud needs `EVAL_API_KEY`. |
 | `EVAL_API_KEY` | (none) | Cloud key. Read from the environment, never written to the results file. |
 | `EVAL_OLLAMA_URL` | `http://127.0.0.1:11434` (`b7-cpu`: `http://127.0.0.1:11435`) | Ollama base URL. |
 | `EVAL_EMBED_MODEL` | app default (`nomic-embed-text`) | Embedding model for the vault and the question. |
-| `EVAL_SET` | `main` (`dev` for k12-flow) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), `dev-v2` (rag-dev-v2.ts: its own vault, name-free positives and lowercase near-misses; all DEV), or `sealed`. k12-flow takes `dev` only. |
+| `EVAL_SET` | `main` (`dev` for k12-flow and define) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), `dev-v2` (rag-dev-v2.ts: its own vault, name-free positives and lowercase near-misses; all DEV), or `sealed`. k12-flow takes `dev` only; define takes `dev` or `test` (its own split, `../define-items.ts`). |
 | `EVAL_SEALED` | (none) | Path to the sealed v2 file. Required with `EVAL_SET=sealed`. |
 | `EVAL_REPEATS` | `1` (`b7-cpu`: `5`) | Repeats per question and mode. For `b7-cpu`: warm repeats per scenario (there is always one cold repeat as well). |
 | `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. Not allowed with `sealed`. |
@@ -34,6 +34,7 @@ from environment variables.
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
 | `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
+| `EVAL_DICTIONARY` | `on` | define only. `off` sends no dictionary note (`src/lib/kernel/defineWord.ts`), so the paired baseline runs at the same commit. Each row still records the word the detector read (`askedWord`); `dictionaryNote` is the entry and note the turn appended (null for none). The app never sets it. Refused with every other suite: their messages never fire the detector (`../define-false-fires.test.ts`). |
 | `EVAL_B7_SERVER_LOG` | (none) | `b7-cpu` only. The CPU server's log file, read for the thread count its runner started with (Ollama has no API for it). |
 | `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
@@ -107,6 +108,37 @@ but the user turns and the detectors is k12-flow's. Every k12-flow refusal appli
 Rows carry `source` (the k12-mc item it was rewritten from), `key` and `attempted` as text, and
 `grade.t3Answer` as the number T3 committed to. The results file name has `k12-flow-fr-dev`, so
 `rescore.ts` (which reads `*k12-flow-dev*.json`) never picks it up.
+
+## define: "what does X mean"
+
+```bash
+EVAL_SUITE=define EVAL_DICTIONARY=off EVAL_REPEATS=3 npm run eval   # arm B: no note
+EVAL_SUITE=define EVAL_REPEATS=3 npm run eval                       # arm D: the dictionary note
+```
+
+The dictionary-note benchmark (`docs/BENCHMARKS.md` B8 and lever 16, issue #251). One student turn per
+item, through `runDefineItems` in `../define-runner.ts`: the real kernel, configured as ChatTab runs a
+turn for a learner in an English Language Arts course with no stored instructions, no persona and no
+syllabus, the "explain" skill, retrieval "always", and the reading-level line for the item's band (K-2
+grade 2, 3-5 grade 4, 6-8 grade 7, 9-12 grade 10). Items, split and grades: `../define-items.ts`; grader
+and arm comparison: `../define-grade.ts`. `EVAL_SET` is `dev` (64 items, the default) or `test` (120
+items, refused while `src/` has uncommitted changes, so the file's commit is what ran). `EVAL_REPEATS`
+and `EVAL_ONLY` work as for RAG; `EVAL_MODES`, `EVAL_SYLLABUS`, `EVAL_PROMPT`, `EVAL_LIMIT` and
+`EVAL_SAMPLE` are refused. A turn with no reply is retried once; the run is void at ERROR rows over 2%
+of turns, and still writes its rows. The default results file name carries the arm (`-B-` or `-D-`).
+
+Rows carry the item's band, kind (`plain` or `sense`) and split, the repeat, the kernel's `askedWord`
+and `dictionaryNote` (with `noteTokens`, its `estTokens`), the reply, and `grade` (`pass`, and for sense
+items `passStrict`, which also fails a reply naming the other sense). Compare two arms run at one
+commit, offline:
+
+```powershell
+$env:DEFINE_B = "<B results file>"; $env:DEFINE_D = "<D results file>"
+npx vite-node src/lib/eval/headless/define-compare.ts
+```
+
+It prints, per pre-registered group, item-majority passes with Wilson intervals, the items lost and
+gained, and the exact McNemar p, and refuses files from different commits, models or splits.
 
 ## b7-cpu: latency on a CPU
 
@@ -250,7 +282,8 @@ says a set burns when it is read.
 | `@tauri-apps/api/core` | `invoke` always fails (there is no Rust side) |
 | any other `@tauri-apps/*` | fails at import, so a new native dependency is loud |
 
-App-origin URLs (`/library/…`) are served from `public/` on disk, as Vite serves them to the webview.
+App-origin URLs (`/library/…`, `/dictionary/…`) are served from `public/` on disk, as Vite serves them to the webview,
+with a JSON content type for `.json` files (`dictionary.ts` refuses a reply that is not JSON).
 
 `parity.test.ts` (part of `npm test`) runs one item through the webview entry (`runRagEval`) and the
 headless entry and checks that the `/api/chat` and `/api/embed` bodies are identical. It does the same

@@ -30,9 +30,11 @@ import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type Ev
 import { cwd, path, writeText, gitState, mainCheckout } from "./node-io";
 import { ollamaRunInfo } from "./ollama-info";
 import { runB7, type B7Result } from "./latency";
+import { DefineAbort, runDefineItems, selectDefineItems, summarizeDefine, type DefineReport, type DefineRow } from "../define-runner";
+import type { DefineSplit } from "../define-items";
 
 export interface HeadlessResult {
-  report: RagReport | K12FlowReport | K12FlowFrReport | B7Result;
+  report: RagReport | K12FlowReport | K12FlowFrReport | B7Result | DefineReport;
   outFile: string;
 }
 
@@ -53,7 +55,13 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   // Pick the k12-flow items before anything is seeded: a bad EVAL_ONLY id fails fast.
   const flowItems = o.suite === "k12-flow" ? selectK12FlowItems(K12_ITEMS, o) : null;
   const frItems = o.suite === "k12-flow-fr" ? selectK12FlowItems(K12_FR_ITEMS, o) : null;
+  const defineItems = o.suite === "define" ? selectDefineItems(o.set as DefineSplit, o.only) : null;
   const git = await gitState();
+  // The define test split is run once, at a committed state, per its pre-registration (BENCHMARKS.md
+  // lever 16): refuse uncommitted src/ so the commit in the results file is what ran.
+  if (o.suite === "define" && o.set === "test" && git.srcDirty !== false) {
+    throw new Error("Refusing the define test split: src/ has uncommitted changes (or git state could not be read). Commit first; the results file names the commit.");
+  }
   // Rule 4 before the set is touched: reading it burns it.
   const refusal = o.set === "sealed" ? sealedGitRefusal(git) : null;
   if (refusal) throw new Error(refusal);
@@ -123,6 +131,10 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
     return { report, outFile };
   }
 
+  if (defineItems) {
+    const report = await runDefine(defineItems, o, write);
+    return { report, outFile };
+  }
   if (flowItems) {
     const report = await runFlow(flowItems, o, write);
     return { report, outFile };
@@ -178,6 +190,22 @@ async function runFlowFr(items: typeof K12_FR_ITEMS, o: EvalOptions, write: (bod
   } catch (e) {
     if (e instanceof K12FlowAbort) {
       await write({ split: "dev", selection, partial: true, abort: e.message, rows: withItem(log), summary: summarizeK12FlowFr(log) });
+    }
+    throw e;
+  }
+}
+
+// define through its runner. A void run (DefineAbort) still writes its rows and summary before it throws.
+async function runDefine(items: ReturnType<typeof selectDefineItems>, o: EvalOptions, write: (body: object) => Promise<void>): Promise<DefineReport> {
+  const opts = { split: o.set as DefineSplit, dictionary: o.dictionary ?? "on", repeats: o.repeats };
+  let log: DefineRow[] = [];
+  try {
+    const report = await runDefineItems(items, { ...opts, onRows: (rows) => { log = rows; } });
+    await write({ ...report, only: o.only ?? null, abort: null });
+    return report;
+  } catch (e) {
+    if (e instanceof DefineAbort) {
+      await write({ ...opts, partial: true, void: true, only: o.only ?? null, abort: e.message, rows: log, summary: summarizeDefine(log, o.repeats) });
     }
     throw e;
   }

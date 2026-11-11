@@ -11,7 +11,10 @@ export async function serveAppAsset(url: string, root = cwd()): Promise<Response
   const file = p.resolve(pub, "." + decodeURIComponent(url.split(/[?#]/)[0]));
   if (p.relative(pub, file).startsWith("..")) return new Response("forbidden", { status: 403 });
   try {
-    return new Response(await f.readFile(file, "utf8"), { status: 200 });
+    // A .json file gets the type Vite and Tauri give it; dictionary.ts refuses a reply that is not
+    // JSON, because both answer an unknown asset with index.html and a 200.
+    const headers = file.endsWith(".json") ? { "Content-Type": "application/json" } : undefined;
+    return new Response(await f.readFile(file, "utf8"), { status: 200, headers });
   } catch {
     return new Response("not found", { status: 404 });
   }
