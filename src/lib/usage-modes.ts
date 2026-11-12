@@ -18,7 +18,7 @@ export type UsageMode = "single" | "class" | "school";
 
 export const USAGE_MODES: ReadonlyArray<{ id: UsageMode; title: string; sentence: string }> = [
   { id: "single", title: "Just me", sentence: "One person learns on this computer." },
-  { id: "class", title: "A class", sentence: "Several learners share it, and a teacher looks after them." },
+  { id: "class", title: "A class", sentence: "Several learners share it, and a parent or teacher looks after them." },
   { id: "school", title: "A school or center", sentence: "Many learners in several classes or groups share it." },
 ];
 

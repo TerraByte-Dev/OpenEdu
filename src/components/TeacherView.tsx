@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   createLearner, renameLearner, setLearnerPin, deleteLearner, setLearnerGroup, setLearnerGrade,
-  createGroup, renameGroup, deleteGroup, getTeacherOverviewSource,
+  createGroup, renameGroup, deleteGroup, getTeacherOverviewSource, getLearnerRecordSource,
 } from "../lib/db";
+import Record from "../views/record/Record";
+import { RECORD_COPY } from "../lib/record/copy";
 import { normalizeGrade, type Grade } from "../lib/grade";
 import { GradeSelect } from "./GradeSelect";
 import { clearLearnerStore } from "../lib/store";
@@ -13,7 +15,9 @@ import { saveCsvFile } from "../lib/export-file";
 
 // The teacher's screen in a class or school, reached only through the teacher PIN (App owns the
 // prompt). Overview of every learner x course with CSV export, learner management (add, rename,
-// class, clear a forgotten PIN, remove) and, in a school, the classes themselves.
+// class, clear a forgotten PIN, remove) and, in a school, the classes themselves. Each learner's
+// learning record (#258) opens in here too, so the teacher PIN stays unlocked while it is on screen
+// (usage-modes.ts staysUnlocked) and "Done" locks it again.
 
 interface TeacherViewProps {
   mode: UsageMode;
@@ -34,6 +38,7 @@ const INPUT: React.CSSProperties = { fontSize: "1.05rem" };
 
 export default function TeacherView({ mode, learners, groups, busyReason, onClose, onChanged }: TeacherViewProps) {
   const [tab, setTab] = useState<Tab>("overview");
+  const [recordFor, setRecordFor] = useState<LearnerRow | null>(null);
   const grouped = usesGroups(mode);
   const tabs: Array<[Tab, string]> = [["overview", "Overview"], ["learners", "Learners"], ...(grouped ? [["groups", "Classes"] as [Tab, string]] : [])];
 
@@ -41,10 +46,10 @@ export default function TeacherView({ mode, learners, groups, busyReason, onClos
     <div className="flex-1 min-h-0 flex flex-col bg-bg">
       <div className="px-8 pt-6 pb-3 border-b border-[var(--rule)] shrink-0">
         <div className="max-w-5xl mx-auto w-full flex items-center gap-4 flex-wrap">
-          <h1 className="text-2xl font-semibold text-ink" style={{ fontFamily: "var(--font-display)" }}>Teacher</h1>
+          <h1 className="text-2xl font-semibold text-ink" style={{ fontFamily: "var(--font-display)" }}>Teacher / parent</h1>
           <div className="flex gap-2" role="tablist">
             {tabs.map(([id, label]) => (
-              <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "btn btn-primary" : "btn"} style={BTN} onClick={() => setTab(id)}>
+              <button key={id} role="tab" aria-selected={tab === id && !recordFor} className={tab === id && !recordFor ? "btn btn-primary" : "btn"} style={BTN} onClick={() => { setTab(id); setRecordFor(null); }}>
                 {label}
               </button>
             ))}
@@ -52,14 +57,25 @@ export default function TeacherView({ mode, learners, groups, busyReason, onClos
           <button className="btn ml-auto" style={BTN} onClick={onClose}>Done</button>
         </div>
       </div>
+      {recordFor ? (
+        // Read by id on purpose: the one place another learner's record is read (db.ts getLearnerRecordSource).
+        <Record
+          key={recordFor.id}
+          learnerId={recordFor.id}
+          load={() => getLearnerRecordSource(recordFor.id)}
+          audience="teacher"
+          onBack={() => setRecordFor(null)}
+        />
+      ) : (
       <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
         <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
           {busyReason && <p className="text-base text-warning">{busyReason}</p>}
-          {tab === "overview" && <Overview grouped={grouped} groups={groups} learners={learners} />}
+          {tab === "overview" && <Overview grouped={grouped} groups={groups} learners={learners} onRecord={setRecordFor} />}
           {tab === "learners" && <Learners grouped={grouped} learners={learners} groups={groups} busy={!!busyReason} onChanged={onChanged} />}
           {tab === "groups" && grouped && <Groups groups={groups} learners={learners} onChanged={onChanged} />}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -81,7 +97,12 @@ function GroupSelect({ groups, value, onChange, withAll }: {
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 
-function Overview({ grouped, groups, learners }: { grouped: boolean; groups: GroupRow[]; learners: LearnerRow[] }) {
+function Overview({ grouped, groups, learners, onRecord }: {
+  grouped: boolean;
+  groups: GroupRow[];
+  learners: LearnerRow[];
+  onRecord: (learner: LearnerRow) => void;
+}) {
   const [rows, setRows] = useState<OverviewRow[] | null>(null);
   const [filter, setFilter] = useState("all");
   const [note, setNote] = useState<string | null>(null);
@@ -96,6 +117,19 @@ function Overview({ grouped, groups, learners }: { grouped: boolean; groups: Gro
   }, [learners, groups]);
 
   const shown = useMemo(() => (rows ? filterOverviewRows(rows, grouped ? filter : "all") : []), [rows, filter, grouped]);
+  // The learners in the current view, for the record picker: one pass, in table order.
+  const recordLearners = useMemo(() => {
+    const byId = new Map(learners.map((l) => [l.id, l]));
+    const seen = new Set<string>();
+    const out: LearnerRow[] = [];
+    for (const r of shown) {
+      const l = byId.get(r.learnerId);
+      if (l && !seen.has(l.id)) { seen.add(l.id); out.push(l); }
+    }
+    return out;
+  }, [shown, learners]);
+  const [recordId, setRecordId] = useState<string>("");
+  const picked = recordLearners.find((l) => l.id === recordId) ?? recordLearners[0];
 
   const exportCsv = async () => {
     setNote(null);
@@ -113,7 +147,18 @@ function Overview({ grouped, groups, learners }: { grouped: boolean; groups: Gro
     <>
       <div className="flex items-center gap-3 flex-wrap">
         {grouped && <GroupSelect groups={groups} value={filter} onChange={setFilter} withAll />}
-        <button className="btn btn-primary ml-auto" style={BTN} disabled={!rows || shown.length === 0} onClick={() => void exportCsv()}>
+        {recordLearners.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            <label className="flex items-center gap-2 text-base text-[var(--ink-dim)]">
+              {RECORD_COPY.view.teacherPick}
+              <select className="cf-input" style={{ ...INPUT, width: "auto" }} value={picked?.id ?? ""} onChange={(e) => setRecordId(e.target.value)}>
+                {recordLearners.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+            <button className="btn" style={BTN} disabled={!picked} onClick={() => picked && onRecord(picked)}>{RECORD_COPY.view.teacherOpen}</button>
+          </div>
+        )}
+        <button className={`btn btn-primary ${recordLearners.length > 0 ? "" : "ml-auto"}`} style={BTN} disabled={!rows || shown.length === 0} onClick={() => void exportCsv()}>
           Save as spreadsheet (CSV)
         </button>
       </div>

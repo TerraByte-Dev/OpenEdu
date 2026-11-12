@@ -149,6 +149,13 @@ describe("the teacher is locked out again on leaving", () => {
     for (const v of ["dashboard", "course", "quiz", "promotion-test"]) expect(staysUnlocked(v, false)).toBe(false);
   });
 
+  it("a learner's own record (#258) never keeps the teacher in, and is no teacher entry", () => {
+    expect(staysUnlocked("record", false)).toBe(false);
+    expect(staysUnlocked("record", true)).toBe(true); // only because the teacher view itself is open
+    expect(TEACHER_ENTRIES.some((e) => e.includes("record"))).toBe(false);
+    expect(Object.keys(ENTRY_ACTION).some((e) => e.includes("record"))).toBe(false);
+  });
+
   it("Done in a teacher view opened from Settings goes to the dashboard, not back to an open Settings", () => {
     expect(viewAfterTeacherDone("settings")).toBe("dashboard");
     expect(viewAfterTeacherDone("picker")).toBeNull();
@@ -376,6 +383,15 @@ describe("the app sends every teacher entry through the guard", () => {
       const wired = ["openSettings", "guarded", "usage.guard"].some((fn) => all.includes(`${fn}("${e}"`));
       expect(wired, e).toBe(true);
     }
+  });
+
+  it("the learner's own record opens unguarded, and only the teacher view reads another learner's record", () => {
+    // Opening it never goes through guarded(): in a class, a learner opens their own record without a PIN.
+    const opens = occurrences('setCurrentView("record")');
+    expect(opens.length).toBeGreaterThan(0);
+    for (const line of opens) expect(line).not.toMatch(/guarded\(|openSettings\(/);
+    const calls = occurrences("getLearnerRecordSource(").filter((l) => !l.split(": ").slice(1).join(": ").startsWith("//"));
+    expect(calls.map((l) => l.split(":")[0])).toEqual(["../components/TeacherView.tsx"]);
   });
 
   it("App's guard is runGuarded, and leaving Settings or the teacher view locks again", () => {

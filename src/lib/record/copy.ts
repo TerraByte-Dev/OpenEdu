@@ -30,8 +30,23 @@ export function appTitle(title: string): string {
   return bannedWordsIn(title).length > 0 ? `${title} (title written by the app)` : title;
 }
 
+/** The counted nouns the record uses, so a filled-in 1 reads "1 day", never "1 days". */
+const ONE_OF = /\b1 (early sign|active minute|day|skill|sitting|answer|message|conversation|flashcard)s\b/g;
+
+/** Singular after a count of exactly 1: "Rechecked 1 skills" → "Rechecked 1 skill". */
+export function singular(text: string): string {
+  return text.replace(ONE_OF, "1 $1");
+}
+
+/**
+ * Fill {slots}, with counts of 1 made singular. Number slots go in first and only the template's own
+ * words are made singular; text slots (titles the learner or the app's model wrote) go in after, so
+ * "Unit 1 skills" stays exactly as written.
+ */
 export function fill(template: string, slots: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in slots ? String(slots[k]) : m));
+  const put = (text: string, numbers: boolean) =>
+    text.replace(/\{(\w+)\}/g, (m, k: string) => (k in slots && (typeof slots[k] === "number") === numbers ? String(slots[k]) : m));
+  return put(singular(put(template, true)), false);
 }
 
 /** The skill pills (spec §3). Keys match build.ts SkillStatus. */
@@ -61,9 +76,9 @@ export const RECORD_RULES: {
     not_yet: "No quiz questions on this skill yet.",
   },
   sections: {
-    rechecked: "Skills mastered earlier come back in later quizzes. Held means 90% or more every time it came back this month. Exact repeats of an earlier question are not counted.",
+    rechecked: "Skills mastered earlier come back in later quizzes. Held means 90% or more every time it came back in this period. Exact repeats of an earlier question are not counted.",
     lessons: "Only the first opening is stored. Reading time and re-reads are not stored.",
-    hard_ones: "Questions marked wrong this month, word for word. The questions and answer keys were written by the app's model and can be wrong.",
+    hard_ones: "Questions marked wrong in this period, word for word. The questions and answer keys were written by the app's model and can be wrong.",
   },
 };
 
@@ -158,4 +173,103 @@ export const RECORD_COPY = {
   },
   authorship: "Course, level and skill titles, level objectives, quiz questions and answer keys were written by the app's model.",
   saveHelper: "A dated record you can keep as one piece of evidence in a homeschool portfolio. Print it, or save it as a PDF.",
+  /** The on-screen view (src/views/record/Record.tsx) and its entry points. */
+  view: {
+    myRecord: "My record",
+    namedRecord: "{name}'s record",
+    whoReads: "Who reads this?",
+    voiceQuestion: "Who reads this record?",
+    voiceMe: "Me",
+    voiceGrownUp: "A parent or teacher",
+    voiceHelp: "The record is written for whoever reads it. You can change this any time with “Who reads this?” at the top.",
+    voiceSaveFailed: "Could not save that choice. Try again.",
+    voiceKeep: "Keep it as it is",
+    backHome: "Back to Home",
+    backTeacher: "Back to all learners",
+    rangeLabel: "Show",
+    schoolYear: "This school year",
+    sinceStarted: "Since you started",
+    loading: "Reading the record…",
+    loadFailed: "The record could not be read. Try again.",
+    tryAgain: "Try again",
+    ruleButton: "How this is counted: {what}",
+    everything: "Everything you've mastered",
+    everythingTotal: "Since you started: {n} skills mastered (quiz-checked)",
+    everythingEmpty: "Skills show here once a quiz checks them: 90% or more right on at least 3 questions.",
+    masteredHead: "What {who} mastered {when}",
+    you: "you",
+    inMonth: "in {month}",
+    masteredNone: "No skill was mastered with quiz proof in this period.",
+    talkAboutIt: "Talk about it",
+    recheckedHead: "Rechecked",
+    recheckedNone: "No skill mastered earlier came back in a quiz in this period.",
+    slipped: "Slipped: {skills}",
+    standHead: "Where things stand",
+    standAsOf: "As of {date}",
+    subject: "Subject for this course",
+    subjectSaveFailed: "Could not save the subject. Try again.",
+    skillsLine: "{mastered} of {total} skills mastered (quiz-checked)",
+    earlySigns: "{n} early signs",
+    learningCount: "{n} learning",
+    levelLine: "Level {level}: {title}",
+    levelOnly: "Level {level}",
+    laterOne: "Later level: {n}",
+    approxPill: "approximate",
+    earlierLevels: "Earlier levels",
+    levelsHead: "Levels passed",
+    levelsNone: "No level was passed in this period.",
+    levelRow: "Level {level} · {course}",
+    learningHead: "Still learning",
+    hardHead: "Hard ones",
+    hardNone: "No skill had 3 or more questions under 70% right in this period.",
+    quizzesHead: "Quizzes and level tests",
+    quizzesNone: "No quiz or level test was finished in this period.",
+    columns: { date: "Date", course: "Course", level: "Level", type: "Type", result: "Result", time: "Time" },
+    unansweredNote: "{n} unanswered",
+    resultCell: "{correct} of {total}",
+    resultScore: "{correct} of {total} ({score}%)",
+    underMinute: "under 1 min",
+    hardLine: "{correct} of {total} right in this period",
+    ownWordsSelf: "In your own words",
+    ownWordsNamed: "In {name}'s own words",
+    ownWordsNone: "Nothing written in this period.",
+    explanationOn: "On {skill}",
+    activityHead: "Activity",
+    coursesStartedNone: "No new course started.",
+    timeHead: "Time by subject and course",
+    timeNone: "No time on record in this period.",
+    withoutHead: "Mastered in the app without quiz proof",
+    withoutNone: "Nothing in this period.",
+    howHead: "How this record is counted",
+    howDays: "Days with learning",
+    howTimeApprox: "Time (approximate)",
+    howTimeCounted: "Time (counted)",
+    howLessons: "Lessons first opened",
+    what: { days: "days with learning", time: "time", mastered: "skills mastered", lessons: "lessons first opened" },
+    tileHeads: { days: "Days", time: "Time", mastered: "Skills" },
+    about: "About {time}",
+    labelsHead: "What the labels mean",
+    disclaimerHead: "About this record",
+    minutes: "{n} min",
+    hoursMinutes: "{h} h {m} min",
+    teaser: "Your {month} so far: {days} · {mastered}.",
+    teaserDays: "at least {n} days with learning",
+    teaserMastered: "{n} skills mastered",
+    teaserOpen: "Open your record",
+    menuItem: "Learning record",
+    teacherPick: "Learning record for",
+    teacherOpen: "Open record",
+    earlyNote: "Activities on the early-learner screens are in the Grown-ups view.",
+    tutorUndated: "Marked by the tutor in conversation, date not recorded (not quiz-checked)",
+    keywordUndated: "Matched by the app from an untagged question, date not recorded (not quiz-checked)",
+  },
 } as const;
+
+/** The fixed subject list for a course (spec §2). A label only: it makes no claim about state subjects. */
+export const RECORD_SUBJECTS: ReadonlyArray<string> = [
+  "Math", "English/Language Arts", "Science", "Social Studies/History", "Foreign language", "Arts", "Health/PE", "Other",
+];
+
+export function isRecordSubject(value: unknown): value is string {
+  return typeof value === "string" && RECORD_SUBJECTS.includes(value);
+}

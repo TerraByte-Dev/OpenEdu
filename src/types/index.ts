@@ -319,7 +319,8 @@ export interface LLMConfig {
 }
 
 // "dashboard" is the learner's Home (views/Home.tsx); "create" is the new-course flow (views/Dashboard.tsx).
-export type View = "dashboard" | "create" | "course" | "settings" | "quiz" | "promotion-test" | "grownups";
+// "record" is the learning record (#258): a learner's own, never guarded (not a TEACHER_ENTRIES entry).
+export type View = "dashboard" | "create" | "course" | "settings" | "quiz" | "promotion-test" | "grownups" | "record";
 
 export interface QuizViewContext {
   courseId: string;
