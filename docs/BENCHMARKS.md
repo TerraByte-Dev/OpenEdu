@@ -156,6 +156,16 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
     - **R7:** a short set (under 60 L or 30 C) is not run; the ceiling is "S fails 5 or fewer of the L items read".
     - **R8:** a cost dry run and a fixed order of savings.
     - **R9:** the canary in the gate.
+  - **R1(b) read: done, 2026-11-12, before any run.** All 14,244 newly reachable senses (`blind19`/`define-safety` count) went to `openai/gpt-6-luna` through OpenRouter, a model of another family, in 238 batches of 60 with a fixed child-suitability instruction. It flagged 292 senses (50 high, 242 low), and Claude read every flag. The script and flags are in the scratchpad, not the repo. The run took 405,920 input tokens, at a cost of about $0.04.
+    - **Removed** (`src/lib/kernel/senseReview.ts`, keyed by headword and exact WordNet text; a disclosed safety change; the 184 item entries and their hash do not move): 36 senses and 16 example sentences.
+      - Sexual, body or suggestive slang: ball, nut, bottomless, bush, crab, knocker, dish, skirt, tempt, wanton, looseness, the "act of undue intimacy" senses, honor/honour as chastity, "unwanted pregnancy", bundle, thong, cleavage.
+      - Contraception, consistent with lever 18: the IUD sense of loop, pill, rhythm.
+      - Drug use: blue (barbiturate), habit, head, speed, nobble, push, drop, khat, kick.
+      - Demeaning: retardation, bag, pig (police).
+      - Gratuitously graphic: burning (cigarette torture).
+    - **Known keeps** (flagged, read, kept by rule): ordinary alcohol vocabulary (shot, neat, dry, hard, wet "very drunk", tight, loaded), gambling, bodily functions, crime, war and history (execution, torture, the rack, the sack of Rome, gauntlet, sacrifice, gun "a professional killer", the murder slang senses), and animal mating. A school-age dictionary needs these words, and the note's rephrase is age-banded.
+    - **Counts re-pinned:** the filter now removes 1,917 senses (was 1,881), drops 223 examples (was 207) and leaves 1,156 headwords with no note (unchanged). The newly reachable set is 14,208 senses on 4,315 headwords.
+    - **Freeze point.** `senseRank.ts` (SHA-256 above) is unchanged. Because R1(b) required this filter change after the ranker hash, the kernel freeze point for "the diff over `src/lib/kernel` and `src/lib/dictionary.ts` must be empty until the test tag" is the commit that adds `senseReview.ts`. `blind-19` does not exist yet, so nothing about the held-out set was known when this changed.
 - **What 100% means:** not a target. The plain K-5 items are expected near the ceiling in both arms (the models know these words); the suite exists to show where a dictionary entry changes the answer and that it costs nothing elsewhere.
 
 ---

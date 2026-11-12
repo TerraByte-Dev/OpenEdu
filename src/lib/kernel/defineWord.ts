@@ -47,6 +47,7 @@ import type { DictionaryEntry, Pos } from "../dictionary";
 import { POS_NAMES } from "../dictionary";
 import { estTokens } from "./budget";
 import { excludedStems, rankSenses } from "./senseRank";
+import { reviewedUnsafeExample, reviewedUnsafeSense } from "./senseReview";
 
 export interface AskedWord {
   /** The word or phrase as the student typed it, quotes removed. */
@@ -312,13 +313,14 @@ export function blockedWord(word: string): boolean {
 
 /** True when a sense of `headword` with this definition may be shown to a child. */
 export function childSafeSense(headword: string, definition: string): boolean {
-  return safeText(headword, definition, DRUG_SENSE);
+  return safeText(headword, definition, DRUG_SENSE) && !reviewedUnsafeSense(headword, definition);
 }
 
 /** True when a kept sense's example may be quoted: the same rules with DRUG_EXAMPLE, and no word in
  *  it is a blocked headword ("feeling horny", "kinky sex"). */
 export function childSafeExample(headword: string, example: string): boolean {
-  return safeText(headword, example, DRUG_EXAMPLE) && !tokens(example).some((t) => BLOCKED_HEADWORDS.has(t)) && !ADULT_EXAMPLE.test(example);
+  return safeText(headword, example, DRUG_EXAMPLE) && !tokens(example).some((t) => BLOCKED_HEADWORDS.has(t)) && !ADULT_EXAMPLE.test(example)
+    && !reviewedUnsafeExample(headword, example);
 }
 
 // Example sentences that are fine as definitions elsewhere but not as a quoted example for a child

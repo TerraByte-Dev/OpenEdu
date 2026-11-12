@@ -225,7 +225,7 @@ describe("child-safety filter on the shipped dictionary", () => {
     // before 2026-11-12 removed 681 senses and 29 examples and left 383 headwords with no note, and the
     // shown note of 1,124 headwords matched BROAD.
     expect({ headwords: heads.length, senses, removed, examplesDropped, withNote, filteredToNothing }).toEqual({
-      headwords: 127_311, senses: 185_129, removed: 1_881, examplesDropped: 207, withNote: 127_109, filteredToNothing: 1_156,
+      headwords: 127_311, senses: 185_129, removed: 1_917, examplesDropped: 223, withNote: 127_109, filteredToNothing: 1_156,
     });
   }, 300_000);
 });
@@ -259,7 +259,7 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
     }
     expect(removedShown).toEqual([]);
     expect(shown).toEqual([]);
-    expect({ senses, ranked, removed, examplesDropped }).toEqual({ senses: 185_129, ranked: 185_129, removed: 1_881, examplesDropped: 207 });
+    expect({ senses, ranked, removed, examplesDropped }).toEqual({ senses: 185_129, ranked: 185_129, removed: 1_917, examplesDropped: 223 });
   }, 600_000);
 
   it("(b) the newly reachable senses: counted and pinned, with the review's known examples among them", async () => {
@@ -269,11 +269,11 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
     // The review counted 14,223 by distinct part of speech and definition; this counts every stored sense,
     // so 21 senses whose definition repeats one already shown for the headword (their example can differ)
     // are in the list too.
-    expect({ senses: rows.length, headwords: new Set(rows.map((r) => r.headword)).size }).toEqual({ senses: 14_244, headwords: 4_322 });
+    expect({ senses: rows.length, headwords: new Set(rows.map((r) => r.headword)).size }).toEqual({ senses: 14_208, headwords: 4_315 });
     const has = (h: string, ref: string, re: RegExp) => expect(rows.find((r) => r.headword === h && r.ref === ref)?.definition, `${h} #${ref}`).toMatch(re);
     has("flow", "14v", /menstruation/);
-    has("dish", "4n", /seductive looking woman/);
-    has("skirt", "4n", /woman/);
+    // dish #4n and skirt #4n were removed by the R1(b) read (senseReview.ts), so they are no longer reachable.
+    for (const [h, ref] of [["dish", "4n"], ["skirt", "4n"]]) expect(rows.find((r) => r.headword === h && r.ref === ref), `${h} #${ref}`).toBeUndefined();
     has("wet", "6a", /very drunk/);
     has("gun", "4n", /professional killer/);
     // None of them is a sense the filter removes.
