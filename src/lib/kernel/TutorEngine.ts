@@ -104,6 +104,12 @@ function withoutManifest(messages: NeutralMessage[], manifest: string): NeutralM
     .map((m) => (m.role === "system" && m.content.endsWith(suffix) ? { ...m, content: m.content.slice(0, -suffix.length) } : m));
 }
 
+/** A tool call's id in the kernel: the provider's id, namespaced by iteration. Joined with "_", because
+ *  Anthropic refuses a tool_use id outside [a-zA-Z0-9_-] (#262). */
+export function kernelCallId(iteration: number, providerId: string): string {
+  return `${iteration}_${providerId}`;
+}
+
 export class TutorEngine {
   async run(turn: TutorTurn, ctx: ToolContext): Promise<TutorTurnResult> {
     const messages: NeutralMessage[] = turn.messages.map((m) => ({
@@ -262,7 +268,7 @@ ${lastUser.content}` };
             // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
             // iteration 1 and 2 both emit "call_0" — and the chat surface keys tool chips by id, so the
             // second call silently ERASED the first one's card.
-            pendingCalls.push({ id: `${iteration}:${ev.id}`, name: ev.name, args: ev.args });
+            pendingCalls.push({ id: kernelCallId(iteration, ev.id), name: ev.name, args: ev.args });
           }
           else if (ev.type === "done") {
             if (ev.finishReason === "aborted") interrupted = "aborted";
