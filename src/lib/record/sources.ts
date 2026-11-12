@@ -118,6 +118,18 @@ export interface RecordLearnerDay {
   minutes: number;
 }
 
+/**
+ * A month saved when it ended (monthly_records, migration 19). body_json is record/saved.ts SavedBody:
+ * counts, titles, dates and statuses only, never the learner's own words.
+ */
+export interface RecordSavedMonth {
+  /** Local 'YYYY-MM'. */
+  month: string;
+  format: number;
+  body_json: string;
+  saved_at: string;
+}
+
 export interface RecordSource {
   learner: RecordLearner;
   /** app_config record_capture_since: when migration 18 ran. NULL only on a database without it. */
@@ -133,4 +145,6 @@ export interface RecordSource {
   notes: RecordNote[];
   subtopicEvents: RecordSubtopicEvent[];
   learnerDays: RecordLearnerDay[];
+  /** The learner's saved months, oldest first. */
+  savedMonths: RecordSavedMonth[];
 }

@@ -9,7 +9,8 @@ import type { AttemptRow, NewAttempt } from "./early/engine";
 import type { GradedBy } from "./quiz-grading";
 import type { FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
-import type { RecordSource } from "./record/sources";
+import type { RecordSavedMonth, RecordSource } from "./record/sources";
+import { lastEndedMonth, monthKey, monthsToSave, snapshotOf, type MonthSnapshot } from "./record/saved";
 import { isRecordSubject } from "./record/copy";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
@@ -1246,7 +1247,56 @@ async function readRecordSource(learnerId: string): Promise<RecordSource | null>
          FROM subtopic_events e JOIN courses c ON c.id = e.course_id WHERE ${RECORD_SCOPE} ORDER BY e.created_at, e.id`, p,
     ),
     learnerDays: await d.select("SELECT day, minutes FROM learner_days WHERE learner_id = $1 ORDER BY day", p),
+    savedMonths: await d.select("SELECT month, format, body_json, saved_at FROM monthly_records WHERE learner_id = $1 ORDER BY month", p),
   };
+}
+
+// ── Saved months (migration 19) ─────────────────────────────────────────────
+// record/saved.ts decides what a saved month holds; these only write and read the rows.
+
+/**
+ * Save one learner's ended month. A month already saved is kept as it is unless `replace` (the
+ * record's "Rebuild from current data"). Returns the row now stored.
+ */
+export async function saveMonthlyRecord(learnerId: string, snapshot: MonthSnapshot, replace = false): Promise<RecordSavedMonth> {
+  const d = await getDb();
+  await d.execute(
+    `INSERT OR ${replace ? "REPLACE" : "IGNORE"} INTO monthly_records (learner_id, month, format, body_json) VALUES ($1, $2, $3, $4)`,
+    [learnerId, snapshot.month, snapshot.format, snapshot.body_json],
+  );
+  const rows: RecordSavedMonth[] = await d.select(
+    "SELECT month, format, body_json, saved_at FROM monthly_records WHERE learner_id = $1 AND month = $2", [learnerId, snapshot.month],
+  );
+  if (!rows[0]) throw new Error(`monthly record ${snapshot.month} was not saved`);
+  return rows[0];
+}
+
+/**
+ * The launch's job: save every learner's ended months that have activity and no saved copy (record/saved.ts
+ * monthsToSave). It runs once per month: app_config record_saved_through holds the last month every
+ * learner was saved through, so later launches that month read nothing. A month already saved is never
+ * rewritten. Returns how many months were saved.
+ */
+export async function saveEndedMonths(now: Date = new Date()): Promise<number> {
+  const d = await getDb();
+  const through = monthKey(lastEndedMonth(now));
+  const done: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'record_saved_through'");
+  if (done[0]?.value && done[0].value >= through) return 0;
+  let saved = 0;
+  for (const l of await listLearners()) {
+    const source = await readRecordSource(l.id);
+    if (!source) continue;
+    for (const range of monthsToSave(source, now)) {
+      const snapshot = snapshotOf(source, range, now);
+      if (!snapshot) continue;
+      await saveMonthlyRecord(l.id, snapshot);
+      saved++;
+    }
+  }
+  await d.execute(
+    "INSERT INTO app_config (key, value) VALUES ('record_saved_through', $1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [through],
+  );
+  return saved;
 }
 
 /** Who reads a learner's record (learners.record_voice, migration 18): "self", "guided", or null to ask again. */

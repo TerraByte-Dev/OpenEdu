@@ -464,6 +464,26 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 19,
+            description: "saved monthly records (append-only, never edit v1-v18)",
+            sql: "
+                -- Each learner's learning record (#258) for a month that has ended, saved on the first
+                -- launch after it ends (and on Save or CSV of an ended month not saved yet), so deleting
+                -- a course or regenerating a level later cannot rewrite it. body_json holds counts,
+                -- titles, dates and statuses only: the learner's own words are read live, never saved.
+                -- Deleting a learner deletes their saved months; deleting a course does not.
+                CREATE TABLE IF NOT EXISTS monthly_records (
+                    learner_id TEXT NOT NULL REFERENCES learners(id) ON DELETE CASCADE,
+                    month TEXT NOT NULL,
+                    format INTEGER NOT NULL,
+                    body_json TEXT NOT NULL,
+                    saved_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (learner_id, month)
+                );
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

@@ -1,24 +1,27 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { getActiveLearnerId, listLearners, renameLearner, setCourseSubject, setLearnerGrade, setLearnerRecordVoice } from "../../lib/db";
-import { learningRecord, type CourseStanding, type LearningRecord, type MasteredRow, type SkillStatus } from "../../lib/record/build";
+import {
+  getActiveLearnerId, listLearners, renameLearner, saveMonthlyRecord, setCourseSubject, setLearnerGrade, setLearnerRecordVoice,
+} from "../../lib/db";
+import { type CourseStanding, type LearningRecord, type MasteredRow, type SkillStatus } from "../../lib/record/build";
 import {
   RECORD_COPY, RECORD_DISCLAIMER, RECORD_DISCLAIMER_SHORT, RECORD_RULES, RECORD_SUBJECTS, fill, type PillKey,
 } from "../../lib/record/copy";
 import { recordVoice } from "../../lib/record/voice";
 import { toStored } from "../../lib/record/time";
-import type { RecordSource } from "../../lib/record/sources";
+import type { RecordSavedMonth, RecordSource } from "../../lib/record/sources";
 import {
   allTimeRecord, approxShown, approxTimeText, dayText, durationText, earlySignCount, evidenceText, groupByCourseAndLevel, localDayText,
-  masteredCount, quizTimeText, rangeOptions, splitAtCount, whenText, withoutProofText, type Audience,
+  masteredCount, ownWordsNoneText, quizTimeText, rangeOptions, splitAtCount, whenText, withoutProofText, type Audience,
 } from "../../lib/record/view";
 import { gradeLabel, normalizeGrade, type Grade } from "../../lib/grade";
-import { needsNameCheck, saveLabel } from "../../lib/record/print";
+import { needsNameCheck, provenance, saveLabel } from "../../lib/record/print";
+import { needsSaving, shownDays, shownRecord, snapshotOf } from "../../lib/record/saved";
 import { LEARNER_NAME_MAX, validateLearnerName } from "../../lib/learners";
 import { GradeSelect } from "../../components/GradeSelect";
 import { BookIcon } from "../early/pictures";
 import PrintView from "../early/PrintView";
 import { recordPrintPages } from "./RecordPrint";
-import { recordCsvNames, recordDailyCsv, recordDays, recordEventCsv, recordEvents } from "../../lib/record/csv";
+import { recordCsvNames, recordDailyCsv, recordEventCsv, recordEvents } from "../../lib/record/csv";
 import { saveCsvFile } from "../../lib/export-file";
 
 // The learning record on screen (#258 PR 3, spec §3). One LearningRecord (record/build.ts) drives
@@ -65,6 +68,12 @@ export interface RecordProps {
    * the teacher PIN (a class or school): learners there cannot set their own grade. Default true.
    */
   canSetGrade?: boolean;
+  /**
+   * Whether "Rebuild from current data" is offered on a saved month. False for a learner's own record
+   * when Settings is behind the teacher PIN, so a learner in a class cannot rewrite a saved month.
+   * Default true.
+   */
+  canRebuild?: boolean;
 }
 
 /** The ⓘ / pill disclosure: which rules are open. */
@@ -180,7 +189,7 @@ const Small = ({ children }: { children: ReactNode }) => <span className="text-s
 
 // ── The record ──────────────────────────────────────────────────────────────────────────────────────
 
-export default function Record({ learnerId, load, audience: who, onBack, onLearnerChanged, canSetGrade = true }: RecordProps) {
+export default function Record({ learnerId, load, audience: who, onBack, onLearnerChanged, canSetGrade = true, canRebuild = true }: RecordProps) {
   const [source, setSource] = useState<RecordSource | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -217,7 +226,8 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
   const audience: Audience = who === "teacher" ? "teacher" : voice === "self" ? "self" : "guided";
   const options = useMemo(() => (source ? rangeOptions(source, audience, now) : []), [source, audience, now]);
   const picked = options.find((o) => o.key === rangeKey) ?? options[0];
-  const record = useMemo(() => (source && picked ? learningRecord(source, picked.range, now) : null), [source, picked, now]);
+  // An ended month shows its saved copy when there is one (record/saved.ts), else it is built from the rows on record now.
+  const record = useMemo(() => (source && picked ? shownRecord(source, picked.range, now) : null), [source, picked, now]);
   const allTime = useMemo(() => (source ? allTimeRecord(source, now) : null), [source, now]);
 
   // After the voice question is answered (or kept), focus moves to the record's heading.
@@ -254,9 +264,39 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
     }
   };
 
+  const withSaved = (src: RecordSource, row: RecordSavedMonth): RecordSource =>
+    ({ ...src, savedMonths: [...src.savedMonths.filter((m) => m.month !== row.month), row].sort((a, b) => a.month.localeCompare(b.month)) });
+
+  // Save and CSV of an ended month with no saved copy save one first (spec §7 v19), so what is printed
+  // or downloaded is what stays. A failed save is not a failed print: the page then says "Built …".
+  const keepMonth = async (): Promise<RecordSource | null> => {
+    const at = new Date();
+    if (!source || !record || !needsSaving(record, at)) return source;
+    try {
+      const snapshot = snapshotOf(source, record.range, at);
+      if (!snapshot) return source;
+      const next = withSaved(source, await saveMonthlyRecord(learnerId, snapshot));
+      setSource(next);
+      return next;
+    } catch (e) {
+      console.warn("[record] could not save the month", e);
+      return source;
+    }
+  };
+
+  // "Rebuild from current data": a new copy from the rows on record now replaces the saved one.
+  const rebuild = async () => {
+    if (!source || !record) return;
+    const snapshot = snapshotOf(source, record.range, new Date());
+    if (!snapshot) return;
+    const row = await saveMonthlyRecord(learnerId, snapshot, true);
+    setSource((s) => s && withSaved(s, row));
+  };
+
+  const print = () => { void keepMonth().then(() => setPrinting(true)); };
   const save = () => {
     if (source && needsNameCheck(source.learner, canSetGrade)) setCheckingName(true);
-    else setPrinting(true);
+    else print();
   };
   // A saved change lands in the record at once, so the page (and the learner chip) never shows a stale
   // name, even when a later step fails and the dialog stays open, or the user then picks Skip.
@@ -266,7 +306,7 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
   };
   const nameChecked = () => {
     setCheckingName(false);
-    setPrinting(true);
+    print();
   };
   const nameCheckCancelled = () => {
     setCheckingName(false);
@@ -277,14 +317,16 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
   // Save dialog (export_save_csv writes one file per click). Resolves to the line shown under the button.
   const saveSpreadsheet = async (withLog: boolean): Promise<string> => {
     if (!source || !record) return "";
-    const names = recordCsvNames(record);
+    const src = (await keepMonth()) ?? source;
+    const shown = shownRecord(src, record.range, now);
+    const names = recordCsvNames(shown);
     const notes: string[] = [];
     try {
-      const daily = await saveCsvFile(names.daily, recordDailyCsv(record, recordDays(source, record)), X.dialogDaily);
+      const daily = await saveCsvFile(names.daily, recordDailyCsv(shown, shownDays(src, shown)), X.dialogDaily);
       if (!daily) return "";
       notes.push(fill(X.saved, { path: daily }));
       if (withLog) {
-        const log = await saveCsvFile(names.events, recordEventCsv(record, recordEvents(source, record)), X.dialogLog);
+        const log = await saveCsvFile(names.events, recordEventCsv(shown, recordEvents(src, shown)), X.dialogLog);
         notes.push(log ? fill(X.savedLog, { path: log }) : X.logCancelled);
       }
     } catch (e) {
@@ -372,6 +414,7 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
             onSave={save}
             saveRef={saveButton}
             onSaveSpreadsheet={saveSpreadsheet}
+            onRebuild={canRebuild ? rebuild : null}
           />
         )}
       </main>
@@ -424,6 +467,49 @@ function SpreadsheetSave({ save }: { save: (withLog: boolean) => Promise<string>
   );
 }
 
+/** "Rebuild from current data", behind its confirmation: "This replaces the copy saved on Dec 1, 2026." */
+function Rebuild({ savedAt, onRebuild }: { savedAt: string; onRebuild: () => Promise<void> }) {
+  const R = C.rebuild;
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const confirmRef = useRef<HTMLParagraphElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (asking) confirmRef.current?.focus(); }, [asking]);
+  const close = () => { setAsking(false); requestAnimationFrame(() => buttonRef.current?.focus()); };
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onRebuild();
+      close();
+    } catch (e) {
+      console.warn("[record] could not rebuild the month", e);
+      setError(R.failed);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!asking) {
+    return (
+      <div className="flex flex-col items-start gap-1 pt-2 max-w-[420px]">
+        <span className="text-sm text-[var(--ink-faint)] leading-normal">{R.help}</span>
+        <button ref={buttonRef} type="button" className="btn" onClick={() => setAsking(true)}>{R.button}</button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-start gap-2 pt-2 max-w-[420px]" role="group" aria-label={R.button}>
+      <p ref={confirmRef} tabIndex={-1} className="m-0 text-[15px] text-ink leading-normal outline-none">{fill(R.confirm, { date: dayText(savedAt, true) })}</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run()}>{busy ? R.busy : R.replace}</button>
+        <button type="button" className="btn" disabled={busy} onClick={close}>{R.keep}</button>
+      </div>
+      {error && <p role="alert" className="m-0 text-[15px] text-danger">{error}</p>}
+    </div>
+  );
+}
+
 function VoiceQuestion({ current, forced, error, onChoose, onKeep }: {
   current: "self" | "guided" | null;
   forced: boolean;
@@ -448,8 +534,10 @@ function VoiceQuestion({ current, forced, error, onChoose, onKeep }: {
   );
 }
 
-function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel, onSave, saveRef, onSaveSpreadsheet }: {
+function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel, onSave, saveRef, onSaveSpreadsheet, onRebuild }: {
   onSave: () => void;
+  /** Null when this reader may not replace a saved month. */
+  onRebuild: (() => Promise<void>) | null;
   onSaveSpreadsheet: (withLog: boolean) => Promise<string>;
   saveRef: RefObject<HTMLButtonElement | null>;
   headingRef: RefObject<HTMLHeadingElement | null>;
@@ -496,7 +584,10 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
               {self ? r.period.label : `${grade === null ? C.gradeNotSet : gradeLabel(grade)} · ${r.period.label}`}
               {r.period.span ? ` · ${r.period.span}` : ""}
             </span>
-            {!r.current && <Small>{fill(C.builtFromCurrent, { date: dayText(toStored(now), true) })}</Small>}
+            {/* H4: a saved month says when it was saved; a past month without a saved copy says it was built now. */}
+            {provenance(r) && <Small>{provenance(r)}</Small>}
+            {r.saved?.examplesGone && <Small>{C.examplesGone}</Small>}
+            {r.saved && onRebuild && <Rebuild savedAt={r.saved.at} onRebuild={onRebuild} />}
             {/* K-1 work on the early-learner screens is kept apart (#244); say where it is, without guessing the choice. */}
             {(grade === 0 || grade === 1) && <span className="text-[15px] text-[var(--ink-dim)]">{V.earlyNote}</span>}
           </div>
@@ -651,7 +742,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
               </figure>
             ))}
           </div>
-        ) : <Quiet>{V.ownWordsNone}</Quiet>}
+        ) : <Quiet>{ownWordsNoneText(r)}</Quiet>}
       </Section>
 
       <Section id="c3" title={V.activityHead} open={open}>

@@ -38,14 +38,18 @@ export interface RangeOption {
 }
 
 /**
- * The range picker (spec §3): the current month first, then every other month with activity, newest
- * first, then "This school year" (guided and teacher) or "Since you started" (self, only once there is
- * activity to start from).
+ * The range picker (spec §3): the current month first, then every other month with activity or a saved
+ * copy, newest first, then "This school year" (guided and teacher) or "Since you started" (self, only
+ * once there is activity to start from).
  */
 export function rangeOptions(source: RecordSource, audience: Audience, now: Date): RangeOption[] {
   const here = currentMonth(now) as Extract<RecordRange, { kind: "month" }>;
-  const months = [here, ...monthsWithActivity(source)
-    .filter((m) => !(m.year === here.year && m.month === here.month))
+  // A saved month stays on the list after its activity is gone (its course was deleted).
+  const saved = source.savedMonths.map((s) => { const [year, month] = s.month.split("-").map(Number); return { year, month: month - 1 }; });
+  const seen = new Set([`${here.year}-${here.month}`]);
+  const months = [here, ...[...monthsWithActivity(source), ...saved]
+    .sort((x, y) => y.year - x.year || y.month - x.month)
+    .filter((m) => { const k = `${m.year}-${m.month}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .map((m) => ({ kind: "month" as const, year: m.year, month: m.month }))];
   const out: RangeOption[] = months.map((m) => ({ key: rangeKey(m), label: monthLabel(m.year, m.month), range: m }));
   if (audience === "self") {
@@ -56,6 +60,11 @@ export function rangeOptions(source: RecordSource, audience: Audience, now: Date
     out.push({ key: rangeKey({ kind: "since", from }), label: V.schoolYear, range: { kind: "since", from } });
   }
   return out;
+}
+
+/** C2 with nothing to show: on a saved month whose course was deleted, that is why. */
+export function ownWordsNoneText(record: LearningRecord): string {
+  return record.saved?.examplesGone ? RECORD_COPY.examplesGone : V.ownWordsNone;
 }
 
 /** "in November" for a month, "since Aug 1, 2026" for a since-range. */

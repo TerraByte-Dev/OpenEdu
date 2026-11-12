@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
-  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, recordActiveMinute, getRecordSource, type UsageConfig,
+  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, recordActiveMinute, getRecordSource, saveEndedMonths,
+  type UsageConfig,
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import { normalizeGrade, hasEarlyScreens, earlyScreensOn } from "./lib/grade";
@@ -239,6 +240,9 @@ export default function App() {
       }
       setModeLoaded(true);
       await enterOrPick(m);
+      // Save each learner's month that has ended (record/saved.ts). In the background: it never holds up
+      // the launch, and a failure only leaves the month unsaved, to be tried at the next launch.
+      void saveEndedMonths().catch((e) => console.warn("[record] could not save the months that have ended", e));
     } catch (e) {
       console.error("startup failed", e);
       setStartupFailed(true);
@@ -525,6 +529,8 @@ export default function App() {
                   onBack={() => setCurrentView("dashboard")}
                   // A learner sets their own grade only where Settings is not behind the teacher PIN.
                   canSetGrade={!needsTeacherPin(mode ?? "single", "open-settings")}
+                  // Likewise, only there may a learner replace a saved month with one rebuilt from current data.
+                  canRebuild={!needsTeacherPin(mode ?? "single", "open-settings")}
                   onLearnerChanged={async () => {
                     const list = await reloadLearners();
                     const me = list.find((l) => l.id === activeLearner.id);

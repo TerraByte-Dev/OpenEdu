@@ -149,10 +149,21 @@ export interface TimeTotals {
   counted: { minutes: number } | null;
 }
 
+/**
+ * A month saved when it ended (migration 19, record/saved.ts): when it was saved, and whether a course on
+ * it has been deleted since, taking its examples (the learner's own words, B3's question pairs) with it.
+ */
+export interface SavedFrom {
+  at: string;
+  examplesGone: boolean;
+}
+
 export interface LearningRecord {
   format: number;
   /** When this record was worked out (stored format, UTC). */
   builtAt: string;
+  /** Null when built just now from the rows on this computer; set on a month loaded from its saved copy. */
+  saved: SavedFrom | null;
   /** The range contains today. */
   current: boolean;
   learner: { id: string; name: string; grade: number | null; recordVoice: "self" | "guided" | null };
@@ -207,8 +218,61 @@ const questionKey = (text: string) => text.trim().toLowerCase();
 const answeredOnly = (qs: ReadonlyArray<RecordQuestion>) => qs.filter((q) => q.graded_by !== "unanswered");
 const rightOf = (qs: ReadonlyArray<RecordQuestion>) => qs.filter((q) => q.is_correct === 1).length;
 
-const bySubjectThenTitle = (a: { subject: string | null; course: string }, b: { subject: string | null; course: string }) =>
+export const bySubjectThenTitle = (a: { subject: string | null; course: string }, b: { subject: string | null; course: string }) =>
   (a.subject === null ? 1 : 0) - (b.subject === null ? 1 : 0) || (a.subject ?? "").localeCompare(b.subject ?? "") || a.course.localeCompare(b.course);
+
+/** B3's missed items under a hard one: the latest wrong answers checked against the key, never a model's or failed grader's mark. */
+export function missedItems(answered: ReadonlyArray<RecordQuestion>): HardOne["missed"] {
+  return answered
+    .filter((q) => q.is_correct === 0 && q.user_answer !== null && q.graded_by !== "model" && q.graded_by !== "fallback")
+    .filter((q) => checkAnswerConsistency({ question_text: q.question_text, question_type: q.question_type, correct_answer: q.correct_answer, explanation: q.explanation }) === null)
+    .reverse()
+    .slice(0, MISSED_MAX)
+    .map((q) => ({ question: q.question_text, answered: q.user_answer!, key: q.correct_answer }));
+}
+
+/** B4: the learner's latest self-explanation among these questions, or null. */
+export function latestSelfExplanation(questions: ReadonlyArray<RecordQuestion>): string | null {
+  const explained = questions.map((q) => q.self_explanation?.trim() ?? "").filter(Boolean);
+  return explained.length ? explained[explained.length - 1] : null;
+}
+
+/** C2, newest first: self-explanations dated by their attempt, and the notes the learner started. */
+export function ownWordsIn(source: RecordSource, inRange: (at: string | null) => boolean): OwnWords[] {
+  const titleOf = (courseId: string) => appTitle(source.courses.find((c) => c.id === courseId)?.title ?? "");
+  const attemptById = new Map(source.attempts.map((a) => [a.id, a]));
+  const skillTitle = (courseId: string, level: number, id: string | null): string | null => {
+    const sub = source.syllabuses.find((s) => s.course_id === courseId && s.level === level)?.subtopics.find((s) => s.id === id);
+    return sub ? appTitle(sub.title) : null;
+  };
+  const out: OwnWords[] = [];
+  for (const q of source.questions) {
+    const a = attemptById.get(q.attempt_id);
+    const text = q.self_explanation?.trim();
+    if (!a || !text || !inRange(a.completed_at)) continue;
+    out.push({ date: a.completed_at!, courseId: a.course_id, course: titleOf(a.course_id), kind: "self_explanation", skill: skillTitle(a.course_id, a.level, q.subtopic_id), title: null, text });
+  }
+  for (const n of source.notes) {
+    if (inRange(n.created_at)) out.push({ date: n.created_at, courseId: n.course_id, course: titleOf(n.course_id), kind: "note", skill: null, title: n.title, text: n.content });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+type CourseTime = LearningRecord["timeBySubject"][number]["courses"][number] & { subject: string | null };
+
+/** C4's groups: each course's time under its subject, subjects in record order, courses by title. */
+export function groupTimeBySubject(rows: ReadonlyArray<CourseTime>): LearningRecord["timeBySubject"] {
+  const subjects = new Map<string | null, LearningRecord["timeBySubject"][number]>();
+  for (const { subject, ...c } of rows) {
+    const group = subjects.get(subject) ?? { subject, minutes: 0, courses: [] };
+    group.courses.push(c);
+    group.minutes += c.minutes;
+    subjects.set(subject, group);
+  }
+  return [...subjects.values()]
+    .map((g) => ({ ...g, courses: g.courses.sort((a, b) => a.course.localeCompare(b.course)) }))
+    .sort((a, b) => bySubjectThenTitle({ subject: a.subject, course: "" }, { subject: b.subject, course: "" }));
+}
 
 /**
  * Every level a course has passed, with the date when one is on record. From migration 18 a pass is
@@ -268,7 +332,6 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
   const courses = source.courses.filter((c) => beforeEnd(c.created_at));
   const courseById = new Map(source.courses.map((c) => [c.id, c]));
   const titleOf = (courseId: string) => appTitle(courseById.get(courseId)?.title ?? "");
-  const attemptById = new Map(source.attempts.map((a) => [a.id, a]));
   const questionsByAttempt = new Map<string, RecordQuestion[]>();
   for (const q of source.questions) {
     const list = questionsByAttempt.get(q.attempt_id);
@@ -413,16 +476,9 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
         // B3: the range's questions on the skill.
         const answered = answeredOnly(inRangeChecks.flatMap((c) => c.questions));
         if (answered.length >= HARD_MIN_QUESTIONS && rightOf(answered) / answered.length < HARD_BELOW) {
-          const missed = answered
-            .filter((q) => q.is_correct === 0 && q.user_answer !== null && q.graded_by !== "model" && q.graded_by !== "fallback")
-            .filter((q) => checkAnswerConsistency({ question_text: q.question_text, question_type: q.question_type, correct_answer: q.correct_answer, explanation: q.explanation }) === null)
-            .reverse()
-            .slice(0, MISSED_MAX)
-            .map((q) => ({ question: q.question_text, answered: q.user_answer!, key: q.correct_answer }));
-          const explained = inRangeChecks.flatMap((c) => c.questions).map((q) => q.self_explanation?.trim() ?? "").filter(Boolean);
           hard.push({
-            ...ref, correct: rightOf(answered), total: answered.length, missed,
-            pct: rightOf(answered) / answered.length, selfExplanation: explained.length ? explained[explained.length - 1] : null,
+            ...ref, correct: rightOf(answered), total: answered.length, missed: missedItems(answered),
+            pct: rightOf(answered) / answered.length, selfExplanation: latestSelfExplanation(inRangeChecks.flatMap((c) => c.questions)),
           });
         }
       }
@@ -459,21 +515,7 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
   const startedNotFinished = source.attempts.filter((a) => a.completed_at === null && inRange(a.started_at) && answeredAttempts.has(a.id)).length;
 
   // ── C2 ──
-  const skillTitle = (courseId: string, level: number, id: string | null): string | null => {
-    const sub = source.syllabuses.find((s) => s.course_id === courseId && s.level === level)?.subtopics.find((s) => s.id === id);
-    return sub ? appTitle(sub.title) : null;
-  };
-  const ownWords: OwnWords[] = [];
-  for (const q of source.questions) {
-    const a = attemptById.get(q.attempt_id);
-    const text = q.self_explanation?.trim();
-    if (!a || !text || !inRange(a.completed_at)) continue;
-    ownWords.push({ date: a.completed_at!, courseId: a.course_id, course: titleOf(a.course_id), kind: "self_explanation", skill: skillTitle(a.course_id, a.level, q.subtopic_id), title: null, text });
-  }
-  for (const n of source.notes) {
-    if (inRange(n.created_at)) ownWords.push({ date: n.created_at, courseId: n.course_id, course: titleOf(n.course_id), kind: "note", skill: null, title: n.title, text: n.content });
-  }
-  ownWords.sort((a, b) => b.date.localeCompare(a.date));
+  const ownWords = ownWordsIn(source, inRange);
 
   // ── C3 ──
   const captured = source.captureSince !== null && parseUtc(source.captureSince) < end;
@@ -505,23 +547,16 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
   };
 
   const perCourse = courseSittings(source, { start, end });
-  const subjects = new Map<string | null, LearningRecord["timeBySubject"][number]>();
-  for (const c of courses) {
+  const timeBySubject = groupTimeBySubject(courses.flatMap((c) => {
     const sit = perCourse.get(c.id);
-    if (!sit) continue;
-    const group = subjects.get(c.subject) ?? { subject: c.subject, minutes: 0, courses: [] };
-    group.courses.push({ courseId: c.id, course: appTitle(c.title), minutes: approxMinutes(sit), sittings: sit.length });
-    group.minutes += approxMinutes(sit);
-    subjects.set(c.subject, group);
-  }
-  const timeBySubject = [...subjects.values()]
-    .map((g) => ({ ...g, courses: g.courses.sort((a, b) => a.course.localeCompare(b.course)) }))
-    .sort((a, b) => bySubjectThenTitle({ subject: a.subject, course: "" }, { subject: b.subject, course: "" }));
+    return sit ? [{ subject: c.subject, courseId: c.id, course: appTitle(c.title), minutes: approxMinutes(sit), sittings: sit.length }] : [];
+  }));
 
   const { label, span } = rangeLabel(range, now);
   return {
     format: RECORD_FORMAT,
     builtAt: toStored(now),
+    saved: null,
     current,
     learner: { id: source.learner.id, name: source.learner.name, grade: source.learner.grade, recordVoice: source.learner.record_voice },
     range,
