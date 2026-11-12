@@ -26,9 +26,16 @@ import { describeToolRequest } from "../lib/plain-language";
 const MathBlock = lazy(() => import("./MathBlock"));
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
+import { DictionaryCard } from "./DictionaryCard";
+import { dictionaryCard, cardStartsOpen, cardSpeech, type DictionaryCard as DictionaryCardData } from "../lib/dictionary-card";
 
 // Models already reported as tool-less this session, so the DEV notice prints once per model.
 const toolsSuppressedLogged = new Set<string>();
+
+// The dictionary card for a tutor reply, by the reply's message id (#251 PR 3): the entry the tutor was
+// given on that turn (lib/dictionary-card.ts). Kept for this app session only: it is not saved, so
+// after a restart the reply shows without it. Never read when building a request.
+const dictionaryCards = new Map<string, DictionaryCardData>();
 
 interface ChatTabProps {
   courseId: string;
@@ -375,6 +382,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       if (persisted !== null) {
         // Saved to the turn's own thread; shown and read aloud only per turnLanding (#246).
         const assistantMsg = await saveChatMessage(courseId, "assistant", persisted, level, activeThread);
+        if (result.dictionaryShown) dictionaryCards.set(assistantMsg.id, dictionaryCard(result.dictionaryShown));
         const landing = turnLanding({
           turnThread: thread,
           shownThread: loadedThreadRef.current,
@@ -501,14 +509,27 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             {HEALTH_NOTICE}
           </div>
         )}
-        {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            reading={readAloud.speakingId === msg.id}
-            onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
-          />
-        ))}
+        {messages.map((msg) => {
+          const card = msg.role === "assistant" ? dictionaryCards.get(msg.id) : undefined;
+          const cardId = `dictionary:${msg.id}`;
+          return (
+            <div key={msg.id} className="space-y-2">
+              <MessageBubble
+                message={msg}
+                reading={readAloud.speakingId === msg.id}
+                onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
+              />
+              {card && (
+                <DictionaryCard
+                  card={card}
+                  startsOpen={cardStartsOpen(grade)}
+                  reading={readAloud.speakingId === cardId}
+                  onReadAloud={readAloud.supported ? () => readAloud.toggle(cardId, cardSpeech(card)) : undefined}
+                />
+              )}
+            </div>
+          );
+        })}
         {streaming && (
           <div className="flex gap-3">
             <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">

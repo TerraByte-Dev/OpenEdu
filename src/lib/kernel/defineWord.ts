@@ -175,7 +175,17 @@ export const DICTIONARY_NOTE = `<tutor_note>
 The student asked what "{word}" means. Use the dictionary entry above as the source for its meaning. Explain it in words the student can understand, with one everyday example. If the student's message includes a sentence, explain only the meaning that fits that sentence, and do not list the other meanings. If none of the listed meanings fits the sentence, set them aside and say what the word means in that sentence. If there is no sentence, begin with the most common meaning, briefly. Except in that one case, do not add meanings that are not listed. Do not mention this note.
 </tutor_note>`;
 
-interface Shown { form: string; pos: Pos; definition: string; example: string }
+/** One sense as the tutor is given it: after the child-safety filter, the caps and the token budget. */
+export interface Shown { form: string; pos: Pos; definition: string; example: string }
+
+/** The entry exactly as the tutor was given it on a define turn: the headwords, in order, with only the
+ *  senses that went into the note. The raw lookup is not carried, so nothing the filter or the caps
+ *  removed can reach a caller (the on-screen dictionary card, #251 PR 3, reads this). */
+export interface DictionaryShown {
+  /** The word as the student typed it. */
+  word: string;
+  entries: Array<{ headword: string; via: DictionaryEntry["via"]; senses: Shown[] }>;
+}
 
 // ── Child-safety filter (lever 18; widened 2026-11-12, after the test run) ───────────────────────────
 // Deterministic: regexes over WordNet's own wording plus short word lists, no model. Derived from a
@@ -382,11 +392,11 @@ export function selectSenses(
   return out;
 }
 
-function renderEntry(word: string, picked: Array<{ entry: DictionaryEntry; senses: Shown[] }>): string {
+function renderEntry(shown: DictionaryShown): string {
   const lines: string[] = [];
   let n = 0;
-  for (const { entry, senses } of picked) {
-    if (entry.via === "form") lines.push(`"${word}" is a form of "${entry.headword}".`);
+  for (const { headword, via, senses } of shown.entries) {
+    if (via === "form") lines.push(`"${shown.word}" is a form of "${headword}".`);
     for (const s of senses) {
       n++;
       lines.push(`${n}. ${s.form} (${POS_NAMES[s.pos]}): ${s.definition}${s.example ? `. Example: "${s.example}"` : ""}`);
@@ -395,24 +405,41 @@ function renderEntry(word: string, picked: Array<{ entry: DictionaryEntry; sense
   return `<dictionary_entry source="Open English WordNet">\n${lines.join("\n")}\n</dictionary_entry>`;
 }
 
+const asShown = (word: string, picked: Array<{ entry: DictionaryEntry; senses: Shown[] }>): DictionaryShown => ({
+  word,
+  entries: picked.map(({ entry, senses }) => ({ headword: entry.headword, via: entry.via, senses })),
+});
+
 /**
- * The text appended after the student's message on a define turn: the entry block, then the note. Null
- * when there is nothing to show (no entries), so the turn is sent unchanged.
+ * The senses a define turn gives the tutor: selectSenses, then cut last sense first until the entry
+ * block fits DICTIONARY_MAX_ENTRY_TOKENS (at least one sense is kept). Null when nothing is left.
  */
-export function dictionaryNote(word: string, entries: readonly DictionaryEntry[]): string | null {
+export function shownEntry(word: string, entries: readonly DictionaryEntry[]): DictionaryShown | null {
   let picked = selectSenses(entries, word);
   let count = picked.reduce((k, p) => k + p.senses.length, 0);
   if (count === 0) return null;
-  let entry = renderEntry(word, picked);
-  while (estTokens(entry) > DICTIONARY_MAX_ENTRY_TOKENS && count > 1) {
+  while (estTokens(renderEntry(asShown(word, picked))) > DICTIONARY_MAX_ENTRY_TOKENS && count > 1) {
     const last = picked[picked.length - 1];
     picked = last.senses.length > 1
       ? [...picked.slice(0, -1), { ...last, senses: last.senses.slice(0, -1) }]
       : picked.slice(0, -1);
     count--;
-    entry = renderEntry(word, picked);
   }
-  return `${entry}\n${DICTIONARY_NOTE.replace("{word}", () => word)}`;
+  return asShown(word, picked);
+}
+
+/** The text appended after the student's message for an entry shownEntry returned. */
+export function noteFor(shown: DictionaryShown): string {
+  return `${renderEntry(shown)}\n${DICTIONARY_NOTE.replace("{word}", () => shown.word)}`;
+}
+
+/**
+ * The text appended after the student's message on a define turn: the entry block, then the note. Null
+ * when there is nothing to show (no entries), so the turn is sent unchanged.
+ */
+export function dictionaryNote(word: string, entries: readonly DictionaryEntry[]): string | null {
+  const shown = shownEntry(word, entries);
+  return shown ? noteFor(shown) : null;
 }
 
 /** The student's message as the model sees it on a define turn. */
@@ -434,6 +461,16 @@ export async function lookupDictionaryNote(
   deadlineMs = DICTIONARY_LOOKUP_DEADLINE_MS,
   turnSignal?: AbortSignal,
 ): Promise<string | null> {
+  return (await lookupDictionary(word, lookup, deadlineMs, turnSignal))?.note ?? null;
+}
+
+/** lookupDictionaryNote, plus the entry the note was built from (what the dictionary card shows). */
+export async function lookupDictionary(
+  word: string,
+  lookup: (w: string) => Promise<DictionaryEntry[]>,
+  deadlineMs = DICTIONARY_LOOKUP_DEADLINE_MS,
+  turnSignal?: AbortSignal,
+): Promise<{ note: string; shown: DictionaryShown } | null> {
   // The turn stops waiting at the deadline, or at once when the student presses Stop; the load itself
   // is shared and keeps going, so a slow first load still warms the cache (dictionary.ts gives up on a
   // hung file on its own timeout).
@@ -447,7 +484,8 @@ export async function lookupDictionaryNote(
   try {
     if (turnSignal?.aborted) return null;
     const entries = await Promise.race([lookup(word), late]);
-    return entries ? dictionaryNote(word, entries) : null;
+    const shown = entries ? shownEntry(word, entries) : null;
+    return shown ? { note: noteFor(shown), shown } : null;
   } catch {
     return null;
   } finally {

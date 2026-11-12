@@ -487,6 +487,52 @@ body {
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .speak-btn:hover { color: var(--phosphor); border-color: var(--rule-strong); }
+
+/* The dictionary card under a tutor reply (#251, components/DictionaryCard.tsx): the entry the tutor
+   was given, laid out like a dictionary page. Lined up with the reply bubble (32px avatar + 12px gap).
+   Not a .chat-msg, so K-2's larger chat text does not apply; every line is 14px or larger. */
+.dict-card {
+  margin-left: 44px;
+  max-width: min(36rem, calc(100% - 44px));
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--phosphor);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  box-shadow: var(--shadow-soft);
+  color: var(--ink);
+}
+.dict-card-closed { width: fit-content; }
+.dict-card-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; min-height: 48px; }
+.dict-card-icon { color: var(--phosphor); flex-shrink: 0; }
+.dict-card-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 6px 10px; border-radius: 999px;
+  font-size: 0.875rem; font-weight: 500; color: var(--phosphor);
+  background: transparent; border: 1px solid transparent; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dict-card-toggle:hover { background: var(--phosphor-dim); }
+.dict-card-body { padding: 2px 18px 14px 18px; }
+.dict-card-entry + .dict-card-entry { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--rule-dim); }
+.dict-card-headword {
+  font-size: 1.375rem; line-height: 1.2; font-weight: 600; color: var(--ink-em);
+  padding-bottom: 6px; border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.dict-card-formof { margin-top: 6px; font-size: 0.875rem; color: var(--ink-dim); }
+.dict-card-group { margin-top: 10px; }
+.dict-card-pos { font-size: 0.875rem; font-style: italic; font-weight: 500; color: var(--phosphor); }
+.dict-card-senses { margin-top: 4px; list-style: none; padding: 0; display: grid; gap: 8px; }
+.dict-card-sense { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; }
+.dict-card-num {
+  width: 24px; height: 24px; margin-top: 0; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.875rem; font-weight: 600; background: var(--phosphor-dim); color: var(--phosphor);
+}
+.dict-card-def { font-size: 0.9375rem; line-height: 1.5; overflow-wrap: anywhere; }
+.dict-card-form { font-weight: 600; color: var(--ink-em); }
+.dict-card-example { margin-top: 2px; font-size: 0.875rem; line-height: 1.5; font-style: italic; color: var(--ink-dim); overflow-wrap: anywhere; }
+.dict-card-source { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--rule-dim); font-size: 0.875rem; color: var(--ink-faint); }
 .speak-btn[aria-pressed="true"] {
   background: var(--phosphor-dim);
   border-color: var(--phosphor);
