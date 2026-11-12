@@ -1,5 +1,6 @@
 mod corpus;
-mod export;
+mod model_import;
+mod ollama_setup;
 mod system;
 
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -500,13 +501,19 @@ pub fn run() {
         // the user chooses at runtime, and nothing outside it.
         .plugin(tauri_plugin_dialog::init())
         .manage(corpus::Granted::default())
+        .manage(model_import::ImportState::default())
         .invoke_handler(tauri::generate_handler![
             corpus::corpus_grant,
             corpus::corpus_granted,
             corpus::corpus_list,
             corpus::corpus_read_text,
             system::system_memory_bytes,
-            export::export_save_csv,
+            // Offline setup (#275): read-only, Rust opens the picker, network to loopback Ollama only.
+            ollama_setup::ollama_installed,
+            ollama_setup::ollama_installer_pick,
+            model_import::model_import_pick,
+            model_import::model_import_start,
+            model_import::model_import_cancel,
         ]);
 
     // Updater is desktop-only.

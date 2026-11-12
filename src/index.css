@@ -487,354 +487,56 @@ body {
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .speak-btn:hover { color: var(--phosphor); border-color: var(--rule-strong); }
+
+/* The dictionary card under a tutor reply (#251, components/DictionaryCard.tsx): the entry the tutor
+   was given, laid out like a dictionary page. Lined up with the reply bubble (32px avatar + 12px gap).
+   Not a .chat-msg, so K-2's larger chat text does not apply; every line is 14px or larger. */
+.dict-card {
+  margin-left: 44px;
+  max-width: min(36rem, calc(100% - 44px));
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--phosphor);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  box-shadow: var(--shadow-soft);
+  color: var(--ink);
+}
+.dict-card-closed { width: fit-content; }
+.dict-card-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; min-height: 48px; }
+.dict-card-icon { color: var(--phosphor); flex-shrink: 0; }
+.dict-card-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 6px 10px; border-radius: 999px;
+  font-size: 0.875rem; font-weight: 500; color: var(--phosphor);
+  background: transparent; border: 1px solid transparent; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dict-card-toggle:hover { background: var(--phosphor-dim); }
+.dict-card-body { padding: 2px 18px 14px 18px; }
+.dict-card-entry + .dict-card-entry { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--rule-dim); }
+.dict-card-headword {
+  font-size: 1.375rem; line-height: 1.2; font-weight: 600; color: var(--ink-em);
+  padding-bottom: 6px; border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.dict-card-formof { margin-top: 6px; font-size: 0.875rem; color: var(--ink-dim); }
+.dict-card-group { margin-top: 10px; }
+.dict-card-pos { font-size: 0.875rem; font-style: italic; font-weight: 500; color: var(--phosphor); }
+.dict-card-senses { margin-top: 4px; list-style: none; padding: 0; display: grid; gap: 8px; }
+.dict-card-sense { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; }
+.dict-card-num {
+  width: 24px; height: 24px; margin-top: 0; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.875rem; font-weight: 600; background: var(--phosphor-dim); color: var(--phosphor);
+}
+.dict-card-def { font-size: 0.9375rem; line-height: 1.5; overflow-wrap: anywhere; }
+.dict-card-form { font-weight: 600; color: var(--ink-em); }
+.dict-card-example { margin-top: 2px; font-size: 0.875rem; line-height: 1.5; font-style: italic; color: var(--ink-dim); overflow-wrap: anywhere; }
+.dict-card-source { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--rule-dim); font-size: 0.875rem; color: var(--ink-faint); }
 .speak-btn[aria-pressed="true"] {
   background: var(--phosphor-dim);
   border-color: var(--phosphor);
   color: var(--phosphor);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   EARLY-LEARNER SCREENS (#244) — src/views/early/
-   The K-1 home and activities. Built on the Notebook tokens; the few
-   colours the Notebook has no token for (tile tints, the gold star,
-   the amber of a teaching retry) are defined here for both modes.
-   Child-facing buttons are 64px or larger. A wrong tap is amber and
-   teaches; nothing here is ever red.
-═══════════════════════════════════════════════════════════════ */
-
-:root {
-  --early-star:        #F2B300;
-  --early-star-edge:   #B98500;
-  --early-star-empty:  #C9C3B5;
-  --early-edge:        #E1DCCF; /* tile and choice outline */
-  --early-amber:       #D99A00; /* a teaching retry's outline */
-  --early-rose:        #FDECEA;
-  --early-rose-edge:   #F5D3CE;
-  --early-sky:         #E4EBF8;
-  --early-sky-edge:    #CDD9F0;
-  --early-lilac:       #F3EAFB;
-  --early-lilac-edge:  #E2D1F2;
-  --early-avatar:      #F6E3C4;
-  --early-avatar-ink:  #7A4B00;
-}
-html[data-theme="dark"] {
-  --early-star-empty:  #3A4A6B;
-  --early-edge:        #2A3A5C;
-  --early-amber:       #F5C26B;
-  --early-rose:        #3A1F26;
-  --early-rose-edge:   #5A2F38;
-  --early-sky:         #1F2D4B;
-  --early-sky-edge:    #2E4370;
-  --early-lilac:       #2A2142;
-  --early-lilac-edge:  #45386A;
-  --early-avatar:      #3A2E17;
-  --early-avatar-ink:  #F5C26B;
-}
-
-.early { background: var(--bg); color: var(--ink); font-family: var(--font-body); }
-
-/* Round speaker / back buttons. */
-.early-round {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.early-speak { border: none; background: var(--phosphor); color: var(--on-accent); }
-.early-speak:hover { background: var(--phosphor-bright); }
-.early-speak[aria-pressed="true"] { outline: 4px solid var(--phosphor-dim); }
-.early-back { border: 1px solid var(--early-edge); background: var(--panel); color: var(--ink); }
-.early-back:hover { border-color: var(--rule-strong); }
-
-/* A pack tile on the home screen. */
-.early-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 28px 16px;
-  border-radius: 28px;
-  border: 2px solid var(--tile-edge);
-  background: var(--tile-bg);
-  color: var(--ink);
-  cursor: pointer;
-  font: inherit;
-  transition: border-color 0.15s, transform 0.1s;
-}
-.early-tile:hover { border-color: var(--phosphor); }
-.early-tile:active { transform: scale(0.98); }
-.early-tile[data-current="true"] { border-color: var(--phosphor); }
-.early-tile[data-tint="rose"]  { --tile-bg: var(--early-rose);  --tile-edge: var(--early-rose-edge); }
-.early-tile[data-tint="sky"]   { --tile-bg: var(--early-sky);   --tile-edge: var(--early-sky-edge); }
-.early-tile[data-tint="lilac"] { --tile-bg: var(--early-lilac); --tile-edge: var(--early-lilac-edge); }
-
-/* A tap choice in an activity. */
-.early-choice {
-  width: 168px;
-  min-height: 150px;
-  border-radius: 28px;
-  border: 4px solid var(--early-edge);
-  background: var(--panel);
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
-}
-.early-choice:hover:not(:disabled) { border-color: var(--rule-strong); }
-.early-choice:active:not(:disabled) { transform: scale(0.97); }
-.early-choice:disabled { cursor: default; }
-.early-choice[data-state="right"] { border-color: var(--success); background: var(--success-tint); }
-.early-choice[data-state="tried"] { border-color: var(--early-amber); background: var(--warning-tint); }
-.early-choice[data-state="rest"] { opacity: 0.55; }
-
-/* Feedback under the choices. */
-.early-feedback {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 14px 24px;
-  border-radius: 28px;
-  font-size: 24px;
-  font-weight: 500;
-}
-.early-feedback[data-kind="praise"] { background: var(--success-tint); color: var(--success); font-size: 26px; font-weight: 600; }
-.early-feedback[data-kind="teach"] { background: var(--warning-tint); color: var(--warning); }
-
-/* A filled pill button for the child: 64px tall. */
-.early-btn {
-  min-height: 64px;
-  padding: 0 28px;
-  border-radius: 999px;
-  border: none;
-  background: var(--phosphor);
-  color: var(--on-accent);
-  font: inherit;
-  font-size: 24px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.early-btn:hover { background: var(--phosphor-bright); }
-.early-btn-quiet { background: var(--panel); color: var(--ink); border: 2px solid var(--early-edge); }
-.early-btn-quiet:hover { background: var(--panel-lite); }
-
-/* Grown-ups: press and hold. The fill grows while held; letting go early empties it. */
-.early-hold {
-  touch-action: none; /* a wobbly finger must not turn the hold into a scroll and cancel it */
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid var(--early-edge);
-  background: var(--panel);
-  color: var(--ink-dim);
-  font: inherit;
-  font-size: 15px;
-  cursor: pointer;
-  user-select: none;
-  touch-action: none;
-}
-.early-hold > * { position: relative; }
-.early-hold::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--phosphor-dim);
-  transform-origin: left;
-  transform: scaleX(var(--hold, 0));
-}
-.early-hold[data-holding="true"]::before { transition: transform var(--hold-ms, 2000ms) linear; }
-
-.early-footer {
-  margin-top: auto;
-  padding: 14px 40px;
-  border-top: 1px solid var(--rule);
-  background: var(--panel-lite);
-  color: var(--ink-dim);
-  font-size: 16px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   PRINT PAGES (#244 PR 2) — src/views/early/PrintView.tsx
-   Tracing sheets and the monthly learning record, one US Letter
-   page each. On screen: a preview. In print: only .print-root (a
-   copy of the pages under <body>) shows. Paper is paper, so the
-   pages use fixed ink colours in both themes.
-═══════════════════════════════════════════════════════════════ */
-
-.print-root { display: none; }
-.print-page {
-  width: 8.5in;
-  height: 11in;
-  box-sizing: border-box;
-  overflow: hidden;
-  background: #FFFFFF;
-  color: #1B2440;
-  font-family: var(--font-body);
-}
-.print-page > svg { display: block; }
-.print-preview .print-page { flex-shrink: 0; border: 1px solid var(--rule); box-shadow: var(--shadow-soft); }
-
-.print-record { height: 100%; box-sizing: border-box; padding: 0.75in; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.5; }
-.print-record h1 { margin: 0; font-size: 30px; font-weight: 600; }
-.print-record h2 { margin: 18px 0 0; font-size: 18px; font-weight: 600; }
-.print-record p, .print-record ul { margin: 0; }
-.print-record ul { padding-left: 20px; list-style: disc; }
-.print-record-kicker { font-size: 15px; font-weight: 500; color: #1E3A8A; }
-.print-record-sub { font-size: 16px; color: #3D465E; }
-.print-record-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
-.print-record-stats > div { border: 1px solid #C9D3E6; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; }
-.print-record-stats b { font-size: 20px; font-weight: 600; }
-.print-record-stats span { color: #3D465E; }
-.print-record table { border-collapse: collapse; width: 100%; }
-.print-record th, .print-record td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #E8E4DA; }
-.print-record th { font-weight: 600; }
-.print-record footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #E8E4DA; font-size: 12px; color: #3D465E; }
-
-/* ── The learning record on paper (#258 PR 3b) — src/views/record/RecordPrint.tsx ─────────────────
-   Page 1 and the school-year cover sheet are fixed sheets (.rec-sheet). Their sizes are set in px on
-   purpose: src/lib/record/print.ts page1HeightPx mirrors these numbers, so change both together. The
-   detail pages (.rec-detail inside .print-flow) flow over as many sheets as they need. */
-
-.print-record.rec-sheet { padding: 0.55in 0.75in; gap: 0; font-size: 12px; line-height: 16px; }
-.rec-top { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; line-height: 16px; color: #5E6577; }
-.rec-top b { color: #1E3A8A; font-weight: 600; }
-.print-record.rec-sheet h1 { margin: 4px 0 0; font-size: 25px; line-height: 30px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
-.rec-sub { font-size: 13px; line-height: 18px; color: #3D465E; }
-.rec-built { font-size: 11px; line-height: 15px; color: #5E6577; }
-
-.rec-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-.rec-tile { border: 1px solid #C9D3E6; border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; min-width: 0; }
-.rec-tile b { font-size: 19px; line-height: 24px; font-weight: 600; color: #0F1730; }
-.rec-tile span { font-size: 11px; line-height: 15px; color: #3D465E; }
-
-.print-record.rec-sheet h2, .print-record.rec-detail h2 {
-  display: flex; align-items: center; gap: 8px; font-weight: 600; color: #0F1730;
-}
-.print-record.rec-sheet h2 { margin: 14px 0 6px; font-size: 14px; line-height: 18px; }
-.print-record.rec-sheet h2::before, .print-record.rec-detail h2::before {
-  content: ""; width: 3px; align-self: stretch; border-radius: 2px; background: #1E3A8A;
-}
-
-.print-record ul.rec-mastered { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; row-gap: 6px; padding: 0; list-style: none; }
-.rec-mastered li { display: flex; flex-direction: column; min-width: 0; padding-left: 10px; border-left: 2px solid #146C43; }
-.rec-mastered li.rec-early { border-left: 2px dashed #1E3A8A; }
-.rec-mastered .rec-skill { font-size: 12px; line-height: 16px; font-weight: 500; }
-.rec-mastered .rec-meta { font-size: 10.5px; line-height: 14px; color: #5E6577; }
-/* Page 1 and cover rows are one line each, whatever the title: print.ts counts them as one line. */
-.rec-mastered .rec-skill, .rec-mastered .rec-meta, .print-record .rec-stand td, .print-record .rec-cover-table td {
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.rec-more { margin-top: 4px; font-size: 11px; line-height: 15px; color: #1E3A8A; }
-.rec-none { font-size: 12px; line-height: 15px; color: #3D465E; }
-
-.print-record table.rec-stand { table-layout: fixed; }
-.print-record .rec-stand th { padding: 3px 6px 3px 0; font-size: 10.5px; line-height: 14px; font-weight: 500; color: #5E6577; border-bottom: 1px solid #C9D3E6; }
-.print-record .rec-stand td { padding: 3px 6px 3px 0; font-size: 12px; line-height: 16px; }
-.rec-stand .rec-num { text-align: right; padding-right: 12px; font-variant-numeric: tabular-nums; }
-
-.rec-write { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
-.rec-write-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; align-items: start; }
-.rec-write h3 { margin: 0; font-size: 12px; line-height: 16px; font-weight: 600; color: #0F1730; }
-.rec-rule { height: 22px; box-sizing: border-box; border-bottom: 1px solid #9AA3B5; }
-.rec-prompt { margin-top: 4px; font-size: 11px; line-height: 15px; color: #3D465E; }
-.rec-attest { font-size: 11px; line-height: 15px; color: #1B2440; }
-.rec-sign { display: flex; gap: 24px; height: 28px; align-items: flex-end; font-size: 11px; line-height: 15px; color: #3D465E; }
-.rec-sign > span { display: flex; gap: 8px; align-items: flex-end; flex: 1 1 auto; }
-.rec-sign > span:last-child { flex: 0 0 2.2in; }
-.rec-sign i { flex: 1; height: 18px; border-bottom: 1px solid #1B2440; }
-
-.print-record.rec-sheet footer { display: flex; flex-direction: column; gap: 3px; padding-top: 8px; font-size: 9.5px; line-height: 13px; }
-
-/* The cover sheet. */
-.rec-field { display: flex; align-items: flex-end; gap: 10px; height: 30px; font-size: 12px; line-height: 16px; }
-.rec-field i { flex: 1; height: 20px; border-bottom: 1px solid #1B2440; }
-.print-record dl.rec-totals { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; margin: 0; }
-.rec-totals > div { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-size: 12px; line-height: 16px; border-bottom: 1px solid #E8E4DA; }
-.rec-totals > div:last-child { grid-column: 1 / -1; }
-.rec-totals dd { text-align: right; }
-.rec-totals dt { color: #3D465E; }
-.rec-totals dd { margin: 0; font-weight: 600; }
-.print-record table.rec-cover-table { table-layout: fixed; }
-.print-record .rec-cover-table th, .print-record .rec-cover-table td { padding: 2px 8px 2px 0; font-size: 11.5px; line-height: 16px; }
-.print-record .rec-cover-table th { font-size: 10.5px; line-height: 14px; font-weight: 500; color: #5E6577; border-bottom: 1px solid #C9D3E6; vertical-align: bottom; }
-.rec-cover-table .rec-num { text-align: right; font-variant-numeric: tabular-nums; }
-.rec-cover-table tr.rec-subject td { font-weight: 600; }
-.rec-cover-table tr.rec-course td:first-child { padding-left: 14px; color: #3D465E; }
-.rec-cover-table tr.rec-all td { font-weight: 600; border-top: 2px solid #1B2440; border-bottom: none; }
-.rec-note { margin-top: 4px; font-size: 10.5px; line-height: 14px; color: #5E6577; }
-
-/* The detail pages. On screen the preview pads them like a page; on paper the named page "record"
-   gives every sheet its margins, so the content runs from sheet to sheet. */
-.print-page.print-flow { height: auto; overflow: visible; page: record; }
-.print-preview .print-page.print-flow { padding: 0.75in; }
-.print-flow .print-record { height: auto; padding: 0; }
-.print-flow .print-record footer { margin-top: 0; }
-.print-record.rec-detail { gap: 0; font-size: 12.5px; line-height: 18px; }
-.print-record.rec-detail h1 { margin: 2px 0 0; font-size: 21px; line-height: 28px; }
-.print-record.rec-detail h2 { margin: 22px 0 8px; font-size: 15px; line-height: 20px; }
-.print-record.rec-detail h3 { margin: 0; font-size: 13.5px; line-height: 19px; font-weight: 600; color: #0F1730; }
-.print-record.rec-detail th { padding: 4px 8px 4px 0; font-size: 11px; line-height: 15px; font-weight: 500; color: #5E6577; border-bottom: 1px solid #C9D3E6; vertical-align: bottom; }
-.print-record.rec-detail td { padding: 5px 8px 5px 0; vertical-align: top; }
-.rec-detail .rec-small { font-size: 11px; line-height: 15px; color: #5E6577; }
-.rec-detail .rec-dim { color: #3D465E; }
-.rec-detail .rec-tag { display: inline-block; padding: 0 7px; border: 1px solid #C9D3E6; border-radius: 999px; font-size: 10.5px; line-height: 16px; color: #1E3A8A; white-space: nowrap; }
-.rec-detail .rec-tag.rec-done { border-color: #A8D5BD; color: #146C43; }
-.rec-detail .rec-tag.rec-soft { border-style: dashed; color: #3D465E; }
-/* Block, not flex: Chromium keeps break-after: avoid only between block boxes. */
-.rec-block { padding: 10px 0; border-top: 1px solid #E8E4DA; }
-.rec-block > * + * { margin-top: 4px; }
-.rec-subject-head { margin: 6px 0 4px; font-size: 11px; line-height: 15px; font-weight: 500; color: #5E6577; }
-.rec-block.rec-first { border-top: none; }
-.print-record.rec-detail ul { padding-left: 18px; }
-.rec-qa { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; margin: 4px 0 0; padding: 6px 10px; border-radius: 8px; background: #F4F6FA; }
-.rec-qa dt { color: #5E6577; }
-.rec-qa dd { margin: 0; }
-.rec-quote { margin: 0; padding-left: 10px; border-left: 2px solid #1E3A8A; font-style: italic; white-space: pre-wrap; overflow-wrap: anywhere; }
-.rec-how dt { font-weight: 600; }
-.rec-how dd { margin: 0 0 6px; color: #3D465E; }
-/* The label legend: pill and meaning on one line, so the disclaimer fits on the last page with them. */
-.rec-how.rec-legend > div { display: grid; grid-template-columns: 2.4in 1fr; column-gap: 12px; align-items: baseline; }
-.rec-disclaimer { margin-top: 12px; padding: 10px 12px; border: 1px solid #E8E4DA; border-radius: 8px; font-size: 11px; line-height: 16px; color: #3D465E; }
-.print-flow tr, .print-flow li, .print-flow .rec-block-head, .print-flow .rec-qa, .print-flow .rec-quote,
-.print-flow .rec-how > div, .print-flow .rec-disclaimer, .print-flow .rec-end, .print-flow h2, .print-flow h3 { break-inside: avoid; }
-.print-flow h2, .print-flow h3, .print-flow .rec-block-head, .print-flow .rec-lede { break-after: avoid; }
-.print-flow thead { display: table-header-group; }
-
-@media print {
-  @page { size: letter; margin: 0; }
-  /* White margins: without it the window's own background colour shows around the detail pages. */
-  @page record { margin: 0.75in; background: #FFFFFF; }
-  html, body { background: #FFFFFF !important; height: auto !important; overflow: visible !important; }
-  body > :not(.print-root) { display: none !important; }
-  .print-root { display: block; }
-  /* A hair under 11in, so rounding never spills a page onto a blank one. */
-  .print-page { height: 10.95in; break-after: page; }
-  .print-page:last-child { break-after: auto; }
-  /* The detail pages run on: no fixed height, no page padding (the @page margin is the margin). */
-  .print-page.print-flow { height: auto; width: auto; padding: 0; overflow: visible; }
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -970,6 +672,70 @@ html[data-theme="dark"] {
   border-color: var(--ink-faint);
   color: var(--ink-dim);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   OFFLINE SETUP (#275): Ollama guide + model import
+   An instruction sheet: numbered steps in accent-tint circles, a four-stop track for the import.
+═══════════════════════════════════════════════════════════════ */
+
+.kit-card {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 20px 22px;
+}
+.kit-card-flat {
+  box-shadow: none;
+  border-radius: var(--radius-control);
+  padding: 14px 16px;
+  background: var(--panel-lite);
+}
+
+.kit-steps { list-style: none; padding: 0; display: grid; gap: 10px; }
+.kit-steps li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; font-size: 0.875rem; line-height: 1.55; color: var(--ink); }
+.kit-step-n {
+  width: 28px; height: 28px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--phosphor-dim); color: var(--phosphor);
+  font-weight: 600; font-size: 0.875rem;
+}
+
+.kit-choice {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 10px 14px; border-radius: var(--radius-control);
+  border: 1px solid var(--rule); background: var(--panel);
+}
+.kit-choice:hover { border-color: var(--rule-strong); }
+.kit-choice-on { border-color: var(--phosphor); background: var(--panel-tint); }
+.kit-choice:focus-within { outline: 2px solid var(--phosphor); outline-offset: 2px; }
+
+.kit-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 0.875rem; }
+.kit-facts dt { color: var(--ink-faint); }
+.kit-facts dd { margin: 0; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+
+.kit-track { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
+.kit-track li { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--ink-faint); position: relative; }
+/* The rule between stops, drawn from each stop to the next. */
+.kit-track li + li::before {
+  content: ""; position: absolute; top: 13px; right: 50%; width: 100%; height: 2px;
+  background: var(--rule); z-index: 0;
+}
+.kit-track li.kit-track-done + li::before,
+.kit-track li.kit-track-done + li.kit-track-now::before { background: var(--phosphor); }
+.kit-track-dot {
+  position: relative; z-index: 1;
+  width: 28px; height: 28px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--panel); border: 2px solid var(--rule-strong); color: var(--ink-faint);
+  font-weight: 600; font-size: 0.8125rem;
+}
+.kit-track-done { color: var(--ink-dim); }
+.kit-track-done .kit-track-dot { background: var(--phosphor); border-color: var(--phosphor); color: var(--on-accent); }
+.kit-track-now { color: var(--ink); font-weight: 500; }
+.kit-track-skip { color: var(--warning); }
+.kit-track-skip .kit-track-dot { border-color: var(--warning); color: var(--warning); background: var(--warning-tint); }
+.kit-track-now .kit-track-dot { border-color: var(--phosphor); color: var(--phosphor); background: var(--phosphor-dim); }
 
 /* ═══════════════════════════════════════════════════════════════
    SCROLLBAR

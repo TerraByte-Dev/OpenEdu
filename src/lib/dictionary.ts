@@ -208,6 +208,30 @@ export async function lookupWord(raw: string): Promise<DictionaryEntry[]> {
   return resolveEntries(word, exc, (k) => loaded.get(k), { trailingDot });
 }
 
+// ── Credit (#255) ──────────────────────────────────────────────────────────────────────────────────
+
+/** The credit Settings › About shows. Open English WordNet is CC BY 4.0, and the WordNet licence asks
+ *  for its notice on every copy; the edition matches public/dictionary/meta.json (dictionary.test.ts).
+ *  Attribution only: the WordNet licence bars using Princeton's name in advertising, so this line stays
+ *  out of marketing copy. */
+export const DICTIONARY_CREDIT =
+  "Dictionary: adapted from Open English WordNet 2025 (CC BY 4.0), derived from Princeton WordNet 3.1.";
+
+/** The licence texts that ship beside the data in public/dictionary/, in the order About lists them. */
+export const DICTIONARY_LICENCES: ReadonlyArray<{ file: string; label: string }> = [
+  { file: "LICENSE.md", label: "Open English WordNet licence (CC BY 4.0)" },
+  { file: "WNDB_License.txt", label: "WordNet 3.1 licence" },
+];
+
+/** A licence file's text, read from the app's own bundled files (same origin, works offline). Throws if
+ *  it cannot be read; a missing file comes back from the dev server and Tauri as index.html with a 200,
+ *  so an HTML reply counts as missing. */
+export async function readLicence(file: string): Promise<string> {
+  const res = await fetch(`${BASE}/${file}`, { method: "GET" });
+  if (!res.ok || (res.headers.get("content-type") ?? "").includes("html")) throw new Error(`licence not found: ${file}`);
+  return res.text();
+}
+
 /** Test hook: forget cached files so a test's fetch stub is used. */
 export function resetDictionaryCache(): void {
   shardCache.clear();

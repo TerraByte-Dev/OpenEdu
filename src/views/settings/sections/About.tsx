@@ -12,10 +12,12 @@ import {
   gatherSettings, downloadSettingsFile, serializeSettings, parseSettingsFile, applyImportedSettings,
 } from "../../../lib/settings-io";
 import { checkForUpdate, installUpdate, type Update } from "../../../lib/updater";
+import { DICTIONARY_CREDIT, DICTIONARY_LICENCES, readLicence } from "../../../lib/dictionary";
 import { STORE_FILE, STORE_KEYS } from "../../../lib/store-keys";
 import { Section, SettingRow, ActionButton, Toggle, INPUT_CLS, useSettings } from "../primitives";
 import { BrandMark } from "../../../components/BrandMark";
 import type { SectionProps } from "../types";
+import { APP_NAME } from "../../../lib/product";
 
 const APP_IDENTIFIER = "com.terrabytesolutions.openedu";
 
@@ -154,7 +156,7 @@ export default function About({ onProviderChanged }: SectionProps) {
 
   return (
     <>
-      <Section title="OpenEdu" description="AI-powered personalized tutoring — bring-your-own-key, offline-first." keywords="about version build update release github">
+      <Section title={APP_NAME} description="AI-powered personalized tutoring — bring-your-own-key, offline-first." keywords="about version build update release github">
         <SettingRow label="Version" help={`Identifier: ${APP_IDENTIFIER}`}>
           <div className="flex items-center gap-3 flex-wrap">
             <span className="lcd px-3 py-1.5 rounded-md text-sm">v{version}</span>
@@ -236,16 +238,57 @@ export default function About({ onProviderChanged }: SectionProps) {
         </SettingRow>
       </Section>
 
+      <Section title="Credits" description={`Material ${APP_NAME} includes from other projects.`} keywords="credits dictionary wordnet open english wordnet licence license attribution cc by">
+        <SettingRow label="Dictionary" keywords="wordnet licence license cc by attribution">
+          <p className="text-sm text-ink leading-relaxed max-w-prose">{DICTIONARY_CREDIT}</p>
+          <div className="mt-3 space-y-2">
+            {DICTIONARY_LICENCES.map((l) => <LicenceText key={l.file} file={l.file} label={l.label} />)}
+          </div>
+        </SettingRow>
+      </Section>
+
       {/* Maker credit — the one place TerraByte appears; the emblem tints to the accent via BrandMark. */}
       <div className="mt-10 pt-6 border-t border-[var(--rule)] flex items-center gap-3">
         <BrandMark size={40} title="TerraByte Solutions LLC" />
         <div className="min-w-0">
-          <div className="text-sm text-ink font-medium leading-tight">OpenEdu</div>
+          <div className="text-sm text-ink font-medium leading-tight">{APP_NAME}</div>
           <div className="text-xs text-[var(--ink-faint)] leading-tight">by TerraByte Solutions LLC · free &amp; open source</div>
         </div>
         <span className="ml-auto text-xs font-mono text-[var(--ink-faint)] select-all shrink-0">github.com/TerraByte-Dev/OpenEdu</span>
       </div>
     </>
+  );
+}
+
+// A licence text that ships with the app (public/dictionary/), shown in place. Read from the app's own
+// bundled files on first open, so it works offline and the webview never reads the disk.
+function LicenceText({ file, label }: { file: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const toggle = () => {
+    setOpen((o) => !o);
+    if (text === null && !failed) readLicence(file).then(setText, () => setFailed(true));
+  };
+  return (
+    <div>
+      <button type="button" onClick={toggle} aria-expanded={open} className="inline-flex items-center gap-1.5 text-sm text-phosphor hover:text-phosphor-bright underline underline-offset-2">
+        {open ? `Hide the ${label}` : `Read the ${label}`}
+      </button>
+      {open && (
+        failed ? (
+          <p className="mt-2 text-sm text-danger">This licence text could not be opened. It is also in the app's files as dictionary/{file}.</p>
+        ) : (
+          <pre
+            tabIndex={0}
+            aria-label={label}
+            className="lcd mt-2 max-h-72 overflow-auto rounded-md p-3 font-lcd text-sm leading-relaxed whitespace-pre-wrap break-words"
+          >
+            {text ?? "Opening…"}
+          </pre>
+        )
+      )}
+    </div>
   );
 }
 

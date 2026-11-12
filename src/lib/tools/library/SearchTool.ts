@@ -10,6 +10,7 @@ import { defineTool, type ToolEvent } from "../EduTool";
 import { getManifest, matchResources, fetchResource, isLibraryAvailable } from "../../library";
 import { getLibraryEnabled } from "../../store";
 import type { LibrarySearchResult } from "../../../types";
+import { LIBRARY_NAME } from "../../product";
 
 export const librarySearchTool = defineTool({
   name: "library.search",
@@ -27,7 +28,7 @@ export const librarySearchTool = defineTool({
   isConcurrencySafe: true,
   isEnabled: async () => (await getLibraryEnabled()) && isLibraryAvailable(),
   async *call(input, ctx): AsyncGenerator<ToolEvent<LibrarySearchResult>> {
-    yield { kind: "progress", message: `consulting the OpenEdu Library for "${input.query}"…` };
+    yield { kind: "progress", message: `consulting the ${LIBRARY_NAME} for "${input.query}"…` };
     const manifest = await getManifest();
     const matches = matchResources(input.query, manifest, 3);
     if (matches.length === 0) {

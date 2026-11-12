@@ -26,7 +26,7 @@ All state lives in **one SQLite database** — no per-course files:
 
 Tables: `courses`, `syllabuses`, `tutor_instructions`, `notes`, `notebook_folders`,
 `notebook_documents` / `chunks` / `embeddings`, `chat_messages`, `quiz_questions`, `quiz_attempts`,
-`user_progress`, `learners`, `learner_groups`, `app_config`. The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
+`user_progress`, `lessons`, `flashcards`, `learners`, and the tables kept from removed features (below). The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
 `src-tauri/`). The plugin hashes each migration's SQL — **never edit a shipped migration**; add a new
 version, or move the change into application code. API keys and app settings persist separately via
 `@tauri-apps/plugin-store`.
@@ -40,42 +40,40 @@ sqlx pool holds up to 10 connections and recycles them. At boot `checkDatabaseHe
 data** writes a full copy with `VACUUM INTO` through the sql plugin (no `fs` capability) and explains how to
 restore it by hand. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 
-**Learner profiles (migration 13).** Several learners can share one PC. Each course carries a
-`learner_id`, and every other table hangs off `courses(id)`, so scoping courses scopes everything.
-`db.ts` holds the active learner: `getCourses` lists only that learner's courses, `createCourse` stamps
-them, and `getCourse` refuses another learner's course (the guard is `canAccessCourse` in
-`learners.ts`). Migration 13 creates one default learner and gives it every existing course; one learner
-with no PIN means no picker, so an upgraded install sees no change. Optional 4-6 digit PINs are
-PBKDF2-SHA256 (`learner-pin.ts`). That keeps learners out of each other's courses; it does not protect
-the database file. Store keys that remember one learner (only the tour flag today) go through
-`learnerStoreKey` in `store-keys.ts`; the default learner keeps the bare key.
+**One learner (migration 13).** OpenEdu is a solo-learner app. Each course carries a `learner_id`, and
+every other table hangs off `courses(id)`, so scoping courses scopes everything. `db.ts` holds the active
+learner: `getCourses` lists only that learner's courses, `createCourse` stamps them, and `getCourse`
+refuses another learner's course (the guard is `canAccessCourse` in `learners.ts`). Migration 13 creates
+one default learner and gives it every existing course; one learner with no PIN means no picker, so a new
+install, and any install that never added a learner, opens straight into that learner. The app never
+adds a learner. Store keys that remember one learner (the tour flag, the daily goal, read-aloud) go
+through `learnerStoreKey` in `store-keys.ts`; the default learner keeps the bare key.
 
-**Usage modes (migration 14).** "Who uses this computer?" is Just me, A class, or A school or center
-(`usage-modes.ts`). The mode and the teacher PIN live in the `app_config` table, next to the data they
-protect, so a settings export never carries them and an import cannot lower them. Migration 14 stores
-"Just me" for an install that already has courses; a fresh install has no row and is asked once.
-Just me keeps the learner-profile rules above. A class always shows the picker, and a teacher PIN
-(PBKDF2, same as learner PINs) guards Settings, the mode, the teacher view, adding and removing learners,
-clearing a learner's forgotten PIN, and the all-learner backup. Every App entry point to those screens
-goes through one guard, `guardEntry` (run by `runGuarded`), under its own name; a static test in
-`usage-modes.test.ts` fails if App or a section opens Settings or the teacher view any other way. The
-teacher stays unlocked only while Settings or the teacher view is on screen; leaving either locks again.
-Going back to Just me keeps the teacher PIN, unused. Moving up from Just me while a learner other than
-the one signed in has a PIN needs that kept teacher PIN, and is refused when there is none: a PIN set
-before any teacher PIN existed is never the teacher's to clear. The mode and the teacher PIN are written
-in one statement. If the mode or the learner list cannot be read at launch, a full screen says so and
-shows the restore steps. A school adds `learner_groups` and `learners.group_id`: the
-picker asks for the class first and the teacher overview filters by it. Leaving a protected mode needs
-the teacher PIN; no mode change deletes data. The overview (`teacher-overview.ts`) is the one read across
-learners (`getTeacherOverviewSource`). Its CSV (`csv.ts`) defuses = + - @ wherever a spreadsheet could
-start a cell: the first character, and after any ; tab or line break, because Excel splits on ; where
-that is the list separator. The file goes through `export_save_csv` in `export.rs`, which
-opens the Save dialog itself and writes only the file the user picked, as `.csv`. When the `.csv` had to
-be added and that file already exists, it refuses: the dialog never warned about that file.
+**Installs with several learners.** Earlier versions could add learners (learner profiles, then a class
+or school mode with a teacher PIN). Those installs keep every learner and every course. At launch
+`App.tsx` runs `learners.ts autoPickLearner`: one learner with no PIN goes straight in; anything else
+shows the picker (`LearnerPicker.tsx`), which lists every learner whatever their old group, and a learner
+with a PIN (`needsPin`) is entered only after `PinScreen` verifies it (PBKDF2-SHA256, `learner-pin.ts`).
+That keeps learners out of each other's courses; it does not protect the database file. The titlebar
+chip opens the signed-in learner's menu; `learners.ts learnerMenuActions` decides what it offers. Every
+learner can switch, rename themselves, and change or remove a PIN they already have (typing it first).
+Adding a first PIN and deleting yourself (while another learner is left, so a family install can come
+down to one learner and then opens like any solo install) are offered only where the old
+`app_config usage_mode` is not `class` or `school`: there a teacher set the learners up and nobody can
+undo either any more. `db.ts getLegacyUsageMode` reads that row and nothing writes or deletes it. A
+forgotten learner PIN cannot be cleared inside OpenEdu: that learner's courses stay in the file and in
+every backup but can't be opened in OpenEdu (PIN resets are a TerraTutor feature).
+`db-learners.test.ts` runs a class-mode database from migration 19 through these paths: every course
+reachable, the PIN learner only with their PIN, the old teacher PIN opening nobody, no learner offered
+delete or a new PIN (a Just me install still is), and no row changed but `last_active_at`. A data file
+with no learner at all (only by hand) shows an explanation and the restore steps instead of an empty
+picker. If the learner list cannot be read at launch, a
+full screen says so and shows the restore steps.
 
 **Grade (migration 15).** Each learner has `learners.grade`: 0 for kindergarten, 1-12, or NULL for not
-set (every learner from before it). It is set when adding a learner, in Settings › Who uses this, and per
-row in the teacher view. `grade.ts` decides everything from the band (K-2, 3-5, 6-8, 9-12) in code:
+set (every learner from before it). It is set in Settings › Name & grade for the signed-in learner, beside their name. That section
+has no PIN control: a solo learner has nobody to keep out, and no reset exists. `grade.ts`
+decides everything from the band (K-2, 3-5, 6-8, 9-12) in code:
 `readingLevelLayer` is one `## Reading level` section that `buildSystemPrompt` puts just before the output
 rules, and it is nothing when no grade is set, so that prompt is byte-identical to the one before grades
 (`kernel/systemPrompt-master.test.ts` pins it against a fixture). K-2 learners get larger chat text
@@ -85,101 +83,20 @@ plain words (the same marked + math tokenizer the chat renders with; LaTeX read 
 "Code") and picks an on-device voice, and `useReadAloud.ts` plays it through `speechSynthesis`, one reply
 at a time, so it works offline with the Windows voices.
 
-**Early-learner screens (migration 16, #244).** A K or grade 1 learner opens on `src/views/early/`
-instead of Home, unless the family turns "Early learner screens" off in Settings › Who uses this (a
-per-learner store choice, `grade.ts earlyScreensOn`, on by default). These screens make no model call and
-need no provider, so the setup gate never stands in front of them. The engine in `src/lib/early/` is pure:
-`packs.ts` holds the colors, counting (1-10, then 11-20) and shapes items, each a spoken prompt, a picture
-spec and 2-4 choices with a data answer key; `engine.ts` builds seeded rounds of five, decides what a tap
-means (praise, or a teaching retry that counts together or shows the example), and computes mastery from
-the stored rows: 5 first-try right answers in a row within a skill, after which the next skill in the pack
-opens. Every tap is a row in `early_attempts` (learner, skill, item, correct, first try, and since
-migration 17 the tapped choice), read and written for the active learner only and deleted with the
-learner. Pictures are inline SVG drawn by code, prompts are read aloud through `useReadAloud.ts`, and the
-way out is a press-and-hold Grown-ups button that goes through the same teacher-PIN guard as the titlebar
-gear (`usage-modes.ts`, entry `early-grownups`). A screen reader's "activate" or voice control's "click"
-cannot hold, so a click with no press behind it (`detail === 0`, not from a key) opens it directly; a
-mouse, finger or keyboard still has to hold.
-
-**The grown-ups view (#244 PR 2).** The hold opens `src/views/early/GrownUps.tsx`, which stays unlocked
-for its own Settings link (`staysUnlocked`) and locks again on the way back to the child's screens. Its
-numbers come from the rows by `src/lib/early/report.ts`: days played, approximate minutes (first to last
-tap of each sitting; a sitting ends after 5 minutes with no taps), skills mastered (with the date of the
-answer that completed the streak), per-skill status and coverage, "hard ones" (a pair of colors, numbers or
-shapes mixed up on 3 or more wrong first tries in 30 days, from the stored choice) and the monthly learning
-record. Screen-free ideas are static data in `together.ts`. Tracing sheets (`tracing.ts`: single-stroke
-numbers 0-20 and the six shapes, 1.5 in tall on Letter paper) and the record print through
-`window.print()`: `PrintView.tsx` copies the pages into a `.print-root` under `<body>` and the print
-stylesheet in `index.css` hides everything else. No PDF library; "Save as PDF" is the print dialog's.
-
-**The learning record on paper (#258 PR 3b).** The record's "Save <Month>'s record" button (and the
-school-year / since-you-started equivalent) first asks for a name and grade while the learner is still
-"Learner 1" or has none (skippable, saved through the learner setters), then opens the same `PrintView`
-with `backLabel` "Back to the record" and calls `window.print()` itself. `src/lib/record/print.ts` decides
-what the paper shows, from the one `LearningRecord`: page 1 is a fixed one-page summary (capped lists with
-"+N more in the detail pages", Section D's write-in lines by voice, the disclaimer); the "This school year"
-range adds a cover sheet in front (write-in lines, totals by subject and course, the signature line); the
-detail pages are a `FlowPage` that `PrintView` renders as `.print-page.print-flow`, printed on the named
-`@page record` with 0.75in margins so sections A-C run on over as many sheets as they need, table headers
-repeating. Page 1's and the cover sheet's metrics are px in `index.css`, mirrored by `print.ts page1HeightPx`
-and `coverHeightPx`: the tests hold both under the sheet, and the cover lists each course only while the
-measured table fits (subject rows only past that). Rows on both are one line by CSS (`nowrap`, an
-ellipsis). The cover's "All courses" row has no time: per-course time is approximate over the whole
-period and is never summed into a rival to the time total. A record with no course and no activity
-prints page 1 alone. In a class or school a learner's own name check leaves out the grade, which only
-the teacher may set. TeacherView's "Print every learner's record" prints the same pages
-for each learner in the current view, one after another.
-
-**The learning record as spreadsheets (#258 PR 4).** Beside Save, "Save as spreadsheet (CSV)" writes the
-daily summary (`openedu-record-<name>-YYYY-MM.csv`, one row per local day per course), and with "Also save
-the detailed log" ticked a second file, the event log (`…-events.csv`, one row per event), each through its
-own Save dialog. `src/lib/record/csv.ts` works them out from the pieces the record itself is built from:
-`time.ts pointsIn` (the days tile's activity in the range), `build.ts courseSittings` (the record's
-per-course time) and the record's own quiz, mastered and without-proof rows. What is guaranteed (tested):
-the quiz rows, mastered skills, lessons, tutor messages and counted minutes add up to the record's; a
-course's approximate minutes over its days add up exactly to the record's minutes for that course (each
-sitting credited to the day it started, or the day it ended when the course shows nothing on the start
-day and the end day is not counted, then rounded by largest remainder) on days before counted time began;
-and the file's activity dates are the days tile's days (a quiz started before midnight and finished after
-it shows on both days). Not guaranteed: the minutes
-column does not add up to the record's approximate time total, because a sitting that moved between
-courses counts in each (the file says so); and the file can carry a day the tile does not count (a
-counted day with minutes but no activity). Every row says how it was made in `recorded_by`: raw times "stored when it happened", day
-totals and skill status changes "worked out from stored rows on <export date>". Tutor messages carry no
-text; self-explanations are cut to 500 characters. Minutes are never added across kinds: a counted day
-puts the learner's counted minutes on an "All courses" row (0 with a sentence saying why when none were
-stored), leaving the course rows' minutes empty, because `learner_days` never knew which course a minute
-was in. Both files go through `toCsv` and end with the full disclaimer in the widest text column. `export_save_csv` takes an optional dialog `title`
-(`dialog_title`, defaulting to the teacher overview's).
-
-**Saved months (#258 PR 5, migration 19).** When a month ends, each learner's record for it is saved in
-`monthly_records` (one row per learner per month), so deleting a course or regenerating a level later
-cannot rewrite it. `App.tsx` calls `db.ts saveEndedMonths()` in the background after the launch's learner
-list loads; it saves every ended month with activity that has no copy yet (`record/saved.ts monthsToSave`),
-never the current month, and `app_config record_saved_through` makes later launches that month read
-nothing (only an exact match skips, so a marker written while the clock was ahead cannot switch saving
-off; one learner's failure leaves the marker unset and the others saved). Nothing destructive compares
-with the current clock: each copy stores its month's bounds as they ran where it was saved (UTC) and the
-newest activity it saw. A copy is replaced only when it was saved before its stored month ended, or
-when the rows now hold activity inside that month newer than it saw (it was saved while the clock was
-ahead); a copy saved after its month ended can trip neither, and nothing is ever deleted. The clock
-only decides what is shown: a month's copy appears once that month has ended. Save and CSV of an ended month with no copy save one first. The body (`saved.ts SavedBody`) is
-the `LearningRecord` as built then (without the learner's name, grade and voice) plus the daily
-spreadsheet's rows: counts, titles, dates and statuses, the ids of the courses that had examples, the
-month's bounds and the newest activity it saw.
-It never holds the learner's own words (C2, B4's self-explanation) or B3's question/answer pairs:
-`saved.ts restoreSaved` reads those again from the rows still on record each time, so a deleted course
-leaves no learner text behind and, when one of the courses that had examples is gone, the record says
-"Examples from deleted courses are no longer on this computer." The learner's name, grade and voice, and each surviving course's subject label, are shown as
-they are now. The screen, the paper and the daily CSV all read the month through `saved.ts shownRecord` /
-`shownDays`, and say where it came from (H4): "Saved <date> from the activity on record then." or, for a
-past month with no copy, "Built <date> from the activity still on record." A school-year or
-since-you-started range is always built live, so its screen and paper header say "These totals are built
-from the activity still on this computer. A saved month can include courses deleted since." The event log is always
-read from the current rows and, for a saved month, says so in its last row. "Rebuild from current data"
-replaces a saved month after "This replaces the copy saved on <date>."; a learner's own record offers it
-only where Settings is not behind the teacher PIN. Deleting a learner deletes their saved months (ON
-DELETE CASCADE); deleting a course does not.
+**Tables kept from removed features.** The family, class and school features (usage modes, the teacher
+view and its CSV, learner groups, the K-1 early-learner screens and the learning record) now live only
+in TerraTutor, a separate commercial edition by TerraByte Solutions. Their migrations stay exactly as
+shipped, and so do their tables and rows: `app_config` (`usage_mode`, the teacher PIN,
+`record_capture_since`, `record_saved_through`), `learner_groups` and `learners.group_id` (14),
+`early_attempts` (16-17), `learner_days`, `learners.record_voice` / `record_year_start` and
+`courses.subject` (18) and `monthly_records` (19). OpenEdu no longer reads or writes them, except that
+deleting a learner still removes their rows (ON DELETE CASCADE). Migration 18's other columns ride on
+what the learner does, so OpenEdu keeps writing them: `quiz_questions.graded_by` (also read by the
+review pool and the accuracy heatmap, which leave out a timed-out test's unanswered questions),
+`quiz_attempts.passed` / `review_score`, `flashcard_reviews`, `subtopic_events` and `notes.origin`. Each
+is one insert or one more column beside a write the app makes anyway, and it keeps a learner's history
+complete if they later take their data elsewhere. Counted active minutes (`learner_days`) are no longer
+written: they came from a once-a-minute timer whose only reader was the learning record.
 
 ## Repo layout
 

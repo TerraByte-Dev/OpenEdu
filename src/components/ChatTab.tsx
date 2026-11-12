@@ -6,6 +6,7 @@ import {
 } from "../lib/db";
 import { deriveThreadTitle } from "../lib/thread-title";
 import { threadSwitchAbortsTurn, turnIsShown, turnLanding } from "../lib/turn-thread";
+import { transcriptLoader, type TranscriptLoader } from "../lib/thread-transcript";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode, getReadAloudAuto } from "../lib/store";
@@ -26,9 +27,17 @@ import { describeToolRequest } from "../lib/plain-language";
 const MathBlock = lazy(() => import("./MathBlock"));
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
+import { DictionaryCard } from "./DictionaryCard";
+import { dictionaryCard, cardStartsOpen, cardSpeech, type DictionaryCard as DictionaryCardData } from "../lib/dictionary-card";
+import { LIBRARY_NAME } from "../lib/product";
 
 // Models already reported as tool-less this session, so the DEV notice prints once per model.
 const toolsSuppressedLogged = new Set<string>();
+
+// The dictionary card for a tutor reply, by the reply's message id (#251 PR 3): the entry the tutor was
+// given on that turn (lib/dictionary-card.ts). Kept for this app session only: it is not saved, so
+// after a restart the reply shows without it. Never read when building a request.
+const dictionaryCards = new Map<string, DictionaryCardData>();
 
 interface ChatTabProps {
   courseId: string;
@@ -103,7 +112,15 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // student just sent.
   //
   // The send path claims the thread it creates, so this effect skips a thread already in state.
-  const loadedThreadRef = useRef<string | null | undefined>(undefined);
+  // The rules (and #270's StrictMode re-run) live in lib/thread-transcript.ts.
+  const transcriptRef = useRef<TranscriptLoader | null>(null);
+  transcriptRef.current ??= transcriptLoader(getChatMessages, (msgs) => {
+    setMessages(msgs);
+    setSuggestions([]);
+    setGroundingNote(null);
+    setToolEvents([]);
+  });
+  const transcript = transcriptRef.current;
 
   // The turn in flight and the thread it belongs to (null until a new conversation's thread exists).
   // A turn only touches the shared streaming state while it is the one here; see turn-thread.ts.
@@ -129,20 +146,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
   // Messages follow whichever thread the rail has open. A null thread is a not-yet-created
   // conversation (see the send path) and correctly shows an empty transcript.
-  useEffect(() => {
-    if (loadedThreadRef.current === threadId) return; // already showing it; do not re-fetch
-    loadedThreadRef.current = threadId;
-    let alive = true;
-    (async () => {
-      const msgs = threadId ? await getChatMessages(threadId) : [];
-      if (!alive) return;
-      setMessages(msgs);
-      setSuggestions([]);
-      setGroundingNote(null);
-      setToolEvents([]);
-    })();
-    return () => { alive = false; };
-  }, [threadId]);
+  useEffect(() => transcript.open(threadId), [threadId, transcript]);
 
   // Keep the local persona in sync if the course (or its persisted sprite) changes under us.
   useEffect(() => { setSpriteId(course.sprite_id ?? null); }, [course.id, course.sprite_id]);
@@ -257,12 +261,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       // reload that races this send. We already hold this thread's messages — there are none.
       // Skipped if the student opened another thread while this one was being created.
       if (turnOwnerRef.current === owner) {
-        loadedThreadRef.current = t.id;
+        transcript.claim(t.id);
         onThreadCreated(t.id);
       }
     }
     const thread = activeThread;
-    const shown = () => turnIsShown(thread, loadedThreadRef.current);
+    const shown = () => turnIsShown(thread, transcript.shown());
 
     // `messages` still holds the history from before this send.
     const studentAttempted = hasTriedOpenQuestion([...messages, { role: "user", content: userText }]);
@@ -375,9 +379,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       if (persisted !== null) {
         // Saved to the turn's own thread; shown and read aloud only per turnLanding (#246).
         const assistantMsg = await saveChatMessage(courseId, "assistant", persisted, level, activeThread);
+        if (result.dictionaryShown) dictionaryCards.set(assistantMsg.id, dictionaryCard(result.dictionaryShown));
         const landing = turnLanding({
           turnThread: thread,
-          shownThread: loadedThreadRef.current,
+          shownThread: transcript.shown(),
           interrupted: abandoned || controller.signal.aborted,
           autoRead,
         });
@@ -501,14 +506,27 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             {HEALTH_NOTICE}
           </div>
         )}
-        {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            reading={readAloud.speakingId === msg.id}
-            onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
-          />
-        ))}
+        {messages.map((msg) => {
+          const card = msg.role === "assistant" ? dictionaryCards.get(msg.id) : undefined;
+          const cardId = `dictionary:${msg.id}`;
+          return (
+            <div key={msg.id} className="space-y-2">
+              <MessageBubble
+                message={msg}
+                reading={readAloud.speakingId === msg.id}
+                onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
+              />
+              {card && (
+                <DictionaryCard
+                  card={card}
+                  startsOpen={cardStartsOpen(grade)}
+                  reading={readAloud.speakingId === cardId}
+                  onReadAloud={readAloud.supported ? () => readAloud.toggle(cardId, cardSpeech(card)) : undefined}
+                />
+              )}
+            </div>
+          );
+        })}
         {streaming && (
           <div className="flex gap-3">
             <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
@@ -780,7 +798,7 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
     if (ev.name === "library.search") {
       const v = ev.value as { found?: boolean; id?: string; title?: string } | undefined;
       if (!v?.found || !v.title) {
-        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔗 OpenEdu Library — no matching reference</div>;
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔗 {LIBRARY_NAME} — no matching reference</div>;
       }
       const clickable = !!(onOpenResource && v.id);
       const chipClass = `${base} bg-lcd border-phosphor/20 text-phosphor-ink ${clickable ? "cursor-pointer hover:border-phosphor/50 hover:text-phosphor-bright transition-colors" : ""}`;
@@ -791,11 +809,11 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
           </div>
           {clickable ? (
             <button type="button" onClick={() => onOpenResource!(v.id!)} title="Open in Resources" className={chipClass}>
-              🔗 OpenEdu Library: {v.title}
+              🔗 {LIBRARY_NAME}: {v.title}
             </button>
           ) : (
-            <span title="Cited from the OpenEdu Library" className={chipClass}>
-              🔗 OpenEdu Library: {v.title}
+            <span title={`Cited from the ${LIBRARY_NAME}`} className={chipClass}>
+              🔗 {LIBRARY_NAME}: {v.title}
             </span>
           )}
         </div>
@@ -806,10 +824,10 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
     if (ev.name === "library.lookup") {
       const v = ev.value as { found?: boolean; dataset?: string; title?: string; computed?: boolean; card_id?: string } | undefined;
       if (!v?.found || !v.title) {
-        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔎 OpenEdu Library — no matching record</div>;
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔎 {LIBRARY_NAME} — no matching record</div>;
       }
       const linkable = !!(onOpenResource && v.card_id);
-      const lbl = `${v.computed ? "🧮 Computed" : "🔗 OpenEdu Library"}: ${v.title}`;
+      const lbl = `${v.computed ? "🧮 Computed" : `🔗 ${LIBRARY_NAME}`}: ${v.title}`;
       const cls = `${base} bg-lcd border-phosphor/20 text-phosphor-ink ${linkable ? "cursor-pointer hover:border-phosphor/50 hover:text-phosphor-bright transition-colors" : ""}`;
       return (
         <div className="flex flex-col items-start gap-1.5">
@@ -819,7 +837,7 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
           {linkable ? (
             <button type="button" onClick={() => onOpenResource!(v.card_id!)} title="Open in Resources" className={cls}>{lbl}</button>
           ) : (
-            <span title="From the OpenEdu Library" className={cls}>{lbl}</span>
+            <span title={`From the ${LIBRARY_NAME}`} className={cls}>{lbl}</span>
           )}
         </div>
       );

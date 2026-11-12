@@ -69,16 +69,3 @@ export function autoReadAloud(grade: Grade | null, stored: boolean | null): bool
   return isEarlyReader(grade) && (stored ?? true);
 }
 
-/** K and grade 1: the learners who can have the early-learner screens (#244). */
-export function hasEarlyScreens(grade: Grade | null): boolean {
-  return grade === 0 || grade === 1;
-}
-
-/**
- * Whether this learner opens on the early-learner home instead of Home (#244). Only K-1 learners have
- * the setting; `stored` is the family's choice (null when never chosen), and it defaults to on. Every
- * other grade, and no grade, gets the regular Home.
- */
-export function earlyScreensOn(grade: Grade | null, stored: boolean | null): boolean {
-  return hasEarlyScreens(grade) && (stored ?? true);
-}

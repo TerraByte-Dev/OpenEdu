@@ -12,7 +12,9 @@ import {
 } from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
 import { Section, SettingRow, SecretField, SegmentedControl, INPUT_CLS, useSettings } from "../primitives";
+import ModelImport from "../../../components/ModelImport";
 import type { SectionProps } from "../types";
+import { APP_NAME } from "../../../lib/product";
 
 export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const { markSaved } = useSettings();
@@ -226,6 +228,24 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             <CloudModelChips models={CHAT_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={chatModel} onChange={commitChat} />
           )}
         </SettingRow>
+
+        {provider === "ollama" && (
+          <SettingRow
+            label="Import a model from a USB stick or folder"
+            help={`No internet needed. Choose a folder with a model copied from another computer (an ${APP_NAME} kit, an Ollama export, or a .gguf file with its Modelfile). When it's in, the tutor uses it.`}
+            keywords="import offline usb stick folder kit gguf modelfile export blobs manifests no internet"
+          >
+            <ModelImport
+              ollamaUrl={ollamaUrlValue}
+              onImported={(m) => {
+                setChatModelState(m);
+                markSaved();
+                void checkOllama();
+                onProviderChanged?.();
+              }}
+            />
+          </SettingRow>
+        )}
 
         <SettingRow
           label="Embedding model (Notebook)"

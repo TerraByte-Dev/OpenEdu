@@ -7,6 +7,7 @@ import {
   PERMISSION_ROWS, PERMISSION_PERSISTED_MODES, DEFAULT_PERMISSION_RULES,
   type PermissionDecision, type PermissionRules,
 } from "./permissions/rules";
+import { APP_NAME } from "./product";
 
 export const EXPORT_KIND = "openedu-settings";
 export const EXPORT_VERSION = 1;
@@ -63,7 +64,7 @@ export function parseSettingsExport(text: string): SettingsExport {
   try { parsed = JSON.parse(text); }
   catch { throw new Error("That file isn't valid JSON."); }
   const obj = parsed as Partial<SettingsExport>;
-  if (!obj || obj.kind !== EXPORT_KIND) throw new Error("Not an OpenEdu settings file.");
+  if (!obj || obj.kind !== EXPORT_KIND) throw new Error(`Not an ${APP_NAME} settings file.`);
   if (typeof obj.settings !== "object" || obj.settings === null || Array.isArray(obj.settings)) {
     throw new Error("Settings file is missing its settings block.");
   }

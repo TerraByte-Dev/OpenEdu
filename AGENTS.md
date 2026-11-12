@@ -7,11 +7,16 @@ update that doc in the same PR.
 
 ## What this is
 
-OpenEdu is an **off-the-grid AI tutor**: Tauri v2 + React 19 + TypeScript + SQLite, with a Rust backend in
+OpenEdu is an **off-the-grid AI tutor for one learner**: Tauri v2 + React 19 + TypeScript + SQLite, with a Rust backend in
 `src-tauri/`. It has to teach with the network unplugged, on small local models through Ollama
 (`qwen3.5:0.8b` is the smallest model the harness runs on; `gemma4:e4b` is verified end to end), from a
 shipped offline library plus (once the UI calls `src/lib/corpus.ts`) folders the user grants it. Cloud providers (OpenAI / Anthropic) are optional
 alternates, never a requirement. MIT-licensed, owned and maintained by TerraByte Solutions LLC (@TerraByte-Dev).
+
+Features for families, classes and schools (usage modes, a teacher view, learner groups, the K-1
+early-learner screens, the learning record) are out of scope here: they belong to TerraTutor, a separate
+commercial edition by TerraByte Solutions. An install that added learners in an earlier version keeps
+them behind the picker with their own PINs (`src/lib/learners.ts`); the app never adds a learner.
 
 ## Setup and commands
 

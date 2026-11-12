@@ -2,6 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { LLMProvider } from "../types";
 import { applyTheme } from "../lib/theme";
 import { useThemeState } from "../lib/useTheme";
+import { APP_NAME } from "../lib/product";
 
 const PROVIDER_LABEL: Record<LLMProvider, string> = {
   ollama: "Ollama",
@@ -19,7 +20,7 @@ interface TitlebarProps {
   provider: LLMProvider;
   /** Omitted while the learner picker is up: settings open from inside a learner's session. */
   onGoSettings?: () => void;
-  /** The active learner's name; the chip opens Switch / Add learner and the learner's own controls. */
+  /** The active learner's name, shown when there is a picker; the chip opens Switch learner and the learner's own controls. */
   learnerName?: string;
   onOpenLearner?: () => void;
 }
@@ -46,7 +47,7 @@ export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLe
           style={{ fontFamily: "var(--font-display)" }}
           data-tauri-drag-region
         >
-          OpenEdu
+          {APP_NAME}
         </span>
       </div>
 

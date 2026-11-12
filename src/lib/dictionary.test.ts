@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   candidateHeadwords,
+  DICTIONARY_CREDIT,
+  DICTIONARY_LICENCES,
+  readLicence,
   lookupWord,
   normalizeQuery,
   resetDictionaryCache,
@@ -207,5 +210,31 @@ describe("lookupWord over the shipped dictionary", () => {
     expect(calls.filter((c) => c === "ba.json")).toHaveLength(1);
     expect(calls.filter((c) => c === "exceptions.json")).toHaveLength(1);
     expect(calls.filter((c) => c === "meta.json")).toHaveLength(1);
+  });
+});
+
+describe("the in-app credit (#255)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is the credit line About shows, naming the edition that ships", () => {
+    expect(DICTIONARY_CREDIT).toBe("Dictionary: adapted from Open English WordNet 2025 (CC BY 4.0), derived from Princeton WordNet 3.1.");
+    expect(DICTIONARY_CREDIT).toContain(`Open English WordNet ${JSON.parse(read("meta.json")).edition} `);
+    expect(read("WNDB_License.txt")).toMatch(/WordNet 3\.1 Copyright/);
+  });
+
+  it("lists the licence texts that ship in public/dictionary/", () => {
+    expect(DICTIONARY_LICENCES.map((l) => l.file)).toEqual(["LICENSE.md", "WNDB_License.txt"]);
+    for (const l of DICTIONARY_LICENCES) expect(read(l.file), l.file).toBeTruthy();
+  });
+
+  it("reads a licence text from the app's own files, and treats the SPA fallback as missing", async () => {
+    vi.stubGlobal("fetch", async (url: string) => {
+      const text = read(url.split("/").pop()!);
+      return text === undefined
+        ? new Response("<!doctype html><html></html>", { status: 200, headers: { "content-type": "text/html" } })
+        : new Response(text, { status: 200, headers: { "content-type": "text/plain" } });
+    });
+    expect(await readLicence("WNDB_License.txt")).toBe(read("WNDB_License.txt"));
+    await expect(readLicence("NOPE.txt")).rejects.toThrow(/not found/);
   });
 });

@@ -24,7 +24,7 @@ import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
 import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
-import { askedWord, lookupDictionaryNote, withDictionaryNote } from "./defineWord";
+import { askedWord, lookupDictionary, withDictionaryNote, type DictionaryShown } from "./defineWord";
 import { lookupWord } from "../dictionary";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
@@ -89,6 +89,9 @@ export interface TutorTurnResult {
   // The dictionary entry and note this turn appended to the student's message, or null for none (not a
   // meaning question, the word not in the dictionary, a failed lookup, another note's turn, or "off").
   dictionaryNote: string | null;
+  // The entry that note was built from, exactly the senses in it (defineWord.ts shownEntry), for the
+  // chat's dictionary card; null whenever dictionaryNote is null. Not part of the request.
+  dictionaryShown: DictionaryShown | null;
   // Set when Ollama could not parse a tool call the model wrote (OllamaToolCallParseError in llm.ts)
   // and the kernel answered the turn with one call without tools instead of failing it. `iteration`
   // is the model call that failed (0 = the first); `error` is Ollama's own error text. Null on every
@@ -160,7 +163,7 @@ export class TutorEngine {
     const newest = messages[messages.length - 1];
     const asked = newest?.role === "user" ? askedWord(newest.content) : null;
     const dictionaryLookup = asked && !firstTurnHold && !checkBeforePraise && turn.dictionary !== "off"
-      ? lookupDictionaryNote(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
+      ? lookupDictionary(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
       : Promise.resolve(null);
 
     const eduTools = await selectTools(ctx);
@@ -227,7 +230,8 @@ ${lastUser.content}` };
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withCheckBeforePraise(messages[idx].content) };
     }
-    const dictionaryNote = await dictionaryLookup;
+    const dictionary = await dictionaryLookup;
+    const dictionaryNote = dictionary?.note ?? null;
     if (dictionaryNote) {
       // Same place as the other notes: after the grounding block and the student's text.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
@@ -239,7 +243,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote });
+      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -261,6 +265,7 @@ ${lastUser.content}` };
       firstTurnHold: boolean;
       askedWord: string | null;
       dictionaryNote: string | null;
+      dictionaryShown: DictionaryShown | null;
     },
   ): Promise<TutorTurnResult> {
     const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, dictionaryNote } = prepared;
@@ -406,6 +411,7 @@ ${lastUser.content}` };
       firstTurnHold,
       askedWord: prepared.askedWord,
       dictionaryNote,
+      dictionaryShown: prepared.dictionaryShown,
       toolCallRecovery,
     };
   }

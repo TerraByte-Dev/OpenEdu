@@ -98,7 +98,7 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
 
 ### B5. Grading correctness (quiz and free-text grader vs gold labels)
 - **Measures:** for each (question, key, student answer), whether the grader's verdict matches the gold verdict. Report **false accept** (wrong answer marked right; teaches the error) and **false reject** (right answer marked wrong; discourages the learner) separately, for (a) the deterministic path in `quiz-grading.ts`/`steps/checkers.ts` and (b) the LLM batch grader and verify pass.
-- **Why:** class and school profiles aggregate these grades into mastery and reports. A grader error compounds there.
+- **Why:** grades feed mastery and promotion, so a grader error compounds there (and in TerraTutor's reports, which aggregate them).
 - **Current:** **not measured.** There are only unit tests (58 cases in `quiz-grading.test.ts`, plus `steps` tests). Item-key integrity is measured: V1 groundedness holds by construction on harvested items, and P3 units clear the pool law with 0 gate rejections.
 - **Gold set to build:** ≥ 300 triples across numeric, short text, multilingual, units and paraphrase. Student answers are written by two people blind to the grader (correct-paraphrase, numeric-equivalent, near-miss, wrong), with two independent gold labels and κ reported. Split dev/test with a sealed hash.
 - **Bar:** deterministic path false accept = 0, which is a reasonable 100% target because it never returns `false` and only accepts confident matches. LLM path: false accept ≤ 3%, false reject ≤ 10% on e2b. Also report the share settled without a model.
@@ -255,9 +255,9 @@ Headline we could defend after the program, with every number from sealed sets r
 
 ---
 
-## Usage modes as a benchmark parameter
+## Deployment setting as a benchmark parameter
 
-The usage mode (just me / a class / a school or center, #174) should be an input to B3/B4 and B7, so each setting gets its own benchmark run:
+OpenEdu is for one learner; usage modes (just me / a class / a school or center, #174) left it on 2026-11-12 and live in TerraTutor, the separate commercial edition. The setting still matters to these benchmarks wherever the harness is deployed, so it should be an input to B3/B4 and B7, with a run per setting:
 - **Attempt-first strictness:** lenient for one self-study learner; strict reveal-after-attempt, possibly teacher-controlled, for a class or school. Run k12-flow once per policy and report each.
 - **Grading stakes:** class and school profiles aggregate B5 grades into mastery reports, so B5's false-accept bar should be tighter for those profiles.
 - **Concurrency:** a school box may serve several students at once. B7 needs a concurrent-sessions row (`OLLAMA_NUM_PARALLEL`, 2–4 sessions) for the school profile.
