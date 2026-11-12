@@ -5,7 +5,7 @@
 
 import type { Subtopic } from "../types";
 
-const MASTERY_THRESHOLD = 0.9;
+export const MASTERY_THRESHOLD = 0.9;
 
 // Returns a NEW object only when something changed (so callers can detect a no-op by reference).
 // `review_needed` never demotes `mastered`: a previously-mastered subtopic that slips on review is
