@@ -7,7 +7,8 @@
 //
 // From a terminal: EVAL_SUITE=define npm run eval (headless/run.ts; options in headless/README.md). Two
 // arms at one commit: EVAL_DICTIONARY=off (B, no note) and unset (D, the app's behaviour). Compare them
-// offline with headless/define-compare.ts.
+// offline with headless/define-compare.ts. Lever 19 adds EVAL_SENSE_RANK=off (S: the note's senses in
+// stored order, lever 18 as shipped); unset, the senses are ranked by the student's sentence (R).
 
 import { tutorEngine } from "../kernel";
 import type { ToolContext } from "../tools";
@@ -23,6 +24,12 @@ import { DEFINE_GROUPS, gradeDefine, inGroup, type DefineGrade, type DefineGroup
 import { wilson95 } from "./k12-fixture";
 import type { GradeBand } from "../grade";
 import type { ModelTier } from "../../types";
+import type { Blind19Kind } from "./blind19";
+
+/** What the runner needs of an item: B8's items (graded by define-grade.ts), or blind-19's (lever 19,
+ *  no term lists: graded only by the two blind model graders, so their rows carry grade null). */
+export type DefineRunItem = Pick<DefineItem, "id" | "band" | "ask" | "word"> & { kind: DefineKind | Blind19Kind; expect?: string[] };
+export type DefineRunSplit = DefineSplit | "blind-19";
 
 /** The course topic: a word question is an English question. Frozen with the pre-registration. */
 export const DEFINE_TOPIC = "English Language Arts";
@@ -42,8 +49,8 @@ export function defineTurnSetup(band: GradeBand, tier: ModelTier, supportsTools:
 export interface DefineRow {
   id: string;
   band: GradeBand;
-  kind: DefineKind;
-  split: DefineSplit;
+  kind: DefineKind | Blind19Kind;
+  split: DefineRunSplit;
   repeat: number;
   ask: string;
   /** The kernel's own report: the word it detected, and the entry + note it appended (null for none). */
@@ -61,7 +68,8 @@ export interface DefineRow {
    *  wire; the define runner is headless-only. */
   chatRequests: number;
   structuredRequests: number;
-  /** Set for an ERROR row (no reply after MAX_ATTEMPTS); `grade` is then null. */
+  /** Set for an ERROR row (no reply after MAX_ATTEMPTS); `grade` is then null. A blind-19 row has no
+   *  lexical grade either: `error` null and `grade` null. */
   error: string | null;
   ttftMs: number | null;
   totalMs: number;
@@ -76,7 +84,9 @@ export interface DefineReport {
   contextTokens: number;
   supportsTools: boolean;
   dictionary: "on" | "off";
-  split: DefineSplit;
+  /** Lever 19: "off" is arm S (stored order), "on" the ranker. */
+  senseRank: "on" | "off";
+  split: DefineRunSplit;
   repeats: number;
   /** True for anything short of every item of the split. A partial run is not a result. */
   partial: boolean;
@@ -124,7 +134,8 @@ export function summarizeDefine(rows: readonly DefineRow[], repeats: number): De
   const out: DefineSummaryCell[] = [];
   for (let repeat = 0; repeat < repeats; repeat++) {
     for (const group of DEFINE_GROUPS) {
-      const sel = rows.filter((r) => r.repeat === repeat && inGroup(byId.get(r.id)!, group));
+      // B8's groups only: blind-19 rows have no lexical grade and no group.
+      const sel = rows.filter((r) => r.repeat === repeat && byId.has(r.id) && inGroup(byId.get(r.id)!, group));
       const k = sel.filter((r) => r.grade && (group.endsWith("-strict") ? r.grade.passStrict : r.grade.pass)).length;
       out.push({ group, repeat, k, n: sel.length, wilson: wilson95(k, sel.length) });
     }
@@ -148,15 +159,16 @@ export function selectDefineItems(split: DefineSplit, only?: string): DefineItem
  * caller.
  */
 export async function runDefineItems(
-  items: readonly DefineItem[],
-  opts: { split: DefineSplit; dictionary: "on" | "off"; repeats: number; onRows?: (rows: DefineRow[]) => void },
+  items: readonly DefineRunItem[],
+  opts: { split: DefineRunSplit; dictionary: "on" | "off"; senseRank?: "on" | "off"; repeats: number; onRows?: (rows: DefineRow[]) => void },
 ): Promise<DefineReport> {
   const setup = await k12FlowSetup();
   const { config, profile, contextTokens } = setup;
   await assertLibraryGuards();
   const total = items.length * opts.repeats;
   const errorLimit = Math.floor(0.02 * total) + 1;
-  console.log(`[define] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} dictionary=${opts.dictionary} · ${opts.split} · ${items.length} item(s) × ${opts.repeats}`);
+  const senseRank = opts.senseRank ?? "on";
+  console.log(`[define] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} dictionary=${opts.dictionary} senseRank=${senseRank} · ${opts.split} · ${items.length} item(s) × ${opts.repeats}`);
 
   // Warm-up, unscored: a cold model load can outlast the first-byte timeout.
   await watched(async (signal) => {
@@ -186,6 +198,7 @@ export async function runDefineItems(
                 config,
                 retrieval: "always",
                 dictionary: opts.dictionary,
+                senseRank,
                 onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
               },
               {
@@ -203,7 +216,7 @@ export async function runDefineItems(
               reply: result.text, stopReason: result.stopReason, attempts: attempt,
               toolCalls: result.toolCalls.map(({ name, ok }) => ({ name, ok })), toolCallRecovery: result.toolCallRecovery,
               ...sent(), error: null,
-              ttftMs, totalMs: Date.now() - started, grade: gradeDefine(item, result.text),
+              ttftMs, totalMs: Date.now() - started, grade: item.expect ? gradeDefine(item as DefineItem, result.text) : null,
             };
           } catch (e) {
             lastError = e instanceof Error ? e.message : String(e);
@@ -216,7 +229,7 @@ export async function runDefineItems(
         };
         rows.push(row);
         const g = row.grade;
-        console.log(`[define] r${repeat} ${item.id.padEnd(13)} ${g ? `${g.pass ? "PASS" : "fail"}${item.kind === "sense" ? `/${g.passStrict ? "PASS" : "fail"}` : ""}` : "ERROR"} note ${row.dictionaryNote ? `${row.noteTokens} tok` : "-"} · ttft/total ms ${row.ttftMs ?? "-"}/${row.totalMs}`);
+        console.log(`[define] r${repeat} ${item.id.padEnd(13)} ${row.error ? "ERROR" : g ? `${g.pass ? "PASS" : "fail"}${item.kind === "sense" ? `/${g.passStrict ? "PASS" : "fail"}` : ""}` : "done"} note ${row.dictionaryNote ? `${row.noteTokens} tok` : "-"} · ttft/total ms ${row.ttftMs ?? "-"}/${row.totalMs}`);
         const errors = rows.filter((r) => r.error).length;
         if (errors >= errorLimit) throw new DefineAbort(`VOID RUN — ${errors} ERROR rows of ${total} turns (limit ${errorLimit}) at ${item.id}. Discard it whole.`);
       }
@@ -232,9 +245,11 @@ export async function runDefineItems(
     contextTokens,
     supportsTools: profile.supportsTools,
     dictionary: opts.dictionary,
+    senseRank,
     split: opts.split,
     repeats: opts.repeats,
-    partial: items.length !== DEFINE_ITEMS.filter((i) => DEFINE_SPLIT[i.id] === opts.split).length,
+    // blind-19 always runs whole (EVAL_ONLY is refused on it).
+    partial: opts.split === "blind-19" ? false : items.length !== DEFINE_ITEMS.filter((i) => DEFINE_SPLIT[i.id] === opts.split).length,
     detected: rows.filter((r) => !r.error && r.askedWord?.toLowerCase() === byId.get(r.id)!.word).length,
     noted: rows.filter((r) => r.dictionaryNote).length,
     errors,

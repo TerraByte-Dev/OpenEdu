@@ -94,4 +94,33 @@ describe("define arms through the headless kernel", () => {
     expect(arms.on.chats[0][0].content).toContain("The student is in grade 2.");
     expect(arms.on.chats[1][0].content).toContain("The student is in grade 4.");
   });
+
+  it("lever 19: S (EVAL_SENSE_RANK=off) and R send the same request for a plain item, and differ only in the entry's order for trunk", async () => {
+    const items = DEFINE_ITEMS.filter((i) => i.id === "def-k2-01" || i.id === "sense-k2-07");
+    const sent: Record<"on" | "off", Msg[][]> = { on: [], off: [] };
+    const reports: Record<"on" | "off", DefineReport> = {} as never;
+    for (const senseRank of ["off", "on"] as const) {
+      chats = [];
+      reports[senseRank] = await runDefineItems(items, { split: "dev", dictionary: "on", senseRank, repeats: 1 });
+      sent[senseRank] = chats;
+    }
+    expect(reports.off.senseRank).toBe("off");
+    expect(reports.on.senseRank).toBe("on");
+    expect(sent.on[0]).toEqual(sent.off[0]);
+    const [s, r] = [sent.off[1], sent.on[1]];
+    expect(r.slice(0, -1)).toEqual(s.slice(0, -1));
+    expect(r[r.length - 1].content).not.toBe(s[s.length - 1].content);
+    expect(r[r.length - 1].content).toMatch(/1\. trunk \(noun\): a long flexible snout/);
+    expect(s[s.length - 1].content).not.toMatch(/snout/);
+  }, 30_000);
+
+  it("runs a blind-19 item (lever 19): no term lists, so no lexical grade, and the run is whole", async () => {
+    const item = { id: "b19-k2-L-01", band: "K-2" as const, kind: "L" as const, word: "pupil", ask: "what does pupil mean in 'the pupil of her eye got smaller'" };
+    const report = await runDefineItems([item], { split: "blind-19", dictionary: "on", repeats: 1 });
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]).toMatchObject({ id: item.id, kind: "L", split: "blind-19", error: null, grade: null, askedWord: "pupil" });
+    expect(report.rows[0].dictionaryNote).toMatch(/^<dictionary_entry/);
+    expect(report).toMatchObject({ partial: false, detected: 1, noted: 1, errors: 0 });
+    expect(report.summary.every((c) => c.n === 0)).toBe(true);
+  }, 30_000);
 });

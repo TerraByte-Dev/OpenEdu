@@ -30,7 +30,8 @@ import { parseEvalEnv, storeValuesFor, defaultOutPath, sealedGitRefusal, type Ev
 import { cwd, path, writeText, gitState, mainCheckout, shell } from "./node-io";
 import { ollamaRunInfo } from "./ollama-info";
 import { runB7, type B7Result } from "./latency";
-import { DefineAbort, runDefineItems, selectDefineItems, summarizeDefine, type DefineReport, type DefineRow } from "../define-runner";
+import { DefineAbort, runDefineItems, selectDefineItems, summarizeDefine, type DefineReport, type DefineRow, type DefineRunItem, type DefineRunSplit } from "../define-runner";
+import { loadItems } from "./blind19-script-lib";
 import type { DefineSplit } from "../define-items";
 
 export interface HeadlessResult {
@@ -55,17 +56,18 @@ export async function runHeadlessEval(env: Record<string, string | undefined>): 
   // Pick the k12-flow items before anything is seeded: a bad EVAL_ONLY id fails fast.
   const flowItems = o.suite === "k12-flow" ? selectK12FlowItems(K12_ITEMS, o) : null;
   const frItems = o.suite === "k12-flow-fr" ? selectK12FlowItems(K12_FR_ITEMS, o) : null;
-  const defineItems = o.suite === "define" ? selectDefineItems(o.set as DefineSplit, o.only) : null;
+  const defineItems = o.suite !== "define" ? null : o.set === "blind-19" ? await loadItems() : selectDefineItems(o.set as DefineSplit, o.only);
   const git = await gitState();
   // The define test split is run once, at a committed state, per its pre-registration (BENCHMARKS.md
   // lever 18): refuse uncommitted src/ so the commit in the results file is what ran.
-  if (o.suite === "define" && o.set === "test" && git.srcDirty !== false) {
-    throw new Error("Refusing the define test split: src/ has uncommitted changes (or git state could not be read). Commit first; the results file names the commit.");
+  const heldOut = o.suite === "define" && (o.set === "test" || o.set === "blind-19");
+  if (heldOut && git.srcDirty !== false) {
+    throw new Error("Refusing the define test split or blind-19: src/ has uncommitted changes (or git state could not be read). Commit first; the results file names the commit.");
   }
   // The shown entries come from public/dictionary/, outside src/: a local edit there would change the
   // treatment arm without changing the commit the results file names.
-  if (o.suite === "define" && o.set === "test" && (await shell("git status --porcelain -- public/dictionary")) !== "") {
-    throw new Error("Refusing the define test split: public/dictionary/ has uncommitted changes (or git could not be read).");
+  if (heldOut && (await shell("git status --porcelain -- public/dictionary")) !== "") {
+    throw new Error("Refusing the define test split or blind-19: public/dictionary/ has uncommitted changes (or git could not be read).");
   }
   // Rule 4 before the set is touched: reading it burns it.
   const refusal = o.set === "sealed" ? sealedGitRefusal(git) : null;
@@ -201,8 +203,8 @@ async function runFlowFr(items: typeof K12_FR_ITEMS, o: EvalOptions, write: (bod
 }
 
 // define through its runner. A void run (DefineAbort) still writes its rows and summary before it throws.
-async function runDefine(items: ReturnType<typeof selectDefineItems>, o: EvalOptions, write: (body: object) => Promise<void>): Promise<DefineReport> {
-  const opts = { split: o.set as DefineSplit, dictionary: o.dictionary ?? "on", repeats: o.repeats };
+async function runDefine(items: readonly DefineRunItem[], o: EvalOptions, write: (body: object) => Promise<void>): Promise<DefineReport> {
+  const opts = { split: o.set as DefineRunSplit, dictionary: o.dictionary ?? "on", senseRank: o.senseRank ?? "on", repeats: o.repeats };
   let log: DefineRow[] = [];
   try {
     const report = await runDefineItems(items, { ...opts, onRows: (rows) => { log = rows; } });

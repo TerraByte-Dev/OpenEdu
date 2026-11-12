@@ -23,6 +23,8 @@ export interface Saved {
   model: string;
   split: DefineSplit;
   dictionary: "on" | "off";
+  /** Absent in files written before lever 19 (they ran with stored order). */
+  senseRank?: "on" | "off";
   repeats: number;
   partial: boolean;
   void?: boolean;
@@ -35,13 +37,16 @@ export interface Saved {
 export function compareRefusals(b: Saved, d: Saved): string[] {
   const why: string[] = [];
   if (b.suite !== "define" || d.suite !== "define") why.push("not define results files");
-  if (b.dictionary !== "off" || d.dictionary !== "on") why.push("DEFINE_B must be the EVAL_DICTIONARY=off arm and DEFINE_D the note arm");
+  // Lever 18: B (no note) against D (the note). Lever 19 on B8 (dev, in-sample): S (EVAL_SENSE_RANK=off)
+  // as DEFINE_B against R (the ranker) as DEFINE_D, both with the note.
+  const lever19 = b.dictionary === "on" && d.dictionary === "on" && b.senseRank === "off" && d.senseRank === "on";
+  if (!lever19 && (b.dictionary !== "off" || d.dictionary !== "on")) why.push("DEFINE_B must be the EVAL_DICTIONARY=off arm and DEFINE_D the note arm (or, for lever 19, DEFINE_B the EVAL_SENSE_RANK=off arm and DEFINE_D the ranked arm)");
   if (!b.commit || !d.commit) why.push("a file has no commit");
   else if (b.commit !== d.commit) why.push(`different commits (${b.commit} vs ${d.commit})`);
   if (b.model !== d.model) why.push(`different models (${b.model} vs ${d.model})`);
   if (b.split !== d.split) why.push(`different splits (${b.split} vs ${d.split})`);
   // Everything but the arm switch, the output path and the timestamps must match.
-  const opts = (s: Saved) => JSON.stringify({ ...s.options, dictionary: undefined, out: undefined });
+  const opts = (s: Saved) => JSON.stringify({ ...s.options, dictionary: undefined, senseRank: undefined, out: undefined });
   if (b.options && d.options && opts(b) !== opts(d)) why.push("different run options");
   if (b.split === "test") {
     if (b.partial || d.partial || b.only || d.only) why.push("a partial run on the test split is not a result");

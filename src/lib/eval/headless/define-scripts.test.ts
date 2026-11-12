@@ -17,6 +17,12 @@ const SCRIPTS: Array<[string, RegExp]> = [
   ["define-label-sheet.ts", /Set DEFINE_LABEL_FILES/],
   ["define-label-grader2.ts", /Usage: define-label-grader2\.ts/],
   ["define-kappa.ts", /Usage: define-kappa\.ts/],
+  // No model argument: no request is made (blind19.ts throws before any fetch).
+  ["blind19-generate.ts", /Usage: blind19-generate\.ts/],
+  ["blind19-sheet.ts", /Set BLIND19_RUNS/],
+  ["blind19-cost.ts", /Set BLIND19_SHEETS/],
+  ["blind19-compare.ts", /Set BLIND19_RUNS/],
+  ["newly-reachable.ts", /Usage: newly-reachable\.ts/],
 ];
 
 describe("define scripts run under vite-node", () => {
@@ -24,7 +30,7 @@ describe("define scripts run under vite-node", () => {
     const cp = await load<ChildProcess>("node:child_process");
     const proc = (globalThis as unknown as { process: Proc }).process;
     // No inputs: drop every variable these scripts read.
-    const env = Object.fromEntries(Object.entries(proc.env).filter(([k]) => !/^(DEFINE_|OPENAI_API_KEY$)/.test(k)));
+    const env = Object.fromEntries(Object.entries(proc.env).filter(([k]) => !/^(DEFINE_|BLIND19_|OPENAI_API_KEY$|OPENROUTER_API_KEY$)/.test(k)));
     const r = cp.spawnSync(proc.execPath, ["node_modules/vite-node/vite-node.mjs", `src/lib/eval/headless/${script}`], { encoding: "utf8", env, timeout: 60_000, cwd: proc.cwd() });
     expect(r.status, `${script}: ${r.stdout}\n${r.stderr}`).not.toBe(0);
     expect(r.status).not.toBeNull();

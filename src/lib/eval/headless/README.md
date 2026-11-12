@@ -35,6 +35,7 @@ from environment variables.
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
 | `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
 | `EVAL_DICTIONARY` | `on` | define only. `off` sends no dictionary note (`src/lib/kernel/defineWord.ts`), so the paired baseline runs at the same commit. Each row still records the word the detector read (`askedWord`); `dictionaryNote` is the entry and note the turn appended (null for none). The app never sets it. Refused with every other suite: their messages never fire the detector (`../define-false-fires.test.ts`). |
+| `EVAL_SENSE_RANK` | `on` | define only (lever 19). `off` keeps each headword's senses in stored order, lever 18 as shipped: arm S, at the same commit as the ranked arm (R on `blind-19`, D on B8's splits). The results file records `senseRank` and the default name carries `-S-` or `-R-`. The app never sets it. |
 | `EVAL_B7_SERVER_LOG` | (none) | `b7-cpu` only. The CPU server's log file, read for the thread count its runner started with (Ollama has no API for it). |
 | `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
@@ -171,6 +172,23 @@ items of the group whose clause fired) and pass one model's B and D test files: 
 every non-ERROR row of those items in both arms. `define-kappa.ts` reads it only when both exports answer every row,
 and prints the item verdicts with grader 1 deciding each row (a missing repeat fails), the both-graders-agree reading as a sensitivity line, kappa between the graders and every
 disagreement.
+
+### blind-19 (lever 19)
+
+`EVAL_SET=blind-19` runs lever 19's held-out set (`docs/BENCHMARKS.md` B8 "Lever 19") from
+`src/lib/eval/blind-19/items.json`, with the test split's rules: `EVAL_REPEATS=3`, no `EVAL_ONLY`, and a
+clean `src/` and `public/dictionary/`. Its rows have no term lists, so `grade` is null; both blind model
+graders read every row. The set does not exist until the ranker's hash is committed.
+
+| Step | Command |
+|---|---|
+| Generate the set (once) | `run-with-secrets npx vite-node src/lib/eval/headless/blind19-generate.ts -- openai/gpt-6.1-sol` (everything it does is in `../blind19.ts`; it takes no argument but the model and makes no request without it) |
+| Build a sheet and its hidden key | `$env:BLIND19_RUNS = "<S file>,<R file>"; $env:BLIND19_SHEET = "<id>"; npx vite-node src/lib/eval/headless/blind19-sheet.ts`. `BLIND19_CANARY=1` on the gemma4:e2b S and R sheet only (its 20 canary rows); `BLIND19_ONLY_CHANGED=1` keeps the changed items (R8 step 2). A B run goes on a sheet of its own. |
+| Price every sheet first (R8) | `$env:BLIND19_SHEETS = "<sheet.html>,..."; $env:BLIND19_PRICE = "<grader 1 model>=<in>/<out>,<grader 2 model>=<in>/<out>"; $env:BLIND19_CREDIT = "<USD>"; npx vite-node src/lib/eval/headless/blind19-cost.ts` |
+| Both graders | `define-label-grader2.ts`, unchanged, with `DEFINE_GRADER_SLOT` 1 and 2. Run again with the same output file to resume: answered rows are kept. |
+| The changed list (once, before any run) | `npx vite-node src/lib/eval/headless/blind19-changed.ts` writes `src/lib/eval/blind-19/changed.json` from the committed items, through the kernel's own functions (`../blind19-changed.ts`); commit it before any reply exists. |
+| The newly reachable senses (R1 b) | `npx vite-node src/lib/eval/headless/newly-reachable.ts -- <out.tsv>`: every sense the filter keeps that lever 18's caps never show, each headword typed as itself (`define-safety.test.ts` pins the count). |
+| Judge | `$env:BLIND19_RUNS = "<every S, R and B file>"; $env:BLIND19_GRADED = "<key>|<grader 1>|<grader 2>,..."; $env:BLIND19_SAFETY_READ = "<the newly-reachable read's record>"; npx vite-node src/lib/eval/headless/blind19-compare.ts` reads row 19's kill rule (`../blind19-grade.ts`): the gate with its canary, every harm and other-models clause three ways on the changed subset, and the accuracy reading. |
 
 ## b7-cpu: latency on a CPU
 

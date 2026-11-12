@@ -99,6 +99,25 @@ describe("parseEvalEnv, define", () => {
     expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_DICTIONARY: "no" })).toThrow(/EVAL_DICTIONARY=no: use on or off/);
     expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_LIMIT: "5" })).toThrow(/EVAL_LIMIT applies to k12-flow only/);
   });
+  it("runs blind-19 (lever 19) as a held-out set: define only, whole, at 3 repeats", () => {
+    expect(parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: "blind-19", EVAL_REPEATS: "3" })).toMatchObject({ set: "blind-19", repeats: 3 });
+    expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: "blind-19", EVAL_REPEATS: "3", EVAL_ONLY: "b19-k2-L-01" })).toThrow(/EVAL_ONLY is not allowed on the define blind-19 set/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: "blind-19" })).toThrow(/blind-19 set runs EVAL_REPEATS=3/);
+    for (const suite of ["rag", "k12-flow", "b7-cpu"]) expect(() => parseEvalEnv({ EVAL_SUITE: suite, EVAL_SET: "blind-19" })).toThrow(/EVAL_SET=blind-19 is the define suite's held-out set/);
+  });
+  it("takes EVAL_SENSE_RANK (lever 19) on define only, default on, and names arms S and R", () => {
+    expect(parseEvalEnv({ EVAL_SUITE: "define" }).senseRank).toBe("on");
+    expect(parseEvalEnv({ EVAL_SUITE: "define", EVAL_SENSE_RANK: "off" }).senseRank).toBe("off");
+    expect(parseEvalEnv({}).senseRank).toBeUndefined();
+    expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_SENSE_RANK: "no" })).toThrow(/EVAL_SENSE_RANK=no: use on or off/);
+    for (const suite of ["rag", "k12-flow", "b7-cpu"]) expect(() => parseEvalEnv({ EVAL_SUITE: suite, EVAL_SENSE_RANK: "off" })).toThrow(/EVAL_SENSE_RANK applies to define only/);
+    const at = new Date("2026-11-12T10:20:30.456Z");
+    const b19 = { EVAL_SUITE: "define", EVAL_SET: "blind-19", EVAL_REPEATS: "3" };
+    expect(defaultOutPath(parseEvalEnv({ ...b19, EVAL_SENSE_RANK: "off" }), at)).toBe(".dev/eval-runs/2026-11-12T10-20-30-456-define-blind-19-S-gemma4_e2b.json");
+    expect(defaultOutPath(parseEvalEnv(b19), at)).toBe(".dev/eval-runs/2026-11-12T10-20-30-456-define-blind-19-R-gemma4_e2b.json");
+    expect(defaultOutPath(parseEvalEnv({ ...b19, EVAL_DICTIONARY: "off" }), at)).toBe(".dev/eval-runs/2026-11-12T10-20-30-456-define-blind-19-B-gemma4_e2b.json");
+    expect(defaultOutPath(parseEvalEnv({ EVAL_SUITE: "define", EVAL_SENSE_RANK: "off" }), at)).toBe(".dev/eval-runs/2026-11-12T10-20-30-456-define-dev-S-gemma4_e2b.json");
+  });
   it("keeps EVAL_DICTIONARY to define, and leaves the other suites' options without it", () => {
     for (const suite of ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"]) expect(() => parseEvalEnv({ EVAL_SUITE: suite, EVAL_DICTIONARY: "off" })).toThrow(/EVAL_DICTIONARY applies to define only/);
     expect(parseEvalEnv({}).dictionary).toBeUndefined();
