@@ -17,6 +17,10 @@
 // Route: OpenAI's own API by default. DEFINE_GRADER2_ROUTE=openrouter sends the same request to
 // OpenRouter's OpenAI-compatible endpoint, with OPENROUTER_API_KEY and the model named "openai/<id>":
 // still an OpenAI model, reached through another account. The export's grader field records the route.
+//
+// Grader 1 (BENCHMARKS.md B8, amendment of 2026-11-11: no human grader): DEFINE_GRADER_SLOT=1 sends the
+// same request, word for word, to a Claude model through OpenRouter (DEFINE_GRADER2_ROUTE=openrouter,
+// the model named "anthropic/<id>"). Only the vendor check changes; the prompt, schema and rules do not.
 
 import { grader2Request, sheetData } from "./define-script-lib";
 import type { LabelExport } from "../define-label";
@@ -30,7 +34,9 @@ async function main(): Promise<void> {
   const model = e.DEFINE_GRADER2_MODEL;
   if (!model) throw new Error("Set DEFINE_GRADER2_MODEL to the OpenAI model to use (checked against OpenAI's docs at run time).");
   const viaOpenRouter = e.DEFINE_GRADER2_ROUTE === "openrouter";
-  if (viaOpenRouter && !model.startsWith("openai/")) throw new Error('Through OpenRouter the model must be an OpenAI one, named "openai/<id>".');
+  const slot1 = e.DEFINE_GRADER_SLOT === "1";
+  if (slot1 && (!viaOpenRouter || !model.startsWith("anthropic/"))) throw new Error('Grader 1 is a Claude model through OpenRouter: DEFINE_GRADER2_ROUTE=openrouter and a model named "anthropic/<id>".');
+  if (viaOpenRouter && !slot1 && !model.startsWith("openai/")) throw new Error('Through OpenRouter grader 2 must be an OpenAI model, named "openai/<id>".');
   const keyName = viaOpenRouter ? "OPENROUTER_API_KEY" : "OPENAI_API_KEY";
   const key = e[keyName];
   if (!key) throw new Error(`${keyName} is not set: run this through run-with-secrets.`);

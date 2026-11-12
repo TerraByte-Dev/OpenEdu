@@ -2,7 +2,7 @@
 //
 //   npx vite-node src/lib/eval/headless/define-kappa.ts -- grader1.json grader2.json verdicts.json
 //
-// Grader 1 (Tate) comes first. The verdicts file is the one define-label-sheet.ts wrote. Refuses an
+// Grader 1 (a blind Claude model since the 2026-11-11 amendment) comes first. The verdicts file is the one define-label-sheet.ts wrote. Refuses an
 // export for another sheet, an export that leaves any row unanswered, and a verdicts file built with a
 // lexical grader other than the one committed now (define-grade.ts and define-items.ts).
 //

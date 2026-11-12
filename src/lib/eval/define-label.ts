@@ -2,7 +2,7 @@
 // no I/O. The sheet and the scripts that use this are in headless/: define-label-sheet.ts builds the
 // sheet, define-label-grader2.ts has the blind second grader answer it, define-kappa.ts scores it.
 //
-// Two graders (Tate, and a blind grader 2 from a different model family) answer plain yes/no questions
+// Two graders (blind models from two families since the 2026-11-11 amendment: grader 1 Claude, grader 2 OpenAI) answer plain yes/no questions
 // about ~60 real dev replies, pooled across arms and models, shuffled, with the arm, the model and the
 // lexical verdict hidden. The answers map to the grader's two readings (lenient: the reply gives a
 // correct meaning; strict, for sense items: and presents no other meaning), and Cohen's kappa compares
@@ -229,7 +229,7 @@ export function defineKappaReport(a: LabelExport, b: LabelExport, v: DefineLabel
 export interface AdjudicatedRow { rid: string; item: string; arm: "B" | "D"; lexical: boolean; grader1: boolean | null; grader2: boolean | null; verdict: boolean; adjudicated: boolean }
 
 /**
- * Harm adjudication (lever 18, review round 2 ruling a). Grader 1 (Tate, the first export) decides each
+ * Harm adjudication (lever 18, review round 2 ruling a). Grader 1 (the first export) decides each
  * row (define-kappa.ts only calls this with complete exports; a direct caller's unlabelled row keeps its
  * lexical verdict and is marked unadjudicated). The
  * rule that needs both graders to agree is computed beside it as a sensitivity reading (`bothAgree`).
