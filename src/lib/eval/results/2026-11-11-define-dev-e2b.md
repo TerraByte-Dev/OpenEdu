@@ -7,9 +7,11 @@
 > is **sense-k2-07 ("trunk")**: the frozen sense cap hides the elephant's-nose sense, and the note's "do
 > not add meanings" makes e2b define the torso instead. Wording 2 did not fix it (1 of 3 D replies passes).
 > **There is no wording 3.** Wording 2 is the candidate for the freeze. The wording-freeze commit waits on
-> the hand-label gate: grader 2 has answered, **grader 1 (Tate) is pending**, and with no grader-1 export
-> by the freeze B8 is descriptive (B1). **B already passes 25/25 target items on dev**, so if the test
-> split looks like dev, the pre-registered ceiling outcome is the likely reading.
+> the hand-label gate. **The gate has now been read, and it MISSES** (lenient κ 0.65 for both graders,
+> strict κ 0.74 for grader 2), so **B8 is descriptive and lever 18 makes no accuracy claim**. Grader 1
+> became a blind Claude model under the amendment at `fc08075`. **B already passes 25/25 target items on
+> dev**, so if the test split looks like dev, the pre-registered ceiling outcome is the likely reading
+> anyway.
 
 Lever (PR #254, issue #251): when the student's newest message asks what a word means, `TutorEngine.run`
 appends a `<dictionary_entry source="Open English WordNet">` block and a `<tutor_note>` to that message
@@ -171,15 +173,34 @@ failure, and loses only trunk, as wording 1 did.
 The wording-freeze commit waits on the hand-label gate, per B1: with no grader-1 export by the freeze,
 B8 is descriptive and no accuracy claim is made.
 
-## Hand-label gate (B8), status
+## Hand-label gate (B8): read once, MISSES
 
 | | |
 |---|---|
 | Sheet | `define-label-gemma4_e2b-r578155460d-g364bdaa+0884354`, built from the wording-1 e2b files |
 | Rows | 60: B 30, D 30; sense 16; lexical fail 4; strict-only fail 4 |
 | Grader 2 | `openai/gpt-6.1-sol`, reached through OpenRouter (`DEFINE_GRADER2_ROUTE=openrouter`, commit `4296211`; OpenAI's own API returned 429, no credit, on the account behind `OPENAI_API_KEY`). 60 of 60 rows answered; export `.dev/label-exports/grader2-gpt-6.1-sol.json` in the main checkout |
-| Grader 1 (Tate) | **pending** |
-| Kappa | not computed (needs both exports) |
+| Grader 1 | `anthropic/claude-fable-5.2` through OpenRouter (amendment `fc08075`: Tate replaced himself with a blind model before any export was compared with the verdicts). Same request as grader 2, `DEFINE_GRADER_SLOT=1`. 60 of 60 rows on the first run; export `.dev/label-exports/grader1-claude-fable-5.2.json` |
+| Kappa | `define-kappa.ts` at `fc08075`, below |
+
+| Reading | grader 1 vs grader 2 | grader 1 vs lexical | grader 2 vs lexical | agreed vs lexical | gate (≥ 0.8) |
+|---|---|---|---|---|---|
+| lenient | 1.00 (n 60, agree 100%) | 0.65 (n 60, agree 97%) | 0.65 (n 60, agree 97%) | 0.65 (n 60, agree 97%) | MISSES |
+| strict | 0.74 (n 16, agree 88%) | 1.00 (n 16, agree 100%) | 0.74 (n 16, agree 88%) | 1.00 (n 14, agree 100%) | MISSES |
+
+Lexical errors on rows both graders agree on: lenient B 0 false passes of 1 grader-fail and 1 false fail
+of 29 grader-passes; lenient D the same; strict B 0/1 and 0/7; strict D 0/4 and 0/2. (The script's
+column header still says "human"; under the amendment both graders are models.)
+
+**Reading.** The rule is applied as written: the gate misses, so B8 is descriptive. What the numbers
+show beside it:
+- The keyword grader made **no false passes** on rows the graders agree on. Its 2 lenient errors are
+  false fails: it marked a correct reply wrong.
+- The lenient κ is low despite 97% agreement because 58 of 60 rows pass. With so few fails, one miss
+  moves κ a lot. This is the "few fail rows" risk named above.
+- The worry from the 0.8b runs (a crane as "a large metal cage" passing) is **not tested by this
+  sheet**, which holds only e2b rows.
+- Nothing here changes the term lists. Any re-score of this sheet would be in-sample only.
 
 The sheet holds only 4 lexical-fail rows against a minimum of 12: the wording-1 e2b pool has exactly 4
 model-arm-item pairs with a lexical fail (B def-k2-10, B def-912-16, D sense-k2-07, D def-912-04), and
