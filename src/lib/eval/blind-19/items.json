@@ -1,0 +1,1402 @@
+{
+  "generator": "src/lib/eval/blind19.ts",
+  "model": "openai/gpt-6.1-sol",
+  "generatedAt": "2026-11-12T15:26:09.492Z",
+  "counted": {
+    "main": {
+      "file": "src/lib/eval/blind-19/raw-2026-11-12T15-23-18-469Z-r0-a1.txt",
+      "sha256": "8d69499a54af176f51dca4c099629d6c41b1658cf3486b71b3227c921bbfcb15",
+      "request": 0,
+      "attempt": 1,
+      "model": "openai/gpt-6.1-sol",
+      "outcome": "counts (180 objects)",
+      "usage": {
+        "prompt_tokens": 708,
+        "completion_tokens": 8998,
+        "total_tokens": 9706,
+        "cost": 0.091396,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.091396,
+          "upstream_inference_prompt_cost": 0.001416,
+          "upstream_inference_completions_cost": 0.08998
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2382,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    "topUp": null
+  },
+  "topUpCells": [],
+  "raws": [
+    {
+      "file": "src/lib/eval/blind-19/raw-2026-11-12T15-23-18-469Z-r0-a1.txt",
+      "sha256": "8d69499a54af176f51dca4c099629d6c41b1658cf3486b71b3227c921bbfcb15",
+      "request": 0,
+      "attempt": 1,
+      "model": "openai/gpt-6.1-sol",
+      "outcome": "counts (180 objects)",
+      "usage": {
+        "prompt_tokens": 708,
+        "completion_tokens": 8998,
+        "total_tokens": 9706,
+        "cost": 0.091396,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.091396,
+          "upstream_inference_prompt_cost": 0.001416,
+          "upstream_inference_completions_cost": 0.08998
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2382,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    }
+  ],
+  "counts": {
+    "L": 80,
+    "C": 40
+  },
+  "shortAfterTopUp": [],
+  "runnable": true,
+  "items": [
+    {
+      "id": "b19-k2-L-01",
+      "band": "K-2",
+      "kind": "L",
+      "word": "jam",
+      "ask": "what does jam mean in 'Our bus got stuck in a traffic jam.'",
+      "source": {
+        "response": 0,
+        "index": 0
+      }
+    },
+    {
+      "id": "b19-k2-L-02",
+      "band": "K-2",
+      "kind": "L",
+      "word": "wave",
+      "ask": "What does the word wave mean in this sentence: Grandma gave us a wave from her window.",
+      "source": {
+        "response": 0,
+        "index": 1
+      }
+    },
+    {
+      "id": "b19-k2-L-03",
+      "band": "K-2",
+      "kind": "L",
+      "word": "fan",
+      "ask": "My sister is a fan of that singer. What does fan mean here?",
+      "source": {
+        "response": 0,
+        "index": 2
+      }
+    },
+    {
+      "id": "b19-k2-L-04",
+      "band": "K-2",
+      "kind": "L",
+      "word": "seal",
+      "ask": "I don't know what seal means in 'Please seal the box before we mail it.'",
+      "source": {
+        "response": 0,
+        "index": 3
+      }
+    },
+    {
+      "id": "b19-k2-L-05",
+      "band": "K-2",
+      "kind": "L",
+      "word": "star",
+      "ask": "what is the meaning of star in 'The star of our play wore a crown.'",
+      "source": {
+        "response": 0,
+        "index": 4
+      }
+    },
+    {
+      "id": "b19-k2-L-06",
+      "band": "K-2",
+      "kind": "L",
+      "word": "rock",
+      "ask": "what does rock mean in 'Dad will rock the baby in his chair.'",
+      "source": {
+        "response": 0,
+        "index": 5
+      }
+    },
+    {
+      "id": "b19-k2-L-07",
+      "band": "K-2",
+      "kind": "L",
+      "word": "park",
+      "ask": "What does the word park mean in this sentence: We can park our car beside the school.",
+      "source": {
+        "response": 0,
+        "index": 6
+      }
+    },
+    {
+      "id": "b19-k2-L-08",
+      "band": "K-2",
+      "kind": "L",
+      "word": "watch",
+      "ask": "My new watch tells me when lunch starts. What does watch mean here?",
+      "source": {
+        "response": 0,
+        "index": 7
+      }
+    },
+    {
+      "id": "b19-k2-L-09",
+      "band": "K-2",
+      "kind": "L",
+      "word": "can",
+      "ask": "I don't know what can means in 'We put the beans in a metal can.'",
+      "source": {
+        "response": 0,
+        "index": 8
+      }
+    },
+    {
+      "id": "b19-k2-L-10",
+      "band": "K-2",
+      "kind": "L",
+      "word": "cap",
+      "ask": "what is the meaning of cap in 'Our class has a cap of twenty children.'",
+      "source": {
+        "response": 0,
+        "index": 9
+      }
+    },
+    {
+      "id": "b19-k2-L-11",
+      "band": "K-2",
+      "kind": "L",
+      "word": "top",
+      "ask": "what does top mean in 'The wooden top spun across the kitchen floor.'",
+      "source": {
+        "response": 0,
+        "index": 10
+      }
+    },
+    {
+      "id": "b19-k2-L-12",
+      "band": "K-2",
+      "kind": "L",
+      "word": "palm",
+      "ask": "What does the word palm mean in this sentence: A tall palm grew beside the sandy beach.",
+      "source": {
+        "response": 0,
+        "index": 11
+      }
+    },
+    {
+      "id": "b19-k2-L-13",
+      "band": "K-2",
+      "kind": "L",
+      "word": "date",
+      "ask": "Mom put a sweet date in my lunch. What does date mean here?",
+      "source": {
+        "response": 0,
+        "index": 12
+      }
+    },
+    {
+      "id": "b19-k2-L-14",
+      "band": "K-2",
+      "kind": "L",
+      "word": "club",
+      "ask": "I don't know what club means in 'He used a golf club to tap the ball.'",
+      "source": {
+        "response": 0,
+        "index": 13
+      }
+    },
+    {
+      "id": "b19-k2-L-15",
+      "band": "K-2",
+      "kind": "L",
+      "word": "tie",
+      "ask": "what is the meaning of tie in 'Our game ended in a tie before lunch.'",
+      "source": {
+        "response": 0,
+        "index": 14
+      }
+    },
+    {
+      "id": "b19-k2-L-16",
+      "band": "K-2",
+      "kind": "L",
+      "word": "yard",
+      "ask": "what does yard mean in 'We need one yard of cloth for this flag.'",
+      "source": {
+        "response": 0,
+        "index": 15
+      }
+    },
+    {
+      "id": "b19-k2-L-17",
+      "band": "K-2",
+      "kind": "L",
+      "word": "foot",
+      "ask": "What does the word foot mean in this sentence: A little house stood at the mountain's foot.",
+      "source": {
+        "response": 0,
+        "index": 16
+      }
+    },
+    {
+      "id": "b19-k2-L-18",
+      "band": "K-2",
+      "kind": "L",
+      "word": "head",
+      "ask": "Maya stood at the head of the line. What does head mean here?",
+      "source": {
+        "response": 0,
+        "index": 17
+      }
+    },
+    {
+      "id": "b19-k2-L-19",
+      "band": "K-2",
+      "kind": "L",
+      "word": "ear",
+      "ask": "I don't know what ear means in 'Dad gave me an ear of yellow corn.'",
+      "source": {
+        "response": 0,
+        "index": 18
+      }
+    },
+    {
+      "id": "b19-k2-L-20",
+      "band": "K-2",
+      "kind": "L",
+      "word": "arm",
+      "ask": "what is the meaning of arm in 'The cat slept on the arm of our chair.'",
+      "source": {
+        "response": 0,
+        "index": 19
+      }
+    },
+    {
+      "id": "b19-k2-C-01",
+      "band": "K-2",
+      "kind": "C",
+      "word": "ball",
+      "ask": "what does ball mean in 'The red ball rolled under the kitchen table.'",
+      "source": {
+        "response": 0,
+        "index": 30
+      }
+    },
+    {
+      "id": "b19-k2-C-02",
+      "band": "K-2",
+      "kind": "C",
+      "word": "box",
+      "ask": "What does the word box mean in this sentence: I put my crayons in a cardboard box.",
+      "source": {
+        "response": 0,
+        "index": 31
+      }
+    },
+    {
+      "id": "b19-k2-C-03",
+      "band": "K-2",
+      "kind": "C",
+      "word": "cup",
+      "ask": "She filled her cup with cold apple juice. What does cup mean here?",
+      "source": {
+        "response": 0,
+        "index": 32
+      }
+    },
+    {
+      "id": "b19-k2-C-04",
+      "band": "K-2",
+      "kind": "C",
+      "word": "pen",
+      "ask": "I don't know what pen means in 'I wrote my name with a blue pen.'",
+      "source": {
+        "response": 0,
+        "index": 33
+      }
+    },
+    {
+      "id": "b19-k2-C-05",
+      "band": "K-2",
+      "kind": "C",
+      "word": "book",
+      "ask": "what is the meaning of book in 'We read a book about frogs after lunch.'",
+      "source": {
+        "response": 0,
+        "index": 34
+      }
+    },
+    {
+      "id": "b19-k2-C-06",
+      "band": "K-2",
+      "kind": "C",
+      "word": "chair",
+      "ask": "what does chair mean in 'He pulled a chair up to the table.'",
+      "source": {
+        "response": 0,
+        "index": 35
+      }
+    },
+    {
+      "id": "b19-k2-C-07",
+      "band": "K-2",
+      "kind": "C",
+      "word": "table",
+      "ask": "What does the word table mean in this sentence: Our lunch plates were on the kitchen table.",
+      "source": {
+        "response": 0,
+        "index": 36
+      }
+    },
+    {
+      "id": "b19-k2-C-08",
+      "band": "K-2",
+      "kind": "C",
+      "word": "mouse",
+      "ask": "A small mouse ran behind the garden shed. What does mouse mean here?",
+      "source": {
+        "response": 0,
+        "index": 37
+      }
+    },
+    {
+      "id": "b19-k2-C-09",
+      "band": "K-2",
+      "kind": "C",
+      "word": "orange",
+      "ask": "I don't know what orange means in 'She peeled an orange and ate the slices.'",
+      "source": {
+        "response": 0,
+        "index": 38
+      }
+    },
+    {
+      "id": "b19-k2-C-10",
+      "band": "K-2",
+      "kind": "C",
+      "word": "train",
+      "ask": "what is the meaning of train in 'The train carried us to the next town.'",
+      "source": {
+        "response": 0,
+        "index": 39
+      }
+    },
+    {
+      "id": "b19-35-L-01",
+      "band": "3-5",
+      "kind": "L",
+      "word": "branch",
+      "ask": "what does branch mean in 'A new branch of the library opened downtown.'",
+      "source": {
+        "response": 0,
+        "index": 45
+      }
+    },
+    {
+      "id": "b19-35-L-02",
+      "band": "3-5",
+      "kind": "L",
+      "word": "bright",
+      "ask": "What does the word bright mean in this sentence: Our bright classmate solved the puzzle without any help.",
+      "source": {
+        "response": 0,
+        "index": 46
+      }
+    },
+    {
+      "id": "b19-35-L-03",
+      "band": "3-5",
+      "kind": "L",
+      "word": "cool",
+      "ask": "The captain stayed cool when our plans changed. What does cool mean here?",
+      "source": {
+        "response": 0,
+        "index": 47
+      }
+    },
+    {
+      "id": "b19-35-L-04",
+      "band": "3-5",
+      "kind": "L",
+      "word": "warm",
+      "ask": "I don't know what warm means in 'The new student received a warm welcome from everyone.'",
+      "source": {
+        "response": 0,
+        "index": 48
+      }
+    },
+    {
+      "id": "b19-35-L-05",
+      "band": "3-5",
+      "kind": "L",
+      "word": "sharp",
+      "ask": "what is the meaning of sharp in 'Her sharp mind helped her solve the mystery.'",
+      "source": {
+        "response": 0,
+        "index": 49
+      }
+    },
+    {
+      "id": "b19-35-L-06",
+      "band": "3-5",
+      "kind": "L",
+      "word": "flat",
+      "ask": "what does flat mean in 'Their family rented a flat above the bakery.'",
+      "source": {
+        "response": 0,
+        "index": 50
+      }
+    },
+    {
+      "id": "b19-35-L-07",
+      "band": "3-5",
+      "kind": "L",
+      "word": "plot",
+      "ask": "What does the word plot mean in this sentence: Each class planted vegetables in a small plot.",
+      "source": {
+        "response": 0,
+        "index": 51
+      }
+    },
+    {
+      "id": "b19-35-L-08",
+      "band": "3-5",
+      "kind": "L",
+      "word": "point",
+      "ask": "I finally understood the point of the lesson. What does point mean here?",
+      "source": {
+        "response": 0,
+        "index": 52
+      }
+    },
+    {
+      "id": "b19-35-L-09",
+      "band": "3-5",
+      "kind": "L",
+      "word": "draw",
+      "ask": "I don't know what draw means in 'The chess game ended in a draw yesterday.'",
+      "source": {
+        "response": 0,
+        "index": 53
+      }
+    },
+    {
+      "id": "b19-35-L-10",
+      "band": "3-5",
+      "kind": "L",
+      "word": "ruler",
+      "ask": "what is the meaning of ruler in 'The ruler of the kingdom welcomed the visitors.'",
+      "source": {
+        "response": 0,
+        "index": 54
+      }
+    },
+    {
+      "id": "b19-35-L-11",
+      "band": "3-5",
+      "kind": "L",
+      "word": "scale",
+      "ask": "what does scale mean in 'We found a silver scale beside the fish tank.'",
+      "source": {
+        "response": 0,
+        "index": 55
+      }
+    },
+    {
+      "id": "b19-35-L-12",
+      "band": "3-5",
+      "kind": "L",
+      "word": "bowl",
+      "ask": "What does the word bowl mean in this sentence: We learned to bowl at the lanes downtown.",
+      "source": {
+        "response": 0,
+        "index": 56
+      }
+    },
+    {
+      "id": "b19-35-L-13",
+      "band": "3-5",
+      "kind": "L",
+      "word": "pitch",
+      "ask": "We will pitch our tent beside the lake. What does pitch mean here?",
+      "source": {
+        "response": 0,
+        "index": 57
+      }
+    },
+    {
+      "id": "b19-35-L-14",
+      "band": "3-5",
+      "kind": "L",
+      "word": "shed",
+      "ask": "I don't know what shed means in 'These trees shed their leaves when autumn arrives.'",
+      "source": {
+        "response": 0,
+        "index": 58
+      }
+    },
+    {
+      "id": "b19-35-L-15",
+      "band": "3-5",
+      "kind": "L",
+      "word": "pound",
+      "ask": "what is the meaning of pound in 'The postcard cost one pound at the London shop.'",
+      "source": {
+        "response": 0,
+        "index": 59
+      }
+    },
+    {
+      "id": "b19-35-L-16",
+      "band": "3-5",
+      "kind": "L",
+      "word": "change",
+      "ask": "what does change mean in 'The cashier gave me change after my purchase.'",
+      "source": {
+        "response": 0,
+        "index": 60
+      }
+    },
+    {
+      "id": "b19-35-L-17",
+      "band": "3-5",
+      "kind": "L",
+      "word": "check",
+      "ask": "What does the word check mean in this sentence: One blue check stood out on the patterned fabric.",
+      "source": {
+        "response": 0,
+        "index": 61
+      }
+    },
+    {
+      "id": "b19-35-L-18",
+      "band": "3-5",
+      "kind": "L",
+      "word": "cross",
+      "ask": "Our teacher looked cross when nobody cleaned up. What does cross mean here?",
+      "source": {
+        "response": 0,
+        "index": 62
+      }
+    },
+    {
+      "id": "b19-35-L-19",
+      "band": "3-5",
+      "kind": "L",
+      "word": "right",
+      "ask": "I don't know what right means in 'Every child has a right to an education.'",
+      "source": {
+        "response": 0,
+        "index": 63
+      }
+    },
+    {
+      "id": "b19-35-L-20",
+      "band": "3-5",
+      "kind": "L",
+      "word": "left",
+      "ask": "what is the meaning of left in 'There were only three cookies left after lunch.'",
+      "source": {
+        "response": 0,
+        "index": 64
+      }
+    },
+    {
+      "id": "b19-35-C-01",
+      "band": "3-5",
+      "kind": "C",
+      "word": "bridge",
+      "ask": "what does bridge mean in 'We crossed the wooden bridge over the creek.'",
+      "source": {
+        "response": 0,
+        "index": 75
+      }
+    },
+    {
+      "id": "b19-35-C-02",
+      "band": "3-5",
+      "kind": "C",
+      "word": "cloud",
+      "ask": "What does the word cloud mean in this sentence: A dark cloud covered the sun during recess.",
+      "source": {
+        "response": 0,
+        "index": 76
+      }
+    },
+    {
+      "id": "b19-35-C-03",
+      "band": "3-5",
+      "kind": "C",
+      "word": "drum",
+      "ask": "The musician played a drum in the parade. What does drum mean here?",
+      "source": {
+        "response": 0,
+        "index": 77
+      }
+    },
+    {
+      "id": "b19-35-C-04",
+      "band": "3-5",
+      "kind": "C",
+      "word": "key",
+      "ask": "I don't know what key means in 'Dad used a key to unlock the door.'",
+      "source": {
+        "response": 0,
+        "index": 78
+      }
+    },
+    {
+      "id": "b19-35-C-05",
+      "band": "3-5",
+      "kind": "C",
+      "word": "ladder",
+      "ask": "what is the meaning of ladder in 'The painter climbed a ladder to reach the roof.'",
+      "source": {
+        "response": 0,
+        "index": 79
+      }
+    },
+    {
+      "id": "b19-35-C-06",
+      "band": "3-5",
+      "kind": "C",
+      "word": "net",
+      "ask": "what does net mean in 'We caught a butterfly in a soft net.'",
+      "source": {
+        "response": 0,
+        "index": 80
+      }
+    },
+    {
+      "id": "b19-35-C-07",
+      "band": "3-5",
+      "kind": "C",
+      "word": "pool",
+      "ask": "What does the word pool mean in this sentence: Our swimming lessons take place in the indoor pool.",
+      "source": {
+        "response": 0,
+        "index": 81
+      }
+    },
+    {
+      "id": "b19-35-C-08",
+      "band": "3-5",
+      "kind": "C",
+      "word": "rope",
+      "ask": "We tied the boat to a post with rope. What does rope mean here?",
+      "source": {
+        "response": 0,
+        "index": 82
+      }
+    },
+    {
+      "id": "b19-35-C-09",
+      "band": "3-5",
+      "kind": "C",
+      "word": "shell",
+      "ask": "I don't know what shell means in 'We found a pink shell on the beach.'",
+      "source": {
+        "response": 0,
+        "index": 83
+      }
+    },
+    {
+      "id": "b19-35-C-10",
+      "band": "3-5",
+      "kind": "C",
+      "word": "skirt",
+      "ask": "what is the meaning of skirt in 'She wore a blue skirt to the concert.'",
+      "source": {
+        "response": 0,
+        "index": 84
+      }
+    },
+    {
+      "id": "b19-68-L-01",
+      "band": "6-8",
+      "kind": "L",
+      "word": "cell",
+      "ask": "what does cell mean in 'Enter the total in the highlighted spreadsheet cell.'",
+      "source": {
+        "response": 0,
+        "index": 90
+      }
+    },
+    {
+      "id": "b19-68-L-02",
+      "band": "6-8",
+      "kind": "L",
+      "word": "volume",
+      "ask": "What does the word volume mean in this sentence: The second volume of the encyclopedia covers several countries.",
+      "source": {
+        "response": 0,
+        "index": 91
+      }
+    },
+    {
+      "id": "b19-68-L-03",
+      "band": "6-8",
+      "kind": "L",
+      "word": "solution",
+      "ask": "The salt dissolved completely in the clear solution. What does solution mean here?",
+      "source": {
+        "response": 0,
+        "index": 92
+      }
+    },
+    {
+      "id": "b19-68-L-04",
+      "band": "6-8",
+      "kind": "L",
+      "word": "compound",
+      "ask": "I don't know what compound means in 'The research compound contains several laboratories behind one fence.'",
+      "source": {
+        "response": 0,
+        "index": 93
+      }
+    },
+    {
+      "id": "b19-68-L-05",
+      "band": "6-8",
+      "kind": "L",
+      "word": "bond",
+      "ask": "what is the meaning of bond in 'The city issued a bond to finance its library.'",
+      "source": {
+        "response": 0,
+        "index": 94
+      }
+    },
+    {
+      "id": "b19-68-L-06",
+      "band": "6-8",
+      "kind": "L",
+      "word": "interest",
+      "ask": "what does interest mean in 'The savings account earns interest at the local bank.'",
+      "source": {
+        "response": 0,
+        "index": 95
+      }
+    },
+    {
+      "id": "b19-68-L-07",
+      "band": "6-8",
+      "kind": "L",
+      "word": "capital",
+      "ask": "What does the word capital mean in this sentence: The business needed more capital to purchase new equipment.",
+      "source": {
+        "response": 0,
+        "index": 96
+      }
+    },
+    {
+      "id": "b19-68-L-08",
+      "band": "6-8",
+      "kind": "L",
+      "word": "principal",
+      "ask": "The loan's principal must be repaid within five years. What does principal mean here?",
+      "source": {
+        "response": 0,
+        "index": 97
+      }
+    },
+    {
+      "id": "b19-68-L-09",
+      "band": "6-8",
+      "kind": "L",
+      "word": "odd",
+      "ask": "I don't know what odd means in 'Every odd number leaves a remainder when divided by two.'",
+      "source": {
+        "response": 0,
+        "index": 98
+      }
+    },
+    {
+      "id": "b19-68-L-10",
+      "band": "6-8",
+      "kind": "L",
+      "word": "even",
+      "ask": "what is the meaning of even in 'Her even tone helped everyone discuss the problem calmly.'",
+      "source": {
+        "response": 0,
+        "index": 99
+      }
+    },
+    {
+      "id": "b19-68-L-11",
+      "band": "6-8",
+      "kind": "L",
+      "word": "negative",
+      "ask": "what does negative mean in 'The photographer developed a print from the original negative.'",
+      "source": {
+        "response": 0,
+        "index": 100
+      }
+    },
+    {
+      "id": "b19-68-L-12",
+      "band": "6-8",
+      "kind": "L",
+      "word": "positive",
+      "ask": "What does the word positive mean in this sentence: The guide was positive that we had reached the correct trail.",
+      "source": {
+        "response": 0,
+        "index": 101
+      }
+    },
+    {
+      "id": "b19-68-L-13",
+      "band": "6-8",
+      "kind": "L",
+      "word": "power",
+      "ask": "We raised the number three to the second power. What does power mean here?",
+      "source": {
+        "response": 0,
+        "index": 102
+      }
+    },
+    {
+      "id": "b19-68-L-14",
+      "band": "6-8",
+      "kind": "L",
+      "word": "base",
+      "ask": "I don't know what base means in 'The liquid turned red litmus blue because it was a base.'",
+      "source": {
+        "response": 0,
+        "index": 103
+      }
+    },
+    {
+      "id": "b19-68-L-15",
+      "band": "6-8",
+      "kind": "L",
+      "word": "period",
+      "ask": "what is the meaning of period in 'Place a period at the end of that statement.'",
+      "source": {
+        "response": 0,
+        "index": 104
+      }
+    },
+    {
+      "id": "b19-68-L-16",
+      "band": "6-8",
+      "kind": "L",
+      "word": "degree",
+      "ask": "what does degree mean in 'My cousin earned a degree in environmental science.'",
+      "source": {
+        "response": 0,
+        "index": 105
+      }
+    },
+    {
+      "id": "b19-68-L-17",
+      "band": "6-8",
+      "kind": "L",
+      "word": "mode",
+      "ask": "What does the word mode mean in this sentence: In this data set, seven is the mode.",
+      "source": {
+        "response": 0,
+        "index": 106
+      }
+    },
+    {
+      "id": "b19-68-L-18",
+      "band": "6-8",
+      "kind": "L",
+      "word": "range",
+      "ask": "The chef placed the saucepan on the range. What does range mean here?",
+      "source": {
+        "response": 0,
+        "index": 107
+      }
+    },
+    {
+      "id": "b19-68-L-19",
+      "band": "6-8",
+      "kind": "L",
+      "word": "domain",
+      "ask": "I don't know what domain means in 'The function has a domain containing all positive numbers.'",
+      "source": {
+        "response": 0,
+        "index": 108
+      }
+    },
+    {
+      "id": "b19-68-L-20",
+      "band": "6-8",
+      "kind": "L",
+      "word": "function",
+      "ask": "what is the meaning of function in 'The formal function included dinner and an awards ceremony.'",
+      "source": {
+        "response": 0,
+        "index": 109
+      }
+    },
+    {
+      "id": "b19-68-C-01",
+      "band": "6-8",
+      "kind": "C",
+      "word": "anchor",
+      "ask": "what does anchor mean in 'The sailors lowered the anchor to hold the boat steady.'",
+      "source": {
+        "response": 0,
+        "index": 120
+      }
+    },
+    {
+      "id": "b19-68-C-02",
+      "band": "6-8",
+      "kind": "C",
+      "word": "balance",
+      "ask": "What does the word balance mean in this sentence: The gymnast kept her balance while standing on one foot.",
+      "source": {
+        "response": 0,
+        "index": 121
+      }
+    },
+    {
+      "id": "b19-68-C-03",
+      "band": "6-8",
+      "kind": "C",
+      "word": "battery",
+      "ask": "The flashlight needs a new battery to work. What does battery mean here?",
+      "source": {
+        "response": 0,
+        "index": 122
+      }
+    },
+    {
+      "id": "b19-68-C-04",
+      "band": "6-8",
+      "kind": "C",
+      "word": "beam",
+      "ask": "I don't know what beam means in 'A narrow beam of sunlight entered the dark attic.'",
+      "source": {
+        "response": 0,
+        "index": 123
+      }
+    },
+    {
+      "id": "b19-68-C-05",
+      "band": "6-8",
+      "kind": "C",
+      "word": "cable",
+      "ask": "what is the meaning of cable in 'A thick cable connects the monitor to the computer.'",
+      "source": {
+        "response": 0,
+        "index": 124
+      }
+    },
+    {
+      "id": "b19-68-C-06",
+      "band": "6-8",
+      "kind": "C",
+      "word": "circuit",
+      "ask": "what does circuit mean in 'Closing the switch completed the circuit and powered the bulb.'",
+      "source": {
+        "response": 0,
+        "index": 125
+      }
+    },
+    {
+      "id": "b19-68-C-07",
+      "band": "6-8",
+      "kind": "C",
+      "word": "column",
+      "ask": "What does the word column mean in this sentence: A marble column supported the roof of the temple.",
+      "source": {
+        "response": 0,
+        "index": 126
+      }
+    },
+    {
+      "id": "b19-68-C-08",
+      "band": "6-8",
+      "kind": "C",
+      "word": "compass",
+      "ask": "We used a compass to find magnetic north. What does compass mean here?",
+      "source": {
+        "response": 0,
+        "index": 127
+      }
+    },
+    {
+      "id": "b19-68-C-09",
+      "band": "6-8",
+      "kind": "C",
+      "word": "crystal",
+      "ask": "I don't know what crystal means in 'A quartz crystal formed slowly inside the hollow rock.'",
+      "source": {
+        "response": 0,
+        "index": 128
+      }
+    },
+    {
+      "id": "b19-68-C-10",
+      "band": "6-8",
+      "kind": "C",
+      "word": "engine",
+      "ask": "what is the meaning of engine in 'The mechanic repaired the engine before our road trip.'",
+      "source": {
+        "response": 0,
+        "index": 129
+      }
+    },
+    {
+      "id": "b19-912-L-01",
+      "band": "9-12",
+      "kind": "L",
+      "word": "abstract",
+      "ask": "what does abstract mean in 'The journal requires an abstract summarizing each research paper.'",
+      "source": {
+        "response": 0,
+        "index": 135
+      }
+    },
+    {
+      "id": "b19-912-L-02",
+      "band": "9-12",
+      "kind": "L",
+      "word": "article",
+      "ask": "What does the word article mean in this sentence: The treaty's final article describes how members may withdraw.",
+      "source": {
+        "response": 0,
+        "index": 136
+      }
+    },
+    {
+      "id": "b19-912-L-03",
+      "band": "9-12",
+      "kind": "L",
+      "word": "bill",
+      "ask": "The heron's long bill helps it gather food efficiently. What does bill mean here?",
+      "source": {
+        "response": 0,
+        "index": 137
+      }
+    },
+    {
+      "id": "b19-912-L-04",
+      "band": "9-12",
+      "kind": "L",
+      "word": "cabinet",
+      "ask": "I don't know what cabinet means in 'The president consulted her cabinet before announcing the policy.'",
+      "source": {
+        "response": 0,
+        "index": 138
+      }
+    },
+    {
+      "id": "b19-912-L-05",
+      "band": "9-12",
+      "kind": "L",
+      "word": "chamber",
+      "ask": "what is the meaning of chamber in 'The upper chamber approved the revised transportation proposal yesterday.'",
+      "source": {
+        "response": 0,
+        "index": 139
+      }
+    },
+    {
+      "id": "b19-912-L-06",
+      "band": "9-12",
+      "kind": "L",
+      "word": "charter",
+      "ask": "what does charter mean in 'The research team will charter a vessel for its expedition.'",
+      "source": {
+        "response": 0,
+        "index": 140
+      }
+    },
+    {
+      "id": "b19-912-L-07",
+      "band": "9-12",
+      "kind": "L",
+      "word": "commission",
+      "ask": "What does the word commission mean in this sentence: The museum plans to commission a mural from a local artist.",
+      "source": {
+        "response": 0,
+        "index": 141
+      }
+    },
+    {
+      "id": "b19-912-L-08",
+      "band": "9-12",
+      "kind": "L",
+      "word": "consideration",
+      "ask": "The contract specifies the consideration exchanged for the promised services. What does consideration mean here?",
+      "source": {
+        "response": 0,
+        "index": 142
+      }
+    },
+    {
+      "id": "b19-912-L-09",
+      "band": "9-12",
+      "kind": "L",
+      "word": "convention",
+      "ask": "I don't know what convention means in 'The poet challenges the convention of beginning sentences with capitals.'",
+      "source": {
+        "response": 0,
+        "index": 143
+      }
+    },
+    {
+      "id": "b19-912-L-10",
+      "band": "9-12",
+      "kind": "L",
+      "word": "currency",
+      "ask": "what is the meaning of currency in 'The theory gained currency after several studies supported its predictions.'",
+      "source": {
+        "response": 0,
+        "index": 144
+      }
+    },
+    {
+      "id": "b19-912-L-11",
+      "band": "9-12",
+      "kind": "L",
+      "word": "dispatch",
+      "ask": "what does dispatch mean in 'The committee handled the routine applications with remarkable dispatch.'",
+      "source": {
+        "response": 0,
+        "index": 145
+      }
+    },
+    {
+      "id": "b19-912-L-12",
+      "band": "9-12",
+      "kind": "L",
+      "word": "economy",
+      "ask": "What does the word economy mean in this sentence: Critics praised the author's economy of language throughout the essay.",
+      "source": {
+        "response": 0,
+        "index": 146
+      }
+    },
+    {
+      "id": "b19-912-L-13",
+      "band": "9-12",
+      "kind": "L",
+      "word": "execution",
+      "ask": "The plan's success depended on careful execution by every department. What does execution mean here?",
+      "source": {
+        "response": 0,
+        "index": 147
+      }
+    },
+    {
+      "id": "b19-912-L-14",
+      "band": "9-12",
+      "kind": "L",
+      "word": "exercise",
+      "ask": "I don't know what exercise means in 'Citizens may exercise their right to petition the government.'",
+      "source": {
+        "response": 0,
+        "index": 148
+      }
+    },
+    {
+      "id": "b19-912-L-15",
+      "band": "9-12",
+      "kind": "L",
+      "word": "faculty",
+      "ask": "what is the meaning of faculty in 'The philosopher described reason as a faculty of the mind.'",
+      "source": {
+        "response": 0,
+        "index": 149
+      }
+    },
+    {
+      "id": "b19-912-L-16",
+      "band": "9-12",
+      "kind": "L",
+      "word": "instrument",
+      "ask": "what does instrument mean in 'The signed instrument transferred ownership of the land to the trust.'",
+      "source": {
+        "response": 0,
+        "index": 150
+      }
+    },
+    {
+      "id": "b19-912-L-17",
+      "band": "9-12",
+      "kind": "L",
+      "word": "issue",
+      "ask": "What does the word issue mean in this sentence: The registrar will issue official transcripts after final grades arrive.",
+      "source": {
+        "response": 0,
+        "index": 151
+      }
+    },
+    {
+      "id": "b19-912-L-18",
+      "band": "9-12",
+      "kind": "L",
+      "word": "material",
+      "ask": "Only evidence material to the dispute belongs in this report. What does material mean here?",
+      "source": {
+        "response": 0,
+        "index": 152
+      }
+    },
+    {
+      "id": "b19-912-L-19",
+      "band": "9-12",
+      "kind": "L",
+      "word": "minute",
+      "ask": "I don't know what minute means in 'The microscope revealed minute differences between the two mineral samples.'",
+      "source": {
+        "response": 0,
+        "index": 153
+      }
+    },
+    {
+      "id": "b19-912-L-20",
+      "band": "9-12",
+      "kind": "L",
+      "word": "motion",
+      "ask": "what is the meaning of motion in 'The council approved a motion to expand public transportation.'",
+      "source": {
+        "response": 0,
+        "index": 154
+      }
+    },
+    {
+      "id": "b19-912-C-01",
+      "band": "9-12",
+      "kind": "C",
+      "word": "accent",
+      "ask": "what does accent mean in 'Her regional accent revealed where she had spent her childhood.'",
+      "source": {
+        "response": 0,
+        "index": 165
+      }
+    },
+    {
+      "id": "b19-912-C-02",
+      "band": "9-12",
+      "kind": "C",
+      "word": "appeal",
+      "ask": "What does the word appeal mean in this sentence: The charity issued an appeal for donations after the flood.",
+      "source": {
+        "response": 0,
+        "index": 166
+      }
+    },
+    {
+      "id": "b19-912-C-03",
+      "band": "9-12",
+      "kind": "C",
+      "word": "barrier",
+      "ask": "A concrete barrier prevented vehicles from entering the pedestrian area. What does barrier mean here?",
+      "source": {
+        "response": 0,
+        "index": 167
+      }
+    },
+    {
+      "id": "b19-912-C-04",
+      "band": "9-12",
+      "kind": "C",
+      "word": "constitution",
+      "ask": "I don't know what constitution means in 'The nation's constitution establishes the powers of each government branch.'",
+      "source": {
+        "response": 0,
+        "index": 168
+      }
+    },
+    {
+      "id": "b19-912-C-05",
+      "band": "9-12",
+      "kind": "C",
+      "word": "contract",
+      "ask": "what is the meaning of contract in 'Both companies signed a contract outlining their responsibilities and deadlines.'",
+      "source": {
+        "response": 0,
+        "index": 169
+      }
+    },
+    {
+      "id": "b19-912-C-06",
+      "band": "9-12",
+      "kind": "C",
+      "word": "credit",
+      "ask": "what does credit mean in 'The store offered credit so customers could pay for purchases later.'",
+      "source": {
+        "response": 0,
+        "index": 170
+      }
+    },
+    {
+      "id": "b19-912-C-07",
+      "band": "9-12",
+      "kind": "C",
+      "word": "debate",
+      "ask": "What does the word debate mean in this sentence: The candidates participated in a debate about public education funding.",
+      "source": {
+        "response": 0,
+        "index": 171
+      }
+    },
+    {
+      "id": "b19-912-C-08",
+      "band": "9-12",
+      "kind": "C",
+      "word": "depression",
+      "ask": "The memoir describes her experience of depression and gradual recovery. What does depression mean here?",
+      "source": {
+        "response": 0,
+        "index": 172
+      }
+    },
+    {
+      "id": "b19-912-C-09",
+      "band": "9-12",
+      "kind": "C",
+      "word": "discipline",
+      "ask": "I don't know what discipline means in 'Daily practice requires discipline even when progress seems slow.'",
+      "source": {
+        "response": 0,
+        "index": 173
+      }
+    },
+    {
+      "id": "b19-912-C-10",
+      "band": "9-12",
+      "kind": "C",
+      "word": "foundation",
+      "ask": "what is the meaning of foundation in 'Engineers inspected the building's foundation before adding another floor.'",
+      "source": {
+        "response": 0,
+        "index": 174
+      }
+    }
+  ],
+  "rejected": []
+}
