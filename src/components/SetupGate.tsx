@@ -10,6 +10,9 @@
 import { useState } from "react";
 import { pullOllamaModel, type PullProgress } from "../lib/llm";
 import type { CheckResult, SetupStatus } from "../lib/setup-check";
+import { ollamaGuidance, platformOf } from "../lib/ollama-guide";
+import OllamaGuide from "./OllamaGuide";
+import ModelImport from "./ModelImport";
 
 export interface SetupGateProps {
   status: SetupStatus;
@@ -48,6 +51,11 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
   };
 
   const blocking = status.checks.filter((c) => c.severity === "blocking");
+  // #275: while Ollama is missing or stopped, the guide replaces the bare check row; once it runs but has
+  // no model, the import from a stick sits under the download.
+  const guide = status.ollama === "not-installed" || status.ollama === "not-running"
+    ? ollamaGuidance(status.ollama, { platform: platformOf(navigator.userAgent), ollamaUrl })
+    : null;
 
   return (
     <div className="flex-1 overflow-y-auto flex items-start justify-center p-8">
@@ -59,7 +67,9 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
             : "You're ready to go. These are optional."}
         </p>
 
-        <div className="rounded-lg border border-[var(--rule)] overflow-hidden">
+        {guide && <OllamaGuide guidance={guide} onRecheck={onRecheck} busy={pulling !== null} />}
+
+        <div className={`rounded-lg border border-[var(--rule)] overflow-hidden ${guide ? "hidden" : ""}`}>
           {status.checks.map((check, i) => (
             <CheckRow
               key={check.id}
@@ -74,6 +84,16 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
           ))}
         </div>
 
+        {status.ollama === "no-model" && (
+          <div className="kit-card mt-4">
+            <h2 className="text-base text-[var(--ink-em)] font-medium">No internet? Import from a USB stick or folder</h2>
+            <p className="text-sm text-[var(--ink-dim)] mt-1 mb-3 leading-relaxed">
+              An OpenEdu kit, or any folder with a model copied from another computer, works without a download.
+            </p>
+            <ModelImport ollamaUrl={ollamaUrl} onImported={() => onRecheck()} />
+          </div>
+        )}
+
         {pullError && (
           <p className="mt-3 text-xs text-danger bg-danger-tint border border-danger/30 rounded-lg px-3 py-2">
             {pullError}
@@ -81,9 +101,11 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
         )}
 
         <div className="flex items-center gap-2 mt-5">
-          <button onClick={onRecheck} disabled={pulling !== null} className="btn text-sm disabled:opacity-50">
-            Check again
-          </button>
+          {!guide && (
+            <button onClick={onRecheck} disabled={pulling !== null} className="btn text-sm disabled:opacity-50">
+              Check again
+            </button>
+          )}
           <button onClick={onOpenSettings} disabled={pulling !== null} className="btn text-sm disabled:opacity-50">
             Settings
           </button>

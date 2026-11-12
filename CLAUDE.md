@@ -119,7 +119,7 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 - API keys / model config persist via `@tauri-apps/plugin-store`.
 - Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `dialog`, `store`, `updater`, `process`,
   and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily /
-  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers five
+  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers ten
   `#[tauri::command]`s. Four are from `corpus.rs` (`corpus_grant`, `corpus_granted`, `corpus_list`,
   `corpus_read_text`): read-only access scoped to folders the user picks, with no write command. The
   fifth, `system_memory_bytes` in `system.rs`, returns total physical RAM (or null) so `store.ts` can
@@ -127,7 +127,15 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   when the user has not picked a model, unless that one is not pulled and the other default is (so an
   upgrade never strands an install on a model it lacks); `navigator.deviceMemory` caps at 8 and cannot
   draw that line. e2b tiers as `tiny`, so `quiz-grading.ts` `runsVerifyPass` keeps the quiz verify pass
-  on for both defaults. No command writes a file; the webview never names a path.
+  on for both defaults. The other five are offline setup (#275, [`docs/OFFLINE-KIT.md`](docs/OFFLINE-KIT.md)):
+  `ollama_installed` and `ollama_installer_pick` in `ollama_setup.rs` (does Ollama's program exist; find its
+  installer on a picked stick and show the folder as text, never run or open it), and `model_import_pick`,
+  `model_import_start`, `model_import_cancel` in `model_import.rs` (Rust opens the folder picker, scans it
+  read-only without entering symlinks/junctions, SHA-256s each file, checks free space, then pushes blobs to
+  `http://127.0.0.1:11434` and calls `/api/create`; an import may name only files the scan listed). That
+  Rust-side traffic is loopback-only by construction and does not go through the `http` allow-list. Pure
+  halves: `src/lib/model-kit.ts`, `src/lib/ollama-guide.ts`. No command writes a file; the webview never
+  names a path.
   The Rust side is migrations, six `.plugin()` calls, and those commands. **Nothing in the UI calls
   `src/lib/corpus.ts` yet**, so in the shipped app the only way a file's content enters is the notebook
   import (file picker or drag-and-drop), filtered to `.md,.markdown,.txt` and read via `File.text()`

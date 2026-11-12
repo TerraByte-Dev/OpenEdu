@@ -108,4 +108,20 @@ describe("evaluateSetup", () => {
       }
     }
   });
+
+  // #275: the four Ollama states the setup guide is written for.
+  it("reports the Ollama state for the guide", () => {
+    expect(evaluateSetup(facts({ ollamaReachable: false, ollamaInstalled: false, installed: [] })).ollama).toBe("not-installed");
+    expect(evaluateSetup(facts({ ollamaReachable: false, ollamaInstalled: true, installed: [] })).ollama).toBe("not-running");
+    expect(evaluateSetup(facts({ ollamaReachable: false, installed: [] })).ollama).toBe("not-running");
+    expect(evaluateSetup(facts({ installed: [] })).ollama).toBe("no-model");
+    expect(evaluateSetup(facts()).ollama).toBe("ready");
+    expect(evaluateSetup(facts({ provider: "openai" })).ollama).toBeUndefined();
+  });
+
+  it("says Ollama is not installed only when the probe found no program", () => {
+    const s = evaluateSetup(facts({ ollamaReachable: false, ollamaInstalled: false, ollamaError: "Connection refused", installed: [] }));
+    expect(s.checks[0].detail).toMatch(/not installed on this computer/i);
+    expect(s.ready).toBe(false);
+  });
 });

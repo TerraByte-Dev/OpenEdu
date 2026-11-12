@@ -15,6 +15,8 @@
 
 import { getOllamaModels } from "./llm";
 import { getChatConfig, getEmbeddingConfig, getLLMProvider } from "./store";
+import { ollamaInstalled } from "./model-import";
+import { ollamaState, type OllamaState } from "./ollama-guide";
 
 export type CheckId = "provider" | "ollama" | "chat-model" | "embed-model";
 export type Severity = "ok" | "blocking" | "optional";
@@ -35,6 +37,8 @@ export interface SetupStatus {
   ready: boolean;
   /** True when everything, including the optional pieces, is configured. */
   complete: boolean;
+  /** Which of the four Ollama states this is (#275). Absent for a cloud provider. */
+  ollama?: OllamaState;
 }
 
 /**
@@ -60,6 +64,8 @@ export function evaluateSetup(facts: {
   provider: string;
   ollamaReachable: boolean;
   ollamaError?: string;
+  /** Whether Ollama's program is on this computer (#275). Only asked when it isn't reachable. */
+  ollamaInstalled?: boolean | null;
   installed: string[];
   chatModel: string;
   embedProvider: string;
@@ -87,15 +93,17 @@ export function evaluateSetup(facts: {
           severity: "blocking",
           // Naming the actual error beats "something went wrong" — a wrong URL and a stopped service
           // are different problems with different fixes, and the message should let them be told apart.
-          detail: facts.ollamaError
-            ? `Not reachable: ${facts.ollamaError}`
-            : "Not running. OpenEdu needs it to think.",
+          detail: facts.ollamaInstalled === false
+            ? "Not installed on this computer yet. OpenEdu needs it to think."
+            : facts.ollamaError
+              ? `Not reachable: ${facts.ollamaError}`
+              : "Not running. OpenEdu needs it to think.",
           fix: { label: "How to start Ollama", kind: "external", arg: "https://ollama.com/download" },
         },
   );
 
+  const hasChat = facts.ollamaReachable && modelIsInstalled(facts.chatModel, facts.installed);
   if (facts.ollamaReachable) {
-    const hasChat = modelIsInstalled(facts.chatModel, facts.installed);
     checks.push(
       hasChat
         ? { id: "chat-model", label: "Tutor model", severity: "ok", detail: `${facts.chatModel} is installed.` }
@@ -132,6 +140,12 @@ export function evaluateSetup(facts: {
     checks,
     ready: !checks.some((c) => c.severity === "blocking"),
     complete: checks.every((c) => c.severity === "ok"),
+    ollama: ollamaState({
+      reachable: facts.ollamaReachable,
+      installed: facts.ollamaInstalled ?? null,
+      models: facts.installed,
+      chatModelInstalled: hasChat,
+    }),
   };
 }
 
@@ -155,8 +169,12 @@ export async function probeEnvironment(): Promise<SetupStatus> {
     getOllamaModels(base.ollamaUrl),
   ]);
 
+  // Only worth asking when Ollama isn't answering: that is the one case "installed?" changes the advice.
+  const installedOnDisk = tags.error ? await ollamaInstalled() : true;
+
   return evaluateSetup({
     provider: "ollama",
+    ollamaInstalled: installedOnDisk,
     // `getOllamaModels` reports an empty list both when Ollama is down AND when it is up with nothing
     // installed. The error field is what distinguishes them, and conflating the two would tell a user
     // with a running server to go install Ollama.
