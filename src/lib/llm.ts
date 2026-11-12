@@ -1522,7 +1522,7 @@ function toOpenAITurnMessage(m: NeutralMessage): Record<string, unknown> {
       tool_calls: m.tool_calls.map((tc) => ({
         id: tc.id,
         type: "function",
-        function: { name: tc.name, arguments: JSON.stringify(tc.args ?? {}) },
+        function: { name: cloudToolName(tc.name), arguments: JSON.stringify(tc.args ?? {}) },
       })),
     };
   }
@@ -1558,7 +1558,7 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
     if (m.role === "assistant" && m.tool_calls?.length) {
       const content: Array<Record<string, unknown>> = [];
       if (m.content) content.push({ type: "text", text: m.content });
-      for (const tc of m.tool_calls) content.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.args ?? {} });
+      for (const tc of m.tool_calls) content.push({ type: "tool_use", id: tc.id, name: cloudToolName(tc.name), input: tc.args ?? {} });
       out.push({ role: "assistant", content });
     } else {
       out.push({ role: m.role, content: m.content });
@@ -1667,12 +1667,27 @@ function ollamaErrorText(body: string): string {
   return body;
 }
 
+// ── Tool names on the cloud wire (#262) ──
+// OpenEdu's tool names are namespaced with a dot ("notebook.search"). Anthropic and OpenAI accept only
+// letters, digits, "_" and "-" in a tool name and answer 400 otherwise, so a cloud request carries the
+// name with each "." as "__", and a tool call coming back is mapped to the name of the offered tool it
+// matches. Ollama accepts dots, so its requests are unchanged (benchmark baselines stay byte-identical).
+export function cloudToolName(name: string): string {
+  return name.replace(/\./g, "__");
+}
+export function localToolName(wire: string, offered?: ProviderToolDef[]): string {
+  return offered?.find((t) => cloudToolName(t.name) === wire)?.name ?? wire;
+}
+
 // ── Tool-def builders (one per provider envelope) ──
 function ollamaToolDefs(tools?: ProviderToolDef[]) {
   return tools?.length ? tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })) : undefined;
 }
+function openAIToolDefs(tools?: ProviderToolDef[]) {
+  return tools?.length ? tools.map((t) => ({ type: "function", function: { name: cloudToolName(t.name), description: t.description, parameters: t.parameters } })) : undefined;
+}
 function anthropicToolDefs(tools?: ProviderToolDef[]) {
-  return tools?.length ? tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })) : undefined;
+  return tools?.length ? tools.map((t) => ({ name: cloudToolName(t.name), description: t.description, input_schema: t.parameters })) : undefined;
 }
 
 // ── The public entry point ──
@@ -1784,7 +1799,7 @@ async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, 
   const body: Record<string, unknown> = {
     model: config.model, messages: messages.map(toOpenAITurnMessage), stream: true, ...openAIRequestFields(config.model, opts.temperature),
   };
-  const tools = ollamaToolDefs(opts.tools); // identical {type:function,function:{…}} envelope as Ollama/OpenAI
+  const tools = openAIToolDefs(opts.tools); // the Ollama envelope, with cloud-safe names
   if (tools) { body.tools = tools; body.tool_choice = "auto"; }
 
   // Cloud is fast; a silent stream there is a real hang, so tighten both clocks.
@@ -1848,7 +1863,7 @@ async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, 
         try { parsed = JSON.parse(c.args); }
         catch { try { parsed = JSON.parse(sanitizeJsonEscapes(c.args)); } catch { parsed = {}; } }
       }
-      yield { type: "tool_call", id: c.id || `call_${fallbackIdx++}`, name: c.name, args: parsed };
+      yield { type: "tool_call", id: c.id || `call_${fallbackIdx++}`, name: localToolName(c.name, opts.tools), args: parsed };
     }
     yield { type: "done", finishReason: toolAcc.size > 0 && finishReason === "stop" ? "tool_calls" : finishReason };
   } finally { cleanup(); }
@@ -1912,7 +1927,7 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
           if (b) {
             let parsed: unknown = {};
             if (b.json) { try { parsed = JSON.parse(b.json); } catch { parsed = {}; } }
-            yield { type: "tool_call", id: b.id, name: b.name, args: parsed };
+            yield { type: "tool_call", id: b.id, name: localToolName(b.name, opts.tools), args: parsed };
           }
         } else if (evt.type === "message_delta" && evt.delta?.stop_reason) {
           const sr = evt.delta.stop_reason;
