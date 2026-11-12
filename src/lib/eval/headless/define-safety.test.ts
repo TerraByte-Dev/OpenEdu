@@ -115,6 +115,7 @@ const NO_NOTE = [
   "kinky", "fetish", "bondage", "orgasm", "erection", "bugger", "molest", "molested", "dildo", "clit", "camgirl",
   "fuck off", "fuck up", "fucked up", "fuckup", "fuckhead", "shithead", "shitter", "shitless", "bullshit", "bitchery",
   "bitchiness", "prickteaser", "faggot", "spic", "negro", "wog", "polack", "gyp", "mongoloid", "retard", "retarded",
+  "rape", "raped", "raping", "hooker", "stripper", "dyke", "fag", "homo",
 ];
 // Ordinary K-8 words (no dictionary text was read to pick them).
 const K8 = (
@@ -223,7 +224,7 @@ describe("child-safety filter on the shipped dictionary", () => {
     // before 2026-11-12 removed 681 senses and 29 examples and left 383 headwords with no note, and the
     // shown note of 1,124 headwords matched BROAD.
     expect({ headwords: heads.length, senses, removed, examplesDropped, withNote, filteredToNothing }).toEqual({
-      headwords: 127_311, senses: 185_129, removed: 1_864, examplesDropped: 164, withNote: 127_109, filteredToNothing: 1_149,
+      headwords: 127_311, senses: 185_129, removed: 1_881, examplesDropped: 207, withNote: 127_109, filteredToNothing: 1_156,
     });
   }, 300_000);
 });

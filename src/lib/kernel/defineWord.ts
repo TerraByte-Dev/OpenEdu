@@ -293,7 +293,10 @@ export const BLOCKED_HEADWORDS: ReadonlySet<string> = new Set(
     "shit shits shitty shitting shitted twat twats retard retards retarded " +
     "blowjob wank horny sexy whore harlot pimp slut porn kinky fetish bondage orgasm erection " +
     "bugger molest dildo clit camgirl prickteaser " +
-    "negro negroes negroid nigra mongoloid faggot faggots fagot fagots spic spick spik wop").split(" ").concat("jerk off"),
+    "negro negroes negroid nigra mongoloid faggot faggots fagot fagots spic spick spik wop " +
+    // Words whose only remaining senses would mislead a child who asked about the adult one ("rape"
+    // would be explained as the plant): no note, so the model answers on its own.
+    "rape rapes raped raping rapist rapists hooker hookers stripper strippers dyke dykes fag fags homo homos").split(" ").concat("jerk off"),
 );
 
 const tokens = (text: string) => text.toLowerCase().split(/[^a-z]+/).filter((t) => t !== "");
@@ -314,8 +317,12 @@ export function childSafeSense(headword: string, definition: string): boolean {
 /** True when a kept sense's example may be quoted: the same rules with DRUG_EXAMPLE, and no word in
  *  it is a blocked headword ("feeling horny", "kinky sex"). */
 export function childSafeExample(headword: string, example: string): boolean {
-  return safeText(headword, example, DRUG_EXAMPLE) && !tokens(example).some((t) => BLOCKED_HEADWORDS.has(t));
+  return safeText(headword, example, DRUG_EXAMPLE) && !tokens(example).some((t) => BLOCKED_HEADWORDS.has(t)) && !ADULT_EXAMPLE.test(example);
 }
+
+// Example sentences that are fine as definitions elsewhere but not as a quoted example for a child
+// ("her exposed breast", "on drugs"). Only the example is dropped; the sense stays.
+const ADULT_EXAMPLE = /\b(?:breasts?|nude|naked|massage parlou?r|on drugs|traffic(?:ked|king)? drugs)\b/i;
 
 function safeText(headword: string, raw: string, drug: RegExp): boolean {
   if (blockedWord(headword)) return false;
