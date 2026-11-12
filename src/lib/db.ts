@@ -9,6 +9,7 @@ import type { AttemptRow, NewAttempt } from "./early/engine";
 import type { GradedBy } from "./quiz-grading";
 import type { FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
+import type { RecordSource } from "./record/sources";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -1178,4 +1179,84 @@ export async function recordSubtopicEvents(courseId: string, level: number, even
       [courseId, level, e.subtopic_id, e.event, e.source, e.correct ?? null, e.total ?? null, e.attempt_id ?? null]
     );
   }
+}
+
+// ── Learning-record reads (#258) ────────────────────────────────────────────
+// Every row record/build.ts needs for one learner. Each course-table read joins courses and keeps
+// only that learner's courses; eval sentinel courses (ids starting "__eval") are left out with substr,
+// because "_" is a wildcard in LIKE. quiz_questions reach a course through quiz_attempts.
+
+const RECORD_SCOPE = "c.learner_id = $1 AND substr(c.id, 1, 6) <> '__eval'";
+
+async function readRecordSource(learnerId: string): Promise<RecordSource | null> {
+  const d = await getDb();
+  const learners: RecordSource["learner"][] = await d.select(
+    "SELECT id, name, grade, record_voice, record_year_start FROM learners WHERE id = $1", [learnerId],
+  );
+  if (!learners[0]) return null;
+  const since: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'record_capture_since'");
+  const p = [learnerId];
+  const syllabuses: Array<Record<string, unknown>> = await d.select(
+    `SELECT s.* FROM syllabuses s JOIN courses c ON c.id = s.course_id WHERE ${RECORD_SCOPE} ORDER BY s.course_id, s.level`, p,
+  );
+  return {
+    learner: learners[0],
+    captureSince: since[0]?.value ?? null,
+    courses: await d.select(
+      `SELECT c.id, c.title, c.current_level, c.status, c.subject, c.created_at FROM courses c WHERE ${RECORD_SCOPE} ORDER BY c.created_at, c.id`, p,
+    ),
+    syllabuses: syllabuses.map(parseSyllabus).map((s) => ({
+      course_id: s.course_id, level: s.level, title: s.title, learning_objectives: s.learning_objectives, subtopics: s.subtopics,
+    })),
+    attempts: await d.select(
+      `SELECT a.id, a.course_id, a.quiz_type, a.level, a.score, a.total_questions, a.correct_count, a.time_taken_seconds,
+              a.started_at, a.completed_at, a.passed
+         FROM quiz_attempts a JOIN courses c ON c.id = a.course_id WHERE ${RECORD_SCOPE} ORDER BY a.started_at, a.id`, p,
+    ),
+    questions: await d.select(
+      `SELECT q.id, q.attempt_id, q.question_text, q.question_type, q.correct_answer, q.user_answer, q.is_correct,
+              q.explanation, q.subtopic_id, q.self_explanation, q.graded_by
+         FROM quiz_questions q JOIN quiz_attempts a ON a.id = q.attempt_id JOIN courses c ON c.id = a.course_id
+        WHERE ${RECORD_SCOPE} ORDER BY q.rowid`, p,
+    ),
+    chats: await d.select(
+      `SELECT m.course_id, m.thread_id, m.created_at FROM chat_messages m JOIN courses c ON c.id = m.course_id
+        WHERE ${RECORD_SCOPE} AND m.role = 'user' ORDER BY m.created_at`, p,
+    ),
+    lessons: await d.select(
+      `SELECT l.course_id, l.read_at FROM lessons l JOIN courses c ON c.id = l.course_id
+        WHERE ${RECORD_SCOPE} AND l.read_at IS NOT NULL ORDER BY l.read_at`, p,
+    ),
+    flashcards: await d.select(
+      `SELECT f.course_id, f.source, f.created_at, f.last_reviewed_at FROM flashcards f JOIN courses c ON c.id = f.course_id
+        WHERE ${RECORD_SCOPE} ORDER BY f.created_at`, p,
+    ),
+    flashcardReviews: await d.select(
+      `SELECT r.course_id, r.reviewed_at FROM flashcard_reviews r JOIN courses c ON c.id = r.course_id
+        WHERE ${RECORD_SCOPE} ORDER BY r.reviewed_at`, p,
+    ),
+    // Only notes the learner started and wrote something in; imports, tutor notes and empty clicks are not learning.
+    notes: await d.select(
+      `SELECT n.course_id, n.title, n.content, n.created_at FROM notes n JOIN courses c ON c.id = n.course_id
+        WHERE ${RECORD_SCOPE} AND n.origin = 'learner' AND trim(n.content) <> '' ORDER BY n.created_at`, p,
+    ),
+    subtopicEvents: await d.select(
+      `SELECT e.course_id, e.level, e.subtopic_id, e.event, e.source, e.correct, e.total, e.attempt_id, e.created_at
+         FROM subtopic_events e JOIN courses c ON c.id = e.course_id WHERE ${RECORD_SCOPE} ORDER BY e.created_at, e.id`, p,
+    ),
+    learnerDays: await d.select("SELECT day, minutes FROM learner_days WHERE learner_id = $1 ORDER BY day", p),
+  };
+}
+
+/** The active learner's own record rows. Takes no id, so a learner's view can only ever read itself. */
+export async function getRecordSource(): Promise<RecordSource | null> {
+  return activeLearnerId ? readRecordSource(activeLearnerId) : null;
+}
+
+/**
+ * Any learner's record rows, by id. This deliberately bypasses the active-learner scope, so only the
+ * teacher view may call it, and only after the teacher PIN (like getTeacherOverviewSource).
+ */
+export async function getLearnerRecordSource(learnerId: string): Promise<RecordSource | null> {
+  return readRecordSource(learnerId);
 }
