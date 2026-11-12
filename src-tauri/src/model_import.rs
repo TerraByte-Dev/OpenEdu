@@ -458,9 +458,13 @@ fn scan_gguf_dir(root: &Path, dir: &Path, files: &mut HashMap<String, Allowed>) 
         }
     }
     // Licence files next to the model, or in the kit's `licences/<folder>` beside it.
+    // The sibling `licences/<folder>` is looked up only below the picked root: never list a folder
+    // outside what the user chose.
     let mut near = vec![dir.to_path_buf()];
-    if let (Some(parent), Some(name)) = (dir.parent(), dir.file_name()) {
-        near.push(parent.join("licences").join(name));
+    if dir != root {
+        if let (Some(parent), Some(name)) = (dir.parent(), dir.file_name()) {
+            near.push(parent.join("licences").join(name));
+        }
     }
     let licence_files = licences_in(root, &near, false);
     Some(Candidate::Gguf { dir: rel_of(root, dir)?, modelfile: text, ggufs, checksums, licence_files })
