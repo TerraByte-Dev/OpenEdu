@@ -26,15 +26,22 @@ export const PAGE1_CAPS = { mastered: 6, courses: 4 } as const;
 export const PAGE1_TEXT_MAX = { skill: 40, meta: 52, course: 32 } as const;
 /** C2 on paper: the newest few (spec §2 C2). */
 export const PRINT_OWN_WORDS_MAX = 3;
-/** The cover sheet lists courses under their subjects while the table stays this short; past it, subjects only. */
-export const COVER_ROWS_MAX = 14;
 
 /** The default learner's name from migration 14. Saving a record still named this asks for a name first. */
 export const DEFAULT_LEARNER_NAME = "Learner 1";
 
-/** Spec §1 rule 5: Save asks for a name and grade first while the learner is still 'Learner 1' or has no grade. */
-export function needsNameCheck(learner: { name: string; grade: number | null }): boolean {
-  return learner.name.trim() === DEFAULT_LEARNER_NAME || normalizeGrade(learner.grade) === null;
+/**
+ * Spec §1 rule 5: Save asks for a name and grade first while the learner is still 'Learner 1' or has no
+ * grade. A missing grade only asks when whoever is saving may set it: in a class or school a learner
+ * cannot (Settings sits behind the teacher PIN), so their own record asks for the name alone.
+ */
+export function needsNameCheck(learner: { name: string; grade: number | null }, canSetGrade = true): boolean {
+  return learner.name.trim() === DEFAULT_LEARNER_NAME || (canSetGrade && normalizeGrade(learner.grade) === null);
+}
+
+/** Nothing to detail: no course and no day with learning. Such a record prints page 1 alone. */
+export function isEmptyRecord(record: LearningRecord): boolean {
+  return record.courses.length === 0 && record.days === 0 && record.quizzes.length === 0;
 }
 
 /** Shorten to `max` characters with an ellipsis. Page 1 only; nothing is shortened in the detail pages. */
@@ -132,6 +139,8 @@ export interface Page1 {
   plan: PrintPlan;
   otherLearningHead: string;
   disclaimer: string;
+  /** Detail pages follow (not for an empty record), so the footer points to the rules at their end. */
+  detail: boolean;
 }
 
 function more(total: number, shown: number): string | null {
@@ -187,12 +196,13 @@ export function page1(record: LearningRecord, audience: Audience, now: Date): Pa
     plan,
     otherLearningHead: record.range.kind === "month" ? C.writeIn.otherLearning : C.writeIn.otherLearningPeriod,
     disclaimer: disclaimerFor(plan),
+    detail: !isEmptyRecord(record),
   };
 }
 
 // ── Page 1's height, worked out from the print stylesheet's fixed metrics ───────────────────────────
 // index.css (.rec-sheet and friends) sets every font size, line height, padding and ruled-line pitch on
-// page 1 in px; these mirror them. Every row on page 1 is one line by construction (clip), so the only
+// page 1 in px; these mirror them. Every row on page 1 is one line (nowrap and an ellipsis), so the only
 // wrapping text is the printed line and the footer, estimated by characters per line. The live check
 // compares this with the rendered page (scrollHeight) and a saved PDF.
 
@@ -206,6 +216,7 @@ const M = {
   theadRow: 21, tableRow: 23,
   writeTop: 14, writeHead: 16, ruled: 22, prompt: 15, promptGap: 4, writeGap: 10, attestText: 15, signRow: 28,
   footTop: 13, foot: 13, footGap: 3, footChars: 110, printedChars: 100,
+  field: 30, totalsRow: 21, coverThead: 33, coverRow: 21, coverAll: 22, noteTop: 4, noteLine: 14, noteChars: 115,
 } as const;
 
 const linesOf = (text: string, perLine: number) => Math.max(1, Math.ceil(text.length / perLine));
@@ -241,12 +252,15 @@ export function page1HeightPx(p: Page1): number {
 
 export interface CoverCourse { courseId: string; course: string; mastered: number; levels: number; quizzes: number; minutes: number }
 export interface CoverSubject { subject: string | null; mastered: number; levels: number; quizzes: number; minutes: number; courses: CoverCourse[] }
-export interface CoverTotals { subjects: CoverSubject[]; all: Omit<CoverSubject, "subject" | "courses"> }
+/** "All courses" has no time: approximate per-course minutes are never summed into a rival to the time total. */
+export interface CoverTotals { subjects: CoverSubject[]; all: Omit<CoverSubject, "subject" | "courses" | "minutes"> }
 
 /**
  * Totals by subject and course, from the builder's own rows: quiz-checked A1 rows (not early signs), A4
  * passes, C1 attempts and C4 approximate minutes. The "All courses" row is the sum of the subjects, and
- * equals the builder's counts.
+ * equals the builder's counts. It carries no time (owner ruling): the per-course minutes are the
+ * approximate method over the whole period, and a sum of them would compete with the time total, which
+ * keeps approximate and counted time apart.
  */
 export function coverTotals(record: LearningRecord): CoverTotals {
   const byCourse = new Map<string, CoverCourse & { subject: string | null }>();
@@ -273,8 +287,8 @@ export function coverTotals(record: LearningRecord): CoverTotals {
   subjects.sort((a, b) => (a.subject === null ? 1 : 0) - (b.subject === null ? 1 : 0) || (a.subject ?? "").localeCompare(b.subject ?? ""));
   for (const s of subjects) s.courses.sort((a, b) => a.course.localeCompare(b.course));
   const all = subjects.reduce(
-    (t, s) => ({ mastered: t.mastered + s.mastered, levels: t.levels + s.levels, quizzes: t.quizzes + s.quizzes, minutes: t.minutes + s.minutes }),
-    { mastered: 0, levels: 0, quizzes: 0, minutes: 0 },
+    (t, s) => ({ mastered: t.mastered + s.mastered, levels: t.levels + s.levels, quizzes: t.quizzes + s.quizzes }),
+    { mastered: 0, levels: 0, quizzes: 0 },
   );
   return { subjects, all };
 }
@@ -284,9 +298,23 @@ export interface CoverSheet {
   fields: ReadonlyArray<string>;
   totals: Array<{ label: string; value: string }>;
   table: CoverTotals;
-  /** False when the table would run past the page: subject rows only, courses in the detail pages. */
+  /** False when listing each course would run past the sheet (coverHeightPx): subject rows only, courses in the detail pages. */
   withCourses: boolean;
+  timeNote: string;
   disclaimer: string;
+}
+
+/** The cover sheet's content height in px, from the same metrics (index.css .rec-cover). Every table row is one line. */
+export function coverHeightPx(c: CoverSheet): number {
+  const s = c.table.subjects;
+  const rows = s.length + (c.withCourses ? s.reduce((n, x) => n + x.courses.length, 0) : 0);
+  const note = c.timeNote + (c.withCourses ? "" : ` ${P.cover.subjectsOnly}`);
+  return headerPx(c.header)
+    + M.sectionHead + c.fields.length * M.field
+    + M.sectionHead + Math.ceil((c.totals.length - 1) / 2) * M.totalsRow + M.totalsRow
+    + M.sectionHead + M.coverThead + rows * M.coverRow + M.coverAll + M.noteTop + M.noteLine * linesOf(note, M.noteChars)
+    + M.writeTop + 2 * M.attestText + M.signRow
+    + footerPx(c.disclaimer);
 }
 
 export function coverSheet(record: LearningRecord, now: Date): CoverSheet {
@@ -296,8 +324,7 @@ export function coverSheet(record: LearningRecord, now: Date): CoverSheet {
     ...(record.time.counted ? [fill(C.tiles.time_counted, { n: record.time.counted.minutes })] : []),
   ].join(" · ");
   const table = coverTotals(record);
-  const rows = table.subjects.length + table.subjects.reduce((n, s) => n + s.courses.length, 0);
-  return {
+  const sheet: CoverSheet = {
     header: printHeader(record, now, P.coverKicker),
     fields: C.writeIn.coverFields,
     // Time last: its approximate and counted parts can need the full width.
@@ -310,9 +337,11 @@ export function coverSheet(record: LearningRecord, now: Date): CoverSheet {
       { label: P.cover.time, value: time },
     ],
     table,
-    withCourses: rows <= COVER_ROWS_MAX,
+    withCourses: true,
+    timeNote: record.time.counted ? P.cover.timeNoteCounted : P.cover.timeNote,
     disclaimer: RECORD_DISCLAIMER,
   };
+  return { ...sheet, withCourses: coverHeightPx(sheet) <= PAGE1_CONTENT_PX };
 }
 
 // ── The detail pages ────────────────────────────────────────────────────────────────────────────────

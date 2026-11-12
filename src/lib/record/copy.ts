@@ -205,7 +205,8 @@ export const RECORD_COPY = {
       subjectsOnly: "Each subject's courses are listed in the detail pages.",
       subjectTotal: "{subject}",
       allCourses: "All courses",
-      timeNote: "Time by course is worked out one course at a time, so it can add up to more or less than the time total.",
+      timeNote: "Time for each course is estimated with the approximate method over the whole period, so it does not add up to the time total above.",
+      timeNoteCounted: "Time for each course is estimated with the approximate method over the whole period, so it does not add up to the counted total above.",
       days: "Days with learning",
       time: "Time",
       mastered: "Skills mastered (quiz-checked)",
@@ -216,6 +217,7 @@ export const RECORD_COPY = {
     nameCheck: {
       head: "Whose record is this?",
       body: "The saved record shows the learner's name and grade. You can skip this: a missing grade prints as “Grade not set”.",
+      bodyNameOnly: "The saved record shows the learner's name. You can skip this.",
       name: "Name",
       grade: "Grade",
       saveAndContinue: "Save and continue",

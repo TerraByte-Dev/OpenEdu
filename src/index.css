@@ -742,6 +742,10 @@ html[data-theme="dark"] {
 .rec-mastered li.rec-early { border-left: 2px dashed #1E3A8A; }
 .rec-mastered .rec-skill { font-size: 12px; line-height: 16px; font-weight: 500; }
 .rec-mastered .rec-meta { font-size: 10.5px; line-height: 14px; color: #5E6577; }
+/* Page 1 and cover rows are one line each, whatever the title: print.ts counts them as one line. */
+.rec-mastered .rec-skill, .rec-mastered .rec-meta, .print-record .rec-stand td, .print-record .rec-cover-table td {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .rec-more { margin-top: 4px; font-size: 11px; line-height: 15px; color: #1E3A8A; }
 .rec-none { font-size: 12px; line-height: 15px; color: #3D465E; }
 
@@ -772,6 +776,7 @@ html[data-theme="dark"] {
 .rec-totals dd { text-align: right; }
 .rec-totals dt { color: #3D465E; }
 .rec-totals dd { margin: 0; font-weight: 600; }
+.print-record table.rec-cover-table { table-layout: fixed; }
 .print-record .rec-cover-table th, .print-record .rec-cover-table td { padding: 2px 8px 2px 0; font-size: 11.5px; line-height: 16px; }
 .print-record .rec-cover-table th { font-size: 10.5px; line-height: 14px; font-weight: 500; color: #5E6577; border-bottom: 1px solid #C9D3E6; vertical-align: bottom; }
 .rec-cover-table .rec-num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -813,7 +818,7 @@ html[data-theme="dark"] {
 .rec-how.rec-legend > div { display: grid; grid-template-columns: 2.4in 1fr; column-gap: 12px; align-items: baseline; }
 .rec-disclaimer { margin-top: 12px; padding: 10px 12px; border: 1px solid #E8E4DA; border-radius: 8px; font-size: 11px; line-height: 16px; color: #3D465E; }
 .print-flow tr, .print-flow li, .print-flow .rec-block-head, .print-flow .rec-qa, .print-flow .rec-quote,
-.print-flow .rec-how > div, .print-flow .rec-disclaimer, .print-flow h2, .print-flow h3 { break-inside: avoid; }
+.print-flow .rec-how > div, .print-flow .rec-disclaimer, .print-flow .rec-end, .print-flow h2, .print-flow h3 { break-inside: avoid; }
 .print-flow h2, .print-flow h3, .print-flow .rec-block-head, .print-flow .rec-lede { break-after: avoid; }
 .print-flow thead { display: table-header-group; }
 

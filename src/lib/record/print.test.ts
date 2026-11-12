@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { learningRecord } from "./build";
 import { bannedWordsIn, fill, RECORD_COPY, RECORD_DISCLAIMER, RECORD_DISCLAIMER_SHORT } from "./copy";
 import {
-  clip, coverSheet, coverTotals, detailPages, needsNameCheck, page1, page1HeightPx, printPlan, saveLabel,
-  COVER_ROWS_MAX, PAGE1_CAPS, PAGE1_CONTENT_PX, PAGE1_TEXT_MAX, PRINT_OWN_WORDS_MAX,
+  clip, coverHeightPx, coverSheet, coverTotals, detailPages, isEmptyRecord, needsNameCheck, page1, page1HeightPx, printPlan, saveLabel,
+  PAGE1_CAPS, PAGE1_CONTENT_PX, PAGE1_TEXT_MAX, PRINT_OWN_WORDS_MAX,
 } from "./print";
 import { earlySignCount, masteredCount, type Audience } from "./view";
 import { course, emptySource, local, nov, oct, quiz, sub, syllabus } from "./test-rows";
@@ -57,6 +57,13 @@ describe("Save and the name check", () => {
     expect(needsNameCheck({ name: "Maya", grade: null })).toBe(true);
     expect(needsNameCheck({ name: "Maya", grade: 0 })).toBe(false);
     expect(needsNameCheck({ name: "Learner 12", grade: 5 })).toBe(false);
+  });
+
+  it("asks about a missing grade only where the reader may set one", () => {
+    // A learner's own record in a class or school: Settings is behind the teacher PIN.
+    expect(needsNameCheck({ name: "Maya", grade: null }, false)).toBe(false);
+    expect(needsNameCheck({ name: "Learner 1", grade: null }, false)).toBe(true);
+    expect(needsNameCheck({ name: "Maya", grade: null }, true)).toBe(true);
   });
 
   it("names the button for the range", () => {
@@ -211,7 +218,9 @@ describe("the school-year cover sheet", () => {
     expect(t.all.mastered).toBe(masteredCount(record));
     expect(t.all.levels).toBe(record.levelsPassed.length);
     expect(t.all.quizzes).toBe(record.quizzes.length);
-    expect(t.all.minutes).toBe(record.timeBySubject.reduce((n, g) => n + g.minutes, 0));
+    // No summed time for all courses: approximate per-course minutes never rival the time total.
+    expect("minutes" in t.all).toBe(false);
+    expect(t.subjects.reduce((n, x) => n + x.minutes, 0)).toBe(record.timeBySubject.reduce((n, g) => n + g.minutes, 0));
     for (const sub of t.subjects) {
       expect(sub.mastered).toBe(sub.courses.reduce((n, c) => n + c.mastered, 0));
       expect(sub.minutes).toBe(sub.courses.reduce((n, c) => n + c.minutes, 0));
@@ -236,10 +245,58 @@ describe("the school-year cover sheet", () => {
     expect(c.disclaimer).toBe(RECORD_DISCLAIMER);
   });
 
-  it("falls back to subject rows when the courses would run past the page", () => {
+  it("says the per-course time does not add up to the counted total when there is one", () => {
+    const withCounted = coverSheet(learningRecord(bigSource(), SCHOOL_YEAR, NOW), NOW);
+    expect(withCounted.timeNote).toBe(RECORD_COPY.print.cover.timeNoteCounted);
+    expect(coverSheet(learningRecord(emptySource(), SCHOOL_YEAR, NOW), NOW).timeNote).toBe(RECORD_COPY.print.cover.timeNote);
+  });
+
+  /** n courses with realistic long titles (41-55 characters), in `subjects` subjects, each with a quiz. */
+  function manyCourses(n: number, subjects: number): RecordSource {
     const s = emptySource();
-    s.courses = Array.from({ length: COVER_ROWS_MAX }, (_, i) => course({ id: `c${i}`, title: `Course ${i}`, subject: "Math" }));
-    expect(coverSheet(learningRecord(s, SCHOOL_YEAR, NOW), NOW).withCourses).toBe(false);
+    s.captureSince = oct(1);
+    const names = ["Mathematics", "Science", "Social Studies/History", "English/Language Arts", "Arts", "Health/PE", "Foreign language"];
+    for (let i = 0; i < n; i++) {
+      const title = `Course ${i + 1}: understanding maps, charts and the stories they tell`.slice(0, 41 + (i % 15));
+      s.courses.push(course({ id: `c${i}`, title, subject: names[i % subjects] }));
+      s.syllabuses.push(syllabus(1, [sub("1.1", `Skill ${i}`)], `c${i}`));
+      quiz(s, "1.1", 3, 3, { course_id: `c${i}`, completed_at: nov(2 + (i % 8)) });
+    }
+    return s;
+  }
+
+  it("never runs past the sheet: 14 rows of long titles are measured, and a longer table drops to subject rows", () => {
+    // 2 subjects + 12 courses = 14 table rows, titles 41-55 characters.
+    const fourteen = coverSheet(learningRecord(manyCourses(12, 2), SCHOOL_YEAR, NOW), NOW);
+    expect(fourteen.table.subjects.length + fourteen.table.subjects.reduce((n, x) => n + x.courses.length, 0)).toBe(14);
+    expect(fourteen.table.subjects.flatMap((x) => x.courses).every((c) => c.course.length >= 41 && c.course.length <= 55)).toBe(true);
+    expect(coverHeightPx(fourteen)).toBeLessThanOrEqual(PAGE1_CONTENT_PX);
+    // A table that would not fit lists subjects only, and that fits.
+    const thirty = coverSheet(learningRecord(manyCourses(30, 7), SCHOOL_YEAR, NOW), NOW);
+    expect(thirty.withCourses).toBe(false);
+    expect(coverHeightPx(thirty)).toBeLessThanOrEqual(PAGE1_CONTENT_PX);
+    expect(coverHeightPx({ ...thirty, withCourses: true })).toBeGreaterThan(PAGE1_CONTENT_PX);
+    // The decision is the measured one, not a row count.
+    for (const n of [4, 8, 12, 16, 20, 24]) {
+      const c = coverSheet(learningRecord(manyCourses(n, 3), SCHOOL_YEAR, NOW), NOW);
+      expect(c.withCourses).toBe(coverHeightPx({ ...c, withCourses: true }) <= PAGE1_CONTENT_PX);
+      expect(coverHeightPx(c)).toBeLessThanOrEqual(PAGE1_CONTENT_PX);
+    }
+  });
+});
+
+describe("a record with nothing in it", () => {
+  it("prints page 1 alone, and page 1 then points nowhere", () => {
+    const empty = learningRecord(emptySource(), NOVEMBER, NOW);
+    expect(isEmptyRecord(empty)).toBe(true);
+    expect(page1(empty, "teacher", NOW).detail).toBe(false);
+    const busy = learningRecord(bigSource(), NOVEMBER, NOW);
+    expect(isEmptyRecord(busy)).toBe(false);
+    expect(page1(busy, "teacher", NOW).detail).toBe(true);
+    // A course with no activity in the period still has a standing to detail.
+    const quiet = emptySource();
+    quiet.courses = [course()];
+    expect(isEmptyRecord(learningRecord(quiet, NOVEMBER, NOW))).toBe(false);
   });
 });
 

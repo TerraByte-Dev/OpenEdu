@@ -19,13 +19,16 @@ const C = RECORD_COPY;
 const V = RECORD_COPY.view;
 const P = RECORD_COPY.print;
 
-/** One learner's printed record: the cover sheet (school year, grown-up reader), page 1, then the detail pages. */
+/**
+ * One learner's printed record: the cover sheet (school year, grown-up reader), page 1, then the detail
+ * pages. A record with no course and no activity is page 1 alone: its detail pages would only say "none".
+ */
 export function recordPrintPages(record: LearningRecord, audience: Audience, now: Date): Array<ReactNode | FlowPage> {
   const summary = page1(record, audience, now);
   return [
     ...(summary.plan.cover ? [<CoverPage key="cover" c={coverSheet(record, now)} />] : []),
     <SummaryPage key="page1" p={summary} />,
-    { flow: <DetailPages record={record} audience={audience} now={now} /> },
+    ...(summary.detail ? [{ flow: <DetailPages record={record} audience={audience} now={now} /> }] : []),
   ];
 }
 
@@ -54,12 +57,12 @@ function Signature() {
   );
 }
 
-function Footer({ disclaimer }: { disclaimer: string }) {
+function Footer({ disclaimer, pointer = true }: { disclaimer: string; pointer?: boolean }) {
   return (
     <footer>
       <span>{C.authorship}</span>
       <span>{disclaimer}</span>
-      <span>{P.rulesPointer}</span>
+      {pointer && <span>{P.rulesPointer}</span>}
     </footer>
   );
 }
@@ -121,7 +124,7 @@ function SummaryPage({ p }: { p: Page1 }) {
       {p.coursesMore && <div className="rec-more">{p.coursesMore}</div>}
 
       <WriteIn p={p} />
-      <Footer disclaimer={p.disclaimer} />
+      <Footer disclaimer={p.disclaimer} pointer={p.detail} />
     </div>
   );
 }
@@ -174,7 +177,7 @@ function CoverPage({ c }: { c: CoverSheet }) {
 
       <h2>{K.tableHead}</h2>
       <table className="rec-cover-table">
-        <colgroup><col style={{ width: "40%" }} /><col style={{ width: "16%" }} /><col style={{ width: "12%" }} /><col style={{ width: "14%" }} /><col style={{ width: "18%" }} /></colgroup>
+        <colgroup><col style={{ width: "38%" }} /><col style={{ width: "16%" }} /><col style={{ width: "12%" }} /><col style={{ width: "14%" }} /><col style={{ width: "20%" }} /></colgroup>
         <thead>
           <tr>
             <th>{K.columns.name}</th><th className="rec-num">{K.columns.mastered}</th><th className="rec-num">{K.columns.levels}</th>
@@ -195,11 +198,12 @@ function CoverPage({ c }: { c: CoverSheet }) {
             ]
           ))}
           <tr className="rec-all">
-            <td>{K.allCourses}</td>{num(c.table.all.mastered)}{num(c.table.all.levels)}{num(c.table.all.quizzes)}{time(c.table.all.minutes)}
+            {/* No summed time: approximate per-course minutes never stand as a rival to the time total. */}
+            <td>{K.allCourses}</td>{num(c.table.all.mastered)}{num(c.table.all.levels)}{num(c.table.all.quizzes)}<td className="rec-num">—</td>
           </tr>
         </tbody>
       </table>
-      <div className="rec-note">{K.timeNote}{c.withCourses ? "" : ` ${K.subjectsOnly}`}</div>
+      <div className="rec-note">{c.timeNote}{c.withCourses ? "" : ` ${K.subjectsOnly}`}</div>
 
       <div className="rec-write">
         <div>
@@ -392,9 +396,9 @@ function DetailPages({ record: r, audience, now }: { record: LearningRecord; aud
           <thead><tr><th>{P.cover.columns.name}</th><th>{P.cover.columns.time}</th></tr></thead>
           <tbody>
             {d.timeBySubject.map((g) => [
-              <tr key={g.subject ?? "none"}><td><b>{g.subject ?? C.noSubject}</b></td><td><b>{fill(V.about, { time: durationText(g.minutes) })}</b></td></tr>,
+              <tr key={g.subject ?? "none"}><td><b>{g.subject ?? C.noSubject}</b></td><td><b>{`${fill(V.about, { time: durationText(g.minutes) })} (${V.approxPill})`}</b></td></tr>,
               ...g.courses.map((c) => (
-                <tr key={`${g.subject}-${c.courseId}`}><td className="rec-dim" style={{ paddingLeft: 14 }}>{c.course}</td><td className="rec-dim">{approxTimeText({ minutes: c.minutes, sittings: c.sittings })}</td></tr>
+                <tr key={`${g.subject}-${c.courseId}`}><td className="rec-dim" style={{ paddingLeft: 14 }}>{c.course}</td><td className="rec-dim">{`${approxTimeText({ minutes: c.minutes, sittings: c.sittings })} (${V.approxPill})`}</td></tr>
               )),
             ])}
           </tbody>
@@ -427,12 +431,15 @@ function DetailPages({ record: r, audience, now }: { record: LearningRecord; aud
           [V.recheckedHead, S.rechecked], [V.hardHead, S.hard_ones], [V.howLessons, S.lessons],
         ] as Array<[string, string]>).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
       </dl>
-      <h3>{V.labelsHead}</h3>
-      <dl className="rec-how rec-legend">
-        {(Object.keys(C.pills) as PillKey[]).map((p) => <div key={p}><dt><Tag pill={p}>{C.pills[p]}</Tag></dt><dd>{RECORD_RULES.pills[p]}</dd></div>)}
-      </dl>
-      <p className="rec-dim">{C.authorship}</p>
-      <div className="rec-disclaimer">{d.disclaimer}</div>
+      {/* One unbreakable block, so the disclaimer never ends up alone on the last sheet. */}
+      <div className="rec-end">
+        <h3>{V.labelsHead}</h3>
+        <dl className="rec-how rec-legend">
+          {(Object.keys(C.pills) as PillKey[]).map((p) => <div key={p}><dt><Tag pill={p}>{C.pills[p]}</Tag></dt><dd>{RECORD_RULES.pills[p]}</dd></div>)}
+        </dl>
+        <p className="rec-dim">{C.authorship}</p>
+        <div className="rec-disclaimer">{d.disclaimer}</div>
+      </div>
     </div>
   );
 }
