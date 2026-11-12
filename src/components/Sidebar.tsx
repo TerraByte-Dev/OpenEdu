@@ -2,6 +2,7 @@
 import type { Course } from "../types";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { describeGenerationState } from "../lib/plain-language";
+import { APP_NAME } from "../lib/product";
 
 interface ContextMenuState {
   x: number;
@@ -124,7 +125,7 @@ export default function Sidebar({
                 className="text-phosphor-ink"
                 style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 500 }}
               >
-                OpenEdu
+                {APP_NAME}
               </span>
             </button>
           )}

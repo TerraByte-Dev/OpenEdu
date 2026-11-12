@@ -6,6 +6,8 @@
 // The people this is for may have no internet and no one technical nearby, so every state ends in one
 // concrete next action, and nothing tells them to open a terminal unless there is no other way.
 
+import { APP_NAME } from "./product";
+
 export type OllamaState = "not-installed" | "not-running" | "no-model" | "ready";
 export type Platform = "windows" | "mac" | "linux";
 
@@ -81,7 +83,7 @@ export function ollamaGuidance(state: GuideState, opts: { platform: Platform; ol
     return {
       state: "not-running",
       title: "Ollama isn't answering",
-      body: `OpenEdu is set to use Ollama at ${opts.ollamaUrl}, on another computer, and it isn't answering.`,
+      body: `${APP_NAME} is set to use Ollama at ${opts.ollamaUrl}, on another computer, and it isn't answering.`,
       steps: ["Check that the other computer is on and Ollama is running there.", `Or open Settings and set the Ollama address back to ${IMPORT_TARGET}.`],
       actions: ["recheck"],
     };
@@ -91,9 +93,9 @@ export function ollamaGuidance(state: GuideState, opts: { platform: Platform; ol
     return {
       state,
       title: "Ollama isn't on this computer yet",
-      body: "Ollama is the free program that runs the tutor's model on this computer, with no internet needed. OpenEdu can't install it for you, but it takes a minute.",
+      body: `Ollama is the free program that runs the tutor's model on this computer, with no internet needed. ${APP_NAME} can't install it for you, but it takes a minute.`,
       steps: [
-        `If you have an OpenEdu kit on a USB stick, plug it in and press "Find the Ollama installer". Otherwise, download Ollama from ollama.com on any computer.`,
+        `If you have an ${APP_NAME} kit on a USB stick, plug it in and press "Find the Ollama installer". Otherwise, download Ollama from ollama.com on any computer.`,
         `Double-click ${INSTALLER_NAME[p]} and follow its steps.`,
         `When it's done, come back here and press "Check again".`,
       ],
@@ -109,7 +111,7 @@ export function ollamaGuidance(state: GuideState, opts: { platform: Platform; ol
   return {
     state,
     title: "Ollama is installed but not running",
-    body: "OpenEdu needs Ollama running to think. It usually starts on its own when the computer starts; this time it hasn't.",
+    body: `${APP_NAME} needs Ollama running to think. It usually starts on its own when the computer starts; this time it hasn't.`,
     steps: [start[p], `Come back here and press "Check again".`],
     actions: ["recheck", "find-installer"],
   };

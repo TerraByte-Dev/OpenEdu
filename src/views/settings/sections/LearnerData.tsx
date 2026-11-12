@@ -4,6 +4,7 @@ import { backupLearnerData } from "../../../lib/db";
 import { backupFileName, describeBackupError, formatApproxSize } from "../../../lib/db-resilience";
 import { Section, SettingRow, ActionButton } from "../primitives";
 import RestoreSteps from "../../../components/RestoreSteps";
+import { APP_NAME } from "../../../lib/product";
 
 // Backup of every learner's courses, chats, notes, quizzes and progress. Power cuts are routine where
 // OpenEdu runs, so a copy on a USB stick is the recovery plan. The copy is made by SQLite itself
@@ -24,7 +25,7 @@ export default function LearnerData() {
     const path = await save({
       title: "Back up all learner data",
       defaultPath: backupFileName(new Date()),
-      filters: [{ name: "OpenEdu backup", extensions: ["db"] }],
+      filters: [{ name: `${APP_NAME} backup`, extensions: ["db"] }],
     });
     if (!path) return; // cancelled
     try {
@@ -40,12 +41,12 @@ export default function LearnerData() {
     <>
       <Section
         title="Backup"
-        description="Everything learners have done in OpenEdu is kept in one file on this computer. A power cut can damage it. Keep a recent copy somewhere else, such as a USB stick."
+        description={`Everything learners have done in ${APP_NAME} is kept in one file on this computer. A power cut can damage it. Keep a recent copy somewhere else, such as a USB stick.`}
         keywords="backup learner data database copy usb save power cut"
       >
         <SettingRow
           label="Back up all learner data"
-          help="Saves one file with every course, chat, note, quiz and progress record. You can keep using OpenEdu while it saves. Make a new backup often, for example at the end of each day."
+          help={`Saves one file with every course, chat, note, quiz and progress record. You can keep using ${APP_NAME} while it saves. Make a new backup often, for example at the end of each day.`}
         >
           <div className="space-y-2.5">
             <ActionButton primary onClick={backUp} busyLabel="Saving backup…">Back up all learner data</ActionButton>
@@ -60,7 +61,7 @@ export default function LearnerData() {
 
       <Section
         title="Restore"
-        description="Use a backup if OpenEdu warns that learner data is damaged, or if work has gone missing."
+        description={`Use a backup if ${APP_NAME} warns that learner data is damaged, or if work has gone missing.`}
         keywords="restore backup damaged recover replace file power cut"
       >
         <SettingRow label="How to restore a backup" help="Restoring replaces all current learner data with the data in the backup. Anything done after that backup was made will be lost.">

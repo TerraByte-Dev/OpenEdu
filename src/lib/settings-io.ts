@@ -13,6 +13,7 @@ import {
 } from "./settings-schema";
 import { loadPermissionRules, savePermissionRules } from "./permissions";
 import { applyTheme, getThemeChoice } from "./theme";
+import { SETTINGS_FILE_STEM } from "./product";
 
 export type { SettingsExport } from "./settings-schema";
 
@@ -53,7 +54,7 @@ export function downloadSettingsFile(payload: SettingsExport): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `openedu-settings-${stamp}.json`;
+  a.download = `${SETTINGS_FILE_STEM}-${stamp}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();

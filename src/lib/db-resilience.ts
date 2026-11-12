@@ -2,6 +2,8 @@
 // data" copy. Tauri-free on purpose: db.ts and the Learner data settings section hand in the plugin's
 // Database (it satisfies SqlDb structurally), and the tests hand in a fake that records the SQL.
 
+import { APP_NAME, BACKUP_FILE_STEM } from "./product";
+
 /** The two methods of tauri-plugin-sql's `Database` these helpers need. */
 export interface SqlDb {
   select<T>(query: string, bindValues?: unknown[]): Promise<T>;
@@ -75,7 +77,7 @@ export function backupFileName(now: Date): string {
   // The time is in the name because SQLite will not overwrite a file. With a date-only name, a second
   // backup the same day to the same USB folder failed right after Windows asked "replace?" and the
   // user said yes.
-  return `openedu-backup-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.db`;
+  return `${BACKUP_FILE_STEM}-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.db`;
 }
 
 export interface BackupResult {
@@ -105,10 +107,10 @@ export async function backupTo(db: SqlDb, path: string): Promise<BackupResult> {
 /** Plain-words reason a backup failed, with what to do next. */
 export function describeBackupError(err: unknown): string {
   const msg = errorText(err);
-  if (/already exists/i.test(msg)) return "OpenEdu cannot replace a file that is already there, even if Windows asked whether to replace it. Choose a new name, or delete the old file first.";
+  if (/already exists/i.test(msg)) return `${APP_NAME} cannot replace a file that is already there, even if Windows asked whether to replace it. Choose a new name, or delete the old file first.`;
   if (/disk is full|SQLITE_FULL|\(code: 13\)/i.test(msg)) return "The drive is full. Free some space, or save to another drive such as a USB stick.";
   if (/unable to open|SQLITE_CANTOPEN|\(code: 14\)|access is denied|permission/i.test(msg)) {
-    return "OpenEdu could not write there. Check the USB stick is still plugged in, or pick another folder.";
+    return `${APP_NAME} could not write there. Check the USB stick is still plugged in, or pick another folder.`;
   }
   if (DAMAGE_RE.test(msg)) return "The learner data is damaged, so it could not be copied. Restore your most recent backup.";
   return `The backup did not finish: ${msg}`;

@@ -17,6 +17,7 @@ import { getOllamaModels } from "./llm";
 import { getChatConfig, getEmbeddingConfig, getLLMProvider } from "./store";
 import { ollamaInstalled } from "./model-import";
 import { ollamaState, type OllamaState } from "./ollama-guide";
+import { APP_NAME } from "./product";
 
 export type CheckId = "provider" | "ollama" | "chat-model" | "embed-model";
 export type Severity = "ok" | "blocking" | "optional";
@@ -94,10 +95,10 @@ export function evaluateSetup(facts: {
           // Naming the actual error beats "something went wrong" — a wrong URL and a stopped service
           // are different problems with different fixes, and the message should let them be told apart.
           detail: facts.ollamaInstalled === false
-            ? "Not installed on this computer yet. OpenEdu needs it to think."
+            ? `Not installed on this computer yet. ${APP_NAME} needs it to think.`
             : facts.ollamaError
               ? `Not reachable: ${facts.ollamaError}`
-              : "Not running. OpenEdu needs it to think.",
+              : `Not running. ${APP_NAME} needs it to think.`,
           fix: { label: "How to start Ollama", kind: "external", arg: "https://ollama.com/download" },
         },
   );

@@ -5,6 +5,7 @@ import {
   getLibraryUrl, setLibraryUrl,
 } from "../../../lib/store";
 import { Section, SettingRow, SecretField, Toggle, Disclosure, INPUT_CLS, useSettings } from "../primitives";
+import { LIBRARY_NAME } from "../../../lib/product";
 
 export default function WebLibrary() {
   const { markSaved } = useSettings();
@@ -38,11 +39,11 @@ export default function WebLibrary() {
       </Section>
 
       <Section
-        title="OpenEdu Library"
+        title={LIBRARY_NAME}
         description="A curated reference library (periodic table, formulas, definitions…) bundled with the app — fully offline, no key or network needed. The tutor can consult it mid-lesson and you can browse it in a course's Resources tab."
         keywords="library reference offline curated periodic table formulas definitions resources lookup bundled"
       >
-        <SettingRow label="Let the tutor consult the OpenEdu Library" help="Turn off to hide the library from the tutor and the Resources tab.">
+        <SettingRow label={`Let the tutor consult the ${LIBRARY_NAME}`} help="Turn off to hide the library from the tutor and the Resources tab.">
           <Toggle
             checked={libraryEnabled}
             onChange={async (next) => { setLibraryEnabledState(next); await setLibraryEnabled(next); markSaved(); }}

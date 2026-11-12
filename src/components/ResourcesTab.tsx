@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import type { Course, Syllabus, LibraryEntry } from "../types";
 import { getManifest, matchResources, fetchResource, fetchAsset } from "../lib/library";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
+import { LIBRARY_NAME } from "../lib/product";
 
 // Resources tab — the curated OpenEdu Library, browsable by the STUDENT (not just fuel for the
 // tutor's answer). The list view is a paginated grid: it defaults to cards recommended for this
@@ -305,7 +306,7 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
             <div className="text-center py-12 text-sm text-[var(--ink-faint)] font-mono">Loading library…</div>
           ) : !manifest.length ? (
             <div className="text-center py-12">
-              <p className="text-[var(--ink-faint)]">The OpenEdu Library isn't available right now.</p>
+              <p className="text-[var(--ink-faint)]">The {LIBRARY_NAME} isn't available right now.</p>
               <p className="text-xs text-[var(--ink-faint)] mt-1">It appears here once it's reachable (and enabled in Settings).</p>
             </div>
           ) : (

@@ -29,6 +29,7 @@ import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
 import { DictionaryCard } from "./DictionaryCard";
 import { dictionaryCard, cardStartsOpen, cardSpeech, type DictionaryCard as DictionaryCardData } from "../lib/dictionary-card";
+import { LIBRARY_NAME } from "../lib/product";
 
 // Models already reported as tool-less this session, so the DEV notice prints once per model.
 const toolsSuppressedLogged = new Set<string>();
@@ -797,7 +798,7 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
     if (ev.name === "library.search") {
       const v = ev.value as { found?: boolean; id?: string; title?: string } | undefined;
       if (!v?.found || !v.title) {
-        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔗 OpenEdu Library — no matching reference</div>;
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔗 {LIBRARY_NAME} — no matching reference</div>;
       }
       const clickable = !!(onOpenResource && v.id);
       const chipClass = `${base} bg-lcd border-phosphor/20 text-phosphor-ink ${clickable ? "cursor-pointer hover:border-phosphor/50 hover:text-phosphor-bright transition-colors" : ""}`;
@@ -808,11 +809,11 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
           </div>
           {clickable ? (
             <button type="button" onClick={() => onOpenResource!(v.id!)} title="Open in Resources" className={chipClass}>
-              🔗 OpenEdu Library: {v.title}
+              🔗 {LIBRARY_NAME}: {v.title}
             </button>
           ) : (
-            <span title="Cited from the OpenEdu Library" className={chipClass}>
-              🔗 OpenEdu Library: {v.title}
+            <span title={`Cited from the ${LIBRARY_NAME}`} className={chipClass}>
+              🔗 {LIBRARY_NAME}: {v.title}
             </span>
           )}
         </div>
@@ -823,10 +824,10 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
     if (ev.name === "library.lookup") {
       const v = ev.value as { found?: boolean; dataset?: string; title?: string; computed?: boolean; card_id?: string } | undefined;
       if (!v?.found || !v.title) {
-        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔎 OpenEdu Library — no matching record</div>;
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>🔎 {LIBRARY_NAME} — no matching record</div>;
       }
       const linkable = !!(onOpenResource && v.card_id);
-      const lbl = `${v.computed ? "🧮 Computed" : "🔗 OpenEdu Library"}: ${v.title}`;
+      const lbl = `${v.computed ? "🧮 Computed" : `🔗 ${LIBRARY_NAME}`}: ${v.title}`;
       const cls = `${base} bg-lcd border-phosphor/20 text-phosphor-ink ${linkable ? "cursor-pointer hover:border-phosphor/50 hover:text-phosphor-bright transition-colors" : ""}`;
       return (
         <div className="flex flex-col items-start gap-1.5">
@@ -836,7 +837,7 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
           {linkable ? (
             <button type="button" onClick={() => onOpenResource!(v.card_id!)} title="Open in Resources" className={cls}>{lbl}</button>
           ) : (
-            <span title="From the OpenEdu Library" className={cls}>{lbl}</span>
+            <span title={`From the ${LIBRARY_NAME}`} className={cls}>{lbl}</span>
           )}
         </div>
       );

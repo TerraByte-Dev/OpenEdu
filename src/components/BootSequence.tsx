@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { APP_NAME } from "../lib/product";
 
 // A quiet launch moment, nothing more: the name on paper for half a second. It used to be a 3.7 s fake
 // BIOS log ("POST... PASS", "[ OK ] Promotion test engine ARMED") that a kid read as the computer being
@@ -21,7 +22,7 @@ export default function BootSequence({ onComplete }: BootSequenceProps) {
 
   return (
     <div className="brand-splash" aria-hidden="true">
-      <span className="brand-splash-name">OpenEdu</span>
+      <span className="brand-splash-name">{APP_NAME}</span>
     </div>
   );
 }

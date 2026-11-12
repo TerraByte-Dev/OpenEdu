@@ -13,6 +13,7 @@ import type { CheckResult, SetupStatus } from "../lib/setup-check";
 import { ollamaGuidance, platformOf } from "../lib/ollama-guide";
 import OllamaGuide from "./OllamaGuide";
 import ModelImport from "./ModelImport";
+import { APP_NAME } from "../lib/product";
 
 export interface SetupGateProps {
   status: SetupStatus;
@@ -63,7 +64,7 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
         <h1 className="text-lg text-phosphor-bright mb-1">Let's get you set up</h1>
         <p className="text-sm text-[var(--ink-dim)] mb-5">
           {blocking.length > 0
-            ? "OpenEdu needs one more thing before it can tutor. Everything runs on your machine — nothing is sent anywhere."
+            ? `${APP_NAME} needs one more thing before it can tutor. Everything runs on your machine — nothing is sent anywhere.`
             : "You're ready to go. These are optional."}
         </p>
 
@@ -88,7 +89,7 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
           <div className="kit-card mt-4">
             <h2 className="text-base text-[var(--ink-em)] font-medium">No internet? Import from a USB stick or folder</h2>
             <p className="text-sm text-[var(--ink-dim)] mt-1 mb-3 leading-relaxed">
-              An OpenEdu kit, or any folder with a model copied from another computer, works without a download.
+              An {APP_NAME} kit, or any folder with a model copied from another computer, works without a download.
             </p>
             <ModelImport ollamaUrl={ollamaUrl} onImported={() => onRecheck()} />
           </div>

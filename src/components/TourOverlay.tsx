@@ -8,6 +8,8 @@
 // Shown once, skippable at every step, and never shown before setup is ready — a tour of an app that
 // cannot answer is a tour of a disappointment.
 
+import { APP_NAME } from "../lib/product";
+
 export interface TourStep {
   title: string;
   body: string;
@@ -16,7 +18,7 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     title: "Courses live on the left",
-    body: "Make one for any topic. OpenEdu writes a six-level curriculum for it — that takes a few minutes, and only happens once.",
+    body: `Make one for any topic. ${APP_NAME} writes a six-level curriculum for it — that takes a few minutes, and only happens once.`,
   },
   {
     title: "Chat is the main event",

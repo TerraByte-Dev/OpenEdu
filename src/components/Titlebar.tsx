@@ -2,6 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { LLMProvider } from "../types";
 import { applyTheme } from "../lib/theme";
 import { useThemeState } from "../lib/useTheme";
+import { APP_NAME } from "../lib/product";
 
 const PROVIDER_LABEL: Record<LLMProvider, string> = {
   ollama: "Ollama",
@@ -46,7 +47,7 @@ export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLe
           style={{ fontFamily: "var(--font-display)" }}
           data-tauri-drag-region
         >
-          OpenEdu
+          {APP_NAME}
         </span>
       </div>
 
