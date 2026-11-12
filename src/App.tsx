@@ -383,7 +383,7 @@ export default function App() {
                 <Settings
                   key={settingsSection ?? "default"}
                   initialSectionId={settingsSection}
-                  onSaved={refreshProvider}
+                  onSaved={() => { void refreshProvider(); void recheckSetup(); }}
                   learner={{
                     id: activeLearner.id,
                     name: activeLearner.name,

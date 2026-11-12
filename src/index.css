@@ -674,6 +674,68 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   OFFLINE SETUP (#275): Ollama guide + model import
+   An instruction sheet: numbered steps in accent-tint circles, a four-stop track for the import.
+═══════════════════════════════════════════════════════════════ */
+
+.kit-card {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 20px 22px;
+}
+.kit-card-flat {
+  box-shadow: none;
+  border-radius: var(--radius-control);
+  padding: 14px 16px;
+  background: var(--panel-lite);
+}
+
+.kit-steps { list-style: none; padding: 0; display: grid; gap: 10px; }
+.kit-steps li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; font-size: 0.875rem; line-height: 1.55; color: var(--ink); }
+.kit-step-n {
+  width: 28px; height: 28px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--phosphor-dim); color: var(--phosphor);
+  font-weight: 600; font-size: 0.875rem;
+}
+
+.kit-choice {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 10px 14px; border-radius: var(--radius-control);
+  border: 1px solid var(--rule); background: var(--panel);
+}
+.kit-choice:hover { border-color: var(--rule-strong); }
+.kit-choice-on { border-color: var(--phosphor); background: var(--panel-tint); }
+.kit-choice:focus-within { outline: 2px solid var(--phosphor); outline-offset: 2px; }
+
+.kit-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 0.875rem; }
+.kit-facts dt { color: var(--ink-faint); }
+.kit-facts dd { margin: 0; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+
+.kit-track { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
+.kit-track li { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--ink-faint); position: relative; }
+/* The rule between stops, drawn from each stop to the next. */
+.kit-track li + li::before {
+  content: ""; position: absolute; top: 13px; right: 50%; width: 100%; height: 2px;
+  background: var(--rule); z-index: 0;
+}
+.kit-track li.kit-track-done + li::before,
+.kit-track li.kit-track-done + li.kit-track-now::before { background: var(--phosphor); }
+.kit-track-dot {
+  position: relative; z-index: 1;
+  width: 28px; height: 28px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--panel); border: 2px solid var(--rule-strong); color: var(--ink-faint);
+  font-weight: 600; font-size: 0.8125rem;
+}
+.kit-track-done { color: var(--ink-dim); }
+.kit-track-done .kit-track-dot { background: var(--phosphor); border-color: var(--phosphor); color: var(--on-accent); }
+.kit-track-now { color: var(--ink); font-weight: 500; }
+.kit-track-now .kit-track-dot { border-color: var(--phosphor); color: var(--phosphor); background: var(--phosphor-dim); }
+
+/* ═══════════════════════════════════════════════════════════════
    SCROLLBAR
 ═══════════════════════════════════════════════════════════════ */
 
