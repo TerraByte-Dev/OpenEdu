@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { isValidElement, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   GLYPH_H, MARGIN, PAGE_H, PAGE_W, layoutSheet, strokeStart, type Placed, type Sheet,
@@ -13,17 +13,42 @@ import { MASTERY_STREAK } from "../../lib/early/engine";
 // index.css hides everything else. No PDF library, nothing over the network. Paper is paper: these
 // pages use fixed ink colours in both themes.
 
-export default function PrintView({ title, hint, pages, onBack }: {
+/**
+ * A page whose content flows over as many sheets as it needs (the learning record's detail pages,
+ * #258): printed on the named @page "record" with its own margins, instead of one fixed sheet.
+ */
+export interface FlowPage { flow: ReactNode }
+
+function isFlow(p: ReactNode | FlowPage): p is FlowPage {
+  return typeof p === "object" && p !== null && !isValidElement(p) && "flow" in p;
+}
+
+export default function PrintView({ title, hint, pages, onBack, backLabel = "Back to grown-ups", autoPrint = false }: {
   title: string;
   hint: string;
-  pages: ReactNode[];
+  pages: Array<ReactNode | FlowPage>;
   onBack: () => void;
+  /** The K-1 grown-ups view leaves it at its default. */
+  backLabel?: string;
+  /** Open the print dialog as soon as the pages are on screen (the record's Save button). */
+  autoPrint?: boolean;
 }) {
+  useEffect(() => {
+    if (!autoPrint) return;
+    // After the pages (and the .print-root copy) have painted.
+    const frame = requestAnimationFrame(() => window.print());
+    return () => cancelAnimationFrame(frame);
+  }, [autoPrint]);
+
+  const sheet = (p: ReactNode | FlowPage, i: number, preview: boolean) => isFlow(p)
+    ? <div key={i} className="print-page print-flow" aria-label={preview ? "Detail pages" : undefined}>{p.flow}</div>
+    : <div key={i} className="print-page" aria-label={preview ? `Page ${i + 1} of ${pages.length}` : undefined}>{p}</div>;
+
   return (
 
     <div className="flex-1 min-h-0 overflow-y-auto flex flex-col bg-bg">
       <header className="flex flex-wrap items-center gap-4 px-10 py-4 border-b border-[var(--rule)]">
-        <button type="button" className="btn" onClick={onBack}>Back to grown-ups</button>
+        <button type="button" className="btn" onClick={onBack}>{backLabel}</button>
         <div className="flex flex-col grow min-w-0">
           <h1 className="m-0 text-[21px] font-medium text-ink">{title}</h1>
           <span className="text-sm text-[var(--ink-faint)]">{hint}</span>
@@ -31,11 +56,11 @@ export default function PrintView({ title, hint, pages, onBack }: {
         <button type="button" className="btn btn-primary" onClick={() => window.print()}>Print</button>
       </header>
       <div className="print-preview flex flex-col items-center gap-8 px-6 py-8">
-        {pages.map((p, i) => <div key={i} className="print-page" aria-label={`Page ${i + 1} of ${pages.length}`}>{p}</div>)}
+        {pages.map((p, i) => sheet(p, i, true))}
       </div>
       {createPortal(
         <div className="print-root" aria-hidden="true">
-          {pages.map((p, i) => <div key={i} className="print-page">{p}</div>)}
+          {pages.map((p, i) => sheet(p, i, false))}
         </div>,
         document.body,
       )}

@@ -4,8 +4,8 @@
 
 import { parseUtc } from "../early/engine";
 import { monthLabel, shortDate } from "../early/report";
-import { learningRecord, type Evidence, type LearningRecord } from "./build";
-import { RECORD_COPY, fill } from "./copy";
+import { learningRecord, type CourseStanding, type Evidence, type LearningRecord, type SkillLine, type WithoutProofRow } from "./build";
+import { RECORD_COPY, fill, type PillKey } from "./copy";
 import { firstActivityDay, localDayKey, monthsWithActivity, schoolYearStart, type RecordRange } from "./time";
 import type { RecordSource } from "./sources";
 
@@ -107,6 +107,38 @@ export function durationText(minutes: number): string {
 export function approxTimeText(approx: { minutes: number; sittings: number }): string {
   const time = durationText(approx.minutes);
   return fill(RECORD_COPY.tiles.time_approx, { time, sittings: approx.sittings });
+}
+
+/**
+ * The approximate part of the time tile, or null when it would say nothing: the cut-over day alone can
+ * leave an empty approximate part beside counted time, and "About 0 min" reads as a claim.
+ */
+export function approxShown(time: LearningRecord["time"]): { minutes: number; sittings: number } | null {
+  return time.approx && (time.approx.sittings > 0 || !time.counted) ? time.approx : null;
+}
+
+/** B1's skill counts for one course: the skills up to its level at range end, as the course card counts them. */
+export function standingCounts(c: CourseStanding): { total: number; mastered: number; early: number; learning: number } {
+  const upTo = c.level ?? 0;
+  const shown = c.skills.filter((s) => s.level <= upTo);
+  const n = (st: SkillLine["status"]) => shown.filter((s) => s.status === st).length;
+  return { total: shown.length, mastered: n("mastered"), early: n("early_sign"), learning: n("learning") };
+}
+
+/** A2: the pill and the reason line for a skill mastered in the app without quiz proof. */
+export function withoutProofText(w: WithoutProofRow): { pill: PillKey; why: string } {
+  const C = RECORD_COPY;
+  const pill: PillKey = w.reason === "tutor" ? "tutor" : w.reason === "keyword" ? "keyword" : "no_proof";
+  const why = w.reason === "tutor" || w.reason === "keyword"
+    ? (w.date ? fill(C.withoutProof[w.reason], { date: dayText(w.date) }) : w.reason === "tutor" ? V.tutorUndated : V.keywordUndated)
+    : w.reason === "fallback" ? fill(C.withoutProof.fallback, { n: w.fallbackAnswers })
+    : C.withoutProof[w.reason];
+  return { pill, why };
+}
+
+/** C1's time column: "—" when not stored, "under 1 min", or "12 min". */
+export function quizTimeText(seconds: number | null): string {
+  return seconds === null ? "—" : seconds < 60 ? V.underMinute : durationText(Math.round(seconds / 60));
 }
 
 /** A stored UTC time as the learner's local "Nov 9". */
