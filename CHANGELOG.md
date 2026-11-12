@@ -9,6 +9,15 @@ The section for each release is also what the app shows when you press Check for
 ## [Unreleased]
 
 ### Changed
+- **OpenEdu is now for one learner.** Class and school modes, the "Who uses this computer?"
+  question, the teacher PIN, the teacher view and its spreadsheet export, and adding learners are
+  gone from OpenEdu. Features for families, classes and schools are in TerraTutor, a separate
+  commercial edition by TerraByte Solutions. Nothing is deleted: if your computer has several
+  learners, OpenEdu still asks who is learning when it starts, every learner keeps all of their
+  courses, and a learner's PIN still guards them. Each learner can still change their name and PIN
+  and remove themselves until one is left. Settings is no longer behind a teacher PIN, so a class
+  computer's Settings, including the backup, are open to whoever is signed in. A forgotten learner
+  PIN can no longer be cleared from inside OpenEdu.
 - **Newer cloud models.** OpenAI now defaults to **GPT-6.1 Sol** for building courses and
   **GPT-6 Luna** for the tutor, with GPT-6 Astra on offer too. Anthropic's tutor default is now
   **Claude Haiku 5.5**; Claude Opus 4.6 stays the course-building default, because the newest Opus
