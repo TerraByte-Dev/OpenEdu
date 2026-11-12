@@ -6,7 +6,7 @@ import Permissions from "./sections/Permissions";
 import Appearance from "./sections/Appearance";
 import LearnerData from "./sections/LearnerData";
 import About from "./sections/About";
-import UsageModeSection from "./sections/UsageMode";
+import LearnerSection from "./sections/Learner";
 
 function Icon({ d }: { d: string }) {
   return (
@@ -46,11 +46,11 @@ export const SECTIONS: SectionDef[] = [
     Component: Appearance,
   },
   {
-    id: "usage",
-    label: "Who uses this",
-    keywords: "who uses this computer mode just me single class school center learners students teacher pin overview groups classes export csv spreadsheet grade reading level kindergarten read aloud voice early learner screens activities colors counting shapes",
-    icon: <Icon d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6|M17 11a3 3 0 1 0 0-6|M21 20c0-3-2-5.5-4.5-6" />,
-    Component: UsageModeSection,
+    id: "learner",
+    label: "Name & grade",
+    keywords: "name learner rename grade school year reading level kindergarten text size read aloud speech voice speak",
+    icon: <Icon d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />,
+    Component: LearnerSection,
   },
   {
     id: "learner-data",

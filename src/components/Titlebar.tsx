@@ -19,7 +19,7 @@ interface TitlebarProps {
   provider: LLMProvider;
   /** Omitted while the learner picker is up: settings open from inside a learner's session. */
   onGoSettings?: () => void;
-  /** The active learner's name; the chip opens Switch / Add learner and the learner's own controls. */
+  /** The active learner's name, shown when there is a picker; the chip opens Switch learner and the learner's own controls. */
   learnerName?: string;
   onOpenLearner?: () => void;
 }

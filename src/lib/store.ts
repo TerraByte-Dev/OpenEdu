@@ -230,19 +230,6 @@ export async function setReadAloudAuto(learnerId: string, on: boolean): Promise<
   await s.save();
 }
 
-// A K-1 learner's early-learner screens choice (grade.ts earlyScreensOn). null until the family chooses.
-export async function getEarlyScreens(learnerId: string): Promise<boolean | null> {
-  const s = await getStore();
-  const v = await s.get<unknown>(learnerStoreKey(STORE_KEYS.earlyScreens, learnerId));
-  return typeof v === "boolean" ? v : null;
-}
-
-export async function setEarlyScreens(learnerId: string, on: boolean): Promise<void> {
-  const s = await getStore();
-  await s.set(learnerStoreKey(STORE_KEYS.earlyScreens, learnerId), on);
-  await s.save();
-}
-
 // Drop everything the store remembers about one learner (on learner delete).
 export async function clearLearnerStore(learnerId: string): Promise<void> {
   const s = await getStore();

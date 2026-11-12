@@ -60,9 +60,9 @@ export function resolveSubtopic(subtopics: Subtopic[], ref: string): SubtopicRes
 
 export type SubtopicEventKind = "practiced" | "mastered" | "review_needed" | "review_cleared";
 
-// The status changes between two states of one subtopic, in the order a reader would tell them. The
-// learning record (#258) stores these for the paths it cannot replay from tagged quiz questions: the
-// tutor's mark and the keyword fallback (subtopic_events, migration 18).
+// The status changes between two states of one subtopic, in the order a reader would tell them. They
+// are logged for the paths that cannot be replayed from tagged quiz questions: the tutor's mark and the
+// keyword fallback (subtopic_events, migration 18).
 export function subtopicTransitions(prev: Subtopic, next: Subtopic): SubtopicEventKind[] {
   const out: SubtopicEventKind[] = [];
   if (!prev.practiced && next.practiced) out.push("practiced");

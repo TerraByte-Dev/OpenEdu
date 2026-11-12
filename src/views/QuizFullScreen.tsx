@@ -24,7 +24,7 @@ interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   feedback?: string;
 }
 
-// The most a quiz question can add to a quiz's stored time (#258): 2 minutes.
+// The most a quiz question can add to a quiz's stored time: 2 minutes.
 const QUIZ_SECONDS_PER_QUESTION = 120;
 
 export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps) {

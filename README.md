@@ -39,6 +39,11 @@ but its tutoring failed our held-out eval, so we don't recommend it — and to w
 and no network**: your data lives in a local SQLite database, and the only outbound calls are to the model
 provider you choose, plus web search if you add a Tavily key and the update check when you click it.
 
+OpenEdu is for one learner on their own computer. Features for families, classes and schools are not part
+of it; they are in TerraTutor, a separate commercial edition by TerraByte Solutions. If an earlier version
+of OpenEdu was set up for several learners, every learner and course is kept: OpenEdu asks who is
+learning at launch, and each learner's PIN still guards their courses.
+
 ## Features
 
 - **Generate a course for anything** — a research → outline → tutor-instructions → 6 syllabuses pipeline, fully schema-enforced so it holds up on small local models.
@@ -136,7 +141,7 @@ per-course files. A few orientation points:
 
 ## Backing up and restoring learner data
 
-Every learner's courses, chats, notes, quizzes and progress live in that one `openedu.db` file. A power cut
+Your courses, chats, notes, quizzes and progress live in that one `openedu.db` file. A power cut
 can damage it, so keep a copy somewhere else.
 
 **Back up:** open **Settings → Learner data → Back up all learner data** and save the file, for example to

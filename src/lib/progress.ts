@@ -6,7 +6,7 @@ import type { Syllabus, Subtopic, QuizQuestion } from "../types";
 
 // ─── Mastery Tracking ─────────────────────────────────────────────────────────
 
-// The learning record's event log (#258) is best effort: a failed insert must never stop the mastery,
+// The skill status log (subtopic_events, migration 18) is best effort: a failed insert must never stop the mastery,
 // progress and knowledge updates that follow it.
 async function logSubtopicEvents(courseId: string, level: number, events: SubtopicEventRow[]): Promise<void> {
   try {
@@ -21,8 +21,7 @@ async function logSubtopicEvents(courseId: string, level: number, events: Subtop
  * If questions have subtopic_id, uses exact mapping. Otherwise falls back to
  * keyword matching against subtopic titles and key_concepts.
  * Status changes on a subtopic that got any keyword-matched question are also logged as
- * subtopic_events (source 'keyword'), because the learning record (#258) cannot replay them from
- * tagged questions. attemptId ties those events to the attempt.
+ * subtopic_events (source 'keyword'), because they cannot be replayed from tagged questions. attemptId ties those events to the attempt.
  */
 export async function updateSubtopicMastery(
   courseId: string,

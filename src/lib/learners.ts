@@ -1,5 +1,12 @@
-// Learner profiles: the rules that decide who sees what on a shared PC. Pure module (no Tauri, no DOM)
-// so every rule below is unit-tested in learners.test.ts and called, unchanged, by db.ts and App.tsx.
+// Learners: the rules that decide who sees what. Pure module (no Tauri, no DOM) so every rule below is
+// unit-tested in learners.test.ts and called, unchanged, by db.ts, App.tsx and the picker.
+//
+// OpenEdu is a solo-learner app: a new install has one learner (the default one) and never adds
+// another. An install that added learners in an earlier version (learner profiles, or a class or school)
+// keeps all of them: the picker lists every one and a learner's PIN still guards their courses. On an
+// install that was never a class or school, a learner can also add a PIN or delete themselves until one
+// is left; on a class or school install a teacher set the learners up, so neither is offered
+// (learnerMenuActions). Nothing here ever drops a learner or a PIN by itself.
 //
 // Scope is enforced at the root: every data table hangs off courses(id), and a course belongs to one
 // learner (courses.learner_id, migration 13). Filter the course list and refuse a foreign course, and
@@ -16,8 +23,6 @@ export interface LearnerRow {
   pin_salt: string | null;
   created_at: string;
   last_active_at: string | null;
-  /** The learner's group in school mode (migration 14), or null. */
-  group_id?: string | null;
   /** 0 = kindergarten, 1-12 = that grade, null = not set (migration 15). Read through grade.ts normalizeGrade. */
   grade?: number | null;
 }
@@ -25,12 +30,17 @@ export interface LearnerRow {
 export const LEARNER_NAME_MAX = 40;
 
 /**
- * Show the picker unless there is exactly one learner and it has no PIN. That single case is every
- * install that existed before profiles shipped, and it must see no new screen. Zero learners (only
- * reachable by hand-editing the DB) also shows the picker, which then offers "Add learner".
+ * Show the picker unless there is exactly one learner and it has no PIN. That single case is every new
+ * install and every install that never added a learner, and it never sees the picker. Several learners
+ * (from an earlier version) or a PIN on the only one always get it, so no PIN is ever skipped.
  */
 export function needsPicker(learners: ReadonlyArray<Pick<LearnerRow, "pin_hash">>): boolean {
   return !(learners.length === 1 && !learners[0].pin_hash);
+}
+
+/** Whether entering this learner asks for their PIN first (the picker's tile, then PinScreen's verifyPin). */
+export function needsPin(learner: Pick<LearnerRow, "pin_hash">): boolean {
+  return !!learner.pin_hash;
 }
 
 /** The learner to enter without asking, or null when the picker must be shown. */
@@ -50,6 +60,39 @@ export function canAccessCourse(
 ): boolean {
   if (!course || !activeLearnerId) return false;
   return course.learner_id === activeLearnerId;
+}
+
+/**
+ * Whether an earlier version ran this install as "A class" or "A school or center": app_config
+ * usage_mode, read only (db.ts getLegacyUsageMode). There a teacher set the learners up, and the
+ * teacher's tools are gone, so a learner may not delete themselves or put a PIN on their courses.
+ */
+export function wasClassOrSchool(legacyUsageMode: unknown): boolean {
+  return legacyUsageMode === "class" || legacyUsageMode === "school";
+}
+
+/** What the signed-in learner's menu offers (LearnerMenu). Renaming is always offered. */
+export interface LearnerMenuActions {
+  switchLearner: boolean;
+  /** Add a first PIN: only where no teacher set the learners up. */
+  setPin: boolean;
+  /** Change or remove the learner's own PIN, after typing it. */
+  changePin: boolean;
+  deleteSelf: boolean;
+}
+
+export function learnerMenuActions(
+  learner: Pick<LearnerRow, "pin_hash">,
+  learners: ReadonlyArray<Pick<LearnerRow, "pin_hash">>,
+  legacyUsageMode: unknown,
+): LearnerMenuActions {
+  const teacherSetUp = wasClassOrSchool(legacyUsageMode);
+  return {
+    switchLearner: needsPicker(learners),
+    setPin: !learner.pin_hash && !teacherSetUp,
+    changePin: !!learner.pin_hash,
+    deleteSelf: !teacherSetUp && canDeleteLearner(learners),
+  };
 }
 
 /** Never delete the last learner: the app would have nobody to open as. */

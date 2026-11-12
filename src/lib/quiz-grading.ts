@@ -274,8 +274,8 @@ export interface GradeItem {
   type: string;
 }
 
-// How an answer was marked, stored as quiz_questions.graded_by (migration 18) so the learning record
-// (#258) can say which marks came from the answer key and which from the model. 'key': compared with
+// How an answer was marked, stored as quiz_questions.graded_by (migration 18) so the stored history
+// says which marks came from the answer key and which from the model. 'key': compared with
 // the answer key as the learner answered (multiple choice, true/false, matching). 'exact': a string
 // or number match (gradeFreeTextDeterministic). 'model': the grader model's verdict. 'fallback': the
 // grader failed or skipped the item and the answer was passed leniently. 'unanswered': a timed-out

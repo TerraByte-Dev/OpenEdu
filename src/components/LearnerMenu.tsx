@@ -1,48 +1,42 @@
 import { useState } from "react";
-import { createLearner, renameLearner, setLearnerPin, deleteLearner } from "../lib/db";
+import { renameLearner, setLearnerPin, deleteLearner } from "../lib/db";
 import { clearLearnerStore } from "../lib/store";
 import {
-  canDeleteLearner, validateLearnerName, deleteConfirmMatches,
+  learnerMenuActions, validateLearnerName, deleteConfirmMatches,
   LEARNER_NAME_MAX, type LearnerRow,
 } from "../lib/learners";
 import { hashPin, verifyPin, isValidPin } from "../lib/learner-pin";
 import { Initial, BIG_BTN } from "./LearnerPicker";
-import { showsPicker, learnersManageLearners, type UsageMode } from "../lib/usage-modes";
-import type { Grade } from "../lib/grade";
-import { GradeSelect } from "./GradeSelect";
-import { RECORD_COPY } from "../lib/record/copy";
 
-// The active learner's own controls, opened from the titlebar. Everything here acts on the learner
-// who is signed in and nobody else: you can rename, set a PIN for, or delete only yourself. In a class
-// or school (usage-modes.ts) adding and deleting learners moves to the teacher view.
+// The active learner's own controls, opened from the titlebar chip, which shows only when there is a
+// picker (learners.ts needsPicker: several learners from an earlier version, or a PIN). Everything here
+// acts on the learner who is signed in and nobody else. learners.ts learnerMenuActions decides what is
+// offered: on a former class or school install a learner can rename themselves and change or remove a
+// PIN they already have, nothing more. Nobody adds learners: OpenEdu is for one learner.
 
 interface LearnerMenuProps {
   learner: LearnerRow;
   learners: LearnerRow[];
-  mode: UsageMode;
+  /** app_config usage_mode from an earlier version, read only (db.ts getLegacyUsageMode). */
+  legacyUsageMode: string | null;
   /** Set while a course is being built: switching would hand the build's screen to someone else. */
   busyReason: string | null;
   onClose: () => void;
-  /** Open this learner's own learning record (#258). Absent on the early-learner screens. */
-  onOpenRecord?: () => void;
   onSwitch: () => void;
-  /** A learner was added; enter them. */
-  onAdded: (learner: LearnerRow) => void;
   /** Name or PIN changed; reload the learner list. */
   onChanged: () => void;
   /** This learner and their courses are gone. */
   onDeleted: () => void;
 }
 
-type Panel = null | "add" | "rename" | "pin" | "delete";
+type Panel = null | "rename" | "pin" | "delete";
 
 const SMALL_BTN: React.CSSProperties = { fontSize: "1rem", padding: "10px 18px" };
 const INPUT: React.CSSProperties = { fontSize: "1.15rem" };
 
-export default function LearnerMenu({ learner, learners, mode, busyReason, onClose, onOpenRecord, onSwitch, onAdded, onChanged, onDeleted }: LearnerMenuProps) {
+export default function LearnerMenu({ learner, learners, legacyUsageMode, busyReason, onClose, onSwitch, onChanged, onDeleted }: LearnerMenuProps) {
   const [panel, setPanel] = useState<Panel>(null);
-  const canSwitch = showsPicker(mode, learners);
-  const selfService = learnersManageLearners(mode);
+  const can = learnerMenuActions(learner, learners, legacyUsageMode);
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60" onMouseDown={onClose}>
@@ -66,36 +60,29 @@ export default function LearnerMenu({ learner, learners, mode, busyReason, onClo
 
         {panel === null && (
           <div className="flex flex-col gap-3">
-            {canSwitch && (
+            {can.switchLearner && (
               <button className="btn btn-primary justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={onSwitch}>
                 Switch learner
               </button>
             )}
-            {selfService && (
-              <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("add")}>Add learner</button>
-            )}
-            {onOpenRecord && (
-              <button className="btn justify-center" style={BIG_BTN} onClick={onOpenRecord}>{RECORD_COPY.view.menuItem}</button>
-            )}
             <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("rename")}>Change my name</button>
-            <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("pin")}>
-              {learner.pin_hash ? "Change or remove my PIN" : "Set a PIN"}
-            </button>
-            {selfService ? (
+            {(can.changePin || can.setPin) && (
+              <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("pin")}>
+                {can.changePin ? "Change or remove my PIN" : "Set a PIN"}
+              </button>
+            )}
+            {can.deleteSelf && (
               <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("delete")}>Delete me</button>
-            ) : (
-              <p className="text-base text-[var(--ink-dim)]">Your teacher adds and removes learners, and can clear a PIN you forget.</p>
             )}
           </div>
         )}
 
-        {panel === "add" && <AddPanel learners={learners} onBack={() => setPanel(null)} onAdded={onAdded} />}
         {panel === "rename" && (
           <RenamePanel learner={learner} learners={learners} onBack={() => setPanel(null)} onDone={() => { onChanged(); setPanel(null); }} />
         )}
-        {panel === "pin" && <PinPanel learner={learner} teacherCanReset={!selfService} onBack={() => setPanel(null)} onDone={() => { onChanged(); setPanel(null); }} />}
+        {panel === "pin" && <PinPanel learner={learner} onBack={() => setPanel(null)} onDone={() => { onChanged(); setPanel(null); }} />}
         {panel === "delete" && (
-          <DeletePanel learner={learner} learners={learners} onBack={() => setPanel(null)} onDeleted={onDeleted} />
+          <DeletePanel learner={learner} onBack={() => setPanel(null)} onDeleted={onDeleted} />
         )}
       </div>
     </div>
@@ -131,34 +118,6 @@ function ErrorLine({ msg }: { msg: string | null }) {
   return msg ? <p className="text-base text-danger">{msg}</p> : null;
 }
 
-function AddPanel({ learners, onBack, onAdded }: { learners: LearnerRow[]; onBack: () => void; onAdded: (l: LearnerRow) => void }) {
-  const [name, setName] = useState("");
-  const [grade, setGrade] = useState<Grade | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const submit = async () => {
-    const err = validateLearnerName(name, learners);
-    if (err) { setError(err); return; }
-    setBusy(true);
-    try { onAdded(await createLearner(name, null, grade)); }
-    catch { setError("Could not add that learner. Try again."); setBusy(false); }
-  };
-  return (
-    <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-      <p className="text-base text-[var(--ink-dim)]">The new learner starts with no courses. The app switches to them.</p>
-      <Field label="Name">
-        <input autoFocus className="cf-input" style={INPUT} maxLength={LEARNER_NAME_MAX} value={name}
-          onChange={(e) => { setName(e.target.value); setError(null); }} />
-      </Field>
-      <Field label="Grade">
-        <GradeSelect value={grade} onChange={setGrade} style={INPUT} />
-      </Field>
-      <ErrorLine msg={error} />
-      <Actions onBack={onBack} submitLabel="Add and switch" busy={busy} />
-    </form>
-  );
-}
-
 function RenamePanel({ learner, learners, onBack, onDone }: { learner: LearnerRow; learners: LearnerRow[]; onBack: () => void; onDone: () => void }) {
   const [name, setName] = useState(learner.name);
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +141,7 @@ function RenamePanel({ learner, learners, onBack, onDone }: { learner: LearnerRo
   );
 }
 
-export function PinInput({ value, onChange, autoFocus }: { value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+function PinInput({ value, onChange, autoFocus }: { value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
   return (
     <input
       type="password"
@@ -198,7 +157,7 @@ export function PinInput({ value, onChange, autoFocus }: { value: string; onChan
   );
 }
 
-function PinPanel({ learner, teacherCanReset, onBack, onDone }: { learner: LearnerRow; teacherCanReset: boolean; onBack: () => void; onDone: () => void }) {
+function PinPanel({ learner, onBack, onDone }: { learner: LearnerRow; onBack: () => void; onDone: () => void }) {
   const hasPin = !!learner.pin_hash;
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -248,8 +207,7 @@ function PinPanel({ learner, teacherCanReset, onBack, onDone }: { learner: Learn
   return (
     <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void save(); }}>
       <p className="text-base text-[var(--ink-dim)]">
-        A PIN keeps other learners on this computer out of your courses.{" "}
-        {teacherCanReset ? "If you forget it, your teacher can clear it." : "If you forget it, it cannot be recovered yet."}
+        A PIN keeps other learners on this computer out of your courses. If you forget it, it cannot be recovered.
       </p>
       {hasPin && (
         <Field label="Current PIN">
@@ -273,20 +231,11 @@ function PinPanel({ learner, teacherCanReset, onBack, onDone }: { learner: Learn
   );
 }
 
-function DeletePanel({ learner, learners, onBack, onDeleted }: { learner: LearnerRow; learners: LearnerRow[]; onBack: () => void; onDeleted: () => void }) {
+function DeletePanel({ learner, onBack, onDeleted }: { learner: LearnerRow; onBack: () => void; onDeleted: () => void }) {
   const [typed, setTyped] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  if (!canDeleteLearner(learners)) {
-    return (
-      <div className="flex flex-col gap-4">
-        <p className="text-base text-ink">You are the only learner on this computer, so you cannot be deleted. Add another learner first.</p>
-        <div className="flex justify-end"><button className="btn" style={SMALL_BTN} onClick={onBack}>Back</button></div>
-      </div>
-    );
-  }
 
   const submit = async () => {
     if (!deleteConfirmMatches(typed, learner.name)) { setError(`Type ${learner.name} to confirm.`); return; }

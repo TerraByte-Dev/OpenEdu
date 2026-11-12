@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// gradeAnswersBatch is the one place free-text answers are marked. The learning record (#258) shows
-// which marks came from the model and which were passed because the grader failed, so every outcome
-// must carry how it was decided. The model call is stubbed; the rest is the production path.
+// gradeAnswersBatch is the one place free-text answers are marked. graded_by stores which marks came
+// from the model and which were passed because the grader failed, so every outcome must carry how it
+// was decided. The model call is stubbed; the rest is the production path.
 vi.mock("./llm", () => ({
   callLLM: vi.fn(),
   callLLMStreaming: vi.fn(),
