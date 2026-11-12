@@ -314,10 +314,13 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
         const checks = checksByKey.get(skillKey(syl.level, sub.id)) ?? [];
         const state = replay.state.get(skillKey(syl.level, sub.id));
         // The first attempt that proves the skill; failing that, the first that hit 90% on too few
-        // questions (an early sign); failing that, the first 90% the proof filter rejects.
+        // questions (an early sign); failing that, the first 90% the proof filter rejects. A mixed result
+        // counts as mastered in the app only when its keyword event says so: the app scored the tagged
+        // and keyword-matched questions together, and that total can stay under 90%.
         const proving = checks.find((c) => hit(c) && c.total >= PROOF_MIN_QUESTIONS && why(c) === null);
         const earlyCheck = proving ? undefined : checks.find((c) => hit(c) && why(c) === null);
-        const blocked = proving || earlyCheck ? undefined : checks.find(hit);
+        const keywordMastered = events.some((e) => e.source === "keyword" && e.event === "mastered" && e.level === syl.level && e.subtopic_id === sub.id);
+        const blocked = proving || earlyCheck ? undefined : checks.find((c) => hit(c) && (why(c) !== "mixed" || keywordMastered));
         const evOf = (kind: RecordSubtopicEvent["event"]) => events
           .filter((e) => e.level === syl.level && e.subtopic_id === sub.id && e.event === kind)
           .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];

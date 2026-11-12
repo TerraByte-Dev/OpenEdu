@@ -77,6 +77,19 @@ describe("mastered this month (A1, T3)", () => {
     expect(learningRecord(s, NOVEMBER, NOW).mastered.map((m) => m.date)).toEqual([nov(9)]);
   });
 
+  it("keeps a mixed quiz the app did not master as learning, not as mastered without proof", () => {
+    // 3 tagged questions right, 2 keyword-matched wrong: the app scored 3 of 5 and only marked it practised.
+    const s = withCourse([sub("1.1", "Greetings", { practiced: true })]);
+    const a = quiz(s, "1.1", 3, 3, { completed_at: nov(4) });
+    s.subtopicEvents = [{ course_id: "c", level: 1, subtopic_id: "1.1", event: "practiced", source: "keyword", correct: 3, total: 5, attempt_id: a.id, created_at: nov(4) }];
+    const r = learningRecord(s, NOVEMBER, NOW);
+    expect(r.mastered).toEqual([]);
+    expect(r.withoutProof).toEqual([]);
+    expect(r.courses[0].skills[0].status).toBe("learning");
+    expect(r.learning.map((l) => [l.skillId, l.correct, l.total])).toEqual([["1.1", 3, 3]]);
+    expectLineAddsUp(s, r);
+  });
+
   it("splits the evidence by how each answer was marked", () => {
     const s = withCourse();
     const a = quiz(s, "1.1", 3, 3, { completed_at: nov(4) }, { graded_by: "key" });
