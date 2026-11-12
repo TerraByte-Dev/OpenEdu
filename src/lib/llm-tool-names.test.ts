@@ -86,6 +86,8 @@ describe("tool names on the cloud wire (#262)", () => {
     const body = bodies[0] as { tools: Array<{ function: { name: string } }>; messages: unknown[] };
     expect(body.tools.map((t) => t.function.name)).toEqual(["notebook__search", "progress__mark_mastered"]);
     expect(JSON.stringify(body.messages)).not.toContain("notebook.search");
+    // tool_calls[].id and tool_call_id: same characters, and OpenAI caps them at 40.
+    for (const m of JSON.stringify(body.messages).matchAll(/"(?:id|tool_call_id)":"([^"]*)"/g)) expect(m[1]).toMatch(/^[a-zA-Z0-9_-]{1,40}$/);
     expect(events.find((e) => e.type === "tool_call")).toMatchObject({ name: "notebook.search", args: { q: "cells" } });
   });
 
