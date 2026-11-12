@@ -41,8 +41,8 @@ export interface RecordDay {
   levels: number[];
   /** The record's C1 rows finished that day. */
   quizzes: QuizRow[];
-  /** Answered attempts started that day and never finished. */
-  unfinished: Array<{ levelTest: boolean }>;
+  /** Answered attempts started that day and finished on a later day, or never (the days tile counts the start). */
+  starts: Array<{ levelTest: boolean; finished: boolean }>;
   lessons: number;
   tutorMessages: number;
   flashcardsMade: number;
@@ -109,8 +109,9 @@ export function shareMinutes(msByDay: ReadonlyMap<string, number>, total: number
 
 /**
  * The daily summary's rows, oldest day first. A course appears on a day when the learner did something
- * in it that day the file can name (the days tile's activity, less a quiz's start when it was finished
- * on a later day and, from capture on, a card's last review, which its review row already covers). On
+ * in it that day: the days tile's activity, so the file's dates are the tile's days (a quiz started
+ * before midnight and finished after it shows on both). From capture on, a card's last review is left
+ * out, because its flashcard_reviews row already stands for it on the same day. On
  * a counted day an "All courses" row carries the day's counted minutes, whenever the day has activity
  * or counted minutes.
  */
@@ -118,6 +119,7 @@ export function recordDays(source: RecordSource, record: LearningRecord): Record
   const bounds = boundsOf(record);
   const courseById = new Map(source.courses.map((c) => [c.id, c]));
   const quizById = new Map(record.quizzes.map((q) => [q.attemptId, q]));
+  const finishedOn = new Map(source.attempts.map((a) => [a.id, a.completed_at === null ? null : dayOf(a.completed_at)]));
   const rows = new Map<string, RecordDay>();
   const row = (date: string, courseId: string): RecordDay => {
     const key = `${date}|${courseId}`;
@@ -125,7 +127,7 @@ export function recordDays(source: RecordSource, record: LearningRecord): Record
     if (!r) {
       const c = courseById.get(courseId);
       r = {
-        date, courseId, course: appTitle(c?.title ?? ""), subject: c?.subject ?? null, levels: [], quizzes: [], unfinished: [],
+        date, courseId, course: appTitle(c?.title ?? ""), subject: c?.subject ?? null, levels: [], quizzes: [], starts: [],
         lessons: 0, tutorMessages: 0, flashcardsMade: 0, flashcardsReviewed: 0, latestReviews: 0, notes: 0, minutes: null, minutesKind: null,
         skillsMastered: [],
       };
@@ -144,7 +146,12 @@ export function recordDays(source: RecordSource, record: LearningRecord): Record
         break;
       }
       case "quiz_start":
-        if (!p.finished) { const r = row(day, p.courseId); r.unfinished.push({ levelTest: !!p.levelTest }); level(r, p.level); }
+        // A start the days tile counts gets a line, unless the quiz finished the same day (its result is the line).
+        if (finishedOn.get(p.attemptId!) !== day) {
+          const r = row(day, p.courseId);
+          r.starts.push({ levelTest: !!p.levelTest, finished: !!p.finished });
+          level(r, p.level);
+        }
         break;
       case "lesson": { const r = row(day, p.courseId); r.lessons++; level(r, p.level); break; }
       case "tutor": row(day, p.courseId).tutorMessages++; break;
@@ -157,21 +164,17 @@ export function recordDays(source: RecordSource, record: LearningRecord): Record
   for (const m of record.mastered) if (!m.earlySign) row(dayOf(m.date), m.courseId).skillsMastered.push(m);
 
   // Approximate minutes: the record's sittings for each course, each credited to a day that has a row
-  // for the course (its start day, else its end day, else the course's nearest day with a row).
+  // for the course: its start day, else its end day when that is the same kind of day. Approximate time
+  // never lands on a counted day, where course rows carry no minutes; failing both, the start day.
   const cut = countedFrom(source.captureSince);
   const countedKey = cut && cut < bounds.end ? localDayKey(cut) : null;
   const isCounted = (day: string) => countedKey !== null && day >= countedKey;
-  const courseRowDays = (courseId: string) => [...rows.values()].filter((r) => r.courseId === courseId).map((r) => r.date);
   const anchor = (courseId: string, s: Sitting): string => {
-    const days = courseRowDays(courseId);
     const first = localDayKey(s.start);
     const last = localDayKey(s.end);
-    if (days.includes(first)) return first;
-    if (days.includes(last)) return last;
-    if (days.length === 0) return first;
-    const t = s.start.getTime();
-    const dist = (d: string) => Math.abs(new Date(`${d}T12:00:00`).getTime() - t);
-    return days.reduce((best, d) => (dist(d) < dist(best) ? d : best));
+    if (rows.has(`${first}|${courseId}`)) return first;
+    if (rows.has(`${last}|${courseId}`) && isCounted(last) === isCounted(first)) return last;
+    return first;
   };
   for (const [courseId, list] of courseSittings(source, bounds)) {
     const ms = new Map<string, number>();
@@ -200,7 +203,7 @@ export function recordDays(source: RecordSource, record: LearningRecord): Record
   const out = [...rows.values()];
   for (const day of new Set([...out.map((r) => r.date).filter(isCounted), ...counted.keys()])) {
     out.push({
-      date: day, courseId: null, course: X.allCourses, subject: null, levels: [], quizzes: [], unfinished: [], lessons: 0, tutorMessages: 0,
+      date: day, courseId: null, course: X.allCourses, subject: null, levels: [], quizzes: [], starts: [], lessons: 0, tutorMessages: 0,
       flashcardsMade: 0, flashcardsReviewed: 0, latestReviews: 0, notes: 0, minutes: counted.get(day) ?? 0, minutesKind: "counted", skillsMastered: [],
     });
   }
@@ -301,7 +304,7 @@ export function dayActivities(r: RecordDay): string {
     const passed = q.passed === null ? head : `${head}, ${q.passed ? D.passed : D.notPassed}`;
     parts.push(q.timedOutUnstored ? `${passed} ${D.timedOut}` : passed);
   }
-  for (const s of r.unfinished) parts.push(fill(D.unfinished, { kind: s.levelTest ? X.activity.levelTest : X.activity.quiz }));
+  for (const s of r.starts) parts.push(fill(s.finished ? D.finishedLater : D.unfinished, { kind: s.levelTest ? X.activity.levelTest : X.activity.quiz }));
   const count = (n: number, template: string) => { if (n > 0) parts.push(fill(template, { n })); };
   count(r.lessons, D.lessons);
   count(r.tutorMessages, D.tutor);

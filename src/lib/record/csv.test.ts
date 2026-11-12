@@ -195,15 +195,30 @@ describe("the daily summary", () => {
     expect(new Set(rows.map((x) => x.date)).size).toBe(r.days);
   });
 
-  it("shows a quiz started before midnight and finished after it on the day it finished", () => {
+  it("shows a quiz started before midnight and finished after it on both days, so the file's dates are the days tile", () => {
     const s = busy();
     quiz(s, "1.1", 1, 2, { started_at: nov(14, 23, 58), completed_at: nov(15, 0, 3) });
     const r = build(s);
     const rows = table(recordDailyCsv(r, recordDays(s, r)));
-    expect(rows.some((x) => x.date === "2026-11-14")).toBe(false);
-    expect(rows.find((x) => x.date === "2026-11-15")).toMatchObject({ activities: "quiz 1 of 2", minutes: "4" });
-    // The days tile also counts the answered start on Nov 14; the file names that quiz once, where it finished.
-    expect(new Set(rows.map((x) => x.date)).size).toBe(r.days - 1);
+    expect(rows.find((x) => x.date === "2026-11-14")).toMatchObject({ activities: "quiz started, finished on a later day", minutes: "4" });
+    expect(rows.find((x) => x.date === "2026-11-15")).toMatchObject({ activities: "quiz 1 of 2", minutes: "0" });
+    expect(new Set(rows.map((x) => x.date)).size).toBe(r.days);
+  });
+
+  it("keeps approximate time that crosses into the first counted day on the day it started", () => {
+    const s = busy();
+    s.captureSince = nov(14, 9); // counted from Nov 15
+    // Nothing answered, so Nov 14 has no activity of its own; the sitting runs 23:58 to 00:02.
+    s.attempts.push({
+      id: "late", course_id: "c", quiz_type: "quiz", level: 1, score: 0, total_questions: 2, correct_count: 0, time_taken_seconds: null,
+      started_at: nov(14, 23, 58), completed_at: nov(15, 0, 3), passed: null,
+    });
+    const r = build(s);
+    const days = recordDays(s, r);
+    expect(days.find((d) => d.date === "2026-11-14" && d.courseId === "c")).toMatchObject({ minutes: 4, minutesKind: "approximate" });
+    expect(days.find((d) => d.date === "2026-11-15" && d.courseId === "c")).toMatchObject({ minutes: null, minutesKind: null });
+    const spanish = r.timeBySubject.flatMap((g) => g.courses).find((c) => c.courseId === "c")!;
+    expect(days.filter((d) => d.courseId === "c").reduce((n, d) => n + (d.minutes ?? 0), 0)).toBe(spanish.minutes);
   });
 
   it("marks every row as worked out from stored rows on the export date", () => {

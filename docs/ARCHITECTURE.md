@@ -139,12 +139,12 @@ per-course time) and the record's own quiz, mastered and without-proof rows. Wha
 the quiz rows, mastered skills, lessons, tutor messages and counted minutes add up to the record's; a
 course's approximate minutes over its days add up exactly to the record's minutes for that course (each
 sitting credited to the day it started, or the day it ended when the course shows nothing on the start
-day, then rounded by largest remainder) on days before counted time began. Not guaranteed: the minutes
+day and the end day is not counted, then rounded by largest remainder) on days before counted time began;
+and the file's activity dates are the days tile's days (a quiz started before midnight and finished after
+it shows on both days). Not guaranteed: the minutes
 column does not add up to the record's approximate time total, because a sitting that moved between
-courses counts in each (the file says so); the file can leave out a day the days tile counts (a quiz
-started before midnight shows on the day it finished; from capture on, a card's last review is covered by
-its review row); and it can carry a day the tile does not count (a counted day with minutes but no
-activity). Every row says how it was made in `recorded_by`: raw times "stored when it happened", day
+courses counts in each (the file says so); and the file can carry a day the tile does not count (a
+counted day with minutes but no activity). Every row says how it was made in `recorded_by`: raw times "stored when it happened", day
 totals and skill status changes "worked out from stored rows on <export date>". Tutor messages carry no
 text; self-explanations are cut to 500 characters. Minutes are never added across kinds: a counted day
 puts the learner's counted minutes on an "All courses" row (0 with a sentence saying why when none were

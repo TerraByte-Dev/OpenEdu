@@ -267,6 +267,7 @@ export const RECORD_COPY = {
       notPassed: "not passed",
       timedOut: "(timed out, unanswered questions not stored)",
       unfinished: "{kind} started, not finished",
+      finishedLater: "{kind} started, finished on a later day",
       lessons: "{n} lessons first opened",
       tutor: "{n} messages to the tutor",
       flashcardsMade: "{n} flashcards made",
