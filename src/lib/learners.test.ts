@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  needsPicker, autoPickLearner, canAccessCourse, canDeleteLearner,
+  needsPicker, needsPin, autoPickLearner, canAccessCourse, canDeleteLearner,
   validateLearnerName, deleteConfirmMatches, DEFAULT_LEARNER_ID, LEARNER_NAME_MAX,
 } from "./learners";
 
@@ -9,7 +9,7 @@ const L = (id: string, name: string, pin_hash: string | null = null) => ({
 });
 
 describe("picker visibility", () => {
-  it("one learner with no PIN: no picker, that learner is entered (every pre-profiles install)", () => {
+  it("one learner with no PIN: no picker, that learner is entered (every new or solo install)", () => {
     const only = L(DEFAULT_LEARNER_ID, "Learner 1");
     expect(needsPicker([only])).toBe(false);
     expect(autoPickLearner([only])).toBe(only);
@@ -26,9 +26,14 @@ describe("picker visibility", () => {
     expect(autoPickLearner([L("a", "Amina"), L("b", "Bilal")])).toBeNull();
   });
 
-  it("no learners: picker (it offers Add learner)", () => {
+  it("no learners (only by hand-editing the database): nobody is entered without the picker", () => {
     expect(needsPicker([])).toBe(true);
     expect(autoPickLearner([])).toBeNull();
+  });
+
+  it("asks a learner's PIN only when they have one", () => {
+    expect(needsPin(L("a", "Amina", "pbkdf2-sha256$210000$x"))).toBe(true);
+    expect(needsPin(L("b", "Bilal"))).toBe(false);
   });
 });
 

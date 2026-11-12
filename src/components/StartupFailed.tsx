@@ -1,6 +1,6 @@
 import RestoreSteps from "./RestoreSteps";
 
-// Shown when OpenEdu could not read who uses this computer or the learner list at launch, usually a
+// Shown when OpenEdu could not read the learner list at launch, usually a
 // file damaged by a power cut (#171). Without it the app would stay blank: no picker, no Settings, and
 // no way to the restore steps.
 export default function StartupFailed({ onRetry }: { onRetry: () => void }) {

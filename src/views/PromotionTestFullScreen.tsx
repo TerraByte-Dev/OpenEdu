@@ -234,7 +234,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       ? gradedQuestions.map((q) => q.user_answer !== null ? q : { ...q, is_correct: false })
       : gradedQuestions;
     // A timed-out test scores its unanswered questions as wrong. Store them as rows too, so the stored
-    // questions match what the app scored (the learning record replays mastery from these rows, #258).
+    // questions match what the app scored (graded_by 'unanswered' keeps them out of the review pool).
     // Not awaited: nothing below reads these rows, and results must never wait on the database. A
     // question whose answer was still being saved when time ran out already has its row, so it is skipped.
     if (timedOut) {

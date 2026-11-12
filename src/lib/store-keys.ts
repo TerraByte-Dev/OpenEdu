@@ -41,9 +41,6 @@ export const STORE_KEYS = {
   // A K-2 learner's choice to have tutor replies read aloud on their own (#243, grade.ts
   // autoReadAloud). Unset = the default, on. Per learner; not importable, like the daily goal.
   readAloudAuto: "read_aloud_auto",
-  // Whether a K-1 learner opens on the early-learner screens (#244, grade.ts earlyScreensOn). Unset =
-  // the default, on. Per learner; not importable.
-  earlyScreens: "early_screens",
 } as const;
 
 // Keys that remember something about ONE learner rather than the machine. Read and write them only
@@ -51,7 +48,6 @@ export const STORE_KEYS = {
 // context size) is shared by every learner on the PC.
 export const LEARNER_SCOPED_KEYS: ReadonlyArray<string> = [
   STORE_KEYS.tourSeen, STORE_KEYS.dailyGoalMinutes, STORE_KEYS.activeMinutes, STORE_KEYS.readAloudAuto,
-  STORE_KEYS.earlyScreens,
 ];
 
 const LEARNER_KEY_SEPARATOR = "@learner:";

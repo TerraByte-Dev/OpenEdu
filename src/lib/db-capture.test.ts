@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import libRs from "../../src-tauri/src/lib.rs?raw";
 
-// Migration 18 (learning-record capture, #258) and its writes, run for real: the migrations parsed out
-// of lib.rs and the real db.ts functions against an in-memory SQLite (node:sqlite), through the same
-// stand-in for tauri-plugin-sql that db-learners.test.ts uses.
+// Migration 18 and the writes OpenEdu still makes into it, run for real: the migrations parsed out of
+// lib.rs and the real db.ts functions against an in-memory SQLite (node:sqlite), through the same
+// stand-in for tauri-plugin-sql that db-learners.test.ts uses. Each of these writes rides on something
+// the learner does (an answer, a level test, a card review, a note, a skill change); graded_by is also
+// read back by the review pool and the accuracy heatmap.
 
 type Sqlite = {
   exec(sql: string): void;
@@ -22,9 +24,9 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 }));
 
 import {
-  setActiveLearnerId, createLearner, deleteLearner, createCourse, deleteCourse, createNote, createFlashcard,
+  setActiveLearnerId, deleteLearner, createCourse, deleteCourse, createNote, createFlashcard,
   updateFlashcardAfterReview, createQuizAttempt, saveQuizQuestion, updateQuizQuestionGrade, setPromotionResult,
-  recordActiveMinute, recordSubtopicEvents, deleteFlashcard, getReviewPoolQuestions, getSubtopicAccuracy,
+  recordSubtopicEvents, deleteFlashcard, getReviewPoolQuestions, getSubtopicAccuracy,
 } from "./db";
 import { DEFAULT_LEARNER_ID } from "./learners";
 import type { QuizQuestion } from "../types";
@@ -78,30 +80,13 @@ describe("migration 18 on an existing install", () => {
     expect(rows<{ subject: string | null }>("SELECT subject FROM courses WHERE id = 'c1'")[0].subject).toBeNull();
     expect(count("SELECT COUNT(*) AS n FROM app_config WHERE key = 'record_capture_since' AND value IS NOT NULL")).toBe(1);
   });
-
-  it("refuses a reader voice outside the two it knows", () => {
-    expect(() => sqlite.exec(`UPDATE learners SET record_voice = 'teacher' WHERE id = '${DEFAULT_LEARNER_ID}'`)).toThrow();
-    sqlite.exec(`UPDATE learners SET record_voice = 'guided' WHERE id = '${DEFAULT_LEARNER_ID}'`);
-  });
 });
 
-describe("learning-record writes", () => {
+describe("migration 18 writes", () => {
   beforeEach(async () => {
     await openDb();
     migrate(18);
     setActiveLearnerId(DEFAULT_LEARNER_ID);
-  });
-
-  it("counts one active minute per tick, and a second tick within 55 s adds nothing", async () => {
-    await recordActiveMinute(DEFAULT_LEARNER_ID, "2026-11-11");
-    await recordActiveMinute(DEFAULT_LEARNER_ID, "2026-11-11");
-    const minutes = () => rows<{ minutes: number }>("SELECT minutes FROM learner_days WHERE learner_id = ? AND day = ?", DEFAULT_LEARNER_ID, "2026-11-11")[0].minutes;
-    expect(minutes()).toBe(1);
-    sqlite.exec("UPDATE learner_days SET last_tick_at = datetime('now', '-60 seconds')");
-    await recordActiveMinute(DEFAULT_LEARNER_ID, "2026-11-11");
-    expect(minutes()).toBe(2);
-    await recordActiveMinute(DEFAULT_LEARNER_ID, "2026-11-12");
-    expect(count("SELECT COUNT(*) AS n FROM learner_days")).toBe(2);
   });
 
   it("stores how each answer was marked, and the level test's outcome", async () => {
@@ -171,11 +156,10 @@ describe("learning-record writes", () => {
     expect(count("SELECT COUNT(*) AS n FROM flashcard_reviews")).toBe(0);
   });
 
-  it("deleting a learner removes their counted minutes, and nobody else's", async () => {
-    const b = await createLearner("Bilal");
-    await recordActiveMinute(b.id, "2026-11-11");
-    await recordActiveMinute(DEFAULT_LEARNER_ID, "2026-11-11");
-    await deleteLearner(b.id);
+  it("deleting a learner removes the counted minutes an earlier version stored for them, and nobody else's", async () => {
+    sqlite.exec(`INSERT INTO learners (id, name) VALUES ('b', 'Bilal')`);
+    sqlite.exec(`INSERT INTO learner_days (learner_id, day, minutes) VALUES ('b', '2026-11-11', 3), ('${DEFAULT_LEARNER_ID}', '2026-11-11', 5)`);
+    await deleteLearner("b");
     expect(rows<{ learner_id: string }>("SELECT learner_id FROM learner_days").map((r) => r.learner_id)).toEqual([DEFAULT_LEARNER_ID]);
   });
 });

@@ -3,15 +3,9 @@ import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, Us
 import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
-import { parseUsageMode, type UsageMode, type GroupRow } from "./usage-modes";
-import type { OverviewSource } from "./teacher-overview";
-import type { AttemptRow, NewAttempt } from "./early/engine";
 import type { GradedBy } from "./quiz-grading";
 import type { FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
-import type { RecordSavedMonth, RecordSource } from "./record/sources";
-import { lastEndedMonth, monthKey, monthsToSave, snapshotOf, type MonthSnapshot } from "./record/saved";
-import { isRecordSubject } from "./record/copy";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -68,10 +62,12 @@ function uuid(): string {
 }
 
 // ── Learners (migration 13) ──────────────────────────────────────────────────
-// Several learners share one PC. Every data table hangs off courses(id), and each course is stamped
-// with one learner, so the course list and getCourse are the two doors to scope; everything else is
-// reached through a course the active learner already owns. With no active learner (the picker is up)
-// both doors are shut: getCourses returns nothing and getCourse refuses everything.
+// OpenEdu is for one learner: migration 13 makes the default learner and the app never adds another.
+// An install that added learners in an earlier version keeps every one of them, each with their own
+// courses and PIN, behind the picker (learners.ts). Every data table hangs off courses(id), and each
+// course is stamped with one learner, so the course list and getCourse are the two doors to scope;
+// everything else is reached through a course the active learner already owns. With no active learner
+// (the picker is up) both doors are shut: getCourses returns nothing and getCourse refuses everything.
 let activeLearnerId: string | null = null;
 
 export function setActiveLearnerId(id: string | null): void {
@@ -85,17 +81,6 @@ export function getActiveLearnerId(): string | null {
 export async function listLearners(): Promise<LearnerRow[]> {
   const d = await getDb();
   return await d.select("SELECT * FROM learners ORDER BY created_at ASC, rowid ASC");
-}
-
-export async function createLearner(name: string, groupId: string | null = null, grade: Grade | null = null): Promise<LearnerRow> {
-  const d = await getDb();
-  const id = uuid();
-  await d.execute(
-    "INSERT INTO learners (id, name, created_at, group_id, grade) VALUES ($1, $2, datetime('now'), $3, $4)",
-    [id, name.trim(), groupId, normalizeGrade(grade)],
-  );
-  const rows: LearnerRow[] = await d.select("SELECT * FROM learners WHERE id = $1", [id]);
-  return rows[0];
 }
 
 /** Set (0 = K … 12) or clear (null) a learner's grade (migration 15, grade.ts). */
@@ -127,123 +112,6 @@ export async function deleteLearner(id: string): Promise<void> {
   for (const c of owned) await deleteCourse(c.id);
   await d.execute("DELETE FROM learners WHERE id = $1", [id]);
   if (activeLearnerId === id) activeLearnerId = null;
-}
-
-// ── Usage mode + teacher PIN (migration 14) ─────────────────────────────────
-// Stored in app_config, next to the data they protect. See usage-modes.ts for the rules.
-
-export interface UsageConfig {
-  /** null = never chosen (a fresh install that has not been asked yet). */
-  mode: UsageMode | null;
-  /** Same record shape as a learner PIN (learner-pin.ts), or nulls when no teacher PIN is set. */
-  teacher: { pin_hash: string | null; pin_salt: string | null };
-}
-
-export async function getUsageConfig(): Promise<UsageConfig> {
-  const d = await getDb();
-  const rows: Array<{ key: string; value: string | null }> = await d.select(
-    "SELECT key, value FROM app_config WHERE key IN ('usage_mode', 'teacher_pin_hash', 'teacher_pin_salt')",
-  );
-  const get = (k: string) => rows.find((r) => r.key === k)?.value ?? null;
-  return {
-    mode: parseUsageMode(get("usage_mode")),
-    teacher: { pin_hash: get("teacher_pin_hash"), pin_salt: get("teacher_pin_salt") },
-  };
-}
-
-/**
- * Save the mode, and the teacher PIN with it, so the two never disagree. `teacher` is the new PIN
- * record, or null to clear it (going back to "Just me"), or undefined to leave it alone. One
- * statement, so SQLite applies all of it or none of it: a failed write can never leave a class or
- * school with no teacher PIN, or "Just me" with half of one.
- */
-export async function setUsageMode(
-  mode: UsageMode,
-  teacher?: { pin_hash: string; pin_salt: string } | null,
-): Promise<void> {
-  const d = await getDb();
-  const upsert = "ON CONFLICT(key) DO UPDATE SET value = excluded.value";
-  if (teacher === undefined) {
-    await d.execute(`INSERT INTO app_config (key, value) VALUES ('usage_mode', $1) ${upsert}`, [mode]);
-    return;
-  }
-  await d.execute(
-    `INSERT INTO app_config (key, value) VALUES ('teacher_pin_hash', $1), ('teacher_pin_salt', $2), ('usage_mode', $3) ${upsert}`,
-    [teacher?.pin_hash ?? null, teacher?.pin_salt ?? null, mode],
-  );
-}
-
-// ── Groups (school mode, migration 14) ──────────────────────────────────────
-
-export async function listGroups(): Promise<GroupRow[]> {
-  const d = await getDb();
-  return await d.select("SELECT * FROM learner_groups ORDER BY name COLLATE NOCASE ASC");
-}
-
-export async function createGroup(name: string): Promise<GroupRow> {
-  const d = await getDb();
-  const id = uuid();
-  await d.execute("INSERT INTO learner_groups (id, name, created_at) VALUES ($1, $2, datetime('now'))", [id, name.trim()]);
-  const rows: GroupRow[] = await d.select("SELECT * FROM learner_groups WHERE id = $1", [id]);
-  return rows[0];
-}
-
-export async function renameGroup(id: string, name: string): Promise<void> {
-  const d = await getDb();
-  await d.execute("UPDATE learner_groups SET name = $1 WHERE id = $2", [name.trim(), id]);
-}
-
-/** Delete a group. Its learners stay, in no group; nobody's data is touched. */
-export async function deleteGroup(id: string): Promise<void> {
-  const d = await getDb();
-  // The FK says ON DELETE SET NULL; do it explicitly too so it holds even with foreign keys off.
-  await d.execute("UPDATE learners SET group_id = NULL WHERE group_id = $1", [id]);
-  await d.execute("DELETE FROM learner_groups WHERE id = $1", [id]);
-}
-
-export async function setLearnerGroup(learnerId: string, groupId: string | null): Promise<void> {
-  const d = await getDb();
-  await d.execute("UPDATE learners SET group_id = $1 WHERE id = $2", [groupId, learnerId]);
-}
-
-// ── Early-learner attempts (migrations 16, 17) ───────────────────────────────
-// One row per tap in the K-1 activities. Read and written for the active learner only; mastery is
-// computed from the rows by src/lib/early/engine.ts skillProgress, the grown-ups view by report.ts.
-
-/** Store one tap for the active learner. */
-export async function recordEarlyAttempt(a: NewAttempt): Promise<void> {
-  if (!activeLearnerId) throw new Error("No active learner: pick a learner before recording an attempt");
-  const d = await getDb();
-  await d.execute(
-    "INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try, choice) VALUES ($1, $2, $3, $4, $5, $6)",
-    [activeLearnerId, a.skillId, a.itemId, a.correct ? 1 : 0, a.firstTry ? 1 : 0, a.choice],
-  );
-}
-
-/** The active learner's taps, oldest first. Nothing when no learner is active. */
-export async function getEarlyAttempts(): Promise<AttemptRow[]> {
-  if (!activeLearnerId) return [];
-  const d = await getDb();
-  return await d.select(
-    "SELECT skill_id, item_id, correct, first_try, created_at, choice FROM early_attempts WHERE learner_id = $1 ORDER BY id ASC",
-    [activeLearnerId],
-  );
-}
-
-/**
- * Raw rows for the teacher overview, across EVERY learner. This deliberately bypasses the
- * active-learner scope above, so only the teacher view may call it, and only after the teacher PIN.
- * Read-only; teacher-overview.ts buildOverviewRows turns it into the table and the CSV.
- */
-export async function getTeacherOverviewSource(): Promise<OverviewSource> {
-  const d = await getDb();
-  return {
-    learners: await listLearners(),
-    groups: await listGroups(),
-    courses: await d.select("SELECT id, title, learner_id, current_level, updated_at FROM courses"),
-    syllabuses: await d.select("SELECT course_id, subtopics FROM syllabuses"),
-    progress: await d.select("SELECT course_id, last_active_at FROM user_progress"),
-  };
 }
 
 // Courses
@@ -471,7 +339,7 @@ export async function getNotes(courseId: string, level?: number): Promise<Note[]
   );
 }
 
-/** Who made a note: the learner in the notes tab, a file import, or the tutor's ingest tool (#258). */
+/** Who made a note (notes.origin, migration 18): the learner in the notes tab, a file import, or the tutor's ingest tool. */
 export type NoteOrigin = "learner" | "import" | "tutor";
 
 export async function createNote(
@@ -875,8 +743,8 @@ export async function updateQuizQuestionGrade(id: string, isCorrect: boolean, gr
 }
 
 // A level test's outcome as the app decided it (PromotionTestFullScreen didPass), stored beside the
-// attempt so the learning record (#258) never has to infer a pass. reviewScore is the review-section
-// percent, or null when the test had no review section.
+// attempt (migration 18) so the stored history never has to infer a pass. reviewScore is the
+// review-section percent, or null when the test had no review section.
 export async function setPromotionResult(attemptId: string, passed: boolean, reviewScore: number | null): Promise<void> {
   const d = await getDb();
   await d.execute(
@@ -1117,7 +985,7 @@ export async function updateFlashcardAfterReview(
        last_reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = $6`,
     [s.ease, s.interval_days, s.reps, s.lapses, s.due_at, id]
   );
-  // last_reviewed_at is overwritten, so each review is also logged for the learning record (#258).
+  // last_reviewed_at is overwritten, so each review is also logged (flashcard_reviews, migration 18).
   // Best effort: a failed log must never stop the review itself.
   try {
     await d.execute(
@@ -1144,22 +1012,9 @@ export async function flashcardExists(courseId: string, front: string): Promise<
   return rows.length > 0;
 }
 
-// ── Learning-record capture (migration 18, #258) ────────────────────────────
-// Writes only. The record builder reads these with the rest of a learner's rows.
-
-/**
- * Add one counted active minute to a learner's local day. A second tick for the same learner and day
- * within 55 seconds (a second window, a re-mounted timer) adds nothing.
- */
-export async function recordActiveMinute(learnerId: string, day: string): Promise<void> {
-  const d = await getDb();
-  await d.execute(
-    `INSERT INTO learner_days (learner_id, day, minutes, last_tick_at) VALUES ($1, $2, 1, datetime('now'))
-     ON CONFLICT(learner_id, day) DO UPDATE SET minutes = minutes + 1, last_tick_at = datetime('now')
-     WHERE last_tick_at IS NULL OR last_tick_at <= datetime('now', '-55 seconds')`,
-    [learnerId, day]
-  );
-}
+// ── Skill status log (migration 18) ─────────────────────────────────────────
+// Written beside the mastery update. OpenEdu itself does not read it back; it keeps a stored history
+// complete (see docs/ARCHITECTURE.md › Data & storage).
 
 export interface SubtopicEventRow {
   subtopic_id: string;
@@ -1181,163 +1036,4 @@ export async function recordSubtopicEvents(courseId: string, level: number, even
       [courseId, level, e.subtopic_id, e.event, e.source, e.correct ?? null, e.total ?? null, e.attempt_id ?? null]
     );
   }
-}
-
-// ── Learning-record reads (#258) ────────────────────────────────────────────
-// Every row record/build.ts needs for one learner. Each course-table read joins courses and keeps
-// only that learner's courses; eval sentinel courses (ids starting "__eval") are left out with substr,
-// because "_" is a wildcard in LIKE. quiz_questions reach a course through quiz_attempts.
-
-const RECORD_SCOPE = "c.learner_id = $1 AND substr(c.id, 1, 6) <> '__eval'";
-
-async function readRecordSource(learnerId: string): Promise<RecordSource | null> {
-  const d = await getDb();
-  const learners: RecordSource["learner"][] = await d.select(
-    "SELECT id, name, grade, record_voice, record_year_start FROM learners WHERE id = $1", [learnerId],
-  );
-  if (!learners[0]) return null;
-  const since: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'record_capture_since'");
-  const p = [learnerId];
-  const syllabuses: Array<Record<string, unknown>> = await d.select(
-    `SELECT s.* FROM syllabuses s JOIN courses c ON c.id = s.course_id WHERE ${RECORD_SCOPE} ORDER BY s.course_id, s.level`, p,
-  );
-  return {
-    learner: learners[0],
-    captureSince: since[0]?.value ?? null,
-    courses: await d.select(
-      `SELECT c.id, c.title, c.current_level, c.status, c.subject, c.created_at FROM courses c WHERE ${RECORD_SCOPE} ORDER BY c.created_at, c.id`, p,
-    ),
-    syllabuses: syllabuses.map(parseSyllabus).map((s) => ({
-      course_id: s.course_id, level: s.level, title: s.title, learning_objectives: s.learning_objectives, subtopics: s.subtopics,
-    })),
-    attempts: await d.select(
-      `SELECT a.id, a.course_id, a.quiz_type, a.level, a.score, a.total_questions, a.correct_count, a.time_taken_seconds,
-              a.started_at, a.completed_at, a.passed
-         FROM quiz_attempts a JOIN courses c ON c.id = a.course_id WHERE ${RECORD_SCOPE} ORDER BY a.started_at, a.id`, p,
-    ),
-    questions: await d.select(
-      `SELECT q.id, q.attempt_id, q.question_text, q.question_type, q.correct_answer, q.user_answer, q.is_correct,
-              q.explanation, q.subtopic_id, q.self_explanation, q.graded_by
-         FROM quiz_questions q JOIN quiz_attempts a ON a.id = q.attempt_id JOIN courses c ON c.id = a.course_id
-        WHERE ${RECORD_SCOPE} ORDER BY q.rowid`, p,
-    ),
-    chats: await d.select(
-      `SELECT m.course_id, m.thread_id, m.created_at FROM chat_messages m JOIN courses c ON c.id = m.course_id
-        WHERE ${RECORD_SCOPE} AND m.role = 'user' ORDER BY m.created_at`, p,
-    ),
-    lessons: await d.select(
-      `SELECT l.course_id, l.level, l.topic_string AS topic, l.read_at FROM lessons l JOIN courses c ON c.id = l.course_id
-        WHERE ${RECORD_SCOPE} AND l.read_at IS NOT NULL ORDER BY l.read_at`, p,
-    ),
-    flashcards: await d.select(
-      `SELECT f.course_id, f.source, f.created_at, f.last_reviewed_at FROM flashcards f JOIN courses c ON c.id = f.course_id
-        WHERE ${RECORD_SCOPE} ORDER BY f.created_at`, p,
-    ),
-    flashcardReviews: await d.select(
-      `SELECT r.course_id, r.reviewed_at FROM flashcard_reviews r JOIN courses c ON c.id = r.course_id
-        WHERE ${RECORD_SCOPE} ORDER BY r.reviewed_at`, p,
-    ),
-    // Only notes the learner started and wrote something in; imports, tutor notes and empty clicks are not learning.
-    notes: await d.select(
-      `SELECT n.course_id, n.title, n.content, n.created_at FROM notes n JOIN courses c ON c.id = n.course_id
-        WHERE ${RECORD_SCOPE} AND n.origin = 'learner' AND trim(n.content) <> '' ORDER BY n.created_at`, p,
-    ),
-    subtopicEvents: await d.select(
-      `SELECT e.course_id, e.level, e.subtopic_id, e.event, e.source, e.correct, e.total, e.attempt_id, e.created_at
-         FROM subtopic_events e JOIN courses c ON c.id = e.course_id WHERE ${RECORD_SCOPE} ORDER BY e.created_at, e.id`, p,
-    ),
-    learnerDays: await d.select("SELECT day, minutes FROM learner_days WHERE learner_id = $1 ORDER BY day", p),
-    savedMonths: await d.select("SELECT month, format, body_json, saved_at FROM monthly_records WHERE learner_id = $1 ORDER BY month", p),
-  };
-}
-
-// ── Saved months (migration 19) ─────────────────────────────────────────────
-// record/saved.ts decides what a saved month holds; these only write and read the rows.
-
-/**
- * Save one learner's ended month. A month already saved is kept as it is unless `replace` (the
- * record's "Rebuild from current data"). Returns the row now stored.
- */
-export async function saveMonthlyRecord(learnerId: string, snapshot: MonthSnapshot, replace = false): Promise<RecordSavedMonth> {
-  const d = await getDb();
-  await d.execute(
-    `INSERT OR ${replace ? "REPLACE" : "IGNORE"} INTO monthly_records (learner_id, month, format, body_json) VALUES ($1, $2, $3, $4)`,
-    [learnerId, snapshot.month, snapshot.format, snapshot.body_json],
-  );
-  const rows: RecordSavedMonth[] = await d.select(
-    "SELECT month, format, body_json, saved_at FROM monthly_records WHERE learner_id = $1 AND month = $2", [learnerId, snapshot.month],
-  );
-  if (!rows[0]) throw new Error(`monthly record ${snapshot.month} was not saved`);
-  return rows[0];
-}
-
-/**
- * The launch's job: save every learner's ended months that have activity and no copy yet, and replace
- * a copy that was saved before its month ended or misses activity newer than it saw (record/saved.ts
- * monthsToSave; both are decided from stored values, never from today's clock, and nothing is ever
- * deleted here). It runs once per month:
- * app_config record_saved_through holds the last ended month every learner was saved through, so later
- * launches that month read nothing. Only an exact match skips, so a marker written while the clock was
- * ahead cannot switch saving off. One learner's failure does not stop the others; the marker is set only
- * when every learner was saved, so a failure is tried again at the next launch. Returns how many months
- * were saved.
- */
-export async function saveEndedMonths(now: Date = new Date()): Promise<number> {
-  const d = await getDb();
-  const through = monthKey(lastEndedMonth(now));
-  const done: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'record_saved_through'");
-  if (done[0]?.value === through) return 0;
-  let saved = 0;
-  let failed = 0;
-  for (const l of await listLearners()) {
-    try {
-      const source = await readRecordSource(l.id);
-      if (!source) continue;
-      for (const { range, replace } of monthsToSave(source, now)) {
-        const snapshot = snapshotOf(source, range, now);
-        if (!snapshot) continue;
-        await saveMonthlyRecord(l.id, snapshot, replace);
-        saved++;
-      }
-    } catch (e) {
-      failed++;
-      console.warn(`[record] could not save the ended months of learner ${l.id}`, e);
-    }
-  }
-  if (failed === 0) {
-    await d.execute(
-      "INSERT INTO app_config (key, value) VALUES ('record_saved_through', $1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [through],
-    );
-  }
-  return saved;
-}
-
-/** Who reads a learner's record (learners.record_voice, migration 18): "self", "guided", or null to ask again. */
-export async function setLearnerRecordVoice(learnerId: string, voice: "self" | "guided" | null): Promise<void> {
-  if (voice !== null && voice !== "self" && voice !== "guided") throw new Error(`Not a record voice: ${String(voice)}`);
-  const d = await getDb();
-  await d.execute("UPDATE learners SET record_voice = $1 WHERE id = $2", [voice, learnerId]);
-}
-
-/**
- * A course's subject label (courses.subject, migration 18): one of RECORD_SUBJECTS, or null for none.
- * Only that learner's own course changes, so a record can never relabel someone else's course.
- */
-export async function setCourseSubject(learnerId: string, courseId: string, subject: string | null): Promise<void> {
-  if (subject !== null && !isRecordSubject(subject)) throw new Error(`Not a subject on the list: ${subject}`);
-  const d = await getDb();
-  await d.execute("UPDATE courses SET subject = $1 WHERE id = $2 AND learner_id = $3", [subject, courseId, learnerId]);
-}
-
-/** The active learner's own record rows. Takes no id, so a learner's view can only ever read itself. */
-export async function getRecordSource(): Promise<RecordSource | null> {
-  return activeLearnerId ? readRecordSource(activeLearnerId) : null;
-}
-
-/**
- * Any learner's record rows, by id. This deliberately bypasses the active-learner scope, so only the
- * teacher view may call it, and only after the teacher PIN (like getTeacherOverviewSource).
- */
-export async function getLearnerRecordSource(learnerId: string): Promise<RecordSource | null> {
-  return readRecordSource(learnerId);
 }

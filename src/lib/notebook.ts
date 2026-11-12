@@ -138,7 +138,7 @@ export async function importTextAsNote(args: {
   text: string;
   sourceType?: NotebookSourceType;
   folderId?: string | null;
-  /** Who made the note (notes.origin, #258). Defaults to a file import. */
+  /** Who made the note (notes.origin, migration 18). Defaults to a file import. */
   origin?: NoteOrigin;
 }): Promise<{ note: Note; chunkCount: number; embedded: boolean; indexError?: string }> {
   // Always create the visible note first. Indexing (embedding) is best-effort: if the embedder is

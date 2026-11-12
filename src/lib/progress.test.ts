@@ -44,7 +44,7 @@ describe("setSubtopicStatus", () => {
   });
 });
 
-describe("skill status events for the learning record (#258)", () => {
+describe("skill status events (subtopic_events, migration 18)", () => {
   beforeEach(() => { vi.mocked(updateSyllabusSubtopics).mockClear(); vi.mocked(recordSubtopicEvents).mockClear(); });
 
   it("logs a tutor mark as source 'tutor', practiced then mastered", async () => {

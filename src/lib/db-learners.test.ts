@@ -4,7 +4,8 @@ import libRs from "../../src-tauri/src/lib.rs?raw";
 // Runs the REAL migrations (parsed out of src-tauri/src/lib.rs) and the REAL db.ts functions against
 // an in-memory SQLite (node:sqlite), through a stand-in for tauri-plugin-sql's Database. This is the
 // path production takes: migration 13 on an existing install, then the course-list filter and the
-// getCourse guard in db.ts.
+// getCourse guard in db.ts. The app no longer adds learners, so the tests insert extra learners the
+// way an earlier version left them: as rows already in the file.
 
 type Sqlite = {
   exec(sql: string): void;
@@ -25,12 +26,10 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 
 import {
   getCourses, getCourse, createCourse, createNote, getNotes, deleteLearner,
-  listLearners, createLearner, setActiveLearnerId, setLearnerGrade, recordEarlyAttempt, getEarlyAttempts,
+  listLearners, setActiveLearnerId, setLearnerGrade, touchLearner,
 } from "./db";
-import { ITEMS_BY_ID, SKILLS, choiceKey } from "./early/packs";
-import { tap, skillProgress, isUnlocked, parseUtc } from "./early/engine";
-import { hardOnes, CONFUSION_MIN } from "./early/report";
-import { needsPicker, DEFAULT_LEARNER_ID } from "./learners";
+import { needsPicker, needsPin, autoPickLearner, canDeleteLearner, DEFAULT_LEARNER_ID } from "./learners";
+import { hashPin, verifyPin } from "./learner-pin";
 import { normalizeGrade, readingLevelLayer } from "./grade";
 
 // Every `Migration { version: N, description: "...", sql: "..." }` in lib.rs, Rust escapes undone.
@@ -46,6 +45,12 @@ async function openDb(): Promise<void> {
   const { DatabaseSync } = await import(/* @vite-ignore */ spec);
   sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys = ON;"); // sqlx enables FKs; match it
+}
+
+/** A learner row as an earlier version (profiles, a class or a school) left it in the file. */
+function addLearner(id: string, name: string): { id: string } {
+  sqlite.prepare("INSERT INTO learners (id, name, created_at) VALUES (?1, ?2, datetime('now'))").run(id, name);
+  return { id };
 }
 
 function migrate(upTo: number, from = 1): void {
@@ -82,14 +87,14 @@ describe("migration 13 on an existing install", () => {
   });
 
   it("a second learner sees none of it and cannot open it by id", async () => {
-    const b = await createLearner("Bilal");
+    const b = addLearner("bilal", "Bilal");
     setActiveLearnerId(b.id);
     expect(await getCourses()).toEqual([]);
     expect(await getCourse("c1")).toBeNull();
   });
 
   it("a new course belongs to whoever created it, and only they see it", async () => {
-    const b = await createLearner("Bilal");
+    const b = addLearner("bilal", "Bilal");
     setActiveLearnerId(b.id);
     const mine = await createCourse("Chemistry", "chemistry");
     expect(mine.learner_id).toBe(b.id);
@@ -108,7 +113,7 @@ describe("migration 13 on an existing install", () => {
   });
 
   it("deleting a learner deletes their courses and what hangs off them, and nobody else's", async () => {
-    const b = await createLearner("Bilal");
+    const b = addLearner("bilal", "Bilal");
     setActiveLearnerId(b.id);
     const course = await createCourse("Chemistry", "chemistry");
     await createNote(course.id, "Bonds", "covalent", 1);
@@ -153,13 +158,6 @@ describe("migration 15: a grade on each learner", () => {
     }
   });
 
-  it("stores a grade given when adding a learner, and none by default", async () => {
-    const k = await createLearner("Kai", null, 0);
-    const none = await createLearner("Noor");
-    expect(normalizeGrade(k.grade)).toBe(0);
-    expect(none.grade).toBeNull();
-  });
-
   it("sets, changes and clears a learner's grade", async () => {
     const gradeOf = async () => (await listLearners()).find((l) => l.id === "ana")!.grade;
     await setLearnerGrade("ana", 2);
@@ -176,102 +174,141 @@ describe("migration 15: a grade on each learner", () => {
   });
 });
 
-describe("migration 16: early-learner attempts", () => {
+describe("a class install from the last multi-learner version, opened by the solo-learner app", () => {
+  // Exactly what migration 19 left on a computer in class mode: the mode and the teacher PIN in
+  // app_config, a group, three learners (Ana with a PIN), a course each with work under it, and the
+  // learning-record and early-learner rows. The solo-learner app reads none of the class settings; this
+  // checks that every learner and course is still reachable the way the app reaches them (App's launch:
+  // listLearners + autoPickLearner; the picker: every learner, needsPin, then PinScreen's verifyPin;
+  // then the course list and the getCourse guard), that Ana's PIN still stands, and that nothing is lost.
+  const PIN = "4321";
+  const TEACHER_PIN = "9999";
+  const COURSES: Record<string, string> = { [DEFAULT_LEARNER_ID]: "c-kofi", ana: "c-ana", ben: "c-ben" };
+  let pinRecord: { pin_hash: string; pin_salt: string };
+  let teacherRecord: { pin_hash: string; pin_salt: string };
+
+  // Every row of every table, order-free. learners.last_active_at is left out: entering a learner
+  // stamps it (touchLearner), which is the one write the launch and the picker make.
+  const snapshot = () => {
+    const tables = (sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{ name: string }>)
+      .map((t) => t.name);
+    return Object.fromEntries(tables.map((t) => [
+      t,
+      (sqlite.prepare(`SELECT * FROM "${t}"`).all() as Array<Record<string, unknown>>)
+        .map((r) => { const row = { ...r }; if (t === "learners") delete row.last_active_at; return JSON.stringify(row); })
+        .sort(),
+    ]));
+  };
+
+  // The picker's tile, then PinScreen: a learner with a PIN is entered only when the typed PIN verifies.
+  const enterThroughPicker = async (learner: Awaited<ReturnType<typeof listLearners>>[number], typed: string | null): Promise<boolean> => {
+    if (needsPin(learner) && (typed === null || !(await verifyPin(typed, learner)))) return false;
+    setActiveLearnerId(learner.id);
+    await touchLearner(learner.id);
+    return true;
+  };
+
   beforeEach(async () => {
+    pinRecord ??= await hashPin(PIN, 100_000);
+    teacherRecord ??= await hashPin(TEACHER_PIN, 100_000);
     await openDb();
     setActiveLearnerId(null);
-    migrate(15);
-    sqlite.exec(`INSERT INTO learners (id, name, created_at, grade) VALUES ('sam', 'Sam', datetime('now'), 0), ('ana', 'Ana', datetime('now'), 3);`);
-    migrate(17, 16); // the app runs every migration; 17 adds the choice column recordEarlyAttempt writes
-  });
-
-  const item = ITEMS_BY_ID.get("count-1-10/how-many-4")!;
-  const pick = (key: string) => item.choices.find((c) => choiceKey(c) === key)!;
-
-  it("stores each tap for the active learner and reads back only theirs, oldest first", async () => {
-    setActiveLearnerId("sam");
-    await recordEarlyAttempt(tap(item, pick("n:5"), true).attempt);
-    await recordEarlyAttempt(tap(item, pick("n:4"), false).attempt);
-    setActiveLearnerId("ana");
-    await recordEarlyAttempt(tap(item, pick("n:4"), true).attempt);
-    expect((await getEarlyAttempts()).map((r) => [r.correct, r.first_try])).toEqual([[1, 1]]);
-
-    setActiveLearnerId("sam");
-    const rows = await getEarlyAttempts();
-    expect(rows.map((r) => [r.skill_id, r.item_id, r.correct, r.first_try])).toEqual([
-      ["count-1-10", item.id, 0, 1],
-      ["count-1-10", item.id, 1, 0],
-    ]);
-    expect(rows[0].created_at).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
-  });
-
-  it("masters a skill from the stored rows after 5 first-try right answers in a row", async () => {
-    setActiveLearnerId("sam");
-    const skill = SKILLS["count-1-10"];
-    for (const it of skill.items.slice(0, 4)) {
-      const right = it.choices.find((c) => choiceKey(c) === it.answer)!;
-      await recordEarlyAttempt(tap(it, right, true).attempt);
+    migrate(19);
+    sqlite.prepare("INSERT INTO app_config (key, value) VALUES ('usage_mode', 'class'), ('teacher_pin_hash', ?1), ('teacher_pin_salt', ?2)")
+      .run(teacherRecord.pin_hash, teacherRecord.pin_salt);
+    sqlite.exec(`UPDATE learners SET name = 'Kofi' WHERE id = '${DEFAULT_LEARNER_ID}'`);
+    sqlite.exec(`INSERT INTO learner_groups (id, name) VALUES ('g1', 'Room 4')`);
+    sqlite.prepare("INSERT INTO learners (id, name, pin_hash, pin_salt, group_id, grade) VALUES ('ana', 'Ana', ?1, ?2, 'g1', 3)")
+      .run(pinRecord.pin_hash, pinRecord.pin_salt);
+    sqlite.exec(`INSERT INTO learners (id, name, group_id) VALUES ('ben', 'Ben', 'g1')`);
+    for (const [owner, course] of Object.entries(COURSES)) {
+      sqlite.exec(`INSERT INTO courses (id, title, topic, current_level, learner_id) VALUES ('${course}', '${course}', 'x', 2.0, '${owner}')`);
+      sqlite.exec(`INSERT INTO notes (id, course_id, title, content, origin) VALUES ('n-${course}', '${course}', 'Mine', 'my words', 'learner')`);
+      sqlite.exec(`INSERT INTO chat_messages (id, course_id, role, content) VALUES ('m-${course}', '${course}', 'user', 'hello')`);
     }
-    expect(skillProgress(await getEarlyAttempts())["count-1-10"]).toMatchObject({ mastered: false, streak: 4 });
-    const fifth = skill.items[4];
-    await recordEarlyAttempt(tap(fifth, fifth.choices.find((c) => choiceKey(c) === fifth.answer)!, true).attempt);
-    const progress = skillProgress(await getEarlyAttempts());
-    expect(progress["count-1-10"].mastered).toBe(true);
-    expect(isUnlocked("count-11-20", progress)).toBe(true);
+    sqlite.exec(`INSERT INTO learner_days (learner_id, day, minutes) VALUES ('ana', '2026-10-01', 12), ('ben', '2026-10-01', 7)`);
+    sqlite.exec(`INSERT INTO monthly_records (learner_id, month, format, body_json) VALUES ('ana', '2026-10', 1, '{}')`);
+    sqlite.exec(`INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ('ben', 'colors', 'colors/red', 1, 1)`);
   });
 
-  it("with no learner active, stores nothing and reads nothing", async () => {
-    await expect(recordEarlyAttempt(tap(item, pick("n:4"), true).attempt)).rejects.toThrow();
-    expect(await getEarlyAttempts()).toEqual([]);
+  it("keeps all three learners and opens on the picker, which lists every one of them", async () => {
+    const list = await listLearners();
+    expect(list.map((l) => l.id)).toEqual([DEFAULT_LEARNER_ID, "ana", "ben"]);
+    expect(autoPickLearner(list)).toBeNull();
+    expect(needsPicker(list)).toBe(true);
   });
 
-  it("deletes a learner's attempts with the learner, and nobody else's", async () => {
-    setActiveLearnerId("sam");
-    await recordEarlyAttempt(tap(item, pick("n:4"), true).attempt);
-    setActiveLearnerId("ana");
-    await recordEarlyAttempt(tap(item, pick("n:4"), true).attempt);
-    await deleteLearner("sam");
-    const count = (who: string) => (sqlite.prepare(`SELECT COUNT(*) AS n FROM early_attempts WHERE learner_id = '${who}'`).all()[0] as { n: number }).n;
-    expect(count("sam")).toBe(0);
-    expect(count("ana")).toBe(1);
+  it("reaches every learner's course, and Ana's only with her PIN", async () => {
+    const list = await listLearners();
+    const byId = Object.fromEntries(list.map((l) => [l.id, l]));
+
+    for (const id of [DEFAULT_LEARNER_ID, "ben"]) {
+      expect(await enterThroughPicker(byId[id], null)).toBe(true);
+      expect((await getCourses()).map((c) => c.id)).toEqual([COURSES[id]]);
+      expect(await getCourse(COURSES[id])).not.toBeNull();
+      expect((await getNotes(COURSES[id])).map((n) => n.content)).toEqual(["my words"]);
+      expect(await getCourse(COURSES.ana)).toBeNull(); // signed in as someone else: Ana's course is refused
+    }
+
+    setActiveLearnerId(null); // Switch learner: back to the picker
+    expect(needsPin(byId.ana)).toBe(true);
+    expect(await enterThroughPicker(byId.ana, null)).toBe(false);
+    expect(await enterThroughPicker(byId.ana, "0000")).toBe(false);
+    expect(await enterThroughPicker(byId.ana, TEACHER_PIN)).toBe(false); // the old teacher PIN opens nobody
+    expect(await getCourses()).toEqual([]);
+    expect(await getCourse(COURSES.ana)).toBeNull();
+
+    expect(await enterThroughPicker(byId.ana, PIN)).toBe(true);
+    expect((await getCourses()).map((c) => c.id)).toEqual([COURSES.ana]);
+    expect((await getNotes(COURSES.ana)).map((n) => n.content)).toEqual(["my words"]);
   });
 
-  it("refuses rows that are not 0/1 or not for a real learner", () => {
-    expect(() => sqlite.exec(`INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ('sam', 'colors', 'colors/red', 2, 1)`)).toThrow();
-    expect(() => sqlite.exec(`INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ('nobody', 'colors', 'colors/red', 1, 1)`)).toThrow();
+  it("deletes nothing and changes nothing but each learner's last-seen time", async () => {
+    const before = snapshot();
+    const list = await listLearners();
+    autoPickLearner(list);
+    for (const l of list) {
+      setActiveLearnerId(null);
+      await enterThroughPicker(l, l.id === "ana" ? PIN : null);
+      await getCourses();
+    }
+    expect(snapshot()).toEqual(before);
+    // The class settings stay in the file, unused, for anyone who moves the data on.
+    expect(sqlite.prepare("SELECT key FROM app_config WHERE key IN ('usage_mode', 'teacher_pin_hash') ORDER BY key").all())
+      .toEqual([{ key: "teacher_pin_hash" }, { key: "usage_mode" }]);
   });
 
-  it("indexes the table for per-learner reads", () => {
-    const plan = sqlite.prepare(`EXPLAIN QUERY PLAN SELECT skill_id FROM early_attempts WHERE learner_id = 'sam' ORDER BY id ASC`).all() as Array<{ detail: string }>;
-    expect(plan.map((p) => p.detail).join(" ")).toContain("idx_early_attempts_learner");
+  it("lets a learner delete themselves (with everything under them, and nobody else's) until one is left", async () => {
+    await deleteLearner("ben");
+    const count = (sql: string) => (sqlite.prepare(sql).all()[0] as { n: number }).n;
+    expect(count("SELECT COUNT(*) AS n FROM courses WHERE learner_id = 'ben'")).toBe(0);
+    expect(count("SELECT COUNT(*) AS n FROM early_attempts")).toBe(0);
+    expect(count("SELECT COUNT(*) AS n FROM learner_days WHERE learner_id = 'ana'")).toBe(1);
+    expect(count("SELECT COUNT(*) AS n FROM notes")).toBe(2);
+
+    let list = await listLearners();
+    expect(canDeleteLearner(list)).toBe(true);
+    expect(autoPickLearner(list)).toBeNull(); // two left, and Ana still has her PIN
+
+    await deleteLearner("ana");
+    list = await listLearners();
+    expect(canDeleteLearner(list)).toBe(false);
+    expect(autoPickLearner(list)?.id).toBe(DEFAULT_LEARNER_ID); // one learner, no PIN: straight in, as solo
+    setActiveLearnerId(DEFAULT_LEARNER_ID);
+    expect((await getCourses()).map((c) => c.id)).toEqual([COURSES[DEFAULT_LEARNER_ID]]);
   });
 });
 
-describe("migration 17: the tapped choice on each attempt", () => {
-  beforeEach(async () => {
+describe("a new install", () => {
+  it("has one learner, opens straight into them, and their courses are theirs", async () => {
     await openDb();
     setActiveLearnerId(null);
-    migrate(16);
-    sqlite.exec(`INSERT INTO learners (id, name, created_at, grade) VALUES ('sam', 'Sam', datetime('now'), 0);`);
-    sqlite.exec(`INSERT INTO early_attempts (learner_id, skill_id, item_id, correct, first_try) VALUES ('sam', 'colors', 'colors/red', 0, 1);`);
-    migrate(17, 17);
-  });
-
-  it("keeps rows stored before it, with no choice", async () => {
-    setActiveLearnerId("sam");
-    const rows = await getEarlyAttempts();
-    expect(rows.map((r) => [r.item_id, r.choice])).toEqual([["colors/red", null]]);
-  });
-
-  it("stores the tapped choice, which is what hardOnes reads", async () => {
-    setActiveLearnerId("sam");
-    const pink = ITEMS_BY_ID.get("colors/pink")!;
-    const red = pink.choices.find((c) => choiceKey(c) === "color:red")!;
-    for (let i = 0; i < CONFUSION_MIN; i++) await recordEarlyAttempt(tap(pink, red, true).attempt);
-    const rows = await getEarlyAttempts();
-    expect(rows.slice(1).map((r) => r.choice)).toEqual(Array(CONFUSION_MIN).fill("color:red"));
-    // created_at is SQLite's clock; judge "recent" from the newest row so the test never races midnight.
-    const now = parseUtc(rows[rows.length - 1].created_at);
-    expect(hardOnes(rows, now)).toEqual([{ skillId: "colors", a: "pink", b: "red", times: CONFUSION_MIN }]);
+    migrate(19);
+    const list = await listLearners();
+    const me = autoPickLearner(list);
+    expect(me?.id).toBe(DEFAULT_LEARNER_ID);
+    setActiveLearnerId(me!.id);
+    const course = await createCourse("Chemistry", "chemistry");
+    expect((await getCourses()).map((c) => c.id)).toEqual([course.id]);
   });
 });
