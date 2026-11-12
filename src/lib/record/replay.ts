@@ -107,18 +107,24 @@ export function replaySubtopics(
   return { checks, state };
 }
 
-export type NotProof = "fallback" | "timed_out";
+export type NotProof = "fallback" | "timed_out" | "mixed";
+
+/** The key of an (attempt, skill) pair in the set of pairs the app also matched by keyword. */
+export const mixedKey = (attemptId: string, level: number, skillId: string): string => `${attemptId}|${skillKey(level, skillId)}`;
 
 /**
  * Why a result cannot be shown as quiz proof (A1, a "held" recheck), or null when it can: an answer on
- * the skill was passed because the grader failed, or the level test's stored rows do not cover it.
+ * the skill was passed because the grader failed; the level test's stored rows do not cover it; or the
+ * app also matched untagged questions to the skill on that attempt (a keyword subtopic_event with the
+ * attempt's id), so its counts mixed in questions the replay cannot see.
  */
-export function notProof(c: SkillCheck): NotProof | null {
+export function notProof(c: SkillCheck, keywordMixed: ReadonlySet<string> = new Set()): NotProof | null {
   if (c.graders.fallback > 0) return "fallback";
   if (c.rowsShort) return "timed_out";
+  if (keywordMixed.has(mixedKey(c.attemptId, c.level, c.skillId))) return "mixed";
   return null;
 }
 
-export function proofFilter(checks: ReadonlyArray<SkillCheck>): SkillCheck[] {
-  return checks.filter((c) => notProof(c) === null);
+export function proofFilter(checks: ReadonlyArray<SkillCheck>, keywordMixed: ReadonlySet<string> = new Set()): SkillCheck[] {
+  return checks.filter((c) => notProof(c, keywordMixed) === null);
 }

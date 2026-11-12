@@ -106,6 +106,7 @@ export const RECORD_COPY = {
     keyword: "Matched by the app from an untagged question on {date} (not quiz-checked)",
     fallback: "Grader failed on {n} answers, so this does not count as proof.",
     timed_out: "Level test timed out, and its unanswered questions were not stored, so this does not count as proof.",
+    mixed: "Some questions on this skill were matched by keyword, so this quiz does not count as proof.",
     no_proof: "Marked mastered, no quiz proof on record. The tutor can mark a skill in conversation, the app can match an untagged question by keyword, or a level test may have timed out.",
   },
   rechecked: "Rechecked {n} skills · held {held} · slipped {slipped}",

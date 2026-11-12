@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { notProof, proofFilter, replaySubtopics, skillKey } from "./replay";
+import { mixedKey, notProof, proofFilter, replaySubtopics, skillKey } from "./replay";
 import { emptySource, nov, question, quiz, sub } from "./test-rows";
 import type { Subtopic } from "../../types";
 
@@ -87,6 +87,14 @@ describe("proofFilter", () => {
     const r = replaySubtopics(s.attempts, s.questions, L1);
     expect(r.state.get(skillKey(1, "1.1"))!.mastered).toBe(true); // state is the app's; only proof is withheld
     expect(notProof(r.checks[0])).toBe("timed_out");
+  });
+
+  it("never takes a result the app also matched by keyword on the same attempt and skill as proof", () => {
+    const s = emptySource();
+    const a = quiz(s, "1.1", 3, 3, { completed_at: nov(4) });
+    const [check] = replaySubtopics(s.attempts, s.questions, L1).checks;
+    expect(notProof(check, new Set([mixedKey(a.id, 1, "1.1")]))).toBe("mixed");
+    expect(notProof(check, new Set([mixedKey(a.id, 1, "1.2")]))).toBeNull();
   });
 
   it("takes a full set of rows graded against the key as proof", () => {

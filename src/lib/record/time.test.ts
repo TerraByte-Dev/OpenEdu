@@ -1,10 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterAll } from "vitest";
 import {
   attemptSpan, approxMinutes, countedFrom, monthsWithActivity, rangeBounds, rangeLabel, schoolYearStart, sittings, timeSpans,
   QUIZ_MS_PER_QUESTION,
 } from "./time";
 import { emptySource, local, utc } from "./test-rows";
 import type { RecordAttempt } from "./sources";
+
+// Pin a zone west of Greenwich (UTC-6 in November), so the boundary test below fails if anything
+// buckets by UTC day, whatever zone the machine running the suite is in.
+vi.stubEnv("TZ", "America/Chicago");
+afterAll(() => { vi.unstubAllEnvs(); });
 
 const attempt = (over: Partial<RecordAttempt>): RecordAttempt => ({
   id: "a", course_id: "c", quiz_type: "quiz", level: 1, score: 100, total_questions: 5, correct_count: 5,
@@ -19,6 +24,7 @@ describe("local-day bucketing", () => {
       { course_id: "c", thread_id: "t", created_at: utc(local(2026, 10, 30, 23, 30)) },
       { course_id: "c", thread_id: "t", created_at: utc(local(2026, 11, 1, 0, 30)) },
     ];
+    expect(local(2026, 10, 30, 23, 30).getTimezoneOffset()).toBe(360); // the pinned zone took effect
     expect(monthsWithActivity(s)).toEqual([{ year: 2026, month: 11 }, { year: 2026, month: 10 }]);
   });
 

@@ -31,6 +31,7 @@ import { updateSubtopicMastery } from "./progress";
 import { replaySubtopics, skillKey } from "./record/replay";
 import { learningRecord } from "./record/build";
 import { DEFAULT_LEARNER_ID } from "./learners";
+import { expectLineAddsUp } from "./record/test-rows";
 import type { Subtopic } from "../types";
 
 function migrations(): Map<number, string> {
@@ -184,20 +185,26 @@ describe("replay parity with the app", () => {
     };
 
     let seed = 7;
+    let unansweredRows = 0;
     const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
     for (let n = 0; n < 60; n++) {
       const level = 1 + Math.floor(rand() * 3);
       const count = 1 + Math.floor(rand() * 6);
-      const a = await createQuizAttempt(c.id, rand() < 0.2 ? "promotion" : "quiz", level, count);
+      const promotion = rand() < 0.2;
+      // Half the level tests time out on their last question, stored as PromotionTestFullScreen does.
+      const timedOut = promotion && rand() < 0.5;
+      const a = await createQuizAttempt(c.id, promotion ? "promotion" : "quiz", level, count);
       const answered = [];
       for (let i = 0; i < count; i++) {
         const r = rand();
+        const unanswered = timedOut && i === count - 1;
         const q = {
           attempt_id: a.id, question_text: `q${n}-${i}`, question_type: "multiple_choice" as const, options: null, correct_answer: "A",
-          user_answer: "A", is_correct: r < 0.75 ? true : r < 0.9 ? false : null, difficulty_level: 1, explanation: "",
-          subtopic_id: ids[Math.floor(rand() * ids.length)],
+          user_answer: unanswered ? null : "A", is_correct: unanswered ? false : r < 0.75 ? true : r < 0.9 ? false : null,
+          difficulty_level: 1, explanation: "", subtopic_id: ids[Math.floor(rand() * ids.length)],
         };
-        await saveQuizQuestion(q, q.is_correct === null ? null : "key");
+        await saveQuizQuestion(q, unanswered ? "unanswered" : q.is_correct === null ? null : "key");
+        if (unanswered) unansweredRows++;
         answered.push(q);
       }
       await completeQuizAttempt(a.id, 0, 0, 10);
@@ -207,11 +214,13 @@ describe("replay parity with the app", () => {
       await expectParity(n);
     }
     expect([...transitions]).toEqual(expect.arrayContaining(["mastered", "review_needed", "review_cleared"]));
+    expect(unansweredRows).toBeGreaterThan(0);
 
     const src = await expectParity(60);
     // And the record built from the same rows tells the same story for the current month.
     const record = learningRecord(src, { kind: "month", year: 2026, month: 10 }, new Date(2026, 10, 20));
     const shown = src.syllabuses.flatMap((s) => s.subtopics).filter((x) => x.mastered).length;
     expect(record.courses[0].reconciliation!.shown).toBe(shown);
+    expectLineAddsUp(src, record);
   });
 });

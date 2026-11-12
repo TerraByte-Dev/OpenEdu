@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { learningRecord } from "./build";
-import { course, dec, emptySource, local, nov, oct, question, quiz, sub, syllabus, utc } from "./test-rows";
+import { course, dec, emptySource, expectLineAddsUp, local, nov, oct, question, quiz, sub, syllabus, utc } from "./test-rows";
 import type { RecordSource } from "./sources";
 
 const NOVEMBER = { kind: "month", year: 2026, month: 10 } as const;
@@ -41,6 +41,42 @@ describe("mastered this month (A1, T3)", () => {
     expect(learningRecord(s, DECEMBER, local(2026, 11, 20)).mastered.map((m) => m.skillId)).toEqual(["1.1"]);
   });
 
+  it("dates mastery by the first attempt that proves it, even when the app's flag flipped earlier", () => {
+    const s = withCourse([sub("1.1"), sub("1.2"), sub("1.3")]);
+    // 1.1: October's 2 of 2 passed only because the grader failed; November's 4 of 4 is checked against the key.
+    quiz(s, "1.1", 2, 2, { completed_at: oct(5) }, { question_type: "short_answer", graded_by: "fallback" });
+    quiz(s, "1.1", 4, 4, { completed_at: nov(4) }, { graded_by: "key" });
+    // 1.2: an October level test that timed out with rows unstored; then 5 of 5 in November.
+    quiz(s, "1.2", 3, 3, { quiz_type: "promotion", total_questions: 10, completed_at: oct(6) });
+    quiz(s, "1.2", 5, 5, { completed_at: nov(5) });
+    // 1.3: an October early sign (1 of 1); November's 4 of 4 makes it mastered, not a held recheck.
+    quiz(s, "1.3", 1, 1, { completed_at: oct(7) });
+    quiz(s, "1.3", 4, 4, { completed_at: nov(6) });
+
+    const october = learningRecord(s, OCTOBER, NOW);
+    expect(october.mastered.map((m) => [m.skillId, m.earlySign])).toEqual([["1.3", true]]);
+    expect(october.withoutProof.map((w) => [w.skillId, w.reason])).toEqual([["1.1", "fallback"], ["1.2", "timed_out"]]);
+
+    const november = learningRecord(s, NOVEMBER, NOW);
+    expect(november.mastered.map((m) => [m.skillId, m.date, m.earlySign])).toEqual([["1.1", nov(4), false], ["1.2", nov(5), false], ["1.3", nov(6), false]]);
+    expect(november.withoutProof).toEqual([]);
+    expect(november.rechecked).toEqual({ held: [], slipped: [] });
+    expect(november.courses[0].skills.map((k) => k.status)).toEqual(["mastered", "mastered", "mastered"]);
+  });
+
+  it("never takes a quiz the app also matched by keyword on that skill as proof", () => {
+    const s = withCourse([sub("1.1", "Greetings", { mastered: true })]);
+    const a = quiz(s, "1.1", 3, 3, { completed_at: nov(4) });
+    s.subtopicEvents = [{ course_id: "c", level: 1, subtopic_id: "1.1", event: "mastered", source: "keyword", correct: 4, total: 4, attempt_id: a.id, created_at: nov(4) }];
+    const r = learningRecord(s, NOVEMBER, NOW);
+    expect(r.mastered).toEqual([]);
+    expect(r.withoutProof.map((w) => [w.skillId, w.reason, w.date])).toEqual([["1.1", "mixed", nov(4)]]);
+    expect(r.courses[0].reconciliation).toEqual({ shown: 1, checked: 0, early: 0, without: 1 });
+    // A later quiz on the skill with no keyword match proves it.
+    quiz(s, "1.1", 3, 3, { completed_at: nov(9) });
+    expect(learningRecord(s, NOVEMBER, NOW).mastered.map((m) => m.date)).toEqual([nov(9)]);
+  });
+
   it("splits the evidence by how each answer was marked", () => {
     const s = withCourse();
     const a = quiz(s, "1.1", 3, 3, { completed_at: nov(4) }, { graded_by: "key" });
@@ -60,12 +96,13 @@ describe("without quiz proof (A2) and the reconciliation line", () => {
       sub("1.6", "Family", { mastered: true }),      // grader failed
       sub("1.7", "Time"),                            // not yet
     ]);
-    const proved = quiz(s, "1.1", 3, 3, { completed_at: nov(4) });
+    quiz(s, "1.1", 3, 3, { completed_at: nov(4) });
+    const later = quiz(s, null, 1, 1, { completed_at: nov(9) });
     quiz(s, "1.2", 1, 1, { completed_at: nov(5) });
     quiz(s, "1.6", 2, 2, { completed_at: nov(6) }, { question_type: "short_answer", graded_by: "fallback" });
     const ev = { course_id: "c", level: 1, source: "keyword" as const, correct: 4, total: 4, attempt_id: null, event: "mastered" as const };
     s.subtopicEvents = [
-      { ...ev, subtopic_id: "1.1", attempt_id: proved.id, created_at: nov(4) }, // combined counts on a proved skill: a duplicate
+      { ...ev, subtopic_id: "1.1", attempt_id: later.id, created_at: nov(9) }, // a keyword match on a skill already proved
       { ...ev, subtopic_id: "1.3", source: "tutor", correct: null, total: null, created_at: nov(7) },
       { ...ev, subtopic_id: "1.4", created_at: nov(8) },
     ];
@@ -76,7 +113,7 @@ describe("without quiz proof (A2) and the reconciliation line", () => {
     expect(r.withoutProof[3].fallbackAnswers).toBe(2);
     const line = r.courses[0].reconciliation!;
     expect(line).toEqual({ shown: 6, checked: 1, early: 1, without: 4 });
-    expect(line.checked + line.early + r.withoutProof.length).toBe(line.shown);
+    expectLineAddsUp(s, r);
     expect(r.courses[0].skills.map((k) => k.status)).toEqual(["mastered", "early_sign", "tutor", "keyword", "no_proof", "no_proof", "not_yet"]);
   });
 
@@ -87,7 +124,9 @@ describe("without quiz proof (A2) and the reconciliation line", () => {
     expect(october.withoutProof.map((w) => w.skillId)).toEqual(["1.2"]);
     expect(october.courses[0].reconciliation).toBeNull();
     // The current month lists every unproven skill the app shows as mastered, whenever it happened.
-    expect(learningRecord(s, NOVEMBER, NOW).withoutProof.map((w) => [w.skillId, w.date])).toEqual([["1.1", null], ["1.2", oct(7)]]);
+    const november = learningRecord(s, NOVEMBER, NOW);
+    expect(november.withoutProof.map((w) => [w.skillId, w.date])).toEqual([["1.1", null], ["1.2", oct(7)]]);
+    expectLineAddsUp(s, november);
   });
 });
 
@@ -105,6 +144,22 @@ describe("rechecked (A3)", () => {
     expect(r.rechecked.held.map((x) => x.skillId)).toEqual(["1.1"]);
     expect(r.rechecked.slipped.map((x) => x.skillId)).toEqual(["1.2"]);
     expect(r.courses[0].skills.find((k) => k.skillId === "1.2")!.reviewAgain).toBe(true);
+  });
+
+  it("counts a recheck with unanswered questions, or one that passes only on its fresh questions, as neither held nor slipped", () => {
+    const s = withCourse([sub("1.1"), sub("1.2"), sub("1.3")]);
+    for (const id of ["1.1", "1.2"]) quiz(s, id, 3, 3, { completed_at: oct(5) }, { question_text: `Old ${id}` });
+    // 1.1: a November level test that timed out with one of its 10 questions on the skill unanswered (9 of 10 is still 90%).
+    const t = quiz(s, "1.1", 9, 9, { quiz_type: "promotion", total_questions: 10, completed_at: nov(4) });
+    s.questions.push(question(t.id, "1.1", 0, { user_answer: null, graded_by: "unanswered" }));
+    // 1.2: 3 fresh questions right, 2 exact repeats wrong: the fresh part passes, the whole result (60%) does not.
+    const m = quiz(s, "1.2", 3, 3, { completed_at: nov(6), total_questions: 5 });
+    s.questions.push(question(m.id, "1.2", 0, { question_text: "old 1.2" }), question(m.id, "1.2", 0, { question_text: "OLD 1.2" }));
+    // 1.3: only ever an early sign, so never rechecked.
+    quiz(s, "1.3", 1, 1, { completed_at: oct(5) });
+    quiz(s, "1.3", 2, 2, { completed_at: nov(7) });
+    const r = learningRecord(s, NOVEMBER, NOW);
+    expect(r.rechecked).toEqual({ held: [], slipped: [] });
   });
 
   it("does not count a recheck as held when the grader failed on it", () => {
@@ -165,6 +220,11 @@ describe("courses", () => {
     expect(r.mastered).toEqual([]);
     expect(r.quizzes).toHaveLength(1);
     expect(r.days).toBe(1);
+  });
+
+  it("treats a course below level 1 as legacy too", () => {
+    const s = withCourse(undefined, { current_level: 0 });
+    expect(learningRecord(s, NOVEMBER, NOW).courses[0]).toMatchObject({ legacy: true, level: null, skills: [] });
   });
 
   it("groups by subject, with no subject last, and leaves out courses made after the range", () => {

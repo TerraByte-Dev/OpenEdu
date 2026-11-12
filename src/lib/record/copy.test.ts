@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { appTitle, bannedWordsIn, RECORD_COPY, RECORD_DISCLAIMER, RECORD_DISCLAIMER_SHORT, RECORD_RULES } from "./copy";
 import { learningRecord } from "./build";
-import { course, emptySource, local, nov, oct, question, quiz, sub, syllabus } from "./test-rows";
+import { course, emptySource, expectLineAddsUp, local, nov, oct, question, quiz, sub, syllabus } from "./test-rows";
 
 /** Every string anywhere inside a value. */
 function strings(v: unknown): string[] {
@@ -27,7 +27,9 @@ function fixtureRecord() {
   s.lessons = [{ course_id: "c", read_at: nov(8) }];
   s.notes = [{ course_id: "c", title: "My list", content: "uno dos", created_at: nov(9) }];
   s.learnerDays = [{ day: "2026-11-09", minutes: 20 }];
-  return learningRecord(s, { kind: "month", year: 2026, month: 10 }, local(2026, 10, 20));
+  const record = learningRecord(s, { kind: "month", year: 2026, month: 10 }, local(2026, 10, 20));
+  expectLineAddsUp(s, record);
+  return record;
 }
 
 describe("record copy", () => {

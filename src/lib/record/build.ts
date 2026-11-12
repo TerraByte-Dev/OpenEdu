@@ -8,7 +8,7 @@ import { parseUtc } from "../early/engine";
 import { MASTERY_THRESHOLD } from "../mastery";
 import { checkAnswerConsistency } from "../quiz-grading";
 import { appTitle, RECORD_FORMAT } from "./copy";
-import { notProof, replaySubtopics, skillKey, type GraderSplit, type NotProof, type SkillCheck } from "./replay";
+import { mixedKey, notProof, replaySubtopics, skillKey, type GraderSplit, type NotProof, type SkillCheck } from "./replay";
 import {
   activityPoints, approxMinutes, countedFrom, localDayKey, rangeBounds, rangeLabel, sittings, timeSpans, toStored,
   type RecordRange, type Span,
@@ -43,7 +43,11 @@ export interface Evidence {
   graders: GraderSplit;
 }
 
-/** A1: a skill whose first replayed mastery falls in the range and counts as proof. */
+/**
+ * A1: a skill whose first proving attempt falls in the range: 90% or more of its questions on that
+ * skill, with no answer the proof filter rejects. Under PROOF_MIN_QUESTIONS questions it is an early
+ * sign; a later attempt with enough questions makes it mastered on that later date.
+ */
 export interface MasteredRow extends SkillRef {
   date: string;
   /** Fewer than PROOF_MIN_QUESTIONS questions: shown as an early sign, not counted as mastered. */
@@ -92,7 +96,8 @@ export interface CourseStanding {
   objectives: string[];
   skills: SkillLine[];
   counts: Record<SkillStatus, number>;
-  /** Current range only: how the app's mastered count splits (B1 reconciliation line). */
+  /** Current range only: how the app's mastered count splits (B1 reconciliation line). `without`
+   * counts the A2 rows listed for skills the app shows as mastered, so the line and the list agree. */
   reconciliation: { shown: number; checked: number; early: number; without: number } | null;
 }
 
@@ -267,7 +272,7 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
 
   for (const course of courses) {
     const courseTitle = appTitle(course.title);
-    const legacy = !Number.isInteger(course.current_level);
+    const legacy = !Number.isInteger(course.current_level) || course.current_level < 1;
     const base: CourseStanding = {
       courseId: course.id, course: courseTitle, subject: course.subject, status: course.status, legacy,
       level: null, levelTitle: null, objectives: [], skills: [], counts: emptyCounts(), reconciliation: null,
@@ -296,37 +301,43 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
       else checksByKey.set(k, [c]);
     }
     const events = source.subtopicEvents.filter((e) => e.course_id === course.id && beforeEnd(e.created_at));
+    const keywordMixed = new Set(events.filter((e) => e.source === "keyword" && e.attempt_id).map((e) => mixedKey(e.attempt_id!, e.level, e.subtopic_id)));
+    const why = (c: SkillCheck) => notProof(c, keywordMixed);
+    const hit = (c: SkillCheck) => c.correct / c.total >= MASTERY_THRESHOLD;
 
     const skills: SkillLine[] = [];
     const counts = emptyCounts();
-    let shown = 0, checked = 0, early = 0;
+    let shown = 0, checked = 0, early = 0, without = 0;
     for (const syl of syllabi) {
       for (const sub of syl.subtopics) {
         const ref: SkillRef = { courseId: course.id, course: courseTitle, level: syl.level, skillId: sub.id, skill: appTitle(sub.title) };
         const checks = checksByKey.get(skillKey(syl.level, sub.id)) ?? [];
         const state = replay.state.get(skillKey(syl.level, sub.id));
-        const firstMastered = checks.find((c) => c.transitions.includes("mastered"));
-        const block = firstMastered ? notProof(firstMastered) : null;
+        // The first attempt that proves the skill; failing that, the first that hit 90% on too few
+        // questions (an early sign); failing that, the first 90% the proof filter rejects.
+        const proving = checks.find((c) => hit(c) && c.total >= PROOF_MIN_QUESTIONS && why(c) === null);
+        const earlyCheck = proving ? undefined : checks.find((c) => hit(c) && why(c) === null);
+        const blocked = proving || earlyCheck ? undefined : checks.find(hit);
         const evOf = (kind: RecordSubtopicEvent["event"]) => events
           .filter((e) => e.level === syl.level && e.subtopic_id === sub.id && e.event === kind)
           .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
 
         let status: SkillStatus;
         let unproven: Omit<WithoutProofRow, keyof SkillRef> | null = null;
-        if (firstMastered && !block) {
-          status = firstMastered.total >= PROOF_MIN_QUESTIONS ? "mastered" : "early_sign";
-          if (inRange(firstMastered.at)) {
-            const attempt = attemptById.get(firstMastered.attemptId)!;
+        const proof = proving ?? earlyCheck;
+        if (proof) {
+          status = proving ? "mastered" : "early_sign";
+          if (inRange(proof.at)) {
             mastered.push({
-              ...ref, date: firstMastered.at, earlySign: status === "early_sign",
-              evidence: { correct: firstMastered.correct, total: firstMastered.total, levelTest: attempt.quiz_type === "promotion", graders: firstMastered.graders },
+              ...ref, date: proof.at, earlySign: !proving,
+              evidence: { correct: proof.correct, total: proof.total, levelTest: proof.quizType === "promotion", graders: proof.graders },
             });
           }
-        } else if (firstMastered) {
+        } else if (blocked) {
           status = "no_proof";
-          unproven = { date: firstMastered.at, reason: block!, fallbackAnswers: firstMastered.graders.fallback };
+          unproven = { date: blocked.at, reason: why(blocked)!, fallbackAnswers: blocked.graders.fallback };
         } else if (evOf("mastered")) {
-          // A tutor mark or a keyword match. The replay has not mastered the skill, so the event is not a
+          // A tutor mark or a keyword match. No tagged attempt hit 90% on the skill, so the event is not a
           // duplicate of tagged-question evidence.
           const ev = evOf("mastered")!;
           status = ev.source;
@@ -341,7 +352,10 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
         }
         // Listed when it happened in the range; in the current month, every skill the app shows as
         // mastered without proof is listed, so the reconciliation line adds up.
-        if (unproven && (inRange(unproven.date) || (current && sub.mastered))) withoutProof.push({ ...ref, ...unproven });
+        if (unproven && (inRange(unproven.date) || (current && sub.mastered))) {
+          withoutProof.push({ ...ref, ...unproven });
+          if (current && sub.mastered) without++;
+        }
 
         const reviewAgain = (status === "mastered" || status === "early_sign") && !!state?.review_needed;
         skills.push({ level: syl.level, skillId: sub.id, skill: ref.skill, status, reviewAgain });
@@ -353,15 +367,17 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
         }
 
         // A3: proved before the range, and back in a quiz inside it. Exact repeats of a question
-        // answered earlier on the skill are left out; a result that is not proof cannot count as held.
-        if (firstMastered && !block && parseUtc(firstMastered.at) < start) {
+        // answered earlier on the skill are left out. Held needs the fresh questions AND the whole result
+        // at 90% or more, from a result that is proof. A result with unanswered questions on the skill
+        // (a timed-out test) is neither held nor slipped.
+        if (proving && parseUtc(proving.at) < start) {
           const seen = new Set<string>();
           let heldTimes = 0, slip = false;
           for (const c of checks) {
             const fresh = answeredOnly(c.questions).filter((q) => !seen.has(questionKey(q.question_text)));
-            if (inRange(c.at) && fresh.length > 0) {
+            if (inRange(c.at) && fresh.length > 0 && c.graders.unanswered === 0) {
               if (rightOf(fresh) / fresh.length < MASTERY_THRESHOLD) slip = true;
-              else if (notProof(c) === null) heldTimes++;
+              else if (hit(c) && why(c) === null) heldTimes++;
             }
             for (const q of answeredOnly(c.questions)) seen.add(questionKey(q.question_text));
           }
@@ -397,7 +413,7 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
     standings.push({
       ...base, level, levelTitle: levelSyl ? appTitle(levelSyl.title) : null,
       objectives: (levelSyl?.learning_objectives ?? []).map(appTitle), skills, counts,
-      reconciliation: current ? { shown, checked, early, without: shown - checked - early } : null,
+      reconciliation: current ? { shown, checked, early, without } : null,
     });
   }
 

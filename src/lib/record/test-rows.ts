@@ -2,7 +2,9 @@
 // built from LOCAL dates and stored the way SQLite's datetime('now') writes them (UTC), so every test
 // holds in any time zone.
 
+import { expect } from "vitest";
 import type { Subtopic } from "../../types";
+import type { LearningRecord } from "./build";
 import type { RecordAttempt, RecordCourse, RecordQuestion, RecordSource, RecordSyllabus } from "./sources";
 
 export const utc = (d: Date) => d.toISOString().slice(0, 19).replace("T", " ");
@@ -55,4 +57,19 @@ export function quiz(
   source.attempts.push(a);
   for (let i = 0; i < total; i++) source.questions.push(question(a.id, skillId, i < right ? 1 : 0, q));
   return a;
+}
+
+/**
+ * The B1 reconciliation line adds up, and its "without proof" count is exactly the A2 rows listed for
+ * skills the app shows as mastered.
+ */
+export function expectLineAddsUp(source: RecordSource, record: LearningRecord): void {
+  const flagged = new Set(source.syllabuses.flatMap((s) => s.subtopics.filter((x) => x.mastered).map((x) => `${s.course_id}|${s.level}|${x.id}`)));
+  for (const c of record.courses) {
+    if (!c.reconciliation) continue;
+    const { shown, checked, early, without } = c.reconciliation;
+    expect(checked + early + without).toBe(shown);
+    const listed = record.withoutProof.filter((w) => w.courseId === c.courseId && flagged.has(`${w.courseId}|${w.level}|${w.skillId}`));
+    expect(listed.length).toBe(without);
+  }
 }
