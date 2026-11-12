@@ -49,28 +49,57 @@ export function attemptSpan(a: RecordAttempt): Span | null {
   return { courseId: a.course_id, start, end: new Date(Math.max(start.getTime(), Math.min(done.getTime(), cap))) };
 }
 
+export type ActivityKind =
+  | "tutor" | "quiz_done" | "quiz_start" | "lesson" | "flashcard_made" | "flashcard_last_review" | "flashcard_review" | "note";
+
+/** One moment the learner did something, with what it was (the spreadsheet names each one). */
+export interface ActivityPoint {
+  courseId: string;
+  at: Date;
+  kind: ActivityKind;
+  /** quiz_done, quiz_start: the attempt. */
+  attemptId?: string;
+  /** quiz_start: the attempt was finished (on its own finish time it is a quiz_done point too). */
+  finished?: boolean;
+  /** quiz_start: a level test. */
+  levelTest?: boolean;
+  /** quiz_start, lesson. */
+  level?: number;
+  /** lesson: its topic; note: its title. */
+  title?: string;
+}
+
 /**
  * Every timestamp that shows the learner doing something (tile T1): a tutor message, a quiz finished,
  * a quiz started that has an answer, a lesson first opened, a flashcard made by the learner or
  * reviewed, a note the learner started. Nothing else can be inflated by the app on its own.
  */
-export function activityPoints(source: RecordSource): Array<{ courseId: string; at: Date }> {
+export function activityPoints(source: RecordSource): ActivityPoint[] {
   const answered = answeredAttemptIds(source);
-  const out: Array<{ courseId: string; at: Date }> = [];
-  const add = (courseId: string, at: string | null) => { if (at) out.push({ courseId, at: parseUtc(at) }); };
-  for (const m of source.chats) add(m.course_id, m.created_at);
+  const out: ActivityPoint[] = [];
+  const add = (courseId: string, at: string | null, kind: ActivityKind, more: Partial<ActivityPoint> = {}) => {
+    if (at) out.push({ courseId, at: parseUtc(at), kind, ...more });
+  };
+  for (const m of source.chats) add(m.course_id, m.created_at, "tutor");
   for (const a of source.attempts) {
-    add(a.course_id, a.completed_at);
-    if (answered.has(a.id)) add(a.course_id, a.started_at);
+    add(a.course_id, a.completed_at, "quiz_done", { attemptId: a.id });
+    if (answered.has(a.id)) {
+      add(a.course_id, a.started_at, "quiz_start", { attemptId: a.id, finished: a.completed_at !== null, levelTest: a.quiz_type === "promotion", level: a.level });
+    }
   }
-  for (const l of source.lessons) add(l.course_id, l.read_at);
+  for (const l of source.lessons) add(l.course_id, l.read_at, "lesson", { level: l.level, title: l.topic });
   for (const f of source.flashcards) {
-    if (f.source === "manual") add(f.course_id, f.created_at);
-    add(f.course_id, f.last_reviewed_at);
+    if (f.source === "manual") add(f.course_id, f.created_at, "flashcard_made");
+    add(f.course_id, f.last_reviewed_at, "flashcard_last_review");
   }
-  for (const r of source.flashcardReviews) add(r.course_id, r.reviewed_at);
-  for (const n of source.notes) add(n.course_id, n.created_at);
+  for (const r of source.flashcardReviews) add(r.course_id, r.reviewed_at, "flashcard_review");
+  for (const n of source.notes) add(n.course_id, n.created_at, "note", { title: n.title });
   return out;
+}
+
+/** The activity points inside a range: the one place T1 and the spreadsheets take them from. */
+export function pointsIn(source: RecordSource, bounds: Bounds): ActivityPoint[] {
+  return activityPoints(source).filter((p) => p.at >= bounds.start && p.at < bounds.end);
 }
 
 /**

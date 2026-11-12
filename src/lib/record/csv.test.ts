@@ -136,9 +136,9 @@ describe("the daily summary", () => {
     const counted = days.filter((d) => d.minutesKind === "counted");
     expect(counted.every((d) => d.courseId === null && d.course === X.allCourses)).toBe(true);
     expect(counted.reduce((n, d) => n + (d.minutes ?? 0), 0)).toBe(r.time.counted!.minutes);
-    // A counted day with activity but no stored minute still says 0, counted.
+    // A counted day with activity but no stored minute still says 0, counted, and says why.
     expect(counted.map((d) => [d.date, d.minutes])).toEqual([
-      ["2026-11-08", 25], ["2026-11-09", 12], ["2026-11-10", 0], ["2026-11-11", 0], ["2026-11-12", 7],
+      ["2026-11-08", 25], ["2026-11-09", 12], ["2026-11-11", 0], ["2026-11-12", 7],
     ]);
     for (const d of days) {
       if (d.date >= "2026-11-08" && d.courseId !== null) expect([d.minutes, d.minutesKind]).toEqual([null, null]);
@@ -149,16 +149,61 @@ describe("the daily summary", () => {
     expect(nov8.map((x) => [x.course, x.subject, x.minutes, x.minutes_kind])).toEqual([
       ["Fractions", "Math", "", ""], ["Spanish I", "Foreign language", "", ""], [X.allCourses, "", "25", "counted"],
     ]);
+    expect(nov8[2].activities).toBe("");
+    const nov11 = rows.find((x) => x.date === "2026-11-11" && x.course === X.allCourses)!;
+    expect(nov11).toMatchObject({ minutes: "0", minutes_kind: "counted", activities: X.noCountedMinutes });
+    expect(X.noCountedMinutes).toBe("No counted minutes were stored for this day. A minute counts only while a learning screen is open and someone clicked, typed or scrolled in the last 2 minutes.");
+    // A counted day with minutes but no activity is in the file, though the days tile does not count it.
+    expect(rows.filter((x) => x.date === "2026-11-12").map((x) => x.course)).toEqual([X.allCourses]);
   });
 
-  it("names a quiz that started one day and finished the next on both days", () => {
+  it("credits a sitting that crosses midnight to the day it started, so a course's days add up to the record", () => {
+    const s = busy();
+    s.chats.push({ course_id: "m", thread_id: "u", created_at: nov(14, 23, 58) }, { course_id: "m", thread_id: "u", created_at: nov(15, 0, 2) });
+    const r = build(s);
+    const days = recordDays(s, r).filter((d) => d.courseId === "m");
+    expect(days.filter((d) => d.date >= "2026-11-14").map((d) => [d.date, d.minutes])).toEqual([["2026-11-14", 4], ["2026-11-15", 0]]);
+    const fractions = r.timeBySubject.flatMap((g) => g.courses).find((c) => c.courseId === "m")!;
+    expect(days.reduce((n, d) => n + (d.minutes ?? 0), 0)).toBe(fractions.minutes);
+  });
+
+  it("rounds a course's minutes so its days add up exactly to the record's minutes for it", () => {
+    const s = emptySource();
+    s.courses = [course()];
+    // Three days with one 80-second sitting each: 240 seconds, which the record rounds to 4 minutes.
+    for (const d of [2, 3, 4]) {
+      const t = local(2026, 10, d, 10);
+      s.chats.push({ course_id: "c", thread_id: "t", created_at: utc(t) }, { course_id: "c", thread_id: "t", created_at: utc(new Date(t.getTime() + 80_000)) });
+    }
+    const r = build(s);
+    expect(r.timeBySubject[0].courses[0].minutes).toBe(4);
+    expect(recordDays(s, r).map((d) => [d.date, d.minutes])).toEqual([["2026-11-02", 2], ["2026-11-03", 1], ["2026-11-04", 1]]);
+  });
+
+  it("credits a quiz that crossed midnight with nothing answered on its start day to the day it finished", () => {
+    const s = busy();
+    // No answered row: its start is not activity, so Nov 14 has nothing to show and gets no row.
+    s.attempts.push({
+      id: "late", course_id: "c", quiz_type: "quiz", level: 1, score: 0, total_questions: 2, correct_count: 0, time_taken_seconds: null,
+      started_at: nov(14, 23, 58), completed_at: nov(15, 0, 3), passed: null,
+    });
+    const r = build(s);
+    const rows = table(recordDailyCsv(r, recordDays(s, r)));
+    expect(rows.some((x) => x.date === "2026-11-14")).toBe(false);
+    expect(rows.find((x) => x.date === "2026-11-15")).toMatchObject({ activities: "quiz 0 of 2", minutes: "4", minutes_kind: "approximate" });
+    expect(rows.every((x) => x.activities !== "")).toBe(true);
+    expect(new Set(rows.map((x) => x.date)).size).toBe(r.days);
+  });
+
+  it("shows a quiz started before midnight and finished after it on the day it finished", () => {
     const s = busy();
     quiz(s, "1.1", 1, 2, { started_at: nov(14, 23, 58), completed_at: nov(15, 0, 3) });
     const r = build(s);
     const rows = table(recordDailyCsv(r, recordDays(s, r)));
-    expect(rows.find((x) => x.date === "2026-11-14")!.activities).toBe("quiz started, finished on a later day");
-    expect(rows.find((x) => x.date === "2026-11-15")!.activities).toBe("quiz 1 of 2");
-    expect(new Set(rows.map((x) => x.date)).size).toBe(r.days);
+    expect(rows.some((x) => x.date === "2026-11-14")).toBe(false);
+    expect(rows.find((x) => x.date === "2026-11-15")).toMatchObject({ activities: "quiz 1 of 2", minutes: "4" });
+    // The days tile also counts the answered start on Nov 14; the file names that quiz once, where it finished.
+    expect(new Set(rows.map((x) => x.date)).size).toBe(r.days - 1);
   });
 
   it("marks every row as worked out from stored rows on the export date", () => {
@@ -215,7 +260,7 @@ describe("the event log", () => {
     expect(truncate("abc", 3)).toBe("abc");
   });
 
-  it("says a level test passed, and an app-made flashcard is the app's", () => {
+  it("says a level test passed, and logs only the learner's own flashcards", () => {
     const s = busy();
     quiz(s, "1.1", 9, 10, { quiz_type: "promotion", level: 1, passed: 1, completed_at: nov(18), time_taken_seconds: 600 });
     const r = build(s);
@@ -229,7 +274,7 @@ describe("the event log", () => {
     ]);
     expect(table(recordDailyCsv(r2, recordDays(s, r2))).find((x) => x.date === "2026-11-19")!.activities)
       .toBe("level test 3 of 10, not passed (timed out, unanswered questions not stored)");
-    expect(rows.filter((x) => x.activity === "flashcard made").map((x) => x.detail)).toEqual(["", X.detail.byApp]);
+    expect(rows.filter((x) => x.activity === "flashcard made").map((x) => x.detail)).toEqual([""]);
   });
 });
 
@@ -263,7 +308,7 @@ describe("both files", () => {
       const rows = parse(csv);
       const last = rows[rows.length - 1];
       const at = rows[0].indexOf(column);
-      expect(last[at]).toBe(`${RECORD_DISCLAIMER} ${X.statementFile}`);
+      expect(last[at]).toBe(column === "activities" ? `${RECORD_DISCLAIMER} ${X.statementFile} ${X.timeNote}` : `${RECORD_DISCLAIMER} ${X.statementFile}`);
       expect(last.filter((c, i) => i !== at && c !== "")).toEqual([]);
       expect(last).toHaveLength(rows[0].length);
       expect(rows.flat().filter((c) => c.includes(RECORD_DISCLAIMER))).toHaveLength(1);
@@ -303,6 +348,9 @@ describe("file names", () => {
     expect(fileNamePart("../../etc/passwd")).toBe("etc-passwd");
     expect(fileNamePart("José Ñúñez")).toBe("josé-ñúñez");
     expect(fileNamePart("小明")).toBe("小明");
+    // Combining marks are part of the name: Devanagari vowel signs and the virama stay with their letters.
+    expect(fileNamePart("आर्या")).toBe("आर्या");
+    expect(fileNamePart("Ārya Sharma")).toBe("ārya-sharma");
     expect(fileNamePart("  :*?  ")).toBe("learner");
     expect(fileNamePart("a".repeat(60))).toHaveLength(40);
   });

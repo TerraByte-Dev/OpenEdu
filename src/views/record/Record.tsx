@@ -418,7 +418,8 @@ function SpreadsheetSave({ save }: { save: (withLog: boolean) => Promise<string>
         {X.alsoLog}
       </label>
       <span className="text-sm text-[var(--ink-faint)] sm:text-right leading-normal">{X.statementFile} {X.statementApp}</span>
-      {note && <span role="status" className="text-sm text-[var(--ink-dim)] sm:text-right leading-normal break-all">{note}</span>}
+      {/* Always rendered, so a screen reader announces the text when it changes. */}
+      <span role="status" className="text-sm text-[var(--ink-dim)] sm:text-right leading-normal break-all">{note ?? ""}</span>
     </div>
   );
 }

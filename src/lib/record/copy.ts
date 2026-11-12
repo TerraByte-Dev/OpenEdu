@@ -257,6 +257,9 @@ export const RECORD_COPY = {
     counted: "counted",
     /** The counted-time row: learner_days counts the learner's day, never a course's. */
     allCourses: "All courses (counted for the learner, not per course)",
+    noCountedMinutes: "No counted minutes were stored for this day. A minute counts only while a learning screen is open and someone clicked, typed or scrolled in the last 2 minutes.",
+    /** The daily file's line on approximate minutes, as the printed cover sheet's timeNote says it. */
+    timeNote: "Approximate minutes are worked out course by course, so a sitting that moved between courses counts in each, and together they can come to more than the record's approximate time.",
     day: {
       quiz: "quiz {correct} of {total}",
       levelTest: "level test {correct} of {total}",
@@ -264,7 +267,6 @@ export const RECORD_COPY = {
       notPassed: "not passed",
       timedOut: "(timed out, unanswered questions not stored)",
       unfinished: "{kind} started, not finished",
-      finishedLater: "{kind} started, finished on a later day",
       lessons: "{n} lessons first opened",
       tutor: "{n} messages to the tutor",
       flashcardsMade: "{n} flashcards made",
@@ -287,7 +289,6 @@ export const RECORD_COPY = {
       result: "{correct} of {total} right",
       resultScore: "{correct} of {total} right ({score}%)",
       unfinished: "started, not finished",
-      byApp: "made by the app from a missed question or the tutor",
       latestReview: "latest review of this card; earlier reviews were not stored",
       explanationOn: "On {skill}: {text}",
     },

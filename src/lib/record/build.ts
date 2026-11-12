@@ -10,8 +10,8 @@ import { checkAnswerConsistency } from "../quiz-grading";
 import { appTitle, RECORD_FORMAT } from "./copy";
 import { mixedKey, notProof, replaySubtopics, skillKey, type GraderSplit, type NotProof, type SkillCheck } from "./replay";
 import {
-  activityPoints, approxMinutes, countedFrom, localDayKey, rangeBounds, rangeLabel, sittings, timeSpans, toStored,
-  type RecordRange, type Span,
+  approxMinutes, countedFrom, localDayKey, pointsIn, rangeBounds, rangeLabel, sittings, timeSpans, toStored,
+  type Bounds, type RecordRange, type Sitting, type Span,
 } from "./time";
 import type { RecordAttempt, RecordCourse, RecordQuestion, RecordSource, RecordSubtopicEvent, RecordSyllabus } from "./sources";
 
@@ -241,6 +241,22 @@ function levelAt(passes: ReadonlyArray<{ level: number; date: string | null }>, 
     level++;
   }
   return Math.min(level, 6);
+}
+
+/**
+ * C4's sittings: each course's spans that start in the range, grouped into sittings within that course
+ * alone (a sitting that moved between courses counts in each). The record's per-course time and the
+ * spreadsheet's per-day minutes both come from here.
+ */
+export function courseSittings(source: RecordSource, bounds: Bounds): Map<string, Sitting[]> {
+  const perCourse = new Map<string, Span[]>();
+  for (const s of timeSpans(source)) {
+    if (s.start < bounds.start || s.start >= bounds.end) continue;
+    const list = perCourse.get(s.courseId);
+    if (list) list.push(s);
+    else perCourse.set(s.courseId, [s]);
+  }
+  return new Map([...perCourse].map(([id, list]) => [id, sittings(list)]));
 }
 
 export function learningRecord(source: RecordSource, range: RecordRange, now: Date = new Date()): LearningRecord {
@@ -475,7 +491,7 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
   };
 
   // ── T1, T2, C4 ──
-  const days = new Set(activityPoints(source).filter((p) => p.at >= start && p.at < end).map((p) => localDayKey(p.at))).size;
+  const days = new Set(pointsIn(source, { start, end }).map((p) => localDayKey(p.at))).size;
   const spans = timeSpans(source).filter((s) => s.start >= start && s.start < end);
   const cut = countedFrom(source.captureSince);
   const countedStart = cut && cut < end ? (cut > start ? cut : start) : null;
@@ -488,17 +504,11 @@ export function learningRecord(source: RecordSource, range: RecordRange, now: Da
       : null,
   };
 
-  const perCourse = new Map<string, Span[]>();
-  for (const s of spans) {
-    const list = perCourse.get(s.courseId);
-    if (list) list.push(s);
-    else perCourse.set(s.courseId, [s]);
-  }
+  const perCourse = courseSittings(source, { start, end });
   const subjects = new Map<string | null, LearningRecord["timeBySubject"][number]>();
   for (const c of courses) {
-    const list = perCourse.get(c.id);
-    if (!list) continue;
-    const sit = sittings(list);
+    const sit = perCourse.get(c.id);
+    if (!sit) continue;
     const group = subjects.get(c.subject) ?? { subject: c.subject, minutes: 0, courses: [] };
     group.courses.push({ courseId: c.id, course: appTitle(c.title), minutes: approxMinutes(sit), sittings: sit.length });
     group.minutes += approxMinutes(sit);

@@ -38,12 +38,9 @@ pub async fn export_save_csv(
     Ok(Some(path.to_string_lossy().into_owned()))
 }
 
-/// The Save dialog's title: the caller's, or the teacher overview's when none (or a blank one) is given.
+/// The Save dialog's title: the caller's, or the teacher overview's when none is given.
 fn dialog_title(title: Option<&str>) -> &str {
-    match title.map(str::trim) {
-        Some(t) if !t.is_empty() => t,
-        _ => "Save the teacher overview",
-    }
+    title.unwrap_or("Save the teacher overview")
 }
 
 /// Where to write the file the user picked. The dialog warns before replacing the file it shows, but
@@ -89,7 +86,6 @@ mod tests {
     #[test]
     fn dialog_title_defaults_to_the_teacher_overview() {
         assert_eq!(dialog_title(None), "Save the teacher overview");
-        assert_eq!(dialog_title(Some("   ")), "Save the teacher overview");
         assert_eq!(dialog_title(Some("Save the learning record")), "Save the learning record");
     }
 
