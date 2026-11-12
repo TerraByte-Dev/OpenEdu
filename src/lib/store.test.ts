@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // store.ts resolves the default model through the Tauri store, the system_memory_bytes command and
 // Ollama's tag list. Stub all three so the wiring (not just models.ts's pure pick) is exercised in node.
@@ -12,6 +12,7 @@ vi.mock("./llm", () => ({ getOllamaModels: vi.fn() }));
 
 import { getChatConfig, getGenerationConfig } from "./store";
 import { getOllamaModels } from "./llm";
+import { defaultChatModel, defaultGenerationModel } from "./models";
 
 describe("default model on an 8 GB machine", () => {
   beforeEach(() => {
@@ -45,5 +46,29 @@ describe("default model on an 8 GB machine", () => {
     saved.set("llm_provider", "openai");
     await getChatConfig();
     expect(getOllamaModels).not.toHaveBeenCalled();
+  });
+});
+
+describe("a stored cloud model the provider shut down", () => {
+  beforeEach(() => saved.clear());
+  afterEach(() => vi.useRealTimers());
+
+  it("resolves to today's recommended model for the same role, and the stored value is not rewritten", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2027-02-01T00:00:00Z"));
+    saved.set("llm_provider", "openai");
+    saved.set("chat_model", "gpt-4o-mini");
+    saved.set("gen_model", "gpt-4.1");
+    expect((await getChatConfig()).model).toBe(defaultChatModel("openai"));
+    expect((await getGenerationConfig()).model).toBe(defaultGenerationModel("openai"));
+    expect(saved.get("chat_model")).toBe("gpt-4o-mini");
+  });
+
+  it("is used as is before its shutdown date", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-11T00:00:00Z"));
+    saved.set("llm_provider", "openai");
+    saved.set("chat_model", "gpt-4o-mini");
+    expect((await getChatConfig()).model).toBe("gpt-4o-mini");
   });
 });

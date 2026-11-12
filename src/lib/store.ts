@@ -2,7 +2,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
-import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel } from "./models";
+import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
 import { getOllamaModels } from "./llm";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 import type { RetrievalMode } from "./kernel/ground";
@@ -51,7 +51,7 @@ export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?
 export async function getGenerationConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const stored = await s.get<string>(STORE_KEYS.genModel);
+  const stored = resolveStoredModel(base.provider, "generation", await s.get<string>(STORE_KEYS.genModel));
   const model = stored ?? (base.provider === "ollama"
     ? defaultGenerationModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
     : defaultGenerationModel(base.provider));
@@ -62,7 +62,7 @@ export async function getGenerationConfig(): Promise<LLMConfig> {
 export async function getChatConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const stored = await s.get<string>(STORE_KEYS.chatModel);
+  const stored = resolveStoredModel(base.provider, "chat", await s.get<string>(STORE_KEYS.chatModel));
   const model = stored ?? (base.provider === "ollama"
     ? defaultChatModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
     : defaultChatModel(base.provider));

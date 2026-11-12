@@ -8,7 +8,7 @@ import {
 } from "../../../lib/store";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, type ModelOption,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type ModelOption,
 } from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
 import { Section, SettingRow, SecretField, SegmentedControl, INPUT_CLS, useSettings } from "../primitives";
@@ -32,17 +32,29 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   // could turn the status dot green for a URL that was never saved). Intentional URL edits re-probe via the
   // explicit "Save & Check" button / Enter, which also persists.
   const didInit = useRef(false);
+  // Provider-dependent reads (provider, models, key) can be slow: with Ollama selected and nothing stored,
+  // each model getter probes Ollama, about 2 s when it isn't running. Each load or provider pick takes a
+  // ticket, and a read whose ticket is no longer the latest is dropped, so a slow earlier read can never
+  // overwrite what a later provider pick showed.
+  const providerLoad = useRef(0);
   useEffect(() => {
+    const ticket = ++providerLoad.current;
+    const current = () => ticket === providerLoad.current;
     (async () => {
       const base = await getLLMProvider();
-      setProvider(base.provider);
       setOllamaUrlValue(base.ollamaUrl);
-      setGenModel((await getGenerationConfig()).model);
-      setChatModelState((await getChatConfig()).model);
+      if (current()) setProvider(base.provider);
+      const gen = (await getGenerationConfig()).model;
+      if (current()) setGenModel(gen);
+      const chat = (await getChatConfig()).model;
+      if (current()) setChatModelState(chat);
       setEmbeddingModelState((await getEmbeddingConfig()).model);
       setMaxCtx(await getMaxContextTokens());
-      if (base.provider !== "ollama") setApiKeyValue((await getApiKey(base.provider)) || "");
-      if (base.provider === "ollama") void checkOllama(base.ollamaUrl);
+      if (base.provider !== "ollama") {
+        const key = (await getApiKey(base.provider)) || "";
+        if (current()) setApiKeyValue(key);
+      }
+      if (base.provider === "ollama") void checkOllama(base.ollamaUrl); // unguarded: a re-click of Ollama during the load must still probe
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -77,11 +89,20 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   };
 
   const pickProvider = async (p: LLMProvider) => {
+    const ticket = ++providerLoad.current;
+    const current = () => ticket === providerLoad.current;
     setProvider(p);
     await setLLMProvider(p);
     markSaved();
     onProviderChanged?.();
-    setApiKeyValue(p === "ollama" ? "" : (await getApiKey(p)) || "");
+    // Re-read the models the app will now send for this provider: with nothing stored, the getters fall
+    // back to the provider's own defaults, so the chips never show the previous provider's model.
+    const gen = (await getGenerationConfig()).model;
+    if (current()) setGenModel(gen);
+    const chat = (await getChatConfig()).model;
+    if (current()) setChatModelState(chat);
+    const key = p === "ollama" ? "" : (await getApiKey(p)) || "";
+    if (current()) setApiKeyValue(key);
   };
 
   const commitGen = async (m: string) => { setGenModel(m); await setGenerationModel(m); markSaved(); };
@@ -89,7 +110,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const commitEmbedding = async () => { await setEmbeddingModel(embeddingModel.trim() || "nomic-embed-text"); markSaved(); };
 
   const verifyKey = async (key: string) => {
-    const testModel = provider === "anthropic" ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
+    // The catalog's chat default, so a retired id here can never fail a good key with "Model not found".
+    const testModel = defaultChatModel(provider);
     try {
       await callLLM([{ role: "user", content: "Reply with one word: ok" }], { provider, model: testModel, apiKey: key.trim() });
       return { ok: true, msg: `${provider === "anthropic" ? "Anthropic" : "OpenAI"} key is valid and working.` };
@@ -257,7 +279,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 function CloudModelChips({ models, value, onChange }: { models: ModelOption[]; value: string; onChange: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-2">
-      {models.map((m) => (
+      {withStoredOption(models, value).map((m) => (
         <button
           key={m.id}
           onClick={() => onChange(m.id)}
