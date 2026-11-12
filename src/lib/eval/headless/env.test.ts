@@ -82,6 +82,34 @@ describe("parseEvalEnv, k12-flow-fr", () => {
   });
 });
 
+describe("parseEvalEnv, define", () => {
+  it("defaults to the dev split with the dictionary note on, and takes test, repeats and EVAL_ONLY", () => {
+    expect(parseEvalEnv({ EVAL_SUITE: "define" })).toMatchObject({ suite: "define", set: "dev", repeats: 1, dictionary: "on" });
+    expect(parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: "test", EVAL_REPEATS: "3", EVAL_DICTIONARY: "off" }))
+      .toMatchObject({ set: "test", repeats: 3, dictionary: "off" });
+    expect(parseEvalEnv({ EVAL_SUITE: "define", EVAL_REPEATS: "2", EVAL_ONLY: "def-k2-01" })).toMatchObject({ set: "dev", repeats: 2, only: "def-k2-01" });
+  });
+  it("runs the test split whole, at 3 repeats: refuses EVAL_ONLY and any other repeat count", () => {
+    expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: "test", EVAL_REPEATS: "3", EVAL_ONLY: "def-k2-02" })).toThrow(/EVAL_ONLY is not allowed on the define test split/);
+    for (const r of [undefined, "1", "5"]) expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: "test", ...(r ? { EVAL_REPEATS: r } : {}) })).toThrow(/runs EVAL_REPEATS=3/);
+  });
+  it("refuses other sets, options its runner does not have, and a bad switch value", () => {
+    for (const set of ["main", "dev-v2", "sealed"]) expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: set })).toThrow(/define runs its own dev or test split/);
+    for (const k of ["EVAL_MODES", "EVAL_SYLLABUS", "EVAL_PROMPT"]) expect(() => parseEvalEnv({ EVAL_SUITE: "define", [k]: "always" })).toThrow(k);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_DICTIONARY: "no" })).toThrow(/EVAL_DICTIONARY=no: use on or off/);
+    expect(() => parseEvalEnv({ EVAL_SUITE: "define", EVAL_LIMIT: "5" })).toThrow(/EVAL_LIMIT applies to k12-flow only/);
+  });
+  it("keeps EVAL_DICTIONARY to define, and leaves the other suites' options without it", () => {
+    for (const suite of ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"]) expect(() => parseEvalEnv({ EVAL_SUITE: suite, EVAL_DICTIONARY: "off" })).toThrow(/EVAL_DICTIONARY applies to define only/);
+    expect(parseEvalEnv({}).dictionary).toBeUndefined();
+  });
+  it("names the arm in the default results path", () => {
+    const at = new Date("2026-11-11T10:20:30.456Z");
+    expect(defaultOutPath(parseEvalEnv({ EVAL_SUITE: "define", EVAL_DICTIONARY: "off" }), at)).toBe(".dev/eval-runs/2026-11-11T10-20-30-456-define-dev-B-gemma4_e2b.json");
+    expect(defaultOutPath(parseEvalEnv({ EVAL_SUITE: "define", EVAL_SET: "test", EVAL_REPEATS: "3" }), at)).toBe(".dev/eval-runs/2026-11-11T10-20-30-456-define-test-D-gemma4_e2b.json");
+  });
+});
+
 describe("parseEvalEnv, b7-cpu", () => {
   it("defaults to the CPU server's port and 5 warm repeats, and reads the server log path", () => {
     const o = parseEvalEnv({ EVAL_SUITE: "b7-cpu" });

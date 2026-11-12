@@ -6,7 +6,7 @@ import type { RetrievalMode } from "../../kernel/ground";
 import { STORE_KEYS, apiKeyStoreKey } from "../../store-keys";
 import type { RagPrompt } from "../rag-runner";
 
-export type EvalSuite = "rag" | "k12-flow" | "k12-flow-fr" | "b7-cpu";
+export type EvalSuite = "rag" | "k12-flow" | "k12-flow-fr" | "b7-cpu" | "define";
 
 export interface EvalOptions {
   suite: EvalSuite;
@@ -42,11 +42,14 @@ export interface EvalOptions {
   numGpu?: number;
   /** b7-cpu only: the CPU server's log file, read for the thread count its runner started with. */
   serverLog?: string;
+  /** define only: "off" sends no dictionary note (kernel defineWord.ts), the paired baseline at the same
+   *  commit. Unset: "on", what the app does. */
+  dictionary?: "on" | "off";
 }
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
 const PROVIDERS: LLMProvider[] = ["ollama", "openai", "anthropic"];
-const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu"];
+const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu", "define"];
 /** b7-cpu talks to a second, CPU-only Ollama server on its own port (README.md, "b7-cpu"). */
 export const B7_DEFAULT_OLLAMA_URL = "http://127.0.0.1:11435";
 export const B7_DEFAULT_REPEATS = 5;
@@ -69,13 +72,14 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   // k12-flow-fr is the same flow on typed problems without options: every k12-flow rule applies.
   const flow = suite === "k12-flow" || suite === "k12-flow-fr";
   const b7 = suite === "b7-cpu";
+  const define = suite === "define";
 
   const provider = (get("EVAL_PROVIDER") ?? "ollama") as LLMProvider;
   if (!PROVIDERS.includes(provider)) errs.push(`EVAL_PROVIDER=${provider}: use ${PROVIDERS.join(", ")}`);
   const apiKey = get("EVAL_API_KEY");
   if (provider !== "ollama" && !apiKey) errs.push(`EVAL_PROVIDER=${provider} needs EVAL_API_KEY`);
 
-  const set = (get("EVAL_SET") ?? (flow || b7 ? "dev" : "main")) as EvalOptions["set"];
+  const set = (get("EVAL_SET") ?? (flow || b7 || define ? "dev" : "main")) as EvalOptions["set"];
   if (!SETS.includes(set)) errs.push(`EVAL_SET=${set}: use ${SETS.join(", ")}`);
   // The k12 test items are in the sealed v2 file. Running them needs the frozen path through
   // loadSealed and all its refusals, which k12-flow does not have yet. The 240 k12-mc items are DEV.
@@ -92,6 +96,25 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     for (const k of ["EVAL_MODES", "EVAL_ONLY", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_NUM_GPU", "EVAL_WIRE", "EVAL_PROMPT"]) if (get(k)) errs.push(`${k} does not apply to b7-cpu`);
   } else if (get("EVAL_B7_SERVER_LOG")) {
     errs.push("EVAL_B7_SERVER_LOG applies to b7-cpu only");
+  }
+  // define: its own items (define-items.ts), dev or test split; one user turn, retrieval "always", no
+  // syllabus, ChatTab's prompt (define-runner.ts). Repeats and EVAL_ONLY are allowed.
+  if (define) {
+    if (set !== "dev" && set !== "test") errs.push(`EVAL_SET=${set}: define runs its own dev or test split`);
+    for (const k of ["EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_PROMPT"]) if (get(k)) errs.push(`${k} does not apply to define`);
+    // The test split runs once, whole, at 3 repeats (lever 18): a one-item smoke run would write test
+    // replies before the frozen run.
+    if (set === "test") {
+      if (get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed on the define test split: the run covers every item");
+      if (get("EVAL_REPEATS") !== "3") errs.push("The define test split runs EVAL_REPEATS=3 (pre-registered)");
+    }
+  }
+  const dictionary = get("EVAL_DICTIONARY") as EvalOptions["dictionary"];
+  if (dictionary !== undefined) {
+    if (dictionary !== "on" && dictionary !== "off") errs.push(`EVAL_DICTIONARY=${dictionary}: use on or off`);
+    // Every other suite's messages never fire the detector (define-false-fires.test.ts), so the switch
+    // could only make a run look like an arm it is not.
+    if (!define) errs.push("EVAL_DICTIONARY applies to define only");
   }
   const sealedPath = get("EVAL_SEALED");
   if (!flow && set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
@@ -170,6 +193,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     wire: wireRaw === "1",
     numGpu,
     serverLog: b7 ? get("EVAL_B7_SERVER_LOG") : undefined,
+    dictionary: define ? (dictionary ?? "on") : undefined,
   };
 }
 
@@ -219,5 +243,7 @@ export function sealedGitRefusal(g: GitState): string | null {
 export function defaultOutPath(o: EvalOptions, now: Date): string {
   const stamp = now.toISOString().replace(/[:.]/g, "-").replace(/Z$/, "");
   const model = o.model.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return `.dev/eval-runs/${stamp}-${o.suite}-${o.set}-${model}.json`;
+  // define: the arm is in the name (B = EVAL_DICTIONARY=off, D = the note), since both run at one commit.
+  const arm = o.suite === "define" ? `-${o.dictionary === "off" ? "B" : "D"}` : "";
+  return `.dev/eval-runs/${stamp}-${o.suite}-${o.set}${arm}-${model}.json`;
 }

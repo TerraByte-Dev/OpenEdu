@@ -16,13 +16,13 @@ from environment variables.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `EVAL_SUITE` | `rag` | `rag`, `k12-flow`, `k12-flow-fr` (see [k12-flow](#k12-flow) and [k12-flow-fr](#k12-flow-fr) below) or `b7-cpu` (see [b7-cpu](#b7-cpu-latency-on-a-cpu)). |
+| `EVAL_SUITE` | `rag` | `rag`, `k12-flow`, `k12-flow-fr` (see [k12-flow](#k12-flow) and [k12-flow-fr](#k12-flow-fr) below), `b7-cpu` (see [b7-cpu](#b7-cpu-latency-on-a-cpu)) or `define` (see [define](#define-what-does-x-mean)). |
 | `EVAL_MODEL` | `gemma4:e2b` | Chat model. Stored as the Settings chat model. |
 | `EVAL_PROVIDER` | `ollama` | `ollama`, `openai` or `anthropic`. Cloud needs `EVAL_API_KEY`. |
 | `EVAL_API_KEY` | (none) | Cloud key. Read from the environment, never written to the results file. |
 | `EVAL_OLLAMA_URL` | `http://127.0.0.1:11434` (`b7-cpu`: `http://127.0.0.1:11435`) | Ollama base URL. |
 | `EVAL_EMBED_MODEL` | app default (`nomic-embed-text`) | Embedding model for the vault and the question. |
-| `EVAL_SET` | `main` (`dev` for k12-flow) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), `dev-v2` (rag-dev-v2.ts: its own vault, name-free positives and lowercase near-misses; all DEV), or `sealed`. k12-flow takes `dev` only. |
+| `EVAL_SET` | `main` (`dev` for k12-flow and define) | `main` (rag-fixture.ts), `dev` / `test` (rag-heldout.ts), `dev-v2` (rag-dev-v2.ts: its own vault, name-free positives and lowercase near-misses; all DEV), or `sealed`. k12-flow takes `dev` only; define takes `dev` or `test` (its own split, `../define-items.ts`). |
 | `EVAL_SEALED` | (none) | Path to the sealed v2 file. Required with `EVAL_SET=sealed`. |
 | `EVAL_REPEATS` | `1` (`b7-cpu`: `5`) | Repeats per question and mode. For `b7-cpu`: warm repeats per scenario (there is always one cold repeat as well). |
 | `EVAL_MODES` | `always,off` | Comma list of retrieval modes: `always`, `auto`, `off`. Not allowed with `sealed`. |
@@ -34,6 +34,7 @@ from environment variables.
 | `EVAL_CTX` | app default (8192) | The Settings context-window cap. num_ctx is min(model max, this). |
 | `EVAL_WIRE` | `0` | `1` records, for every `/api/chat` request, what Ollama reports at the end of it: `load_duration` (a model reload), `prompt_eval_count` (tokens evaluated, so a prefix-cache miss shows as a large count), `eval_count` and the durations, as `wire` in the results file. Requests are unchanged. |
 | `EVAL_NUM_GPU` | (none) | Ollama only. Adds `options.num_gpu` to every chat and embed request; `0` times the kernel CPU-only on a machine with a GPU. This changes the requests on purpose, so such a run is a latency run, not a parity run. Refused with `sealed`. |
+| `EVAL_DICTIONARY` | `on` | define only. `off` sends no dictionary note (`src/lib/kernel/defineWord.ts`), so the paired baseline runs at the same commit. Each row still records the word the detector read (`askedWord`); `dictionaryNote` is the entry and note the turn appended (null for none). The app never sets it. Refused with every other suite: their messages never fire the detector (`../define-false-fires.test.ts`). |
 | `EVAL_B7_SERVER_LOG` | (none) | `b7-cpu` only. The CPU server's log file, read for the thread count its runner started with (Ollama has no API for it). |
 | `EVAL_OUT` | `.dev/eval-runs/<stamp>-<suite>-<set>-<model>.json` in the main checkout | Results JSON. `.dev/` is gitignored. The default goes to the main checkout even from a linked worktree, so removing the worktree does not delete it. A set `EVAL_OUT` is relative to the working directory. |
 
@@ -107,6 +108,69 @@ but the user turns and the detectors is k12-flow's. Every k12-flow refusal appli
 Rows carry `source` (the k12-mc item it was rewritten from), `key` and `attempted` as text, and
 `grade.t3Answer` as the number T3 committed to. The results file name has `k12-flow-fr-dev`, so
 `rescore.ts` (which reads `*k12-flow-dev*.json`) never picks it up.
+
+## define: "what does X mean"
+
+```bash
+EVAL_SUITE=define EVAL_DICTIONARY=off EVAL_REPEATS=3 npm run eval   # arm B: no note
+EVAL_SUITE=define EVAL_REPEATS=3 npm run eval                       # arm D: the dictionary note
+```
+
+The dictionary-note benchmark (`docs/BENCHMARKS.md` B8 and lever 18, issue #251). One student turn per
+item, through `runDefineItems` in `../define-runner.ts`: the real kernel, configured as ChatTab runs a
+turn for a learner in an English Language Arts course with no stored instructions, no persona and no
+syllabus, the "explain" skill, retrieval "always", and the reading-level line for the item's band (K-2
+grade 2, 3-5 grade 4, 6-8 grade 7, 9-12 grade 10). Items, split and grades: `../define-items.ts`; grader
+and arm comparison: `../define-grade.ts`. `EVAL_SET` is `dev` (64 items, the default) or `test` (120
+items). The test split runs once, whole, at 3 repeats: it needs `EVAL_REPEATS=3`, refuses `EVAL_ONLY`,
+and refuses to start while `src/` or `public/dictionary/` has uncommitted changes, so the file's commit
+is what ran. On dev, `EVAL_REPEATS` and `EVAL_ONLY` work as for RAG. `EVAL_MODES`, `EVAL_SYLLABUS`,
+`EVAL_PROMPT`, `EVAL_LIMIT` and `EVAL_SAMPLE` are refused. A turn with no reply is retried once; the run
+is void at ERROR rows over 2% of turns (8 of 360 on test), and still writes its rows. The default
+results file name carries the arm (`-B-` or `-D-`).
+
+Rows carry the item's band, kind (`plain` or `sense`) and split, the repeat, the kernel's `askedWord`
+and `dictionaryNote` (with `noteTokens`, its `estTokens`), the reply, `grade` (`pass`, and for sense
+items `passStrict`, which also fails a reply naming the other sense), the final attempt's `toolCalls`
+and `toolCallRecovery`, `attempts`, and the chat requests the row sent over all its attempts
+(`chatRequests` and `structuredRequests`, counted on the wire by the runner; the warm-up is not counted).
+Compare two arms run at one commit, offline:
+
+```powershell
+$env:DEFINE_B = "<B results file>"; $env:DEFINE_D = "<D results file>"
+npx vite-node src/lib/eval/headless/define-compare.ts
+```
+
+It prints per-arm ERROR, detected and noted counts with the ids that missed, added model calls, the
+pre-registered groups (item-majority passes with Wilson intervals, items lost and gained, exact McNemar
+p) with and without items that have an ERROR row in either arm, median reply length per band, and on
+the test split the lever 18 clauses as written. It refuses files from different commits, models, splits
+or run options; on the test split it also refuses a partial or void run, unequal repeats or repeats
+other than 3, an item whose row count is not the repeats, and a group short of its frozen size. When
+a kill clause fires it prints no accuracy reading. For a model other than gemma4:e2b it prints only the
+other-models clause (plain K-8, 4 items).
+
+### The define hand-label gate
+
+Before the note wording is frozen, the lexical grader is checked against two blind graders on 60 dev
+rows (`docs/BENCHMARKS.md` B8, "Validation gate"). Offline, except grader 2. Each script ends with an
+unconditional `main()`, so with no inputs it fails with its usage error (`define-scripts.test.ts`); the
+helpers the tests import live in `define-script-lib.ts`.
+
+| Step | Command |
+|---|---|
+| Build the sheet and the hidden verdicts | `$env:DEFINE_LABEL_FILES = "<B dev file>,<D dev file>"; npx vite-node src/lib/eval/headless/define-label-sheet.ts` writes `.dev/<sheet id>.html` and `.dev/label-verdicts/<sheet id>.json` in the main checkout. The sheet id names the model(s), a hash of the row set and the grader commits, so two sheets never share a file or the browser's saved answers. The sheet shows the word, the student's message and the reply only. The draw refuses only if it stops short of a minimum while a usable row for it is still free. `define-grade.ts` and `define-items.ts` must be committed. |
+| Grader 1 (Tate) | Open the sheet in a browser, answer every row, press Export. |
+| Grader 2 (blind, OpenAI) | `$env:DEFINE_GRADER2_MODEL = "<model from OpenAI's docs>"; run-with-secrets npx vite-node src/lib/eval/headless/define-label-grader2.ts -- <sheet.html> <out.json>`. One request per row, retried once; it writes the export and exits non-zero if any row is still unanswered. The key comes from `OPENAI_API_KEY`. One run per sheet. |
+| Score | `npx vite-node src/lib/eval/headless/define-kappa.ts -- grader1.json grader2.json verdicts.json` (grader 1 first): kappa per reading, the gate, and the lexical false passes and fails per arm. It refuses an export that leaves any row unanswered, two exports from the same grader, and verdicts built with a grader commit other than the one committed now. |
+
+If the gate misses, B8 is descriptive (no accuracy claim); the term lists are not changed in response.
+
+For the harm adjudication lever 18 describes, set `DEFINE_LABEL_ITEMS=<ids>` (the lost and the gained
+items of the group whose clause fired) and pass one model's B and D test files: the sheet then holds
+every non-ERROR row of those items in both arms. `define-kappa.ts` reads it only when both exports answer every row,
+and prints the item verdicts with grader 1 deciding each row (a missing repeat fails), the both-graders-agree reading as a sensitivity line, kappa between the graders and every
+disagreement.
 
 ## b7-cpu: latency on a CPU
 
@@ -250,7 +314,8 @@ says a set burns when it is read.
 | `@tauri-apps/api/core` | `invoke` always fails (there is no Rust side) |
 | any other `@tauri-apps/*` | fails at import, so a new native dependency is loud |
 
-App-origin URLs (`/library/…`) are served from `public/` on disk, as Vite serves them to the webview.
+App-origin URLs (`/library/…`, `/dictionary/…`) are served from `public/` on disk, as Vite serves them to the webview,
+with a JSON content type for `.json` files (`dictionary.ts` refuses a reply that is not JSON).
 
 `parity.test.ts` (part of `npm test`) runs one item through the webview entry (`runRagEval`) and the
 headless entry and checks that the `/api/chat` and `/api/embed` bodies are identical. It does the same

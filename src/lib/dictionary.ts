@@ -47,6 +47,8 @@ const RULES: Record<Exclude<Pos, "r">, Array<[string, string]>> = {
   a: [["er", ""], ["est", ""], ["er", "e"], ["est", "e"]],
 };
 const POS_ORDER: Pos[] = ["n", "v", "a", "r"];
+/** Own keys only: a word such as "constructor" or "__proto__" must not read Object.prototype. */
+const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
 /** Shard file key for a lowercased headword. The build script uses the same rule; a test checks every
  *  shipped shard's keys against this function. */
@@ -89,7 +91,7 @@ export function candidateHeadwords(word: string, exc: Exceptions, opts: { traili
   };
   const bases = (w: string): Array<[string, Pos]> => {
     const found: Array<[string, Pos]> = [];
-    for (const pos of POS_ORDER) for (const lemma of exc[pos][w] ?? []) found.push([lemma, pos]);
+    for (const pos of POS_ORDER) for (const lemma of own(exc[pos], w) ? exc[pos][w] : []) found.push([lemma, pos]);
     for (const pos of ["n", "v", "a"] as const) {
       for (const [suffix, ending] of RULES[pos]) {
         if (w.length > suffix.length && w.endsWith(suffix)) found.push([w.slice(0, w.length - suffix.length) + ending, pos]);
@@ -126,7 +128,8 @@ export function resolveEntries(
   const entries: DictionaryEntry[] = [];
   for (const cand of candidateHeadwords(word, exc, opts)) {
     if (entries.some((e) => e.headword === cand.word)) continue;
-    const rows = getShard(shardKey(cand.word))?.[cand.word];
+    const shard = getShard(shardKey(cand.word));
+    const rows = shard && own(shard, cand.word) ? shard[cand.word] : undefined;
     if (!rows || rows.length === 0) continue;
     if (cand.pos !== null && !rows.some((r) => r[1] === cand.pos)) continue;
     entries.push({
@@ -152,11 +155,23 @@ interface Index {
 let indexPromise: Promise<Index> | null = null;
 const shardCache = new Map<string, Promise<Shard>>();
 
+/** A bundled file that has not answered in this long is given up on: its fetch is aborted and dropped
+ *  from the cache, so a hung request is not kept for the next lookup. The load is shared by every
+ *  lookup and is not tied to any one turn, so a caller that stops waiting sooner (the tutor turn's 2 s
+ *  deadline) leaves a slow first load running, and it still warms the cache. */
+export const DICTIONARY_FETCH_TIMEOUT_MS = 15_000;
+
 async function fetchJson<T>(name: string): Promise<T> {
-  const res = await fetch(`${BASE}/${name}`, { method: "GET" });
-  if (!res.ok) throw new Error(`dictionary fetch failed (${res.status}): ${name}`);
-  if (!(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`dictionary fetch got a non-JSON reply: ${name}`);
-  return (await res.json()) as T;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), DICTIONARY_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BASE}/${name}`, { method: "GET", signal: ctl.signal });
+    if (!res.ok) throw new Error(`dictionary fetch failed (${res.status}): ${name}`);
+    if (!(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`dictionary fetch got a non-JSON reply: ${name}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function loadIndex(): Promise<Index> {
@@ -180,7 +195,8 @@ function loadShard(key: string): Promise<Shard> {
 }
 
 /** Look a word or phrase up in the bundled dictionary. Empty when it isn't there or the input is blank.
- *  Throws only if the bundled files can't be read, which the caller treats as "no entry". */
+ *  Throws only if the bundled files can't be read (or a file hangs past DICTIONARY_FETCH_TIMEOUT_MS),
+ *  which the caller treats as "no entry". */
 export async function lookupWord(raw: string): Promise<DictionaryEntry[]> {
   const word = normalizeQuery(raw);
   if (!word) return [];
