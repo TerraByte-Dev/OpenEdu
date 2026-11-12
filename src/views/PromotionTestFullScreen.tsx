@@ -79,6 +79,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   // Synchronous single-flight guard for finishTest — blocks a double-click (or a click racing the
   // timeout) from grading + persisting twice (issue #83 review).
   const finishingRef = useRef(false);
+  // Question indexes whose answer save has started, so a timeout never writes a second row for one.
+  const savingRef = useRef(new Set<number>());
   // Mirrors the latest `questions` so the timeout path grades the answers the student actually gave,
   // not the pristine initial array (issue #83 — a timed-out test used to score 0%).
   const questionsRef = useRef<ActiveQuestion[]>([]);
@@ -130,6 +132,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       const limit = getTimeLimitSeconds(currentLevel);
       const attempt = await createPromotionAttempt(courseId, currentLevel, allQ.length, limit);
       setAttemptId(attempt.id);
+      savingRef.current = new Set();
       setTimeLeft(limit);
       setQuestions(allQ);
       setCurrentIndex(0);
@@ -154,9 +157,12 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
   // isCorrect is null for free-text answers — recorded now, graded together at finish (issue #83).
   const handleAnswer = useCallback(async (answer: string, isCorrect: boolean | null) => {
-    if (!attemptId) return;
+    // Once the test is finishing (submitted or timed out), a late answer is not stored: the finish
+    // path has already decided which questions were answered.
+    if (!attemptId || finishingRef.current) return;
 
     const question = questions[currentIndex];
+    savingRef.current.add(currentIndex); // a row is on its way for this question (see the timed-out rows)
     const savedId = await saveQuizQuestion({
       attempt_id: attemptId,
       question_text: question.question_text,
@@ -229,9 +235,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       : gradedQuestions;
     // A timed-out test scores its unanswered questions as wrong. Store them as rows too, so the stored
     // questions match what the app scored (the learning record replays mastery from these rows, #258).
-    // Not awaited: nothing below reads these rows, and results must never wait on the database.
+    // Not awaited: nothing below reads these rows, and results must never wait on the database. A
+    // question whose answer was still being saved when time ran out already has its row, so it is skipped.
     if (timedOut) {
-      void Promise.all(answered.filter((q) => q.user_answer === null && !q.saved_id).map((q) =>
+      void Promise.all(answered.filter((q, i) => q.user_answer === null && !q.saved_id && !savingRef.current.has(i)).map((q) =>
         saveQuizQuestion({
           attempt_id: aid,
           question_text: q.question_text,

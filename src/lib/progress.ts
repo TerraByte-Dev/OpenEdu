@@ -6,6 +6,16 @@ import type { Syllabus, Subtopic, QuizQuestion } from "../types";
 
 // ─── Mastery Tracking ─────────────────────────────────────────────────────────
 
+// The learning record's event log (#258) is best effort: a failed insert must never stop the mastery,
+// progress and knowledge updates that follow it.
+async function logSubtopicEvents(courseId: string, level: number, events: SubtopicEventRow[]): Promise<void> {
+  try {
+    await recordSubtopicEvents(courseId, level, events);
+  } catch (e) {
+    log.warn("progress", "subtopic_events insert failed", e instanceof Error ? e.message : String(e));
+  }
+}
+
 /**
  * After a quiz/promotion attempt, update which subtopics are mastered.
  * If questions have subtopic_id, uses exact mapping. Otherwise falls back to
@@ -80,7 +90,7 @@ export async function updateSubtopicMastery(
   if (changed) {
     await updateSyllabusSubtopics(courseId, syllabus.level, JSON.stringify(updatedSubtopics));
     log.info("progress", `Updated subtopic mastery for course ${courseId} level ${syllabus.level}`);
-    await recordSubtopicEvents(courseId, syllabus.level, events);
+    await logSubtopicEvents(courseId, syllabus.level, events);
   }
 }
 
@@ -118,7 +128,7 @@ export async function setSubtopicStatus(
 
   if (changed) {
     await updateSyllabusSubtopics(courseId, syllabus.level, JSON.stringify(updated));
-    await recordSubtopicEvents(courseId, syllabus.level, events);
+    await logSubtopicEvents(courseId, syllabus.level, events);
     log.info("progress", `Set subtopic ${match.id} (${match.title}) → ${status} (course ${courseId} L${syllabus.level})`);
   }
   return { found: true, changed, title: match.title };

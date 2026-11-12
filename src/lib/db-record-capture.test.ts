@@ -24,7 +24,7 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 import {
   setActiveLearnerId, createLearner, deleteLearner, createCourse, deleteCourse, createNote, createFlashcard,
   updateFlashcardAfterReview, createQuizAttempt, saveQuizQuestion, updateQuizQuestionGrade, setPromotionResult,
-  recordActiveMinute, recordSubtopicEvents,
+  recordActiveMinute, recordSubtopicEvents, deleteFlashcard, getReviewPoolQuestions, getSubtopicAccuracy,
 } from "./db";
 import { DEFAULT_LEARNER_ID } from "./learners";
 import type { QuizQuestion } from "../types";
@@ -139,6 +139,25 @@ describe("learning-record writes", () => {
     await createNote(course.id, "Mine", "", 1, null, "learner");
     await createNote(course.id, "Untagged", "", 1);
     expect(rows<{ origin: string | null }>("SELECT origin FROM notes ORDER BY title").map((r) => r.origin)).toEqual(["learner", null]);
+  });
+
+  it("keeps a timed-out test's unanswered rows out of the review pool and the accuracy heatmap", async () => {
+    const course = await createCourse("Algebra", "algebra");
+    const attempt = await createQuizAttempt(course.id, "promotion", 1, 2);
+    await saveQuizQuestion(question(attempt.id, { question_text: "Missed", user_answer: "5", is_correct: false }), "key");
+    await saveQuizQuestion(question(attempt.id, { question_text: "Never seen", user_answer: null, is_correct: false }), "unanswered");
+    expect((await getReviewPoolQuestions(course.id, 5)).map((q) => q.question_text)).toEqual(["Missed"]);
+    expect(await getSubtopicAccuracy(course.id)).toEqual([{ subtopic_id: "1.1", correct: 0, total: 1 }]);
+  });
+
+  it("keeps a card's review history when the card is deleted, and drops it with the course", async () => {
+    const course = await createCourse("Algebra", "algebra");
+    const card = await createFlashcard({ courseId: course.id, front: "f", back: "b", level: 1, source: "manual" });
+    await updateFlashcardAfterReview(card.id, { ease: 2.5, interval_days: 1, reps: 1, lapses: 0, due_at: "2026-11-12 00:00:00" }, "good");
+    await deleteFlashcard(card.id);
+    expect(count("SELECT COUNT(*) AS n FROM flashcard_reviews")).toBe(1);
+    await deleteCourse(course.id);
+    expect(count("SELECT COUNT(*) AS n FROM flashcard_reviews")).toBe(0);
   });
 
   it("deleting a course removes its skill events and flashcard reviews", async () => {

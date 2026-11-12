@@ -10,7 +10,7 @@ vi.mock("./db", () => ({
   saveTutorInstruction: vi.fn(),
   recordSubtopicEvents: vi.fn(),
 }));
-vi.mock("./llm", () => ({ log: { info: vi.fn() } }));
+vi.mock("./llm", () => ({ log: { info: vi.fn(), warn: vi.fn() } }));
 
 import { setSubtopicStatus, updateSubtopicMastery } from "./progress";
 import { updateSyllabusSubtopics, recordSubtopicEvents } from "./db";
@@ -73,5 +73,11 @@ describe("skill status events for the learning record (#258)", () => {
       { subtopic_id: "1.4", event: "practiced", source: "keyword", correct: 2, total: 2, attempt_id: "a1" },
       { subtopic_id: "1.4", event: "mastered", source: "keyword", correct: 2, total: 2, attempt_id: "a1" },
     ]);
+  });
+
+  it("a failed event insert never stops the mastery write or throws", async () => {
+    vi.mocked(recordSubtopicEvents).mockRejectedValueOnce(new Error("disk full"));
+    await expect(setSubtopicStatus("c1", syllabus, "1.2", "mastered")).resolves.toMatchObject({ found: true, changed: true });
+    expect(updateSyllabusSubtopics).toHaveBeenCalledTimes(1);
   });
 });

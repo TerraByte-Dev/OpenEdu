@@ -434,10 +434,12 @@ pub fn run() {
                 CREATE INDEX IF NOT EXISTS idx_subtopic_events_course ON subtopic_events(course_id, created_at);
 
                 -- One row per flashcard review. flashcards.last_reviewed_at is overwritten each time.
+                -- card_id has no foreign key on purpose: deleting a card later keeps its review history.
+                -- The rows go with their course.
                 CREATE TABLE IF NOT EXISTS flashcard_reviews (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    card_id TEXT NOT NULL REFERENCES flashcards(id) ON DELETE CASCADE,
-                    course_id TEXT NOT NULL,
+                    card_id TEXT NOT NULL,
+                    course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
                     grade TEXT NOT NULL,
                     reviewed_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );

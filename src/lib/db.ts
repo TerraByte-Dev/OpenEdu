@@ -313,7 +313,7 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM tutor_instructions WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM syllabuses WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM lessons WHERE course_id = $1", [id]);
-  await d.execute("DELETE FROM flashcard_reviews WHERE card_id IN (SELECT id FROM flashcards WHERE course_id = $1)", [id]);
+  await d.execute("DELETE FROM flashcard_reviews WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM flashcards WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM subtopic_events WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM user_progress WHERE course_id = $1", [id]);
@@ -823,7 +823,7 @@ export async function getReviewPoolQuestions(courseId: string, limit: number): P
   const rows: Array<Record<string, unknown>> = await d.select(
     `SELECT qq.* FROM quiz_questions qq
        JOIN quiz_attempts qa ON qq.attempt_id = qa.id
-      WHERE qa.course_id = $1 AND qq.is_correct = 0
+      WHERE qa.course_id = $1 AND qq.is_correct = 0 AND qq.graded_by IS NOT 'unanswered'
       ORDER BY qa.started_at DESC
       LIMIT $2`,
     [courseId, limit * 4] // overfetch so dedup can still reach `limit`
@@ -982,6 +982,7 @@ export async function getSubtopicAccuracy(courseId: string): Promise<Array<{ sub
             COUNT(*) as total
        FROM quiz_questions qq JOIN quiz_attempts qa ON qq.attempt_id = qa.id
       WHERE qa.course_id = $1 AND qq.subtopic_id IS NOT NULL AND qq.is_correct IS NOT NULL
+        AND qq.graded_by IS NOT 'unanswered'
       GROUP BY qq.subtopic_id`,
     [courseId]
   );
@@ -1114,10 +1115,15 @@ export async function updateFlashcardAfterReview(
     [s.ease, s.interval_days, s.reps, s.lapses, s.due_at, id]
   );
   // last_reviewed_at is overwritten, so each review is also logged for the learning record (#258).
-  await d.execute(
-    `INSERT INTO flashcard_reviews (card_id, course_id, grade) SELECT id, course_id, $2 FROM flashcards WHERE id = $1`,
-    [id, grade]
-  );
+  // Best effort: a failed log must never stop the review itself.
+  try {
+    await d.execute(
+      `INSERT INTO flashcard_reviews (card_id, course_id, grade) SELECT id, course_id, $2 FROM flashcards WHERE id = $1`,
+      [id, grade]
+    );
+  } catch (e) {
+    console.error("flashcard_reviews insert failed", e);
+  }
 }
 
 export async function deleteFlashcard(id: string): Promise<void> {

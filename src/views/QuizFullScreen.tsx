@@ -24,6 +24,9 @@ interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   feedback?: string;
 }
 
+// The most a quiz question can add to a quiz's stored time (#258): 2 minutes.
+const QUIZ_SECONDS_PER_QUESTION = 120;
+
 export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps) {
   const { courseId, course, syllabus } = context;
   const [state, setState] = useState<State>("generating");
@@ -114,8 +117,10 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     if (finishingRef.current || !attemptId || !config) return;
     finishingRef.current = true;
     setFinishing(true);
-    // Time on the quiz, measured at submit so the grading wait below is never counted.
-    const timeTaken = startedAtRef.current === null ? 0 : Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
+    // Time on the quiz, measured at submit so the grading wait below is never counted, and capped at
+    // QUIZ_SECONDS_PER_QUESTION a question so a quiz left open overnight is not stored as hours of work.
+    const elapsed = startedAtRef.current === null ? 0 : Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
+    const timeTaken = Math.min(elapsed, finalQuestions.length * QUIZ_SECONDS_PER_QUESTION);
 
     // ── 1. Deferred grading: settle every recorded free-text answer in ONE batch (issue #83), so
     // taking the quiz never blocks on a per-answer model call. MC/true_false are already resolved. ──
