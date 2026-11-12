@@ -121,8 +121,13 @@ what the paper shows, from the one `LearningRecord`: page 1 is a fixed one-page 
 range adds a cover sheet in front (write-in lines, totals by subject and course, the signature line); the
 detail pages are a `FlowPage` that `PrintView` renders as `.print-page.print-flow`, printed on the named
 `@page record` with 0.75in margins so sections A-C run on over as many sheets as they need, table headers
-repeating. Page 1's metrics are px in `index.css` and mirrored by `print.ts page1HeightPx`, which the tests
-hold under the sheet for a large fixture. TeacherView's "Print every learner's record" prints the same pages
+repeating. Page 1's and the cover sheet's metrics are px in `index.css`, mirrored by `print.ts page1HeightPx`
+and `coverHeightPx`: the tests hold both under the sheet, and the cover lists each course only while the
+measured table fits (subject rows only past that). Rows on both are one line by CSS (`nowrap`, an
+ellipsis). The cover's "All courses" row has no time: per-course time is approximate over the whole
+period and is never summed into a rival to the time total. A record with no course and no activity
+prints page 1 alone. In a class or school a learner's own name check leaves out the grade, which only
+the teacher may set. TeacherView's "Print every learner's record" prints the same pages
 for each learner in the current view, one after another.
 
 ## Repo layout
