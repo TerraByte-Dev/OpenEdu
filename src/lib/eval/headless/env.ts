@@ -46,6 +46,9 @@ export interface EvalOptions {
   /** define only: "off" sends no dictionary note (kernel defineWord.ts), the paired baseline at the same
    *  commit. Unset: "on", what the app does. */
   dictionary?: "on" | "off";
+  /** define only: "off" keeps the dictionary senses in stored order (lever 18 as shipped), lever 19's
+   *  arm S at the same commit. Unset: "on", the ranker (arm R), what the app does. */
+  senseRank?: "on" | "off";
 }
 
 export const DEFAULT_EVAL_MODEL = "gemma4:e2b";
@@ -119,6 +122,11 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     // Every other suite's messages never fire the detector (define-false-fires.test.ts), so the switch
     // could only make a run look like an arm it is not.
     if (!define) errs.push("EVAL_DICTIONARY applies to define only");
+  }
+  const senseRank = get("EVAL_SENSE_RANK") as EvalOptions["senseRank"];
+  if (senseRank !== undefined) {
+    if (senseRank !== "on" && senseRank !== "off") errs.push(`EVAL_SENSE_RANK=${senseRank}: use on or off`);
+    if (!define) errs.push("EVAL_SENSE_RANK applies to define only");
   }
   const sealedPath = get("EVAL_SEALED");
   if (!flow && set === "sealed" && !sealedPath) errs.push("EVAL_SET=sealed needs EVAL_SEALED=<path to the sealed file>");
@@ -198,6 +206,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
     numGpu,
     serverLog: b7 ? get("EVAL_B7_SERVER_LOG") : undefined,
     dictionary: define ? (dictionary ?? "on") : undefined,
+    senseRank: define ? (senseRank ?? "on") : undefined,
   };
 }
 
@@ -247,7 +256,8 @@ export function sealedGitRefusal(g: GitState): string | null {
 export function defaultOutPath(o: EvalOptions, now: Date): string {
   const stamp = now.toISOString().replace(/[:.]/g, "-").replace(/Z$/, "");
   const model = o.model.replace(/[^A-Za-z0-9._-]+/g, "_");
-  // define: the arm is in the name (B = EVAL_DICTIONARY=off, D = the note), since both run at one commit.
-  const arm = o.suite === "define" ? `-${o.dictionary === "off" ? "B" : "D"}` : "";
+  // define: the arm is in the name, since the arms run at one commit: B = EVAL_DICTIONARY=off, S =
+  // EVAL_SENSE_RANK=off (lever 19's baseline), and the note with the ranker: D on B8's splits, R on blind-19.
+  const arm = o.suite === "define" ? `-${o.dictionary === "off" ? "B" : o.senseRank === "off" ? "S" : o.set === "blind-19" ? "R" : "D"}` : "";
   return `.dev/eval-runs/${stamp}-${o.suite}-${o.set}${arm}-${model}.json`;
 }

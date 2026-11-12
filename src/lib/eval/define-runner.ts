@@ -7,7 +7,8 @@
 //
 // From a terminal: EVAL_SUITE=define npm run eval (headless/run.ts; options in headless/README.md). Two
 // arms at one commit: EVAL_DICTIONARY=off (B, no note) and unset (D, the app's behaviour). Compare them
-// offline with headless/define-compare.ts.
+// offline with headless/define-compare.ts. Lever 19 adds EVAL_SENSE_RANK=off (S: the note's senses in
+// stored order, lever 18 as shipped); unset, the senses are ranked by the student's sentence (R).
 
 import { tutorEngine } from "../kernel";
 import type { ToolContext } from "../tools";
@@ -83,6 +84,8 @@ export interface DefineReport {
   contextTokens: number;
   supportsTools: boolean;
   dictionary: "on" | "off";
+  /** Lever 19: "off" is arm S (stored order), "on" the ranker. */
+  senseRank: "on" | "off";
   split: DefineRunSplit;
   repeats: number;
   /** True for anything short of every item of the split. A partial run is not a result. */
@@ -157,14 +160,15 @@ export function selectDefineItems(split: DefineSplit, only?: string): DefineItem
  */
 export async function runDefineItems(
   items: readonly DefineRunItem[],
-  opts: { split: DefineRunSplit; dictionary: "on" | "off"; repeats: number; onRows?: (rows: DefineRow[]) => void },
+  opts: { split: DefineRunSplit; dictionary: "on" | "off"; senseRank?: "on" | "off"; repeats: number; onRows?: (rows: DefineRow[]) => void },
 ): Promise<DefineReport> {
   const setup = await k12FlowSetup();
   const { config, profile, contextTokens } = setup;
   await assertLibraryGuards();
   const total = items.length * opts.repeats;
   const errorLimit = Math.floor(0.02 * total) + 1;
-  console.log(`[define] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} dictionary=${opts.dictionary} · ${opts.split} · ${items.length} item(s) × ${opts.repeats}`);
+  const senseRank = opts.senseRank ?? "on";
+  console.log(`[define] ${config.provider}/${config.model} ctx=${contextTokens} tools=${profile.supportsTools} dictionary=${opts.dictionary} senseRank=${senseRank} · ${opts.split} · ${items.length} item(s) × ${opts.repeats}`);
 
   // Warm-up, unscored: a cold model load can outlast the first-byte timeout.
   await watched(async (signal) => {
@@ -194,6 +198,7 @@ export async function runDefineItems(
                 config,
                 retrieval: "always",
                 dictionary: opts.dictionary,
+                senseRank,
                 onText: () => { if (ttftMs === null) ttftMs = Date.now() - started; },
               },
               {
@@ -240,6 +245,7 @@ export async function runDefineItems(
     contextTokens,
     supportsTools: profile.supportsTools,
     dictionary: opts.dictionary,
+    senseRank,
     split: opts.split,
     repeats: opts.repeats,
     // blind-19 always runs whole (EVAL_ONLY is refused on it).

@@ -50,6 +50,10 @@ export interface TutorTurn {
   // baseline at the same commit (EVAL_DICTIONARY=off). The asked word is still detected and reported.
   // Default "on"; the app never sets it.
   dictionary?: "on" | "off";
+  // "off" keeps the dictionary senses in stored order (lever 18 as shipped), so the define eval can run
+  // lever 19's paired baseline at the same commit (EVAL_SENSE_RANK=off). Default "on"; the app never
+  // sets it.
+  senseRank?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -156,7 +160,7 @@ export class TutorEngine {
     const newest = messages[messages.length - 1];
     const asked = newest?.role === "user" ? askedWord(newest.content) : null;
     const dictionaryLookup = asked && !firstTurnHold && !checkBeforePraise && turn.dictionary !== "off"
-      ? lookupDictionaryNote(asked.word, lookupWord, undefined, ctx.abort)
+      ? lookupDictionaryNote(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
       : Promise.resolve(null);
 
     const eduTools = await selectTools(ctx);

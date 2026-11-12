@@ -204,7 +204,7 @@ async function runFlowFr(items: typeof K12_FR_ITEMS, o: EvalOptions, write: (bod
 
 // define through its runner. A void run (DefineAbort) still writes its rows and summary before it throws.
 async function runDefine(items: readonly DefineRunItem[], o: EvalOptions, write: (body: object) => Promise<void>): Promise<DefineReport> {
-  const opts = { split: o.set as DefineRunSplit, dictionary: o.dictionary ?? "on", repeats: o.repeats };
+  const opts = { split: o.set as DefineRunSplit, dictionary: o.dictionary ?? "on", senseRank: o.senseRank ?? "on", repeats: o.repeats };
   let log: DefineRow[] = [];
   try {
     const report = await runDefineItems(items, { ...opts, onRows: (rows) => { log = rows; } });

@@ -34,8 +34,9 @@ const SENT: Record<string, string[]> = {
   goldens: GOLDENS.flatMap((g) => g.turns.map((t) => t.user)),
 };
 
-// String literals in every eval source and test, except this suite's own files.
-const SOURCES = import.meta.glob(["./**/*.ts", "!./define-*"], { eager: true, query: "?raw", import: "default" }) as Record<string, string>;
+// String literals in every eval source and test, except this suite's own files (the define suite's, in
+// this folder and in headless/, and lever 19's blind-19 files, whose tests ask what words mean on purpose).
+const SOURCES = import.meta.glob(["./**/*.ts", "!./define-*", "!./headless/define-*", "!./blind19*", "!./headless/blind19*"], { eager: true, query: "?raw", import: "default" }) as Record<string, string>;
 const LITERAL = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\$]|\\.)*)`/g;
 const literals = Object.values(SOURCES).flatMap((src) =>
   [...src.matchAll(LITERAL)].map((m) => (m[1] ?? m[2] ?? m[3] ?? "").replace(/\\n/g, "\n").replace(/\\(.)/g, "$1")));

@@ -46,13 +46,14 @@
 import type { DictionaryEntry, Pos } from "../dictionary";
 import { POS_NAMES } from "../dictionary";
 import { estTokens } from "./budget";
+import { excludedStems, rankSenses } from "./senseRank";
 
 export interface AskedWord {
   /** The word or phrase as the student typed it, quotes removed. */
   word: string;
   /** The text the question is about, when the message gives some: the text after "in" / "here" / ":",
-   *  else the text before the question. Reserved for PR 3: nothing reads it yet (the model sees the
-   *  whole message), and it is not exact ("in the last stanza" comes back as "the last stanza"). */
+   *  else the text before the question. Not exact ("in the last stanza" comes back as "the last
+   *  stanza"), so lever 19 reads only the sentence of it that contains the word (scoringSentence). */
   context?: string;
 }
 
@@ -332,7 +333,9 @@ function safeText(headword: string, raw: string, drug: RegExp): boolean {
   return !(drug.test(text) && !DRUG_NAME.test(headword));
 }
 
-/** The senses shown, in lookupWord's order: per headword its senses in stored order, skipping a sense
+/** The senses shown, in lookupWord's order: per headword its senses in stored order (or, given the
+ *  student's sentence, ranked by it: senseRank.ts, lever 19; the order only, before everything below),
+ *  skipping a sense
  *  whose part of speech already has DICTIONARY_SENSES_PER_POS, up to the per-headword and total caps.
  *  Left out:
  *   - the child-safety filter (childSafeSense, childSafeExample): a typed word or headword that
@@ -353,6 +356,8 @@ export function selectSenses(
   typed = "",
   /** Tests only: false turns the child-safety filter off, to check that it changes no item entry. */
   childSafe = true,
+  /** The sentence the senses are ranked by (scoringSentence), or null for stored order. */
+  sentence: string | null = null,
 ): Array<{ entry: DictionaryEntry; senses: Shown[] }> {
   const out: Array<{ entry: DictionaryEntry; senses: Shown[] }> = [];
   let total = 0;
@@ -365,7 +370,9 @@ export function selectSenses(
     if (total >= DICTIONARY_MAX_SENSES) break;
     const perPos = new Map<Pos, number>();
     const senses: Shown[] = [];
-    for (const s of entry.senses) {
+    // Lever 19: reorder, then the same loop (caps, form rules and the child-safety filter) as before.
+    const ordered = sentence ? rankSenses(entry.senses, sentence, excludedStems(typed, entry.headword)) : entry.senses;
+    for (const s of ordered) {
       if (senses.length >= DICTIONARY_SENSES_PER_HEADWORD || total >= DICTIONARY_MAX_SENSES) break;
       if (lowerTwoLetter && s.form !== s.form.toLowerCase()) continue;
       if (childSafe && !childSafeSense(entry.headword, s.definition)) continue;
@@ -397,10 +404,11 @@ function renderEntry(word: string, picked: Array<{ entry: DictionaryEntry; sense
 
 /**
  * The text appended after the student's message on a define turn: the entry block, then the note. Null
- * when there is nothing to show (no entries), so the turn is sent unchanged.
+ * when there is nothing to show (no entries), so the turn is sent unchanged. With a `sentence`, each
+ * headword's senses are ranked by it first (lever 19); without one the note is lever 18's, byte for byte.
  */
-export function dictionaryNote(word: string, entries: readonly DictionaryEntry[]): string | null {
-  let picked = selectSenses(entries, word);
+export function dictionaryNote(word: string, entries: readonly DictionaryEntry[], sentence: string | null = null): string | null {
+  let picked = selectSenses(entries, word, true, sentence);
   let count = picked.reduce((k, p) => k + p.senses.length, 0);
   if (count === 0) return null;
   let entry = renderEntry(word, picked);
@@ -424,15 +432,61 @@ export function withDictionaryNote(userContent: string, note: string): string {
  *  bundled files, so this only matters if something is badly wrong. */
 export const DICTIONARY_LOOKUP_DEADLINE_MS = 2000;
 
+// ── The sentence (lever 19) ──────────────────────────────────────────────────
+
+/** The context's sentences: split after ".", "!" or "?" followed by a space, and at line breaks. */
+export function contextSentences(context: string): string[] {
+  return context.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => /\p{L}/u.test(s));
+}
+
+const wordsOf = (text: string): string[] =>
+  (text.normalize("NFKC").replace(/[‘’ʼ]/g, "'").match(/\p{L}[\p{L}'-]*/gu) ?? []).map((w) => w.replace(/['-]+$/, "").toLowerCase());
+
+/**
+ * The sentence the senses are ranked by (BENCHMARKS.md row 19, R3): the one sentence of the context
+ * that contains the typed word, or a form lookupWord resolves to the same headword, the last such
+ * sentence if several; null when none does (the order is then the stored order). A typed phrase is
+ * matched as the same number of consecutive words. Lookups run only for the sentences after the last
+ * one that contains the word as typed. Never throws (a failed lookup is not a match).
+ */
+export async function scoringSentence(
+  word: string,
+  context: string | undefined,
+  entries: readonly DictionaryEntry[],
+  lookup: (w: string) => Promise<DictionaryEntry[]>,
+): Promise<string | null> {
+  if (!context) return null;
+  const typed = wordsOf(word);
+  if (!typed.length) return null;
+  const heads = new Set(entries.map((e) => e.headword));
+  const sentences = contextSentences(context);
+  const windows = (s: string) => {
+    const w = wordsOf(s);
+    return Array.from({ length: Math.max(0, w.length - typed.length + 1) }, (_, i) => w.slice(i, i + typed.length));
+  };
+  const literal = (s: string) => windows(s).some((w) => w.every((t, i) => t === typed[i]));
+  const lastLiteral = sentences.map(literal).lastIndexOf(true);
+  for (let i = sentences.length - 1; i > lastLiteral; i--) {
+    for (const w of windows(sentences[i])) {
+      const found = await lookup(w.join(" ")).catch(() => [] as DictionaryEntry[]);
+      if (found.some((e) => heads.has(e.headword))) return sentences[i];
+    }
+  }
+  return lastLiteral >= 0 ? sentences[lastLiteral] : null;
+}
+
 /**
  * Look `word` up and build the note, or null. Never throws and never waits past the deadline: a failed
- * or slow lookup sends the turn without a note.
+ * or slow lookup sends the turn without a note. With a `context` (askedWord's), the senses are ranked by
+ * its sentence that contains the word (lever 19); if finding that sentence outlasts the deadline, the
+ * note keeps the stored order.
  */
 export async function lookupDictionaryNote(
   word: string,
   lookup: (w: string) => Promise<DictionaryEntry[]>,
   deadlineMs = DICTIONARY_LOOKUP_DEADLINE_MS,
   turnSignal?: AbortSignal,
+  context?: string,
 ): Promise<string | null> {
   // The turn stops waiting at the deadline, or at once when the student presses Stop; the load itself
   // is shared and keeps going, so a slow first load still warms the cache (dictionary.ts gives up on a
@@ -447,7 +501,10 @@ export async function lookupDictionaryNote(
   try {
     if (turnSignal?.aborted) return null;
     const entries = await Promise.race([lookup(word), late]);
-    return entries ? dictionaryNote(word, entries) : null;
+    if (!entries) return null;
+    const sentence = context && entries.length ? await Promise.race([scoringSentence(word, context, entries, lookup), late]) : null;
+    if (turnSignal?.aborted) return null;
+    return dictionaryNote(word, entries, sentence);
   } catch {
     return null;
   } finally {

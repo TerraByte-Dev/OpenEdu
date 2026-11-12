@@ -22,6 +22,7 @@ const SCRIPTS: Array<[string, RegExp]> = [
   ["blind19-sheet.ts", /Set BLIND19_RUNS/],
   ["blind19-cost.ts", /Set BLIND19_SHEETS/],
   ["blind19-compare.ts", /Set BLIND19_RUNS/],
+  ["newly-reachable.ts", /Usage: newly-reachable\.ts/],
 ];
 
 describe("define scripts run under vite-node", () => {

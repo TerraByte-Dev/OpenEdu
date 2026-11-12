@@ -14,6 +14,13 @@ describe("compareRefusals", () => {
   it("accepts two complete test arms at one commit with 3 repeats", () => {
     expect(pair()).toEqual([]);
   });
+  it("accepts lever 19's S (EVAL_SENSE_RANK=off) and R arms on B8, and refuses them the wrong way round", () => {
+    const opts = (senseRank: "on" | "off") => ({ suite: "define", set: "test", repeats: 3, dictionary: "on", senseRank, out: `${senseRank}.json` });
+    const S = file({ dictionary: "on", senseRank: "off", options: opts("off") });
+    const R = file({ dictionary: "on", senseRank: "on", options: opts("on") });
+    expect(compareRefusals(S, R)).toEqual([]);
+    expect(compareRefusals(R, S).join()).toMatch(/DEFINE_B must be/);
+  });
   it("refuses wrong arms, a missing or different commit, model, split or options", () => {
     expect(pair({ dictionary: "on" }).join()).toMatch(/DEFINE_B must be/);
     expect(pair({ commit: null }).join()).toMatch(/no commit/);

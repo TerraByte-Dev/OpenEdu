@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   askedWord, dictionaryNote, lookupDictionaryNote, selectSenses, withDictionaryNote, childSafeSense, childSafeExample, blockedWord,
+  contextSentences, scoringSentence,
   DICTIONARY_MAX_ENTRY_TOKENS, DICTIONARY_MAX_SENSES, DICTIONARY_NOTE, DICTIONARY_SENSES_PER_HEADWORD, DICTIONARY_SENSES_PER_POS,
 } from "./defineWord";
 import { estTokens } from "./budget";
@@ -256,6 +257,123 @@ describe("lookupDictionaryNote: a lookup never fails or stalls the turn", () => 
       const p = lookupDictionaryNote("zorp", () => new Promise<DictionaryEntry[]>(() => {}), 50);
       await vi.advanceTimersByTimeAsync(60);
       expect(await p).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// ── Lever 19: the sentence, and ranking inside selectSenses ──────────────────
+const def = (pos: Pos, definition: string, example = "", form = "zorp") => ({ form, pos, definition, example, synonyms: [] });
+
+describe("contextSentences and scoringSentence (lever 19, R3)", () => {
+  const zorp = entry("zorp", [def("n", "a small boat"), def("v", "to row a boat")]);
+  const lookup = (map: Record<string, string[]>) => async (w: string) => (map[w] ?? []).map((h) => entry(h, [def("n", "x")], h === w ? "exact" : "form"));
+
+  it("splits after . ! or ? followed by a space, and at line breaks", () => {
+    expect(contextSentences("I'm in 5th grade. We zorp a lot! Do you?\nNew line here")).toEqual(["I'm in 5th grade.", "We zorp a lot!", "Do you?", "New line here"]);
+    expect(contextSentences("e.g. the 3.5 zorp")).toEqual(["e.g.", "the 3.5 zorp"]); // the rule as written: decimals stay whole
+  });
+
+  it("is the last sentence that contains the word as typed, any case, as a whole word", async () => {
+    const none = lookup({});
+    expect(await scoringSentence("zorp", "We had a Zorp. The zorp sank.", [zorp], none)).toBe("The zorp sank.");
+    expect(await scoringSentence("zorp", "The zorp sank. It was sad.", [zorp], none)).toBe("The zorp sank.");
+    expect(await scoringSentence("zorp", "the zorps sank", [zorp], none)).toBeNull();
+    expect(await scoringSentence("zorp", "zorping is fun", [zorp], none)).toBeNull();
+  });
+
+  it("is none when no sentence contains the word: other text before the question, or a pointer to the text", async () => {
+    const none = lookup({});
+    expect(await scoringSentence("zorp", "I'm in 5th grade.", [zorp], none)).toBeNull();
+    expect(await scoringSentence("zorp", "the last stanza", [zorp], none)).toBeNull();
+    expect(await scoringSentence("zorp", undefined, [zorp], none)).toBeNull();
+  });
+
+  it("counts a form lookupWord resolves to the same headword, and takes the later sentence", async () => {
+    const forms = lookup({ zorped: ["zorp"], zorps: ["zorp"], went: ["go"] });
+    expect(await scoringSentence("zorp", "They zorped home.", [zorp], forms)).toBe("They zorped home.");
+    expect(await scoringSentence("zorp", "A zorp. They zorped home.", [zorp], forms)).toBe("They zorped home.");
+    expect(await scoringSentence("zorp", "They zorped home. A zorp.", [zorp], forms)).toBe("A zorp.");
+    expect(await scoringSentence("zorp", "They went home.", [zorp], forms)).toBeNull();
+    expect(await scoringSentence("zorped", "the zorp sank", [zorp], lookup({ zorp: ["zorp"] }))).toBe("the zorp sank");
+  });
+
+  it("matches a typed phrase as the same number of consecutive words", async () => {
+    const z = entry("zorp out", [def("v", "x")]);
+    const forms = lookup({ "zorped out": ["zorp out"] });
+    expect(await scoringSentence("zorp out", "can you zorp out the answer", [z], forms)).toBe("can you zorp out the answer");
+    expect(await scoringSentence("zorp out", "she zorped out the answer", [z], forms)).toBe("she zorped out the answer");
+    expect(await scoringSentence("zorp out", "zorp it out", [z], forms)).toBeNull();
+  });
+
+  it("does not look anything up when the last sentence has the word as typed, and a failed lookup is no match", async () => {
+    const seen: string[] = [];
+    const spy = async (w: string) => { seen.push(w); return []; };
+    expect(await scoringSentence("zorp", "They zorped. The zorp sank.", [zorp], spy)).toBe("The zorp sank.");
+    expect(seen).toEqual([]);
+    expect(await scoringSentence("zorp", "The zorp sank. They zorped.", [zorp], async () => { throw new Error("x"); })).toBe("The zorp sank.");
+  });
+});
+
+describe("selectSenses with a sentence (lever 19)", () => {
+  const senses = [
+    def("n", "a box for storing clothes"), def("n", "the main stem of a tree"), def("n", "the body of a person"),
+    def("n", "the long nose of an elephant", "the elephant raised its zorp"), def("v", "to pack in a box"),
+  ];
+  const z = entry("zorp", senses);
+
+  it("ranks before the caps: a fourth noun sense the sentence uses is shown first", () => {
+    const stored = selectSenses([z], "zorp");
+    expect(stored[0].senses.map((s) => s.definition)).toEqual([senses[0], senses[1], senses[2], senses[4]].map((s) => s.definition));
+    const ranked = selectSenses([z], "zorp", true, "the elephant lifted water with its zorp");
+    expect(ranked[0].senses.map((s) => s.definition)).toEqual([senses[3], senses[0], senses[1], senses[4]].map((s) => s.definition));
+    expect(ranked[0].senses.filter((s) => s.pos === "n")).toHaveLength(DICTIONARY_SENSES_PER_POS);
+  });
+
+  it("is lever 18's selection, exactly, with no sentence or no overlap", () => {
+    expect(selectSenses([z], "zorp", true, null)).toEqual(selectSenses([z], "zorp"));
+    expect(selectSenses([z], "zorp", true, "nothing overlaps here")).toEqual(selectSenses([z], "zorp"));
+    expect(dictionaryNote("zorp", [z], "nothing overlaps here")).toBe(dictionaryNote("zorp", [z]));
+  });
+
+  it("applies the child-safety filter after ranking: a removed sense never surfaces, however well it matches", () => {
+    const unsafe = entry("zorp", [def("n", "a small boat"), def("n", "obscene slang for a lewd act on a boat", "a lewd zorp on a boat")]);
+    for (const sentence of ["obscene slang for a lewd act on a boat", "a lewd zorp on a boat"]) {
+      const shown = selectSenses([unsafe], "zorp", true, sentence).flatMap((p) => p.senses.map((s) => s.definition));
+      expect(shown).toEqual(["a small boat"]);
+    }
+    expect(selectSenses([entry("shit", [def("n", "a boat")])], "shit", true, "a boat")).toEqual([]);
+  });
+
+  it("keeps lookupWord's headword order and the total cap", () => {
+    const many = (h: string) => entry(h, [0, 1, 2].map((i) => def("n", `${h} plain ${i}`, "", h)).concat([def("v", `${h} river water`, "", h)]));
+    const picked = selectSenses([many("aaa"), many("bbb"), many("ccc")], "aaa", true, "the river water");
+    expect(picked.map((p) => p.entry.headword)).toEqual(["aaa", "bbb"]);
+    expect(picked[0].senses[0].definition).toBe("aaa river water");
+    expect(picked.reduce((k, p) => k + p.senses.length, 0)).toBe(DICTIONARY_MAX_SENSES);
+  });
+});
+
+describe("lookupDictionaryNote with the student's context (lever 19)", () => {
+  const z = entry("zorp", [def("n", "a box for clothes"), def("n", "a long nose of an elephant")]);
+  it("ranks by the context's sentence that contains the word; with no context the note is lever 18's", async () => {
+    const plain = await lookupDictionaryNote("zorp", async () => [z]);
+    expect(plain).toBe(dictionaryNote("zorp", [z]));
+    const ranked = await lookupDictionaryNote("zorp", async () => [z], undefined, undefined, "the elephant lifted its zorp");
+    expect(ranked).toBe(dictionaryNote("zorp", [z], "the elephant lifted its zorp"));
+    expect(ranked).not.toBe(plain);
+    expect(await lookupDictionaryNote("zorp", async (w) => (w === "zorp" ? [z] : []), undefined, undefined, "I'm in 5th grade. My elephant is big.")).toBe(plain);
+  });
+
+  it("keeps the stored order when finding the sentence outlasts the deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      let n = 0;
+      const lookup = () => (n++ === 0 ? Promise.resolve([z]) : new Promise<DictionaryEntry[]>(() => {}));
+      const p = lookupDictionaryNote("zorp", lookup, 50, undefined, "an elephant nose. They zorped.");
+      await vi.advanceTimersByTimeAsync(60);
+      expect(await p).toBe(dictionaryNote("zorp", [z]));
     } finally {
       vi.useRealTimers();
     }
