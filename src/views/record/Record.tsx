@@ -15,7 +15,7 @@ import {
 } from "../../lib/record/view";
 import { gradeLabel, normalizeGrade, type Grade } from "../../lib/grade";
 import { needsNameCheck, provenance, saveLabel } from "../../lib/record/print";
-import { hasEarlyCopy, needsSaving, shownDays, shownRecord, snapshotOf } from "../../lib/record/saved";
+import { copyNeedsReplacing, needsSaving, shownDays, shownRecord, snapshotOf } from "../../lib/record/saved";
 import { LEARNER_NAME_MAX, validateLearnerName } from "../../lib/learners";
 import { GradeSelect } from "../../components/GradeSelect";
 import { BookIcon } from "../early/pictures";
@@ -275,8 +275,8 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
     try {
       const snapshot = snapshotOf(source, record.range, at);
       if (!snapshot) return source;
-      // A copy saved before the month ended (the clock was ahead) is replaced, never kept.
-      const next = withSaved(source, await saveMonthlyRecord(source.learner.id, snapshot, hasEarlyCopy(source, record.range)));
+      // A copy saved before its month ended, or missing activity newer than it saw, is replaced.
+      const next = withSaved(source, await saveMonthlyRecord(source.learner.id, snapshot, copyNeedsReplacing(source, record.range)));
       setSource(next);
       return next;
     } catch (e) {

@@ -10,7 +10,7 @@ import type { GradedBy } from "./quiz-grading";
 import type { FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
 import type { RecordSavedMonth, RecordSource } from "./record/sources";
-import { lastEndedMonth, monthKey, monthsToSave, snapshotOf, unendedCopies, type MonthSnapshot } from "./record/saved";
+import { lastEndedMonth, monthKey, monthsToSave, snapshotOf, type MonthSnapshot } from "./record/saved";
 import { isRecordSubject } from "./record/copy";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
@@ -1272,14 +1272,15 @@ export async function saveMonthlyRecord(learnerId: string, snapshot: MonthSnapsh
 }
 
 /**
- * The launch's job: save every learner's ended months that have activity and no copy saved after they
- * ended (record/saved.ts monthsToSave; a copy saved too early is replaced, and a copy of a month that
- * has not ended, written while the clock was ahead, is deleted). It runs once per month:
+ * The launch's job: save every learner's ended months that have activity and no copy yet, and replace
+ * a copy that was saved before its month ended or misses activity newer than it saw (record/saved.ts
+ * monthsToSave; both are decided from stored values, never from today's clock, and nothing is ever
+ * deleted here). It runs once per month:
  * app_config record_saved_through holds the last ended month every learner was saved through, so later
  * launches that month read nothing. Only an exact match skips, so a marker written while the clock was
  * ahead cannot switch saving off. One learner's failure does not stop the others; the marker is set only
- * when every learner was saved, so a failure is tried again at the next launch. A month saved after it
- * ended is never rewritten here. Returns how many months were saved.
+ * when every learner was saved, so a failure is tried again at the next launch. Returns how many months
+ * were saved.
  */
 export async function saveEndedMonths(now: Date = new Date()): Promise<number> {
   const d = await getDb();
@@ -1292,9 +1293,6 @@ export async function saveEndedMonths(now: Date = new Date()): Promise<number> {
     try {
       const source = await readRecordSource(l.id);
       if (!source) continue;
-      for (const month of unendedCopies(source, now)) {
-        await d.execute("DELETE FROM monthly_records WHERE learner_id = $1 AND month = $2", [l.id, month]);
-      }
       for (const { range, replace } of monthsToSave(source, now)) {
         const snapshot = snapshotOf(source, range, now);
         if (!snapshot) continue;

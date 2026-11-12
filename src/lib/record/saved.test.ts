@@ -3,7 +3,7 @@ import { learningRecord } from "./build";
 import { RECORD_COPY } from "./copy";
 import { recordDays, recordEventCsv, recordEvents } from "./csv";
 import { printHeader } from "./print";
-import { hasEarlyCopy, monthsToSave, needsSaving, shownDays, shownRecord, snapshotOf, unendedCopies, withoutVerbatim } from "./saved";
+import { copyNeedsReplacing, monthsToSave, needsSaving, shownDays, shownRecord, snapshotOf, withoutVerbatim } from "./saved";
 import { course, dec, emptySource, local, nov, oct, question, quiz, sub, syllabus, utc } from "./test-rows";
 import { ownWordsNoneText, rangeOptions } from "./view";
 import type { RecordSource } from "./sources";
@@ -184,37 +184,72 @@ describe("saved months (migration 19)", () => {
     expect(recordEventCsv(built, recordEvents(s, built), NOW)).not.toContain("This month's record was saved");
   });
 
-  it("never shows a copy of the current month saved while the clock was ahead, deletes it, and saves the month when it ends", () => {
+  it("hides a copy of the current month saved while the clock was ahead, and replaces it once activity it never saw turns up", () => {
     const s = october();
-    // The clock read Dec 2 for one launch: November was saved then, stamped Dec 2.
+    // The clock read Dec 2 for one launch on Nov 20: November was saved then, stamped Dec 2.
     s.savedMonths = [{ ...snapshotOf(s, NOVEMBER, local(2026, 11, 2))!, saved_at: dec(2) }];
-    // Back on Nov 20: November is the current month, built live, and its copy is due for deletion.
+    const frozen = s.savedMonths[0].body_json;
+    // Back on Nov 20: November is the current month, built live; the copy is hidden, not deleted.
     const shown = shownRecord(s, NOVEMBER, NOW);
     expect(shown.saved).toBeNull();
     expect(shown.current).toBe(true);
     expect(printHeader(shown, NOW, "").built).toBeNull();
     expect(needsSaving(shown, NOW)).toBe(false);
-    expect(unendedCopies(s, NOW)).toEqual(["2026-11"]);
     expect(monthsToSave(s, NOW).map((m) => m.range)).toEqual([OCTOBER]);
-    // Had the launch missed it, the copy stamped after "now" is replaced once November has ended.
+    // With nothing new in November the copy is complete, and kept.
+    expect(monthsToSave(s, local(2026, 11, 1, 10))).toEqual([{ range: OCTOBER, replace: false }]);
+    // The learner kept going on Nov 25: the copy misses activity newer than it saw, so it is replaced.
+    quiz(s, "1.1", 3, 3, { completed_at: nov(25) });
+    expect(copyNeedsReplacing(s, NOVEMBER)).toBe(true);
+    expect(shownRecord(s, NOVEMBER, local(2026, 11, 1, 10)).saved).toBeNull();
     expect(monthsToSave(s, local(2026, 11, 1, 10))).toEqual([{ range: OCTOBER, replace: false }, { range: NOVEMBER, replace: true }]);
-    expect(unendedCopies(s, local(2026, 11, 1, 10))).toEqual([]);
+    expect(s.savedMonths[0].body_json).toBe(frozen);
   });
 
-  it("treats a copy saved before its month ended in local time (a time-zone move) as unsaved, and replaces it", () => {
+  it("replaces a copy saved before its own month ended, judged by the month it stored", () => {
     const s = october();
     // Saved at 10 pm local on Oct 31: the evening's activity after that would be lost.
     saveOctober(s, utc(local(2026, 9, 31, 22)));
     s.attempts.push({ ...s.attempts[0], id: "late", completed_at: utc(local(2026, 9, 31, 23)), started_at: utc(local(2026, 9, 31, 23)) });
     expect(shownRecord(s, OCTOBER, NOW).saved).toBeNull();
     expect(shownRecord(s, OCTOBER, NOW).quizzes.map((q) => q.attemptId)).toContain("late");
-    expect(hasEarlyCopy(s, OCTOBER)).toBe(true);
+    expect(copyNeedsReplacing(s, OCTOBER)).toBe(true);
     expect(needsSaving(shownRecord(s, OCTOBER, NOW), NOW)).toBe(true);
     expect(monthsToSave(s, NOW)).toEqual([{ range: OCTOBER, replace: true }]);
     // Saved after the month ended: kept.
     saveOctober(s, nov(1, 0, 5));
-    expect(hasEarlyCopy(s, OCTOBER)).toBe(false);
+    expect(copyNeedsReplacing(s, OCTOBER)).toBe(false);
     expect(monthsToSave(s, NOW)).toEqual([]);
+  });
+
+  it("keeps a copy saved after its month ended in a zone east of here, though local October ran on", () => {
+    const s = october();
+    saveOctober(s);
+    // As if saved five hours east: October ended there at 7 pm local Oct 31, and was saved at 7:10 pm.
+    const body = JSON.parse(s.savedMonths[0].body_json);
+    const eastEnd = local(2026, 10, 1, 0).getTime() - 5 * 3600_000;
+    body.bounds.end = eastEnd;
+    s.savedMonths[0] = { ...s.savedMonths[0], body_json: JSON.stringify(body), saved_at: utc(new Date(eastEnd + 10 * 60_000)) };
+    // Activity at 8 pm local Oct 31: inside local October, but after October ended where it was saved.
+    quiz(s, "1.1", 3, 3, { completed_at: utc(local(2026, 9, 31, 20)) });
+    expect(copyNeedsReplacing(s, OCTOBER)).toBe(false);
+    expect(monthsToSave(s, NOW)).toEqual([]);
+    expect(shownRecord(s, OCTOBER, NOW).saved?.at).toBe(s.savedMonths[0].saved_at);
+  });
+
+  it("never rebuilds or drops a saved month when the clock is set back, a year or many", () => {
+    const s = october();
+    saveOctober(s);
+    deleteCourse(s, "m");
+    const rows = JSON.stringify(s.savedMonths);
+    for (const back of [local(2025, 10, 20), local(2020, 0, 5)]) {
+      expect(monthsToSave(s, back)).toEqual([]);
+      expect(snapshotOf(s, OCTOBER, back)).toBeNull();
+      expect(copyNeedsReplacing(s, OCTOBER)).toBe(false);
+    }
+    expect(JSON.stringify(s.savedMonths)).toBe(rows);
+    // Back on the right date, October is still the saved copy with the deleted course in it.
+    expect(shownRecord(s, OCTOBER, NOW).courses.map((c) => c.course)).toEqual(["Spanish I", "Fractions"]);
   });
 
   it("labels a school-year or since-you-started range as built from what is still on this computer", () => {

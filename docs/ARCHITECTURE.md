@@ -158,12 +158,15 @@ cannot rewrite it. `App.tsx` calls `db.ts saveEndedMonths()` in the background a
 list loads; it saves every ended month with activity that has no copy yet (`record/saved.ts monthsToSave`),
 never the current month, and `app_config record_saved_through` makes later launches that month read
 nothing (only an exact match skips, so a marker written while the clock was ahead cannot switch saving
-off; one learner's failure leaves the marker unset and the others saved). A copy is shown only once its
-month has ended and only if it was saved after the month's local end: a copy of a month that has not
-ended (the clock was ahead) is deleted at launch, and one saved too early (a time-zone move) or stamped
-later than now is replaced. Save and CSV of an ended month with no copy save one first. The body (`saved.ts SavedBody`) is
+off; one learner's failure leaves the marker unset and the others saved). Nothing destructive compares
+with the current clock: each copy stores its month's bounds as they ran where it was saved (UTC) and the
+newest activity it saw. A copy is replaced only when it was saved before its stored month ended, or
+when the rows now hold activity inside that month newer than it saw (it was saved while the clock was
+ahead); a copy saved after its month ended can trip neither, and nothing is ever deleted. The clock
+only decides what is shown: a month's copy appears once that month has ended. Save and CSV of an ended month with no copy save one first. The body (`saved.ts SavedBody`) is
 the `LearningRecord` as built then (without the learner's name, grade and voice) plus the daily
-spreadsheet's rows: counts, titles, dates and statuses, and the ids of the courses that had examples.
+spreadsheet's rows: counts, titles, dates and statuses, the ids of the courses that had examples, the
+month's bounds and the newest activity it saw.
 It never holds the learner's own words (C2, B4's self-explanation) or B3's question/answer pairs:
 `saved.ts restoreSaved` reads those again from the rows still on record each time, so a deleted course
 leaves no learner text behind and, when one of the courses that had examples is gone, the record says

@@ -18,7 +18,7 @@ import {
 import { RECORD_FORMAT } from "./copy";
 import { recordDays, type RecordDay } from "./csv";
 import { finishingOrder } from "./replay";
-import { monthsWithActivity, rangeBounds, type RecordRange } from "./time";
+import { monthsWithActivity, pointsIn, rangeBounds, type RecordRange } from "./time";
 import type { RecordQuestion, RecordSavedMonth, RecordSource } from "./sources";
 
 type MonthRange = Extract<RecordRange, { kind: "month" }>;
@@ -27,11 +27,19 @@ type MonthRange = Extract<RecordRange, { kind: "month" }>;
  * What monthly_records.body_json holds. The learner's name, grade and voice are left out (they are shown
  * as they are now), and so is every learner-written or verbatim item; examplesFrom keeps only the ids of
  * the courses that had any, so the record can say when one of them was deleted.
+ *
+ * bounds and watermark make a copy checkable without trusting today's clock or time zone: bounds is the
+ * month as it ran where it was saved (UTC ms), and watermark the newest activity in it the copy saw (UTC
+ * ms, null for none). A copy is saved early when saved_at falls before bounds.end, and stale when the rows
+ * on record hold activity inside bounds newer than watermark. Nothing destructive ever compares with the
+ * current clock.
  */
 export interface SavedBody {
   record: Omit<LearningRecord, "learner">;
   days: RecordDay[];
   examplesFrom: string[];
+  bounds: { start: number; end: number };
+  watermark: number | null;
 }
 
 /** A row ready for monthly_records (learner_id and saved_at come from db.ts). */
@@ -52,7 +60,10 @@ export function lastEndedMonth(now: Date): MonthRange {
   return { kind: "month", year: first.getFullYear(), month: first.getMonth() };
 }
 
-/** A month that has ended by `now`. The current month (and anything later) is never saved. */
+/**
+ * A month that has ended by `now`. It decides only what is shown and whether a new copy may be written;
+ * the current month (and anything later) is never saved.
+ */
 export function monthEnded(range: RecordRange, now: Date): range is MonthRange {
   return range.kind === "month" && rangeBounds(range, now).end <= now;
 }
@@ -67,6 +78,12 @@ export function withoutVerbatim(record: LearningRecord): LearningRecord {
   };
 }
 
+/** The newest activity inside these bounds, in UTC ms, or null. */
+function newestIn(source: RecordSource, bounds: SavedBody["bounds"]): number | null {
+  const times = pointsIn(source, { start: new Date(bounds.start), end: new Date(bounds.end) }).map((p) => p.at.getTime());
+  return times.length ? Math.max(...times) : null;
+}
+
 /** The saved row for an ended month, built from the rows on record now; null for a month that has not ended. */
 export function snapshotOf(source: RecordSource, range: RecordRange, now: Date): MonthSnapshot | null {
   if (!monthEnded(range, now)) return null;
@@ -77,70 +94,79 @@ export function snapshotOf(source: RecordSource, range: RecordRange, now: Date):
     ...record.talkAboutIt.explain.filter((e) => e.selfExplanation !== null).map((e) => e.courseId),
     ...record.ownWords.map((w) => w.courseId),
   ]);
-  const body: SavedBody = { record: kept, days: recordDays(source, record), examplesFrom: [...examplesFrom] };
+  const b = rangeBounds(range, now);
+  const bounds = { start: b.start.getTime(), end: b.end.getTime() };
+  const body: SavedBody = {
+    record: kept, days: recordDays(source, record), examplesFrom: [...examplesFrom], bounds, watermark: newestIn(source, bounds),
+  };
   return { month: monthKey(range), format: RECORD_FORMAT, body_json: JSON.stringify(body) };
 }
 
-/**
- * A row saved before its month had ended in local time: the clock was ahead, or the time zone has moved
- * since. It is never shown; the launch replaces it once the month has ended.
- */
-function savedEarly(row: RecordSavedMonth, range: MonthRange): boolean {
-  return parseUtc(row.saved_at) < rangeBounds(range, new Date(0)).end;
+/** The row's body, when it is in a format this version reads. */
+function bodyOf(row: RecordSavedMonth): SavedBody | null {
+  if (row.format !== RECORD_FORMAT) return null;
+  try {
+    const body = JSON.parse(row.body_json) as SavedBody;
+    const ok = body?.record?.format === RECORD_FORMAT && Array.isArray(body.days) && Array.isArray(body.examplesFrom)
+      && typeof body.bounds?.start === "number" && typeof body.bounds?.end === "number"
+      && (body.watermark === null || typeof body.watermark === "number");
+    return ok ? body : null;
+  } catch {
+    return null;
+  }
 }
 
-/** This month has a saved row that was written before the month ended, so saving it again must replace it. */
-export function hasEarlyCopy(source: RecordSource, range: RecordRange): boolean {
+/**
+ * A copy that must be replaced, decided from stored values only: saved before its own month ended
+ * (saved_at against the stored end), or missing activity the rows now hold inside the stored month,
+ * newer than anything the copy saw (it was saved while the clock was ahead). A copy saved after its
+ * month ended can trip neither: deleted rows are gone, not newer, and later activity falls outside it.
+ */
+function needsReplacing(source: RecordSource, row: RecordSavedMonth, body: SavedBody): boolean {
+  if (parseUtc(row.saved_at).getTime() < body.bounds.end) return true;
+  const newest = newestIn(source, body.bounds);
+  return newest !== null && (body.watermark === null || newest > body.watermark);
+}
+
+/** This month's saved copy must be replaced when it is saved again (see needsReplacing). */
+export function copyNeedsReplacing(source: RecordSource, range: RecordRange): boolean {
   if (range.kind !== "month") return false;
   const row = source.savedMonths.find((s) => s.month === monthKey(range));
-  return !!row && savedEarly(row, range);
+  const body = row ? bodyOf(row) : null;
+  return !!row && !!body && needsReplacing(source, row, body);
 }
 
 /**
- * What the launch saves, oldest first: every ended month with activity and no copy saved after it ended,
- * and every ended month whose copy was saved too early, or stamped later than `now` (the clock was ahead
- * when it was saved). `replace` overwrites such a copy.
+ * What the launch saves, oldest first: every ended month with activity and no copy yet, and every month
+ * whose copy must be replaced (`replace`). A copy that is fine is never touched, whatever the clock says.
  */
 export function monthsToSave(source: RecordSource, now: Date): Array<{ range: MonthRange; replace: boolean }> {
   const keys = new Set([
     ...monthsWithActivity(source).map((m) => monthKey({ kind: "month", year: m.year, month: m.month })),
     ...source.savedMonths.map((s) => s.month),
   ]);
-  return [...keys].sort().flatMap((key) => {
+  return [...keys].sort().flatMap((key): Array<{ range: MonthRange; replace: boolean }> => {
     const [year, month] = key.split("-").map(Number);
     const range: MonthRange = { kind: "month", year, month: month - 1 };
     if (!monthEnded(range, now)) return [];
     const row = source.savedMonths.find((s) => s.month === key);
-    if (row && !savedEarly(row, range) && parseUtc(row.saved_at) <= now) return [];
-    return [{ range, replace: !!row }];
+    if (!row) return [{ range, replace: false }];
+    const body = bodyOf(row);
+    return body && needsReplacing(source, row, body) ? [{ range, replace: true }] : [];
   });
 }
 
 /**
- * Saved copies of months that have not ended by `now`: written while the clock was ahead. They can never
- * be right, so the launch deletes them, and the month is saved again once it really ends.
- */
-export function unendedCopies(source: RecordSource, now: Date): string[] {
-  return source.savedMonths
-    .filter((s) => { const [year, month] = s.month.split("-").map(Number); return !monthEnded({ kind: "month", year, month: month - 1 }, now); })
-    .map((s) => s.month);
-}
-
-/**
- * The saved row for this month, when the month has ended, the row was saved after it ended, and it is
- * in a format this version reads. Anything else is built from the rows on record now.
+ * The saved copy this month shows: only once the month has ended, and only a copy in a format this
+ * version reads that need not be replaced. Anything else is built from the rows on record now. Hiding
+ * a copy never deletes it.
  */
 export function savedMonth(source: RecordSource, range: RecordRange, now: Date): { row: RecordSavedMonth; body: SavedBody } | null {
   if (!monthEnded(range, now)) return null;
   const row = source.savedMonths.find((s) => s.month === monthKey(range));
-  if (!row || row.format !== RECORD_FORMAT || savedEarly(row, range)) return null;
-  try {
-    const body = JSON.parse(row.body_json) as SavedBody;
-    if (body?.record?.format !== RECORD_FORMAT || !Array.isArray(body.days) || !Array.isArray(body.examplesFrom)) return null;
-    return { row, body };
-  } catch {
-    return null;
-  }
+  const body = row ? bodyOf(row) : null;
+  if (!row || !body || needsReplacing(source, row, body)) return null;
+  return { row, body };
 }
 
 /**
@@ -150,7 +176,9 @@ export function savedMonth(source: RecordSource, range: RecordRange, now: Date):
  */
 export function restoreSaved(source: RecordSource, body: SavedBody, savedAt: string): LearningRecord {
   const r = body.record;
-  const { start, end } = rangeBounds(r.range, parseUtc(r.builtAt));
+  // The month as it ran where it was saved, so a time-zone move since cannot shift which words belong to it.
+  const start = new Date(body.bounds.start);
+  const end = new Date(body.bounds.end);
   const inRange = (at: string | null) => { if (!at) return false; const t = parseUtc(at); return t >= start && t < end; };
   const live = new Map(source.courses.map((c) => [c.id, c]));
   const subjectOf = (courseId: string, saved: string | null) => (live.has(courseId) ? live.get(courseId)!.subject : saved);

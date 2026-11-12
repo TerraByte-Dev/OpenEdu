@@ -173,18 +173,38 @@ describe("saved months", () => {
     expect(rows("SELECT month FROM monthly_records WHERE learner_id = ?", DEFAULT_LEARNER_ID)).toEqual([{ month: thisMonth }]);
   });
 
-  it("deletes a copy saved while the clock was ahead, and a marker set ahead cannot switch saving off", async () => {
+  it("leaves every saved month byte-identical through a launch with the clock years back", async () => {
+    expect(await saveEndedMonths(nextMonth)).toBe(2);
+    stamp(); // sqlite stamped saved_at with the real clock; this test's clock is a month on
+    await deleteCourse(mine); // a course deleted since: its months can never be rebuilt with it
+    const before = rows("SELECT * FROM monthly_records ORDER BY learner_id, month");
+    // A dead clock battery: the machine thinks it is January 2020, and then a year back.
+    expect(await saveEndedMonths(new Date(2020, 0, 5))).toBe(0);
+    expect(await saveEndedMonths(new Date(today.getFullYear() - 1, today.getMonth(), 15))).toBe(0);
+    expect(rows("SELECT * FROM monthly_records ORDER BY learner_id, month")).toEqual(before);
+    // The clock fixed: the launch runs (the marker does not match) and still rewrites nothing.
+    expect(await saveEndedMonths(nextMonth)).toBe(0);
+    expect(rows("SELECT * FROM monthly_records ORDER BY learner_id, month")).toEqual(before);
+  });
+
+  it("heals a copy saved while the clock was ahead once newer activity turns up, and a marker set ahead cannot switch saving off", async () => {
     const range = { kind: "month" as const, year: today.getFullYear(), month: today.getMonth() };
-    // The clock read next month for one launch: this month was saved and the marker moved to it.
+    // The clock read next month for one launch: this month was saved (stamped by that clock) and the marker moved to it.
     expect(await saveEndedMonths(nextMonth)).toBe(2);
+    stamp();
     expect(rows<{ value: string }>("SELECT value FROM app_config WHERE key = 'record_saved_through'")).toEqual([{ value: thisMonth }]);
-    // Back to the real date: this month is the current one, shown live, never the frozen copy.
+    // Back to the real date: this month is the current one, shown live; the copy is hidden, never deleted.
     expect(shownRecord((await getRecordSource())!, range, today).saved).toBeNull();
-    // The next launch is not skipped by the marker set ahead; it deletes the copies that cannot be right.
     await saveEndedMonths(today);
-    expect(rows("SELECT * FROM monthly_records")).toEqual([]);
-    // When the month really ends, it is saved again.
-    expect(await saveEndedMonths(nextMonth)).toBe(2);
+    expect(rows("SELECT * FROM monthly_records")).toHaveLength(2);
+    // The learner keeps going this month, after the copy was made.
+    const later = new Date(Math.min(Date.now() + 5000, new Date(today.getFullYear(), today.getMonth() + 1, 1).getTime() - 1000));
+    const a = await createQuizAttempt(mine, "quiz", 1, 1);
+    sqlite.exec(`UPDATE quiz_attempts SET started_at = '${later.toISOString().slice(0, 19).replace("T", " ")}', completed_at = '${later.toISOString().slice(0, 19).replace("T", " ")}' WHERE id = '${a.id}'`);
+    const frozen = rows<{ body_json: string }>("SELECT body_json FROM monthly_records WHERE learner_id = ?", DEFAULT_LEARNER_ID)[0].body_json;
+    // When the month really ends, the launch replaces that learner's copy, and only that one.
+    expect(await saveEndedMonths(nextMonth)).toBe(1);
+    expect(rows<{ body_json: string }>("SELECT body_json FROM monthly_records WHERE learner_id = ?", DEFAULT_LEARNER_ID)[0].body_json).not.toBe(frozen);
     // A marker far ahead does not stop a launch either.
     sqlite.exec("DELETE FROM monthly_records; UPDATE app_config SET value = '2099-12' WHERE key = 'record_saved_through';");
     expect(await saveEndedMonths(nextMonth)).toBe(2);
