@@ -32,6 +32,7 @@ import { CHECK_BEFORE_PRAISE_NOTE } from "./checkBeforePraise";
 import { buildSystemPrompt } from "../curriculum";
 import { readingLevelLayer } from "../grade";
 import { resetDictionaryCache, lookupWord, DICTIONARY_FETCH_TIMEOUT_MS, type Shard } from "../dictionary";
+import { dictionaryCard, cardSpeech, cardToggleLabel, CARD_SOURCE } from "../dictionary-card";
 import type { LLMConfig } from "../../types";
 
 const CONFIG = { provider: "ollama", model: "test-model", baseUrl: "http://127.0.0.1:11434" } as unknown as LLMConfig;
@@ -40,6 +41,11 @@ const CONFIG = { provider: "ollama", model: "test-model", baseUrl: "http://127.0
 const SHARD_ZO: Shard = {
   // A headword whose only sense the child-safety filter drops: no note, the switch-off request.
   zonk: [["zonk", "n", "vulgar slang for a made-up thing", "", []]],
+  // One sense the filter drops and one it keeps: the card must show only the kept one.
+  zoot: [
+    ["zoot", "n", "vulgar slang for a made-up hat", "", []],
+    ["zoot", "n", "a made-up hat for testing", "a zoot on her head", []],
+  ],
   zorp: [
     ["zorp", "n", "a made-up gadget for testing", "the zorp hummed", []],
     ["zorp", "n", "a made-up second sense", "", []],
@@ -226,6 +232,65 @@ describe("dictionary note: request through the kernel", () => {
     expect(req[req.length - 1].content).toBe(DEFINE);
     expect(result).toMatchObject({ askedWord: "zorp", dictionaryNote: null });
     expect(fetched).toEqual([]);
+  });
+});
+
+// The dictionary card (#251 PR 3): ChatTab builds it from result.dictionaryShown after the turn, the
+// way these tests do. Pinned: the request is the same bytes as before the card existed, and the card
+// shows exactly the senses the tutor was given.
+describe("dictionary card: what the turn hands the chat", () => {
+  // The define turn's user message as master sent it before the card existed, written out by hand
+  // (the snapshot above pins the same bytes).
+  const MASTER_DEFINE_MESSAGE = [
+    DEFINE,
+    "",
+    `<dictionary_entry source="Open English WordNet">`,
+    `1. zorp (noun): a made-up gadget for testing. Example: "the zorp hummed"`,
+    `2. zorp (noun): a made-up second sense`,
+    `3. zorp (verb): to test a made-up thing. Example: "she zorped it twice"`,
+    `</dictionary_entry>`,
+    DICTIONARY_NOTE.replace("{word}", "zorp"),
+  ].join("\n");
+
+  it("leaves the request byte-identical: the card is built after the call and never sent", async () => {
+    const off = await run([], DEFINE, "off");
+    const { req, result } = await run([], DEFINE);
+    expect(req[req.length - 1].content).toBe(MASTER_DEFINE_MESSAGE);
+    expect(req.slice(0, -1)).toEqual(off.req.slice(0, -1));
+    expect(sent).toHaveLength(1);
+    // Build the card as ChatTab does; the request already sent is unchanged and holds none of its text.
+    const card = dictionaryCard(result.dictionaryShown!);
+    const wire = JSON.stringify(req);
+    for (const t of [CARD_SOURCE, cardToggleLabel(true), cardToggleLabel(false), cardSpeech(card)]) expect(wire).not.toContain(t);
+    expect(req[req.length - 1].content).toBe(MASTER_DEFINE_MESSAGE);
+  });
+
+  it("the card's senses are the note's numbered senses, one for one", async () => {
+    const { req, result } = await run([], DEFINE);
+    const note = req[req.length - 1].content;
+    const card = dictionaryCard(result.dictionaryShown!);
+    const lines = card.headwords.flatMap((h) => h.groups.flatMap((g) => g.senses.map((s) =>
+      `${s.n}. ${s.form ?? h.headword} (${g.partOfSpeech}): ${s.definition}${s.example ? `. Example: "${s.example}"` : ""}`)));
+    expect(lines).toEqual(note.split("\n").filter((l) => /^\d+\. /.test(l)));
+    expect(result.dictionaryShown).toEqual({
+      word: "zorp",
+      entries: [{ headword: "zorp", via: "exact", senses: SHARD_ZO.zorp.map(([form, pos, definition, example]) => ({ form, pos, definition, example })) }],
+    });
+  });
+
+  it("shows only what the child-safety filter kept", async () => {
+    const { req, result } = await run([], "what does zoot mean?");
+    expect(result.dictionaryShown!.entries[0].senses.map((s) => s.definition)).toEqual(["a made-up hat for testing"]);
+    expect(JSON.stringify(dictionaryCard(result.dictionaryShown!))).not.toContain("vulgar");
+    expect(req[req.length - 1].content).not.toContain("vulgar");
+  });
+
+  it("is absent whenever the note is: no note, no card", async () => {
+    for (const [text, sw] of [["what does zonk mean?", undefined], ["what does qwertyuiop mean?", undefined], [DEFINE, "off"], ["ok thanks", undefined]] as const) {
+      const { result } = await run([], text, sw);
+      expect(result.dictionaryNote, text).toBeNull();
+      expect(result.dictionaryShown, text).toBeNull();
+    }
   });
 });
 
