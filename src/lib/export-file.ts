@@ -4,7 +4,10 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
-/** Ask where to save, then write. Resolves to the saved path, or null when the user cancelled. */
-export async function saveCsvFile(suggestedName: string, contents: string): Promise<string | null> {
-  return await invoke<string | null>("export_save_csv", { suggestedName, contents });
+/**
+ * Ask where to save, then write. Resolves to the saved path, or null when the user cancelled.
+ * `title` is the Save dialog's title; without one Rust uses the teacher overview's.
+ */
+export async function saveCsvFile(suggestedName: string, contents: string, title?: string): Promise<string | null> {
+  return await invoke<string | null>("export_save_csv", { suggestedName, contents, title: title ?? null });
 }
