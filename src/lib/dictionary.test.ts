@@ -100,16 +100,19 @@ describe("resolveEntries", () => {
 describe("the shipped dictionary", () => {
   const shardFiles = Object.keys(FILES).filter((f) => SHARD_FILE.test(f));
 
+  // 127k headwords: collect the misfiled ones and assert once. An expect() per key (254k calls) ran
+  // close to the 5 s test timeout on CI runners and failed at random.
   it("files every headword under the shard lookupWord will fetch", () => {
     let headwords = 0;
+    const misfiled: string[] = [];
     for (const f of shardFiles) {
       const shard = JSON.parse(read(f)) as Shard;
       for (const key of Object.keys(shard)) {
-        expect(shardKey(key), key).toBe(f.slice(0, 2));
-        expect(key).toBe(key.toLowerCase());
+        if (shardKey(key) !== f.slice(0, 2) || key !== key.toLowerCase()) misfiled.push(`${f}: ${key}`);
         headwords++;
       }
     }
+    expect(misfiled).toEqual([]);
     const meta = JSON.parse(read("meta.json"));
     expect(headwords).toBe(meta.headwords);
     expect(shardFiles.map((f) => f.slice(0, 2)).sort()).toEqual(meta.shardKeys);
