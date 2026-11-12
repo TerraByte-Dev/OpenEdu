@@ -127,6 +127,14 @@ describe("counts of one read in the singular", () => {
     expect(fill(C.evidence.key, { n: 1 })).toBe("1 checked against the app's answer key");
   });
 
+  it("never rewrites a title: text slots go in after the count is made singular", () => {
+    expect(fill(C.talkAboutIt.explain, { name: "Maya", skill: "Unit 1 skills" })).toBe("Ask Maya to explain “Unit 1 skills” to you.");
+    expect(fill(C.activity.courseStarted, { title: "Week 1 days and dates", date: "Nov 3" })).toBe("Started: Week 1 days and dates (Nov 3)");
+    expect(fill(V.levelRow, { level: 1, course: "Chapter 1 flashcards" })).toBe("Level 1 · Chapter 1 flashcards");
+    expect(fill(C.learning, { skill: "Algebra 1 skills", correct: 1, total: 1 })).toBe("Algebra 1 skills: 1 of 1 right so far");
+    expect(fill(C.tiles.time_approx, { time: "12 min", sittings: 1 })).toBe("About 12 min · in 1 sitting");
+  });
+
   it("leaves other numbers alone", () => {
     expect(singular("11 days, 21 skills, 1.5 days, 3 of 1 right")).toBe("11 days, 21 skills, 1.5 days, 3 of 1 right");
   });

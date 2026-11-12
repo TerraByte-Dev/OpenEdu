@@ -38,9 +38,15 @@ export function singular(text: string): string {
   return text.replace(ONE_OF, "1 $1");
 }
 
-/** Fill {slots}, with counts of 1 made singular (singular()). */
+/**
+ * Fill {slots}, with counts of 1 made singular. Number slots go in first and only the template's own
+ * words are made singular; text slots (titles the learner or the app's model wrote) go in after, so
+ * "Unit 1 skills" stays exactly as written.
+ */
 export function fill(template: string, slots: Record<string, string | number>): string {
-  return singular(template.replace(/\{(\w+)\}/g, (m, k: string) => (k in slots ? String(slots[k]) : m)));
+  const put = (text: string, numbers: boolean) =>
+    text.replace(/\{(\w+)\}/g, (m, k: string) => (k in slots && (typeof slots[k] === "number") === numbers ? String(slots[k]) : m));
+  return put(singular(put(template, true)), false);
 }
 
 /** The skill pills (spec §3). Keys match build.ts SkillStatus. */
