@@ -289,18 +289,28 @@ export function specFor(c: KitCandidate): Built {
 
 // ─── licences ───────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Whether Google's Gemma Terms of Use cover this model. They cover Gemma 1 to 3 (and 3n). Gemma 4 and
+ * later are Apache 2.0, so their licence travels like any other: a mention of `gemma4` (or a higher
+ * number) anywhere in the name, family or files means not covered.
+ */
+export function gemmaTermsApply(text: string): boolean {
+  const versions = [...text.toLowerCase().matchAll(/gemma[-_ ]?(\d*)/g)].map((m) => (m[1] ? Number(m[1]) : 0));
+  return versions.length > 0 && versions.every((v) => v < 4);
+}
+
 export function isGemma(c: KitCandidate): boolean {
   const hay = c.kind === "ollama"
     ? `${c.name} ${c.config ?? ""}`
     : `${c.dir} ${c.ggufs.map((g) => g.rel).join(" ")} ${c.modelfile}`;
-  return /gemma/i.test(hay);
+  return gemmaTermsApply(hay);
 }
 
 export interface LicenceNote { tone: "ok" | "warning"; text: string }
 
 /**
  * What the screen says about this model's licence: the files found next to it (Rust looks only beside
- * that model and in the kit's `licences/<model>` folder), and for Gemma, whether Google's Terms of Use
+ * that model and in the kit's `licences/<model>` folder), and for Gemma 1-3, whether Google's Terms of Use
  * and Prohibited Use Policy came along. A reminder, never a block.
  */
 export function licenceNotes(c: KitCandidate, built: Built | null): LicenceNote[] {

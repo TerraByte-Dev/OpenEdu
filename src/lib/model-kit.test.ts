@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseModelfile, typedParameters, parseChecksums, specFromModelfile, specFromOllama, specFor,
   validModelName, nameTaken, nameProblem, suggestedName, candidateBytes, needsNewerOllama, hasRoom,
-  importFraction, etaSeconds, formatEta, formatBytes, SPARE_BYTES, NO_CHECKSUM, isGemma, licenceNotes,
+  importFraction, etaSeconds, formatEta, formatBytes, SPARE_BYTES, NO_CHECKSUM, isGemma, gemmaTermsApply, licenceNotes,
   type KitCandidate, type KitLayer,
 } from "./model-kit";
 
@@ -212,16 +212,29 @@ describe("licences", () => {
     expect(licenceNotes(none, specFromModelfile(none))[0].tone).toBe("warning");
   });
 
-  it("Gemma: reminds about the Terms and Prohibited Use Policy until both are next to it", () => {
-    const g = ollama([layer("model", { rel: "a" })], '{"model_family":"gemma4"}');
+  it("Gemma 1-3: reminds about the Terms and Prohibited Use Policy until both are next to it", () => {
+    const g = ollama([layer("model", { rel: "a" })], '{"model_family":"gemma3"}');
     expect(isGemma(g)).toBe(true);
     expect(isGemma(ollama([layer("model", { rel: "a" })]))).toBe(false);
     const bare = licenceNotes(g, specFromOllama(g));
     expect(bare[1]).toMatchObject({ tone: "warning" });
     expect(bare[1].text).toMatch(/Gemma Terms of Use and Prohibited Use Policy/);
-    const complete = { ...g, licenceFiles: ["models/licences/gemma4-e2b/Gemma Terms of Use.pdf", "models/licences/gemma4-e2b/Gemma Prohibited Use Policy.pdf"] };
+    const complete = { ...g, licenceFiles: ["models/licences/gemma3-4b/Gemma Terms of Use.pdf", "models/licences/gemma3-4b/Gemma Prohibited Use Policy.pdf"] };
     expect(licenceNotes(complete, specFromOllama(complete))[1].tone).toBe("ok");
-    expect(isGemma(gguf("FROM model.gguf", { dir: "models/gemma4-e2b" }))).toBe(true);
+    expect(isGemma(gguf("FROM model.gguf", { dir: "models/gemma3n-e2b" }))).toBe(true);
+  });
+
+  it("Gemma 4 and later are Apache 2.0: no Gemma Terms reminder", () => {
+    const g4 = ollama([layer("model", { rel: "a" })], '{"model_family":"gemma4"}');
+    expect(isGemma(g4)).toBe(false);
+    expect(licenceNotes(g4, specFromOllama(g4))).toHaveLength(1);
+    expect(isGemma(gguf("FROM model.gguf", { dir: "models/gemma4-e2b" }))).toBe(false);
+    expect(gemmaTermsApply("gemma:7b")).toBe(true);
+    expect(gemmaTermsApply("gemma2:2b gemma2")).toBe(true);
+    expect(gemmaTermsApply("Gemma-3 27B")).toBe(true);
+    expect(gemmaTermsApply("gemma4:e4b gemma4")).toBe(false);
+    expect(gemmaTermsApply("gemma 5")).toBe(false);
+    expect(gemmaTermsApply("qwen3.5:4b")).toBe(false);
   });
 });
 

@@ -117,11 +117,13 @@ the setup guide's states and wording are in `src/lib/ollama-guide.ts`. Both are 
 Redistributing a model is redistributing someone else's work under their terms. Read the model's
 licence before you hand a kit to anyone.
 
-- **Gemma** (`gemma4:*`, `gemma3:*`): the Gemma Terms of Use require that anyone you give the model to
+- **Gemma 4** (`gemma4:*`): Apache 2.0 since its release on 2026-04-02. The licence text Ollama keeps
+  is enough; the script copies it.
+- **Gemma 1-3** (`gemma3:*`, `gemma3n:*`, `gemma2:*`): the Gemma Terms of Use require that anyone you give the model to
   receives the Terms and the use restrictions. Put both in `models/licences/<model>/`:
   [Gemma Terms of Use](https://ai.google.dev/gemma/terms) and
   [Gemma Prohibited Use Policy](https://ai.google.dev/gemma/prohibited_use_policy). The export script
-  reminds you for any Gemma model.
+  and the import screen remind you for these models.
 - **Qwen 3.5** (`qwen3.5:*`): Apache 2.0. The licence text Ollama keeps is enough; the script copies it.
 - **Anything else**: check its model card. Some licences need a NOTICE file, an attribution line or
   an acceptable-use policy that Ollama's copy does not include.

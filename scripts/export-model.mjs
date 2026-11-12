@@ -272,7 +272,9 @@ async function main() {
   const secs = ((Date.now() - started) / 1000).toFixed(1);
   console.log(`\n  Done: ${name}, ${gb(total)} in ${secs}s. Licence text: ${licences.length ? relative(kit, ldir) : "none in Ollama's copy"}.`);
   const family = `${config.model_family ?? ""} ${parts[2]}`.toLowerCase();
-  if (family.includes("gemma")) {
+  // Google's Gemma Terms cover Gemma 1-3 (and 3n); Gemma 4 and later are Apache 2.0 (model-kit.ts gemmaTermsApply).
+  const gemmaVersions = [...family.matchAll(/gemma[-_ ]?(\d*)/g)].map((m) => (m[1] ? Number(m[1]) : 0));
+  if (gemmaVersions.length && gemmaVersions.every((v) => v < 4)) {
     console.log(
       "\n  ! Gemma: the Gemma Terms of Use require that the Terms and the Prohibited Use Policy travel with the model." +
         `\n    Save both into ${ldir}:` +
