@@ -3,8 +3,9 @@ import {
   GENERATION_MODELS, CHAT_MODELS,
   defaultGenerationModel, defaultChatModel, defaultEmbeddingModel,
   defaultOllamaModelForRam, defaultOllamaModel, isOllamaDefaultModel,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, CLOUD_SHUTDOWNS, resolveStoredModel, withStoredOption,
 } from "./models";
+import type { LLMProvider } from "../types";
 
 const CLOUD = ["openai", "anthropic"] as const;
 
@@ -123,5 +124,76 @@ describe("defaultOllamaModel (an upgrade must not point a working install at a m
     expect(isOllamaDefaultModel(" Gemma4:E4B ")).toBe(true);
     expect(isOllamaDefaultModel("qwen3.5:0.8b")).toBe(false);
     expect(isOllamaDefaultModel("gemma3:1b")).toBe(false);
+  });
+});
+
+describe("resolveStoredModel (a stored id the provider shut down)", () => {
+  const before = new Date("2027-01-13T23:59:59Z");
+  const after = new Date("2027-01-14T00:00:00Z");
+
+  it("keeps a deprecated id until its shutdown date", () => {
+    expect(resolveStoredModel("openai", "chat", "gpt-4o-mini", before)).toBe("gpt-4o-mini");
+  });
+
+  it("from the shutdown date, resolves to the recommended model for the same role", () => {
+    expect(resolveStoredModel("openai", "chat", "gpt-4o-mini", after)).toBe(defaultChatModel("openai"));
+    expect(resolveStoredModel("openai", "generation", "gpt-4.1", after)).toBe(defaultGenerationModel("openai"));
+    expect(resolveStoredModel("openai", "generation", "gpt-4o", after)).toBe(defaultGenerationModel("openai"));
+    expect(resolveStoredModel("openai", "chat", "gpt-4o", after)).toBe(defaultChatModel("openai"));
+  });
+
+  it("keeps current, unknown and hand-typed ids", () => {
+    expect(resolveStoredModel("openai", "generation", "gpt-5.4", after)).toBe("gpt-5.4");
+    expect(resolveStoredModel("openai", "generation", "gpt-5.4-2026-03-05", after)).toBe("gpt-5.4-2026-03-05");
+    expect(resolveStoredModel("anthropic", "chat", "claude-haiku-4-5-20251001", after)).toBe("claude-haiku-4-5-20251001");
+  });
+
+  it("never switches provider, and leaves Ollama and an empty store alone", () => {
+    expect(resolveStoredModel("anthropic", "chat", "gpt-4o", after)).toBe("gpt-4o");
+    expect(resolveStoredModel("ollama", "chat", "gpt-4o", after)).toBe("gpt-4o");
+    expect(resolveStoredModel("openai", "chat", undefined, after)).toBeUndefined();
+  });
+
+  it("treats a non-string stored value (hand-edited settings import) as nothing stored", () => {
+    for (const bad of [null, 42, {}, ["gpt-4o"]]) {
+      expect(resolveStoredModel("openai", "chat", bad as unknown as string, after)).toBeUndefined();
+    }
+  });
+
+  it("leaves Object prototype keys and unknown providers alone", () => {
+    for (const id of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+      expect(resolveStoredModel("openai", "generation", id, after)).toBe(id);
+    }
+    expect(resolveStoredModel("groq" as LLMProvider, "chat", "gpt-4o", after)).toBe("gpt-4o");
+  });
+
+  for (const provider of CLOUD) {
+    it(`the ${provider} catalog never offers a model with a shutdown date`, () => {
+      const offered = [...GENERATION_MODELS[provider], ...CHAT_MODELS[provider]].map((m) => m.id);
+      for (const id of Object.keys(CLOUD_SHUTDOWNS[provider])) expect(offered).not.toContain(id);
+    });
+  }
+});
+
+describe("withStoredOption (Settings shows the model the app will use)", () => {
+  const list = CHAT_MODELS.anthropic;
+
+  it("adds a stored id that is not in the list as an extra chip labelled with its id", () => {
+    expect(withStoredOption(list, "claude-haiku-4-5-20251001")).toEqual([
+      ...list, { id: "claude-haiku-4-5-20251001", label: "claude-haiku-4-5-20251001" },
+    ]);
+  });
+
+  it("returns the list unchanged for a listed id or an empty value", () => {
+    expect(withStoredOption(list, list[0].id)).toBe(list);
+    expect(withStoredOption(list, "")).toBe(list);
+    expect(withStoredOption(list, "  ")).toBe(list);
+  });
+});
+
+describe("Anthropic catalog keeps the 4.6 models that still work (#257 review)", () => {
+  it("offers Sonnet 4.6 for generation and Opus 4.6 for chat", () => {
+    expect(GENERATION_MODELS.anthropic.map((m) => m.id)).toContain("claude-sonnet-4-6");
+    expect(CHAT_MODELS.anthropic.map((m) => m.id)).toContain("claude-opus-4-6");
   });
 });

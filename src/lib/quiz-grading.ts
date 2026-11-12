@@ -274,7 +274,15 @@ export interface GradeItem {
   type: string;
 }
 
-export interface GradeOutcome { isCorrect: boolean; feedback: string }
+// How an answer was marked, stored as quiz_questions.graded_by (migration 18) so the learning record
+// (#258) can say which marks came from the answer key and which from the model. 'key': compared with
+// the answer key as the learner answered (multiple choice, true/false, matching). 'exact': a string
+// or number match (gradeFreeTextDeterministic). 'model': the grader model's verdict. 'fallback': the
+// grader failed or skipped the item and the answer was passed leniently. 'unanswered': a timed-out
+// level test's unanswered question, scored wrong.
+export type GradedBy = "key" | "exact" | "model" | "fallback" | "unanswered";
+
+export interface GradeOutcome { isCorrect: boolean; feedback: string; by: GradedBy }
 
 // Build one prompt that grades every item in a single structured call (replaces N round-trips).
 export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): string {
@@ -302,12 +310,12 @@ export function parseBatchGradeResults(
   items: GradeItem[],
 ): Map<number, GradeOutcome> {
   const out = new Map<number, GradeOutcome>();
-  for (const it of items) out.set(it.index, { isCorrect: true, feedback: "" });
+  for (const it of items) out.set(it.index, { isCorrect: true, feedback: "", by: "fallback" });
   const results = parsed?.results;
   if (Array.isArray(results)) {
     for (const r of results) {
       if (typeof r?.index === "number" && out.has(r.index)) {
-        out.set(r.index, { isCorrect: Boolean(r.correct), feedback: String(r.feedback ?? "") });
+        out.set(r.index, { isCorrect: Boolean(r.correct), feedback: String(r.feedback ?? ""), by: "model" });
       }
     }
   }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Course, Syllabus } from "../types";
-import { getSyllabus, getQuizAttempts } from "../lib/db";
+import { getSyllabus, getQuizAttempts, getRecordSource, getActiveLearnerId } from "../lib/db";
+import { cachedTeaser, rememberTeaser, teaserCounts, teaserKey, teaserLine, teaserShown, type TeaserCounts } from "../lib/record/view";
+import { RECORD_COPY } from "../lib/record/copy";
 import { getLevelMeaning } from "../lib/curriculum";
 import { rankNextSteps, continueStep, type NextStep, type NextStepAction } from "../lib/next-step";
 import {
@@ -15,6 +17,7 @@ import { describeGenerationState } from "../lib/plain-language";
 // the daily goal and today's minutes live in the plugin store, per learner (store.ts).
 
 interface HomeProps {
+  learnerId: string;
   learnerName: string;
   courses: Course[];
   /** Chosen minutes per day, or null until the learner picks one. */
@@ -26,6 +29,8 @@ interface HomeProps {
   onOpenCourse: (courseId: string) => void;
   onResumeCourse: (courseId: string) => void;
   onStartNew: () => void;
+  /** Open the learner's own learning record (#258). */
+  onOpenRecord: () => void;
 }
 
 interface CourseGlance {
@@ -46,12 +51,31 @@ function greeting(now: Date): string {
 }
 
 export default function Home({
-  learnerName, courses, dailyGoal, onChooseGoal, minutesToday, onContinue, onOpenCourse, onResumeCourse, onStartNew,
+  learnerId, learnerName, courses, dailyGoal, onChooseGoal, minutesToday, onContinue, onOpenCourse, onResumeCourse, onStartNew, onOpenRecord,
 }: HomeProps) {
   const recent = courses[0] ?? null; // getCourses orders by updated_at DESC
   const [glances, setGlances] = useState<Record<string, CourseGlance>>({});
   const [nextStep, setNextStep] = useState<NextStep | null>(null);
   const [changingGoal, setChangingGoal] = useState(false);
+  const [teaser, setTeaser] = useState<TeaserCounts | null>(() => cachedTeaser(teaserKey(learnerId, new Date())) ?? null);
+
+  // The record teaser: this month's counts from the same learningRecord the record screen shows,
+  // rebuilt on every visit to Home (and when the course list changes, e.g. a course is deleted), so it
+  // always equals the record's tiles. The last build only paints the first frame (record/view.ts).
+  useEffect(() => {
+    const now = new Date();
+    const key = teaserKey(learnerId, now);
+    let alive = true;
+    getRecordSource()
+      .then((src) => {
+        if (!alive || !src || getActiveLearnerId() !== learnerId || src.learner.id !== learnerId) return;
+        const counts = teaserCounts(src, now);
+        rememberTeaser(key, counts);
+        setTeaser(counts);
+      })
+      .catch((e) => console.warn("[record] teaser could not be built", e));
+    return () => { alive = false; };
+  }, [learnerId, courses]);
 
   // One syllabus read per course (for the card's progress) and the attempts of the most recent one
   // (for Continue). Re-run when the list changes — a finished build or a level-up lands here.
@@ -167,6 +191,17 @@ export default function Home({
             </div>
           ) : (
             <GoalBar minutes={minutesToday} goal={dailyGoal} onChange={() => setChangingGoal(true)} />
+          )}
+          {teaser && teaserShown(teaser) && (
+            <div className="mt-4 pt-4 border-t border-[var(--rule)] flex flex-wrap items-center gap-x-4 gap-y-3">
+              <p className="text-base text-ink flex-1 min-w-[220px]">{teaserLine(teaser)}</p>
+              <button onClick={onOpenRecord} className="btn">
+                {RECORD_COPY.view.teaserOpen}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </button>
+            </div>
           )}
         </section>
 

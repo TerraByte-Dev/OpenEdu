@@ -112,6 +112,75 @@ numbers 0-20 and the six shapes, 1.5 in tall on Letter paper) and the record pri
 `window.print()`: `PrintView.tsx` copies the pages into a `.print-root` under `<body>` and the print
 stylesheet in `index.css` hides everything else. No PDF library; "Save as PDF" is the print dialog's.
 
+**The learning record on paper (#258 PR 3b).** The record's "Save <Month>'s record" button (and the
+school-year / since-you-started equivalent) first asks for a name and grade while the learner is still
+"Learner 1" or has none (skippable, saved through the learner setters), then opens the same `PrintView`
+with `backLabel` "Back to the record" and calls `window.print()` itself. `src/lib/record/print.ts` decides
+what the paper shows, from the one `LearningRecord`: page 1 is a fixed one-page summary (capped lists with
+"+N more in the detail pages", Section D's write-in lines by voice, the disclaimer); the "This school year"
+range adds a cover sheet in front (write-in lines, totals by subject and course, the signature line); the
+detail pages are a `FlowPage` that `PrintView` renders as `.print-page.print-flow`, printed on the named
+`@page record` with 0.75in margins so sections A-C run on over as many sheets as they need, table headers
+repeating. Page 1's and the cover sheet's metrics are px in `index.css`, mirrored by `print.ts page1HeightPx`
+and `coverHeightPx`: the tests hold both under the sheet, and the cover lists each course only while the
+measured table fits (subject rows only past that). Rows on both are one line by CSS (`nowrap`, an
+ellipsis). The cover's "All courses" row has no time: per-course time is approximate over the whole
+period and is never summed into a rival to the time total. A record with no course and no activity
+prints page 1 alone. In a class or school a learner's own name check leaves out the grade, which only
+the teacher may set. TeacherView's "Print every learner's record" prints the same pages
+for each learner in the current view, one after another.
+
+**The learning record as spreadsheets (#258 PR 4).** Beside Save, "Save as spreadsheet (CSV)" writes the
+daily summary (`openedu-record-<name>-YYYY-MM.csv`, one row per local day per course), and with "Also save
+the detailed log" ticked a second file, the event log (`…-events.csv`, one row per event), each through its
+own Save dialog. `src/lib/record/csv.ts` works them out from the pieces the record itself is built from:
+`time.ts pointsIn` (the days tile's activity in the range), `build.ts courseSittings` (the record's
+per-course time) and the record's own quiz, mastered and without-proof rows. What is guaranteed (tested):
+the quiz rows, mastered skills, lessons, tutor messages and counted minutes add up to the record's; a
+course's approximate minutes over its days add up exactly to the record's minutes for that course (each
+sitting credited to the day it started, or the day it ended when the course shows nothing on the start
+day and the end day is not counted, then rounded by largest remainder) on days before counted time began;
+and the file's activity dates are the days tile's days (a quiz started before midnight and finished after
+it shows on both days). Not guaranteed: the minutes
+column does not add up to the record's approximate time total, because a sitting that moved between
+courses counts in each (the file says so); and the file can carry a day the tile does not count (a
+counted day with minutes but no activity). Every row says how it was made in `recorded_by`: raw times "stored when it happened", day
+totals and skill status changes "worked out from stored rows on <export date>". Tutor messages carry no
+text; self-explanations are cut to 500 characters. Minutes are never added across kinds: a counted day
+puts the learner's counted minutes on an "All courses" row (0 with a sentence saying why when none were
+stored), leaving the course rows' minutes empty, because `learner_days` never knew which course a minute
+was in. Both files go through `toCsv` and end with the full disclaimer in the widest text column. `export_save_csv` takes an optional dialog `title`
+(`dialog_title`, defaulting to the teacher overview's).
+
+**Saved months (#258 PR 5, migration 19).** When a month ends, each learner's record for it is saved in
+`monthly_records` (one row per learner per month), so deleting a course or regenerating a level later
+cannot rewrite it. `App.tsx` calls `db.ts saveEndedMonths()` in the background after the launch's learner
+list loads; it saves every ended month with activity that has no copy yet (`record/saved.ts monthsToSave`),
+never the current month, and `app_config record_saved_through` makes later launches that month read
+nothing (only an exact match skips, so a marker written while the clock was ahead cannot switch saving
+off; one learner's failure leaves the marker unset and the others saved). Nothing destructive compares
+with the current clock: each copy stores its month's bounds as they ran where it was saved (UTC) and the
+newest activity it saw. A copy is replaced only when it was saved before its stored month ended, or
+when the rows now hold activity inside that month newer than it saw (it was saved while the clock was
+ahead); a copy saved after its month ended can trip neither, and nothing is ever deleted. The clock
+only decides what is shown: a month's copy appears once that month has ended. Save and CSV of an ended month with no copy save one first. The body (`saved.ts SavedBody`) is
+the `LearningRecord` as built then (without the learner's name, grade and voice) plus the daily
+spreadsheet's rows: counts, titles, dates and statuses, the ids of the courses that had examples, the
+month's bounds and the newest activity it saw.
+It never holds the learner's own words (C2, B4's self-explanation) or B3's question/answer pairs:
+`saved.ts restoreSaved` reads those again from the rows still on record each time, so a deleted course
+leaves no learner text behind and, when one of the courses that had examples is gone, the record says
+"Examples from deleted courses are no longer on this computer." The learner's name, grade and voice, and each surviving course's subject label, are shown as
+they are now. The screen, the paper and the daily CSV all read the month through `saved.ts shownRecord` /
+`shownDays`, and say where it came from (H4): "Saved <date> from the activity on record then." or, for a
+past month with no copy, "Built <date> from the activity still on record." A school-year or
+since-you-started range is always built live, so its screen and paper header say "These totals are built
+from the activity still on this computer. A saved month can include courses deleted since." The event log is always
+read from the current rows and, for a saved month, says so in its last row. "Rebuild from current data"
+replaces a saved month after "This replaces the copy saved on <date>."; a learner's own record offers it
+only where Settings is not behind the teacher PIN. Deleting a learner deletes their saved months (ON
+DELETE CASCADE); deleting a course does not.
+
 ## Repo layout
 
 | Path | What lives there |

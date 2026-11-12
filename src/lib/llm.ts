@@ -201,7 +201,7 @@ async function streamOpenAI(
         "Authorization": `Bearer ${config.apiKey}`,
         "Origin": "", // suppress tauri-plugin-http injected Origin header
       },
-      body: JSON.stringify({ model: config.model, messages, stream: true }),
+      body: JSON.stringify({ model: config.model, messages, stream: true, ...openAIRequestFields(config.model) }),
       signal,
     });
   } catch (e) {
@@ -274,6 +274,7 @@ async function streamAnthropic(
     max_tokens: 8096,
     stream: true,
     messages: chatMsgs,
+    ...anthropicRequestFields(config.model),
   };
   if (systemMsg) body.system = systemMsg.content;
 
@@ -473,7 +474,7 @@ export async function callLLM(
           "Authorization": `Bearer ${config.apiKey}`,
           "Origin": "",
         },
-        body: JSON.stringify({ model: config.model, messages }),
+        body: JSON.stringify({ model: config.model, messages, ...openAIRequestFields(config.model) }),
       });
     } catch (e) {
       throw new Error(`Network error connecting to OpenAI: ${networkAwareMessage(e)}`);
@@ -497,6 +498,7 @@ export async function callLLM(
       model: config.model,
       max_tokens: 8096,
       messages: chatMsgs,
+      ...anthropicRequestFields(config.model),
     };
     if (systemMsg) body.system = systemMsg.content;
 
@@ -645,18 +647,31 @@ export const TIER_BUDGETS: Record<ModelTier, {
 
 // Cloud APIs (OpenAI/Anthropic) are reliable and fast — tighten their effective timeout
 // to half the tier value. This keeps the safety net for stuck local models while
-// catching real cloud-side hangs quickly.
-function effectivePerCallTimeoutMs(provider: string, tier: ModelTier | undefined): number {
+// catching real cloud-side hangs quickly. The exception is GPT-6 other than Luna: those models
+// cannot turn reasoning off, and callLLMStructured does not retry a timeout, so they keep the
+// full tier budget (90s for "large") rather than 45s.
+export function effectivePerCallTimeoutMs(provider: string, tier: ModelTier | undefined, model = ""): number {
   const base = tier ? TIER_BUDGETS[tier].perCallTimeoutMs : 120_000;
+  if (provider === "openai" && isGpt6(model) && !isGpt6Luna(model)) return base;
   if (provider === "openai" || provider === "anthropic") return Math.round(base / 2);
   return base;
 }
 
+// GPT-6 family predicates, shared by cloudModelTier, openAIRequestFields and the timeout above, so the
+// three can never disagree on which id is Luna.
+function isGpt6(model: string): boolean {
+  return model.toLowerCase().startsWith("gpt-6");
+}
+function isGpt6Luna(model: string): boolean {
+  return isGpt6(model) && model.toLowerCase().includes("luna");
+}
+
 // Static cloud-model tier map. Substring match — covers versioned variants like
 // "claude-sonnet-4-6-20250101" without needing an entry per snapshot.
-function cloudModelTier(provider: "openai" | "anthropic", model: string): ModelTier {
+export function cloudModelTier(provider: "openai" | "anthropic", model: string): ModelTier {
   const m = model.toLowerCase();
   if (provider === "openai") {
+    if (isGpt6(m)) return isGpt6Luna(m) ? "medium" : "large"; // Luna is the cheap one
     if (m.includes("gpt-4") && !m.includes("mini") && !m.includes("nano")) return "large";
     if (m.includes("gpt-5")) return "large";
     if (m.includes("o3") || m.includes("o4")) return "large";
@@ -668,6 +683,41 @@ function cloudModelTier(provider: "openai" | "anthropic", model: string): ModelT
   if (m.includes("sonnet")) return "large";
   if (m.includes("haiku")) return "medium";
   return "medium";
+}
+
+// Per-model request fields for OpenAI Chat Completions. GPT-6 models reason by default
+// (https://developers.openai.com/api/docs/guides/latest-model). Luna takes reasoning_effort "none",
+// which is the only way it calls tools on Chat Completions
+// (https://developers.openai.com/api/docs/models/gpt-6-luna). No GPT-6 model gets a temperature: the
+// docs only imply Luna accepts one at "none", and a wrong guess would 400 every structured call.
+// Sol and Astra cannot go to "none". Older models are unchanged.
+export function openAIRequestFields(model: string, temperature?: number): Record<string, unknown> {
+  if (isGpt6Luna(model)) return { reasoning_effort: "none" };
+  if (isGpt6(model)) return {};
+  return temperature === undefined ? {} : { temperature };
+}
+
+// Per-model request fields for the Anthropic Messages API (anthropic-version 2023-06-01). Claude 4.7
+// and later answer a non-default temperature with a 400
+// (https://platform.claude.com/docs/en/about-claude/model-deprecations). Haiku 5.5 thinks by default;
+// OpenEdu reads only text blocks and does not send thinking blocks back on tool turns, so thinking is
+// switched off, which Haiku 5.5 accepts (https://platform.claude.com/docs/en/models/haiku-5-5/overview).
+export function anthropicRequestFields(model: string, temperature?: number): Record<string, unknown> {
+  const m = model.toLowerCase();
+  const fields: Record<string, unknown> = {};
+  if (temperature !== undefined && !claudeAtLeast47(m)) fields.temperature = temperature;
+  if (m.startsWith("claude-haiku-5-5")) fields.thinking = { type: "disabled" };
+  return fields;
+}
+
+// True for Claude 4.7 and later, by the version in the id: "claude-opus-4-10" is 4.10, "claude-sonnet-5" is
+// 5.0. The minor is one or two digits, so a dated id such as "claude-opus-4-20250514" reads as 4.0.
+// Old-style ids ("claude-3-7-sonnet-...") do not match and count as earlier.
+function claudeAtLeast47(model: string): boolean {
+  const v = /^claude-[a-z]+-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model);
+  if (!v) return false;
+  const major = Number(v[1]), minor = Number(v[2] ?? 0);
+  return major > 4 || (major === 4 && minor >= 7);
 }
 
 // Parse Ollama's parameter_size string like "3.8B", "7B", "1.5B", "70B".
@@ -1033,7 +1083,7 @@ async function callOpenAIStructured(
   const body = {
     model: config.model,
     messages,
-    temperature,
+    ...openAIRequestFields(config.model, temperature),
     response_format: {
       type: "json_schema",
       json_schema: { name: toolName, strict: true, schema },
@@ -1087,7 +1137,7 @@ async function callAnthropicStructured(
   const body: Record<string, unknown> = {
     model: config.model,
     max_tokens: 8096,
-    temperature,
+    ...anthropicRequestFields(config.model, temperature),
     messages: chatMsgs,
     tools: [{
       name: toolName,
@@ -1156,7 +1206,7 @@ export async function callLLMStructured<T>(
   // Per-call timeout from tier budget, halved for fast cloud APIs.
   // A single hung call shouldn't be allowed to stall a 5–10 min pipeline forever,
   // but local Ollama models can legitimately take 60–120s per structured call.
-  const perCallTimeoutMs = effectivePerCallTimeoutMs(config.provider, opts.tier);
+  const perCallTimeoutMs = effectivePerCallTimeoutMs(config.provider, opts.tier, config.model);
 
   let workingMessages = [...messages];
   let lastRaw = "";
@@ -1472,7 +1522,7 @@ function toOpenAITurnMessage(m: NeutralMessage): Record<string, unknown> {
       tool_calls: m.tool_calls.map((tc) => ({
         id: tc.id,
         type: "function",
-        function: { name: tc.name, arguments: JSON.stringify(tc.args ?? {}) },
+        function: { name: cloudToolName(tc.name), arguments: JSON.stringify(tc.args ?? {}) },
       })),
     };
   }
@@ -1508,7 +1558,7 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
     if (m.role === "assistant" && m.tool_calls?.length) {
       const content: Array<Record<string, unknown>> = [];
       if (m.content) content.push({ type: "text", text: m.content });
-      for (const tc of m.tool_calls) content.push({ type: "tool_use", id: tc.id, name: tc.name, input: tc.args ?? {} });
+      for (const tc of m.tool_calls) content.push({ type: "tool_use", id: tc.id, name: cloudToolName(tc.name), input: tc.args ?? {} });
       out.push({ role: "assistant", content });
     } else {
       out.push({ role: m.role, content: m.content });
@@ -1617,12 +1667,27 @@ function ollamaErrorText(body: string): string {
   return body;
 }
 
+// ── Tool names on the cloud wire (#262) ──
+// OpenEdu's tool names are namespaced with a dot ("notebook.search"). Anthropic and OpenAI accept only
+// letters, digits, "_" and "-" in a tool name and answer 400 otherwise, so a cloud request carries the
+// name with each "." as "__", and a tool call coming back is mapped to the name of the offered tool it
+// matches. Ollama accepts dots, so its requests are unchanged (benchmark baselines stay byte-identical).
+export function cloudToolName(name: string): string {
+  return name.replace(/\./g, "__");
+}
+export function localToolName(wire: string, offered?: ProviderToolDef[]): string {
+  return offered?.find((t) => cloudToolName(t.name) === wire)?.name ?? wire;
+}
+
 // ── Tool-def builders (one per provider envelope) ──
 function ollamaToolDefs(tools?: ProviderToolDef[]) {
   return tools?.length ? tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } })) : undefined;
 }
+function openAIToolDefs(tools?: ProviderToolDef[]) {
+  return tools?.length ? tools.map((t) => ({ type: "function", function: { name: cloudToolName(t.name), description: t.description, parameters: t.parameters } })) : undefined;
+}
 function anthropicToolDefs(tools?: ProviderToolDef[]) {
-  return tools?.length ? tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })) : undefined;
+  return tools?.length ? tools.map((t) => ({ name: cloudToolName(t.name), description: t.description, input_schema: t.parameters })) : undefined;
 }
 
 // ── The public entry point ──
@@ -1731,9 +1796,10 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
 
 async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, opts: TurnOpts): AsyncGenerator<LLMTurnEvent> {
   if (!config.apiKey) throw new Error("OpenAI API key not set — go to Settings and add your key.");
-  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOpenAITurnMessage), stream: true };
-  if (opts.temperature !== undefined) body.temperature = opts.temperature;
-  const tools = ollamaToolDefs(opts.tools); // identical {type:function,function:{…}} envelope as Ollama/OpenAI
+  const body: Record<string, unknown> = {
+    model: config.model, messages: messages.map(toOpenAITurnMessage), stream: true, ...openAIRequestFields(config.model, opts.temperature),
+  };
+  const tools = openAIToolDefs(opts.tools); // the Ollama envelope, with cloud-safe names
   if (tools) { body.tools = tools; body.tool_choice = "auto"; }
 
   // Cloud is fast; a silent stream there is a real hang, so tighten both clocks.
@@ -1797,7 +1863,7 @@ async function* streamOpenAITurn(messages: NeutralMessage[], config: LLMConfig, 
         try { parsed = JSON.parse(c.args); }
         catch { try { parsed = JSON.parse(sanitizeJsonEscapes(c.args)); } catch { parsed = {}; } }
       }
-      yield { type: "tool_call", id: c.id || `call_${fallbackIdx++}`, name: c.name, args: parsed };
+      yield { type: "tool_call", id: c.id || `call_${fallbackIdx++}`, name: localToolName(c.name, opts.tools), args: parsed };
     }
     yield { type: "done", finishReason: toolAcc.size > 0 && finishReason === "stop" ? "tool_calls" : finishReason };
   } finally { cleanup(); }
@@ -1808,7 +1874,7 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
   const { system, messages: amsgs } = toAnthropicTurnMessages(messages);
   const body: Record<string, unknown> = { model: config.model, max_tokens: 8096, stream: true, messages: amsgs };
   if (system) body.system = system;
-  if (opts.temperature !== undefined) body.temperature = opts.temperature;
+  Object.assign(body, anthropicRequestFields(config.model, opts.temperature));
   const tools = anthropicToolDefs(opts.tools);
   if (tools) body.tools = tools;
 
@@ -1861,7 +1927,7 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
           if (b) {
             let parsed: unknown = {};
             if (b.json) { try { parsed = JSON.parse(b.json); } catch { parsed = {}; } }
-            yield { type: "tool_call", id: b.id, name: b.name, args: parsed };
+            yield { type: "tool_call", id: b.id, name: localToolName(b.name, opts.tools), args: parsed };
           }
         } else if (evt.type === "message_delta" && evt.delta?.stop_reason) {
           const sr = evt.delta.stop_reason;
@@ -1904,7 +1970,7 @@ const PREFLIGHT_TIMEOUT_MS = 90_000;
 
 const SUGGESTION_STRUCTURED_FAIL =
   "The selected model can't reliably emit structured JSON. " +
-  "Try gemma3:4b (or a similarly sized model) for local Ollama, or a cloud model from Settings.";
+  "Try gemma4:e4b (or a similarly sized model) for local Ollama, or a cloud model from Settings.";
 
 export async function preflightStructuredOutput(config: LLMConfig): Promise<PreflightResult> {
   const tier = await detectModelTier(config).catch(() => undefined);

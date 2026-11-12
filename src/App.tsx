@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
-  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, type UsageConfig,
+  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, recordActiveMinute, getRecordSource, saveEndedMonths,
+  type UsageConfig,
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import { normalizeGrade, hasEarlyScreens, earlyScreensOn } from "./lib/grade";
 import {
   autoPickFor, resolveStartupMode, hasPriorUse, runGuarded, staysUnlocked, viewAfterTeacherDone, showsLearnerChip,
-  isProtected, saveThenRefresh, type UsageMode, type GroupRow, type TeacherEntry,
+  isProtected, saveThenRefresh, needsTeacherPin, type UsageMode, type GroupRow, type TeacherEntry,
 } from "./lib/usage-modes";
 import type { PinRecord } from "./lib/learner-pin";
 import type { DbHealth } from "./lib/db-resilience";
@@ -16,7 +17,8 @@ import {
   getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes, getEarlyScreens,
   setEarlyScreens,
 } from "./lib/store";
-import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
+import { minutesToday, tickActiveMinutes, localDayKey, type ActiveMinutes } from "./lib/daily-goal";
+import { isActiveMinute, ACTIVITY_EVENTS } from "./lib/record/active-minute";
 import type { NextStepAction } from "./lib/next-step";
 import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
@@ -33,6 +35,7 @@ import Sidebar from "./components/Sidebar";
 import Home from "./views/Home";
 import EarlyLearner from "./views/early/EarlyLearner";
 import GrownUps from "./views/early/GrownUps";
+import Record from "./views/record/Record";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
 import Settings from "./views/settings/Settings";
@@ -169,6 +172,39 @@ export default function App() {
     return () => clearInterval(id);
   }, [activeLearner]);
 
+  // Counted minutes for the learning record (#258), kept apart from the daily goal above, which is
+  // unchanged. A minute counts only with recent input on a learning screen (record/active-minute.ts).
+  // The view and teacher flag are read through refs so the timer is not restarted on every navigation.
+  const lastInputRef = useRef<number | null>(null);
+  const viewRef = useRef<View>(currentView);
+  const teacherOpenRef = useRef(teacherOpen);
+  useEffect(() => { viewRef.current = currentView; }, [currentView]);
+  useEffect(() => { teacherOpenRef.current = teacherOpen; }, [teacherOpen]);
+  useEffect(() => {
+    const mark = () => { lastInputRef.current = Date.now(); };
+    // Capture phase: scroll does not bubble, and a handler that stops propagation must not hide input.
+    const opts = { capture: true, passive: true } as const;
+    for (const e of ACTIVITY_EVENTS) window.addEventListener(e, mark, opts);
+    return () => { for (const e of ACTIVITY_EVENTS) window.removeEventListener(e, mark, opts); };
+  }, []);
+  useEffect(() => {
+    if (!activeLearner) return;
+    const learnerId = activeLearner.id;
+    const id = setInterval(() => {
+      if (getActiveLearnerId() !== learnerId) return;
+      const now = Date.now();
+      const active = isActiveMinute({
+        visible: document.visibilityState === "visible",
+        lastInputMs: lastInputRef.current,
+        nowMs: now,
+        view: viewRef.current,
+        teacherOpen: teacherOpenRef.current,
+      });
+      if (active) void recordActiveMinute(learnerId, localDayKey(new Date(now))).catch(() => { /* one minute lost */ });
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [activeLearner]);
+
   const leaveLearner = () => {
     setActiveLearnerId(null);
     setActiveLearner(null);
@@ -204,6 +240,9 @@ export default function App() {
       }
       setModeLoaded(true);
       await enterOrPick(m);
+      // Save each learner's month that has ended (record/saved.ts). In the background: it never holds up
+      // the launch, and a failure only leaves the month unsaved, to be tried at the next launch.
+      void saveEndedMonths().catch((e) => console.warn("[record] could not save the months that have ended", e));
     } catch (e) {
       console.error("startup failed", e);
       setStartupFailed(true);
@@ -364,6 +403,8 @@ export default function App() {
   const childScreen = earlyHome || earlyPending;
   // The grown-ups view of an early learner's progress (#244), behind the press-and-hold.
   const grownUpsView = currentView === "grownups" && activeLearner !== null;
+  // The learner's own learning record (#258). Never guarded: it is not a teacher action.
+  const recordView = currentView === "record" && activeLearner !== null;
   // A learner on the early-learner screens never gets the product tour: it explains Home and courses,
   // which they do not use, and it would land over Settings or the grown-ups view (#249). It waits, not
   // marked seen, in case the family switches back to the regular Home.
@@ -421,7 +462,7 @@ export default function App() {
                 the one list you do not need — you are already in the thing it selects. In course
                 view CourseView takes the column for its own navigation (tabs, threads, notes), and
                 the way back to the list is the header's back arrow. */}
-            {!isFullscreenView && currentView !== "course" && !childScreen && !grownUpsView && (
+            {!isFullscreenView && currentView !== "course" && !childScreen && !grownUpsView && !recordView && (
               <Sidebar
                 courses={courses}
                 selectedCourseId={selectedCourseId}
@@ -480,6 +521,25 @@ export default function App() {
                 />
               )}
 
+              {recordView && (
+                <Record
+                  key={activeLearner.id}
+                  learnerId={activeLearner.id}
+                  load={getRecordSource}
+                  audience="own"
+                  onBack={() => setCurrentView("dashboard")}
+                  // A learner sets their own grade only where Settings is not behind the teacher PIN.
+                  canSetGrade={!needsTeacherPin(mode ?? "single", "open-settings")}
+                  // Likewise, only there may a learner replace a saved month with one rebuilt from current data.
+                  canRebuild={!needsTeacherPin(mode ?? "single", "open-settings")}
+                  onLearnerChanged={async () => {
+                    const list = await reloadLearners();
+                    const me = list.find((l) => l.id === activeLearner.id);
+                    if (me) setActiveLearner(me);
+                  }}
+                />
+              )}
+
               {currentView === "dashboard" && !childScreen && setup && (!setup.ready || (!setup.complete && !setupDismissed)) && (
                 <SetupGate
                   status={setup}
@@ -492,6 +552,7 @@ export default function App() {
 
               {currentView === "dashboard" && !childScreen && !(setup && (!setup.ready || (!setup.complete && !setupDismissed))) && (
                 <Home
+                  learnerId={activeLearner.id}
                   learnerName={activeLearner.name}
                   courses={courses}
                   dailyGoal={dailyGoal}
@@ -501,6 +562,7 @@ export default function App() {
                   onOpenCourse={openCourse}
                   onResumeCourse={handleResumeCourse}
                   onStartNew={() => setCurrentView("create")}
+                  onOpenRecord={() => setCurrentView("record")}
                 />
               )}
 
@@ -580,6 +642,8 @@ export default function App() {
               mode={mode ?? "single"}
               busyReason={craftingTopic ? `Wait for "${craftingTopic}" to finish building before switching, adding or deleting learners.` : null}
               onClose={() => setLearnerMenuOpen(false)}
+              // K-1 learners on the early screens have the grown-ups view instead (#244), unchanged.
+              onOpenRecord={onEarlyScreens ? undefined : () => { setLearnerMenuOpen(false); setCurrentView("record"); }}
               onSwitch={() => { leaveLearner(); void reloadLearners(); }}
               onAdded={(l) => { void reloadLearners(); void enterLearner(l); }}
               onChanged={async () => {

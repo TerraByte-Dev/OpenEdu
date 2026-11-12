@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   createLearner, renameLearner, setLearnerPin, deleteLearner, setLearnerGroup, setLearnerGrade,
-  createGroup, renameGroup, deleteGroup, getTeacherOverviewSource,
+  createGroup, renameGroup, deleteGroup, getTeacherOverviewSource, getLearnerRecordSource,
 } from "../lib/db";
+import Record from "../views/record/Record";
+import { recordPrintPages } from "../views/record/RecordPrint";
+import PrintView from "../views/early/PrintView";
+import { RECORD_COPY, fill } from "../lib/record/copy";
+import { learningRecord } from "../lib/record/build";
+import { currentMonth } from "../lib/record/view";
+import { schoolYearStart } from "../lib/record/time";
+import { monthLabel } from "../lib/early/report";
 import { normalizeGrade, type Grade } from "../lib/grade";
 import { GradeSelect } from "./GradeSelect";
 import { clearLearnerStore } from "../lib/store";
@@ -13,7 +21,9 @@ import { saveCsvFile } from "../lib/export-file";
 
 // The teacher's screen in a class or school, reached only through the teacher PIN (App owns the
 // prompt). Overview of every learner x course with CSV export, learner management (add, rename,
-// class, clear a forgotten PIN, remove) and, in a school, the classes themselves.
+// class, clear a forgotten PIN, remove) and, in a school, the classes themselves. Each learner's
+// learning record (#258) opens in here too, so the teacher PIN stays unlocked while it is on screen
+// (usage-modes.ts staysUnlocked) and "Done" locks it again.
 
 interface TeacherViewProps {
   mode: UsageMode;
@@ -28,12 +38,21 @@ interface TeacherViewProps {
 
 type Tab = "overview" | "learners" | "groups";
 
+/** "This month" or "This school year", for every learner's record at once. */
+type PrintAllRange = "month" | "year";
+
+// The one place another learner's record is read (db.ts getLearnerRecordSource): only in here, behind
+// the teacher PIN, for one learner's record or every learner's at once.
+const loadRecord = (learnerId: string) => getLearnerRecordSource(learnerId);
+
 const BTN: React.CSSProperties = { fontSize: "1rem", padding: "8px 16px" };
 const SMALL: React.CSSProperties = { fontSize: "0.9rem", padding: "6px 12px" };
 const INPUT: React.CSSProperties = { fontSize: "1.05rem" };
 
 export default function TeacherView({ mode, learners, groups, busyReason, onClose, onChanged }: TeacherViewProps) {
   const [tab, setTab] = useState<Tab>("overview");
+  const [recordFor, setRecordFor] = useState<LearnerRow | null>(null);
+  const [printAll, setPrintAll] = useState<{ learners: LearnerRow[]; range: PrintAllRange } | null>(null);
   const grouped = usesGroups(mode);
   const tabs: Array<[Tab, string]> = [["overview", "Overview"], ["learners", "Learners"], ...(grouped ? [["groups", "Classes"] as [Tab, string]] : [])];
 
@@ -41,10 +60,10 @@ export default function TeacherView({ mode, learners, groups, busyReason, onClos
     <div className="flex-1 min-h-0 flex flex-col bg-bg">
       <div className="px-8 pt-6 pb-3 border-b border-[var(--rule)] shrink-0">
         <div className="max-w-5xl mx-auto w-full flex items-center gap-4 flex-wrap">
-          <h1 className="text-2xl font-semibold text-ink" style={{ fontFamily: "var(--font-display)" }}>Teacher</h1>
+          <h1 className="text-2xl font-semibold text-ink" style={{ fontFamily: "var(--font-display)" }}>Teacher / parent</h1>
           <div className="flex gap-2" role="tablist">
             {tabs.map(([id, label]) => (
-              <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "btn btn-primary" : "btn"} style={BTN} onClick={() => setTab(id)}>
+              <button key={id} role="tab" aria-selected={tab === id && !recordFor && !printAll} className={tab === id && !recordFor && !printAll ? "btn btn-primary" : "btn"} style={BTN} onClick={() => { setTab(id); setRecordFor(null); setPrintAll(null); }}>
                 {label}
               </button>
             ))}
@@ -52,14 +71,29 @@ export default function TeacherView({ mode, learners, groups, busyReason, onClos
           <button className="btn ml-auto" style={BTN} onClick={onClose}>Done</button>
         </div>
       </div>
+      {printAll ? (
+        <PrintAll learners={printAll.learners} range={printAll.range} onBack={() => setPrintAll(null)} />
+      ) : recordFor ? (
+        <Record
+          key={recordFor.id}
+          learnerId={recordFor.id}
+          load={() => loadRecord(recordFor.id)}
+          audience="teacher"
+          onBack={() => setRecordFor(null)}
+          onLearnerChanged={() => void onChanged()}
+        />
+      ) : (
       <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
         <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
           {busyReason && <p className="text-base text-warning">{busyReason}</p>}
-          {tab === "overview" && <Overview grouped={grouped} groups={groups} learners={learners} />}
+          {tab === "overview" && (
+            <Overview grouped={grouped} groups={groups} learners={learners} onRecord={setRecordFor} onPrintAll={(l, range) => setPrintAll({ learners: l, range })} />
+          )}
           {tab === "learners" && <Learners grouped={grouped} learners={learners} groups={groups} busy={!!busyReason} onChanged={onChanged} />}
           {tab === "groups" && grouped && <Groups groups={groups} learners={learners} onChanged={onChanged} />}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -81,7 +115,14 @@ function GroupSelect({ groups, value, onChange, withAll }: {
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 
-function Overview({ grouped, groups, learners }: { grouped: boolean; groups: GroupRow[]; learners: LearnerRow[] }) {
+function Overview({ grouped, groups, learners, onRecord, onPrintAll }: {
+  grouped: boolean;
+  groups: GroupRow[];
+  learners: LearnerRow[];
+  onRecord: (learner: LearnerRow) => void;
+  /** Every learner in the current view, in table order. */
+  onPrintAll: (learners: LearnerRow[], range: PrintAllRange) => void;
+}) {
   const [rows, setRows] = useState<OverviewRow[] | null>(null);
   const [filter, setFilter] = useState("all");
   const [note, setNote] = useState<string | null>(null);
@@ -96,6 +137,20 @@ function Overview({ grouped, groups, learners }: { grouped: boolean; groups: Gro
   }, [learners, groups]);
 
   const shown = useMemo(() => (rows ? filterOverviewRows(rows, grouped ? filter : "all") : []), [rows, filter, grouped]);
+  // The learners in the current view, for the record picker: one pass, in table order.
+  const recordLearners = useMemo(() => {
+    const byId = new Map(learners.map((l) => [l.id, l]));
+    const seen = new Set<string>();
+    const out: LearnerRow[] = [];
+    for (const r of shown) {
+      const l = byId.get(r.learnerId);
+      if (l && !seen.has(l.id)) { seen.add(l.id); out.push(l); }
+    }
+    return out;
+  }, [shown, learners]);
+  const [recordId, setRecordId] = useState<string>("");
+  const [printRange, setPrintRange] = useState<PrintAllRange>("month");
+  const picked = recordLearners.find((l) => l.id === recordId) ?? recordLearners[0];
 
   const exportCsv = async () => {
     setNote(null);
@@ -113,10 +168,36 @@ function Overview({ grouped, groups, learners }: { grouped: boolean; groups: Gro
     <>
       <div className="flex items-center gap-3 flex-wrap">
         {grouped && <GroupSelect groups={groups} value={filter} onChange={setFilter} withAll />}
-        <button className="btn btn-primary ml-auto" style={BTN} disabled={!rows || shown.length === 0} onClick={() => void exportCsv()}>
+        {recordLearners.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            <label className="flex items-center gap-2 text-base text-[var(--ink-dim)]">
+              {RECORD_COPY.view.teacherPick}
+              <select className="cf-input" style={{ ...INPUT, width: "auto" }} value={picked?.id ?? ""} onChange={(e) => setRecordId(e.target.value)}>
+                {recordLearners.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+            <button className="btn" style={BTN} disabled={!picked} onClick={() => picked && onRecord(picked)}>{RECORD_COPY.view.teacherOpen}</button>
+          </div>
+        )}
+        <button className={`btn btn-primary ${recordLearners.length > 0 ? "" : "ml-auto"}`} style={BTN} disabled={!rows || shown.length === 0} onClick={() => void exportCsv()}>
           Save as spreadsheet (CSV)
         </button>
       </div>
+      {recordLearners.length > 1 && (
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <select
+            className="cf-input"
+            style={{ ...INPUT, width: "auto" }}
+            aria-label={RECORD_COPY.print.printAllRange}
+            value={printRange}
+            onChange={(e) => setPrintRange(e.target.value === "year" ? "year" : "month")}
+          >
+            <option value="month">{RECORD_COPY.print.printAllMonth}</option>
+            <option value="year">{RECORD_COPY.print.printAllYear}</option>
+          </select>
+          <button className="btn" style={BTN} onClick={() => onPrintAll(recordLearners, printRange)}>{RECORD_COPY.print.printAll}</button>
+        </div>
+      )}
       {note && <p className="text-base text-[var(--ink-dim)] break-all">{note}</p>}
       {rows === null ? (
         <p className="text-base text-[var(--ink-dim)]">Loading…</p>
@@ -345,5 +426,56 @@ function Groups({ groups, learners, onChanged }: { groups: GroupRow[]; learners:
         </div>
       )}
     </>
+  );
+}
+
+// ── Print every learner's record (#258 PR 3b) ─────────────────────────────────────────────────────────
+
+/**
+ * Every learner's record in the current view, one after another: each learner's pages start on a new
+ * sheet (the cover sheet or page 1 is a fixed page, and the detail pages before it end with a page
+ * break). Written for the grown-up who keeps them: third person, Section D and the full disclaimer.
+ */
+function PrintAll({ learners, range, onBack }: { learners: LearnerRow[]; range: PrintAllRange; onBack: () => void }) {
+  const P = RECORD_COPY.print;
+  const [now] = useState(() => new Date());
+  const [pages, setPages] = useState<ReturnType<typeof recordPrintPages> | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const out: ReturnType<typeof recordPrintPages> = [];
+      for (const l of learners) {
+        const src = await loadRecord(l.id);
+        if (!src || src.learner.id !== l.id) throw new Error(`no record for ${l.id}`);
+        const r = range === "month" ? currentMonth(now) : { kind: "since" as const, from: schoolYearStart(src.learner.record_year_start, now) };
+        out.push(...recordPrintPages(learningRecord(src, r, now), "teacher", now));
+      }
+      if (live) setPages(out);
+    })().catch((e) => { console.warn("[record] could not read every learner's record", e); if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [learners, range, now]);
+
+  const period = range === "month" ? monthLabel(now.getFullYear(), now.getMonth()) : P.printAllYear;
+  if (!pages) {
+    return (
+      <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
+        <div className="max-w-5xl mx-auto w-full flex flex-col items-start gap-3">
+          <p className="text-base text-[var(--ink-dim)]">{failed ? P.printAllFailed : P.printAllLoading}</p>
+          <button className="btn" style={BTN} onClick={onBack}>{RECORD_COPY.view.backTeacher}</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <PrintView
+      title={fill(P.printAllTitle, { period })}
+      hint={P.hint}
+      pages={pages}
+      onBack={onBack}
+      backLabel={RECORD_COPY.view.backTeacher}
+      autoPrint
+    />
   );
 }

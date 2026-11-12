@@ -51,7 +51,7 @@ export default function ReviewTab({ courseId, level }: ReviewTabProps) {
       g,
       new Date(),
     );
-    await updateFlashcardAfterReview(card.id, sched);
+    await updateFlashcardAfterReview(card.id, sched, g);
     setReviewedCount((n) => n + 1);
     setRevealed(false);
     setIdx((i) => i + 1);

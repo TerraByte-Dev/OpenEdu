@@ -6,6 +6,12 @@ import { normalizeGrade, type Grade } from "./grade";
 import { parseUsageMode, type UsageMode, type GroupRow } from "./usage-modes";
 import type { OverviewSource } from "./teacher-overview";
 import type { AttemptRow, NewAttempt } from "./early/engine";
+import type { GradedBy } from "./quiz-grading";
+import type { FlashcardGrade } from "./srs";
+import type { SubtopicEventKind } from "./mastery";
+import type { RecordSavedMonth, RecordSource } from "./record/sources";
+import { lastEndedMonth, monthKey, monthsToSave, snapshotOf, type MonthSnapshot } from "./record/saved";
+import { isRecordSubject } from "./record/copy";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -310,7 +316,9 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM tutor_instructions WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM syllabuses WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM lessons WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM flashcard_reviews WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM flashcards WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM subtopic_events WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM user_progress WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM courses WHERE id = $1", [id]);
 }
@@ -463,12 +471,17 @@ export async function getNotes(courseId: string, level?: number): Promise<Note[]
   );
 }
 
-export async function createNote(courseId: string, title: string, content: string, level: number, folderId: string | null = null): Promise<Note> {
+/** Who made a note: the learner in the notes tab, a file import, or the tutor's ingest tool (#258). */
+export type NoteOrigin = "learner" | "import" | "tutor";
+
+export async function createNote(
+  courseId: string, title: string, content: string, level: number, folderId: string | null = null, origin: NoteOrigin | null = null,
+): Promise<Note> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO notes (id, course_id, level, title, content, folder_id) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, courseId, level, title, content, folderId]
+    "INSERT INTO notes (id, course_id, level, title, content, folder_id, origin) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    [id, courseId, level, title, content, folderId, origin]
   );
   const rows: Note[] = await d.select("SELECT * FROM notes WHERE id = $1", [id]);
   return rows[0];
@@ -773,12 +786,12 @@ export async function createQuizAttempt(
 }
 
 // Returns the generated row id so the caller can attach a self-explanation typed after answering.
-export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<string> {
+export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">, gradedBy: GradedBy | null = null): Promise<string> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position, self_explanation)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position, self_explanation, graded_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
     [
       id, q.attempt_id, q.question_text, q.question_type,
       q.options ? JSON.stringify(q.options) : null,
@@ -789,6 +802,7 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<str
       q.matching_pairs ? JSON.stringify(q.matching_pairs) : null,
       q.blank_position ?? null,
       q.self_explanation ?? null,
+      gradedBy,
     ]
   );
   return id;
@@ -812,7 +826,7 @@ export async function getReviewPoolQuestions(courseId: string, limit: number): P
   const rows: Array<Record<string, unknown>> = await d.select(
     `SELECT qq.* FROM quiz_questions qq
        JOIN quiz_attempts qa ON qq.attempt_id = qa.id
-      WHERE qa.course_id = $1 AND qq.is_correct = 0
+      WHERE qa.course_id = $1 AND qq.is_correct = 0 AND qq.graded_by IS NOT 'unanswered'
       ORDER BY qa.started_at DESC
       LIMIT $2`,
     [courseId, limit * 4] // overfetch so dedup can still reach `limit`
@@ -852,11 +866,22 @@ export async function completeQuizAttempt(
 
 // Update one quiz_questions row's grade after deferred end-of-test grading (issue #83): free-text
 // answers are recorded with is_correct = null during the test, then resolved here at finish.
-export async function updateQuizQuestionGrade(id: string, isCorrect: boolean): Promise<void> {
+export async function updateQuizQuestionGrade(id: string, isCorrect: boolean, gradedBy: GradedBy): Promise<void> {
   const d = await getDb();
   await d.execute(
-    `UPDATE quiz_questions SET is_correct = $1 WHERE id = $2`,
-    [isCorrect ? 1 : 0, id]
+    `UPDATE quiz_questions SET is_correct = $1, graded_by = $2 WHERE id = $3`,
+    [isCorrect ? 1 : 0, gradedBy, id]
+  );
+}
+
+// A level test's outcome as the app decided it (PromotionTestFullScreen didPass), stored beside the
+// attempt so the learning record (#258) never has to infer a pass. reviewScore is the review-section
+// percent, or null when the test had no review section.
+export async function setPromotionResult(attemptId: string, passed: boolean, reviewScore: number | null): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    `UPDATE quiz_attempts SET passed = $1, review_score = $2 WHERE id = $3`,
+    [passed ? 1 : 0, reviewScore, attemptId]
   );
 }
 
@@ -960,6 +985,7 @@ export async function getSubtopicAccuracy(courseId: string): Promise<Array<{ sub
             COUNT(*) as total
        FROM quiz_questions qq JOIN quiz_attempts qa ON qq.attempt_id = qa.id
       WHERE qa.course_id = $1 AND qq.subtopic_id IS NOT NULL AND qq.is_correct IS NOT NULL
+        AND qq.graded_by IS NOT 'unanswered'
       GROUP BY qq.subtopic_id`,
     [courseId]
   );
@@ -1083,6 +1109,7 @@ export async function countDueFlashcards(courseId: string, nowIso: string): Prom
 export async function updateFlashcardAfterReview(
   id: string,
   s: { ease: number; interval_days: number; reps: number; lapses: number; due_at: string },
+  grade: FlashcardGrade,
 ): Promise<void> {
   const d = await getDb();
   await d.execute(
@@ -1090,6 +1117,16 @@ export async function updateFlashcardAfterReview(
        last_reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = $6`,
     [s.ease, s.interval_days, s.reps, s.lapses, s.due_at, id]
   );
+  // last_reviewed_at is overwritten, so each review is also logged for the learning record (#258).
+  // Best effort: a failed log must never stop the review itself.
+  try {
+    await d.execute(
+      `INSERT INTO flashcard_reviews (card_id, course_id, grade) SELECT id, course_id, $2 FROM flashcards WHERE id = $1`,
+      [id, grade]
+    );
+  } catch (e) {
+    console.error("flashcard_reviews insert failed", e);
+  }
 }
 
 export async function deleteFlashcard(id: string): Promise<void> {
@@ -1105,4 +1142,202 @@ export async function flashcardExists(courseId: string, front: string): Promise<
     [courseId, front]
   );
   return rows.length > 0;
+}
+
+// ── Learning-record capture (migration 18, #258) ────────────────────────────
+// Writes only. The record builder reads these with the rest of a learner's rows.
+
+/**
+ * Add one counted active minute to a learner's local day. A second tick for the same learner and day
+ * within 55 seconds (a second window, a re-mounted timer) adds nothing.
+ */
+export async function recordActiveMinute(learnerId: string, day: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    `INSERT INTO learner_days (learner_id, day, minutes, last_tick_at) VALUES ($1, $2, 1, datetime('now'))
+     ON CONFLICT(learner_id, day) DO UPDATE SET minutes = minutes + 1, last_tick_at = datetime('now')
+     WHERE last_tick_at IS NULL OR last_tick_at <= datetime('now', '-55 seconds')`,
+    [learnerId, day]
+  );
+}
+
+export interface SubtopicEventRow {
+  subtopic_id: string;
+  event: SubtopicEventKind;
+  source: "tutor" | "keyword";
+  correct?: number | null;
+  total?: number | null;
+  attempt_id?: string | null;
+}
+
+/** Log skill status changes that did not come from a tagged quiz question (the tutor, the keyword fallback). */
+export async function recordSubtopicEvents(courseId: string, level: number, events: ReadonlyArray<SubtopicEventRow>): Promise<void> {
+  if (events.length === 0) return;
+  const d = await getDb();
+  for (const e of events) {
+    await d.execute(
+      `INSERT INTO subtopic_events (course_id, level, subtopic_id, event, source, correct, total, attempt_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [courseId, level, e.subtopic_id, e.event, e.source, e.correct ?? null, e.total ?? null, e.attempt_id ?? null]
+    );
+  }
+}
+
+// ── Learning-record reads (#258) ────────────────────────────────────────────
+// Every row record/build.ts needs for one learner. Each course-table read joins courses and keeps
+// only that learner's courses; eval sentinel courses (ids starting "__eval") are left out with substr,
+// because "_" is a wildcard in LIKE. quiz_questions reach a course through quiz_attempts.
+
+const RECORD_SCOPE = "c.learner_id = $1 AND substr(c.id, 1, 6) <> '__eval'";
+
+async function readRecordSource(learnerId: string): Promise<RecordSource | null> {
+  const d = await getDb();
+  const learners: RecordSource["learner"][] = await d.select(
+    "SELECT id, name, grade, record_voice, record_year_start FROM learners WHERE id = $1", [learnerId],
+  );
+  if (!learners[0]) return null;
+  const since: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'record_capture_since'");
+  const p = [learnerId];
+  const syllabuses: Array<Record<string, unknown>> = await d.select(
+    `SELECT s.* FROM syllabuses s JOIN courses c ON c.id = s.course_id WHERE ${RECORD_SCOPE} ORDER BY s.course_id, s.level`, p,
+  );
+  return {
+    learner: learners[0],
+    captureSince: since[0]?.value ?? null,
+    courses: await d.select(
+      `SELECT c.id, c.title, c.current_level, c.status, c.subject, c.created_at FROM courses c WHERE ${RECORD_SCOPE} ORDER BY c.created_at, c.id`, p,
+    ),
+    syllabuses: syllabuses.map(parseSyllabus).map((s) => ({
+      course_id: s.course_id, level: s.level, title: s.title, learning_objectives: s.learning_objectives, subtopics: s.subtopics,
+    })),
+    attempts: await d.select(
+      `SELECT a.id, a.course_id, a.quiz_type, a.level, a.score, a.total_questions, a.correct_count, a.time_taken_seconds,
+              a.started_at, a.completed_at, a.passed
+         FROM quiz_attempts a JOIN courses c ON c.id = a.course_id WHERE ${RECORD_SCOPE} ORDER BY a.started_at, a.id`, p,
+    ),
+    questions: await d.select(
+      `SELECT q.id, q.attempt_id, q.question_text, q.question_type, q.correct_answer, q.user_answer, q.is_correct,
+              q.explanation, q.subtopic_id, q.self_explanation, q.graded_by
+         FROM quiz_questions q JOIN quiz_attempts a ON a.id = q.attempt_id JOIN courses c ON c.id = a.course_id
+        WHERE ${RECORD_SCOPE} ORDER BY q.rowid`, p,
+    ),
+    chats: await d.select(
+      `SELECT m.course_id, m.thread_id, m.created_at FROM chat_messages m JOIN courses c ON c.id = m.course_id
+        WHERE ${RECORD_SCOPE} AND m.role = 'user' ORDER BY m.created_at`, p,
+    ),
+    lessons: await d.select(
+      `SELECT l.course_id, l.level, l.topic_string AS topic, l.read_at FROM lessons l JOIN courses c ON c.id = l.course_id
+        WHERE ${RECORD_SCOPE} AND l.read_at IS NOT NULL ORDER BY l.read_at`, p,
+    ),
+    flashcards: await d.select(
+      `SELECT f.course_id, f.source, f.created_at, f.last_reviewed_at FROM flashcards f JOIN courses c ON c.id = f.course_id
+        WHERE ${RECORD_SCOPE} ORDER BY f.created_at`, p,
+    ),
+    flashcardReviews: await d.select(
+      `SELECT r.course_id, r.reviewed_at FROM flashcard_reviews r JOIN courses c ON c.id = r.course_id
+        WHERE ${RECORD_SCOPE} ORDER BY r.reviewed_at`, p,
+    ),
+    // Only notes the learner started and wrote something in; imports, tutor notes and empty clicks are not learning.
+    notes: await d.select(
+      `SELECT n.course_id, n.title, n.content, n.created_at FROM notes n JOIN courses c ON c.id = n.course_id
+        WHERE ${RECORD_SCOPE} AND n.origin = 'learner' AND trim(n.content) <> '' ORDER BY n.created_at`, p,
+    ),
+    subtopicEvents: await d.select(
+      `SELECT e.course_id, e.level, e.subtopic_id, e.event, e.source, e.correct, e.total, e.attempt_id, e.created_at
+         FROM subtopic_events e JOIN courses c ON c.id = e.course_id WHERE ${RECORD_SCOPE} ORDER BY e.created_at, e.id`, p,
+    ),
+    learnerDays: await d.select("SELECT day, minutes FROM learner_days WHERE learner_id = $1 ORDER BY day", p),
+    savedMonths: await d.select("SELECT month, format, body_json, saved_at FROM monthly_records WHERE learner_id = $1 ORDER BY month", p),
+  };
+}
+
+// ── Saved months (migration 19) ─────────────────────────────────────────────
+// record/saved.ts decides what a saved month holds; these only write and read the rows.
+
+/**
+ * Save one learner's ended month. A month already saved is kept as it is unless `replace` (the
+ * record's "Rebuild from current data"). Returns the row now stored.
+ */
+export async function saveMonthlyRecord(learnerId: string, snapshot: MonthSnapshot, replace = false): Promise<RecordSavedMonth> {
+  const d = await getDb();
+  await d.execute(
+    `INSERT OR ${replace ? "REPLACE" : "IGNORE"} INTO monthly_records (learner_id, month, format, body_json) VALUES ($1, $2, $3, $4)`,
+    [learnerId, snapshot.month, snapshot.format, snapshot.body_json],
+  );
+  const rows: RecordSavedMonth[] = await d.select(
+    "SELECT month, format, body_json, saved_at FROM monthly_records WHERE learner_id = $1 AND month = $2", [learnerId, snapshot.month],
+  );
+  if (!rows[0]) throw new Error(`monthly record ${snapshot.month} was not saved`);
+  return rows[0];
+}
+
+/**
+ * The launch's job: save every learner's ended months that have activity and no copy yet, and replace
+ * a copy that was saved before its month ended or misses activity newer than it saw (record/saved.ts
+ * monthsToSave; both are decided from stored values, never from today's clock, and nothing is ever
+ * deleted here). It runs once per month:
+ * app_config record_saved_through holds the last ended month every learner was saved through, so later
+ * launches that month read nothing. Only an exact match skips, so a marker written while the clock was
+ * ahead cannot switch saving off. One learner's failure does not stop the others; the marker is set only
+ * when every learner was saved, so a failure is tried again at the next launch. Returns how many months
+ * were saved.
+ */
+export async function saveEndedMonths(now: Date = new Date()): Promise<number> {
+  const d = await getDb();
+  const through = monthKey(lastEndedMonth(now));
+  const done: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'record_saved_through'");
+  if (done[0]?.value === through) return 0;
+  let saved = 0;
+  let failed = 0;
+  for (const l of await listLearners()) {
+    try {
+      const source = await readRecordSource(l.id);
+      if (!source) continue;
+      for (const { range, replace } of monthsToSave(source, now)) {
+        const snapshot = snapshotOf(source, range, now);
+        if (!snapshot) continue;
+        await saveMonthlyRecord(l.id, snapshot, replace);
+        saved++;
+      }
+    } catch (e) {
+      failed++;
+      console.warn(`[record] could not save the ended months of learner ${l.id}`, e);
+    }
+  }
+  if (failed === 0) {
+    await d.execute(
+      "INSERT INTO app_config (key, value) VALUES ('record_saved_through', $1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [through],
+    );
+  }
+  return saved;
+}
+
+/** Who reads a learner's record (learners.record_voice, migration 18): "self", "guided", or null to ask again. */
+export async function setLearnerRecordVoice(learnerId: string, voice: "self" | "guided" | null): Promise<void> {
+  if (voice !== null && voice !== "self" && voice !== "guided") throw new Error(`Not a record voice: ${String(voice)}`);
+  const d = await getDb();
+  await d.execute("UPDATE learners SET record_voice = $1 WHERE id = $2", [voice, learnerId]);
+}
+
+/**
+ * A course's subject label (courses.subject, migration 18): one of RECORD_SUBJECTS, or null for none.
+ * Only that learner's own course changes, so a record can never relabel someone else's course.
+ */
+export async function setCourseSubject(learnerId: string, courseId: string, subject: string | null): Promise<void> {
+  if (subject !== null && !isRecordSubject(subject)) throw new Error(`Not a subject on the list: ${subject}`);
+  const d = await getDb();
+  await d.execute("UPDATE courses SET subject = $1 WHERE id = $2 AND learner_id = $3", [subject, courseId, learnerId]);
+}
+
+/** The active learner's own record rows. Takes no id, so a learner's view can only ever read itself. */
+export async function getRecordSource(): Promise<RecordSource | null> {
+  return activeLearnerId ? readRecordSource(activeLearnerId) : null;
+}
+
+/**
+ * Any learner's record rows, by id. This deliberately bypasses the active-learner scope, so only the
+ * teacher view may call it, and only after the teacher PIN (like getTeacherOverviewSource).
+ */
+export async function getLearnerRecordSource(learnerId: string): Promise<RecordSource | null> {
+  return readRecordSource(learnerId);
 }

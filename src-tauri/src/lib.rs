@@ -399,6 +399,91 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 18,
+            description: "learning-record capture (append-only, never edit v1-v17)",
+            sql: "
+                -- What the learning record (#258) needs and the app did not store. Nothing here is
+                -- backfilled: rows from before record_capture_since keep the record's proxy labels.
+
+                -- Counted active minutes per learner per local day (src/lib/record/active-minute.ts).
+                -- last_tick_at stops a second window from counting the same minute twice.
+                CREATE TABLE IF NOT EXISTS learner_days (
+                    learner_id TEXT NOT NULL REFERENCES learners(id) ON DELETE CASCADE,
+                    day TEXT NOT NULL,
+                    minutes INTEGER NOT NULL DEFAULT 0,
+                    last_tick_at TEXT,
+                    PRIMARY KEY (learner_id, day)
+                );
+
+                -- Skill status changes that do not come from a tagged quiz question: the tutor's
+                -- progress.mark_mastered tool, and keyword-matched untagged questions. Tagged quiz
+                -- evidence is replayed from quiz_questions, so it is not duplicated here.
+                CREATE TABLE IF NOT EXISTS subtopic_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+                    level INTEGER NOT NULL,
+                    subtopic_id TEXT NOT NULL,
+                    event TEXT NOT NULL CHECK (event IN ('practiced', 'mastered', 'review_needed', 'review_cleared')),
+                    source TEXT NOT NULL CHECK (source IN ('tutor', 'keyword')),
+                    correct INTEGER,
+                    total INTEGER,
+                    attempt_id TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_subtopic_events_course ON subtopic_events(course_id, created_at);
+
+                -- One row per flashcard review. flashcards.last_reviewed_at is overwritten each time.
+                -- card_id has no foreign key on purpose: deleting a card later keeps its review history.
+                -- The rows go with their course.
+                CREATE TABLE IF NOT EXISTS flashcard_reviews (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    card_id TEXT NOT NULL,
+                    course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+                    grade TEXT NOT NULL,
+                    reviewed_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_course ON flashcard_reviews(course_id, reviewed_at);
+
+                -- Level tests: pass/fail and the review-section percent. NULL before v18.
+                ALTER TABLE quiz_attempts ADD COLUMN passed INTEGER;
+                ALTER TABLE quiz_attempts ADD COLUMN review_score REAL;
+                -- How each answer was marked: 'key' (compared with the answer key), 'exact' (string or
+                -- number match), 'model', 'fallback' (the grader failed and the answer was passed
+                -- leniently) or 'unanswered' (a timed-out level test). NULL before v18.
+                ALTER TABLE quiz_questions ADD COLUMN graded_by TEXT;
+                -- 'learner', 'import' or 'tutor'. NULL before v18.
+                ALTER TABLE notes ADD COLUMN origin TEXT;
+                -- A label chosen from a fixed list in the app. NULL = not set.
+                ALTER TABLE courses ADD COLUMN subject TEXT;
+                -- Who reads the record ('self' or 'guided'; NULL = ask) and the school-year start ('MM-DD').
+                ALTER TABLE learners ADD COLUMN record_voice TEXT CHECK (record_voice IS NULL OR record_voice IN ('self', 'guided'));
+                ALTER TABLE learners ADD COLUMN record_year_start TEXT;
+
+                INSERT OR IGNORE INTO app_config (key, value) VALUES ('record_capture_since', datetime('now'));
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 19,
+            description: "saved monthly records (append-only, never edit v1-v18)",
+            sql: "
+                -- Each learner's learning record (#258) for a month that has ended, saved on the first
+                -- launch after it ends (and on Save or CSV of an ended month not saved yet), so deleting
+                -- a course or regenerating a level later cannot rewrite it. body_json holds counts,
+                -- titles, dates and statuses only: the learner's own words are read live, never saved.
+                -- Deleting a learner deletes their saved months; deleting a course does not.
+                CREATE TABLE IF NOT EXISTS monthly_records (
+                    learner_id TEXT NOT NULL REFERENCES learners(id) ON DELETE CASCADE,
+                    month TEXT NOT NULL,
+                    format INTEGER NOT NULL,
+                    body_json TEXT NOT NULL,
+                    saved_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (learner_id, month)
+                );
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

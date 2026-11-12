@@ -5,7 +5,7 @@
 
 import type { Subtopic } from "../types";
 
-const MASTERY_THRESHOLD = 0.9;
+export const MASTERY_THRESHOLD = 0.9;
 
 // Returns a NEW object only when something changed (so callers can detect a no-op by reference).
 // `review_needed` never demotes `mastered`: a previously-mastered subtopic that slips on review is
@@ -56,4 +56,18 @@ export function resolveSubtopic(subtopics: Subtopic[], ref: string): SubtopicRes
     pick(subtopics.filter((s) => norm(s.title).includes(target) || target.includes(norm(s.title)))) ??
     { kind: "none" }
   );
+}
+
+export type SubtopicEventKind = "practiced" | "mastered" | "review_needed" | "review_cleared";
+
+// The status changes between two states of one subtopic, in the order a reader would tell them. The
+// learning record (#258) stores these for the paths it cannot replay from tagged quiz questions: the
+// tutor's mark and the keyword fallback (subtopic_events, migration 18).
+export function subtopicTransitions(prev: Subtopic, next: Subtopic): SubtopicEventKind[] {
+  const out: SubtopicEventKind[] = [];
+  if (!prev.practiced && next.practiced) out.push("practiced");
+  if (!prev.mastered && next.mastered) out.push("mastered");
+  if (!prev.review_needed && next.review_needed) out.push("review_needed");
+  if (prev.review_needed && !next.review_needed) out.push("review_cleared");
+  return out;
 }
