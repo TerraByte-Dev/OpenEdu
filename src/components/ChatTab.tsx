@@ -6,6 +6,7 @@ import {
 } from "../lib/db";
 import { deriveThreadTitle } from "../lib/thread-title";
 import { threadSwitchAbortsTurn, turnIsShown, turnLanding } from "../lib/turn-thread";
+import { transcriptLoader, type TranscriptLoader } from "../lib/thread-transcript";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode, getReadAloudAuto } from "../lib/store";
@@ -110,7 +111,15 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // student just sent.
   //
   // The send path claims the thread it creates, so this effect skips a thread already in state.
-  const loadedThreadRef = useRef<string | null | undefined>(undefined);
+  // The rules (and #270's StrictMode re-run) live in lib/thread-transcript.ts.
+  const transcriptRef = useRef<TranscriptLoader | null>(null);
+  transcriptRef.current ??= transcriptLoader(getChatMessages, (msgs) => {
+    setMessages(msgs);
+    setSuggestions([]);
+    setGroundingNote(null);
+    setToolEvents([]);
+  });
+  const transcript = transcriptRef.current;
 
   // The turn in flight and the thread it belongs to (null until a new conversation's thread exists).
   // A turn only touches the shared streaming state while it is the one here; see turn-thread.ts.
@@ -136,20 +145,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
   // Messages follow whichever thread the rail has open. A null thread is a not-yet-created
   // conversation (see the send path) and correctly shows an empty transcript.
-  useEffect(() => {
-    if (loadedThreadRef.current === threadId) return; // already showing it; do not re-fetch
-    loadedThreadRef.current = threadId;
-    let alive = true;
-    (async () => {
-      const msgs = threadId ? await getChatMessages(threadId) : [];
-      if (!alive) return;
-      setMessages(msgs);
-      setSuggestions([]);
-      setGroundingNote(null);
-      setToolEvents([]);
-    })();
-    return () => { alive = false; };
-  }, [threadId]);
+  useEffect(() => transcript.open(threadId), [threadId, transcript]);
 
   // Keep the local persona in sync if the course (or its persisted sprite) changes under us.
   useEffect(() => { setSpriteId(course.sprite_id ?? null); }, [course.id, course.sprite_id]);
@@ -264,12 +260,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       // reload that races this send. We already hold this thread's messages — there are none.
       // Skipped if the student opened another thread while this one was being created.
       if (turnOwnerRef.current === owner) {
-        loadedThreadRef.current = t.id;
+        transcript.claim(t.id);
         onThreadCreated(t.id);
       }
     }
     const thread = activeThread;
-    const shown = () => turnIsShown(thread, loadedThreadRef.current);
+    const shown = () => turnIsShown(thread, transcript.shown());
 
     // `messages` still holds the history from before this send.
     const studentAttempted = hasTriedOpenQuestion([...messages, { role: "user", content: userText }]);
@@ -385,7 +381,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         if (result.dictionaryShown) dictionaryCards.set(assistantMsg.id, dictionaryCard(result.dictionaryShown));
         const landing = turnLanding({
           turnThread: thread,
-          shownThread: loadedThreadRef.current,
+          shownThread: transcript.shown(),
           interrupted: abandoned || controller.signal.aborted,
           autoRead,
         });
