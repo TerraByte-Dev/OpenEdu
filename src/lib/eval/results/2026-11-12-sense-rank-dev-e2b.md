@@ -112,3 +112,10 @@ Two changed items had a top sense that a single incidental word in the sense's *
 - It says the dev stop rule does not fire on e2b. On the 12 items whose entry the ranker changes, R lost nothing and gained the two items the lever was designed around ("trunk", and "fair", a hidden-sense case of the same kind).
 - It does not say the ranker helps. All 184 B8 items are in-sample: the designer read "trunk" before building the ranker. n is 12 changed items, and the lexical grader missed a correct reply on "present" and "sound".
 - "present" and "temper" show a specific failure mode: one overlapping word in a sense's example sentence, unrelated to the meaning, is enough to put that sense first. Here it changed no verdict, because e2b still read the sentence correctly. Row 19 allows dev iterations (at most 3) that change the scored text, the stemmer or the stopword list. **No iteration was made.** Whether to make one is left to the owner's delegate.
+
+## Decision: no dev iteration (2026-11-12, before `blind-19` is generated)
+
+Claude, as the owner's delegate, read this dev result and decided to make **no dev iteration**: the
+dev stop rule does not fire, the changed items lost nothing, and the "present" / "temper" failure
+mode changed no verdict. `senseRank.ts` stays at the hash recorded in row 19
+(`6c21097b…cdcfb2`, built ranker, no iteration), and `blind-19` is generated next, against that hash.
