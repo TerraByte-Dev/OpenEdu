@@ -6,7 +6,7 @@ import Permissions from "./sections/Permissions";
 import Appearance from "./sections/Appearance";
 import LearnerData from "./sections/LearnerData";
 import About from "./sections/About";
-import GradeSection from "./sections/Grade";
+import LearnerSection from "./sections/Learner";
 
 function Icon({ d }: { d: string }) {
   return (
@@ -46,11 +46,11 @@ export const SECTIONS: SectionDef[] = [
     Component: Appearance,
   },
   {
-    id: "grade",
-    label: "Grade",
-    keywords: "grade school year reading level kindergarten text size read aloud speech voice speak",
+    id: "learner",
+    label: "Name & grade",
+    keywords: "name learner rename grade school year reading level kindergarten text size read aloud speech voice speak",
     icon: <Icon d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />,
-    Component: GradeSection,
+    Component: LearnerSection,
   },
   {
     id: "learner-data",

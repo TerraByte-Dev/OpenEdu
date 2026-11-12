@@ -26,9 +26,9 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 
 import {
   getCourses, getCourse, createCourse, createNote, getNotes, deleteLearner,
-  listLearners, setActiveLearnerId, setLearnerGrade, touchLearner,
+  listLearners, setActiveLearnerId, setLearnerGrade, touchLearner, getLegacyUsageMode, renameLearner,
 } from "./db";
-import { needsPicker, needsPin, autoPickLearner, canDeleteLearner, DEFAULT_LEARNER_ID } from "./learners";
+import { needsPicker, needsPin, autoPickLearner, canDeleteLearner, learnerMenuActions, DEFAULT_LEARNER_ID } from "./learners";
 import { hashPin, verifyPin } from "./learner-pin";
 import { normalizeGrade, readingLevelLayer } from "./grade";
 
@@ -278,7 +278,36 @@ describe("a class install from the last multi-learner version, opened by the sol
       .toEqual([{ key: "teacher_pin_hash" }, { key: "usage_mode" }]);
   });
 
-  it("lets a learner delete themselves (with everything under them, and nobody else's) until one is left", async () => {
+  it("offers no learner a way to delete themselves or add a PIN; Ana can still change or remove hers", async () => {
+    const mode = await getLegacyUsageMode();
+    expect(mode).toBe("class");
+    const list = await listLearners();
+    for (const l of list) {
+      const can = learnerMenuActions(l, list, mode);
+      expect(can.deleteSelf).toBe(false);
+      expect(can.setPin).toBe(false);
+      expect(can.changePin).toBe(l.id === "ana");
+      expect(can.switchLearner).toBe(true);
+    }
+    // Reading the mode never writes it.
+    expect(sqlite.prepare("SELECT value FROM app_config WHERE key = 'usage_mode'").all()).toEqual([{ value: "class" }]);
+  });
+
+  it("the same install as a school is limited the same way", async () => {
+    sqlite.exec("UPDATE app_config SET value = 'school' WHERE key = 'usage_mode'");
+    const list = await listLearners();
+    expect(list.some((l) => { const can = learnerMenuActions(l, list, "school"); return can.deleteSelf || can.setPin; })).toBe(false);
+    expect(await getLegacyUsageMode()).toBe("school");
+  });
+
+  it("on a Just me install with several learners, a learner can add a PIN and delete themselves (with everything under them, and nobody else's) until one is left", async () => {
+    sqlite.exec("UPDATE app_config SET value = 'single' WHERE key = 'usage_mode'");
+    const mode = await getLegacyUsageMode();
+    const start = await listLearners();
+    const ben = start.find((l) => l.id === "ben")!;
+    expect(learnerMenuActions(ben, start, mode)).toEqual({ switchLearner: true, setPin: true, changePin: false, deleteSelf: true });
+    expect(learnerMenuActions(start.find((l) => l.id === "ana")!, start, mode).setPin).toBe(false); // she has one: change it
+    expect(learnerMenuActions(ben, start, null).deleteSelf).toBe(true); // an install from before modes stored none
     await deleteLearner("ben");
     const count = (sql: string) => (sqlite.prepare(sql).all()[0] as { n: number }).n;
     expect(count("SELECT COUNT(*) AS n FROM courses WHERE learner_id = 'ben'")).toBe(0);
@@ -294,6 +323,7 @@ describe("a class install from the last multi-learner version, opened by the sol
     list = await listLearners();
     expect(canDeleteLearner(list)).toBe(false);
     expect(autoPickLearner(list)?.id).toBe(DEFAULT_LEARNER_ID); // one learner, no PIN: straight in, as solo
+    expect(learnerMenuActions(list[0], list, mode).deleteSelf).toBe(false); // never the last one
     setActiveLearnerId(DEFAULT_LEARNER_ID);
     expect((await getCourses()).map((c) => c.id)).toEqual([COURSES[DEFAULT_LEARNER_ID]]);
   });
@@ -310,5 +340,13 @@ describe("a new install", () => {
     setActiveLearnerId(me!.id);
     const course = await createCourse("Chemistry", "chemistry");
     expect((await getCourses()).map((c) => c.id)).toEqual([course.id]);
+  });
+
+  it("stores no usage mode, and its learner can rename themselves (Settings › Name & grade)", async () => {
+    await openDb();
+    migrate(19);
+    expect(await getLegacyUsageMode()).toBeNull();
+    await renameLearner(DEFAULT_LEARNER_ID, "  Rosa ");
+    expect((await listLearners()).map((l) => l.name)).toEqual(["Rosa"]);
   });
 });

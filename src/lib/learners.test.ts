@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  needsPicker, needsPin, autoPickLearner, canAccessCourse, canDeleteLearner,
+  needsPicker, needsPin, autoPickLearner, canAccessCourse, learnerMenuActions, wasClassOrSchool, canDeleteLearner,
   validateLearnerName, deleteConfirmMatches, DEFAULT_LEARNER_ID, LEARNER_NAME_MAX,
 } from "./learners";
 
@@ -34,6 +34,27 @@ describe("picker visibility", () => {
   it("asks a learner's PIN only when they have one", () => {
     expect(needsPin(L("a", "Amina", "pbkdf2-sha256$210000$x"))).toBe(true);
     expect(needsPin(L("b", "Bilal"))).toBe(false);
+  });
+});
+
+describe("what a learner's own menu offers", () => {
+  const pin = "pbkdf2-sha256$210000$x";
+  it("knows a former class or school, and nothing else", () => {
+    expect(wasClassOrSchool("class")).toBe(true);
+    expect(wasClassOrSchool("school")).toBe(true);
+    for (const m of ["single", null, undefined, "", "CLASS"]) expect(wasClassOrSchool(m)).toBe(false);
+  });
+
+  it("in a former class or school: no adding a PIN, no deleting yourself; an existing PIN can still change", () => {
+    const all = [L("a", "Amina", pin), L("b", "Bilal")];
+    expect(learnerMenuActions(all[0], all, "class")).toEqual({ switchLearner: true, setPin: false, changePin: true, deleteSelf: false });
+    expect(learnerMenuActions(all[1], all, "school")).toEqual({ switchLearner: true, setPin: false, changePin: false, deleteSelf: false });
+  });
+
+  it("anywhere else: add a PIN if you have none, delete yourself while another learner is left", () => {
+    const all = [L("a", "Amina", pin), L("b", "Bilal")];
+    expect(learnerMenuActions(all[1], all, "single")).toEqual({ switchLearner: true, setPin: true, changePin: false, deleteSelf: true });
+    expect(learnerMenuActions(all[0], [all[0]], null)).toEqual({ switchLearner: true, setPin: false, changePin: true, deleteSelf: false });
   });
 });
 

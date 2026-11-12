@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { GRADES, gradeLabel, normalizeGrade, type Grade } from "../lib/grade";
 
-// The one grade picker (#243): Not set, Kindergarten, Grade 1 … Grade 12. Used in Settings › Grade.
+// The one grade picker (#243): Not set, Kindergarten, Grade 1 … Grade 12. Used in Settings › Name & grade.
 export function GradeSelect({ value, onChange, id, style, ariaLabel }: {
   value: Grade | null;
   onChange: (grade: Grade | null) => void;

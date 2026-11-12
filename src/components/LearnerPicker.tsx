@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { needsPin, type LearnerRow } from "../lib/learners";
 import { verifyPin } from "../lib/learner-pin";
+import RestoreSteps from "./RestoreSteps";
 
 // "Who is learning?" OpenEdu is for one learner, so a new install never sees this. It is shown at
 // launch only when learners.ts needsPicker() says so: an install that added learners in an earlier
@@ -25,6 +26,23 @@ export default function LearnerPicker({ learners, onEnter }: LearnerPickerProps)
 
   if (pinFor) {
     return <PinScreen name={pinFor.name} record={pinFor} onBack={() => setPinFor(null)} onUnlocked={() => onEnter(pinFor)} />;
+  }
+
+  // Only reachable by editing the database by hand: the app never deletes the last learner. Say so
+  // rather than show an empty picker with nothing to press.
+  if (learners.length === 0) {
+    return (
+      <div role="alert" className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center gap-5 p-8 bg-bg">
+        <h1 className="text-3xl font-semibold text-ink" style={{ fontFamily: "var(--font-display)" }}>
+          No learner found
+        </h1>
+        <p className="text-lg text-[var(--ink-dim)] max-w-prose text-center">
+          OpenEdu's data file has no learner in it, so there is nobody to open. Restore a backup like this.
+          With no backup, do steps 1 to 3 and start OpenEdu again: it begins with a new, empty file.
+        </p>
+        <RestoreSteps />
+      </div>
+    );
   }
 
   return (

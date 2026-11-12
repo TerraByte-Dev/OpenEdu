@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
-  setLearnerGrade,
+  setLearnerGrade, renameLearner, getLegacyUsageMode,
 } from "./lib/db";
 import { autoPickLearner, needsPicker, type LearnerRow } from "./lib/learners";
 import { normalizeGrade } from "./lib/grade";
@@ -69,6 +69,9 @@ export default function App() {
   const [learners, setLearners] = useState<LearnerRow[] | null>(null);
   const [activeLearner, setActiveLearner] = useState<LearnerRow | null>(null);
   const [learnerMenuOpen, setLearnerMenuOpen] = useState(false);
+  // The usage mode an earlier version stored, read only: a former class or school limits each learner's
+  // own menu (learners.ts learnerMenuActions). OpenEdu never writes it.
+  const [legacyUsageMode, setLegacyUsageMode] = useState<string | null>(null);
   // The learner list could not be read at launch (a damaged file, #171). Without this the app would sit
   // blank with no picker and no way to the restore steps.
   const [startupFailed, setStartupFailed] = useState(false);
@@ -157,6 +160,7 @@ export default function App() {
   const startUp = async () => {
     setStartupFailed(false);
     try {
+      setLegacyUsageMode(await getLegacyUsageMode());
       await enterOrPick();
     } catch (e) {
       console.error("startup failed", e);
@@ -382,9 +386,17 @@ export default function App() {
                   onSaved={refreshProvider}
                   learner={{
                     id: activeLearner.id,
+                    name: activeLearner.name,
+                    learners: learners ?? [],
                     grade: normalizeGrade(activeLearner.grade),
                     setGrade: async (grade) => {
                       await setLearnerGrade(activeLearner.id, grade);
+                      const list = await reloadLearners();
+                      const me = list.find((l) => l.id === activeLearner.id);
+                      if (me) setActiveLearner(me);
+                    },
+                    rename: async (name) => {
+                      await renameLearner(activeLearner.id, name);
                       const list = await reloadLearners();
                       const me = list.find((l) => l.id === activeLearner.id);
                       if (me) setActiveLearner(me);
@@ -410,6 +422,7 @@ export default function App() {
             <LearnerMenu
               learner={activeLearner}
               learners={learners}
+              legacyUsageMode={legacyUsageMode}
               busyReason={craftingTopic ? `Wait for "${craftingTopic}" to finish building before switching or deleting learners.` : null}
               onClose={() => setLearnerMenuOpen(false)}
               onSwitch={() => { leaveLearner(); void reloadLearners(); }}

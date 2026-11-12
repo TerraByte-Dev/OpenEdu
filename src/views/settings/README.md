@@ -10,7 +10,7 @@ App.tsx ──renders──▶ views/settings/Settings.tsx     (the shell)
                        ├─ registry.tsx   SECTIONS: SectionDef[]   ← add a tab = add one entry
                        ├─ primitives.tsx Section / SettingRow / Toggle / SegmentedControl /
                        │                 SecretField / Disclosure / ActionButton + SettingsContext
-                       └─ sections/*.tsx ProviderModels · WebLibrary · Permissions · Appearance · Grade · LearnerData · About
+                       └─ sections/*.tsx ProviderModels · WebLibrary · Permissions · Appearance · Learner · LearnerData · About
 ```
 
 ## The shell — `Settings.tsx`
@@ -18,7 +18,7 @@ App.tsx ──renders──▶ views/settings/Settings.tsx     (the shell)
 Renders the left rail from `SECTIONS`, routes to the active section, owns the **search box** and the footer
 **save indicator**, and provides `SettingsContext` (`{ query, markSaved }`). It takes `onSaved`, which it
 passes to sections as `onProviderChanged` (so e.g. switching provider refreshes the titlebar dot), and
-`learner` (the signed-in learner's id, grade and grade setter, for the Grade section).
+`learner` (the signed-in learner's name, grade and their setters, for the Name & grade section).
 
 ## Save model
 

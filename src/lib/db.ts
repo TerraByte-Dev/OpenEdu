@@ -83,6 +83,17 @@ export async function listLearners(): Promise<LearnerRow[]> {
   return await d.select("SELECT * FROM learners ORDER BY created_at ASC, rowid ASC");
 }
 
+/**
+ * The usage mode an earlier version stored in app_config (migration 14): "single", "class", "school", or
+ * null. Read only: OpenEdu has no modes and never writes or deletes it. learners.ts wasClassOrSchool
+ * reads it to decide what a learner's own menu offers.
+ */
+export async function getLegacyUsageMode(): Promise<string | null> {
+  const d = await getDb();
+  const rows: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'usage_mode'");
+  return rows[0]?.value ?? null;
+}
+
 /** Set (0 = K … 12) or clear (null) a learner's grade (migration 15, grade.ts). */
 export async function setLearnerGrade(id: string, grade: Grade | null): Promise<void> {
   const d = await getDb();

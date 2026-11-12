@@ -55,17 +55,24 @@ or school mode with a teacher PIN). Those installs keep every learner and every 
 shows the picker (`LearnerPicker.tsx`), which lists every learner whatever their old group, and a learner
 with a PIN (`needsPin`) is entered only after `PinScreen` verifies it (PBKDF2-SHA256, `learner-pin.ts`).
 That keeps learners out of each other's courses; it does not protect the database file. The titlebar
-chip opens the signed-in learner's menu: switch learner, change their name, set, change or remove their
-own PIN (asking the current one first), and delete themselves while another learner is left, so a shared
-install can come down to one learner and then opens like any solo install. A forgotten learner PIN
-cannot be cleared from inside OpenEdu (the teacher reset went with the teacher view); the courses stay
-in the file and in every backup. `db-learners.test.ts` runs a class-mode database from migration 19
-through these paths: every course reachable, the PIN learner only with their PIN, the old teacher PIN
-opening nobody, and no row changed but `last_active_at`. If the learner list cannot be read at launch, a
+chip opens the signed-in learner's menu; `learners.ts learnerMenuActions` decides what it offers. Every
+learner can switch, rename themselves, and change or remove a PIN they already have (typing it first).
+Adding a first PIN and deleting yourself (while another learner is left, so a family install can come
+down to one learner and then opens like any solo install) are offered only where the old
+`app_config usage_mode` is not `class` or `school`: there a teacher set the learners up and nobody can
+undo either any more. `db.ts getLegacyUsageMode` reads that row and nothing writes or deletes it. A
+forgotten learner PIN cannot be cleared inside OpenEdu: that learner's courses stay in the file and in
+every backup but can't be opened in OpenEdu (PIN resets are a TerraTutor feature).
+`db-learners.test.ts` runs a class-mode database from migration 19 through these paths: every course
+reachable, the PIN learner only with their PIN, the old teacher PIN opening nobody, no learner offered
+delete or a new PIN (a Just me install still is), and no row changed but `last_active_at`. A data file
+with no learner at all (only by hand) shows an explanation and the restore steps instead of an empty
+picker. If the learner list cannot be read at launch, a
 full screen says so and shows the restore steps.
 
 **Grade (migration 15).** Each learner has `learners.grade`: 0 for kindergarten, 1-12, or NULL for not
-set (every learner from before it). It is set in Settings › Grade for the signed-in learner. `grade.ts`
+set (every learner from before it). It is set in Settings › Name & grade for the signed-in learner, beside their name. That section
+has no PIN control: a solo learner has nobody to keep out, and no reset exists. `grade.ts`
 decides everything from the band (K-2, 3-5, 6-8, 9-12) in code:
 `readingLevelLayer` is one `## Reading level` section that `buildSystemPrompt` puts just before the output
 rules, and it is nothing when no grade is set, so that prompt is byte-identical to the one before grades

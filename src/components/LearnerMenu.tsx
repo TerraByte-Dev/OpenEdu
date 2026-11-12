@@ -2,7 +2,7 @@ import { useState } from "react";
 import { renameLearner, setLearnerPin, deleteLearner } from "../lib/db";
 import { clearLearnerStore } from "../lib/store";
 import {
-  needsPicker, canDeleteLearner, validateLearnerName, deleteConfirmMatches,
+  learnerMenuActions, validateLearnerName, deleteConfirmMatches,
   LEARNER_NAME_MAX, type LearnerRow,
 } from "../lib/learners";
 import { hashPin, verifyPin, isValidPin } from "../lib/learner-pin";
@@ -10,12 +10,15 @@ import { Initial, BIG_BTN } from "./LearnerPicker";
 
 // The active learner's own controls, opened from the titlebar chip, which shows only when there is a
 // picker (learners.ts needsPicker: several learners from an earlier version, or a PIN). Everything here
-// acts on the learner who is signed in and nobody else: you can rename, set a PIN for, or delete only
-// yourself, and only while another learner is left. Nobody adds learners: OpenEdu is for one learner.
+// acts on the learner who is signed in and nobody else. learners.ts learnerMenuActions decides what is
+// offered: on a former class or school install a learner can rename themselves and change or remove a
+// PIN they already have, nothing more. Nobody adds learners: OpenEdu is for one learner.
 
 interface LearnerMenuProps {
   learner: LearnerRow;
   learners: LearnerRow[];
+  /** app_config usage_mode from an earlier version, read only (db.ts getLegacyUsageMode). */
+  legacyUsageMode: string | null;
   /** Set while a course is being built: switching would hand the build's screen to someone else. */
   busyReason: string | null;
   onClose: () => void;
@@ -31,9 +34,9 @@ type Panel = null | "rename" | "pin" | "delete";
 const SMALL_BTN: React.CSSProperties = { fontSize: "1rem", padding: "10px 18px" };
 const INPUT: React.CSSProperties = { fontSize: "1.15rem" };
 
-export default function LearnerMenu({ learner, learners, busyReason, onClose, onSwitch, onChanged, onDeleted }: LearnerMenuProps) {
+export default function LearnerMenu({ learner, learners, legacyUsageMode, busyReason, onClose, onSwitch, onChanged, onDeleted }: LearnerMenuProps) {
   const [panel, setPanel] = useState<Panel>(null);
-  const canSwitch = needsPicker(learners);
+  const can = learnerMenuActions(learner, learners, legacyUsageMode);
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60" onMouseDown={onClose}>
@@ -57,16 +60,18 @@ export default function LearnerMenu({ learner, learners, busyReason, onClose, on
 
         {panel === null && (
           <div className="flex flex-col gap-3">
-            {canSwitch && (
+            {can.switchLearner && (
               <button className="btn btn-primary justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={onSwitch}>
                 Switch learner
               </button>
             )}
             <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("rename")}>Change my name</button>
-            <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("pin")}>
-              {learner.pin_hash ? "Change or remove my PIN" : "Set a PIN"}
-            </button>
-            {canDeleteLearner(learners) && (
+            {(can.changePin || can.setPin) && (
+              <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("pin")}>
+                {can.changePin ? "Change or remove my PIN" : "Set a PIN"}
+              </button>
+            )}
+            {can.deleteSelf && (
               <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("delete")}>Delete me</button>
             )}
           </div>
