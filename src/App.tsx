@@ -4,7 +4,6 @@ import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
   getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, recordActiveMinute, getRecordSource, type UsageConfig,
 } from "./lib/db";
-import { forgetTeasers } from "./lib/record/view";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import { normalizeGrade, hasEarlyScreens, earlyScreensOn } from "./lib/grade";
 import {
@@ -355,7 +354,6 @@ export default function App() {
   };
 
   const closeQuiz = () => {
-    forgetTeasers(); // Home's record teaser is built again with this quiz in it
     setQuizContext(null);
     setCurrentView("course");
   };

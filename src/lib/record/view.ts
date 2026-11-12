@@ -4,7 +4,7 @@
 
 import { parseUtc } from "../early/engine";
 import { monthLabel, shortDate } from "../early/report";
-import { learningRecord, type Evidence, type LearningRecord, type MasteredRow } from "./build";
+import { learningRecord, type Evidence, type LearningRecord } from "./build";
 import { RECORD_COPY, fill } from "./copy";
 import { firstActivityDay, localDayKey, monthsWithActivity, schoolYearStart, type RecordRange } from "./time";
 import type { RecordSource } from "./sources";
@@ -70,10 +70,6 @@ export function allTimeRecord(source: RecordSource, now: Date): LearningRecord |
   return from ? learningRecord(source, { kind: "since", from }, now) : null;
 }
 
-/** Every skill mastered with proof since the learner's first activity (the self voice's first section). */
-export function everythingMastered(source: RecordSource, now: Date): MasteredRow[] {
-  return allTimeRecord(source, now)?.mastered ?? [];
-}
 
 /** Rows grouped by course, then level, in first-mastered order inside each group. */
 export function groupByCourseAndLevel<T extends { courseId: string; course: string; level: number }>(
@@ -110,7 +106,7 @@ export function durationText(minutes: number): string {
 /** The approximate-time tile line: "About 6 h 40 min · in 31 sittings". */
 export function approxTimeText(approx: { minutes: number; sittings: number }): string {
   const time = durationText(approx.minutes);
-  return approx.sittings === 1 ? fill(V.sittingsOne, { time }) : fill(RECORD_COPY.tiles.time_approx, { time, sittings: approx.sittings });
+  return fill(RECORD_COPY.tiles.time_approx, { time, sittings: approx.sittings });
 }
 
 /** A stored UTC time as the learner's local "Nov 9". */
@@ -149,14 +145,18 @@ export function teaserCounts(source: RecordSource, now: Date): TeaserCounts {
 export function teaserLine(c: TeaserCounts): string {
   return fill(V.teaser, {
     month: c.month,
-    days: c.days === 1 ? V.teaserDaysOne : fill(V.teaserDays, { n: c.days }),
-    mastered: c.mastered === 1 ? V.teaserMasteredOne : fill(V.teaserMastered, { n: c.mastered }),
+    days: fill(V.teaserDays, { n: c.days }),
+    mastered: fill(V.teaserMastered, { n: c.mastered }),
   });
 }
 
-// Built once per learner and month, and again after a quiz or level test (App calls forgetTeasers on
-// the way back) or whenever the record screen builds the current month (rememberTeaser), so Home never
-// shows numbers the record screen has moved past.
+/** Home shows the teaser only once there is something in it: no "0 days · 0 skills" line. */
+export function teaserShown(c: TeaserCounts): boolean {
+  return c.days > 0 || c.mastered > 0;
+}
+
+// Home rebuilds the teaser every time it mounts, so it always equals the record's tiles. The last
+// build is kept per learner and month only to paint the first frame without a jump.
 const teasers = new Map<string, TeaserCounts>();
 
 export function teaserKey(learnerId: string, now: Date): string {
@@ -171,6 +171,13 @@ export function rememberTeaser(key: string, counts: TeaserCounts): void {
   teasers.set(key, counts);
 }
 
-export function forgetTeasers(): void {
-  teasers.clear();
+/**
+ * A tile's sentence split at its count, so the number can be set large: "At least 12 days with
+ * learning" → "At least 12" + "days with learning". A zero reads "0": "at least 0" bounds nothing.
+ */
+export function splitAtCount(text: string, n: number): { big: string; rest: string } {
+  const at = text.indexOf(String(n));
+  if (at < 0) return { big: String(n), rest: text };
+  const end = at + String(n).length;
+  return { big: n === 0 ? "0" : text.slice(0, end), rest: text.slice(end).trim() };
 }

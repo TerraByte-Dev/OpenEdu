@@ -71,7 +71,7 @@ export default function TeacherView({ mode, learners, groups, busyReason, onClos
         <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
           {busyReason && <p className="text-base text-warning">{busyReason}</p>}
           {tab === "overview" && <Overview grouped={grouped} groups={groups} learners={learners} onRecord={setRecordFor} />}
-          {tab === "learners" && <Learners grouped={grouped} learners={learners} groups={groups} busy={!!busyReason} onChanged={onChanged} onRecord={setRecordFor} />}
+          {tab === "learners" && <Learners grouped={grouped} learners={learners} groups={groups} busy={!!busyReason} onChanged={onChanged} />}
           {tab === "groups" && grouped && <Groups groups={groups} learners={learners} onChanged={onChanged} />}
         </div>
       </div>
@@ -117,6 +117,19 @@ function Overview({ grouped, groups, learners, onRecord }: {
   }, [learners, groups]);
 
   const shown = useMemo(() => (rows ? filterOverviewRows(rows, grouped ? filter : "all") : []), [rows, filter, grouped]);
+  // The learners in the current view, for the record picker: one pass, in table order.
+  const recordLearners = useMemo(() => {
+    const byId = new Map(learners.map((l) => [l.id, l]));
+    const seen = new Set<string>();
+    const out: LearnerRow[] = [];
+    for (const r of shown) {
+      const l = byId.get(r.learnerId);
+      if (l && !seen.has(l.id)) { seen.add(l.id); out.push(l); }
+    }
+    return out;
+  }, [shown, learners]);
+  const [recordId, setRecordId] = useState<string>("");
+  const picked = recordLearners.find((l) => l.id === recordId) ?? recordLearners[0];
 
   const exportCsv = async () => {
     setNote(null);
@@ -134,7 +147,18 @@ function Overview({ grouped, groups, learners, onRecord }: {
     <>
       <div className="flex items-center gap-3 flex-wrap">
         {grouped && <GroupSelect groups={groups} value={filter} onChange={setFilter} withAll />}
-        <button className="btn btn-primary ml-auto" style={BTN} disabled={!rows || shown.length === 0} onClick={() => void exportCsv()}>
+        {recordLearners.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            <label className="flex items-center gap-2 text-base text-[var(--ink-dim)]">
+              {RECORD_COPY.view.teacherPick}
+              <select className="cf-input" style={{ ...INPUT, width: "auto" }} value={picked?.id ?? ""} onChange={(e) => setRecordId(e.target.value)}>
+                {recordLearners.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+            <button className="btn" style={BTN} disabled={!picked} onClick={() => picked && onRecord(picked)}>{RECORD_COPY.view.teacherOpen}</button>
+          </div>
+        )}
+        <button className={`btn btn-primary ${recordLearners.length > 0 ? "" : "ml-auto"}`} style={BTN} disabled={!rows || shown.length === 0} onClick={() => void exportCsv()}>
           Save as spreadsheet (CSV)
         </button>
       </div>
@@ -160,18 +184,7 @@ function Overview({ grouped, groups, learners, onRecord }: {
               {shown.map((r, i) => (
                 <tr key={`${r.learnerId}-${i}`} className="border-t border-[var(--rule)] text-ink">
                   {grouped && <td className="px-3 py-2">{r.groupName || "—"}</td>}
-                  <td className="px-3 py-2">
-                    <span className="flex items-center gap-3 flex-wrap">
-                      {r.learnerName}
-                      {/* One Record button per learner, on their first row. */}
-                      {shown.findIndex((x) => x.learnerId === r.learnerId) === i && learners.some((l) => l.id === r.learnerId) && (
-                        <button className="btn" style={SMALL} aria-label={`${RECORD_COPY.view.teacherButton}: ${r.learnerName}`}
-                          onClick={() => onRecord(learners.find((l) => l.id === r.learnerId)!)}>
-                          {RECORD_COPY.view.teacherButton}
-                        </button>
-                      )}
-                    </span>
-                  </td>
+                  <td className="px-3 py-2">{r.learnerName}</td>
                   <td className="px-3 py-2">{r.courseTitle ?? <span className="text-[var(--ink-dim)]">No courses yet</span>}</td>
                   <td className="px-3 py-2">{r.level ?? "—"}</td>
                   <td className="px-3 py-2">{r.courseTitle ? `${r.mastered} of ${r.subtopics}` : "—"}</td>
@@ -188,13 +201,12 @@ function Overview({ grouped, groups, learners, onRecord }: {
 
 // ── Learners ──────────────────────────────────────────────────────────────────
 
-function Learners({ grouped, learners, groups, busy, onChanged, onRecord }: {
+function Learners({ grouped, learners, groups, busy, onChanged }: {
   grouped: boolean;
   learners: LearnerRow[];
   groups: GroupRow[];
   busy: boolean;
   onChanged: () => Promise<void>;
-  onRecord: (learner: LearnerRow) => void;
 }) {
   const [name, setName] = useState("");
   const [groupId, setGroupId] = useState(NO_GROUP);
@@ -228,21 +240,20 @@ function Learners({ grouped, learners, groups, busy, onChanged, onRecord }: {
       {error && <p className="text-base text-danger">{error}</p>}
       <div className="flex flex-col divide-y divide-[var(--rule)] border border-[var(--rule)] rounded-lg">
         {learners.map((l) => (
-          <LearnerRowItem key={l.id} learner={l} learners={learners} groups={groups} grouped={grouped} busy={busy} onChanged={onChanged} onRecord={() => onRecord(l)} />
+          <LearnerRowItem key={l.id} learner={l} learners={learners} groups={groups} grouped={grouped} busy={busy} onChanged={onChanged} />
         ))}
       </div>
     </>
   );
 }
 
-function LearnerRowItem({ learner, learners, groups, grouped, busy, onChanged, onRecord }: {
+function LearnerRowItem({ learner, learners, groups, grouped, busy, onChanged }: {
   learner: LearnerRow;
   learners: LearnerRow[];
   groups: GroupRow[];
   grouped: boolean;
   busy: boolean;
   onChanged: () => Promise<void>;
-  onRecord: () => void;
 }) {
   const [mode, setMode] = useState<null | "rename" | "remove">(null);
   const [text, setText] = useState("");
@@ -278,7 +289,6 @@ function LearnerRowItem({ learner, learners, groups, grouped, busy, onChanged, o
         )}
         <GradeSelect value={normalizeGrade(learner.grade)} style={INPUT} ariaLabel={`${learner.name}'s grade`}
           onChange={(g) => void run(() => setLearnerGrade(learner.id, g), "Could not save the grade.")} />
-        <button className="btn" style={SMALL} onClick={onRecord}>{RECORD_COPY.view.teacherButton}</button>
         <button className="btn" style={SMALL} onClick={() => { setMode("rename"); setText(learner.name); setError(null); }}>Rename</button>
         {learner.pin_hash && (
           <button className="btn" style={SMALL} title="For a learner who forgot their PIN. They can set a new one."

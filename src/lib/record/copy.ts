@@ -30,8 +30,17 @@ export function appTitle(title: string): string {
   return bannedWordsIn(title).length > 0 ? `${title} (title written by the app)` : title;
 }
 
+/** The counted nouns the record uses, so a filled-in 1 reads "1 day", never "1 days". */
+const ONE_OF = /\b1 (early sign|active minute|day|skill|sitting|answer|message|conversation|flashcard)s\b/g;
+
+/** Singular after a count of exactly 1: "Rechecked 1 skills" → "Rechecked 1 skill". */
+export function singular(text: string): string {
+  return text.replace(ONE_OF, "1 $1");
+}
+
+/** Fill {slots}, with counts of 1 made singular (singular()). */
 export function fill(template: string, slots: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in slots ? String(slots[k]) : m));
+  return singular(template.replace(/\{(\w+)\}/g, (m, k: string) => (k in slots ? String(slots[k]) : m)));
 }
 
 /** The skill pills (spec §3). Keys match build.ts SkillStatus. */
@@ -61,9 +70,9 @@ export const RECORD_RULES: {
     not_yet: "No quiz questions on this skill yet.",
   },
   sections: {
-    rechecked: "Skills mastered earlier come back in later quizzes. Held means 90% or more every time it came back this month. Exact repeats of an earlier question are not counted.",
+    rechecked: "Skills mastered earlier come back in later quizzes. Held means 90% or more every time it came back in this period. Exact repeats of an earlier question are not counted.",
     lessons: "Only the first opening is stored. Reading time and re-reads are not stored.",
-    hard_ones: "Questions marked wrong this month, word for word. The questions and answer keys were written by the app's model and can be wrong.",
+    hard_ones: "Questions marked wrong in this period, word for word. The questions and answer keys were written by the app's model and can be wrong.",
   },
 };
 
@@ -188,7 +197,6 @@ export const RECORD_COPY = {
     talkAboutIt: "Talk about it",
     recheckedHead: "Rechecked",
     recheckedNone: "No skill mastered earlier came back in a quiz in this period.",
-    recheckedOne: "Rechecked 1 skill · held {held} · slipped {slipped}",
     slipped: "Slipped: {skills}",
     standHead: "Where things stand",
     standAsOf: "As of {date}",
@@ -196,7 +204,6 @@ export const RECORD_COPY = {
     subjectSaveFailed: "Could not save the subject. Try again.",
     skillsLine: "{mastered} of {total} skills mastered (quiz-checked)",
     earlySigns: "{n} early signs",
-    earlySignOne: "1 early sign",
     learningCount: "{n} learning",
     levelLine: "Level {level}: {title}",
     levelOnly: "Level {level}",
@@ -239,15 +246,16 @@ export const RECORD_COPY = {
     disclaimerHead: "About this record",
     minutes: "{n} min",
     hoursMinutes: "{h} h {m} min",
-    sittingsOne: "About {time} · in 1 sitting",
     teaser: "Your {month} so far: {days} · {mastered}.",
-    teaserDaysOne: "at least 1 day with learning",
     teaserDays: "at least {n} days with learning",
-    teaserMasteredOne: "1 skill mastered",
     teaserMastered: "{n} skills mastered",
     teaserOpen: "Open your record",
     menuItem: "Learning record",
-    teacherButton: "Record",
+    teacherPick: "Learning record for",
+    teacherOpen: "Open record",
+    earlyNote: "Activities on the early-learner screens are in the Grown-ups view.",
+    tutorUndated: "Marked by the tutor in conversation, date not recorded (not quiz-checked)",
+    keywordUndated: "Matched by the app from an untagged question, date not recorded (not quiz-checked)",
   },
 } as const;
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { getActiveLearnerId, setCourseSubject, setLearnerRecordVoice } from "../../lib/db";
 import { learningRecord, type CourseStanding, type LearningRecord, type MasteredRow, type SkillStatus } from "../../lib/record/build";
 import {
@@ -9,7 +9,7 @@ import { toStored } from "../../lib/record/time";
 import type { RecordSource } from "../../lib/record/sources";
 import {
   allTimeRecord, approxTimeText, dayText, durationText, earlySignCount, evidenceText, groupByCourseAndLevel, localDayText,
-  masteredCount, rangeOptions, rememberTeaser, teaserFromRecord, teaserKey, whenText, type Audience,
+  masteredCount, rangeOptions, splitAtCount, whenText, type Audience,
 } from "../../lib/record/view";
 import { gradeLabel, normalizeGrade } from "../../lib/grade";
 import { BookIcon } from "../early/pictures";
@@ -98,7 +98,7 @@ function RuleNote({ k, open, children }: { k: string; open: Open; children: Reac
   );
 }
 
-/** A status pill that is also the button for its rule. */
+/** A status pill that is also the button for its rule: a 44px-tall hit target around the pill. */
 function Pill({ status, k, open }: { status: PillKey; k: string; open: Open }) {
   return (
     <button
@@ -106,10 +106,12 @@ function Pill({ status, k, open }: { status: PillKey; k: string; open: Open }) {
       aria-expanded={open.isOpen(k)}
       aria-controls={ruleId(k)}
       onClick={() => open.toggle(k)}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-[5px] rounded-full text-sm font-medium hover:brightness-95 ${PILL[status]}`}
+      className="group inline-flex items-center min-h-[44px] -my-1.5 rounded-full"
     >
-      {C.pills[status]}
-      <span className="opacity-70"><InfoGlyph size={14} /></span>
+      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-[5px] rounded-full text-sm font-medium group-hover:brightness-95 ${PILL[status]}`}>
+        {C.pills[status]}
+        <span className="opacity-70"><InfoGlyph size={14} /></span>
+      </span>
     </button>
   );
 }
@@ -198,10 +200,12 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
   const record = useMemo(() => (source && picked ? learningRecord(source, picked.range, now) : null), [source, picked, now]);
   const allTime = useMemo(() => (source ? allTimeRecord(source, now) : null), [source, now]);
 
-  // The learner's own current month: Home's teaser shows exactly these numbers next time.
+  // After the voice question is answered (or kept), focus moves to the record's heading.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const [focusHeading, setFocusHeading] = useState(false);
   useEffect(() => {
-    if (who === "own" && record?.current && record.range.kind === "month") rememberTeaser(teaserKey(learnerId, now), teaserFromRecord(record));
-  }, [who, record, learnerId, now]);
+    if (focusHeading && headingRef.current) { headingRef.current.focus(); setFocusHeading(false); }
+  }, [focusHeading, source]);
 
   const chooseVoice = async (v: "self" | "guided") => {
     if (!source) return;
@@ -210,20 +214,22 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
       await setLearnerRecordVoice(learnerId, v);
       setSource({ ...source, learner: { ...source.learner, record_voice: v } });
       setAskVoice(false);
+      setFocusHeading(true);
     } catch {
       setVoiceError(V.voiceSaveFailed);
     }
   };
 
   const chooseSubject = async (courseId: string, subject: string | null) => {
-    if (!source) return;
-    const before = source;
+    const was = source?.courses.find((c) => c.id === courseId)?.subject ?? null;
+    const put = (value: string | null) =>
+      setSource((s) => s && { ...s, courses: s.courses.map((c) => (c.id === courseId ? { ...c, subject: value } : c)) });
     setSubjectError(null);
-    setSource({ ...source, courses: source.courses.map((c) => (c.id === courseId ? { ...c, subject } : c)) });
+    put(subject);
     try {
       await setCourseSubject(learnerId, courseId, subject);
     } catch {
-      setSource(before);
+      put(was); // only this course goes back; another course changed meanwhile keeps its choice
       setSubjectError(V.subjectSaveFailed);
     }
   };
@@ -232,26 +238,37 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
   const title = audience === "self" ? V.myRecord : fill(V.namedRecord, { name });
   const asking = who === "own" && source !== null && (voice === "ask" || askVoice);
 
+  const rangePicker = source && !asking && options.length > 0 && (
+    <label className="flex items-center gap-2 text-sm text-[var(--ink-dim)]">
+      {V.rangeLabel}
+      <select className="cf-input" style={{ width: "auto" }} value={picked?.key} onChange={(e) => setRangeKey(e.target.value)}>
+        {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+  const back = <button type="button" className="btn" onClick={onBack}>{who === "teacher" ? V.backTeacher : V.backHome}</button>;
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto flex flex-col bg-bg">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 sm:px-12 py-[18px] border-b border-[var(--rule)]">
-        <span className="flex items-center gap-2.5 text-[19px] font-semibold text-phosphor"><BookIcon />OpenEdu</span>
-        <span className="text-[15px] text-[var(--ink-faint)] grow">Record</span>
-        {source && !asking && options.length > 0 && (
-          <label className="flex items-center gap-2 text-sm text-[var(--ink-dim)]">
-            {V.rangeLabel}
-            <select className="cf-input" style={{ width: "auto" }} value={picked?.key} onChange={(e) => setRangeKey(e.target.value)}>
-              {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </label>
-        )}
-        {who === "own" && source && !asking && (
-          <button type="button" className="btn" onClick={() => setAskVoice(true)}>{V.whoReads}</button>
-        )}
-        <button type="button" className="btn" onClick={onBack}>{who === "teacher" ? V.backTeacher : V.backHome}</button>
-      </header>
+      {/* Inside TeacherView its header is the page's header; the record adds a toolbar row, not a second header. */}
+      {who === "own" && (
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 sm:px-12 py-[18px] border-b border-[var(--rule)]">
+          <span className="flex items-center gap-2.5 text-[19px] font-semibold text-phosphor"><BookIcon />OpenEdu</span>
+          <span className="text-[15px] text-[var(--ink-faint)] grow">Record</span>
+          {rangePicker}
+          {source && !asking && <button type="button" className="btn" onClick={() => setAskVoice(true)}>{V.whoReads}</button>}
+          {back}
+        </header>
+      )}
 
       <main className="box-border w-full max-w-[1040px] mx-auto px-5 sm:px-12 pt-8 pb-16 flex flex-col gap-10">
+        {who === "teacher" && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 -mb-4">
+            {back}
+            <span className="grow" />
+            {rangePicker}
+          </div>
+        )}
         {failed ? (
           <div className="flex flex-col items-start gap-3">
             <Quiet>{V.loadFailed}</Quiet>
@@ -265,7 +282,7 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
             forced={voice === "ask"}
             error={voiceError}
             onChoose={(v) => void chooseVoice(v)}
-            onKeep={() => setAskVoice(false)}
+            onKeep={() => { setAskVoice(false); setFocusHeading(true); }}
           />
         ) : (
           <RecordBody
@@ -278,6 +295,8 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
             subjectError={subjectError}
             onSubject={(id, s) => void chooseSubject(id, s)}
             now={now}
+            headingRef={headingRef}
+            headingLevel={who === "teacher" ? 2 : 1}
           />
         )}
       </main>
@@ -292,10 +311,12 @@ function VoiceQuestion({ current, forced, error, onChoose, onKeep }: {
   onChoose: (v: "self" | "guided") => void;
   onKeep: () => void;
 }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
   return (
     <section className="max-w-[560px] flex flex-col gap-5 px-7 py-7 rounded-[20px] bg-panel border border-[var(--rule)]" aria-labelledby="rec-voice" style={{ boxShadow: "var(--shadow-soft)" }}>
       <span className="glow-line" />
-      <h1 id="rec-voice" className="m-0 text-[28px] font-medium tracking-[-0.01em] text-ink">{V.voiceQuestion}</h1>
+      <h1 id="rec-voice" ref={ref} tabIndex={-1} className="m-0 text-[28px] font-medium tracking-[-0.01em] text-ink outline-none">{V.voiceQuestion}</h1>
       <div className="flex flex-wrap gap-3" role="group" aria-labelledby="rec-voice">
         <button type="button" className={`btn ${current === "self" ? "btn-primary" : ""}`} style={{ minWidth: 120 }} onClick={() => onChoose("self")}>{V.voiceMe}</button>
         <button type="button" className={`btn ${current === "guided" ? "btn-primary" : ""}`} onClick={() => onChoose("guided")}>{V.voiceGrownUp}</button>
@@ -307,7 +328,10 @@ function VoiceQuestion({ current, forced, error, onChoose, onKeep }: {
   );
 }
 
-function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now }: {
+function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel }: {
+  headingRef: RefObject<HTMLHeadingElement | null>;
+  /** 1 on the record's own screen; 2 inside TeacherView, whose "Teacher / parent" is the page's h1. */
+  headingLevel: 1 | 2;
   record: LearningRecord;
   allTime: LearningRecord | null;
   audience: Audience;
@@ -330,12 +354,11 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
   // A self reader's "Since you started" range already is this list.
   const showEverything = self && r.range.kind !== "since";
 
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <>
-      {/* 2. Self voice: everything mastered so far comes first, so a quiet month never opens on zeros. */}
-      {showEverything && <Everything rows={everything} open={open} />}
-
-      {/* 3. Name, range and the three tiles. */}
+      {/* The page's heading first; in the self voice, everything mastered so far comes straight after
+          it, so a quiet month never opens on zeros. Then the range's three tiles. */}
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center gap-4">
           <span
@@ -346,14 +369,18 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
             {name.charAt(0).toUpperCase()}
           </span>
           <div className="flex flex-col gap-0.5 min-w-0">
-            <h1 className="m-0 text-[32px] font-medium tracking-[-0.02em] text-ink break-words">{title}</h1>
+            <Heading ref={headingRef} tabIndex={-1} className="m-0 text-[32px] font-medium tracking-[-0.02em] text-ink break-words outline-none">{title}</Heading>
             <span className="text-[15px] text-[var(--ink-faint)]">
               {self ? r.period.label : `${grade === null ? C.gradeNotSet : gradeLabel(grade)} · ${r.period.label}`}
               {r.period.span ? ` · ${r.period.span}` : ""}
             </span>
             {!r.current && <Small>{fill(C.builtFromCurrent, { date: dayText(toStored(now), true) })}</Small>}
+            {/* K-1 work on the early-learner screens is kept apart (#244); say where it is, without guessing the choice. */}
+            {(grade === 0 || grade === 1) && <span className="text-[15px] text-[var(--ink-dim)]">{V.earlyNote}</span>}
           </div>
         </div>
+
+        {showEverything && <Everything rows={everything} open={open} />}
 
         <div className="grid gap-3.5 items-start" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))" }}>
           <Tile k="t-days" head={V.tileHeads.days} what={V.what.days} open={open} rules={[RECORD_RULES.tiles.days]}>
@@ -428,7 +455,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
         {r.rechecked.held.length + r.rechecked.slipped.length ? (
           <div className="flex flex-col gap-1">
             <p className="m-0 text-base text-ink">
-              {fill(r.rechecked.held.length + r.rechecked.slipped.length === 1 ? V.recheckedOne : C.rechecked, {
+              {fill(C.rechecked, {
                 n: r.rechecked.held.length + r.rechecked.slipped.length, held: r.rechecked.held.length, slipped: r.rechecked.slipped.length,
               })}
             </p>
@@ -550,7 +577,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
               const k = `a2-${w.courseId}-${w.level}-${w.skillId}`;
               const pill: PillKey = w.reason === "tutor" ? "tutor" : w.reason === "keyword" ? "keyword" : "no_proof";
               const why = w.reason === "tutor" || w.reason === "keyword"
-                ? fill(C.withoutProof[w.reason], { date: w.date ? dayText(w.date) : "?" })
+                ? (w.date ? fill(C.withoutProof[w.reason], { date: dayText(w.date) }) : w.reason === "tutor" ? V.tutorUndated : V.keywordUndated)
                 : w.reason === "fallback" ? fill(C.withoutProof.fallback, { n: w.fallbackAnswers })
                 : C.withoutProof[w.reason];
               return (
@@ -578,12 +605,11 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
 
 /** "At least {n} days with learning": "At least 12" set large, the rest of the sentence small under it. */
 function Big({ template, n }: { template: string; n: number }) {
-  const [before, after] = template.split("{n}");
+  const { big, rest } = splitAtCount(fill(template, { n }), n);
   return (
     <div className="flex flex-col gap-0.5">
-      {/* "At least 0" is no lower bound worth the words. */}
-      <span className="text-[28px] font-semibold text-ink leading-tight">{n === 0 ? "0" : `${before}${n}`}</span>
-      <span className="text-sm text-[var(--ink-faint)]">{after.trim()}</span>
+      <span className="text-[28px] font-semibold text-ink leading-tight">{big}</span>
+      <span className="text-sm text-[var(--ink-faint)]">{rest}</span>
     </div>
   );
 }
@@ -610,7 +636,7 @@ function Everything({ rows, open }: { rows: MasteredRow[]; open: Open }) {
   return (
     <section className="flex flex-col gap-4 px-6 py-6 rounded-[20px] bg-[var(--panel-tint)] border border-[var(--rule)]" aria-labelledby="rec-everything">
       <div className="flex flex-col gap-1">
-        <h2 id="rec-everything" className="m-0 text-[26px] font-medium tracking-[-0.01em] text-ink">{V.everything}</h2>
+        <h2 id="rec-everything" className="m-0 text-[24px] font-medium tracking-[-0.01em] text-ink">{V.everything}</h2>
         <span className="text-[15px] text-[var(--ink-dim)]">{rows.length ? fill(V.everythingTotal, { n: total }) : V.everythingEmpty}</span>
       </div>
       {groupByCourseAndLevel(rows).map((c) => (
@@ -629,7 +655,7 @@ function Everything({ rows, open }: { rows: MasteredRow[]; open: Open }) {
                         aria-expanded={open.isOpen(k)}
                         aria-controls={ruleId(k)}
                         onClick={() => open.toggle(k)}
-                        className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-panel border text-[15px] text-ink text-left hover:border-[var(--phosphor)] ${m.earlySign ? "border-dashed border-[var(--rule-strong)]" : "border-[var(--rule)]"}`}
+                        className={`inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 rounded-full bg-panel border text-[15px] text-ink text-left hover:border-[var(--phosphor)] ${m.earlySign ? "border-dashed border-[var(--rule-strong)]" : "border-[var(--rule)]"}`}
                       >
                         <span aria-hidden="true" className="w-2 h-2 rounded-full shrink-0" style={{ background: m.earlySign ? "var(--phosphor)" : "var(--success)" }} />
                         <span>{m.skill}</span>
@@ -732,7 +758,7 @@ function CourseCard({ c, record: r, allTime, open, onSubject }: {
             <span className="text-[15px] text-ink">
               {[
                 fill(V.skillsLine, { mastered: count("mastered"), total: shown.length }),
-                ...(count("early_sign") ? [count("early_sign") === 1 ? V.earlySignOne : fill(V.earlySigns, { n: count("early_sign") })] : []),
+                ...(count("early_sign") ? [fill(V.earlySigns, { n: count("early_sign") })] : []),
                 ...(count("learning") ? [fill(V.learningCount, { n: count("learning") })] : []),
               ].join(" · ")}
             </span>
@@ -781,7 +807,10 @@ function CourseCard({ c, record: r, allTime, open, onSubject }: {
         <div className="px-5 py-3.5 flex flex-col gap-2 border-t border-[var(--rule)]">
           {upTo > 1 && (
             <details className="group">
-              <summary className="cursor-pointer text-[15px] text-phosphor min-h-[44px] flex items-center gap-2 flex-wrap">
+              <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden text-[15px] text-phosphor min-h-[44px] flex items-center gap-2 flex-wrap">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 transition-transform group-open:rotate-90">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
                 {V.earlierLevels}
                 {Array.from({ length: upTo - 1 }, (_, i) => i + 1).map((lv) => {
                   const d = passDate(lv);
