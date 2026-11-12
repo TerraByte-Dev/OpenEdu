@@ -6,7 +6,7 @@ import {
   PAGE1_CAPS, PAGE1_CONTENT_PX, PAGE1_TEXT_MAX, PRINT_OWN_WORDS_MAX,
 } from "./print";
 import { earlySignCount, masteredCount, type Audience } from "./view";
-import { course, emptySource, local, nov, oct, quiz, sub, syllabus } from "./test-rows";
+import { course, emptySource, local, nov, oct, quiz, sub, syllabus, utc } from "./test-rows";
 import type { RecordSource } from "./sources";
 
 const NOW = local(2026, 10, 20);
@@ -113,6 +113,15 @@ describe("page 1, the one-page summary", () => {
         expect(page1HeightPx(p), `${audience} ${range.kind}`).toBeLessThanOrEqual(PAGE1_CONTENT_PX);
       }
     }
+    // A saved month whose course was deleted adds two header lines, and a K-1 learner a third: page 1
+    // gives up a row of mastered skills to fit them.
+    const k1 = { ...s, learner: { ...s.learner, grade: 0 } };
+    const saved = { ...learningRecord(k1, NOVEMBER, NOW), current: false, saved: { at: utc(NOW), examplesGone: true } };
+    const tight = page1(saved, "guided", NOW);
+    expect([tight.header.built, tight.header.gone, tight.header.note].every(Boolean)).toBe(true);
+    expect(page1HeightPx(tight)).toBeLessThanOrEqual(PAGE1_CONTENT_PX);
+    expect(tight.mastered).toHaveLength(PAGE1_CAPS.mastered - 2);
+    expect(tight.masteredMore).toBe(`+${saved.mastered.length - PAGE1_CAPS.mastered + 2} more in the detail pages`);
     // The estimate is not vacuous: an uncapped list of this size would overflow.
     const p = page1(record, "guided", NOW);
     expect(page1HeightPx({ ...p, mastered: Array(record.mastered.length).fill(p.mastered[0]) })).toBeGreaterThan(PAGE1_CONTENT_PX);

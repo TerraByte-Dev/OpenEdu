@@ -98,10 +98,27 @@ export interface PrintHeader {
   sub: string;
   /** "Printed Nov 11, 2026 · Record format 1". */
   printed: string;
-  /** A past month: "Built Nov 11, 2026 from the activity still on record." (nothing is saved before PR 5). */
+  /**
+   * H4 (provenance): "Saved Dec 1, 2026 from the activity on record then." for a saved month, "Built Dec 2,
+   * 2026 from the activity still on record." for a past one with no saved copy, the built-live line for a
+   * school-year or since-you-started range, or null for the current month.
+   */
   built: string | null;
+  /** A saved month whose course was deleted since: "Examples from deleted courses are no longer on this computer." */
+  gone: string | null;
   /** K and grade 1: where the early-learner screens' activities are, as the screen says it. */
   note: string | null;
+}
+
+/**
+ * H4's provenance line, the same on screen and paper: saved; built now for a past month; for a
+ * school-year or since-you-started range, that it is built live and can disagree with saved months; none
+ * for the current month.
+ */
+export function provenance(record: LearningRecord): string | null {
+  if (record.saved) return fill(C.savedThen, { date: dayText(record.saved.at, true) });
+  if (record.range.kind === "since") return C.sinceLive;
+  return record.current ? null : fill(C.builtFromCurrent, { date: dayText(record.builtAt, true) });
 }
 
 export function printHeader(record: LearningRecord, now: Date, kicker: string): PrintHeader {
@@ -112,7 +129,8 @@ export function printHeader(record: LearningRecord, now: Date, kicker: string): 
     title: fill(V.namedRecord, { name: learnerName(record) }),
     sub: [grade === null ? C.gradeNotSet : gradeLabel(grade), record.period.label, record.period.span].filter(Boolean).join(" · "),
     printed: fill(C.printed, { date: today, format: RECORD_FORMAT }),
-    built: record.current ? null : fill(C.builtFromCurrent, { date: today }),
+    built: provenance(record),
+    gone: record.saved?.examplesGone ? C.examplesGone : null,
     note: grade === 0 || grade === 1 ? V.earlyNote : null,
   };
 }
@@ -176,7 +194,15 @@ export function page1(record: LearningRecord, audience: Audience, now: Date): Pa
     : { ...splitAtCount(countedText!, counted!.minutes), extra: null };
   const early = earlySignCount(record);
   const rows = proofFirst(record.mastered);
-  return {
+  const mastered = (cap: number) => ({
+    mastered: rows.slice(0, cap).map((m) => ({
+      skill: clip(m.skill, PAGE1_TEXT_MAX.skill),
+      meta: clip(`${m.earlySign ? `${C.pills.early_sign} · ` : ""}${m.course} · ${fill(V.levelOnly, { level: m.level })} · ${dayText(m.date)}`, PAGE1_TEXT_MAX.meta),
+      early: m.earlySign,
+    })),
+    masteredMore: more(rows.length, cap),
+  });
+  const p: Page1 = {
     header: printHeader(record, now, P.kicker),
     tiles: {
       days: { ...splitAtCount(fill(C.tiles.days, { n: record.days }), record.days), extra: null },
@@ -184,12 +210,7 @@ export function page1(record: LearningRecord, audience: Audience, now: Date): Pa
       mastered: { big: String(masteredCount(record)), rest: C.tiles.mastered, extra: early > 0 ? fill(C.tiles.earlySigns, { n: early }) : null },
     },
     masteredHead: fill(V.masteredHead, { who: learnerName(record), when: whenText(record) }),
-    mastered: rows.slice(0, PAGE1_CAPS.mastered).map((m) => ({
-      skill: clip(m.skill, PAGE1_TEXT_MAX.skill),
-      meta: clip(`${m.earlySign ? `${C.pills.early_sign} · ` : ""}${m.course} · ${fill(V.levelOnly, { level: m.level })} · ${dayText(m.date)}`, PAGE1_TEXT_MAX.meta),
-      early: m.earlySign,
-    })),
-    masteredMore: more(rows.length, PAGE1_CAPS.mastered),
+    ...mastered(PAGE1_CAPS.mastered),
     standHead: V.standHead,
     courses: record.courses.slice(0, PAGE1_CAPS.courses).map(page1Course),
     coursesMore: more(record.courses.length, PAGE1_CAPS.courses),
@@ -198,6 +219,10 @@ export function page1(record: LearningRecord, audience: Audience, now: Date): Pa
     disclaimer: disclaimerFor(plan),
     detail: !isEmptyRecord(record),
   };
+  // Extra header lines (a saved month's, a K-1 note) can push a full page over: give up a row of
+  // mastered skills at a time, which then show as "+N more in the detail pages".
+  for (let cap = PAGE1_CAPS.mastered - 2; cap > 0 && page1HeightPx(p) > PAGE1_CONTENT_PX; cap -= 2) Object.assign(p, mastered(cap));
+  return p;
 }
 
 // ── Page 1's height, worked out from the print stylesheet's fixed metrics ───────────────────────────
@@ -222,7 +247,7 @@ const M = {
 const linesOf = (text: string, perLine: number) => Math.max(1, Math.ceil(text.length / perLine));
 
 function headerPx(h: PrintHeader): number {
-  return M.kickerRow + M.gapSmall + M.h1 + M.sub + [h.built, h.note].reduce((px, t) => px + (t ? M.line11 * linesOf(t, M.printedChars) : 0), 0);
+  return M.kickerRow + M.gapSmall + M.h1 + M.sub + [h.built, h.gone, h.note].reduce((px, t) => px + (t ? M.line11 * linesOf(t, M.printedChars) : 0), 0);
 }
 
 function writeInPx(plan: PrintPlan): number {

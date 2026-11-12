@@ -58,7 +58,7 @@ function graderOf(q: RecordQuestion): keyof GraderSplit {
 }
 
 /** Finished attempts in the order the app applied them. */
-function finishingOrder(attempts: ReadonlyArray<RecordAttempt>): RecordAttempt[] {
+export function finishingOrder(attempts: ReadonlyArray<RecordAttempt>): RecordAttempt[] {
   return attempts
     .filter((a) => a.completed_at !== null && (a.quiz_type === "quiz" || a.quiz_type === "promotion"))
     .sort((a, b) => a.completed_at!.localeCompare(b.completed_at!) || a.started_at.localeCompare(b.started_at) || a.id.localeCompare(b.id));

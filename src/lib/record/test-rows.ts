@@ -17,7 +17,7 @@ export const oct = (day: number, h = 12, min = 0) => utc(local(2026, 9, day, h, 
 export const emptySource = (): RecordSource => ({
   learner: { id: "L", name: "Maya", grade: 3, record_voice: null, record_year_start: null },
   captureSince: null, courses: [], syllabuses: [], attempts: [], questions: [], chats: [], lessons: [],
-  flashcards: [], flashcardReviews: [], notes: [], subtopicEvents: [], learnerDays: [],
+  flashcards: [], flashcardReviews: [], notes: [], subtopicEvents: [], learnerDays: [], savedMonths: [],
 });
 
 export const course = (over: Partial<RecordCourse> = {}): RecordCourse => ({

@@ -319,14 +319,17 @@ function workedOut(record: LearningRecord): string {
   return fill(X.workedOut, { date: dayOf(record.builtAt) });
 }
 
-/** The last row's text: the full disclaimer and how the file's rows were made (and, daily, how its minutes were). */
-export function disclaimerCell(daily: boolean): string {
-  return [RECORD_DISCLAIMER, X.statementFile, ...(daily ? [X.timeNote] : [])].join(" ");
+/**
+ * The last row's text: the full disclaimer and how the file's rows were made (daily: how its minutes
+ * were; the event log of a saved month: that its activity rows were read when the file was made).
+ */
+export function disclaimerCell(daily: boolean, extra: ReadonlyArray<string> = []): string {
+  return [RECORD_DISCLAIMER, X.statementFile, ...(daily ? [X.timeNote] : []), ...extra].join(" ");
 }
 
 /** The disclaimer row, in the widest text column (activities, detail). */
-function disclaimerRow(columns: ReadonlyArray<string>, column: string, daily: boolean): string[] {
-  return columns.map((c) => (c === column ? disclaimerCell(daily) : ""));
+function disclaimerRow(columns: ReadonlyArray<string>, column: string, daily: boolean, extra: ReadonlyArray<string> = []): string[] {
+  return columns.map((c) => (c === column ? disclaimerCell(daily, extra) : ""));
 }
 
 /** The daily summary file. Every row is a day total, so every row is worked out from stored rows. */
@@ -356,14 +359,18 @@ function localTime(at: string): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-/** The event log file. */
-export function recordEventCsv(record: LearningRecord, events: ReadonlyArray<RecordEvent>): string {
+/**
+ * The event log file. For a saved month (record/saved.ts) the status rows are the saved ones, but the
+ * activity rows are read from what is on this computer when the file is made, and the last row says so.
+ */
+export function recordEventCsv(record: LearningRecord, events: ReadonlyArray<RecordEvent>, madeAt: Date = new Date()): string {
   const by = workedOut(record);
   const rows: Array<Array<string | number | null>> = [[...X.eventColumns]];
   for (const e of events) {
     rows.push([dayOf(e.at), localTime(e.at), e.course, e.level, X.activity[e.activity], e.detail, e.status, e.derived ? by : X.storedWhen]);
   }
-  rows.push(disclaimerRow(X.eventColumns, "detail", false));
+  const live = record.saved ? [fill(X.liveLog, { saved: dayOf(record.saved.at), date: localDayKey(madeAt) })] : [];
+  rows.push(disclaimerRow(X.eventColumns, "detail", false, live));
   return toCsv(rows);
 }
 

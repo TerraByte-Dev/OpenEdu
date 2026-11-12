@@ -86,6 +86,22 @@ export const RECORD_COPY = {
   title: "OpenEdu · Record",
   printed: "Printed {date} · Record format {format}",
   builtFromCurrent: "Built {date} from the activity still on record.",
+  /** H4 on a month saved when it ended (migration 19). */
+  savedThen: "Saved {date} from the activity on record then.",
+  /** H4 on a school-year or since-you-started range, which is never saved and so can disagree with saved months. */
+  sinceLive: "These totals are built from the activity still on this computer. A saved month can include courses deleted since.",
+  /** A saved month keeps no learner-written text; a deleted course's examples went with it. */
+  examplesGone: "Examples from deleted courses are no longer on this computer.",
+  /** "Rebuild from current data" (spec §7 v19): replaces a saved month after a confirmation. */
+  rebuild: {
+    help: "A saved month keeps what was on record when it was saved, so later changes do not rewrite it.",
+    button: "Rebuild from current data",
+    confirm: "This replaces the copy saved on {date}.",
+    replace: "Replace the saved copy",
+    keep: "Keep the saved copy",
+    busy: "Rebuilding…",
+    failed: "Could not rebuild it. The saved copy is unchanged.",
+  },
   gradeNotSet: "Grade not set",
   noSubject: "No subject set",
   tiles: {
@@ -253,6 +269,8 @@ export const RECORD_COPY = {
     eventColumns: ["date", "time", "course", "level", "activity", "detail", "skill_status_change", "recorded_by"],
     storedWhen: "stored when it happened",
     workedOut: "worked out from stored rows on {date}",
+    /** The event log of a saved month: its activity rows are read when the file is made, not saved. */
+    liveLog: "This month's record was saved {saved}. The activity rows in this log are the ones still on this computer on {date}, so activity from courses deleted since then is not in it.",
     approximate: "approximate",
     counted: "counted",
     /** The counted-time row: learner_days counts the learner's day, never a course's. */

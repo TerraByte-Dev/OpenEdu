@@ -6,7 +6,7 @@ import {
   coverSheet, detailPages, learnerName, page1, type CoverSheet, type Page1, type PrintHeader,
 } from "../../lib/record/print";
 import {
-  approxTimeText, dayText, durationText, evidenceText, localDayText, quizTimeText, standingCounts, whenText, withoutProofText,
+  approxTimeText, dayText, durationText, evidenceText, localDayText, ownWordsNoneText, quizTimeText, standingCounts, whenText, withoutProofText,
   type Audience,
 } from "../../lib/record/view";
 import { toStored } from "../../lib/record/time";
@@ -39,6 +39,7 @@ function Header({ h }: { h: PrintHeader }) {
       <h1>{h.title}</h1>
       <div className="rec-sub">{h.sub}</div>
       {h.built && <div className="rec-built">{h.built}</div>}
+      {h.gone && <div className="rec-built">{h.gone}</div>}
       {h.note && <div className="rec-built">{h.note}</div>}
     </>
   );
@@ -372,7 +373,7 @@ function DetailPages({ record: r, audience, now }: { record: LearningRecord; aud
               : `${w.skill ? `${fill(V.explanationOn, { skill: w.skill })} · ` : ""}${w.course} · ${dayText(w.date)}`}
           </div>
         </div>
-      )) : <p className="rec-dim">{V.ownWordsNone}</p>}
+      )) : <p className="rec-dim">{ownWordsNoneText(r)}</p>}
       {d.ownWordsNote && <div className="rec-small">{d.ownWordsNote}</div>}
 
       <h2>{V.activityHead}</h2>
