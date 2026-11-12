@@ -130,6 +130,28 @@ prints page 1 alone. In a class or school a learner's own name check leaves out 
 the teacher may set. TeacherView's "Print every learner's record" prints the same pages
 for each learner in the current view, one after another.
 
+**The learning record as spreadsheets (#258 PR 4).** Beside Save, "Save as spreadsheet (CSV)" writes the
+daily summary (`openedu-record-<name>-YYYY-MM.csv`, one row per local day per course), and with "Also save
+the detailed log" ticked a second file, the event log (`…-events.csv`, one row per event), each through its
+own Save dialog. `src/lib/record/csv.ts` works them out from the pieces the record itself is built from:
+`time.ts pointsIn` (the days tile's activity in the range), `build.ts courseSittings` (the record's
+per-course time) and the record's own quiz, mastered and without-proof rows. What is guaranteed (tested):
+the quiz rows, mastered skills, lessons, tutor messages and counted minutes add up to the record's; a
+course's approximate minutes over its days add up exactly to the record's minutes for that course (each
+sitting credited to the day it started, or the day it ended when the course shows nothing on the start
+day and the end day is not counted, then rounded by largest remainder) on days before counted time began;
+and the file's activity dates are the days tile's days (a quiz started before midnight and finished after
+it shows on both days). Not guaranteed: the minutes
+column does not add up to the record's approximate time total, because a sitting that moved between
+courses counts in each (the file says so); and the file can carry a day the tile does not count (a
+counted day with minutes but no activity). Every row says how it was made in `recorded_by`: raw times "stored when it happened", day
+totals and skill status changes "worked out from stored rows on <export date>". Tutor messages carry no
+text; self-explanations are cut to 500 characters. Minutes are never added across kinds: a counted day
+puts the learner's counted minutes on an "All courses" row (0 with a sentence saying why when none were
+stored), leaving the course rows' minutes empty, because `learner_days` never knew which course a minute
+was in. Both files go through `toCsv` and end with the full disclaimer in the widest text column. `export_save_csv` takes an optional dialog `title`
+(`dialog_title`, defaulting to the teacher overview's).
+
 ## Repo layout
 
 | Path | What lives there |

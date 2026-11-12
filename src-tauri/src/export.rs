@@ -1,4 +1,4 @@
-//! Save a CSV the user asked for (the teacher overview export) to a place they pick.
+//! Save a CSV the user asked for (the teacher overview, a learning record) to a place they pick.
 //!
 //! The app has no `fs` capability and the webview never names a path. This command opens the native
 //! Save dialog itself, from Rust, and writes only to the file the user picked there, always with a
@@ -8,20 +8,23 @@
 use std::path::PathBuf;
 use tauri_plugin_dialog::DialogExt;
 
-/// `Ok(Some(path))` when written, `Ok(None)` when the user cancelled the dialog.
+/// `Ok(Some(path))` when written, `Ok(None)` when the user cancelled the dialog. `title` is the
+/// dialog's title; without one it is the teacher overview's, as before the learning record.
 #[tauri::command]
 pub async fn export_save_csv(
     app: tauri::AppHandle,
     suggested_name: String,
     contents: String,
+    title: Option<String>,
 ) -> Result<Option<String>, String> {
     let name = with_csv_extension(PathBuf::from(sanitize_file_name(&suggested_name)));
+    let title = dialog_title(title.as_deref()).to_string();
     // The blocking dialog must not run on the main thread; an async command runs off it, and
     // spawn_blocking keeps the async runtime's worker free while the dialog is open.
     let picked = tauri::async_runtime::spawn_blocking(move || {
         app.dialog()
             .file()
-            .set_title("Save the teacher overview")
+            .set_title(title)
             .set_file_name(name.to_string_lossy())
             .add_filter("CSV spreadsheet", &["csv"])
             .blocking_save_file()
@@ -33,6 +36,11 @@ pub async fn export_save_csv(
     let path = csv_target(picked.into_path().map_err(|e| e.to_string())?)?;
     std::fs::write(&path, contents.as_bytes()).map_err(|e| e.to_string())?;
     Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// The Save dialog's title: the caller's, or the teacher overview's when none is given.
+fn dialog_title(title: Option<&str>) -> &str {
+    title.unwrap_or("Save the teacher overview")
 }
 
 /// Where to write the file the user picked. The dialog warns before replacing the file it shows, but
@@ -74,6 +82,12 @@ fn sanitize_file_name(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dialog_title_defaults_to_the_teacher_overview() {
+        assert_eq!(dialog_title(None), "Save the teacher overview");
+        assert_eq!(dialog_title(Some("Save the learning record")), "Save the learning record");
+    }
 
     #[test]
     fn keeps_a_csv_extension() {

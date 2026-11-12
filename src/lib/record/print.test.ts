@@ -45,7 +45,7 @@ function bigSource(): RecordSource {
     for (let k = 1; k <= 6; k++) quiz(s, `2.${k}`, k <= 4 ? 9 : 1, k <= 4 ? 10 : 1, { course_id: id, level: 2, completed_at: nov(10 + k) });
   }
   quiz(s, null, 0, 0, { course_id: "c", quiz_type: "promotion", level: 1, score: 90, passed: 1, completed_at: nov(9) });
-  s.lessons = [{ course_id: "c", read_at: nov(8) }];
+  s.lessons = [{ course_id: "c", level: 1, topic: "A lesson", read_at: nov(8) }];
   s.learnerDays = [{ day: "2026-11-09", minutes: 40 }];
   return s;
 }

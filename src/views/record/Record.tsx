@@ -18,6 +18,8 @@ import { GradeSelect } from "../../components/GradeSelect";
 import { BookIcon } from "../early/pictures";
 import PrintView from "../early/PrintView";
 import { recordPrintPages } from "./RecordPrint";
+import { recordCsvNames, recordDailyCsv, recordDays, recordEventCsv, recordEvents } from "../../lib/record/csv";
+import { saveCsvFile } from "../../lib/export-file";
 
 // The learning record on screen (#258 PR 3, spec §3). One LearningRecord (record/build.ts) drives
 // every number and label; this file only lays it out. The loader is a prop: App passes
@@ -29,6 +31,7 @@ import { recordPrintPages } from "./RecordPrint";
 
 const C = RECORD_COPY;
 const V = RECORD_COPY.view;
+const X = RECORD_COPY.csv;
 
 const PILL: Record<PillKey, string> = {
   mastered: "bg-success-tint text-success",
@@ -270,6 +273,26 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
     requestAnimationFrame(() => saveButton.current?.focus());
   };
 
+  // The spreadsheets (spec §4b): the daily summary, then, when asked, the event log, each through its own
+  // Save dialog (export_save_csv writes one file per click). Resolves to the line shown under the button.
+  const saveSpreadsheet = async (withLog: boolean): Promise<string> => {
+    if (!source || !record) return "";
+    const names = recordCsvNames(record);
+    const notes: string[] = [];
+    try {
+      const daily = await saveCsvFile(names.daily, recordDailyCsv(record, recordDays(source, record)), X.dialogDaily);
+      if (!daily) return "";
+      notes.push(fill(X.saved, { path: daily }));
+      if (withLog) {
+        const log = await saveCsvFile(names.events, recordEventCsv(record, recordEvents(source, record)), X.dialogLog);
+        notes.push(log ? fill(X.savedLog, { path: log }) : X.logCancelled);
+      }
+    } catch (e) {
+      notes.push(fill(X.failed, { error: e instanceof Error ? e.message : String(e) }));
+    }
+    return notes.join(" ");
+  };
+
   const name = source?.learner.name.trim() || "Your learner";
   const title = audience === "self" ? V.myRecord : fill(V.namedRecord, { name });
   const asking = who === "own" && source !== null && (voice === "ask" || askVoice);
@@ -348,6 +371,7 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
             headingLevel={who === "teacher" ? 2 : 1}
             onSave={save}
             saveRef={saveButton}
+            onSaveSpreadsheet={saveSpreadsheet}
           />
         )}
       </main>
@@ -362,6 +386,40 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
           onCancel={nameCheckCancelled}
         />
       )}
+    </div>
+  );
+}
+
+/** "Save as spreadsheet (CSV)", the detailed-log option, and how the files' rows were made. */
+function SpreadsheetSave({ save }: { save: (withLog: boolean) => Promise<string> }) {
+  const [withLog, setWithLog] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      setNote((await save(withLog)) || null);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col items-start sm:items-end gap-1 pt-2">
+      <button type="button" className="btn" disabled={busy} onClick={() => void run()}>{busy ? X.saving : X.save}</button>
+      <label className="inline-flex items-center gap-2.5 min-h-[44px] text-[15px] text-[var(--ink-dim)] cursor-pointer">
+        <input
+          type="checkbox"
+          checked={withLog}
+          onChange={(e) => setWithLog(e.target.checked)}
+          className="w-5 h-5 cursor-pointer"
+          style={{ accentColor: "var(--phosphor)" }}
+        />
+        {X.alsoLog}
+      </label>
+      <span className="text-sm text-[var(--ink-faint)] sm:text-right leading-normal">{X.statementFile} {X.statementApp}</span>
+      {/* Always rendered, so a screen reader announces the text when it changes. */}
+      <span role="status" className="text-sm text-[var(--ink-dim)] sm:text-right leading-normal break-all">{note ?? ""}</span>
     </div>
   );
 }
@@ -390,8 +448,9 @@ function VoiceQuestion({ current, forced, error, onChoose, onKeep }: {
   );
 }
 
-function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel, onSave, saveRef }: {
+function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel, onSave, saveRef, onSaveSpreadsheet }: {
   onSave: () => void;
+  onSaveSpreadsheet: (withLog: boolean) => Promise<string>;
   saveRef: RefObject<HTMLButtonElement | null>;
   headingRef: RefObject<HTMLHeadingElement | null>;
   /** 1 on the record's own screen; 2 inside TeacherView, whose "Teacher / parent" is the page's h1. */
@@ -445,6 +504,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
           <div className="ml-auto flex flex-col items-start sm:items-end gap-1.5 max-w-[340px]">
             <button ref={saveRef} type="button" className="btn btn-primary" onClick={onSave}>{saveLabel(r, audience)}</button>
             {!self && <span className="text-sm text-[var(--ink-faint)] sm:text-right leading-normal">{C.saveHelper}</span>}
+            <SpreadsheetSave save={onSaveSpreadsheet} />
           </div>
         </div>
 

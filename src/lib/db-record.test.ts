@@ -111,6 +111,8 @@ describe("getRecordSource scoping", () => {
     expect(src.questions.map((q) => q.question_text)).toEqual(["A question"]);
     expect(src.questions[0].attempt_id).toBe(src.attempts[0].id);
     expect(src.learnerDays).toEqual([{ day: "2026-11-11", minutes: 1 }]);
+    // The event log names a lesson by its topic and level.
+    expect(src.lessons).toEqual([{ course_id: aCourse, level: 1, topic: "t", read_at: expect.any(String) }]);
     expect(src.captureSince).not.toBeNull();
   });
 
