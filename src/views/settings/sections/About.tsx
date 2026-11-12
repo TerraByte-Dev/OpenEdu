@@ -17,6 +17,7 @@ import { STORE_FILE, STORE_KEYS } from "../../../lib/store-keys";
 import { Section, SettingRow, ActionButton, Toggle, INPUT_CLS, useSettings } from "../primitives";
 import { BrandMark } from "../../../components/BrandMark";
 import type { SectionProps } from "../types";
+import { APP_NAME } from "../../../lib/product";
 
 const APP_IDENTIFIER = "com.terrabytesolutions.openedu";
 
@@ -155,7 +156,7 @@ export default function About({ onProviderChanged }: SectionProps) {
 
   return (
     <>
-      <Section title="OpenEdu" description="AI-powered personalized tutoring — bring-your-own-key, offline-first." keywords="about version build update release github">
+      <Section title={APP_NAME} description="AI-powered personalized tutoring — bring-your-own-key, offline-first." keywords="about version build update release github">
         <SettingRow label="Version" help={`Identifier: ${APP_IDENTIFIER}`}>
           <div className="flex items-center gap-3 flex-wrap">
             <span className="lcd px-3 py-1.5 rounded-md text-sm">v{version}</span>
@@ -237,7 +238,7 @@ export default function About({ onProviderChanged }: SectionProps) {
         </SettingRow>
       </Section>
 
-      <Section title="Credits" description="Material OpenEdu includes from other projects." keywords="credits dictionary wordnet open english wordnet licence license attribution cc by">
+      <Section title="Credits" description={`Material ${APP_NAME} includes from other projects.`} keywords="credits dictionary wordnet open english wordnet licence license attribution cc by">
         <SettingRow label="Dictionary" keywords="wordnet licence license cc by attribution">
           <p className="text-sm text-ink leading-relaxed max-w-prose">{DICTIONARY_CREDIT}</p>
           <div className="mt-3 space-y-2">
@@ -250,7 +251,7 @@ export default function About({ onProviderChanged }: SectionProps) {
       <div className="mt-10 pt-6 border-t border-[var(--rule)] flex items-center gap-3">
         <BrandMark size={40} title="TerraByte Solutions LLC" />
         <div className="min-w-0">
-          <div className="text-sm text-ink font-medium leading-tight">OpenEdu</div>
+          <div className="text-sm text-ink font-medium leading-tight">{APP_NAME}</div>
           <div className="text-xs text-[var(--ink-faint)] leading-tight">by TerraByte Solutions LLC · free &amp; open source</div>
         </div>
         <span className="ml-auto text-xs font-mono text-[var(--ink-faint)] select-all shrink-0">github.com/TerraByte-Dev/OpenEdu</span>

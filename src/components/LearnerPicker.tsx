@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { needsPin, type LearnerRow } from "../lib/learners";
 import { verifyPin } from "../lib/learner-pin";
 import RestoreSteps from "./RestoreSteps";
+import { APP_NAME } from "../lib/product";
 
 // "Who is learning?" OpenEdu is for one learner, so a new install never sees this. It is shown at
 // launch only when learners.ts needsPicker() says so: an install that added learners in an earlier
@@ -37,8 +38,8 @@ export default function LearnerPicker({ learners, onEnter }: LearnerPickerProps)
           No learner found
         </h1>
         <p className="text-lg text-[var(--ink-dim)] max-w-prose text-center">
-          OpenEdu's data file has no learner in it, so there is nobody to open. Restore a backup like this.
-          With no backup, do steps 1 to 3 and start OpenEdu again: it begins with a new, empty file.
+          {APP_NAME}'s data file has no learner in it, so there is nobody to open. Restore a backup like this.
+          With no backup, do steps 1 to 3 and start {APP_NAME} again: it begins with a new, empty file.
         </p>
         <RestoreSteps />
       </div>

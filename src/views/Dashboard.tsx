@@ -8,6 +8,7 @@ import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
 import { searchTavily, formatSearchResults } from "../lib/web-search";
 import { preflightStructuredOutput } from "../lib/llm";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
+import { APP_NAME } from "../lib/product";
 
 // The new-course flow (View "create"). The learner's landing screen is views/Home.tsx; this view is
 // reached from its "Start a new course" button, and stays mounted (hidden) while a build runs so the
@@ -244,7 +245,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                 color: "var(--ink-em)",
               }}
             >
-              OpenEdu
+              {APP_NAME}
             </h1>
           </div>
           <div className="flex items-center gap-3 mb-1">
@@ -266,7 +267,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
               {!creating ? (
                 <>
                   <p className="text-sm text-[var(--ink-dim)] mb-4 leading-relaxed">
-                    Tell us what you want to learn. OpenEdu researches it and writes a six-level course, from the basics up.
+                    Tell us what you want to learn. {APP_NAME} researches it and writes a six-level course, from the basics up.
                     That takes a few minutes, and you can leave this screen while it works.
                   </p>
                   <input

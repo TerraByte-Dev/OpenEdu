@@ -6,6 +6,7 @@
 // how far along an import is. No Tauri, no DOM.
 
 import { compareVersions } from "./version";
+import { APP_NAME } from "./product";
 
 // ─── What the Rust scan returns (keep in sync with model_import.rs by hand) ─────────────────────────────
 
@@ -62,7 +63,7 @@ export interface CreateSpec {
 export type Built = { ok: true; spec: CreateSpec; checked: boolean; warnings: string[] } | { ok: false; errors: string[] };
 
 export const NO_CHECKSUM =
-  "This kit has no checksum file, so OpenEdu can't tell whether it was damaged in copying. It will still import it.";
+  `This kit has no checksum file, so ${APP_NAME} can't tell whether it was damaged in copying. It will still import it.`;
 
 // ─── Modelfile ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ export function parseModelfile(text: string): { commands: ModelfileCommand[]; er
     const at = line;
     const name = word().toUpperCase();
     if (!KNOWN.has(name)) {
-      errors.push(`Line ${at}: "${name}" is not a Modelfile instruction OpenEdu knows.`);
+      errors.push(`Line ${at}: "${name}" is not a Modelfile instruction ${APP_NAME} knows.`);
       toEol();
       continue;
     }

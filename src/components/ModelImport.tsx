@@ -14,6 +14,7 @@ import {
   type ImportEvent, type ImportPhase, type KitCandidate, type KitPlan,
 } from "../lib/model-kit";
 import { IMPORT_TARGET, isImportTarget } from "../lib/ollama-guide";
+import { APP_NAME } from "../lib/product";
 
 type Run =
   | { at: "idle" }
@@ -123,7 +124,7 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
   if (!local) {
     return (
       <p className="text-sm text-[var(--ink-dim)]">
-        Importing only talks to Ollama at its usual address, <code className="font-lcd">{IMPORT_TARGET}</code>. OpenEdu
+        Importing only talks to Ollama at its usual address, <code className="font-lcd">{IMPORT_TARGET}</code>. {APP_NAME}{" "}
         is set to use <code className="font-lcd">{ollamaUrl}</code>; change that in Settings first.
       </p>
     );

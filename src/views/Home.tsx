@@ -7,6 +7,7 @@ import {
   DAILY_GOAL_OPTIONS, courseProgressPct, goalProgress, goalSentence,
 } from "../lib/daily-goal";
 import { describeGenerationState } from "../lib/plain-language";
+import { APP_NAME } from "../lib/product";
 
 // The learner's Home — the first screen after picking a learner, and the answer to "what do I do
 // now?". One primary action (Continue: the most recent course and its next step, ranked by the same
@@ -135,7 +136,7 @@ export default function Home({
               Let's pick something to learn.
             </h2>
             <p className="text-base text-[var(--ink-dim)] mt-1">
-              Tell OpenEdu a topic and it writes you a course, from the basics up. It takes a few minutes.
+              Tell {APP_NAME} a topic and it writes you a course, from the basics up. It takes a few minutes.
             </p>
             <button onClick={onStartNew} className="btn btn-primary mt-4" style={{ fontSize: "1.05rem", padding: "12px 22px" }}>
               Start a course
