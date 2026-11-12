@@ -21,10 +21,18 @@
 // Grader 1 (BENCHMARKS.md B8, amendment of 2026-11-11: no human grader): DEFINE_GRADER_SLOT=1 sends the
 // same request, word for word, to a Claude model through OpenRouter (DEFINE_GRADER2_ROUTE=openrouter,
 // the model named "anthropic/<id>"). Only the vendor check changes; the prompt, schema and rules do not.
+//
+// Resume (lever 19, BENCHMARKS.md R8): run it again with the same sheet and output file and the rows
+// already answered are kept; only the rest are asked. The export is saved every 25 requests.
 
-import { grader2Request, sheetData } from "./define-script-lib";
+import { DEFINE_LABEL_QUESTIONS } from "../define-label";
+import { grader2Request, sheetData, type SheetData } from "./define-script-lib";
 import type { LabelExport } from "../define-label";
 import { env, fs, writeText } from "./node-io";
+
+/** Every question the row's kind asks has a yes or no. */
+const answeredAll = (row: SheetData["rows"][number], a: LabelExport["answers"][string] | undefined): boolean =>
+  !!a && DEFINE_LABEL_QUESTIONS.filter((q) => q.kinds.includes(row.kind)).every((q) => a[q.id] === "yes" || a[q.id] === "no");
 
 async function main(): Promise<void> {
   const e = env();
@@ -41,8 +49,22 @@ async function main(): Promise<void> {
   const key = e[keyName];
   if (!key) throw new Error(`${keyName} is not set: run this through run-with-secrets.`);
   const endpoint = viaOpenRouter ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.openai.com/v1/chat/completions";
-  const data = sheetData(await (await fs()).readFile(sheetFile, "utf8"));
-  const answers: LabelExport["answers"] = {};
+  const f = await fs();
+  const data = sheetData(await f.readFile(sheetFile, "utf8"));
+  const grader = viaOpenRouter ? `openrouter:${model}` : `openai:${model}`;
+  // Resume (lever 19, R8): an earlier export of this sheet by this grader keeps its fully answered rows;
+  // only the rest are asked. The request for a row is the same either way.
+  const answers: LabelExport["answers"] = await f.readFile(outFile, "utf8").then((t) => {
+    const prev = JSON.parse(t) as LabelExport;
+    if (prev.sheet !== data.sheet || prev.grader !== grader) throw new Error(`${outFile} is another sheet's or another grader's export; pick a new file.`);
+    return Object.fromEntries(Object.entries(prev.answers).filter(([rid]) => {
+      const row = data.rows.find((r) => r.rid === rid);
+      return !!row && answeredAll(row, prev.answers[rid]);
+    }));
+  }, () => ({}));
+  const kept = Object.keys(answers).length;
+  if (kept) console.log(`[grader2] resuming ${outFile}: ${kept} row(s) already answered`);
+  const save = () => writeText(outFile, JSON.stringify({ sheet: data.sheet, grader, exportedAt: new Date().toISOString(), answers } satisfies LabelExport, null, 2));
   const ask = async (row: (typeof data.rows)[number]): Promise<LabelExport["answers"][string]> => {
     const res = await fetch(endpoint, {
       method: "POST",
@@ -54,7 +76,10 @@ async function main(): Promise<void> {
     return JSON.parse(body.choices[0].message.content) as LabelExport["answers"][string];
   };
   const missing: string[] = [];
+  let asked = 0;
   for (const row of data.rows) {
+    if (answers[row.rid]) continue;
+    if (++asked % 25 === 0) await save();
     for (let attempt = 1; attempt <= 2 && !answers[row.rid]; attempt++) {
       try {
         answers[row.rid] = await ask(row);
@@ -64,8 +89,7 @@ async function main(): Promise<void> {
     }
     if (!answers[row.rid]) missing.push(row.rid);
   }
-  const out: LabelExport = { sheet: data.sheet, grader: viaOpenRouter ? `openrouter:${model}` : `openai:${model}`, exportedAt: new Date().toISOString(), answers };
-  await writeText(outFile, JSON.stringify(out, null, 2));
+  await save();
   console.log(`[grader2] ${data.rows.length - missing.length}/${data.rows.length} rows answered by ${model}: ${outFile}`);
   if (missing.length) throw new Error(`Unanswered rows after a retry: ${missing.join(", ")}. define-kappa.ts will refuse this export.`);
 }

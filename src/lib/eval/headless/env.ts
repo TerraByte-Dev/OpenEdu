@@ -17,7 +17,8 @@ export interface EvalOptions {
   embedModel?: string;
   /** Cloud providers only. Read from EVAL_API_KEY, never written to the results file. */
   apiKey?: string;
-  set: "main" | "dev" | "test" | "dev-v2" | "sealed";
+  /** "blind-19": define only, lever 19's held-out set (src/lib/eval/blind-19/items.json). */
+  set: "main" | "dev" | "test" | "dev-v2" | "sealed" | "blind-19";
   /** Required when set is "sealed". */
   sealedPath?: string;
   repeats: number;
@@ -53,7 +54,7 @@ const SUITES: EvalSuite[] = ["rag", "k12-flow", "k12-flow-fr", "b7-cpu", "define
 /** b7-cpu talks to a second, CPU-only Ollama server on its own port (README.md, "b7-cpu"). */
 export const B7_DEFAULT_OLLAMA_URL = "http://127.0.0.1:11435";
 export const B7_DEFAULT_REPEATS = 5;
-const SETS = ["main", "dev", "test", "dev-v2", "sealed"] as const;
+const SETS = ["main", "dev", "test", "dev-v2", "sealed", "blind-19"] as const;
 const MODES: RetrievalMode[] = ["always", "auto", "off"];
 // Kept in step with rag-runner.ts RAG_PROMPTS by parity.test.ts (importing the runner here would pull the
 // kernel into a module that is meant to stay pure).
@@ -81,6 +82,7 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
 
   const set = (get("EVAL_SET") ?? (flow || b7 || define ? "dev" : "main")) as EvalOptions["set"];
   if (!SETS.includes(set)) errs.push(`EVAL_SET=${set}: use ${SETS.join(", ")}`);
+  if (set === "blind-19" && !define) errs.push("EVAL_SET=blind-19 is the define suite's held-out set (lever 19)");
   // The k12 test items are in the sealed v2 file. Running them needs the frozen path through
   // loadSealed and all its refusals, which k12-flow does not have yet. The 240 k12-mc items are DEV.
   if (flow && set !== "dev") errs.push(`EVAL_SET=${set}: ${suite} runs only the dev items (${suite === "k12-flow" ? "the 240 k12-mc items" : "the free-response items derived from them"}) for now`);
@@ -100,13 +102,15 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
   // define: its own items (define-items.ts), dev or test split; one user turn, retrieval "always", no
   // syllabus, ChatTab's prompt (define-runner.ts). Repeats and EVAL_ONLY are allowed.
   if (define) {
-    if (set !== "dev" && set !== "test") errs.push(`EVAL_SET=${set}: define runs its own dev or test split`);
+    if (set !== "dev" && set !== "test" && set !== "blind-19") errs.push(`EVAL_SET=${set}: define runs its own dev or test split, or blind-19`);
     for (const k of ["EVAL_MODES", "EVAL_SYLLABUS", "EVAL_SEALED", "EVAL_PROMPT"]) if (get(k)) errs.push(`${k} does not apply to define`);
     // The test split runs once, whole, at 3 repeats (lever 18): a one-item smoke run would write test
     // replies before the frozen run.
-    if (set === "test") {
-      if (get("EVAL_ONLY")) errs.push("EVAL_ONLY is not allowed on the define test split: the run covers every item");
-      if (get("EVAL_REPEATS") !== "3") errs.push("The define test split runs EVAL_REPEATS=3 (pre-registered)");
+    // blind-19 is a test set too (lever 19): run once, whole, at 3 repeats.
+    if (set === "test" || set === "blind-19") {
+      const name = set === "test" ? "test split" : "blind-19 set";
+      if (get("EVAL_ONLY")) errs.push(`EVAL_ONLY is not allowed on the define ${name}: the run covers every item`);
+      if (get("EVAL_REPEATS") !== "3") errs.push(`The define ${name} runs EVAL_REPEATS=3 (pre-registered)`);
     }
   }
   const dictionary = get("EVAL_DICTIONARY") as EvalOptions["dictionary"];

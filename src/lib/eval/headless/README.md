@@ -172,6 +172,21 @@ every non-ERROR row of those items in both arms. `define-kappa.ts` reads it only
 and prints the item verdicts with grader 1 deciding each row (a missing repeat fails), the both-graders-agree reading as a sensitivity line, kappa between the graders and every
 disagreement.
 
+### blind-19 (lever 19)
+
+`EVAL_SET=blind-19` runs lever 19's held-out set (`docs/BENCHMARKS.md` B8 "Lever 19") from
+`src/lib/eval/blind-19/items.json`, with the test split's rules: `EVAL_REPEATS=3`, no `EVAL_ONLY`, and a
+clean `src/` and `public/dictionary/`. Its rows have no term lists, so `grade` is null; both blind model
+graders read every row. The set does not exist until the ranker's hash is committed.
+
+| Step | Command |
+|---|---|
+| Generate the set (once) | `run-with-secrets npx vite-node src/lib/eval/headless/blind19-generate.ts -- openai/gpt-6.1-sol` (everything it does is in `../blind19.ts`; it takes no argument but the model and makes no request without it) |
+| Build a sheet and its hidden key | `$env:BLIND19_RUNS = "<S file>,<R file>"; $env:BLIND19_SHEET = "<id>"; npx vite-node src/lib/eval/headless/blind19-sheet.ts`. `BLIND19_CANARY=1` on the gemma4:e2b S and R sheet only (its 20 canary rows); `BLIND19_ONLY_CHANGED=1` keeps the changed items (R8 step 2). A B run goes on a sheet of its own. |
+| Price every sheet first (R8) | `$env:BLIND19_SHEETS = "<sheet.html>,..."; $env:BLIND19_PRICE = "<grader 1 model>=<in>/<out>,<grader 2 model>=<in>/<out>"; $env:BLIND19_CREDIT = "<USD>"; npx vite-node src/lib/eval/headless/blind19-cost.ts` |
+| Both graders | `define-label-grader2.ts`, unchanged, with `DEFINE_GRADER_SLOT` 1 and 2. Run again with the same output file to resume: answered rows are kept. |
+| Judge | `$env:BLIND19_RUNS = "<every S, R and B file>"; $env:BLIND19_GRADED = "<key>|<grader 1>|<grader 2>,..."; $env:BLIND19_SAFETY_READ = "<the newly-reachable read's record>"; npx vite-node src/lib/eval/headless/blind19-compare.ts` reads row 19's kill rule (`../blind19-grade.ts`): the gate with its canary, every harm and other-models clause three ways on the changed subset, and the accuracy reading. |
+
 ## b7-cpu: latency on a CPU
 
 `docs/BENCHMARKS.md` B7. What a tutoring turn costs on a CPU, end to end, through the product path:
