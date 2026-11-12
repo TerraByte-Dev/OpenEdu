@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { getActiveLearnerId, setCourseSubject, setLearnerRecordVoice } from "../../lib/db";
+import { getActiveLearnerId, listLearners, renameLearner, setCourseSubject, setLearnerGrade, setLearnerRecordVoice } from "../../lib/db";
 import { learningRecord, type CourseStanding, type LearningRecord, type MasteredRow, type SkillStatus } from "../../lib/record/build";
 import {
   RECORD_COPY, RECORD_DISCLAIMER, RECORD_DISCLAIMER_SHORT, RECORD_RULES, RECORD_SUBJECTS, fill, type PillKey,
@@ -8,11 +8,16 @@ import { recordVoice } from "../../lib/record/voice";
 import { toStored } from "../../lib/record/time";
 import type { RecordSource } from "../../lib/record/sources";
 import {
-  allTimeRecord, approxTimeText, dayText, durationText, earlySignCount, evidenceText, groupByCourseAndLevel, localDayText,
-  masteredCount, rangeOptions, splitAtCount, whenText, type Audience,
+  allTimeRecord, approxShown, approxTimeText, dayText, durationText, earlySignCount, evidenceText, groupByCourseAndLevel, localDayText,
+  masteredCount, quizTimeText, rangeOptions, splitAtCount, whenText, withoutProofText, type Audience,
 } from "../../lib/record/view";
-import { gradeLabel, normalizeGrade } from "../../lib/grade";
+import { gradeLabel, normalizeGrade, type Grade } from "../../lib/grade";
+import { needsNameCheck, saveLabel } from "../../lib/record/print";
+import { LEARNER_NAME_MAX, validateLearnerName } from "../../lib/learners";
+import { GradeSelect } from "../../components/GradeSelect";
 import { BookIcon } from "../early/pictures";
+import PrintView from "../early/PrintView";
+import { recordPrintPages } from "./RecordPrint";
 
 // The learning record on screen (#258 PR 3, spec §3). One LearningRecord (record/build.ts) drives
 // every number and label; this file only lays it out. The loader is a prop: App passes
@@ -50,6 +55,8 @@ export interface RecordProps {
   /** "own": the learner's own record (voice from recordVoice). "teacher": inside TeacherView, always third person. */
   audience: "own" | "teacher";
   onBack: () => void;
+  /** The name check renamed the learner or set their grade: reload the learner list. */
+  onLearnerChanged?: () => void;
 }
 
 /** The ⓘ / pill disclosure: which rules are open. */
@@ -165,7 +172,7 @@ const Small = ({ children }: { children: ReactNode }) => <span className="text-s
 
 // ── The record ──────────────────────────────────────────────────────────────────────────────────────
 
-export default function Record({ learnerId, load, audience: who, onBack }: RecordProps) {
+export default function Record({ learnerId, load, audience: who, onBack, onLearnerChanged }: RecordProps) {
   const [source, setSource] = useState<RecordSource | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -174,6 +181,10 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
   const [askVoice, setAskVoice] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [subjectError, setSubjectError] = useState<string | null>(null);
+  // Save: the name check (spec §1 rule 5) first when it is needed, then the print view, which opens
+  // the print dialog by itself.
+  const [checkingName, setCheckingName] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const open = useOpen();
 
   useEffect(() => {
@@ -234,6 +245,19 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
     }
   };
 
+  const save = () => {
+    if (source && needsNameCheck(source.learner)) setCheckingName(true);
+    else setPrinting(true);
+  };
+  const named = (learner: { name: string; grade: Grade | null } | null) => {
+    if (learner && source) {
+      setSource({ ...source, learner: { ...source.learner, ...learner } });
+      onLearnerChanged?.();
+    }
+    setCheckingName(false);
+    setPrinting(true);
+  };
+
   const name = source?.learner.name.trim() || "Your learner";
   const title = audience === "self" ? V.myRecord : fill(V.namedRecord, { name });
   const asking = who === "own" && source !== null && (voice === "ask" || askVoice);
@@ -247,6 +271,19 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
     </label>
   );
   const back = <button type="button" className="btn" onClick={onBack}>{who === "teacher" ? V.backTeacher : V.backHome}</button>;
+
+  if (printing && record) {
+    return (
+      <PrintView
+        title={fill(C.print.previewTitle, { name, period: record.period.label })}
+        hint={C.print.hint}
+        pages={recordPrintPages(record, audience, now)}
+        onBack={() => setPrinting(false)}
+        backLabel={C.print.back}
+        autoPrint
+      />
+    );
+  }
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto flex flex-col bg-bg">
@@ -297,9 +334,19 @@ export default function Record({ learnerId, load, audience: who, onBack }: Recor
             now={now}
             headingRef={headingRef}
             headingLevel={who === "teacher" ? 2 : 1}
+            onSave={save}
           />
         )}
       </main>
+      {checkingName && source && (
+        <NameCheck
+          learnerId={learnerId}
+          name={source.learner.name}
+          grade={normalizeGrade(source.learner.grade)}
+          onDone={named}
+          onCancel={() => setCheckingName(false)}
+        />
+      )}
     </div>
   );
 }
@@ -328,7 +375,8 @@ function VoiceQuestion({ current, forced, error, onChoose, onKeep }: {
   );
 }
 
-function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel }: {
+function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel, onSave }: {
+  onSave: () => void;
   headingRef: RefObject<HTMLHeadingElement | null>;
   /** 1 on the record's own screen; 2 inside TeacherView, whose "Teacher / parent" is the page's h1. */
   headingLevel: 1 | 2;
@@ -349,8 +397,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
   const checked = masteredCount(r);
   const early = earlySignCount(r);
   const everything = allTime?.mastered ?? [];
-  // The cut-over day alone can leave an empty approximate part beside counted time; "About 0 min" says nothing.
-  const approx = r.time.approx && (r.time.approx.sittings > 0 || !r.time.counted) ? r.time.approx : null;
+  const approx = approxShown(r.time);
   // A self reader's "Since you started" range already is this list.
   const showEverything = self && r.range.kind !== "since";
 
@@ -377,6 +424,11 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
             {!r.current && <Small>{fill(C.builtFromCurrent, { date: dayText(toStored(now), true) })}</Small>}
             {/* K-1 work on the early-learner screens is kept apart (#244); say where it is, without guessing the choice. */}
             {(grade === 0 || grade === 1) && <span className="text-[15px] text-[var(--ink-dim)]">{V.earlyNote}</span>}
+          </div>
+          {/* Save prints the record. The helper speaks to a grown-up keeping a portfolio, so not in the self voice. */}
+          <div className="ml-auto flex flex-col items-start sm:items-end gap-1.5 max-w-[340px]">
+            <button type="button" className="btn btn-primary" onClick={onSave}>{saveLabel(r, audience)}</button>
+            {!self && <span className="text-sm text-[var(--ink-faint)] sm:text-right leading-normal">{C.saveHelper}</span>}
           </div>
         </div>
 
@@ -575,11 +627,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
           <Card>
             {r.withoutProof.map((w, i) => {
               const k = `a2-${w.courseId}-${w.level}-${w.skillId}`;
-              const pill: PillKey = w.reason === "tutor" ? "tutor" : w.reason === "keyword" ? "keyword" : "no_proof";
-              const why = w.reason === "tutor" || w.reason === "keyword"
-                ? (w.date ? fill(C.withoutProof[w.reason], { date: dayText(w.date) }) : w.reason === "tutor" ? V.tutorUndated : V.keywordUndated)
-                : w.reason === "fallback" ? fill(C.withoutProof.fallback, { n: w.fallbackAnswers })
-                : C.withoutProof[w.reason];
+              const { pill, why } = withoutProofText(w);
               return (
                 <Row key={k} first={i === 0}>
                   <div className="flex flex-wrap items-center gap-3">
@@ -858,7 +906,6 @@ function SkillLineRow({ courseId, s, first, open, showLevel }: {
 
 function Quizzes({ record: r, open }: { record: LearningRecord; open: Open }) {
   const Q = C.quizzes;
-  const time = (s: number | null) => (s === null ? "—" : s < 60 ? V.underMinute : durationText(Math.round(s / 60)));
   return (
     <Section id="c1" title={V.quizzesHead} open={open}>
       <Small>{Q.header}</Small>
@@ -887,7 +934,7 @@ function Quizzes({ record: r, open }: { record: LearningRecord; open: Open }) {
                     {q.timedOutUnstored && <span className="block text-sm text-[var(--ink-dim)]">{Q.timedOutUnstored}</span>}
                     {q.unanswered > 0 && <span className="block text-sm text-[var(--ink-dim)]">{fill(V.unansweredNote, { n: q.unanswered })}</span>}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{time(q.seconds)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{quizTimeText(q.seconds)}</td>
                 </tr>
               ))}
             </tbody>
@@ -938,5 +985,79 @@ function HowCounted({ audience }: { audience: Audience }) {
         <p className="m-0 text-[15px] text-ink leading-relaxed">{audience === "self" ? RECORD_DISCLAIMER_SHORT : RECORD_DISCLAIMER}</p>
       </div>
     </section>
+  );
+}
+
+/**
+ * Spec §1 rule 5: before a record still named 'Learner 1', or with no grade, is saved, ask for both.
+ * Either can stay as it is; Skip goes straight on to the print. Saved through the same setters as the
+ * learner menu and Settings.
+ */
+function NameCheck({ learnerId, name: initialName, grade: initialGrade, onDone, onCancel }: {
+  learnerId: string;
+  name: string;
+  grade: Grade | null;
+  /** The learner as saved, or null when skipped. */
+  onDone: (learner: { name: string; grade: Grade | null } | null) => void;
+  onCancel: () => void;
+}) {
+  const N = C.print.nameCheck;
+  const [name, setName] = useState(initialName);
+  const [grade, setGrade] = useState<Grade | null>(initialGrade);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { input.current?.focus(); input.current?.select(); }, []);
+
+  const saveAndContinue = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const trimmed = name.trim();
+      if (trimmed !== initialName.trim()) {
+        const problem = validateLearnerName(trimmed, await listLearners(), learnerId);
+        if (problem) { setError(problem); setBusy(false); return; }
+        await renameLearner(learnerId, trimmed);
+      }
+      if (grade !== initialGrade) await setLearnerGrade(learnerId, grade);
+      onDone({ name: trimmed, grade });
+    } catch {
+      setError(N.failed);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 px-4" onMouseDown={onCancel}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rec-name-check"
+        className="bg-panel border border-[var(--rule)] rounded-[20px] p-7 w-[min(480px,94vw)] max-h-[90vh] overflow-y-auto flex flex-col gap-5"
+        style={{ boxShadow: "var(--shadow-soft)" }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
+        onSubmit={(e) => { e.preventDefault(); if (!busy) void saveAndContinue(); }}
+      >
+        <span className="glow-line" />
+        <div className="flex flex-col gap-2">
+          <h2 id="rec-name-check" className="m-0 text-[24px] font-medium tracking-[-0.01em] text-ink">{N.head}</h2>
+          <Quiet>{N.body}</Quiet>
+        </div>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[15px] text-ink">{N.name}</span>
+          <input ref={input} className="cf-input" value={name} maxLength={LEARNER_NAME_MAX} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[15px] text-ink">{N.grade}</span>
+          <GradeSelect value={grade} onChange={setGrade} style={{ width: "100%" }} />
+        </label>
+        {error && <p className="m-0 text-[15px] text-danger" role="alert">{error}</p>}
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>{N.saveAndContinue}</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => onDone(null)}>{N.skip}</button>
+        </div>
+      </form>
+    </div>
   );
 }

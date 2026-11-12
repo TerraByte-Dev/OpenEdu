@@ -523,6 +523,11 @@ export default function App() {
                   load={getRecordSource}
                   audience="own"
                   onBack={() => setCurrentView("dashboard")}
+                  onLearnerChanged={async () => {
+                    const list = await reloadLearners();
+                    const me = list.find((l) => l.id === activeLearner.id);
+                    if (me) setActiveLearner(me);
+                  }}
                 />
               )}
 
