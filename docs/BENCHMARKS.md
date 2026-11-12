@@ -132,6 +132,11 @@ Same k12-flow transcripts, plus the generic reveal-smoke cases. Components:
   - Grader 1 shares a family with the author of the items and the lexical grader (Claude). Grader 2 is the independent check.
   - Any B8 accuracy claim is worded "validated against two blind model graders (Claude, OpenAI)" and never as human-validated.
   - Every other rule is unchanged: the κ bar, the readings, the refusal rules, adjudication by grader 1 with the both-agree sensitivity line, and the descriptive fallback.
+- **Result, 2026-11-12 (read once, `eval-test-2026-11-12`):** no kill clause fires on any model, so lever 18 ships **as a trust/UX feature, not an accuracy lever**.
+  - **The B8 gate missed:** lenient κ was 0.65 for both graders.
+  - **The accuracy claim is untestable at this n:** e2b B passes 40 of 45 target items.
+  - **All six arms are complete:** 0 ERROR rows and 0 added calls.
+  - Full record: `src/lib/eval/results/2026-11-12-define-test.md`.
 - **Status:** built 2026-11-11, **not run**; the gate has not run.
 - **What 100% means:** not a target. The plain K-5 items are expected near the ceiling in both arms (the models know these words); the suite exists to show where a dictionary entry changes the answer and that it costs nothing elsewhere.
 
