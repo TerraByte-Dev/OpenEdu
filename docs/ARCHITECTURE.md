@@ -152,6 +152,25 @@ stored), leaving the course rows' minutes empty, because `learner_days` never kn
 was in. Both files go through `toCsv` and end with the full disclaimer in the widest text column. `export_save_csv` takes an optional dialog `title`
 (`dialog_title`, defaulting to the teacher overview's).
 
+**Saved months (#258 PR 5, migration 19).** When a month ends, each learner's record for it is saved in
+`monthly_records` (one row per learner per month), so deleting a course or regenerating a level later
+cannot rewrite it. `App.tsx` calls `db.ts saveEndedMonths()` in the background after the launch's learner
+list loads; it saves every ended month with activity that has no copy yet (`record/saved.ts monthsToSave`),
+never the current month, and `app_config record_saved_through` makes later launches that month read
+nothing. Save and CSV of an ended month with no copy save one first. The body (`saved.ts SavedBody`) is
+the `LearningRecord` as built then plus the daily spreadsheet's rows: counts, titles, dates and statuses.
+It never holds the learner's own words (C2, B4's self-explanation) or B3's question/answer pairs:
+`saved.ts restoreSaved` reads those again from the rows still on record each time, so a deleted course
+leaves no learner text behind and the record says "Examples from deleted courses are no longer on this
+computer." The learner's name, grade and voice, and each surviving course's subject label, are shown as
+they are now. The screen, the paper and the daily CSV all read the month through `saved.ts shownRecord` /
+`shownDays`, and say where it came from (H4): "Saved <date> from the activity on record then." or, for a
+past month with no copy, "Built <date> from the activity still on record." The event log is always
+read from the current rows and, for a saved month, says so in its last row. "Rebuild from current data"
+replaces a saved month after "This replaces the copy saved on <date>."; a learner's own record offers it
+only where Settings is not behind the teacher PIN. Deleting a learner deletes their saved months (ON
+DELETE CASCADE); deleting a course does not.
+
 ## Repo layout
 
 | Path | What lives there |
