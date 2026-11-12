@@ -10,7 +10,7 @@ import type { GradedBy } from "./quiz-grading";
 import type { FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
 import type { RecordSavedMonth, RecordSource } from "./record/sources";
-import { lastEndedMonth, monthKey, monthsToSave, snapshotOf, type MonthSnapshot } from "./record/saved";
+import { lastEndedMonth, monthKey, monthsToSave, snapshotOf, unendedCopies, type MonthSnapshot } from "./record/saved";
 import { isRecordSubject } from "./record/copy";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
@@ -1272,30 +1272,45 @@ export async function saveMonthlyRecord(learnerId: string, snapshot: MonthSnapsh
 }
 
 /**
- * The launch's job: save every learner's ended months that have activity and no saved copy (record/saved.ts
- * monthsToSave). It runs once per month: app_config record_saved_through holds the last month every
- * learner was saved through, so later launches that month read nothing. A month already saved is never
- * rewritten. Returns how many months were saved.
+ * The launch's job: save every learner's ended months that have activity and no copy saved after they
+ * ended (record/saved.ts monthsToSave; a copy saved too early is replaced, and a copy of a month that
+ * has not ended, written while the clock was ahead, is deleted). It runs once per month:
+ * app_config record_saved_through holds the last ended month every learner was saved through, so later
+ * launches that month read nothing. Only an exact match skips, so a marker written while the clock was
+ * ahead cannot switch saving off. One learner's failure does not stop the others; the marker is set only
+ * when every learner was saved, so a failure is tried again at the next launch. A month saved after it
+ * ended is never rewritten here. Returns how many months were saved.
  */
 export async function saveEndedMonths(now: Date = new Date()): Promise<number> {
   const d = await getDb();
   const through = monthKey(lastEndedMonth(now));
   const done: Array<{ value: string | null }> = await d.select("SELECT value FROM app_config WHERE key = 'record_saved_through'");
-  if (done[0]?.value && done[0].value >= through) return 0;
+  if (done[0]?.value === through) return 0;
   let saved = 0;
+  let failed = 0;
   for (const l of await listLearners()) {
-    const source = await readRecordSource(l.id);
-    if (!source) continue;
-    for (const range of monthsToSave(source, now)) {
-      const snapshot = snapshotOf(source, range, now);
-      if (!snapshot) continue;
-      await saveMonthlyRecord(l.id, snapshot);
-      saved++;
+    try {
+      const source = await readRecordSource(l.id);
+      if (!source) continue;
+      for (const month of unendedCopies(source, now)) {
+        await d.execute("DELETE FROM monthly_records WHERE learner_id = $1 AND month = $2", [l.id, month]);
+      }
+      for (const { range, replace } of monthsToSave(source, now)) {
+        const snapshot = snapshotOf(source, range, now);
+        if (!snapshot) continue;
+        await saveMonthlyRecord(l.id, snapshot, replace);
+        saved++;
+      }
+    } catch (e) {
+      failed++;
+      console.warn(`[record] could not save the ended months of learner ${l.id}`, e);
     }
   }
-  await d.execute(
-    "INSERT INTO app_config (key, value) VALUES ('record_saved_through', $1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [through],
-  );
+  if (failed === 0) {
+    await d.execute(
+      "INSERT INTO app_config (key, value) VALUES ('record_saved_through', $1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [through],
+    );
+  }
   return saved;
 }
 

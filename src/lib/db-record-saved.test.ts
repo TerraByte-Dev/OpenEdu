@@ -59,6 +59,8 @@ const today = new Date();
 const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 15);
 const monthAfter = new Date(today.getFullYear(), today.getMonth() + 2, 15);
+/** Stamp every saved row as saved on `nextMonth`, as sqlite's own clock would have, had it read that date. */
+const stamp = () => sqlite.exec(`UPDATE monthly_records SET saved_at = '${nextMonth.toISOString().slice(0, 19).replace("T", " ")}'`);
 
 /** A course with one mastered skill (9 of 10), a missed question with the learner's own words, and a note. */
 async function seed(prefix: string): Promise<string> {
@@ -121,6 +123,7 @@ describe("saved months", () => {
     expect(rows("SELECT * FROM monthly_records")).toEqual([]);
 
     expect(await saveEndedMonths(nextMonth)).toBe(2);
+    stamp(); // sqlite stamped saved_at with the real clock; this test's clock is a month on
     const saved = rows<{ learner_id: string; month: string; format: number }>("SELECT learner_id, month, format FROM monthly_records ORDER BY learner_id");
     expect(saved).toEqual([
       { learner_id: other, month: thisMonth, format: 1 },
@@ -146,6 +149,7 @@ describe("saved months", () => {
 
   it("keeps a saved month through a course's deletion, minus the learner's words, and drops it with the learner", async () => {
     await saveEndedMonths(nextMonth);
+    stamp(); // sqlite stamped saved_at with the real clock; this test's clock is a month on
     const range = { kind: "month" as const, year: today.getFullYear(), month: today.getMonth() };
     const before = shownRecord((await getRecordSource())!, range, nextMonth);
     expect(before.mastered.map((m) => m.skill)).toEqual(["A skill"]);
@@ -167,6 +171,36 @@ describe("saved months", () => {
     await deleteLearner(other);
     expect(rows("SELECT * FROM monthly_records WHERE learner_id = ?", other)).toEqual([]);
     expect(rows("SELECT month FROM monthly_records WHERE learner_id = ?", DEFAULT_LEARNER_ID)).toEqual([{ month: thisMonth }]);
+  });
+
+  it("deletes a copy saved while the clock was ahead, and a marker set ahead cannot switch saving off", async () => {
+    const range = { kind: "month" as const, year: today.getFullYear(), month: today.getMonth() };
+    // The clock read next month for one launch: this month was saved and the marker moved to it.
+    expect(await saveEndedMonths(nextMonth)).toBe(2);
+    expect(rows<{ value: string }>("SELECT value FROM app_config WHERE key = 'record_saved_through'")).toEqual([{ value: thisMonth }]);
+    // Back to the real date: this month is the current one, shown live, never the frozen copy.
+    expect(shownRecord((await getRecordSource())!, range, today).saved).toBeNull();
+    // The next launch is not skipped by the marker set ahead; it deletes the copies that cannot be right.
+    await saveEndedMonths(today);
+    expect(rows("SELECT * FROM monthly_records")).toEqual([]);
+    // When the month really ends, it is saved again.
+    expect(await saveEndedMonths(nextMonth)).toBe(2);
+    // A marker far ahead does not stop a launch either.
+    sqlite.exec("DELETE FROM monthly_records; UPDATE app_config SET value = '2099-12' WHERE key = 'record_saved_through';");
+    expect(await saveEndedMonths(nextMonth)).toBe(2);
+  });
+
+  it("saves every other learner when one fails, and tries again at the next launch", async () => {
+    // The first learner listed has a syllabus that cannot be read.
+    sqlite.exec(`UPDATE syllabuses SET subtopics = '{not json' WHERE course_id = '${mine}'`);
+    expect(await saveEndedMonths(nextMonth)).toBe(1);
+    stamp(); // sqlite stamped saved_at with the real clock; this test's clock is a month on
+    expect(rows<{ learner_id: string }>("SELECT learner_id FROM monthly_records")).toEqual([{ learner_id: other }]);
+    expect(rows("SELECT value FROM app_config WHERE key = 'record_saved_through'")).toEqual([]);
+    sqlite.exec(`UPDATE syllabuses SET subtopics = '[]' WHERE course_id = '${mine}'`);
+    expect(await saveEndedMonths(nextMonth)).toBe(1);
+    expect(rows("SELECT learner_id FROM monthly_records")).toHaveLength(2);
+    expect(rows<{ value: string }>("SELECT value FROM app_config WHERE key = 'record_saved_through'")).toEqual([{ value: thisMonth }]);
   });
 
   it("keeps a month saved first unless asked to replace it (Rebuild from current data)", async () => {

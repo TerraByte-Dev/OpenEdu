@@ -15,7 +15,7 @@ import {
 } from "../../lib/record/view";
 import { gradeLabel, normalizeGrade, type Grade } from "../../lib/grade";
 import { needsNameCheck, provenance, saveLabel } from "../../lib/record/print";
-import { needsSaving, shownDays, shownRecord, snapshotOf } from "../../lib/record/saved";
+import { hasEarlyCopy, needsSaving, shownDays, shownRecord, snapshotOf } from "../../lib/record/saved";
 import { LEARNER_NAME_MAX, validateLearnerName } from "../../lib/learners";
 import { GradeSelect } from "../../components/GradeSelect";
 import { BookIcon } from "../early/pictures";
@@ -275,7 +275,8 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
     try {
       const snapshot = snapshotOf(source, record.range, at);
       if (!snapshot) return source;
-      const next = withSaved(source, await saveMonthlyRecord(learnerId, snapshot));
+      // A copy saved before the month ended (the clock was ahead) is replaced, never kept.
+      const next = withSaved(source, await saveMonthlyRecord(source.learner.id, snapshot, hasEarlyCopy(source, record.range)));
       setSource(next);
       return next;
     } catch (e) {
@@ -284,12 +285,13 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
     }
   };
 
-  // "Rebuild from current data": a new copy from the rows on record now replaces the saved one.
+  // "Rebuild from current data": a new copy from the rows on record now replaces the saved one. It
+  // throws rather than do nothing, so the confirmation shows that it failed.
   const rebuild = async () => {
-    if (!source || !record) return;
+    if (!source || !record) throw new Error("the record is not loaded");
     const snapshot = snapshotOf(source, record.range, new Date());
-    if (!snapshot) return;
-    const row = await saveMonthlyRecord(learnerId, snapshot, true);
+    if (!snapshot) throw new Error("this month has not ended");
+    const row = await saveMonthlyRecord(source.learner.id, snapshot, true);
     setSource((s) => s && withSaved(s, row));
   };
 
@@ -322,7 +324,7 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
     const names = recordCsvNames(shown);
     const notes: string[] = [];
     try {
-      const daily = await saveCsvFile(names.daily, recordDailyCsv(shown, shownDays(src, shown)), X.dialogDaily);
+      const daily = await saveCsvFile(names.daily, recordDailyCsv(shown, shownDays(src, shown, now)), X.dialogDaily);
       if (!daily) return "";
       notes.push(fill(X.saved, { path: daily }));
       if (withLog) {
@@ -587,7 +589,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
             {/* H4: a saved month says when it was saved; a past month without a saved copy says it was built now. */}
             {provenance(r) && <Small>{provenance(r)}</Small>}
             {r.saved?.examplesGone && <Small>{C.examplesGone}</Small>}
-            {r.saved && onRebuild && <Rebuild savedAt={r.saved.at} onRebuild={onRebuild} />}
+            {r.saved && onRebuild && <Rebuild key={r.period.label} savedAt={r.saved.at} onRebuild={onRebuild} />}
             {/* K-1 work on the early-learner screens is kept apart (#244); say where it is, without guessing the choice. */}
             {(grade === 0 || grade === 1) && <span className="text-[15px] text-[var(--ink-dim)]">{V.earlyNote}</span>}
           </div>

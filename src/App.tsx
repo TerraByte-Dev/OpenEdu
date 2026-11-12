@@ -523,6 +523,7 @@ export default function App() {
 
               {recordView && (
                 <Record
+                  key={activeLearner.id}
                   learnerId={activeLearner.id}
                   load={getRecordSource}
                   audience="own"

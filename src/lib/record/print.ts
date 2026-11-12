@@ -99,8 +99,9 @@ export interface PrintHeader {
   /** "Printed Nov 11, 2026 · Record format 1". */
   printed: string;
   /**
-   * H4 for a past month: "Saved Dec 1, 2026 from the activity on record then." for a saved month, or
-   * "Built Dec 2, 2026 from the activity still on record." for one with no saved copy.
+   * H4 (provenance): "Saved Dec 1, 2026 from the activity on record then." for a saved month, "Built Dec 2,
+   * 2026 from the activity still on record." for a past one with no saved copy, the built-live line for a
+   * school-year or since-you-started range, or null for the current month.
    */
   built: string | null;
   /** A saved month whose course was deleted since: "Examples from deleted courses are no longer on this computer." */
@@ -109,9 +110,14 @@ export interface PrintHeader {
   note: string | null;
 }
 
-/** H4's provenance line, the same on screen and paper: saved, built now for a past range, or none for the current one. */
+/**
+ * H4's provenance line, the same on screen and paper: saved; built now for a past month; for a
+ * school-year or since-you-started range, that it is built live and can disagree with saved months; none
+ * for the current month.
+ */
 export function provenance(record: LearningRecord): string | null {
   if (record.saved) return fill(C.savedThen, { date: dayText(record.saved.at, true) });
+  if (record.range.kind === "since") return C.sinceLive;
   return record.current ? null : fill(C.builtFromCurrent, { date: dayText(record.builtAt, true) });
 }
 

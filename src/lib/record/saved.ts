@@ -23,10 +23,15 @@ import type { RecordQuestion, RecordSavedMonth, RecordSource } from "./sources";
 
 type MonthRange = Extract<RecordRange, { kind: "month" }>;
 
-/** What monthly_records.body_json holds. */
+/**
+ * What monthly_records.body_json holds. The learner's name, grade and voice are left out (they are shown
+ * as they are now), and so is every learner-written or verbatim item; examplesFrom keeps only the ids of
+ * the courses that had any, so the record can say when one of them was deleted.
+ */
 export interface SavedBody {
-  record: LearningRecord;
+  record: Omit<LearningRecord, "learner">;
   days: RecordDay[];
+  examplesFrom: string[];
 }
 
 /** A row ready for monthly_records (learner_id and saved_at come from db.ts). */
@@ -39,11 +44,6 @@ export interface MonthSnapshot {
 /** 'YYYY-MM' (local) for a month range. */
 export function monthKey(range: MonthRange): string {
   return `${range.year}-${String(range.month + 1).padStart(2, "0")}`;
-}
-
-export function monthRange(key: string): MonthRange {
-  const [y, m] = key.split("-").map(Number);
-  return { kind: "month", year: y, month: m - 1 };
 }
 
 /** The month before `now`'s: the latest one that has ended. */
@@ -71,27 +71,72 @@ export function withoutVerbatim(record: LearningRecord): LearningRecord {
 export function snapshotOf(source: RecordSource, range: RecordRange, now: Date): MonthSnapshot | null {
   if (!monthEnded(range, now)) return null;
   const record = learningRecord(source, range, now);
-  const body: SavedBody = { record: withoutVerbatim(record), days: recordDays(source, record) };
+  const { learner: _learner, ...kept } = withoutVerbatim(record);
+  const examplesFrom = new Set([
+    ...record.hardOnes.filter((h) => h.missed.length > 0).map((h) => h.courseId),
+    ...record.talkAboutIt.explain.filter((e) => e.selfExplanation !== null).map((e) => e.courseId),
+    ...record.ownWords.map((w) => w.courseId),
+  ]);
+  const body: SavedBody = { record: kept, days: recordDays(source, record), examplesFrom: [...examplesFrom] };
   return { month: monthKey(range), format: RECORD_FORMAT, body_json: JSON.stringify(body) };
 }
 
-/** Ended months with activity that have no saved copy yet, oldest first: what the launch saves. */
-export function monthsToSave(source: RecordSource, now: Date): MonthRange[] {
-  const saved = new Set(source.savedMonths.map((s) => s.month));
-  return monthsWithActivity(source)
-    .map((m): MonthRange => ({ kind: "month", year: m.year, month: m.month }))
-    .filter((range) => !saved.has(monthKey(range)) && monthEnded(range, now))
-    .reverse();
+/**
+ * A row saved before its month had ended in local time: the clock was ahead, or the time zone has moved
+ * since. It is never shown; the launch replaces it once the month has ended.
+ */
+function savedEarly(row: RecordSavedMonth, range: MonthRange): boolean {
+  return parseUtc(row.saved_at) < rangeBounds(range, new Date(0)).end;
 }
 
-/** The saved row for this month, when there is one in a format this version reads. */
-export function savedMonth(source: RecordSource, range: RecordRange): { row: RecordSavedMonth; body: SavedBody } | null {
-  if (range.kind !== "month") return null;
+/** This month has a saved row that was written before the month ended, so saving it again must replace it. */
+export function hasEarlyCopy(source: RecordSource, range: RecordRange): boolean {
+  if (range.kind !== "month") return false;
   const row = source.savedMonths.find((s) => s.month === monthKey(range));
-  if (!row || row.format !== RECORD_FORMAT) return null;
+  return !!row && savedEarly(row, range);
+}
+
+/**
+ * What the launch saves, oldest first: every ended month with activity and no copy saved after it ended,
+ * and every ended month whose copy was saved too early, or stamped later than `now` (the clock was ahead
+ * when it was saved). `replace` overwrites such a copy.
+ */
+export function monthsToSave(source: RecordSource, now: Date): Array<{ range: MonthRange; replace: boolean }> {
+  const keys = new Set([
+    ...monthsWithActivity(source).map((m) => monthKey({ kind: "month", year: m.year, month: m.month })),
+    ...source.savedMonths.map((s) => s.month),
+  ]);
+  return [...keys].sort().flatMap((key) => {
+    const [year, month] = key.split("-").map(Number);
+    const range: MonthRange = { kind: "month", year, month: month - 1 };
+    if (!monthEnded(range, now)) return [];
+    const row = source.savedMonths.find((s) => s.month === key);
+    if (row && !savedEarly(row, range) && parseUtc(row.saved_at) <= now) return [];
+    return [{ range, replace: !!row }];
+  });
+}
+
+/**
+ * Saved copies of months that have not ended by `now`: written while the clock was ahead. They can never
+ * be right, so the launch deletes them, and the month is saved again once it really ends.
+ */
+export function unendedCopies(source: RecordSource, now: Date): string[] {
+  return source.savedMonths
+    .filter((s) => { const [year, month] = s.month.split("-").map(Number); return !monthEnded({ kind: "month", year, month: month - 1 }, now); })
+    .map((s) => s.month);
+}
+
+/**
+ * The saved row for this month, when the month has ended, the row was saved after it ended, and it is
+ * in a format this version reads. Anything else is built from the rows on record now.
+ */
+export function savedMonth(source: RecordSource, range: RecordRange, now: Date): { row: RecordSavedMonth; body: SavedBody } | null {
+  if (!monthEnded(range, now)) return null;
+  const row = source.savedMonths.find((s) => s.month === monthKey(range));
+  if (!row || row.format !== RECORD_FORMAT || savedEarly(row, range)) return null;
   try {
     const body = JSON.parse(row.body_json) as SavedBody;
-    if (body?.record?.format !== RECORD_FORMAT || !Array.isArray(body.days)) return null;
+    if (body?.record?.format !== RECORD_FORMAT || !Array.isArray(body.days) || !Array.isArray(body.examplesFrom)) return null;
     return { row, body };
   } catch {
     return null;
@@ -122,10 +167,9 @@ export function restoreSaved(source: RecordSource, body: SavedBody, savedAt: str
     .filter((a) => a.course_id === ref.courseId && a.level === ref.level)
     .flatMap((a) => (byAttempt.get(a.id) ?? []).filter((q) => q.subtopic_id === ref.skillId));
 
-  const named = new Set([...r.courses.map((c) => c.courseId), ...r.quizzes.map((q) => q.courseId), ...r.hardOnes.map((h) => h.courseId)]);
   return {
     ...r,
-    saved: { at: savedAt, examplesGone: [...named].some((id) => !live.has(id)) },
+    saved: { at: savedAt, examplesGone: body.examplesFrom.some((id) => !live.has(id)) },
     learner: { id: source.learner.id, name: source.learner.name, grade: source.learner.grade, recordVoice: source.learner.record_voice },
     courses: r.courses.map((c) => ({ ...c, subject: subjectOf(c.courseId, c.subject) })).sort(bySubjectThenTitle),
     timeBySubject: groupTimeBySubject(r.timeBySubject.flatMap((g) => g.courses.map((c) => ({ ...c, subject: subjectOf(c.courseId, g.subject) })))),
@@ -137,13 +181,13 @@ export function restoreSaved(source: RecordSource, body: SavedBody, savedAt: str
 
 /** The record a range shows: an ended month's saved copy when there is one, else built now from the rows on record. */
 export function shownRecord(source: RecordSource, range: RecordRange, now: Date): LearningRecord {
-  const saved = savedMonth(source, range);
+  const saved = savedMonth(source, range, now);
   return saved ? restoreSaved(source, saved.body, saved.row.saved_at) : learningRecord(source, range, now);
 }
 
 /** The daily spreadsheet's rows for a record: the saved ones for a saved month (subjects as they are now), else worked out now. */
-export function shownDays(source: RecordSource, record: LearningRecord): RecordDay[] {
-  const saved = record.saved ? savedMonth(source, record.range) : null;
+export function shownDays(source: RecordSource, record: LearningRecord, now: Date): RecordDay[] {
+  const saved = record.saved ? savedMonth(source, record.range, now) : null;
   if (!saved) return recordDays(source, record);
   const live = new Map(source.courses.map((c) => [c.id, c]));
   return saved.body.days.map((d) => (d.courseId !== null && live.has(d.courseId) ? { ...d, subject: live.get(d.courseId)!.subject } : d));

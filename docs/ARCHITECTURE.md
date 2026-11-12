@@ -157,15 +157,22 @@ was in. Both files go through `toCsv` and end with the full disclaimer in the wi
 cannot rewrite it. `App.tsx` calls `db.ts saveEndedMonths()` in the background after the launch's learner
 list loads; it saves every ended month with activity that has no copy yet (`record/saved.ts monthsToSave`),
 never the current month, and `app_config record_saved_through` makes later launches that month read
-nothing. Save and CSV of an ended month with no copy save one first. The body (`saved.ts SavedBody`) is
-the `LearningRecord` as built then plus the daily spreadsheet's rows: counts, titles, dates and statuses.
+nothing (only an exact match skips, so a marker written while the clock was ahead cannot switch saving
+off; one learner's failure leaves the marker unset and the others saved). A copy is shown only once its
+month has ended and only if it was saved after the month's local end: a copy of a month that has not
+ended (the clock was ahead) is deleted at launch, and one saved too early (a time-zone move) or stamped
+later than now is replaced. Save and CSV of an ended month with no copy save one first. The body (`saved.ts SavedBody`) is
+the `LearningRecord` as built then (without the learner's name, grade and voice) plus the daily
+spreadsheet's rows: counts, titles, dates and statuses, and the ids of the courses that had examples.
 It never holds the learner's own words (C2, B4's self-explanation) or B3's question/answer pairs:
 `saved.ts restoreSaved` reads those again from the rows still on record each time, so a deleted course
-leaves no learner text behind and the record says "Examples from deleted courses are no longer on this
-computer." The learner's name, grade and voice, and each surviving course's subject label, are shown as
+leaves no learner text behind and, when one of the courses that had examples is gone, the record says
+"Examples from deleted courses are no longer on this computer." The learner's name, grade and voice, and each surviving course's subject label, are shown as
 they are now. The screen, the paper and the daily CSV all read the month through `saved.ts shownRecord` /
 `shownDays`, and say where it came from (H4): "Saved <date> from the activity on record then." or, for a
-past month with no copy, "Built <date> from the activity still on record." The event log is always
+past month with no copy, "Built <date> from the activity still on record." A school-year or
+since-you-started range is always built live, so its screen and paper header say "These totals are built
+from the activity still on this computer. A saved month can include courses deleted since." The event log is always
 read from the current rows and, for a saved month, says so in its last row. "Rebuild from current data"
 replaces a saved month after "This replaces the copy saved on <date>."; a learner's own record offers it
 only where Settings is not behind the teacher PIN. Deleting a learner deletes their saved months (ON

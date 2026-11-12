@@ -88,6 +88,8 @@ export const RECORD_COPY = {
   builtFromCurrent: "Built {date} from the activity still on record.",
   /** H4 on a month saved when it ended (migration 19). */
   savedThen: "Saved {date} from the activity on record then.",
+  /** H4 on a school-year or since-you-started range, which is never saved and so can disagree with saved months. */
+  sinceLive: "These totals are built from the activity still on this computer. A saved month can include courses deleted since.",
   /** A saved month keeps no learner-written text; a deleted course's examples went with it. */
   examplesGone: "Examples from deleted courses are no longer on this computer.",
   /** "Rebuild from current data" (spec §7 v19): replaces a saved month after a confirmation. */

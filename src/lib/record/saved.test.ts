@@ -3,8 +3,8 @@ import { learningRecord } from "./build";
 import { RECORD_COPY } from "./copy";
 import { recordDays, recordEventCsv, recordEvents } from "./csv";
 import { printHeader } from "./print";
-import { monthsToSave, needsSaving, shownDays, shownRecord, snapshotOf, withoutVerbatim } from "./saved";
-import { course, emptySource, local, nov, oct, question, quiz, sub, syllabus, utc } from "./test-rows";
+import { hasEarlyCopy, monthsToSave, needsSaving, shownDays, shownRecord, snapshotOf, unendedCopies, withoutVerbatim } from "./saved";
+import { course, dec, emptySource, local, nov, oct, question, quiz, sub, syllabus, utc } from "./test-rows";
 import { ownWordsNoneText, rangeOptions } from "./view";
 import type { RecordSource } from "./sources";
 
@@ -60,7 +60,7 @@ describe("saved months (migration 19)", () => {
     const shown = shownRecord(s, OCTOBER, NOW);
     expect(shown.saved).toEqual({ at: utc(NOW), examplesGone: false });
     expect({ ...shown, saved: null }).toEqual(built);
-    expect(shownDays(s, shown)).toEqual(recordDays(s, built));
+    expect(shownDays(s, shown, NOW)).toEqual(recordDays(s, built));
     // The fixture really has the things a saved month must keep and re-read.
     expect(built.mastered.map((m) => m.skill)).toEqual(["Greetings", "Halves"]);
     expect(built.hardOnes[0].missed[0]).toEqual({ question: "QTEXT-ser", answered: "ANS-es", key: "KEY-soy" });
@@ -84,7 +84,9 @@ describe("saved months (migration 19)", () => {
     expect(shown.quizzes).toEqual(saved.quizzes);
     expect(shown.courses.map((c) => c.course)).toEqual(["Spanish I", "Fractions"]);
     expect(shown.days).toBe(saved.days);
-    expect(shownDays(s, shown).some((d) => d.course === "Fractions")).toBe(true);
+    expect(shownDays(s, shown, NOW).some((d) => d.course === "Fractions")).toBe(true);
+    // Fractions had none of the learner's words or question pairs, so nothing is said to be gone.
+    expect(shown.saved?.examplesGone).toBe(false);
   });
 
   it("keeps none of the learner's words or the question pairs, reads them live, and drops them with their course", () => {
@@ -92,6 +94,8 @@ describe("saved months (migration 19)", () => {
     saveOctober(s);
     const body = s.savedMonths[0].body_json;
     for (const text of VERBATIM) expect(body).not.toContain(text);
+    expect(body).not.toContain("Maya"); // the learner's name is shown as it is now, never kept
+    expect(JSON.parse(body).examplesFrom).toEqual(["c"]);
 
     const before = shownRecord(s, OCTOBER, NOW);
     expect(before.hardOnes[0].missed).toEqual(learningRecord(s, OCTOBER, NOW).hardOnes[0].missed);
@@ -119,11 +123,11 @@ describe("saved months (migration 19)", () => {
     const s = october();
     expect(snapshotOf(s, NOVEMBER, NOW)).toBeNull();
     expect(snapshotOf(s, { kind: "since", from: "2026-08-01" }, NOW)).toBeNull();
-    expect(monthsToSave(s, NOW)).toEqual([OCTOBER]);
+    expect(monthsToSave(s, NOW)).toEqual([{ range: OCTOBER, replace: false }]);
     expect(needsSaving(learningRecord(s, NOVEMBER, NOW), NOW)).toBe(false);
     expect(needsSaving(learningRecord(s, OCTOBER, NOW), NOW)).toBe(true);
     // The first moment of December, November has ended.
-    expect(monthsToSave(s, local(2026, 11, 1, 0, 0))).toEqual([OCTOBER, NOVEMBER]);
+    expect(monthsToSave(s, local(2026, 11, 1, 0, 0))).toEqual([{ range: OCTOBER, replace: false }, { range: NOVEMBER, replace: false }]);
   });
 
   it("saves each learner's month once: a saved month is never due again", () => {
@@ -131,7 +135,7 @@ describe("saved months (migration 19)", () => {
     saveOctober(s);
     expect(monthsToSave(s, NOW)).toEqual([]);
     expect(needsSaving(shownRecord(s, OCTOBER, NOW), NOW)).toBe(false);
-    expect(monthsToSave(s, local(2026, 11, 5))).toEqual([NOVEMBER]);
+    expect(monthsToSave(s, local(2026, 11, 5))).toEqual([{ range: NOVEMBER, replace: false }]);
   });
 
   it("labels a past month with no saved copy as built today, and the current month not at all", () => {
@@ -150,7 +154,7 @@ describe("saved months (migration 19)", () => {
     expect(shown.timeBySubject.map((g) => [g.subject, g.courses.map((c) => c.course)])).toEqual([
       ["English/Language Arts", ["Spanish I"]], ["Math", ["Fractions"]],
     ]);
-    expect(shownDays(s, shown).find((d) => d.course === "Spanish I")?.subject).toBe("English/Language Arts");
+    expect(shownDays(s, shown, NOW).find((d) => d.course === "Spanish I")?.subject).toBe("English/Language Arts");
   });
 
   it("keeps a saved month on the range picker after its activity is gone", () => {
@@ -172,12 +176,51 @@ describe("saved months (migration 19)", () => {
 
   it("says in the event log of a saved month that its activity rows are read when the file is made", () => {
     const s = october();
-    saveOctober(s, oct(31, 23));
+    saveOctober(s, nov(1, 9));
     const shown = shownRecord(s, OCTOBER, NOW);
     const csv = recordEventCsv(shown, recordEvents(s, shown), NOW);
-    expect(csv).toContain("This month's record was saved 2026-10-31. The activity rows in this log are the ones still on this computer on 2026-11-20");
+    expect(csv).toContain("This month's record was saved 2026-11-01. The activity rows in this log are the ones still on this computer on 2026-11-20");
     const built = learningRecord(s, OCTOBER, NOW);
     expect(recordEventCsv(built, recordEvents(s, built), NOW)).not.toContain("This month's record was saved");
+  });
+
+  it("never shows a copy of the current month saved while the clock was ahead, deletes it, and saves the month when it ends", () => {
+    const s = october();
+    // The clock read Dec 2 for one launch: November was saved then, stamped Dec 2.
+    s.savedMonths = [{ ...snapshotOf(s, NOVEMBER, local(2026, 11, 2))!, saved_at: dec(2) }];
+    // Back on Nov 20: November is the current month, built live, and its copy is due for deletion.
+    const shown = shownRecord(s, NOVEMBER, NOW);
+    expect(shown.saved).toBeNull();
+    expect(shown.current).toBe(true);
+    expect(printHeader(shown, NOW, "").built).toBeNull();
+    expect(needsSaving(shown, NOW)).toBe(false);
+    expect(unendedCopies(s, NOW)).toEqual(["2026-11"]);
+    expect(monthsToSave(s, NOW).map((m) => m.range)).toEqual([OCTOBER]);
+    // Had the launch missed it, the copy stamped after "now" is replaced once November has ended.
+    expect(monthsToSave(s, local(2026, 11, 1, 10))).toEqual([{ range: OCTOBER, replace: false }, { range: NOVEMBER, replace: true }]);
+    expect(unendedCopies(s, local(2026, 11, 1, 10))).toEqual([]);
+  });
+
+  it("treats a copy saved before its month ended in local time (a time-zone move) as unsaved, and replaces it", () => {
+    const s = october();
+    // Saved at 10 pm local on Oct 31: the evening's activity after that would be lost.
+    saveOctober(s, utc(local(2026, 9, 31, 22)));
+    s.attempts.push({ ...s.attempts[0], id: "late", completed_at: utc(local(2026, 9, 31, 23)), started_at: utc(local(2026, 9, 31, 23)) });
+    expect(shownRecord(s, OCTOBER, NOW).saved).toBeNull();
+    expect(shownRecord(s, OCTOBER, NOW).quizzes.map((q) => q.attemptId)).toContain("late");
+    expect(hasEarlyCopy(s, OCTOBER)).toBe(true);
+    expect(needsSaving(shownRecord(s, OCTOBER, NOW), NOW)).toBe(true);
+    expect(monthsToSave(s, NOW)).toEqual([{ range: OCTOBER, replace: true }]);
+    // Saved after the month ended: kept.
+    saveOctober(s, nov(1, 0, 5));
+    expect(hasEarlyCopy(s, OCTOBER)).toBe(false);
+    expect(monthsToSave(s, NOW)).toEqual([]);
+  });
+
+  it("labels a school-year or since-you-started range as built from what is still on this computer", () => {
+    const s = october();
+    const since = shownRecord(s, { kind: "since", from: "2026-08-01" }, NOW);
+    expect(printHeader(since, NOW, "").built).toBe(RECORD_COPY.sinceLive);
   });
 
   it("strips verbatim items without touching anything else", () => {
