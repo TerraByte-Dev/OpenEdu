@@ -38,6 +38,9 @@
 //     stored form is capitalised ("Mx", "Dy", "XY"), so it gets no note;
 //   - "the meaning of ..." or "definition of ..." after a colon or semicolon ("Essay prompt: the
 //     meaning of courage"), and "... in your own words" (an assignment, not a question);
+//   - a question about another language: "what does chat mean in french", "... in Spanish class"
+//     (added 2026-11-12, after the test run). The English entry for "chat" would be the wrong word.
+//     "... in English" still fires: it asks for the meaning in plain words;
 //   - "what is a X": a question about a thing, not a word. That is a separate, later arm (#251).
 
 import type { DictionaryEntry, Pos } from "../dictionary";
@@ -114,6 +117,15 @@ function touchesMaths(t: string, word: string): boolean {
 }
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// A context that is only a language other than English: "in french", "in Spanish class", "in the
+// Latin language". The word is then that language's word, not the English headword.
+const LANGUAGES =
+  "spanish|french|latin|german|italian|portuguese|chinese|mandarin|cantonese|japanese|korean|arabic|hebrew|greek|" +
+  "russian|hindi|urdu|bengali|punjabi|tagalog|filipino|vietnamese|thai|indonesian|malay|swahili|somali|amharic|" +
+  "turkish|persian|farsi|dutch|swedish|norwegian|danish|finnish|polish|ukrainian|czech|hungarian|romanian|irish|" +
+  "gaelic|welsh|yiddish|sanskrit|esperanto|navajo|cherokee|hawaiian|haitian creole|creole|sign language|asl";
+const LANGUAGE_CONTEXT = new RegExp(`^(?:the\\s+)?(?:${LANGUAGES})(?:\\s+(?:language|class|lesson|homework|words?))?$`, "i");
+
 const unquote = (s: string) => s.trim().replace(/^["'`*]+|["'`*]+$/g, "").trim();
 
 /**
@@ -135,7 +147,7 @@ export function askedWord(text: string): AskedWord | null {
     if (words.length === 1 && (words[0].replace(/[^a-z]/g, "").length < 2 || FUNCTION_WORD.has(words[0]))) continue;
     // "in this sentence?" leaves only punctuation in ctx: no context of its own, so the text before it.
     const after = m.groups.ctx && /[\p{L}\p{N}]/u.test(m.groups.ctx) ? unquote(m.groups.ctx) : "";
-    if (/\byour own words\b/i.test(after)) continue;
+    if (/\byour own words\b/i.test(after) || LANGUAGE_CONTEXT.test(after)) continue;
     const before = t.slice(0, m.index).trim();
     const context = after || before;
     if (touchesMaths(t, word)) continue;
@@ -165,47 +177,164 @@ The student asked what "{word}" means. Use the dictionary entry above as the sou
 
 interface Shown { form: string; pos: Pos; definition: string; example: string }
 
-// ── Child-safety filter (lever 18; frozen with its rules; partial) ───────────────────────────────────
-// Matched against WordNet's own wording, which usually labels these senses this way. A sense worded
-// otherwise gets through, so this is a partial filter, pinned by tests on the real shards.
+// ── Child-safety filter (lever 18; widened 2026-11-12, after the test run) ───────────────────────────
+// Deterministic: regexes over WordNet's own wording plus short word lists, no model. Derived from a
+// sweep of every headword; define-safety.test.ts sweeps the whole shipped dictionary through
+// lookupWord and selectSenses and pins that no sense or example the filter keeps matches a broad
+// unsafe check. A sense worded unlike anything here can still get through, so it stays partial.
+// Leaving a sense out costs little (with nothing left the turn goes out with no note, as it would
+// without the lever); showing a wrong one to a child costs a lot, so where wording is ambiguous the
+// filter leaves the sense out.
 
-/** Senses a child must not be shown, whatever they asked: drug street names, labelled obscene, vulgar,
- *  offensive or derogatory terms, slurs and insults, and sexual senses. The bare labels need a label
- *  noun after them ("obscene expression", "vulgar slang"), so "chaste" or "censor" keep their senses. */
+/** Phrases that use "sexual" neutrally: biology, health, and sexual orientation or identity. They are
+ *  taken out of a text before SENSITIVE_SENSE is tried, so "gamete" ("a mature sexual reproductive
+ *  cell"), "aids" ("transmitted ... especially by sexual contact") and "straight" ("a person having a
+ *  sexual orientation to persons of the opposite sex") keep those senses; any other "sexual" removes
+ *  the sense ("pedophile": "an adult who is sexually attracted to children"). */
+export const NEUTRAL_PHRASE = new RegExp(
+  [
+    "\\bsexual(?:ly)?\\s+(?:reproduc\\w*|produced|spores?|phases?|cells?|fusion|differentiation|characteristics?|development|maturity|differences|orientation|identity|identification|transmitted)\\b",
+    "\\bsexual and asexual\\b", "\\bby sexual contact\\b",
+    "\\bsexually attracted to (?:both sexes|(?:persons|members|people) of (?:the same|the opposite|your own) sex)\\b",
+  ].join("|"),
+  "gi",
+);
+
+/** Senses a child must not be shown, whatever they asked: sexual senses, and labelled slurs, insults
+ *  and obscenities. The bare labels need a label noun after them ("obscene expression", "vulgar
+ *  slang") or a bracket round them ("(offensive British slang)"), so "chaste", "censor", "expletive",
+ *  "euphemism" and an "offensive" play in football keep their senses. */
 export const SENSITIVE_SENSE = new RegExp(
-  "\\b(?:" + [
-    "street names? for",
-    "(?:obscene|vulgar|offensive|derogatory) (?:slang|terms?|names?|words?|expressions?)",
-    "ethnic slur",
-    "insulting terms?", "terms? of abuse", "disparaging (?:term|name)s?",
-    "slang for sexual intercourse", "have sexual intercourse with", "a sex act",
-    "semen", "spermatozoa", "ejaculat\\w*", "prostitut\\w*",
-    "copulat\\w*", "coitus", "masturbat\\w*",
-    "promiscu\\w*", "sexually loose", "ha(?:ve|s|ving) sex",
-    "contraceptive device",
-  ].join("|") + ")\\b",
+  [
+    // Sexual: any "sexual" left after NEUTRAL_PHRASE, and the words WordNet uses for sex acts.
+    "\\bsexual\\w*",
+    "\\bsex (?:acts?|organs?|appeal|toys?|objects?|symbols?|kittens?|bombs?|crimes?|offenders?|life|drive|partners?|workers?)\\b",
+    "\\b(?:have|has|had|having) sex\\b", "\\bsex (?:with|without|against|for)\\b",
+    "\\b(?:oral|anal|promiscuous|extramarital|illicit|unlawful|casual|kinky) sex\\b",
+    "\\b(?:hetero|homo|bi)sexual (?:desires?|relations|intimacy|activity|acts?|intercourse|love)\\b",
+    "\\b(?:foreplay|lovemaking|fellatio|cunnilingus|coitus|coition|sodomy|fornicat\\w*|intercourse)\\b",
+    "\\b(?:erotic\\w*|porn\\w*|prostitut\\w*|brothels?|whores?|whoring|harlots?|pimps?|pimping|masturbat\\w*|copulat\\w*|ejaculat\\w*|orgasm\\w*|promiscu\\w*|semen)\\b",
+    "\\b(?:incest\\w*|lust|lustful\\w*|lewd\\w*|lascivious\\w*|libid\\w*|lecher\\w*|orgy|orgies|orgiastic|aphrodisiac\\w*|voyeur\\w*|nymphomania\\w*|pa?edophil\\w*|molesters?|molestation)\\b",
+    "\\b(?:virginity|deflower\\w*|hymen|nudity|x-rated|debauch\\w*|cock ring|erectile dysfunction|virility drugs?|his mistress|intimate parts|contraceptive device|condoms?)\\b",
+    "\\b(?:feeling|felt|feel|get|got) horny\\b", "\\berections?\\b(?! of)",
+    "\\b(?:bare|uncovered) (?:her |your |their )?breasts\\b", "\\bbreasts uncovered\\b",
+    // Rape, but not the rape plant ("rapeseed": "seed of rape plants").
+    "\\brap(?:e|ed|es|ing|ist|ists)\\b(?! (?:plants?|oil|seeds?)\\b)",
+    // Labelled slurs, insults and obscenities.
+    "\\bstreet names? for\\b",
+    "\\b(?:obscene|vulgar|offensive|derogatory|pejorative|insulting|disparaging) (?:slang|terms?|names?|words?|expressions?|epithets?|references?)\\b",
+    "\\b(?:a )?negative terms? for\\b", "\\b(?:ethnic|racial) slurs?\\b", "\\bterms? of abuse\\b",
+    "\\([^()]*\\b(?:offensive|derogatory|slur)\\b[^()]*\\)",
+    "\\b(?:now considered|regarded as) offensive\\b", "\\b(?:and|usually) pejorative\\b",
+    "\\b(?:mentally retarded|retarded in intellectual development|the retarded)\\b",
+    "\\b(?:nigg(?:er|a)s?|negro\\w*|faggot\\w*|fagot\\w*)\\b",
+    "^a poor white person\\b",
+  ].join("|"),
   "i",
 );
 
-/** A drug named in a definition. A sense that names one is dropped unless the headword is itself one of
- *  these drugs ("cocaine" keeps its entry; "chalk", "crank", "roach" lose their slang senses). */
-export const DRUG_SENSE = /\b(?:amphetamine|marijuana|cocaine|heroin|narcotics?|hashish|methamphetamine|lsd)\b/i;
+/** Wording that is neutral on a few biology, health and identity words (ALLOWED_WORDS) and not
+ *  elsewhere: genitals named outright, and a people named by a bare nickname gloss ("frog", "polack",
+ *  "limey": "a person of French descent"; "chicano" keeps the same gloss). "fanny" and "crotch" lose
+ *  their genital senses through SENSITIVE_SENSE ("external sex organs"). */
+export const BODY_SENSE = new RegExp(
+  [
+    "\\b(?:genital\\w*|penis\\w*|penile|vagin\\w*|vulva\\w*|clitor\\w*|testic\\w*|testes|scrot\\w*|labia (?:majora|minora))\\b",
+    "^an? (?:person|man|woman) of \\w+ descent$",
+  ].join("|"),
+  "i",
+);
 
-/** Profanity whose definitions are worded neutrally: no note at all for these headwords (or for a
- *  typed word that is one of them), so the request is sent as if the word had no entry. */
+/** The allow-list: headwords whose neutral senses keep BODY_SENSE wording. They keep only those:
+ *  SENSITIVE_SENSE still removes the rest ("sex" keeps "either of the two categories (male or
+ *  female)" and loses "activities associated with sexual intercourse"). */
+export const ALLOWED_WORDS: ReadonlySet<string> = new Set(
+  ("sex male female mate mating puberty reproduction reproduce reproductive pregnant pregnancy gamete sperm " +
+    "egg ovum fertilization testosterone androgen estrogen urethra psoriasis chicano").split(" ").concat("birth canal"),
+);
+
+const DRUG_NAMES = "\\b(?:amphetamines?|marijuana|marihuana|cannabis|cocaine|heroin|hashish|methamphetamine|lsd|hallucinogen\\w*)\\b";
+// "medicine or narcotic" is how "drug" itself is defined, so "drug" keeps that sense.
+const NARCOTIC = "(?<!medicine or )\\bnarcotics?\\b";
+const DRUG_USE = [
+  "\\b(?:recreational|illegal|illicit|hard|soft|street|club|psychoactive|psychedelic|narcotic) drugs?\\b",
+  "\\b(?:take|takes|taking|took|do|does|doing|did|use|uses|using|inhale|snort|sell|sells|selling) (?:recreational |illegal )?drugs\\b",
+  "\\b(?:induced by|under the influence of|high on|addicted to|hooked on) (?:\\w+ )?drugs?\\b",
+  "\\b(?:bag|bags|packet|supply|quantity|amount) of (?:illegal )?drugs?\\b", "\\bworth of (?:a |an )?(?:illegal )?drugs?\\b",
+  "\\bdrug (?:use|users?|abuse|abusers?|addicts?|addiction|dealers?|dealing|pushers?|peddl\\w*|lords?|barons?|cartels?|trafficking|habit|taking)\\b",
+  "\\b(?:drugged|stoned)\\b",
+];
+
+/** A drug's name. A headword that is one keeps the senses DRUG_SENSE would remove ("cocaine",
+ *  "heroin", "lsd", "narcotic" keep their entries). */
+export const DRUG_NAME = new RegExp(`${DRUG_NAMES}|${NARCOTIC}`, "i");
+
+/** A drug, or the use of drugs, named in a definition. A sense that matches is dropped unless the
+ *  headword is a drug's name (DRUG_NAME): "chalk", "trip", "user", "pusher" lose their drug senses;
+ *  "drug" keeps its medicine sense and loses "use recreational drugs". */
+export const DRUG_SENSE = new RegExp([DRUG_NAMES, NARCOTIC, ...DRUG_USE].join("|"), "i");
+
+/** The same in an example, except a bare "narcotic", which there is also the adjective for
+ *  sleep-inducing ("a narcotic speech"): "snort" and "huff" lose their cocaine examples. */
+export const DRUG_EXAMPLE = new RegExp([DRUG_NAMES, ...DRUG_USE].join("|"), "i");
+
+/** Profanity stems and a few slurs, matched per token. A typed word or headword with such a token
+ *  gives no note at all, and a definition or example with one is not shown. Innocent words that
+ *  contain a stem are let through: "saltwater", "wristwatch" (twat), "swank" and "wankel" (wank),
+ *  "cushitic" and "shittim" (shit), "clitic", "proclitic" and "clitoria" (clit). */
+const PROFANE_TOKEN = /fuck|(?<!cu)shit(?!t(?:ah|im))|cunt|bitch|^twat|^wank(?!el)|whore|whoring|slut|dildo|^clit(?:s|oris\w*|oral\w*|oric\w*|orid\w*)?$|blowjob|porn|^nigg(?:er|a)s?$|^(?:kike|wetback|dago)s?$/;
+
+/** Headwords that give no note at all, whether typed or reached as a form: profanity worded neutrally
+ *  in WordNet, explicit words, and slurs whose other senses would pass for their meaning ("faggot",
+ *  "spic"). Typed words and headwords are also refused by PROFANE_TOKEN, which covers compounds
+ *  ("fuck off", "bullshit", "shithead", "bitchiness"), and by the tokens "retard" and "retarded". */
 export const BLOCKED_HEADWORDS: ReadonlySet<string> = new Set(
   ("cunt cunts bitch bitches bitchy bitching bitched fuck fucks fucked fucker fuckers fucking " +
-    "shit shits shitty shitting shitted twat twats retard retards retarded").split(" "),
+    "shit shits shitty shitting shitted twat twats retard retards retarded " +
+    "blowjob wank horny sexy whore harlot pimp slut porn kinky fetish bondage orgasm erection " +
+    "bugger molest dildo clit camgirl prickteaser " +
+    "negro negroes negroid nigra mongoloid faggot faggots fagot fagots spic spick spik wop").split(" ").concat("jerk off"),
 );
+
+const tokens = (text: string) => text.toLowerCase().split(/[^a-z]+/).filter((t) => t !== "");
+const profane = (text: string) => tokens(text).some((t) => PROFANE_TOKEN.test(t));
+
+/** True when a typed word or a headword must give no note: a blocked headword, a PROFANE_TOKEN, or
+ *  the token "retard" or "retarded" (the verb "retards" in a definition is left alone). */
+export function blockedWord(word: string): boolean {
+  const w = word.trim().toLowerCase();
+  return BLOCKED_HEADWORDS.has(w) || profane(w) || tokens(w).some((t) => t === "retard" || t === "retarded");
+}
+
+/** True when a sense of `headword` with this definition may be shown to a child. */
+export function childSafeSense(headword: string, definition: string): boolean {
+  return safeText(headword, definition, DRUG_SENSE);
+}
+
+/** True when a kept sense's example may be quoted: the same rules with DRUG_EXAMPLE, and no word in
+ *  it is a blocked headword ("feeling horny", "kinky sex"). */
+export function childSafeExample(headword: string, example: string): boolean {
+  return safeText(headword, example, DRUG_EXAMPLE) && !tokens(example).some((t) => BLOCKED_HEADWORDS.has(t));
+}
+
+function safeText(headword: string, raw: string, drug: RegExp): boolean {
+  if (blockedWord(headword)) return false;
+  const text = raw.replace(NEUTRAL_PHRASE, " ");
+  if (SENSITIVE_SENSE.test(text) || profane(text)) return false;
+  if (BODY_SENSE.test(text) && !ALLOWED_WORDS.has(headword)) return false;
+  return !(drug.test(text) && !DRUG_NAME.test(headword));
+}
 
 /** The senses shown, in lookupWord's order: per headword its senses in stored order, skipping a sense
  *  whose part of speech already has DICTIONARY_SENSES_PER_POS, up to the per-headword and total caps.
  *  Left out:
- *   - the child-safety filter: a typed word or headword in BLOCKED_HEADWORDS (no note at all); a sense
- *     whose definition matches SENSITIVE_SENSE ("go" as a drug, "come" as semen, "fairy" as a slur); a
- *     sense naming a drug (DRUG_SENSE) unless the headword is that kind of drug ("chalk", "roach" lose
- *     their slang senses; "cocaine" keeps its entry); and a kept sense's example if it is unsafe. A
- *     headword with nothing left gives no note;
+ *   - the child-safety filter (childSafeSense, childSafeExample): a typed word or headword that
+ *     blockedWord refuses (no note at all); a sense whose definition matches SENSITIVE_SENSE ("go" as a
+ *     drug, "come" as semen, "naughty" as sexual, "fairy" as a slur), BODY_SENSE (unless the headword
+ *     is in ALLOWED_WORDS) or a profanity token; a sense naming a drug or drug use (DRUG_SENSE) unless
+ *     the headword is a drug's name ("chalk", "trip", "user" lose their drug senses; "cocaine" keeps
+ *     its entry); and a kept sense's example if it is unsafe. A headword with nothing left gives no
+ *     note;
  *   - a one-letter headword reached as a form ("vs" -> "v");
  *   - a two-letter headword reached as a form when the word has an entry of its own ("gas" -> "ga" next
  *     to "gas"); without one it stays ("went" -> "go", "ads" -> "ad");
@@ -222,9 +351,9 @@ export function selectSenses(
   let total = 0;
   const lowerTwoLetter = typed.length === 2 && typed === typed.toLowerCase();
   const hasExact = entries.some((e) => e.via === "exact");
-  if (childSafe && BLOCKED_HEADWORDS.has(typed.trim().toLowerCase())) return out;
+  if (childSafe && blockedWord(typed)) return out;
   for (const entry of entries) {
-    if (childSafe && BLOCKED_HEADWORDS.has(entry.headword)) continue;
+    if (childSafe && blockedWord(entry.headword)) continue;
     if (entry.via === "form" && (entry.headword.length === 1 || (entry.headword.length === 2 && hasExact))) continue;
     if (total >= DICTIONARY_MAX_SENSES) break;
     const perPos = new Map<Pos, number>();
@@ -232,23 +361,18 @@ export function selectSenses(
     for (const s of entry.senses) {
       if (senses.length >= DICTIONARY_SENSES_PER_HEADWORD || total >= DICTIONARY_MAX_SENSES) break;
       if (lowerTwoLetter && s.form !== s.form.toLowerCase()) continue;
-      if (childSafe && (SENSITIVE_SENSE.test(s.definition) || (DRUG_SENSE.test(s.definition) && !DRUG_SENSE.test(entry.headword)))) continue;
+      if (childSafe && !childSafeSense(entry.headword, s.definition)) continue;
       const n = perPos.get(s.pos) ?? 0;
       if (n >= DICTIONARY_SENSES_PER_POS) continue;
       perPos.set(s.pos, n + 1);
       // A kept sense's example is dropped (not the sense) if it is itself unsafe.
-      const example = childSafe && unsafeText(s.example) ? "" : s.example;
+      const example = childSafe && !childSafeExample(entry.headword, s.example) ? "" : s.example;
       senses.push({ form: s.form, pos: s.pos, definition: s.definition, example });
       total++;
     }
     if (senses.length) out.push({ entry, senses });
   }
   return out;
-}
-
-/** An example sentence the note must not quote: a sensitive phrase, or a blocked word. */
-function unsafeText(text: string): boolean {
-  return SENSITIVE_SENSE.test(text) || text.toLowerCase().split(/[^a-z]+/).some((w) => BLOCKED_HEADWORDS.has(w));
 }
 
 function renderEntry(word: string, picked: Array<{ entry: DictionaryEntry; senses: Shown[] }>): string {

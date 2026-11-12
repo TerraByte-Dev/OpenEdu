@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  askedWord, dictionaryNote, lookupDictionaryNote, selectSenses, withDictionaryNote,
+  askedWord, dictionaryNote, lookupDictionaryNote, selectSenses, withDictionaryNote, childSafeSense, childSafeExample, blockedWord,
   DICTIONARY_MAX_ENTRY_TOKENS, DICTIONARY_MAX_SENSES, DICTIONARY_NOTE, DICTIONARY_SENSES_PER_HEADWORD, DICTIONARY_SENSES_PER_POS,
 } from "./defineWord";
 import { estTokens } from "./budget";
@@ -61,6 +61,8 @@ describe("askedWord: fires on an explicit meaning question", () => {
     ["what does sacrifice mean in baseball", "sacrifice", "baseball"],
     ["what does bark mean: the bark on the tree", "bark", "the bark on the tree"],
     ["define bank here", "bank"],
+    // "in English" is not another language: it asks for the meaning in plain words.
+    ["what does gregarious mean in english", "gregarious", "english"],
     // The sentence before the question.
     ["My mom said my bag is light. What does light mean here?", "light", "My mom said my bag is light."],
     ["Read the sentence. The path was narrow. What does the word narrow mean in this sentence?", "narrow", "Read the sentence. The path was narrow."],
@@ -99,6 +101,10 @@ describe("askedWord: does not fire", () => {
     // A title or an assignment (partial: "Essay prompt. The meaning of courage" and "Essay prompt: define
     // courage" still fire; lever 18 lists them).
     "Essay prompt: the meaning of courage", "Title: definition of freedom", "Define justice in your own words.",
+    // Another language's word: the English entry would be the wrong word (2026-11-12).
+    "what does chat mean in french", "what does gato mean in spanish?", "What does amor mean in Latin?",
+    "what does hola mean in spanish class", "what is the meaning of chat in French", "define gato in spanish",
+    "what does chat mean in the French language", "what does arigato mean in japanese",
     // Not a meaning question, or a "what is a X" question (a later arm).
     "what is a bank", "What is photosynthesis?", "what is the meaning of life and why", "what is the meaning of life?", "meaning of life", "what does give it mean", "Show me the full worked answer.",
     "I think it's B.", "Is it 10?", "Which one is right?", "ok thanks", "It means the same thing.",
@@ -139,6 +145,33 @@ describe("selectSenses: caps", () => {
     expect(dictionaryNote("shitting", [entry("shit", [sense("n", 0, "shit")], "form")])).toBeNull();
     // Bare labels need a label noun: "chaste" and "censor"-like definitions keep their sense.
     expect(selectSenses([entry("zorp", [{ ...sense("a", 0), definition: "not obscene or vulgar in thought" }])], "zorp")).toHaveLength(1);
+  });
+
+  it("child-safety filter, widened 2026-11-12: neutral biology and identity wording, the allow-list, drug examples, profanity stems", () => {
+    // "sexual" removes a sense unless it is one of the neutral phrases.
+    expect(childSafeSense("zorp", "a made-up cell used in sexual reproduction")).toBe(true);
+    expect(childSafeSense("zorp", "a person having a sexual orientation to persons of the opposite sex")).toBe(true);
+    expect(childSafeSense("zorp", "a made-up feeling of sexual desire")).toBe(false);
+    expect(childSafeSense("zorp", "an adult who is sexually attracted to children")).toBe(false);
+    expect(childSafeSense("zorp", "suggestive of sexual impropriety")).toBe(false);
+    // Genital wording and the bare descent gloss pass only on the allow-list.
+    expect(childSafeSense("zorp", "a made-up part of the genitals")).toBe(false);
+    expect(childSafeSense("urethra", "a made-up part of the genitals")).toBe(true);
+    expect(childSafeSense("zorp", "a person of Zorpish descent")).toBe(false);
+    expect(childSafeSense("chicano", "a person of Zorpish descent")).toBe(true);
+    // Drug use in a definition or example, except on a drug's own entry; a bare "narcotic" in an
+    // example is the adjective ("a narcotic speech"); "medicine or narcotic" defines "drug".
+    expect(childSafeSense("zorp", "a person who takes drugs")).toBe(false);
+    expect(childSafeSense("drug", "a substance that is used as a medicine or narcotic")).toBe(true);
+    expect(childSafeSense("zorp", "a narcotic made up for this test")).toBe(false);
+    expect(childSafeExample("zorp", "a narcotic speech")).toBe(true);
+    expect(childSafeExample("zorp", "he snorted cocaine")).toBe(false);
+    expect(childSafeExample("cocaine", "he snorted cocaine")).toBe(true);
+    // Profanity by stem, with the innocent words that contain one.
+    for (const w of ["fuck off", "bullshit", "shithead", "bitchiness", "jerk off", "horny", "retarded", "faggot"]) expect(blockedWord(w), w).toBe(true);
+    for (const w of ["saltwater", "wristwatch", "swank", "wankel engine", "cushitic", "shittim", "clitic", "retardant", "horny toad", "spic-and-span"]) expect(blockedWord(w), w).toBe(false);
+    expect(childSafeSense("zorp", "an agent that retards the clotting of blood")).toBe(true);
+    expect(childSafeExample("zorp", "feeling horny")).toBe(false);
   });
 
   it("drops capitalised stored forms when the student typed lower case, and keeps them when not", () => {

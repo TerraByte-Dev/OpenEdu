@@ -17,7 +17,7 @@
 | | |
 |---|---|
 | Commit | `50c7bd5`, tagged `eval-test-2026-11-12`. Wording 2 of `DICTIONARY_NOTE` was frozen at this commit, after the B8 gate was read (`fc08075`, `50c7bd5`) |
-| `git diff 364bdaa 50c7bd5 --stat -- src public/dictionary` | 6 files changed, 246 insertions(+), 9 deletions(-). The only runtime change is `DICTIONARY_NOTE` (`defineWord.ts`, wording 2, `2d872d5`) and its snapshot. The rest is label tooling (`define-label.ts`, `define-kappa.ts`, `define-label-grader2.ts`), which never runs during an eval, plus the dev results file. Nothing that generates or scores a reply changed. |
+| `git diff 364bdaa 50c7bd5 --stat -- src public/dictionary` | 6 files changed, 246 insertions(+), 9 deletions(-). The only runtime change is `DICTIONARY_NOTE` (`defineWord.ts`, wording 2, `2d872d5`) and its snapshot. The rest is label tooling (`define-label.ts`, `define-kappa.ts`, `define-label-grader2.ts`), which never runs during an eval, plus the dev results file. Nothing that generates or scores a reply changed. The label-tooling changes are a **disclosed deviation** from the pre-registered rule that this diff "may touch only `DICTIONARY_NOTE`": they cannot change a reply or a score, but the rule as written allowed none of them. |
 | `git diff master...eval-test-2026-11-12 -- src` | this PR's own diff (rule 6, as pre-registered for an unmerged lever) |
 | Runs (main checkout `.dev/eval-runs/`) | `2026-11-12T06-03-18-321-define-test-B-gemma4_e2b.json`, `…06-08-42-323…-D-gemma4_e2b.json`, `…06-12-25-000…-B-gemma4_e4b.json`, `…06-21-31-845…-D-gemma4_e4b.json`, `…06-29-32-881…-B-qwen3.5_4b.json`, `…06-43-09-552…-D-qwen3.5_4b.json` |
 | `EVAL_WIRE` | 1 on both e2b arms |
@@ -160,8 +160,23 @@ The other-models clause and the void rule are read across files; this compares o
   "marked by blithe unconcern" before rephrasing it. The note asks for words the student can
   understand. The reading-level effect is not gated.
 - **qwen3.5:4b gives much shorter replies with the note:** 3-5 went from 77 to 64 words, 6-8 from 78
-  to 60 and 9-12 from 95 to 65, with no loss on any group. It also made 49 tool calls in B and 0 in
-  D: with the entry in hand, it stopped searching.
-- **On the strict sense reading, D gains on all three models** (+1, +2 and +2 target-strict). The
-  "explain only the meaning that fits" instruction is the likely cause. None of these reach
-  significance, and B8 is descriptive, so this is not a claim.
+  to 60 and 9-12 from 95 to 65, with no net loss on any group: on the strict reading it lost
+  sense-k2-02 and sense-912-06 while gaining four. It also made 49 tool calls in B and 0 in D: with
+  the entry in hand, it stopped searching.
+- **On the strict sense reading, D gains on all three models:** sense-strict +1, +2 and +2
+  (e2b, e4b, qwen3.5:4b); target-strict +2 on each. The "explain only the meaning that fits"
+  instruction is the likely cause. None of these reach significance, and B8 is descriptive, so this
+  is not a claim.
+- **On the lenient reading, e4b lost 2 sense items** (sense 20 to 18, target 45 to 43: sense-35-05
+  and sense-35-06) and gained none. Its other-models clause reads plain-k8 only, so this does not
+  fire a clause, but it is a loss.
+
+## Post-test safety change (2026-11-12, after this run)
+
+After this run, an independent review found the child-safety filter still let sexual, slur, drug and
+profanity senses into the entry for many words (lever 18 lists them). The filter was widened, and
+the detector no longer fires on a question about another language's word ("what does chat mean in
+french"). Both changes were made **after the frozen test at `eval-test-2026-11-12`**. The 184 item
+entries are unchanged (`define-entries.test.ts`: the frozen hash, and the same entries with the
+filter and without it) and every item still fires, so **the test result stands for the shown
+entries**. It does not cover the note on any word the change affects.
