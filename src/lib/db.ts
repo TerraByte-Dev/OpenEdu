@@ -10,6 +10,7 @@ import type { GradedBy } from "./quiz-grading";
 import type { FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
 import type { RecordSource } from "./record/sources";
+import { isRecordSubject } from "./record/copy";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -1246,6 +1247,23 @@ async function readRecordSource(learnerId: string): Promise<RecordSource | null>
     ),
     learnerDays: await d.select("SELECT day, minutes FROM learner_days WHERE learner_id = $1 ORDER BY day", p),
   };
+}
+
+/** Who reads a learner's record (learners.record_voice, migration 18): "self", "guided", or null to ask again. */
+export async function setLearnerRecordVoice(learnerId: string, voice: "self" | "guided" | null): Promise<void> {
+  if (voice !== null && voice !== "self" && voice !== "guided") throw new Error(`Not a record voice: ${String(voice)}`);
+  const d = await getDb();
+  await d.execute("UPDATE learners SET record_voice = $1 WHERE id = $2", [voice, learnerId]);
+}
+
+/**
+ * A course's subject label (courses.subject, migration 18): one of RECORD_SUBJECTS, or null for none.
+ * Only that learner's own course changes, so a record can never relabel someone else's course.
+ */
+export async function setCourseSubject(learnerId: string, courseId: string, subject: string | null): Promise<void> {
+  if (subject !== null && !isRecordSubject(subject)) throw new Error(`Not a subject on the list: ${subject}`);
+  const d = await getDb();
+  await d.execute("UPDATE courses SET subject = $1 WHERE id = $2 AND learner_id = $3", [subject, courseId, learnerId]);
 }
 
 /** The active learner's own record rows. Takes no id, so a learner's view can only ever read itself. */

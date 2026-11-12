@@ -25,7 +25,7 @@ vi.mock("./llm", () => ({ log: { info: vi.fn(), warn: vi.fn() } }));
 import {
   setActiveLearnerId, createLearner, createCourse, ensureCourse, createNote, createFlashcard, updateFlashcardAfterReview,
   createQuizAttempt, saveQuizQuestion, completeQuizAttempt, saveChatMessage, createLesson, markLessonRead, recordActiveMinute,
-  recordSubtopicEvents, saveSyllabus, getSyllabus, getRecordSource, getLearnerRecordSource,
+  recordSubtopicEvents, saveSyllabus, getSyllabus, getRecordSource, getLearnerRecordSource, setLearnerRecordVoice, setCourseSubject,
 } from "./db";
 import { updateSubtopicMastery } from "./progress";
 import { replaySubtopics, skillKey } from "./record/replay";
@@ -140,6 +140,29 @@ describe("getRecordSource scoping", () => {
     const src = (await getLearnerRecordSource(bId))!;
     expect(src.courses.map((c) => c.id)).toEqual([bCourse]);
     expect(await getLearnerRecordSource("nobody")).toBeNull();
+  });
+
+  it("stores who reads a learner's record, for that learner only, and refuses anything else", async () => {
+    await setLearnerRecordVoice(DEFAULT_LEARNER_ID, "self");
+    expect((await getRecordSource())!.learner.record_voice).toBe("self");
+    expect((await getLearnerRecordSource(bId))!.learner.record_voice).toBeNull();
+    await setLearnerRecordVoice(DEFAULT_LEARNER_ID, "guided");
+    expect((await getRecordSource())!.learner.record_voice).toBe("guided");
+    await setLearnerRecordVoice(DEFAULT_LEARNER_ID, null);
+    expect((await getRecordSource())!.learner.record_voice).toBeNull();
+    await expect(setLearnerRecordVoice(DEFAULT_LEARNER_ID, "parent" as never)).rejects.toThrow();
+  });
+
+  it("labels a course with a subject from the list, only on that learner's own course", async () => {
+    await setCourseSubject(DEFAULT_LEARNER_ID, aCourse, "Foreign language");
+    expect((await getRecordSource())!.courses[0].subject).toBe("Foreign language");
+    // Another learner's course is untouched, even given its id.
+    await setCourseSubject(DEFAULT_LEARNER_ID, bCourse, "Math");
+    expect((await getLearnerRecordSource(bId))!.courses[0].subject).toBeNull();
+    await expect(setCourseSubject(DEFAULT_LEARNER_ID, aCourse, "Underwater basket weaving")).rejects.toThrow();
+    expect((await getRecordSource())!.courses[0].subject).toBe("Foreign language");
+    await setCourseSubject(DEFAULT_LEARNER_ID, aCourse, null);
+    expect((await getRecordSource())!.courses[0].subject).toBeNull();
   });
 
   it("reads only notes the learner started and wrote in, so older notes never count as days with learning", async () => {
