@@ -2,7 +2,7 @@
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import {
   createPromotionAttempt, saveQuizQuestion, completeQuizAttempt, getLastPromotionAttempt,
-  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade,
+  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade, setPromotionResult,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
@@ -170,7 +170,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       subtopic_id: question.subtopic_id,
       matching_pairs: question.matching_pairs,
       blank_position: question.blank_position,
-    });
+    }, isCorrect === null ? null : "key"); // answered now against the key; free text is graded at finish
     setQuestions((prev) => prev.map((q, i) =>
       i === currentIndex ? { ...q, user_answer: answer, is_correct: isCorrect, saved_id: savedId } : q
     ));
@@ -218,7 +218,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       });
       await Promise.all(pending.map(({ index }) => {
         const q = gradedQuestions[index];
-        return q.saved_id ? updateQuizQuestionGrade(q.saved_id, !!q.is_correct).catch(console.error) : Promise.resolve();
+        const by = outcomes.get(index)?.by ?? "fallback";
+        return q.saved_id ? updateQuizQuestionGrade(q.saved_id, !!q.is_correct, by).catch(console.error) : Promise.resolve();
       }));
       log.info("promotion", `graded ${pending.length} free-text answer(s) in ${Math.round(performance.now() - tGrade)}ms`);
     }
@@ -226,6 +227,26 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     const answered = timedOut
       ? gradedQuestions.map((q) => q.user_answer !== null ? q : { ...q, is_correct: false })
       : gradedQuestions;
+    // A timed-out test scores its unanswered questions as wrong. Store them as rows too, so the stored
+    // questions match what the app scored (the learning record replays mastery from these rows, #258).
+    // Not awaited: nothing below reads these rows, and results must never wait on the database.
+    if (timedOut) {
+      void Promise.all(answered.filter((q) => q.user_answer === null && !q.saved_id).map((q) =>
+        saveQuizQuestion({
+          attempt_id: aid,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          user_answer: null,
+          is_correct: false,
+          difficulty_level: q.difficulty_level,
+          explanation: q.explanation,
+          subtopic_id: q.subtopic_id,
+          matching_pairs: q.matching_pairs,
+          blank_position: q.blank_position,
+        }, "unanswered").catch(console.error)));
+    }
 
     const totalCorrect = answered.filter((q) => q.is_correct).length;
     const total = answered.length;
@@ -242,6 +263,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     // reach a terminal results/completion state below.
     try { await completeQuizAttempt(aid, overall, totalCorrect, timeTaken); }
     catch (e) { console.error("completeQuizAttempt failed", e); }
+    try { await setPromotionResult(aid, didPass, reviewQs.length > 0 ? reviewPct : null); }
+    catch (e) { console.error("setPromotionResult failed", e); }
     setQuestions(answered);
 
     const missedTopics = answered
@@ -255,7 +278,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       try {
         const freshSyllabus = await getSyllabus(courseId, currentLevel);
         if (freshSyllabus) {
-          await updateSubtopicMastery(courseId, freshSyllabus, answered);
+          await updateSubtopicMastery(courseId, freshSyllabus, answered, aid);
           await updateUserProgress(courseId);
           await refreshProgressContext(courseId, freshSyllabus);
         }

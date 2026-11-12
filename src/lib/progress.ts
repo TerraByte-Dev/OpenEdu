@@ -1,6 +1,6 @@
-import { getSyllabuses, getQuizAttempts, upsertUserProgress, getUserProgress, updateSyllabusSubtopics, saveTutorInstruction } from "./db";
+import { getSyllabuses, getQuizAttempts, upsertUserProgress, getUserProgress, updateSyllabusSubtopics, saveTutorInstruction, recordSubtopicEvents, type SubtopicEventRow } from "./db";
 import { log } from "./llm";
-import { applySubtopicScore, resolveSubtopic } from "./mastery";
+import { applySubtopicScore, resolveSubtopic, subtopicTransitions } from "./mastery";
 import { computeStreak } from "./analytics";
 import type { Syllabus, Subtopic, QuizQuestion } from "../types";
 
@@ -10,11 +10,15 @@ import type { Syllabus, Subtopic, QuizQuestion } from "../types";
  * After a quiz/promotion attempt, update which subtopics are mastered.
  * If questions have subtopic_id, uses exact mapping. Otherwise falls back to
  * keyword matching against subtopic titles and key_concepts.
+ * Status changes on a subtopic that got any keyword-matched question are also logged as
+ * subtopic_events (source 'keyword'), because the learning record (#258) cannot replay them from
+ * tagged questions. attemptId ties those events to the attempt.
  */
 export async function updateSubtopicMastery(
   courseId: string,
   syllabus: Syllabus,
   answeredQuestions: Array<Pick<QuizQuestion, "question_text" | "is_correct" | "subtopic_id">>,
+  attemptId: string | null = null,
 ): Promise<void> {
   if (!syllabus.subtopics.length || !answeredQuestions.length) return;
 
@@ -23,6 +27,7 @@ export async function updateSubtopicMastery(
   for (const sub of syllabus.subtopics) {
     scores.set(sub.id, { correct: 0, total: 0 });
   }
+  const keywordMatched = new Set<string>();
 
   for (const q of answeredQuestions) {
     let matchedId: string | null = null;
@@ -40,6 +45,7 @@ export async function updateSubtopicMastery(
         const conceptMatch = sub.key_concepts.some((c) => qLower.includes(c.toLowerCase()));
         if (titleMatch || conceptMatch) {
           matchedId = sub.id;
+          keywordMatched.add(sub.id);
           break;
         }
       }
@@ -55,17 +61,26 @@ export async function updateSubtopicMastery(
   // Per-subtopic transition (practiced / mastered / review_needed) lives in the pure mastery helper
   // so it's unit-tested. `applySubtopicScore` returns the same reference when nothing changed.
   let changed = false;
+  const events: SubtopicEventRow[] = [];
   const updatedSubtopics = syllabus.subtopics.map((sub) => {
     const s = scores.get(sub.id);
     if (!s || s.total < 1) return sub;
     const next = applySubtopicScore(sub, s.correct, s.total);
-    if (next !== sub) changed = true;
+    if (next !== sub) {
+      changed = true;
+      if (keywordMatched.has(sub.id)) {
+        for (const event of subtopicTransitions(sub, next)) {
+          events.push({ subtopic_id: sub.id, event, source: "keyword", correct: s.correct, total: s.total, attempt_id: attemptId });
+        }
+      }
+    }
     return next;
   });
 
   if (changed) {
     await updateSyllabusSubtopics(courseId, syllabus.level, JSON.stringify(updatedSubtopics));
     log.info("progress", `Updated subtopic mastery for course ${courseId} level ${syllabus.level}`);
+    await recordSubtopicEvents(courseId, syllabus.level, events);
   }
 }
 
@@ -91,16 +106,19 @@ export async function setSubtopicStatus(
   const match = resolved.sub;
 
   let changed = false;
+  let events: SubtopicEventRow[] = [];
   const updated = syllabus.subtopics.map((sub) => {
     if (sub.id !== match.id) return sub;
     let next = sub;
     if (!next.practiced) { next = { ...next, practiced: true }; changed = true; }
     if (status === "mastered" && !next.mastered) { next = { ...next, mastered: true }; changed = true; }
+    events = subtopicTransitions(sub, next).map((event) => ({ subtopic_id: sub.id, event, source: "tutor" as const }));
     return next;
   });
 
   if (changed) {
     await updateSyllabusSubtopics(courseId, syllabus.level, JSON.stringify(updated));
+    await recordSubtopicEvents(courseId, syllabus.level, events);
     log.info("progress", `Set subtopic ${match.id} (${match.title}) → ${status} (course ${courseId} L${syllabus.level})`);
   }
   return { found: true, changed, title: match.title };

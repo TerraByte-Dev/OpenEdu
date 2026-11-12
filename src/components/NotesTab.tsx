@@ -330,7 +330,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const createPendingNote = async () => {
     const title = pendingLink;
     if (!title) return;
-    const n = await createNote(courseId, title, "", level, selectedNote?.folder_id ?? null);
+    const n = await createNote(courseId, title, "", level, selectedNote?.folder_id ?? null, "learner");
     setNotes((prev) => [...prev, n]);
     selectNote(n);
   };
@@ -360,7 +360,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   };
 
   const handleNewNote = async (folderId: string | null) => {
-    const n = await createNote(courseId, "Untitled Note", "", level, folderId);
+    const n = await createNote(courseId, "Untitled Note", "", level, folderId, "learner");
     await loadNotes();
     if (folderId) setExpanded((s) => new Set(s).add(folderId));
     selectNote(n);
@@ -390,7 +390,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
       try {
         const text = await f.text();
         const sourceType = /\.(md|markdown)$/i.test(f.name) ? "md" : "text";
-        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target });
+        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target, origin: "import" });
         imported++;
         if (!res.embedded) pending++;
       } catch {
