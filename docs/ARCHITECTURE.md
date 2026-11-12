@@ -130,6 +130,20 @@ prints page 1 alone. In a class or school a learner's own name check leaves out 
 the teacher may set. TeacherView's "Print every learner's record" prints the same pages
 for each learner in the current view, one after another.
 
+**The learning record as spreadsheets (#258 PR 4).** Beside Save, "Save as spreadsheet (CSV)" writes the
+daily summary (`openedu-record-<name>-YYYY-MM.csv`, one row per local day per course), and with "Also save
+the detailed log" ticked a second file, the event log (`…-events.csv`, one row per event), each through its
+own Save dialog. `src/lib/record/csv.ts` works out the days and events from the same `RecordSource` and the
+record's range, reusing the record's quiz, mastered and without-proof rows, so the files' totals are the
+record's tiles (tested). Every row says how it was made in `recorded_by`: raw times "stored when it
+happened", day totals and skill status changes "worked out from stored rows on <export date>". Tutor
+messages carry no text; self-explanations are cut to 500 characters. Minutes are never added across kinds:
+a day before counted time began has approximate minutes per course (the record's per-course method), and a
+counted day puts the learner's counted minutes on an "All courses" row, leaving the course rows' minutes
+empty, because `learner_days` never knew which course a minute was in. Both files go through `toCsv` and end
+with the full disclaimer in the widest text column. `export_save_csv` takes an optional dialog `title`
+(`dialog_title`, defaulting to the teacher overview's).
+
 ## Repo layout
 
 | Path | What lives there |

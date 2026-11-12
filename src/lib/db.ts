@@ -1225,7 +1225,7 @@ async function readRecordSource(learnerId: string): Promise<RecordSource | null>
         WHERE ${RECORD_SCOPE} AND m.role = 'user' ORDER BY m.created_at`, p,
     ),
     lessons: await d.select(
-      `SELECT l.course_id, l.read_at FROM lessons l JOIN courses c ON c.id = l.course_id
+      `SELECT l.course_id, l.level, l.topic_string AS topic, l.read_at FROM lessons l JOIN courses c ON c.id = l.course_id
         WHERE ${RECORD_SCOPE} AND l.read_at IS NOT NULL ORDER BY l.read_at`, p,
     ),
     flashcards: await d.select(

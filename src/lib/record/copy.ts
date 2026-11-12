@@ -31,7 +31,7 @@ export function appTitle(title: string): string {
 }
 
 /** The counted nouns the record uses, so a filled-in 1 reads "1 day", never "1 days". */
-const ONE_OF = /\b1 (early sign|active minute|day|skill|sitting|answer|message|conversation|flashcard)s\b/g;
+const ONE_OF = /\b1 (early sign|active minute|day|skill|sitting|answer|message|conversation|flashcard|lesson|note)s\b/g;
 
 /** Singular after a count of exactly 1: "Rechecked 1 skills" → "Rechecked 1 skill". */
 export function singular(text: string): string {
@@ -231,6 +231,66 @@ export const RECORD_COPY = {
     printAllTitle: "Every learner's record: {period}",
     printAllLoading: "Reading every learner's record…",
     printAllFailed: "Could not read every learner's record. Try again.",
+  },
+  /**
+   * The spreadsheet downloads (spec §4b): a daily summary, and optionally the detailed event log.
+   * Column names stay plain snake_case so a spreadsheet formula can name them.
+   */
+  csv: {
+    save: "Save as spreadsheet (CSV)",
+    saving: "Saving…",
+    alsoLog: "Also save the detailed log",
+    /** The first two sentences also go in the file, inside the disclaimer row; the third is the app's alone. */
+    statementFile: "Dates and times are the ones OpenEdu stored when each activity happened. Status changes and day totals are worked out from those rows when the file is made.",
+    statementApp: "There is no way to add rows in the app.",
+    dialogDaily: "Save the learning record as a spreadsheet",
+    dialogLog: "Save the detailed log",
+    saved: "Saved to {path}",
+    savedLog: "Saved the detailed log to {path}",
+    logCancelled: "The detailed log was not saved.",
+    failed: "Could not save the file: {error}",
+    dailyColumns: ["date", "course", "subject", "level", "activities", "minutes", "minutes_kind", "skills_mastered", "recorded_by"],
+    eventColumns: ["date", "time", "course", "level", "activity", "detail", "skill_status_change", "recorded_by"],
+    storedWhen: "stored when it happened",
+    workedOut: "worked out from stored rows on {date}",
+    approximate: "approximate",
+    counted: "counted",
+    /** The counted-time row: learner_days counts the learner's day, never a course's. */
+    allCourses: "All courses (counted for the learner, not per course)",
+    day: {
+      quiz: "quiz {correct} of {total}",
+      levelTest: "level test {correct} of {total}",
+      passed: "passed",
+      notPassed: "not passed",
+      timedOut: "(timed out, unanswered questions not stored)",
+      unfinished: "{kind} started, not finished",
+      finishedLater: "{kind} started, finished on a later day",
+      lessons: "{n} lessons first opened",
+      tutor: "{n} messages to the tutor",
+      flashcardsMade: "{n} flashcards made",
+      flashcardsReviewed: "{n} flashcards reviewed",
+      latestReviews: "{n} flashcards last reviewed (earlier reviews not stored)",
+      notes: "{n} notes started",
+    },
+    activity: {
+      quiz: "quiz",
+      levelTest: "level test",
+      lesson: "lesson first opened",
+      tutor: "tutor message",
+      flashcardMade: "flashcard made",
+      flashcardReviewed: "flashcard reviewed",
+      note: "note started",
+      selfExplanation: "self-explanation",
+      status: "skill status change",
+    },
+    detail: {
+      result: "{correct} of {total} right",
+      resultScore: "{correct} of {total} right ({score}%)",
+      unfinished: "started, not finished",
+      byApp: "made by the app from a missed question or the tutor",
+      latestReview: "latest review of this card; earlier reviews were not stored",
+      explanationOn: "On {skill}: {text}",
+    },
   },
   /** The on-screen view (src/views/record/Record.tsx) and its entry points. */
   view: {

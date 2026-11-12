@@ -73,6 +73,9 @@ export interface RecordChat {
 
 export interface RecordLesson {
   course_id: string;
+  level: number;
+  /** lessons.topic_string: the skill title the app's model wrote, when the lesson was made. */
+  topic: string;
   read_at: string;
 }
 

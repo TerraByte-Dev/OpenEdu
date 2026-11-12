@@ -24,7 +24,7 @@ function fixtureRecord() {
   s.questions.push(question(t.id, "1.3", 0, { user_answer: null, graded_by: "unanswered" }));
   s.subtopicEvents = [{ course_id: "c", level: 1, subtopic_id: "1.2", event: "mastered", source: "tutor", correct: null, total: null, attempt_id: null, created_at: nov(7) }];
   s.chats = [{ course_id: "c", thread_id: "t", created_at: nov(8) }];
-  s.lessons = [{ course_id: "c", read_at: nov(8) }];
+  s.lessons = [{ course_id: "c", level: 1, topic: "A lesson", read_at: nov(8) }];
   s.notes = [{ course_id: "c", title: "My list", content: "uno dos", created_at: nov(9) }];
   s.learnerDays = [{ day: "2026-11-09", minutes: 20 }];
   const record = learningRecord(s, { kind: "month", year: 2026, month: 10 }, local(2026, 10, 20));

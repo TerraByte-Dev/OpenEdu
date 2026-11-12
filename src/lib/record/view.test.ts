@@ -17,7 +17,7 @@ function busySource() {
   quiz(s, "1.2", 9, 10, { completed_at: nov(4) });
   quiz(s, "1.3", 1, 1, { completed_at: nov(6) }); // an early sign: not counted
   s.chats = [{ course_id: "c", thread_id: "t", created_at: nov(8) }];
-  s.lessons = [{ course_id: "c", read_at: nov(9) }];
+  s.lessons = [{ course_id: "c", level: 1, topic: "A lesson", read_at: nov(9) }];
   return s;
 }
 

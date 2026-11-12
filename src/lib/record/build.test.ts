@@ -291,7 +291,7 @@ describe("work and activity (C)", () => {
   it("counts lessons, tutor conversations, flashcards and the learner's own words", () => {
     const s = withCourse();
     s.captureSince = oct(1);
-    s.lessons = [{ course_id: "c", read_at: nov(2) }, { course_id: "c", read_at: oct(2) }];
+    s.lessons = [{ course_id: "c", level: 1, topic: "A lesson", read_at: nov(2) }, { course_id: "c", level: 1, topic: "A lesson", read_at: oct(2) }];
     s.chats = [
       { course_id: "c", thread_id: "t1", created_at: nov(2) },
       { course_id: "c", thread_id: "t1", created_at: nov(2, 13) },
