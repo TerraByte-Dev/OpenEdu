@@ -10,6 +10,7 @@ import { Initial, BIG_BTN } from "./LearnerPicker";
 import { showsPicker, learnersManageLearners, type UsageMode } from "../lib/usage-modes";
 import type { Grade } from "../lib/grade";
 import { GradeSelect } from "./GradeSelect";
+import { RECORD_COPY } from "../lib/record/copy";
 
 // The active learner's own controls, opened from the titlebar. Everything here acts on the learner
 // who is signed in and nobody else: you can rename, set a PIN for, or delete only yourself. In a class
@@ -22,6 +23,8 @@ interface LearnerMenuProps {
   /** Set while a course is being built: switching would hand the build's screen to someone else. */
   busyReason: string | null;
   onClose: () => void;
+  /** Open this learner's own learning record (#258). Absent on the early-learner screens. */
+  onOpenRecord?: () => void;
   onSwitch: () => void;
   /** A learner was added; enter them. */
   onAdded: (learner: LearnerRow) => void;
@@ -36,7 +39,7 @@ type Panel = null | "add" | "rename" | "pin" | "delete";
 const SMALL_BTN: React.CSSProperties = { fontSize: "1rem", padding: "10px 18px" };
 const INPUT: React.CSSProperties = { fontSize: "1.15rem" };
 
-export default function LearnerMenu({ learner, learners, mode, busyReason, onClose, onSwitch, onAdded, onChanged, onDeleted }: LearnerMenuProps) {
+export default function LearnerMenu({ learner, learners, mode, busyReason, onClose, onOpenRecord, onSwitch, onAdded, onChanged, onDeleted }: LearnerMenuProps) {
   const [panel, setPanel] = useState<Panel>(null);
   const canSwitch = showsPicker(mode, learners);
   const selfService = learnersManageLearners(mode);
@@ -70,6 +73,9 @@ export default function LearnerMenu({ learner, learners, mode, busyReason, onClo
             )}
             {selfService && (
               <button className="btn justify-center" style={BIG_BTN} disabled={!!busyReason} onClick={() => setPanel("add")}>Add learner</button>
+            )}
+            {onOpenRecord && (
+              <button className="btn justify-center" style={BIG_BTN} onClick={onOpenRecord}>{RECORD_COPY.view.menuItem}</button>
             )}
             <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("rename")}>Change my name</button>
             <button className="btn justify-center" style={BIG_BTN} onClick={() => setPanel("pin")}>

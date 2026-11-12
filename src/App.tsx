@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
-  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, recordActiveMinute, type UsageConfig,
+  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, recordActiveMinute, getRecordSource, type UsageConfig,
 } from "./lib/db";
+import { forgetTeasers } from "./lib/record/view";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import { normalizeGrade, hasEarlyScreens, earlyScreensOn } from "./lib/grade";
 import {
@@ -34,6 +35,7 @@ import Sidebar from "./components/Sidebar";
 import Home from "./views/Home";
 import EarlyLearner from "./views/early/EarlyLearner";
 import GrownUps from "./views/early/GrownUps";
+import Record from "./views/record/Record";
 import Dashboard from "./views/Dashboard";
 import CourseView from "./views/CourseView";
 import Settings from "./views/settings/Settings";
@@ -353,6 +355,7 @@ export default function App() {
   };
 
   const closeQuiz = () => {
+    forgetTeasers(); // Home's record teaser is built again with this quiz in it
     setQuizContext(null);
     setCurrentView("course");
   };
@@ -398,6 +401,8 @@ export default function App() {
   const childScreen = earlyHome || earlyPending;
   // The grown-ups view of an early learner's progress (#244), behind the press-and-hold.
   const grownUpsView = currentView === "grownups" && activeLearner !== null;
+  // The learner's own learning record (#258). Never guarded: it is not a teacher action.
+  const recordView = currentView === "record" && activeLearner !== null;
   // A learner on the early-learner screens never gets the product tour: it explains Home and courses,
   // which they do not use, and it would land over Settings or the grown-ups view (#249). It waits, not
   // marked seen, in case the family switches back to the regular Home.
@@ -455,7 +460,7 @@ export default function App() {
                 the one list you do not need — you are already in the thing it selects. In course
                 view CourseView takes the column for its own navigation (tabs, threads, notes), and
                 the way back to the list is the header's back arrow. */}
-            {!isFullscreenView && currentView !== "course" && !childScreen && !grownUpsView && (
+            {!isFullscreenView && currentView !== "course" && !childScreen && !grownUpsView && !recordView && (
               <Sidebar
                 courses={courses}
                 selectedCourseId={selectedCourseId}
@@ -514,6 +519,15 @@ export default function App() {
                 />
               )}
 
+              {recordView && (
+                <Record
+                  learnerId={activeLearner.id}
+                  load={getRecordSource}
+                  audience="own"
+                  onBack={() => setCurrentView("dashboard")}
+                />
+              )}
+
               {currentView === "dashboard" && !childScreen && setup && (!setup.ready || (!setup.complete && !setupDismissed)) && (
                 <SetupGate
                   status={setup}
@@ -526,6 +540,7 @@ export default function App() {
 
               {currentView === "dashboard" && !childScreen && !(setup && (!setup.ready || (!setup.complete && !setupDismissed))) && (
                 <Home
+                  learnerId={activeLearner.id}
                   learnerName={activeLearner.name}
                   courses={courses}
                   dailyGoal={dailyGoal}
@@ -535,6 +550,7 @@ export default function App() {
                   onOpenCourse={openCourse}
                   onResumeCourse={handleResumeCourse}
                   onStartNew={() => setCurrentView("create")}
+                  onOpenRecord={() => setCurrentView("record")}
                 />
               )}
 
@@ -614,6 +630,8 @@ export default function App() {
               mode={mode ?? "single"}
               busyReason={craftingTopic ? `Wait for "${craftingTopic}" to finish building before switching, adding or deleting learners.` : null}
               onClose={() => setLearnerMenuOpen(false)}
+              // K-1 learners on the early screens have the grown-ups view instead (#244), unchanged.
+              onOpenRecord={onEarlyScreens ? undefined : () => { setLearnerMenuOpen(false); setCurrentView("record"); }}
               onSwitch={() => { leaveLearner(); void reloadLearners(); }}
               onAdded={(l) => { void reloadLearners(); void enterLearner(l); }}
               onChanged={async () => {
