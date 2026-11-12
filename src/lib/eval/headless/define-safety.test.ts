@@ -16,6 +16,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { installAppOrigin } from "./origin";
 import { lookupWord, type Shard } from "../../dictionary";
 import { newlyReachable, reachableTsv } from "./newly-reachable-lib";
+import { REVIEWED_UNSAFE_SENSES, REVIEWED_UNSAFE_EXAMPLES, REVIEWED_SENSE_KEEPS } from "../../kernel/senseReview";
 import {
   askedWord, dictionaryNote, selectSenses, childSafeSense, childSafeExample,
   NEUTRAL_PHRASE, ALLOWED_WORDS, DRUG_NAME,
@@ -225,7 +226,7 @@ describe("child-safety filter on the shipped dictionary", () => {
     // before 2026-11-12 removed 681 senses and 29 examples and left 383 headwords with no note, and the
     // shown note of 1,124 headwords matched BROAD.
     expect({ headwords: heads.length, senses, removed, examplesDropped, withNote, filteredToNothing }).toEqual({
-      headwords: 127_311, senses: 185_129, removed: 1_917, examplesDropped: 223, withNote: 127_109, filteredToNothing: 1_156,
+      headwords: 127_311, senses: 185_129, removed: 1_979, examplesDropped: 251, withNote: 127_109, filteredToNothing: 1_191,
     });
   }, 300_000);
 });
@@ -243,6 +244,11 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
     let senses = 0, removed = 0, examplesDropped = 0, ranked = 0;
     const removedShown: string[] = [];
     const shown: string[] = [];
+    // The R1(b) review's texts, under ANY headword (WordNet repeats a synset's text under every lemma; #268 F1).
+    const reviewedDefs = new Set(REVIEWED_UNSAFE_SENSES.map(([, t]) => t));
+    const reviewedExamples = new Set(REVIEWED_UNSAFE_EXAMPLES.map(([, t]) => t));
+    const keeps = new Set(REVIEWED_SENSE_KEEPS.map(([h, t]) => `${h}|${t}`));
+    const reviewedShown = new Set<string>();
     for (const shard of shards) for (const [h, rows] of Object.entries(shard)) {
       const entries = await lookupWord(h);
       for (const [, pos, def, ex] of rows) {
@@ -252,14 +258,17 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
         ranked++;
         for (const p of selectSenses(entries, h, true, `${def} ${ex}`)) for (const s of p.senses) {
           if (!childSafeSense(p.entry.headword, s.definition)) removedShown.push(`${h} (${pos}) -> ${p.entry.headword}: ${s.definition.slice(0, 40)}`);
+          if (reviewedDefs.has(s.definition) && !keeps.has(`${p.entry.headword}|${s.definition}`)) reviewedShown.add(`${p.entry.headword}: ${s.definition.slice(0, 40)}`);
+          if (s.example && reviewedExamples.has(s.example)) reviewedShown.add(`${p.entry.headword}: "${s.example}"`);
           const hit = broadHit(p.entry.headword, s.definition, "definition") ?? (s.example ? broadHit(p.entry.headword, s.example, "example") : null);
           if (hit) shown.push(`${h} (${pos}) -> ${p.entry.headword} [${hit}]`);
         }
       }
     }
     expect(removedShown).toEqual([]);
+    expect([...reviewedShown]).toEqual([]);
     expect(shown).toEqual([]);
-    expect({ senses, ranked, removed, examplesDropped }).toEqual({ senses: 185_129, ranked: 185_129, removed: 1_917, examplesDropped: 223 });
+    expect({ senses, ranked, removed, examplesDropped }).toEqual({ senses: 185_129, ranked: 185_129, removed: 1_979, examplesDropped: 251 });
   }, 600_000);
 
   it("(b) the newly reachable senses: counted and pinned, with the review's known examples among them", async () => {
@@ -269,7 +278,7 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
     // The review counted 14,223 by distinct part of speech and definition; this counts every stored sense,
     // so 21 senses whose definition repeats one already shown for the headword (their example can differ)
     // are in the list too.
-    expect({ senses: rows.length, headwords: new Set(rows.map((r) => r.headword)).size }).toEqual({ senses: 14_208, headwords: 4_315 });
+    expect({ senses: rows.length, headwords: new Set(rows.map((r) => r.headword)).size }).toEqual({ senses: 14_204, headwords: 4_313 });
     const has = (h: string, ref: string, re: RegExp) => expect(rows.find((r) => r.headword === h && r.ref === ref)?.definition, `${h} #${ref}`).toMatch(re);
     has("flow", "14v", /menstruation/);
     // dish #4n and skirt #4n were removed by the R1(b) read (senseReview.ts), so they are no longer reachable.
@@ -277,7 +286,7 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
     has("wet", "6a", /very drunk/);
     has("gun", "4n", /professional killer/);
     // None of them is a sense the filter removes.
-    for (const r of rows.slice(0, 2000)) expect(childSafeSense(r.headword, r.definition), `${r.headword} #${r.ref}`).toBe(true);
+    for (const r of rows) expect(childSafeSense(r.headword, r.definition), `${r.headword} #${r.ref}`).toBe(true);
     expect(reachableTsv(rows.slice(0, 1)).split("\n")[0]).toBe("headword\tref\tpos\tdefinition\texample");
   }, 300_000);
 });

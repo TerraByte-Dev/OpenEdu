@@ -292,3 +292,12 @@ significance bar by its smallest margin. C is flat.
   - that the ranker beats no note at all on e2b (descriptively it is ahead, not significantly).
 - **What still holds over from dev:** one overlapping word in a sense's example can pull a wrong sense
   to the top (42 items here have a top score of 1). No verdict on this set was lost to it.
+
+## Post-read change (2026-11-12)
+
+After this file was written, Fable's pre-merge safety review found that the R1(b) removals were keyed by
+headword while WordNet repeats each text under every lemma of its synset. The fix (`senseReview.ts`, see
+BENCHMARKS row 19, "Post-read safety fix") removes reviewed text under every headword, with a short
+plain-meaning keep-list. It changes no item's verdict here. Only `b19-68-L-18` (*range*) carried an
+affected text: "The gypsies roamed the woods" was in its note in both arms, and that example is now
+dropped, so that item's recorded request can no longer be reproduced byte for byte.

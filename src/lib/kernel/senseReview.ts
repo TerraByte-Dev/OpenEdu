@@ -1,7 +1,7 @@
 // Lever 19, R1(b) (docs/BENCHMARKS.md): the senses the child-safety filter keeps but lever 18's caps never
 // showed were read once before any run. A model of another family (openai/gpt-6-luna via OpenRouter) flagged
 // 292 of 14,244; Claude read every flag on 2026-11-12. These are the ones removed, keyed by headword and the
-// exact WordNet text, so nothing else moves. Rule applied: sexual or suggestive senses, contraception (as in
+// exact WordNet text; see REVIEWED_SENSE_KEEPS for how the key is applied. Rule applied: sexual or suggestive senses, contraception (as in
 // lever 18), drug use and demeaning slang go; ordinary alcohol, gambling, bodily-function, crime, war and
 // history vocabulary stays (the known keeps are listed in BENCHMARKS).
 
@@ -45,7 +45,7 @@ export const REVIEWED_UNSAFE_SENSES: ReadonlyArray<readonly [string, string]> = 
   ["wanton", "engage in amorous play"],
 ];
 
-/** [headword, example] pairs whose example is not quoted (the sense stays). */
+/** [headword, example] pairs whose example is not quoted (the sense stays); the headword records where it was flagged. */
 export const REVIEWED_UNSAFE_EXAMPLES: ReadonlyArray<readonly [string, string]> = [
   ["blow up", "Her faced puffed up from the drugs"],
   ["cast", "The gypsies roamed the woods"],
@@ -65,9 +65,35 @@ export const REVIEWED_UNSAFE_EXAMPLES: ReadonlyArray<readonly [string, string]> 
   ["twitch", "He pinched her behind"],
 ];
 
-const key = (headword: string, text: string) => headword.toLowerCase() + '\u0000' + text;
-const SENSES = new Set(REVIEWED_UNSAFE_SENSES.map(([h, t]) => key(h, t)));
-const EXAMPLES = new Set(REVIEWED_UNSAFE_EXAMPLES.map(([h, t]) => key(h, t)));
+/**
+ * WordNet repeats a synset's definition and examples under every lemma, so a reviewed text is unsafe
+ * whatever headword it is reached through (Fable's pre-merge review of #268, F1: keyed by headword, the
+ * gypsies example still showed under "roam" and "safe sex" under "practice"). Examples go under every
+ * headword. Definitions go under every headword except the few below, where the definition is the plain
+ * meaning a child would look the word up for. Claude's call, 2026-11-12.
+ */
+export const REVIEWED_SENSE_KEEPS: ReadonlyArray<readonly [string, string]> = [
+  ["testis", "one of the two male reproductive glands that produce spermatozoa and secrete androgens"],
+  ["testicle", "one of the two male reproductive glands that produce spermatozoa and secrete androgens"],
+  ["breast", "either of two soft fleshy milk-secreting glandular organs on the chest of a woman"],
+  ["bosom", "either of two soft fleshy milk-secreting glandular organs on the chest of a woman"],
+  ["pubic hair", "hair growing in the pubic area"],
+  ["crab louse", "a louse that infests the pubic region of the human body"],
+  ["pubic louse", "a louse that infests the pubic region of the human body"],
+  ["amphetamine", "a central nervous system stimulant that increases energy and decreases appetite; used to treat narcolepsy and some forms of depression"],
+  ["khat", "the leaves of the shrub Catha edulis which are chewed like tobacco or used to make tea; has the effect of a euphoric stimulant"],
+  ["drug addiction", "excessive use of drugs"],
+  ["cop", "uncomplimentary terms for a policeman"],
+  ["copper", "uncomplimentary terms for a policeman"],
+  ["fuzz", "uncomplimentary terms for a policeman"],
+  ["bull", "uncomplimentary terms for a policeman"],
+];
 
-export const reviewedUnsafeSense = (headword: string, definition: string): boolean => SENSES.has(key(headword, definition));
-export const reviewedUnsafeExample = (headword: string, example: string): boolean => EXAMPLES.has(key(headword, example));
+const key = (headword: string, text: string) => headword.toLowerCase() + "\u0000" + text;
+const SENSES = new Set(REVIEWED_UNSAFE_SENSES.map(([, t]) => t));
+const KEEPS = new Set(REVIEWED_SENSE_KEEPS.map(([h, t]) => key(h, t)));
+const EXAMPLES = new Set(REVIEWED_UNSAFE_EXAMPLES.map(([, t]) => t));
+
+export const reviewedUnsafeSense = (headword: string, definition: string): boolean =>
+  SENSES.has(definition) && !KEEPS.has(key(headword, definition));
+export const reviewedUnsafeExample = (_headword: string, example: string): boolean => EXAMPLES.has(example);
