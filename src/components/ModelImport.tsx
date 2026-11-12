@@ -9,16 +9,16 @@ import { getOllamaModels, getOllamaVersion } from "../lib/llm";
 import { setChatModel } from "../lib/store";
 import { cancelModelImport, pickModelFolder, startModelImport } from "../lib/model-import";
 import {
-  PHASE_LABEL, candidateBytes, etaSeconds, formatBytes, formatEta, hasRoom, importFraction, nameProblem,
+  PHASE_LABEL, candidateBytes, etaSeconds, formatBytes, formatEta, hasRoom, importFraction, licenceNotes, nameProblem,
   nameTaken, needsNewerOllama, specFor, suggestedName,
   type ImportEvent, type ImportPhase, type KitCandidate, type KitPlan,
 } from "../lib/model-kit";
-import { isLoopbackUrl } from "../lib/ollama-guide";
+import { IMPORT_TARGET, isImportTarget } from "../lib/ollama-guide";
 
 type Run =
   | { at: "idle" }
-  | { at: "running"; phase: ImportPhase; done: number; total: number; file: string; started: number; skipped: number; status: string }
-  | { at: "done"; name: string }
+  | { at: "running"; phase: ImportPhase; done: number; total: number; file: string; started: number; skipped: number; status: string; unchecked: number }
+  | { at: "done"; name: string; checked: boolean }
   | { at: "failed"; message: string };
 
 const PHASES: ImportPhase[] = ["checking", "verifying", "copying", "finishing"];
@@ -39,7 +39,7 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
   // would drop every progress event and the result after the second mount.
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
-  const local = isLoopbackUrl(ollamaUrl);
+  const local = isImportTarget(ollamaUrl);
   const candidate: KitCandidate | undefined = plan?.candidates[choice];
   const built = useMemo(() => (candidate ? specFor(candidate) : null), [candidate]);
   const bytes = candidate ? candidateBytes(candidate) : 0;
@@ -77,7 +77,7 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
 
   const useExisting = async (model: string) => {
     await setChatModel(model);
-    setRun({ at: "done", name: model });
+    setRun({ at: "done", name: model, checked: true });
     onImported(model);
   };
 
@@ -85,7 +85,8 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
     if (!built?.ok || problem) return;
     const target = name.trim();
     setCancelling(false);
-    setRun({ at: "running", phase: "checking", done: 0, total: bytes, file: "", started: Date.now(), skipped: 0, status: "" });
+    setRun({ at: "running", phase: "checking", done: 0, total: bytes, file: "", started: Date.now(), skipped: 0, status: "", unchecked: 0 });
+    let unchecked = 0;
     const onEvent = (e: ImportEvent) => {
       if (!mounted.current) return;
       setRun((r) => {
@@ -94,15 +95,18 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
           case "phase": return { ...r, phase: e.phase, done: 0, total: e.total, started: Date.now() };
           case "bytes": return { ...r, phase: e.phase, done: e.done, total: e.total, file: e.file };
           case "skipped": return { ...r, skipped: r.skipped + e.bytes };
+          case "unchecked": unchecked += 1; return { ...r, unchecked: r.unchecked + 1 };
           case "status": return { ...r, status: e.text };
         }
       });
     };
     try {
       const done = await startModelImport(target, built.spec, onEvent);
-      await setChatModel(done);
+      // Switch the tutor only while this screen is still there to say so; a model that changes under
+      // the learner with nothing on screen is worse than one they pick in Settings later.
       if (!mounted.current) return;
-      setRun({ at: "done", name: done });
+      await setChatModel(done);
+      setRun({ at: "done", name: done, checked: built.checked && unchecked === 0 });
       setInstalled((m) => [...m, done]);
       onImported(done);
     } catch (e) {
@@ -119,8 +123,8 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
   if (!local) {
     return (
       <p className="text-sm text-[var(--ink-dim)]">
-        Importing only works with Ollama on this computer. OpenEdu is set to use Ollama at{" "}
-        <code className="font-lcd">{ollamaUrl}</code>; change that in Settings first.
+        Importing only talks to Ollama at its usual address, <code className="font-lcd">{IMPORT_TARGET}</code>. OpenEdu
+        is set to use <code className="font-lcd">{ollamaUrl}</code>; change that in Settings first.
       </p>
     );
   }
@@ -154,7 +158,10 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
             )}
           </div>
 
-          {plan.candidates.length === 0 && (
+          {plan.candidates.length === 0 && plan.problems.length > 0 && (
+            <Note tone="danger">No model in this folder can be imported, because:</Note>
+          )}
+          {plan.candidates.length === 0 && plan.problems.length === 0 && (
             <Note tone="warning">
               No model in this folder. Choose the folder that holds <code className="font-lcd">manifests</code> and{" "}
               <code className="font-lcd">blobs</code>, or one with a <code className="font-lcd">Modelfile</code> and a{" "}
@@ -186,14 +193,15 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
                   {plan.freeBytes !== null && <span className={room ? "text-[var(--ink-faint)]" : "text-danger"}> · {formatBytes(plan.freeBytes)} free on this computer</span>}
                 </dd>
                 <dt>Licence</dt>
-                <dd>
-                  {plan.licenceFiles.length > 0 || (built?.ok && built.spec.license?.length)
-                    ? <>Travels with it{plan.licenceFiles.length > 0 && <span className="text-[var(--ink-faint)]"> · {plan.licenceFiles.map((f) => f.split("/").pop()).join(", ")}</span>}</>
-                    : <span className="text-warning">No licence or terms file found. Keep the model's licence with the kit.</span>}
+                <dd className="space-y-1">
+                  {licenceNotes(candidate, built).map((n, i) => (
+                    <span key={i} className={`block ${n.tone === "warning" ? "text-warning" : ""}`}>{n.text}</span>
+                  ))}
                 </dd>
               </dl>
 
               {built && !built.ok && built.errors.map((e, i) => <Note key={i} tone="danger">{e}</Note>)}
+              {built?.ok && run.at !== "done" && built.warnings.map((w, i) => <Note key={i} tone="warning">{w}</Note>)}
               {room === false && <Note tone="danger">There isn't enough free space for this model. Free up {formatBytes(bytes + 1024 ** 3 - (plan.freeBytes ?? 0))} and choose the folder again.</Note>}
               {tooOld && <Note tone="warning">This model needs Ollama {built?.ok && built.spec.requires} or newer, and this computer has {ollamaVersion}. Update Ollama first, or Ollama may refuse it.</Note>}
 
@@ -222,11 +230,12 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
             </div>
           )}
 
-          {run.at === "running" && <Progress run={run} cancelling={cancelling} onCancel={cancel} />}
+          {run.at === "running" && <Progress run={run} checked={!!built?.ok && built.checked && run.unchecked === 0} cancelling={cancelling} onCancel={cancel} />}
 
           {run.at === "done" && (
             <Note tone="success">
               <strong>{run.name}</strong> is ready, and the tutor now uses it.
+              {!run.checked && " Its files weren't checked for damage, because the kit has no checksum file."}
             </Note>
           )}
           {run.at === "failed" && <Note tone="danger">{run.message}</Note>}
@@ -242,7 +251,7 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
   );
 }
 
-function Progress({ run, cancelling, onCancel }: { run: Extract<Run, { at: "running" }>; cancelling: boolean; onCancel: () => void }) {
+function Progress({ run, checked, cancelling, onCancel }: { run: Extract<Run, { at: "running" }>; checked: boolean; cancelling: boolean; onCancel: () => void }) {
   const fraction = importFraction(run.phase, run.done, run.total);
   const byteful = run.phase === "verifying" || run.phase === "copying";
   const eta = byteful ? formatEta(etaSeconds(run.done, run.total, Date.now() - run.started)) : "";
@@ -250,14 +259,21 @@ function Progress({ run, cancelling, onCancel }: { run: Extract<Run, { at: "runn
   return (
     <div className="kit-card kit-card-flat" aria-live="polite">
       <ol className="kit-track" aria-label="Import steps">
-        {PHASES.map((p, i) => (
-          <li key={p} className={i < at ? "kit-track-done" : i === at ? "kit-track-now" : ""}>
-            <span className="kit-track-dot" aria-hidden>{i < at ? "✓" : i + 1}</span>
-            <span>{PHASE_SHORT[p]}</span>
-          </li>
-        ))}
+        {PHASES.map((p, i) => {
+          // With nothing to check against, the files are only read: that step never shows a pass.
+          const unverified = p === "verifying" && !checked;
+          const cls = i < at ? (unverified ? "kit-track-skip" : "kit-track-done") : i === at ? "kit-track-now" : "";
+          return (
+            <li key={p} className={cls}>
+              <span className="kit-track-dot" aria-hidden>{i < at ? (unverified ? "–" : "✓") : i + 1}</span>
+              <span>{unverified ? "Not checked" : PHASE_SHORT[p]}</span>
+            </li>
+          );
+        })}
       </ol>
-      <p className="text-sm text-ink mt-4">{cancelling ? "Stopping…" : PHASE_LABEL[run.phase]}</p>
+      <p className="text-sm text-ink mt-4">
+        {cancelling ? "Stopping…" : run.phase === "verifying" && !checked ? "Reading the files (there's no checksum to check them against)" : PHASE_LABEL[run.phase]}
+      </p>
       <div className="h-2 rounded-full bg-phosphor-dim overflow-hidden mt-2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
         <div className="h-full bg-phosphor transition-[width] duration-300" style={{ width: `${Math.round(fraction * 100)}%` }} />
       </div>

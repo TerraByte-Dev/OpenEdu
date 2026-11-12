@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   parseModelfile, typedParameters, parseChecksums, specFromModelfile, specFromOllama, specFor,
   validModelName, nameTaken, nameProblem, suggestedName, candidateBytes, needsNewerOllama, hasRoom,
-  importFraction, etaSeconds, formatEta, formatBytes, SPARE_BYTES, type KitCandidate, type KitLayer,
+  importFraction, etaSeconds, formatEta, formatBytes, SPARE_BYTES, NO_CHECKSUM, isGemma, licenceNotes,
+  type KitCandidate, type KitLayer,
 } from "./model-kit";
 
 const HEX = "a".repeat(64);
@@ -12,6 +13,7 @@ const gguf = (modelfile: string, over: Partial<Extract<KitCandidate, { kind: "gg
   modelfile,
   ggufs: [{ rel: "models/tiny/model.gguf", bytes: 1000 }],
   checksums: null,
+  licenceFiles: [],
   ...over,
 });
 
@@ -69,6 +71,8 @@ describe("specFromModelfile", () => {
     const r = specFromModelfile(gguf("FROM ./model.gguf\nRENDERER qwen3.5\nPARSER qwen3.5\nLICENSE MIT\nLICENSE Terms\nPARAMETER top_k 20", { checksums: `${HEX}  model.gguf` }));
     expect(r).toEqual({
       ok: true,
+      checked: true,
+      warnings: [],
       spec: {
         files: [{ label: "model.gguf", rel: "models/tiny/model.gguf", expect: `sha256:${HEX}` }],
         renderer: "qwen3.5",
@@ -77,6 +81,23 @@ describe("specFromModelfile", () => {
         license: ["MIT", "Terms"],
       },
     });
+  });
+
+  // M3: without a checksums file nothing can vouch for the copy; the import goes on, but says so and
+  // never reports the check as passed.
+  it("a kit with no checksum file is importable but marked unchecked, with a warning", () => {
+    const r = specFromModelfile(gguf("FROM model.gguf"));
+    expect(r.ok && r.checked).toBe(false);
+    expect(r.ok && r.warnings).toEqual([NO_CHECKSUM]);
+    expect(NO_CHECKSUM).toMatch(/can't tell whether it was damaged in copying/);
+    expect(r.ok && r.spec.files[0].expect).toBeUndefined();
+  });
+
+  it("a checksum file that doesn't list the model file is an error, not a silent skip", () => {
+    const r = specFromModelfile(gguf("FROM model.gguf", { checksums: `${HEX}  other.gguf
+` }));
+    expect(r).toEqual({ ok: false, errors: ["The checksum file doesn't list model.gguf, so its copy can't be checked. Copy the kit again from the machine that made it."] });
+    expect(specFromModelfile(gguf("FROM model.gguf", { checksums: "" })).ok).toBe(false);
   });
 
   it("accepts a Windows-style relative path and differing case", () => {
@@ -118,7 +139,7 @@ const layer = (t: string, over: Partial<KitLayer> = {}): KitLayer => ({
   mediaType: `application/vnd.ollama.image.${t}`, digest: `sha256:${HEX}`, size: 10, rel: null, text: null, ...over,
 });
 const ollama = (layers: KitLayer[], config: string | null = '{"renderer":"qwen3.5","parser":"qwen3.5","requires":"0.17.1"}'): Extract<KitCandidate, { kind: "ollama" }> =>
-  ({ kind: "ollama", name: "qwen3.5:0.8b", config, layers });
+  ({ kind: "ollama", name: "qwen3.5:0.8b", config, layers, licenceFiles: [] });
 
 describe("specFromOllama", () => {
   it("rebuilds qwen3.5:0.8b's create request from its export (the live-tested shape)", () => {
@@ -129,6 +150,8 @@ describe("specFromOllama", () => {
     ]));
     expect(r).toEqual({
       ok: true,
+      checked: true,
+      warnings: [],
       spec: {
         files: [{ label: "model.gguf", rel: "models/blobs/sha256-x" }],
         renderer: "qwen3.5",
@@ -159,14 +182,46 @@ describe("specFromOllama", () => {
     expect(!bad.ok && bad.errors[0]).toMatch(/damaged/);
   });
 
-  it("an unreadable config only loses hints, never the import", () => {
-    const r = specFromOllama(ollama([layer("model", { rel: "a" })], "{broken"));
-    expect(r).toEqual({ ok: true, spec: { files: [{ label: "model.gguf", rel: "a" }] } });
+  // M2: Rust drops a model whose settings files are damaged; if one still arrives unreadable, say so.
+  it("an unreadable settings file or config is an error, never silently dropped", () => {
+    const noText = specFromOllama(ollama([layer("model", { rel: "a" }), layer("template")]));
+    expect(!noText.ok && noText.errors).toEqual(["A settings file of qwen3.5:0.8b couldn't be read."]);
+    const badConfig = specFromOllama(ollama([layer("model", { rel: "a" })], "{broken"));
+    expect(!badConfig.ok && badConfig.errors).toEqual(["The settings of qwen3.5:0.8b are damaged."]);
+    expect(specFromOllama(ollama([layer("model", { rel: "a" })], null))).toEqual({
+      ok: true, checked: true, warnings: [], spec: { files: [{ label: "model.gguf", rel: "a" }] },
+    });
   });
 
   it("specFor dispatches on kind", () => {
     expect(specFor(gguf("FROM model.gguf")).ok).toBe(true);
     expect(specFor(ollama([layer("model", { rel: "a" })])).ok).toBe(true);
+  });
+});
+
+describe("licences", () => {
+  it("lists the files found next to this model", () => {
+    const c = gguf("FROM model.gguf", { licenceFiles: ["models/licences/tiny/LICENSE.txt"] });
+    expect(licenceNotes(c, specFromModelfile(c))).toEqual([{ tone: "ok", text: "Travels with it: LICENSE.txt" }]);
+  });
+
+  it("a licence inside the model counts; nothing at all is a warning", () => {
+    const withText = gguf(["FROM model.gguf", "LICENSE MIT"].join(String.fromCharCode(10)));
+    expect(licenceNotes(withText, specFromModelfile(withText))[0]).toEqual({ tone: "ok", text: "Travels with it, inside the model" });
+    const none = gguf("FROM model.gguf");
+    expect(licenceNotes(none, specFromModelfile(none))[0].tone).toBe("warning");
+  });
+
+  it("Gemma: reminds about the Terms and Prohibited Use Policy until both are next to it", () => {
+    const g = ollama([layer("model", { rel: "a" })], '{"model_family":"gemma4"}');
+    expect(isGemma(g)).toBe(true);
+    expect(isGemma(ollama([layer("model", { rel: "a" })]))).toBe(false);
+    const bare = licenceNotes(g, specFromOllama(g));
+    expect(bare[1]).toMatchObject({ tone: "warning" });
+    expect(bare[1].text).toMatch(/Gemma Terms of Use and Prohibited Use Policy/);
+    const complete = { ...g, licenceFiles: ["models/licences/gemma4-e2b/Gemma Terms of Use.pdf", "models/licences/gemma4-e2b/Gemma Prohibited Use Policy.pdf"] };
+    expect(licenceNotes(complete, specFromOllama(complete))[1].tone).toBe("ok");
+    expect(isGemma(gguf("FROM model.gguf", { dir: "models/gemma4-e2b" }))).toBe(true);
   });
 });
 

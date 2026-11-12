@@ -39,9 +39,11 @@ node scripts/export-model.mjs qwen3.5:0.8b E:\OpenEdu-Kit          # Windows, st
 node scripts/export-model.mjs gemma4:e2b /Volumes/KIT               # Mac
 ```
 
-- **Read-only on the source.** It opens Ollama's store for reading only, refuses a kit folder inside
-  it, and does not need Ollama running. It finds the store from `--models-dir`, then `OLLAMA_MODELS`,
-  then the Linux service home, then `~/.ollama/models`.
+- **Read-only on the source.** It opens Ollama's store for reading only and does not need Ollama
+  running. Before it creates anything, it resolves both folders through any junction or symlink and
+  refuses a kit whose `models` folder would be (or be inside) the store, and a kit that contains the
+  store. Model names may only use letters, digits, `.`, `_` and `-` in each part. It finds the store
+  from `--models-dir`, then `OLLAMA_MODELS`, then the Linux service home, then `~/.ollama/models`.
 - **Verified as it copies.** Each file is hashed while it is written and kept only if the hash matches
   the digest Ollama recorded, so a kit that finishes is one that will import. Re-running skips files
   already copied intact, which resumes an interrupted copy.
@@ -49,7 +51,9 @@ node scripts/export-model.mjs gemma4:e2b /Volumes/KIT               # Mac
   including ones with a vision projector or a draft model (gemma4).
 - **`--layout gguf`** writes `model.gguf`, a `Modelfile` built from the model's template, parameters,
   licence, renderer and parser, and `checksums.sha256`. It is the open format other tools read too, and
-  only fits single-file models; the script says so and stops for the rest.
+  only fits single-file models; the script says so and stops for the rest. Values are written in
+  triple quotes, literally (a stop token with a newline survives); a value that starts or ends with a
+  quote mark can't be written that way, so the script stops and asks for `--layout ollama`.
 - It also writes the model's licence text to `models/licences/<model>/` and creates the empty `ollama/`
   and `openedu/` folders.
 
@@ -58,7 +62,9 @@ release. Both are the publishers' own signed files; don't repackage them.
 
 A kit made by hand works too: any folder with a `Modelfile` whose `FROM` names a `.gguf` next to it.
 `FROM` must be a file in that folder (not a path elsewhere, not a model name to download). `ADAPTER` is
-not supported yet.
+not supported yet. Add a `checksums.sha256` (`sha256sum model.gguf > checksums.sha256`): without one the
+model still imports, but the screen says it couldn't tell whether the copy was damaged, and a
+checksums file that doesn't list the model file is refused.
 
 ## Using a kit
 
@@ -69,10 +75,14 @@ not supported yet.
    window (that would need a shell permission the app doesn't have).
 3. When Ollama runs but has no model, the setup screen (or **Settings › Models › Import a model from a
    USB stick or folder**) offers the import. Choose the stick or its `models` folder.
-4. The screen shows the model, its size, the free space, and the licence files it found, and suggests
-   a name. Press **Import**. It checks there's room (the model's size plus 1 GB kept spare), checks
-   every file's SHA-256 (against the blob's name, or `checksums.sha256`), copies the files into Ollama,
-   and has Ollama build the model. It can be cancelled until that last step.
+4. The screen shows the model, its size, the free space, and the licence files next to that model,
+   and suggests a name. Press **Import**. It checks there's room (the model's size plus 1 GB kept
+   spare), checks each model file's SHA-256 against the blob's own name or `checksums.sha256`, copies
+   the files into Ollama, and has Ollama build the model. It can be cancelled until that last step.
+   In Ollama's layout the small settings files (template, parameters, licence) and the model's config
+   are checked against the manifest when the folder is picked; a damaged one drops that model with a
+   message. A GGUF kit without `checksums.sha256` imports with a warning, and the check step shows
+   "Not checked" instead of a pass.
 5. The model becomes the tutor model, and the setup check runs again.
 
 An import never replaces a model: a name Ollama already has is refused before anything is sent. If the
@@ -95,9 +105,9 @@ It speaks only to `http://127.0.0.1:11434`, with system proxies ignored, using O
 4. `POST /api/create` with `files` (and `draft_files`), plus `template`, `system`, `parameters`,
    `license`, `messages`, `renderer`, `parser` and `requires` when the export has them.
 
-OpenEdu writes no file. Ollama stores the blobs and builds the model. If an import is cancelled after
-some blobs were sent, Ollama removes the unused blobs the next time it starts (unless `OLLAMA_NOPRUNE`
-is set).
+OpenEdu writes no file. Ollama stores the blobs and builds the model. Redirects are not followed, so
+nothing leaves the loopback address. What Ollama keeps of a blob whose upload was cancelled is up to
+Ollama; that case is not tested here.
 
 The decisions (Modelfile parsing, the create request, names, progress) are in `src/lib/model-kit.ts`;
 the setup guide's states and wording are in `src/lib/ollama-guide.ts`. Both are pure and unit-tested.
@@ -116,5 +126,6 @@ licence before you hand a kit to anyone.
 - **Anything else**: check its model card. Some licences need a NOTICE file, an attribution line or
   an acceptable-use policy that Ollama's copy does not include.
 
-The import screen lists the licence and terms files it finds next to the model, and warns when there
-are none.
+The import screen lists the licence and terms files next to the model (in its own folder, or in the
+kit's `models/licences/<model>/`), and warns when there are none. For a Gemma model it also says whether
+the Terms of Use and the Prohibited Use Policy are there. Neither blocks the import.

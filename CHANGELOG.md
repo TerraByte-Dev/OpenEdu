@@ -13,8 +13,9 @@ The section for each release is also what the app shows when you press Check for
   words, and how to fix it. If you have an OpenEdu kit on a USB stick, it can find Ollama's installer
   on it and show you where it is (OpenEdu never installs anything itself). When Ollama has no model,
   you can import one from a USB stick or folder, from the setup screen or Settings › Models: OpenEdu
-  checks there's room, checks every file isn't damaged, copies it into Ollama with a progress bar you
-  can cancel, and makes it your tutor model. It never replaces a model you already have. How to make a
+  checks there's room, checks each file against its checksum (a kit without a checksum file still
+  imports, but OpenEdu says it couldn't check it), copies it into Ollama with a progress bar you can
+  cancel, and makes it your tutor model. It never replaces a model you already have. How to make a
   kit is in `docs/OFFLINE-KIT.md`.
 
 ### Changed

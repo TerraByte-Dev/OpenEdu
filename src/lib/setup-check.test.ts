@@ -124,10 +124,4 @@ describe("evaluateSetup", () => {
     expect(s.checks[0].detail).toMatch(/not installed on this computer/i);
     expect(s.ready).toBe(false);
   });
-
-  it("carries the tutor model and model count for the guide's wording", () => {
-    const s = evaluateSetup(facts({ installed: ["a:1", "b:2"] }));
-    expect(s.chatModel).toBe("gemma3:1b");
-    expect(s.installedCount).toBe(2);
-  });
 });

@@ -733,6 +733,8 @@ body {
 .kit-track-done { color: var(--ink-dim); }
 .kit-track-done .kit-track-dot { background: var(--phosphor); border-color: var(--phosphor); color: var(--on-accent); }
 .kit-track-now { color: var(--ink); font-weight: 500; }
+.kit-track-skip { color: var(--warning); }
+.kit-track-skip .kit-track-dot { border-color: var(--warning); color: var(--warning); background: var(--warning-tint); }
 .kit-track-now .kit-track-dot { border-color: var(--phosphor); color: var(--phosphor); background: var(--phosphor-dim); }
 
 /* ═══════════════════════════════════════════════════════════════

@@ -54,12 +54,7 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
   // #275: while Ollama is missing or stopped, the guide replaces the bare check row; once it runs but has
   // no model, the import from a stick sits under the download.
   const guide = status.ollama === "not-installed" || status.ollama === "not-running"
-    ? ollamaGuidance(status.ollama, {
-        platform: platformOf(navigator.userAgent),
-        chatModel: status.chatModel ?? "",
-        ollamaUrl,
-        installedCount: status.installedCount,
-      })
+    ? ollamaGuidance(status.ollama, { platform: platformOf(navigator.userAgent), ollamaUrl })
     : null;
 
   return (

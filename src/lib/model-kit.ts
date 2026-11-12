@@ -24,13 +24,12 @@ export interface KitLayer {
 }
 
 export type KitCandidate =
-  | { kind: "gguf"; dir: string; modelfile: string; ggufs: KitFile[]; checksums: string | null }
-  | { kind: "ollama"; name: string; config: string | null; layers: KitLayer[] };
+  | { kind: "gguf"; dir: string; modelfile: string; ggufs: KitFile[]; checksums: string | null; licenceFiles: string[] }
+  | { kind: "ollama"; name: string; config: string | null; layers: KitLayer[]; licenceFiles: string[] };
 
 export interface KitPlan {
   root: string;
   candidates: KitCandidate[];
-  licenceFiles: string[];
   problems: string[];
   freeBytes: number | null;
 }
@@ -56,7 +55,14 @@ export interface CreateSpec {
   messages?: { role: string; content: string }[];
 }
 
-export type Built = { ok: true; spec: CreateSpec } | { ok: false; errors: string[] };
+/**
+ * `checked` is false when nothing can say the files arrived undamaged (a GGUF kit with no checksums
+ * file): the import still reads them, but the screen must not show the check as passed.
+ */
+export type Built = { ok: true; spec: CreateSpec; checked: boolean; warnings: string[] } | { ok: false; errors: string[] };
+
+export const NO_CHECKSUM =
+  "This kit has no checksum file, so OpenEdu can't tell whether it was damaged in copying. It will still import it.";
 
 // ─── Modelfile ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -186,7 +192,14 @@ export function specFromModelfile(c: Extract<KitCandidate, { kind: "gguf" }>): B
       for (const rel of rels) {
         const g = have(rel);
         if (!g) { errors.push(`${basename(rel)} is named in the Modelfile but isn't in the folder.`); continue; }
-        files.push({ label: basename(g.rel), rel: g.rel, ...(sums.get(basename(g.rel)) ? { expect: sums.get(basename(g.rel)) } : {}) });
+        const expect = sums.get(basename(g.rel));
+        // A checksums file that leaves the model out can't vouch for it, and silently skipping the check
+        // would read as a pass.
+        if (c.checksums !== null && !expect) {
+          errors.push(`The checksum file doesn't list ${basename(g.rel)}, so its copy can't be checked. Copy the kit again from the machine that made it.`);
+          continue;
+        }
+        files.push({ label: basename(g.rel), rel: g.rel, ...(expect ? { expect } : {}) });
       }
     }
   }
@@ -196,8 +209,11 @@ export function specFromModelfile(c: Extract<KitCandidate, { kind: "gguf" }>): B
   const licences = commands.filter((x) => x.name === "LICENSE").map((x) => x.value);
   const messages = commands.filter((x) => x.name === "MESSAGE").map((x) => ({ role: x.key!.toLowerCase(), content: x.value }));
   const parameters = typedParameters(commands);
+  const checked = c.checksums !== null;
   return {
     ok: true,
+    checked,
+    warnings: checked ? [] : [NO_CHECKSUM],
     spec: strip({
       files,
       template: one("TEMPLATE"),
@@ -231,19 +247,27 @@ export function specFromOllama(c: Extract<KitCandidate, { kind: "ollama" }>): Bu
   of("projector").forEach((l, k) => add(l, k === 0 ? "projector.gguf" : `projector-${k + 1}.gguf`));
   of("draft").forEach((l, k) => add(l, k === 0 ? "draft.gguf" : `draft-${k + 1}.gguf`, true));
 
+  // Rust drops a model whose settings files are damaged or unreadable, so a missing text here is a bug
+  // or a mismatched build; say so rather than import a model without its template or licence.
+  if (c.layers.some((l) => !l.rel && l.text === null && !["model", "projector", "draft", "adapter"].some((t) => l.mediaType === MT + t))) {
+    errors.push(`A settings file of ${c.name} couldn't be read.`);
+  }
   const text = (t: string) => of(t).map((l) => l.text).filter((x): x is string => x !== null);
   let parameters: Record<string, unknown> | undefined;
   let messages: { role: string; content: string }[] | undefined;
   try { const p = text("params")[0]; if (p) parameters = JSON.parse(p); } catch { errors.push(`The settings file of ${c.name} is damaged.`); }
   try { const m = text("messages")[0]; if (m) messages = JSON.parse(m); } catch { errors.push(`The example messages of ${c.name} are damaged.`); }
   let config: { renderer?: unknown; parser?: unknown; requires?: unknown } = {};
-  try { if (c.config) config = JSON.parse(c.config); } catch { /* the config only adds hints; the weights carry the model */ }
+  try { if (c.config) config = JSON.parse(c.config); } catch { errors.push(`The settings of ${c.name} are damaged.`); }
   if (errors.length) return { ok: false, errors };
 
   const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
   const licences = text("license");
   return {
     ok: true,
+    // Every blob's own name is its checksum, so an Ollama export is always checkable.
+    checked: true,
+    warnings: [],
     spec: strip({
       files,
       template: text("template")[0],
@@ -260,6 +284,41 @@ export function specFromOllama(c: Extract<KitCandidate, { kind: "ollama" }>): Bu
 
 export function specFor(c: KitCandidate): Built {
   return c.kind === "gguf" ? specFromModelfile(c) : specFromOllama(c);
+}
+
+// ─── licences ───────────────────────────────────────────────────────────────────────────────────────
+
+export function isGemma(c: KitCandidate): boolean {
+  const hay = c.kind === "ollama"
+    ? `${c.name} ${c.config ?? ""}`
+    : `${c.dir} ${c.ggufs.map((g) => g.rel).join(" ")} ${c.modelfile}`;
+  return /gemma/i.test(hay);
+}
+
+export interface LicenceNote { tone: "ok" | "warning"; text: string }
+
+/**
+ * What the screen says about this model's licence: the files found next to it (Rust looks only beside
+ * that model and in the kit's `licences/<model>` folder), and for Gemma, whether Google's Terms of Use
+ * and Prohibited Use Policy came along. A reminder, never a block.
+ */
+export function licenceNotes(c: KitCandidate, built: Built | null): LicenceNote[] {
+  const files = c.licenceFiles.map(basename);
+  const embedded = built?.ok ? built.spec.license?.length ?? 0 : 0;
+  const notes: LicenceNote[] = [
+    files.length
+      ? { tone: "ok", text: `Travels with it: ${files.join(", ")}` }
+      : embedded
+        ? { tone: "ok", text: "Travels with it, inside the model" }
+        : { tone: "warning", text: "No licence or terms file found next to this model. Keep the model's licence with the kit." },
+  ];
+  if (isGemma(c)) {
+    const has = (re: RegExp) => files.some((f) => re.test(f));
+    notes.push(has(/terms/i) && has(/prohibited/i)
+      ? { tone: "ok", text: "Gemma's Terms of Use and Prohibited Use Policy are with it." }
+      : { tone: "warning", text: "This is a Gemma model. Google's Gemma Terms of Use and Prohibited Use Policy must go with it wherever it goes, and they aren't next to it. Add both before you pass the kit on." });
+  }
+  return notes;
 }
 
 function strip(spec: CreateSpec): CreateSpec {
@@ -333,6 +392,7 @@ export type ImportEvent =
   | { kind: "phase"; phase: ImportPhase; total: number }
   | { kind: "bytes"; phase: ImportPhase; done: number; total: number; file: string }
   | { kind: "skipped"; file: string; bytes: number }
+  | { kind: "unchecked"; file: string }
   | { kind: "status"; text: string };
 
 /**

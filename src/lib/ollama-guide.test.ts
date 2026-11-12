@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { ollamaState, ollamaGuidance, platformOf, isLoopbackUrl, type OllamaFacts } from "./ollama-guide";
+import { ollamaState, ollamaGuidance, platformOf, isLoopbackUrl, isImportTarget, type OllamaFacts } from "./ollama-guide";
 
 const facts = (over: Partial<OllamaFacts> = {}): OllamaFacts => ({
   reachable: true, installed: true, models: ["gemma4:e2b"], chatModelInstalled: true, ...over,
 });
-const opts = { platform: "windows" as const, chatModel: "gemma4:e2b", ollamaUrl: "http://127.0.0.1:11434" };
+const opts = { platform: "windows" as const, ollamaUrl: "http://127.0.0.1:11434" };
 
 describe("ollamaState", () => {
   it("maps the facts to the four states", () => {
@@ -48,26 +48,24 @@ describe("ollamaGuidance", () => {
     expect(ollamaGuidance("not-running", { ...opts, platform: "linux" }).steps[0]).toMatch(/ollama serve/);
   });
 
-  it("no model: import first (works offline), download second", () => {
-    const g = ollamaGuidance("no-model", { ...opts, installedCount: 0 });
-    expect(g.actions).toEqual(["import-model", "download-model"]);
-    expect(g.title).toBe("Ollama has no model yet");
-    expect(ollamaGuidance("no-model", { ...opts, installedCount: 3 }).title).toBe("Ollama doesn't have gemma4:e2b");
-  });
-
-  it("a remote Ollama gets no install advice", () => {
+  it("an Ollama on another computer gets no install advice", () => {
     const g = ollamaGuidance("not-installed", { ...opts, ollamaUrl: "http://192.168.1.20:11434" });
     expect(g.state).toBe("not-running");
     expect(g.actions).toEqual(["recheck"]);
     expect(g.body).toContain("192.168.1.20");
   });
 
-  it("ready has nothing to do", () => {
-    expect(ollamaGuidance("ready", opts).actions).toEqual([]);
+  // A custom port is still this computer: the install and start advice applies, and nothing calls it remote.
+  it("this computer on another port is still this computer", () => {
+    for (const url of ["http://localhost", "http://127.0.0.1:8080"]) {
+      const g = ollamaGuidance("not-running", { ...opts, ollamaUrl: url });
+      expect(g.title, url).toBe("Ollama is installed but not running");
+      expect(g.body, url).not.toMatch(/another computer/);
+    }
   });
 
-  it("every state but ready ends in at least one action and a step", () => {
-    for (const s of ["not-installed", "not-running", "no-model"] as const) {
+  it("every state ends in at least one action and a step", () => {
+    for (const s of ["not-installed", "not-running"] as const) {
       const g = ollamaGuidance(s, opts);
       expect(g.actions.length, s).toBeGreaterThan(0);
       expect(g.steps.length, s).toBeGreaterThan(0);
@@ -82,8 +80,18 @@ describe("helpers", () => {
     expect(platformOf("Mozilla/5.0 (X11; Linux x86_64)")).toBe("linux");
   });
 
-  it("isLoopbackUrl only accepts this computer on Ollama's port", () => {
-    for (const u of ["http://127.0.0.1:11434", "http://localhost:11434/", "http://[::1]:11434", "http://127.0.0.1"]) expect(isLoopbackUrl(u), u).toBe(true);
-    for (const u of ["http://192.168.1.2:11434", "http://127.0.0.1:8080", "http://127.0.0.1.evil.com:11434", "not a url"]) expect(isLoopbackUrl(u), u).toBe(false);
+  it("isLoopbackUrl: this computer on any port", () => {
+    for (const u of ["http://127.0.0.1:11434", "http://localhost:11434/", "http://[::1]:11434", "http://127.0.0.1", "http://localhost:8080"]) {
+      expect(isLoopbackUrl(u), u).toBe(true);
+    }
+    for (const u of ["http://192.168.1.2:11434", "http://127.0.0.1.evil.com:11434", "not a url"]) expect(isLoopbackUrl(u), u).toBe(false);
+  });
+
+  // The importer only ever sends to 127.0.0.1:11434; a URL with no port is port 80, not 11434.
+  it("isImportTarget: this computer on Ollama's port, over http, only", () => {
+    for (const u of ["http://127.0.0.1:11434", "http://localhost:11434/", "http://[::1]:11434"]) expect(isImportTarget(u), u).toBe(true);
+    for (const u of ["http://127.0.0.1", "http://localhost", "http://127.0.0.1:8080", "https://127.0.0.1:11434", "http://192.168.1.2:11434", "nope"]) {
+      expect(isImportTarget(u), u).toBe(false);
+    }
   });
 });

@@ -39,9 +39,6 @@ export interface SetupStatus {
   complete: boolean;
   /** Which of the four Ollama states this is (#275). Absent for a cloud provider. */
   ollama?: OllamaState;
-  /** The configured tutor model and how many models Ollama has, for the setup guide's wording. */
-  chatModel?: string;
-  installedCount?: number;
 }
 
 /**
@@ -149,8 +146,6 @@ export function evaluateSetup(facts: {
       models: facts.installed,
       chatModelInstalled: hasChat,
     }),
-    chatModel: facts.chatModel,
-    installedCount: facts.installed.length,
   };
 }
 

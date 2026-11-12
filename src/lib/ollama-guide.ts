@@ -29,20 +29,37 @@ export function platformOf(userAgent: string): Platform {
   return "linux";
 }
 
-/** True when the URL points at this computer, the only place the importer will send a model. */
+/** The port a URL really uses: its own, or the scheme's default (`http://localhost` is port 80). */
+export function effectivePort(u: URL): number {
+  return u.port ? Number(u.port) : u.protocol === "https:" ? 443 : 80;
+}
+
+/** True when the URL points at this computer, on any port. */
 export function isLoopbackUrl(url: string): boolean {
   try {
-    const u = new URL(url);
-    return ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname) && (u.port === "" || u.port === "11434");
+    return ["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname);
   } catch {
     return false;
   }
 }
 
-export type GuideAction = "find-installer" | "recheck" | "import-model" | "download-model";
+/** The importer talks to one place only: Ollama on this computer at its usual port. */
+export const IMPORT_TARGET = "http://127.0.0.1:11434";
+export function isImportTarget(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return isLoopbackUrl(url) && u.protocol === "http:" && effectivePort(u) === 11434;
+  } catch {
+    return false;
+  }
+}
+
+/** The two states the guide screen is for; a missing model is handled by the import card. */
+export type GuideState = "not-installed" | "not-running";
+export type GuideAction = "find-installer" | "recheck";
 
 export interface Guidance {
-  state: OllamaState;
+  state: GuideState;
   title: string;
   body: string;
   /** Numbered, in the order the person does them. */
@@ -57,23 +74,15 @@ const INSTALLER_NAME: Record<Platform, string> = {
   linux: "the ollama-linux archive",
 };
 
-export function ollamaGuidance(
-  state: OllamaState,
-  opts: { platform: Platform; chatModel: string; ollamaUrl: string; installedCount?: number },
-): Guidance {
-  const local = isLoopbackUrl(opts.ollamaUrl);
+export function ollamaGuidance(state: GuideState, opts: { platform: Platform; ollamaUrl: string }): Guidance {
   const p = opts.platform;
 
-  if (state === "ready") {
-    return { state, title: "Ollama is ready", body: `${opts.chatModel} is installed and Ollama is running.`, steps: [], actions: [] };
-  }
-
-  if (!local && (state === "not-installed" || state === "not-running")) {
+  if (!isLoopbackUrl(opts.ollamaUrl)) {
     return {
       state: "not-running",
       title: "Ollama isn't answering",
       body: `OpenEdu is set to use Ollama at ${opts.ollamaUrl}, on another computer, and it isn't answering.`,
-      steps: ["Check that the other computer is on and Ollama is running there.", "Or open Settings and set the Ollama address back to http://127.0.0.1:11434."],
+      steps: ["Check that the other computer is on and Ollama is running there.", `Or open Settings and set the Ollama address back to ${IMPORT_TARGET}.`],
       actions: ["recheck"],
     };
   }
@@ -92,33 +101,16 @@ export function ollamaGuidance(
     };
   }
 
-  if (state === "not-running") {
-    const start: Record<Platform, string> = {
-      windows: "Open the Start menu, type Ollama, and open it. A small llama appears near the clock when it's running.",
-      mac: "Open Ollama from your Applications folder. A small llama appears in the menu bar when it's running.",
-      linux: "Start the Ollama service (or run ollama serve in a terminal).",
-    };
-    return {
-      state,
-      title: "Ollama is installed but not running",
-      body: "OpenEdu needs Ollama running to think. It usually starts on its own when the computer starts; this time it hasn't.",
-      steps: [start[p], `Come back here and press "Check again".`],
-      actions: ["recheck", "find-installer"],
-    };
-  }
-
-  // no-model
-  const some = (opts.installedCount ?? 0) > 0;
+  const start: Record<Platform, string> = {
+    windows: "Open the Start menu, type Ollama, and open it. A small llama appears near the clock when it's running.",
+    mac: "Open Ollama from your Applications folder. A small llama appears in the menu bar when it's running.",
+    linux: "Start the Ollama service (or run ollama serve in a terminal).",
+  };
   return {
     state,
-    title: some ? `Ollama doesn't have ${opts.chatModel}` : "Ollama has no model yet",
-    body: some
-      ? `Ollama is running, but the tutor is set to use ${opts.chatModel}, which isn't on this computer.`
-      : "Ollama is running, but it has no model to tutor with.",
-    steps: [
-      `With a USB stick or folder that has a model on it, press "Import from a folder". It works with no internet.`,
-      `With internet, press "Download ${opts.chatModel}" instead.`,
-    ],
-    actions: ["import-model", "download-model"],
+    title: "Ollama is installed but not running",
+    body: "OpenEdu needs Ollama running to think. It usually starts on its own when the computer starts; this time it hasn't.",
+    steps: [start[p], `Come back here and press "Check again".`],
+    actions: ["recheck", "find-installer"],
   };
 }
