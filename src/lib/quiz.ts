@@ -713,7 +713,7 @@ export async function gradeAnswersBatch(
     // gradeFreeTextDeterministic only ever returns true (confident match) or null (defer) — never a
     // false, so it can't wrongly fail a correct-but-reworded answer.
     if (gradeFreeTextDeterministic(it.expected, it.student, it.type) === true) {
-      out.set(it.index, { isCorrect: true, feedback: "Correct." });
+      out.set(it.index, { isCorrect: true, feedback: "Correct.", by: "exact" });
     } else {
       needsLLM.push(it);
     }
@@ -731,7 +731,7 @@ export async function gradeAnswersBatch(
       for (const [idx, outcome] of parseBatchGradeResults(parsed, needsLLM)) out.set(idx, outcome);
     } catch (e) {
       log.warn("quiz", `batch grade failed — marking ${needsLLM.length} answers correct (lenient)`, e instanceof Error ? e.message : String(e));
-      for (const it of needsLLM) out.set(it.index, { isCorrect: true, feedback: "" });
+      for (const it of needsLLM) out.set(it.index, { isCorrect: true, feedback: "", by: "fallback" });
     }
   }
 

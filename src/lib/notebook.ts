@@ -17,7 +17,7 @@ import {
   deleteNotebookDocumentByNote,
   createNotebookDocument,
   createNotebookChunk,
-  loadNotebookVectors, getChunkTexts} from "./db";
+  loadNotebookVectors, getChunkTexts, type NoteOrigin} from "./db";
 import type { Note, NotebookSearchResult, NotebookSourceType } from "../types";
 import { encodeVec, readVec, cosine } from "./vec-codec";
 
@@ -138,11 +138,13 @@ export async function importTextAsNote(args: {
   text: string;
   sourceType?: NotebookSourceType;
   folderId?: string | null;
+  /** Who made the note (notes.origin, #258). Defaults to a file import. */
+  origin?: NoteOrigin;
 }): Promise<{ note: Note; chunkCount: number; embedded: boolean; indexError?: string }> {
   // Always create the visible note first. Indexing (embedding) is best-effort: if the embedder is
   // offline or one file fails, the note is still saved and shows in the vault — embed-on-save retries
   // later. This is what keeps a batch import from dropping the rest of the files on one bad embed.
-  const note = await createNote(args.courseId, args.title, args.text, 0, args.folderId ?? null);
+  const note = await createNote(args.courseId, args.title, args.text, 0, args.folderId ?? null, args.origin ?? "import");
   try {
     const res = await indexNote({
       courseId: args.courseId,

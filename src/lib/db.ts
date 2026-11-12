@@ -6,6 +6,9 @@ import { normalizeGrade, type Grade } from "./grade";
 import { parseUsageMode, type UsageMode, type GroupRow } from "./usage-modes";
 import type { OverviewSource } from "./teacher-overview";
 import type { AttemptRow, NewAttempt } from "./early/engine";
+import type { GradedBy } from "./quiz-grading";
+import type { FlashcardGrade } from "./srs";
+import type { SubtopicEventKind } from "./mastery";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
 // each running Database.load, which builds a new sqlx pool and replaces the previous one every time.
@@ -310,7 +313,9 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM tutor_instructions WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM syllabuses WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM lessons WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM flashcard_reviews WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM flashcards WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM subtopic_events WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM user_progress WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM courses WHERE id = $1", [id]);
 }
@@ -463,12 +468,17 @@ export async function getNotes(courseId: string, level?: number): Promise<Note[]
   );
 }
 
-export async function createNote(courseId: string, title: string, content: string, level: number, folderId: string | null = null): Promise<Note> {
+/** Who made a note: the learner in the notes tab, a file import, or the tutor's ingest tool (#258). */
+export type NoteOrigin = "learner" | "import" | "tutor";
+
+export async function createNote(
+  courseId: string, title: string, content: string, level: number, folderId: string | null = null, origin: NoteOrigin | null = null,
+): Promise<Note> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO notes (id, course_id, level, title, content, folder_id) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, courseId, level, title, content, folderId]
+    "INSERT INTO notes (id, course_id, level, title, content, folder_id, origin) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    [id, courseId, level, title, content, folderId, origin]
   );
   const rows: Note[] = await d.select("SELECT * FROM notes WHERE id = $1", [id]);
   return rows[0];
@@ -773,12 +783,12 @@ export async function createQuizAttempt(
 }
 
 // Returns the generated row id so the caller can attach a self-explanation typed after answering.
-export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<string> {
+export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">, gradedBy: GradedBy | null = null): Promise<string> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position, self_explanation)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position, self_explanation, graded_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
     [
       id, q.attempt_id, q.question_text, q.question_type,
       q.options ? JSON.stringify(q.options) : null,
@@ -789,6 +799,7 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">): Promise<str
       q.matching_pairs ? JSON.stringify(q.matching_pairs) : null,
       q.blank_position ?? null,
       q.self_explanation ?? null,
+      gradedBy,
     ]
   );
   return id;
@@ -812,7 +823,7 @@ export async function getReviewPoolQuestions(courseId: string, limit: number): P
   const rows: Array<Record<string, unknown>> = await d.select(
     `SELECT qq.* FROM quiz_questions qq
        JOIN quiz_attempts qa ON qq.attempt_id = qa.id
-      WHERE qa.course_id = $1 AND qq.is_correct = 0
+      WHERE qa.course_id = $1 AND qq.is_correct = 0 AND qq.graded_by IS NOT 'unanswered'
       ORDER BY qa.started_at DESC
       LIMIT $2`,
     [courseId, limit * 4] // overfetch so dedup can still reach `limit`
@@ -852,11 +863,22 @@ export async function completeQuizAttempt(
 
 // Update one quiz_questions row's grade after deferred end-of-test grading (issue #83): free-text
 // answers are recorded with is_correct = null during the test, then resolved here at finish.
-export async function updateQuizQuestionGrade(id: string, isCorrect: boolean): Promise<void> {
+export async function updateQuizQuestionGrade(id: string, isCorrect: boolean, gradedBy: GradedBy): Promise<void> {
   const d = await getDb();
   await d.execute(
-    `UPDATE quiz_questions SET is_correct = $1 WHERE id = $2`,
-    [isCorrect ? 1 : 0, id]
+    `UPDATE quiz_questions SET is_correct = $1, graded_by = $2 WHERE id = $3`,
+    [isCorrect ? 1 : 0, gradedBy, id]
+  );
+}
+
+// A level test's outcome as the app decided it (PromotionTestFullScreen didPass), stored beside the
+// attempt so the learning record (#258) never has to infer a pass. reviewScore is the review-section
+// percent, or null when the test had no review section.
+export async function setPromotionResult(attemptId: string, passed: boolean, reviewScore: number | null): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    `UPDATE quiz_attempts SET passed = $1, review_score = $2 WHERE id = $3`,
+    [passed ? 1 : 0, reviewScore, attemptId]
   );
 }
 
@@ -960,6 +982,7 @@ export async function getSubtopicAccuracy(courseId: string): Promise<Array<{ sub
             COUNT(*) as total
        FROM quiz_questions qq JOIN quiz_attempts qa ON qq.attempt_id = qa.id
       WHERE qa.course_id = $1 AND qq.subtopic_id IS NOT NULL AND qq.is_correct IS NOT NULL
+        AND qq.graded_by IS NOT 'unanswered'
       GROUP BY qq.subtopic_id`,
     [courseId]
   );
@@ -1083,6 +1106,7 @@ export async function countDueFlashcards(courseId: string, nowIso: string): Prom
 export async function updateFlashcardAfterReview(
   id: string,
   s: { ease: number; interval_days: number; reps: number; lapses: number; due_at: string },
+  grade: FlashcardGrade,
 ): Promise<void> {
   const d = await getDb();
   await d.execute(
@@ -1090,6 +1114,16 @@ export async function updateFlashcardAfterReview(
        last_reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = $6`,
     [s.ease, s.interval_days, s.reps, s.lapses, s.due_at, id]
   );
+  // last_reviewed_at is overwritten, so each review is also logged for the learning record (#258).
+  // Best effort: a failed log must never stop the review itself.
+  try {
+    await d.execute(
+      `INSERT INTO flashcard_reviews (card_id, course_id, grade) SELECT id, course_id, $2 FROM flashcards WHERE id = $1`,
+      [id, grade]
+    );
+  } catch (e) {
+    console.error("flashcard_reviews insert failed", e);
+  }
 }
 
 export async function deleteFlashcard(id: string): Promise<void> {
@@ -1105,4 +1139,43 @@ export async function flashcardExists(courseId: string, front: string): Promise<
     [courseId, front]
   );
   return rows.length > 0;
+}
+
+// ── Learning-record capture (migration 18, #258) ────────────────────────────
+// Writes only. The record builder reads these with the rest of a learner's rows.
+
+/**
+ * Add one counted active minute to a learner's local day. A second tick for the same learner and day
+ * within 55 seconds (a second window, a re-mounted timer) adds nothing.
+ */
+export async function recordActiveMinute(learnerId: string, day: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    `INSERT INTO learner_days (learner_id, day, minutes, last_tick_at) VALUES ($1, $2, 1, datetime('now'))
+     ON CONFLICT(learner_id, day) DO UPDATE SET minutes = minutes + 1, last_tick_at = datetime('now')
+     WHERE last_tick_at IS NULL OR last_tick_at <= datetime('now', '-55 seconds')`,
+    [learnerId, day]
+  );
+}
+
+export interface SubtopicEventRow {
+  subtopic_id: string;
+  event: SubtopicEventKind;
+  source: "tutor" | "keyword";
+  correct?: number | null;
+  total?: number | null;
+  attempt_id?: string | null;
+}
+
+/** Log skill status changes that did not come from a tagged quiz question (the tutor, the keyword fallback). */
+export async function recordSubtopicEvents(courseId: string, level: number, events: ReadonlyArray<SubtopicEventRow>): Promise<void> {
+  if (events.length === 0) return;
+  const d = await getDb();
+  for (const e of events) {
+    await d.execute(
+      `INSERT INTO subtopic_events (course_id, level, subtopic_id, event, source, correct, total, attempt_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [courseId, level, e.subtopic_id, e.event, e.source, e.correct ?? null, e.total ?? null, e.attempt_id ?? null]
+    );
+  }
 }

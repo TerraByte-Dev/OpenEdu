@@ -64,7 +64,7 @@ describe("migration 13 on an existing install", () => {
     migrate(12);
     sqlite.exec(`INSERT INTO courses (id, title, topic, current_level) VALUES ('c1', 'Algebra', 'algebra', 1.0), ('c2', 'Biology', 'biology', 2.0);`);
     sqlite.exec(`INSERT INTO notes (id, course_id, title, content) VALUES ('n1', 'c1', 'My note', 'x = 2');`);
-    migrate(15, 13); // the app runs every migration; 14 adds group_id and 15 grade, which createLearner writes
+    migrate(18, 13); // the app runs every migration; 14 adds group_id, 15 grade and 18 notes.origin, which db.ts writes
   });
 
   it("creates one default learner with no PIN, so no picker appears", async () => {

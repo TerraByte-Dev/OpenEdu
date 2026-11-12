@@ -24,6 +24,9 @@ interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   feedback?: string;
 }
 
+// The most a quiz question can add to a quiz's stored time (#258): 2 minutes.
+const QUIZ_SECONDS_PER_QUESTION = 120;
+
 export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps) {
   const { courseId, course, syllabus } = context;
   const [state, setState] = useState<State>("generating");
@@ -38,6 +41,8 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   // Synchronous single-flight guard — a fast double-click can fire handleFinish twice before the
   // `finishing` state re-renders, which would double-grade and double-persist (issue #83 review).
   const finishingRef = useRef(false);
+  // When the questions appeared, so the attempt stores how long the learner took (not grading time).
+  const startedAtRef = useRef<number | null>(null);
   // React StrictMode (dev) invokes mount effects twice. Without this guard the quiz generates TWICE,
   // and the slower, non-deterministic second run overwrites the first mid-session — resetting you to
   // question 1 with a different question set/count — while two pipelines fight over the single local
@@ -62,6 +67,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }));
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
+      startedAtRef.current = Date.now();
       setQuestions(generated.map((q) => ({ ...q, user_answer: null, is_correct: null })));
       setCurrentIndex(0);
       setScore(null);
@@ -91,7 +97,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         matching_pairs: question.matching_pairs,
         blank_position: question.blank_position,
         self_explanation: question.self_explanation ?? null,
-      });
+      }, isCorrect === null ? null : "key"); // answered now against the key; free text is graded at finish
     }
     setQuestions((prev) =>
       prev.map((q, i) => (i === currentIndex ? { ...q, user_answer: answer, is_correct: isCorrect, saved_id: savedId } : q))
@@ -111,6 +117,10 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     if (finishingRef.current || !attemptId || !config) return;
     finishingRef.current = true;
     setFinishing(true);
+    // Time on the quiz, measured at submit so the grading wait below is never counted, and capped at
+    // QUIZ_SECONDS_PER_QUESTION a question so a quiz left open overnight is not stored as hours of work.
+    const elapsed = startedAtRef.current === null ? 0 : Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
+    const timeTaken = Math.min(elapsed, finalQuestions.length * QUIZ_SECONDS_PER_QUESTION);
 
     // ── 1. Deferred grading: settle every recorded free-text answer in ONE batch (issue #83), so
     // taking the quiz never blocks on a per-answer model call. MC/true_false are already resolved. ──
@@ -129,7 +139,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
 
     // ── 3. Persist (attempt + heavy mastery → progress → knowledge recompute) in the background —
     // results are already on screen, so the machine no longer bogs down at finish (issue #83). ──
-    void persistQuizResults(graded, pct, correct, total);
+    void persistQuizResults(graded, pct, correct, total, timeTaken);
   };
 
   // Grade the pending free-text answers (is_correct === null) in one batched call and write the
@@ -160,19 +170,20 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     });
     await Promise.all(pending.map(({ index }) => {
       const q = graded[index];
-      return q.saved_id ? updateQuizQuestionGrade(q.saved_id, !!q.is_correct).catch(console.error) : Promise.resolve();
+      const by = outcomes.get(index)?.by ?? "fallback";
+      return q.saved_id ? updateQuizQuestionGrade(q.saved_id, !!q.is_correct, by).catch(console.error) : Promise.resolve();
     }));
     log.info("quiz", `graded ${pending.length} free-text answer(s) in ${Math.round(performance.now() - t0)}ms`);
     return graded;
   };
 
-  const persistQuizResults = async (graded: ActiveQuestion[], pct: number, correct: number, total: number) => {
+  const persistQuizResults = async (graded: ActiveQuestion[], pct: number, correct: number, total: number, timeTaken: number) => {
     const t0 = performance.now();
     try {
-      if (attemptId) await completeQuizAttempt(attemptId, pct, correct, 0);
+      if (attemptId) await completeQuizAttempt(attemptId, pct, correct, timeTaken);
       const freshSyllabus = await getSyllabus(courseId, syllabus.level);
       if (freshSyllabus) {
-        await updateSubtopicMastery(courseId, freshSyllabus, graded);
+        await updateSubtopicMastery(courseId, freshSyllabus, graded, attemptId);
         await updateUserProgress(courseId);
         await refreshProgressContext(courseId, freshSyllabus);
       }

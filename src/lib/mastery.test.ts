@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applySubtopicScore, resolveSubtopic } from "./mastery";
+import { applySubtopicScore, resolveSubtopic, subtopicTransitions } from "./mastery";
 import type { Subtopic } from "../types";
 
 const base = (over: Partial<Subtopic> = {}): Subtopic => ({
@@ -87,5 +87,25 @@ describe("resolveSubtopic", () => {
 
   it("treats a sentence containing two titles as ambiguous", () => {
     expect(resolveSubtopic(subs, "they know dict comprehensions and list comprehensions").kind).toBe("ambiguous");
+  });
+});
+
+describe("subtopicTransitions", () => {
+  it("names each status change from one state to the next", () => {
+    expect(subtopicTransitions(base(), base({ practiced: true, mastered: true }))).toEqual(["practiced", "mastered"]);
+    expect(subtopicTransitions(base({ practiced: true, mastered: true }), base({ practiced: true, mastered: true, review_needed: true }))).toEqual(["review_needed"]);
+    expect(subtopicTransitions(base({ practiced: true, mastered: true, review_needed: true }), base({ practiced: true, mastered: true, review_needed: false }))).toEqual(["review_cleared"]);
+  });
+
+  it("agrees with applySubtopicScore: a slip on a mastered skill is review_needed, then cleared", () => {
+    const m = base({ practiced: true, mastered: true });
+    const slipped = applySubtopicScore(m, 5, 10);
+    expect(subtopicTransitions(m, slipped)).toEqual(["review_needed"]);
+    expect(subtopicTransitions(slipped, applySubtopicScore(slipped, 9, 10))).toEqual(["review_cleared"]);
+  });
+
+  it("is empty when nothing changed", () => {
+    const s = base({ practiced: true });
+    expect(subtopicTransitions(s, applySubtopicScore(s, 3, 10))).toEqual([]);
   });
 });

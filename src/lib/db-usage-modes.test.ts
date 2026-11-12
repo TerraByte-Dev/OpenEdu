@@ -71,7 +71,7 @@ describe("migration 14 on an install already in use", () => {
     sqlite.exec(`INSERT INTO notes (id, course_id, title, content) VALUES ('n1', 'c1', 'My note', 'x = 2');`);
     sqlite.exec(`INSERT INTO syllabuses (id, course_id, level, title, subtopics) VALUES ('s1', 'c1', 1, 'L1', '[{"id":"1.1","mastered":true},{"id":"1.2","mastered":false}]');`);
     migrate(13, 13);
-    migrate(15, 14); // 15 adds learners.grade, which createLearner writes
+    migrate(18, 14); // 15 adds learners.grade and 18 notes.origin, which db.ts writes
   });
 
   it("starts as Just me without asking, with no teacher PIN", async () => {

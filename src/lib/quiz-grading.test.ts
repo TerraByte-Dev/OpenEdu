@@ -238,17 +238,18 @@ describe("parseBatchGradeResults", () => {
       { index: 0, correct: true, feedback: "good" },
       { index: 1, correct: false, feedback: "off" },
     ] }, items);
-    expect(map.get(0)).toEqual({ isCorrect: true, feedback: "good" });
-    expect(map.get(1)).toEqual({ isCorrect: false, feedback: "off" });
+    expect(map.get(0)).toEqual({ isCorrect: true, feedback: "good", by: "model" });
+    expect(map.get(1)).toEqual({ isCorrect: false, feedback: "off", by: "model" });
   });
   it("defaults missing/malformed entries to lenient-correct", () => {
     const map = parseBatchGradeResults({ results: [{ index: 0, correct: false, feedback: "x" }] }, items);
     expect(map.get(0)?.isCorrect).toBe(false);
-    expect(map.get(1)).toEqual({ isCorrect: true, feedback: "" }); // not returned → lenient
+    expect(map.get(1)).toEqual({ isCorrect: true, feedback: "", by: "fallback" }); // not returned → lenient, and marked as such
   });
   it("is lenient when the whole response is missing", () => {
     const map = parseBatchGradeResults(null, items);
     expect([...map.values()].every((v) => v.isCorrect)).toBe(true);
+    expect([...map.values()].every((v) => v.by === "fallback")).toBe(true);
   });
 });
 

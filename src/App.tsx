@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
-  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, type UsageConfig,
+  getUsageConfig, setUsageMode as saveUsageMode, listGroups, setLearnerGrade, recordActiveMinute, type UsageConfig,
 } from "./lib/db";
 import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import { normalizeGrade, hasEarlyScreens, earlyScreensOn } from "./lib/grade";
@@ -16,7 +16,8 @@ import {
   getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes, getEarlyScreens,
   setEarlyScreens,
 } from "./lib/store";
-import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
+import { minutesToday, tickActiveMinutes, localDayKey, type ActiveMinutes } from "./lib/daily-goal";
+import { isActiveMinute, ACTIVITY_EVENTS } from "./lib/record/active-minute";
 import type { NextStepAction } from "./lib/next-step";
 import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
@@ -165,6 +166,39 @@ export default function App() {
         await setActiveMinutes(learnerId, next);
         if (getActiveLearnerId() === learnerId) setActiveMinutesState(next);
       }).catch(() => { /* a failed tick costs one minute of credit, nothing else */ });
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [activeLearner]);
+
+  // Counted minutes for the learning record (#258), kept apart from the daily goal above, which is
+  // unchanged. A minute counts only with recent input on a learning screen (record/active-minute.ts).
+  // The view and teacher flag are read through refs so the timer is not restarted on every navigation.
+  const lastInputRef = useRef<number | null>(null);
+  const viewRef = useRef<View>(currentView);
+  const teacherOpenRef = useRef(teacherOpen);
+  useEffect(() => { viewRef.current = currentView; }, [currentView]);
+  useEffect(() => { teacherOpenRef.current = teacherOpen; }, [teacherOpen]);
+  useEffect(() => {
+    const mark = () => { lastInputRef.current = Date.now(); };
+    // Capture phase: scroll does not bubble, and a handler that stops propagation must not hide input.
+    const opts = { capture: true, passive: true } as const;
+    for (const e of ACTIVITY_EVENTS) window.addEventListener(e, mark, opts);
+    return () => { for (const e of ACTIVITY_EVENTS) window.removeEventListener(e, mark, opts); };
+  }, []);
+  useEffect(() => {
+    if (!activeLearner) return;
+    const learnerId = activeLearner.id;
+    const id = setInterval(() => {
+      if (getActiveLearnerId() !== learnerId) return;
+      const now = Date.now();
+      const active = isActiveMinute({
+        visible: document.visibilityState === "visible",
+        lastInputMs: lastInputRef.current,
+        nowMs: now,
+        view: viewRef.current,
+        teacherOpen: teacherOpenRef.current,
+      });
+      if (active) void recordActiveMinute(learnerId, localDayKey(new Date(now))).catch(() => { /* one minute lost */ });
     }, 60_000);
     return () => clearInterval(id);
   }, [activeLearner]);

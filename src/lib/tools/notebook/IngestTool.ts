@@ -27,6 +27,7 @@ export const ingestTool = defineTool({
       title: input.title,
       text: input.text,
       sourceType: input.source_type ?? "note",
+      origin: "tutor",
     });
     yield { kind: "result", value: { noteId: res.note.id, chunkCount: res.chunkCount, title: input.title } };
   },
