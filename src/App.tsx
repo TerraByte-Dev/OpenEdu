@@ -8,7 +8,7 @@ import { DEFAULT_LEARNER_ID, type LearnerRow } from "./lib/learners";
 import { normalizeGrade, hasEarlyScreens, earlyScreensOn } from "./lib/grade";
 import {
   autoPickFor, resolveStartupMode, hasPriorUse, runGuarded, staysUnlocked, viewAfterTeacherDone, showsLearnerChip,
-  isProtected, saveThenRefresh, type UsageMode, type GroupRow, type TeacherEntry,
+  isProtected, saveThenRefresh, needsTeacherPin, type UsageMode, type GroupRow, type TeacherEntry,
 } from "./lib/usage-modes";
 import type { PinRecord } from "./lib/learner-pin";
 import type { DbHealth } from "./lib/db-resilience";
@@ -523,6 +523,8 @@ export default function App() {
                   load={getRecordSource}
                   audience="own"
                   onBack={() => setCurrentView("dashboard")}
+                  // A learner sets their own grade only where Settings is not behind the teacher PIN.
+                  canSetGrade={!needsTeacherPin(mode ?? "single", "open-settings")}
                   onLearnerChanged={async () => {
                     const list = await reloadLearners();
                     const me = list.find((l) => l.id === activeLearner.id);

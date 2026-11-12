@@ -57,6 +57,11 @@ export interface RecordProps {
   onBack: () => void;
   /** The name check renamed the learner or set their grade: reload the learner list. */
   onLearnerChanged?: () => void;
+  /**
+   * Whether the name check may set the grade. False for a learner's own record when Settings is behind
+   * the teacher PIN (a class or school): learners there cannot set their own grade. Default true.
+   */
+  canSetGrade?: boolean;
 }
 
 /** The ⓘ / pill disclosure: which rules are open. */
@@ -172,7 +177,7 @@ const Small = ({ children }: { children: ReactNode }) => <span className="text-s
 
 // ── The record ──────────────────────────────────────────────────────────────────────────────────────
 
-export default function Record({ learnerId, load, audience: who, onBack, onLearnerChanged }: RecordProps) {
+export default function Record({ learnerId, load, audience: who, onBack, onLearnerChanged, canSetGrade = true }: RecordProps) {
   const [source, setSource] = useState<RecordSource | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -185,6 +190,7 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
   // the print dialog by itself.
   const [checkingName, setCheckingName] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const saveButton = useRef<HTMLButtonElement>(null);
   const open = useOpen();
 
   useEffect(() => {
@@ -246,16 +252,22 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
   };
 
   const save = () => {
-    if (source && needsNameCheck(source.learner)) setCheckingName(true);
+    if (source && needsNameCheck(source.learner, canSetGrade)) setCheckingName(true);
     else setPrinting(true);
   };
-  const named = (learner: { name: string; grade: Grade | null } | null) => {
-    if (learner && source) {
-      setSource({ ...source, learner: { ...source.learner, ...learner } });
-      onLearnerChanged?.();
-    }
+  // A saved change lands in the record at once, so the page (and the learner chip) never shows a stale
+  // name, even when a later step fails and the dialog stays open, or the user then picks Skip.
+  const learnerSaved = (change: { name?: string; grade?: Grade | null }) => {
+    setSource((s) => s && { ...s, learner: { ...s.learner, ...change } });
+    onLearnerChanged?.();
+  };
+  const nameChecked = () => {
     setCheckingName(false);
     setPrinting(true);
+  };
+  const nameCheckCancelled = () => {
+    setCheckingName(false);
+    requestAnimationFrame(() => saveButton.current?.focus());
   };
 
   const name = source?.learner.name.trim() || "Your learner";
@@ -335,6 +347,7 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
             headingRef={headingRef}
             headingLevel={who === "teacher" ? 2 : 1}
             onSave={save}
+            saveRef={saveButton}
           />
         )}
       </main>
@@ -343,8 +356,10 @@ export default function Record({ learnerId, load, audience: who, onBack, onLearn
           learnerId={learnerId}
           name={source.learner.name}
           grade={normalizeGrade(source.learner.grade)}
-          onDone={named}
-          onCancel={() => setCheckingName(false)}
+          canSetGrade={canSetGrade}
+          onSaved={learnerSaved}
+          onDone={nameChecked}
+          onCancel={nameCheckCancelled}
         />
       )}
     </div>
@@ -375,8 +390,9 @@ function VoiceQuestion({ current, forced, error, onChoose, onKeep }: {
   );
 }
 
-function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel, onSave }: {
+function RecordBody({ record: r, allTime, audience, name, title, open, subjectError, onSubject, now, headingRef, headingLevel, onSave, saveRef }: {
   onSave: () => void;
+  saveRef: RefObject<HTMLButtonElement | null>;
   headingRef: RefObject<HTMLHeadingElement | null>;
   /** 1 on the record's own screen; 2 inside TeacherView, whose "Teacher / parent" is the page's h1. */
   headingLevel: 1 | 2;
@@ -427,7 +443,7 @@ function RecordBody({ record: r, allTime, audience, name, title, open, subjectEr
           </div>
           {/* Save prints the record. The helper speaks to a grown-up keeping a portfolio, so not in the self voice. */}
           <div className="ml-auto flex flex-col items-start sm:items-end gap-1.5 max-w-[340px]">
-            <button type="button" className="btn btn-primary" onClick={onSave}>{saveLabel(r, audience)}</button>
+            <button ref={saveRef} type="button" className="btn btn-primary" onClick={onSave}>{saveLabel(r, audience)}</button>
             {!self && <span className="text-sm text-[var(--ink-faint)] sm:text-right leading-normal">{C.saveHelper}</span>}
           </div>
         </div>
@@ -991,36 +1007,50 @@ function HowCounted({ audience }: { audience: Audience }) {
 /**
  * Spec §1 rule 5: before a record still named 'Learner 1', or with no grade, is saved, ask for both.
  * Either can stay as it is; Skip goes straight on to the print. Saved through the same setters as the
- * learner menu and Settings.
+ * learner menu and Settings. The grade field is left out where the reader may not set a grade (a
+ * learner's own record in a class or school). While a save is running, nothing closes the dialog.
  */
-function NameCheck({ learnerId, name: initialName, grade: initialGrade, onDone, onCancel }: {
+function NameCheck({ learnerId, name: initialName, grade: initialGrade, canSetGrade, onSaved, onDone, onCancel }: {
   learnerId: string;
   name: string;
   grade: Grade | null;
-  /** The learner as saved, or null when skipped. */
-  onDone: (learner: { name: string; grade: Grade | null } | null) => void;
+  canSetGrade: boolean;
+  /** Each change as soon as it is stored, even if a later one fails. */
+  onSaved: (change: { name?: string; grade?: Grade | null }) => void;
+  /** Saved or skipped: go on to the print. */
+  onDone: () => void;
+  /** Esc, a click outside: no print. */
   onCancel: () => void;
 }) {
   const N = C.print.nameCheck;
   const [name, setName] = useState(initialName);
   const [grade, setGrade] = useState<Grade | null>(initialGrade);
+  // What is stored now: a retry after a failed grade does not rename again.
+  const [stored, setStored] = useState({ name: initialName.trim(), grade: initialGrade });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => { input.current?.focus(); input.current?.select(); }, []);
+  const cancel = () => { if (!busy) onCancel(); };
 
   const saveAndContinue = async () => {
     setBusy(true);
     setError(null);
+    const trimmed = name.trim();
     try {
-      const trimmed = name.trim();
-      if (trimmed !== initialName.trim()) {
+      if (trimmed !== stored.name) {
         const problem = validateLearnerName(trimmed, await listLearners(), learnerId);
         if (problem) { setError(problem); setBusy(false); return; }
         await renameLearner(learnerId, trimmed);
+        setStored((s) => ({ ...s, name: trimmed }));
+        onSaved({ name: trimmed });
       }
-      if (grade !== initialGrade) await setLearnerGrade(learnerId, grade);
-      onDone({ name: trimmed, grade });
+      if (canSetGrade && grade !== stored.grade) {
+        await setLearnerGrade(learnerId, grade);
+        setStored((s) => ({ ...s, grade }));
+        onSaved({ grade });
+      }
+      onDone();
     } catch {
       setError(N.failed);
       setBusy(false);
@@ -1028,34 +1058,37 @@ function NameCheck({ learnerId, name: initialName, grade: initialGrade, onDone, 
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 px-4" onMouseDown={onCancel}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 px-4" onMouseDown={cancel}>
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="rec-name-check"
+        aria-busy={busy}
         className="bg-panel border border-[var(--rule)] rounded-[20px] p-7 w-[min(480px,94vw)] max-h-[90vh] overflow-y-auto flex flex-col gap-5"
         style={{ boxShadow: "var(--shadow-soft)" }}
         onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
+        onKeyDown={(e) => { if (e.key === "Escape") cancel(); }}
         onSubmit={(e) => { e.preventDefault(); if (!busy) void saveAndContinue(); }}
       >
         <span className="glow-line" />
         <div className="flex flex-col gap-2">
           <h2 id="rec-name-check" className="m-0 text-[24px] font-medium tracking-[-0.01em] text-ink">{N.head}</h2>
-          <Quiet>{N.body}</Quiet>
+          <Quiet>{canSetGrade ? N.body : N.bodyNameOnly}</Quiet>
         </div>
         <label className="flex flex-col gap-1.5">
           <span className="text-[15px] text-ink">{N.name}</span>
-          <input ref={input} className="cf-input" value={name} maxLength={LEARNER_NAME_MAX} onChange={(e) => setName(e.target.value)} />
+          <input ref={input} className="cf-input" value={name} maxLength={LEARNER_NAME_MAX} disabled={busy} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[15px] text-ink">{N.grade}</span>
-          <GradeSelect value={grade} onChange={setGrade} style={{ width: "100%" }} />
-        </label>
+        {canSetGrade && (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[15px] text-ink">{N.grade}</span>
+            <GradeSelect value={grade} onChange={setGrade} style={{ width: "100%" }} />
+          </label>
+        )}
         {error && <p className="m-0 text-[15px] text-danger" role="alert">{error}</p>}
         <div className="flex flex-wrap gap-3">
           <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>{N.saveAndContinue}</button>
-          <button type="button" className="btn" disabled={busy} onClick={() => onDone(null)}>{N.skip}</button>
+          <button type="button" className="btn" disabled={busy} onClick={onDone}>{N.skip}</button>
         </div>
       </form>
     </div>
