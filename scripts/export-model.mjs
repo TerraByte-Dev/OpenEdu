@@ -27,7 +27,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, relative, resolve, isAbsolute } from "node:path";
+import { basename, dirname, join, relative, resolve, isAbsolute } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
@@ -61,8 +61,18 @@ function ollamaModelsDir(flag) {
   return join(homedir(), ".ollama", "models");
 }
 
-/** `[host/][namespace/]name[:tag]` → the four manifest path parts, as Ollama resolves them. */
+/** `[host/][namespace/]name[:tag]` → the four manifest path parts, as Ollama resolves them. Each part
+ * becomes a folder name under the store, so anything but letters, digits, `.`, `_` and `-` (and `.` or
+ * `..` on their own) is refused before it can name a path. */
 export function parseRef(ref) {
+  const parts = parseRefParts(ref);
+  for (const p of parts) {
+    if (!/^[A-Za-z0-9._-]+$/.test(p) || p === "." || p === "..") throw new Error(`"${ref}" is not a model name`);
+  }
+  return parts;
+}
+
+function parseRefParts(ref) {
   const [path, tag = "latest"] = ref.includes(":") && !ref.slice(ref.lastIndexOf(":")).includes("/")
     ? [ref.slice(0, ref.lastIndexOf(":")), ref.slice(ref.lastIndexOf(":") + 1)]
     : [ref, "latest"];
@@ -125,27 +135,70 @@ async function copyVerified(src, dest, digest, label) {
   return { size, copied: true };
 }
 
-/** Modelfile text from a manifest's layers. Values go in triple quotes so newlines and quotes survive. */
+/**
+ * A Modelfile value in triple quotes: newlines, backslashes and inner quotes are kept literally. A value
+ * containing `"""`, or starting or ending with `"`, can't be told apart from its own quotes, so it is
+ * refused rather than written wrong; `--layout ollama` keeps such a model byte for byte.
+ */
+export function quoteModelfileValue(s, what) {
+  if (s.includes('"""') || s.startsWith('"') || s.endsWith('"')) {
+    throw new Error(`the model's ${what} starts or ends with a quote mark, which a Modelfile can't hold. Use --layout ollama for this model.`);
+  }
+  return `"""${s}"""`;
+}
+
+/** Modelfile text from a manifest's layers. Every text value goes through quoteModelfileValue. */
 export function modelfileFor(layers, readText, config) {
-  const q = (s) => {
-    if (s.includes('"""')) throw new Error('a text layer contains """, which a Modelfile cannot quote');
-    return `"""${s}"""`;
-  };
+  const q = quoteModelfileValue;
   const lines = ["# Written by OpenEdu scripts/export-model.mjs from Ollama's own copy of this model.", "FROM ./model.gguf"];
   for (const l of layers) {
     const t = l.mediaType.slice(MT.length);
-    if (t === "template") lines.push(`TEMPLATE ${q(readText(l))}`);
-    if (t === "system") lines.push(`SYSTEM ${q(readText(l))}`);
+    if (t === "template") lines.push(`TEMPLATE ${q(readText(l), "template")}`);
+    if (t === "system") lines.push(`SYSTEM ${q(readText(l), "system prompt")}`);
     if (t === "params") {
       for (const [k, v] of Object.entries(JSON.parse(readText(l)))) {
-        for (const one of Array.isArray(v) ? v : [v]) lines.push(`PARAMETER ${k} ${typeof one === "string" ? JSON.stringify(one) : one}`);
+        for (const one of Array.isArray(v) ? v : [v]) lines.push(`PARAMETER ${k} ${typeof one === "string" ? q(one, `${k} setting`) : one}`);
       }
     }
-    if (t === "messages") for (const m of JSON.parse(readText(l))) lines.push(`MESSAGE ${m.role} ${q(m.content)}`);
-    if (t === "license") lines.push(`LICENSE ${q(readText(l))}`);
+    if (t === "messages") for (const m of JSON.parse(readText(l))) lines.push(`MESSAGE ${m.role} ${q(m.content, "example message")}`);
+    if (t === "license") lines.push(`LICENSE ${q(readText(l), "licence")}`);
   }
   for (const k of ["renderer", "parser", "requires"]) if (typeof config[k] === "string" && config[k]) lines.push(`${k.toUpperCase()} ${config[k]}`);
   return `${lines.join("\n")}\n`;
+}
+
+/** The real path of `p`, resolved through its nearest existing ancestor (junctions and symlinks
+ * included), with the parts that don't exist yet appended. `p` itself need not exist. */
+export function realish(p) {
+  let cur = resolve(p);
+  const rest = [];
+  while (!existsSync(cur)) {
+    const parent = dirname(cur);
+    if (parent === cur) break;
+    rest.unshift(basename(cur));
+    cur = parent;
+  }
+  return join(realpathSync.native(cur), ...rest);
+}
+
+const within = (child, parent) => {
+  const r = relative(parent, child);
+  return r === "" || (!r.startsWith("..") && !isAbsolute(r));
+};
+
+/** Why a kit folder can't be used with this store, or null. Each side is given in every form it has:
+ * as typed and as real (see realish). A junction can make them differ, e.g. ~/.ollama/models really on
+ * D:, so every pair is checked. The kit's `models` folder must not be, or be inside, the store, and the
+ * store must not be inside the kit: either way the export would write into Ollama's own files or around
+ * them. */
+export function kitProblem(stores, kits) {
+  for (const store of stores) {
+    for (const kit of kits) {
+      if (within(join(kit, "models"), store)) return "The kit folder is inside Ollama's model store. Pick a folder outside it.";
+      if (within(store, kit)) return "Ollama's model store is inside the kit folder. Pick a kit folder that doesn't contain it.";
+    }
+  }
+  return null;
 }
 
 async function main() {
@@ -159,11 +212,13 @@ async function main() {
   const store = resolve(ollamaModelsDir(a.modelsDir));
   if (!existsSync(join(store, "manifests"))) fail(`No Ollama models found in ${store}. Set --models-dir or OLLAMA_MODELS.`);
   const kit = resolve(kitArg);
+  // Checked before anything is created, against the real paths a junction or symlink would lead to.
+  const problem = kitProblem([store, realish(store)], [kit, realish(kit)]);
+  if (problem) fail(problem);
+  let parts;
+  try { parts = parseRef(ref); } catch (e) { fail(e.message); }
   mkdirSync(kit, { recursive: true });
-  const rel = relative(realpathSync(store), realpathSync(kit));
-  if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) fail("The kit folder is inside Ollama's model store. Pick a folder outside it.");
 
-  const parts = parseRef(ref);
   const manifestPath = join(store, "manifests", ...parts);
   if (!existsSync(manifestPath)) fail(`Ollama doesn't have ${ref} here (looked for ${manifestPath}). Run \`ollama list\` to see names.`);
   const manifestText = readFileSync(manifestPath, "utf8");
