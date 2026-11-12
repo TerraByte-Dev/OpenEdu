@@ -101,6 +101,8 @@ pub enum Candidate {
         ggufs: Vec<FileInfo>,
         /// A `checksums.sha256` / `SHA256SUMS` beside it, if there is one.
         checksums: Option<String>,
+        /// Licence and terms files next to this model.
+        licence_files: Vec<String>,
     },
     #[serde(rename_all = "camelCase")]
     Ollama {
@@ -108,6 +110,8 @@ pub enum Candidate {
         name: String,
         config: Option<String>,
         layers: Vec<Layer>,
+        /// Files in the kit's `licences/<model>` folder.
+        licence_files: Vec<String>,
     },
 }
 
@@ -117,8 +121,6 @@ pub struct Plan {
     /// For display only; nothing is ever sent back.
     pub root: String,
     pub candidates: Vec<Candidate>,
-    /// Licence and terms files anywhere near the model, so the screen can say they travelled with it.
-    pub licence_files: Vec<String>,
     /// Things that look wrong with the folder (a blob of the wrong size, an unreadable manifest).
     pub problems: Vec<String>,
     /// Free space where Ollama keeps models, when it could be measured.
@@ -169,6 +171,10 @@ pub enum ImportEvent {
     /// Bytes done within a phase, summed over every file (`total` is the same for both byte phases).
     #[serde(rename_all = "camelCase")]
     Bytes { phase: &'static str, done: u64, total: u64, file: String },
+    /// A file with nothing to check its checksum against (a GGUF kit without a checksums file). It was
+    /// read, but nobody can say it arrived undamaged, so the screen must not show a pass for it.
+    #[serde(rename_all = "camelCase")]
+    Unchecked { file: String },
     /// A file Ollama already had, so it was not sent again.
     #[serde(rename_all = "camelCase")]
     Skipped { file: String, bytes: u64 },
@@ -345,6 +351,8 @@ fn scan_store(root: &Path, dir: &Path, files: &mut HashMap<String, Allowed>, pro
                 continue;
             };
             let mut layers = Vec::new();
+            // Registered as importable only if the whole model checks out.
+            let mut mine = HashMap::new();
             let mut missing = false;
             for desc in &manifest.layers {
                 let Some(hex) = digest_hex(&desc.digest) else {
@@ -381,24 +389,45 @@ fn scan_store(root: &Path, dir: &Path, files: &mut HashMap<String, Allowed>, pro
                     text: None,
                 };
                 if is_text_layer(&desc.media_type) {
-                    layer.text = read_capped(&blob);
+                    // Template, parameters, licence: small, but they shape the model, so they are checked
+                    // like the weights. A damaged or unreadable one drops the whole model, never just
+                    // that file.
+                    match read_verified(&blob, &desc.digest) {
+                        Ok(t) => layer.text = Some(t),
+                        Err(why) => {
+                            problems.push(format!("A settings file of {model_name} (sha256-{}…) {why}.", &hex[..12]));
+                            missing = true;
+                            continue;
+                        }
+                    }
                 } else if let Some(rel) = rel_of(root, &blob) {
                     // The blob's own name is the digest it must hash to (the manifest names the same one).
                     let expect = blob.file_name().and_then(|n| digest_from_blob_name(&n.to_string_lossy()));
-                    files.insert(rel.clone(), Allowed { path: blob.clone(), bytes: desc.size, expect });
+                    mine.insert(rel.clone(), Allowed { path: blob.clone(), bytes: desc.size, expect });
                     layer.rel = Some(rel);
                 }
                 layers.push(layer);
             }
+            let config = match &manifest.config {
+                None => None,
+                Some(c) => match digest_hex(&c.digest)
+                    .ok_or("has a malformed checksum")
+                    .and_then(|hex| read_verified(&blobs.join(format!("sha256-{hex}")), &c.digest))
+                {
+                    Ok(t) => Some(t),
+                    Err(why) => {
+                        problems.push(format!("The settings of {model_name} {why}."));
+                        missing = true;
+                        None
+                    }
+                },
+            };
             if missing {
                 continue;
             }
-            let config = manifest
-                .config
-                .as_ref()
-                .and_then(|c| digest_hex(&c.digest))
-                .and_then(|hex| read_capped(&blobs.join(format!("sha256-{hex}"))));
-            out.push(Candidate::Ollama { name: model_name, config, layers });
+            let licence_files = licences_in(root, &[dir.join("licences").join(licence_dir_name(&model_name))], true);
+            files.extend(mine);
+            out.push(Candidate::Ollama { name: model_name, config, layers, licence_files });
         }
     }
     out
@@ -428,12 +457,73 @@ fn scan_gguf_dir(root: &Path, dir: &Path, files: &mut HashMap<String, Allowed>) 
             checksums = read_capped(p);
         }
     }
-    Some(Candidate::Gguf { dir: rel_of(root, dir)?, modelfile: text, ggufs, checksums })
+    // Licence files next to the model, or in the kit's `licences/<folder>` beside it.
+    let mut near = vec![dir.to_path_buf()];
+    if let (Some(parent), Some(name)) = (dir.parent(), dir.file_name()) {
+        near.push(parent.join("licences").join(name));
+    }
+    let licence_files = licences_in(root, &near, false);
+    Some(Candidate::Gguf { dir: rel_of(root, dir)?, modelfile: text, ggufs, checksums, licence_files })
+}
+
+/// Licence files in these folders (one level, no links), at most 20. In a `licences/<model>` folder
+/// every file counts; elsewhere only names that look like a licence or terms.
+fn licences_in(root: &Path, dirs: &[PathBuf], all: bool) -> Vec<String> {
+    let mut out = Vec::new();
+    for (i, d) in dirs.iter().enumerate() {
+        if !real_dir(d) {
+            continue;
+        }
+        let every = all || i > 0;
+        for (p, m) in entries(d) {
+            let n = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            if m.is_file() && (every || is_licence_name(&n)) && out.len() < 20 {
+                if let Some(rel) = rel_of(root, &p) {
+                    out.push(rel);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The kit folder name the export script uses for a model's licences: `qwen3.5:0.8b` → `qwen3.5-0.8b`.
+pub(crate) fn licence_dir_name(model_name: &str) -> String {
+    let (path, tag) = model_name.rsplit_once(':').unwrap_or((model_name, "latest"));
+    let model = path.rsplit('/').next().unwrap_or(path);
+    let mut s = String::new();
+    for c in format!("{model}-{tag}").to_lowercase().chars() {
+        if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+            s.push(c);
+        } else if !s.ends_with('-') {
+            s.push('-');
+        }
+    }
+    s.trim_matches('-').to_string()
+}
+
+pub(crate) fn sha256_bytes(bytes: &[u8]) -> String {
+    let hex: String = Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect();
+    format!("sha256:{hex}")
+}
+
+/// A small file read whole and checked against the digest its manifest gives it. The error finishes a
+/// sentence ("… is damaged").
+fn read_verified(p: &Path, digest: &str) -> Result<String, &'static str> {
+    let len = real_file(p).ok_or("is missing")?;
+    if len > TEXT_CAP {
+        return Err("is too large to be a settings file");
+    }
+    let bytes = fs::read(p).map_err(|_| "can't be read")?;
+    if sha256_bytes(&bytes) != digest {
+        return Err("is damaged: its checksum doesn't match");
+    }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
 /// Everything importable under `root` (already canonical). Looks at the root, `root/models`, and their
 /// immediate subfolders; never enters a symlink or junction.
-pub(crate) fn scan(root: &Path) -> (Vec<Candidate>, HashMap<String, Allowed>, Vec<String>, Vec<String>) {
+pub(crate) fn scan(root: &Path) -> (Vec<Candidate>, HashMap<String, Allowed>, Vec<String>) {
     let mut files = HashMap::new();
     let mut problems = Vec::new();
     let mut candidates = Vec::new();
@@ -463,22 +553,7 @@ pub(crate) fn scan(root: &Path) -> (Vec<Candidate>, HashMap<String, Allowed>, Ve
             candidates.push(c);
         }
     }
-
-    let mut licences = Vec::new();
-    let mut queue = VecDeque::from([(root.to_path_buf(), 0usize)]);
-    while let Some((d, depth)) = queue.pop_front() {
-        for (p, m) in entries(&d) {
-            let n = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            if m.is_dir() && depth < 3 && n != "blobs" && n != "manifests" {
-                queue.push_back((p, depth + 1));
-            } else if m.is_file() && is_licence_name(&n) && licences.len() < 50 {
-                if let Some(rel) = rel_of(root, &p) {
-                    licences.push(rel);
-                }
-            }
-        }
-    }
-    (candidates, files, licences, problems)
+    (candidates, files, problems)
 }
 
 /// A planned file, re-checked right before it is read: still a plain file (not swapped for a link),
@@ -621,6 +696,8 @@ fn client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         // A system proxy must never see a model upload, and loopback through a proxy fails anyway.
         .no_proxy()
+        // A redirect could point anywhere; Ollama never sends one, so none is followed.
+        .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(5))
         .build()
         .map_err(|e| format!("can't start the connection to Ollama: {e}"))
@@ -685,8 +762,8 @@ pub(crate) fn status_of(head: &str) -> Option<u16> {
 /// Not reqwest: the copy tauri-plugin-http ships is built without streaming request bodies, and turning
 /// that feature on would change Cargo.lock for one call. The request is the simplest HTTP there is (one
 /// POST, a Content-Length, `Connection: close`) to a server on this machine, and a plain socket makes
-/// progress and cancellation a loop over chunks. Dropping the socket mid-body is how a cancel reaches
-/// Ollama, which then discards the partial blob.
+/// progress and cancellation a loop over chunks: a cancel stops sending and closes the socket. What
+/// Ollama keeps of a half-sent blob is its business; that path is not tested here.
 pub(crate) fn push_blob(addr: &str, path: &Path, digest: &str, bytes: u64, cancel: &AtomicBool, mut on_bytes: impl FnMut(u64)) -> Result<(), String> {
     use std::io::Write;
     use std::net::{TcpStream, ToSocketAddrs};
@@ -857,6 +934,9 @@ async fn run_import(
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| if e == CANCELLED { e } else { format!("{name}: {e}") })?;
+        if job.allowed.expect.is_none() && job.expect.is_none() {
+            let _ = ch.send(ImportEvent::Unchecked { file: name.clone() });
+        }
         for want in [&job.allowed.expect, &job.expect].into_iter().flatten() {
             if *want != digest {
                 return Err(format!(
@@ -890,7 +970,10 @@ async fn run_import(
         let _ = ch.send(ImportEvent::Bytes { phase: "copying", done: base, total, file: name });
     }
 
-    // Past this point Ollama is building the model; there is nothing safe to cancel.
+    // Last chance to stop: past this point Ollama is building the model and nothing is safe to cancel.
+    if cancel.load(Ordering::Relaxed) {
+        return Err(CANCELLED.into());
+    }
     let _ = ch.send(ImportEvent::Phase { phase: "finishing", total });
     let files: Vec<(String, String, bool)> =
         jobs.iter().zip(digests).map(|(j, d)| (j.label.clone(), d, j.draft)).collect();
@@ -921,11 +1004,11 @@ pub async fn model_import_pick(app: AppHandle, state: State<'_, ImportState>) ->
         return Err("That is not a folder.".into());
     }
     let scan_root = root.clone();
-    let (candidates, files, licence_files, problems) =
+    let (candidates, files, problems) =
         tauri::async_runtime::spawn_blocking(move || scan(&scan_root)).await.map_err(|e| e.to_string())?;
     let free = ollama_store_dir().as_deref().and_then(free_bytes_near);
     *state.picked.lock().map_err(|_| "import state poisoned".to_string())? = Some(Picked { root: root.clone(), files });
-    Ok(Some(Plan { root: display(&root), candidates, licence_files, problems, free_bytes: free }))
+    Ok(Some(Plan { root: display(&root), candidates, problems, free_bytes: free }))
 }
 
 /// Import from the last picked folder. Progress arrives on `on_event`; resolves when Ollama says the
@@ -1068,12 +1151,22 @@ mod tests {
     fn scans_an_ollama_store_under_models() {
         let (_d, root) = tmp();
         let w = store(&root.join("models"), b"GGUF weights");
-        let (cands, files, licences, problems) = scan(&root);
+        touch(&root.join("models/licences/tiny-0.1b/LICENSE.txt"), b"x");
+        touch(&root.join("models/licences/tiny-0.1b/Gemma Prohibited Use Policy.pdf"), b"x");
+        touch(&root.join("models/licences/other-model/LICENSE.txt"), b"x");
+        let (cands, files, problems) = scan(&root);
         assert!(problems.is_empty(), "{problems:?}");
-        assert!(licences.is_empty());
         assert_eq!(cands.len(), 1);
-        let Candidate::Ollama { name, config, layers } = &cands[0] else { panic!("not ollama") };
+        let Candidate::Ollama { name, config, layers, licence_files } = &cands[0] else { panic!("not ollama") };
         assert_eq!(name, "tiny:0.1b");
+        // Only this model's licence folder, every file in it.
+        assert_eq!(
+            licence_files,
+            &vec![
+                "models/licences/tiny-0.1b/Gemma Prohibited Use Policy.pdf".to_string(),
+                "models/licences/tiny-0.1b/LICENSE.txt".to_string()
+            ]
+        );
         assert!(config.as_deref().unwrap().contains("renderer"));
         // The nested manifest layer is a reference and is left out.
         assert_eq!(layers.len(), 3);
@@ -1089,10 +1182,64 @@ mod tests {
         let (_d, root) = tmp();
         let w = store(&root, b"GGUF weights");
         touch(&root.join("blobs").join(w.replace(':', "-")), b"GGUF");
-        let (cands, files, _, problems) = scan(&root);
+        let (cands, files, problems) = scan(&root);
         assert!(cands.is_empty());
         assert!(files.is_empty());
         assert!(problems[0].contains("not copied completely"), "{problems:?}");
+    }
+
+    /// Overwrite the blob for `content` with bytes of the same length, so only its checksum is wrong.
+    fn corrupt(base: &Path, content: &[u8]) {
+        let mut bad = content.to_vec();
+        bad[0] ^= 1;
+        touch(&base.join("blobs").join(sha(content).replace(':', "-")), &bad);
+    }
+
+    #[test]
+    fn a_damaged_settings_file_drops_the_model_and_says_so() {
+        let (_d, root) = tmp();
+        store(&root, b"GGUF weights");
+        corrupt(&root, br#"{"temperature":1}"#);
+        let (cands, files, problems) = scan(&root);
+        assert!(cands.is_empty(), "{cands:?}");
+        assert!(files.is_empty(), "a dropped model leaves nothing importable");
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("tiny:0.1b") && problems[0].contains("is damaged"), "{problems:?}");
+    }
+
+    #[test]
+    fn a_damaged_config_drops_the_model_and_says_so() {
+        let (_d, root) = tmp();
+        store(&root, b"GGUF weights");
+        corrupt(&root, br#"{"renderer":"qwen3.5","parser":"qwen3.5"}"#);
+        let (cands, _, problems) = scan(&root);
+        assert!(cands.is_empty());
+        assert!(problems[0].starts_with("The settings of tiny:0.1b is damaged"), "{problems:?}");
+    }
+
+    #[test]
+    fn an_oversized_settings_file_drops_the_model_and_says_so() {
+        let (_d, root) = tmp();
+        let big = vec![b'x'; TEXT_CAP as usize + 1];
+        let d = sha(&big);
+        touch(&root.join("blobs").join(d.replace(':', "-")), &big);
+        let w = sha(b"GGUF");
+        touch(&root.join("blobs").join(w.replace(':', "-")), b"GGUF");
+        let manifest = serde_json::json!({ "layers": [
+            { "mediaType": "application/vnd.ollama.image.model", "digest": w, "size": 4 },
+            { "mediaType": "application/vnd.ollama.image.template", "digest": d, "size": big.len() }
+        ]});
+        touch(&root.join("manifests/registry.ollama.ai/library/big/1"), manifest.to_string().as_bytes());
+        let (cands, _, problems) = scan(&root);
+        assert!(cands.is_empty());
+        assert!(problems[0].contains("too large to be a settings file"), "{problems:?}");
+    }
+
+    #[test]
+    fn licence_folder_names_match_the_export_script() {
+        assert_eq!(licence_dir_name("qwen3.5:0.8b"), "qwen3.5-0.8b");
+        assert_eq!(licence_dir_name("me/Tutor:V1"), "tutor-v1");
+        assert_eq!(licence_dir_name("hf.co/org/m:q4 k"), "m-q4-k");
     }
 
     #[test]
@@ -1103,12 +1250,17 @@ mod tests {
         touch(&dir.join("model.gguf"), b"GGUF");
         touch(&dir.join("checksums.sha256"), b"abc  model.gguf\n");
         touch(&dir.join("Gemma Terms of Use.txt"), b"terms");
+        touch(&dir.join("readme.txt"), b"x");
+        touch(&root.join("models/licences/tiny/Prohibited Use Policy.txt"), b"x");
+        // Licences of other models, or loose at the top, are not this model's.
         touch(&root.join("LICENSE.txt"), b"x");
-        touch(&root.join("readme.txt"), b"x");
-        let (cands, files, mut licences, _) = scan(&root);
-        licences.sort();
-        assert_eq!(licences, vec!["LICENSE.txt", "models/tiny/Gemma Terms of Use.txt"]);
-        let Candidate::Gguf { dir, modelfile, ggufs, checksums } = &cands[0] else { panic!("not gguf") };
+        touch(&root.join("models/licences/other/LICENSE.txt"), b"x");
+        let (cands, files, _) = scan(&root);
+        let Candidate::Gguf { dir, modelfile, ggufs, checksums, licence_files } = &cands[0] else { panic!("not gguf") };
+        assert_eq!(
+            licence_files,
+            &vec!["models/tiny/Gemma Terms of Use.txt".to_string(), "models/licences/tiny/Prohibited Use Policy.txt".to_string()]
+        );
         assert_eq!(dir, "models/tiny");
         assert_eq!(modelfile, "FROM ./model.gguf\n");
         assert_eq!(ggufs, &vec![FileInfo { rel: "models/tiny/model.gguf".into(), bytes: 4 }]);
@@ -1122,7 +1274,7 @@ mod tests {
         touch(&root.join("Modelfile"), b"FROM model.gguf");
         touch(&root.join("model.gguf"), b"GGUF");
         touch(&root.join("other.bin"), b"x");
-        let (_, files, _, _) = scan(&root);
+        let (_, files, _) = scan(&root);
         let picked = Picked { root: root.clone(), files };
         let f = |label: &str, rel: &str| SpecFile { label: label.into(), rel: rel.into(), expect: None, draft: false };
         assert!(resolve_jobs(&picked, &[f("model.gguf", "model.gguf")]).is_ok());
@@ -1193,10 +1345,9 @@ mod tests {
         touch(&outside.join("LICENSE"), b"x");
         junction(&root.join("models"), &outside);
         junction(&root.join("tiny"), &outside.join("tiny"));
-        let (cands, files, licences, _) = scan(&root);
+        let (cands, files, _) = scan(&root);
         assert!(cands.is_empty(), "{cands:?}");
         assert!(files.is_empty());
-        assert!(licences.is_empty());
     }
 
     #[test]
