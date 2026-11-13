@@ -55,7 +55,11 @@ export async function getGenerationConfig(): Promise<LLMConfig> {
   const model = stored ?? (base.provider === "ollama"
     ? defaultGenerationModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
     : defaultGenerationModel(base.provider));
-  return withOllamaNumCtx({ ...base, model });
+  // Course building needs DEFAULT_CONTEXT_TOKENS (see getOllamaNumCtx), so a 2k or 4k cap chosen in
+  // Settings lowers chat but not this. At the default cap the size is the same, so one runner.
+  const cfg = await withOllamaNumCtx({ ...base, model });
+  if (cfg.provider === "ollama") cfg.contextTokens = Math.min((await detectModelProfile(cfg)).contextTokens, Math.max(cfg.contextTokens!, DEFAULT_CONTEXT_TOKENS));
+  return cfg;
 }
 
 // Chat model (tutor chat) — defaults to the catalog's recommended fast/cheap model.
@@ -75,8 +79,13 @@ export async function getChatConfig(): Promise<LLMConfig> {
  * it away when a request asks for another num_ctx, so two windows for the same model meant a reload
  * on every switch between chat and course building (88 s cold on a CPU-only 8 GB computer). It is
  * chat's window: the smaller of what the model supports and the user's cap (8192 by default).
- * Course building fits in 8192: its largest request measured 948 prompt + 2,122 answer tokens
- * (the outline, every field at its schema maximum), 5,267 on a second repair attempt.
+ * getGenerationConfig raises a cap below DEFAULT_CONTEXT_TOKENS back to it (when the model supports
+ * that much), so a lower cap costs a reload between chat and course building but leaves course
+ * building working. Course building fits in 8192 with realistic answers: its largest
+ * request measured 948 prompt + 2,122 answer tokens (the outline, assuming 160 characters per item
+ * and 6 domains), 5,267 on a second repair attempt. That is not a guarantee: the outline schema's
+ * five string arrays have no maxLength and domains has no maxItems, and at 300 characters per item
+ * a third attempt needs about 8.4k.
  */
 export async function getOllamaNumCtx(config: LLMConfig): Promise<number> {
   const profile = await detectModelProfile(config);

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from "vitest";
 
 // The first model call after Ollama starts, on a CPU-only computer. Measured on a Ryzen 7 5800H with
 // 8 GB and no GPU: gemma4:e2b took 88 s to load, and the check before a course build gave up at 90 s.
@@ -17,7 +17,7 @@ import {
 } from "./llm";
 import { gradeAnswersBatch } from "./quiz";
 import { friendlyError, preflightMessage, MODEL_LOAD_TIMED_OUT } from "./plain-language";
-import { getChatTurnConfig, getGenerationConfig } from "./store";
+import { getChatTurnConfig, getGenerationConfig, setMaxContextTokens } from "./store";
 import { warmTutorInBackground } from "./setup-check";
 import { STORE_FILE, STORE_KEYS } from "./store-keys";
 import { seedStore, resetStores } from "./eval/headless/shims/plugin-store";
@@ -294,6 +294,35 @@ describe("one model, one size: app open, then chat, then Create course, then qui
     await pending;
 
     expect(server.runnerLoads).toBe(2);
+  });
+
+  it("a 2k cap from Settings lowers chat to 2048 but course building still sends 8192", async () => {
+    // Through the setter, as Settings does: store.ts keeps the store it loaded first, so a re-seed is not seen.
+    await setMaxContextTokens(2048);
+    onTestFinished(() => setMaxContextTokens(NUM_CTX));
+    const server = fakeOllama({ loaded: false, loadMs: 88_000, reply });
+    const sizesFrom = (from: number) => server.calls.slice(from)
+      .filter((c) => c.path === "/api/chat" || c.path === "/api/generate").map((c) => c.body?.options?.num_ctx);
+
+    const { config: chat } = await getChatTurnConfig();
+    const events = await settle(drain(callLLMTurn([{ role: "user", content: "What is photosynthesis?" }], chat, { tier: "tiny" })));
+    const chatSizes = sizesFrom(0);
+
+    const courseFrom = server.calls.length;
+    const gen = await getGenerationConfig();
+    const preflight = await settle(preflightStructuredOutput(gen));
+    const pedagogy = await settle(callLLMStreaming([{ role: "user", content: "Write the tutor's pedagogy." }], gen, () => {}));
+    const graded = await settle(gradeAnswersBatch(ANSWER, await getGenerationConfig()));
+    const courseSizes = sizesFrom(courseFrom);
+
+    expect(events[events.length - 1]).toEqual({ type: "done", finishReason: "stop" });
+    expect(preflight.ok).toBe(true);
+    expect(pedagogy).toBe("Plants make food from light.");
+    expect(graded.get(0)?.by).toBe("model");
+    expect(chatSizes.length).toBeGreaterThan(0);
+    expect(new Set(chatSizes)).toEqual(new Set([2048]));
+    expect(courseSizes.length).toBeGreaterThan(0);
+    expect(new Set(courseSizes)).toEqual(new Set([NUM_CTX]));
   });
 });
 
