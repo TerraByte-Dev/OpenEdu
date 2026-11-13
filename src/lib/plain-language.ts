@@ -146,6 +146,9 @@ export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
   if (missing) {
     return `The tutor's model (${missing[1]}) isn't on this computer yet. Open Settings to pick one that is, or import it from a USB stick.`;
   }
+  if (/did not finish loading/i.test(raw)) {
+    return "The tutor took too long to wake up. Close other programs, then try again.";
+  }
   if (/timed out after|did not respond within/i.test(raw)) {
     return "The tutor took too long to answer. Try again — the first try after the computer starts is often the slowest.";
   }
@@ -177,6 +180,10 @@ function modelAdvice(ctx: ErrorContext): string {
   if (pick === ctx.model.trim().toLowerCase()) return "";
   return `If it keeps happening, switch the tutor to ${pick} in Settings. It suits this computer.`;
 }
+
+// Shown while a course build, a chat turn or quiz grading waits for the model to load (llm.ts
+// warmOllamaModel). A CPU-only computer took 88 s to load the default model after starting up.
+export const TUTOR_WARMING_UP = "Getting the tutor ready… the first start after the computer turns on can take a minute or two.";
 
 // A chat turn the model stopped partway through (no output for too long).
 export const STALLED_TURN = "The tutor stopped partway. Try again. If it keeps happening, close other programs or pick a smaller model in Settings.";

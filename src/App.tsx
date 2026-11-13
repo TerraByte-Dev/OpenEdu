@@ -12,9 +12,10 @@ import {
 } from "./lib/store";
 import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
 import type { NextStepAction } from "./lib/next-step";
-import { probeEnvironment, type SetupStatus } from "./lib/setup-check";
+import { probeEnvironment, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
 import SetupGate from "./components/SetupGate";
 import DataDamagedBanner from "./components/DataDamagedBanner";
+import TutorWarmingBanner from "./components/TutorWarmingBanner";
 import TourOverlay, { TOUR_STEPS } from "./components/TourOverlay";
 import BootSequence from "./components/BootSequence";
 import Titlebar from "./components/Titlebar";
@@ -179,8 +180,11 @@ export default function App() {
   // Probe on launch and after any settings change — a user who fixes the provider should not have to
   // restart to be believed.
   const recheckSetup = async () => {
-    try { setSetup(await probeEnvironment()); }
-    catch { setSetup(null); } // a failed probe must never gate the app; that would be the old lie inverted
+    let status: SetupStatus;
+    try { status = await probeEnvironment(); }
+    catch { setSetup(null); return; } // a failed probe must never gate the app; that would be the old lie inverted
+    setSetup(status);
+    void warmTutorInBackground(status); // load the model now, so Create course doesn't wait for it
   };
 
   useEffect(() => {
@@ -310,6 +314,8 @@ export default function App() {
                   onDismiss={() => setDbHealth(null)}
                 />
               )}
+
+              <TutorWarmingBanner />
 
               {promotionBanner !== null && (
                 <div className="flex items-center justify-between px-4 py-2 border-b text-sm text-phosphor-ink shrink-0" style={{ background: "rgb(var(--phosphor-rgb)/0.10)", borderColor: "rgb(var(--phosphor-rgb)/0.30)" }}>
