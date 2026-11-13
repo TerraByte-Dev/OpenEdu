@@ -8,7 +8,8 @@
 // preview with an explicit Insert.
 
 import { useState } from "react";
-import { callLLMStructured } from "../lib/llm";
+import { callLLMStructured, log } from "../lib/llm";
+import { friendlyError } from "../lib/plain-language";
 import { getChatConfig } from "../lib/store";
 import { listChatThreads, getChatMessages } from "../lib/db";
 import {
@@ -68,7 +69,8 @@ export default function NotesAssistant({
       onAnnotations(anchored);
       if (!anchored.length) setError("No remarks came back that could be placed in the note.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      log.error("NotesAssistant", "review failed", e);
+      setError(friendlyError(e));
     } finally {
       setBusy(null);
     }
@@ -90,7 +92,8 @@ export default function NotesAssistant({
       );
       setSummary(markdown);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      log.error("NotesAssistant", "summary failed", e);
+      setError(friendlyError(e));
     } finally {
       setBusy(null);
     }

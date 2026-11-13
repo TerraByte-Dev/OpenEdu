@@ -104,8 +104,8 @@ async function streamOllama(
       signal,
     });
   } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") return;
-    const msg = `Cannot reach Ollama at ${baseUrl}. Make sure Ollama is running: open a terminal and run "ollama serve".`;
+    if (signal?.aborted) return;
+    const msg = ollamaUnreachable(baseUrl);
     log.error("streamOllama", msg, e);
     onError(msg);
     return;
@@ -368,9 +368,18 @@ function friendlyHttpError(provider: string, status: number, body: string): Erro
   return new Error(`${provider} error ${status}: ${detail}`);
 }
 
+// A throw from fetch to the Ollama URL always means Ollama can't be reached (HTTP errors come back
+// as !response.ok), so Ollama calls use this instead of guessing from the error text.
+function ollamaUnreachable(base: string): string {
+  return /^https?:\/\/(localhost|127\.|\[::1\])/i.test(base)
+    ? "Ollama, the program that runs the tutor, isn't running on this computer. Start Ollama, then try again."
+    : `Ollama isn't answering at ${base}. Check that the computer running it is on and Ollama is started.`;
+}
+
+// tauri-plugin-http rejects with reqwest's bare "error sending request for url (...)".
 function networkAwareMessage(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
-  if (msg.includes("network") || msg.includes("connect") || msg.includes("ECONNREFUSED") || msg.includes("fetch")) {
+  if (msg.includes("network") || msg.includes("connect") || msg.includes("ECONNREFUSED") || msg.includes("fetch") || msg.includes("error sending request")) {
     return "Network error — check your internet connection and try again.";
   }
   return msg;
@@ -448,7 +457,8 @@ export async function callLLM(
         }),
       });
     } catch (e) {
-      throw new Error(`Cannot reach Ollama at ${baseUrl}. Open a terminal and run "ollama serve". Detail: ${networkAwareMessage(e)}`);
+      log.error("callLLM", "Ollama unreachable", e);
+      throw new Error(ollamaUnreachable(baseUrl));
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -1023,8 +1033,9 @@ async function callOllamaStructured(
       signal,
     });
   } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") throw e;
-    throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e)}`);
+    if (signal?.aborted) throw e;
+    log.error("callOllamaStructured", "Ollama unreachable", e);
+    throw new Error(ollamaUnreachable(baseUrl));
   }
 
   if (!response.ok) {
@@ -1328,7 +1339,8 @@ export async function embed(texts: string[], config: LLMConfig): Promise<number[
         body: JSON.stringify({ model: config.model, input: texts }),
       });
     } catch (e) {
-      throw new Error(`Cannot reach Ollama at ${baseUrl} to embed. Run "ollama serve" and "ollama pull ${config.model}". Detail: ${networkAwareMessage(e)}`);
+      log.error("embed", "Ollama unreachable", e);
+      throw new Error(ollamaUnreachable(baseUrl));
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -1736,8 +1748,11 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
         signal,
       });
     } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") { yield { type: "done", finishReason: "aborted" }; return; }
-      throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e)}`);
+      // tauri-plugin-http rejects a cancelled fetch with "Request canceled" (a bare string), never an
+      // AbortError — so ask the signal, which covers both Stop and the first-byte stall timer.
+      if (signal.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
+      log.error("streamOllamaTurn", "Ollama unreachable", e);
+      throw new Error(ollamaUnreachable(baseUrl));
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -1948,8 +1963,10 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
 
 export interface PreflightResult {
   ok: boolean;
+  /** The raw failure, for the log. Screens show plain-language.ts preflightMessage instead. */
   reason?: string;
-  suggestion?: string;
+  /** The probe ran out of time: a cold model still loading, not a model that can't do the job. */
+  timedOut?: boolean;
   detectedTier?: ModelTier;
 }
 
@@ -1967,10 +1984,6 @@ const PREFLIGHT_SCHEMA = {
 // takes 30–60s on the first call. 30s used to false-positive as a model-capability
 // failure. Aligns with the per-call timeouts CLAUDE.md notes for this tier.
 const PREFLIGHT_TIMEOUT_MS = 90_000;
-
-const SUGGESTION_STRUCTURED_FAIL =
-  "The selected model can't reliably emit structured JSON. " +
-  "Try gemma4:e4b (or a similarly sized model) for local Ollama, or a cloud model from Settings.";
 
 export async function preflightStructuredOutput(config: LLMConfig): Promise<PreflightResult> {
   const tier = await detectModelTier(config).catch(() => undefined);
@@ -1994,14 +2007,13 @@ export async function preflightStructuredOutput(config: LLMConfig): Promise<Pref
     return { ok: true, detectedTier: tier };
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    const isAbort = raw.toLowerCase().includes("abort");
+    // Ask the signal, not the message text: only this check's own timer aborts it.
+    const timedOut = controller.signal.aborted;
     log.warn("preflight", `Failed: ${raw}`);
     return {
       ok: false,
-      reason: isAbort
-        ? `Model did not respond within ${PREFLIGHT_TIMEOUT_MS / 1000}s — it may be too slow or offline.`
-        : raw,
-      suggestion: SUGGESTION_STRUCTURED_FAIL,
+      reason: timedOut ? `Model did not respond within ${PREFLIGHT_TIMEOUT_MS / 1000}s.` : raw,
+      timedOut,
       detectedTier: tier,
     };
   } finally {
@@ -2117,7 +2129,9 @@ export async function pullOllamaModel(
       signal,
     });
   } catch (e) {
-    throw new Error(`Cannot reach Ollama at ${base}: ${networkAwareMessage(e)}`);
+    if (signal?.aborted) throw e;
+    log.error("pullOllamaModel", "Ollama unreachable", e);
+    throw new Error(ollamaUnreachable(base));
   }
   if (!response.ok) {
     const text = await response.text().catch(() => "");

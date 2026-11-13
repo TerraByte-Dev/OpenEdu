@@ -14,12 +14,12 @@
 // Only `probeEnvironment` does I/O.
 
 import { getOllamaModels } from "./llm";
-import { getChatConfig, getEmbeddingConfig, getLLMProvider } from "./store";
+import { getChatConfig, getEmbeddingConfig, getGenerationConfig, getLLMProvider } from "./store";
 import { ollamaInstalled } from "./model-import";
 import { ollamaState, type OllamaState } from "./ollama-guide";
 import { APP_NAME } from "./product";
 
-export type CheckId = "provider" | "ollama" | "chat-model" | "embed-model";
+export type CheckId = "provider" | "ollama" | "chat-model" | "gen-model" | "embed-model";
 export type Severity = "ok" | "blocking" | "optional";
 
 export interface CheckResult {
@@ -69,9 +69,18 @@ export function evaluateSetup(facts: {
   ollamaInstalled?: boolean | null;
   installed: string[];
   chatModel: string;
+  /** The model that builds courses (Settings can set it apart from the chat model). */
+  generationModel?: string;
   embedProvider: string;
   embedModel: string;
+  /** False when the computer has no network at all (navigator.onLine). A download can't work then. */
+  online?: boolean;
 }): SetupStatus {
+  const offline = facts.online === false;
+  // Offline, a Download button can only fail, so it is not offered; the detail says why instead.
+  const download = (model: string): CheckResult["fix"] =>
+    offline ? undefined : { label: `Download ${model}`, kind: "download-model", arg: model };
+  const needsInternet = offline ? " Downloading it needs the internet." : "";
   const checks: CheckResult[] = [];
 
   // A cloud provider sidesteps every local check — its own key is validated in Settings.
@@ -112,10 +121,23 @@ export function evaluateSetup(facts: {
             id: "chat-model",
             label: "Tutor model",
             severity: "blocking",
-            detail: `${facts.chatModel} is not installed. Without a model there is nothing to tutor with.`,
-            fix: { label: `Download ${facts.chatModel}`, kind: "download-model", arg: facts.chatModel },
+            detail: `${facts.chatModel} is not installed. Without a model there is nothing to tutor with.${offline ? " Downloading it needs the internet, so import it from a USB stick below." : ""}`,
+            fix: download(facts.chatModel),
           },
     );
+
+    // Building a course uses its own model, which can differ from the chat model (Settings, or a model
+    // imported under another name). "Ready" must mean Create course works, not only chat.
+    const gen = facts.generationModel?.trim() ?? "";
+    if (hasChat && gen && gen.toLowerCase() !== facts.chatModel.trim().toLowerCase() && !modelIsInstalled(gen, facts.installed)) {
+      checks.push({
+        id: "gen-model",
+        label: "Course builder",
+        severity: "blocking",
+        detail: `${gen} builds new courses and is not installed. ${offline ? "Downloading it needs the internet, so open" : "Download it, or open"} Settings and pick ${facts.chatModel} for building courses too.`,
+        fix: download(gen) ?? { label: "Open Settings", kind: "open-settings" },
+      });
+    }
 
     // Embeddings are OPTIONAL on purpose. Without one the notebook is not searched, so answers are
     // not grounded in the student's own material — a real loss, and worth saying. But the tutor still
@@ -130,8 +152,8 @@ export function evaluateSetup(facts: {
               id: "embed-model",
               label: "Notebook search",
               severity: "optional",
-              detail: `${facts.embedModel} is not installed. The tutor still works; it just cannot search your notes.`,
-              fix: { label: `Download ${facts.embedModel}`, kind: "download-model", arg: facts.embedModel },
+              detail: `${facts.embedModel} is not installed. The tutor still works; it just cannot search your notes.${needsInternet}`,
+              fix: download(facts.embedModel),
             },
       );
     }
@@ -164,8 +186,9 @@ export async function probeEnvironment(): Promise<SetupStatus> {
     });
   }
 
-  const [chat, embed, tags] = await Promise.all([
+  const [chat, gen, embed, tags] = await Promise.all([
     getChatConfig(),
+    getGenerationConfig(),
     getEmbeddingConfig(),
     getOllamaModels(base.ollamaUrl),
   ]);
@@ -183,7 +206,9 @@ export async function probeEnvironment(): Promise<SetupStatus> {
     ollamaError: tags.error,
     installed: tags.models,
     chatModel: chat.model,
+    generationModel: gen.model,
     embedProvider: embed.provider,
     embedModel: embed.model,
+    online: typeof navigator === "undefined" ? true : navigator.onLine,
   });
 }

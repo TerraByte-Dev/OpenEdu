@@ -12,6 +12,7 @@ import { toolRegistry } from "../tools/registry";
 import { toProviderJsonSchema } from "../dsl/jsonSchema";
 import { evaluatePermission } from "../permissions/evaluate";
 import { loadPermissionRules } from "../permissions/store";
+import { describeToolCall } from "../plain-language";
 import type { ProviderToolDef } from "../llm";
 
 // What the chat surface renders for an in-flight / finished tool call: a progress chip
@@ -107,7 +108,9 @@ export async function dispatchToolCall(
     return { name: call.name, ok: false, error };
   }
   if (decision === "ask" && ctx.confirmTool) {
-    const approved = await ctx.confirmTool(call.name, tool.description);
+    // The card shows what the call will do, from its own arguments. tool.description is written for
+    // the model ("Plain text only — no LaTeX") and must never reach the learner.
+    const approved = await ctx.confirmTool(call.name, describeToolCall(call.name, parsed.data));
     if (!approved) {
       const error = `The student declined to let ${call.name} run.`;
       onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });

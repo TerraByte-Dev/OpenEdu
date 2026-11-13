@@ -22,7 +22,7 @@ async function getStore(): Promise<Store> {
 // keeps the pre-RAM default. Only consulted when no model is stored, so a choice made in Settings is
 // never replaced by it.
 let memoryBytes: Promise<number | null> | null = null;
-function systemMemoryBytes(): Promise<number | null> {
+export function systemMemoryBytes(): Promise<number | null> {
   if (!memoryBytes) memoryBytes = invoke<number | null>("system_memory_bytes").catch(() => null);
   return memoryBytes;
 }

@@ -3,8 +3,9 @@ import { getVersion } from "@tauri-apps/api/app";
 import { appDataDir } from "@tauri-apps/api/path";
 import { Store } from "@tauri-apps/plugin-store";
 import type { LLMProvider, ModelTier } from "../../../types";
-import { getLLMProvider, getGenerationConfig, getChatConfig } from "../../../lib/store";
-import { detectModelTier, getOllamaModels, preflightStructuredOutput } from "../../../lib/llm";
+import { getLLMProvider, getGenerationConfig, getChatConfig, systemMemoryBytes } from "../../../lib/store";
+import { detectModelTier, getOllamaModels, log, preflightStructuredOutput } from "../../../lib/llm";
+import { friendlyError, preflightMessage } from "../../../lib/plain-language";
 import { getManifest } from "../../../lib/library";
 import { DEFAULT_PERMISSION_RULES, savePermissionRules } from "../../../lib/permissions";
 import { applyTheme, DEFAULT_THEME_ID } from "../../../lib/theme";
@@ -107,9 +108,12 @@ export default function About({ onProviderChanged }: SectionProps) {
     try {
       const cfg = await getGenerationConfig();
       const r = await preflightStructuredOutput(cfg);
-      if (mounted.current) setSelfCheck({ ok: r.ok, msg: r.ok ? `Model is compatible${r.detectedTier ? ` · tier: ${r.detectedTier}` : ""}.` : `${r.reason ?? "Incompatible"}${r.suggestion ? ` — ${r.suggestion}` : ""}` });
+      if (!r.ok) log.warn("About", "self-check failed", r.reason);
+      const ctx = { model: cfg.model, provider: cfg.provider, ramBytes: await systemMemoryBytes() };
+      if (mounted.current) setSelfCheck({ ok: r.ok, msg: r.ok ? `Model is compatible${r.detectedTier ? ` · tier: ${r.detectedTier}` : ""}.` : preflightMessage(!!r.timedOut, r.reason ?? "", ctx) });
     } catch (e) {
-      if (mounted.current) setSelfCheck({ ok: false, msg: e instanceof Error ? e.message : String(e) });
+      log.warn("About", "self-check failed", e);
+      if (mounted.current) setSelfCheck({ ok: false, msg: friendlyError(e) });
     }
   };
 

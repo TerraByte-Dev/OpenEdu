@@ -3,6 +3,8 @@ import type { Lesson, Syllabus, Subtopic } from "../types";
 import { getLessons, getLesson } from "../lib/db";
 import { generateLesson } from "../lib/curriculum";
 import { getGenerationConfig } from "../lib/store";
+import { log } from "../lib/llm";
+import { friendlyError } from "../lib/plain-language";
 import LessonReader from "./LessonReader";
 
 interface LessonsTabProps {
@@ -45,7 +47,8 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
       setLessons((prev) => [lesson, ...prev.filter((l) => l.id !== lesson.id)]);
       return lesson;
     } catch (e) {
-      setError(`Couldn't generate that lesson: ${e instanceof Error ? e.message : String(e)}`);
+      log.error("LessonsTab", "lesson generation failed", e);
+      setError(`Couldn't make that lesson. ${friendlyError(e)}`);
       return null;
     } finally {
       setGeneratingId(null);

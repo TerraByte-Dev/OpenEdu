@@ -6,6 +6,7 @@ import {
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
+import { friendlyError } from "../lib/plain-language";
 import { getGenerationConfig } from "../lib/store";
 import { getLevelMeaning } from "../lib/curriculum";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
@@ -151,7 +152,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         });
       }, 1000);
     } catch (e) {
-      setGenError(e instanceof Error ? e.message : String(e));
+      log.error("promotion-test", "test generation failed", e);
+      setGenError(`Couldn't make the test. ${friendlyError(e)}`);
       setTestState("ready");
     }
   };
