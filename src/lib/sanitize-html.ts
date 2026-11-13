@@ -11,6 +11,8 @@
 // PIN-phishing form that posts off the machine, and <base>/<meta>/<link> change how the page resolves
 // and loads. Neither KaTeX nor GFM emits them, with one exception: GFM task lists render
 // <input type="checkbox" disabled>, so a disabled checkbox is the only <input> allowed through.
+// Inline `style` attributes stay (KaTeX positions with them), but a position other than relative or
+// static is removed: position:fixed/absolute/sticky would let one reply cover the whole app.
 import DOMPurify, { type DOMPurify as Purifier } from "dompurify";
 
 const HTML_CONFIG = {
@@ -28,7 +30,12 @@ function purifier(): Purifier {
     htmlPurifier.addHook("afterSanitizeAttributes", (node) => {
       if (node.nodeName === "INPUT" && !((node as Element).getAttribute("type") === "checkbox" && (node as Element).hasAttribute("disabled"))) {
         node.parentNode?.removeChild(node);
+        return;
       }
+      // Inline position:fixed/absolute/sticky lets one reply lay a full-window overlay over the app.
+      // KaTeX only emits position:relative.
+      const style = (node as HTMLElement).style;
+      if (style?.position && style.position !== "relative" && style.position !== "static") style.removeProperty("position");
     });
   }
   return htmlPurifier;

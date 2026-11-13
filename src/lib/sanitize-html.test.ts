@@ -102,6 +102,11 @@ describe("renderChatMarkdown: untrusted HTML comes out inert", () => {
     expect(html).not.toContain("<input");
     expect(html).not.toContain("evil.example");
   });
+
+  it("strips position:fixed/absolute/sticky so a reply can't lay an overlay over the app", () => {
+    const html = renderChatMarkdown('<div style="position:fixed;inset:0;z-index:2147483647;background:#fff">Type the PIN</div><span style="position:absolute;inset:0">x</span>');
+    expect(html).not.toMatch(/position\s*:\s*(fixed|absolute|sticky)/i);
+  });
 });
 
 describe("renderChatMarkdown: legitimate output survives sanitizing", () => {
