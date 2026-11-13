@@ -70,7 +70,7 @@ describe("a fetch cancelled before Ollama answers", () => {
     const first = await next;
     if (!first.done) events.push(first.value);
     for await (const ev of turn) events.push(ev);
-    expect(events.at(-1)).toEqual({ type: "done", finishReason: "aborted" });
+    expect(events[events.length - 1]).toEqual({ type: "done", finishReason: "aborted" });
   });
 
   it("by the first-byte stall timer ends the turn as stalled, with no error", async () => {
@@ -82,6 +82,6 @@ describe("a fetch cancelled before Ollama answers", () => {
     const first = await next;
     if (!first.done) events.push(first.value);
     for await (const ev of turn) events.push(ev);
-    expect(events.at(-1)).toEqual({ type: "done", finishReason: "stalled" });
+    expect(events[events.length - 1]).toEqual({ type: "done", finishReason: "stalled" });
   });
 });
