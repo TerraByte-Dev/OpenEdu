@@ -9,11 +9,12 @@ import "katex/dist/katex.min.css";
 // Register mhchem (\ce{}) on the shared KaTeX singleton. Idempotent + import-order-independent:
 // chat-markdown.ts imports it too, but a math.render result can mount before any chat prose does.
 import "katex/contrib/mhchem";
+import { sanitizeHtml } from "../lib/sanitize-html";
 
 export default function MathBlock({ latex }: { latex: string }) {
   const html = useMemo(() => {
     try {
-      return katex.renderToString(latex, { throwOnError: true, displayMode: true });
+      return sanitizeHtml(katex.renderToString(latex, { throwOnError: true, displayMode: true }));
     } catch {
       return null; // bad LaTeX → fall back to raw text below
     }

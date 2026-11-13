@@ -8,6 +8,7 @@
 // also covers MathBlock, which typesets math.render results against the same singleton.
 import { Marked } from "marked";
 import { chatMathExtension, type TexRenderer } from "./chat-math";
+import { sanitizeHtml } from "./sanitize-html";
 
 // KaTeX (~258 KB) is LAZY-loaded the first time chat/resources prose renders, so it stays off the
 // startup path (a session with no math never downloads it). Until it resolves, each equation shows as
@@ -40,5 +41,6 @@ export function isChatKatexReady(): boolean {
 
 export function renderChatMarkdown(text: string): string {
   if (!renderTex) void ensureChatKatex(); // kick off the lazy load; math renders once the consumer re-renders
-  return chatMarked.parse(text) as string;
+  // The text is model output, a cached lesson or a library resource: sanitize before it is inlined.
+  return sanitizeHtml(chatMarked.parse(text) as string);
 }

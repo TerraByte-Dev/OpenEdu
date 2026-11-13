@@ -140,6 +140,9 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   `src/lib/corpus.ts` yet**, so in the shipped app the only way a file's content enters is the notebook
   import (file picker or drag-and-drop), filtered to `.md,.markdown,.txt` and read via `File.text()`
   (`NotesTab.tsx:367,380,605`). Wiring folder access into the UI is step zero for anything archive-shaped.
+- Every string inlined with `dangerouslySetInnerHTML` (chat/lesson/resource markdown via
+  `renderChatMarkdown`, `MathBlock`'s KaTeX, library card SVGs) goes through `src/lib/sanitize-html.ts`
+  (DOMPurify) first. Mermaid SVG is sanitized by Mermaid itself (`securityLevel: "strict"`).
 
 ---
 
