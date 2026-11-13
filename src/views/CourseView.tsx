@@ -19,6 +19,7 @@ import ReviewTab from "../components/ReviewTab";
 import LessonsTab from "../components/LessonsTab";
 import type { NextStepAction } from "../lib/next-step";
 import type { Grade } from "../lib/grade";
+import { IconArrowLeft, IconCheck, IconChevronLeft, IconChevronRight, IconCircleWarning, IconStar } from "../components/icons";
 
 export type Tab = "overview" | "chat" | "notes" | "lessons" | "quiz" | "review" | "syllabus" | "resources";
 
@@ -210,9 +211,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
           onClick={onBack}
           className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink transition-colors shrink-0"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
+          <IconArrowLeft size={18} />
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="text-base font-semibold text-ink truncate leading-tight">{course.title}</h1>
@@ -235,9 +234,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
               className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Previous unit"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
+              <IconChevronLeft size={16} />
             </button>
             <span className="text-sm font-semibold text-[var(--ink-dim)] min-w-[32px] text-center">
               {effectiveViewingLevel}
@@ -248,9 +245,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
               className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Next unit"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <IconChevronRight size={16} />
             </button>
           </div>
 
@@ -277,9 +272,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
                 : "bg-panel-lite text-[var(--ink-faint)] cursor-not-allowed"
             }`}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
+            <IconStar size={13} />
             Level test
           </button>
         </div>
@@ -305,7 +298,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
         {/* Viewing level indicator when browsing a non-active level */}
         {!isCurrentLevel && (
           <div className="flex items-center gap-1.5 px-4 py-1 text-sm text-warning border-b border-[var(--rule)] bg-panel shrink-0">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <IconCircleWarning size={12} />
             Looking at Level {effectiveViewingLevel} — {getLevelMeaning(effectiveViewingLevel)}
           </div>
         )}
@@ -460,9 +453,7 @@ function SyllabusView({
                       sub.mastered ? "border-success bg-success-tint" : "border-[var(--rule)]"
                     }`}>
                       {sub.mastered && (
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="3">
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
+                        <IconCheck size={8} className="text-success" />
                       )}
                     </span>
                     <div className="min-w-0">

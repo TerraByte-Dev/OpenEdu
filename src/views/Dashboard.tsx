@@ -9,6 +9,7 @@ import { searchTavily, formatSearchResults } from "../lib/web-search";
 import { preflightStructuredOutput } from "../lib/llm";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { APP_NAME } from "../lib/product";
+import { IconCheck } from "../components/icons";
 
 // The new-course flow (View "create"). The learner's landing screen is views/Home.tsx; this view is
 // reached from its "Start a new course" button, and stays mounted (hidden) while a build runs so the
@@ -50,9 +51,7 @@ function StepIcon({ status }: { status: StepStatus }) {
   if (status === "done") {
     return (
       <span className="w-5 h-5 rounded-full bg-success-tint border border-success flex items-center justify-center shrink-0">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="3">
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
+        <IconCheck size={10} className="text-success" />
       </span>
     );
   }

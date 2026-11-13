@@ -3,6 +3,7 @@ import type { Course, Syllabus, LibraryEntry } from "../types";
 import { getManifest, matchResources, fetchResource, fetchAsset } from "../lib/library";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { LIBRARY_NAME } from "../lib/product";
+import { IconArrowLeft, IconSquareChartLine } from "./icons";
 
 // Resources tab — the curated OpenEdu Library, browsable by the STUDENT (not just fuel for the
 // tutor's answer). The list view is a paginated grid: it defaults to cards recommended for this
@@ -179,7 +180,7 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
             onClick={() => { setSelected(null); setBody(null); setBodyError(""); setAssetSvg(null); setView("text"); }}
             className="flex items-center gap-1.5 text-xs font-mono text-[var(--ink-faint)] hover:text-phosphor-bright transition-colors mb-4"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            <IconArrowLeft size={14} />
             All resources
           </button>
 
@@ -345,7 +346,7 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
                             className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider border border-phosphor/30 text-phosphor-ink/80 group-hover:text-phosphor-bright group-hover:border-phosphor/50 transition-colors"
                             title="This card has a diagram"
                           >
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 15l5-5 4 4 5-6 4 5" /></svg>
+                            <IconSquareChartLine size={10} />
                             Diagram
                           </span>
                         )}

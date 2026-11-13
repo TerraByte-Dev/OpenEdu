@@ -8,6 +8,7 @@ import {
 } from "../lib/daily-goal";
 import { describeGenerationState } from "../lib/plain-language";
 import { APP_NAME } from "../lib/product";
+import { IconArrowRight } from "../components/icons";
 
 // The learner's Home — the first screen after picking a learner, and the answer to "what do I do
 // now?". One primary action (Continue: the most recent course and its next step, ranked by the same
@@ -123,9 +124,7 @@ export default function Home({
                   style={{ fontSize: "1.05rem", padding: "12px 22px" }}
                 >
                   Continue
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
+                  <IconArrowRight size={16} />
                 </button>
               </>
             )}

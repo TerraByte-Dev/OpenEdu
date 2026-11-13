@@ -7,63 +7,56 @@ import Appearance from "./sections/Appearance";
 import LearnerData from "./sections/LearnerData";
 import About from "./sections/About";
 import LearnerSection from "./sections/Learner";
-
-function Icon({ d }: { d: string }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      {d.split("|").map((p, i) => <path key={i} d={p} />)}
-    </svg>
-  );
-}
+import { IconCircleInfo, IconDatabase, IconGlobe, IconMicrochip, IconPalette, IconShield, IconUser } from "../../components/icons";
 
 export const SECTIONS: SectionDef[] = [
   {
     id: "provider",
     label: "Provider & Models",
     keywords: "provider ollama openai anthropic cloud local model llm generation chat embedding api key connection url verify tier nomic",
-    icon: <Icon d="M9 3v2|M15 3v2|M9 19v2|M15 19v2|M3 9h2|M3 15h2|M19 9h2|M19 15h2|M7 7h10v10H7z|M10 10h4v4h-4z" />,
+    icon: <IconMicrochip size={16} />,
     Component: ProviderModels,
   },
   {
     id: "web-library",
     label: "Web & Library",
     keywords: "web search tavily internet library reference offline curated periodic table formulas resources lookup bundled",
-    icon: <Icon d="M2 12h20|M12 2a15 15 0 0 1 0 20|M12 2a15 15 0 0 0 0 20|M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />,
+    icon: <IconGlobe size={16} />,
     Component: WebLibrary,
   },
   {
     id: "permissions",
     label: "Permissions",
     keywords: "permissions tutor preset standard cautious trusting allow ask deny exam study web code grid tool security autonomy",
-    icon: <Icon d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+    icon: <IconShield size={16} />,
     Component: Permissions,
   },
   {
     id: "appearance",
     label: "Appearance",
     keywords: "appearance theme color dark light mode system night match computer look",
-    icon: <Icon d="M12 2a10 10 0 1 0 0 20c1 0 1.5-.8 1.5-1.5 0-.4-.2-.8-.5-1-.3-.3-.5-.6-.5-1 0-.8.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-4.4-3.6-8-8-8z|M7.5 12a1 1 0 1 0 0-.001|M12 7.5a1 1 0 1 0 0-.001|M16.5 11a1 1 0 1 0 0-.001" />,
+    icon: <IconPalette size={16} />,
     Component: Appearance,
   },
   {
     id: "learner",
     label: "Name & grade",
     keywords: "name learner rename grade school year reading level kindergarten text size read aloud speech voice speak",
-    icon: <Icon d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />,
+    icon: <IconUser size={16} />,
     Component: LearnerSection,
   },
   {
     id: "learner-data",
     label: "Learner data",
     keywords: "learner data backup restore database copy usb save power cut damaged recover replace file",
-    icon: <Icon d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z|M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6|M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />,
+    icon: <IconDatabase size={16} />,
     Component: LearnerData,
   },
   {
     id: "about",
     label: "About",
     keywords: "about version build update release github diagnostics status self check export import backup reset defaults restore credits dictionary wordnet licence license",
-    icon: <Icon d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M12 16v-4|M12 8h.01" />,
+    icon: <IconCircleInfo size={16} />,
     Component: About,
   },
 ];

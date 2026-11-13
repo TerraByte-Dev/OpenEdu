@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SettingsContext, matchText } from "./primitives";
 import { SECTIONS } from "./registry";
 import type { LearnerControls } from "./types";
+import { IconMagnifier, IconXmark } from "../../components/icons";
 
 // Professional, tabbed Settings view. Left-rail navigation + per-row search, autosave for non-secret
 // controls (the sections call ctx.markSaved after they persist), explicit Save/Verify for secrets, and a
@@ -50,8 +51,7 @@ export default function Settings({ onSaved, learner, initialSectionId }: { onSav
           <div className="max-w-5xl mx-auto w-full flex items-center gap-4 flex-wrap">
             <h1 className="text-xl font-bold text-ink tracking-tight">Settings</h1>
             <div className="relative ml-auto w-full sm:w-72">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-faint)]"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <IconMagnifier size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-faint)]" />
               <input
                 type="text"
                 value={query}
@@ -62,7 +62,7 @@ export default function Settings({ onSaved, learner, initialSectionId }: { onSav
               />
               {query && (
                 <button onClick={() => setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--ink-faint)] hover:text-ink" title="Clear">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  <IconXmark size={13} />
                 </button>
               )}
             </div>

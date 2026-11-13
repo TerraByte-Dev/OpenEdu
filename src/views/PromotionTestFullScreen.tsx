@@ -13,6 +13,7 @@ import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
 import { mintCardsFromMisses } from "../lib/flashcards";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
 import CompletionCapstone from "../components/CompletionCapstone";
+import { IconXmark } from "../components/icons";
 
 function getTimeLimitSeconds(level: number): number {
   // Rebase for 6-level scale: L1–L2 = 45min, L3–L4 = 60min, L5+ (incl. mastery) = 90min.
@@ -391,9 +392,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
             <p className="text-xs text-[var(--ink-faint)]">Promotion Test</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-panel-lite text-[var(--ink-faint)] hover:text-ink transition-colors">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <IconXmark size={18} />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto flex items-center justify-center p-8">
