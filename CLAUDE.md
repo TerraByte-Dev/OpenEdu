@@ -142,7 +142,9 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   names a path.
 - Every string inlined with `dangerouslySetInnerHTML` (chat/lesson/resource markdown via
   `renderChatMarkdown`, `MathBlock`'s KaTeX, library card SVGs) goes through `src/lib/sanitize-html.ts`
-  (DOMPurify) first. Mermaid SVG is sanitized by Mermaid itself (`securityLevel: "strict"`).
+  (DOMPurify) first. Mermaid SVG is sanitized by Mermaid itself (`securityLevel: "strict"`). On top of
+  DOMPurify's defaults it forbids `<style>`, `<form>`, form controls and `<base>`/`<meta>`/`<link>`; the
+  only `<input>` allowed is GFM's disabled task-list checkbox.
 
 ---
 

