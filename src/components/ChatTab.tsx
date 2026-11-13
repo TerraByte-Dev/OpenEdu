@@ -535,7 +535,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                       title={readAloud.speakingId === safetyId ? "Stop reading" : "Read aloud"}
                     >
                       {readAloud.speakingId === safetyId ? (
-                        <IconMediaStop size={16} />
+                        <IconMediaStop size={16} className="scale-[0.65]" />
                       ) : (
                         <IconVolumeUp size={18} />
                       )}
@@ -642,7 +642,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               title="Stop generating"
               className="px-4 py-3 rounded-xl bg-lcd hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger transition-colors"
             >
-              <IconMediaStop size={20} />
+              <IconMediaStop size={20} className="scale-[0.65]" />
             </button>
           ) : (
             <button
@@ -698,7 +698,7 @@ function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage
           title={reading ? "Stop reading" : "Read aloud"}
         >
           {reading ? (
-            <IconMediaStop size={16} />
+            <IconMediaStop size={16} className="scale-[0.65]" />
           ) : (
             <IconVolumeUp size={18} />
           )}

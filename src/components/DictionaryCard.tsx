@@ -37,7 +37,7 @@ export function DictionaryCard({ card, startsOpen, reading, onReadAloud }: {
             title={reading ? "Stop reading" : "Read the dictionary entry aloud"}
           >
             {reading ? (
-              <IconMediaStop size={16} />
+              <IconMediaStop size={16} className="scale-[0.65]" />
             ) : (
               <IconVolumeUp size={18} />
             )}
