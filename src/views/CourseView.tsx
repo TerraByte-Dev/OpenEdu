@@ -9,6 +9,8 @@ import CourseRail from "../components/CourseRail";
 import ThreadList from "../components/ThreadList";
 import { getLevelMeaning, researchTopic, generateTutorInstructions, generateSyllabus, generateCourseOutline, recordLedgerEntry } from "../lib/curriculum";
 import { getGenerationConfig, getLibraryEnabled } from "../lib/store";
+import { log } from "../lib/llm";
+import { friendlyError } from "../lib/plain-language";
 import { getManifest, isLibraryAvailable } from "../lib/library";
 import ChatTab from "../components/ChatTab";
 import NotesTab from "../components/NotesTab";
@@ -162,7 +164,9 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
       await loadCourseData();
       setRegenStatus("");
     } catch (e) {
-      setRegenStatus(`Error: ${e instanceof Error ? e.message : String(e)}`);
+      log.error("CourseView", "course rebuild failed", e);
+      // "Error" stays the first word: the status line turns red on it.
+      setRegenStatus(`Error: ${friendlyError(e)}`);
     } finally {
       setRegenerating(false);
     }

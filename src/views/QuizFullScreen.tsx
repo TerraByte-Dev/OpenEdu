@@ -3,6 +3,7 @@ import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
+import { friendlyError } from "../lib/plain-language";
 import { getLLMConfig } from "../lib/store";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
@@ -74,7 +75,8 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       setScore(null);
       setState("in_progress");
     } catch (e) {
-      setError(`Failed to generate quiz: ${e instanceof Error ? e.message : String(e)}`);
+      log.error("quiz", "quiz generation failed", e);
+      setError(`Couldn't make the quiz. ${friendlyError(e)}`);
     }
   };
 

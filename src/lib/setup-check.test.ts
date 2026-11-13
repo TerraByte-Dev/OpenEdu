@@ -124,4 +124,36 @@ describe("evaluateSetup", () => {
     expect(s.checks[0].detail).toMatch(/not installed on this computer/i);
     expect(s.ready).toBe(false);
   });
+
+  // A model imported under its own name sets the chat model; course building still pointed at a
+  // gemma4 default this computer doesn't have, so setup said ready and Create course failed.
+  it("blocks when the course-building model is not installed, even with the chat model there", () => {
+    const s = evaluateSetup(facts({ installed: ["tutor-kit:latest"], chatModel: "tutor-kit", generationModel: "gemma4:e2b" }));
+    const gen = s.checks.find((c) => c.id === "gen-model");
+    expect(gen?.severity).toBe("blocking");
+    expect(gen?.detail).toMatch(/builds new courses/);
+    expect(gen?.fix).toEqual({ label: "Download gemma4:e2b", kind: "download-model", arg: "gemma4:e2b" });
+    expect(s.ready).toBe(false);
+  });
+
+  it("does not add a course-builder check when it is the chat model or is installed", () => {
+    expect(evaluateSetup(facts({ generationModel: "gemma3:1b" })).checks.some((c) => c.id === "gen-model")).toBe(false);
+    expect(evaluateSetup(facts({ generationModel: "GEMMA3:1b " })).checks.some((c) => c.id === "gen-model")).toBe(false);
+    expect(evaluateSetup(facts({ installed: ["gemma3:1b", "llama3:8b", "nomic-embed-text:latest"], generationModel: "llama3:8b" })).ready).toBe(true);
+  });
+
+  it("offers no Download button with no network, and says a download needs the internet", () => {
+    const s = evaluateSetup(facts({ installed: [], online: false }));
+    for (const c of s.checks.filter((c) => c.severity !== "ok")) {
+      expect(c.fix?.kind, c.id).not.toBe("download-model");
+      expect(c.detail, c.id).toMatch(/needs the internet/);
+    }
+    // Online (or unknown), the downloads are offered as before.
+    expect(evaluateSetup(facts({ installed: [] })).checks.find((c) => c.id === "chat-model")?.fix?.kind).toBe("download-model");
+  });
+
+  it("offline, a missing course builder points at Settings instead of a download", () => {
+    const s = evaluateSetup(facts({ installed: ["tutor-kit:latest"], chatModel: "tutor-kit", generationModel: "gemma4:e2b", online: false }));
+    expect(s.checks.find((c) => c.id === "gen-model")?.fix).toEqual({ label: "Open Settings", kind: "open-settings" });
+  });
 });

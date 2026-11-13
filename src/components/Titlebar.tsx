@@ -3,22 +3,14 @@ import type { LLMProvider } from "../types";
 import { applyTheme } from "../lib/theme";
 import { useThemeState } from "../lib/useTheme";
 import { APP_NAME } from "../lib/product";
+import { tutorStatusLabel } from "../lib/plain-language";
+import type { OllamaState } from "../lib/ollama-guide";
 import { IconGear, IconMoon, IconSun, IconUser } from "./icons";
-
-const PROVIDER_LABEL: Record<LLMProvider, string> = {
-  ollama: "Ollama",
-  openai: "OpenAI",
-  anthropic: "Anthropic",
-};
-
-const PROVIDER_DOT: Record<LLMProvider, string> = {
-  ollama: "#4ade80",
-  openai: "#60a5fa",
-  anthropic: "#c084fc",
-};
 
 interface TitlebarProps {
   provider: LLMProvider;
+  /** The last setup check's Ollama state (setup-check.ts). Undefined until a check has run. */
+  ollama?: OllamaState;
   /** Omitted while the learner picker is up: settings open from inside a learner's session. */
   onGoSettings?: () => void;
   /** The active learner's name, shown when there is a picker; the chip opens Switch learner and the learner's own controls. */
@@ -26,8 +18,9 @@ interface TitlebarProps {
   onOpenLearner?: () => void;
 }
 
-export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLearner }: TitlebarProps) {
+export default function Titlebar({ provider, ollama, onGoSettings, learnerName, onOpenLearner }: TitlebarProps) {
   const win = getCurrentWindow();
+  const status = tutorStatusLabel(provider, ollama);
 
   // Light/dark toggle. Shares state with Settings › Appearance through useThemeState. It always sets an
   // explicit mode, so a click while on "Match my computer" pins the opposite of what is showing.
@@ -67,15 +60,14 @@ export default function Titlebar({ provider, onGoSettings, learnerName, onOpenLe
             <span className="text-xs truncate">{learnerName}</span>
           </button>
         )}
-        <span className="flex items-center gap-1.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ background: PROVIDER_DOT[provider] }}
-          />
-          <span className="text-xs text-[var(--ink-faint)]">
-            {PROVIDER_LABEL[provider]}
+        {status && (
+          <span className="flex items-center gap-1.5">
+            {status.tone === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-danger" />}
+            <span className={`text-xs ${status.tone === "warn" ? "text-danger" : "text-[var(--ink-faint)]"}`}>
+              {status.text}
+            </span>
           </span>
-        </span>
+        )}
         <button
           onClick={toggleTheme}
           className="p-0.5 text-[var(--ink-faint)] hover:text-phosphor transition-colors"

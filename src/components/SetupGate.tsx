@@ -8,7 +8,8 @@
 // person who most needs help off to debug a problem they do not have.
 
 import { useState } from "react";
-import { pullOllamaModel, type PullProgress } from "../lib/llm";
+import { log, pullOllamaModel, type PullProgress } from "../lib/llm";
+import { friendlyDownloadError } from "../lib/plain-language";
 import type { CheckResult, SetupStatus } from "../lib/setup-check";
 import { ollamaGuidance, platformOf } from "../lib/ollama-guide";
 import OllamaGuide from "./OllamaGuide";
@@ -44,7 +45,8 @@ export default function SetupGate({ status, ollamaUrl, onRecheck, onOpenSettings
       await pullOllamaModel(model, ollamaUrl, setProgress);
       onRecheck();
     } catch (e) {
-      setPullError(e instanceof Error ? e.message : String(e));
+      log.error("SetupGate", `download of ${model} failed`, e);
+      setPullError(friendlyDownloadError(e));
     } finally {
       setPulling(null);
       setProgress(null);

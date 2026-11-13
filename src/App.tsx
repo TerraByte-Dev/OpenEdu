@@ -271,6 +271,7 @@ export default function App() {
           {!isFullscreenView && (
             <Titlebar
               provider={activeProvider}
+              ollama={setup?.ollama}
               onGoSettings={activeLearner ? () => openSettings() : undefined}
               learnerName={activeLearner && learners && needsPicker(learners) ? activeLearner.name : undefined}
               onOpenLearner={activeLearner ? () => setLearnerMenuOpen(true) : undefined}

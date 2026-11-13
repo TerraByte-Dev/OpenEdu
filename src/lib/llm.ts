@@ -1963,8 +1963,10 @@ async function* streamAnthropicTurn(messages: NeutralMessage[], config: LLMConfi
 
 export interface PreflightResult {
   ok: boolean;
+  /** The raw failure, for the log. Screens show plain-language.ts preflightMessage instead. */
   reason?: string;
-  suggestion?: string;
+  /** The probe ran out of time: a cold model still loading, not a model that can't do the job. */
+  timedOut?: boolean;
   detectedTier?: ModelTier;
 }
 
@@ -1982,10 +1984,6 @@ const PREFLIGHT_SCHEMA = {
 // takes 30–60s on the first call. 30s used to false-positive as a model-capability
 // failure. Aligns with the per-call timeouts CLAUDE.md notes for this tier.
 const PREFLIGHT_TIMEOUT_MS = 90_000;
-
-const SUGGESTION_STRUCTURED_FAIL =
-  "The selected model can't reliably emit structured JSON. " +
-  "Try gemma4:e4b (or a similarly sized model) for local Ollama, or a cloud model from Settings.";
 
 export async function preflightStructuredOutput(config: LLMConfig): Promise<PreflightResult> {
   const tier = await detectModelTier(config).catch(() => undefined);
@@ -2009,14 +2007,13 @@ export async function preflightStructuredOutput(config: LLMConfig): Promise<Pref
     return { ok: true, detectedTier: tier };
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    const isAbort = raw.toLowerCase().includes("abort");
+    // Ask the signal, not the message text: only this check's own timer aborts it.
+    const timedOut = controller.signal.aborted;
     log.warn("preflight", `Failed: ${raw}`);
     return {
       ok: false,
-      reason: isAbort
-        ? `Model did not respond within ${PREFLIGHT_TIMEOUT_MS / 1000}s — it may be too slow or offline.`
-        : raw,
-      suggestion: SUGGESTION_STRUCTURED_FAIL,
+      reason: timedOut ? `Model did not respond within ${PREFLIGHT_TIMEOUT_MS / 1000}s.` : raw,
+      timedOut,
       detectedTier: tier,
     };
   } finally {

@@ -7,6 +7,7 @@ import { loadPermissionRules } from "../permissions/store";
 import type { PermissionRules } from "../permissions/rules";
 import type { Skill } from "../dsl/skill";
 import type { LLMConfig } from "../../types";
+import { flashcardCreateTool } from "../tools/flashcard/CreateTool";
 
 // The real store imports @tauri-apps/plugin-store and caches rules at module level. Each test
 // injects its own rule set instead.
@@ -205,15 +206,25 @@ describe("dispatchToolCall", () => {
     expect(events).toEqual([err("t.write", error)]);
   });
 
-  it("runs an approved ask and hands confirmTool the name and description", async () => {
+  it("runs an approved ask and never hands confirmTool the description written for the model", async () => {
     const confirmTool = vi.fn(async () => true);
     const { result, events } = await run("t.write", {}, ctx({ confirmTool }));
-    expect(confirmTool).toHaveBeenCalledWith("t.write", "Write to the student's record.");
+    expect(confirmTool).toHaveBeenCalledWith("t.write", "");
     expect(result).toEqual({ name: "t.write", ok: true, value: "written", modelText: undefined });
     expect(events).toEqual([
       { kind: "start", id: "call-1", name: "t.write" },
       { kind: "result", id: "call-1", name: "t.write", value: "written" },
     ]);
+  });
+
+  it("shows the learner the card it will make, not flashcard.create's instructions to the model", async () => {
+    toolRegistry.register(flashcardCreateTool);
+    setRules({ "flashcard.create": { default: "ask", study: "allow", exam: "deny" } });
+    const confirmTool = vi.fn(async () => false);
+    await run("flashcard.create", { front: "What is 7 x 8?", back: "56" }, ctx({ confirmTool }));
+    expect(confirmTool).toHaveBeenCalledWith("flashcard.create", "The card: “What is 7 x 8?”");
+    const [, summary] = confirmTool.mock.calls[0] as unknown as [string, string];
+    expect(summary).not.toMatch(/LaTeX|markdown|spaced-repetition/);
   });
 
   it("proceeds on an ask when there is no confirmTool (headless)", async () => {

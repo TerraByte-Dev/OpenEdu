@@ -8,7 +8,7 @@ import { deriveThreadTitle } from "../lib/thread-title";
 import { threadSwitchAbortsTurn, turnIsShown, turnLanding } from "../lib/turn-thread";
 import { transcriptLoader, type TranscriptLoader } from "../lib/thread-transcript";
 import { buildSystemPrompt } from "../lib/curriculum";
-import { detectModelProfile } from "../lib/llm";
+import { detectModelProfile, log } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode, getReadAloudAuto } from "../lib/store";
 import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
 import { useReadAloud } from "../lib/useReadAloud";
@@ -22,7 +22,7 @@ import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
-import { describeToolRequest } from "../lib/plain-language";
+import { describeToolActivity, describeToolDone, describeToolRequest, friendlyError } from "../lib/plain-language";
 // MathBlock pulls KaTeX (~258 KB); lazy-load it so KaTeX leaves the eager bundle and only loads when
 // a math.render card actually mounts.
 const MathBlock = lazy(() => import("./MathBlock"));
@@ -422,7 +422,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (!/abort|cancel/i.test(msg) && turnOwnerRef.current === owner) setChatError(msg);
+      if (!/abort|cancel/i.test(msg) && turnOwnerRef.current === owner) {
+        log.error("ChatTab", "turn failed", msg);
+        setChatError(friendlyError(msg));
+      }
     } finally {
       // Only a turn still here resets the shared state: a switch already reset it (cancelStream), and
       // a newer turn may be streaming by the time this one unwinds.
@@ -782,9 +785,9 @@ function ToolActivity({ events, onOpenResource, onOpenReview }: { events: ToolUI
 
 function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpenResource?: (id: string) => void; onOpenReview?: () => void }) {
   const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-mono border w-fit max-w-full";
-  if (ev.kind === "error") {
-    return <div className={`${base} bg-danger-tint border-danger/30 text-danger`}>⚠ {ev.name}: {ev.error}</div>;
-  }
+  // The error text is written for the model ("Call it again with arguments that match the schema"),
+  // which already receives it and retries. A learner never needs to read it.
+  if (ev.kind === "error") return null;
   if (ev.kind === "result") {
     // notebook.search → a ✓ summary plus a "📓 Source: …" chip per cited document.
     if (ev.name === "notebook.search") {
@@ -792,12 +795,12 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
       const sources: string[] = [];
       for (const r of results) if (!sources.includes(r.document_title)) sources.push(r.document_title);
       if (sources.length === 0) {
-        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>📓 notebook.search — no matching notes</div>;
+        return <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>📓 Nothing in your notes about this</div>;
       }
       return (
         <div className="flex flex-col items-start gap-1.5">
           <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
-            ✓ notebook.search — {results.length} passage{results.length === 1 ? "" : "s"}
+            ✓ Found {results.length} part{results.length === 1 ? "" : "s"} of your notes
           </div>
           <div className="flex flex-wrap gap-1.5">
             {sources.map((title) => (
@@ -822,7 +825,7 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
       return (
         <div className="flex flex-col items-start gap-1.5">
           <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
-            ✓ library.search — found a reference
+            ✓ Found something in the library
           </div>
           {clickable ? (
             <button type="button" onClick={() => onOpenResource!(v.id!)} title="Open in Resources" className={chipClass}>
@@ -849,7 +852,7 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
       return (
         <div className="flex flex-col items-start gap-1.5">
           <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
-            ✓ library.lookup — {v.dataset}
+            ✓ Looked it up in the library
           </div>
           {linkable ? (
             <button type="button" onClick={() => onOpenResource!(v.card_id!)} title="Open in Resources" className={cls}>{lbl}</button>
@@ -879,13 +882,12 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
         <span className={cls}>{label}</span>
       );
     }
-    // notebook.ingest → "📓 Saved 'title' (N chunks)".
+    // notebook.ingest → "📓 Saved 'title' to your notes".
     if (ev.name === "notebook.ingest") {
-      const v = ev.value as { chunkCount?: number; title?: string } | undefined;
-      const n = v?.chunkCount ?? 0;
+      const v = ev.value as { title?: string } | undefined;
       return (
         <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>
-          📓 Saved{v?.title ? ` "${v.title}"` : ""} ({n} chunk{n === 1 ? "" : "s"})
+          📓 Saved{v?.title ? ` "${v.title}"` : ""} to your notes
         </div>
       );
     }
@@ -899,12 +901,11 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
       const code = (ev.value as { mermaid?: string } | undefined)?.mermaid ?? "";
       return code ? <MermaidBlock code={code} /> : null;
     }
-    return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {ev.name}</div>;
+    return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {describeToolDone(ev.name)}</div>;
   }
-  const msg = ev.kind === "progress" ? ev.message : "running…";
   return (
     <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>
-      <span>🔧 {ev.name} — {msg}</span>
+      <span>{describeToolActivity(ev.name)}</span>
       <span className="inline-block w-1.5 h-3 bg-phosphor-ink animate-pulse" />
     </div>
   );
@@ -920,7 +921,7 @@ function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; su
       </span>
       <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
         <p className="mb-1">{describeToolRequest(toolName)} Is that okay?</p>
-        <p className="mb-2.5 text-[var(--ink-dim)] text-sm">{summary}</p>
+        {summary && <p className="mb-2.5 text-[var(--ink-dim)] text-sm">{summary}</p>}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onChoose(true)}

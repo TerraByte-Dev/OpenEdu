@@ -4,9 +4,10 @@ import { createCourse } from "../lib/db";
 import { CompanionSprite } from "../components/CompanionSprite";
 import { SPRITE_PERSONAS, DEFAULT_SPRITE_ID, suggestSpriteForTopic } from "../lib/sprites/registry";
 import { runGenerationPipeline } from "../lib/curriculum";
-import { getGenerationConfig, getTavilyApiKey } from "../lib/store";
+import { getGenerationConfig, getTavilyApiKey, systemMemoryBytes } from "../lib/store";
 import { searchTavily, formatSearchResults } from "../lib/web-search";
-import { preflightStructuredOutput } from "../lib/llm";
+import { log, preflightStructuredOutput, type PreflightResult } from "../lib/llm";
+import { friendlyError, preflightMessage, type ErrorContext } from "../lib/plain-language";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { APP_NAME } from "../lib/product";
 import { IconCheck12 } from "../components/icons";
@@ -140,9 +141,12 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
     onCreationStart?.(effectiveTopic);
 
     let courseId: string | null = isResume ? existingCourse!.id : null;
+    let errCtx: ErrorContext = {};
+    let failedPreflight: PreflightResult | null = null;
 
     try {
       const config = await getGenerationConfig();
+      errCtx = { model: config.model, provider: config.provider, ramBytes: await systemMemoryBytes() };
 
       // Step 0: Preflight — refuse to start a 5–10 min pipeline on a model that can't emit structured JSON.
       // Re-runs on resume too — the user may have switched models since the failure.
@@ -150,9 +154,9 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
       appendChunk(`Checking that ${config.model} can build a course...\n`);
       const preflight = await preflightStructuredOutput(config);
       if (!preflight.ok) {
-        appendChunk(`${preflight.reason ?? "The tutor could not be checked."}\n${preflight.suggestion ?? ""}\n`);
         setStep(0, "error");
-        throw new Error(`${preflight.reason ?? "The tutor could not be checked"} — ${preflight.suggestion ?? ""}`);
+        failedPreflight = preflight;
+        throw new Error(preflight.reason ?? "The tutor could not be checked.");
       }
       appendChunk("Ready.\n");
       setStep(0, "done");
@@ -203,8 +207,11 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
       onCreationEnd?.();
       onCourseCreated(courseId!);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
+      // The raw text stays in "Show the details" and the log; the box under the form says it plainly.
+      const raw = e instanceof Error ? e.message : String(e);
+      appendChunk(`\n${raw}\n`);
+      log.error("Dashboard", "course build failed", raw);
+      setError(failedPreflight ? preflightMessage(!!failedPreflight.timedOut, raw, errCtx) : friendlyError(raw, errCtx));
       setSteps((prev) => prev.map((s) => (s.status === "active" ? { ...s, status: "error" } : s)));
       // DO NOT delete the course on failure. The pipeline writes state at each step boundary,
       // so the row's generation_state already points at the step that needs retry. The user

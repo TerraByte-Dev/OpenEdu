@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getOllamaModels, getOllamaVersion } from "../lib/llm";
-import { setChatModel } from "../lib/store";
+import { setChatModel, setGenerationModel } from "../lib/store";
 import { cancelModelImport, pickModelFolder, startModelImport } from "../lib/model-import";
 import {
   PHASE_LABEL, candidateBytes, etaSeconds, formatBytes, formatEta, hasRoom, importFraction, licenceNotes, nameProblem,
@@ -76,8 +76,11 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
     }
   };
 
+  // The imported model becomes the tutor for chat AND for building courses: setup checks both, and a
+  // course build that still points at a model this computer doesn't have would fail at Create course.
   const useExisting = async (model: string) => {
     await setChatModel(model);
+    await setGenerationModel(model);
     setRun({ at: "done", name: model, checked: true });
     onImported(model);
   };
@@ -107,6 +110,7 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
       // the learner with nothing on screen is worse than one they pick in Settings later.
       if (!mounted.current) return;
       await setChatModel(done);
+      await setGenerationModel(done);
       setRun({ at: "done", name: done, checked: built.checked && unchecked === 0 });
       setInstalled((m) => [...m, done]);
       onImported(done);
