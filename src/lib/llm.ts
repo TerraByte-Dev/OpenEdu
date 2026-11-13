@@ -100,7 +100,12 @@ async function streamOllama(
       // does. #110 patched the other three and missed this one, so every course generation's
       // pedagogy step still ran un-patched — and the loop below only reads message.content, so a
       // reasoning model produced an EMPTY instruction that was saved with no error thrown.
-      body: JSON.stringify({ model: config.model, messages, stream: true, keep_alive: OLLAMA_KEEP_ALIVE, ...OLLAMA_THINK_OFF }),
+      // num_ctx too: the course build's pedagogy step comes through here, and a request at another
+      // window reloads the model (store.ts getOllamaNumCtx).
+      body: JSON.stringify({
+        model: config.model, messages, stream: true, keep_alive: OLLAMA_KEEP_ALIVE, ...OLLAMA_THINK_OFF,
+        ...(config.contextTokens ? { options: { num_ctx: Math.floor(config.contextTokens) } } : {}),
+      }),
       signal,
     });
   } catch (e) {
@@ -568,8 +573,10 @@ export async function getOllamaVersion(ollamaUrl: string): Promise<string | null
 
 // ─── Ollama loaded-model probe (/api/ps), not cached: the answer changes as Ollama loads and unloads ──
 // True when Ollama has `config.model` in memory, at `config.contextTokens` when /api/ps reports a
-// context length (a runner at another num_ctx reloads). False when it does not. null when the probe
-// fails or the reply is unreadable. Rethrows only when `signal` aborted it.
+// context length (a runner at another num_ctx reloads). Every app call sends the same num_ctx for a
+// model (store.ts getOllamaNumCtx), so this is an exact size check; a config without contextTokens
+// (an eval, a test) matches any size. False when it does not. null when the probe fails or the reply
+// is unreadable. Rethrows only when `signal` aborted it.
 export async function ollamaModelLoaded(config: LLMConfig, signal?: AbortSignal): Promise<boolean | null> {
   const base = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const want = config.model.includes(":") ? config.model : `${config.model}:latest`;
@@ -616,6 +623,8 @@ export const OLLAMA_PS_PROBE_TIMEOUT_MS = 3_000;
 
 // One load per (server, model, num_ctx) at a time: a second caller waits on the first one's load.
 const ollamaLoads = new Map<string, Promise<void>>();
+// Every Ollama model this session asked for, so closing the app can unload them (unloadOllamaModels).
+const ollamaModelsUsed = new Map<string, { base: string; model: string }>();
 const ollamaLoading = new Set<string>();
 let ollamaLoadWaiters = 0;
 const warmupListeners = new Set<(waiting: boolean) => void>();
@@ -717,6 +726,7 @@ export async function warmOllamaModel(
 ): Promise<void> {
   if (config.provider !== "ollama") return;
   const base = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+  ollamaModelsUsed.set(`${base}|${config.model}`, { base, model: config.model });
   const key = `${base}|${config.model}|${config.contextTokens ? Math.floor(config.contextTokens) : ""}`;
   let load = ollamaLoads.get(key);
   if (!load) {
@@ -740,6 +750,35 @@ export async function warmOllamaModel(
     ollamaLoadWaiters--;
     notifyTutorLoadWait();
   }
+}
+
+/** How long closing the app waits for Ollama to unload. The window closes either way. */
+export const OLLAMA_UNLOAD_TIMEOUT_MS = 2_000;
+
+/**
+ * Ask Ollama to unload every model this session used (keep_alive 0), so the 4–5 GB is not held for
+ * the rest of OLLAMA_KEEP_ALIVE after the family closes the app. Called when the window closes.
+ * Never throws; a model another program also uses is loaded again on its next request.
+ */
+export async function unloadOllamaModels(): Promise<void> {
+  const used = [...ollamaModelsUsed.values()];
+  ollamaModelsUsed.clear();
+  await Promise.all(used.map(async ({ base, model }) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), OLLAMA_UNLOAD_TIMEOUT_MS);
+    try {
+      await fetch(`${base}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+        body: JSON.stringify({ model, keep_alive: 0 }),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      log.warn("unloadOllamaModels", `could not unload ${model}`, e);
+    } finally {
+      clearTimeout(timer);
+    }
+  }));
 }
 
 function ollamaSupportsSchemaFormat(version: string | null): boolean {
@@ -1156,9 +1195,8 @@ async function callOllamaStructured(
     model: config.model,
     messages,
     stream: false,
-    // num_ctx rides along when the caller resolved one. The curriculum pipeline does not set
-    // `contextTokens` yet (deliberately — #86 keeps generation untouched), so this is a no-op there
-    // today and the plumbing is ready for the phase that turns it on.
+    // num_ctx: the same window chat sends (store.ts getOllamaNumCtx), so course building and quiz
+    // grading reuse the runner chat loaded instead of reloading the model at Ollama's default.
     // num_predict is bounded for the same reason as chat turns (see ollamaOptions): a timed-out call
     // aborts the fetch, but Ollama keeps generating with no client attached.
     options: {
@@ -1766,9 +1804,11 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
 // context it was generated in, so this never truncates a real answer. A capped reply ends with
 // done_reason "length", which the kernel already treats as a fragment.
 //
-// `keep_alive` is not an option: it rides on the request body (OLLAMA_KEEP_ALIVE). It sets how long
-// the model stays in memory after a request, not how much memory it takes, so it does not compound
-// with num_ctx the way an earlier note here feared.
+// `keep_alive` is not an option: it rides on the request body (OLLAMA_KEEP_ALIVE, 30 minutes). Per
+// request it sets how long the model stays in memory, not how much it takes. #86 held it back because
+// it and num_ctx together produced `signal: killed` on a 4 GB machine, and a 30-minute stay overlaps
+// more often with the embedding model being loaded. Not measured on 4 GB. The app unloads its models
+// when the window closes (unloadOllamaModels).
 /** Upper bound on generated tokens for one Ollama turn: the context window, or 8192 if unknown. */
 export function ollamaMaxPredict(config: Pick<LLMConfig, "contextTokens">): number {
   return config.contextTokens && config.contextTokens > 0 ? Math.floor(config.contextTokens) : 8192;

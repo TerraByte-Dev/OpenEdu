@@ -217,8 +217,8 @@ export async function probeEnvironment(): Promise<SetupStatus> {
  * Start loading the course-building model as soon as setup is ready, without waiting for it, so the
  * first Create course of the day finds it in memory (llm.ts warmOllamaModel: 88 s on a CPU-only 8 GB
  * computer). Ollama only, and only when the model is installed; a model already loaded costs one
- * /api/ps request. The generation config is the one the course build sends, num_ctx included, so
- * the build reuses this load instead of replacing it.
+ * /api/ps request. It loads at the num_ctx every call sends (store.ts getOllamaNumCtx), and by default
+ * chat and course building use the same model, so a first chat turn reuses this load too.
  */
 export async function warmTutorInBackground(status: SetupStatus): Promise<void> {
   if (!status.ready || status.ollama !== "ready") return;

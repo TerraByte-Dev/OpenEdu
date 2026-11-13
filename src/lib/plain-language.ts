@@ -146,9 +146,7 @@ export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
   if (missing) {
     return `The tutor's model (${missing[1]}) isn't on this computer yet. Open Settings to pick one that is, or import it from a USB stick.`;
   }
-  if (/did not finish loading/i.test(raw)) {
-    return "The tutor took too long to wake up. Close other programs, then try again.";
-  }
+  if (/did not finish loading/i.test(raw)) return MODEL_LOAD_TIMED_OUT;
   if (/timed out after|did not respond within/i.test(raw)) {
     return "The tutor took too long to answer. Try again — the first try after the computer starts is often the slowest.";
   }
@@ -182,8 +180,13 @@ function modelAdvice(ctx: ErrorContext): string {
 }
 
 // Shown while a course build, a chat turn or quiz grading waits for the model to load (llm.ts
-// warmOllamaModel). A CPU-only computer took 88 s to load the default model after starting up.
-export const TUTOR_WARMING_UP = "Getting the tutor ready… the first start after the computer turns on can take a minute or two.";
+// warmOllamaModel): after the computer starts, after 30 minutes idle, or after a model switch. A
+// CPU-only computer took 88 s to load the default model after starting up.
+export const TUTOR_WARMING_UP = "Loading the learning model. On this computer that can take a minute or two.";
+
+// A model load that ran past llm.ts OLLAMA_LOAD_TIMEOUT_MS, wherever it surfaces (the check before a
+// course build, or any other call).
+export const MODEL_LOAD_TIMED_OUT = "The learning model took too long to load. Close other programs, then try again.";
 
 // A chat turn the model stopped partway through (no output for too long).
 export const STALLED_TURN = "The tutor stopped partway. Try again. If it keeps happening, close other programs or pick a smaller model in Settings.";
@@ -191,6 +194,7 @@ export const STALLED_TURN = "The tutor stopped partway. Try again. If it keeps h
 // The check before a course build. A model still loading into memory is not a broken one, so a
 // timeout never mentions models.
 export function preflightMessage(timedOut: boolean, raw: string, ctx: ErrorContext = {}): string {
+  if (timedOut && /did not finish loading/i.test(raw)) return MODEL_LOAD_TIMED_OUT;
   if (timedOut) return "The tutor took too long to wake up. Try again — it is usually quicker the second time.";
   return friendlyError(raw, ctx);
 }

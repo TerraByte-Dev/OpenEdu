@@ -5,7 +5,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 
 vi.mock("@tauri-apps/plugin-http", () => import("./eval/headless/shims/plugin-http"));
 vi.mock("./store", () => ({
-  getGenerationConfig: async () => ({ provider: "ollama", model: "gemma4:e2b", ollamaUrl: "http://127.0.0.1:11434" }),
+  // store.ts getOllamaNumCtx: the same window every call sends.
+  getGenerationConfig: async () => ({ provider: "ollama", model: "gemma4:e2b", ollamaUrl: "http://127.0.0.1:11434", contextTokens: 8192 }),
   getChatConfig: async () => { throw new Error("not used"); },
   getEmbeddingConfig: async () => { throw new Error("not used"); },
   getLLMProvider: async () => { throw new Error("not used"); },
@@ -37,7 +38,7 @@ describe("loading the tutor when the app opens", () => {
     await warmTutorInBackground(READY);
 
     expect(calls.map((c) => c.path)).toEqual(["/api/ps", "/api/generate"]);
-    expect(calls[1].body).toEqual({ model: "gemma4:e2b", stream: false, keep_alive: OLLAMA_KEEP_ALIVE });
+    expect(calls[1].body).toEqual({ model: "gemma4:e2b", stream: false, keep_alive: OLLAMA_KEEP_ALIVE, options: { num_ctx: 8192 } });
     expect(isWaitingForTutorLoad()).toBe(false);
   });
 
