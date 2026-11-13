@@ -12,6 +12,8 @@ import {
 } from "../lib/db";
 import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
 import { ingestResultSummary } from "../lib/ingest-format";
+import { log } from "../lib/llm";
+import { friendlyError } from "../lib/plain-language";
 import QuickSwitcher from "./QuickSwitcher";
 import NotesAssistant from "./NotesAssistant";
 import { anchorAnnotations, appendSummary, type AnchoredAnnotation } from "../lib/notebook-assistant";
@@ -412,7 +414,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     if (!q) { setDocResults(null); return; }
     setSearching(true);
     try { setDocResults(await searchNotebook({ courseId, query: q, topK: 5 })); }
-    catch (e) { setIngestError(e instanceof Error ? e.message : String(e)); }
+    catch (e) { log.error("NotesTab", "search failed", e); setIngestError(friendlyError(e)); }
     finally { setSearching(false); }
   };
 

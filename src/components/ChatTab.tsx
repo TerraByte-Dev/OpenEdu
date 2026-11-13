@@ -22,7 +22,7 @@ import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
-import { describeToolActivity, describeToolDone, describeToolRequest, friendlyError } from "../lib/plain-language";
+import { describeToolActivity, describeToolDone, describeToolRequest, friendlyError, STALLED_TURN } from "../lib/plain-language";
 // MathBlock pulls KaTeX (~258 KB); lazy-load it so KaTeX leaves the eager bundle and only loads when
 // a math.render card actually mounts.
 const MathBlock = lazy(() => import("./MathBlock"));
@@ -418,7 +418,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       }));
 
       if (result.stopReason === "stalled") {
-        setChatError("The model stopped sending output. If this keeps happening on a local model, it may be short on memory — try a smaller model or a smaller context window in Settings.");
+        setChatError(STALLED_TURN);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

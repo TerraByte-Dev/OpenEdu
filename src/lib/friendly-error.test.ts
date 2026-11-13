@@ -108,6 +108,8 @@ describe("model advice after a failed build", () => {
   it("gives no model advice for a cloud tutor or when the computer's memory is unknown", () => {
     expect(friendlyError(FAIL, { model: "gpt-5-mini", provider: "openai", ramBytes: 8 * GB })).toBe("The tutor couldn't put this together this time. Try again.");
     expect(friendlyError(FAIL, { model: "gemma4:e2b", provider: "ollama" })).toBe("The tutor couldn't put this together this time. Try again.");
+    // systemMemoryBytes() resolves null when the memory read fails.
+    expect(friendlyError(FAIL, { model: "gemma4:e2b", provider: "ollama", ramBytes: null })).toBe("The tutor couldn't put this together this time. Try again.");
   });
 
   it("never mentions models when the check timed out", () => {

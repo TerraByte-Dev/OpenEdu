@@ -158,7 +158,11 @@ export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
   }
   if (/^Unknown provider/i.test(raw)) return "No tutor is picked in Settings. Open Settings and choose one.";
   if (/^No active learner/i.test(raw)) return "Pick who is learning first, then try again.";
-  if (/^Ollama (error \d+|returned no response|stream error)/i.test(raw)) {
+  if (/API key not set/i.test(raw)) return "Add your API key in Settings, then try again.";
+  if (/requires more system memory|out of memory/i.test(raw)) {
+    return "This computer doesn't have enough free memory for the tutor right now. Close other programs, then try again.";
+  }
+  if (/^Ollama (error\b|returned no response|stream error)/i.test(raw)) {
     return "The tutor ran into a problem. Try again. If it keeps happening, close Ollama and start it again.";
   }
   return "Something went wrong. Try again in a moment.";
@@ -168,11 +172,14 @@ export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
 // computer's memory. On an 8 GB machine that is never the 9.6 GB gemma4:e4b (models.ts).
 function modelAdvice(ctx: ErrorContext): string {
   if (ctx.provider && ctx.provider !== "ollama") return "";
-  if (!ctx.model || ctx.ramBytes === undefined) return "";
+  if (!ctx.model || ctx.ramBytes == null) return "";
   const pick = defaultOllamaModelForRam(ctx.ramBytes);
   if (pick === ctx.model.trim().toLowerCase()) return "";
   return `If it keeps happening, switch the tutor to ${pick} in Settings. It suits this computer.`;
 }
+
+// A chat turn the model stopped partway through (no output for too long).
+export const STALLED_TURN = "The tutor stopped partway. Try again. If it keeps happening, close other programs or pick a smaller model in Settings.";
 
 // The check before a course build. A model still loading into memory is not a broken one, so a
 // timeout never mentions models.
