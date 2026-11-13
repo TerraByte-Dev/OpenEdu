@@ -368,9 +368,16 @@ function friendlyHttpError(provider: string, status: number, body: string): Erro
   return new Error(`${provider} error ${status}: ${detail}`);
 }
 
-function networkAwareMessage(e: unknown): string {
+// `ollamaBase`: the Ollama URL the call went to. A refused connection there means Ollama is not
+// running, not that the internet is down, so it gets its own wording.
+function networkAwareMessage(e: unknown, ollamaBase?: string): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes("network") || msg.includes("connect") || msg.includes("ECONNREFUSED") || msg.includes("fetch")) {
+    if (ollamaBase !== undefined) {
+      return /^https?:\/\/(localhost|127\.|\[::1\])/i.test(ollamaBase)
+        ? "Ollama, the program that runs the tutor, isn't running on this computer. Start Ollama, then try again."
+        : `Ollama isn't answering at ${ollamaBase}. Check that the computer running it is on and Ollama is started.`;
+    }
     return "Network error — check your internet connection and try again.";
   }
   return msg;
@@ -448,7 +455,7 @@ export async function callLLM(
         }),
       });
     } catch (e) {
-      throw new Error(`Cannot reach Ollama at ${baseUrl}. Open a terminal and run "ollama serve". Detail: ${networkAwareMessage(e)}`);
+      throw new Error(`Cannot reach Ollama at ${baseUrl}. Open a terminal and run "ollama serve". Detail: ${networkAwareMessage(e, baseUrl)}`);
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -1024,7 +1031,7 @@ async function callOllamaStructured(
     });
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") throw e;
-    throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e)}`);
+    throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e, baseUrl)}`);
   }
 
   if (!response.ok) {
@@ -1328,7 +1335,7 @@ export async function embed(texts: string[], config: LLMConfig): Promise<number[
         body: JSON.stringify({ model: config.model, input: texts }),
       });
     } catch (e) {
-      throw new Error(`Cannot reach Ollama at ${baseUrl} to embed. Run "ollama serve" and "ollama pull ${config.model}". Detail: ${networkAwareMessage(e)}`);
+      throw new Error(`Cannot reach Ollama at ${baseUrl} to embed. Run "ollama serve" and "ollama pull ${config.model}". Detail: ${networkAwareMessage(e, baseUrl)}`);
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -1737,7 +1744,7 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
       });
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") { yield { type: "done", finishReason: "aborted" }; return; }
-      throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e)}`);
+      throw new Error(`Cannot reach Ollama at ${baseUrl}: ${networkAwareMessage(e, baseUrl)}`);
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -2117,7 +2124,7 @@ export async function pullOllamaModel(
       signal,
     });
   } catch (e) {
-    throw new Error(`Cannot reach Ollama at ${base}: ${networkAwareMessage(e)}`);
+    throw new Error(`Cannot reach Ollama at ${base}: ${networkAwareMessage(e, base)}`);
   }
   if (!response.ok) {
     const text = await response.text().catch(() => "");
