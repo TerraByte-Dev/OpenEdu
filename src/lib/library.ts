@@ -17,6 +17,7 @@ import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import type { LibraryEntry } from "../types";
 import { getLibraryEnabled, getLibraryUrl, getLibraryManifestCache, setLibraryManifestCache } from "./store";
 import { normalizeManifest } from "./library-rank";
+import { sanitizeSvg } from "./sanitize-html";
 
 // The bundled library, served at the app origin (Vite copies public/ → dist root). BASE_URL is "/" by
 // default, so this resolves to "/library".
@@ -133,21 +134,6 @@ export async function fetchResource(entry: LibraryEntry, maxChars = 2500): Promi
 
 export function assetUrl(base: string, asset: string): string {
   return `${base}/${asset.replace(/^\/+/, "")}`;
-}
-
-// Minimal, additive SVG sanitizer. These SVGs are first-party (our repo, our generator, our host) — the
-// same trust level as the markdown bodies we already inline — but strip the obvious script vectors as
-// cheap defense-in-depth before inlining via dangerouslySetInnerHTML. Regex, not a parser: it can miss
-// exotic vectors (javascript: in xlink:href, CSS url() in <style>); acceptable only because the content
-// is first-party + deterministically generated. Swap to DOMPurify if third-party SVGs ever arrive.
-// <style> is intentionally kept — the generator uses it for (future) theming.
-export function sanitizeSvg(svg: string): string {
-  return svg
-    .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
-    .replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, "")
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
-    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
-    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "");
 }
 
 // Fetch a card's authored SVG "raw form" (human-facing, Resources tab). Unlike fetchResource: no

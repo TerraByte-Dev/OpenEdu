@@ -1,4 +1,3 @@
-mod corpus;
 mod model_import;
 mod ollama_setup;
 mod system;
@@ -496,17 +495,11 @@ pub fn run() {
         )
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        // Folder picking. Read-only corpus access lives in corpus.rs behind explicit grants rather
-        // than tauri-plugin-fs, whose allow-list is fixed at build time — this product needs a root
-        // the user chooses at runtime, and nothing outside it.
+        // Folder/file pickers: model_import.rs opens its folder picker from Rust; LearnerData's export
+        // uses the save dialog from JS.
         .plugin(tauri_plugin_dialog::init())
-        .manage(corpus::Granted::default())
         .manage(model_import::ImportState::default())
         .invoke_handler(tauri::generate_handler![
-            corpus::corpus_grant,
-            corpus::corpus_granted,
-            corpus::corpus_list,
-            corpus::corpus_read_text,
             system::system_memory_bytes,
             // Offline setup (#275): read-only, Rust opens the picker, network to loopback Ollama only.
             ollama_setup::ollama_installed,

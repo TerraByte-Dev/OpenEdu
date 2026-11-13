@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// (renderChatMarkdown sanitizes with DOMPurify, which needs a DOM.)
 import { beforeAll, describe, expect, it } from "vitest";
 import { ensureChatKatex, renderChatMarkdown } from "./chat-markdown";
 

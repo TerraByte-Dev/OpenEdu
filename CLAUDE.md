@@ -119,11 +119,9 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 - API keys / model config persist via `@tauri-apps/plugin-store`.
 - Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `dialog`, `store`, `updater`, `process`,
   and `http` (allow-listed to Ollama on loopback plus OpenAI / Anthropic / Tavily /
-  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers ten
-  `#[tauri::command]`s. Four are from `corpus.rs` (`corpus_grant`, `corpus_granted`, `corpus_list`,
-  `corpus_read_text`): read-only access scoped to folders the user picks, with no write command. The
-  fifth, `system_memory_bytes` in `system.rs`, returns total physical RAM (or null) so `store.ts` can
-  default Ollama to `gemma4:e2b` below 16 GB and `gemma4:e4b` at or above it (threshold in `models.ts`)
+  api.github.com). **There is no `fs` and no `shell` capability.** `src-tauri/src/lib.rs` registers six
+  `#[tauri::command]`s. The first, `system_memory_bytes` in `system.rs`, returns total physical RAM (or
+  null) so `store.ts` can default Ollama to `gemma4:e2b` below 16 GB and `gemma4:e4b` at or above it (threshold in `models.ts`)
   when the user has not picked a model, unless that one is not pulled and the other default is (so an
   upgrade never strands an install on a model it lacks); `navigator.deviceMemory` caps at 8 and cannot
   draw that line. e2b tiers as `tiny`, so `quiz-grading.ts` `runsVerifyPass` keeps the quiz verify pass
@@ -136,10 +134,18 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   Rust-side traffic is loopback-only by construction and does not go through the `http` allow-list. Pure
   halves: `src/lib/model-kit.ts`, `src/lib/ollama-guide.ts`. No command writes a file; the webview never
   names a path.
-  The Rust side is migrations, six `.plugin()` calls, and those commands. **Nothing in the UI calls
-  `src/lib/corpus.ts` yet**, so in the shipped app the only way a file's content enters is the notebook
-  import (file picker or drag-and-drop), filtered to `.md,.markdown,.txt` and read via `File.text()`
-  (`NotesTab.tsx:367,380,605`). Wiring folder access into the UI is step zero for anything archive-shaped.
+  The Rust side is migrations, six `.plugin()` calls, and those commands. There is no general folder-read
+  command (the unused `corpus_*` commands, which trusted any path the webview sent to `corpus_grant`, were
+  removed), so the only way a file's content enters is the notebook import (file picker or drag-and-drop),
+  filtered to `.md,.markdown,.txt` and read via `File.text()` (`NotesTab.tsx:367,380,605`). Folder access
+  for anything archive-shaped should follow `model_import.rs`: Rust opens the picker, the webview never
+  names a path.
+- Every string inlined with `dangerouslySetInnerHTML` (chat/lesson/resource markdown via
+  `renderChatMarkdown`, `MathBlock`'s KaTeX, library card SVGs) goes through `src/lib/sanitize-html.ts`
+  (DOMPurify) first. Mermaid SVG is sanitized by Mermaid itself (`securityLevel: "strict"`). On top of
+  DOMPurify's defaults it forbids `<style>`, `<form>`, form controls and `<base>`/`<meta>`/`<link>`; the
+  only `<input>` allowed is GFM's disabled task-list checkbox. Inline `position` other than
+  `relative`/`static` is stripped, so a reply can't lay a fixed/absolute overlay over the app.
 
 ---
 
