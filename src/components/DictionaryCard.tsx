@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { CARD_SOURCE, cardToggleLabel, type DictionaryCard as Card } from "../lib/dictionary-card";
+import { IconBook2, IconChevronDown, IconMediaStop, IconVolumeUp } from "./icons";
 
 // The dictionary card under a tutor reply (#251 PR 3): the entry the tutor was given, as
 // lib/dictionary-card.ts lays it out. Session-only and never part of the request (see that file).
@@ -24,9 +25,7 @@ export function DictionaryCard({ card, startsOpen, reading, onReadAloud }: {
           onClick={() => setOpen((o) => !o)}
         >
           {cardToggleLabel(open)}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={open ? "rotate-180" : ""}>
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+          <IconChevronDown size={14} className={open ? "rotate-180" : ""} />
         </button>
         {open && onReadAloud && (
           <button
@@ -38,15 +37,9 @@ export function DictionaryCard({ card, startsOpen, reading, onReadAloud }: {
             title={reading ? "Stop reading" : "Read the dictionary entry aloud"}
           >
             {reading ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
+              <IconMediaStop size={16} className="scale-[0.65]" />
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
-                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-                <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-              </svg>
+              <IconVolumeUp size={18} />
             )}
           </button>
         )}
@@ -87,10 +80,6 @@ export function DictionaryCard({ card, startsOpen, reading, onReadAloud }: {
 
 function BookIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="dict-card-icon">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      <path d="M9 7h7M9 10.5h5" />
-    </svg>
+    <IconBook2 size={18} className="dict-card-icon" />
   );
 }

@@ -1,4 +1,5 @@
 ﻿import { Component, type ErrorInfo, type ReactNode } from "react";
+import { IconCircleWarning } from "./icons";
 
 interface Props {
   children: ReactNode;
@@ -29,10 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         <div className="flex-1 flex items-center justify-center bg-bg p-8">
           <div className="max-w-md w-full rounded-xl border border-danger/30 bg-panel p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v4M12 16h.01" />
-              </svg>
+              <IconCircleWarning size={20} className="text-danger" />
               <h2 className="text-ink font-semibold">Something went wrong</h2>
             </div>
             <p className="text-sm text-[var(--ink-faint)]">

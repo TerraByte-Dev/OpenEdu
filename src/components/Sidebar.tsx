@@ -3,6 +3,7 @@ import type { Course } from "../types";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { describeGenerationState } from "../lib/plain-language";
 import { APP_NAME } from "../lib/product";
+import { IconChevronLeft, IconChevronRight, IconClock, IconMediaPlay, IconSquareArrowUpRight, IconTrash } from "./icons";
 
 interface ContextMenuState {
   x: number;
@@ -55,11 +56,7 @@ export default function Sidebar({
       {
         label: "Open Course",
         icon: (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
+          <IconSquareArrowUpRight size={14} />
         ),
         onClick: () => onSelectCourse(courseId),
       },
@@ -68,9 +65,7 @@ export default function Sidebar({
       items.push({
         label: "Finish building",
         icon: (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
+          <IconMediaPlay size={14} />
         ),
         onClick: () => onResumeCourse(courseId),
       });
@@ -79,10 +74,7 @@ export default function Sidebar({
       {
         label: `Level ${course?.current_level ?? "—"}`,
         icon: (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+          <IconClock size={14} />
         ),
         onClick: () => {},
         disabled: true,
@@ -90,12 +82,7 @@ export default function Sidebar({
       {
         label: "Delete Course",
         icon: (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-          </svg>
+          <IconTrash size={14} />
         ),
         danger: true,
         onClick: () => setConfirmDelete(courseId),
@@ -134,13 +121,7 @@ export default function Sidebar({
             className="p-1.5 rounded hover:bg-lcd text-[var(--ink-faint)] hover:text-ink"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              {collapsed ? (
-                <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              ) : (
-                <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              )}
-            </svg>
+            {collapsed ? <IconChevronRight size={16} /> : <IconChevronLeft size={16} />}
           </button>
         </div>
 

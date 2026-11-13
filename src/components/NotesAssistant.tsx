@@ -17,12 +17,13 @@ import {
   REVIEW_SCHEMA, SUMMARY_SCHEMA,
   type Annotation, type AnchoredAnnotation, type AnnotationKind,
 } from "../lib/notebook-assistant";
+import { IconCheck12, IconPlus12, IconQuestion12, IconXmark12, type IconComponent } from "./icons";
 
-const KIND_META: Record<AnnotationKind, { label: string; color: string; glyph: string }> = {
-  error:    { label: "Wrong",   color: "var(--danger)", glyph: "M18 6L6 18M6 6l12 12" },
-  gap:      { label: "Missing", color: "var(--warning)", glyph: "M12 5v14M5 12h14" },
-  question: { label: "Check",   color: "var(--phosphor)", glyph: "M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01" },
-  correct:  { label: "Right",   color: "var(--success)", glyph: "M20 6L9 17l-5-5" },
+const KIND_META: Record<AnnotationKind, { label: string; color: string; Glyph: IconComponent }> = {
+  error:    { label: "Wrong",   color: "var(--danger)", Glyph: IconXmark12 },
+  gap:      { label: "Missing", color: "var(--warning)", Glyph: IconPlus12 },
+  question: { label: "Check",   color: "var(--phosphor)", Glyph: IconQuestion12 },
+  correct:  { label: "Right",   color: "var(--success)", Glyph: IconCheck12 },
 };
 
 export interface NotesAssistantProps {
@@ -142,15 +143,16 @@ export default function NotesAssistant({
             </div>
 
             <div className="flex gap-2 px-3 pb-2 flex-wrap">
-              {(Object.keys(KIND_META) as AnnotationKind[]).filter((k) => counts[k]).map((k) => (
-                <span key={k} className="inline-flex items-center gap-1 text-[10px] font-mono"
-                      style={{ color: KIND_META[k].color }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d={KIND_META[k].glyph} />
-                  </svg>
-                  {counts[k]} {KIND_META[k].label.toLowerCase()}
-                </span>
-              ))}
+              {(Object.keys(KIND_META) as AnnotationKind[]).filter((k) => counts[k]).map((k) => {
+                const { Glyph } = KIND_META[k];
+                return (
+                  <span key={k} className="inline-flex items-center gap-1 text-[10px] font-mono"
+                        style={{ color: KIND_META[k].color }}>
+                    <Glyph size={9} />
+                    {counts[k]} {KIND_META[k].label.toLowerCase()}
+                  </span>
+                );
+              })}
             </div>
 
             {annotations.map((a, i) => (

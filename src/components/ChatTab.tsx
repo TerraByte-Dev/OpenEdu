@@ -31,6 +31,7 @@ import { CompanionSprite } from "./CompanionSprite";
 import { DictionaryCard } from "./DictionaryCard";
 import { dictionaryCard, cardStartsOpen, cardSpeech, type DictionaryCard as DictionaryCardData } from "../lib/dictionary-card";
 import { LIBRARY_NAME } from "../lib/product";
+import { IconMediaStop, IconPaperPlane, IconVolumeUp } from "./icons";
 
 // Models already reported as tool-less this session, so the DEV notice prints once per model.
 const toolsSuppressedLogged = new Set<string>();
@@ -534,15 +535,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                       title={readAloud.speakingId === safetyId ? "Stop reading" : "Read aloud"}
                     >
                       {readAloud.speakingId === safetyId ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                          <rect x="6" y="6" width="12" height="12" rx="2" />
-                        </svg>
+                        <IconMediaStop size={16} className="scale-[0.65]" />
                       ) : (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
-                          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-                          <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-                        </svg>
+                        <IconVolumeUp size={18} />
                       )}
                     </button>
                   )}
@@ -647,9 +642,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               title="Stop generating"
               className="px-4 py-3 rounded-xl bg-lcd hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger transition-colors"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="6" width="12" height="12" rx="1" />
-              </svg>
+              <IconMediaStop size={20} className="scale-[0.65]" />
             </button>
           ) : (
             <button
@@ -657,9 +650,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               disabled={!input.trim()}
               className="px-4 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-              </svg>
+              <IconPaperPlane size={20} />
             </button>
           )}
         </div>
@@ -707,15 +698,9 @@ function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage
           title={reading ? "Stop reading" : "Read aloud"}
         >
           {reading ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <rect x="6" y="6" width="12" height="12" rx="2" />
-            </svg>
+            <IconMediaStop size={16} className="scale-[0.65]" />
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
-              <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-              <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-            </svg>
+            <IconVolumeUp size={18} />
           )}
         </button>
       )}

@@ -4,6 +4,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { matchText } from "../../lib/text-match";
+import { IconChevronRight, IconEye, IconEyeSlash } from "../../components/icons";
 
 // ── Shared context: live search query + a "something just saved" pulse ──────────────────────────────────
 export interface SettingsCtx {
@@ -214,9 +215,9 @@ export function SecretField({
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--ink-faint)] hover:text-phosphor-ink transition-colors"
           >
             {revealed ? (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+              <IconEyeSlash size={15} />
             ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              <IconEye size={15} />
             )}
           </button>
         </div>
@@ -265,8 +266,7 @@ export function Disclosure({
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[var(--ink-dim)] hover:text-ink hover:bg-panel-lite/60 transition-colors"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-          className={`transition-transform ${open ? "rotate-90" : ""}`}><path d="M9 18l6-6-6-6"/></svg>
+        <IconChevronRight size={12} className={`transition-transform ${open ? "rotate-90" : ""}`} />
         {summary}
       </button>
       {open && <div className="px-4 pb-4 pt-1">{children}</div>}

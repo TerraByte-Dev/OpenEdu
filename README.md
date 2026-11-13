@@ -172,6 +172,8 @@ The bundled dictionary (`public/dictionary/`) is adapted from [Open English Word
 2025, by the Open English WordNet team (reformatted and trimmed; see `meta.json`), under [CC BY 4.0](public/dictionary/LICENSE.md). It is derived from
 WordNet 3.1, © Princeton University, under the [WordNet licence](public/dictionary/WNDB_License.txt).
 
+The UI icons (`src/components/icons/`) are [Nucleo](https://nucleoapp.com) icons, used under TerraByte Solutions LLC's Nucleo licence. They are not covered by this repo's MIT licence and may not be redistributed on their own.
+
 <p align="center">
   <a href="https://github.com/TerraByte-Dev"><img src="docs/assets/terrabyte-logo.png" alt="TerraByte Solutions LLC" width="64" /></a><br/>
   <sub>An open-source project by <strong>TerraByte Solutions LLC</strong></sub>

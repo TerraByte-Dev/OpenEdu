@@ -7,6 +7,7 @@ import { getLLMConfig } from "../lib/store";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
+import { IconXmark } from "../components/icons";
 
 interface QuizFullScreenProps {
   context: QuizViewContext;
@@ -311,9 +312,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
           onClick={onClose}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-faint)] hover:text-ink text-xs transition-colors shrink-0"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
+          <IconXmark size={14} />
           Exit Quiz
         </button>
       </div>

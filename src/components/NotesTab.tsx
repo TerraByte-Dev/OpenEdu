@@ -23,6 +23,7 @@ import {
 } from "../lib/notebook-links";
 import type { ThemeId } from "../lib/theme";
 import { useThemeState } from "../lib/useTheme";
+import { IconChevronRight12, IconFile, IconFolderPlus, IconNodes, IconPencil, IconPlus, IconSidebarRight, IconTrash, IconUpload4, IconXmark } from "./icons";
 
 // Canvas graph palette, one per mode (hex — the canvas API can't read CSS vars). Mirrors the index.css
 // tokens: notes and folders in the accent, labels in --ink-dim, tag nodes in --warning so they read as
@@ -52,17 +53,6 @@ function nodeRadius(gn: { kind: GraphNodeKind; degree: number }): number {
   return base + Math.min(gn.degree, cap) * 0.6;
 }
 
-// The only folder glyph left. The tree itself uses a chevron alone — the open/closed folder icon was
-// redundant next to it, and dropping it is most of what separates a file tree from a toolbar.
-function FolderPlusGlyph({ size = 13, className = "" }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`}>
-      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
-      <path d="M12 11v6M9 14h6" />
-    </svg>
-  );
-}
-
 // Visibility of the context panel, remembered across mounts. Mirrors the `oe-` prefix theme.ts uses.
 const CONTEXT_PANEL_KEY = "oe-notes-context";
 
@@ -88,10 +78,7 @@ function ContextSection({ title, count, open, onToggle, children }: {
         onClick={onToggle}
         className="w-full flex items-center gap-1.5 px-3 py-2 text-left hover:bg-panel-lite/60 transition-colors"
       >
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-          className={`shrink-0 text-[var(--ink-faint)] transition-transform ${open ? "rotate-90" : ""}`}>
-          <path d="M9 18l6-6-6-6" />
-        </svg>
+        <IconChevronRight12 size={9} className={`shrink-0 text-[var(--ink-faint)] transition-transform ${open ? "rotate-90" : ""}`} />
         <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)] flex-1 min-w-0 truncate">{title}</span>
         <span className="text-[10px] font-mono text-[var(--ink-faint)] shrink-0">{count}</span>
       </button>
@@ -527,10 +514,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
         >
           {/* Chevron only — no folder glyph. The chevron already says "container", and dropping the
               second icon is most of what separates a file tree from a toolbar. */}
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-               className={`shrink-0 text-[var(--ink-faint)] transition-transform ${isOpen ? "rotate-90" : ""}`}>
-            <path d="M9 18l6-6-6-6" />
-          </svg>
+          <IconChevronRight12 size={10} className={`shrink-0 text-[var(--ink-faint)] transition-transform ${isOpen ? "rotate-90" : ""}`} />
           {renamingId === folder.id ? (
             <input
               autoFocus
@@ -550,16 +534,16 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               next to SVGs, which is most of why the tree read as assembled from spare parts. */}
           <span className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
             <button title="New note here" onClick={() => handleNewNote(folder.id)} className={ROW_ICON}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 5v14M5 12h14" /></svg>
+              <IconPlus size={12} />
             </button>
             <button title="New subfolder" onClick={() => handleNewFolder(folder.id)} className={ROW_ICON}>
-              <FolderPlusGlyph size={12} />
+              <IconFolderPlus size={12} className="shrink-0" />
             </button>
             <button title="Rename" onClick={() => { setRenamingId(folder.id); setRenameValue(folder.name); }} className={ROW_ICON}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></svg>
+              <IconPencil size={12} />
             </button>
             <button title="Delete folder (keeps notes)" onClick={() => handleDeleteFolder(folder.id)} className={`${ROW_ICON} hover:!text-danger`}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              <IconXmark size={12} />
             </button>
           </span>
         </div>
@@ -593,17 +577,14 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
         <div className="flex items-center gap-px pl-2.5 pr-1.5 py-1.5">
           <span className="flex-1 text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)] select-none">Notes</span>
           <button onClick={() => handleNewNote(null)} title="New note" className={GHOST_ICON}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 5v14M5 12h14" /></svg>
+            <IconPlus size={14} />
           </button>
           <button onClick={() => handleNewFolder(null)} title="New folder" className={GHOST_ICON}>
-            <FolderPlusGlyph size={14} />
+            <IconFolderPlus size={14} className="shrink-0" />
           </button>
           <button onClick={() => fileInputRef.current?.click()} disabled={ingesting} title="Import .md/.txt as notes" className={GHOST_ICON}>
             {/* Was a bare ⬆ character among line-art SVGs. */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                 className={ingesting ? "animate-pulse" : ""}>
-              <path d="M12 15V3M7 8l5-5 5 5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-            </svg>
+            <IconUpload4 size={14} className={ingesting ? "animate-pulse" : ""} />
           </button>
           <button
             onClick={() => { saveIfDirty(); setPendingLink(null); setPanelView(panelView === "graph" ? "note" : "graph"); }}
@@ -611,7 +592,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             aria-pressed={panelView === "graph"}
             className={`${GHOST_ICON} ${panelView === "graph" ? "!text-phosphor-bright bg-[rgb(var(--phosphor-rgb)/0.13)]" : ""}`}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="5" cy="12" r="2.2" /><circle cx="19" cy="5" r="2.2" /><circle cx="19" cy="19" r="2.2" /><line x1="7.2" y1="12" x2="16.8" y2="6.6" /><line x1="7.2" y1="12" x2="16.8" y2="17.4" /></svg>
+            <IconNodes size={14} />
           </button>
           <input ref={fileInputRef} type="file" accept=".md,.markdown,.txt" multiple onChange={handleFileInput} className="hidden" />
         </div>
@@ -633,7 +614,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             />
             {(query || docResults) && (
               <button onClick={() => { setQuery(""); setDocResults(null); }} title="Clear search" className={ROW_ICON}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                <IconXmark size={12} />
               </button>
             )}
           </div>
@@ -836,12 +817,10 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   className={`p-1.5 rounded transition-colors shrink-0 ${showContext ? "text-phosphor-bright bg-[rgb(var(--phosphor-rgb)/0.10)]" : "text-[var(--ink-faint)] hover:text-ink hover:bg-lcd"}`}
                   title={showContext ? "Hide outline & backlinks" : "Show outline & backlinks"}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" />
-                  </svg>
+                  <IconSidebarRight size={15} />
                 </button>
                 <button onClick={handleDeleteNote} className="p-1.5 rounded hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger transition-colors shrink-0" title="Delete note">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /></svg>
+                  <IconTrash size={15} />
                 </button>
               </div>
 
@@ -853,7 +832,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   </span>
                   <div className="flex-1" />
                   <button onClick={createPendingNote} className="px-2 py-1 rounded btn-primary text-[11px] font-medium shrink-0 flex items-center gap-1">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
+                    <IconPlus size={11} />
                     Create note
                   </button>
                   <button onClick={() => setPendingLink(null)} className="px-2 py-1 rounded bg-lcd text-[var(--ink-faint)] hover:text-ink text-[11px] shrink-0">Dismiss</button>
@@ -962,7 +941,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[var(--ink-faint)]">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+              <IconFile size={36} />
               <span className="text-sm">Select a note or create one</span>
               <p className="text-xs text-[var(--ink-faint)] text-center max-w-xs">Organize with folders, link with <code className="px-1 bg-panel-lite rounded text-phosphor-bright">[[Note Title]]</code>, and drop <code className="px-1 bg-panel-lite rounded text-phosphor-bright">.md</code>/<code className="px-1 bg-panel-lite rounded text-phosphor-bright">.txt</code> files to import them as notes the tutor can cite.</p>
             </div>
