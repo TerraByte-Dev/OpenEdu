@@ -93,6 +93,10 @@ describe("system prompt with a grade set: child-safety rules", () => {
     }
   });
 
+  it("adds the safety section once with a grade set, disclosure or not", () => {
+    for (const g of GRADES) expect(gradePromptLayer(g, "my dad hit me")).toBe(gradePromptLayer(g));
+  });
+
   it("keeps the safety section on the worked-answer turn", () => {
     const prompt = withGrade(full.args, gradePromptLayer(4));
     const convo = [
@@ -105,5 +109,37 @@ describe("system prompt with a grade set: child-safety rules", () => {
     const swapped = turnSystemPrompt(prompt, convo);
     expect(swapped.endsWith(WORKED_ANSWER_RULES)).toBe(true);
     expect(swapped).toContain(CHILD_SAFETY_RULES);
+  });
+});
+
+// The review of #282: grade defaults to "Not set", so a fresh install's child would get no safety
+// section at all. With no grade, a turn whose message trips isSafetyDisclosure gets CHILD_SAFETY_RULES
+// in the reading-level slot; every other no-grade turn stays byte-identical to master.
+describe("system prompt with no grade set: a safety-disclosure turn", () => {
+  const SEP = "\n\n---\n\n";
+
+  it("adds only the safety section, just before the output rules, on a disclosure", () => {
+    const [, full] = PROMPT_CASES;
+    const prompt = withGrade(full.args, gradePromptLayer(null, "I want to kill myself"));
+    expect(prompt.split("## Safety").length).toBe(2);
+    expect(prompt).not.toContain("## Reading level");
+    expect(prompt.endsWith(`${CHILD_SAFETY_RULES}${SEP}${OUTPUT_RULES}`)).toBe(true);
+  });
+
+  it("is master's prompt plus that one section for every case", () => {
+    for (const [i, c] of PROMPT_CASES.entries()) {
+      for (const m of ["my dad hit me", "I want to kill myself", "kms"]) {
+        const prompt = withGrade(c.args, gradePromptLayer(null, m));
+        expect(prompt.replace(`${SEP}${CHILD_SAFETY_RULES}`, "")).toBe(master[i].prompt);
+      }
+    }
+  });
+
+  it("is byte-identical to master on an ordinary message", () => {
+    for (const [i, c] of PROMPT_CASES.entries()) {
+      for (const m of ["What is 3/4 + 1/8?", "the story really touched me", ""]) {
+        expect(withGrade(c.args, gradePromptLayer(null, m))).toBe(master[i].prompt);
+      }
+    }
   });
 });

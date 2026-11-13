@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isSafetyDisclosure, SAFETY_NOTICE, CHILD_SAFETY_RULES } from "./child-safety";
+import { speakableText } from "./speech";
 import chatTabSource from "../components/ChatTab.tsx?raw";
 
 describe("isSafetyDisclosure", () => {
@@ -12,11 +13,29 @@ describe("isSafetyDisclosure", () => {
     ]) expect(isSafetyDisclosure(m), m).toBe(true);
   });
 
+  // The review of #282 found every one of these returned false.
+  it("fires on the suicide and self-harm wordings the first list missed", () => {
+    for (const m of [
+      "I do not want to live", "I don't wanna live", "I wanna be dead", "I wish I could die",
+      "I wish I had never been born", "nobody would care if I died", "I want to end it all",
+      "no reason to live", "I want to hurt my self", "I cut my wrists", "kms", "unalive myself",
+    ]) expect(isSafetyDisclosure(m), m).toBe(true);
+  });
+
   it("fires on abuse disclosures", () => {
     for (const m of [
       "my dad hits me when he's angry", "my uncle touched me and told me not to tell",
       "someone is hurting me", "my mom's boyfriend abuses me", "I'm scared to go home",
       "I am not safe at home", "he beat me up after school", "I was molested",
+    ]) expect(isSafetyDisclosure(m), m).toBe(true);
+  });
+
+  // The review of #282 found every one of these returned false. Past-tense "hit me" is the likeliest.
+  it("fires on the abuse wordings the first list missed", () => {
+    for (const m of [
+      "my dad hit me", "he hit me", "my dad beat me", "my dad beats me", "my mom hits us",
+      "my mom slaps me", "he punches me", "my mom hurt me", "I am being abused",
+      "he touches my private parts", "my stepdad hurts my sister",
     ]) expect(isSafetyDisclosure(m), m).toBe(true);
   });
 
@@ -27,7 +46,22 @@ describe("isSafetyDisclosure", () => {
       "my brother beats me at chess", "What is substance abuse?", "What was the abuse of power in Watergate?",
       "Explain how a hurricane hits the coast", "Hit me with another question!", "How do plants die in winter?",
       "What is 3/4 + 1/8?", "", "   ",
+      // From the review of #282: the old unanchored "touched me", "hits me", "hurts me" entries fired on these.
+      "the story really touched me", "that poem touched me deeply", "what happens when a wave hits me",
+      "if a baseball hits me how much force is it", "it hurts me to read this much", "my hand hurts me when I write",
+      "they beat us in the finals", "The race is 5 kms long",
     ]) expect(isSafetyDisclosure(m), m).toBe(false);
+  });
+
+  // Known, accepted false positives: each shows the notice on an ordinary message. They stay because
+  // the matcher that would skip them would also skip real disclosures, and a wrong notice costs one
+  // kind line of text. Pinned here so a change to that trade is a deliberate one.
+  it("fires on these known, accepted false positives", () => {
+    for (const m of [
+      "Why did Romeo commit suicide?", "he hit me with a great idea", "I cut myself on the paper",
+      "I hurt myself at recess", "why do the characters want to die in Romeo and Juliet",
+      "women were raped during the war", "what does molest mean",
+    ]) expect(isSafetyDisclosure(m), m).toBe(true);
   });
 
   it("matches whole words only", () => {
@@ -44,6 +78,12 @@ describe("SAFETY_NOTICE", () => {
     expect(SAFETY_NOTICE).toContain("1-800-422-4453");
     expect(SAFETY_NOTICE).toContain("Childhelp National Child Abuse Hotline");
     expect(SAFETY_NOTICE.toLowerCase()).toContain("tell a grown-up you trust");
+    expect(SAFETY_NOTICE).toContain("If you are in danger right now, call 911.");
+  });
+
+  it("reads aloud in full, numbers included", () => {
+    const spoken = speakableText(SAFETY_NOTICE);
+    for (const w of ["911", "988", "1-800-422-4453", "grown-up you trust"]) expect(spoken, w).toContain(w);
   });
 });
 
@@ -59,7 +99,9 @@ describe("CHILD_SAFETY_RULES", () => {
   });
 });
 
-// ChatTab is DOM-coupled and not rendered in vitest, so pin that its chat path calls these functions.
+// ChatTab is DOM-coupled and the repo has no jsdom, so it is not rendered in vitest. These are source
+// matches, not a production-path test: they pin that the chat calls the functions above, which are
+// the parts tested through the code production runs.
 describe("ChatTab wiring", () => {
   it("screens each student message with isSafetyDisclosure and shows SAFETY_NOTICE", () => {
     expect(chatTabSource).toContain('from "../lib/child-safety"');
@@ -67,8 +109,14 @@ describe("ChatTab wiring", () => {
     expect(chatTabSource).toContain("{SAFETY_NOTICE}");
   });
 
-  it("builds the tutor's system prompt with gradePromptLayer(grade), not the reading level alone", () => {
-    expect(chatTabSource).toMatch(/personaIdentityLayer\(persona\),\s*gradePromptLayer\(grade\),\s*\)/);
+  it("shows the notice at K-2's chat text size, with a speaker button that reads it", () => {
+    expect(chatTabSource).toMatch(/role="note" className="chat-msg [^"]*text-sm[^"]*"/);
+    expect(chatTabSource).not.toMatch(/role="note" className="[^"]*text-xs/);
+    expect(chatTabSource).toContain("readAloud.toggle(safetyId, SAFETY_NOTICE)");
+  });
+
+  it("builds the tutor's system prompt with gradePromptLayer(grade, userText), not the reading level alone", () => {
+    expect(chatTabSource).toMatch(/personaIdentityLayer\(persona\),\s*gradePromptLayer\(grade, userText\),\s*\)/);
     expect(chatTabSource).not.toContain("readingLevelLayer(");
   });
 });

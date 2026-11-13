@@ -310,7 +310,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       skillSuffix,
       knowledgeSummary || undefined,
       personaIdentityLayer(persona),
-      gradePromptLayer(grade),
+      gradePromptLayer(grade, userText),
     );
 
     // Only include system message if it has content
@@ -510,6 +510,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         {messages.map((msg) => {
           const card = msg.role === "assistant" ? dictionaryCards.get(msg.id) : undefined;
           const cardId = `dictionary:${msg.id}`;
+          const safetyId = `safety:${msg.id}`;
           return (
             <div key={msg.id} className="space-y-2">
               <MessageBubble
@@ -518,10 +519,33 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                 onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
               />
               {/* A self-harm or abuse disclosure gets a fixed notice under it, shown as soon as the message is;
-                  the tutor turn still runs (child-safety.ts). Code-matched, never a model call. */}
+                  the tutor turn still runs (child-safety.ts). Code-matched, never a model call. A .chat-msg, so
+                  K-2's larger chat text applies, with a speaker button so a child who cannot read it can hear it. */}
               {msg.role === "user" && isSafetyDisclosure(msg.content) && (
-                <div role="note" className="p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint text-xs text-ink leading-relaxed">
-                  {SAFETY_NOTICE}
+                <div role="note" className="chat-msg flex items-start gap-3 p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint text-sm text-ink leading-relaxed">
+                  <p className="flex-1">{SAFETY_NOTICE}</p>
+                  {readAloud.supported && (
+                    <button
+                      type="button"
+                      className="speak-btn"
+                      onClick={() => readAloud.toggle(safetyId, SAFETY_NOTICE)}
+                      aria-label={readAloud.speakingId === safetyId ? "Stop reading" : "Read aloud"}
+                      aria-pressed={readAloud.speakingId === safetyId}
+                      title={readAloud.speakingId === safetyId ? "Stop reading" : "Read aloud"}
+                    >
+                      {readAloud.speakingId === safetyId ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <rect x="6" y="6" width="12" height="12" rx="2" />
+                        </svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
+                          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                          <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
               {card && (

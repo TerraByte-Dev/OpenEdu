@@ -5,9 +5,10 @@
 // not set. Everything a grade changes is decided here from its band, by code, with no model call:
 // the reading-level line and child-safety rules in the tutor's system prompt, the chat text size, and
 // whether replies read themselves aloud by default. With no grade set none of it applies, and the
-// system prompt is byte-identical to the one before grades existed (systemPrompt-master.test.ts pins that).
+// system prompt is byte-identical to the one before grades existed (systemPrompt-master.test.ts pins
+// that), except on a safety-disclosure turn, which gets the child-safety rules (gradePromptLayer).
 
-import { CHILD_SAFETY_RULES } from "./child-safety";
+import { CHILD_SAFETY_RULES, isSafetyDisclosure } from "./child-safety";
 
 /** 0 = kindergarten, 1-12 = that grade. */
 export type Grade = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
@@ -64,12 +65,14 @@ export function readingLevelLayer(grade: Grade | null): string | undefined {
 
 /**
  * Everything a grade adds to the tutor's system prompt: the reading level, then the child-safety
- * section (child-safety.ts). ChatTab passes this in buildSystemPrompt's reading-level slot. Undefined
- * when no grade is set, so an unset grade leaves the prompt byte-identical.
+ * section (child-safety.ts). ChatTab passes this in buildSystemPrompt's reading-level slot, with the
+ * student's message. With no grade set, a message that trips isSafetyDisclosure still gets the safety
+ * section on its own; any other message gets undefined, so the prompt stays byte-identical.
  */
-export function gradePromptLayer(grade: Grade | null): string | undefined {
+export function gradePromptLayer(grade: Grade | null, message = ""): string | undefined {
   const level = readingLevelLayer(grade);
-  return level && `${level}\n\n---\n\n${CHILD_SAFETY_RULES}`;
+  if (level) return `${level}\n\n---\n\n${CHILD_SAFETY_RULES}`;
+  return isSafetyDisclosure(message) ? CHILD_SAFETY_RULES : undefined;
 }
 
 /**
