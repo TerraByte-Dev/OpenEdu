@@ -3,9 +3,11 @@
 //
 // Stored in learners.grade (migration 15) as an integer: 0 = kindergarten, 1-12 = that grade, NULL =
 // not set. Everything a grade changes is decided here from its band, by code, with no model call:
-// the reading-level line in the tutor's system prompt, the chat text size, and whether replies read
-// themselves aloud by default. With no grade set none of it applies, and the system prompt is
-// byte-identical to the one before grades existed (systemPrompt-master.test.ts pins that).
+// the reading-level line and child-safety rules in the tutor's system prompt, the chat text size, and
+// whether replies read themselves aloud by default. With no grade set none of it applies, and the
+// system prompt is byte-identical to the one before grades existed (systemPrompt-master.test.ts pins that).
+
+import { CHILD_SAFETY_RULES } from "./child-safety";
 
 /** 0 = kindergarten, 1-12 = that grade. */
 export type Grade = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
@@ -58,6 +60,16 @@ export function readingLevelLayer(grade: Grade | null): string | undefined {
   if (band === null || grade === null) return undefined;
   const who = grade === 0 ? "kindergarten" : `grade ${grade}`;
   return `## Reading level\nThe student is in ${who}. ${BAND_RULES[band]}`;
+}
+
+/**
+ * Everything a grade adds to the tutor's system prompt: the reading level, then the child-safety
+ * section (child-safety.ts). ChatTab passes this in buildSystemPrompt's reading-level slot. Undefined
+ * when no grade is set, so an unset grade leaves the prompt byte-identical.
+ */
+export function gradePromptLayer(grade: Grade | null): string | undefined {
+  const level = readingLevelLayer(grade);
+  return level && `${level}\n\n---\n\n${CHILD_SAFETY_RULES}`;
 }
 
 /**

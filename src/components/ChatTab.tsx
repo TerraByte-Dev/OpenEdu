@@ -10,7 +10,7 @@ import { transcriptLoader, type TranscriptLoader } from "../lib/thread-transcrip
 import { buildSystemPrompt } from "../lib/curriculum";
 import { detectModelProfile } from "../lib/llm";
 import { getChatConfig, getMaxContextTokens, getRetrievalMode, getReadAloudAuto } from "../lib/store";
-import { readingLevelLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
+import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
 import { useReadAloud } from "../lib/useReadAloud";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
@@ -21,6 +21,7 @@ import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
+import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
 import { describeToolRequest } from "../lib/plain-language";
 // MathBlock pulls KaTeX (~258 KB); lazy-load it so KaTeX leaves the eager bundle and only loads when
 // a math.render card actually mounts.
@@ -309,7 +310,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       skillSuffix,
       knowledgeSummary || undefined,
       personaIdentityLayer(persona),
-      readingLevelLayer(grade),
+      gradePromptLayer(grade),
     );
 
     // Only include system message if it has content
@@ -516,6 +517,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                 reading={readAloud.speakingId === msg.id}
                 onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
               />
+              {/* A self-harm or abuse disclosure gets a fixed notice under it, shown as soon as the message is;
+                  the tutor turn still runs (child-safety.ts). Code-matched, never a model call. */}
+              {msg.role === "user" && isSafetyDisclosure(msg.content) && (
+                <div role="note" className="p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint text-xs text-ink leading-relaxed">
+                  {SAFETY_NOTICE}
+                </div>
+              )}
               {card && (
                 <DictionaryCard
                   card={card}

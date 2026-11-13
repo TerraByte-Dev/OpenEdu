@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt } from "../curriculum";
-import { readingLevelLayer, GRADES } from "../grade";
+import { readingLevelLayer, gradePromptLayer, GRADES } from "../grade";
+import { CHILD_SAFETY_RULES } from "../child-safety";
 import { turnSystemPrompt, OUTPUT_RULES, WORKED_ANSWER_RULES } from "./outputRules";
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
 import { PROMPT_CASES, type MasterPromptArgs } from "./systemPromptCases";
@@ -29,6 +30,7 @@ describe("system prompt with no grade set", () => {
   for (const [i, c] of PROMPT_CASES.entries()) {
     it(`is byte-identical to master: ${c.name}`, () => {
       expect(withGrade(c.args, readingLevelLayer(null))).toBe(master[i].prompt);
+      expect(withGrade(c.args, gradePromptLayer(null))).toBe(master[i].prompt);
       expect(buildSystemPrompt(...c.args)).toBe(master[i].prompt);
     });
   }
@@ -67,5 +69,41 @@ describe("system prompt with a grade set", () => {
     const swapped = turnSystemPrompt(prompt, convo);
     expect(swapped.endsWith(WORKED_ANSWER_RULES)).toBe(true);
     expect(swapped).toContain(readingLevelLayer(4)!);
+  });
+});
+
+// What ChatTab passes since the child-safety rules: the reading level, then CHILD_SAFETY_RULES.
+describe("system prompt with a grade set: child-safety rules", () => {
+  const [, full] = PROMPT_CASES;
+  const SEP = "\n\n---\n\n";
+
+  it("adds the safety section once, after the reading level and just before the output rules", () => {
+    const prompt = withGrade(full.args, gradePromptLayer(1));
+    expect(prompt.split("## Safety").length).toBe(2);
+    expect(prompt.endsWith(`${readingLevelLayer(1)}${SEP}${CHILD_SAFETY_RULES}${SEP}${OUTPUT_RULES}`)).toBe(true);
+  });
+
+  it("is master's prompt plus those two sections for every grade, nothing else changed", () => {
+    for (const [i, c] of PROMPT_CASES.entries()) {
+      for (const g of GRADES) {
+        expect(gradePromptLayer(g)).toBe(`${readingLevelLayer(g)}${SEP}${CHILD_SAFETY_RULES}`);
+        const added = `${SEP}${readingLevelLayer(g)}${SEP}${CHILD_SAFETY_RULES}`;
+        expect(withGrade(c.args, gradePromptLayer(g)).replace(added, "")).toBe(master[i].prompt);
+      }
+    }
+  });
+
+  it("keeps the safety section on the worked-answer turn", () => {
+    const prompt = withGrade(full.args, gradePromptLayer(4));
+    const convo = [
+      { role: "user", content: "A recipe needs 3 cups of flour for every 2 cups of milk. How many cups of flour go with 8 cups of milk?" },
+      { role: "assistant", content: "What do you get when you scale both amounts by the same number?" },
+      { role: "user", content: "Is it 10?" },
+      { role: "assistant", content: "Not quite. Which number turns the 2 cups of milk into 8?" },
+      { role: "user", content: SHOW_ANSWER_MESSAGE },
+    ];
+    const swapped = turnSystemPrompt(prompt, convo);
+    expect(swapped.endsWith(WORKED_ANSWER_RULES)).toBe(true);
+    expect(swapped).toContain(CHILD_SAFETY_RULES);
   });
 });

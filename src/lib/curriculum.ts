@@ -1023,7 +1023,8 @@ export function buildSystemPrompt(
   modePromptSuffix?: string,
   knowledgeSummary?: string,
   personaIdentity?: string,
-  // The learner's reading level (grade.ts readingLevelLayer), or undefined when no grade is set.
+  // What the learner's grade adds: reading level and child-safety rules (grade.ts gradePromptLayer),
+  // or undefined when no grade is set.
   readingLevel?: string,
 ): string {
   const parts: string[] = [];

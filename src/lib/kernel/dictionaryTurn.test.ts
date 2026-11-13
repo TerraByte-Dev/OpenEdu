@@ -30,7 +30,7 @@ import { DICTIONARY_NOTE, dictionaryNote } from "./defineWord";
 import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
 import { CHECK_BEFORE_PRAISE_NOTE } from "./checkBeforePraise";
 import { buildSystemPrompt } from "../curriculum";
-import { readingLevelLayer } from "../grade";
+import { gradePromptLayer } from "../grade";
 import { resetDictionaryCache, lookupWord, DICTIONARY_FETCH_TIMEOUT_MS, type Shard } from "../dictionary";
 import { dictionaryCard, cardSpeech, cardToggleLabel, CARD_SOURCE } from "../dictionary-card";
 import type { LLMConfig } from "../../types";
@@ -91,7 +91,7 @@ afterEach(() => vi.unstubAllGlobals());
 // ChatTab's prompt for a grade-4 learner in an English course, then tutorEngine.run.
 async function run(history: Sent, userText: string, dictionary?: "on" | "off"): Promise<{ req: Sent; result: TutorTurnResult }> {
   const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills("explain", "English Language Arts", "tiny", false);
-  const system = buildSystemPrompt({}, null, 1, "English Language Arts", skillSuffix, undefined, undefined, readingLevelLayer(4));
+  const system = buildSystemPrompt({}, null, 1, "English Language Arts", skillSuffix, undefined, undefined, gradePromptLayer(4));
   sent.length = 0;
   const result = await tutorEngine.run(
     { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {}, ...(dictionary ? { dictionary } : {}) },
