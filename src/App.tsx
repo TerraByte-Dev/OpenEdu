@@ -13,6 +13,8 @@ import {
 import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
 import type { NextStepAction } from "./lib/next-step";
 import { probeEnvironment, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
+import { log, unloadOllamaModels } from "./lib/llm";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import SetupGate from "./components/SetupGate";
 import DataDamagedBanner from "./components/DataDamagedBanner";
 import TutorWarmingBanner from "./components/TutorWarmingBanner";
@@ -194,6 +196,18 @@ export default function App() {
     void checkDatabaseHealth().then(setDbHealth);
   }, []);
 
+  // Closing the app unloads the models it used, so 4–5 GB is not held for the rest of keep_alive
+  // (llm.ts OLLAMA_KEEP_ALIVE, 30 minutes) on an 8 GB computer. The window closes once this resolves,
+  // at most OLLAMA_UNLOAD_TIMEOUT_MS later.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let gone = false;
+    getCurrentWindow().onCloseRequested(() => unloadOllamaModels())
+      .then((u) => { if (gone) u(); else unlisten = u; })
+      .catch((e) => log.warn("App", "could not watch for the window closing", e));
+    return () => { gone = true; unlisten?.(); };
+  }, []);
+
   const advanceTour = () => {
     setTourStep((s) => {
       const next = (s ?? 0) + 1;
@@ -315,7 +329,7 @@ export default function App() {
                 />
               )}
 
-              <TutorWarmingBanner />
+              <TutorWarmingBanner overlay={isFullscreenView} />
 
               {promotionBanner !== null && (
                 <div className="flex items-center justify-between px-4 py-2 border-b text-sm text-phosphor-ink shrink-0" style={{ background: "rgb(var(--phosphor-rgb)/0.10)", borderColor: "rgb(var(--phosphor-rgb)/0.30)" }}>
