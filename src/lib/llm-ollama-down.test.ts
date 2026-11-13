@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // rejects with reqwest 0.12's bare string, not an Error. Nothing touches the network.
 vi.mock("@tauri-apps/plugin-http", () => import("./eval/headless/shims/plugin-http"));
 
-import { callLLMTurn, pullOllamaModel, type NeutralMessage } from "./llm";
+import { callLLMTurn, pullOllamaModel, OLLAMA_PS_PROBE_TIMEOUT_MS, type NeutralMessage } from "./llm";
 import type { LLMConfig } from "../types";
 
 const USER: NeutralMessage[] = [{ role: "user", content: "hi" }];
@@ -78,7 +78,8 @@ describe("a fetch cancelled before Ollama answers", () => {
     const events = [];
     const turn = callLLMTurn(USER, LOCAL);
     const next = turn.next();
-    await vi.advanceTimersByTimeAsync(120_001);
+    // This Ollama never answers /api/ps either: the probe gives up first, then the first-byte budget runs.
+    await vi.advanceTimersByTimeAsync(OLLAMA_PS_PROBE_TIMEOUT_MS + 120_001);
     const first = await next;
     if (!first.done) events.push(first.value);
     for await (const ev of turn) events.push(ev);

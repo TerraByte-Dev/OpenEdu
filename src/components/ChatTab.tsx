@@ -8,8 +8,8 @@ import { deriveThreadTitle } from "../lib/thread-title";
 import { threadSwitchAbortsTurn, turnIsShown, turnLanding } from "../lib/turn-thread";
 import { transcriptLoader, type TranscriptLoader } from "../lib/thread-transcript";
 import { buildSystemPrompt } from "../lib/curriculum";
-import { detectModelProfile, log } from "../lib/llm";
-import { getChatConfig, getMaxContextTokens, getRetrievalMode, getReadAloudAuto } from "../lib/store";
+import { log } from "../lib/llm";
+import { getChatTurnConfig, getRetrievalMode, getReadAloudAuto } from "../lib/store";
 import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
 import { useReadAloud } from "../lib/useReadAloud";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
@@ -281,18 +281,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     const instructions = await getTutorInstructions(courseId);
     const knowledgeSummary = await getKnowledgeSummary(courseId);
-    const baseConfig = await getChatConfig();
-    // Resolve the window this turn runs in: the smaller of what the model supports and what the user
-    // allowed. Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and
-    // dropped the front of the prompt — the system message and the tools manifest — with no error.
-    const profile = await detectModelProfile(baseConfig);
-    // The setting caps what we ASK OLLAMA FOR — it is a RAM knob, and cloud providers size their own
-    // windows. Applying it to cloud too would silently trim an OpenAI/Anthropic conversation to 8k
-    // for no benefit, which is neither what the setting says nor what the user would expect.
-    const contextTokens = baseConfig.provider === "ollama"
-      ? Math.min(profile.contextTokens, await getMaxContextTokens())
-      : profile.contextTokens;
-    const config = { ...baseConfig, modelTier: profile.tier, contextTokens };
+    // The window this turn runs in (store.ts getOllamaNumCtx): the same num_ctx every Ollama call for
+    // this model sends, so a course build or quiz grading never reloads the model chat just used.
+    // Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and dropped the
+    // front of the prompt — the system message and the tools manifest — with no error.
+    const { config, profile } = await getChatTurnConfig();
+    const { contextTokens } = config;
     const modelTier = profile.tier;
     // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rule
     // lives in kernel/chatSkills.ts so the k12-flow eval builds its prompt the same way.

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
-import { getOllamaModels } from "./llm";
+import { detectModelProfile, getOllamaModels, type ModelProfile } from "./llm";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 import type { RetrievalMode } from "./kernel/ground";
 import { normalizeGoal, type ActiveMinutes } from "./daily-goal";
@@ -55,7 +55,11 @@ export async function getGenerationConfig(): Promise<LLMConfig> {
   const model = stored ?? (base.provider === "ollama"
     ? defaultGenerationModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
     : defaultGenerationModel(base.provider));
-  return { ...base, model };
+  // Course building needs DEFAULT_CONTEXT_TOKENS (see getOllamaNumCtx), so a 2k or 4k cap chosen in
+  // Settings lowers chat but not this. At the default cap the size is the same, so one runner.
+  const cfg = await withOllamaNumCtx({ ...base, model });
+  if (cfg.provider === "ollama") cfg.contextTokens = Math.min((await detectModelProfile(cfg)).contextTokens, Math.max(cfg.contextTokens!, DEFAULT_CONTEXT_TOKENS));
+  return cfg;
 }
 
 // Chat model (tutor chat) — defaults to the catalog's recommended fast/cheap model.
@@ -66,7 +70,39 @@ export async function getChatConfig(): Promise<LLMConfig> {
   const model = stored ?? (base.provider === "ollama"
     ? defaultChatModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
     : defaultChatModel(base.provider));
-  return { ...base, model };
+  return withOllamaNumCtx({ ...base, model });
+}
+
+/**
+ * The one num_ctx every Ollama call sends: chat turns, course building, quiz grading, course steps,
+ * gloss, the notes assistant and the load at app open. Ollama keeps one runner per model and throws
+ * it away when a request asks for another num_ctx, so two windows for the same model meant a reload
+ * on every switch between chat and course building (88 s cold on a CPU-only 8 GB computer). It is
+ * chat's window: the smaller of what the model supports and the user's cap (8192 by default).
+ * getGenerationConfig raises a cap below DEFAULT_CONTEXT_TOKENS back to it (when the model supports
+ * that much), so a lower cap costs a reload between chat and course building but leaves course
+ * building working. Course building fits in 8192 with realistic answers: its largest
+ * request measured 948 prompt + 2,122 answer tokens (the outline, assuming 160 characters per item
+ * and 6 domains), 5,267 on a second repair attempt. That is not a guarantee: the outline schema's
+ * five string arrays have no maxLength and domains has no maxItems, and at 300 characters per item
+ * a third attempt needs about 8.4k.
+ */
+export async function getOllamaNumCtx(config: LLMConfig): Promise<number> {
+  const profile = await detectModelProfile(config);
+  return Math.min(profile.contextTokens, await getMaxContextTokens());
+}
+
+// Cloud providers size their own windows; the cap is an Ollama memory knob.
+async function withOllamaNumCtx(config: LLMConfig): Promise<LLMConfig> {
+  return config.provider === "ollama" ? { ...config, contextTokens: await getOllamaNumCtx(config) } : config;
+}
+
+/** A chat turn's config and the model profile it came from (tier, tools). On Ollama the window is
+ *  getOllamaNumCtx; on a cloud provider it is the provider's own window. */
+export async function getChatTurnConfig(): Promise<{ config: LLMConfig & { contextTokens: number }; profile: ModelProfile }> {
+  const base = await getChatConfig();
+  const profile = await detectModelProfile(base);
+  return { config: { ...base, modelTier: profile.tier, contextTokens: base.contextTokens ?? profile.contextTokens }, profile };
 }
 
 // Backward-compat: used by quiz generation (use generation config)

@@ -100,7 +100,12 @@ async function streamOllama(
       // does. #110 patched the other three and missed this one, so every course generation's
       // pedagogy step still ran un-patched — and the loop below only reads message.content, so a
       // reasoning model produced an EMPTY instruction that was saved with no error thrown.
-      body: JSON.stringify({ model: config.model, messages, stream: true, ...OLLAMA_THINK_OFF }),
+      // num_ctx too: the course build's pedagogy step comes through here, and a request at another
+      // window reloads the model (store.ts getOllamaNumCtx).
+      body: JSON.stringify({
+        model: config.model, messages, stream: true, keep_alive: OLLAMA_KEEP_ALIVE, ...OLLAMA_THINK_OFF,
+        ...(config.contextTokens ? { options: { num_ctx: Math.floor(config.contextTokens) } } : {}),
+      }),
       signal,
     });
   } catch (e) {
@@ -452,6 +457,7 @@ export async function callLLM(
           model: config.model,
           messages,
           stream: false,
+          keep_alive: OLLAMA_KEEP_ALIVE,
           ...OLLAMA_THINK_OFF,
           ...(config.contextTokens ? { options: { num_ctx: Math.floor(config.contextTokens) } } : {}),
         }),
@@ -567,8 +573,10 @@ export async function getOllamaVersion(ollamaUrl: string): Promise<string | null
 
 // ─── Ollama loaded-model probe (/api/ps), not cached: the answer changes as Ollama loads and unloads ──
 // True when Ollama has `config.model` in memory, at `config.contextTokens` when /api/ps reports a
-// context length (a runner at another num_ctx reloads). False when it does not. null when the probe
-// fails or the reply is unreadable. Rethrows only when `signal` aborted it.
+// context length (a runner at another num_ctx reloads). Every app call sends the same num_ctx for a
+// model (store.ts getOllamaNumCtx), so this is an exact size check; a config without contextTokens
+// (an eval, a test) matches any size. False when it does not. null when the probe fails or the reply
+// is unreadable. Rethrows only when `signal` aborted it.
 export async function ollamaModelLoaded(config: LLMConfig, signal?: AbortSignal): Promise<boolean | null> {
   const base = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
   const want = config.model.includes(":") ? config.model : `${config.model}:latest`;
@@ -590,6 +598,187 @@ export async function ollamaModelLoaded(config: LLMConfig, signal?: AbortSignal)
     log.warn("ollamaModelLoaded", "probe failed", e);
     return null;
   }
+}
+
+// ─── Ollama cold start: load the model before the first timed call ────────────
+// Measured on a Ryzen 7 5800H, 8 GB, no GPU, offline, gemma4:e2b (4.6 GB): the first request after
+// Ollama started took 125 s, 88 s of it loading the weights; warm, a short answer took 0.1 s. Every
+// timed call paid that load inside its own budget: the check before a course build gave up at 90 s,
+// a chat turn's first byte and quiz grading's per-call timeout counted it too. Now the load runs
+// first with its own budget, and a model already in memory (/api/ps) costs one local GET.
+
+/** How long Ollama keeps the model in memory after the last request. Ollama's own default is 5
+ *  minutes, shorter than a learner reading a lesson or working a problem on paper, and on a CPU-only
+ *  machine the reload after that pause is the cold start again. 30 minutes covers a lesson-length
+ *  pause. Not -1 (forever): the 4–5 GB would stay held after the learner walks away, on machines
+ *  that have 8 GB in all. It changes how long the model stays in memory, not how much it takes. */
+export const OLLAMA_KEEP_ALIVE = "30m";
+
+/** The load's own budget, apart from any call's. Measured 88 s; this leaves room for a slower disk. */
+export const OLLAMA_LOAD_TIMEOUT_MS = 5 * 60_000;
+
+/** Bounds the /api/ps probe, so an Ollama that accepts the connection and never answers costs this,
+ *  not a hang. The probe is a local GET that answers in milliseconds when Ollama is healthy. */
+export const OLLAMA_PS_PROBE_TIMEOUT_MS = 3_000;
+
+// One load per (server, model, num_ctx) at a time: a second caller waits on the first one's load.
+const ollamaLoads = new Map<string, Promise<void>>();
+// Every Ollama model this session asked for, so closing the app can unload them (unloadOllamaModels).
+const ollamaModelsUsed = new Map<string, { base: string; model: string }>();
+const ollamaLoading = new Set<string>();
+let ollamaLoadWaiters = 0;
+const warmupListeners = new Set<(waiting: boolean) => void>();
+
+/** True while someone is waiting on a model load. A load started in the background with nobody
+ *  waiting on it is not shown: the point of starting it early is that nobody sees it. */
+export function isWaitingForTutorLoad(): boolean {
+  return ollamaLoadWaiters > 0 && ollamaLoading.size > 0;
+}
+
+/** Called with isWaitingForTutorLoad() whenever it may have changed. Returns the unsubscribe. */
+export function onTutorLoadWait(listener: (waiting: boolean) => void): () => void {
+  warmupListeners.add(listener);
+  return () => { warmupListeners.delete(listener); };
+}
+
+function notifyTutorLoadWait() {
+  const waiting = isWaitingForTutorLoad();
+  for (const l of warmupListeners) l(waiting);
+}
+
+// /api/ps, bounded by OLLAMA_PS_PROBE_TIMEOUT_MS and the caller's signal. null when it can't tell.
+async function probeOllamaLoaded(config: LLMConfig, signal?: AbortSignal): Promise<boolean | null> {
+  const ctrl = new AbortController();
+  const onAbort = () => ctrl.abort();
+  if (signal?.aborted) ctrl.abort();
+  else signal?.addEventListener("abort", onAbort, { once: true });
+  const timer = setTimeout(() => ctrl.abort(), OLLAMA_PS_PROBE_TIMEOUT_MS);
+  try {
+    return await ollamaModelLoaded(config, ctrl.signal);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+// Ollama loads a model on a /api/generate request with no prompt, and answers done_reason "load".
+// num_ctx must match the calls that follow: Ollama keys a loaded model on it, so a load at another
+// window would be thrown away by the first real call. Only a load that runs out of time throws. An
+// unreachable Ollama or an HTTP error is left to the call itself, which already says it plainly.
+async function loadOllamaModel(config: LLMConfig, key: string): Promise<void> {
+  const base = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), OLLAMA_LOAD_TIMEOUT_MS);
+  const started = Date.now();
+  ollamaLoading.add(key);
+  notifyTutorLoadWait();
+  log.info("loadOllamaModel", `POST ${base}/api/generate (load) model=${config.model}`);
+  try {
+    const response = await fetch(`${base}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+      body: JSON.stringify({
+        model: config.model,
+        stream: false,
+        keep_alive: OLLAMA_KEEP_ALIVE,
+        ...(config.contextTokens ? { options: { num_ctx: Math.floor(config.contextTokens) } } : {}),
+      }),
+      signal: ctrl.signal,
+    });
+    const text = await response.text().catch(() => "");
+    if (response.ok) log.info("loadOllamaModel", `${config.model} loaded in ${Date.now() - started} ms`);
+    else log.warn("loadOllamaModel", `load answered ${response.status}: ${text.slice(0, 200)}`);
+  } catch (e) {
+    if (ctrl.signal.aborted) {
+      throw new Error(`Ollama did not finish loading "${config.model}" within ${OLLAMA_LOAD_TIMEOUT_MS / 1000}s.`);
+    }
+    log.warn("loadOllamaModel", "load request failed; the call itself will report it", e);
+  } finally {
+    clearTimeout(timer);
+    ollamaLoading.delete(key);
+    notifyTutorLoadWait();
+  }
+}
+
+// Resolves with `p`, or rejects with "Aborted" as soon as `signal` fires. The load itself goes on.
+function untilAborted<T>(p: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return p;
+  if (signal.aborted) return Promise.reject(new Error("Aborted"));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new Error("Aborted"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    p.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
+}
+
+/**
+ * Make sure Ollama has `config.model` in memory, at `config.contextTokens`, before a timed call.
+ * A no-op for a cloud provider, for a model already loaded, and when /api/ps can't tell. Waiting
+ * stops with "Aborted" when `signal` fires; the load goes on, so the next call finds it done.
+ * `background` starts the load and returns without waiting: the app does this at start.
+ * Throws only when the load runs past OLLAMA_LOAD_TIMEOUT_MS.
+ */
+export async function warmOllamaModel(
+  config: LLMConfig,
+  opts: { signal?: AbortSignal; background?: boolean } = {},
+): Promise<void> {
+  if (config.provider !== "ollama") return;
+  const base = normalizeBase(config.ollamaUrl || "http://127.0.0.1:11434");
+  ollamaModelsUsed.set(`${base}|${config.model}`, { base, model: config.model });
+  const key = `${base}|${config.model}|${config.contextTokens ? Math.floor(config.contextTokens) : ""}`;
+  let load = ollamaLoads.get(key);
+  if (!load) {
+    const loaded = await probeOllamaLoaded(config, opts.signal);
+    if (opts.signal?.aborted) throw new Error("Aborted");
+    if (loaded !== false) return;
+    load = ollamaLoads.get(key); // another caller may have started it while this one probed
+    if (!load) {
+      const started = loadOllamaModel(config, key).finally(() => { ollamaLoads.delete(key); });
+      started.catch(() => {}); // a waiter that gave up must not leave the timeout unhandled
+      ollamaLoads.set(key, started);
+      load = started;
+    }
+  }
+  if (opts.background) return;
+  ollamaLoadWaiters++;
+  notifyTutorLoadWait();
+  try {
+    await untilAborted(load, opts.signal);
+  } finally {
+    ollamaLoadWaiters--;
+    notifyTutorLoadWait();
+  }
+}
+
+/** How long closing the app waits for Ollama to unload. The window closes either way. */
+export const OLLAMA_UNLOAD_TIMEOUT_MS = 2_000;
+
+/**
+ * Ask Ollama to unload every model this session used (keep_alive 0), so the 4–5 GB is not held for
+ * the rest of OLLAMA_KEEP_ALIVE after the family closes the app. Called when the window closes.
+ * Never throws; a model another program also uses is loaded again on its next request.
+ */
+export async function unloadOllamaModels(): Promise<void> {
+  const used = [...ollamaModelsUsed.values()];
+  ollamaModelsUsed.clear();
+  await Promise.all(used.map(async ({ base, model }) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), OLLAMA_UNLOAD_TIMEOUT_MS);
+    try {
+      await fetch(`${base}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json", "Origin": "" },
+        body: JSON.stringify({ model, keep_alive: 0 }),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      log.warn("unloadOllamaModels", `could not unload ${model}`, e);
+    } finally {
+      clearTimeout(timer);
+    }
+  }));
 }
 
 function ollamaSupportsSchemaFormat(version: string | null): boolean {
@@ -1006,9 +1195,8 @@ async function callOllamaStructured(
     model: config.model,
     messages,
     stream: false,
-    // num_ctx rides along when the caller resolved one. The curriculum pipeline does not set
-    // `contextTokens` yet (deliberately — #86 keeps generation untouched), so this is a no-op there
-    // today and the plumbing is ready for the phase that turns it on.
+    // num_ctx: the same window chat sends (store.ts getOllamaNumCtx), so course building and quiz
+    // grading reuse the runner chat loaded instead of reloading the model at Ollama's default.
     // num_predict is bounded for the same reason as chat turns (see ollamaOptions): a timed-out call
     // aborts the fetch, but Ollama keeps generating with no client attached.
     options: {
@@ -1017,6 +1205,7 @@ async function callOllamaStructured(
       ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}),
     },
     format: supportsSchema ? schema : "json",
+    keep_alive: OLLAMA_KEEP_ALIVE,
     ...OLLAMA_THINK_OFF,
   };
   const toolDefs = ollamaToolDefs(tools);
@@ -1218,6 +1407,15 @@ export async function callLLMStructured<T>(
   // A single hung call shouldn't be allowed to stall a 5–10 min pipeline forever,
   // but local Ollama models can legitimately take 60–120s per structured call.
   const perCallTimeoutMs = effectivePerCallTimeoutMs(config.provider, opts.tier, config.model);
+
+  // A cold model loads here, under its own budget, so perCallTimeoutMs times the answer and not the
+  // load (warmOllamaModel). The caller's signal still ends the wait.
+  try {
+    await warmOllamaModel(config, { signal: opts.signal });
+  } catch (e) {
+    if (opts.signal?.aborted) throw new Error("Aborted");
+    throw e;
+  }
 
   let workingMessages = [...messages];
   let lastRaw = "";
@@ -1606,9 +1804,11 @@ function toAnthropicTurnMessages(messages: NeutralMessage[]): { system?: string;
 // context it was generated in, so this never truncates a real answer. A capped reply ends with
 // done_reason "length", which the kernel already treats as a fragment.
 //
-// NOTE: `keep_alive` is also intentionally absent. It and `num_ctx` are the two settings that most
-// directly multiply resident RAM, and shipping both at once on a 4GB machine is the configuration
-// that produces `signal: killed`. It lands in a later phase, after this one is measured.
+// `keep_alive` is not an option: it rides on the request body (OLLAMA_KEEP_ALIVE, 30 minutes). Per
+// request it sets how long the model stays in memory, not how much it takes. #86 held it back because
+// it and num_ctx together produced `signal: killed` on a 4 GB machine, and a 30-minute stay overlaps
+// more often with the embedding model being loaded. Not measured on 4 GB. The app unloads its models
+// when the window closes (unloadOllamaModels).
 /** Upper bound on generated tokens for one Ollama turn: the context window, or 8192 if unknown. */
 export function ollamaMaxPredict(config: Pick<LLMConfig, "contextTokens">): number {
   return config.contextTokens && config.contextTokens > 0 ? Math.floor(config.contextTokens) : 8192;
@@ -1721,7 +1921,7 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
   // and the kernel needs the tool call, not a monologue. Verified on qwen3.5:0.8b — a clean
   // notebook_search call with the right argument. If a reasoning-in-chat setting ever lands, this is
   // the one line it flips.
-  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOllamaTurnMessage), stream: true, ...OLLAMA_THINK_OFF };
+  const body: Record<string, unknown> = { model: config.model, messages: messages.map(toOllamaTurnMessage), stream: true, keep_alive: OLLAMA_KEEP_ALIVE, ...OLLAMA_THINK_OFF };
   // Ollama options. Before #86 this key was only ever set when a temperature was passed — which the
   // kernel never did — so every chat turn ran at the server's DEFAULT context window (4096) no matter
   // what the model supported, and the overflow was dropped silently from the front, taking the system
@@ -1732,9 +1932,17 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
   const tools = ollamaToolDefs(opts.tools);
   if (tools) body.tools = tools;
 
-  // First byte on a local model means loading GBs of weights off disk — keep the tier-aware budget
-  // the wall-clock timeout used, so this change never SHORTENS a cold start. Only the post-first-byte
-  // behavior changes: silence, not elapsed time.
+  // The load comes first, under its own budget (warmOllamaModel), so the first-byte clock below times
+  // the prompt and not the weights coming off disk. Stop during the load ends the turn as aborted.
+  try {
+    await warmOllamaModel(config, { signal: opts.signal });
+  } catch (e) {
+    if (opts.signal?.aborted) { yield { type: "done", finishReason: "aborted" }; return; }
+    throw e;
+  }
+
+  // The tier-aware first-byte budget stays as it was before the load moved out of it, so a slow
+  // prefill is never cut shorter than it used to be. Past the first byte: silence, not elapsed time.
   const { signal, bump, didStall, cleanup } = withStallSignal(opts.signal, {
     firstByteMs: effectivePerCallTimeoutMs(config.provider, opts.tier),
   });
@@ -1980,13 +2188,21 @@ const PREFLIGHT_SCHEMA = {
   },
 } as const;
 
-// 90s ceiling — Ollama cold-loading a 4B model into RAM on a CPU box routinely
-// takes 30–60s on the first call. 30s used to false-positive as a model-capability
-// failure. Aligns with the per-call timeouts CLAUDE.md notes for this tier.
+// 90s ceiling for the answer. The model load is no longer inside it: a CPU-only 8 GB box took 88 s
+// to load gemma4:e2b, and the check failed the first Create course of the day. warmOllamaModel loads
+// it first, under its own 5-minute budget, and a load past that reads as a timeout like this one.
 const PREFLIGHT_TIMEOUT_MS = 90_000;
 
 export async function preflightStructuredOutput(config: LLMConfig): Promise<PreflightResult> {
   const tier = await detectModelTier(config).catch(() => undefined);
+
+  try {
+    await warmOllamaModel(config);
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    log.warn("preflight", `Failed: ${raw}`);
+    return { ok: false, reason: raw, timedOut: true, detectedTier: tier };
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PREFLIGHT_TIMEOUT_MS);

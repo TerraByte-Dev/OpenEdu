@@ -92,7 +92,7 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 
 4. **Name override for Matformer models.** `gemma3n:e4b` / `gemma4:e4b` report ~7–8B *actual* params via `/api/show` but behave like 4B at inference. `ollamaNameTierOverride` pattern-matches `e2b` / `e4b` suffixes and forces the correct tier. Without this, e4b mis-tiers as `medium` and hits a tight timeout.
 
-5. **Preflight before pipeline.** Step 0 of course generation is a 1-shot probe (`preflightStructuredOutput`) asking the model to emit `{name, age}` matching a tiny schema. Fails fast on incompatible models so users don't burn 5–20 minutes on a doomed run.
+5. **Preflight before pipeline.** Step 0 of course generation is a 1-shot probe (`preflightStructuredOutput`) asking the model to emit `{name, age}` matching a tiny schema. Fails fast on incompatible models so users don't burn 5–20 minutes on a doomed run. A cold Ollama model is loaded before it (and before every structured call and chat turn) by `warmOllamaModel` in `llm.ts`, under its own 5-minute budget, so the probe's 90 s times the answer, not the load (88 s for `gemma4:e2b` on a CPU-only 8 GB box). The app starts that load in the background once setup is ready.
 
 6. **Checkpoint + resume.** `runGenerationPipeline` writes `courses.generation_state` after each step. On failure, the row stays in DB and the Sidebar shows an amber pulse badge — clicking resumes from the failed step. State values: `"researching" | "outlining" | "instructions" | "syllabus_L1".."syllabus_L6" | "completed"`. `null` = legacy or fully complete.
 

@@ -8,7 +8,10 @@ vi.mock("@tauri-apps/plugin-store", () => ({
 }));
 const GiB = 1024 ** 3;
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => 8 * GiB) }));
-vi.mock("./llm", () => ({ getOllamaModels: vi.fn() }));
+vi.mock("./llm", () => ({
+  getOllamaModels: vi.fn(),
+  detectModelProfile: vi.fn(async () => ({ tier: "small", contextTokens: 131072, supportsTools: true })),
+}));
 
 import { getChatConfig, getGenerationConfig } from "./store";
 import { getOllamaModels } from "./llm";

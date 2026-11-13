@@ -13,7 +13,7 @@
 //
 // Only `probeEnvironment` does I/O.
 
-import { getOllamaModels } from "./llm";
+import { getOllamaModels, log, warmOllamaModel } from "./llm";
 import { getChatConfig, getEmbeddingConfig, getGenerationConfig, getLLMProvider } from "./store";
 import { ollamaInstalled } from "./model-import";
 import { ollamaState, type OllamaState } from "./ollama-guide";
@@ -211,4 +211,20 @@ export async function probeEnvironment(): Promise<SetupStatus> {
     embedModel: embed.model,
     online: typeof navigator === "undefined" ? true : navigator.onLine,
   });
+}
+
+/**
+ * Start loading the course-building model as soon as setup is ready, without waiting for it, so the
+ * first Create course of the day finds it in memory (llm.ts warmOllamaModel: 88 s on a CPU-only 8 GB
+ * computer). Ollama only, and only when the model is installed; a model already loaded costs one
+ * /api/ps request. It loads at the num_ctx every call sends (store.ts getOllamaNumCtx), and by default
+ * chat and course building use the same model, so a first chat turn reuses this load too.
+ */
+export async function warmTutorInBackground(status: SetupStatus): Promise<void> {
+  if (!status.ready || status.ollama !== "ready") return;
+  try {
+    await warmOllamaModel(await getGenerationConfig(), { background: true });
+  } catch (e) {
+    log.warn("warmTutorInBackground", "could not start loading the model", e);
+  }
 }

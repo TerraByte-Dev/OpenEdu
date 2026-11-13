@@ -28,9 +28,12 @@ export function estTokens(text: string): number {
 
 // What the app asks Ollama for when the model's own maximum is larger. This OVERRIDES whatever
 // context length Ollama itself is configured with — deliberately, so the number is one the app knows
-// and can budget against rather than one it inherits and can only guess at. `keep_alive` is still
-// deliberately NOT shipped alongside it (see #86): both multiply resident memory, and on a 4GB
-// machine the combination is what produces `signal: killed`.
+// and can budget against rather than one it inherits and can only guess at. Every Ollama call for a
+// model sends this same window (store.ts getOllamaNumCtx), course building included, so the model is
+// never reloaded at another size. `keep_alive` now ships too (llm.ts OLLAMA_KEEP_ALIVE, 30 minutes).
+// #86 held it back: with num_ctx it produced `signal: killed` on a 4 GB machine. Per request it sets
+// how long the model stays loaded, not how much memory it takes, but a 30-minute stay overlaps more
+// often with the embedding model. Not measured on 4 GB.
 //
 // Was 4096 — chosen to match Ollama's own default so upgrading changed KV-cache RAM by zero bytes.
 // That was the right call while `num_predict` was still unset, because replies were being cut at ~128
