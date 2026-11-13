@@ -2,7 +2,7 @@
 //!
 //! A community centre with no internet cannot `ollama pull` a 1–10 GB model. With this, someone copies a
 //! model onto a stick on a machine that has it (`scripts/export-model.mjs`, `docs/OFFLINE-KIT.md`) and
-//! the learner's machine takes it in through Ollama's own API. The rules, same as `corpus.rs`:
+//! the learner's machine takes it in through Ollama's own API. The rules:
 //!
 //!   * Rust opens the folder picker. The webview never names a path: it gets back a plan of what the
 //!     folder holds, and `model_import_start` accepts only file names from that plan.

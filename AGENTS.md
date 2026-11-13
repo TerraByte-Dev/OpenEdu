@@ -10,7 +10,7 @@ update that doc in the same PR.
 OpenEdu is an **off-the-grid AI tutor for one learner**: Tauri v2 + React 19 + TypeScript + SQLite, with a Rust backend in
 `src-tauri/`. It has to teach with the network unplugged, on small local models through Ollama
 (`qwen3.5:0.8b` is the smallest model the harness runs on; `gemma4:e4b` is verified end to end), from a
-shipped offline library plus (once the UI calls `src/lib/corpus.ts`) folders the user grants it. Cloud providers (OpenAI / Anthropic) are optional
+shipped offline library. Cloud providers (OpenAI / Anthropic) are optional
 alternates, never a requirement. MIT-licensed, owned and maintained by TerraByte Solutions LLC (@TerraByte-Dev).
 
 Features for families, classes and schools (usage modes, a teacher view, learner groups, the K-1
@@ -43,12 +43,12 @@ cargo test --manifest-path src-tauri/Cargo.toml    # Rust unit tests
   `builtins.ts`. Tools are gated by `src/lib/permissions/`. Skills are markdown in `src/skills/`.
 - `src/lib/llm.ts` — providers, streaming, schema-enforced structured output, model tiers.
 - `src/lib/steps/` — the item compiler: closed-book practice items whose answer keys are source data.
-- `src-tauri/src/lib.rs` — migrations + plugins + commands. `corpus.rs` — read-only filesystem access
-  scoped to folders the user picked this session.
+- `src-tauri/src/lib.rs` — migrations + plugins + commands. `model_import.rs` — read-only access to a
+  folder the user picked from a Rust-opened dialog (offline model import).
 
 **The process-boundary rule:** the webview never reads the disk directly. A new filesystem or native
 capability is a `#[tauri::command]` in `src-tauri/src/`, registered in `invoke_handler` in `lib.rs`, and
-wrapped by one typed TS function in `src/lib/` (see `src/lib/corpus.ts`). The Rust signature and the TS
+wrapped by one typed TS function in `src/lib/` (see `src/lib/model-import.ts`). The Rust signature and the TS
 wrapper are **not type-linked**; keep them in sync by hand.
 
 ## Tests
