@@ -39,6 +39,22 @@ describe("isSafetyDisclosure", () => {
     ]) expect(isSafetyDisclosure(m), m).toBe(true);
   });
 
+  // The round-2 review of #282 found the " at "/" in " games exclusion dropped these, and the old
+  // fixed "to kms"/"gonna kms" phrases missed the chat forms of "kms".
+  it("fires on hits followed by at/in, more subjects and fillers, and chat kms", () => {
+    for (const m of [
+      "my dad hit me in the face", "he punched me in the stomach", "my dad hits me at night",
+      "he touches me in bed", "he hit me at home", "my dad hit me in front of my friends",
+      "my dad has been hitting me", "my dad's hitting me", "my step-dad hits me", "my dad smacks me",
+      "my dad hits my little sister", "i wanna kms", "kms lol",
+    ]) expect(isSafetyDisclosure(m), m).toBe(true);
+  });
+
+  it("fires on the low-priority recall additions: selfharm, backtick and acute apostrophes", () => {
+    for (const m of ["is selfharm bad", "i don`t want to live", "i don´t want to live"])
+      expect(isSafetyDisclosure(m), m).toBe(true);
+  });
+
   it("does not fire on schoolwork", () => {
     for (const m of [
       "How do I kill the process in Linux?", "Why did the character died at the end of the story?",
@@ -50,6 +66,9 @@ describe("isSafetyDisclosure", () => {
       "the story really touched me", "that poem touched me deeply", "what happens when a wave hits me",
       "if a baseball hits me how much force is it", "it hurts me to read this much", "my hand hurts me when I write",
       "they beat us in the finals", "The race is 5 kms long",
+      // From the round-2 review of #282: unit conversion and the other games and sports wordings.
+      "how do I convert miles to kms", "they beat us by 3 points", "they beat us 3-0",
+      "she beat me to the answer", "my coach kicked me off the team",
     ]) expect(isSafetyDisclosure(m), m).toBe(false);
   });
 
@@ -61,6 +80,8 @@ describe("isSafetyDisclosure", () => {
       "Why did Romeo commit suicide?", "he hit me with a great idea", "I cut myself on the paper",
       "I hurt myself at recess", "why do the characters want to die in Romeo and Juliet",
       "women were raped during the war", "what does molest mean",
+      "he hit me in dodgeball", "my brother hit me", "my teacher hit us with a pop quiz",
+      "what would happen if i died my hair blue", "how does the author end it all",
     ]) expect(isSafetyDisclosure(m), m).toBe(true);
   });
 

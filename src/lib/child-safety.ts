@@ -44,10 +44,10 @@ const PHRASES = [
   "dont want to be alive", "do not want to live", "do not want to be alive", "don't wanna live",
   "dont wanna live", "don't wanna be alive", "dont wanna be alive", "wanna be dead", "rather be dead",
   "wish i could die", "wish i wasn't alive", "wish i had never been born", "wish i'd never been born",
-  "if i died", "end it all", "no reason to live", "to kms", "gonna kms", "unalive*",
+  "if i died", "end it all", "no reason to live", "unalive*",
   // Self-harm
   "hurt myself", "hurting myself", "harm myself", "harming myself", "cut myself", "cutting myself",
-  "hurt my self", "harm my self", "cut my wrist*", "self-harm*", "self harm*",
+  "hurt my self", "harm my self", "cut my wrist*", "self-harm*", "self harm*", "selfharm*",
   // Abuse disclosures. Someone hitting, hurting or touching the child is ABUSE_RE's job.
   "beat me up", "beats me up", "abuses me", "abused me", "abusing me", "being abused", "molest*",
   "raped", "rape me", "rapes me", "sexually abused", "not safe at home", "scared to go home",
@@ -56,27 +56,35 @@ const PHRASES = [
 
 // A person doing something to the child, or to their family: "my dad hit me", "he touches my private
 // parts", "my stepdad hurts my sister". The subject has to be a person (a family member, a grown-up,
-// he/she/they/someone), which keeps "the poem touched me" and "a wave hits me" out, and a following
-// " at " or " in " drops games ("my brother beats me at chess", "they beat us in the finals").
+// he/she/they/someone), which keeps "the poem touched me" and "a wave hits me" out. Only "beat" takes a
+// games exclusion (see BEAT); "kicked me off the team" and "kicked us out" are dropped for every verb.
 // Known, accepted miss the other way: "he hit me with a great idea" fires.
 const WHO =
-  "(?:(?:my|our) (?:step ?|foster )?(?:dad|daddy|father|mom|mommy|mum|mother|parents?|uncle|aunt|grandpa|" +
-  "grandma|grandfather|grandmother|brother|sister|cousin|teacher|coach|babysitter|neighbou?r)" +
-  "(?:'s (?:boyfriend|girlfriend|friend))?|he|she|they|someone|somebody|a grown-?up|an adult)";
+  "(?:(?:(?:my|our) )?(?:step[ -]?|foster )?(?:dad|daddy|papa|father|mom|mommy|mama|mum|mother|parents?|uncle|aunt|grandpa|" +
+  "grandma|grandfather|grandmother|brother|sister|cousin|teacher|coach|babysitter|neighbou?r|boyfriend|girlfriend)" +
+  "(?:'s (?:boyfriend|girlfriend|friend))?|he|she|they|someone|somebody|a grown-?up|an adult)(?:'s|'re)?";
+const FILL = "(?: (?:always|often|keeps?|sometimes|just|is|was|are|were|has|have|had|been|would|will|used to)){0,3}";
+const OBJ = "(?:me|us|my (?:(?:little|big|baby|older|younger) )?(?:mom|mum|mother|dad|father|sister|brother|private\\w*))";
 const ACT =
-  "(?:hit|hits|hitting|beat|beats|beating|hurt|hurts|hurting|punch(?:es|ed|ing)?|slap(?:s|ped|ping)?|" +
-  "kick(?:s|ed|ing)?|whip(?:s|ped|ping)?|chok(?:es|ed|ing)|touch(?:es|ed|ing)?|abus(?:es|ed|ing))";
+  "(?:hit|hits|hitting|hurt|hurts|hurting|punch(?:es|ed|ing)?|slap(?:s|ped|ping)?|smack(?:s|ed|ing)?|" +
+  "spank(?:s|ed|ing)?|kick(?:s|ed|ing)?|whip(?:s|ped|ping)?|chok(?:es|ed|ing)|touch(?:es|ed|ing)?|abus(?:es|ed|ing))";
+// "beat" is the games verb ("beat me at chess", "beat us by 3", "beat us 3-0", "beat me to it"), so only
+// it takes the follow-word exclusion. "hit me in the face" and "hits me at night" must fire.
+const BEAT = "(?:beat|beats|beating)";
+const END = "(?![\\p{L}\\p{N}])";
 const ABUSE_RE = new RegExp(
-  `(?<![\\p{L}\\p{N}])${WHO}(?: (?:always|often|keeps?|sometimes|just|is|was|are|were|has|have|would|will)){0,2} ` +
-    `${ACT} (?:me|us|my (?:mom|mum|mother|dad|father|sister|brother|private\\w*))(?![\\p{L}\\p{N}])(?! (?:at|in) )`,
+  "(?<![\\p{L}\\p{N}])" + WHO + FILL + " (?:" + ACT + " " + OBJ + END + "(?! (?:off|out) )|" +
+    BEAT + " " + OBJ + END + "(?! (?:at|in|by|to|again at|\\d)))",
   "u",
 );
-
-// "kms" is also kilometres ("5 kms"), so on its own it counts only as the whole message.
-const KMS_ALONE = /^kms[.!?]*$/;
+// "kms" is also kilometres ("5 kms", "miles to kms"): it counts only as the whole message (with chat
+// filler) or right after a first-person lead-in.
+const KMS_RE =
+  /^kms(?: (?:lol|lmao|rn|fr|bruh|omg))*[.!?]*$|(?<![\p{L}\p{N}])(?:i|i'll|ill|i'm|im|gonna|imma|ima|wanna|want to|going to|might|should|just) kms(?![\p{L}\p{N}])/u;
 
 function normalise(s: string): string {
-  return s.normalize("NFKC").toLowerCase().replace(/[‘’ʼ]/g, "'").replace(/\s+/g, " ").trim();
+  // Apostrophes first: NFKC turns "´" into a space and a combining accent.
+  return s.replace(/[‘’ʼ`´]/g, "'").normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 const WORD_CHAR = /[\p{L}\p{N}]/u;
@@ -91,7 +99,7 @@ function endsWord(text: string, i: number): boolean {
 export function isSafetyDisclosure(message: string): boolean {
   const text = normalise(message);
   if (!text) return false;
-  if (ABUSE_RE.test(text) || KMS_ALONE.test(text)) return true;
+  if (ABUSE_RE.test(text) || KMS_RE.test(text)) return true;
   return PHRASES.some((entry) => {
     const stem = entry.endsWith("*");
     const phrase = stem ? entry.slice(0, -1) : entry;
