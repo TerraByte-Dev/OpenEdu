@@ -47,3 +47,41 @@ describe("a refused connection", () => {
     expect(msg).toBe("Network error — check your internet connection and try again.");
   });
 });
+
+// The real plugin rejects a cancelled fetch with the bare string "Request canceled" (Rust
+// Error::RequestCanceled), never an AbortError. Before headers arrive — a CPU-only model loading —
+// that must end the turn quietly, not claim Ollama isn't running.
+describe("a fetch cancelled before Ollama answers", () => {
+  const LOCAL = { provider: "ollama", model: "gemma4:e2b", ollamaUrl: "http://127.0.0.1:11434" } as LLMConfig;
+
+  beforeEach(() => {
+    globalThis.fetch = ((_u: unknown, init: RequestInit) => new Promise((_, rej) => {
+      init.signal!.addEventListener("abort", () => rej("Request canceled"));
+    })) as unknown as typeof fetch;
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("by Stop ends the turn as aborted, with no error", async () => {
+    const ctrl = new AbortController();
+    const events = [];
+    const turn = callLLMTurn(USER, LOCAL, { signal: ctrl.signal });
+    const next = turn.next();
+    ctrl.abort();
+    const first = await next;
+    if (!first.done) events.push(first.value);
+    for await (const ev of turn) events.push(ev);
+    expect(events.at(-1)).toEqual({ type: "done", finishReason: "aborted" });
+  });
+
+  it("by the first-byte stall timer ends the turn as stalled, with no error", async () => {
+    vi.useFakeTimers();
+    const events = [];
+    const turn = callLLMTurn(USER, LOCAL);
+    const next = turn.next();
+    await vi.advanceTimersByTimeAsync(120_001);
+    const first = await next;
+    if (!first.done) events.push(first.value);
+    for await (const ev of turn) events.push(ev);
+    expect(events.at(-1)).toEqual({ type: "done", finishReason: "stalled" });
+  });
+});

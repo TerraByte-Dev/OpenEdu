@@ -104,7 +104,7 @@ async function streamOllama(
       signal,
     });
   } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") return;
+    if (signal?.aborted) return;
     const msg = ollamaUnreachable(baseUrl);
     log.error("streamOllama", msg, e);
     onError(msg);
@@ -1033,7 +1033,7 @@ async function callOllamaStructured(
       signal,
     });
   } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") throw e;
+    if (signal?.aborted) throw e;
     log.error("callOllamaStructured", "Ollama unreachable", e);
     throw new Error(ollamaUnreachable(baseUrl));
   }
@@ -1748,7 +1748,9 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
         signal,
       });
     } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") { yield { type: "done", finishReason: "aborted" }; return; }
+      // tauri-plugin-http rejects a cancelled fetch with "Request canceled" (a bare string), never an
+      // AbortError — so ask the signal, which covers both Stop and the first-byte stall timer.
+      if (signal.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
       log.error("streamOllamaTurn", "Ollama unreachable", e);
       throw new Error(ollamaUnreachable(baseUrl));
     }
@@ -2130,6 +2132,7 @@ export async function pullOllamaModel(
       signal,
     });
   } catch (e) {
+    if (signal?.aborted) throw e;
     log.error("pullOllamaModel", "Ollama unreachable", e);
     throw new Error(ollamaUnreachable(base));
   }
