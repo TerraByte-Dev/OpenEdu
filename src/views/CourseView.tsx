@@ -19,7 +19,7 @@ import ReviewTab from "../components/ReviewTab";
 import LessonsTab from "../components/LessonsTab";
 import type { NextStepAction } from "../lib/next-step";
 import type { Grade } from "../lib/grade";
-import { IconArrowLeft, IconCheck, IconChevronLeft, IconChevronRight, IconCircleWarning, IconStar } from "../components/icons";
+import { IconArrowLeft, IconCheck12, IconChevronLeft, IconChevronRight, IconCircleWarning, IconStar } from "../components/icons";
 
 export type Tab = "overview" | "chat" | "notes" | "lessons" | "quiz" | "review" | "syllabus" | "resources";
 
@@ -453,7 +453,7 @@ function SyllabusView({
                       sub.mastered ? "border-success bg-success-tint" : "border-[var(--rule)]"
                     }`}>
                       {sub.mastered && (
-                        <IconCheck size={8} className="text-success" />
+                        <IconCheck12 size={8} className="text-success" />
                       )}
                     </span>
                     <div className="min-w-0">

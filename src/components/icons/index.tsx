@@ -1,9 +1,10 @@
 // UI icons for OpenEdu.
 //
-// These are Nucleo icons (https://nucleoapp.com), Nucleo UI outline set, 18px grid, used under
+// These are Nucleo icons (https://nucleoapp.com), Nucleo UI outline set (18px grid; a few 12px-grid
+// variants for icons drawn at 8-10px, and one fill glyph), used under
 // TerraByte Solutions LLC's Nucleo licence. They are NOT covered by this repository's MIT licence and
 // may not be redistributed on their own (outside OpenEdu) or extracted into another icon set. Only the
-// icons the app uses live here; the licence caps a public repo at 100. Count: 39.
+// icons the app uses live here; the licence caps a public repo at 100. Count: 42.
 // Add an icon by converting its Nucleo SVG by hand into this file; never commit the pack or a copy script.
 //
 // Every glyph draws in currentColor (Nucleo's primary and secondary colours both), so the icon takes the
@@ -20,12 +21,12 @@ export interface IconProps {
 
 export type IconComponent = (props: IconProps) => JSX.Element;
 
-function icon(name: string, body: ReactNode): IconComponent {
+function icon(name: string, body: ReactNode, grid = 18): IconComponent {
   const Icon = ({ size = 18, className, title }: IconProps) => (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 18 18"
+      viewBox={`0 0 ${grid} ${grid}`}
       className={className}
       aria-hidden={title ? undefined : true}
       role={title ? "img" : undefined}
@@ -46,9 +47,6 @@ export const IconArrowRight = icon("IconArrowRight", <><line x1="15.25" y1="9" x
 
 // school-education/18px_book-2.svg
 export const IconBook2 = icon("IconBook2", <><line x1="5.75" y1="1.75" x2="5.75" y2="12.75" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M2.75,14.5V3.75c0-1.105,.895-2,2-2H15.25V12.75" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="M5.25,16.25h-.75c-.966,0-1.75-.783-1.75-1.75s.784-1.75,1.75-1.75H15.25c-.641,.844-.734,2.547,0,3.5H5.25Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><line x1="8.75" y1="5.25" x2="12.25" y2="5.25" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><line x1="8.75" y1="8.25" x2="12.25" y2="8.25" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>);
-
-// ui-layout/18px_check.svg
-export const IconCheck = icon("IconCheck", <><polyline points="2.75 9.25 6.75 14.25 15.25 3.75" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>);
 
 // arrows/18px_chevron-down.svg
 export const IconChevronDown = icon("IconChevronDown", <><polyline points="15.25 6.5 9 12.75 2.75 6.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>);
@@ -122,9 +120,6 @@ export const IconPencil = icon("IconPencil", <><path d="M13.953 7.57799L15.062 6
 // ui-layout/18px_plus.svg
 export const IconPlus = icon("IconPlus", <><line x1="9" y1="3.25" x2="9" y2="14.75" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><line x1="3.25" y1="9" x2="14.75" y2="9" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>);
 
-// ui-layout/18px_alert-question.svg
-export const IconQuestion = icon("IconQuestion", <><path d="m5.604,5.104c.6929-1.6196,1.74-2.442,3.568-2.442,1.578,0,2.975.947,2.975,2.959,0,2.832-3.522,2.243-3.522,5.629" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><path d="m8.658,16c.551,0,1-.449,1-1s-.449-1-1-1-1,.449-1,1,.449,1,1,1Z" fill="currentColor" strokeWidth="0" /></>);
-
 // security/18px_shield.svg
 export const IconShield = icon("IconShield", <><path d="M9.305,1.848l5.25,1.68c.414,.133,.695,.518,.695,.952v6.52c0,3.03-4.684,4.748-5.942,5.155-.203,.066-.413,.066-.616,0-1.258-.407-5.942-2.125-5.942-5.155V4.48c0-.435,.281-.82,.695-.952l5.25-1.68c.198-.063,.411-.063,.61,0Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>);
 
@@ -154,3 +149,21 @@ export const IconVolumeUp = icon("IconVolumeUp", <><path d="M5,5.75H2.25c-.828,0
 
 // ui-layout/18px_xmark.svg
 export const IconXmark = icon("IconXmark", <><line x1="14" y1="4" x2="4" y2="14" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><line x1="4" y1="4" x2="14" y2="14" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>);
+
+// Small sizes. Nucleo's stroke is 1.5 on its grid, so an 18px-grid icon drawn at 8-10px gets a hairline;
+// the 12px-grid set keeps the line weight. Use these below 12px.
+
+// ui-layout/12px_check.svg
+export const IconCheck12 = icon("IconCheck12", <><path d="m1.76,7.004l2.25,3L10.24,1.746" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>, 12);
+
+// ui-layout/12px_xmark.svg
+export const IconXmark12 = icon("IconXmark12", <><line x1="2.25" y1="9.75" x2="9.75" y2="2.25" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><line x1="9.75" y1="9.75" x2="2.25" y2="2.25" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>, 12);
+
+// ui-layout/12px_plus.svg
+export const IconPlus12 = icon("IconPlus12", <><line x1="10.75" y1="6" x2="1.25" y2="6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /><line x1="6" y1="10.75" x2="6" y2="1.25" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>, 12);
+
+// ui-layout/12px_alert-question.svg
+export const IconQuestion12 = icon("IconQuestion12", <><circle cx="6" cy="10.5" r="1" fill="currentColor" strokeWidth="0" /><path d="m3.929,3.277c.316-1.206,1.3-1.83,2.401-1.773,1.087.056,2.099.654,2.052,2.041-.066,1.972-2.277,1.612-2.382,3.955" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>, 12);
+
+// arrows/12px_chevron-right.svg
+export const IconChevronRight12 = icon("IconChevronRight12", <><polyline points="4.25 10.25 8.5 6 4.25 1.75" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" /></>, 12);

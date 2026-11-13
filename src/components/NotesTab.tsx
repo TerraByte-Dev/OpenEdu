@@ -23,7 +23,7 @@ import {
 } from "../lib/notebook-links";
 import type { ThemeId } from "../lib/theme";
 import { useThemeState } from "../lib/useTheme";
-import { IconChevronRight, IconFile, IconFolderPlus, IconNodes, IconPencil, IconPlus, IconSidebarRight, IconTrash, IconUpload4, IconXmark } from "./icons";
+import { IconChevronRight12, IconFile, IconFolderPlus, IconNodes, IconPencil, IconPlus, IconSidebarRight, IconTrash, IconUpload4, IconXmark } from "./icons";
 
 // Canvas graph palette, one per mode (hex — the canvas API can't read CSS vars). Mirrors the index.css
 // tokens: notes and folders in the accent, labels in --ink-dim, tag nodes in --warning so they read as
@@ -78,7 +78,7 @@ function ContextSection({ title, count, open, onToggle, children }: {
         onClick={onToggle}
         className="w-full flex items-center gap-1.5 px-3 py-2 text-left hover:bg-panel-lite/60 transition-colors"
       >
-        <IconChevronRight size={9} className={`shrink-0 text-[var(--ink-faint)] transition-transform ${open ? "rotate-90" : ""}`} />
+        <IconChevronRight12 size={9} className={`shrink-0 text-[var(--ink-faint)] transition-transform ${open ? "rotate-90" : ""}`} />
         <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)] flex-1 min-w-0 truncate">{title}</span>
         <span className="text-[10px] font-mono text-[var(--ink-faint)] shrink-0">{count}</span>
       </button>
@@ -514,7 +514,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
         >
           {/* Chevron only — no folder glyph. The chevron already says "container", and dropping the
               second icon is most of what separates a file tree from a toolbar. */}
-          <IconChevronRight size={10} className={`shrink-0 text-[var(--ink-faint)] transition-transform ${isOpen ? "rotate-90" : ""}`} />
+          <IconChevronRight12 size={10} className={`shrink-0 text-[var(--ink-faint)] transition-transform ${isOpen ? "rotate-90" : ""}`} />
           {renamingId === folder.id ? (
             <input
               autoFocus

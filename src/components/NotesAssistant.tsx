@@ -17,13 +17,13 @@ import {
   REVIEW_SCHEMA, SUMMARY_SCHEMA,
   type Annotation, type AnchoredAnnotation, type AnnotationKind,
 } from "../lib/notebook-assistant";
-import { IconCheck, IconPlus, IconQuestion, IconXmark, type IconComponent } from "./icons";
+import { IconCheck12, IconPlus12, IconQuestion12, IconXmark12, type IconComponent } from "./icons";
 
 const KIND_META: Record<AnnotationKind, { label: string; color: string; Glyph: IconComponent }> = {
-  error:    { label: "Wrong",   color: "var(--danger)", Glyph: IconXmark },
-  gap:      { label: "Missing", color: "var(--warning)", Glyph: IconPlus },
-  question: { label: "Check",   color: "var(--phosphor)", Glyph: IconQuestion },
-  correct:  { label: "Right",   color: "var(--success)", Glyph: IconCheck },
+  error:    { label: "Wrong",   color: "var(--danger)", Glyph: IconXmark12 },
+  gap:      { label: "Missing", color: "var(--warning)", Glyph: IconPlus12 },
+  question: { label: "Check",   color: "var(--phosphor)", Glyph: IconQuestion12 },
+  correct:  { label: "Right",   color: "var(--success)", Glyph: IconCheck12 },
 };
 
 export interface NotesAssistantProps {
