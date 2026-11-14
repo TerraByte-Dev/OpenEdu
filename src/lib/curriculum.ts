@@ -3,7 +3,7 @@ import { outputRulesLayer } from "./kernel/outputRules";
 import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson } from "./db";
 import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
-import { assembleLessonMarkdown, type LessonContent } from "./lesson-format";
+import { assembleLessonMarkdown, lessonIssues, type LessonContent } from "./lesson-format";
 import type { LLMConfig, ModelTier, Syllabus, Subtopic, Lesson, CourseOutline, OutlineLevel, ConceptLedger, LevelLedgerEntry } from "../types";
 
 // ─── JSON Schemas for structured pipeline stages ──────────────────────────────
@@ -840,7 +840,12 @@ export async function generateLesson(
   const result = await callLLMStructured<LessonContent>(
     [{ role: "user", content: buildLessonPrompt(topic, level, subtopic) }],
     config,
-    { schema: LESSON_SCHEMA, toolName: "emit_lesson", tier, onProgress: (m) => onProgress?.(m) },
+    {
+      schema: LESSON_SCHEMA, toolName: "emit_lesson", tier, onProgress: (m) => onProgress?.(m),
+      // A section cut off mid-sentence passes the schema (the tiny tier needs only one section), so it
+      // is a validation issue and gets the repair retry.
+      validate: lessonIssues,
+    },
   );
 
   const content = assembleLessonMarkdown(subtopic.title, result);
