@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { speakableText, texWords, pickVoice, CODE_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
+import { speakableText, texWords, pickVoice, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
 import { persistedReply } from "./kernel/persistedReply";
 
 // speakableText is what ChatTab's speaker button and the K-2 auto-read hand to speechSynthesis
@@ -25,6 +25,11 @@ describe("speakableText: markdown", () => {
   it("reads a code block as one word and inline code as its text", () => {
     const text = speakableText("Run this:\n\n```python\nprint('hi')\nx = {1: 2}\n```\n\nThen call `print` again.");
     expect(text).toBe(`Run this: ${CODE_SPOKEN}. Then call print again.`);
+  });
+
+  it("reads a ```mermaid fence as a drawing, since the chat draws it (gemma4:e2b reply d01, B9 run)", () => {
+    const reply = "Here is the flowchart showing how an if/else statement works:\n\n```mermaid\ngraph TD;\n    A[Start] --> B{Condition?};\n    B -- Yes --> C[Execute the 'if' block];\n```\n\nThis flowchart shows the steps of an if/else statement.";
+    expect(speakableText(reply)).toBe(`Here is the flowchart showing how an if/else statement works: ${DRAWING_SPOKEN}. This flowchart shows the steps of an if/else statement.`);
   });
 
   it("reads quotes and tables as plain sentences", () => {

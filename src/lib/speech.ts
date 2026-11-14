@@ -13,6 +13,8 @@ import { chatMathExtension } from "./chat-math";
 
 /** What a fenced or indented code block is read as. */
 export const CODE_SPOKEN = "Code";
+/** What a ```mermaid fence is read as: the chat draws it as a picture (mermaid-source.ts), not code. */
+export const DRAWING_SPOKEN = "A drawing";
 /** What math that cannot be read as words (a matrix, an aligned block) is read as. */
 export const MATH_PLACEHOLDER = "a math expression";
 
@@ -202,7 +204,7 @@ export function texWords(tex: string): string {
 // pauses between the steps.
 const BREAK = "\n";
 
-type AnyToken = Token & { tokens?: Token[]; text?: string };
+type AnyToken = Token & { tokens?: Token[]; text?: string; lang?: string };
 
 function inline(tokens: ReadonlyArray<Token> | undefined): string {
   if (!tokens) return "";
@@ -233,7 +235,7 @@ function blocks(tokens: ReadonlyArray<Token>): string[] {
     const t = tok as AnyToken;
     switch (t.type) {
       case "code":
-        out.push(CODE_SPOKEN);
+        out.push((t.lang ?? "").trim().split(/\s+/)[0].toLowerCase() === "mermaid" ? DRAWING_SPOKEN : CODE_SPOKEN);
         break;
       case "blockMath":
         out.push(texWords(t.text ?? ""));

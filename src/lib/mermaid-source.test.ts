@@ -70,6 +70,25 @@ describe("drawableMermaid: source Mermaid rejects is retried with its labels quo
 
 });
 
+describe("quoting keeps every node's shape", () => {
+  // Circle, hexagon, subroutine, cylinder, stadium, double circle and trapezoid, each with a label
+  // Mermaid rejects unquoted. Only the text inside the shape is quoted.
+  const SHAPES = "graph TD;\n    A((f(x))) --> B{{g(y)}};\n    B --> C[[h(z)]];\n    C --> D[(k(w))];\n    D --> E([m(v)]);\n    E --> F(((n(u))));\n    F --> G[/p(t)/];";
+
+  it("each shape is drawn with its label quoted inside it", async () => {
+    expect(await parse(SHAPES)).toBe(false);
+    const drawn = await drawableMermaid(SHAPES, parse);
+    for (const node of ['A(("f(x)"))', 'B{{"g(y)"}}', 'C[["h(z)"]]', 'D[("k(w)")]', 'E(["m(v)"])', 'F((("n(u)")))', 'G[/"p(t)"/]']) {
+      expect(drawn).toContain(node);
+    }
+    expect(await parse(drawn!)).toBe(true);
+  });
+
+  it("the fallback lists the labels without the shapes' brackets", () => {
+    expect(diagramFallback(SHAPES).parts).toEqual(["f(x)", "g(y)", "h(z)", "k(w)", "m(v)", "n(u)", "p(t)"]);
+  });
+});
+
 describe("diagramFallback: a diagram that cannot be drawn is described, never shown as source", () => {
   it("a broken flowchart lists its labels in plain words", async () => {
     // d18 with its subgraph left open: no quoting can save it.

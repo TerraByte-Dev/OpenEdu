@@ -52,17 +52,36 @@ export function splitReplyDiagrams(text: string): ReplySegment[] {
   return segments.length ? segments : [{ kind: "markdown", text }];
 }
 
-const OPENERS: Record<string, string> = { "[": "]", "(": ")", "{": "}" };
+// Flowchart node shapes, longest opener first: circle, double circle, stadium, subroutine, cylinder,
+// hexagon, the four trapezoids, then rectangle, rounded and diamond.
+const SHAPES: ReadonlyArray<readonly [string, string]> = [
+  ["(((", ")))"], ["((", "))"], ["([", "])"], ["[[", "]]"], ["[(", ")]"], ["{{", "}}"],
+  ["[/", "/]"], ["[/", "\\]"], ["[\\", "\\]"], ["[\\", "/]"],
+  ["[", "]"], ["(", ")"], ["{", "}"],
+];
 
 interface Label {
-  start: number; // index of the opening bracket
-  end: number;   // index of the matching closing bracket
-  text: string;  // what is between them
+  start: number; // index of the label's first character, just past the shape's opener
+  end: number;   // index of the shape's closer
+  text: string;  // the label, without the shape's brackets
 }
 
-// Node labels in a flowchart: an id written straight against [ ( or {, up to the bracket that closes
-// it (brackets inside the label are counted, so `A[f(x)]` is one label). Quoted text is skipped, so an
-// edge label such as -- "Run (x2 - x1)" --> is not read as a node.
+// Where the label opened by `open` (ending at `from`) closes: the shape's closer at bracket depth 0 on
+// the same line, so `A[f(x)]` is one label. -1 when it does not close there.
+function closerAt(code: string, from: number, close: string): number {
+  let depth = 0;
+  for (let j = from; j < code.length && code[j] !== "\n"; j++) {
+    if (depth === 0 && code.startsWith(close, j)) return j;
+    const c = code[j];
+    if (c === "[" || c === "(" || c === "{") depth++;
+    else if (c === "]" || c === ")" || c === "}") { if (--depth < 0) return -1; }
+  }
+  return -1;
+}
+
+// Node labels in a flowchart: an id written straight against a shape's opener, up to that shape's
+// closer. Quoted and |piped| text is skipped, so an edge label such as -- "Run (x2 - x1)" --> is not
+// read as a node.
 function nodeLabels(code: string): Label[] {
   if (!/^\s*(?:graph|flowchart)\b/i.test(code)) return [];
   const labels: Label[] = [];
@@ -74,28 +93,24 @@ function nodeLabels(code: string): Label[] {
       i = end;
       continue;
     }
-    if (!(ch in OPENERS) || i === 0 || !/[\w]/.test(code[i - 1])) continue;
-    let depth = 0;
-    let end = -1;
-    for (let j = i; j < code.length && code[j] !== "\n"; j++) {
-      if (code[j] in OPENERS) depth++;
-      else if (code[j] === "]" || code[j] === ")" || code[j] === "}") {
-        depth--;
-        if (depth === 0) { end = j; break; }
-      }
+    if (!"[({".includes(ch) || i === 0 || !/\w/.test(code[i - 1])) continue;
+    for (const [open, close] of SHAPES) {
+      if (!code.startsWith(open, i)) continue;
+      const end = closerAt(code, i + open.length, close);
+      if (end < 0) continue;
+      labels.push({ start: i + open.length, end, text: code.slice(i + open.length, end) });
+      i = end + close.length - 1;
+      break;
     }
-    if (end < 0) continue;
-    if (code[end] !== OPENERS[ch]) continue;
-    labels.push({ start: i, end, text: code.slice(i + 1, end) });
-    i = end;
   }
   return labels;
 }
 
 /**
  * The flowchart with every unquoted node label that holds a bracket or a double quote written as a
- * quoted label (`A[Point 1: (x1, y1)]` → `A["Point 1: (x1, y1)"]`, `"` → `#quot;`). Any other source
- * comes back unchanged.
+ * quoted label (`A[Point 1: (x1, y1)]` → `A["Point 1: (x1, y1)"]`, `"` → `#quot;`). Only the text inside
+ * the shape is quoted, so a circle stays a circle (`A((f(x)))` → `A(("f(x)"))`). Any other source comes
+ * back unchanged.
  */
 export function quoteMermaidLabels(code: string): string {
   let out = "";
@@ -103,7 +118,7 @@ export function quoteMermaidLabels(code: string): string {
   for (const l of nodeLabels(code)) {
     const t = l.text;
     if (/^".*"$/s.test(t.trim()) || !/[()[\]{}"]/.test(t)) continue;
-    out += code.slice(at, l.start + 1) + `"${t.replace(/"/g, "#quot;")}"`;
+    out += code.slice(at, l.start) + `"${t.replace(/"/g, "#quot;")}"`;
     at = l.end;
   }
   return out + code.slice(at);
