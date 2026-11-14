@@ -45,10 +45,11 @@ export const STORE_KEYS = {
   // accepted on this PC (privacy.ts, #293). Not importable: a settings file from another machine must
   // not count as the person here having read the notice.
   cloudNoticesSeen: "cloud_notices_seen",
-  // The content review model (content-review.ts resolveReviewConfig): unset = the generation model
-  // (lessons: off on the tiny and small tiers), "off", a model name on the current provider, or
-  // "<provider>:<model>" on another provider with a saved key (e.g. "anthropic:claude-haiku-5-5"). No Settings control yet and
-  // not importable: a cloud review model must go through the privacy confirm first.
+  // The content review model, "Checking model" in Settings › Models (content-review.ts
+  // resolveReviewConfig): unset = the generation model (lessons: off on the tiny and small tiers), "off",
+  // a model name on the current provider, or "<provider>:<model>" (e.g. "anthropic:claude-haiku-5-5").
+  // Importable like the other model settings: a cloud value only takes effect once this PC's own notice
+  // for that company was accepted (cloud_notices_seen, which is not importable) and a key is saved.
   reviewModel: "review_model",
 } as const;
 
@@ -96,6 +97,7 @@ export const ALLOWED_IMPORT_KEYS: ReadonlySet<string> = new Set<string>([
   STORE_KEYS.provider,
   STORE_KEYS.genModel,
   STORE_KEYS.chatModel,
+  STORE_KEYS.reviewModel,
   STORE_KEYS.embeddingProvider,
   STORE_KEYS.embeddingModel,
   STORE_KEYS.ollamaUrl,

@@ -17,8 +17,19 @@ The section for each release is also what the app shows when you press Check for
   imports, but OpenEdu says it couldn't check it), copies it into Ollama with a progress bar you can
   cancel, and makes it your tutor model. It never replaces a model you already have. How to make a
   kit is in `docs/OFFLINE-KIT.md`.
+- **Checking model** in Settings › Models: pick which model reads each new lesson and set of quiz or
+  test questions for false facts and wrong answer keys, or turn it off. It can be a model on this
+  computer or a cloud model with a saved key (after that company's one-time notice), and it is sent
+  only the course topic and the generated text. It travels in a settings export.
+- Claude Opus 5.5, Sonnet 5.5 and Fable 5.2 can build courses. Anthropic's newest models refused the way
+  OpenEdu asked for structured answers; it now uses structured outputs, which every current Claude model
+  accepts.
 
 ### Security
+- With OpenAI or Anthropic chosen, written quiz and test answers are marked, and the study plan after a
+  failed test is written, only on a model on this computer. Before, the learner's answers and the
+  questions they missed went to the cloud model. With no local model, written answers code cannot
+  check are passed, and the study plan lists the missed questions with their answers.
 - A picture in a tutor reply, a lesson or a library card that links to another website is no longer
   loaded. Loading it told that website when the learner opened the message, and its address could
   carry words from the conversation. Pictures built into OpenEdu still show.
