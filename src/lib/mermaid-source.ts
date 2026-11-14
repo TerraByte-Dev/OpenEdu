@@ -13,7 +13,7 @@
 // And one the privacy audit found (#284): Mermaid source can make the webview fetch from any host, so
 // drawableMermaid takes that syntax out before anything is drawn (withoutRemoteLoads).
 
-import { cssLoadsRemote } from "./sanitize-html";
+import { cssLoadsRemote } from "./remote-url";
 
 export type ReplySegment =
   | { kind: "markdown"; text: string }
