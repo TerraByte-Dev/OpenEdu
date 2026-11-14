@@ -126,6 +126,7 @@ written: they came from a once-a-minute timer whose only reader was the learning
   near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
   one model call for the rest). The `-grading` / `-review` helpers are pure and unit-tested.
+- **`content-review.ts`** — the content review of generated lessons and questions. See below.
 - **`notebook.ts` / `notebook-links.ts`** — the notebook layer (retrieval + linking). See below.
 - **`kernel/`, `tools/`, `skills/`, `permissions/`** — the tutoring runtime. See below.
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
@@ -156,6 +157,38 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
 5. **Checkpoint + resume.** `courses.generation_state` is written after each step; a failed run resumes
    from where it stopped (never delete the row on error).
 6. **Code-assemble what doesn't need an LLM** (e.g. the L6 exam) for perfect reliability.
+
+### Content review (`content-review.ts`)
+
+An optional check of **generated** content before a learner sees it. A small model writes lessons with
+false facts (B9 rerun 2 on `gemma4:e2b`: at least 5 of 20 lessons, e.g. hydrogen and oxygen "produce
+water and carbon dioxide") and promotion-test questions with wrong or unanswerable keys (about 10–17%).
+
+- **One structured call** (`callLLMStructured`, schema-validated, tier-aware) per lesson, and per batch
+  of fresh questions (8 a call on tiny/small, 20 otherwise). Each item gets a verdict: `ok`,
+  `false_fact` (with the sentence), `wrong_key` or `unanswerable`, plus a short reason.
+- **Code acts on the verdicts.** A lesson with a false fact is regenerated once, with the flagged
+  sentences named as false in the prompt, and reviewed again. Parts still flagged are dropped; a lesson
+  with no section left is not saved (the learner sees an error and can retry). Flagged questions are
+  dropped and quiz.ts's top-up rounds refill them; the floor counts are unchanged. With a review model
+  set, the review replaces the verify pass on fresh questions (it checks the key too).
+- **Noise guard.** A `false_fact` counts only when its quoted sentence is in the item (`quoteFound`).
+  Missing or unknown verdicts count as `ok`, and a failed review call keeps the content, so a confused
+  reviewer can only let content through, never drain it.
+- **The review's words never reach the learner.** They go to the log and into the lesson's one
+  regeneration prompt.
+- **Which model:** the `review_model` setting (`store.ts` `getReviewConfig` → `resolveReviewConfig`).
+  Unset = the generation model, except on the **tiny tier, where it is off by default** (the shipped
+  8 GB default `gemma4:e2b` keeps its existing verify pass); `"off"` = no review; any other value = that
+  model on the current provider. An Ollama cloud model whose privacy confirm was never accepted is
+  ignored. There is no Settings control yet, and the key is not importable.
+- **Privacy.** The payload is a function of (topic, generated content) only: no learner name, grade,
+  answers, knowledge files or history. Lesson generation takes (topic, level, subtopic) and fresh
+  question generation takes the syllabus, so their output carries no learner data. The quiz's review
+  pool (questions this learner missed) is learner data, so it never goes to the review model; it keeps
+  the verify pass on the generation model. `content-review-privacy.test.ts` runs the generators for a
+  fresh learner and for one with a full history and fails if the review payloads differ. This is what
+  lets an edition send the review to a cloud model without sending anything about the learner.
 
 ## The tutoring runtime (`kernel/`, `tools/`, `skills/`, `permissions/`)
 
