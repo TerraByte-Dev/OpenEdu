@@ -581,7 +581,7 @@ export async function generateQuizQuestions(
   // drop the broken ones, so a poisoned question can't keep popping up (issue #83). allowedIds is empty
   // (we don't re-check subtopic membership for re-posed items).
   const validReviewPool = reviewPool
-    .map(storedToGenQuestion)
+    .map((q) => resolveLetterKey(storedToGenQuestion(q)))
     .filter((q) => validateQuizBatch([q as unknown as GeneratedQuestion], new Set<string>(), { tier }).length === 0);
   const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
   let reviewQs = pickReview(validReviewPool, review);

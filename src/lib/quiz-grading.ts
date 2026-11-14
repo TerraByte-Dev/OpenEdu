@@ -40,12 +40,14 @@ export function resolveLetterKey<Q extends QuestionLike>(q: Q): Q {
   if (!m) return q;
   const letter = m[1].toUpperCase();
   const opts = q.options.map((o) => String(o));
-  // An option whose own text is the bare letter ("A") is a real answer, not a label.
-  const bare = (o: string) => o.replace(OPTION_LABEL_RE, "").trim().toUpperCase();
-  if (opts.some((o) => bare(o) === letter)) return q;
-  const labelled = opts.find((o) => OPTION_LABEL_RE.exec(o)?.[1].toUpperCase() === letter);
-  const byIndex = opts.every((o) => !OPTION_LABEL_RE.test(o)) ? opts["ABCD".indexOf(letter)] : undefined;
-  const hit = labelled ?? byIndex;
+  // An option whose own text is the key's letter ("A", as written) is a real answer, not a label.
+  if (opts.some((o) => o.replace(OPTION_LABEL_RE, "").trim() === m[1])) return q;
+  const labelled = opts.filter((o) => OPTION_LABEL_RE.test(o)).length;
+  // Map by label only when every option is labelled, and by position only when none is; a mixed set
+  // ("B. vitamins", "minerals", ...) is ambiguous and stays as it is.
+  const hit = labelled === opts.length
+    ? opts.find((o) => OPTION_LABEL_RE.exec(o)?.[1].toUpperCase() === letter)
+    : labelled === 0 ? opts["ABCD".indexOf(letter)] : undefined;
   return hit === undefined ? q : { ...q, correct_answer: hit };
 }
 

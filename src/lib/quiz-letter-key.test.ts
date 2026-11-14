@@ -57,6 +57,16 @@ describe("resolveLetterKey", () => {
     expect(resolveLetterKey(q).correct_answer).toBe("A");
   });
 
+  it("reads an upper-case key as a label even when an option's text is that letter in lower case", () => {
+    const q = mc("A", ["A) an", "B) a", "C) the", "D) some"]);
+    expect(resolveLetterKey(q).correct_answer).toBe("A) an");
+  });
+
+  it("leaves a mixed set of labelled and unlabelled options alone", () => {
+    const q = mc("B", ["B. vitamins", "minerals", "water", "fiber"]);
+    expect(resolveLetterKey(q).correct_answer).toBe("B");
+  });
+
   it("leaves a letter with no matching option, and non-multiple-choice questions, alone", () => {
     expect(resolveLetterKey(mc("D", ["A) x", "B) y", "C) z"])).correct_answer).toBe("D");
     const tf = { ...mc("A"), question_type: "true_false", options: [] };
@@ -88,12 +98,40 @@ describe("generateQuizQuestions on a model that answers with the letter", () => 
     });
   });
 
-  it("returns a full quiz whose key is the option's text", async () => {
-    const qs = await generateQuizQuestions(syllabus, 3, config);
-    expect(qs).toHaveLength(3);
+  const keyIsOption = (qs: Array<{ options: string[] | null; correct_answer: string }>) => {
     for (const q of qs) {
       expect(q.options).toContain(q.correct_answer);
       expect(q.correct_answer.replace(/^[A-D]\)\s*/, "")).toBe("hop and top");
     }
+  };
+
+  it("local, one question per call: returns a full quiz whose key is the option's text", async () => {
+    const qs = await generateQuizQuestions(syllabus, 3, config);
+    expect(qs).toHaveLength(3);
+    keyIsOption(qs);
+  });
+
+  it("cloud, batched: returns a full quiz whose key is the option's text", async () => {
+    vi.mocked(callLLMStructured).mockImplementation(async (_msgs, _cfg, opts) => {
+      if (opts.toolName === "emit_verdicts") return { verdicts: [] };
+      const parsed = { questions: [1, 2, 3].map((n) => ({ ...mc("D"), question_text: `Which pair of words rhymes? (${n})` })) };
+      const issues = opts.validate ? opts.validate(parsed as never) : [];
+      if (issues.length) throw new Error(`Structured output failed after 3 attempts. Issues: ${issues.join("; ")}`);
+      return parsed;
+    });
+    const cloud = { provider: "anthropic", model: "claude-haiku-5-5", modelTier: "medium" } as unknown as LLMConfig;
+    const qs = await generateQuizQuestions(syllabus, 3, cloud);
+    expect(qs).toHaveLength(3);
+    keyIsOption(qs);
+  });
+
+  it("review pool: a stored question with a letter key comes back with the option's text", async () => {
+    const stored = [1, 2, 3, 4, 5].map((n) => ({
+      ...mc("D"), id: `q${n}`, question_text: `Stored rhyme question ${n}`,
+    })) as unknown as Parameters<typeof generateQuizQuestions>[3];
+    const qs = await generateQuizQuestions(syllabus, 5, config, stored);
+    const review = qs.filter((q) => q.question_text.startsWith("Stored"));
+    expect(review.length).toBeGreaterThan(0);
+    keyIsOption(review);
   });
 });
