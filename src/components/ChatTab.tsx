@@ -20,6 +20,7 @@ import { chatTurnSkills } from "../lib/kernel/chatSkills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
+import { splitReplyDiagrams } from "../lib/mermaid-source";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
 import { describeToolActivity, describeToolDone, describeToolRequest, friendlyError, STALLED_TURN } from "../lib/plain-language";
@@ -559,13 +560,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             <div className="chat-msg flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
               {streamingText
                 ? (
-                  <div className="note-prose">
-                    <div
-                      // eslint-disable-next-line react/no-danger
-                      dangerouslySetInnerHTML={{ __html: renderChatMarkdown(streamingText) }}
-                    />
+                  <ReplyProse text={streamingText} streaming>
                     <span className="inline-block w-1.5 h-4 bg-phosphor-ink animate-pulse ml-0.5 align-middle" />
-                  </div>
+                  </ReplyProse>
                 )
                 : (
                   <span className="text-[var(--ink-faint)] italic">
@@ -663,6 +660,33 @@ function appendUnique(prev: ChatMessage[], msg: ChatMessage): ChatMessage[] {
   return prev.some((m) => m.id === msg.id) ? prev : [...prev, msg];
 }
 
+// A tutor reply's prose. A ```mermaid fence in it is drawn through MermaidBlock, as a diagram.render
+// result is, instead of shown as code (mermaid-source.ts); a fence still streaming shows a placeholder.
+// A reply without one renders exactly as before.
+function ReplyProse({ text, streaming = false, children }: { text: string; streaming?: boolean; children?: React.ReactNode }) {
+  const segments = splitReplyDiagrams(text);
+  if (!streaming && segments.length === 1 && segments[0].kind === "markdown") {
+    return (
+      <div
+        className="note-prose"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: renderChatMarkdown(text) }}
+      />
+    );
+  }
+  return (
+    <div className="note-prose">
+      {segments.map((s, i) => s.kind === "markdown"
+        // eslint-disable-next-line react/no-danger
+        ? <div key={i} dangerouslySetInnerHTML={{ __html: renderChatMarkdown(s.text) }} />
+        : s.closed || !streaming
+          ? <div key={i} className="my-2"><MermaidBlock code={s.code} /></div>
+          : <div key={i} className="lcd rounded-lg px-3 py-2 my-2 text-sm text-[var(--ink-dim)]">drawing a diagram…</div>)}
+      {children}
+    </div>
+  );
+}
+
 // `onReadAloud` is set when the webview can speak; tutor replies then get a speaker button that reads
 // the reply (speech.ts speakableText) and, pressed again, stops.
 function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage; reading: boolean; onReadAloud?: () => void }) {
@@ -677,13 +701,7 @@ function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage
       <div className={`chat-msg max-w-[75%] p-3 rounded-xl text-sm leading-relaxed ${
         isUser ? "bg-[rgb(var(--phosphor-rgb)/0.10)] text-ink whitespace-pre-wrap" : "bg-panel text-ink"
       }`}>
-        {isUser ? message.content : (
-          <div
-            className="note-prose"
-            // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: renderChatMarkdown(message.content) }}
-          />
-        )}
+        {isUser ? message.content : <ReplyProse text={message.content} />}
       </div>
       {!isUser && onReadAloud && (
         <button
