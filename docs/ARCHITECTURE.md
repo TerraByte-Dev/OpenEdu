@@ -129,6 +129,10 @@ written: they came from a once-a-minute timer whose only reader was the learning
 - **`content-review.ts`** — the content review of generated lessons and questions. See below.
 - **`notebook.ts` / `notebook-links.ts`** — the notebook layer (retrieval + linking). See below.
 - **`kernel/`, `tools/`, `skills/`, `permissions/`** — the tutoring runtime. See below.
+- **`daily-goal.ts`** — Home's daily goal: minutes a day and today's count, on the learner's local day.
+  App adds one minute per minute the window is visible with a learner in, on the learner's own screens
+  (`countsTowardGoal`): a minute in Settings is a grown-up's and never counts (click test 2026-11-14).
+  The learner picker and its PIN screen never count either: no timer runs without an active learner.
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
   catalog, the Light / Dark / Match my computer switch, and pure import/export helpers. `store-keys.ts` is the single source of
   truth for setting keys + the secret/import allow-list.
@@ -160,7 +164,9 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
 7. **A finished build opens its course only from the build screen** (`course-ready.ts`, App.tsx
    `onCourseCreated`). The build keeps running while the learner goes elsewhere; anywhere else they get
    a notice above the view ("Your course … is ready.", Open, ✕) and stay where they are, so a build never
-   closes Settings or a dialog open in it.
+   closes Settings or a dialog open in it. The notice goes once its course is open, by any route (Open,
+   the course list, Home's Continue, or a build that finished while that course was on screen):
+   `readyNoticeAfter` runs on every change of view, open course or notice.
 
 ### Content review (`content-review.ts`)
 
@@ -261,6 +267,39 @@ Two write actions do not wait for the model to choose a tool, because small mode
   `endsWithQuestion` (`withoutTrailingEmoji`, click test 2026-11-14). Anything in doubt gets no buttons. The chat shows
   them as the ask_user buttons, with only the stuck chips and "Review due cards" beside them
   (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
+  The question is always a line of the reply, so the buttons show without it when the reply ends on it
+  (`repeatsQuestion`, below).
+
+**Question cards** (`kernel/askCard.ts`, `tools/ask_user/QuestionTool.ts`). Click test 2026-11-14 on
+`gemma4:e4b` (fractions L1, "Check if I've got this."): the card asked "Think about the fraction 1/5.
+Which number, 1 or 5, is the unit fraction part?" with the buttons "What is the denominator?" and "What
+is the numerator?", the chat box was disabled, an empty "Thinking…" bubble sat above the card, and after
+a pick the turn ended with only a "✓ Done" chip. The cause of that ending: the tool handed the model
+`{"choice":"numerator"}`, and the model's next call came back empty (headless, same card, same model: 5
+of 8 runs; 8 of 8 when retried without tools). The never-blank rule below only covered turns that ran no
+tool, so the turn returned "", ChatTab saved nothing, and the question lived only in the card. Now:
+- **Repair, by code, before the card is shown** (`repairAskCard`, fails closed). A question that names
+  its own choices ("1 or 5", "1/2, 1/3, or 1/4", "bigger or smaller": numbers, fractions or single words
+  joined by "or", one kind throughout, and "not", "yes", "do" and the like end the list) where no button
+  mentions any of them gets the named choices as its buttons. Buttons that are all "What is X?" / "Is it
+  X?" on a card that is not a topic picker become "X". Anything else is left exactly as written; the
+  repaired card is what the claim filter, the child, the model's record and `toolCalls` see.
+- **Never a dead end.** While a card waits, the chat box stays usable ("Or type your own answer…", plus
+  a "Type my own answer" button that focuses it), and what the child sends answers the card. No
+  "Thinking…" bubble shows above a card when nothing has streamed.
+- **The model is told the answer in a sentence** (`questionModelText`): `The student picked "1". Reply to
+  the student now, following on from their answer.`, or `The student typed their own answer instead of
+  picking a choice: "…"`. On the same card that took empty replies from 5 of 8 runs to 1 of 8.
+- **The question and the answer stay in the thread.** Once answered, the card's question and
+  "*You picked: …*" (or "*You answered: …*") join the reply's text (`answeredCard`), so they stream, are
+  saved with the reply, and are in the model's history next turn. The "✓ Done" chip for the card is gone.
+  When the text before the card already ends on its question (`repeatsQuestion`: the reply's last
+  sentence, after any trailing choice list, is the question), the card shows only its buttons and the
+  record only the answer, so the question is said once.
+- **Always a reply after the answer.** A model call after the answer that shows nothing and calls
+  nothing is made once more, as it was; a second empty one gets `AFTER_ANSWER_REPLY` ("Thanks! Tell me
+  a little about why you chose that, and we'll keep going."). With both, 10 of 10 headless runs of the
+  click-test card ended on a visible tutor reply.
 
 A reply that says it shows a picture and shows none is corrected by code too (`kernel/pictureClaims.ts`;
 click test 2026-11-14: "Here is a picture of a pizza cut into 4 equal slices." with nothing drawn). On
@@ -386,8 +425,10 @@ only removed. Saved replies are shown through the same filter (`displayReplyText
 before it existed shows clean too.
 A turn that ends with nothing to show and ran no tool (the model wrote nothing, or only a call the
 filter removed) is never left blank: the kernel shows and saves `MIXED_UP_REPLY` from
-`plain-language.ts` ("Sorry, I got mixed up. Can you ask that again?"). A turn the student stopped, or
-one that stalled, keeps its own handling.
+`plain-language.ts` ("Sorry, I got mixed up. Can you ask that again?"). A turn that ran a tool may end
+with no text of its own (a drawing can be the whole answer), except after the child answers a question
+card: that always gets a reply (Question cards, above). A turn the student stopped, or one that
+stalled, keeps its own handling.
 
 In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
 `diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model

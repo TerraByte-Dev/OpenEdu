@@ -33,8 +33,10 @@ import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOK
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
 import { ReplyTextFilter } from "./textToolCalls";
-import { MIXED_UP_REPLY } from "../plain-language";
+import { MIXED_UP_REPLY, AFTER_ANSWER_REPLY } from "../plain-language";
 import { choicesInReply, type ReplyChoices } from "./replyChoices";
+import { repairAskCard, answeredCard, type AskCard } from "./askCard";
+import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
@@ -403,6 +405,13 @@ ${lastUser.content}` };
       checkMastery: masteryCheck || !!answerCheck,
       answer: answerCheck ? { student: answerCheck.studentAnswer || prepared.answered, key: answerCheck.key } : undefined,
     });
+    // An answered ask_user.question card owes the child a reply (askCard.ts). Set when the child answers
+    // one; cleared when a model call after it shows text. A model call after it that shows nothing and
+    // calls nothing is made once more (gemma4:e4b answered the click-test card with an empty reply in
+    // 5 of 8 headless runs, and every retry WITHOUT tools was empty too, so the request is repeated as
+    // it was); a second empty one gets AFTER_ANSWER_REPLY below.
+    let replyOwed = false;
+    let retriedEmpty = false;
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
@@ -440,6 +449,7 @@ ${lastUser.content}` };
       const tail = claims.push(filter.end()) + claims.flush();
       iterationText += tail;
       show(tail);
+      if (iterationText.trim()) replyOwed = false;
       // A tool call written as text, when the provider returned none: run the first one whose tool was
       // offered (the filter stopped the text there) through the same dispatch as a native call.
       if (pendingCalls.length === 0 && filter.stoppedAtCall) {
@@ -451,8 +461,11 @@ ${lastUser.content}` };
       // the model may have emitted valid tool calls before running out of room, and dropping them
       // would lose work AND skip the forced final answer below, leaving the student with nothing.
       if (interrupted && interrupted !== "length") break;
+      if (pendingCalls.length === 0 && replyOwed && !iterationText.trim() && !interrupted && !retriedEmpty) { retriedEmpty = true; continue; }
       if (pendingCalls.length === 0) { endedNaturally = true; break; }
 
+      // A card whose buttons do not answer its question is repaired first, by code (askCard.ts); the
+      // repaired card is what the claim filter, the child, the model's record and the result all see.
       // An ask_user.question card is the tutor speaking too: on a turn of a mastery check its question and
       // choice labels go through the claim filter before the student sees them (and before the model's
       // own record of the call, so it does not read back what was taken out). A card left with no
@@ -460,6 +473,7 @@ ${lastUser.content}` };
       const refusedCards = new Set<string>();
       for (const call of pendingCalls) {
         if (call.name !== ASK_USER_TOOL) continue;
+        call.args = repairAskCard(call.args);
         const shown = claims.card(call.args);
         if (shown === null) refusedCards.add(call.id);
         else call.args = shown;
@@ -484,6 +498,14 @@ ${lastUser.content}` };
         toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}) });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         if (call.name === MARK_MASTERED_TOOL && result.ok && marksMastered(call.args)) masteryWritten = true;
+        // The child answered a card: the question and their answer join the reply's text, so they are
+        // shown in the stream and saved with the reply once the card is gone (askCard.ts answeredCard).
+        if (call.name === ASK_USER_TOOL && result.ok && !ctx.abort.aborted) {
+          const answer = result.value as QuestionResult;
+          show(answeredCard(streamedText, (call.args as AskCard).question, { text: answer.answer, typed: answer.typed }));
+          replyOwed = true;
+          retriedEmpty = false;
+        }
         // Cap what goes back into context. The model sees a visible truncation marker rather than a
         // silently shortened result it would otherwise answer from with false confidence.
         const payload = result.ok
@@ -518,14 +540,16 @@ ${lastUser.content}` };
       // No tools on this call, so a call written as text is only dropped.
       const filter = new ReplyTextFilter(toolNames);
       for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
-        if (ev.type === "text") show(claims.push(filter.push(ev.delta)));
+        if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); if (text.trim()) replyOwed = false; show(text); }
         else if (ev.type === "done") {
           if (ev.finishReason === "aborted") interrupted = "aborted";
           else if (ev.finishReason === "stalled") interrupted = "stalled";
           else if (ev.finishReason === "length") interrupted = "length";
         }
       }
-      show(claims.push(filter.end()) + claims.flush());
+      const tail = claims.push(filter.end()) + claims.flush();
+      if (tail.trim()) replyOwed = false;
+      show(tail);
     }
 
     // The abort flag is authoritative. `interrupted` can miss a Stop that lands during or after the
@@ -547,6 +571,11 @@ ${lastUser.content}` };
     // like any reply. A turn the student stopped, or one that stalled, keeps its own handling.
     if (!streamedText.trim() && toolCalls.length === 0 && stopReason !== "aborted" && stopReason !== "stalled") {
       show(MIXED_UP_REPLY);
+    }
+
+    // Never a turn that ends on the child's answer to a card: that was the click test's dead end.
+    if (replyOwed && stopReason !== "aborted" && stopReason !== "stalled") {
+      show(AFTER_ANSWER_REPLY);
     }
 
     // A reply that says it shows a picture and shows none: the saved reply loses the claim, and the
