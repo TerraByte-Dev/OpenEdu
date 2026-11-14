@@ -2,7 +2,7 @@
 name: math-tutor
 description: Math/physics/engineering domain support — typeset equations and diagrams.
 trigger:
-  course_subject: [math, mathematics, mathematical, algebra, algebraic, geometry, trigonometry, calculus, precalculus, physics, engineering, statistics, probability]
+  course_subject: [math, mathematics, mathematical, algebra, algebraic, geometry, geometric, trigonometry, calculus, precalculus, physics, engineering, statistics, probability, arithmetic, numeracy, skip counting, counting to, counting by, cardinality, addition, subtraction, multiplication, multiply, multiplying, long division, division fact, dividing, divisibility, times table, place value, number line, number sense, whole number, even number, odd number, negative number, mixed number, prime number, rational number, fraction, decimal, percent, percentage, ratio, proportion, proportional, integer, exponent, square root, order of operations, equation, inequality, polynomial, quadratic, factoring, logarithm, matrix, matrices, word problem, rounding, estimation, measurement, telling time, money, perimeter, angle, shape, triangle, polygon, coordinate plane, graph, graphing, pythagorean]
 tools_required: [math.render, diagram.render]
 model_tier_min: tiny
 ---
