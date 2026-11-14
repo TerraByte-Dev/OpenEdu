@@ -167,6 +167,23 @@ line in the stream). If nothing from that model call had reached the student yet
 that offers no tools and drops the tools manifest from the system prompt, and records it in the turn
 result (`toolCallRecovery`). Any other provider error fails the turn as before.
 
+Two write actions do not wait for the model to choose a tool, because small models rarely do (on
+`gemma4:e2b`, `flashcard.create` 0/20 and `ask_user.question` 2/20 in TerraTutor's B9 readiness run):
+- **A flashcard the student asks for** (`kernel/flashcardRequest.ts`). Code decides the message asks for
+  one card; one structured, validated call writes its two sides from the request and the tutor's last
+  message; the card goes through `flashcard.create`'s own dispatch (permission rules, the confirm card,
+  the "Card minted" chip), in any mode; the reply call gets a note saying it is saved and is not offered
+  the tool again that turn. The call shows in `toolCalls` with `byApp: true`. A failed card call leaves
+  the turn as it was.
+- **Choices written as a list** (`kernel/replyChoices.ts`). A completed reply that made no
+  `ask_user.question` call and ends with a short numbered or lettered list next to a question that asks
+  for a pick carries those choices in `replyChoices`; the chat shows them as the ask_user buttons, and a
+  pick is sent as the student's next message. The reply text is unchanged.
+
+Mastery is not one of them: it is decided in code from quiz and promotion-test results
+(`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path, and a
+model's praise alone never marks anything.
+
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
 The notebook is an Obsidian-style vault: notes in nested folders, a live-preview CodeMirror editor, and a
