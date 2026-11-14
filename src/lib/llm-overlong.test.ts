@@ -96,7 +96,8 @@ describe("a cloud model writing past maxLength no longer fails the course build"
     const out = await callLLMStructured<{ a: string; b: string }>([{ role: "user", content: "go" }], { ...HAIKU }, { schema, toolName: "t" });
     expect(out).toEqual({ a: "Short and fine.", b: "x" });
     expect(sent).toHaveLength(2);
-    const repair = (sent[1].body.messages as Array<{ content: string }>).at(-1)!.content;
+    const msgs = sent[1].body.messages as Array<{ content: string }>;
+    const repair = msgs[msgs.length - 1].content;
     expect(repair).toContain("$.b: missing required field");
     expect(repair).toContain("$.a: string too long");
   });
