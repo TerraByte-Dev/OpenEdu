@@ -30,11 +30,17 @@ const HTML_CONFIG = {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const LOAD_ATTRS = new Set(["src", "poster", "background", "data"]);
 
-// data:, blob: and same-origin URLs load nothing from the network. Unparseable counts as remote.
-function isLocalUrl(value: string): boolean {
+// data:, blob:, fragment-only (#id) and same-origin URLs load nothing from the network. Unparseable
+// counts as remote. Same origin is compared as protocol + host, not URL.origin: on macOS/Linux the app
+// is served from tauri://localhost, a non-special scheme whose URL.origin is "null".
+// `pageUrl` is only overridden by tests (jsdom can't run at an opaque origin).
+export function isLocalUrl(value: string, pageUrl: string = window.location.href): boolean {
+  const v = value.trim();
+  if (v.startsWith("#")) return true;
   try {
-    const url = new URL(value.trim(), window.location.href);
-    return url.protocol === "data:" || url.protocol === "blob:" || url.origin === window.location.origin;
+    const here = new URL(pageUrl);
+    const url = new URL(v, here);
+    return url.protocol === "data:" || url.protocol === "blob:" || (url.protocol === here.protocol && url.host === here.host);
   } catch {
     return false;
   }

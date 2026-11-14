@@ -4,7 +4,7 @@
 // LessonReader and ResourcesTab call, and through the library SVG sanitizer the Resources tab uses.
 import { beforeAll, describe, expect, it } from "vitest";
 import { ensureChatKatex, renderChatMarkdown } from "./chat-markdown";
-import { sanitizeHtml, sanitizeSvg } from "./sanitize-html";
+import { isLocalUrl, sanitizeHtml, sanitizeSvg } from "./sanitize-html";
 import flowchartSvg from "../../public/library/assets/arts-music-cs/flowchart-symbols.svg?raw";
 
 // Script hosts, plus tags that are script-free but still unsafe inline: global CSS (<style>), forms that
@@ -283,4 +283,22 @@ describe("sanitizeSvg: a library card can't load from another host (#284)", () =
     expect(svg).toContain("<style");
     expect(svg).toContain('marker-end="url(#ah)"');
   });
+});
+
+describe("isLocalUrl: the page origins the app runs at", () => {
+  // Windows serves the app from http://tauri.localhost; macOS/Linux from tauri://localhost, whose
+  // URL.origin is "null", so same-origin must not be decided by URL.origin.
+  for (const page of ["http://tauri.localhost/", "tauri://localhost/", "http://localhost:1420/"]) {
+    it(`treats fragment, relative, data: and blob: URLs as local at ${page}`, () => {
+      for (const u of ["#ah", " #ah ", "/library/assets/x.svg", "x.png", "data:image/png;base64,AA==", "blob:abc"]) {
+        expect(isLocalUrl(u, page), u).toBe(true);
+      }
+    });
+
+    it(`treats other hosts as remote at ${page}`, () => {
+      for (const u of ["https://evil.example/a.png", "//evil.example/a.png", "http://127.0.0.2/a.png", "https:"]) {
+        expect(isLocalUrl(u, page), u).toBe(false);
+      }
+    });
+  }
 });
