@@ -37,6 +37,33 @@ describe("asksForFlashcard", () => {
       expect(asksForFlashcard(text), text).toBe(false);
     }
   });
+
+  it("rejects negation, questions about cards, 'turn' without 'into', and more than one card", () => {
+    for (const text of [
+      "Don't make a flashcard",
+      "I don't want to make a flashcard right now",
+      "No, don't add it to a flashcard",
+      "Please do not save a flashcard for this.",
+      "Never make a flashcard of my mistakes.",
+      "Stop making a flashcard every time.",
+      "what does make a flashcard do?",
+      "When I make a flashcard does it save?",
+      "Where do I add a flashcard?",
+      "Can you show me how to make a flashcard?",
+      "Could you tell me how to save a flashcard?",
+      "I want to turn off the flashcard sound",
+      "Turn the flashcard over.",
+      "make a flashcard for each of these",
+      "Make a flashcard for all of these words.",
+    ]) {
+      expect(asksForFlashcard(text), text).toBe(false);
+    }
+  });
+
+  it("reads negation and question openers only in the request's own sentence", () => {
+    expect(asksForFlashcard("No worries. Make me a flashcard: 6 x 7 = 42.")).toBe(true);
+    expect(asksForFlashcard("What a fun fact! Save a flashcard: a hexagon has 6 sides.")).toBe(true);
+  });
 });
 
 describe("validateCard", () => {

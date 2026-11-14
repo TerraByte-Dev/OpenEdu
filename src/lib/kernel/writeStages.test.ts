@@ -24,6 +24,7 @@ const sent: Array<{ messages: Sent; tools: string[] }> = [];
 let script: TurnEvent[][] = [];
 let card: unknown = null;
 let cardError: Error | null = null;
+let cardHangs = false;
 
 vi.mock("../llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../llm")>()),
@@ -31,7 +32,11 @@ vi.mock("../llm", async (importOriginal) => ({
     sent.push({ messages: messages.map((m) => ({ role: m.role, content: m.content })), tools: (opts.tools ?? []).map((t) => t.name) });
     for (const ev of script.shift() ?? [{ type: "text", delta: "Okay." }, { type: "done", finishReason: "stop" }]) yield ev;
   }),
-  callLLMStructured: vi.fn(async () => {
+  callLLMStructured: vi.fn(async (_messages: unknown, _config: unknown, opts: { signal?: AbortSignal }) => {
+    if (cardHangs) {
+      // A model that never answers: settles only when the call's own signal aborts.
+      return new Promise((_resolve, reject) => opts.signal?.addEventListener("abort", () => reject(new Error("Aborted"))));
+    }
     if (cardError) throw cardError;
     return card;
   }),
@@ -46,9 +51,9 @@ vi.mock("../db", async (importOriginal) => ({
   }),
 }));
 
-import { tutorEngine, type TutorTurnResult } from "./TutorEngine";
+import { tutorEngine, type TutorTurn, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
-import { flashcardNote } from "./flashcardRequest";
+import { flashcardNote, cardFromRequest } from "./flashcardRequest";
 import { callLLMStructured } from "../llm";
 import { registerBuiltinTools } from "../tools";
 import type { ToolUIEvent } from "./toolDispatch";
@@ -64,11 +69,12 @@ async function run(
   mode: string,
   history: Sent,
   extra: Partial<ToolContext> = {},
+  turnExtra: Partial<TutorTurn> = {},
 ): Promise<{ result: TutorTurnResult; events: ToolUIEvent[] }> {
   const { activeSkill, domainSkill } = chatTurnSkills(mode, "Arithmetic", "tiny", true);
   const events: ToolUIEvent[] = [];
   const result = await tutorEngine.run(
-    { messages: [SYSTEM, ...history], config: CONFIG, retrieval: "off", onText: () => {}, onToolEvent: (ev) => events.push(ev) },
+    { messages: [SYSTEM, ...history], config: CONFIG, retrieval: "off", onText: () => {}, onToolEvent: (ev) => events.push(ev), ...turnExtra },
     {
       courseId: "c-1", level: 1, syllabus: null, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
       abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true, ...extra,
@@ -87,6 +93,7 @@ beforeEach(() => {
   script = [];
   card = null;
   cardError = null;
+  cardHangs = false;
   vi.mocked(callLLMStructured).mockClear();
 });
 
@@ -132,8 +139,12 @@ describe("the flashcard stage through tutorEngine.run", () => {
 
     expect(confirmTool).toHaveBeenCalledWith("flashcard.create", "The card: “What is 6 x 7?”");
     expect(created).toEqual([expect.objectContaining({ courseId: "c-1", front: "What is 6 x 7?", back: "42", level: 1, source: "tutor" })]);
-    expect(events).toContainEqual(expect.objectContaining({ kind: "result", name: "flashcard.create" }));
+    // A chip shows before the card call, and the same chip becomes the result.
+    expect(events[0]).toEqual({ kind: "progress", id: "app_flashcard", name: "flashcard.create", message: "making a flashcard…" });
+    expect(events[events.length - 1]).toMatchObject({ kind: "result", id: "app_flashcard", name: "flashcard.create" });
     expect(result.toolCalls).toEqual([{ name: "flashcard.create", args: CARD, ok: true, byApp: true }]);
+    // One attempt, no repair: a slow model must not hold the turn twice.
+    expect(vi.mocked(callLLMStructured).mock.calls[0][2]).toMatchObject({ maxRepairAttempts: 0 });
 
     // One reply call: the student's words, then the note; the tool is no longer offered.
     expect(sent).toHaveLength(1);
@@ -158,9 +169,11 @@ describe("the flashcard stage through tutorEngine.run", () => {
     expect(sent[0].tools).not.toContain("flashcard.create");
   });
 
-  it("leaves the turn as it was when the card call fails or does not validate", async () => {
+  it("leaves the turn as it was when the card call fails or does not validate, and clears the chip", async () => {
     cardError = new Error("model returned no valid JSON");
-    await run("review", [{ role: "user", content: REQUEST }]);
+    const { events } = await run("review", [{ role: "user", content: REQUEST }]);
+    expect(events.map((e) => e.kind)).toEqual(["progress", "error"]);
+    expect(events.every((e) => e.id === "app_flashcard")).toBe(true);
     card = { front: "What is 6 x 7?", back: "what is 6 x 7?" };
     cardError = null;
     await run("review", [{ role: "user", content: REQUEST }]);
@@ -173,10 +186,38 @@ describe("the flashcard stage through tutorEngine.run", () => {
 
   it("makes no call on a turn that does not ask for a card", async () => {
     card = CARD;
-    const { result } = await run("review", [{ role: "user", content: "Which of my flashcards are due today?" }]);
+    for (const text of ["Don't make a flashcard.", "Can you show me how to make a flashcard?", "Which flashcard is due today?"]) {
+      const { result, events } = await run("review", [{ role: "user", content: text }]);
+      expect(result.toolCalls, text).toEqual([]);
+      expect(events, text).toEqual([]);
+      expect(last(sent[sent.length - 1].messages), text).toEqual({ role: "user", content: text });
+    }
     expect(callLLMStructured).not.toHaveBeenCalled();
     expect(created).toEqual([]);
+  });
+
+  it("does not run at all when the permission rules deny flashcard.create", async () => {
+    card = CARD;
+    const { result, events } = await run("review", [{ role: "user", content: REQUEST }], { permissionMode: "exam", confirmTool: async () => true });
+    expect(callLLMStructured).not.toHaveBeenCalled();
+    expect(created).toEqual([]);
+    expect(events).toEqual([]);
     expect(result.toolCalls).toEqual([]);
-    expect(last(sent[0].messages)).toEqual({ role: "user", content: "Which of my flashcards are due today?" });
+    expect(last(sent[0].messages)).toEqual({ role: "user", content: REQUEST });
+  });
+
+  it("does not run when the turn turns it off (the tool goldens)", async () => {
+    card = CARD;
+    const { result } = await run("review", [{ role: "user", content: REQUEST }], { confirmTool: async () => true }, { flashcardStage: "off" });
+    expect(callLLMStructured).not.toHaveBeenCalled();
+    expect(result.toolCalls).toEqual([]);
+    expect(sent[0].tools).toContain("flashcard.create");
+  });
+
+  it("gives up on a card call that does not answer in time", async () => {
+    cardHangs = true;
+    const started = Date.now();
+    expect(await cardFromRequest(REQUEST, "", CONFIG, { tier: "tiny", timeoutMs: 20 })).toBeNull();
+    expect(Date.now() - started).toBeLessThan(2_000);
   });
 });

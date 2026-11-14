@@ -19,6 +19,9 @@ import { callLLMTurn, OllamaToolCallParseError, type NeutralMessage, type Provid
 import type { LLMConfig } from "../../types";
 import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent } from "./toolDispatch";
+import { toolRegistry } from "../tools/registry";
+import { evaluatePermission } from "../permissions/evaluate";
+import { loadPermissionRules } from "../permissions/store";
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
@@ -60,6 +63,9 @@ export interface TutorTurn {
   // lever 19's paired baseline at the same commit (EVAL_SENSE_RANK=off). Default "on"; the app never
   // sets it.
   senseRank?: "on" | "off";
+  // "off" skips the flashcard stage (flashcardRequest.ts), so the tool goldens still measure whether
+  // the model itself calls flashcard.create. Default "on"; the app never sets it.
+  flashcardStage?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -182,10 +188,17 @@ export class TutorEngine {
 
     // The flashcard stage (flashcardRequest.ts): a student who asks for a card gets one made by the
     // app, through flashcard.create's own dispatch (permissions, confirm card, chip), whatever the
-    // mode. Once it has run, the model is not offered the tool again this turn, so it cannot make a
-    // second card. A failed card call changes nothing here and the turn goes on as before.
+    // mode. It does not run at all when the permission rules deny the tool. A chip shows while the
+    // card call runs, so a slow model is not a blank screen. Once a card has been dispatched, the model
+    // is not offered the tool again this turn, so it cannot make a second card. A failed card call
+    // clears the chip and the turn goes on as before.
     let appCard: { call: TutorTurnResult["toolCalls"][number]; saved: Card | null } | null = null;
-    if (newest?.role === "user" && asksForFlashcard(newest.content)) {
+    const cardTool = toolRegistry.get(FLASHCARD_TOOL);
+    if (
+      turn.flashcardStage !== "off" && cardTool && newest?.role === "user" && asksForFlashcard(newest.content) &&
+      evaluatePermission(cardTool, ctx.permissionMode, await loadPermissionRules()) !== "deny"
+    ) {
+      turn.onToolEvent?.({ kind: "progress", id: APP_FLASHCARD_CALL_ID, name: FLASHCARD_TOOL, message: "making a flashcard…" });
       const lastReply = [...messages].reverse().find((m) => m.role === "assistant")?.content ?? "";
       const card = await cardFromRequest(newest.content, lastReply, turn.config, { tier: ctx.modelTier, signal: ctx.abort });
       if (card && !ctx.abort.aborted) {
@@ -193,6 +206,9 @@ export class TutorEngine {
         const result = await dispatchToolCall(call, ctx, turn.onToolEvent);
         appCard = { call: { name: FLASHCARD_TOOL, args: card, ok: result.ok, byApp: true }, saved: result.ok ? card : null };
         eduTools = eduTools.filter((t) => t.name !== FLASHCARD_TOOL);
+      } else {
+        // The chat hides an error chip, so this only takes the progress chip away.
+        turn.onToolEvent?.({ kind: "error", id: APP_FLASHCARD_CALL_ID, name: FLASHCARD_TOOL, error: "no card was made" });
       }
     }
 

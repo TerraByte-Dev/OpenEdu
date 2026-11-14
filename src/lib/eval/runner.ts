@@ -13,6 +13,7 @@ import { buildSystemPrompt } from "../curriculum";
 import { getChatConfig, getMaxContextTokens } from "../store";
 import { getTutorModePrompt } from "../tutor-modes";
 import { tutorEngine, personaIdentityLayer, type TutorTurn } from "../kernel";
+import { modelToolCalls } from "../kernel/modelToolCalls";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill, resolveDomainSkill, resolvePersona } from "../skills";
 import { setLibraryEnabledForTesting } from "../library";
@@ -111,7 +112,9 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
         // from. confirmTool auto-approves so a "default"-mode write (which is "ask") still runs end-to-end.
         confirmTool: async () => true,
       };
-      const tt: TutorTurn = { messages, config, onText: () => {} };
+      // The goldens measure whether the MODEL calls its tools, so the app's own flashcard stage is off
+      // and any call the app made (byApp) is left out of the transcript.
+      const tt: TutorTurn = { messages, config, onText: () => {}, flashcardStage: "off" };
       const result = await tutorEngine.run(tt, ctx);
 
       history.push({ role: "user", content: turn.user });
@@ -121,7 +124,7 @@ async function runGoldenWithTools(g: Golden, config: Awaited<ReturnType<typeof g
         role: "assistant",
         content: result.text,
         mode: turn.mode,
-        toolCalls: result.toolCalls.map((tc) => ({ name: tc.name, input: tc.args })),
+        toolCalls: modelToolCalls(result.toolCalls).map((tc) => ({ name: tc.name, input: tc.args })),
       });
     }
 

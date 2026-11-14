@@ -21,6 +21,7 @@
 // Do not save a source file during a run: Vite HMR reloads the webview and kills it.
 
 import { tutorEngine } from "../kernel";
+import { modelToolCalls } from "../kernel/modelToolCalls";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills } from "../skills";
 import { getChatConfig, getMaxContextTokens } from "../store";
@@ -115,7 +116,7 @@ export function k12FlowKernelTurn({ config, profile, contextTokens }: K12FlowSet
       hits: result.grounding.hits,
       usedHits: result.usedHits,
       ttftMs,
-      toolCalls: result.toolCalls.map(({ name, args }) => ({ name, args })),
+      toolCalls: modelToolCalls(result.toolCalls).map(({ name, args }) => ({ name, args })),
       workedAnswerRules: result.workedAnswerRules,
       firstTurnHold: result.firstTurnHold,
     };

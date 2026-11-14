@@ -12,25 +12,43 @@
 //      "Card minted" chip;
 //   4. a short note after the student's message tells the model what happened, so its reply says
 //      the card is saved instead of making another.
-// Any other turn is untouched: no call, no note, byte-identical requests. A failed card call leaves the
-// turn exactly as it was before this stage existed (the tool stays offered to the model).
+// A turn that does not ask for a card is untouched: no call, no note, byte-identical requests. When
+// the permission rules deny flashcard.create, the stage does not run at all (no model call). When the
+// card call fails, times out or does not validate, no note is added and the tool stays offered, so the
+// reply request is the one this turn sent before the stage existed; the learner saw a "Making a
+// flashcard..." chip, which then clears. On Ollama the card call is a short prompt of its own, not a
+// continuation of the turn's prefix, so the reply that follows re-prefills the system prompt once.
 
 import { callLLMStructured } from "../llm";
 import type { LLMConfig, ModelTier } from "../../types";
 
 export const FLASHCARD_TOOL = "flashcard.create";
 
-// A request verb, then (in the same sentence, within a few words) one flashcard. Plural "flashcards" is
-// left to the model: one structured card cannot answer "make flashcards for all of these".
-const REQUEST = /\b(?:make|create|save|add|write|turn|put)\b[^.?!\n]{0,40}?\bflash[ -]?card\b(?!s)/i;
-// A message that opens as a question about flashcards, not a request for one: "should I make a
-// flashcard?", "how do I add a flashcard?", "did you save the flashcard?". Only the opening is read,
-// so a card's own content ("... what do you call a baby cat?") does not block it.
-const NOT_A_REQUEST = /^\s*(?:should i|how (?:do|can|would) i|how to|did you|have you|do you|why)\b/i;
+// A request verb, then (in the same sentence, within a few words) one flashcard. "turn" counts only as
+// "turn ... into". Plural "flashcards" is left to the model: one structured card cannot answer "make
+// flashcards for these".
+const REQUEST = /\b(?:(?:make|create|save|add|write|put)\b[^.?!\n]{0,40}?|turn\b[^.?!\n]{0,30}?\binto\b[^.?!\n]{0,12}?)\bflash[ -]?card\b(?!s)/i;
+// Negation in the request's sentence, before its verb: "don't make a flashcard", "No, don't add it".
+const NEGATION = /\b(?:don['’]?t|do not|never|stop|no)\b/i;
+// A sentence that opens as a question about flashcards, not a request for one: "should I make a
+// flashcard?", "when I make a flashcard does it save?", "can you show me how to make a flashcard?". Only
+// the opening of the request's own sentence is read, so a card's content after a colon ("Make a
+// flashcard: what do you call a baby cat?") does not block it.
+const NOT_A_REQUEST = /^\s*(?:should i|what|when|where|how|why|did you|have you|do you|(?:can|could) you (?:show|tell))\b/i;
+// More than one card asked for in a singular phrasing: "a flashcard for each of these".
+const MANY = /\b(?:for each|each of|for all|all of|for every)\b/i;
 
-/** True when the student's message asks for one flashcard to be made. */
+/** True when the student's message asks for one flashcard to be made. Fails closed. */
 export function asksForFlashcard(text: string): boolean {
-  return REQUEST.test(text) && !NOT_A_REQUEST.test(text);
+  const m = REQUEST.exec(text);
+  if (!m) return false;
+  const before = text.slice(0, m.index);
+  const sentenceStart = Math.max(before.lastIndexOf("."), before.lastIndexOf("?"), before.lastIndexOf("!"), before.lastIndexOf("\n")) + 1;
+  const lead = text.slice(sentenceStart, m.index);
+  if (NEGATION.test(lead)) return false;
+  if (NOT_A_REQUEST.test(text.slice(sentenceStart))) return false;
+  if (MANY.test(text)) return false;
+  return true;
 }
 
 const MAX_FRONT_CHARS = 200;
@@ -78,6 +96,11 @@ export function validateCard(card: { front: string; back: string }): string[] {
 
 export interface Card { front: string; back: string }
 
+/** How long the card call may take before the turn goes on without it. The tier's per-call timeout
+ *  (up to 180 s on tiny) would hold the turn that long with only a chip on screen. A cold model that
+ *  cannot load in time also lands here; the reply call then loads it as it always did. */
+export const FLASHCARD_TIMEOUT_MS = 45_000;
+
 /**
  * The card for this request, or null when the call failed or its answer did not validate. Never
  * throws: a failed card leaves the turn as it was before this stage.
@@ -86,21 +109,31 @@ export async function cardFromRequest(
   request: string,
   lastReply: string,
   config: LLMConfig,
-  opts: { tier?: ModelTier; signal?: AbortSignal },
+  opts: { tier?: ModelTier; signal?: AbortSignal; timeoutMs?: number },
 ): Promise<Card | null> {
+  // Its own deadline joined with the turn's abort (plain AbortController + setTimeout, as gloss.ts).
+  const controller = new AbortController();
+  const onTurnAbort = () => controller.abort();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? FLASHCARD_TIMEOUT_MS);
   try {
+    if (opts.signal?.aborted) return null;
+    opts.signal?.addEventListener("abort", onTurnAbort, { once: true });
     const out = await callLLMStructured<Card>(flashcardMessages(request, lastReply), config, {
       schema: FLASHCARD_SCHEMA,
       toolName: "Flashcard",
-      maxRepairAttempts: 1,
+      // No repair: a second attempt doubles the wait, and a failed card leaves the turn as it was.
+      maxRepairAttempts: 0,
       tier: opts.tier,
-      signal: opts.signal,
+      signal: controller.signal,
       validate: validateCard,
     });
     const card = { front: out.front.trim(), back: out.back.trim() };
     return validateCard(card).length ? null : card;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
+    opts.signal?.removeEventListener("abort", onTurnAbort);
   }
 }
 

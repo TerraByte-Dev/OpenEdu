@@ -73,6 +73,11 @@ describe("addedCalls", () => {
     expect(addedCalls(run({ chatRequests: 2 })).added).toBe(1);
     expect(addedCalls(run({ structuredRequests: 1 })).added).toBe(1);
   });
+  it("does not let a call the app made (byApp) raise the bound: it sent no turn request", () => {
+    // The flashcard stage: one structured card call, one app-made flashcard.create, then the answer.
+    expect(addedCalls(run({ structuredRequests: 1, chatRequests: 2, toolCalls: [{ byApp: true }] })).added).toBe(2);
+    expect(addedCalls(run({ structuredRequests: 1, chatRequests: 1, toolCalls: [{ byApp: true }] })).added).toBe(1);
+  });
   it("allows one more on a capped or recovered turn", () => {
     // The cap is only reached through tool calls: two tool-calling requests, the cap, then the forced answer.
     expect(addedCalls(run({ chatRequests: 4, toolCalls: [{}, {}], stopReason: "max_iterations" })).added).toBe(0);

@@ -170,15 +170,25 @@ result (`toolCallRecovery`). Any other provider error fails the turn as before.
 Two write actions do not wait for the model to choose a tool, because small models rarely do (on
 `gemma4:e2b`, `flashcard.create` 0/20 and `ask_user.question` 2/20 in TerraTutor's B9 readiness run):
 - **A flashcard the student asks for** (`kernel/flashcardRequest.ts`). Code decides the message asks for
-  one card; one structured, validated call writes its two sides from the request and the tutor's last
-  message; the card goes through `flashcard.create`'s own dispatch (permission rules, the confirm card,
-  the "Card minted" chip), in any mode; the reply call gets a note saying it is saved and is not offered
-  the tool again that turn. The call shows in `toolCalls` with `byApp: true`. A failed card call leaves
-  the turn as it was.
+  one card (a request verb and a singular "flashcard" in one sentence, with no negation before the verb,
+  no question opener such as what/how/"can you show", and no "for each"/"all of"). Unless the permission
+  rules deny `flashcard.create` (then nothing runs), a "Making a flashcard…" chip shows and one
+  structured, validated call writes the two sides from the request and the tutor's last message (no
+  repair attempt, 45 s deadline). The card goes through `flashcard.create`'s own dispatch (permission
+  rules, the confirm card, the "Card minted" chip), in any mode; the reply call gets a note saying it is
+  saved and is not offered the tool again that turn. The call shows in `toolCalls` with `byApp: true`;
+  the eval runners count only the model's calls (`kernel/modelToolCalls.ts`), and the tool goldens turn
+  the stage off (`flashcardStage: "off"`). A failed or timed-out card call clears the chip and leaves the
+  request as it was. Cost: on Ollama the card call is its own short prompt, not a continuation of the
+  turn's prefix, so on a card turn the reply misses the prefix cache and re-prefills the system prompt
+  and tools manifest once.
 - **Choices written as a list** (`kernel/replyChoices.ts`). A completed reply that made no
   `ask_user.question` call and ends with a short numbered or lettered list next to a question that asks
-  for a pick carries those choices in `replyChoices`; the chat shows them as the ask_user buttons, and a
-  pick is sent as the student's next message. The reply text is unchanged.
+  for one pick (which / choose / pick, and not order, two of, all, each, why, explain, notice, another)
+  carries those choices in `replyChoices`. Labels with LaTeX, a blank (`__`) or a trailing `=` don't
+  count; a lettered list needs its question before it. Anything in doubt gets no buttons. The chat shows
+  them as the ask_user buttons, with only the stuck chips and "Review due cards" beside them
+  (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
 
 Mastery is not one of them: it is decided in code from quiz and promotion-test results
 (`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path, and a

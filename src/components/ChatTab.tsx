@@ -14,7 +14,7 @@ import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../l
 import { useReadAloud } from "../lib/useReadAloud";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote, type ReplyChoices } from "../lib/kernel";
+import { tutorEngine, personaIdentityLayer, suggestFollowUps, chipsBesideChoices, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote, type ReplyChoices } from "../lib/kernel";
 import { resolvePersona } from "../lib/skills";
 import { chatTurnSkills } from "../lib/kernel/chatSkills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
@@ -233,6 +233,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     confirmResolverRef.current = null;
     resolve?.(ok);
   };
+
+  const pickSuggestion = (s: Suggestion) => { setInput(s.message); setPendingMode(s.mode ?? null); inputRef.current?.focus(); };
 
   // `picked` is a reply-choice button's text, sent as is; otherwise the input box is sent.
   const sendMessage = async (picked?: string) => {
@@ -588,16 +590,19 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />}
         {!streaming && groundingNote && <GroundingNote note={groundingNote} />}
         {!streaming && !askPending && !confirmPending && !replyChoices && suggestions.length > 0 && (
-          <SuggestionChips
-            suggestions={suggestions}
-            onPick={(s) => { setInput(s.message); setPendingMode(s.mode ?? null); inputRef.current?.focus(); }}
-          />
+          <SuggestionChips suggestions={suggestions} onPick={pickSuggestion} />
         )}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
         )}
         {!streaming && !askPending && !confirmPending && replyChoices && (
-          <AskUserChoices question={replyChoices.question} choices={replyChoices.choices} onPick={(value) => void sendMessage(value)} />
+          <>
+            <AskUserChoices question={replyChoices.question} choices={replyChoices.choices} onPick={(value) => void sendMessage(value)} />
+            {/* Beside the buttons, only the stuck chips and due cards (chipsBesideChoices). */}
+            {chipsBesideChoices(suggestions).length > 0 && (
+              <SuggestionChips suggestions={chipsBesideChoices(suggestions)} onPick={pickSuggestion} />
+            )}
+          </>
         )}
         {confirmPending && (
           <ConfirmToolCard toolName={confirmPending.toolName} summary={confirmPending.summary} onChoose={handleConfirm} />
