@@ -50,15 +50,16 @@ describe("generateStudyPlan", () => {
     ]);
   });
 
-  it("strips markdown bold and cuts a long item at a word", async () => {
+  it("strips markdown bold and italics and cuts a long item at a word", async () => {
     const long = `Practice ${"counting aloud for measures of 4/4 and 3/4 ".repeat(10)}`.trim();
     vi.mocked(callLLMStructured).mockResolvedValue({ items: [
       "**Treble Clef Staff Practice:** Draw the treble clef and physically label the spaces from bottom to top (F A C E).",
       long,
-      "Review the definitions.",
+      "Review *why* each answer is correct, and work 2*3*4 again.",
     ] });
     const lines = (await generateStudyPlan("Music", 1, missed, config)).split("\n");
     expect(lines[0]).toBe("• Treble Clef Staff Practice: Draw the treble clef and physically label the spaces from bottom to top (F A C E).");
+    expect(lines[2]).toBe("• Review why each answer is correct, and work 2*3*4 again.");
     expect(lines[1].endsWith("…")).toBe(true);
     const kept = lines[1].slice(2, -1);
     expect(kept.length).toBeLessThanOrEqual(300);

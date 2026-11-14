@@ -83,14 +83,32 @@ export function parseReflection(raw: string): Partial<Record<KnowledgeType, stri
  */
 export function appendStudyLog(current: string, added: string): string {
   const lines = current.split("\n").map((l) => l.trim()).filter(Boolean);
-  const entry = added.split("\n").map((l) => l.trim()).filter((l) => l && !lines.includes(l)).join(" ");
-  if (entry) lines.push(entry);
+  const isNew = (l: string) => !lines.some((existing) => nearDuplicate(existing, l));
+  const entry = added.split("\n").map((l) => l.trim()).filter((l) => l && isNew(l)).join(" ");
+  if (entry && isNew(entry)) lines.push(entry);
   return lines.slice(-STUDY_LOG_ENTRIES).join("\n");
 }
 
+/** Equal, or one contains the other (ignoring case) when the shorter is long enough to mean something. */
+function nearDuplicate(a: string, b: string): boolean {
+  const x = a.toLowerCase(), y = b.toLowerCase();
+  if (x === y) return true;
+  return Math.min(x.length, y.length) >= 12 && (x.includes(y) || y.includes(x));
+}
+
 // The guard writes a child's permanent profile, so it fails closed: only a plain correction counts.
-// The reply opens by confirming the learner: "Yes.", "Correct:", "Exactly right.", "Right!".
-const AFFIRMATION = /^(?:yes|yep|yeah|correct|exactly|perfect|excellent|spot on|you got it|you're right|you are right|that's right|that is right|that's correct|that is correct|nice work|great job|good job|well done)\b|^right[!,.]/;
+// The reply opens by confirming the learner: "Yes.", "Correct:", "Exactly right.", "Right!",
+// "That's it!", "Great work!", "No, you're right".
+const AFFIRMATION = new RegExp(
+  [
+    String.raw`^(?:yes|yep|yeah|correct|exactly|perfect|excellent|spot on|you got it|that's it|that is it)\b`,
+    String.raw`^(?:no\s*[,.!—–-]?\s*)?(?:you're|you are|that's|that is) (?:right|correct)\b`,
+    String.raw`^(?:great|good|nice|awesome|wonderful|super|well done)(?: work| job| thinking)?[!.,]`,
+    String.raw`^right[!,.]`,
+  ].join("|"),
+);
+// An affirmation anywhere in the opening: "Great work! It's 42, not 36 — you got it."
+const AFFIRMATION_ANYWHERE = /\b(?:yes|correct|right|exactly|perfect|excellent|you got it|that's it|great|good|nice|awesome|wonderful|super|well done)\b/;
 // A hedge inside that confirming sentence turns it into a correction: "Yes, but ...".
 const AFFIRMATION_HEDGE = /\b(?:but|however|almost|wrong|instead)\b/;
 // What a tutor says when the learner got something wrong.
@@ -101,11 +119,12 @@ const CORRECTION = new RegExp(
     String.raw`\bincorrect\b`, String.raw`\bwrong\b`, String.raw`(?<!common )\bmistake\b`, String.raw`\bmix(?:ed)?[ -]up\b`,
     String.raw`\bconfus`, String.raw`\bcareful\b`, String.raw`^(?:so )?close[!,.]`, String.raw`\balmost\b`,
     String.raw`\b(?:good|nice) try\b`, String.raw`\btry again\b`, String.raw`\blook again\b`, String.raw`\bcheck again\b`,
-    String.raw`^no[,.!]`, String.raw`\bnope\b`, String.raw`\boops\b`,
-    // A number put right: "7 + 5 is 12, not 13", "it is 42, not 24".
-    String.raw`,\s*not\s+-?\d`, String.raw`\bis [^,.;!?]{1,40}, not \S`,
+    String.raw`^no\s*(?:[,.!—–]|-\s)`, String.raw`\bnope\b`, String.raw`\boops\b`,
   ].join("|"),
 );
+// A value put right: "7 + 5 is 12, not 13", "it is 42, not 24". Tutors also confirm this way ("Great!
+// It's 12, not 13."), so it counts only when nothing in the opening affirms.
+const VALUE_CORRECTION = new RegExp([String.raw`,\s*not\s+-?\d`, String.raw`\bis [^,.;!?]{1,40}, not \S`].join("|"));
 
 /**
  * Whether the tutor's reply corrects the learner. Only the first two sentences are read, where a
@@ -121,5 +140,6 @@ export function tutorCorrectedLearner(tutorReply: string): boolean {
     .slice(0, 2);
   if (sentences.length === 0 || !sentences[0]) return false;
   if (AFFIRMATION.test(sentences[0])) return AFFIRMATION_HEDGE.test(sentences[0]);
-  return sentences.some((s) => CORRECTION.test(s));
+  if (sentences.some((s) => CORRECTION.test(s))) return true;
+  return !sentences.some((s) => AFFIRMATION_ANYWHERE.test(s)) && sentences.some((s) => VALUE_CORRECTION.test(s));
 }

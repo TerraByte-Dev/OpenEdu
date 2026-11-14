@@ -774,7 +774,7 @@ function capItem(text: string): string {
  */
 function renderStudyPlan(items: readonly string[]): string {
   return items
-    .map((it) => it.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").trim())
+    .map((it) => it.replace(/\*\*/g, "").replace(/(^|\W)\*(\S[^*]*?)\*(?!\w)/g, "$1$2").replace(/\s+/g, " ").trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").trim())
     .filter(Boolean)
     .slice(0, STUDY_PLAN_MAX_ITEMS)
     .map((it) => `• ${capItem(it)}`)

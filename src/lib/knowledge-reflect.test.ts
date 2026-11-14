@@ -161,6 +161,17 @@ describe("updateKnowledgeFiles: the study log is appended to, never replaced", (
     );
     expect(saved.study_log).toBe("two\nthree\nReviewed multiplication facts involving 6.");
   });
+
+  it("skips an entry that is a near-duplicate of a line the log holds", async () => {
+    const existing = "Reviewed multiplication facts involving 6. Corrected 6 x 7.";
+    vi.mocked(getTutorInstructions).mockResolvedValue({ study_log: existing });
+    const saved = await reflect(
+      "Is 6 x 7 equal to 36?",
+      "Close! 6 x 6 is 36. 6 x 7 is one more group of 6, so 36 + 6 = 42.",
+      JSON.stringify({ study_log: ["Reviewed multiplication facts involving 6."] }),
+    );
+    expect(saved.study_log).toBe(existing);
+  });
 });
 
 describe("updateKnowledgeFiles: the misconception guard fails closed", () => {
@@ -174,6 +185,16 @@ describe("updateKnowledgeFiles: the misconception guard fails closed", () => {
     "Correct, 9 is not a prime number.",
     "Right! Right triangles have one 90 degree angle.",
     "Good question. Plants make food from light. A common mistake is to mix them up.",
+    // "X, not Y" is a common way to confirm an answer.
+    "You're correct, it's 12, not 13.",
+    "Great! It's 12, not 13.",
+    "Awesome! A whale is a mammal, not a fish.",
+    "That's it! 3/4, not 2/6.",
+    "Good thinking. The answer is 12, not 13.",
+    "Great work! 6 x 7 is 42, not 36 — you got it.",
+    "No, you're right, 6 x 7 is 42.",
+    "It's 12, not 13 — you got it.",
+    "Well done! Now let's try again with 7 x 8.",
   ];
   it.each(notCorrections)("no misconception after: %s", async (tutor) => {
     const saved = await reflect("Is 6 x 7 equal to 42?", tutor, R01);
@@ -187,7 +208,9 @@ describe("updateKnowledgeFiles: the misconception guard fails closed", () => {
     "Oops! 6 x 7 is 42.",
     "Right idea, wrong formula.",
     "Yes, but only for whole numbers.",
-    "Right angles are 90 degrees, not 45.",
+    "No — it's 42.",
+    // "Right" opens a confirmation only as "Right!" / "Right,", not as the first word of a sentence.
+    "Right triangles have one 90 degree angle. Careful: the long side is the hypotenuse.",
   ];
   it.each(corrections)("misconception written after: %s", async (tutor) => {
     const saved = await reflect("Is 6 x 7 equal to 36?", tutor, R01);
