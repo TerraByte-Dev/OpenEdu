@@ -34,6 +34,7 @@ import { CompanionSprite } from "./CompanionSprite";
 import { DictionaryCard } from "./DictionaryCard";
 import { dictionaryCard, cardStartsOpen, cardSpeech, type DictionaryCard as DictionaryCardData } from "../lib/dictionary-card";
 import { LIBRARY_NAME } from "../lib/product";
+import { AI_DISCLOSURE } from "../lib/ai-notice";
 import { IconMediaStop, IconPaperPlane, IconVolumeUp } from "./icons";
 
 // Models already reported as tool-less this session, so the DEV notice prints once per model.
@@ -474,6 +475,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           </span>
           <span className="text-[var(--ink-faint)] text-xs">▾</span>
         </button>
+        {/* Always on screen, from the first message on: the tutor is an AI, whatever persona it wears (ai-notice.ts). */}
+        <span className="ml-auto pl-3 text-xs text-[var(--ink-dim)] text-right">{AI_DISCLOSURE}</span>
         {personaPickerOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setPersonaPickerOpen(false)} />
