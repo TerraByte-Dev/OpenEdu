@@ -3,6 +3,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import mermaid from "mermaid";
 import { splitReplyDiagrams, drawableMermaid, diagramFallback, withoutRemoteLoads, type MermaidParse } from "./mermaid-source";
+import mermaidSourceRaw from "./mermaid-source.ts?raw";
+import remoteUrlRaw from "./remote-url.ts?raw";
 
 // What ChatTab and MermaidBlock draw for a diagram in a reply. The diagrams are gemma4:e2b's own, from
 // the B9 readiness run (2026-11-13): d01 wrote its flowchart as a ```mermaid fence instead of calling
@@ -214,5 +216,17 @@ describe("drawableMermaid: a diagram can't make the webview load from another ho
       "stateDiagram-v2\n  [*] --> Still\n  Still --> Moving\n  classDef calm fill:#eef",
     ];
     for (const code of plain) expect(withoutRemoteLoads(code)).toBe(code);
+  });
+});
+
+describe("mermaid-source loads without DOMPurify", () => {
+  // A Node caller (TerraTutor's eval render probe) imports this module before it puts a DOM up, and
+  // DOMPurify's shared instance, the one Mermaid sanitizes with, binds to whatever window it first sees.
+  it("imports nothing that pulls DOMPurify in", () => {
+    for (const [name, src] of [["mermaid-source", mermaidSourceRaw], ["remote-url", remoteUrlRaw]] as const) {
+      const imports = [...src.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]);
+      expect(imports, name).not.toContain("dompurify");
+      expect(imports, name).not.toContain("./sanitize-html");
+    }
   });
 });
