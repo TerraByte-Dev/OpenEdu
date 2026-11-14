@@ -73,7 +73,7 @@ const EGYPT_BAD: LessonContent = {
 
 const flagWater: ReviewReply = { verdicts: [
   { index: 0, verdict: "ok", sentence: "", reason: "" },
-  { index: 1, verdict: "false_fact", sentence: "When hydrogen burns in oxygen, it produces water and carbon dioxide.", reason: "only water; there is no carbon" },
+  { index: 1, verdict: "false_fact", sentence: "When hydrogen burns in oxygen, it produces water and carbon dioxide.", reason: "only water; there is no carbon", statement_is_false: true },
   { index: 2, verdict: "ok", sentence: "", reason: "" },
 ] };
 const allOk: ReviewReply = { verdicts: [] };
@@ -95,7 +95,7 @@ describe("generateLesson with a review model", () => {
   });
 
   it("drops a part still flagged after the one regeneration, and never shows the review's words", async () => {
-    const flagEgypt: ReviewReply = { verdicts: [{ index: 1, verdict: "false_fact", sentence: "Ancient Egypt was in the Fertile Crescent, between the Tigris and Euphrates rivers.", reason: "Egypt is on the Nile, outside the Fertile Crescent" }] };
+    const flagEgypt: ReviewReply = { verdicts: [{ index: 1, verdict: "false_fact", sentence: "Ancient Egypt was in the Fertile Crescent, between the Tigris and Euphrates rivers.", reason: "Egypt is on the Nile, outside the Fertile Crescent", statement_is_false: true }] };
     const lessons = [EGYPT_BAD, EGYPT_BAD];
     const reviews = [flagEgypt, flagEgypt];
     stub((tool) => (tool === "emit_lesson" ? lessons.shift() : reviews.shift()));
@@ -110,8 +110,8 @@ describe("generateLesson with a review model", () => {
 
   it("fails rather than save a lesson whose every section is still flagged", async () => {
     const flagAll: ReviewReply = { verdicts: [
-      { index: 1, verdict: "false_fact", sentence: "Ancient Egypt was in the Fertile Crescent", reason: "x" },
-      { index: 2, verdict: "false_fact", sentence: "The Nile flooded every year and left rich black soil behind", reason: "x" },
+      { index: 1, verdict: "false_fact", sentence: "Ancient Egypt was in the Fertile Crescent", reason: "x", statement_is_false: true },
+      { index: 2, verdict: "false_fact", sentence: "The Nile flooded every year and left rich black soil behind", reason: "x", statement_is_false: true },
     ] };
     stub((tool) => (tool === "emit_lesson" ? EGYPT_BAD : flagAll));
     await expect(generateLesson("c1", 1, { id: "s1", title: "Egypt", key_concepts: [] }, "History", { ...GEN }, undefined, { ...REVIEW }))
@@ -119,10 +119,31 @@ describe("generateLesson with a review model", () => {
   });
 
   it("ignores a false_fact whose quoted sentence is not in the lesson (a reviewer's invention)", async () => {
-    const invented: ReviewReply = { verdicts: [{ index: 1, verdict: "false_fact", sentence: "Water boils at 50 degrees on the moon.", reason: "no" }] };
+    const invented: ReviewReply = { verdicts: [{ index: 1, verdict: "false_fact", sentence: "Water boils at 50 degrees on the moon.", reason: "no", statement_is_false: true }] };
     stub((tool) => (tool === "emit_lesson" ? WATER_GOOD : invented));
     await generateLesson("c1", 1, { id: "s1", title: "Water", key_concepts: [] }, "Chemistry", { ...GEN }, undefined, { ...REVIEW });
     expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review"]);
+  });
+
+  it("does not regenerate for a false_fact the reviewer itself marks as true (B10's false alarms)", async () => {
+    // What claude-haiku-5-5 did on 4 of its 5 false alarms: verdict false_fact, quote real, reason "actually true".
+    const selfContradicting: ReviewReply = { verdicts: [{ index: 1, verdict: "false_fact",
+      sentence: "When hydrogen burns in oxygen, it produces water and nothing else.",
+      reason: "This is actually true; hydrogen combustion yields only water.", statement_is_false: false }] };
+    stub((tool) => (tool === "emit_lesson" ? WATER_GOOD : selfContradicting));
+    const lesson = await generateLesson("c1", 1, { id: "s1", title: "Water", key_concepts: [] }, "Chemistry", { ...GEN }, undefined, { ...REVIEW });
+    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review"]);
+    expect(lesson.content).toContain("produces water and nothing else");
+  });
+
+  it("asks the reviewer for statement_is_false as a required boolean after its reason", async () => {
+    stub((tool) => (tool === "emit_lesson" ? WATER_GOOD : allOk));
+    await generateLesson("c1", 1, { id: "s1", title: "Water", key_concepts: [] }, "Chemistry", { ...GEN }, undefined, { ...REVIEW });
+    const opts = vi.mocked(callLLMStructured).mock.calls.find((c) => c[2].toolName === "emit_lesson_review")![2];
+    const item = (opts.schema as { properties: { verdicts: { items: { required: string[]; properties: Record<string, { type: string }> } } } }).properties.verdicts.items;
+    expect(item.properties.statement_is_false).toEqual({ type: "boolean" });
+    expect(item.required).toContain("statement_is_false");
+    expect(Object.keys(item.properties).indexOf("statement_is_false")).toBeGreaterThan(Object.keys(item.properties).indexOf("reason"));
   });
 
   it("makes no review call when the review is off (null), so the lesson path is unchanged", async () => {
@@ -177,7 +198,7 @@ function judge(content: string): ReviewReply {
   for (let i = 0; i < blocks.length; i += 2) {
     const index = Number(blocks[i]);
     const text = blocks[i + 1];
-    if (text.includes("position is a scalar")) verdicts.push({ index, verdict: "false_fact", sentence: "Position tells only how far an object is, so position is a scalar quantity.", reason: "position is a vector" });
+    if (text.includes("position is a scalar")) verdicts.push({ index, verdict: "false_fact", sentence: "Position tells only how far an object is, so position is a scalar quantity.", reason: "position is a vector", statement_is_false: true });
     else if (text.includes("30 meters east")) verdicts.push({ index, verdict: "wrong_key", sentence: "", reason: "30 - 10 = 20 m east" });
     else verdicts.push({ index, verdict: "ok", sentence: "", reason: "" });
   }
@@ -232,13 +253,23 @@ describe("parseReviewFindings", () => {
   const items = ["Position is a scalar.", "A square has four equal sides, so its corners are right angles."];
   it("keeps false_fact only with a quote found in the item, and ignores ok, unknown and out-of-range verdicts", () => {
     const f = parseReviewFindings({ verdicts: [
-      { index: 0, verdict: "false_fact", sentence: "Position is a scalar", reason: "vector" },
-      { index: 1, verdict: "false_fact", sentence: "Triangles have four sides.", reason: "x" },
+      { index: 0, verdict: "false_fact", sentence: "Position is a scalar", reason: "vector", statement_is_false: true },
+      { index: 1, verdict: "false_fact", sentence: "Triangles have four sides.", reason: "x", statement_is_false: true },
       { index: 1, verdict: "ok" },
       { index: 7, verdict: "wrong_key" },
       { index: 1, verdict: "bogus" },
     ] }, items, ["ok", "false_fact"]);
     expect(f).toEqual([{ index: 0, verdict: "false_fact", sentence: "Position is a scalar", reason: "vector" }]);
+  });
+  it("counts a false_fact only when statement_is_false is true, whatever the reason's words say", () => {
+    const f = parseReviewFindings({ verdicts: [
+      { index: 0, verdict: "false_fact", sentence: "Position is a scalar", reason: "vector", statement_is_false: false },
+      { index: 1, verdict: "false_fact", sentence: "A square has four equal sides", reason: "wrong" }, // field missing
+    ] }, items, ["ok", "false_fact"]);
+    expect(f).toEqual([]);
+    // wrong_key and unanswerable do not depend on it.
+    expect(parseReviewFindings({ verdicts: [{ index: 0, verdict: "wrong_key", sentence: "", reason: "x", statement_is_false: false }] }, items, ["ok", "wrong_key"]))
+      .toEqual([{ index: 0, verdict: "wrong_key", sentence: "", reason: "x" }]);
   });
   it("treats a lesson reply that says wrong_key as ok (not a lesson verdict)", () => {
     expect(parseReviewFindings({ verdicts: [{ index: 0, verdict: "wrong_key" }] }, items, ["ok", "false_fact"])).toEqual([]);

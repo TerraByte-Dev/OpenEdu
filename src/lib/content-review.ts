@@ -23,7 +23,7 @@ export interface ReviewFinding {
   reason: string;   // one short line for the log and the regeneration prompt; never shown to a learner
 }
 
-interface RawVerdict { index?: number; verdict?: string; sentence?: string; reason?: string }
+interface RawVerdict { index?: number; verdict?: string; sentence?: string; reason?: string; statement_is_false?: boolean }
 export interface ReviewReply { verdicts?: RawVerdict[] }
 
 type Messages = Array<{ role: string; content: string }>;
@@ -84,8 +84,9 @@ export function buildLessonReviewMessages(topic: string, title: string, lesson: 
 For each numbered part, give one verdict:
 - "false_fact": the part states something that is factually wrong (a wrong fact, definition, rule, date, place or calculation). Copy the false sentence exactly into "sentence", and in "reason" say in a few words what is true.
 - "ok": nothing in the part is false. Simplified, incomplete or informal wording is ok; only flag what is wrong.
+Then set "statement_is_false": true only if the sentence you copied is false as written. If your reason finds the sentence true, or only loosely worded, set it to false.
 
-Return ONLY a JSON object: {"verdicts":[{"index": <part index>, "verdict": "ok" | "false_fact", "sentence": "", "reason": ""}]}, one entry per part.
+Return ONLY a JSON object: {"verdicts":[{"index": <part index>, "verdict": "ok" | "false_fact", "sentence": "", "reason": "", "statement_is_false": false}]}, one entry per part.
 
 ${body}`,
   }];
@@ -122,8 +123,9 @@ Give each question one verdict:
 - "false_fact": the question or its explanation states something factually wrong. Copy that sentence into "sentence".
 - "ok": the marked answer is right and nothing stated is false.
 In "reason" say in a few words why (empty for ok).
+For "false_fact", set "statement_is_false": true only if the sentence you copied is false as written; if your reason finds it true, set it to false. For every other verdict set it to false.
 
-Return ONLY a JSON object: {"verdicts":[{"index": <question index>, "verdict": "ok" | "wrong_key" | "unanswerable" | "false_fact", "sentence": "", "reason": ""}]}, one entry per question.
+Return ONLY a JSON object: {"verdicts":[{"index": <question index>, "verdict": "ok" | "wrong_key" | "unanswerable" | "false_fact", "sentence": "", "reason": "", "statement_is_false": false}]}, one entry per question.
 
 ${body}`,
   }];
@@ -140,12 +142,17 @@ function reviewSchema(verdicts: readonly ReviewVerdict[]) {
         items: {
           type: "object",
           additionalProperties: false,
-          required: ["index", "verdict", "sentence", "reason"],
+          required: ["index", "verdict", "sentence", "reason", "statement_is_false"],
+          // statement_is_false comes after the reason, so the model writes its reason first and then
+          // commits to whether the quoted sentence is false. B10: 4 of claude-haiku-5-5's 5 false alarms
+          // were false_fact verdicts whose own reason said the statement was true ("This is actually
+          // true…"). Code reads this field, never the reason's words.
           properties: {
             index: { type: "number" },
             verdict: { type: "string", enum: [...verdicts] },
             sentence: { type: "string", maxLength: 400 },
             reason: { type: "string", maxLength: 240 },
+            statement_is_false: { type: "boolean" },
           },
         },
       },
@@ -177,7 +184,8 @@ export function quoteFound(sentence: string, itemText: string): boolean {
 
 // Verdicts → findings for the items that should not reach a learner. A missing or unknown verdict
 // counts as ok, so a silent or confused reviewer can only keep content, never drain it. A false_fact
-// counts only when its sentence is found in the item (quoteFound).
+// counts only when the reviewer set statement_is_false to true and its sentence is found in the item
+// (quoteFound); a false_fact without statement_is_false: true is the reviewer contradicting itself.
 export function parseReviewFindings(
   reply: ReviewReply | null | undefined,
   itemTexts: readonly string[],
@@ -190,7 +198,7 @@ export function parseReviewFindings(
     const verdict = v.verdict as ReviewVerdict;
     if (verdict === "ok" || !allowed.includes(verdict)) continue;
     const sentence = typeof v.sentence === "string" ? v.sentence.trim() : "";
-    if (verdict === "false_fact" && !quoteFound(sentence, itemTexts[i])) continue;
+    if (verdict === "false_fact" && (v.statement_is_false !== true || !quoteFound(sentence, itemTexts[i]))) continue;
     out.set(i, { index: i, verdict: verdict as ReviewFinding["verdict"], sentence, reason: typeof v.reason === "string" ? v.reason.trim() : "" });
   }
   return [...out.values()].sort((a, b) => a.index - b.index);
