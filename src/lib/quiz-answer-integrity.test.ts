@@ -196,6 +196,85 @@ describe("answer keys for times, money and fractions are checked against the exp
   });
 });
 
+// ─── 1b. Equation and method keys ─────────────────────────────────────────────
+
+// The B9 rerun 2 audit (gemma4:e2b, 2026-11-14) found the value check reading the wrong number from
+// two kinds of key: an equation option ("B) 24 ÷ 3 = 8" was read as 24) and a method key ("Subtract 7
+// from both sides" was read as 7). Both rejected correct questions; one-step equations lost 29 calls.
+describe("equation and method keys", () => {
+  const division = {
+    question_text: "24 cookies are shared equally by 3 friends. Which division fact shows how many each friend gets?",
+    options: ["A) 24 ÷ 4 = 6", "B) 24 ÷ 3 = 8", "C) 24 - 3 = 21", "D) 3 × 6 = 18"],
+    correct_answer: "B) 24 ÷ 3 = 8",
+    explanation: "Sharing 24 among 3 friends is 24 ÷ 3. Therefore the answer is 8.",
+  };
+  const firstStep = {
+    question_text: "To solve x + 7 = 12, what should you do first?",
+    options: ["A) Subtract 7 from both sides", "B) Add 7 to both sides", "C) Multiply both sides by 7", "D) Divide both sides by 12"],
+    correct_answer: "A) Subtract 7 from both sides",
+    explanation: "Subtracting 7 from both sides leaves x by itself: x = 12 - 7 = 5.",
+  };
+
+  it.each<[string, Partial<Raw>]>([
+    ["an equation option, read by its result", division],
+    ["repeated addition", {
+      question_text: "Which addition fact matches 5 groups of 8?",
+      options: ["A) 8 + 5 = 13", "B) 8 + 8 + 8 + 8 + 8 = 40", "C) 5 + 5 + 5 = 15", "D) 8 + 8 = 16"],
+      correct_answer: "B) 8 + 8 + 8 + 8 + 8 = 40",
+      explanation: "5 groups of 8 is 5 × 8 = 40.",
+    }],
+    ["an option stating two facts", {
+      question_text: "Which division facts go with 4 × 9 = 36?",
+      options: ["A) 36 ÷ 6 = 6", "B) 36 - 9 = 27", "C) 9 ÷ 4 = 36", "D) 36 ÷ 9 = 4, and 36 ÷ 4 = 9."],
+      correct_answer: "D) 36 ÷ 9 = 4, and 36 ÷ 4 = 9.",
+      explanation: "Division undoes multiplication, so 36 ÷ 9 = 4.",
+    }],
+    ["an equation option whose explanation restates the stem's fact", {
+      question_text: "A 4 by 6 array models 4 × 6 = 24. Which division fact goes with it?",
+      options: ["A) 24 ÷ 3 = 8", "B) 24 ÷ 6 = 4", "C) 24 - 6 = 18", "D) 6 ÷ 4 = 24"],
+      correct_answer: "B) 24 ÷ 6 = 4",
+      explanation: "The array shows 4 × 6 = 24. Dividing the total by the 6 columns gives the 4 rows. Therefore the answer is B.",
+    }],
+    ["a method key", firstStep],
+    ["a two-step method key", {
+      question_text: "Which steps solve 4x - 7 = 13?",
+      options: ["A) Add 7 to both sides, then divide both sides by 4.", "B) Subtract 7 from both sides, then divide both sides by 4.", "C) Divide both sides by 4, then add 7.", "D) Multiply both sides by 4."],
+      correct_answer: "A) Add 7 to both sides, then divide both sides by 4.",
+      explanation: "Adding 7 to both sides gives 4x = 20. Then x = 20 ÷ 4 = 5.",
+    }],
+  ])("accepts a correct question: %s", (_name, over) => {
+    expect(valid(mc(over))).toEqual([]);
+  });
+
+  it("accepts a method key on a fill-in-the-blank question", () => {
+    expect(checkAnswerConsistency(fib({
+      question_text: "In 3x = 45, what step finds x?",
+      correct_answer: "Divide both sides by 3 to isolate x.",
+      explanation: "Dividing both sides by 3 gives x = 45 ÷ 3 = 15.",
+    }))).toBeNull();
+  });
+
+  it("still rejects an equation option whose result the explanation contradicts", () => {
+    const wrong = mc({ ...division, options: ["A) 24 ÷ 4 = 6", "B) 24 ÷ 3 = 7", "C) 24 - 3 = 21", "D) 3 × 6 = 18"], correct_answer: "B) 24 ÷ 3 = 7" });
+    expect(checkAnswerConsistency(wrong)).toContain("works toward 8");
+    expect(checkAnswerConsistency(mc({ ...firstStep, options: ["A) x = 7", "B) x = 5", "C) x = 19", "D) x = 12"], correct_answer: "A) x = 7" }))).toContain("works toward 5");
+  });
+
+  it("still rejects the audit's true contradictions (12.5 vs 12, 34 cm vs 37 cm)", () => {
+    expect(checkAnswerConsistency(fib({
+      question_text: "A 25 m rope is cut into 2 equal pieces. How long is each piece, in meters?",
+      correct_answer: "12",
+      explanation: "Divide the length by the number of pieces: 25 ÷ 2 = 12.5. Therefore the answer is 12.5.",
+    }))).toContain("works toward 12.5");
+    expect(checkAnswerConsistency(mc({
+      question_text: "A rectangle is 10 cm long and 7 cm wide. What is its perimeter?",
+      options: ["A) 34 cm", "B) 37 cm", "C) 70 cm", "D) 17 cm"],
+      correct_answer: "B) 37 cm",
+      explanation: "Add all four sides: 10 + 7 + 10 + 7 = 34 cm.",
+    }))).toContain("works toward 34");
+  });
+});
+
 // ─── 2. Explanations that correct themselves ──────────────────────────────────
 
 describe("explanations with visible self-correction are rejected", () => {

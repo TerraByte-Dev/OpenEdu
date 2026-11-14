@@ -121,7 +121,8 @@ written: they came from a once-a-minute timer whose only reader was the learning
   both feed context back into the tutor.
 - **`quiz.ts` / `quiz-grading.ts` / `quiz-review.ts`** — quiz & promotion-test generation (schema-enforced,
   topped up to a target count, with answer↔explanation self-consistency checks that also read clock
-  times, money and fractions, rejection of explanations that correct themselves and of repeated options,
+  times, money and fractions, read an equation option by its result and skip a method key ("Subtract 7 from
+  both sides"), rejection of explanations that correct themselves and of repeated options,
   near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
   one model call for the rest). The `-grading` / `-review` helpers are pure and unit-tested.
