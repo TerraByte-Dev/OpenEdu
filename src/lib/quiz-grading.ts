@@ -316,6 +316,28 @@ function isPlainNumber(key: string): boolean {
   return !/[\d+\-×*÷/=()]/.test(rest) && rest.split(/\s+/).filter(Boolean).length <= 2;
 }
 
+// A key that is a step to take ("Subtract 7 from both sides", "Divide both sides by 3 to isolate x")
+// has no value of its own: its numbers are operands, and the explanation works toward the solution.
+// Reading 7 there rejected correct one-step-equation questions (B9 rerun 2, 2026-11-14).
+const METHOD_KEY_RE = new RegExp(
+  "^(?:add(?:ing)?|subtract(?:ing)?|multipl(?:y|ying)|divid(?:e|ing)|distribut(?:e|ing)|combin(?:e|ing)|" +
+  "isolat(?:e|ing)|mov(?:e|ing)|simplif(?:y|ying)|factor(?:ing)?|expand(?:ing)?|collect(?:ing)?|cancel(?:l?ing)?|" +
+  "substitut(?:e|ing)|plug(?:ging)?|undo(?:ing)?|rewrit(?:e|ing)|apply(?:ing)?|us(?:e|ing)|tak(?:e|ing)|solv(?:e|ing)|group(?:ing)?)\\b" +
+  "|\\bboth\\s+sides\\b",
+  "i",
+);
+
+// The values an equation key asserts: the number after each "=" that is a result, not the start of
+// more arithmetic. "B) 24 ÷ 3 = 8" asserts 8, not 24; "36 ÷ 9 = 4, and 36 ÷ 4 = 9" asserts 4 and 9.
+function equationResults(key: string): number[] {
+  const t = stripNumericNoise(key);
+  const out: number[] = [];
+  for (const m of t.matchAll(/(?<![<>!])=\s*(-?\d+(?:\.\d+)?)/g)) {
+    if (NOT_OPERAND_RE.test(t.slice(m.index! + m[0].length))) out.push(parseFloat(m[1]));
+  }
+  return out;
+}
+
 // Self-consistency: when a question has a numeric correct_answer AND its explanation DERIVES a number
 // (a strong "therefore X" or an arithmetic "… = X" — see derivedResult), the two must agree. Conservative
 // on purpose: it ignores soft factual verbs, so a correct question whose explanation merely ends on a
@@ -333,11 +355,26 @@ export function checkAnswerConsistency(q: QuestionLike): string | null {
     return `the explanation works toward a different ${typed.kind === "fraction" ? "fraction" : typed.kind === "time" ? "time" : "amount"} than correct_answer "${q.correct_answer}". ` +
       `Re-solve the problem, end the explanation with "Therefore the answer is <value>", and set correct_answer to that exact value.`;
   }
-  const ans = numericValueOf(q.correct_answer);
-  if (ans === null) return null;
-  const derived = derivedResult(q.explanation, isPlainNumber(q.correct_answer));
-  if (derived === null) return null;
-  if (numbersAgree(ans, derived)) return null;
+  const key = stripOptionLabel(String(q.correct_answer ?? "")).trim();
+  if (METHOD_KEY_RE.test(key)) return null;
+  let ans: number | null;
+  let derived: number | null;
+  if (/(?<![<>!])=/.test(key)) {
+    // An equation key is read by its result(s). An explanation that only restates the stem's fact
+    // ("4 × 6 = 24 ... Therefore the answer is B") lands on one of the key's operands: not a contradiction.
+    const results = equationResults(key);
+    if (results.length === 0) return null;
+    derived = derivedResult(q.explanation, true);
+    const stated = (stripNumericNoise(key).match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+    if (derived === null || stated.some((n) => numbersAgree(n, derived!))) return null;
+    ans = results[results.length - 1];
+  } else {
+    ans = numericValueOf(q.correct_answer);
+    if (ans === null) return null;
+    derived = derivedResult(q.explanation, isPlainNumber(q.correct_answer));
+    if (derived === null) return null;
+    if (numbersAgree(ans, derived)) return null;
+  }
   return `the explanation works toward ${derived}, but correct_answer is "${q.correct_answer}" (${ans}). ` +
     `Re-solve the problem, end the explanation with "Therefore the answer is <value>", and set correct_answer to that exact value.`;
 }
