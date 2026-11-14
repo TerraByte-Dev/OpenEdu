@@ -14,7 +14,7 @@ import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../l
 import { useReadAloud } from "../lib/useReadAloud";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
-import { tutorEngine, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote } from "../lib/kernel";
+import { tutorEngine, personaIdentityLayer, suggestFollowUps, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote, type ReplyChoices } from "../lib/kernel";
 import { resolvePersona } from "../lib/skills";
 import { chatTurnSkills } from "../lib/kernel/chatSkills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
@@ -98,6 +98,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
   const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
   const askResolverRef = useRef<((value: string) => void) | null>(null);
+  // Choices the last reply wrote as a list instead of calling ask_user.question (kernel replyChoices.ts).
+  // Shown as the same buttons; a pick is sent as the student's next message. Cleared on send.
+  const [replyChoices, setReplyChoices] = useState<ReplyChoices | null>(null);
   // A pending permission "ask" — renders an Allow / Don't allow card and suspends until the choice.
   const [confirmPending, setConfirmPending] = useState<{ toolName: string; summary: string } | null>(null);
   const confirmResolverRef = useRef<((ok: boolean) => void) | null>(null);
@@ -119,6 +122,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   transcriptRef.current ??= transcriptLoader(getChatMessages, (msgs) => {
     setMessages(msgs);
     setSuggestions([]);
+    setReplyChoices(null);
     setGroundingNote(null);
     setToolEvents([]);
   });
@@ -230,22 +234,25 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     resolve?.(ok);
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || streaming || settingUpRef.current) return;
+  // `picked` is a reply-choice button's text, sent as is; otherwise the input box is sent.
+  const sendMessage = async (picked?: string) => {
+    const text = picked ?? input;
+    if (!text.trim() || streaming || settingUpRef.current) return;
     const setupToken = {};
     settingUpRef.current = setupToken;
     try {
-      await runTurn(setupToken);
+      await runTurn(setupToken, text, picked === undefined);
     } finally {
       if (settingUpRef.current === setupToken) settingUpRef.current = null;
     }
   };
 
-  const runTurn = async (setupToken: object) => {
+  const runTurn = async (setupToken: object, text: string, fromInput: boolean) => {
     setChatError("");
 
-    const userText = input.trim();
-    setInput("");
+    const userText = text.trim();
+    if (fromInput) setInput("");
+    setReplyChoices(null);
     readAloud.stop();
     const owner: { thread: string | null } = { thread: threadId };
     turnOwnerRef.current = owner;
@@ -410,6 +417,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         truncated,
         studentAttempted,
       }));
+      setReplyChoices(result.replyChoices);
 
       if (result.stopReason === "stalled") {
         setChatError(STALLED_TURN);
@@ -579,7 +587,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         )}
         {toolEvents.length > 0 && <ToolActivity events={toolEvents} onOpenResource={onOpenResource} onOpenReview={onOpenReview} />}
         {!streaming && groundingNote && <GroundingNote note={groundingNote} />}
-        {!streaming && !askPending && !confirmPending && suggestions.length > 0 && (
+        {!streaming && !askPending && !confirmPending && !replyChoices && suggestions.length > 0 && (
           <SuggestionChips
             suggestions={suggestions}
             onPick={(s) => { setInput(s.message); setPendingMode(s.mode ?? null); inputRef.current?.focus(); }}
@@ -587,6 +595,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         )}
         {askPending && (
           <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
+        )}
+        {!streaming && !askPending && !confirmPending && replyChoices && (
+          <AskUserChoices question={replyChoices.question} choices={replyChoices.choices} onPick={(value) => void sendMessage(value)} />
         )}
         {confirmPending && (
           <ConfirmToolCard toolName={confirmPending.toolName} summary={confirmPending.summary} onChoose={handleConfirm} />
@@ -643,7 +654,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             </button>
           ) : (
             <button
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={!input.trim()}
               className="px-4 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
