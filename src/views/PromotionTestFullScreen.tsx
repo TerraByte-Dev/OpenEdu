@@ -7,7 +7,7 @@ import {
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
-import { getGenerationConfig } from "../lib/store";
+import { getGenerationConfig, getReviewConfig } from "../lib/store";
 import { getLevelMeaning } from "../lib/curriculum";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
@@ -121,6 +121,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       const { current, review } = await generatePromotionTestQuestions(
         currentSyllabus, previousSyllabuses, cfg,
         (done, total, phase) => { setGenPhase(phase); setGenProgress({ done, total }); },
+        await getReviewConfig(cfg),
       );
       setGenPhase("done");
 

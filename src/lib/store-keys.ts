@@ -45,6 +45,10 @@ export const STORE_KEYS = {
   // accepted on this PC (privacy.ts, #293). Not importable: a settings file from another machine must
   // not count as the person here having read the notice.
   cloudNoticesSeen: "cloud_notices_seen",
+  // The content review model (content-review.ts resolveReviewConfig): unset = the generation model
+  // (off on the tiny tier), "off", or a model name on the current provider. No Settings control yet and
+  // not importable: a cloud review model must go through the privacy confirm first.
+  reviewModel: "review_model",
 } as const;
 
 // Keys that remember something about ONE learner rather than the machine. Read and write them only

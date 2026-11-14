@@ -9,6 +9,7 @@ import {
   hasSelfCorrection, duplicateOptionPair, rewriteLetterRefs, isNearDuplicate,
   type GradeOutcome,
 } from "./quiz-grading";
+import { reviewQuestions } from "./content-review";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -422,7 +423,8 @@ async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]):
 // Provider-aware. LOCAL (Ollama) optimizes for QUALITY: one call per question, sequential, with a live
 // anti-repeat ledger (time is free on local). CLOUD optimizes for COST on a free plan: batch questions
 // per subtopic to minimize call count + repeated prompt tokens, fired in parallel. Both dedupe, top up
-// a shortfall (capped rounds), and run the independent verify pass where runsVerifyPass says to.
+// a shortfall (capped rounds), and run the independent verify pass where runsVerifyPass says to, or the
+// content review instead when a review model is set (plan.review; see checkFresh).
 interface GenPlan {
   subtopics: Array<{ id: string; title: string; key_concepts: string[] }>;
   topic: string;
@@ -432,6 +434,17 @@ interface GenPlan {
   easier: boolean;
   tier: ModelTier;
   config: LLMConfig;
+  review: LLMConfig | null;
+}
+
+// The check a round's freshly generated questions get before they count: the content review when a
+// review model is set (it subsumes the verify pass: it checks the key and also flags unanswerable
+// questions and false facts), else the verify pass where runsVerifyPass says to, else none.
+function checkFresh(plan: GenPlan): ((qs: GenQuestion[], label: string) => Promise<GenQuestion[]>) | null {
+  const { review, config, tier } = plan;
+  if (review) return (qs, label) => reviewAndFilter(qs, plan.topic, review, label);
+  if (runsVerifyPass(tier, config.model)) return (qs, label) => verifyAndFilter(qs, config, tier, label);
+  return null;
 }
 
 function planSlotCtx(plan: GenPlan, subIdx: number): BatchContext {
@@ -444,8 +457,8 @@ function planSlotCtx(plan: GenPlan, subIdx: number): BatchContext {
 async function generatePerQuestion(
   plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
-  const { tier, config } = plan;
-  const verify = runsVerifyPass(tier, config.model); // independent re-solve: every tier but tiny, plus the defaults (audit)
+  const { tier } = plan;
+  const check = checkFresh(plan);
   const ledgerCap = tier === "tiny" || tier === "small" ? 8 : 16;
   const MAX_ROUNDS = 3;
 
@@ -466,9 +479,9 @@ async function generatePerQuestion(
       if (produced.length >= target) break;
       add(await generateOneQuestion(planSlotCtx(plan, subIdx), ledgerTail()));
     }
-    if (verify && produced.length > roundStart) {
+    if (check && produced.length > roundStart) {
       const fresh = produced.slice(roundStart);
-      const kept = await verifyAndFilter(fresh, config, tier, `${label} r${round}`);
+      const kept = await check(fresh, `${label} r${round}`);
       if (kept.length !== fresh.length) {
         const keptKeys = new Set(kept.map(keyOf));
         for (const q of fresh) if (!keptKeys.has(keyOf(q))) seen.delete(keyOf(q));
@@ -491,7 +504,7 @@ async function generateBatched(
   plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   const { tier, config } = plan;
-  const verify = runsVerifyPass(tier, config.model); // independent re-solve: every tier but tiny, plus the defaults (audit)
+  const check = checkFresh(plan);
   const MAX_ROUNDS = 3;
   let produced: GenQuestion[] = [];
 
@@ -508,7 +521,7 @@ async function generateBatched(
     if (ctxs.length === 0) break;
 
     let batch = (await Promise.all(ctxs.map(generateQuestionBatch))).flat().map(finalizeQuestion);
-    if (verify) batch = await verifyAndFilter(batch, config, tier, `${label} r${round}`);
+    if (check) batch = await check(batch, `${label} r${round}`);
 
     produced = dedupeByQuestionText([...produced, ...batch]);
     onProgress?.(Math.min(produced.length, target), target);
@@ -588,15 +601,31 @@ async function verifyAndFilter(
   }
 }
 
+// Content review of freshly generated questions (content-review.ts): drops every question the review
+// flags (wrong_key, unanswerable, false_fact); the top-up loop refills. Only fresh questions come here,
+// never the review pool: which questions a learner missed is data about that learner, so the pool keeps
+// the verify pass on the generation model.
+async function reviewAndFilter(questions: GenQuestion[], topic: string, review: LLMConfig, label: string): Promise<GenQuestion[]> {
+  if (questions.length === 0) return questions;
+  const findings = await reviewQuestions(topic, questions, review);
+  if (findings.length === 0) return questions;
+  const counts = findings.reduce<Record<string, number>>((m, f) => ({ ...m, [f.verdict]: (m[f.verdict] ?? 0) + 1 }), {});
+  log.info("quiz", `${label}: content review dropped ${findings.length}/${questions.length} (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(", ")})`);
+  const drop = new Set(findings.map((f) => f.index));
+  return questions.filter((_, i) => !drop.has(i));
+}
+
 // `reviewPool` (optional) holds previously-missed questions for this course; ~20% of the quiz is
 // re-posed from it (retrieval practice / spaced review), the rest freshly generated. An empty pool
 // degrades to all-fresh — identical to the pre-A2 behavior, so legacy callers are unaffected.
+// `reviewer` (store.ts getReviewConfig; null = off) is the content review model for fresh questions.
 export async function generateQuizQuestions(
   syllabus: Syllabus,
   numQuestions: number,
   config: LLMConfig,
   reviewPool: QuizQuestion[] = [],
   onProgress?: (done: number, total: number) => void,
+  reviewer: LLMConfig | null = null,
 ): Promise<GenQuestion[]> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
@@ -627,6 +656,7 @@ export async function generateQuizQuestions(
       easier: false,
       tier,
       config,
+      review: reviewer,
     },
     fresh,
     `quiz L${syllabus.level}`,
@@ -649,6 +679,7 @@ export async function generatePromotionTestQuestions(
   previousSyllabuses: Syllabus[],
   config: LLMConfig,
   onProgress?: (done: number, total: number, phase: "current" | "review") => void,
+  reviewer: LLMConfig | null = null,
 ): Promise<PromotionTestQuestions> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
@@ -664,6 +695,7 @@ export async function generatePromotionTestQuestions(
       easier: false,
       tier,
       config,
+      review: reviewer,
     },
     TEST_CURRENT_TARGET,
     `promotion L${currentSyllabus.level} current`,
@@ -685,6 +717,7 @@ export async function generatePromotionTestQuestions(
         easier: true,
         tier,
         config,
+        review: reviewer,
       },
       TEST_REVIEW_TARGET,
       `promotion L${currentSyllabus.level} review`,

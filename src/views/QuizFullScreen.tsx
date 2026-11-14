@@ -4,7 +4,7 @@ import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, 
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
-import { getLLMConfig } from "../lib/store";
+import { getLLMConfig, getReviewConfig } from "../lib/store";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
@@ -66,7 +66,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       setConfig(cfg);
       // Pull the spaced "review pool" (prior misses) so ~20% of the quiz is retrieval practice.
       const reviewPool = await getReviewPoolQuestions(courseId, 6);
-      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }));
+      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }), await getReviewConfig(cfg));
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
       startedAtRef.current = Date.now();
