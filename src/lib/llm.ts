@@ -867,7 +867,7 @@ export function cloudModelTier(provider: "openai" | "anthropic", model: string):
     return "medium";
   }
   // anthropic
-  if (m.includes("opus")) return "large";
+  if (m.includes("opus") || m.includes("fable")) return "large";
   if (m.includes("sonnet")) return "large";
   if (m.includes("haiku")) return "medium";
   return "medium";
@@ -1046,11 +1046,11 @@ export async function detectModelTier(config: LLMConfig): Promise<ModelTier> {
 // ─── Structured output: schema-enforced JSON with repair-retry ────────────────
 // Goal: reliable JSON from small local models (gemma4:e4b) and from cloud APIs alike.
 // Strategy: provider-native enforcement first (Ollama format-schema, OpenAI json_schema strict,
-// Anthropic forced tool_use), validate against schema in TS, repair-retry on failure.
+// Anthropic structured outputs, output_config.format), validate against schema in TS, repair-retry on failure.
 
 export interface StructuredOpts<T = unknown> {
   schema: object;             // JSON Schema (subset: type/required/additionalProperties/properties/items/enum/pattern/min*/max*)
-  toolName?: string;          // Anthropic tool name + OpenAI json_schema name (default "Output")
+  toolName?: string;          // OpenAI json_schema name + Anthropic's forced-tool fallback name (default "Output")
   maxRepairAttempts?: number; // default 2
   temperature?: number;       // default 0.2 (low — schema mode plus low temp = stable output)
   signal?: AbortSignal;
@@ -1170,9 +1170,11 @@ function validateAgainstSchema(value: unknown, schema: Record<string, unknown>, 
 }
 
 // ─── Over-long strings: trimmed by code, not failed ───────────────────────────
-// Ollama and Anthropic do not enforce maxLength while the model writes. Ollama's format grammar omits it,
-// and Anthropic's forced tool_use receives it in input_schema but does not constrain to it (probe,
-// 2026-11-14: claude-haiku-5-5 wrote 156-195 characters into a 120-character field, 3 of 3). B10 lost
+// Ollama and Anthropic do not enforce maxLength while the model writes. Ollama's format grammar omits it;
+// Anthropic's structured outputs reject it, so it reaches the model only as words in the description
+// (anthropicOutputSchema), and the forced tool_use used before took it in input_schema but did not
+// constrain to it (probe, 2026-11-14: claude-haiku-5-5 wrote 156-195 characters into a 120-character
+// field, 3 of 3). B10 lost
 // 19 of 20 Haiku course builds to this, every one 1-20% over a cap (what_it_is 407-447 of 400,
 // level_description 412-479 of 400, domains[].focus 201-228 of 200, objective 242-253 of 240), and the
 // two repairs never got under it. So when length is the only thing wrong, code shortens the field.
@@ -1384,6 +1386,100 @@ async function callOpenAIStructured(
   return { raw, parsed };
 }
 
+// ─── Anthropic structured outputs ─────────────────────────────────────────────
+// Anthropic structured calls ask for structured outputs (`output_config.format`, a JSON schema the reply
+// is constrained to). They used to force a tool (`tool_choice`), which Claude Sonnet 5.5, Opus 5.5 and
+// Fable 5.2 answer with a 400; all four current models accept output_config.format (TerraTutor B10
+// round 2's probe, 2026-11-14). The API rejects some JSON Schema keywords there
+// (https://platform.claude.com/docs/en/build-with-claude/structured-outputs, "JSON Schema limitations"):
+// string lengths, numeric bounds, array bounds other than minItems 0 or 1, and any object without
+// additionalProperties false. anthropicOutputSchema sends a copy without them, with each dropped bound
+// written into the field's description so the model still sees it; callLLMStructured validates the reply
+// against the full schema, so a too-short array or an over-long string still goes to the trim or the
+// repair prompt as before.
+
+const ANTHROPIC_DROPPED_KEYWORDS = new Set([
+  "minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
+  "minItems", "maxItems", "uniqueItems", "minProperties", "maxProperties", "$schema",
+]);
+const ANTHROPIC_FORMATS = new Set(["date-time", "time", "date", "duration", "email", "hostname", "uri", "ipv4", "ipv6", "uuid"]);
+// Keys whose value is data, not a schema: copied as they are.
+const SCHEMA_DATA_KEYS = new Set(["enum", "const", "default", "required", "examples"]);
+// Keys whose value maps names to schemas: the names are not keywords.
+const SCHEMA_MAP_KEYS = new Set(["properties", "$defs", "definitions"]);
+
+function droppedBoundText(key: string, value: unknown): string | null {
+  if (typeof value !== "number") return null;
+  switch (key) {
+    case "minLength": return `at least ${value} characters`;
+    case "maxLength": return `at most ${value} characters`;
+    case "minItems": return `at least ${value} items`;
+    case "maxItems": return `at most ${value} items`;
+    case "minimum": return `at least ${value}`;
+    case "maximum": return `at most ${value}`;
+    case "exclusiveMinimum": return `more than ${value}`;
+    case "exclusiveMaximum": return `less than ${value}`;
+    default: return null;
+  }
+}
+
+/** `schema` as Anthropic's structured outputs accept it (see above). A fresh copy; the input is not changed. */
+export function anthropicOutputSchema(schema: object): object {
+  const walk = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (node === null || typeof node !== "object") return node;
+    const out: Record<string, unknown> = {};
+    const bounds: string[] = [];
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      if (SCHEMA_DATA_KEYS.has(k)) { out[k] = v; continue; }
+      if (SCHEMA_MAP_KEYS.has(k) && v !== null && typeof v === "object" && !Array.isArray(v)) {
+        out[k] = Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([name, s]) => [name, walk(s)]));
+        continue;
+      }
+      if (k === "minItems" && (v === 0 || v === 1)) { out[k] = v; continue; }
+      if (ANTHROPIC_DROPPED_KEYWORDS.has(k)) {
+        const text = droppedBoundText(k, v);
+        if (text) bounds.push(text);
+        continue;
+      }
+      if (k === "format" && typeof v === "string" && !ANTHROPIC_FORMATS.has(v)) continue;
+      out[k] = walk(v);
+    }
+    if (out.type === "object" || "properties" in out) out.additionalProperties = false;
+    if (bounds.length > 0) {
+      const said = bounds.join("; ");
+      out.description = typeof out.description === "string" && out.description ? `${out.description} (${said})` : said;
+    }
+    return out;
+  };
+  return walk(schema) as object;
+}
+
+// A 400 that is about the structured-output request itself (a model without structured outputs, or a
+// schema the API cannot compile), rather than about the key, the model id or the size of the request.
+function rejectsOutputFormat(status: number, body: string): boolean {
+  return status === 400 && /output_config|output.format|json_schema|structured output|schema/i.test(body);
+}
+
+async function postAnthropic(body: Record<string, unknown>, apiKey: string, signal?: AbortSignal): Promise<Awaited<ReturnType<typeof fetch>>> {
+  try {
+    return await fetchWithRetry("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "Origin": "",
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") throw e;
+    throw new Error(`Network error connecting to Anthropic: ${networkAwareMessage(e)}`);
+  }
+}
+
 async function callAnthropicStructured(
   messages: Array<{ role: string; content: string }>,
   config: LLMConfig,
@@ -1397,11 +1493,47 @@ async function callAnthropicStructured(
   const systemMsg = messages.find((m) => m.role === "system");
   const chatMsgs = messages.filter((m) => m.role !== "system");
 
-  const body: Record<string, unknown> = {
+  const base: Record<string, unknown> = {
     model: config.model,
     max_tokens: 8096,
     ...anthropicRequestFields(config.model, temperature),
     messages: chatMsgs,
+  };
+  if (systemMsg) base.system = systemMsg.content;
+
+  log.info("callAnthropicStructured", `model=${config.model} format=json_schema (${toolName})`);
+  const response = await postAnthropic({ ...base, output_config: { format: { type: "json_schema", schema: anthropicOutputSchema(schema) } } }, config.apiKey, signal);
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    // Fallback: a model or schema the structured-outputs request does not work for gets the same call as
+    // a forced tool, the path every Claude model before Sonnet 5.5 accepted.
+    if (rejectsOutputFormat(response.status, text)) {
+      log.warn("callAnthropicStructured", `output_config.format refused for ${config.model}; retrying with a forced tool`, { status: response.status, body: text.slice(0, 300) });
+      return callAnthropicForcedTool(base, config.apiKey, schema, toolName, signal);
+    }
+    throw friendlyHttpError("Anthropic", response.status, text);
+  }
+
+  const json = await response.json();
+  const blocks = (json.content ?? []) as Array<{ type: string; text?: string }>;
+  // The JSON is in the text block; thinking blocks (Opus 5.5 and Fable 5.2 always think) are skipped.
+  const raw = blocks.filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
+  if (json.stop_reason && json.stop_reason !== "end_turn") log.warn("callAnthropicStructured", `stop_reason=${json.stop_reason}`);
+  let parsed: unknown = null;
+  try { parsed = tryParseJsonLenient(raw); } catch { parsed = null; }
+  return { raw, parsed };
+}
+
+async function callAnthropicForcedTool(
+  base: Record<string, unknown>,
+  apiKey: string,
+  schema: object,
+  toolName: string,
+  signal?: AbortSignal,
+): Promise<ProviderResult> {
+  const body: Record<string, unknown> = {
+    ...base,
     tools: [{
       name: toolName,
       description: "Emit structured output matching the provided JSON schema.",
@@ -1409,28 +1541,8 @@ async function callAnthropicStructured(
     }],
     tool_choice: { type: "tool", name: toolName },
   };
-  if (systemMsg) body.system = systemMsg.content;
 
-  log.info("callAnthropicStructured", `model=${config.model} toolName=${toolName}`);
-
-  let response: Awaited<ReturnType<typeof fetch>>;
-  try {
-    response = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": "2023-06-01",
-        "Origin": "",
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
-  } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") throw e;
-    throw new Error(`Network error connecting to Anthropic: ${networkAwareMessage(e)}`);
-  }
-
+  const response = await postAnthropic(body, apiKey, signal);
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw friendlyHttpError("Anthropic", response.status, text);

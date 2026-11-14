@@ -9,6 +9,7 @@ import {
 } from "../../../lib/store";
 import { needsCloudNotice, modelNeedsCloudNotice, withNoticeSeen } from "../../../lib/privacy";
 import { CloudNoticePanel } from "../CloudNotice";
+import ReviewModelPicker from "../ReviewModelPicker";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
   OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type ModelOption,
@@ -295,6 +296,14 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             <CloudModelChips models={CHAT_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={chatModel} onChange={commitChat} />
           )}
           {modelNotice("chat")}
+        </SettingRow>
+
+        <SettingRow
+          label="Checking model"
+          help="Reads each new lesson and set of quiz or test questions for false facts and wrong answer keys before the learner sees them. It is sent only the course topic and the text the course model wrote, never anything about the learner. Same as the course model is the default; a cloud model here asks for the same one-time confirm as choosing that company above."
+          keywords="checking review reviewer check verify false facts answer key content review_model"
+        >
+          <ReviewModelPicker provider={provider} discovered={ollamaStatus === "connected" ? ollamaModels : []} />
         </SettingRow>
 
         {provider === "ollama" && (

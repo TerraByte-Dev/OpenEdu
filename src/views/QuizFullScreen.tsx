@@ -159,6 +159,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
 
     setState("grading");
     const t0 = performance.now();
+    // The learner's own words are marked on a local model only (lane 1); none pulled = passed leniently.
     const outcomes = await gradeAnswersBatch(
       pending.map(({ q, index }) => ({
         index,
@@ -167,7 +168,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         student: q.user_answer ?? "",
         type: q.question_type,
       })),
-      config,
+      await getLocalVerifyConfig(config).catch(() => null),
     );
     const graded = qs.map((q, i) => {
       const o = outcomes.get(i);

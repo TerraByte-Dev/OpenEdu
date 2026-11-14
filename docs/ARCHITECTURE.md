@@ -125,7 +125,8 @@ written: they came from a once-a-minute timer whose only reader was the learning
   both sides"), rejection of explanations that correct themselves and of repeated options,
   near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
-  one model call for the rest). The `-grading` / `-review` helpers are pure and unit-tested.
+  one call on a local model for the rest; see Content review › Grading and the study plan stay local).
+  The `-grading` / `-review` helpers are pure and unit-tested.
 - **`content-review.ts`** — the content review of generated lessons and questions. See below.
 - **`notebook.ts` / `notebook-links.ts`** — the notebook layer (retrieval + linking). See below.
 - **`kernel/`, `tools/`, `skills/`, `permissions/`** — the tutoring runtime. See below.
@@ -153,6 +154,16 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
 1. **Decompose, don't dump.** Research is five small structured sub-calls, code-assembled into a brief —
    a single free-text dump was unreliable on small models.
 2. **Schema-enforced everywhere.** Provider-native enforcement + a local validator + repair-retry.
+   On Anthropic that is structured outputs (`output_config.format`, `callAnthropicStructured`), not a
+   forced tool: Claude Sonnet 5.5, Opus 5.5 and Fable 5.2 answer a forced `tool_choice` with a 400, and
+   all four current models accept structured outputs (TerraTutor B10 round 2's probe; real calls on
+   2026-11-14 through preflight, research, outline, syllabus, lesson, quiz and review all returned 200 on
+   that path). The API rejects some JSON Schema keywords there, so `anthropicOutputSchema` sends a copy
+   without `minLength`/`maxLength`, numeric bounds, `maxItems` and `minItems` above 1, with
+   `additionalProperties: false` on every object and each dropped bound written into the field's
+   description ("at most 400 characters"). The reply is still validated against the full schema, so the
+   trim and the repair prompt below work as before. A 400 about the output format (a model or schema the
+   API cannot do it for) retries that call once as a forced tool, the path older models take.
    Every parsed reply gets LaTeX commands back that a JSON escape turned into a control character
    (`\text` written with one backslash parses as a TAB + "ext"; `repairLatexInValue` in `json-lenient.ts`).
    A lesson section that stops mid-sentence is a validation issue (`lessonIssues` in `lesson-format.ts`).
@@ -162,7 +173,8 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
    result must pass the schema and the caller's `validate`, else the repair prompt runs as before, and
    each trim is logged with its path and lengths. Quiz and test questions opt out (`trimOverlong: false`):
    a word problem cut at a sentence end can lose the sentence that asks it, so they are repaired instead. Ollama and Anthropic do not enforce `maxLength` while
-   the model writes: Ollama's grammar leaves it out, and Anthropic's forced `tool_use` gets it in `input_schema` but does not
+   the model writes: Ollama's grammar leaves it out, Anthropic's structured outputs reject it (it goes as
+   words in the description), and the forced `tool_use` used before got it in `input_schema` but did not
    hold to it (probe 2026-11-14: `claude-haiku-5-5` wrote 156-195 characters into a 120-character field,
    3 of 3). In B10, 19 of 20 Haiku course builds failed on 1-20% overruns (`what_it_is` 407-447 of 400,
    `level_description` 412-479, `domains[].focus` 201-228 of 200, `objective` 242-253 of 240) that two
@@ -212,8 +224,14 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   `ollama:qwen3.5:9b` for the reverse; any other value = that model on the current provider (an Ollama
   tag such as `gemma4:e2b` is not a prefix). A cloud reviewer is ignored, and the default applies, when
   its privacy confirm was never accepted here (`needsCloudNotice` for OpenAI/Anthropic,
-  `modelNeedsCloudNotice` for an Ollama cloud model) or no key is saved for it. There is no Settings
-  control yet, and the key is not importable.
+  `modelNeedsCloudNotice` for an Ollama cloud model) or no key is saved for it.
+- **The Checking model setting** (Settings › Models, `ReviewModelPicker.tsx`) writes `review_model`:
+  Same as the course model (unset), Off, an installed Ollama model, or a generation-catalog model of each
+  cloud provider with a key saved here, all stored as `"<provider>:<model>"` (`reviewModelChoices`). A
+  cloud choice is saved only after that company's one-time notice (`reviewChoiceNotice`, the same
+  `CloudNoticePanel` as the provider buttons; `privacy-screens.test.ts` holds the gate). `review_model`
+  is importable like the other model settings; an imported cloud value does nothing until this PC's own
+  notice was accepted (`cloud_notices_seen` is not importable) and a key is saved.
 - **Measured on `gemma4:e2b` as its own reviewer** (B9 rerun 2's saved output replayed, 2026-11-14, one
   pass, prompt written before the replay, labels from the run's audit and Claude's reading of one test):
   lessons, 0 of the 5 known false lessons caught and 5 true statements flagged in 4 other lessons, so
@@ -233,7 +251,15 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   questions (B10 audit). `content-review-privacy.test.ts` runs the generators for a fresh learner and for
   one with a full history and fails if the review payloads differ, if any cloud-bound payload of a cloud
   generation run holds the missed questions, or if a cross-provider cloud reviewer gets anything but
-  the review builder's (topic, title, generated content). This is what lets an edition send generation
+  the review builder's (topic, title, generated content).
+- **Grading and the study plan stay local too.** Free-text answers (the learner's own words,
+  `quiz.ts` `gradeAnswersBatch`) and the missed questions behind the study plan after a failed test
+  (`generateStudyPlan`) go only to the model `getLocalVerifyConfig` returns. With no local model, answers
+  code cannot settle (`gradeFreeTextDeterministic`) are passed leniently and stored as `graded_by
+  'fallback'`, as when the grader fails, and the study plan is the one code writes from the missed
+  questions. Both functions refuse a cloud config themselves, so a screen that passed the generation
+  config by mistake still sends nothing; the same privacy test fails if any cloud-bound payload holds an
+  answer or a missed question. Before 2026-11-14 both ran on the generation model. This is what lets an edition send generation
   and the review to a cloud model without sending anything about the learner.
 
 ## The tutoring runtime (`kernel/`, `tools/`, `skills/`, `permissions/`)

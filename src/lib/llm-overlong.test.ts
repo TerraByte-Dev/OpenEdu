@@ -27,15 +27,25 @@ let sent: Sent[] = [];
 const original = globalThis.fetch;
 afterEach(() => { globalThis.fetch = original; sent = []; });
 
+// Structured calls go out as output_config.format (llm.ts callAnthropicStructured), which names no tool,
+// so the fake tells the stages apart by the schema's first property, and answers in a text block.
+const STAGE_BY_FIELD: Record<string, string> = {
+  what_it_is: "emit_subject_overview", domains: "emit_knowledge_domains", stages: "emit_progression",
+  obstacles: "emit_obstacles", prerequisites: "emit_prerequisites", verdicts: "emit_verdicts", questions: "emit_quiz_questions",
+};
+function stageOf(body: { output_config?: { format?: { schema?: { properties?: Record<string, unknown> } } } }): string {
+  const fields = Object.keys(body.output_config?.format?.schema?.properties ?? {});
+  return fields.map((f) => STAGE_BY_FIELD[f]).find(Boolean) ?? "t";
+}
 function fakeAnthropic(reply: (tool: string, attempt: number) => unknown) {
   const attempts = new Map<string, number>();
   globalThis.fetch = (async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body ?? "{}"));
-    const tool = (body.tool_choice?.name as string) ?? "";
+    const tool = stageOf(body);
     const n = (attempts.get(tool) ?? 0) + 1;
     attempts.set(tool, n);
     sent.push({ tool, body });
-    return Response.json({ content: [{ type: "tool_use", name: tool, input: reply(tool, n) }] });
+    return Response.json({ stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify(reply(tool, n)) }] });
   }) as unknown as typeof fetch;
 }
 
@@ -82,13 +92,14 @@ describe("a cloud model writing past maxLength no longer fails the course build"
     expect(brief).toContain(FOCUS_OK);
   });
 
-  it("the cap is sent to Anthropic (forced tool_use) but nothing there enforces it", async () => {
+  it("the cap reaches Anthropic only as words in the description (structured outputs reject maxLength), so nothing there enforces it", async () => {
     fakeAnthropic((tool) => researchReply(tool));
     await researchTopic("Ancient Egypt", { ...HAIKU });
     const overview = sent.find((s) => s.tool === "emit_subject_overview")!.body;
-    const tool = (overview.tools as Array<{ input_schema: { properties: Record<string, { maxLength?: number }> } }>)[0];
-    expect(tool.input_schema.properties.what_it_is.maxLength).toBe(400);
-    expect(overview.tool_choice).toEqual({ type: "tool", name: "emit_subject_overview" });
+    const schema = (overview.output_config as { format: { schema: { properties: Record<string, { maxLength?: number; description?: string }> } } }).format.schema;
+    expect(schema.properties.what_it_is.maxLength).toBeUndefined();
+    expect(schema.properties.what_it_is.description).toContain("at most 400 characters");
+    expect(overview).not.toHaveProperty("tool_choice");
   });
 
   it("does not trim when something besides length is wrong; the repair prompt gets the issues", async () => {

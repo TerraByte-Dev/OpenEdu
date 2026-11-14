@@ -7,7 +7,7 @@ import {
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
-import { getGenerationConfig, getReviewConfig } from "../lib/store";
+import { getGenerationConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
 import { getLevelMeaning } from "../lib/curriculum";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
@@ -215,12 +215,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     if (pending.length > 0) {
       setTestState("grading");
       const tGrade = performance.now();
+      // The learner's own words are marked on a local model only (lane 1); none pulled = passed leniently.
       const outcomes = await gradeAnswersBatch(
         pending.map(({ q, index }) => ({
           index, question: q.question_text, expected: q.correct_answer,
           student: q.user_answer ?? "", type: q.question_type,
         })),
-        cfg,
+        await getLocalVerifyConfig(cfg).catch(() => null),
       );
       gradedQuestions = finalQuestions.map((q, i) => {
         const o = outcomes.get(i);
@@ -343,7 +344,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     const missed = answered
       .filter((q) => !q.is_correct)
       .map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
-    const studyPlan = generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, cfg)
+    // The missed questions go to a local model only (lane 1); none pulled = the plan code writes.
+    const studyPlan = getLocalVerifyConfig(cfg).catch(() => null)
+      .then((local) => generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, local))
       .then((plan) => { setStudyPlan(plan); return plan || null; })
       .catch(() => null) // generateStudyPlan falls back to code; this only guards the unexpected
       .finally(() => setGeneratingPlan(false));

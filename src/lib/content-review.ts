@@ -12,7 +12,8 @@
 import { callLLMStructured, detectModelTier, log } from "./llm";
 import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, LLMProvider, ModelTier } from "../types";
-import { modelNeedsCloudNotice, needsCloudNotice } from "./privacy";
+import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
+import { GENERATION_MODELS } from "./models";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
 
@@ -90,7 +91,8 @@ export function resolveReviewConfig(
   kind: ReviewKind,
   creds: ProviderCredentials = {},
 ): LLMConfig | null {
-  const value = (stored ?? "").trim();
+  // A hand-edited settings import can put anything here; a non-string counts as unset.
+  const value = typeof stored === "string" ? stored.trim() : "";
   if (value.toLowerCase() === REVIEW_OFF) return null;
   const named = parseReviewModel(value);
   if (named.provider && named.provider !== gen.provider) {
@@ -101,6 +103,45 @@ export function resolveReviewConfig(
   }
   if (kind === "lesson" && LESSON_REVIEW_DEFAULT_OFF_TIERS.has(genTier)) return null;
   return { ...gen, modelTier: genTier };
+}
+
+// ─── The Checking model setting (Settings › Models, ReviewModelPicker.tsx) ─────
+
+export interface ReviewChoice { value: string; label: string; group: "default" | LLMProvider }
+
+// What the setting offers, in order: the default (unset = the course model), off, the models Ollama has
+// installed (not embedding models), and the generation catalog of each cloud provider with a key saved
+// here. Every model is stored as "<provider>:<model>". A stored value that is not on the list (typed into
+// settings.json, or imported) stays visible as its own choice, so the selection is what the app uses.
+export function reviewModelChoices(opts: {
+  ollamaModels: readonly string[];
+  cloudKeys: Partial<Record<"openai" | "anthropic", boolean>>;
+  stored: string;
+}): ReviewChoice[] {
+  const choices: ReviewChoice[] = [
+    { value: "", label: "Same as the course model", group: "default" },
+    { value: REVIEW_OFF, label: "Off", group: "default" },
+    ...opts.ollamaModels.filter((m) => !/embed/i.test(m)).map((m) => ({ value: `ollama:${m}`, label: m, group: "ollama" as const })),
+  ];
+  for (const p of ["openai", "anthropic"] as const) {
+    if (opts.cloudKeys[p]) choices.push(...GENERATION_MODELS[p].map((m) => ({ value: `${p}:${m.id}`, label: m.label, group: p })));
+  }
+  const stored = opts.stored.trim();
+  if (stored && stored.toLowerCase() !== REVIEW_OFF && !choices.some((c) => c.value === stored)) {
+    choices.push({ value: stored, label: stored, group: parseReviewModel(stored).provider ?? "default" });
+  }
+  return choices;
+}
+
+// The one-time cloud confirm (privacy.ts) a Checking model choice needs before it is saved, or null: the
+// company's notice for an OpenAI or Anthropic model, Ollama's for an Ollama model whose name ends in
+// cloud, each only when not accepted here before. resolveReviewConfig ignores a cloud reviewer without
+// it anyway; asking at the pick is what makes the choice take effect.
+export function reviewChoiceNotice(value: string, seen: readonly string[]): CloudFeature | null {
+  const { provider, model } = parseReviewModel(value.trim());
+  if (provider === "openai" || provider === "anthropic") return needsCloudNotice(provider, seen) ? provider : null;
+  if (provider === "ollama" && isOllamaCloudModel(model)) return needsCloudNotice("ollama-cloud", seen) ? "ollama-cloud" : null;
+  return null;
 }
 
 // ─── Payloads (pure; the privacy test calls these through the production path) ──

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import providerModels from "../views/settings/sections/ProviderModels.tsx?raw";
 import modelImport from "../components/ModelImport.tsx?raw";
+import reviewPicker from "../views/settings/ReviewModelPicker.tsx?raw";
 
 // The screens that pick a provider or a model, read as source: each may save a choice that sends the
 // learner's chats off this computer only after the one-time confirm (privacy.ts, #293). The confirm's logic
@@ -127,5 +128,34 @@ describe("Model import makes an Ollama cloud model the tutor only through the co
     expect(mi).toContain("const useExisting = (model: string) => becomeTutor(model, true);");
     expect(mi).toContain("await becomeTutor(done, built.checked && unchecked === 0);");
     expect(mi).toContain('<CloudNoticePanel feature="ollama-cloud" onConfirm={confirmCloud} onCancel={declineCloud} />');
+  });
+});
+
+describe("Settings › Checking model saves a cloud review model only through the confirm", () => {
+  const rp = src(reviewPicker);
+  const save = body(rp, "save");
+  const choose = body(rp, "choose");
+  const confirm = body(rp, "confirm");
+
+  it("writes review_model only inside save", () => {
+    const calls = callsOf(rp, "setReviewModel");
+    expect(calls).toHaveLength(1);
+    expect(inside(calls[0], save)).toBe(true);
+  });
+
+  it("reaches save only from choose (after the gate) and confirm (after remembering it)", () => {
+    const calls = callsOf(rp, "save");
+    expect(calls.length).toBeGreaterThan(0);
+    for (const at of calls) expect(inside(at, choose) || inside(at, confirm), rp.slice(at - 40, at + 20)).toBe(true);
+    expect(choose.text.indexOf("reviewChoiceNotice(")).toBeGreaterThan(-1);
+    expect(choose.text.indexOf("reviewChoiceNotice(")).toBeLessThan(choose.text.indexOf("save("));
+    expect(confirm.text.indexOf("markCloudNoticeSeen(")).toBeGreaterThan(-1);
+    expect(confirm.text.indexOf("markCloudNoticeSeen(")).toBeLessThan(confirm.text.indexOf("save("));
+  });
+
+  it("has every choice call choose, and is shown in the Models section", () => {
+    expect(rp).toContain("onClick={() => choose(c.value)}");
+    expect(rp).toContain("<CloudNoticePanel feature={pending.feature} onConfirm={confirm} onCancel={() => setPending(null)} />");
+    expect(pm).toContain("<ReviewModelPicker");
   });
 });

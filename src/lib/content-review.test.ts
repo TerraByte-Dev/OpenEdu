@@ -21,9 +21,10 @@ import { callLLMStructured } from "./llm";
 import { generateLesson } from "./curriculum";
 import { generateQuizQuestions, generatePromotionTestQuestions } from "./quiz";
 import {
-  parseReviewFindings, quoteFound, resolveReviewConfig, withoutFlaggedParts, lessonParts,
+  parseReviewFindings, quoteFound, resolveReviewConfig, withoutFlaggedParts, lessonParts, reviewModelChoices, reviewChoiceNotice,
   type ReviewReply,
 } from "./content-review";
+import { GENERATION_MODELS } from "./models";
 import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, Syllabus } from "../types";
 
@@ -346,5 +347,49 @@ describe("resolveReviewConfig", () => {
       expect(resolveReviewConfig("qwen3.5:9b", gen, "tiny", [], "lesson", creds)).toMatchObject({ provider: "ollama", model: "qwen3.5:9b" });
       expect(resolveReviewConfig("ollama:qwen3.5:9b", gen, "tiny", [], "lesson", creds)).toMatchObject({ provider: "ollama", model: "qwen3.5:9b" });
     });
+  });
+});
+
+// Settings › Models › Checking model (ReviewModelPicker.tsx) offers these choices and asks the cloud
+// notice these helpers name before it saves review_model.
+describe("reviewModelChoices: what the Checking model setting offers", () => {
+  it("same as the course model and off first, then installed Ollama models, then each provider with a saved key", () => {
+    const choices = reviewModelChoices({ ollamaModels: ["gemma4:e4b", "nomic-embed-text:latest"], cloudKeys: { anthropic: true }, stored: "" });
+    expect(choices.slice(0, 2)).toEqual([
+      { value: "", label: "Same as the course model", group: "default" },
+      { value: "off", label: "Off", group: "default" },
+    ]);
+    expect(choices.filter((c) => c.group === "ollama").map((c) => c.value)).toEqual(["ollama:gemma4:e4b"]); // no embedding model
+    expect(choices.filter((c) => c.group === "openai")).toEqual([]); // no OpenAI key saved
+    const anthropic = choices.filter((c) => c.group === "anthropic").map((c) => c.value);
+    expect(anthropic).toEqual(GENERATION_MODELS.anthropic.map((m) => `anthropic:${m.id}`));
+    expect(anthropic).toContain("anthropic:claude-sonnet-5-5");
+  });
+
+  it("keeps a stored value that is not offered (a hand-typed or imported one) visible as its own choice", () => {
+    const choices = reviewModelChoices({ ollamaModels: [], cloudKeys: {}, stored: "anthropic:claude-haiku-5-5" });
+    expect(choices[choices.length - 1]).toEqual({ value: "anthropic:claude-haiku-5-5", label: "anthropic:claude-haiku-5-5", group: "anthropic" });
+    expect(reviewModelChoices({ ollamaModels: [], cloudKeys: {}, stored: "off" })).toHaveLength(2);
+  });
+});
+
+describe("reviewChoiceNotice: the confirm a Checking model choice needs before it is saved", () => {
+  it("names the cloud company whose notice was not accepted here", () => {
+    expect(reviewChoiceNotice("anthropic:claude-sonnet-5-5", [])).toBe("anthropic");
+    expect(reviewChoiceNotice("openai:gpt-6.1-sol", ["anthropic"])).toBe("openai");
+    expect(reviewChoiceNotice("ollama:gpt-oss:120b-cloud", [])).toBe("ollama-cloud");
+  });
+
+  it("needs none for a local model, off, the default, or a company already confirmed", () => {
+    for (const v of ["", "off", "ollama:gemma4:e4b", "gemma4:e2b"]) expect(reviewChoiceNotice(v, []), v).toBeNull();
+    expect(reviewChoiceNotice("anthropic:claude-sonnet-5-5", ["anthropic"])).toBeNull();
+    expect(reviewChoiceNotice("ollama:gpt-oss:120b-cloud", ["ollama-cloud"])).toBeNull();
+  });
+});
+
+describe("resolveReviewConfig with an imported value that is not a string", () => {
+  it("treats it as unset instead of throwing", () => {
+    const gen = { provider: "ollama", model: "gemma4:e2b" } as LLMConfig;
+    expect(resolveReviewConfig(42 as unknown as string, gen, "medium", [], "questions")).toMatchObject({ model: "gemma4:e2b" });
   });
 });

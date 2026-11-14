@@ -81,10 +81,24 @@ export async function getReviewConfig(gen: LLMConfig, kind: ReviewKind): Promise
   return review && review.provider === "ollama" && review.contextTokens === undefined ? withOllamaNumCtx(review) : review;
 }
 
+// The stored Checking model (review_model), "" when unset. getReviewConfig resolves it.
+export async function getReviewModel(): Promise<string> {
+  const s = await getStore();
+  const v = await s.get<unknown>(STORE_KEYS.reviewModel);
+  return typeof v === "string" ? v : "";
+}
+export async function setReviewModel(value: string): Promise<void> {
+  const s = await getStore();
+  await s.set(STORE_KEYS.reviewModel, value);
+  await s.save();
+}
+
 // The model for work on data about the learner that lane 1 keeps on this computer: the quiz review
-// pool's verify pass (quiz.ts generateQuizQuestions, poolVerifier). The generation model when it is
-// local; otherwise this machine's default Ollama model when Ollama has it pulled; otherwise null, and
-// that pass is skipped. Never a cloud model.
+// pool's verify pass (quiz.ts generateQuizQuestions, poolVerifier), grading free-text answers
+// (gradeAnswersBatch) and the study plan after a failed test (generateStudyPlan). The generation model
+// when it is local; otherwise this machine's default Ollama model when Ollama has it pulled; otherwise
+// null, and that pass is skipped, answers code cannot settle are passed leniently, and the plan is the
+// one code writes. Never a cloud model.
 export async function getLocalVerifyConfig(gen: LLMConfig): Promise<LLMConfig | null> {
   if (isLocalModel(gen)) return gen;
   const s = await getStore();
