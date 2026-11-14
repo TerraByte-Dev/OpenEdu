@@ -9,6 +9,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // {"choice": "..."} tool result came back EMPTY in 5 of 8 runs (8 of 8 when retried without tools). The
 // kernel's "never a blank turn" line only covered turns that ran no tool, so the empty turn was
 // returned as "", ChatTab saved nothing, and the card's question lived only in the card.
+//
+// These turns are mastery checks (the chat offers the card only in assess mode), so each answer to a
+// card also gets the answer check (answerCheckTurn.test.ts covers it). Its key and grading calls are
+// stand-ins here: a card about 1/5 is keyed "1", any other card asks nothing with one right answer.
 
 type Sent = Array<{ role: string; content: string }>;
 type TurnEvent =
@@ -26,6 +30,12 @@ vi.mock("../llm", async (importOriginal) => ({
     sent.push(messages.map((m) => ({ role: m.role, content: m.content })));
     for (const ev of script.shift() ?? [{ type: "text", delta: "Okay." }, { type: "done", finishReason: "stop" }]) yield ev;
   }),
+  callLLMStructured: vi.fn(async (messages: Sent, _config: unknown, opts: { toolName: string }) => {
+    const said = messages[1].content;
+    if (opts.toolName === "AnswerGrade") return { student_answer: said.split("Student's answer: ")[1] ?? "", verdict: "correct" };
+    const question = said.split("\n").find((l) => l.includes("1/5")) ?? "";
+    return question ? { question, working: "A unit fraction has 1 on top.", answer: "1" } : { question: "", working: "", answer: "" };
+  }),
 }));
 vi.mock("../db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../db")>()),
@@ -37,6 +47,8 @@ import { chatTurnSkills } from "./chatSkills";
 import { ASSESS_MESSAGE } from "./suggestions";
 import { registerBuiltinTools } from "../tools";
 import { AFTER_ANSWER_REPLY } from "../plain-language";
+import { answerCheckNote } from "./answerCheck";
+import { VERDICT_FALLBACK } from "./replyClaims";
 import type { LLMConfig, Syllabus } from "../../types";
 import type { AskChoice } from "../tools/EduTool";
 
@@ -100,7 +112,9 @@ describe("the click test's card", () => {
     script = [askCall(CLICK_TEST_Q, CLICK_TEST_CHOICES), reply("Yes! 1 is the top number, so 1/5 is a unit fraction.")];
     const { result, cards } = await check((choices) => choices[0].value);
     expect(cards).toEqual([{ question: CLICK_TEST_Q, choices: [{ label: "1", value: "1" }, { label: "5", value: "5" }] }]);
-    expect(toolResultSeen()).toBe('The student picked "1". Reply to the student now, following on from their answer.');
+    // The pick was checked: the model reads the verdict with it.
+    expect(result.cardChecks).toEqual([expect.objectContaining({ key: "1", verdict: "correct", by: "code" })]);
+    expect(toolResultSeen()).toBe(`The student picked "1". Reply to the student now, following on from their answer.\n\n${answerCheckNote(result.cardChecks[0])}`);
     expect(result.text).toBe(`${CLICK_TEST_Q}\n\n*You picked: 1*\n\nYes! 1 is the top number, so 1/5 is a unit fraction.`);
     expect(result.stopReason).toBe("complete");
   });
@@ -113,12 +127,17 @@ describe("the click test's card", () => {
     expect(result.text).toBe(`${CLICK_TEST_Q}\n\n*You picked: 1*\n\nThat's it: 1 is the numerator.`);
   });
 
-  it("never ends on the card alone: two empty replies get one plain line", async () => {
+  it("never ends on the card alone: two empty replies get one plain line, the verdict when the pick was checked", async () => {
     script = [askCall(CLICK_TEST_Q, CLICK_TEST_CHOICES), EMPTY, EMPTY];
     const { result } = await check((choices) => choices[0].value);
     expect(sent).toHaveLength(3);
-    expect(result.text).toBe(`${CLICK_TEST_Q}\n\n*You picked: 1*\n\n${AFTER_ANSWER_REPLY}`);
+    expect(result.text).toBe(`${CLICK_TEST_Q}\n\n*You picked: 1*\n\n${VERDICT_FALLBACK.correct}`);
     expect(result.stopReason).toBe("complete");
+
+    sent.length = 0;
+    script = [askCall("Which topic should we check first?", [{ label: "Unit fractions", value: "u" }, { label: "Equal parts", value: "e" }]), EMPTY, EMPTY];
+    const topic = await check((choices) => choices[0].value);
+    expect(topic.result.text).toBe(`Which topic should we check first?\n\n*You picked: Unit fractions*\n\n${AFTER_ANSWER_REPLY}`);
   });
 });
 
@@ -126,7 +145,8 @@ describe("an answer the student types instead of picking", () => {
   it("reaches the model as typed, and the thread says so", async () => {
     script = [askCall("Which number is on top in 1/5?", [{ label: "The 1", value: "1" }, { label: "The 5", value: "5" }]), reply("Right, the 1 is on top.")];
     const { result } = await check(() => "it's the one");
-    expect(toolResultSeen()).toBe('The student typed their own answer instead of picking a choice: "it\'s the one". Reply to the student now, following on from their answer.');
+    expect(result.cardChecks).toEqual([expect.objectContaining({ key: "1", verdict: "correct" })]);
+    expect(toolResultSeen()).toBe(`The student typed their own answer instead of picking a choice: "it's the one". Reply to the student now, following on from their answer.\n\n${answerCheckNote(result.cardChecks[0])}`);
     expect(result.text).toBe("Which number is on top in 1/5?\n\n*You answered: it's the one*\n\nRight, the 1 is on top.");
   });
 });

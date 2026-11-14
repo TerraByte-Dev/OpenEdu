@@ -11,6 +11,8 @@ import {
   getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes,
 } from "./lib/store";
 import { minutesToday, tickActiveMinutes, countsTowardGoal, type ActiveMinutes } from "./lib/daily-goal";
+import { tickBreakClock, NEW_BREAK_CLOCK } from "./lib/break-reminder";
+import { breakReminder } from "./lib/ai-notice";
 import type { NextStepAction } from "./lib/next-step";
 import { opensWhenBuilt, readyNotice, readyNoticeAfter } from "./lib/course-ready";
 import { probeEnvironment, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
@@ -56,6 +58,10 @@ export default function App() {
   // in the plugin store. Minutes tick once a minute while a learner's session is on screen.
   const [dailyGoal, setDailyGoalState] = useState<number | null>(null);
   const [activeMinutes, setActiveMinutesState] = useState<ActiveMinutes | null>(null);
+  // The break reminder (break-reminder.ts): this session's continuous active minutes, and the reminder's
+  // words while it is up. A banner the learner can close; it never blocks the screen.
+  const breakClock = useRef(NEW_BREAK_CLOCK);
+  const [breakNotice, setBreakNotice] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeProvider, setActiveProvider] = useState<LLMProvider>("ollama");
@@ -110,6 +116,8 @@ export default function App() {
     setCourseInitialAction(undefined);
     setDailyGoalState(null);
     setActiveMinutesState(null);
+    breakClock.current = NEW_BREAK_CLOCK;
+    setBreakNotice(null);
     setQuizContext(null);
     setPendingResumeCourse(null);
     setPromotionBanner(null);
@@ -147,8 +155,13 @@ export default function App() {
   useEffect(() => {
     if (!activeLearner) return;
     const learnerId = activeLearner.id;
+    const grade = normalizeGrade(activeLearner.grade);
     const id = setInterval(() => {
       if (!countsTowardGoal({ visible: document.visibilityState === "visible", view: viewRef.current }) || getActiveLearnerId() !== learnerId) return;
+      // The same active minute drives the break reminder's clock (break-reminder.ts).
+      const tick = tickBreakClock(breakClock.current, Date.now());
+      breakClock.current = tick.clock;
+      if (tick.remindAfterHours !== null) setBreakNotice(breakReminder(tick.remindAfterHours, grade));
       void getActiveMinutes(learnerId).then(async (rec) => {
         const next = tickActiveMinutes(rec, new Date());
         await setActiveMinutes(learnerId, next);
@@ -358,6 +371,20 @@ export default function App() {
                     <span>Level up! Advanced to <strong>Level {promotionBanner}</strong> — keep going.</span>
                   </span>
                   <button onClick={() => setPromotionBanner(null)} className="text-phosphor-bright hover:text-phosphor text-lg leading-none">✕</button>
+                </div>
+              )}
+
+              {breakNotice && (
+                <div
+                  role="status"
+                  className="flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--rule)] text-sm text-phosphor-ink shrink-0"
+                  style={{ background: "rgb(var(--phosphor-rgb)/0.04)" }}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full bg-phosphor shrink-0" />
+                    <span>{breakNotice}</span>
+                  </span>
+                  <button onClick={() => setBreakNotice(null)} aria-label="Dismiss" className="text-phosphor-bright hover:text-phosphor text-lg leading-none">✕</button>
                 </div>
               )}
 

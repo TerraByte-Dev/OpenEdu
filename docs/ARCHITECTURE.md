@@ -133,6 +133,8 @@ written: they came from a once-a-minute timer whose only reader was the learning
   App adds one minute per minute the window is visible with a learner in, on the learner's own screens
   (`countsTowardGoal`): a minute in Settings is a grown-up's and never counts (click test 2026-11-14).
   The learner picker and its PIN screen never count either: no timer runs without an active learner.
+- **`ai-notice.ts` / `break-reminder.ts`** — the AI disclosure and the break reminder. See
+  "AI disclosure and the break reminder" below.
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
   catalog, the Light / Dark / Match my computer switch, and pure import/export helpers. `store-keys.ts` is the single source of
   truth for setting keys + the secret/import allow-list.
@@ -363,6 +365,23 @@ So the verdict on the child's answer is the app's, not the reply's:
   quiz me tomorrow"). The chat resets the mode after every send, so in the app the answers arrive in the
   default mode; the request in the history is what marks the check. A typed request runs in the
   default mode, not assess.
+- **A pick on a question card is an answer too.** In the chat only assess mode offers
+  `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
+  check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model
+  as `The student picked "72"` with no verdict, so a wrong pick could be praised, called mastered and
+  marked mastered, while the same answer typed could not. Now, on a turn of a mastery check (or any turn
+  whose typed answer was checked), each answer to a card goes through the same check as a typed one,
+  in the turn, before the reply after the pick is written. The key call reads the reply's text before
+  the card, the card's question and its choices as the child saw them (`cardTutorMessage`); the answer
+  is the label picked, or what the child typed instead (a typed request such as "I don't know" is not
+  graded, `readsAsAnswer`). The verdict's note is appended to the tool result the model reads; the
+  reply after the pick gets a claim filter of its own against that verdict (the verdict line, praise
+  and mastery claims taken out, as below); a reply left empty ends on `VERDICT_FALLBACK`, not
+  `AFTER_ANSWER_REPLY`; and a `mastered` mark is refused while any answer checked this turn, typed or
+  picked, is not `correct` (`practiced` still runs, as for a typed answer). A card that asks nothing with
+  one right answer (a topic picker) gets no verdict, and its turn is as before. `TutorTurnResult.cardChecks`
+  lists the verdicts; `answerCheck` stays the typed answer's. Cost: the key call per answered card in a
+  mastery check (none for a plain operation), and the grader when code cannot settle it.
 - **The key, blind.** One structured call reads only the tutor's message and returns the question it
   asked (copied; validated against the message), one or two lines of working, and the answer. It never
   sees the student's answer: a 2B model judging an answer it has just read leans toward agreeing, and
@@ -464,6 +483,34 @@ fenced first (`fenceBareMermaid`) and treated the same way. Source Mermaid canno
 its node labels quoted inside their shapes (a circle stays a circle), then, for a flowchart, without
 `}`s at its end that close nothing; if that fails too, the child sees a plain sentence and the
 diagram's labels, never the source.
+
+## AI disclosure and the break reminder (`ai-notice.ts`, `break-reminder.ts`)
+
+California SB 243 (in effect since 2026-01-01) describes, for a companion chatbot a minor uses, a
+clear notice that the chatbot is an AI and not a person, and a reminder at least every three hours of a
+continuing conversation that it is not a person and that the user should take a break. The law has no
+exemption for education. The app implements that disclosure and that 3-hour reminder; it makes no
+claim about the law, and counsel decides whether the law applies to the app. Both are plain copy chosen
+by code, with no model call.
+
+- **The disclosure** (`AI_DISCLOSURE`: "OpenEdu's tutor is an AI, not a person.", in the product's name
+  from `product.ts`) sits in the course chat's header, next to the tutor persona's name, and is on screen
+  from the first message to the last, not only while the chat is empty.
+- **The reminder** shows as a banner at the top of the app (the same kind as the course-ready notice:
+  `role="status"`, a ✕ to close it, nothing blocked) after 3 hours of continuous activity, and again
+  after each further 3 hours (6, 9, …). Its words (`breakReminder`) say the tutor is an AI, not a person,
+  and suggest a break. For K-2 (`grade.ts isEarlyReader`) they are three sentences of under ten everyday
+  words each, which `speech.ts` reads aloud unchanged: "Time for a break! Your tutor is an AI, not a
+  person. Go stretch, play, or get a drink." Older learners and learners with no grade get how long
+  they have been learning.
+- **What counts as continuous** (`tickBreakClock`, pure, tested with a fake clock). The clock ticks on
+  the same active minute as the daily goal (`daily-goal.ts countsTowardGoal`: the window visible, a
+  learner in, a learner's own screen, not Settings), in App's one-minute timer. A gap of 30 minutes or
+  more between one active minute and the next (the window hidden or minimised, Settings open, the
+  learner away) is a break and starts the count again; a shorter gap does not, and its minutes are not
+  added. Every learner screen counts, not only the chat: over-counting shows the reminder early, never
+  late. The count belongs to one session: it starts at zero when a learner comes in (a switch resets
+  it) and is not saved, so it also starts again after a restart.
 
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 

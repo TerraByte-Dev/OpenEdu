@@ -104,8 +104,8 @@ async function answer(history: Sent, text: string, mode = "explain"): Promise<Ru
       courseId: "c-1", level: 1, syllabus: SYLLABUS, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
       abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true,
       confirmTool: async (tool) => { confirms.push(tool); return true; },
-      // The question card ChatTab shows; the student picks the first choice.
-      askUser: async (question, choices) => { cards.push({ question, choices }); return choices[0].value; },
+      // The question card ChatTab shows; the student picks the first choice unless a test sets `pick`.
+      askUser: async (question, choices) => { cards.push({ question, choices }); return pick(choices); },
     },
   );
   expect(streamed, "what streamed is what the turn returns").toBe(result.text);
@@ -134,6 +134,10 @@ const KEY_MAMMAL = { question: "Which of these animals is a mammal?", working: "
 const FALSE_PRAISE = "That is correct! Great job, you got it. You have mastered your times tables.";
 const FALSE_DOUBT = "Not quite. Let's check: 6 x 8 is 48.";
 
+// What the student does with a question card: a choice's value, or text they type instead.
+let pick: (choices: AskChoice[]) => string = (choices) => choices[0].value;
+const pickLabel = (label: string) => (choices: AskChoice[]) => choices.find((c) => c.label === label)!.value;
+
 beforeEach(() => {
   replies.length = 0;
   recordedCalls.length = 0;
@@ -142,6 +146,7 @@ beforeEach(() => {
   script = [];
   keyOut = KEY_MULT;
   gradeOut = null;
+  pick = (choices) => choices[0].value;
 });
 
 // ── A wrong answer is never called correct ──────────────────────────────────────────────────────
@@ -674,5 +679,142 @@ describe("a wrong answer the reply never calls wrong", () => {
     keyOut = new Error("timeout");
     await answer([student(ASSESS_MESSAGE), tutor(Q_PLANTS)], "oxygen");
     expect(lastUser(replies[0])).not.toContain("The question was");
+  });
+});
+
+// ── A pick on a question card is the child's answer ─────────────────────────────────────────────
+// Until this, a pick reached the model as "The student picked ..." with no verdict: in a mastery check a
+// wrong pick could be praised, called mastered, and marked mastered, while the same answer typed could
+// not. The card is the tutor's question; the pick is the answer, and it goes through the same check.
+
+describe("a pick on a question card in a mastery check", () => {
+  const OPEN = [student("Teach me times tables."), tutor("Times tables are groups of the same number.")];
+  const Q_CARD = "What is 7 x 9?";
+  // The model praises the pick, marks it mastered, then says so.
+  const praiseAndMark = (text: string): TurnEvent[] => [
+    ...reply(text).slice(0, -1),
+    { type: "tool_call", id: "call_1", name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" } },
+    { type: "done", finishReason: "tool_calls" },
+  ];
+  const toolResult = (call: number) => replies[call].filter((m) => m.role === "tool").pop()!.content;
+
+  it("a wrong pick: no praise, no mastery saved, and the verdict is said", async () => {
+    pick = pickLabel("72");
+    gradeOut = { student_answer: "72", verdict: "incorrect" };
+    script = [askCall(Q_CARD, ["63", "72"]), praiseAndMark("Great job! 72 is correct."), reply("You have mastered times tables!")];
+    const { result, shown, confirms } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+
+    // The key is code's (one plain operation); 72 does not match it, so the grader is asked, blind to nothing.
+    expect(result.cardChecks).toEqual([expect.objectContaining({ key: "63", verdict: "incorrect", by: "code+model" })]);
+    expect(structured.map((c) => c.tool)).toEqual(["AnswerGrade"]);
+    // The model reads the verdict as a fact with the pick.
+    expect(toolResult(1)).toBe(`The student picked "72" (value: c1). Reply to the student now, following on from their answer.\n\n${answerCheckNote(result.cardChecks[0])}`);
+    expect(toolResult(1)).toContain("it is not correct");
+    // No mastery is saved: the mark is refused by code, before any confirm.
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+    expect(marks).toEqual([]);
+    expect(confirms).toEqual([]);
+    expect(toolResult(2)).toBe(`ERROR: ${MASTERY_REFUSED}`);
+    // The child never sees praise or a mastery claim, and is told the answer is not right yet.
+    for (const s of shown) expect(s).not.toMatch(PRAISE);
+    expect(result.text).toBe("What is 7 x 9?\n\n*You picked: 72*\n\nThat's not right yet.");
+    expect(result.removedClaims.map((c) => c.kind)).toEqual(["verdict", "verdict", "mastery"]);
+  });
+
+  it("a wrong pick the reply never calls wrong gets the verdict first", async () => {
+    pick = pickLabel("72");
+    gradeOut = { student_answer: "72", verdict: "incorrect" };
+    script = [askCall(Q_CARD, ["63", "72"]), reply("Let's count by sevens together.")];
+    const { result } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(result.text).toBe("What is 7 x 9?\n\n*You picked: 72*\n\nThat's not right yet. Let's count by sevens together.");
+  });
+
+  it("a wrong pick with no reply after it ends on the verdict, not the generic line", async () => {
+    pick = pickLabel("72");
+    gradeOut = { student_answer: "72", verdict: "incorrect" };
+    script = [askCall(Q_CARD, ["63", "72"]), reply(""), reply("")];
+    const { result } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(result.text).toBe("What is 7 x 9?\n\n*You picked: 72*\n\nThat's not right yet. Want to try again?");
+  });
+
+  it("a right pick: correct by code with no model call, and the reply, the mark and its claim go through", async () => {
+    pick = pickLabel("63");
+    script = [askCall(Q_CARD, ["63", "72"]), praiseAndMark("Great job! 63 is correct."), reply(" You have mastered times tables!")];
+    const { result, confirms } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(result.cardChecks).toEqual([expect.objectContaining({ key: "63", verdict: "correct", by: "code" })]);
+    expect(structured).toEqual([]);
+    expect(toolResult(1)).toContain("it is correct");
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+    expect(confirms).toEqual(["progress.mark_mastered"]);
+    expect(result.text).toBe("What is 7 x 9?\n\n*You picked: 63*\n\nGreat job! 63 is correct. You have mastered times tables!");
+    expect(result.removedClaims).toEqual([]);
+  });
+
+  it("a wrong typed answer earlier in the turn still refuses a mark after a right pick", async () => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    pick = pickLabel("42");
+    script = [askCall("What is 6 x 7?", ["42", "48"]), markCall("mastered"), reply("Keep going.")];
+    const { result } = await answer(CHECK, "46", "assess");
+    expect(result.answerCheck?.verdict).toBe("incorrect");
+    expect(result.cardChecks.map((c) => c.verdict)).toEqual(["correct"]);
+    expect(marks).toEqual([]);
+  });
+
+  it("an answer typed into the card is checked too; a request typed there is not", async () => {
+    pick = () => "72";
+    gradeOut = { student_answer: "72", verdict: "incorrect" };
+    script = [askCall(Q_CARD, ["63", "72"]), reply("Nice work!")];
+    expect((await answer(OPEN, ASSESS_MESSAGE, "assess")).result.text).toBe("What is 7 x 9?\n\n*You answered: 72*\n\nThat's not right yet.");
+
+    replies.length = 0;
+    structured.length = 0;
+    pick = () => "I don't know";
+    script = [askCall(Q_CARD, ["63", "72"]), reply("That's okay. Let's count by sevens.")];
+    const { result } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(result.cardChecks).toEqual([]);
+    expect(structured).toEqual([]);
+    expect(result.text).toBe("What is 7 x 9?\n\n*You answered: I don't know*\n\nThat's okay. Let's count by sevens.");
+  });
+
+  it("a card that asks nothing with one right answer gets no verdict", async () => {
+    keyOut = { question: "", working: "", answer: "" };
+    script = [askCall("Which topic should we check?", ["Times tables", "Sharing"]), reply("Great choice! What is 6 x 8?")];
+    const { result } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(result.cardChecks).toEqual([]);
+    expect(structured.map((c) => c.tool)).toEqual(["AnswerKey"]);
+    // The key call read the card as the tutor's message: its question and its choices.
+    expect(structured[0].messages[1].content).toBe("Tutor's message:\nWhich topic should we check?\n\nChoices:\n- Times tables\n- Sharing");
+    expect(result.text).toBe("Which topic should we check?\n\n*You picked: Times tables*\n\nGreat choice! What is 6 x 8?");
+  });
+
+  // The chat offers ask_user.question only in assess mode (src/skills/assess.md), so every card a child
+  // answers in the chat is in a mastery check. A headless caller with no skills can offer it outside one.
+  const headless = (text: string, turn: { answerCheck?: "off" }, mode: string | null) => {
+    const skills = mode ? chatTurnSkills(mode, "Arithmetic", "tiny", true) : {};
+    return tutorEngine.run(
+      { messages: [{ role: "system", content: SYSTEM }, ...OPEN, student(text)], config: CONFIG, retrieval: "off", ...turn, onText: () => {} },
+      {
+        courseId: "c-1", level: 1, syllabus: SYLLABUS, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+        abort: new AbortController().signal, ...skills, supportsTools: true, confirmTool: async () => true,
+        askUser: async (_q, choices) => pick(choices),
+      },
+    );
+  };
+
+  it("outside a mastery check a pick is not checked, and the turn is as before", async () => {
+    pick = pickLabel("72");
+    script = [askCall(Q_CARD, ["63", "72"]), reply("Great job!")];
+    const result = await headless("Can you give me a times table question?", {}, null);
+    expect(result.cardChecks).toEqual([]);
+    expect(structured).toEqual([]);
+    expect(result.text).toBe("What is 7 x 9?\n\n*You picked: 72*\n\nGreat job!");
+  });
+
+  it("an eval that turns the check off turns it off for picks too", async () => {
+    pick = pickLabel("72");
+    script = [askCall(Q_CARD, ["63", "72"]), reply("Great job!")];
+    const result = await headless(ASSESS_MESSAGE, { answerCheck: "off" }, "assess");
+    expect(result.cardChecks).toEqual([]);
+    expect(structured).toEqual([]);
   });
 });
