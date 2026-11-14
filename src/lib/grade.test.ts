@@ -47,14 +47,24 @@ describe("readingLevelLayer", () => {
     expect(readingLevelLayer(null)).toBeUndefined();
   });
 
-  it("is one short section per grade, naming the grade", () => {
-    expect(readingLevelLayer(0)).toMatch(/^## Reading level\nThe student is in kindergarten\. /);
-    expect(readingLevelLayer(4)).toMatch(/^## Reading level\nThe student is in grade 4\. /);
+  it("is one short section per grade, naming the band", () => {
+    expect(readingLevelLayer(0)).toMatch(/^## Reading level\nThe student is in kindergarten to grade 2\. /);
+    expect(readingLevelLayer(4)).toMatch(/^## Reading level\nThe student is in grades 3 to 5\. /);
+    expect(readingLevelLayer(7)).toMatch(/^## Reading level\nThe student is in grades 6 to 8\. /);
+    expect(readingLevelLayer(12)).toMatch(/^## Reading level\nThe student is in grades 9 to 12\. /);
     for (const g of GRADES) {
       const text = readingLevelLayer(g)!;
       expect(text.split("\n")).toHaveLength(2);
       expect(text.length).toBeLessThan(260);
     }
+  });
+
+  it("never names the exact grade: every grade in a band gets the same section", () => {
+    const bands = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11, 12]] as Grade[][];
+    for (const band of bands) expect(new Set(band.map((g) => readingLevelLayer(g))).size).toBe(1);
+    expect(readingLevelLayer(0)).not.toContain("in kindergarten.");
+    expect(readingLevelLayer(4)).not.toContain("grade 4");
+    expect(readingLevelLayer(7)).not.toContain("grade 7");
   });
 
   it("uses the same rule for every grade in a band, and a different rule per band", () => {

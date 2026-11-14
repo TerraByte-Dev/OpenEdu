@@ -831,7 +831,8 @@ export async function getUserProgress(courseId: string): Promise<UserProgress | 
 
 export async function upsertUserProgress(
   courseId: string,
-  data: { knowledge_gaps: string[]; total_quiz_score_avg: number | null; streak_days?: number },
+  // total_quiz_score_avg is REAL NOT NULL (migration 1): a number, never null.
+  data: { knowledge_gaps: string[]; total_quiz_score_avg: number; streak_days?: number },
 ): Promise<void> {
   const d = await getDb();
   const existing: Array<{ id: string }> = await d.select(

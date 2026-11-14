@@ -2,7 +2,7 @@ import { getSyllabuses, getQuizAttempts, upsertUserProgress, getUserProgress, up
 import { log } from "./llm";
 import { applySubtopicScore, resolveSubtopic, subtopicTransitions } from "./mastery";
 import { computeStreak } from "./analytics";
-import type { Syllabus, Subtopic, QuizQuestion } from "../types";
+import type { Syllabus, Subtopic, QuizQuestion, QuizAttempt } from "../types";
 
 // ─── Mastery Tracking ─────────────────────────────────────────────────────────
 
@@ -135,17 +135,20 @@ export async function setSubtopicStatus(
 
 // ─── User Progress ────────────────────────────────────────────────────────────
 
+/** The average score of a course's completed quiz and test attempts, or null when none is completed. */
+export function quizAverage(attempts: ReadonlyArray<Pick<QuizAttempt, "score" | "completed_at">>): number | null {
+  const completed = attempts.filter((a) => a.score !== null && a.completed_at !== null);
+  if (!completed.length) return null;
+  return completed.reduce((sum, a) => sum + (a.score ?? 0), 0) / completed.length;
+}
+
 /**
  * Recompute user_progress from all quiz attempts for a course.
  * Identifies knowledge gaps as subtopics where mastery is still false.
  */
 export async function updateUserProgress(courseId: string): Promise<void> {
   const attempts = await getQuizAttempts(courseId);
-  const completed = attempts.filter((a) => a.score !== null && a.completed_at !== null);
-
-  let totalScore = 0;
-  for (const a of completed) totalScore += a.score ?? 0;
-  const avg = completed.length > 0 ? totalScore / completed.length : null;
+  const avg = quizAverage(attempts);
 
   // Collect knowledge gaps from all syllabuses: subtopics still not mastered. One query for the whole
   // course instead of six sequential getSyllabus round-trips (issue #83 — slims the finish cascade).
@@ -159,7 +162,11 @@ export async function updateUserProgress(courseId: string): Promise<void> {
   // Activity streak: consecutive days with any quiz attempt (formerly a never-written zombie column).
   const streak = computeStreak(attempts.map((a) => a.started_at), new Date());
 
-  await upsertUserProgress(courseId, { knowledge_gaps: gaps, total_quiz_score_avg: avg, streak_days: streak });
+  // total_quiz_score_avg is REAL NOT NULL (migration 1). With no completed quiz there is no average; writing
+  // null threw after progress.mark_mastered had already saved its mark, so the tool reported a failure
+  // that had not happened. 0 is the column's own default, and refreshProgressContext quotes an average
+  // only when a quiz was completed, so the 0 never reaches the tutor as a score.
+  await upsertUserProgress(courseId, { knowledge_gaps: gaps, total_quiz_score_avg: avg ?? 0, streak_days: streak });
   log.info("progress", `User progress updated: avg=${avg?.toFixed(1)} gaps=${gaps.length} streak=${streak}`);
 }
 
@@ -178,8 +185,10 @@ export async function refreshProgressContext(
 
   const lines: string[] = [];
 
-  if (progress.total_quiz_score_avg !== null) {
-    lines.push(`Quiz average: ${Math.round(progress.total_quiz_score_avg)}%`);
+  // From the attempts, not the stored column: the column holds 0 when no quiz is completed.
+  const avg = quizAverage(await getQuizAttempts(courseId));
+  if (avg !== null) {
+    lines.push(`Quiz average: ${Math.round(avg)}%`);
   }
 
   if (syllabus) {

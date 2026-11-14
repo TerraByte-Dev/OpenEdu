@@ -145,6 +145,9 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
 1. **Decompose, don't dump.** Research is five small structured sub-calls, code-assembled into a brief —
    a single free-text dump was unreliable on small models.
 2. **Schema-enforced everywhere.** Provider-native enforcement + a local validator + repair-retry.
+   Every parsed reply gets LaTeX commands back that a JSON escape turned into a control character
+   (`\text` written with one backslash parses as a TAB + "ext"; `repairLatexInValue` in `json-lenient.ts`).
+   A lesson section that stops mid-sentence is a validation issue (`lessonIssues` in `lesson-format.ts`).
 3. **Auto-detected model tier** (`tiny | small | medium | large`) drives prompt compression, schema
    relaxation, few-shot injection, and per-call timeouts. Matformer models (`gemma3n:e4b` / `gemma4:e4b`)
    get a name-based tier override so they don't mis-tier.

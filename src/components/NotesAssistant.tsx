@@ -8,12 +8,12 @@
 // preview with an explicit Insert.
 
 import { useState } from "react";
-import { callLLMStructured, log } from "../lib/llm";
+import { callLLMStructured, detectModelTier, log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getChatConfig } from "../lib/store";
 import { listChatThreads, getChatMessages } from "../lib/db";
 import {
-  anchorAnnotations, unanchorable, validateReview,
+  finishReview, validateReview,
   buildReviewMessages, buildSummaryMessages, formatTranscript,
   REVIEW_SCHEMA, SUMMARY_SCHEMA,
   type Annotation, type AnchoredAnnotation, type AnnotationKind,
@@ -64,10 +64,15 @@ export default function NotesAssistant({
           validate: validateReview(noteContent),
         },
       );
-      const anchored = anchorAnnotations(noteContent, raw);
-      setDropped(unanchorable(noteContent, raw).length);
-      onAnnotations(anchored);
-      if (!anchored.length) setError("No remarks came back that could be placed in the note.");
+      const tier = cfg.modelTier ?? await detectModelTier(cfg).catch(() => undefined);
+      const { annotations: shown, dropped } = finishReview(noteContent, raw, tier);
+      setDropped(dropped);
+      onAnnotations(shown);
+      if (!shown.length) {
+        setError(raw.length > dropped
+          ? "The review didn't flag anything to fix."
+          : "No remarks came back that could be placed in the note.");
+      }
     } catch (e) {
       log.error("NotesAssistant", "review failed", e);
       setError(friendlyError(e));
