@@ -343,10 +343,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         const missed = answered
           .filter((q) => !q.is_correct)
           .map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
-        await generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, cfg, (t) => {
-          studyPlanText += t;
-          setStudyPlan((p) => p + t);
-        });
+        studyPlanText = await generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, cfg);
+        setStudyPlan(studyPlanText);
       } catch { /* study plan is a nice-to-have */ }
       setGeneratingPlan(false);
       await persist(studyPlanText || null);
