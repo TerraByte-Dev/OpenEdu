@@ -157,6 +157,10 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
 5. **Checkpoint + resume.** `courses.generation_state` is written after each step; a failed run resumes
    from where it stopped (never delete the row on error).
 6. **Code-assemble what doesn't need an LLM** (e.g. the L6 exam) for perfect reliability.
+7. **A finished build opens its course only from the build screen** (`course-ready.ts`, App.tsx
+   `onCourseCreated`). The build keeps running while the learner goes elsewhere; anywhere else they get
+   a notice above the view ("Your course … is ready.", Open, ✕) and stay where they are, so a build never
+   closes Settings or a dialog open in it.
 
 ### Content review (`content-review.ts`)
 
@@ -231,9 +235,21 @@ Two write actions do not wait for the model to choose a tool, because small mode
   `ask_user.question` call and ends with a short numbered or lettered list next to a question that asks
   for one pick (which / choose / pick, and not order, two of, all, each, why, explain, notice, another)
   carries those choices in `replyChoices`. Labels with LaTeX, a blank (`__`) or a trailing `=` don't
-  count; a lettered list needs its question before it. Anything in doubt gets no buttons. The chat shows
+  count; a lettered list needs its question before it. A bulleted list (-, *, + or •, one style) counts
+  only when its question also asks what the student wants (would you like, do you want, should we…),
+  since bullets are also how a tutor lists facts it then asks about. Anything in doubt gets no buttons. The chat shows
   them as the ask_user buttons, with only the stuck chips and "Review due cards" beside them
   (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
+
+A reply that says it shows a picture and shows none is corrected by code too (`kernel/pictureClaims.ts`;
+click test 2026-11-14: "Here is a picture of a pizza cut into 4 equal slices." with nothing drawn). On
+the finished reply of a turn that was not stopped or stalled, if nothing was drawn (no `diagram.render`
+that ran, no Mermaid in the reply, no fenced block, inline SVG, markdown table, local image or row of
+emoji), each sentence that says a picture, diagram, drawing or chart is shown ("Here is a picture of…",
+"Look at the diagram below", "I've drawn…", "Let me draw it") is taken out, and the first one's place
+takes "Want me to draw it?", unless the reply already offers to draw. What follows a colon in it stays.
+Questions, offers, instructions to the student and conditions are not claims. The stream has already
+shown the claim; the saved reply, which replaces it on screen when the turn ends, does not have it.
 
 Mastery is not one of them: it is decided in code from quiz and promotion-test results
 (`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path, and a
@@ -241,14 +257,18 @@ model's praise alone never marks anything.
 
 ### The answer check in assess mode (`kernel/answerCheck.ts`, `answerCompare.ts`, `replyClaims.ts`)
 
-Assess mode (`src/skills/assess.md`, the "Check if I've got this" chip) is a short mastery check: the
+Assess mode (`src/skills/assess.md`, the "Check if I've got this" chip; under a reply that asks nothing
+it leads the mode chips on a new level, where no subtopic is mastered yet, and once every subtopic is)
+is a short mastery check: the
 tutor asks one or two questions it writes itself, so nothing in the app holds their answers. On
 TerraTutor's B9 rerun on `gemma4:e2b` the tutor told the child a wrong answer was correct in 11 of 20
 turns ("7 x 9 is 72" → "That is correct."), and replies said "you have mastered" with nothing recorded.
 So the verdict on the child's answer is the app's, not the reply's:
 
 - **When.** The newest message is the student's answer (not a request, a question back or a meaning
-  question) to the tutor's message just before it, in a mastery check: the turn runs in assess mode, or
+  question; a request includes asking for a picture or a change of plan: "Draw me…", "Let me pick…",
+  "Can we…", "I want…", "Teach me…", "Let's draw…") to the tutor's message just before it, in a
+  mastery check: the turn runs in assess mode, or
   a request for one is among the student's last four messages: the assess chip's message
   (`ASSESS_MESSAGE`) or the same request typed (`asksForMasteryCheck`: "quiz me", "test me on
   fractions", "can you check if I've mastered fractions?", "am I ready for the test?", opening the

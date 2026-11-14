@@ -38,6 +38,7 @@ import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
+import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 const ASK_USER_TOOL = "ask_user.question";
@@ -546,6 +547,14 @@ ${lastUser.content}` };
     // like any reply. A turn the student stopped, or one that stalled, keeps its own handling.
     if (!streamedText.trim() && toolCalls.length === 0 && stopReason !== "aborted" && stopReason !== "stalled") {
       show(MIXED_UP_REPLY);
+    }
+
+    // A reply that says it shows a picture and shows none: the saved reply loses the claim, and the
+    // first one's place offers to draw (pictureClaims.ts). The stream already showed it; the saved reply
+    // takes its place on screen. Not on a turn the student stopped or that stalled: that fragment is
+    // saved as it came, with its marker.
+    if (stopReason !== "aborted" && stopReason !== "stalled" && !showsPicture(streamedText, toolCalls)) {
+      streamedText = withoutPictureClaims(streamedText);
     }
 
     // Which retrieved passages did the answer DEMONSTRABLY reuse? Computed by n-gram overlap, never
