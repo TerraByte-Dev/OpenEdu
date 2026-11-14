@@ -239,21 +239,33 @@ So the verdict on the child's answer is the app's, not the reply's:
   the number is wrong and the grader says correct, or the reverse) the verdict is **unsure**. A failed
   or timed-out call (60 s each) is also unsure, never praise.
 - **The reply is told the verdict as a fact**, in a `<tutor_note>` after the student's text (the same
-  place as the other notes; it replaces the check-before-praise note on that turn; not saved). The
-  system prompt is untouched.
+  place as the other notes; it replaces the check-before-praise note on that turn; not saved), with the
+  question the answer was to ("The question was: …"), so a reply after two questions does not answer
+  the first when the child answered the second. The system prompt is untouched.
 - **A filter holds each sentence of the reply** on a turn of a mastery check (the chip's own turn and
   the answers after it) until it ends (`ReplyClaimFilter`); other turns stream as before. Against an
   `incorrect` verdict, praise for the answer ("That is correct!", "You correctly found…") is taken out;
   against `partly`, whole-answer praise; against `correct`, doubt ("Not quite", "try again"); against
   `unsure`, both. "Great, but 6 x 8 is 48." keeps "6 x 8 is 48."; the first claim taken out becomes
-  the verdict in one line ("That's not right yet.") unless the reply already said it. Praise includes
+  the verdict in one line ("That's not right yet.") unless the reply already said it. Against
+  `incorrect` the same line also opens the reply when its first sentence (or a card question the child
+  sees first) neither says the verdict nor had a claim taken out: replies on `gemma4:e2b` that only
+  re-explained or moved on after a wrong answer read as "fine" (TerraTutor B9 rerun 2). It is decided at
+  that first sentence, so the reply still streams; a reply that says it only later gets one line more
+  than it needed. Not against `correct`, `partly` or `unsure`, and not on a reply left empty (the
+  fallback says it). Praise includes
   the student's own answer as the subject ("72 is correct!", when 72 is theirs and not the key's),
   "that answer", a leading ✅ ✔ ☑ 💯 🎉, common phrases ("Great answer!", "You figured it out!") and
   a few Spanish and French ones ("¡Muy bien!", "Très bien !"). A question is not read, but the
   statement before it in the same sentence is ("Great job, can you tell me how you got 72?" keeps the
   question); a request for another go ("Can you try again?") is doubt even as a question. Not claims:
   conditions, instructions ("make sure you multiply correctly"), words about another of several
-  answers ("You got the first one right"), and anything in code. A reply left empty says the verdict
+  answers ("You got the first one right"), and anything in code. That last holds only when the answer
+  checked is one answer: when two questions were keyed together ("63; 72") and the verdict on both is
+  `incorrect`, "Your first answer is correct" praises part of it and is taken out. Praise for some of
+  the answer ("You got some of the notes correct") is praise for a part. Doubt includes "Those notes are
+  not correct.", "That is not the verb in that sentence." and "The word for 'cat' in Spanish is
+  different." A reply left empty says the verdict
   (`VERDICT_FALLBACK`). An `ask_user.question` card is the tutor speaking too: its question and choice
   labels go through the same filter (a label gets no verdict line, and a bare "Yes!" stays); a card
   left with no question or under two choices is not shown, and the model is told (`CARD_REFUSED`).

@@ -11,11 +11,13 @@
 // The filter holds each sentence until it ends, then lets it through, trims it ("Great, but 7 x 9 is
 // 63." → "7 x 9 is 63."; "Great! Now try 8 x 9" → "Now try 8 x 9"), or removes it. The first time it
 // takes out a verdict claim, if the reply has not already said the true verdict, a short line saying it
-// takes its place ("That's not right yet."). A question is not a claim, but the statement before it in
-// the same sentence is ("Great job, can you tell me how you got 72?"). A mastery claim inside "if" or
-// "once" is not one, and nothing inside a code fence or `code` is read. Text with no claim comes out
-// byte for byte. An ask_user.question card is the tutor speaking too: its question and choice labels
-// go through the same rules (`card`).
+// takes its place ("That's not right yet."). On an "incorrect" verdict the line is also put before the
+// first thing the child sees when that first sentence does not say the verdict itself (`opener`): a
+// reply that only re-explains or moves on reads as "fine". A question is not a claim, but the statement
+// before it in the same sentence is ("Great job, can you tell me how you got 72?"). A mastery claim
+// inside "if" or "once" is not one, and nothing inside a code fence or `code` is read. Text with no
+// claim comes out byte for byte, but for that opening line. An ask_user.question card is the tutor
+// speaking too: its question and choice labels go through the same rules (`card`).
 //
 // Known limits: a claim worded outside these patterns gets through (the note the reply was given is the
 // first line of defence, this is the second); a mastery claim made in the same model call as the
@@ -83,7 +85,8 @@ const ANSWER_SUBJECT = String.raw`(?:that|this|it|both|all of them|(?:your|the) 
 const ENDS = String.raw`(?=[^\p{L}\p{N}]*$)`;
 
 const PRAISE: ReadonlyArray<[RegExp, { between?: number; other?: RegExp }]> = [
-  [new RegExp(String.raw`\b${ANSWER_SUBJECT}(?:'s|’s|\s+is|\s+was|\s+are|\s+were)\s+((?:[\w’']+\s+){0,3}?)(?:correct|right|spot[\s-]on)\b`, "i"), { between: 1, other: OTHER_RIGHT }],
+  // Not "some of your answer is right": that is praise for a part (PART_PRAISE).
+  [new RegExp(String.raw`(?<!\b(?:some|part|parts|most|much|half)\s+of\s+)\b${ANSWER_SUBJECT}(?:'s|’s|\s+is|\s+was|\s+are|\s+were)\s+((?:[\w’']+\s+){0,3}?)(?:correct|right|spot[\s-]on)\b`, "i"), { between: 1, other: OTHER_RIGHT }],
   [/\byou(?:'re|’re|\s+are|\s+were)\s+((?:[\w’']+\s+){0,3}?)(?:correct|right|spot[\s-]on)\b(?!\s+(?:that|to|about)\b)/i, { between: 1, other: OTHER_RIGHT }],
   [/\byou(?:'ve|’ve|\s+have)?\s+got\s+(?:it|that|this|them|the (?:right|correct) answer)\b(?!\s+(?:wrong|mixed|backwards|confused|switched|reversed|upside))/i, {}],
   [new RegExp(String.raw`\b(?:well done|nailed it|spot[\s-]on|bingo|perfect answer|exactly right|(?:good|great|nice|excellent|awesome|amazing|super|fantastic|wonderful|brilliant|terrific|outstanding) (?:job|work))\b${ON_ANOTHER}`, "i"), {}],
@@ -106,14 +109,35 @@ const PART_PRAISE: ReadonlyArray<[RegExp, { between?: number; other?: RegExp }]>
   [/\bcorrectly\s+(?:identified|found|used|calculated|computed|explained|named|said|solved|applied|worked|counted|added|multiplied|divided|subtracted|noticed|remembered|described|stated|listed)\b/i, {}],
   [/\byour\s+(?:method|work|working|reasoning|steps?|calculation|thinking|explanation|idea|approach|formula|setup|first step)\b[^.!?]{0,30}?\b(?:is|was|are|were)\s+((?:[\w’']+\s+){0,2}?)(?:correct|right|spot on)\b/i, { between: 1 }],
   [/\b(?:you're|you’re|you are|you were)\s+(?:right|correct)\s+(?:that|to|about)\b/i, {}],
+  // "You got some of the notes correct", "some of your answer is right"; not "some of them are not right".
+  [/\b(?:some|part|parts|most|much|many|a few|several|half)\s+of\s+(?:the|your|them|these|those|it|this|that|what)\b([^.!?]{0,40}?)\b(?:correct|right)\b/i, { between: 1, other: OTHER_RIGHT }],
 ];
 
+// Praise for one of several answers: "Your first answer is correct", "You got the first one right",
+// "Great job on the first one". About an earlier question's answer it is true, so it is read only when
+// the answer being checked had several parts (two questions keyed together, "63; 72") and the verdict
+// on all of it is "incorrect".
+const ORDINAL = String.raw`(?:first|second|third|fourth|last|other)`;
+const ONE_OF_SEVERAL: ReadonlyArray<[RegExp, { between?: number; other?: RegExp }]> = [
+  [new RegExp(String.raw`\b(?:your|the|that|this)\s+${ORDINAL}\s+(?:answer|one|part|question)(?:'s|’s|\s+is|\s+was)\s+((?:[\w’']+\s+){0,3}?)(?:correct|right|spot[\s-]on)\b`, "i"), { between: 1, other: OTHER_RIGHT }],
+  [new RegExp(String.raw`\byou(?:'ve|’ve|\s+have)?\s+got\s+(?:the|your)\s+${ORDINAL}\s+(?:answer|one|part|question)\s+(?:right|correct)\b`, "i"), {}],
+  [new RegExp(String.raw`\b(?:well done|(?:good|great|nice|excellent|awesome|amazing|super|fantastic|wonderful|brilliant|terrific|outstanding)\s+(?:job|work))\s+(?:on|with|for)\s+(?:the\s+|your\s+)?${ORDINAL}\b`, "i"), {}],
+];
+
+/** After "that is not the/a": words that make it no verdict ("not the only way", "not a problem", "not a bad start"). */
+const NOT_A_NOUN = "only|same|end|case|point|problem|issue|question|first|last|time|reason|goal|whole|bad|big|worry|deal|kind|sort|way|part|step|idea|thing";
 const REJECTION: ReadonlyArray<[RegExp, { between?: number; other?: RegExp }]> = [
   [/\b(?:that|this|it|your (?:final )?answer|(?:that|this) answer|you)(?:'s|’s|'re|’re|\s+is|\s+are|\s+was|\s+were)?\s+(?:not|n't)\s+(?:quite\s+|exactly\s+|entirely\s+|completely\s+)?(?:correct|right)\b/i, { other: OTHER_RIGHT }],
   [/\b(?:that|this|it|your (?:final )?answer|(?:that|this) answer)\s+(?:isn't|isn’t|wasn't|wasn’t)\s+(?:quite\s+|exactly\s+)?(?:correct|right)\b/i, { other: OTHER_RIGHT }],
   [/\b(?:that|this|it|your (?:final )?answer|(?:that|this) answer)(?:'s|’s|\s+is|\s+was)\s+(?:[\w’']+\s+){0,2}?(?:incorrect|wrong|a mistake|not the (?:right|correct) answer)\b(?!\s+to\b)/i, {}],
   [/\b(?:not quite|not exactly|(?:you|you've|you’ve) made a (?:small |little )?mistake|there(?:'s| is) a (?:small |little )?mistake|you got (?:it|that|this) wrong|almost there|so close|you'?re close|you are close|nearly there)\b/i, {}],
   [/\bincorrect\b/i, {}],
+  // "Those notes are not correct."; not "These steps are not right for every number."
+  [/\b(?:these|those|that|this)(?:\s+[\w’']+){1,2}\s+(?:(?:are|were|is|was)\s+not|aren't|aren’t|weren't|weren’t|isn't|isn’t|wasn't|wasn’t)\s+(?:quite\s+|exactly\s+|all\s+)?(?:correct|right)\b(?!\s+(?:for|when|if|unless|in|every|always)\b)/i, { other: OTHER_RIGHT }],
+  // "That is not the verb in that sentence.", "That's not a mammal."; not "That's not the only way" or "That's not a problem".
+  [new RegExp(String.raw`\b(?:that|this)(?:(?:'s|’s|\s+is|\s+was)\s+not|\s+isn't|\s+isn’t|\s+wasn't|\s+wasn’t)\s+(?:the|a|an)\s+(?!(?:${NOT_A_NOUN})\b)(?:(?:best|right|correct|proper|real|main)\s+(?!(?:${NOT_A_NOUN})\b))?\p{L}`, "iu"), {}],
+  // "The word for 'cat' in Spanish is different."; not "… is different from …".
+  [/\b(?:the|your)\s+(?:word|answer|spelling|name|number|verb|noun|adjective|letter|sound|notes?|date|unit|value|result|total)\b[^.!?]{0,40}?\b(?:is|was|are|were)\s+(?:(?:a\s+(?:little|bit)|slightly|quite|very)\s+)?different\b(?!\s+(?:from|than|to)\b)/i, {}],
 ];
 // Asking for another go at this answer doubts it, in a question too ("Can you try again?"). "Try again
 // with 8 x 9" moves on to a new one.
@@ -210,10 +234,11 @@ const MASTERY: ReadonlyArray<RegExp> = [
 
 const any = (list: ReadonlyArray<[RegExp, { between?: number; other?: RegExp }]>, plain: string) => list.some(([re, o]) => claimAt(re, plain, o));
 
-/** Praise for the answer. `part` reads praise for a part of it too; `value` is a "72 is correct" subject. */
-export function praises(plain: string, part = false, value: RegExp | null = null): boolean {
+/** Praise for the answer. `part` reads praise for a part of it too; `value` is a "72 is correct" subject;
+ *  `several` reads "your first answer is correct" too, for an answer with several parts. */
+export function praises(plain: string, part = false, value: RegExp | null = null, several = false): boolean {
   const s = statementOf(plain);
-  return !!s && (LEADING_PRAISE.test(s) || any(PRAISE, s) || (!!value && claimAt(value, s, { between: 1, other: OTHER_RIGHT })) || (part && any(PART_PRAISE, s)));
+  return !!s && (LEADING_PRAISE.test(s) || any(PRAISE, s) || (!!value && claimAt(value, s, { between: 1, other: OTHER_RIGHT })) || (part && any(PART_PRAISE, s)) || (several && any(ONE_OF_SEVERAL, s)));
 }
 export function rejects(plain: string, value: RegExp | null = null): boolean {
   const s = statementOf(plain);
@@ -252,6 +277,8 @@ const capitalize = (s: string) => s.replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: 
 
 // Any indent: a fence inside a list item is indented past the usual three spaces.
 const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})/;
+// Markdown that must open its own line: a heading, a list item, a quote, a table row, a code fence.
+const BLOCK_START = /^[ \t]*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\||`{3}|~{3})/;
 // The end of a sentence: closing punctuation (and quotes, brackets or emphasis after it) followed by
 // whitespace, or a line break.
 const SENTENCE_END = /[.!?]+["'”’)\]*_]*(?=\s)|\n/;
@@ -273,6 +300,8 @@ export interface ClaimFilterOptions {
 interface TurnState {
   stated: boolean;   // the reply has said the true verdict itself
   replaced: boolean; // the code-written verdict line has been put in
+  begun: boolean;    // the reply (or a card) has shown the child something
+  several: boolean;  // an "incorrect" verdict on an answer with several parts (see ONE_OF_SEVERAL)
   removed: Array<{ kind: "mastery" | "verdict"; text: string }>;
   praiseValue: RegExp | null;
   doubtValue: RegExp | null;
@@ -299,6 +328,9 @@ export class ReplyClaimFilter {
     this.state = {
       stated: false,
       replaced: false,
+      begun: false,
+      // Two questions keyed together have a key like "63; 72". With no key to tell, read it as several.
+      several: opts.verdict === "incorrect" && (!opts.answer || opts.answer.key.includes(";")),
       removed: [],
       // On a right answer the student's values are the key's; praising them is said, not contradicted.
       praiseValue: values ? valueSubject(opts.verdict === "correct" ? values.own : values.notKey, "praise") : null,
@@ -322,11 +354,13 @@ export class ReplyClaimFilter {
     if (!this.active || !args || typeof args !== "object") return args;
     const { question, choices } = args as { question?: unknown; choices?: unknown };
     if (typeof question !== "string" || !Array.isArray(choices) || !choices.every((c) => c && typeof c === "object" && typeof (c as { label?: unknown }).label === "string")) return args;
+    const said = { stated: this.state.stated, replaced: this.state.replaced, begun: this.state.begun };
     const shownQuestion = this.whole(question, true);
     const shownChoices = (choices as Array<{ label: string }>)
       .map((c) => (BARE_REPLY.test(c.label) ? c : { ...c, label: this.whole(c.label, false) }))
       .filter((c) => c.label);
-    if (!shownQuestion || shownChoices.length < 2) return null;
+    // A card not shown said nothing to the child: the verdict line is still due in what is.
+    if (!shownQuestion || shownChoices.length < 2) { Object.assign(this.state, said); return null; }
     return { ...(args as object), question: shownQuestion, choices: shownChoices };
   }
 
@@ -377,7 +411,7 @@ export class ReplyClaimFilter {
         const line = nl < 0 ? this.buf : this.buf.slice(0, nl + 1);
         const open = FENCE_OPEN.exec(line);
         if (open) {
-          out += this.take(line);
+          out += this.take(this.opener(line) + line);
           this.buf = this.buf.slice(line.length);
           this.fence = new RegExp(`^[ \\t]*${open[1][0] === "`" ? "`" : "~"}{${open[1].length},}[ \\t]*$`);
           this.lineStart = true;
@@ -415,7 +449,7 @@ export class ReplyClaimFilter {
     if (!core) return this.take(text + trailing);
     const kept = this.rewrite(core);
     if (kept) {
-      const out = this.take(lead + kept);
+      const out = this.take(lead + this.opener(kept + trailing) + kept);
       if (trailing.includes("\n")) return out + trailing;
       this.pending = trailing;
       return out;
@@ -428,6 +462,25 @@ export class ReplyClaimFilter {
     return `${breaks}\n`;
   }
 
+  /**
+   * The verdict line, before the first text the child sees, on a wrong answer the reply has not called
+   * wrong: silence after a wrong answer reads as "fine" (B9 rerun 2 had replies that only re-explained or
+   * moved on). Decided at that first sentence (or card question, or code fence), once rewrite has read
+   * it: if it says the verdict, or the line already took a claim's place in it, nothing is added.
+   * Deciding at the end of the reply would mean holding all of it back from the stream; deciding here
+   * costs, at most, a line that a reply saying it further on did not need. Not on other verdicts: an
+   * "incorrect" on a right answer is rare but costly, and "partly" is left to the reply.
+   */
+  private opener(next: string): string {
+    const state = this.state;
+    if (this.opts.verdict !== "incorrect" || !this.lines || state.begun) return "";
+    state.begun = true;
+    if (state.stated || state.replaced) return "";
+    state.replaced = true;
+    // Before a heading, a list, a quote, a table or a code fence: its own paragraph, so the markdown holds.
+    return BLOCK_START.test(next) ? `${VERDICT_LINE.incorrect}\n\n` : `${VERDICT_LINE.incorrect} `;
+  }
+
   /** The sentence as it may be shown: unchanged, trimmed, replaced, or "" (removed). */
   private rewrite(core: string): string {
     const plain = plainOf(core);
@@ -438,7 +491,7 @@ export class ReplyClaimFilter {
     }
     const v = this.opts.verdict;
     if (!v) return core;
-    const praise = (s: string, part = false) => praises(s, part, state.praiseValue);
+    const praise = (s: string, part = false) => praises(s, part, state.praiseValue, state.several);
     const doubt = (s: string) => rejects(s, state.doubtValue);
     const contradicts = (s: string) => (
       v === "correct" ? doubt(s)

@@ -337,7 +337,10 @@ export function answerCheckNote(check: AnswerCheck): string {
     partly: `The app checked the student's answer against the answer key: it is only partly correct.\n${KEY_LINE(check.key)}Do not say the whole answer is correct. Say which part is right and which part is missing or wrong.`,
     unsure: "The app could not check whether the student's answer is right. Do not say it is correct or wrong. Ask the student to explain how they got their answer.",
   }[check.verdict];
-  return `<tutor_note>\n${body}\nDo not say the student has mastered anything unless the app has saved it. Do not mention this note.\n</tutor_note>`;
+  // Which question the answer was to: with two questions asked, a small model answered question 1's
+  // when the child was answering question 2 (TerraTutor B9 rerun 2).
+  const question = check.question ? `The question was: ${check.question}\n` : "";
+  return `<tutor_note>\n${question}${body}\nDo not say the student has mastered anything unless the app has saved it. Do not mention this note.\n</tutor_note>`;
 }
 
 export function withAnswerCheckNote(userContent: string, check: AnswerCheck): string {
