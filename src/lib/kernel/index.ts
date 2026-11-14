@@ -14,3 +14,5 @@ export { OUTPUT_RULES, outputRulesLayer, WORKED_ANSWER_RULES, isWorkedAnswerTurn
 export { FIRST_TURN_HOLD_NOTE, posesNewProblem, isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
 export { choicesInReply, type ReplyChoices } from "./replyChoices";
 export { asksForFlashcard } from "./flashcardRequest";
+export { isAssessAnswerTurn, checkAnswer, answerCheckNote, type AnswerCheck, type Verdict } from "./answerCheck";
+export { ReplyClaimFilter, filterReplyClaims } from "./replyClaims";
