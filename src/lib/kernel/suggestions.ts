@@ -182,9 +182,18 @@ export function showAnswerOfferedAfter(history: ReadonlyArray<{ role: string; co
   });
 }
 
+/**
+ * The text without the emoji (and the spaces between them) at its end. Small models close a question
+ * with one: "Which one sounds best for us to work on right now? 😊" (click test 2026-11-14). It is not
+ * part of the question, so the question checks read past it.
+ */
+export function withoutTrailingEmoji(text: string): string {
+  return text.replace(/[\s\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]+$/u, "");
+}
+
 /** True when the reply ends on a question, which changes what a useful chip is. */
 export function endsWithQuestion(answer: string): boolean {
-  const trimmed = answer.trim();
+  const trimmed = withoutTrailingEmoji(answer.trim());
   if (!trimmed) return false;
   // Strip a trailing markdown emphasis/quote marker so "…is it?**" still counts.
   return /\?["'*`)\]]*$/.test(trimmed);

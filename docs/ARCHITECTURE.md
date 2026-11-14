@@ -256,7 +256,9 @@ Two write actions do not wait for the model to choose a tool, because small mode
   carries those choices in `replyChoices`. Labels with LaTeX, a blank (`__`) or a trailing `=` don't
   count; a lettered list needs its question before it. A bulleted list (-, *, + or •, one style) counts
   only when its question also asks what the student wants (would you like, do you want, should we…),
-  since bullets are also how a tutor lists facts it then asks about. Anything in doubt gets no buttons. The chat shows
+  since bullets are also how a tutor lists facts it then asks about. Emoji after the question mark
+  ("Which one sounds best? 😊") don't stop a line counting as the question, here or in the chips'
+  `endsWithQuestion` (`withoutTrailingEmoji`, click test 2026-11-14). Anything in doubt gets no buttons. The chat shows
   them as the ask_user buttons, with only the stuck chips and "Review due cards" beside them
   (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
 

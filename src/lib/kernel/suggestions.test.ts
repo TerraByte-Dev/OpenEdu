@@ -44,6 +44,23 @@ describe("endsWithQuestion", () => {
     expect(endsWithQuestion("That's the ratio.")).toBe(false);
     expect(endsWithQuestion("")).toBe(false);
   });
+
+  it("reads past emoji after the question mark", () => {
+    // Click test 2026-11-14 (gemma4:e4b): the reply ended "...right now? 😊" and got the chips for a statement.
+    expect(endsWithQuestion("Which one sounds best for us to work on right now? 😊")).toBe(true);
+    expect(endsWithQuestion("Ready to try one?🍕✨")).toBe(true);
+    expect(endsWithQuestion("Can you count them? 👍🏽")).toBe(true);
+    expect(endsWithQuestion("Great job! 😊")).toBe(false);
+    expect(endsWithQuestion("😊")).toBe(false);
+  });
+
+  it("offers the ways to answer, not the statement chips, under a question that ends in an emoji", () => {
+    const labels = suggestFollowUps(input({
+      answer: "Here are a few ways we can practice fractions next. Which one sounds best for us to work on right now? 😊",
+      syllabus: syllabus([{ title: "Unit fractions", mastered: false }]),
+    })).map((s) => s.label);
+    expect(labels).toEqual(["Give me a hint", "Walk me through it"]);
+  });
 });
 
 describe("suggestFollowUps", () => {
