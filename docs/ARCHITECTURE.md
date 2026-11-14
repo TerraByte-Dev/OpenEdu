@@ -171,9 +171,12 @@ A model can also write a tool call as plain reply text that Ollama never parses 
 `progress.mark_mastered{status:<|"|>mastered<|"|>,...}<tool_call|>` without its opening frame). Every
 model call's text goes through `ReplyTextFilter` (`kernel/textToolCalls.ts`) before the student sees it
 or it is saved: text that could still become such a call is held back mid-stream, a complete one is
-removed, and gemma4's own control tokens are dropped (look-alikes such as `<|y|` are kept). A call that
-does not close within 1,500 characters, at a blank line, or by the end of the stream is given up on:
-only its first line is removed and the rest is shown. Some calls then run, dispatched exactly like a
+removed, and gemma4's own control tokens are dropped (look-alikes such as `<|y|` are kept). Nothing
+inside an open code fence is read as a call. A call that does not close (1,500 characters outside its
+strings, 20,000 in all, a blank line outside a string, or the end of the stream) is given up on. Text
+inside one of its strings is never shown: an unclosed `<|"|>` string is removed to the end of the
+stream, an unclosed `"` string to the blank line that ends it. Otherwise only the call's first line is
+removed and the rest is shown. Some calls then run, dispatched exactly like a
 native call (zod validation, the permission gate, the result back to the model, `fromText: true` in the
 turn's `toolCalls`), and the text after them is not shown. Which ones: the tool must be offered this
 turn; `progress.mark_mastered` never runs from text (quiz and test scores decide mastery); a tool that

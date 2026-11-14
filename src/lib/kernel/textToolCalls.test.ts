@@ -120,9 +120,13 @@ async function run(mode: string, scripted: Scripted[], opts: { approve?: boolean
   return { result, shown, confirms, events };
 }
 
+// Lines that open or close a ``` / ~~~ fence. An odd count turns the rest of the reply into code.
+const fenceLines = (text: string) => text.split("\n").filter((l) => /^ {0,3}(`{3,}|~{3,})/.test(l)).length;
+
 function expectClean(r: Run) {
   for (const state of r.shown) expect(state).not.toMatch(MACHINERY);
   expect(r.result.text).not.toMatch(MACHINERY);
+  expect(fenceLines(r.result.text) % 2, "no unmatched code fence is released").toBe(0);
 }
 
 const toolNames = () => toolRegistry.all().map((t) => t.name);
@@ -261,6 +265,50 @@ describe("a call that never closes hides only itself", () => {
     expect(r.result.stopReason).toBe("aborted");
     expectClean(r);
     expect(r.result.text).toBe("Good job. ");
+  });
+});
+
+describe("text inside a call's string is never released", () => {
+  it("an unterminated multi-line <|\"|> string (Mermaid source) is removed to the end of the stream", async () => {
+    const r = await run("explain", ["Here it is:\n\ndiagram.render{code:<|\"|>graph TD\n  A[Start] --> B[Add]\n  B --> C[End]"]);
+    expectClean(r);
+    expect(r.result.text).toBe("Here it is:\n\n");
+  });
+
+  it("fc02's call with an unterminated multi-line back is removed whole", async () => {
+    const r = await run("explain", [`${prose(FC02)}flashcard.create{front:<|"|>What is the divisor in division?<|"|>,back:<|"|>Four.\nIt is even.\nGood job`]);
+    expectClean(r);
+    expect(r.result.text).toBe(prose(FC02));
+  });
+
+  it("an unterminated \"…\" string is removed up to the blank line that ends it", async () => {
+    const r = await run("explain", ["Look:\ndiagram.render{mermaid: \"graph TD\nA-->B\nB-->C\n\nWhat do you see?"]);
+    expectClean(r);
+    expect(r.result.text).toBe("Look:\n\n\nWhat do you see?");
+  });
+
+  it("a fenced Mermaid source inside a \"…\" argument leaves no stray ``` behind", async () => {
+    const r = await run("explain", ["Look:\ndiagram.render{code: \"```mermaid\ngraph TD\nA-->B\n```\"}\nWhat do you see?"]);
+    expectClean(r);
+    expect(r.result.text).toBe("Look:\n\nWhat do you see?");
+  });
+
+  it(`a valid diagram.render whose source is longer than ${HOLD_CAP} characters still runs, and none of it is shown`, async () => {
+    const source = `graph TD\n${Array.from({ length: 150 }, (_, i) => `  N${i}[Step ${i}] --> N${i + 1}[Step ${i + 1}]`).join("\n")}`;
+    expect(source.length).toBeGreaterThan(HOLD_CAP * 2);
+    const r = await run("explain", [`Here is the whole process:\n\ndiagram.render{mermaid:<|"|>${source}<|"|>}`, "Each step leads to the next."]);
+    expectClean(r);
+    expect(r.result.text).not.toContain("Step 1");
+    expect(r.events).toEqual(["start:diagram.render", "result:diagram.render"]);
+    expect(r.result.toolCalls).toEqual([{ name: "diagram.render", args: { mermaid: source }, ok: true, fromText: true }]);
+    expect(r.result.text).toBe("Here is the whole process:\n\nEach step leads to the next.");
+  });
+
+  it("a call inside an open code fence is code the model is showing: kept, and nothing runs", async () => {
+    const reply = "In the app it looks like this:\n\n```text\nmath.render{latex: \"x^2\"}\n```\n\nThat is all.";
+    const r = await run("explain", [reply]);
+    expect(r.result.text).toBe(reply);
+    expect(chat).toHaveLength(1);
   });
 });
 

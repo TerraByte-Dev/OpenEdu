@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
 import {
   getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite, countDueFlashcards,
@@ -516,7 +516,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               <MessageBubble
                 message={msg}
                 reading={readAloud.speakingId === msg.id}
-                onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.content) : undefined}
+                onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.role === "assistant" ? displayReplyText(msg.content) : msg.content) : undefined}
               />
               {/* A self-harm or abuse disclosure gets a fixed notice under it, shown as soon as the message is;
                   the tutor turn still runs (child-safety.ts). Code-matched, never a model call. A .chat-msg, so
@@ -666,7 +666,7 @@ function appendUnique(prev: ChatMessage[], msg: ChatMessage): ChatMessage[] {
 // A reply without one renders exactly as before. A saved reply is shown through displayReplyText, so
 // one saved before the kernel filtered tool-call text never shows it either.
 function ReplyProse({ text: raw, streaming = false, children }: { text: string; streaming?: boolean; children?: React.ReactNode }) {
-  const text = streaming ? raw : displayReplyText(raw);
+  const text = useMemo(() => (streaming ? raw : displayReplyText(raw)), [raw, streaming]);
   const segments = splitReplyDiagrams(text);
   if (!streaming && segments.length === 1 && segments[0].kind === "markdown") {
     return (
