@@ -32,6 +32,11 @@ describe("speakableText: markdown", () => {
     expect(speakableText(reply)).toBe(`Here is the flowchart showing how an if/else statement works: ${DRAWING_SPOKEN}. This flowchart shows the steps of an if/else statement.`);
   });
 
+  it("reads Mermaid written with no fence as a drawing too, not its source", () => {
+    const reply = "Here is the plan:\n\nmermaid\ngraph TD;\n    A[Wake up] --> B[Eat breakfast];\n\nThen we go to school.";
+    expect(speakableText(reply)).toBe(`Here is the plan: ${DRAWING_SPOKEN}. Then we go to school.`);
+  });
+
   it("reads quotes and tables as plain sentences", () => {
     expect(speakableText("> Remember this.")).toBe("Remember this.");
     expect(speakableText("| a | b |\n|---|---|\n| 1 | 2 |")).toBe("a, b. 1, 2.");

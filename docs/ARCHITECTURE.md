@@ -218,9 +218,12 @@ filter removed) is never left blank: the kernel shows and saves `MIXED_UP_REPLY`
 one that stalled, keeps its own handling.
 
 In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
-`diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Source Mermaid cannot
-parse is retried with its node labels quoted inside their shapes (a circle stays a circle); if that
-fails too, the child sees a plain sentence and the diagram's labels, never the source.
+`diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
+wrote with no fence (a "mermaid" line and then `graph TD`, or a diagram's first line on its own) is
+fenced first (`fenceBareMermaid`) and treated the same way. Source Mermaid cannot parse is retried with
+its node labels quoted inside their shapes (a circle stays a circle), then, for a flowchart, without
+`}`s at its end that close nothing; if that fails too, the child sees a plain sentence and the
+diagram's labels, never the source.
 
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
