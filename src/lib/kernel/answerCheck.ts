@@ -49,8 +49,11 @@ export interface AnswerCheck {
 /** How many student messages back the assess chip still makes the conversation a mastery check. */
 export const ASSESS_LOOKBACK = 4;
 
-// A message that asks for something rather than answering: help, a hint, a question back, a new topic.
-const REQUEST = /^(?:give me|walk me|show me|help|explain|tell me|continue|more on|quiz me|review|check if|let me work|what do my notes|make me|make a|can you|could you|would you|will you|please|i don'?t know|i do not know|idk|no idea|not sure|i'?m not sure|skip|pass|i give up|what|why|how|where|when|who|which|do |does |did |can i|could i|should i|is that|are you)\b/i;
+// A message that asks for something rather than answering: help, a hint, a question back, a new topic,
+// a picture or a change of plan ("Draw me a diagram of a pizza cut into 4 slices", "Let me pick the
+// shape", "Can we use circles?"). Read as an answer, a request like that was graded against the open
+// question and the child was told "That's not right yet." (click-test 2026-11-14).
+const REQUEST = /^(?:give me|walk me|show me|help|explain|tell me|teach me|continue|more on|quiz me|review|check if|let me work|let me pick|let me choose|let['’]?s (?:do|try|use|go|learn|talk|draw|move|switch|start|play)|what do my notes|make me|make a|draw|write me|can you|could you|would you|will you|can we|could we|i want|i['’]?d like|i would like|please|i don'?t know|i do not know|idk|no idea|not sure|i'?m not sure|skip|pass|i give up|what|why|how|where|when|who|which|do |does |did |can i|could i|should i|is that|are you)\b/i;
 
 /** True when `text`, the student's newest message, reads as an answer rather than a request. */
 export function readsAsAnswer(text: string): boolean {

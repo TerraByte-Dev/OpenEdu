@@ -418,7 +418,13 @@ describe("failures and turns that get no check", () => {
     expect(result.text).toBe("Great choice! Here is a question about it: what is 3 x 5?");
   });
 
-  it.each(["Give me a hint.", "What does product mean?", "I don't know", "Can you explain it again?"])(
+  it.each([
+    "Give me a hint.", "What does product mean?", "I don't know", "Can you explain it again?",
+    // Requests for a picture or a change of plan (click-test 2026-11-14: the first was graded wrong).
+    "Draw me a diagram of a pizza cut into 4 equal slices, and write three quarters as a math fraction.",
+    "Let me pick which shape we use.", "Can we use circles instead?", "I want to do decimals now.",
+    "Teach me unit fractions.", "Let's draw it.",
+  ])(
     "%j is not an answer: no model call is added", async (text) => {
       await answer(CHECK, text);
       expect(structured).toEqual([]);
