@@ -40,6 +40,9 @@ vi.mock("../llm", async (importOriginal) => ({
     sent.push(messages.map((m) => ({ role: m.role, content: m.content })));
     for (const ev of script.shift() ?? [{ type: "text", delta: "Okay." }, { type: "done", finishReason: "stop" }]) yield ev;
   }),
+  // The assess answer check's key call (answerCheck.ts): the answer to the tutor's question is 12, so
+  // the student's "12, because ..." is correct by code and a "mastered" mark may run.
+  callLLMStructured: vi.fn(async () => ({ question: "How many legs do 3 stools with 4 legs each have?", working: "3 x 4 = 12", answer: "12" })),
 }));
 
 import { tutorEngine, type TutorTurnResult } from "./TutorEngine";

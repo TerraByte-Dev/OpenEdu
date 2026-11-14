@@ -91,6 +91,9 @@ const REVIEW_DUE_MESSAGE = "Review my due flashcards.";
 // Measured on 2026-11-06 after a wrong first try: this wording got the worked answer from gemma4:e4b
 // in 8 of 8 runs, and "Walk me through it." in 5 of 8 (the tutor often kept asking instead).
 export const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
+// What the assess chip sends. The kernel reads it to know a mastery check is under way
+// (answerCheck.ts), since the chat resets the mode after every send.
+export const ASSESS_MESSAGE = "Check if I've got this.";
 
 // A message that asks for something rather than trying the problem: the chips, the deep-link prefill
 // ("Help me with Decimals."), and the ways students say they are stuck. Matched at the start so a chip
@@ -265,11 +268,11 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // check, so it leads. Without this the assess chip was always fourth in a list capped at three,
   // and Assess mode was unreachable from the UI (#146).
   const allMastered = !!input.syllabus?.subtopics.length && input.syllabus.subtopics.every((s) => s.mastered);
-  if (allMastered) push({ label: "Check if I've got this", message: "Check if I've got this.", mode: "assess" });
+  if (allMastered) push({ label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" });
   push({ label: "Worked example", message: "Show me a worked example." });
   push({ label: "Make me figure it out", message: "Let me work it out.", mode: "socratic" });
   push({ label: "Quiz me on this", message: "Quiz me on this.", mode: "quiz" });
-  push({ label: "Check if I've got this", message: "Check if I've got this.", mode: "assess" });
+  push({ label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" });
 
   return out;
 }

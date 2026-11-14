@@ -197,6 +197,61 @@ Mastery is not one of them: it is decided in code from quiz and promotion-test r
 (`updateSubtopicMastery`, ≥ 90% per subtopic). `progress.mark_mastered` is a secondary path, and a
 model's praise alone never marks anything.
 
+### The answer check in assess mode (`kernel/answerCheck.ts`, `answerCompare.ts`, `replyClaims.ts`)
+
+Assess mode (`src/skills/assess.md`, the "Check if I've got this" chip) is a short mastery check: the
+tutor asks one or two questions it writes itself, so nothing in the app holds their answers. On
+TerraTutor's B9 rerun on `gemma4:e2b` the tutor told the child a wrong answer was correct in 11 of 20
+turns ("7 x 9 is 72" → "That is correct."), and replies said "you have mastered" with nothing recorded.
+So the verdict on the child's answer is the app's, not the reply's:
+
+- **When.** The newest message is the student's answer (not a request, a question back or a meaning
+  question) to the tutor's message just before it, in a mastery check: the turn runs in assess mode, or
+  the assess chip's message (`ASSESS_MESSAGE`) is among the student's last four messages. The chat resets
+  the mode after every send, so in the app the answers arrive in the default mode; the chip in the
+  history is what marks the check.
+- **The key, blind.** One structured call reads only the tutor's message and returns the question it
+  asked (copied; validated against the message), one or two lines of working, and the answer. It never
+  sees the student's answer: a 2B model judging an answer it has just read leans toward agreeing, and
+  working the question out cold does not. Working that states a false sum ("6 x 8 = 46",
+  `arithmetic-claims.ts`) fails validation and is repaired once. A last question asking for one plain
+  operation ("What is 6 x 8?") is keyed by code with no call, and a model key for one ("Calculate
+  6 x 8.") is replaced by code's when they disagree. A message that asks nothing with one right answer
+  ("which topic next?") gets no check, and the turn is as before.
+- **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
+  plain form ("48", "forty-eight", "it's 48", "48 cm", "6 x 8 = 48"), the same lettered option or
+  yes/no: **correct**, with no further call. A plain-number key that none of the student's own numbers
+  equals (numbers the question holds don't count): **mismatch**. Fractions, percents, times, money,
+  "half", ranges, another unit, a rounding, or other words: **undecided**. Code never calls an answer
+  wrong on a form it could misread, because a false "wrong" is as bad as false praise.
+- **The grader**, only when code did not find a match: one structured call reads the question, the
+  key and the answer and returns the student's final answer in their words and `correct` / `partly` /
+  `incorrect`. Code compares that copy with the key too. Where code and the grader disagree (code says
+  the number is wrong and the grader says correct, or the reverse) the verdict is **unsure**. A failed
+  or timed-out call (60 s each) is also unsure, never praise.
+- **The reply is told the verdict as a fact**, in a `<tutor_note>` after the student's text (the same
+  place as the other notes; it replaces the check-before-praise note on that turn; not saved). The
+  system prompt is untouched.
+- **A filter holds each sentence of every reply** until it ends (`ReplyClaimFilter`): against an
+  `incorrect` verdict, praise for the answer ("That is correct!", "You correctly found…") is taken out;
+  against `partly`, whole-answer praise; against `correct`, doubt ("Not quite", "try again"); against
+  `unsure`, both. "Great, but 6 x 8 is 48." keeps "6 x 8 is 48."; the first claim taken out becomes
+  the verdict in one line ("That's not right yet.") unless the reply already said it. Questions,
+  conditions and anything in code are never read. A reply left empty says the verdict
+  (`VERDICT_FALLBACK`).
+- **Mastery claims, every turn.** "You have mastered…", "I will mark that as mastered" and the like are
+  taken out of any reply unless a `progress.mark_mastered` call saved a `mastered` mark earlier in the
+  same turn. On a checked answer whose verdict is not `correct`, a `mastered` mark is refused by code
+  (`MASTERY_REFUSED`); `practiced` still runs.
+
+The turn result carries `answerCheck` (question, key, verdict, how it was reached) and `removedClaims`.
+`TutorTurn.answerCheck: "off"` turns the check off for an eval's paired baseline. Cost on a checked
+turn: one structured call, two when code cannot settle it; each is its own short prompt, so on Ollama
+the reply then re-prefills the system prompt once. Known limits: the key is only as good as the model
+on that question (a wrong key on a non-arithmetic question can mark a right answer wrong when the
+grader agrees with it); a claim worded outside the filter's patterns gets through; a mastery claim in
+the same model call as the mark that saves it is taken out.
+
 A model can also write a tool call as plain reply text that Ollama never parses (gemma4:e2b writes
 `progress.mark_mastered{status:<|"|>mastered<|"|>,...}<tool_call|>` without its opening frame). Every
 model call's text goes through `ReplyTextFilter` (`kernel/textToolCalls.ts`) before the student sees it

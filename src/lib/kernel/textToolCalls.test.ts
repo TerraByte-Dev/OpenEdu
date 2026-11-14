@@ -156,7 +156,11 @@ describe("a tool call written as text, for a tool not offered this turn", () => 
   it("mm17: the text the model wrote after the call is kept when nothing runs", async () => {
     const r = await run("explain", [MM17]);
     expectClean(r);
-    expect(r.result.text).toBe(MM17_BEFORE + MM17_AFTER);
+    // Its sentence claiming the mark ("I think we can mark that as mastered.") is taken out too, since
+    // no mark was saved (replyClaims.ts).
+    const claim = MM17_BEFORE.slice(MM17_BEFORE.indexOf("Since you've shown"), MM17_BEFORE.lastIndexOf(".") + 1);
+    expect(r.result.text).toBe(MM17_BEFORE.replace(claim, "") + MM17_AFTER);
+    expect(r.result.removedClaims).toEqual([{ kind: "mastery", text: claim }]);
   });
 
   it("the full gemma4 frame (<|tool_call>call:…) is removed too, and a word held back at the end is still shown", async () => {

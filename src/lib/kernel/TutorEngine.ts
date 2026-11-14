@@ -18,7 +18,7 @@
 import { callLLMTurn, OllamaToolCallParseError, type NeutralMessage, type ProviderToolDef } from "../llm";
 import type { LLMConfig } from "../../types";
 import type { ToolContext } from "../tools/EduTool";
-import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent } from "./toolDispatch";
+import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent, type ToolDispatchResult } from "./toolDispatch";
 import { toolRegistry } from "../tools/registry";
 import { evaluatePermission } from "../permissions/evaluate";
 import { loadPermissionRules } from "../permissions/store";
@@ -36,9 +36,16 @@ import { ReplyTextFilter } from "./textToolCalls";
 import { MIXED_UP_REPLY } from "../plain-language";
 import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
+import { isAssessAnswerTurn, checkAnswer, withAnswerCheckNote, type AnswerCheck } from "./answerCheck";
+import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 const ASK_USER_TOOL = "ask_user.question";
+const MARK_MASTERED_TOOL = "progress.mark_mastered";
+/** What the model is told when it tries to mark mastered on an answer code did not find correct. */
+export const MASTERY_REFUSED =
+  "Not saved: the app checked the student's answer and did not find it correct, so this subtopic can't be marked mastered now.";
+const marksMastered = (args: unknown) => !!args && typeof args === "object" && (args as { status?: unknown }).status === "mastered";
 // The id of the flashcard.create call the app makes itself (flashcard stage). It never reaches a
 // provider: the model sees a note, not a tool call, so no tool_use id rules apply.
 const APP_FLASHCARD_CALL_ID = "app_flashcard";
@@ -68,6 +75,10 @@ export interface TutorTurn {
   // "off" skips the flashcard stage (flashcardRequest.ts), so the tool goldens still measure whether
   // the model itself calls flashcard.create. Default "on"; the app never sets it.
   flashcardStage?: "on" | "off";
+  // "off" skips the assess-mode answer check (answerCheck.ts) and its note, so an eval can run the
+  // paired baseline. The reply filter for claims (replyClaims.ts) still runs. Default "on"; the app
+  // never sets it.
+  answerCheck?: "on" | "off";
 }
 
 export interface TutorTurnResult {
@@ -119,6 +130,13 @@ export interface TutorTurnResult {
   // ask_user.question (replyChoices.ts). The caller shows them as the same buttons ask_user shows.
   // Null when the turn called ask_user.question, did not complete, or offers no such list.
   replyChoices: ReplyChoices | null;
+  // The assess-mode answer check (answerCheck.ts): the question, the key code used and the verdict the
+  // reply was told. Null on a turn that is not an answer in a mastery check, or whose message asked
+  // nothing with one right answer.
+  answerCheck: AnswerCheck | null;
+  // Sentences the reply filter (replyClaims.ts) took out or trimmed: mastery claims with no mastery
+  // saved, and claims against the answer check's verdict. As the model wrote them.
+  removedClaims: Array<{ kind: "mastery" | "verdict"; text: string }>;
 }
 
 /**
@@ -177,15 +195,24 @@ export class TutorEngine {
     const firstTurnHold = isFirstTurnHold(messages.filter((m) => m.role !== "system"));
     // The check-before-praise note (checkBeforePraise.ts): a try at the problem the tutor just worked
     // on. Decided and applied the same way as the hold; never on the same turn as it.
-    const checkBeforePraise = isCheckBeforePraiseTurn(messages.filter((m) => m.role !== "system"));
+    const conversation = messages.filter((m) => m.role !== "system");
+    const checkBeforePraiseTurn = isCheckBeforePraiseTurn(conversation);
     // The dictionary note (defineWord.ts): an explicit "what does X mean" in the student's newest
     // message, looked up in the bundled dictionary. Never on a hold or check-before-praise turn: those
     // notes govern a problem turn, and one note per turn keeps each lever's effect its own. The lookup
     // starts here and is awaited after retrieval; it never throws, and a miss leaves the turn unchanged.
     const newest = messages[messages.length - 1];
     const asked = newest?.role === "user" ? askedWord(newest.content) : null;
-    const dictionaryLookup = asked && !firstTurnHold && !checkBeforePraise && turn.dictionary !== "off"
+    const dictionaryLookup = asked && !firstTurnHold && !checkBeforePraiseTurn && turn.dictionary !== "off"
       ? lookupDictionary(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
+      : Promise.resolve(null);
+    // The answer check (answerCheck.ts): the student's answer to the tutor's question in a mastery
+    // check gets a verdict from code (a blind key, a code compare, a structured grading call) before
+    // the reply is written. Started here, awaited after retrieval; it never throws. On a turn it gives a
+    // verdict, its note replaces the check-before-praise note: the verdict is a fact, not a request to
+    // check.
+    const answerCheckRun = turn.answerCheck !== "off" && !firstTurnHold && !asked && isAssessAnswerTurn(conversation, ctx.activeSkill?.name)
+      ? checkAnswer(conversation[conversation.length - 2].content, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort })
       : Promise.resolve(null);
 
     let eduTools = await selectTools(ctx);
@@ -274,7 +301,12 @@ ${lastUser.content}` };
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withFirstTurnHold(messages[idx].content) };
     }
-    if (checkBeforePraise) {
+    const answerCheck = await answerCheckRun;
+    if (answerCheck) {
+      // Same place as the hold note: after the grounding block and the student's text.
+      const idx = messages.map((m) => m.role).lastIndexOf("user");
+      messages[idx] = { ...messages[idx], content: withAnswerCheckNote(messages[idx].content, answerCheck) };
+    } else if (checkBeforePraiseTurn) {
       // Same place as the hold note: after the grounding block and the student's text.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withCheckBeforePraise(messages[idx].content) };
@@ -297,7 +329,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -321,9 +353,10 @@ ${lastUser.content}` };
       askedWord: string | null;
       dictionaryNote: string | null;
       dictionaryShown: DictionaryShown | null;
+      answerCheck: AnswerCheck | null;
     },
   ): Promise<TutorTurnResult> {
-    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, dictionaryNote } = prepared;
+    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, dictionaryNote, answerCheck } = prepared;
     let messages = prepared.messages;
 
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
@@ -352,6 +385,11 @@ ${lastUser.content}` };
     // saved: a tool call the model wrote as text never reaches either (textToolCalls.ts).
     const toolNames = [...toolRegistry.all().map((t) => t.name), ...offered];
     const show = (text: string) => { if (text) { streamedText += text; turn.onText(text); } };
+    // After that, every model call's text goes through the claim filter (replyClaims.ts): a mastery
+    // claim with no mastery saved this turn, and a claim against the answer check's verdict, never reach
+    // the student or the transcript. It holds each sentence until it ends.
+    let masteryWritten = false;
+    const claims = new ReplyClaimFilter({ verdict: answerCheck?.verdict ?? null, masteryWritten: () => masteryWritten });
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
@@ -362,7 +400,7 @@ ${lastUser.content}` };
       const filter = new ReplyTextFilter(toolNames, (name) => !!toolDefs && offered.has(name));
       try {
         for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
-          if (ev.type === "text") { const text = filter.push(ev.delta); iterationText += text; show(text); }
+          if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); iterationText += text; show(text); }
           else if (ev.type === "tool_call") {
             // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
             // iteration 1 and 2 both emit "call_0" — and the chat surface keys tool chips by id, so the
@@ -386,7 +424,7 @@ ${lastUser.content}` };
         if (import.meta.env?.DEV) console.info(`[turn] tool call unparseable at call ${iteration} (${e.ollamaError}); answering without tools`);
         break;
       }
-      const tail = filter.end();
+      const tail = claims.push(filter.end()) + claims.flush();
       iterationText += tail;
       show(tail);
       // A tool call written as text, when the provider returned none: run the first one whose tool was
@@ -410,10 +448,16 @@ ${lastUser.content}` };
       });
       for (const call of pendingCalls) {
         if (ctx.abort.aborted) { interrupted = "aborted"; break; }
+        // A "mastered" mark on an answer the check did not find correct is refused by code: the
+        // verdict is the app's, not the model's. Nothing runs and nothing is shown; the model is told.
+        const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && !!answerCheck && answerCheck.verdict !== "correct";
+        let result: ToolDispatchResult;
+        if (refused) result = { name: call.name, ok: false, error: MASTERY_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
-        const result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
+        else result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
         toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}) });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
+        if (call.name === MARK_MASTERED_TOOL && result.ok && marksMastered(call.args)) masteryWritten = true;
         // Cap what goes back into context. The model sees a visible truncation marker rather than a
         // silently shortened result it would otherwise answer from with false confidence.
         const payload = result.ok
@@ -448,14 +492,14 @@ ${lastUser.content}` };
       // No tools on this call, so a call written as text is only dropped.
       const filter = new ReplyTextFilter(toolNames);
       for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
-        if (ev.type === "text") show(filter.push(ev.delta));
+        if (ev.type === "text") show(claims.push(filter.push(ev.delta)));
         else if (ev.type === "done") {
           if (ev.finishReason === "aborted") interrupted = "aborted";
           else if (ev.finishReason === "stalled") interrupted = "stalled";
           else if (ev.finishReason === "length") interrupted = "length";
         }
       }
-      show(filter.end());
+      show(claims.push(filter.end()) + claims.flush());
     }
 
     // The abort flag is authoritative. `interrupted` can miss a Stop that lands during or after the
@@ -465,6 +509,12 @@ ${lastUser.content}` };
     // A recovered turn that the no-tools call finished is complete, not capped.
     const stopReason: TutorTurnResult["stopReason"] =
       interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally || toolCallRecovery ? "complete" : "max_iterations");
+
+    // An answer the check gave a verdict on always gets one: a reply the claim filter emptied (or the
+    // model left empty) says the verdict in one plain line.
+    if (answerCheck && !streamedText.trim() && stopReason !== "aborted" && stopReason !== "stalled") {
+      show(VERDICT_FALLBACK[answerCheck.verdict]);
+    }
 
     // Never a blank turn: a reply that ended with nothing to show (the model wrote nothing, or only a
     // tool call the filter removed) and ran no tool says so in one plain line, which is shown and saved
@@ -500,6 +550,8 @@ ${lastUser.content}` };
       dictionaryShown: prepared.dictionaryShown,
       toolCallRecovery,
       replyChoices,
+      answerCheck,
+      removedClaims: claims.removed,
     };
   }
 }
