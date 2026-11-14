@@ -145,7 +145,11 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   (DOMPurify) first. Mermaid SVG is sanitized by Mermaid itself (`securityLevel: "strict"`). On top of
   DOMPurify's defaults it forbids `<style>`, `<form>`, form controls and `<base>`/`<meta>`/`<link>`; the
   only `<input>` allowed is GFM's disabled task-list checkbox. Inline `position` other than
-  `relative`/`static` is stripped, so a reply can't lay a fixed/absolute overlay over the app.
+  `relative`/`static` is stripped, so a reply can't lay a fixed/absolute overlay over the app. Nothing
+  in the output may load from another host (#284): a `src`/`poster`/`background`, a non-link
+  `href`/`xlink:href`, or a CSS `url()` in a style attribute, SVG attribute or card `<style>` that is not
+  `data:`, `blob:` or same-origin is removed (the `<style>` whole); `srcset`, `image-set()`, `src()` and
+  `@import` always are. `<a href>` stays: that is a navigation, not a load.
 
 ---
 

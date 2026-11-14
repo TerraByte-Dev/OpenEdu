@@ -18,6 +18,11 @@ The section for each release is also what the app shows when you press Check for
   cancel, and makes it your tutor model. It never replaces a model you already have. How to make a
   kit is in `docs/OFFLINE-KIT.md`.
 
+### Security
+- A picture in a tutor reply, a lesson or a library card that links to another website is no longer
+  loaded. Loading it told that website when the learner opened the message, and its address could
+  carry words from the conversation. Pictures built into OpenEdu still show.
+
 ### Changed
 - Importing a model no longer warns that Google's Gemma Terms of Use must travel with a Gemma 4 model. Gemma 4 is Apache 2.0; the reminder (on the import screen and in `scripts/export-model.mjs`) now covers only Gemma 1 to 3.
 - **OpenEdu is now for one learner.** Class and school modes, the "Who uses this computer?"

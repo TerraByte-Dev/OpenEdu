@@ -13,12 +13,66 @@
 // <input type="checkbox" disabled>, so a disabled checkbox is the only <input> allowed through.
 // Inline `style` attributes stay (KaTeX positions with them), but a position other than relative or
 // static is removed: position:fixed/absolute/sticky would let one reply cover the whole app.
+//
+// Nothing in the output may make the webview fetch from another host (#284): a remote <img> in a reply,
+// a lesson or a library card is a beacon that tells that host when the learner opened it, and its URL
+// can carry words from the conversation. So every URL that loads something (src, poster, background,
+// href on anything but a link, CSS url()/image-set()/@import in style attributes, SVG paint attributes
+// and card <style>) must be data:, blob: or same-origin; otherwise the attribute (or <style>) is
+// removed. srcset is always removed. <a href> is a navigation, not a load, and stays (#284 item 1).
 import DOMPurify, { type DOMPurify as Purifier } from "dompurify";
 
 const HTML_CONFIG = {
   ADD_TAGS: ["semantics", "annotation"],
   FORBID_TAGS: ["style", "form", "button", "textarea", "select", "base", "meta", "link"],
 };
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const LOAD_ATTRS = new Set(["src", "poster", "background", "data"]);
+
+// data:, blob: and same-origin URLs load nothing from the network. Unparseable counts as remote.
+function isLocalUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim(), window.location.href);
+    return url.protocol === "data:" || url.protocol === "blob:" || url.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+// True when CSS text would fetch from another host. CSS escapes (\75 rl( is url() and comments are
+// undone first; image-set(), src() and @import can load without url(), so they always count.
+function cssLoadsRemote(css: string): boolean {
+  const text = css
+    .replace(/\/\*[\s\S]*?(\*\/|$)/g, "")
+    .replace(/\\(\r\n|[\n\r\f])/g, "")
+    .replace(/\\([0-9a-f]{1,6})[ \t\n\r\f]?/gi, (_, hex: string) => {
+      const cp = parseInt(hex, 16);
+      return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : "\ufffd";
+    })
+    .replace(/\\([\s\S])/g, "$1")
+    .toLowerCase();
+  if (/@import|image-set\(|src\(/.test(text)) return true;
+  for (const m of text.matchAll(/url\(\s*["']?([^"')]*)/g)) if (!isLocalUrl(m[1])) return true;
+  return false;
+}
+
+function blockRemoteLoads(el: Element): void {
+  const tag = el.nodeName.toLowerCase();
+  if (tag === "style") {
+    if (cssLoadsRemote(el.textContent ?? "")) el.parentNode?.removeChild(el);
+    return;
+  }
+  const isLink = tag === "a" || tag === "area";
+  for (const attr of Array.from(el.attributes)) {
+    const name = attr.name.toLowerCase();
+    const remote =
+      name === "srcset" ||
+      ((LOAD_ATTRS.has(name) || (!isLink && (name === "href" || name === "xlink:href"))) && !isLocalUrl(attr.value)) ||
+      ((name === "style" || el.namespaceURI === SVG_NS) && cssLoadsRemote(attr.value));
+    if (remote) el.removeAttribute(attr.name);
+  }
+}
 
 // A private instance, so the <input> hook never touches the shared default instance Mermaid uses.
 // Created on first use: the module is also imported by node-environment code with no window.
@@ -28,6 +82,7 @@ function purifier(): Purifier {
   if (!htmlPurifier) {
     htmlPurifier = DOMPurify(window);
     htmlPurifier.addHook("afterSanitizeAttributes", (node) => {
+      blockRemoteLoads(node as Element);
       if (node.nodeName === "INPUT" && !((node as Element).getAttribute("type") === "checkbox" && (node as Element).hasAttribute("disabled"))) {
         node.parentNode?.removeChild(node);
         return;
@@ -47,6 +102,13 @@ export function sanitizeHtml(html: string): string {
 
 // Library card SVGs (Resources tab "diagram" view). SVG profile only, so no HTML elements; <style>
 // survives (the generator uses it for theming), <script>, <foreignObject> and on* handlers do not.
+// Its own private instance too, with only the remote-load hook (a card can come from a user-set URL).
+let svgPurifier: Purifier | undefined;
+
 export function sanitizeSvg(svg: string): string {
-  return DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
+  if (!svgPurifier) {
+    svgPurifier = DOMPurify(window);
+    svgPurifier.addHook("afterSanitizeAttributes", (node) => blockRemoteLoads(node as Element));
+  }
+  return svgPurifier.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
 }
