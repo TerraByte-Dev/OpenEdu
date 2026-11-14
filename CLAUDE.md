@@ -126,7 +126,8 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   when the user has not picked a model, unless that one is not pulled and the other default is (so an
   upgrade never strands an install on a model it lacks); `navigator.deviceMemory` caps at 8 and cannot
   draw that line. e2b tiers as `tiny`, so `quiz-grading.ts` `runsVerifyPass` keeps the quiz verify pass
-  on for both defaults. The other five are offline setup (#275, [`docs/OFFLINE-KIT.md`](docs/OFFLINE-KIT.md)):
+  on for both defaults; fresh questions get the content review instead (`content-review.ts`, see
+  `docs/ARCHITECTURE.md`), which replaces the verify pass whenever a review model applies. The other five are offline setup (#275, [`docs/OFFLINE-KIT.md`](docs/OFFLINE-KIT.md)):
   `ollama_installed` and `ollama_installer_pick` in `ollama_setup.rs` (does Ollama's program exist; find its
   installer on a picked stick and show the folder as text, never run or open it), and `model_import_pick`,
   `model_import_start`, `model_import_cancel` in `model_import.rs` (Rust opens the folder picker, scans it

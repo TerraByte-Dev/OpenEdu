@@ -3,7 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
-import { detectModelProfile, getOllamaModels, type ModelProfile } from "./llm";
+import { detectModelProfile, detectModelTier, getOllamaModels, type ModelProfile } from "./llm";
+import { resolveReviewConfig, type ReviewKind } from "./content-review";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 import type { RetrievalMode } from "./kernel/ground";
 import { normalizeGoal, type ActiveMinutes } from "./daily-goal";
@@ -61,6 +62,15 @@ export async function getGenerationConfig(): Promise<LLMConfig> {
   const cfg = await withOllamaNumCtx({ ...base, model });
   if (cfg.provider === "ollama") cfg.contextTokens = Math.min((await detectModelProfile(cfg)).contextTokens, Math.max(cfg.contextTokens!, DEFAULT_CONTEXT_TOKENS));
   return cfg;
+}
+
+// The content review's model for generated lessons or questions, or null for no review
+// (content-review.ts resolveReviewConfig). `gen` is the generation config the content is made with.
+export async function getReviewConfig(gen: LLMConfig, kind: ReviewKind): Promise<LLMConfig | null> {
+  const s = await getStore();
+  const tier = gen.modelTier ?? await detectModelTier(gen);
+  return resolveReviewConfig(await s.get<string>(STORE_KEYS.reviewModel), gen, tier,
+    parseNoticesSeen(await s.get<unknown>(STORE_KEYS.cloudNoticesSeen)), kind);
 }
 
 // Chat model (tutor chat) — defaults to the catalog's recommended fast/cheap model.

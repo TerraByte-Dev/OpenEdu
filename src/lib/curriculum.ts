@@ -4,6 +4,7 @@ import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerati
 import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { assembleLessonMarkdown, lessonIssues, type LessonContent } from "./lesson-format";
+import { reviewLesson, withoutFlaggedParts, correctionsNote } from "./content-review";
 import type { LLMConfig, ModelTier, Syllabus, Subtopic, Lesson, CourseOutline, OutlineLevel, ConceptLedger, LevelLedgerEntry } from "../types";
 
 // ─── JSON Schemas for structured pipeline stages ──────────────────────────────
@@ -806,7 +807,7 @@ const LESSON_SCHEMA = {
   },
 };
 
-function buildLessonPrompt(topic: string, level: number, subtopic: { title: string; key_concepts: string[] }): string {
+function buildLessonPrompt(topic: string, level: number, subtopic: { title: string; key_concepts: string[] }, corrections = ""): string {
   const concepts = subtopic.key_concepts.length ? subtopic.key_concepts.join(", ") : subtopic.title;
   return `Write a short, clear lesson that teaches ONE subtopic of a course on "${topic}".
 
@@ -822,10 +823,14 @@ function buildLessonPrompt(topic: string, level: number, subtopic: { title: stri
 - key_takeaways: 2-5 one-line points worth remembering.
 - Write for a motivated beginner: concrete, encouraging, no fluff. Do NOT include quiz questions.
 
-${MATH_FORMATTING_RULES}`;
+${MATH_FORMATTING_RULES}${corrections}`;
 }
 
 // Generate + persist a lesson for a subtopic. On-demand; the caller caches by checking getLessons first.
+// `review` (store.ts getReviewConfig; null = off) runs the content review (content-review.ts): a flagged
+// false fact regenerates the lesson once with the flagged sentences named as false; parts still flagged
+// after that are dropped, and a lesson with no section left fails instead of being saved. The input here
+// is (topic, level, subtopic) only, no learner data, so the review payload is learner-free.
 export async function generateLesson(
   courseId: string,
   level: number,
@@ -833,12 +838,13 @@ export async function generateLesson(
   topic: string,
   config: LLMConfig,
   onProgress?: (m: string) => void,
+  review: LLMConfig | null = null,
 ): Promise<Lesson> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
-  const result = await callLLMStructured<LessonContent>(
-    [{ role: "user", content: buildLessonPrompt(topic, level, subtopic) }],
+  const write = (corrections = "") => callLLMStructured<LessonContent>(
+    [{ role: "user", content: buildLessonPrompt(topic, level, subtopic, corrections) }],
     config,
     {
       schema: LESSON_SCHEMA, toolName: "emit_lesson", tier, onProgress: (m) => onProgress?.(m),
@@ -847,6 +853,22 @@ export async function generateLesson(
       validate: lessonIssues,
     },
   );
+
+  let result = await write();
+  if (review) {
+    const flagged = await reviewLesson(topic, subtopic.title, result, review);
+    if (flagged.length) {
+      log.info("generateLesson", `L${level} "${subtopic.title}": review flagged ${flagged.length} part(s) — regenerating once`);
+      result = await write(correctionsNote(flagged));
+      const still = await reviewLesson(topic, subtopic.title, result, review);
+      if (still.length) {
+        const kept = withoutFlaggedParts(result, still);
+        if (!kept) throw new Error("This lesson did not pass its fact check twice, so it was not saved. Try again.");
+        log.info("generateLesson", `L${level} "${subtopic.title}": dropped ${still.length} part(s) still flagged after regeneration`);
+        result = kept;
+      }
+    }
+  }
 
   const content = assembleLessonMarkdown(subtopic.title, result);
   const lesson = await createLesson(courseId, level, subtopic.title, content, subtopic.id);

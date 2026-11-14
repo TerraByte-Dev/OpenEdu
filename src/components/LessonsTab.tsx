@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Lesson, Syllabus, Subtopic } from "../types";
 import { getLessons, getLesson } from "../lib/db";
 import { generateLesson } from "../lib/curriculum";
-import { getGenerationConfig } from "../lib/store";
+import { getGenerationConfig, getReviewConfig } from "../lib/store";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import LessonReader from "./LessonReader";
@@ -43,7 +43,7 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
     setGeneratingId(sub.id);
     try {
       const cfg = await getGenerationConfig();
-      const lesson = await generateLesson(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, cfg);
+      const lesson = await generateLesson(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, cfg, undefined, await getReviewConfig(cfg, "lesson"));
       setLessons((prev) => [lesson, ...prev.filter((l) => l.id !== lesson.id)]);
       return lesson;
     } catch (e) {
