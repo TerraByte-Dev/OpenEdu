@@ -20,6 +20,8 @@ type TurnEvent =
 vi.mock("@tauri-apps/plugin-store", () => import("../eval/headless/shims/plugin-store"));
 
 const replies: Sent[] = [];
+// The tool calls each model call's messages record, as the model reads them back.
+const recordedCalls: unknown[][] = [];
 let script: TurnEvent[][] = [];
 const structured: Array<{ tool: string; messages: Sent; opts: { validate?: (o: unknown) => string[] } }> = [];
 let keyOut: unknown = null;
@@ -29,6 +31,7 @@ vi.mock("../llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../llm")>()),
   callLLMTurn: vi.fn(async function* (messages: Sent) {
     replies.push(messages.map((m) => ({ role: m.role, content: m.content })));
+    recordedCalls.push((messages as Array<{ tool_calls?: unknown[] }>).flatMap((m) => m.tool_calls ?? []));
     for (const ev of script.shift() ?? [{ type: "text", delta: "Okay." }, { type: "done", finishReason: "stop" }]) yield ev;
   }),
   callLLMStructured: vi.fn(async (messages: Sent, _config: unknown, opts: { toolName: string; validate?: (o: unknown) => string[] }) => {
@@ -51,13 +54,14 @@ vi.mock("../db", async (importOriginal) => ({
   getSyllabus: vi.fn(async () => null),
 }));
 
-import { tutorEngine, MASTERY_REFUSED, type TutorTurnResult } from "./TutorEngine";
+import { tutorEngine, MASTERY_REFUSED, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
-import { answerCheckNote, KEY_INSTRUCTION } from "./answerCheck";
+import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION } from "./answerCheck";
 import { ASSESS_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE } from "./checkBeforePraise";
 import { registerBuiltinTools } from "../tools";
 import type { LLMConfig, Syllabus } from "../../types";
+import type { AskChoice } from "../tools/EduTool";
 
 registerBuiltinTools();
 
@@ -76,13 +80,19 @@ const markCall = (status: string): TurnEvent[] => [
   { type: "tool_call", id: "call_0", name: "progress.mark_mastered", args: { subtopic_id: "1.1", status } },
   { type: "done", finishReason: "tool_calls" },
 ];
+const askCall = (question: string, labels: string[], before = ""): TurnEvent[] => [
+  ...(before ? reply(before).slice(0, -1) : []),
+  { type: "tool_call", id: "call_0", name: "ask_user.question", args: { question, choices: labels.map((label, i) => ({ label, value: `c${i}` })) } },
+  { type: "done", finishReason: "tool_calls" },
+];
 
-interface Run { result: TutorTurnResult; shown: string[]; confirms: string[] }
+interface Run { result: TutorTurnResult; shown: string[]; confirms: string[]; cards: Array<{ question: string; choices: AskChoice[] }> }
 
 async function answer(history: Sent, text: string, mode = "explain"): Promise<Run> {
   const { activeSkill, domainSkill } = chatTurnSkills(mode, "Arithmetic", "tiny", true);
   const shown: string[] = [];
   const confirms: string[] = [];
+  const cards: Run["cards"] = [];
   let streamed = "";
   const result = await tutorEngine.run(
     {
@@ -94,10 +104,12 @@ async function answer(history: Sent, text: string, mode = "explain"): Promise<Ru
       courseId: "c-1", level: 1, syllabus: SYLLABUS, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
       abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true,
       confirmTool: async (tool) => { confirms.push(tool); return true; },
+      // The question card ChatTab shows; the student picks the first choice.
+      askUser: async (question, choices) => { cards.push({ question, choices }); return choices[0].value; },
     },
   );
   expect(streamed, "what streamed is what the turn returns").toBe(result.text);
-  return { result, shown, confirms };
+  return { result, shown, confirms, cards };
 }
 
 const lastUser = (sent: Sent) => sent.filter((m) => m.role === "user").pop()!.content;
@@ -124,6 +136,7 @@ const FALSE_DOUBT = "Not quite. Let's check: 6 x 8 is 48.";
 
 beforeEach(() => {
   replies.length = 0;
+  recordedCalls.length = 0;
   structured.length = 0;
   marks.length = 0;
   script = [];
@@ -467,5 +480,132 @@ describe("failures and turns that get no check", () => {
     );
     expect(structured).toEqual([]);
     expect(result.answerCheck).toBeNull();
+  });
+});
+
+// ── Gaps a review of the first version found (2026-11-14) ───────────────────────────────────────
+// The replies are a reviewer's hand-written probes, reworded for 6 x 8, and replies made up here.
+
+describe("praise the first version let through, in a whole turn", () => {
+  it.each([
+    "Great job, can you tell me how you got 46?",
+    "That's correct, so what is 7 x 8?",
+    "46 is correct!",
+    "Your answer of 46 is correct.",
+    "Yes 46 is right.",
+    "That answer is correct.",
+    "🎉 Correct!",
+    "✅ Correct\n",
+    "Great answer!",
+    "You figured it out!",
+    "That's spot-on!",
+    "Very good!",
+    "¡Muy bien!",
+  ])("%j after a wrong answer never reaches the child", async (praise) => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [reply(`${praise}${praise.endsWith("\n") ? "" : " "}Let's look at 6 x 8 together.`)];
+    const { result, shown } = await answer(CHECK, "46");
+    expect(result.answerCheck?.verdict).toBe("incorrect");
+    for (const s of shown) expect(s).not.toMatch(/correct!|is correct|is right|great|very good|figured|spot-on|muy bien|🎉|✅/i);
+    expect(result.text).toMatch(/^That's not right yet\.\s(?:Can you tell me how you got 46\? |What is 7 x 8\? )?Let's look at 6 x 8 together\.$/);
+  });
+
+  it("a reply that teaches, with words close to praise, comes through byte for byte", async () => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    const text = "Not quite. Good question to ask, though! The correct answer is 48, and 8 x 6 = 48 is correct too. " +
+      "Let's make sure we multiply correctly: 6 x 8 is 8 more than 6 x 7. Can you tell me how you got 46? Try again with 6 x 7 = 42 in mind.";
+    script = [reply(text)];
+    const { result } = await answer(CHECK, "46");
+    expect(result.text).toBe(text);
+    expect(result.removedClaims).toEqual([]);
+  });
+
+  it("two questions: a true word about the first answer stays", async () => {
+    keyOut = { question: "What is 7 x 9? What is 8 x 9?", working: "7 x 9 = 63; 8 x 9 = 72", answer: "63; 72" };
+    gradeOut = { student_answer: "63 and 71", verdict: "incorrect" };
+    const text = "You got the first one right, but the second one is wrong. Your first answer was correct, so look again at 8 x 9.";
+    script = [reply(text)];
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor("Two quick ones. What is 7 x 9? What is 8 x 9?")], "63 and 71");
+    expect(result.text).toBe(text);
+  });
+
+  it("a right answer: \"try it again with\" a new one is not doubt, a question asking for another go is", async () => {
+    script = [reply("That's right! Let's try it again with 7 x 8. Can you try again?")];
+    const { result } = await answer(CHECK, "48");
+    expect(result.text).toBe("That's right! Let's try it again with 7 x 8.");
+  });
+
+  it("a mastery claim the first version let through is taken out", async () => {
+    script = [reply("That's right! I can see you've mastered this! Now you can say you've mastered it! What is 7 x 8?")];
+    const { result } = await answer(CHECK, "48");
+    expect(result.text).toBe("That's right! What is 7 x 8?");
+  });
+});
+
+describe("a mastery check the student types", () => {
+  it.each(["Check if I've got this", "quiz me", "Test me on times tables.", "Can you check if I mastered times tables?", "Am I ready for the test?", "Okay, can you quiz me on this?"])(
+    "%j opens a check: the answer after it gets a verdict, and its praise is taken out",
+    async (request) => {
+      expect(asksForMasteryCheck(request)).toBe(true);
+      gradeOut = { student_answer: "46", verdict: "incorrect" };
+      script = [reply(FALSE_PRAISE)];
+      const { result } = await answer([student(request), tutor(Q_MULT)], "46");
+      expect(result.answerCheck).toMatchObject({ key: "48", verdict: "incorrect" });
+      expect(result.text).not.toMatch(PRAISE);
+    },
+  );
+
+  it.each(["Can you check my spelling?", "Can you check this sentence?", "Check if I got this right", "My teacher will quiz me tomorrow, can you help?", "Don't quiz me yet."])(
+    "%j does not", async (request) => {
+      expect(asksForMasteryCheck(request)).toBe(false);
+      script = [reply("That is correct! Great job.")];
+      const { result } = await answer([student(request), tutor(Q_MULT)], "46");
+      expect(structured).toEqual([]);
+      expect(result.answerCheck).toBeNull();
+      expect(result.text).toBe("That is correct! Great job.");
+    },
+  );
+
+  it("the request's own turn takes a mastery claim out, and the request is never read as an answer", async () => {
+    script = [reply("You have mastered times tables already! What is 6 x 8?")];
+    const { result } = await answer([student("Teach me times tables."), tutor(Q_MULT)], "Can you test me on times tables?");
+    expect(structured).toEqual([]);
+    expect(result.answerCheck).toBeNull();
+    expect(result.text).toBe("What is 6 x 8?");
+  });
+});
+
+describe("an ask_user.question card in a mastery check", () => {
+  it("after a wrong answer, its praise is taken out before the child sees it, and the model's record holds what was shown", async () => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [askCall("Correct! Ready for the next one?", ["Yes!", "Great job, next one"]), reply("Great job! What is 7 x 8?")];
+    const { result, cards } = await answer(CHECK, "46", "assess");
+    expect(cards).toEqual([{ question: "That's not right yet. Ready for the next one?", choices: [{ label: "Yes!", value: "c0" }, { label: "Next one", value: "c1" }] }]);
+    expect(result.toolCalls[0]).toMatchObject({ name: "ask_user.question", ok: true, args: { question: "That's not right yet. Ready for the next one?" } });
+    expect(recordedCalls[1]).toEqual([{ id: "0_call_0", name: "ask_user.question", args: { question: "That's not right yet. Ready for the next one?", choices: [{ label: "Yes!", value: "c0" }, { label: "Next one", value: "c1" }] } }]);
+    // The reply said the verdict through the card, so no second line.
+    expect(result.text).toBe("What is 7 x 8?");
+  });
+
+  it("a card left with no question is not shown, and the model is told", async () => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [askCall("Well done!", ["Next", "Stop"], "Not quite. 6 x 8 is 48."), reply("Want to try 7 x 8?")];
+    const { result, cards } = await answer(CHECK, "46", "assess");
+    expect(cards).toEqual([]);
+    expect(result.toolCalls[0]).toMatchObject({ name: "ask_user.question", ok: false });
+    expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${CARD_REFUSED}`);
+    expect(result.text).toBe("Not quite. 6 x 8 is 48.Want to try 7 x 8?");
+  });
+
+  it("on the check's opening turn, a mastery claim in the card is taken out", async () => {
+    script = [askCall("You have mastered sharing! Which topic should we check next?", ["Times tables", "Sharing"]), reply("What is 6 x 8?")];
+    const { cards } = await answer([student("Teach me times tables."), tutor("Times tables are groups of the same number.")], ASSESS_MESSAGE, "assess");
+    expect(cards[0].question).toBe("Which topic should we check next?");
+  });
+
+  it("a card with nothing to take out is shown as the model wrote it", async () => {
+    script = [askCall("Which topic should we check?", ["Times tables", "Sharing"]), reply("What is 6 x 8?")];
+    const { cards } = await answer([student("Teach me times tables."), tutor("Times tables are groups of the same number.")], ASSESS_MESSAGE, "assess");
+    expect(cards).toEqual([{ question: "Which topic should we check?", choices: [{ label: "Times tables", value: "c0" }, { label: "Sharing", value: "c1" }] }]);
   });
 });

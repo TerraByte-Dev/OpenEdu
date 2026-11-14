@@ -209,9 +209,13 @@ So the verdict on the child's answer is the app's, not the reply's:
 
 - **When.** The newest message is the student's answer (not a request, a question back or a meaning
   question) to the tutor's message just before it, in a mastery check: the turn runs in assess mode, or
-  the assess chip's message (`ASSESS_MESSAGE`) is among the student's last four messages. The chat resets
-  the mode after every send, so in the app the answers arrive in the default mode; the chip in the
-  history is what marks the check.
+  a request for one is among the student's last four messages: the assess chip's message
+  (`ASSESS_MESSAGE`) or the same request typed (`asksForMasteryCheck`: "quiz me", "test me on
+  fractions", "can you check if I've mastered fractions?", "am I ready for the test?", opening the
+  message or a clause of it; not "check my spelling", "check if I got this right" or "my teacher will
+  quiz me tomorrow"). The chat resets the mode after every send, so in the app the answers arrive in the
+  default mode; the request in the history is what marks the check. A typed request runs in the
+  default mode, not assess.
 - **The key, blind.** One structured call reads only the tutor's message and returns the question it
   asked (copied; validated against the message), one or two lines of working, and the answer. It never
   sees the student's answer: a 2B model judging an answer it has just read leans toward agreeing, and
@@ -242,9 +246,17 @@ So the verdict on the child's answer is the app's, not the reply's:
   `incorrect` verdict, praise for the answer ("That is correct!", "You correctly found…") is taken out;
   against `partly`, whole-answer praise; against `correct`, doubt ("Not quite", "try again"); against
   `unsure`, both. "Great, but 6 x 8 is 48." keeps "6 x 8 is 48."; the first claim taken out becomes
-  the verdict in one line ("That's not right yet.") unless the reply already said it. Questions,
-  conditions and anything in code are never read. A reply left empty says the verdict
-  (`VERDICT_FALLBACK`).
+  the verdict in one line ("That's not right yet.") unless the reply already said it. Praise includes
+  the student's own answer as the subject ("72 is correct!", when 72 is theirs and not the key's),
+  "that answer", a leading ✅ ✔ ☑ 💯 🎉, common phrases ("Great answer!", "You figured it out!") and
+  a few Spanish and French ones ("¡Muy bien!", "Très bien !"). A question is not read, but the
+  statement before it in the same sentence is ("Great job, can you tell me how you got 72?" keeps the
+  question); a request for another go ("Can you try again?") is doubt even as a question. Not claims:
+  conditions, instructions ("make sure you multiply correctly"), words about another of several
+  answers ("You got the first one right"), and anything in code. A reply left empty says the verdict
+  (`VERDICT_FALLBACK`). An `ask_user.question` card is the tutor speaking too: its question and choice
+  labels go through the same filter (a label gets no verdict line, and a bare "Yes!" stays); a card
+  left with no question or under two choices is not shown, and the model is told (`CARD_REFUSED`).
 - **Mastery claims, in a mastery check.** "You have mastered…", "I will mark that as mastered" and the
   like are taken out unless a `progress.mark_mastered` call saved a `mastered` mark earlier in the same
   turn. Rules about mastery ("A skill is marked as mastered after the quiz") are not claims. Outside a
@@ -258,8 +270,8 @@ The turn result carries `answerCheck` (question, key, verdict, how it was reache
 turn: one structured call, two when code cannot settle it; each is its own short prompt, so on Ollama
 the reply then re-prefills the system prompt once. Known limits: the key is only as good as the model
 on that question (a wrong key on a non-arithmetic question can mark a right answer wrong when the
-grader agrees with it); a claim worded outside the filter's patterns gets through; a mastery claim in
-the same model call as the mark that saves it is taken out.
+grader agrees with it); a claim worded outside the filter's patterns gets through (in any language
+but English, most do); a mastery claim in the same model call as the mark that saves it is taken out.
 
 A model can also write a tool call as plain reply text that Ollama never parses (gemma4:e2b writes
 `progress.mark_mastered{status:<|"|>mastered<|"|>,...}<tool_call|>` without its opening frame). Every

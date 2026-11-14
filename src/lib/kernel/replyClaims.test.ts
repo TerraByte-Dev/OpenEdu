@@ -143,3 +143,177 @@ describe("against a verdict", () => {
     expect(rejects("Is that wrong?")).toBe(false);
   });
 });
+
+// ── Gaps a review of the first version found (2026-11-14). The replies are a reviewer's hand-written
+// probes and replies made up for this file; none comes from an eval set. Each is checked both ways:
+// the claim is taken out, and a true or teaching sentence worded close to it stays.
+
+/** A wrong answer of 72 to a question whose key is 63, as TutorEngine sets the filter up. */
+const wrong72: ClaimFilterOptions = { verdict: "incorrect", masteryWritten: () => false, answer: { student: "72", key: "63" } };
+const right48: ClaimFilterOptions = { verdict: "correct", masteryWritten: () => false, answer: { student: "48", key: "48" } };
+const each = (text: string, o: ClaimFilterOptions) => {
+  const outs = streamed(text, o);
+  for (const out of outs) expect(out, "every way it streams").toBe(outs[0]);
+  return outs[0];
+};
+
+describe("praise of a wrong answer the first version let through", () => {
+  it.each([
+    // The statement before a question in the same sentence.
+    ["Great job, can you tell me how you got 72?", "That's not right yet. Can you tell me how you got 72?"],
+    ["That's correct, so what is 8 x 9?", "That's not right yet. What is 8 x 9?"],
+    ["Well, that's correct, so what's next?", "That's not right yet. What's next?"],
+    ["That's correct — ready for the next one?", "That's not right yet. Ready for the next one?"],
+    ["You've got it, haven't you?", "That's not right yet. Haven't you?"],
+    // The student's answer, or "that answer", as the subject.
+    ["72 is correct!", "That's not right yet."],
+    ["Your answer of 72 is correct.", "That's not right yet."],
+    ["Yes 72 is right", "That's not right yet."],
+    ["**72** is correct, well done.", "That's not right yet."],
+    ["That answer is correct.", "That's not right yet."],
+    ["This answer is right!", "That's not right yet."],
+    // Leading emoji and marks.
+    ["🎉 Correct!", "That's not right yet."],
+    ["✅ Correct", "That's not right yet."],
+    ["💯 Now try 7 x 8.", "That's not right yet. Now try 7 x 8."],
+    ["Correct! 🎉 Now try 7 x 8.", "That's not right yet. Now try 7 x 8."],
+    ["Correct! 🎉", "That's not right yet."],
+    // Common praise.
+    ...["Great answer!", "Good answer!", "Awesome work!", "Amazing work!", "Super job!", "You did it!", "You solved it!", "You figured it out!",
+      "That's great!", "Very good!", "Correct answer!", "That's spot-on!", "That's it!", "Exactly!", "Nailed it!", "Perfect!",
+      "What a great answer!", "That's a great answer."].map((p) => [p, "That's not right yet."]),
+    ["That's perfect, now try 7 x 8.", "That's not right yet. Now try 7 x 8."],
+    // Spanish and French.
+    ...["¡Muy bien!", "¡Correcto!", "¡Excelente!", "¡Bien hecho!", "Très bien !", "Bravo !", "C'est correct !"].map((p) => [p, "That's not right yet."]),
+    ["¡Muy bien! Ahora intenta 7 x 8.", "That's not right yet. Ahora intenta 7 x 8."],
+  ])("%j", (text, out) => {
+    expect(each(text, wrong72)).toBe(out);
+  });
+
+  it("partly right: the wrong part's value is not praised, the right part's may be", () => {
+    const o: ClaimFilterOptions = { verdict: "partly", masteryWritten: () => false, answer: { student: "62 and 72", key: "63; 72" } };
+    expect(each("62 is correct. Now look at the first one again.", o)).toBe("That's partly right. Now look at the first one again.");
+    expect(each("72 is correct, but check the first one.", o)).toBe("72 is correct, but check the first one.");
+  });
+});
+
+describe("true and teaching sentences close to praise stay, on a wrong answer", () => {
+  it.each([
+    // About another of several answers.
+    "You got the first one right, but the second one is wrong.",
+    "Your first answer was correct, but the second is not.",
+    "Great job on the first one, but the second one needs another look.",
+    // Instructions and rules.
+    "Let's make sure we multiply correctly.",
+    "Make sure you multiply correctly.",
+    "Make sure you did it right.",
+    "You need to line the digits up correctly.",
+    "A good answer shows the steps.",
+    "It's great to check your work.",
+    "Correct answer: 63.",
+    "The correct answer is 63.",
+    "63 is the right answer.",
+    "Page 72 is correct: it has the table of 9s.",
+    // The key, or another fact, named with a value.
+    "8 x 9 = 72 is correct, but this question is 7 x 9.",
+    "72 is 8 x 9, not 7 x 9.",
+    "If 72 were right, 7 x 10 would be 81.",
+    // Questions, and statements before them that claim nothing.
+    "Good question! 6 x 8 is 48.",
+    "Great question! Let's look at 7 x 9.",
+    "Can you tell me how you got 72?",
+    "Is 72 right? Let's check: 7 x 9 is 63.",
+    "So, what did you do first?",
+    "When you're ready, what is 7 x 9?",
+    "Exactly how did you get 72?",
+    "Exactly how did you get 72, and why?",
+    "Right now, what is 7 x 9?",
+    "That's it for this question: 7 x 9 is 63.",
+    "You did it the long way, so let's try a shorter one.",
+    "Bien, ahora intenta 7 x 9.",
+    "Remember: 7 x 9 is 63. ⭐",
+    "Not quite. Try again with 7 x 9 = 63 in mind.",
+  ])("%j", (text) => {
+    expect(each(text, wrong72)).toBe(text);
+  });
+});
+
+describe("doubt of a right answer", () => {
+  it.each([
+    ["48 is wrong.", "That's right."],
+    ["Not quite, can you try again?", "That's right."],
+    ["That's right! Want to try again?", "That's right!"],
+    ["¡Casi!", "That's right."],
+    ["Pas tout à fait. 6 x 8 = 48.", "That's right. 6 x 8 = 48."],
+  ])("%j is taken out", (text, out) => {
+    expect(each(text, right48)).toBe(out);
+  });
+
+  it.each([
+    "That's right! Now let's try again with 8 x 9.",
+    "Great! Let's try it again with 8 x 9.",
+    "That's right! Let's try again using a number line.",
+    "That's right! Make sure you check your work next time.",
+    "That's right! 46 is wrong because it is 2 short.",
+  ])("%j stays", (text) => {
+    expect(each(text, right48)).toBe(text);
+  });
+});
+
+describe("mastery claims the first version let through", () => {
+  it.each([
+    "I can see you've mastered this!",
+    "Let's mark it as mastered.",
+    "You've got mastery of this.",
+    "Now you can say you've mastered it!",
+    "You've mastered this, haven't you?",
+  ])("%j is taken out when nothing was saved", (claim) => {
+    expect(run(`Nice thinking. ${claim} Want another one?`)).toBe("Nice thinking. Want another one?");
+  });
+
+  it.each([
+    "Let's see how well you've mastered this.",
+    "We'll see if you have mastered it in the quiz.",
+    "Once you've mastered this, we'll move on.",
+    "Do you think you've mastered it?",
+  ])("%j stays", (text) => {
+    expect(run(text)).toBe(text);
+  });
+});
+
+describe("an ask_user.question card", () => {
+  const choices = (...labels: string[]) => labels.map((label, i) => ({ label, value: `v${i}` }));
+
+  it("its question is read like the reply, and the first claim taken out becomes the verdict line", () => {
+    const f = new ReplyClaimFilter(wrong72);
+    expect(f.card({ question: "Correct! Ready for the next one?", choices: choices("Yes!", "Not yet") }))
+      .toEqual({ question: "That's not right yet. Ready for the next one?", choices: choices("Yes!", "Not yet") });
+    expect(f.removed).toEqual([{ kind: "verdict", text: "Correct!" }]);
+  });
+
+  it("a label's claim is taken out with no line put in; the student's own short replies stay; an emptied label drops its choice", () => {
+    const f = new ReplyClaimFilter(wrong72);
+    const out = f.card({ question: "What next?", choices: [...choices("Great job, next one", "Correct ✅", "No"), { label: "Well done!", value: "w" }] }) as { choices: unknown };
+    expect(out.choices).toEqual([{ label: "Next one", value: "v0" }, { label: "Correct ✅", value: "v1" }, { label: "No", value: "v2" }]);
+  });
+
+  it("shares the reply's state: no second verdict line, and a card left with no question is no card", () => {
+    const f = new ReplyClaimFilter(wrong72);
+    expect(f.push("Correct!") + f.flush()).toBe("That's not right yet.");
+    expect(f.card({ question: "Well done! Next?", choices: choices("Yes", "No") })).toEqual({ question: "Next?", choices: choices("Yes", "No") });
+    expect(f.card({ question: "Well done!", choices: choices("Yes", "No") })).toBeNull();
+    expect(f.card({ question: "Which one next?", choices: choices("Great job!", "No") })).toBeNull();
+  });
+
+  it("a mastery claim in it is taken out on the check's opening turn too", () => {
+    const f = new ReplyClaimFilter({ verdict: null, masteryWritten: () => false });
+    expect(f.card({ question: "You've mastered this! Which topic next?", choices: choices("Sharing", "Times tables") }))
+      .toEqual({ question: "Which topic next?", choices: choices("Sharing", "Times tables") });
+  });
+
+  it("outside a mastery check, or not shaped like a card, it is returned as it is", () => {
+    const args = { question: "Correct! Ready?", choices: choices("Yes", "No") };
+    expect(new ReplyClaimFilter({ verdict: null, masteryWritten: () => false, checkMastery: false }).card(args)).toBe(args);
+    expect(new ReplyClaimFilter(wrong72).card({ question: 5 })).toEqual({ question: 5 });
+  });
+});
