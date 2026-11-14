@@ -520,13 +520,21 @@ describe("praise the first version let through, in a whole turn", () => {
     expect(result.removedClaims).toEqual([]);
   });
 
-  it("two questions: a true word about the first answer stays", async () => {
+  it("two questions, partly right: a true word about the first answer stays", async () => {
     keyOut = { question: "What is 7 x 9? What is 8 x 9?", working: "7 x 9 = 63; 8 x 9 = 72", answer: "63; 72" };
-    gradeOut = { student_answer: "63 and 71", verdict: "incorrect" };
+    gradeOut = { student_answer: "63 and 71", verdict: "partly" };
     const text = "You got the first one right, but the second one is wrong. Your first answer was correct, so look again at 8 x 9.";
     script = [reply(text)];
     const { result } = await answer([student(ASSESS_MESSAGE), tutor("Two quick ones. What is 7 x 9? What is 8 x 9?")], "63 and 71");
     expect(result.text).toBe(text);
+  });
+
+  it("two questions, wrong: the app's verdict covers both answers, so a word praising one of them is taken out", async () => {
+    keyOut = { question: "What is 7 x 9? What is 8 x 9?", working: "7 x 9 = 63; 8 x 9 = 72", answer: "63; 72" };
+    gradeOut = { student_answer: "62 and 71", verdict: "incorrect" };
+    script = [reply("Your first answer is correct. Look again at 8 x 9.")];
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor("Two quick ones. What is 7 x 9? What is 8 x 9?")], "62 and 71");
+    expect(result.text).toBe("That's not right yet. Look again at 8 x 9.");
   });
 
   it("a right answer: \"try it again with\" a new one is not doubt, a question asking for another go is", async () => {
@@ -603,9 +611,61 @@ describe("an ask_user.question card in a mastery check", () => {
     expect(cards[0].question).toBe("Which topic should we check next?");
   });
 
+  it("after a wrong answer, a card the child sees before any text leads with the verdict, and the text after it does not repeat it", async () => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [askCall("What is 6 x 7?", ["42", "48"]), reply("Now add one more 6.")];
+    const { result, cards } = await answer(CHECK, "46", "assess");
+    expect(cards[0].question).toBe("That's not right yet. What is 6 x 7?");
+    expect(result.text).toBe("Now add one more 6.");
+  });
+
   it("a card with nothing to take out is shown as the model wrote it", async () => {
     script = [askCall("Which topic should we check?", ["Times tables", "Sharing"]), reply("What is 6 x 8?")];
     const { cards } = await answer([student("Teach me times tables."), tutor("Times tables are groups of the same number.")], ASSESS_MESSAGE, "assess");
     expect(cards).toEqual([{ question: "Which topic should we check?", choices: [{ label: "Times tables", value: "c0" }, { label: "Sharing", value: "c1" }] }]);
+  });
+});
+
+// ── A wrong answer the reply never calls wrong (B9 rerun 2, gemma4:e2b) ─────────────────────────
+// The app's verdict was right on 53 of 55 wrong answers, yet about 9 replies never told the child: they
+// re-explained, moved on, or answered question 1 when the child was answering question 2. The replies
+// below are excerpts from that run, reworded for the fixtures here.
+
+describe("a wrong answer the reply never calls wrong", () => {
+  it.each([
+    "I see you are thinking about how to share things equally. What is 6 x 8?",
+    "You said a proton has no charge. Let's look at the question again.",
+    "The answer is 16.",
+  ])("%j: the child sees the verdict first, from the first piece shown", async (text) => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [reply(text)];
+    const { result, shown } = await answer(CHECK, "46");
+    expect(result.text).toBe(`That's not right yet. ${text}`);
+    for (const s of shown) expect(s.startsWith("That's not right yet.")).toBe(true);
+  });
+
+  it("not after a right answer", async () => {
+    script = [reply("The answer is 16.")];
+    expect((await answer(CHECK, "48")).result.text).toBe("The answer is 16.");
+  });
+
+  it("an empty reply gets the fallback once, not the line twice", async () => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [reply("")];
+    expect((await answer(CHECK, "46")).result.text).toBe("That's not right yet. Want to try again?");
+  });
+
+  it("the reply is told which question the child answered", async () => {
+    keyOut = { question: "What is 4 x 5?", working: "4 x 5 = 20", answer: "20" };
+    gradeOut = { student_answer: "16", verdict: "incorrect" };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor("Good. Question 1: What is 2 x 8? Question 2: What is 4 x 5?")], "16");
+    expect(result.answerCheck).toMatchObject({ question: "What is 4 x 5?", verdict: "incorrect" });
+    expect(lastUser(replies[0])).toContain("The question was: What is 4 x 5?\n");
+  });
+
+  it("with no question copied (a failed key call), no question line", async () => {
+    keyOut = new Error("timeout");
+    await answer([student(ASSESS_MESSAGE), tutor(Q_PLANTS)], "oxygen");
+    expect(lastUser(replies[0])).not.toContain("The question was");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ReplyClaimFilter, filterReplyClaims, praises, rejects, claimsMastery, type ClaimFilterOptions } from "./replyClaims";
+import { ReplyClaimFilter, filterReplyClaims, praises, rejects, claimsMastery, VERDICT_LINE, type ClaimFilterOptions } from "./replyClaims";
 import type { Verdict } from "./answerCheck";
 
 // The claim filter the kernel runs every model call's text through (TutorEngine.ts; the turns
@@ -39,9 +39,15 @@ describe("text with no claim comes out byte for byte, however it streams", () =>
     "1. Add the tens.\n2. Then the ones:\n\n    ```\n    print(\"You have mastered loops\")\n    ```\n\nDone.",
   ];
   it.each(replies)("%j", (text) => {
-    for (const verdict of [null, "correct", "incorrect", "partly", "unsure"] as const) {
+    for (const verdict of [null, "correct", "partly", "unsure"] as const) {
       for (const out of streamed(text, opts(verdict))) expect(out, String(verdict)).toBe(text);
     }
+  });
+
+  // On a wrong answer a reply that never says so gets the verdict line first (below); the rest is untouched.
+  it.each(replies)("%j, on a wrong answer, after the verdict line", (text) => {
+    const led = !text ? "" : /^(?:```|\d+\.\s)/.test(text) ? `${VERDICT_LINE.incorrect}\n\n${text}` : `${VERDICT_LINE.incorrect} ${text}`;
+    for (const out of streamed(text, opts("incorrect"))) expect(out).toBe(led);
   });
 });
 
@@ -234,7 +240,8 @@ describe("true and teaching sentences close to praise stay, on a wrong answer", 
     "Remember: 7 x 9 is 63. ⭐",
     "Not quite. Try again with 7 x 9 = 63 in mind.",
   ])("%j", (text) => {
-    expect(each(text, wrong72)).toBe(text);
+    // Kept whole; a reply that has not said the verdict yet gets the line before it.
+    expect([text, `${VERDICT_LINE.incorrect} ${text}`]).toContain(each(text, wrong72));
   });
 });
 
@@ -315,5 +322,148 @@ describe("an ask_user.question card", () => {
     const args = { question: "Correct! Ready?", choices: choices("Yes", "No") };
     expect(new ReplyClaimFilter({ verdict: null, masteryWritten: () => false, checkMastery: false }).card(args)).toBe(args);
     expect(new ReplyClaimFilter(wrong72).card({ question: 5 })).toEqual({ question: 5 });
+  });
+});
+
+// ── A wrong answer the reply never calls wrong (B9 rerun 2, gemma4:e2b, 2026-11-14) ────────────────
+// The app's verdict was right, but the reply re-explained, moved on, or answered another question, and
+// after a tutor line that was often praise, silence reads as "fine". The first three replies are
+// excerpts from that run; the rest are made up.
+
+describe("on a wrong answer the reply does not call wrong, the child sees the verdict first", () => {
+  const LINE = VERDICT_LINE.incorrect;
+
+  it.each([
+    "I see you are thinking about how to share things equally. If you have 12 cookies and 3 friends, how many does each friend get?",
+    "You said a proton has no charge. Let's look at the parts of an atom again.",
+    "The answer is 16.",
+  ])("%j", (text) => {
+    expect(each(text, wrong72)).toBe(`${LINE} ${text}`);
+  });
+
+  it("not when its first sentence says it, or the line already took a claim's place", () => {
+    for (const text of ["That is not correct. 7 x 9 is 63.", "Not quite! Let's count by 9s.", "72 is wrong. Try 7 x 9 again.", "Can you try again?"]) {
+      expect(each(text, wrong72), text).toBe(text);
+    }
+    expect(each("Great! Let's look at it again. Correct answers show the steps.", wrong72)).toBe(`${LINE} Let's look at it again. Correct answers show the steps.`);
+  });
+
+  it("decided at the first sentence shown: a reply that says it only later still opens with it", () => {
+    expect(each("Let's look at 7 x 9 again. That is not correct.", wrong72)).toBe(`${LINE} Let's look at 7 x 9 again. That is not correct.`);
+  });
+
+  it("a first sentence taken out for a mastery claim does not count: the line leads what is shown", () => {
+    expect(each("You have mastered this. Let's look at 7 x 9 again.", wrong72)).toBe(`${LINE} Let's look at 7 x 9 again.`);
+  });
+
+  it("before a heading, a list or a code fence, as its own paragraph", () => {
+    expect(each("### Let's look again\n\nWhat is 7 x 9?", wrong72)).toBe(`${LINE}\n\n### Let's look again\n\nWhat is 7 x 9?`);
+    expect(each("- 7 x 9 is 7 nines.\n- Count by 9s.", wrong72)).toBe(`${LINE}\n\n- 7 x 9 is 7 nines.\n- Count by 9s.`);
+    expect(each("```\n7 x 9\n```\nWhat is it?", wrong72)).toBe(`${LINE}\n\n\`\`\`\n7 x 9\n\`\`\`\nWhat is it?`);
+  });
+
+  it("once per turn, across model calls", () => {
+    const f = new ReplyClaimFilter(wrong72);
+    const first = f.push("Let me check my notes.") + f.flush();
+    const second = f.push(" Here is how 7 x 9 works.") + f.flush();
+    expect(first + second).toBe(`${LINE} Let me check my notes. Here is how 7 x 9 works.`);
+  });
+
+  it("not on a right, partly right or unsure answer", () => {
+    const text = "I see you are thinking about how to share things equally.";
+    for (const verdict of ["correct", "partly", "unsure"] as const) expect(run(text, verdict)).toBe(text);
+  });
+
+  it("a reply with nothing in it shows nothing (the kernel's VERDICT_FALLBACK answers for it)", () => {
+    expect(run("", "incorrect")).toBe("");
+    expect(run("  \n", "incorrect")).toBe("  \n");
+  });
+
+  it("an ask_user.question card the child sees first leads with it; one after the reply's text does not, and labels never do", () => {
+    const choices = [{ label: "56", value: "a" }, { label: "54", value: "b" }];
+    const first = new ReplyClaimFilter(wrong72);
+    expect(first.card({ question: "What is 7 x 8?", choices })).toEqual({ question: `${LINE} What is 7 x 8?`, choices });
+    expect(first.push("Let's see.") + first.flush()).toBe("Let's see.");
+    const after = new ReplyClaimFilter(wrong72);
+    expect(after.push("Let's see.") + after.flush()).toBe(`${LINE} Let's see.`);
+    expect(after.card({ question: "What is 7 x 8?", choices })).toEqual({ question: "What is 7 x 8?", choices });
+  });
+
+  it("a card that is not shown does not use the line up", () => {
+    const f = new ReplyClaimFilter(wrong72);
+    expect(f.card({ question: "What is 7 x 8?", choices: [{ label: "Great job!", value: "a" }, { label: "56", value: "b" }] })).toBeNull();
+    expect(f.push("Let's see.") + f.flush()).toBe(`${LINE} Let's see.`);
+  });
+});
+
+describe("the readers' gaps on B9 rerun 2", () => {
+  it("praise for some of the answer is praise for a part: taken out on a wrong answer, kept on a partly right one", () => {
+    expect(praises("You got some of the notes correct.")).toBe(false);
+    expect(praises("You got some of the notes correct.", true)).toBe(true);
+    expect(praises("Some of your answer is right.")).toBe(false);
+    expect(praises("Some of your answer is right.", true)).toBe(true);
+    expect(praises("Most of your steps were right.", true)).toBe(true);
+    expect(praises("Some of the notes are not correct.", true)).toBe(false);
+    expect(praises("Most of the time the right steps are the short ones.", true)).toBe(false);
+    expect(each("You got some of the notes correct. Look at the last two again.", wrong72)).toBe(`${VERDICT_LINE.incorrect} Look at the last two again.`);
+    expect(each("Some of your answer is right.", wrong72)).toBe(VERDICT_LINE.incorrect);
+    const partly: ClaimFilterOptions = { verdict: "partly", masteryWritten: () => false };
+    expect(each("Some of your answer is right. Look at the last two notes again.", partly)).toBe("Some of your answer is right. Look at the last two notes again.");
+  });
+
+  describe("one answer of two in one reply, on a wrong verdict", () => {
+    // Two questions in one message are keyed together, "63; 72". The verdict is on both answers, so
+    // "your first answer" is part of the answer being checked.
+    const two: ClaimFilterOptions = { verdict: "incorrect", masteryWritten: () => false, answer: { student: "62 and 71", key: "63; 72" } };
+    it.each([
+      ["Your first answer is correct.", VERDICT_LINE.incorrect],
+      ["The second one was right!", VERDICT_LINE.incorrect],
+      ["You got the first one right, but the second one is wrong.", `${VERDICT_LINE.incorrect} The second one is wrong.`],
+      ["Great job on the first one! Now look at 8 x 9.", `${VERDICT_LINE.incorrect} Now look at 8 x 9.`],
+    ])("%j is praise", (text, out) => {
+      expect(each(text, two)).toBe(out);
+    });
+
+    it("praises reads it so only when told the answer had several parts", () => {
+      expect(praises("Your first answer is correct.")).toBe(false);
+      expect(praises("Your first answer is correct.", true, null, true)).toBe(true);
+      expect(praises("Your first answer is not correct.", true, null, true)).toBe(false);
+      expect(praises("Make sure your first answer is correct.", true, null, true)).toBe(false);
+    });
+
+    it("one answer (\"first\" is an earlier question's) keeps it; with no key to tell, it is praise", () => {
+      expect(each("Your first answer was correct, but this one is not.", wrong72)).toBe(`${VERDICT_LINE.incorrect} Your first answer was correct, but this one is not.`);
+      expect(run("Your first answer is correct.", "incorrect")).toBe(VERDICT_LINE.incorrect);
+    });
+
+    it("on a partly right verdict it stays", () => {
+      const o: ClaimFilterOptions = { ...two, verdict: "partly" };
+      expect(each("Your first answer is correct, but look again at 8 x 9.", o)).toBe("Your first answer is correct, but look again at 8 x 9.");
+    });
+  });
+
+  it.each([
+    "Those notes are not correct.",
+    "These answers aren't right.",
+    "That is not the verb in that sentence.",
+    "That is not the best description of a mammal.",
+    "That's not a mammal.",
+    "The word for 'cat' in Spanish is different.",
+    "The answer is a little different.",
+  ])("%j says the answer is wrong: no line is added", (text) => {
+    expect(rejects(text)).toBe(true);
+    expect(each(text, wrong72)).toBe(text);
+  });
+
+  it.each([
+    "That's not the only way to do it.",
+    "That's not a problem!",
+    "That's not a bad start.",
+    "These steps are not right for every number.",
+    "The area of a square is different from the area of a rectangle.",
+    "If the word is different, look it up.",
+  ])("%j is not doubt: it stays on a right answer", (text) => {
+    expect(rejects(text)).toBe(false);
+    expect(each(`That's right! ${text}`, right48)).toBe(`That's right! ${text}`);
   });
 });
