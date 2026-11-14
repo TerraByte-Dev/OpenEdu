@@ -48,7 +48,7 @@ export function isLocalUrl(value: string, pageUrl: string = window.location.href
 
 // True when CSS text would fetch from another host. CSS escapes (\75 rl( is url() and comments are
 // undone first; image-set(), src() and @import can load without url(), so they always count.
-function cssLoadsRemote(css: string): boolean {
+export function cssLoadsRemote(css: string): boolean {
   const text = css
     .replace(/\/\*[\s\S]*?(\*\/|$)/g, "")
     .replace(/\\(\r\n|[\n\r\f])/g, "")

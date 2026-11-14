@@ -150,6 +150,10 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   `href`/`xlink:href`, or a CSS `url()` in a style attribute, SVG attribute or card `<style>` that is not
   `data:`, `blob:` or same-origin is removed (the `<style>` whole); `srcset`, `image-set()`, `src()` and
   `@import` always are. `<a href>` stays: that is a navigation, not a load.
+  Strict mode does not stop Mermaid loading from another host while it draws, so `drawableMermaid`
+  (`src/lib/mermaid-source.ts`, `withoutRemoteLoads`) first takes that syntax out of the diagram source:
+  directives and front-matter config, image shapes' `img`, sequence `properties`/`details`, label HTML
+  tags that load, and lines whose CSS loads.
 
 ---
 
