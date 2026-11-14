@@ -195,6 +195,10 @@ export const STALLED_TURN = "The tutor stopped partway. Try again. If it keeps h
 // kernel removed) and ran no tool. Shown and saved as the tutor's reply, so a turn is never blank.
 export const MIXED_UP_REPLY = "Sorry, I got mixed up. Can you ask that again?";
 
+// The tutor's reply when the child answered a question card and the model then wrote nothing, twice
+// (TutorEngine). Keeps the child going instead of leaving them on their own answer.
+export const AFTER_ANSWER_REPLY = "Thanks! Tell me a little about why you chose that, and we'll keep going.";
+
 // The check before a course build. A model still loading into memory is not a broken one, so a
 // timeout never mentions models.
 export function preflightMessage(timedOut: boolean, raw: string, ctx: ErrorContext = {}): string {

@@ -597,8 +597,9 @@ describe("an ask_user.question card in a mastery check", () => {
     expect(cards).toEqual([{ question: "That's not right yet. Ready for the next one?", choices: [{ label: "Yes!", value: "c0" }, { label: "Next one", value: "c1" }] }]);
     expect(result.toolCalls[0]).toMatchObject({ name: "ask_user.question", ok: true, args: { question: "That's not right yet. Ready for the next one?" } });
     expect(recordedCalls[1]).toEqual([{ id: "0_call_0", name: "ask_user.question", args: { question: "That's not right yet. Ready for the next one?", choices: [{ label: "Yes!", value: "c0" }, { label: "Next one", value: "c1" }] } }]);
-    // The reply said the verdict through the card, so no second line.
-    expect(result.text).toBe("What is 7 x 8?");
+    // The reply said the verdict through the card, so no second line. The card's question and the pick
+    // are saved with the reply (askCard.ts answeredCard).
+    expect(result.text).toBe("That's not right yet. Ready for the next one?\n\n*You picked: Yes!*\n\nWhat is 7 x 8?");
   });
 
   it("a card left with no question is not shown, and the model is told", async () => {
@@ -622,7 +623,7 @@ describe("an ask_user.question card in a mastery check", () => {
     script = [askCall("What is 6 x 7?", ["42", "48"]), reply("Now add one more 6.")];
     const { result, cards } = await answer(CHECK, "46", "assess");
     expect(cards[0].question).toBe("That's not right yet. What is 6 x 7?");
-    expect(result.text).toBe("Now add one more 6.");
+    expect(result.text).toBe("That's not right yet. What is 6 x 7?\n\n*You picked: 42*\n\nNow add one more 6.");
   });
 
   it("a card with nothing to take out is shown as the model wrote it", async () => {
