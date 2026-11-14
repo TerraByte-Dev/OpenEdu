@@ -11,8 +11,8 @@
 
 import { callLLMStructured, detectModelTier, log } from "./llm";
 import type { LessonContent } from "./lesson-format";
-import type { LLMConfig, ModelTier } from "../types";
-import { modelNeedsCloudNotice } from "./privacy";
+import type { LLMConfig, LLMProvider, ModelTier } from "../types";
+import { modelNeedsCloudNotice, needsCloudNotice } from "./privacy";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
 
@@ -32,9 +32,13 @@ type Messages = Array<{ role: string; content: string }>;
 
 // Stored value of the "review model" setting (STORE_KEYS.reviewModel) → the config the review runs on,
 // or null for no review. Unset or "" = the generation model, except for LESSONS on the tiny and small
-// tiers (LESSON_REVIEW_DEFAULT_OFF_TIERS). "off" = no review. Any other value = that model on the current
-// provider. An Ollama cloud model whose privacy notice was never confirmed is ignored (the default
-// applies), so a hand-edited settings file cannot send content off the computer unannounced.
+// tiers (LESSON_REVIEW_DEFAULT_OFF_TIERS). "off" = no review. "<provider>:<model>" = that model on another
+// configured provider (parseReviewModel), e.g. "anthropic:claude-haiku-5-5" with the key saved for
+// Anthropic, so a local model can write and a cloud model check. Any other value = that model on the
+// current provider. A cloud reviewer whose privacy notice was never confirmed here (an Ollama cloud
+// model, or OpenAI/Anthropic before their confirm), or a cloud provider with no saved key, is ignored
+// (the default applies), so a hand-edited settings file cannot send content off the computer
+// unannounced. The payload is the same for every reviewer: topic, title and generated content.
 //
 // Why lessons are off on tiny: replaying B9 rerun 2 (2026-11-14) through a gemma4:e2b review caught
 // 0 of the 5 known false lessons and flagged 5 true statements in 4 other lessons. On questions the
@@ -48,17 +52,52 @@ export const REVIEW_OFF = "off";
 export type ReviewKind = "lesson" | "questions";
 export const LESSON_REVIEW_DEFAULT_OFF_TIERS: ReadonlySet<ModelTier> = new Set<ModelTier>(["tiny", "small"]);
 
+// The other providers this install has credentials for, as store.ts reads them: the API key saved for
+// OpenAI or Anthropic, and the Ollama URL. A review on another provider needs its entry here.
+export type ProviderCredentials = Partial<Record<LLMProvider, { apiKey?: string; ollamaUrl?: string }>>;
+
+const PROVIDERS: readonly LLMProvider[] = ["ollama", "openai", "anthropic"];
+
+// "<provider>:<model>" names a model on that provider ("anthropic:claude-haiku-5-5",
+// "ollama:qwen3.5:9b"); anything else is a model on the generation provider. Only the three provider
+// names count as a prefix, so an Ollama tag like "gemma4:e2b" stays a plain model name.
+export function parseReviewModel(value: string): { provider: LLMProvider | null; model: string } {
+  const at = value.indexOf(":");
+  const head = at > 0 ? value.slice(0, at).toLowerCase() : "";
+  const provider = PROVIDERS.find((p) => p === head) ?? null;
+  return provider ? { provider, model: value.slice(at + 1).trim() } : { provider: null, model: value };
+}
+
+// A review model on a provider other than the generation one ("local model writes, cloud model
+// checks"), or null when it cannot be used: no key saved for that cloud provider, its one-time privacy
+// confirm never accepted here (needsCloudNotice), or an Ollama cloud model never confirmed.
+function otherProviderReview(provider: LLMProvider, model: string, creds: ProviderCredentials, seen: readonly string[]): LLMConfig | null {
+  if (!model) return null;
+  if (provider === "ollama") {
+    if (modelNeedsCloudNotice("ollama", model, seen)) return null;
+    return { provider, model, ollamaUrl: creds.ollama?.ollamaUrl };
+  }
+  const apiKey = creds[provider]?.apiKey;
+  if (!apiKey || needsCloudNotice(provider, seen)) return null;
+  return { provider, model, apiKey };
+}
+
 export function resolveReviewConfig(
   stored: string | null | undefined,
   gen: LLMConfig,
   genTier: ModelTier,
   noticesSeen: readonly string[],
   kind: ReviewKind,
+  creds: ProviderCredentials = {},
 ): LLMConfig | null {
   const value = (stored ?? "").trim();
   if (value.toLowerCase() === REVIEW_OFF) return null;
-  if (value && !modelNeedsCloudNotice(gen.provider, value, noticesSeen)) {
-    return value === gen.model ? { ...gen, modelTier: genTier } : { ...gen, model: value, modelTier: undefined };
+  const named = parseReviewModel(value);
+  if (named.provider && named.provider !== gen.provider) {
+    const other = otherProviderReview(named.provider, named.model, creds, noticesSeen);
+    if (other) return other;
+  } else if (named.model && !modelNeedsCloudNotice(gen.provider, named.model, noticesSeen)) {
+    return named.model === gen.model ? { ...gen, modelTier: genTier } : { ...gen, model: named.model, modelTier: undefined };
   }
   if (kind === "lesson" && LESSON_REVIEW_DEFAULT_OFF_TIERS.has(genTier)) return null;
   return { ...gen, modelTier: genTier };

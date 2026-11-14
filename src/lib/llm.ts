@@ -1166,7 +1166,7 @@ function validateAgainstSchema(value: unknown, schema: Record<string, unknown>, 
 }
 
 // ─── Over-long strings: trimmed by code, not failed ───────────────────────────
-// No provider enforces maxLength while the model writes. Ollama's format grammar does not cover it,
+// Ollama and Anthropic do not enforce maxLength while the model writes. Ollama's format grammar omits it,
 // and Anthropic's forced tool_use receives it in input_schema but does not constrain to it (probe,
 // 2026-11-14: claude-haiku-5-5 wrote 156-195 characters into a 120-character field, 3 of 3). B10 lost
 // 19 of 20 Haiku course builds to this, every one 1-20% over a cap (what_it_is 407-447 of 400,

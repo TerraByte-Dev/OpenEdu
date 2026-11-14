@@ -324,4 +324,27 @@ describe("resolveReviewConfig", () => {
     expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", [], "questions")?.model).toBe("gemma4:e2b");
     expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", ["ollama-cloud"], "questions")?.model).toBe("gpt-oss:120b-cloud");
   });
+
+  describe("<provider>:<model> names a model on another configured provider", () => {
+    const creds = { anthropic: { apiKey: "test-key" }, ollama: { ollamaUrl: "http://127.0.0.1:11434" } };
+    it("a local writer with a cloud checker, once that provider's notice is accepted and its key saved", () => {
+      const r = resolveReviewConfig("anthropic:claude-haiku-5-5", gen, "tiny", ["anthropic"], "lesson", creds);
+      expect(r).toEqual({ provider: "anthropic", model: "claude-haiku-5-5", apiKey: "test-key" });
+    });
+    it("falls back to the default when the notice was never accepted or no key is saved", () => {
+      expect(resolveReviewConfig("anthropic:claude-haiku-5-5", gen, "tiny", [], "lesson", creds)).toBeNull();
+      expect(resolveReviewConfig("anthropic:claude-haiku-5-5", gen, "medium", [], "questions", creds)).toMatchObject({ provider: "ollama", model: "gemma4:e2b" });
+      expect(resolveReviewConfig("anthropic:claude-haiku-5-5", gen, "tiny", ["anthropic"], "lesson", {})).toBeNull();
+      expect(resolveReviewConfig("openai:gpt-6-luna", gen, "tiny", ["openai"], "lesson", creds)).toBeNull(); // no OpenAI key
+    });
+    it("a cloud writer with a local checker; an Ollama cloud model still needs its own notice", () => {
+      const cloud = { provider: "anthropic", model: "claude-haiku-5-5", apiKey: "k" } as LLMConfig;
+      expect(resolveReviewConfig("ollama:qwen3.5:9b", cloud, "large", [], "lesson", creds)).toEqual({ provider: "ollama", model: "qwen3.5:9b", ollamaUrl: "http://127.0.0.1:11434" });
+      expect(resolveReviewConfig("ollama:gpt-oss:120b-cloud", cloud, "large", [], "lesson", creds)).toMatchObject({ provider: "anthropic", model: "claude-haiku-5-5" });
+    });
+    it("an Ollama tag is not a provider prefix, and the generation provider's own prefix is just the model", () => {
+      expect(resolveReviewConfig("qwen3.5:9b", gen, "tiny", [], "lesson", creds)).toMatchObject({ provider: "ollama", model: "qwen3.5:9b" });
+      expect(resolveReviewConfig("ollama:qwen3.5:9b", gen, "tiny", [], "lesson", creds)).toMatchObject({ provider: "ollama", model: "qwen3.5:9b" });
+    });
+  });
 });

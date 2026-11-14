@@ -4,7 +4,7 @@ import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, 
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
-import { getLLMConfig, getReviewConfig } from "../lib/store";
+import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
@@ -66,7 +66,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       setConfig(cfg);
       // Pull the spaced "review pool" (prior misses) so ~20% of the quiz is retrieval practice.
       const reviewPool = await getReviewPoolQuestions(courseId, 6);
-      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }), await getReviewConfig(cfg, "questions"));
+      // The pool's verify pass runs on a local model only (lane 1): it is data about this learner.
+      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }),
+        await getReviewConfig(cfg, "questions"), reviewPool.length ? await getLocalVerifyConfig(cfg) : null);
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
       startedAtRef.current = Date.now();
