@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   localDayKey, minutesToday, tickActiveMinutes, normalizeGoal, goalProgress, goalSentence, courseProgressPct,
-  DAILY_GOAL_OPTIONS, DEFAULT_DAILY_GOAL,
+  DAILY_GOAL_OPTIONS, DEFAULT_DAILY_GOAL, countsTowardGoal,
 } from "./daily-goal";
 
 const NOW = new Date(2026, 5, 5, 19, 30); // local time: 5 June 2026, 7:30 pm
@@ -67,5 +67,17 @@ describe("courseProgressPct", () => {
   it("tolerates legacy fractional levels and empty syllabuses", () => {
     expect(courseProgressPct({ current_level: 2.5, status: "active" }, 0, 0)).toBe(17);
     expect(courseProgressPct({ current_level: 0, status: "active" }, 0, 0)).toBe(0);
+  });
+});
+
+describe("countsTowardGoal", () => {
+  // Click test 2026-11-14: a grown-up in Settings filled the child's daily goal.
+  it("counts a visible minute on the learner's own screens", () => {
+    for (const view of ["dashboard", "create", "course", "quiz", "promotion-test"]) expect(countsTowardGoal({ visible: true, view })).toBe(true);
+  });
+
+  it("never counts Settings, or a hidden window", () => {
+    expect(countsTowardGoal({ visible: true, view: "settings" })).toBe(false);
+    expect(countsTowardGoal({ visible: false, view: "course" })).toBe(false);
   });
 });

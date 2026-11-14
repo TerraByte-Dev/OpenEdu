@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { opensWhenBuilt, readyNotice } from "./course-ready";
+import { opensWhenBuilt, readyNotice, readyNoticeAfter } from "./course-ready";
 import type { View } from "../types";
 
 describe("opensWhenBuilt", () => {
@@ -19,5 +19,23 @@ describe("readyNotice", () => {
     expect(readyNotice("Fractions")).toBe("Your course Fractions is ready.");
     expect(readyNotice(undefined)).toBe("Your course is ready.");
     expect(readyNotice("  ")).toBe("Your course is ready.");
+  });
+});
+
+describe("readyNoticeAfter", () => {
+  const ready = { id: "c-time", title: "Telling time" };
+
+  // Click test 2026-11-14: the notice stayed on every screen. It goes once its course is open, however
+  // the learner got there (its Open button, the course list, Home's Continue, or a build that
+  // finished while that course was already open).
+  it.each<View>(["course", "quiz", "promotion-test"])("is gone once its course is open on %s", (view) => {
+    expect(readyNoticeAfter(ready, view, "c-time")).toBeNull();
+  });
+
+  it("stays while another course, or no course, is open", () => {
+    expect(readyNoticeAfter(ready, "course", "c-fractions")).toBe(ready);
+    expect(readyNoticeAfter(ready, "dashboard", "c-time")).toBe(ready);
+    expect(readyNoticeAfter(ready, "settings", null)).toBe(ready);
+    expect(readyNoticeAfter(null, "course", "c-time")).toBeNull();
   });
 });

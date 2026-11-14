@@ -10,9 +10,9 @@ import type { DbHealth } from "./lib/db-resilience";
 import {
   getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes,
 } from "./lib/store";
-import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
+import { minutesToday, tickActiveMinutes, countsTowardGoal, type ActiveMinutes } from "./lib/daily-goal";
 import type { NextStepAction } from "./lib/next-step";
-import { opensWhenBuilt, readyNotice } from "./lib/course-ready";
+import { opensWhenBuilt, readyNotice, readyNoticeAfter } from "./lib/course-ready";
 import { probeEnvironment, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
 import { log, unloadOllamaModels } from "./lib/llm";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -140,13 +140,15 @@ export default function App() {
     void setDailyGoal(activeLearner.id, minutes).catch(() => { /* keep the in-memory choice */ });
   };
 
-  // One active minute per minute the window is visible with a learner in. Read-modify-write through
-  // the store so a second window or a restart never loses the count; the UI shows the result.
+  // One active minute per minute the window is visible with a learner in, on one of the learner's own
+  // screens: a minute in Settings is a grown-up's, not the learner's (daily-goal.ts countsTowardGoal).
+  // The view is read through viewRef so the timer is not restarted on every navigation. Read-modify-write
+  // through the store so a second window or a restart never loses the count; the UI shows the result.
   useEffect(() => {
     if (!activeLearner) return;
     const learnerId = activeLearner.id;
     const id = setInterval(() => {
-      if (document.visibilityState !== "visible" || getActiveLearnerId() !== learnerId) return;
+      if (!countsTowardGoal({ visible: document.visibilityState === "visible", view: viewRef.current }) || getActiveLearnerId() !== learnerId) return;
       void getActiveMinutes(learnerId).then(async (rec) => {
         const next = tickActiveMinutes(rec, new Date());
         await setActiveMinutes(learnerId, next);
@@ -231,8 +233,13 @@ export default function App() {
     setBooted(true);
   }, []);
 
+  // The ready notice goes once its course is open, by any route (course-ready.ts readyNoticeAfter),
+  // including a build that finished while that course was already on screen.
+  useEffect(() => {
+    setReadyCourse((r) => readyNoticeAfter(r, currentView, selectedCourseId));
+  }, [currentView, selectedCourseId, readyCourse]);
+
   const openCourse = (courseId: string, initialAction?: NextStepAction) => {
-    setReadyCourse((r) => (r?.id === courseId ? null : r));
     setCourseInitialAction(initialAction);
     setSelectedCourseId(courseId);
     setCurrentView("course");

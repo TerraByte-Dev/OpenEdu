@@ -1,7 +1,8 @@
 // The daily goal on the learner's Home: minutes a day, chosen once, with today's progress.
 // Pure. "Today" is the learner's LOCAL day — a kid studying at 7 pm is still on today, whatever UTC
-// says (computeStreak in analytics.ts is UTC-based and separate). Minutes are counted by App while
-// a learner's session is on screen and persisted per learner in the plugin store (store.ts).
+// says (computeStreak in analytics.ts is UTC-based and separate). Minutes are counted by App, one per
+// minute the window is visible with a learner in on one of the learner's own screens
+// (countsTowardGoal), and persisted per learner in the plugin store (store.ts).
 
 export const DAILY_GOAL_OPTIONS: ReadonlyArray<number> = [10, 15, 20, 30];
 export const DEFAULT_DAILY_GOAL = 15;
@@ -27,6 +28,18 @@ export function minutesToday(rec: ActiveMinutes | null | undefined, now: Date): 
 /** One more active minute, rolling over to a fresh count when the local day has changed. */
 export function tickActiveMinutes(rec: ActiveMinutes | null | undefined, now: Date): ActiveMinutes {
   return { day: localDayKey(now), minutes: minutesToday(rec, now) + 1 };
+}
+
+/** Views a grown-up uses, not the learner. A minute there is not the learner's. */
+export const GROWN_UP_VIEWS: ReadonlySet<string> = new Set(["settings"]);
+
+/**
+ * True when this minute counts toward the learner's daily goal: the window is visible and the screen
+ * is the learner's, not Settings (click test 2026-11-14: a grown-up in Settings filled the goal). The
+ * learner picker and its PIN screen never count either: App runs no timer without an active learner.
+ */
+export function countsTowardGoal(s: { visible: boolean; view: string }): boolean {
+  return s.visible && !GROWN_UP_VIEWS.has(s.view);
 }
 
 /** A goal from storage, or the default when nothing valid is stored. */

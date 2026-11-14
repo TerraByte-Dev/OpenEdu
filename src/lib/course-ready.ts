@@ -16,3 +16,13 @@ export function readyNotice(title: string | undefined): string {
   const t = title?.trim();
   return t ? `Your course ${t} is ready.` : "Your course is ready.";
 }
+
+const IN_A_COURSE: ReadonlySet<View> = new Set<View>(["course", "quiz", "promotion-test"]);
+
+/**
+ * The notice left once the learner is on `view` with `openCourseId` selected: none when that is the
+ * notice's own course, whatever route opened it. App runs it on every change of view, course or notice.
+ */
+export function readyNoticeAfter<T extends { id: string }>(ready: T | null, view: View, openCourseId: string | null): T | null {
+  return ready && IN_A_COURSE.has(view) && openCourseId === ready.id ? null : ready;
+}
