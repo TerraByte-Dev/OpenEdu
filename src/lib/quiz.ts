@@ -10,6 +10,7 @@ import {
   type GradeOutcome,
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
+import { isLocalModel } from "./privacy";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -346,6 +347,8 @@ async function generateQuestionBatch(ctx: BatchContext): Promise<GeneratedQuesti
         toolName: "emit_quiz_questions",
         validate: (parsed) => validateQuizBatch(parsed?.questions ?? [], allowedIds, { tier: ctx.tier }),
         tier: ctx.tier,
+        // A question cut short can lose the sentence that asks it, or its key; it is rewritten instead.
+        trimOverlong: false,
       },
     );
     const qs = Array.isArray(result?.questions) ? result.questions : [];
@@ -410,6 +413,7 @@ async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]):
         toolName: "emit_quiz_question",
         validate: (parsed) => validateQuizBatch(parsed ? [parsed] : [], allowedIds, { tier: ctx.tier }),
         tier: ctx.tier,
+        trimOverlong: false,
       },
     );
     return q ? finalizeQuestion(q) : null;
@@ -603,8 +607,8 @@ async function verifyAndFilter(
 
 // Content review of freshly generated questions (content-review.ts): drops every question the review
 // flags (wrong_key, unanswerable, false_fact); the top-up loop refills. Only fresh questions come here,
-// never the review pool: which questions a learner missed is data about that learner, so the pool keeps
-// the verify pass on the generation model.
+// never the review pool: which questions a learner missed is data about that learner, so the pool's
+// verify pass runs only on a local model (generateQuizQuestions, poolVerifier).
 async function reviewAndFilter(questions: GenQuestion[], topic: string, review: LLMConfig, label: string): Promise<GenQuestion[]> {
   if (questions.length === 0) return questions;
   const findings = await reviewQuestions(topic, questions, review);
@@ -619,6 +623,11 @@ async function reviewAndFilter(questions: GenQuestion[], topic: string, review: 
 // re-posed from it (retrieval practice / spaced review), the rest freshly generated. An empty pool
 // degrades to all-fresh — identical to the pre-A2 behavior, so legacy callers are unaffected.
 // `reviewer` (store.ts getReviewConfig; null = off) is the content review model for fresh questions.
+// `poolVerifier` (store.ts getLocalVerifyConfig) is the model for the review pool's verify pass. The pool
+// is which questions this learner missed, which lane 1 of TerraTutor's docs/CLOUD-PRIVACY.md keeps on
+// the computer, so that pass runs only on a local model (privacy.ts isLocalModel). Left out, it is the
+// generation model when that is local; with a cloud model, or null, the pass is skipped and the pool
+// keeps only the validator re-check below.
 export async function generateQuizQuestions(
   syllabus: Syllabus,
   numQuestions: number,
@@ -626,6 +635,7 @@ export async function generateQuizQuestions(
   reviewPool: QuizQuestion[] = [],
   onProgress?: (done: number, total: number) => void,
   reviewer: LLMConfig | null = null,
+  poolVerifier?: LLMConfig | null,
 ): Promise<GenQuestion[]> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
@@ -641,9 +651,18 @@ export async function generateQuizQuestions(
   const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
   let reviewQs = pickReview(validReviewPool, review);
   // The review pool is the path that leaked the recurring bad question, so re-posed items also get the
-  // independent verify pass (runsVerifyPass) — not just the consistency/structural re-check above.
-  if (runsVerifyPass(tier, config.model) && reviewQs.length > 0) {
-    reviewQs = await verifyAndFilter(reviewQs, config, tier, `quiz L${syllabus.level} review`);
+  // independent verify pass (runsVerifyPass) — not just the consistency/structural re-check above —
+  // but only on a model on this computer.
+  if (reviewQs.length > 0) {
+    const verifier = poolVerifier === undefined ? config : poolVerifier;
+    if (verifier && isLocalModel(verifier)) {
+      const vTier = verifier === config ? tier : verifier.modelTier ?? (verifier.modelTier = await detectModelTier(verifier));
+      if (runsVerifyPass(vTier, verifier.model)) {
+        reviewQs = await verifyAndFilter(reviewQs, verifier, vTier, `quiz L${syllabus.level} review`);
+      }
+    } else {
+      log.info("quiz", `quiz L${syllabus.level} review: no local model, so ${reviewQs.length} re-posed question(s) skip the verify pass`);
+    }
   }
 
   const freshQs = await generateToTarget(

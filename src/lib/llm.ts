@@ -1072,6 +1072,10 @@ export interface StructuredOpts<T = unknown> {
   // Ollama only: cap on output tokens, below the default ollamaMaxPredict(config). For a call whose
   // answer is known to be short (kernel/gloss.ts), so a rambling model stops early.
   numPredict?: number;
+  // Default true: a reply whose only fault is a string past its maxLength is shortened at a sentence or
+  // word boundary (trimOverlongStrings) instead of failing. Set false where a shortened field could
+  // change what it means, e.g. a quiz question whose asking sentence comes last.
+  trimOverlong?: boolean;
 }
 
 // Deep-clone a JSON schema and scale every minLength / minItems found within by `scale`.
@@ -1163,6 +1167,76 @@ function validateAgainstSchema(value: unknown, schema: Record<string, unknown>, 
   }
 
   return issues;
+}
+
+// ─── Over-long strings: trimmed by code, not failed ───────────────────────────
+// Ollama and Anthropic do not enforce maxLength while the model writes. Ollama's format grammar omits it,
+// and Anthropic's forced tool_use receives it in input_schema but does not constrain to it (probe,
+// 2026-11-14: claude-haiku-5-5 wrote 156-195 characters into a 120-character field, 3 of 3). B10 lost
+// 19 of 20 Haiku course builds to this, every one 1-20% over a cap (what_it_is 407-447 of 400,
+// level_description 412-479 of 400, domains[].focus 201-228 of 200, objective 242-253 of 240), and the
+// two repairs never got under it. So when length is the only thing wrong, code shortens the field.
+
+const SENTENCE_END = /[.!?…]["'”’)\]]*(?=\s|$)/g;
+const ABBREVIATION = /(?:^|[\s(])(?:[A-Za-z]\.){1,3}$|(?:^|[\s(])(?:Mr|Mrs|Ms|Dr|St|vs|No|approx|e\.g|i\.e)\.$/i;
+const TOO_LONG = /: string too long \(\d+ > \d+\)$/;
+
+/**
+ * `text` shortened to at most `max` characters: up to the last sentence end that fits, or, when no
+ * complete sentence of at least `min` characters fits, up to the last whole word plus "…". Never cuts
+ * inside a word. null when neither fits (one word longer than `max`, or what is left is under `min`).
+ */
+export function trimToLimit(text: string, max: number, min = 0): string | null {
+  if (text.length <= max) return text;
+  const floor = Math.max(1, min);
+  const head = text.slice(0, max);
+  let sentence = "";
+  for (const m of head.matchAll(SENTENCE_END)) {
+    const end = m.index! + m[0].length;
+    const before = head.slice(0, m.index! + 1);
+    if (ABBREVIATION.test(before)) continue;
+    sentence = text.slice(0, end).trimEnd();
+  }
+  if (sentence.length >= floor) return sentence;
+  // Room for the ellipsis: the cut is at a space at or before index max - 1.
+  const space = text.slice(0, max).search(/\s\S*$/);
+  if (space <= 0) return null;
+  const words = text.slice(0, space).replace(/[\s,;:(\-–—]+$/, "");
+  const cut = `${words}…`;
+  return words.length > 0 && cut.length <= max && cut.length >= floor ? cut : null;
+}
+
+/**
+ * `value` with every string longer than its schema's maxLength shortened by trimToLimit, and the
+ * paths changed. null when some over-long string cannot be shortened that way.
+ */
+export function trimOverlongStrings(
+  value: unknown, schema: Record<string, unknown>, path = "$",
+): { value: unknown; trimmed: Array<{ path: string; from: number; to: number }> } | null {
+  const trimmed: Array<{ path: string; from: number; to: number }> = [];
+  const walk = (v: unknown, s: Record<string, unknown>, p: string): unknown => {
+    if (s.type === "object" && v !== null && typeof v === "object" && !Array.isArray(v)) {
+      const props = (s.properties as Record<string, Record<string, unknown>> | undefined) ?? {};
+      const out: Record<string, unknown> = { ...(v as Record<string, unknown>) };
+      for (const k of Object.keys(props)) if (k in out) out[k] = walk(out[k], props[k], `${p}.${k}`);
+      return out;
+    }
+    if (s.type === "array" && Array.isArray(v) && s.items) {
+      return v.map((x, i) => walk(x, s.items as Record<string, unknown>, `${p}[${i}]`));
+    }
+    if (s.type === "string" && typeof v === "string" && typeof s.maxLength === "number" && v.length > s.maxLength) {
+      const t = trimToLimit(v, s.maxLength, typeof s.minLength === "number" ? s.minLength : 0);
+      if (t === null) throw new Error(p);
+      trimmed.push({ path: p, from: v.length, to: t.length });
+      return t;
+    }
+    return v;
+  };
+  try {
+    return { value: walk(value, schema, path), trimmed };
+  } catch {
+    return null;
+  }
 }
 
 interface ProviderResult { raw: string; parsed: unknown }
@@ -1456,19 +1530,37 @@ export async function callLLMStructured<T>(
     // form feed or backspace plus "ext"/"rac"/"egin". Every provider's reply goes through here.
     if (result.parsed !== null && result.parsed !== undefined) result = { ...result, parsed: repairLatexInValue(result.parsed) };
 
+    const semantic = (value: unknown): string[] => {
+      if (!opts.validate) return [];
+      try {
+        return opts.validate(value as T);
+      } catch (e) {
+        return [`validator threw: ${e instanceof Error ? e.message : String(e)}`];
+      }
+    };
+
     let issues: string[];
     if (result.parsed === null || result.parsed === undefined) {
       issues = ["response did not contain valid JSON"];
     } else {
       issues = validateAgainstSchema(result.parsed, effectiveSchema as Record<string, unknown>);
-      // Semantic validation runs only after structural schema passes — repair-retry handles both.
-      if (issues.length === 0 && opts.validate) {
-        try {
-          issues = opts.validate(result.parsed as T);
-        } catch (e) {
-          issues = [`validator threw: ${e instanceof Error ? e.message : String(e)}`];
+      // Only over-long strings wrong: shorten them at a sentence or word boundary (trimOverlongStrings)
+      // and accept the result if it then passes the schema and the caller's checks. Otherwise the
+      // length issues go to the repair prompt as before.
+      if (opts.trimOverlong !== false && issues.length > 0 && issues.every((i) => TOO_LONG.test(i))) {
+        const fit = trimOverlongStrings(result.parsed, effectiveSchema as Record<string, unknown>);
+        if (fit && validateAgainstSchema(fit.value, effectiveSchema as Record<string, unknown>).length === 0) {
+          const after = semantic(fit.value);
+          if (after.length === 0) {
+            log.warn("callLLMStructured", `trimmed ${fit.trimmed.length} over-long field(s) to the schema's maxLength (attempt ${attempt + 1})`,
+              fit.trimmed.map((t) => `${t.path} ${t.from}→${t.to}`));
+            return fit.value as T;
+          }
+          issues = [...issues, ...after];
         }
       }
+      // Semantic validation runs only after structural schema passes — repair-retry handles both.
+      if (issues.length === 0) issues = semantic(result.parsed);
     }
 
     if (issues.length === 0) {
