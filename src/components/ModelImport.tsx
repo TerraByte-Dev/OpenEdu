@@ -6,7 +6,9 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getOllamaModels, getOllamaVersion } from "../lib/llm";
-import { setChatModel, setGenerationModel } from "../lib/store";
+import { getCloudNoticesSeen, markCloudNoticeSeen, setChatModel, setGenerationModel } from "../lib/store";
+import { modelNeedsCloudNotice } from "../lib/privacy";
+import { CloudNoticePanel } from "../views/settings/CloudNotice";
 import { cancelModelImport, pickModelFolder, startModelImport } from "../lib/model-import";
 import {
   PHASE_LABEL, candidateBytes, etaSeconds, formatBytes, formatEta, hasRoom, importFraction, licenceNotes, nameProblem,
@@ -19,7 +21,10 @@ import { APP_NAME } from "../lib/product";
 type Run =
   | { at: "idle" }
   | { at: "running"; phase: ImportPhase; done: number; total: number; file: string; started: number; skipped: number; status: string; unchecked: number }
-  | { at: "done"; name: string; checked: boolean }
+  // Imported, and an Ollama cloud model (name ending in cloud), so it waits on the one-time confirm.
+  | { at: "held"; name: string; checked: boolean }
+  // `used` is false when the person said Not now to that confirm: the model is in Ollama, unused.
+  | { at: "done"; name: string; checked: boolean; used: boolean }
   | { at: "failed"; message: string };
 
 const PHASES: ImportPhase[] = ["checking", "verifying", "copying", "finishing"];
@@ -49,6 +54,7 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
   const problem = nameProblem(name, installed);
   const alreadyHave = candidate?.kind === "ollama" && nameTaken(candidate.name, installed);
   const running = run.at === "running";
+  const finished = run.at === "done" || run.at === "held";
 
   const choose = (p: KitPlan, i: number, models: string[]) => {
     setChoice(i);
@@ -78,12 +84,28 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
 
   // The imported model becomes the tutor for chat AND for building courses: setup checks both, and a
   // course build that still points at a model this computer doesn't have would fail at Create course.
-  const useExisting = async (model: string) => {
+  const useModel = async (model: string, checked: boolean) => {
     await setChatModel(model);
     await setGenerationModel(model);
-    setRun({ at: "done", name: model, checked: true });
+    setRun({ at: "done", name: model, checked, used: true });
     onImported(model);
   };
+  // An Ollama cloud model sends chats to Ollama's servers, so the first one waits on its one-time
+  // confirm (privacy.ts), like picking one in Settings.
+  const becomeTutor = async (model: string, checked: boolean) => {
+    if (modelNeedsCloudNotice("ollama", model, await getCloudNoticesSeen())) { setRun({ at: "held", name: model, checked }); return; }
+    await useModel(model, checked);
+  };
+  const confirmCloud = async () => {
+    if (run.at !== "held") return;
+    await markCloudNoticeSeen("ollama-cloud");
+    await useModel(run.name, run.checked);
+  };
+  const declineCloud = () => {
+    if (run.at === "held") setRun({ at: "done", name: run.name, checked: run.checked, used: false });
+  };
+
+  const useExisting = (model: string) => becomeTutor(model, true);
 
   const start = async () => {
     if (!built?.ok || problem) return;
@@ -109,11 +131,8 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
       // Switch the tutor only while this screen is still there to say so; a model that changes under
       // the learner with nothing on screen is worse than one they pick in Settings later.
       if (!mounted.current) return;
-      await setChatModel(done);
-      await setGenerationModel(done);
-      setRun({ at: "done", name: done, checked: built.checked && unchecked === 0 });
       setInstalled((m) => [...m, done]);
-      onImported(done);
+      await becomeTutor(done, built.checked && unchecked === 0);
     } catch (e) {
       if (!mounted.current) return;
       setRun({ at: "failed", message: e instanceof Error ? e.message : String(e) });
@@ -206,11 +225,11 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
               </dl>
 
               {built && !built.ok && built.errors.map((e, i) => <Note key={i} tone="danger">{e}</Note>)}
-              {built?.ok && run.at !== "done" && built.warnings.map((w, i) => <Note key={i} tone="warning">{w}</Note>)}
+              {built?.ok && !finished && built.warnings.map((w, i) => <Note key={i} tone="warning">{w}</Note>)}
               {room === false && <Note tone="danger">There isn't enough free space for this model. Free up {formatBytes(bytes + 1024 ** 3 - (plan.freeBytes ?? 0))} and choose the folder again.</Note>}
               {tooOld && <Note tone="warning">This model needs Ollama {built?.ok && built.spec.requires} or newer, and this computer has {ollamaVersion}. Update Ollama first, or Ollama may refuse it.</Note>}
 
-              {alreadyHave && run.at !== "done" && candidate.kind === "ollama" && (
+              {alreadyHave && !finished && candidate.kind === "ollama" && (
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm text-[var(--ink-dim)]">This computer already has {candidate.name}.</p>
                   <button onClick={() => useExisting(installed.find((m) => nameTaken(candidate.name, [m])) ?? candidate.name)} disabled={running} className="btn text-sm">
@@ -219,7 +238,7 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
                 </div>
               )}
 
-              {built?.ok && run.at !== "done" && (
+              {built?.ok && !finished && (
                 <label className="block">
                   <span className="text-sm text-ink">Name in Ollama</span>
                   <input
@@ -237,15 +256,23 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
 
           {run.at === "running" && <Progress run={run} checked={!!built?.ok && built.checked && run.unchecked === 0} cancelling={cancelling} onCancel={cancel} />}
 
+          {run.at === "held" && (
+            <>
+              <p className="text-sm text-[var(--ink-dim)]"><strong className="text-ink">{run.name}</strong> is in Ollama.</p>
+              <CloudNoticePanel feature="ollama-cloud" onConfirm={confirmCloud} onCancel={declineCloud} />
+            </>
+          )}
           {run.at === "done" && (
             <Note tone="success">
-              <strong>{run.name}</strong> is ready, and the tutor now uses it.
+              {run.used
+                ? <><strong>{run.name}</strong> is ready, and the tutor now uses it.</>
+                : <><strong>{run.name}</strong> is in Ollama. The tutor keeps the model it had; choose this one in Settings › Models when you want it.</>}
               {!run.checked && " Its files weren't checked for damage, because the kit has no checksum file."}
             </Note>
           )}
           {run.at === "failed" && <Note tone="danger">{run.message}</Note>}
 
-          {candidate && built?.ok && run.at !== "running" && run.at !== "done" && (
+          {candidate && built?.ok && run.at !== "running" && !finished && (
             <button onClick={start} disabled={!!problem || room === false} className="btn btn-primary text-sm">
               {run.at === "failed" ? "Try again" : `Import ${formatBytes(bytes)}`}
             </button>

@@ -41,6 +41,10 @@ export const STORE_KEYS = {
   // A K-2 learner's choice to have tutor replies read aloud on their own (#243, grade.ts
   // autoReadAloud). Unset = the default, on. Per learner; not importable, like the daily goal.
   readAloudAuto: "read_aloud_auto",
+  // The cloud choices (openai, anthropic, ollama-cloud) whose one-time privacy confirm has been
+  // accepted on this PC (privacy.ts, #293). Not importable: a settings file from another machine must
+  // not count as the person here having read the notice.
+  cloudNoticesSeen: "cloud_notices_seen",
 } as const;
 
 // Keys that remember something about ONE learner rather than the machine. Read and write them only
