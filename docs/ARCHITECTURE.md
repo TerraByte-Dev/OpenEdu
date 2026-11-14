@@ -212,6 +212,24 @@ markdown files with frontmatter that gate on subject/tier. A per-tool **permissi
 (allow / ask / deny, with Standard · Cautious · Trusting presets) governs what the tutor may do on its
 own.
 
+A course's **domain skill** (`math-tutor`, `science-tutor`, `code-tutor`, `music-tutor`) is chosen in code
+on every turn (`skills/trigger.ts`, `kernel/chatSkills.ts`), with no model call. It decides which drawing
+tools the tutor is offered: `diagram.render` comes only from a domain skill, and `math.render` only from
+`math-tutor`. Each domain skill lists subject words in `trigger.course_subject`, matched on word boundaries
+(a plural `s`/`es` counts). The course's topic decides first: the first domain skill with a word in it
+wins. A topic with no subject word falls back to the course's stored syllabus: the skill whose words
+appear in more than half of the subtopics (title plus key concepts), and in at least two, wins. One
+"Rhythm and Meter" subtopic in a Poetry course does not make it a music course. Phrases in
+`trigger.course_subject_exclude` are taken out first ("political science" is not science). Because it
+runs on the topic and syllabus every course already stores, courses made before a word was added route
+by it too. Physics stays with `math-tutor`. Click test 2026-11-14: a course called only "Fractions" got
+no domain skill, so the tutor was never offered `diagram.render` and could not draw. On a sweep of
+K-12 titles (`skills/subjectSweep.ts`) the topic alone had missed 33 of 42 math titles, and no science
+course had a domain skill. Now 0 of 42 math and 0 of 22 science titles miss. On 70 held-out titles,
+written by an agent that never saw the word lists, 2 of 40 math and 4 of 30 science titles miss by topic
+alone ("Number Bonds", "Phases of the Moon"…), and none of 40 other titles routes wrongly. A course with
+such a title still routes by its syllabus. Known and accepted: "Shapes in Art" is offered the math tools.
+
 When Ollama cannot parse a tool call the model wrote, it fails the whole request (HTTP 500, or an error
 line in the stream). If nothing from that model call had reached the student yet, the kernel answers that turn with one call
 that offers no tools and drops the tools manifest from the system prompt, and records it in the turn
