@@ -38,7 +38,7 @@ import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { repairAskCard, answeredCard, type AskCard } from "./askCard";
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
-import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, type AnswerCheck } from "./answerCheck";
+import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 
@@ -140,6 +140,10 @@ export interface TutorTurnResult {
   // reply was told. Null on a turn that is not an answer in a mastery check, or whose message asked
   // nothing with one right answer.
   answerCheck: AnswerCheck | null;
+  // The same check on each answer the child gave to an ask_user.question card in a mastery check, in
+  // order (cardTutorMessage below). A pick is the child's answer as much as a typed one is. Empty on
+  // every other turn, and for a card whose question asks nothing with one right answer.
+  cardChecks: AnswerCheck[];
   // Sentences the reply filter (replyClaims.ts) took out or trimmed: mastery claims with no mastery
   // saved, and claims against the answer check's verdict. As the model wrote them.
   removedClaims: Array<{ kind: "mastery" | "verdict"; text: string }>;
@@ -173,6 +177,16 @@ function withoutManifest(messages: NeutralMessage[], manifest: string): NeutralM
  *  Anthropic refuses a tool_use id outside [a-zA-Z0-9_-] (#262). */
 export function kernelCallId(iteration: number, providerId: string): string {
   return `${iteration}_${providerId}`;
+}
+
+/**
+ * What the answer check reads as the tutor's message when the child answers an ask_user.question card:
+ * the reply's text before the card (it may set up the problem), the card's question, and its choices
+ * as the child saw them, so the key can be one of them.
+ */
+export function cardTutorMessage(before: string, card: AskCard): string {
+  const choices = (Array.isArray(card.choices) ? card.choices : []).map((c) => `- ${c.label}`).join("\n");
+  return [before.trim(), card.question.trim(), choices ? `Choices:\n${choices}` : ""].filter(Boolean).join("\n\n");
 }
 
 export class TutorEngine {
@@ -335,7 +349,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: turn.answerCheck !== "off", answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -360,6 +374,8 @@ ${lastUser.content}` };
       dictionaryNote: string | null;
       dictionaryShown: DictionaryShown | null;
       answerCheck: AnswerCheck | null;
+      /** False when the caller turned the answer check off (TutorTurn.answerCheck). */
+      checkAnswers: boolean;
       /** The student's newest message as they typed it. */
       answered: string;
       masteryCheck: boolean;
@@ -399,12 +415,23 @@ ${lastUser.content}` };
     // check's verdict, never reach the student or the transcript. It holds each sentence until it ends.
     // On any other turn it passes text straight through.
     let masteryWritten = false;
-    const claims = new ReplyClaimFilter({
-      verdict: answerCheck?.verdict ?? null,
+    const claimFilter = (check: AnswerCheck | null, answered: string) => new ReplyClaimFilter({
+      verdict: check?.verdict ?? null,
       masteryWritten: () => masteryWritten,
-      checkMastery: masteryCheck || !!answerCheck,
-      answer: answerCheck ? { student: answerCheck.studentAnswer || prepared.answered, key: answerCheck.key } : undefined,
+      checkMastery: masteryCheck || !!check,
+      answer: check ? { student: check.studentAnswer || answered, key: check.key } : undefined,
     });
+    let claims = claimFilter(answerCheck, prepared.answered);
+    // A pick on an ask_user.question card in a mastery check is the child's answer, so it gets the same
+    // check as a typed one (cardTutorMessage). From then on the reply is held to that verdict: the claim
+    // filter is a new one for it (the reply after the pick is a reply to a new answer), the fallback
+    // lines say it, and a "mastered" mark is refused while any answer checked this turn is not correct.
+    // Before this, a pick reached the model with no verdict, so a wrong pick could be praised and
+    // marked mastered.
+    const cardChecks: AnswerCheck[] = [];
+    let verdictCheck = answerCheck;
+    const earlierRemoved: TutorTurnResult["removedClaims"] = [];
+    const checkCards = prepared.checkAnswers && (masteryCheck || !!answerCheck);
     // An answered ask_user.question card owes the child a reply (askCard.ts). Set when the child answers
     // one; cleared when a model call after it shows text. A model call after it that shows nothing and
     // calls nothing is made once more (gemma4:e4b answered the click-test card with an empty reply in
@@ -489,7 +516,8 @@ ${lastUser.content}` };
         if (ctx.abort.aborted) { interrupted = "aborted"; break; }
         // A "mastered" mark on an answer the check did not find correct is refused by code: the
         // verdict is the app's, not the model's. Nothing runs and nothing is shown; the model is told.
-        const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && !!answerCheck && answerCheck.verdict !== "correct";
+        const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) &&
+          [answerCheck, ...cardChecks].some((c) => !!c && c.verdict !== "correct");
         let result: ToolDispatchResult;
         if (refused) result = { name: call.name, ok: false, error: MASTERY_REFUSED };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
@@ -500,16 +528,32 @@ ${lastUser.content}` };
         if (call.name === MARK_MASTERED_TOOL && result.ok && marksMastered(call.args)) masteryWritten = true;
         // The child answered a card: the question and their answer join the reply's text, so they are
         // shown in the stream and saved with the reply once the card is gone (askCard.ts answeredCard).
+        let cardNote = "";
         if (call.name === ASK_USER_TOOL && result.ok && !ctx.abort.aborted) {
           const answer = result.value as QuestionResult;
-          show(answeredCard(streamedText, (call.args as AskCard).question, { text: answer.answer, typed: answer.typed }));
+          const card = call.args as AskCard;
+          show(answeredCard(streamedText, card.question, { text: answer.answer, typed: answer.typed }));
           replyOwed = true;
           retriedEmpty = false;
+          // A typed answer that asks for something ("I don't know", "can you help?") is not graded, as on
+          // a typed turn (readsAsAnswer). A pick always is; a card that asks nothing with one right answer
+          // (a topic picker) gets no verdict from the key call.
+          if (checkCards && (!answer.typed || readsAsAnswer(answer.answer))) {
+            // eslint-disable-next-line no-await-in-loop -- the reply after the pick needs the verdict
+            const check = await checkAnswer(cardTutorMessage(iterationText, card), answer.answer, turn.config, { tier: ctx.modelTier, signal: ctx.abort });
+            if (check && !ctx.abort.aborted) {
+              cardChecks.push(check);
+              verdictCheck = check;
+              earlierRemoved.push(...claims.removed);
+              claims = claimFilter(check, answer.answer);
+              cardNote = `\n\n${answerCheckNote(check)}`;
+            }
+          }
         }
         // Cap what goes back into context. The model sees a visible truncation marker rather than a
         // silently shortened result it would otherwise answer from with false confidence.
         const payload = result.ok
-          ? (result.modelText ?? JSON.stringify(result.value ?? {}))
+          ? (result.modelText ?? JSON.stringify(result.value ?? {})) + cardNote
           : `ERROR: ${result.error}`;
         messages.push({
           role: "tool",
@@ -562,8 +606,8 @@ ${lastUser.content}` };
 
     // An answer the check gave a verdict on always gets one: a reply the claim filter emptied (or the
     // model left empty) says the verdict in one plain line.
-    if (answerCheck && !streamedText.trim() && stopReason !== "aborted" && stopReason !== "stalled") {
-      show(VERDICT_FALLBACK[answerCheck.verdict]);
+    if (verdictCheck && !streamedText.trim() && stopReason !== "aborted" && stopReason !== "stalled") {
+      show(VERDICT_FALLBACK[verdictCheck.verdict]);
     }
 
     // Never a blank turn: a reply that ended with nothing to show (the model wrote nothing, or only a
@@ -574,8 +618,9 @@ ${lastUser.content}` };
     }
 
     // Never a turn that ends on the child's answer to a card: that was the click test's dead end.
+    // After a checked pick, the line says the verdict instead.
     if (replyOwed && stopReason !== "aborted" && stopReason !== "stalled") {
-      show(AFTER_ANSWER_REPLY);
+      show(verdictCheck && verdictCheck !== answerCheck ? VERDICT_FALLBACK[verdictCheck.verdict] : AFTER_ANSWER_REPLY);
     }
 
     // A reply that says it shows a picture and shows none: the saved reply loses the claim, and the
@@ -614,7 +659,8 @@ ${lastUser.content}` };
       toolCallRecovery,
       replyChoices,
       answerCheck,
-      removedClaims: claims.removed,
+      cardChecks,
+      removedClaims: [...earlierRemoved, ...claims.removed],
     };
   }
 }
