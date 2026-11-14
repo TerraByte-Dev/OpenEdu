@@ -1072,6 +1072,10 @@ export interface StructuredOpts<T = unknown> {
   // Ollama only: cap on output tokens, below the default ollamaMaxPredict(config). For a call whose
   // answer is known to be short (kernel/gloss.ts), so a rambling model stops early.
   numPredict?: number;
+  // Default true: a reply whose only fault is a string past its maxLength is shortened at a sentence or
+  // word boundary (trimOverlongStrings) instead of failing. Set false where a shortened field could
+  // change what it means, e.g. a quiz question whose asking sentence comes last.
+  trimOverlong?: boolean;
 }
 
 // Deep-clone a JSON schema and scale every minLength / minItems found within by `scale`.
@@ -1543,7 +1547,7 @@ export async function callLLMStructured<T>(
       // Only over-long strings wrong: shorten them at a sentence or word boundary (trimOverlongStrings)
       // and accept the result if it then passes the schema and the caller's checks. Otherwise the
       // length issues go to the repair prompt as before.
-      if (issues.length > 0 && issues.every((i) => TOO_LONG.test(i))) {
+      if (opts.trimOverlong !== false && issues.length > 0 && issues.every((i) => TOO_LONG.test(i))) {
         const fit = trimOverlongStrings(result.parsed, effectiveSchema as Record<string, unknown>);
         if (fit && validateAgainstSchema(fit.value, effectiveSchema as Record<string, unknown>).length === 0) {
           const after = semantic(fit.value);

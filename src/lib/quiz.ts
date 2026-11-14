@@ -347,6 +347,8 @@ async function generateQuestionBatch(ctx: BatchContext): Promise<GeneratedQuesti
         toolName: "emit_quiz_questions",
         validate: (parsed) => validateQuizBatch(parsed?.questions ?? [], allowedIds, { tier: ctx.tier }),
         tier: ctx.tier,
+        // A question cut short can lose the sentence that asks it, or its key; it is rewritten instead.
+        trimOverlong: false,
       },
     );
     const qs = Array.isArray(result?.questions) ? result.questions : [];
@@ -411,6 +413,7 @@ async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]):
         toolName: "emit_quiz_question",
         validate: (parsed) => validateQuizBatch(parsed ? [parsed] : [], allowedIds, { tier: ctx.tier }),
         tier: ctx.tier,
+        trimOverlong: false,
       },
     );
     return q ? finalizeQuestion(q) : null;

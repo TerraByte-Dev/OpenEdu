@@ -8,7 +8,8 @@ vi.mock("@tauri-apps/plugin-http", () => import("./eval/headless/shims/plugin-ht
 
 import { callLLMStructured, trimToLimit, trimOverlongStrings } from "./llm";
 import { researchTopic } from "./curriculum";
-import type { LLMConfig } from "../types";
+import { generateQuizQuestions } from "./quiz";
+import type { LLMConfig, Syllabus } from "../types";
 
 const HAIKU = { provider: "anthropic", model: "claude-haiku-5-5", apiKey: "test-key", modelTier: "large" } as LLMConfig;
 
@@ -112,6 +113,17 @@ describe("a cloud model writing past maxLength no longer fails the course build"
     });
     expect(out.explanation).toBe("Two cartons of 12. Therefore the answer is 24");
     expect(sent).toHaveLength(2);
+  });
+
+  it("quiz questions are never trimmed: a long word problem would lose the sentence that asks it", async () => {
+    const setup = "A farmer has a field that is 120 meters long and 80 meters wide, and she plants rows of corn along its length with one meter between rows. ".repeat(3);
+    const q = (text: string) => ({ questions: [{ question_text: text, question_type: "short_answer", options: [], correct_answer: "81",
+      difficulty_level: 1, explanation: "One row at 0 m and one each meter after it up to 80 m. Therefore the answer is 81", subtopic_id: "1.1", blank_position: "", matching_pairs: [] }] });
+    fakeAnthropic((tool, n) => (tool === "emit_verdicts" ? { verdicts: [] } : q(n === 1 ? `${setup}How many rows does she plant?` : "A field is 80 m wide with a row every meter from 0 to 80 m. How many rows does she plant?")));
+    const syllabus = { level: 1, title: "Counting", subtopics: [{ id: "1.1", title: "Fence posts", key_concepts: ["counting gaps"] }] } as unknown as Syllabus;
+    const qs = await generateQuizQuestions(syllabus, 1, { ...HAIKU });
+    expect(sent.filter((s) => s.tool === "emit_quiz_questions")).toHaveLength(2); // a repair, not a trim
+    expect(qs[0].question_text).toMatch(/How many rows does she plant\?$/);
   });
 
   it("still fails when a field cannot be shortened without cutting a word", async () => {

@@ -158,7 +158,8 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
    (`trimOverlongStrings` / `trimToLimit` in `llm.ts`): cut at the last sentence end that fits, or at the
    last whole word plus "…" when no sentence of the field's `minLength` fits, never inside a word; the
    result must pass the schema and the caller's `validate`, else the repair prompt runs as before, and
-   each trim is logged with its path and lengths. Ollama and Anthropic do not enforce `maxLength` while
+   each trim is logged with its path and lengths. Quiz and test questions opt out (`trimOverlong: false`):
+   a word problem cut at a sentence end can lose the sentence that asks it, so they are repaired instead. Ollama and Anthropic do not enforce `maxLength` while
    the model writes: Ollama's grammar leaves it out, and Anthropic's forced `tool_use` gets it in `input_schema` but does not
    hold to it (probe 2026-11-14: `claude-haiku-5-5` wrote 156-195 characters into a 120-character field,
    3 of 3). In B10, 19 of 20 Haiku course builds failed on 1-20% overruns (`what_it_is` 407-447 of 400,
