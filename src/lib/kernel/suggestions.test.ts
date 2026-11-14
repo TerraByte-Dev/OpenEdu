@@ -139,7 +139,7 @@ describe("suggestFollowUps", () => {
       dueFlashcards: 4,
     }));
     expect(out).toHaveLength(3);
-    expect(out.some((s) => s.mode === "socratic" || s.mode === "quiz" || s.label === "Worked example")).toBe(true);
+    expect(out.some((s) => s.mode === "socratic" || s.mode === "quiz" || s.mode === "assess" || s.label === "Worked example")).toBe(true);
   });
 
   it("carries the teaching mode on the chips that need one", () => {
@@ -326,10 +326,34 @@ describe("assess chip is reachable (#146)", () => {
     expect(out.map((s) => s.mode)).toContain("assess");
   });
 
-  it("is not offered while subtopics remain, or with no syllabus", () => {
+  it("is not offered once some but not all subtopics are mastered, or with no syllabus", () => {
     const partial = syllabus([{ title: "Moles", mastered: true }, { title: "Balancing equations", mastered: false }]);
     expect(suggestFollowUps(input({ syllabus: partial })).map((s) => s.mode)).not.toContain("assess");
     expect(suggestFollowUps(input()).map((s) => s.mode)).not.toContain("assess");
+  });
+
+  // Click test 2026-11-14: on a new level the chip never showed, so a learner who already knows the
+  // level had no way to say so. It leads there too, in the slot "Make me figure it out" had.
+  const fresh = syllabus([{ title: "Moles", mastered: false }, { title: "Balancing equations", mastered: false }]);
+
+  it("is offered on a new level, where nothing is mastered yet, in place of Make me figure it out", () => {
+    expect(suggestFollowUps(input({ syllabus: fresh })).map((s) => s.label))
+      .toEqual(["Moles", "Check if I've got this", "Worked example"]);
+  });
+
+  it("survives a new-level turn with full context", () => {
+    const out = suggestFollowUps(input({
+      syllabus: fresh,
+      hits: [hit(), hit({ source: "library", title: "Mole concept", ref: "lib-1" })],
+      usedHits: [hit({ source: "library", title: "Mole concept", ref: "lib-1" })],
+    }));
+    expect(out).toHaveLength(3);
+    expect(out.map((s) => s.mode)).toContain("assess");
+  });
+
+  it("still gives way to the stuck chips when the tutor asked something", () => {
+    const out = suggestFollowUps(input({ syllabus: fresh, answer: `${ANSWER} Which balanced equation would you pick first?` }));
+    expect(out.map((s) => s.mode)).not.toContain("assess");
   });
 });
 

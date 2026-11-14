@@ -267,8 +267,13 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // Except when every subtopic at this level is mastered: then the next real step is the mastery
   // check, so it leads. Without this the assess chip was always fourth in a list capped at three,
   // and Assess mode was unreachable from the UI (#146).
-  const allMastered = !!input.syllabus?.subtopics.length && input.syllabus.subtopics.every((s) => s.mastered);
-  if (allMastered) push({ label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" });
+  // And on a new level, where nothing is mastered yet: a learner who already knows the level can say so
+  // (click test 2026-11-14; until then the chip never showed there). In the usual turn it takes the slot
+  // "Make me figure it out" had; it disappears again once some, not all, subtopics are mastered.
+  const subtopics = input.syllabus?.subtopics ?? [];
+  const allMastered = !!subtopics.length && subtopics.every((s) => s.mastered);
+  const newLevel = !!subtopics.length && subtopics.every((s) => !s.mastered);
+  if (allMastered || newLevel) push({ label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" });
   push({ label: "Worked example", message: "Show me a worked example." });
   push({ label: "Make me figure it out", message: "Let me work it out.", mode: "socratic" });
   push({ label: "Quiz me on this", message: "Quiz me on this.", mode: "quiz" });
