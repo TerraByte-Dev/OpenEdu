@@ -171,15 +171,21 @@ A model can also write a tool call as plain reply text that Ollama never parses 
 `progress.mark_mastered{status:<|"|>mastered<|"|>,...}<tool_call|>` without its opening frame). Every
 model call's text goes through `ReplyTextFilter` (`kernel/textToolCalls.ts`) before the student sees it
 or it is saved: text that could still become such a call is held back mid-stream, a complete one is
-removed, and gemma4's control tokens are dropped. A call to a tool offered this turn, with arguments the
-filter can parse, is then dispatched exactly like a native call (zod validation, the permission gate,
-the result back to the model, `fromText: true` in the turn's `toolCalls`); the text after it is not
-shown. A call to any other tool is only removed.
+removed, and gemma4's own control tokens are dropped (look-alikes such as `<|y|` are kept). A call that
+does not close within 1,500 characters, at a blank line, or by the end of the stream is given up on:
+only its first line is removed and the rest is shown. Some calls then run, dispatched exactly like a
+native call (zod validation, the permission gate, the result back to the model, `fromText: true` in the
+turn's `toolCalls`), and the text after them is not shown. Which ones: the tool must be offered this
+turn; `progress.mark_mastered` never runs from text (quiz and test scores decide mastery); a tool that
+writes runs only when gemma4's own `<|tool_call>` or `<tool_call|>` token frames it, since bare
+`name{...}` text can be an echoed note; a read-only tool may run from bare text. Every other call is
+only removed. Saved replies are shown through the same filter (`displayReplyText`), so a reply saved
+before it existed shows clean too.
 
 In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
-`diagram.render` result uses (`mermaid-source.ts`). Source Mermaid cannot parse is retried with its node
-labels quoted; if that fails too, the child sees a plain sentence and the diagram's labels, never the
-source.
+`diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Source Mermaid cannot
+parse is retried with its node labels quoted inside their shapes (a circle stays a circle); if that
+fails too, the child sees a plain sentence and the diagram's labels, never the source.
 
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
