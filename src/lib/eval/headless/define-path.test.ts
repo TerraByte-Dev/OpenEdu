@@ -91,8 +91,8 @@ describe("define arms through the headless kernel", () => {
   });
 
   it("gives each band its reading level in the system prompt", () => {
-    expect(arms.on.chats[0][0].content).toContain("The student is in grade 2.");
-    expect(arms.on.chats[1][0].content).toContain("The student is in grade 4.");
+    expect(arms.on.chats[0][0].content).toContain("The student is in kindergarten to grade 2.");
+    expect(arms.on.chats[1][0].content).toContain("The student is in grades 3 to 5.");
   });
 
   it("lever 19: S (EVAL_SENSE_RANK=off) and R send the same request for a plain item, and differ only in the entry's order for trunk", async () => {
