@@ -1,6 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import type { LLMConfig, ModelTier } from "../types";
-import { sanitizeJsonEscapes, tryParseJsonLenient } from "./json-lenient";
+import { repairLatexInValue, sanitizeJsonEscapes, tryParseJsonLenient } from "./json-lenient";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // Strip trailing slashes so we never build double-slash paths like /api//tags
@@ -1452,6 +1452,9 @@ export async function callLLMStructured<T>(
     }
 
     lastRaw = result.raw;
+    // `\text`, `\frac`, `\begin` written into a JSON string without a doubled backslash parse as a TAB,
+    // form feed or backspace plus "ext"/"rac"/"egin". Every provider's reply goes through here.
+    if (result.parsed !== null && result.parsed !== undefined) result = { ...result, parsed: repairLatexInValue(result.parsed) };
 
     let issues: string[];
     if (result.parsed === null || result.parsed === undefined) {

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   anchorAnnotations,
+  finishReview,
+  showsCorrectRemarks,
   unanchorable,
   validateReview,
   formatTranscript,
@@ -159,5 +161,76 @@ describe("REVIEW_SCHEMA", () => {
   it("constrains kind to the four marks", () => {
     expect(REVIEW_SCHEMA.properties.annotations.items.properties.kind.enum)
       .toEqual(["error", "gap", "question", "correct"]);
+  });
+});
+
+// The planted errors from the gemma4:e2b readiness run, which its review stamped "correct".
+const PLANTED = [
+  "Times tables: 6 x 7 = 48.",
+  "Fractions: 1/3 is bigger than 1/2.",
+  "In Python, range(3) gives 1, 2, 3.",
+  "Spanish: Nosotros hablan.",
+  "Coins: A nickel is worth 1 cent.",
+  "Plants make food by photosynthesis.",
+].join("\n");
+const STAMPED: Annotation[] = [
+  a("6 x 7 = 48", "correct", "Right, 6 times 7 is 48."),
+  a("1/3 is bigger than 1/2", "correct", "Correct comparison."),
+  a("range(3) gives 1, 2, 3", "correct", "Good."),
+  a("Nosotros hablan", "correct", "Correct conjugation."),
+  a("A nickel is worth 1 cent", "correct", "Yes."),
+  a("photosynthesis", "gap", "Say where it happens."),
+];
+
+describe("finishReview", () => {
+  it("on a tiny or small model shows no 'correct' remarks, and code marks the false arithmetic wrong", () => {
+    for (const tier of ["tiny", "small", undefined] as const) {
+      const { annotations } = finishReview(PLANTED, STAMPED, tier);
+      expect(annotations.map((x) => [x.quote, x.kind, x.note])).toEqual([
+        ["6 x 7 = 48", "error", "6 × 7 = 42, not 48."],
+        ["1/3 is bigger than 1/2", "error", "1/3 is smaller than 1/2."],
+        ["photosynthesis", "gap", "Say where it happens."],
+      ]);
+    }
+  });
+
+  it("on a larger model keeps 'correct' remarks, but never on a false arithmetic claim", () => {
+    const { annotations } = finishReview(PLANTED, STAMPED, "large");
+    const kinds = Object.fromEntries(annotations.map((x) => [x.quote, x.kind]));
+    expect(kinds["6 x 7 = 48"]).toBe("error");
+    expect(kinds["1/3 is bigger than 1/2"]).toBe("error");
+    expect(kinds["Nosotros hablan"]).toBe("correct");
+    expect(annotations.filter((x) => x.quote === "6 x 7 = 48")).toHaveLength(1);
+  });
+
+  it("marks a false claim the model said nothing about", () => {
+    const { annotations } = finishReview("We learned 9 + 5 = 13 today.", [], "large");
+    expect(annotations).toMatchObject([{ quote: "9 + 5 = 13", kind: "error", note: "9 + 5 = 14, not 13." }]);
+  });
+
+  it("keeps the model's own error mark on a false claim instead of adding a second", () => {
+    const { annotations } = finishReview("We learned 9 + 5 = 13 today.", [a("= 13", "error", "It is 14.")], "small");
+    expect(annotations).toMatchObject([{ quote: "= 13", kind: "error", note: "It is 14." }]);
+  });
+
+  it("drops an error mark on a true arithmetic claim", () => {
+    const { annotations } = finishReview("We learned 6 x 7 = 42 today.", [a("6 x 7 = 42", "error", "It is 48.")], "large");
+    expect(annotations).toEqual([]);
+  });
+
+  it("keeps a correct mark on a true claim on a larger model", () => {
+    const { annotations } = finishReview("We learned 6 x 7 = 42 today.", [a("6 x 7 = 42", "correct", "Yes.")], "medium");
+    expect(annotations).toMatchObject([{ kind: "correct" }]);
+  });
+
+  it("still counts the remarks it could not place", () => {
+    expect(finishReview(NOTE, [a("not in the note"), a("mitochondria")], "small").dropped).toBe(1);
+  });
+});
+
+describe("showsCorrectRemarks", () => {
+  it("only on medium and large", () => {
+    expect([showsCorrectRemarks("tiny"), showsCorrectRemarks("small"), showsCorrectRemarks(undefined),
+      showsCorrectRemarks("medium"), showsCorrectRemarks("large")]).toEqual([false, false, false, true, true]);
   });
 });

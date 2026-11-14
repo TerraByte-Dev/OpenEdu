@@ -11,7 +11,7 @@
 //      correction. The kernel has no right/wrong signal for a chat turn, so the tutor's own reply is
 //      the evidence the code can check.
 
-import { tryParseJsonLenient } from "./json-lenient";
+import { repairLatexInValue, tryParseJsonLenient } from "./json-lenient";
 
 export const KNOWLEDGE_TYPES = ["knowledge_map", "misconceptions", "study_log", "learning_profile"] as const;
 export type KnowledgeType = typeof KNOWLEDGE_TYPES[number];
@@ -43,7 +43,7 @@ export function knowledgeValueToText(value: unknown, depth = 0): string {
     .join("\n");
 }
 
-/** The JSON object in a reply, fenced or not, parsed leniently (LaTeX `\pi` in a string is kept). */
+/** The JSON object in a reply, fenced or not, parsed leniently (LaTeX `\pi` and `\text` in a string are kept). */
 function parseJsonObject(raw: string): unknown {
   let jsonStr = raw.trim();
   if (jsonStr.startsWith("```")) {
@@ -52,7 +52,7 @@ function parseJsonObject(raw: string): unknown {
   const start = jsonStr.indexOf("{");
   const end = jsonStr.lastIndexOf("}");
   if (start !== -1 && end !== -1) jsonStr = jsonStr.slice(start, end + 1);
-  return tryParseJsonLenient(jsonStr);
+  return repairLatexInValue(tryParseJsonLenient(jsonStr));
 }
 
 /**
