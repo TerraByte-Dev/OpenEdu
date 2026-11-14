@@ -53,8 +53,8 @@ export function resolveReviewConfig(
 ): LLMConfig | null {
   const value = (stored ?? "").trim();
   if (value.toLowerCase() === REVIEW_OFF) return null;
-  if (value && value !== gen.model && !modelNeedsCloudNotice(gen.provider, value, noticesSeen)) {
-    return { ...gen, model: value, modelTier: undefined };
+  if (value && !modelNeedsCloudNotice(gen.provider, value, noticesSeen)) {
+    return value === gen.model ? { ...gen, modelTier: genTier } : { ...gen, model: value, modelTier: undefined };
   }
   if (kind === "lesson" && LESSON_REVIEW_DEFAULT_OFF_TIERS.has(genTier)) return null;
   return { ...gen, modelTier: genTier };

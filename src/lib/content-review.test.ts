@@ -283,6 +283,8 @@ describe("resolveReviewConfig", () => {
   it("honours off and a named model", () => {
     expect(resolveReviewConfig("off", gen, "large", [], "questions")).toBeNull();
     expect(resolveReviewConfig("qwen3.5:9b", gen, "tiny", [], "lesson")).toMatchObject({ provider: "ollama", model: "qwen3.5:9b" });
+    // Naming the generation model on purpose turns the lesson review on even on tiny.
+    expect(resolveReviewConfig("gemma4:e2b", gen, "tiny", [], "lesson")).toMatchObject({ model: "gemma4:e2b", modelTier: "tiny" });
   });
   it("ignores an Ollama cloud review model whose privacy notice was never confirmed", () => {
     expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", [], "questions")?.model).toBe("gemma4:e2b");
