@@ -21,6 +21,7 @@ import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { splitReplyDiagrams } from "../lib/mermaid-source";
+import { displayReplyText } from "../lib/kernel/textToolCalls";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
 import { describeToolActivity, describeToolDone, describeToolRequest, friendlyError, STALLED_TURN } from "../lib/plain-language";
@@ -662,8 +663,10 @@ function appendUnique(prev: ChatMessage[], msg: ChatMessage): ChatMessage[] {
 
 // A tutor reply's prose. A ```mermaid fence in it is drawn through MermaidBlock, as a diagram.render
 // result is, instead of shown as code (mermaid-source.ts); a fence still streaming shows a placeholder.
-// A reply without one renders exactly as before.
-function ReplyProse({ text, streaming = false, children }: { text: string; streaming?: boolean; children?: React.ReactNode }) {
+// A reply without one renders exactly as before. A saved reply is shown through displayReplyText, so
+// one saved before the kernel filtered tool-call text never shows it either.
+function ReplyProse({ text: raw, streaming = false, children }: { text: string; streaming?: boolean; children?: React.ReactNode }) {
+  const text = streaming ? raw : displayReplyText(raw);
   const segments = splitReplyDiagrams(text);
   if (!streaming && segments.length === 1 && segments[0].kind === "markdown") {
     return (

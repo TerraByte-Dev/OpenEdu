@@ -9,17 +9,20 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 // Promised here:
 //   - no state of the streamed reply, and not the saved text, ever holds the call syntax or a gemma4
 //     control token; everything else in the reply (LaTeX, a Mermaid fence) is kept byte for byte;
-//   - a call to a tool offered this turn is dispatched like a native call: zod validation, then the
-//     permission gate (the confirm card for a write tool), and the model is called again with the
-//     result; the text it wrote after the call is not shown;
-//   - a call to a tool not offered this turn is dropped and nothing runs.
+//   - progress.mark_mastered never runs from text; a write tool runs only inside gemma4's own tool
+//     tokens; a read-only tool may run from bare text. What runs is dispatched like a native call: zod
+//     validation, the permission gate, the model called again with the result. The text the model
+//     wrote after that call is not shown;
+//   - a call that never closes hides nothing but its own first line;
+//   - a call to a tool not offered this turn is removed and nothing runs.
 
 vi.mock("@tauri-apps/plugin-http", () => import("../eval/headless/shims/plugin-http"));
 vi.mock("@tauri-apps/plugin-store", () => import("../eval/headless/shims/plugin-store"));
 
 import { tutorEngine, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
-import { registerBuiltinTools } from "../tools";
+import { ReplyTextFilter, displayReplyText, HOLD_CAP } from "./textToolCalls";
+import { registerBuiltinTools, toolRegistry } from "../tools";
 import type { LLMConfig } from "../../types";
 
 const FC02 = "I will save a flashcard for you. This will help you remember important ideas.\n\nflashcard.create{front:<|\"|>What is the divisor in division?<|\"|>,back:<|\"|>The divisor is how many groups you are splitting things into.<|\"|>,subtopic_id:<|\"|>Division as Sharing<|\"|>}";
@@ -29,25 +32,47 @@ const MM17_BEFORE = "That is a very good description of the parts of an atom! Yo
 const MM17_AFTER = "\n\nYou have successfully demonstrated a good understanding of the subtopic \"Atomic Structure.\" Would you like to move on to the next topic, or would you like to practice something related to atoms?";
 const MM17 = `${MM17_BEFORE}progress.mark_mastered{status:<|"|>mastered<|"|>,subtopic_id:<|"|>Atomic Structure<|"|>}${MM17_AFTER}`;
 const D01 = "I can draw a flowchart for an if/else statement. This will show the steps of that control flow.\n\nHere is the flowchart showing how an if/else statement works:\n\n```mermaid\ngraph TD;\n    A[Start] --> B{Condition?};\n    B -- Yes --> C[Execute the 'if' block];\n    B -- No --> D[Execute the 'else' block];\n    C --> E[End];\n    D --> E;\n```\n\nThis flowchart shows the steps of an if/else statement. It starts, checks a condition, and then follows one path based on whether the condition is true or false.\n\nDo you want to try writing a small Python program that uses an if statement next?";
+// fc02's call alone, and wrapped in the full gemma4 frame Ollama itself looks for.
+const FC02_CALL = FC02.slice(FC02.indexOf("flashcard."));
+const FC02_FRAMED = `${FC02.slice(0, FC02.indexOf("flashcard."))}<|tool_call>call:${FC02_CALL}<tool_call|>`;
 
 // The reply with its call line removed: what the child should see when nothing runs.
-const prose = (reply: string) => reply.slice(0, reply.search(/(?:flashcard\.create|progress\.mark_mastered)\{/));
+const prose = (reply: string) => reply.slice(0, reply.search(/(?:<\|tool_call>|flashcard\.create|progress\.mark_mastered)/));
 
 // What must never reach the screen or the transcript.
-const MACHINERY = /<\||\|>|mark_mastered|flashcard\.create|\{status|\{front|subtopic_id/;
+const MACHINERY = /<\||\|>|mark_mastered|flashcard\.create|math\.render|\{status|\{front|subtopic_id/;
 
 const CONFIG = { provider: "ollama", model: "gemma4:e2b", ollamaUrl: "http://127.0.0.1:11434" } as unknown as LLMConfig;
 
 type Msg = { role: string; content: string; tool_calls?: Array<{ function: { name: string; arguments: unknown } }> };
-let replies: string[] = [];
+// A scripted reply: the text, or the text and then a stream that stays open until the turn is stopped.
+type Scripted = string | { thenHang: string };
+let replies: Scripted[] = [];
 let chat: Array<{ messages: Msg[]; tools?: unknown[] }> = [];
+let stopTurn: (() => void) | null = null;
 
-// Ollama's /api/chat stream: the reply in 3-character content chunks, one NDJSON line each.
-function stream(text: string): Response {
-  const lines: string[] = [];
-  for (let i = 0; i < text.length; i += 3) lines.push(JSON.stringify({ message: { role: "assistant", content: text.slice(i, i + 3) }, done: false }));
-  lines.push(JSON.stringify({ message: { role: "assistant", content: "" }, done: true, done_reason: "stop" }));
-  return new Response(lines.map((l) => `${l}\n`).join(""), { status: 200 });
+// Ollama's /api/chat NDJSON stream: the reply in 3-character content chunks, one line each.
+function lines(text: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < text.length; i += 3) out.push(`${JSON.stringify({ message: { role: "assistant", content: text.slice(i, i + 3) }, done: false })}\n`);
+  return out;
+}
+function stream(reply: Scripted, signal?: AbortSignal): Response {
+  if (typeof reply === "string") {
+    const done = `${JSON.stringify({ message: { role: "assistant", content: "" }, done: true, done_reason: "stop" })}\n`;
+    return new Response([...lines(reply), done].join(""), { status: 200 });
+  }
+  const enc = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const l of lines(reply.thenHang)) controller.enqueue(enc.encode(l));
+      // As a real fetch does, a stopped request errors its body.
+      signal?.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")), { once: true });
+      // Everything is sent; the student presses Stop while the model is still "writing".
+      setTimeout(() => stopTurn?.(), 20);
+    },
+  });
+  return new Response(body, { status: 200 });
 }
 
 async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> {
@@ -56,21 +81,25 @@ async function fakeOllama(input: Parameters<typeof fetch>[0], init?: Parameters<
   chat.push(JSON.parse(String(init?.body)));
   const next = replies.shift();
   if (next === undefined) throw new Error(`unscripted /api/chat request #${chat.length}`);
-  return stream(next);
+  return stream(next, init?.signal ?? undefined);
 }
 
 interface Run {
   result: TutorTurnResult;
   shown: string[]; // the streamed reply after every onText call
   confirms: Array<{ tool: string; summary: string }>;
+  events: string[]; // tool UI events, "kind:name"
 }
 
-async function run(mode: string, scripted: string[], opts: { approve?: boolean } = {}): Promise<Run> {
+async function run(mode: string, scripted: Scripted[], opts: { approve?: boolean } = {}): Promise<Run> {
   replies = [...scripted];
   chat = [];
   const shown: string[] = [];
   const confirms: Run["confirms"] = [];
+  const events: string[] = [];
   let text = "";
+  const abort = new AbortController();
+  stopTurn = () => abort.abort();
   const { activeSkill, domainSkill } = chatTurnSkills(mode, "Math", "tiny", true);
   const result = await tutorEngine.run(
     {
@@ -78,16 +107,17 @@ async function run(mode: string, scripted: string[], opts: { approve?: boolean }
       config: CONFIG,
       retrieval: "off",
       onText: (chunk) => { text += chunk; shown.push(text); },
+      onToolEvent: (ev) => { events.push(`${ev.kind}:${ev.name}`); },
     },
     {
       courseId: "c-1", level: 1, syllabus: null, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
-      abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true,
+      abort: abort.signal, activeSkill, domainSkill, supportsTools: true,
       confirmTool: async (tool, summary) => { confirms.push({ tool, summary }); return opts.approve ?? false; },
     },
   );
   expect(replies, "every scripted reply was used").toHaveLength(0);
   expect(shown[shown.length - 1] ?? "", "what streamed is what the turn returns").toBe(result.text);
-  return { result, shown, confirms };
+  return { result, shown, confirms, events };
 }
 
 function expectClean(r: Run) {
@@ -95,11 +125,13 @@ function expectClean(r: Run) {
   expect(r.result.text).not.toMatch(MACHINERY);
 }
 
+const toolNames = () => toolRegistry.all().map((t) => t.name);
+
 beforeAll(() => {
   globalThis.fetch = fakeOllama as typeof fetch;
   registerBuiltinTools();
 });
-beforeEach(() => { replies = []; chat = []; });
+beforeEach(() => { replies = []; chat = []; stopTurn = null; });
 
 describe("a tool call written as text, for a tool not offered this turn", () => {
   it.each([
@@ -107,7 +139,7 @@ describe("a tool call written as text, for a tool not offered this turn", () => 
     ["mm02", MM02],
     ["mm06", MM06],
   ])("%s: the child sees the reply without the call, at every point of the stream, and nothing runs", async (_id, reply) => {
-    // Explain mode offers only the read tools: neither flashcard.create nor progress.mark_mastered.
+    // Explain mode on a math course offers notebook.search, math.render and diagram.render only.
     const r = await run("explain", [reply]);
     expectClean(r);
     expect(r.result.text).toBe(prose(reply));
@@ -122,11 +154,9 @@ describe("a tool call written as text, for a tool not offered this turn", () => 
     expect(r.result.text).toBe(MM17_BEFORE + MM17_AFTER);
   });
 
-  it("the full gemma4 frame (<|tool_call>call:…) is dropped too, and a word held back at the end is still shown", async () => {
-    // The opener Ollama needs to see a call, with the fc02 call inside. "math" could have been the start
-    // of math.render{ until the stream ended.
-    const call = FC02.slice(FC02.indexOf("flashcard."));
-    const r = await run("explain", [`Good work.<|tool_call>call:${call}<tool_call|> Next we try math`]);
+  it("the full gemma4 frame (<|tool_call>call:…) is removed too, and a word held back at the end is still shown", async () => {
+    // "math" could have been the start of math.render{ until the stream ended.
+    const r = await run("explain", [`Good work.<|tool_call>call:${FC02_CALL}<tool_call|> Next we try math`]);
     expectClean(r);
     expect(r.result.text).toBe("Good work. Next we try math");
   });
@@ -139,45 +169,123 @@ describe("a tool call written as text, for a tool not offered this turn", () => 
   });
 });
 
-describe("a tool call written as text, for a tool offered this turn", () => {
-  it("mm02 in assess mode: validated, sent to the confirm card, and the model hears the answer", async () => {
-    const r = await run("assess", [MM02, "Let's keep practicing division."]);
-    expectClean(r);
-    // progress.mark_mastered writes, so the default rules ask first. Declined here, so nothing is written.
-    expect(r.confirms.map((c) => c.tool)).toEqual(["progress.mark_mastered"]);
-    expect(r.result.toolCalls).toEqual([
-      { name: "progress.mark_mastered", args: { status: "mastered", subtopic_id: "Division as Sharing" }, ok: false, fromText: true },
-    ]);
-    // The second request carries the call as a real tool call and its result, as for a native call.
-    expect(chat).toHaveLength(2);
-    const sent = chat[1].messages;
-    const call = sent.find((m) => m.role === "assistant" && m.tool_calls?.length);
-    expect(call?.tool_calls?.[0].function).toEqual({ name: "progress.mark_mastered", arguments: { status: "mastered", subtopic_id: "Division as Sharing" } });
-    expect(call?.content).toBe(prose(MM02));
-    expect(sent[sent.length - 1]).toMatchObject({ role: "tool", content: "ERROR: The student declined to let progress.mark_mastered run." });
-    expect(r.result.text).toBe(`${prose(MM02)}Let's keep practicing division.`);
-  });
+describe("which calls written as text run", () => {
+  // Both end with <tool_call|>, so gemma4's own token frames them: only the mastery rule stops them.
+  it.each([["mm02", MM02, prose(MM02)], ["mm06", MM06, prose(MM06)]])(
+    "%s in assess mode, where the tool is offered: progress.mark_mastered never runs from text, it is only removed",
+    async (_id, reply, expected) => {
+      const r = await run("assess", [reply]);
+      expectClean(r);
+      expect(r.confirms).toEqual([]);
+      expect(r.result.toolCalls).toEqual([]);
+      expect(chat).toHaveLength(1);
+      expect(r.result.text).toBe(expected);
+    },
+  );
 
-  it("mm17 in assess mode: the text after the call is not shown, since the tool has not answered yet", async () => {
-    const r = await run("assess", [MM17, "Let's look at the next topic."]);
-    expectClean(r);
-    expect(r.confirms.map((c) => c.tool)).toEqual(["progress.mark_mastered"]);
-    expect(r.result.text).toBe(`${MM17_BEFORE}Let's look at the next topic.`);
-  });
-
-  it("fc02 in review mode: the card the confirm shows is the model's own front", async () => {
-    const r = await run("review", [FC02, "Okay, I won't save it."]);
-    expectClean(r);
-    expect(r.confirms).toEqual([{ tool: "flashcard.create", summary: "The card: “What is the divisor in division?”" }]);
-    expect(r.result.toolCalls.map((c) => [c.name, c.fromText])).toEqual([["flashcard.create", true]]);
-  });
-
-  it("arguments the tool's schema rejects are refused before the permission gate, as a native call's are", async () => {
-    const bad = MM02.replace("<|\"|>mastered<|\"|>", "<|\"|>done<|\"|>");
-    const r = await run("assess", [bad, "Let's try another one."]);
+  it("fc02 as written (bare text) in review mode: a write tool does not run, the call is removed", async () => {
+    const r = await run("review", [FC02]);
     expectClean(r);
     expect(r.confirms).toEqual([]);
-    expect(r.result.toolCalls).toMatchObject([{ name: "progress.mark_mastered", ok: false, fromText: true }]);
-    expect(chat[1].messages[chat[1].messages.length - 1]?.content).toMatch(/^ERROR: Invalid arguments for progress\.mark_mastered: status:/);
+    expect(r.result.toolCalls).toEqual([]);
+    expect(chat).toHaveLength(1);
+    expect(r.result.text).toBe(prose(FC02));
+  });
+
+  it("fc02 inside gemma4's tool tokens: the write tool goes to the confirm card, and the model hears the answer", async () => {
+    const r = await run("review", [FC02_FRAMED, "Okay, I won't save it."]);
+    expectClean(r);
+    expect(r.confirms).toEqual([{ tool: "flashcard.create", summary: "The card: “What is the divisor in division?”" }]);
+    expect(r.result.toolCalls.map((c) => [c.name, c.ok, c.fromText])).toEqual([["flashcard.create", false, true]]);
+    const sent = chat[1].messages;
+    const call = sent.find((m) => m.role === "assistant" && m.tool_calls?.length);
+    expect(call?.tool_calls?.[0].function.name).toBe("flashcard.create");
+    expect(call?.content).toBe(prose(FC02));
+    expect(sent[sent.length - 1]).toMatchObject({ role: "tool", content: "ERROR: The student declined to let flashcard.create run." });
+    expect(r.result.text).toBe(`${prose(FC02)}Okay, I won't save it.`);
+  });
+
+  it("the closing token alone frames a write call too (mm02's form, with fc02's call)", async () => {
+    const r = await run("review", [`Here you go.\n\n${FC02_CALL}<tool_call|>`, "Done."]);
+    expectClean(r);
+    expect(r.confirms.map((c) => c.tool)).toEqual(["flashcard.create"]);
+  });
+
+  it("a read-only tool runs from bare text: math.render draws, and the text after the call is not shown", async () => {
+    const r = await run("explain", ["The area of a circle is:\n\nmath.render{latex:<|\"|>A = \\pi r^2<|\"|>}\n\nThat is the formula.", "Here r is the radius."]);
+    expectClean(r);
+    expect(r.confirms).toEqual([]);
+    expect(r.events).toEqual(["start:math.render", "result:math.render"]);
+    expect(r.result.toolCalls).toEqual([{ name: "math.render", args: { latex: "A = \\pi r^2" }, ok: true, fromText: true }]);
+    expect(r.result.text).toBe("The area of a circle is:\n\nHere r is the radius.");
+  });
+
+  it("arguments the tool's schema rejects are refused, as a native call's are", async () => {
+    const r = await run("explain", ["See:\n\nmath.render{tex:<|\"|>x^2<|\"|>}", "Let's try again."]);
+    expectClean(r);
+    expect(r.result.toolCalls).toMatchObject([{ name: "math.render", ok: false, fromText: true }]);
+    expect(chat[1].messages[chat[1].messages.length - 1]?.content).toMatch(/^ERROR: Invalid arguments for math\.render: latex:/);
+  });
+});
+
+describe("a call that never closes hides only itself", () => {
+  it("a lone \" in the arguments: only the call is removed, the reply after it is shown", async () => {
+    const r = await run("explain", ["progress.mark_mastered{status:\"mastered} You did great, now try 3x4."]);
+    expectClean(r);
+    expect(r.result.text).toBe(" You did great, now try 3x4.");
+  });
+
+  it("an unclosed {: only `name{` is removed when what follows is not arguments", async () => {
+    const r = await run("explain", ["Use math.render{ to draw. Then 3+4 = 7. Great job!"]);
+    expect(r.result.text).toBe("Use  to draw. Then 3+4 = 7. Great job!");
+    expect(r.result.toolCalls).toEqual([]);
+  });
+
+  it("an unclosed call is given up at a blank line, before the stream ends, and its first line alone is removed", () => {
+    const filter = new ReplyTextFilter(toolNames());
+    const shown = filter.push("Nice.\n\nflashcard.create{front:<|\"|>What is a divisor?<|\"|>,\n\nNow try 12 ÷ 3.");
+    expect(shown).toBe("Nice.\n\n\n\nNow try 12 ÷ 3.");
+    expect(filter.end()).toBe("");
+  });
+
+  it(`an unclosed call is held for at most ${HOLD_CAP} characters, then released`, () => {
+    const filter = new ReplyTextFilter(toolNames());
+    const long = "word ".repeat(400);
+    const shown = filter.push(`Use math.render{ ${long}`);
+    expect(shown.length).toBeGreaterThan(long.length - 10);
+    expect(shown).not.toMatch(/math\.render/);
+  });
+
+  it("Stop while a call is held: the turn ends with the text before it, and no part of the call", async () => {
+    const r = await run("assess", [{ thenHang: "Good job. progress.mark_mastered{status:<|\"|>mas" }]);
+    expect(r.result.stopReason).toBe("aborted");
+    expectClean(r);
+    expect(r.result.text).toBe("Good job. ");
+  });
+});
+
+describe("text that only looks like machinery is kept", () => {
+  it("<|y| at the end and x<y_z|> mid-reply are not gemma4 tokens", async () => {
+    const reply = "Compare x<y_z|> with that, then write |x|<|y|";
+    const r = await run("explain", [reply]);
+    expect(r.result.text).toBe(reply);
+  });
+
+  it("a tool name glued to the word before it is not a call, even across a chunk boundary", async () => {
+    // 3-character chunks: "sum" arrives before "math.render{…}".
+    const reply = "summath.render{a:1} is not a call.";
+    const r = await run("explain", [reply]);
+    expect(r.result.text).toBe(reply);
+    expect(chat).toHaveLength(1);
+  });
+});
+
+describe("saved replies (ChatTab shows them through displayReplyText)", () => {
+  it.each([["fc02", FC02], ["mm02", MM02], ["mm06", MM06]])("%s saved before this fix shows without the call", (_id, reply) => {
+    expect(displayReplyText(reply)).toBe(prose(reply));
+  });
+
+  it("mm17 saved before this fix keeps the text after the call", () => {
+    expect(displayReplyText(MM17)).toBe(MM17_BEFORE + MM17_AFTER);
   });
 });
