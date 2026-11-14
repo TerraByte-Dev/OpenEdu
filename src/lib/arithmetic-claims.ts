@@ -16,7 +16,9 @@ export interface ArithmeticClaim {
   truth: string;
 }
 
-const NUM = String.raw`\d+(?:,\d{3})*(?:\.\d+)?`;
+// No comma: it is a thousands separator in English and the decimal mark in French and Spanish notes
+// ("1,5 + 2 = 3,5"), so a number touching a comma is not read at all.
+const NUM = String.raw`\d+(?:\.\d+)?`;
 const OP = "[+\\-−×xX*·÷/]";
 // Not glued to a word, a number, or an operator before it ("2x + 3 = 7", "10 - 2 x 3 = 4", "-3 + 5"),
 // not the fraction of a mixed number ("1 1/2"), and not scaled by a word ("twice 1/3", "half of 6").
@@ -39,14 +41,15 @@ const COMPARISON = new RegExp(
 );
 const SYMBOLIC = new RegExp(`${BEFORE}(${VALUE})\\s*([<>])\\s*(${VALUE})${AFTER}`, "g");
 
-const num = (s: string) => Number(s.replace(/,/g, ""));
+const num = (s: string) => Number(s);
 const decimals = (s: string) => (s.includes(".") ? s.split(".")[1].length : 0);
 function value(s: string): number {
   const [n, d] = s.split("/");
   return d === undefined ? Number(n) : Number(n) / Number(d);
 }
 function show(n: number): string {
-  return Number.isInteger(n) ? n.toLocaleString("en-US") : String(Number(n.toFixed(4)));
+  // No grouping separator, for the same reason numbers with commas aren't read.
+  return String(Number(n.toFixed(4)));
 }
 const SYMBOL: Record<string, string> = { "+": "+", "-": "−", "−": "−", x: "×", X: "×", "×": "×", "*": "×", "·": "×", "÷": "÷", "/": "÷" };
 

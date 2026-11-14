@@ -14,7 +14,6 @@ describe("arithmeticClaims: equations", () => {
     ["12 / 4 = 4", false, "12 ÷ 4 = 3, not 4."],
     ["1 ÷ 3 = 0.33", true, "1 ÷ 3 = 0.33."],
     ["1 / 4 = 0.5", false, "1 ÷ 4 = 0.25, not 0.5."],
-    ["1,000 + 2,500 = 3,500", true, "1,000 + 2,500 = 3,500."],
     ["0.1 + 0.2 = 0.3", true, "0.1 + 0.2 = 0.3."],
   ])("%s", (text, holds, truth) => {
     const [claim] = arithmeticClaims(`So ${text} in the end.`);
@@ -42,6 +41,9 @@ describe("arithmeticClaims: equations", () => {
     "twice 3 + 4 = 10",
     "range(3) gives 0, 1, 2",
     "v2 + 3 = 5",
+    "1,5 + 2 = 3,5",           // a decimal comma (French, Spanish)
+    "1,000 + 2,500 = 3,500",   // or a thousands comma: either way, not read
+    "0,5 x 2 = 1",
   ])("leaves %s alone", (text) => {
     expect(arithmeticClaims(text)).toEqual([]);
   });
