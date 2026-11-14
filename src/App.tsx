@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Course, View, LLMProvider, QuizViewContext } from "./types";
 import {
   getCourses, deleteCourse, checkDatabaseHealth, listLearners, setActiveLearnerId, getActiveLearnerId, touchLearner,
@@ -12,6 +12,7 @@ import {
 } from "./lib/store";
 import { minutesToday, tickActiveMinutes, type ActiveMinutes } from "./lib/daily-goal";
 import type { NextStepAction } from "./lib/next-step";
+import { opensWhenBuilt, readyNotice } from "./lib/course-ready";
 import { probeEnvironment, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
 import { log, unloadOllamaModels } from "./lib/llm";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -40,6 +41,13 @@ if (typeof document !== "undefined") {
 export default function App() {
   const [booted, setBooted] = useState(false);
   const [currentView, setCurrentView] = useState<View>("dashboard");
+  // Where the learner is now, for a course build that finishes in the background: its callback was made
+  // when the build started, so its own `currentView` is stale.
+  const viewRef = useRef(currentView);
+  viewRef.current = currentView;
+  // A course that finished building while the learner was elsewhere (course-ready.ts): a notice with
+  // an Open button, until they open or dismiss it.
+  const [readyCourse, setReadyCourse] = useState<{ id: string; title?: string } | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   // Where the course view lands when opened from Home's Continue button (next-step.ts). Consumed by
   // CourseView's initial state; cleared on every other way into a course.
@@ -84,6 +92,7 @@ export default function App() {
     const c = await getCourses();
     // A switch can land while this was in flight; never show one learner's list to the next.
     if (getActiveLearnerId() === learnerId) setCourses(c);
+    return c;
   };
 
   const reloadLearners = async (): Promise<LearnerRow[]> => {
@@ -105,6 +114,7 @@ export default function App() {
     setPendingResumeCourse(null);
     setPromotionBanner(null);
     setTourStep(null);
+    setReadyCourse(null);
     setCourses([]);
   };
 
@@ -222,6 +232,7 @@ export default function App() {
   }, []);
 
   const openCourse = (courseId: string, initialAction?: NextStepAction) => {
+    setReadyCourse((r) => (r?.id === courseId ? null : r));
     setCourseInitialAction(initialAction);
     setSelectedCourseId(courseId);
     setCurrentView("course");
@@ -253,13 +264,15 @@ export default function App() {
   };
 
   const onCourseCreated = async (courseId: string) => {
-    await refreshCourses();
-    openCourse(courseId);
+    const list = await refreshCourses();
+    if (opensWhenBuilt(viewRef.current)) { openCourse(courseId); return; }
+    setReadyCourse({ id: courseId, title: list.find((c) => c.id === courseId)?.title });
   };
 
   const handleDeleteCourse = async (courseId: string) => {
     await deleteCourse(courseId);
     await refreshCourses();
+    setReadyCourse((r) => (r?.id === courseId ? null : r));
     if (selectedCourseId === courseId) {
       setSelectedCourseId(null);
       setCurrentView("dashboard");
@@ -350,6 +363,23 @@ export default function App() {
                   <span className="w-2 h-2 rounded-full bg-phosphor animate-pulse shrink-0" />
                   <span>Building <strong>{craftingTopic}</strong> — click to watch</span>
                 </button>
+              )}
+
+              {readyCourse && !isFullscreenView && (
+                <div
+                  role="status"
+                  className="flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--rule)] text-sm text-phosphor-ink shrink-0"
+                  style={{ background: "rgb(var(--phosphor-rgb)/0.04)" }}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full bg-phosphor shrink-0" />
+                    <span>{readyNotice(readyCourse.title)}</span>
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <button onClick={() => openCourse(readyCourse.id)} className="font-medium text-phosphor-bright hover:text-phosphor">Open</button>
+                    <button onClick={() => setReadyCourse(null)} aria-label="Dismiss" className="text-phosphor-bright hover:text-phosphor text-lg leading-none">✕</button>
+                  </span>
+                </div>
               )}
 
               {currentView === "dashboard" && setup && (!setup.ready || (!setup.complete && !setupDismissed)) && (
