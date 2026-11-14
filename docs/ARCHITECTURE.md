@@ -167,6 +167,20 @@ line in the stream). If nothing from that model call had reached the student yet
 that offers no tools and drops the tools manifest from the system prompt, and records it in the turn
 result (`toolCallRecovery`). Any other provider error fails the turn as before.
 
+A model can also write a tool call as plain reply text that Ollama never parses (gemma4:e2b writes
+`progress.mark_mastered{status:<|"|>mastered<|"|>,...}<tool_call|>` without its opening frame). Every
+model call's text goes through `ReplyTextFilter` (`kernel/textToolCalls.ts`) before the student sees it
+or it is saved: text that could still become such a call is held back mid-stream, a complete one is
+removed, and gemma4's control tokens are dropped. A call to a tool offered this turn, with arguments the
+filter can parse, is then dispatched exactly like a native call (zod validation, the permission gate,
+the result back to the model, `fromText: true` in the turn's `toolCalls`); the text after it is not
+shown. A call to any other tool is only removed.
+
+In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
+`diagram.render` result uses (`mermaid-source.ts`). Source Mermaid cannot parse is retried with its node
+labels quoted; if that fails too, the child sees a plain sentence and the diagram's labels, never the
+source.
+
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
 The notebook is an Obsidian-style vault: notes in nested folders, a live-preview CodeMirror editor, and a
