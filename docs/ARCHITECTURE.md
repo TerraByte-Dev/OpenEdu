@@ -154,6 +154,17 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
    Every parsed reply gets LaTeX commands back that a JSON escape turned into a control character
    (`\text` written with one backslash parses as a TAB + "ext"; `repairLatexInValue` in `json-lenient.ts`).
    A lesson section that stops mid-sentence is a validation issue (`lessonIssues` in `lesson-format.ts`).
+   **A string past its `maxLength` is shortened, not failed**, when that is the only schema issue
+   (`trimOverlongStrings` / `trimToLimit` in `llm.ts`): cut at the last sentence end that fits, or at the
+   last whole word plus "…" when no sentence of the field's `minLength` fits, never inside a word; the
+   result must pass the schema and the caller's `validate`, else the repair prompt runs as before, and
+   each trim is logged with its path and lengths. Ollama and Anthropic do not enforce `maxLength` while
+   the model writes: Ollama's grammar leaves it out, and Anthropic's forced `tool_use` gets it in `input_schema` but does not
+   hold to it (probe 2026-11-14: `claude-haiku-5-5` wrote 156-195 characters into a 120-character field,
+   3 of 3). In B10, 19 of 20 Haiku course builds failed on 1-20% overruns (`what_it_is` 407-447 of 400,
+   `level_description` 412-479, `domains[].focus` 201-228 of 200, `objective` 242-253 of 240) that two
+   repairs never fixed. The caps stay as they are: the overruns were small, and a whole first sentence
+   is still a full definition.
 3. **Auto-detected model tier** (`tiny | small | medium | large`) drives prompt compression, schema
    relaxation, few-shot injection, and per-call timeouts. Matformer models (`gemma3n:e4b` / `gemma4:e4b`)
    get a name-based tier override so they don't mis-tier.
@@ -176,21 +187,30 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
 
 - **One structured call** (`callLLMStructured`, schema-validated, tier-aware) per lesson, and per batch
   of fresh questions (8 a call on tiny/small, 20 otherwise). Each item gets a verdict: `ok`,
-  `false_fact` (with the sentence), `wrong_key` or `unanswerable`, plus a short reason.
+  `false_fact` (with the sentence), `wrong_key` or `unanswerable`, a short reason, and then a required
+  boolean `statement_is_false` (after the reason, so the model commits once it has written why).
 - **Code acts on the verdicts.** A lesson with a false fact is regenerated once, with the flagged
   sentences named as false in the prompt, and reviewed again. Parts still flagged are dropped; a lesson
   with no section left is not saved (the learner sees an error and can retry). Flagged questions are
   dropped and quiz.ts's top-up rounds refill them; the floor counts are unchanged. With a review model
   set, the review replaces the verify pass on fresh questions (it checks the key too).
-- **Noise guard.** A `false_fact` counts only when its quoted sentence is in the item (`quoteFound`).
+- **Noise guard.** A `false_fact` counts only when `statement_is_false` is `true` and its quoted
+  sentence is in the item (`quoteFound`). Code reads the boolean, never the reason's words: in B10, 4 of
+  `claude-haiku-5-5`'s 5 lesson false alarms were `false_fact` verdicts whose reason said the statement
+  was true, each costing a regeneration.
   Missing or unknown verdicts count as `ok`, and a failed review call keeps the content, so a confused
   reviewer can only let content through, never drain it.
 - **The review's words never reach the learner.** They go to the log and into the lesson's one
   regeneration prompt.
 - **Which model:** the `review_model` setting (`store.ts` `getReviewConfig` → `resolveReviewConfig`).
   Unset = the generation model, except that **lessons are not reviewed on the tiny or small tier**; `"off"` = no
-  review; any other value = that model on the current provider. An Ollama cloud model whose privacy
-  confirm was never accepted is ignored. There is no Settings control yet, and the key is not importable.
+  review; `"<provider>:<model>"` = that model on another provider (`parseReviewModel`), with the key
+  saved for it, e.g. `anthropic:claude-haiku-5-5` so a local model writes and a cloud model checks, or
+  `ollama:qwen3.5:9b` for the reverse; any other value = that model on the current provider (an Ollama
+  tag such as `gemma4:e2b` is not a prefix). A cloud reviewer is ignored, and the default applies, when
+  its privacy confirm was never accepted here (`needsCloudNotice` for OpenAI/Anthropic,
+  `modelNeedsCloudNotice` for an Ollama cloud model) or no key is saved for it. There is no Settings
+  control yet, and the key is not importable.
 - **Measured on `gemma4:e2b` as its own reviewer** (B9 rerun 2's saved output replayed, 2026-11-14, one
   pass, prompt written before the replay, labels from the run's audit and Claude's reading of one test):
   lessons, 0 of the 5 known false lessons caught and 5 true statements flagged in 4 other lessons, so
@@ -202,10 +222,16 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
 - **Privacy.** The payload is a function of (topic, generated content) only: no learner name, grade,
   answers, knowledge files or history. Lesson generation takes (topic, level, subtopic) and fresh
   question generation takes the syllabus, so their output carries no learner data. The quiz's review
-  pool (questions this learner missed) is learner data, so it never goes to the review model; it keeps
-  the verify pass on the generation model. `content-review-privacy.test.ts` runs the generators for a
-  fresh learner and for one with a full history and fails if the review payloads differ. This is what
-  lets an edition send the review to a cloud model without sending anything about the learner.
+  pool (questions this learner missed) is learner data, so it never goes to the review model, and its
+  verify pass runs **only on a local model** (`privacy.ts` `isLocalModel`): the generation model when it
+  is local, else this machine's default Ollama model if it is pulled (`store.ts`
+  `getLocalVerifyConfig`), else the pass is skipped and the pool keeps only the validator re-check. Before
+  2026-11-14 that pass ran on the generation model, so a cloud generation model received the missed
+  questions (B10 audit). `content-review-privacy.test.ts` runs the generators for a fresh learner and for
+  one with a full history and fails if the review payloads differ, if any cloud-bound payload of a cloud
+  generation run holds the missed questions, or if a cross-provider cloud reviewer gets anything but
+  the review builder's (topic, title, generated content). This is what lets an edition send generation
+  and the review to a cloud model without sending anything about the learner.
 
 ## The tutoring runtime (`kernel/`, `tools/`, `skills/`, `permissions/`)
 
