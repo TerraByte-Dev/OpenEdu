@@ -74,6 +74,12 @@ describe("choicesInReply reads a bulleted list offered as a pick", () => {
     expect(labels("Which topic should we do next?\n+ Arrays\n+ Fact families")).toEqual(["Arrays", "Fact families"]);
     expect(labels("• Arrays\n• Fact families\n\nWhich would you rather do?")).toEqual(["Arrays", "Fact families"]);
   });
+
+  it("reads the question past an emoji after its question mark", () => {
+    // Click test 2026-11-14: small models close the pick question with an emoji.
+    expect(labels("- Pizza models\n- Rectangle bars\n- Unit fractions\n\nWhich one sounds best to you? 😊")).toEqual(["Pizza models", "Rectangle bars", "Unit fractions"]);
+    expect(labels("Which would you like to practice? 🍕\n\n1. Halves\n2. Quarters")).toEqual(["Halves", "Quarters"]);
+  });
 });
 
 describe("choicesInReply leaves other lists alone (fails closed)", () => {

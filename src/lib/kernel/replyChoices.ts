@@ -26,6 +26,7 @@
 // The reply text is never changed. The buttons are extra.
 
 import type { AskChoice } from "../tools/EduTool";
+import { withoutTrailingEmoji } from "./suggestions";
 
 export interface ReplyChoices {
   /** The question line, as written, without markdown emphasis. */
@@ -55,7 +56,7 @@ function plain(s: string): string {
 }
 
 function isQuestion(line: string): boolean {
-  return plain(line).endsWith("?");
+  return withoutTrailingEmoji(plain(line)).endsWith("?");
 }
 
 function itemOf(line: string): Item | null {
