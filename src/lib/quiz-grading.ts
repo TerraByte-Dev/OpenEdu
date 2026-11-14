@@ -128,7 +128,7 @@ const NUM = "(-?\\d+(?:\\.\\d+)?)";
 // What may follow a number that is a result rather than part of more arithmetic or another token: not
 // the hour of a clock time ("2" of "2:45"), one side of a fraction ("3" of "3/4"), or a left operand
 // ("Therefore, 14 - 6 = 8" states 8, not 14).
-const NOT_OPERAND = "(?!\\d|\\.\\d|\\s*[:/]\\s*\\d|\\s*(?:[+×*÷]|[-−]\\s*\\d|x\\s*\\d|plus\\b|minus\\b|times\\b|divided\\b|multiplied\\b))";
+const NOT_OPERAND = "(?!\\d|\\.\\d|\\s*[:/]\\s*\\d|\\s*(?:[+×*÷]|[-−]\\s*\\d|x\\s*\\d|plus\\b|minus\\b|times\\b|divided\\b|multiplied\\b|of\\b))";
 const NOT_OPERAND_RE = new RegExp(`^${NOT_OPERAND}`, "i");
 // Conclusion cues, split by how trustworthy a number trailing them is. A 4B model phrases conclusions
 // many ways, so we keep a wide net for "is there a stated result?" but a narrower one for "is this a
@@ -165,9 +165,10 @@ export function extractConcludingNumber(explanation: string): number | null {
 // When the final-answer cue's value only starts more arithmetic ("Therefore, 14 - 6 = 8"), the result
 // is the first one that arithmetic reaches (8), not the operand: reading 14 there rejected that correct
 // question in the 2026-11-14 readiness run. The same goes for the hour of a time or the top of a
-// fraction. With no such result, or when the last "=" result is itself an operand, the check abstains.
+// fraction. Without `followThrough` (a key that is not a single value) it abstains there instead, as it
+// does when the last "=" result is itself an operand.
 // `token` is a regex source whose groups are the value's (the cues have no capturing groups).
-function derivedMatch(text: string, token: string, strongOnly = false): RegExpExecArray | null {
+function derivedMatch(text: string, token: string, { strongOnly = false, followThrough = true } = {}): RegExpExecArray | null {
   const isResult = (m: RegExpExecArray) => NOT_OPERAND_RE.test(text.slice(m.index + m[0].length));
   const all = (cues: string, from = 0): RegExpExecArray[] => {
     const re = new RegExp(`(?:${cues})\\s*:?\\s*(?:${token})`, "gi");
@@ -180,7 +181,7 @@ function derivedMatch(text: string, token: string, strongOnly = false): RegExpEx
   const strong = strongs[strongs.length - 1];
   if (strong) {
     if (isResult(strong)) return strong;
-    return all(ARITH_CUES, strong.index + strong[0].length).find(isResult) ?? null;
+    return followThrough ? all(ARITH_CUES, strong.index + strong[0].length).find(isResult) ?? null : null;
   }
   if (strongOnly) return null;
   const ariths = all(ARITH_CUES);
@@ -188,9 +189,9 @@ function derivedMatch(text: string, token: string, strongOnly = false): RegExpEx
   return arith && isResult(arith) ? arith : null;
 }
 
-function derivedResult(explanation: string): number | null {
+function derivedResult(explanation: string, followThrough: boolean): number | null {
   if (!explanation) return null;
-  const m = derivedMatch(stripNumericNoise(explanation), NUM);
+  const m = derivedMatch(stripNumericNoise(explanation), NUM, { followThrough });
   const n = m ? parseFloat(m[1]) : NaN;
   return Number.isFinite(n) ? n : null;
 }
@@ -301,11 +302,19 @@ function derivedQuantity(explanation: string, kind: QuantityKind, strongOnly: bo
   const src = kind === "time" ? TIME_SRC : kind === "fraction" ? FRACTION_SRC : MONEY_SRC;
   const read = kind === "time" ? timeOf : kind === "fraction" ? fractionOf : moneyOf;
   const text = (explanation ?? "").normalize("NFKC").replace(/(\d),(\d{3})(?!\d)/g, "$1$2");
-  const m = derivedMatch(text, src, strongOnly);
+  const m = derivedMatch(text, src, { strongOnly });
   return m ? read(m) : null;
 }
 
 // ─── Semantic validation (drives repair-retry) ────────────────────────────────
+
+// A key that is one number, maybe with a unit ("9", "C) 34 units"), not an expression or a phrase
+// with a number in it ("3x + y", "Multiplication (2 * 3)"). Only such a key follows a "Therefore"
+// through its arithmetic (derivedMatch); for the others the check keeps its old reading.
+function isPlainNumber(key: string): boolean {
+  const rest = stripNumericNoise(stripOptionLabel(String(key ?? ""))).replace(/-?\d+(?:\.\d+)?/, "").trim();
+  return !/[\d+\-×*÷/=()]/.test(rest) && rest.split(/\s+/).filter(Boolean).length <= 2;
+}
 
 // Self-consistency: when a question has a numeric correct_answer AND its explanation DERIVES a number
 // (a strong "therefore X" or an arithmetic "… = X" — see derivedResult), the two must agree. Conservative
@@ -326,7 +335,7 @@ export function checkAnswerConsistency(q: QuestionLike): string | null {
   }
   const ans = numericValueOf(q.correct_answer);
   if (ans === null) return null;
-  const derived = derivedResult(q.explanation);
+  const derived = derivedResult(q.explanation, isPlainNumber(q.correct_answer));
   if (derived === null) return null;
   if (numbersAgree(ans, derived)) return null;
   return `the explanation works toward ${derived}, but correct_answer is "${q.correct_answer}" (${ans}). ` +
@@ -339,15 +348,18 @@ export function checkAnswerConsistency(q: QuestionLike): string | null {
 // Whatever the key, the explanation is not one to show a child, so the question is rejected and the
 // repair/retry path asks again. Each pattern is a revision cue, not a topic word: "wait for the water
 // to boil" and "actually" mid-sentence pass.
-const REDO = "re-?(?:evaluate|check|calculate|examine|consider|think|assess|do|try)|reconsider|try\\s+again|start\\s+over|" +
-  "check\\s+the\\s+(?:options|choices|answers?)\\s+again|re-?read\\s+the\\s+(?:question|prompt|problem|options|choices)|" +
-  "(?:adjust|fix|correct|change)\\s+the\\s+(?:options|choices|answer|calculation)";
+// Redoing verbs count on their own; looking-again verbs only when aimed at the question or options,
+// since "Let's re-read the passage" or "Let's correct the sentence" is teaching, not revising.
+const WORK = "(?:options|choices|answers?|calculation|question|problem|prompt)";
+const REDO = "re-?(?:evaluate|check|calculate|do|try)|try\\s+again|start\\s+over|" +
+  `check\\s+the\\s+${WORK}\\s+again|(?:re-?examine|reconsider|re-?think|re-?read|re-?assess|adjust|fix|correct|change)\\s+the\\s+${WORK}`;
 const SELF_CORRECTION_RES: RegExp[] = [
   /(?:^|[.!?:;]\s*|\s[-–—]\s*)wait\s*[,.!:—–-]/i,
   /(?:^|[.!?:;]\s*)(?:actually|oops|hmm+|ah)\s*[,.!:—–-]/i,
   new RegExp(`\\blet(?:'|’)?s\\s+(?:${REDO})\\b`, "i"),
   new RegExp(`\\blet\\s+me\\s+(?:${REDO})\\b`, "i"),
-  /(?:^|[.!?:;,]\s*)re-?(?:evaluating|checking|calculating|examining)\b/i,
+  /(?:^|[.!?:;,(]\s*)re-?(?:evaluating|checking|calculating|examining)(?:\s*:|\s+the\s+\w+\s*:|\s+(?:the\s+)?(?:options|choices|calculation|question|prompt|problem)\b)/i,
+  /\bself-correction\b/i,
   /\b(?:i|we)\s+(?:made|have\s+made)\s+(?:a|an)\s+(?:mistake|error)\b/i,
   /\bmy\s+(?:mistake|error|apologies)\b/i,
   /\b(?:on\s+second\s+thought|scratch\s+that|i\s+miscalculated)\b/i,

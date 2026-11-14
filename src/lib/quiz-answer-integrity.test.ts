@@ -169,6 +169,7 @@ describe("answer keys for times, money and fractions are checked against the exp
     ["coin values listed as facts", { question_text: "Which single coin is worth the most?", options: ["A) One quarter", "B) One dime", "C) One nickel", "D) One penny"], correct_answer: "A) One quarter", explanation: "A quarter = 25 cents, a dime = 10 cents, a nickel = 5 cents and a penny = 1 cent." }],
     ["an equivalent fraction", { question_text: "Which fraction is equivalent to 3/4?", options: ["A) 9/12", "B) 8/12", "C) 3/12", "D) 6/12"], correct_answer: "A) 9/12", explanation: "Multiply the top and bottom by 3: 3 × 3 = 9 and 4 × 3 = 12, so 3/4 = 9/12." }],
     ["a fraction stated another way", { question_text: "What fraction of the pizza is left?", options: ["A) 1/2", "B) 1/4", "C) 3/4", "D) 1/8"], correct_answer: "A) 1/2", explanation: "4 of 8 slices are left. Therefore the answer is 2/4, which is the same as 1/2." }],
+    ["a fraction of a fraction", { question_text: "What is half of one half?", options: ["A) 1/4", "B) 1/2", "C) 1", "D) 2/4"], correct_answer: "A) 1/4", explanation: "Therefore, 1/2 of 1/2 is 1/4." }],
     ["a mixed number", { question_text: "What is 3/2 as a mixed number?", options: ["A) 1 1/2", "B) 2 1/2", "C) 1 1/3", "D) 3 1/2"], correct_answer: "A) 1 1/2", explanation: "3/2 = 1 1/2 because 2 goes into 3 once with 1 left over." }],
   ])("accepts a correct question: %s", (_name, over) => {
     expect(valid(mc(over))).toEqual([]);
@@ -182,6 +183,14 @@ describe("answer keys for times, money and fractions are checked against the exp
       explanation: "Neutrons = Mass Number - Atomic Number. Therefore, 14 - 6 = 8.",
     });
     expect(checkAnswerConsistency(q)).toBeNull();
+    // A key that is a phrase with numbers in it is not compared (each one flagged in the run was right).
+    expect(checkAnswerConsistency(mc({
+      question_text: "In 10 - 4 + 2 * 3, which operation comes first?",
+      options: ["A) Subtraction (10 - 4)", "B) Addition (4 + 2)", "C) Division", "D) Multiplication (2 * 3)"],
+      correct_answer: "D) Multiplication (2 * 3)",
+      explanation: "Therefore, 2 * 3 must be calculated first (which is 6), leaving 10 - 4 + 6 = 12.",
+    }))).toBeNull();
+    expect(checkAnswerConsistency(fib({ correct_answer: "5 + 5 + 5", explanation: "5 × 3 means adding 5 a total of 3 times." }))).toBeNull();
     // ...and a real contradiction is still caught.
     expect(checkAnswerConsistency({ ...q, correct_answer: "6" })).not.toBeNull();
   });
@@ -211,6 +220,9 @@ describe("explanations with visible self-correction are rejected", () => {
     "Let's count the syllables: ba-na-na has 3.",
     "Let's correct the sentence: 'He go' should be 'He goes'.",
     "Scientists re-evaluate a hypothesis when new evidence appears.",
+    "Rechecking your work helps you catch mistakes.",
+    "Let's re-read the passage: the clue is in the second sentence.",
+    "Let's re-examine the picture: the shadow points away from the sun.",
     "A rain gauge measures rain, so it is not the right tool; the answer is the thermometer.",
   ])("accepts a clean explanation: %s", (explanation) => {
     expect(hasSelfCorrection(explanation)).toBe(false);
