@@ -33,6 +33,7 @@ import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOK
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
 import { ReplyTextFilter } from "./textToolCalls";
+import { MIXED_UP_REPLY } from "../plain-language";
 import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 
@@ -464,6 +465,13 @@ ${lastUser.content}` };
     // A recovered turn that the no-tools call finished is complete, not capped.
     const stopReason: TutorTurnResult["stopReason"] =
       interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally || toolCallRecovery ? "complete" : "max_iterations");
+
+    // Never a blank turn: a reply that ended with nothing to show (the model wrote nothing, or only a
+    // tool call the filter removed) and ran no tool says so in one plain line, which is shown and saved
+    // like any reply. A turn the student stopped, or one that stalled, keeps its own handling.
+    if (!streamedText.trim() && toolCalls.length === 0 && stopReason !== "aborted" && stopReason !== "stalled") {
+      show(MIXED_UP_REPLY);
+    }
 
     // Which retrieved passages did the answer DEMONSTRABLY reuse? Computed by n-gram overlap, never
     // by asking the model. This is what drives the citation chip, so a chip cannot be fabricated —

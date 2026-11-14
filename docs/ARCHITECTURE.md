@@ -202,7 +202,8 @@ removed, and gemma4's own control tokens are dropped (look-alikes such as `<|y|`
 inside an open code fence is read as a call. A call that does not close (1,500 characters outside its
 strings, 20,000 in all, a blank line outside a string, or the end of the stream) is given up on. Text
 inside one of its strings is never shown: an unclosed `<|"|>` string is removed to the end of the
-stream, an unclosed `"` string to the blank line that ends it. Otherwise only the call's first line is
+stream (unless, after the last `<|"|>`, a `}` is followed by a blank line or `<tool_call|>`: one stray
+quote token, and the call ends there), an unclosed `"` string to the blank line that ends it. Otherwise only the call's first line is
 removed and the rest is shown. Some calls then run, dispatched exactly like a
 native call (zod validation, the permission gate, the result back to the model, `fromText: true` in the
 turn's `toolCalls`), and the text after them is not shown. Which ones: the tool must be offered this
@@ -211,6 +212,10 @@ writes runs only when gemma4's own `<|tool_call>` or `<tool_call|>` token frames
 `name{...}` text can be an echoed note; a read-only tool may run from bare text. Every other call is
 only removed. Saved replies are shown through the same filter (`displayReplyText`), so a reply saved
 before it existed shows clean too.
+A turn that ends with nothing to show and ran no tool (the model wrote nothing, or only a call the
+filter removed) is never left blank: the kernel shows and saves `MIXED_UP_REPLY` from
+`plain-language.ts` ("Sorry, I got mixed up. Can you ask that again?"). A turn the student stopped, or
+one that stalled, keeps its own handling.
 
 In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
 `diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Source Mermaid cannot

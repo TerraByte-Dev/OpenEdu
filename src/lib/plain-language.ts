@@ -191,6 +191,10 @@ export const MODEL_LOAD_TIMED_OUT = "The learning model took too long to load. C
 // A chat turn the model stopped partway through (no output for too long).
 export const STALLED_TURN = "The tutor stopped partway. Try again. If it keeps happening, close other programs or pick a smaller model in Settings.";
 
+// A finished chat turn that left nothing to show (the model wrote nothing, or only tool-call text the
+// kernel removed) and ran no tool. Shown and saved as the tutor's reply, so a turn is never blank.
+export const MIXED_UP_REPLY = "Sorry, I got mixed up. Can you ask that again?";
+
 // The check before a course build. A model still loading into memory is not a broken one, so a
 // timeout never mentions models.
 export function preflightMessage(timedOut: boolean, raw: string, ctx: ErrorContext = {}): string {
