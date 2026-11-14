@@ -32,6 +32,7 @@ import { lookupWord } from "../dictionary";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
+import { ReplyTextFilter } from "./textToolCalls";
 import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 
@@ -71,8 +72,10 @@ export interface TutorTurn {
 export interface TutorTurnResult {
   text: string;
   // `byApp` marks a call the app made itself rather than the model (the flashcard stage,
-  // flashcardRequest.ts), so an eval can tell the model's tool choice from the app's.
-  toolCalls: Array<{ name: string; args: unknown; ok: boolean; byApp?: true }>;
+  // flashcardRequest.ts), so an eval can tell the model's tool choice from the app's. `fromText` marks a
+  // call the model wrote as reply text and the kernel parsed (textToolCalls.ts) rather than a call the
+  // provider returned.
+  toolCalls: Array<{ name: string; args: unknown; ok: boolean; byApp?: true; fromText?: true }>;
   // True if knowledge.update_map ran successfully this turn — the caller skips its post-turn
   // auto-reflection so there's exactly one writer to the knowledge files.
   usedKnowledgeUpdate: boolean;
@@ -344,15 +347,21 @@ ${lastUser.content}` };
     // every later read and silently disables the checks below.
     let interrupted: "aborted" | "stalled" | "length" | null = null;
     let toolCallRecovery: TutorTurnResult["toolCallRecovery"] = null;
+    // Every model call's text goes through a ReplyTextFilter before the student sees it or it is
+    // saved: a tool call the model wrote as text never reaches either (textToolCalls.ts).
+    const toolNames = [...toolRegistry.all().map((t) => t.name), ...offered];
+    const show = (text: string) => { if (text) { streamedText += text; turn.onText(text); } };
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
 
       let iterationText = ""; // text emitted before any tool call in THIS model turn
-      const pendingCalls: Array<{ id: string; name: string; args: unknown }> = [];
+      const pendingCalls: Array<{ id: string; name: string; args: unknown; fromText?: true }> = [];
+      // A text call is run only for a tool offered on this request, exactly as a native one would be.
+      const filter = new ReplyTextFilter(toolNames, (name) => !!toolDefs && offered.has(name));
       try {
         for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
-          if (ev.type === "text") { iterationText += ev.delta; streamedText += ev.delta; turn.onText(ev.delta); }
+          if (ev.type === "text") { const text = filter.push(ev.delta); iterationText += text; show(text); }
           else if (ev.type === "tool_call") {
             // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
             // iteration 1 and 2 both emit "call_0" — and the chat surface keys tool chips by id, so the
@@ -376,6 +385,15 @@ ${lastUser.content}` };
         if (import.meta.env?.DEV) console.info(`[turn] tool call unparseable at call ${iteration} (${e.ollamaError}); answering without tools`);
         break;
       }
+      const tail = filter.end();
+      iterationText += tail;
+      show(tail);
+      // A tool call written as text, when the provider returned none: run the first one whose tool was
+      // offered (the filter stopped the text there) through the same dispatch as a native call.
+      if (pendingCalls.length === 0 && filter.stoppedAtCall) {
+        const call = filter.calls.find((c) => offered.has(c.name))!;
+        pendingCalls.push({ id: kernelCallId(iteration, "text_0"), name: call.name, args: call.args, fromText: true });
+      }
 
       // A hard interruption (Stop, or a stalled stream) ends the turn immediately. "length" does NOT:
       // the model may have emitted valid tool calls before running out of room, and dropping them
@@ -393,7 +411,7 @@ ${lastUser.content}` };
         if (ctx.abort.aborted) { interrupted = "aborted"; break; }
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
         const result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
-        toolCalls.push({ name: call.name, args: call.args, ok: result.ok });
+        toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}) });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         // Cap what goes back into context. The model sees a visible truncation marker rather than a
         // silently shortened result it would otherwise answer from with false confidence.
@@ -426,14 +444,17 @@ ${lastUser.content}` };
     const hardStopped = interrupted === "aborted" || interrupted === "stalled";
     if (!endedNaturally && !hardStopped && !ctx.abort.aborted) {
       const finalMessages = toolCallRecovery && manifest ? withoutManifest(messages, manifest) : messages;
+      // No tools on this call, so a call written as text is only dropped.
+      const filter = new ReplyTextFilter(toolNames);
       for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
-        if (ev.type === "text") { streamedText += ev.delta; turn.onText(ev.delta); }
+        if (ev.type === "text") show(filter.push(ev.delta));
         else if (ev.type === "done") {
           if (ev.finishReason === "aborted") interrupted = "aborted";
           else if (ev.finishReason === "stalled") interrupted = "stalled";
           else if (ev.finishReason === "length") interrupted = "length";
         }
       }
+      show(filter.end());
     }
 
     // The abort flag is authoritative. `interrupted` can miss a Stop that lands during or after the

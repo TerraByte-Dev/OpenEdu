@@ -2,7 +2,7 @@
 //
 // Like math.render, the Mermaid source rides in the tool-call ARGUMENTS, not a chat string. Read-only;
 // the tool echoes the Mermaid source and ChatTab renders it via a lazily-imported Mermaid (graceful:
-// a Mermaid parse error falls back to showing the source, never crashes the chat).
+// a diagram Mermaid cannot parse is shown as a plain sentence and its labels, never crashes the chat).
 
 import { z } from "zod";
 import { defineTool, type ToolEvent } from "../EduTool";

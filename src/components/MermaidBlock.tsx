@@ -2,12 +2,14 @@
 // (docs/ARCHITECTURE.md). Mermaid is heavy (~500KB+), so it is LAZY-loaded via dynamic import on
 // first use and the module is cached — it never enters the initial bundle chunk (the bundle is
 // already ~1.2MB with CodeMirror). Themed to the Notebook palette and re-rendered when light/dark
-// changes; securityLevel "strict" sanitizes the rendered SVG. Graceful: a Mermaid parse error falls
-// back to the raw source.
+// changes; securityLevel "strict" sanitizes the rendered SVG. Graceful: source Mermaid cannot parse is
+// retried with its node labels quoted, and if that fails too the child sees a plain sentence and the
+// diagram's labels, never the source (mermaid-source.ts). Also draws ```mermaid fences in a reply.
 
 import { useEffect, useRef, useState } from "react";
 import type { ThemeId } from "../lib/theme";
 import { useThemeState } from "../lib/useTheme";
+import { drawableMermaid, diagramFallback } from "../lib/mermaid-source";
 
 type MermaidApi = (typeof import("mermaid"))["default"];
 
@@ -59,7 +61,9 @@ export default function MermaidBlock({ code }: { code: string }) {
     (async () => {
       try {
         const mermaid = await getMermaid(resolved);
-        const { svg } = await mermaid.render(idRef.current, code);
+        const source = await drawableMermaid(code, async (src) => (await mermaid.parse(src, { suppressErrors: true })) !== false);
+        if (source === null) throw new Error("unparseable diagram");
+        const { svg } = await mermaid.render(idRef.current, source);
         if (!cancelled) setSvg(svg);
       } catch {
         if (!cancelled) setFailed(true);
@@ -71,9 +75,15 @@ export default function MermaidBlock({ code }: { code: string }) {
   }, [code, resolved]);
 
   if (failed) {
+    const { message, parts } = diagramFallback(code);
     return (
-      <div className="lcd rounded-lg px-3 py-2 text-[12px] font-lcd text-phosphor-ink overflow-x-auto w-fit max-w-full whitespace-pre">
-        <code>{code}</code>
+      <div className="rounded-lg px-3 py-2 text-sm text-[var(--ink-dim)] bg-panel-lite border border-[var(--rule)] w-fit max-w-full">
+        <p>{message}</p>
+        {parts.length > 0 && (
+          <ul className="list-disc pl-5 mt-1">
+            {parts.map((p, i) => <li key={i}>{p}</li>)}
+          </ul>
+        )}
       </div>
     );
   }

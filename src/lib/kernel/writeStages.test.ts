@@ -153,6 +153,18 @@ describe("the flashcard stage through tutorEngine.run", () => {
     expect(sent[0].tools).toContain("flashcard.review_due");
   });
 
+  it("a flashcard.create call the model then writes as text, even in gemma4's own frame, is removed and not run (#291)", async () => {
+    card = CARD;
+    script = [reply("I saved it for you.\n\n<|tool_call>call:flashcard.create{front:<|\"|>What is 6 x 7?<|\"|>,back:<|\"|>42<|\"|>}<tool_call|>")];
+    const confirmTool = vi.fn(async () => true);
+    const { result } = await run("review", [{ role: "user", content: REQUEST }], { confirmTool });
+    expect(confirmTool).toHaveBeenCalledTimes(1);
+    expect(created).toHaveLength(1);
+    expect(result.toolCalls).toEqual([{ name: "flashcard.create", args: CARD, ok: true, byApp: true }]);
+    expect(sent).toHaveLength(1);
+    expect(result.text).toBe("I saved it for you.\n\n");
+  });
+
   it("runs in a mode that does not offer the tool, since the student asked", async () => {
     card = CARD;
     const { result } = await run("explain", [{ role: "user", content: REQUEST }], { confirmTool: async () => true });
