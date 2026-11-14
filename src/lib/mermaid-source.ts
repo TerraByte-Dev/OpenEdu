@@ -47,7 +47,8 @@ const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})/;
  * diagram's first line on its own (`graph TD`, `flowchart LR`, `sequenceDiagram`, ...). The diagram runs
  * while its lines read as diagram source or are indented, and across a blank line only when the next
  * line is indented diagram source. A diagram at the end of the text (blank lines aside) is left
- * unclosed, as a fence still streaming is. Text inside fenced code is never read. A reply with none comes back unchanged.
+ * unclosed, as a fence still streaming is. Text inside fenced code is never read. A reply with none
+ * comes back unchanged.
  */
 export function fenceBareMermaid(text: string): string {
   const lines = text.split("\n");
@@ -326,7 +327,7 @@ export type MermaidParse = (code: string) => Promise<boolean>;
 export function withoutStrayClosers(code: string): string {
   if (!/^\s*(?:graph|flowchart)\b/i.test(code)) return code;
   let depth = 0;
-  let excess = 0;
+  const stray = new Set<number>(); // positions of `}`s that close nothing
   for (let i = 0; i < code.length; i++) {
     const ch = code[i];
     if (ch === '"' || ch === "|") {
@@ -334,15 +335,12 @@ export function withoutStrayClosers(code: string): string {
       if (end < 0) break;
       i = end;
     } else if (ch === "{") depth++;
-    else if (ch === "}") { if (depth > 0) depth--; else excess++; }
+    else if (ch === "}") { if (depth > 0) depth--; else stray.add(i); }
   }
-  const end = code.replace(/\s+$/, "");
-  let out = end;
-  while (excess > 0 && out.endsWith("}")) {
-    out = out.slice(0, -1).replace(/\s+$/, "");
-    excess--;
-  }
-  return out === end ? code : out;
+  let end = code.replace(/\s+$/, "").length;
+  const kept = end;
+  while (end > 0 && stray.has(end - 1)) end = code.slice(0, end - 1).replace(/\s+$/, "").length;
+  return end === kept ? code : code.slice(0, end);
 }
 
 /**

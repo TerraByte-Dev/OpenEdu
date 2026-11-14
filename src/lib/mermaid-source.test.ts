@@ -256,6 +256,9 @@ describe("drawableMermaid: a stray } after a valid flowchart", () => {
     const quoted = 'graph TD;\n    A["set {x}"] --> B{Done?}';
     expect(withoutStrayClosers(quoted)).toBe(quoted);
     expect(withoutStrayClosers(`${quoted}\n}`)).toBe(quoted);
+    // A stray } in the middle is not at the end: the diamond that ends the diagram keeps its own.
+    const middle = "graph TD;\n    A --> B}\n    B --> C{Ok?}";
+    expect(withoutStrayClosers(middle)).toBe(middle);
   });
 
   it("only a flowchart is touched, and a diagram that parses comes back as written", async () => {
