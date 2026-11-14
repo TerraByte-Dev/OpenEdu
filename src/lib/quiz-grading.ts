@@ -23,6 +23,32 @@ export interface QuestionLike {
   options?: string[] | null;
 }
 
+// ─── Multiple-choice answer key ───────────────────────────────────────────────
+
+// Small local models (gemma4:e2b) answer a multiple-choice key with the letter alone ("D", "D)",
+// "(d)") while the options read "D) hop and top". The B9 readiness run (2026-11-13) saw that in
+// 1,818 of 2,127 question calls, and repair-retry got the same letter back, so quizzes came out
+// empty. Resolving the letter to its option is deterministic and loses nothing. Returns the question
+// unchanged when it isn't multiple choice, when the key already names an option's text, or when the
+// letter has no matching option.
+const LETTER_KEY_RE = /^\s*(?:option\s+)?\(?([A-D])\)?[.):]?\s*$/i;
+const OPTION_LABEL_RE = /^\s*\(?([A-D])[).:]\s*/i;
+
+export function resolveLetterKey<Q extends QuestionLike>(q: Q): Q {
+  if (q.question_type !== "multiple_choice" || !Array.isArray(q.options) || q.options.length === 0) return q;
+  const m = LETTER_KEY_RE.exec(String(q.correct_answer ?? ""));
+  if (!m) return q;
+  const letter = m[1].toUpperCase();
+  const opts = q.options.map((o) => String(o));
+  // An option whose own text is the bare letter ("A") is a real answer, not a label.
+  const bare = (o: string) => o.replace(OPTION_LABEL_RE, "").trim().toUpperCase();
+  if (opts.some((o) => bare(o) === letter)) return q;
+  const labelled = opts.find((o) => OPTION_LABEL_RE.exec(o)?.[1].toUpperCase() === letter);
+  const byIndex = opts.every((o) => !OPTION_LABEL_RE.test(o)) ? opts["ABCD".indexOf(letter)] : undefined;
+  const hit = labelled ?? byIndex;
+  return hit === undefined ? q : { ...q, correct_answer: hit };
+}
+
 // ─── Number / text extraction ─────────────────────────────────────────────────
 
 // Strip a leading multiple-choice option label like "A) " / "b. " so we compare the bare value.

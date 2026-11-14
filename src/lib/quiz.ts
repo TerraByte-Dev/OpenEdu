@@ -5,7 +5,7 @@ import {
   checkAnswerConsistency, shouldRejectNumericReasoning, runsVerifyPass,
   gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
-  planSlotSubtopics, summarizeForLedger,
+  planSlotSubtopics, summarizeForLedger, resolveLetterKey,
   type GradeOutcome,
 } from "./quiz-grading";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
@@ -104,7 +104,8 @@ export function validateQuizBatch(
   const issues: string[] = [];
   const stripPrefix = (s: string) => s.replace(/^[A-D]\)\s*/i, "").trim().toLowerCase();
 
-  questions.forEach((q, i) => {
+  questions.forEach((raw, i) => {
+    const q = resolveLetterKey(raw);
     const at = `question[${i}]`;
     const type = String(q.question_type ?? "");
     const stem = String(q.question_text ?? "");
@@ -228,7 +229,8 @@ function buildParsedQuestion(q: Record<string, unknown>, question_type: QuizQues
 
 // Map a validated structured question into the final GenQuestion shape: coerce sentinel empties to
 // null (downstream/renderer expects null), normalize true_false, shuffle multiple_choice options.
-function finalizeQuestion(g: GeneratedQuestion): GenQuestion {
+function finalizeQuestion(raw: GeneratedQuestion): GenQuestion {
+  const g = resolveLetterKey(raw);
   const type: QuizQuestion["question_type"] = VALID_QUESTION_TYPES.has(g.question_type)
     ? (g.question_type as QuizQuestion["question_type"])
     : "multiple_choice";
