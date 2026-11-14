@@ -1,6 +1,6 @@
 import { getTutorInstructions, saveTutorInstruction } from "./db";
 import { callLLM } from "./llm";
-import { KNOWLEDGE_TYPES, parseReflection, tutorCorrectedLearner, type KnowledgeType } from "./knowledge-reflect";
+import { KNOWLEDGE_TYPES, appendStudyLog, parseReflection, tutorCorrectedLearner, type KnowledgeType } from "./knowledge-reflect";
 import type { LLMConfig } from "../types";
 
 // Update knowledge files after a quiz or promotion test completes (no LLM call — direct write)
@@ -134,6 +134,8 @@ Respond with ONLY valid JSON.`;
   // shows the learner was wrong. On a confirmed answer the model invents one ("Corrected
   // misconception: ...") about as often as not.
   if (files.misconceptions && !tutorCorrectedLearner(assistantResponse)) delete files.misconceptions;
+  // The study log is appended to, never replaced, so the quiz-score line survives.
+  if (files.study_log) files.study_log = appendStudyLog(instructions["study_log"] ?? "", files.study_log);
 
   for (const type of KNOWLEDGE_TYPES) {
     const text = files[type];

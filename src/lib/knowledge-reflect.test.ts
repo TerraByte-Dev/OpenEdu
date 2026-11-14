@@ -37,22 +37,24 @@ beforeEach(() => {
   vi.mocked(getTutorInstructions).mockResolvedValue({});
 });
 
-describe("updateKnowledgeFiles: a file sent as an array or object is written, not dropped", () => {
-  it("writes a study_log array as one entry per line (r01)", async () => {
-    const saved = await reflect(
-      "Is 6 x 7 equal to 36?",
-      "Close! 6 x 6 is 36. 6 x 7 is one more group of 6, so 36 + 6 = 42.",
-      fence(`{
+const R01 = fence(`{
   "misconceptions": "Student confused 6 x 7 with 6 x 6. Corrected: 6 x 7 = 42.",
   "study_log": [
     "Reviewed multiplication facts involving 6.",
     "Corrected misconception regarding 6 x 7.",
     "Focus on multiplication facts."
   ]
-}`),
+}`);
+
+describe("updateKnowledgeFiles: a file sent as an array or object is written, not dropped", () => {
+  it("writes a study_log array as one log entry (r01)", async () => {
+    const saved = await reflect(
+      "Is 6 x 7 equal to 36?",
+      "Close! 6 x 6 is 36. 6 x 7 is one more group of 6, so 36 + 6 = 42.",
+      R01,
     );
     expect(saved.study_log).toBe(
-      "Reviewed multiplication facts involving 6.\nCorrected misconception regarding 6 x 7.\nFocus on multiplication facts.",
+      "Reviewed multiplication facts involving 6. Corrected misconception regarding 6 x 7. Focus on multiplication facts.",
     );
     expect(saved.misconceptions).toBe("Student confused 6 x 7 with 6 x 6. Corrected: 6 x 7 = 42.");
   });
@@ -81,23 +83,115 @@ describe("updateKnowledgeFiles: a file sent as an array or object is written, no
     expect(saved.misconceptions).toBe(
       "range(n) behavior: Corrected the misconception that `range(5)` includes 5. Explained that the stop value is exclusive.",
     );
-    expect(saved.study_log?.split("\n")).toHaveLength(3);
+    expect(saved.study_log?.split("\n")).toHaveLength(1);
   });
 
-  it("parses a reply whose string holds LaTeX (`\\pi` is not a JSON escape) (r05)", async () => {
-    const saved = await reflect(
-      "The area of a circle with radius 2 is 2 x 3.14 x 2.",
-      "That is the circumference formula. Area is pi times r squared: 3.14 x 4 = 12.56.",
-      fence(`{
+  // r05's raw reply. Its `\pi` is not a JSON escape, and the run's app wrote nothing for it.
+  const R05 = fence(`{
   "misconceptions": "Student confused the area of a circle with the circumference formula. Corrected the area formula ($\\pi r^2$) and demonstrated the calculation.",
   "study_log": [
     "Focused on distinguishing between the area and circumference of a circle.",
     "Corrected a common confusion regarding circle formulas.",
     "Reviewed the area formula and practiced calculations."
   ]
-}`),
+}`);
+
+  it("parses a reply whose string holds LaTeX, keeping the backslash (r05)", async () => {
+    // The run's tutor reply ("That is the circumference formula.") has no correction cue, so the
+    // misconception is checked here behind a "Not quite." opening; the next test keeps the real one.
+    const saved = await reflect(
+      "The area of a circle with radius 2 is 2 x 3.14 x 2.",
+      "Not quite. That is the circumference formula. Area is pi times r squared: 3.14 x 4 = 12.56.",
+      R05,
+    );
+    expect(saved.misconceptions).toBe(
+      "Student confused the area of a circle with the circumference formula. Corrected the area formula ($\\pi r^2$) and demonstrated the calculation.",
     );
     expect(saved.study_log).toContain("Focused on distinguishing between the area and circumference of a circle.");
+  });
+
+  it("fails closed on r05's real tutor reply, which corrects without a cue word", async () => {
+    const saved = await reflect(
+      "The area of a circle with radius 2 is 2 x 3.14 x 2.",
+      "That is the circumference formula. Area is pi times r squared: 3.14 x 4 = 12.56.",
+      R05,
+    );
+    expect(saved).not.toHaveProperty("misconceptions");
+    expect(saved.study_log).toBeTruthy();
+  });
+
+  it("keeps an object inside an array on one line, and drops boolean and number values", async () => {
+    const saved = await reflect(
+      "Is 6 x 7 equal to 36?",
+      "Close! 6 x 6 is 36. 6 x 7 is one more group of 6, so 36 + 6 = 42.",
+      JSON.stringify({
+        misconceptions: false,
+        learning_profile: 3,
+        study_log: [{ focus: "Multiplication facts involving 6", result: "Corrected 6 x 7 = 42" }],
+      }),
+    );
+    expect(saved).not.toHaveProperty("misconceptions");
+    expect(saved).not.toHaveProperty("learning_profile");
+    expect(saved.study_log).toBe("focus: Multiplication facts involving 6; result: Corrected 6 x 7 = 42");
+  });
+});
+
+describe("updateKnowledgeFiles: the study log is appended to, never replaced", () => {
+  it("keeps the quiz-score line when a chat turn adds an entry (r01)", async () => {
+    const quizLine = "[11/13/2026] Quiz: 60% (10 questions). Weak areas: s1.";
+    vi.mocked(getTutorInstructions).mockResolvedValue({ study_log: `earlier entry\n${quizLine}` });
+    const saved = await reflect(
+      "Is 6 x 7 equal to 36?",
+      "Close! 6 x 6 is 36. 6 x 7 is one more group of 6, so 36 + 6 = 42.",
+      R01,
+    );
+    expect(saved.study_log.split("\n")).toEqual([
+      "earlier entry",
+      quizLine,
+      "Reviewed multiplication facts involving 6. Corrected misconception regarding 6 x 7. Focus on multiplication facts.",
+    ]);
+  });
+
+  it("skips lines the log already holds and keeps the last three entries", async () => {
+    vi.mocked(getTutorInstructions).mockResolvedValue({ study_log: "one\ntwo\nthree" });
+    const saved = await reflect(
+      "Is 6 x 7 equal to 36?",
+      "Close! 6 x 6 is 36. 6 x 7 is one more group of 6, so 36 + 6 = 42.",
+      JSON.stringify({ study_log: "two\nthree\nReviewed multiplication facts involving 6." }),
+    );
+    expect(saved.study_log).toBe("two\nthree\nReviewed multiplication facts involving 6.");
+  });
+});
+
+describe("updateKnowledgeFiles: the misconception guard fails closed", () => {
+  // Each reply follows a learner message, with r01's raw model reply (which writes a misconception).
+  const notCorrections = [
+    "Close the book and try it from memory.",
+    "No problem! Let's keep going.",
+    "Great! Now let's try a harder one, but with negatives.",
+    "Nice! Actually, let's try one with remainders.",
+    "Exactly — it does not matter which order you multiply.",
+    "Correct, 9 is not a prime number.",
+    "Right! Right triangles have one 90 degree angle.",
+    "Good question. Plants make food from light. A common mistake is to mix them up.",
+  ];
+  it.each(notCorrections)("no misconception after: %s", async (tutor) => {
+    const saved = await reflect("Is 6 x 7 equal to 42?", tutor, R01);
+    expect(saved).not.toHaveProperty("misconceptions");
+  });
+
+  const corrections = [
+    "Hmm, 7 + 5 is 12, not 13.",
+    "So close! It is 42.",
+    "Nope, it is 42.",
+    "Oops! 6 x 7 is 42.",
+    "Right idea, wrong formula.",
+    "Yes, but only for whole numbers.",
+    "Right angles are 90 degrees, not 45.",
+  ];
+  it.each(corrections)("misconception written after: %s", async (tutor) => {
+    const saved = await reflect("Is 6 x 7 equal to 36?", tutor, R01);
+    expect(saved.misconceptions).toBe("Student confused 6 x 7 with 6 x 6. Corrected: 6 x 7 = 42.");
   });
 });
 
@@ -161,8 +255,6 @@ describe("updateKnowledgeFiles: a misconception is written when the tutor correc
       "Corrected misconception: Half note duration relative to beats."],
     ["r11", "Animal cells have chloroplasts too, right?", "No, chloroplasts are found in plant cells (and algae). Animal cells get energy from food instead.",
       "Student believed animal cells have chloroplasts. Corrected: Chloroplasts are found in plant cells and algae; animal cells get energy from food."],
-    ["r15", "Weather and climate mean the same thing.", "They are related but different: weather is short-term conditions, climate is the long-term average.",
-      "Corrected misconception: Weather and climate are not the same."],
     ["r17", "Electrons are in the nucleus with the protons.", "Not quite: protons and neutrons are in the nucleus, and electrons move around outside it.",
       "Student confused the location of electrons and protons. Corrected misconception: Electrons orbit the nucleus, not reside within it."],
   ];
@@ -170,6 +262,17 @@ describe("updateKnowledgeFiles: a misconception is written when the tutor correc
   it.each(corrected)("%s", async (_id, student, tutor, misconception) => {
     const saved = await reflect(student, tutor, fence(JSON.stringify({ misconceptions: misconception })));
     expect(saved.misconceptions).toBe(misconception);
+  });
+
+  // A real correction with no cue word is a known miss: the guard fails closed. A bare "but" was a
+  // cue until it fired on confirmations ("Great! Now a harder one, but with negatives.").
+  it("r15 is not written: 'related but different' is not a cue", async () => {
+    const saved = await reflect(
+      "Weather and climate mean the same thing.",
+      "They are related but different: weather is short-term conditions, climate is the long-term average.",
+      fence(JSON.stringify({ misconceptions: "Corrected misconception: Weather and climate are not the same." })),
+    );
+    expect(saved).not.toHaveProperty("misconceptions");
   });
 });
 

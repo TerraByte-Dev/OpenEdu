@@ -11,20 +11,28 @@
 //      correction. The kernel has no right/wrong signal for a chat turn, so the tutor's own reply is
 //      the evidence the code can check.
 
+import { tryParseJsonLenient } from "./json-lenient";
+
 export const KNOWLEDGE_TYPES = ["knowledge_map", "misconceptions", "study_log", "learning_profile"] as const;
 export type KnowledgeType = typeof KNOWLEDGE_TYPES[number];
 
+/** Entries the study log keeps (updateKnowledgeAfterQuiz keeps the same number). */
+export const STUDY_LOG_ENTRIES = 3;
+
 /**
- * One knowledge file's value as text. A string as is; a number or boolean as written; an array as one
- * line per item; an object as `key: value` lines. Nesting deeper than an object of arrays (or an
- * array of objects) is dropped rather than guessed at. Returns "" when nothing usable is left.
+ * One knowledge file's value as text. A string as is; an array as one line per item; an object as
+ * `key: value` lines. An object inside an array stays one line, its pairs joined with "; ". Numbers,
+ * booleans (`"misconceptions": false`) and nesting deeper than that are dropped rather than guessed
+ * at. Returns "" when nothing usable is left.
  */
 export function knowledgeValueToText(value: unknown, depth = 0): string {
   if (typeof value === "string") return value.trim();
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
   if (depth >= 2 || value === null || typeof value !== "object") return "";
   if (Array.isArray(value)) {
-    return value.map((v) => knowledgeValueToText(v, depth + 1)).filter(Boolean).join("\n");
+    return value
+      .map((v) => knowledgeValueToText(v, depth + 1).replace(/\n/g, "; "))
+      .filter(Boolean)
+      .join("\n");
   }
   return Object.entries(value as Record<string, unknown>)
     .map(([k, v]) => {
@@ -35,7 +43,7 @@ export function knowledgeValueToText(value: unknown, depth = 0): string {
     .join("\n");
 }
 
-/** The JSON object in a reply, fenced or not. A `\` that starts no valid JSON escape (LaTeX `\pi`) is kept literally. */
+/** The JSON object in a reply, fenced or not, parsed leniently (LaTeX `\pi` in a string is kept). */
 function parseJsonObject(raw: string): unknown {
   let jsonStr = raw.trim();
   if (jsonStr.startsWith("```")) {
@@ -44,11 +52,7 @@ function parseJsonObject(raw: string): unknown {
   const start = jsonStr.indexOf("{");
   const end = jsonStr.lastIndexOf("}");
   if (start !== -1 && end !== -1) jsonStr = jsonStr.slice(start, end + 1);
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    return JSON.parse(jsonStr.replace(/\\(?!["\\/bfnrtu])/g, "\\\\"));
-  }
+  return tryParseJsonLenient(jsonStr);
 }
 
 /**
@@ -71,19 +75,35 @@ export function parseReflection(raw: string): Partial<Record<KnowledgeType, stri
   return out;
 }
 
-// The reply opens by confirming the learner: "Yes.", "Correct:", "Exactly right.", "Nice work.".
-const AFFIRMATION = /^(?:yes|yep|yeah|correct|right|exactly|perfect|excellent|spot on|you got it|you're right|you are right|that's right|that is right|that's correct|that is correct|nice work|great job|good job|well done)\b/;
+/**
+ * The study log after a reflection. One exchange adds one entry: the model's new lines (any the log
+ * already holds are skipped, since the model is shown the log and often sends it back) joined into
+ * one line, appended, and the last STUDY_LOG_ENTRIES kept. The model's text never replaces the file,
+ * so the quiz-score line updateKnowledgeAfterQuiz wrote survives a chat turn.
+ */
+export function appendStudyLog(current: string, added: string): string {
+  const lines = current.split("\n").map((l) => l.trim()).filter(Boolean);
+  const entry = added.split("\n").map((l) => l.trim()).filter((l) => l && !lines.includes(l)).join(" ");
+  if (entry) lines.push(entry);
+  return lines.slice(-STUDY_LOG_ENTRIES).join("\n");
+}
+
+// The guard writes a child's permanent profile, so it fails closed: only a plain correction counts.
+// The reply opens by confirming the learner: "Yes.", "Correct:", "Exactly right.", "Right!".
+const AFFIRMATION = /^(?:yes|yep|yeah|correct|exactly|perfect|excellent|spot on|you got it|you're right|you are right|that's right|that is right|that's correct|that is correct|nice work|great job|good job|well done)\b|^right[!,.]/;
 // A hedge inside that confirming sentence turns it into a correction: "Yes, but ...".
-const AFFIRMATION_HEDGE = /\b(?:but|however|not|almost)\b/;
+const AFFIRMATION_HEDGE = /\b(?:but|however|almost|wrong|instead)\b/;
 // What a tutor says when the learner got something wrong.
 const CORRECTION = new RegExp(
   [
     String.raw`\bnot quite\b`, String.raw`\bnot exactly\b`, String.raw`\bnot really\b`, String.raw`\bnot correct\b`,
     String.raw`\b(?:isn't|is not|that's not|that is not) (?:right|correct|true)\b`,
-    String.raw`\bincorrect\b`, String.raw`\bwrong\b`, String.raw`\bmistake\b`, String.raw`\bmix(?:ed)?[ -]up\b`,
-    String.raw`\bconfus`, String.raw`\bcareful\b`, String.raw`^close\b`, String.raw`\balmost\b`,
+    String.raw`\bincorrect\b`, String.raw`\bwrong\b`, String.raw`(?<!common )\bmistake\b`, String.raw`\bmix(?:ed)?[ -]up\b`,
+    String.raw`\bconfus`, String.raw`\bcareful\b`, String.raw`^(?:so )?close[!,.]`, String.raw`\balmost\b`,
     String.raw`\b(?:good|nice) try\b`, String.raw`\btry again\b`, String.raw`\blook again\b`, String.raw`\bcheck again\b`,
-    String.raw`\bactually\b`, String.raw`\bbut\b`, String.raw`\bhowever\b`, String.raw`^no\b`,
+    String.raw`^no[,.!]`, String.raw`\bnope\b`, String.raw`\boops\b`,
+    // A number put right: "7 + 5 is 12, not 13", "it is 42, not 24".
+    String.raw`,\s*not\s+-?\d`, String.raw`\bis [^,.;!?]{1,40}, not \S`,
   ].join("|"),
 );
 
