@@ -12,6 +12,11 @@
 //
 // And one the privacy audit found (#284): Mermaid source can make the webview fetch from any host, so
 // drawableMermaid takes that syntax out before anything is drawn (withoutRemoteLoads).
+//
+// Two more from the rerun (B9 r1, 2026-11-14): a flowchart that is valid except for a stray `}` at its
+// end (drawableMermaid tries it without the unmatched closers), and Mermaid written into the reply with
+// no fence at all, a "mermaid" line and then "graph TD" (fenceBareMermaid fences it, so it is drawn
+// like any other).
 
 import { cssLoadsRemote } from "./remote-url";
 
@@ -22,12 +27,80 @@ export type ReplySegment =
 
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})[ \t]*([^\n]*)$/;
 
+// ---- Mermaid with no fence ----
+// A diagram's first line. Case-sensitive, as Mermaid reads them. A flowchart needs its direction and
+// nothing after it but `;` and statements, so prose that happens to start with "graph TD" is not one;
+// the other types are a keyword alone on a line.
+const BARE_HEADER = /^[ \t]*(?:(?:graph|flowchart)[ \t]+(?:TD|TB|BT|RL|LR)[ \t]*(?:;.*)?|(?:sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|gantt|mindmap|gitGraph|journey|timeline|quadrantChart|xychart-beta|block-beta)[ \t]*|pie(?:[ \t]+(?:showData|title\b.*))?[ \t]*)$/;
+// After a "mermaid" label line, also a flowchart with no direction and the rarer diagram types.
+const LABELLED_HEADER = /^[ \t]*(?:(?:graph|flowchart)[ \t]*(?:;.*)?|(?:C4\w+|requirementDiagram|sankey-beta|packet-beta|architecture-beta|kanban|radar-beta)[ \t]*)$/;
+const LABEL_LINE = /^[ \t]*mermaid[ \t]*:?[ \t]*$/i;
+// A line that reads as diagram source rather than prose: an edge, a node shape straight after an id,
+// a keyword statement, or a lone `}` or `;`.
+const DIAGRAM_LINE = /-->|---|==>|-\.->|--[ \t]|<-->|->>|^[ \t]*(?:subgraph|end|style|classDef|class|linkStyle|click|direction|participant|actor|Note[ \t]+(?:left|right|over)|loop|alt|opt|par|rect|activate|deactivate|state|section|title|dateFormat|axisFormat)\b|^[ \t]*[\w-]+[ \t]*(?:\[|\(|\{|>)|^[ \t]*[};]+[ \t]*$/;
+const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})/;
+
+/**
+ * The reply with any Mermaid written outside a fence put inside a ```mermaid fence, so the chat draws
+ * it (or, when it cannot, shows a sentence) instead of showing the source. Two forms are read: a line
+ * that says only "mermaid" followed by a diagram's first line (the label line is dropped), and a
+ * diagram's first line on its own (`graph TD`, `flowchart LR`, `sequenceDiagram`, ...). The diagram runs
+ * while its lines read as diagram source or are indented, and across a blank line only when the next
+ * line is indented diagram source. A diagram at the end of the text (blank lines aside) is left
+ * unclosed, as a fence still streaming is. Text inside fenced code is never read. A reply with none
+ * comes back unchanged.
+ */
+export function fenceBareMermaid(text: string): string {
+  const lines = text.split("\n");
+  const out: string[] = [];
+  let fence: RegExp | null = null;
+  let changed = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (fence) {
+      out.push(line);
+      if (fence.test(line)) fence = null;
+      continue;
+    }
+    const open = FENCE_LINE.exec(line);
+    if (open) {
+      out.push(line);
+      fence = new RegExp(`^ {0,3}${open[1][0] === "`" ? "`" : "~"}{${open[1].length},}[ \\t]*$`);
+      continue;
+    }
+    const labelled = LABEL_LINE.test(line) && i + 1 < lines.length && (BARE_HEADER.test(lines[i + 1]) || LABELLED_HEADER.test(lines[i + 1]));
+    if (!labelled && !BARE_HEADER.test(line)) { out.push(line); continue; }
+    const start = labelled ? i + 1 : i;
+    let end = start + 1; // exclusive
+    while (end < lines.length) {
+      const l = lines[end];
+      if (l.trim() && (DIAGRAM_LINE.test(l) || /^[ \t]/.test(l))) { end++; continue; }
+      if (!l.trim()) {
+        let next = end;
+        while (next < lines.length && !lines[next].trim()) next++;
+        // Only blank lines left: the text ends here (or its next line is still streaming), so the
+        // diagram runs to the end and stays open.
+        if (next === lines.length) { end = next; break; }
+        if (/^[ \t]/.test(lines[next]) && DIAGRAM_LINE.test(lines[next])) { end = next; continue; }
+      }
+      break;
+    }
+    out.push("```mermaid", ...lines.slice(start, end));
+    if (end < lines.length) out.push("```");
+    changed = true;
+    i = end - 1;
+  }
+  return changed ? out.join("\n") : text;
+}
+
 /**
  * The reply cut into markdown and ```mermaid fences, in order. A reply with no mermaid fence comes back
  * as one markdown segment holding the text unchanged. Other fenced code blocks stay markdown, and a
- * ```mermaid line inside one of them is not a fence.
+ * ```mermaid line inside one of them is not a fence. Mermaid with no fence is read as fenced
+ * (fenceBareMermaid).
  */
-export function splitReplyDiagrams(text: string): ReplySegment[] {
+export function splitReplyDiagrams(reply: string): ReplySegment[] {
+  const text = fenceBareMermaid(reply);
   const lines = text.split("\n");
   const segments: ReplySegment[] = [];
   let md: string[] = [];
@@ -54,7 +127,7 @@ export function splitReplyDiagrams(text: string): ReplySegment[] {
     i = closed ? j + 1 : j;
   }
   flush();
-  return segments.length ? segments : [{ kind: "markdown", text }];
+  return segments.length ? segments : [{ kind: "markdown", text: reply }];
 }
 
 // Flowchart node shapes, longest opener first: circle, double circle, stadium, subroutine, cylinder,
@@ -247,17 +320,45 @@ export function withoutRemoteLoads(code: string): string {
 export type MermaidParse = (code: string) => Promise<boolean>;
 
 /**
+ * A flowchart with the `}`s at its very end that close nothing taken off (`… D --> E;\n}` →
+ * `… D --> E;`), or the source unchanged. Braces inside quotes or |edge text| are not counted, so a
+ * diamond's own `}` is never removed.
+ */
+export function withoutStrayClosers(code: string): string {
+  if (!/^\s*(?:graph|flowchart)\b/i.test(code)) return code;
+  let depth = 0;
+  const stray = new Set<number>(); // positions of `}`s that close nothing
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i];
+    if (ch === '"' || ch === "|") {
+      const end = code.indexOf(ch, i + 1);
+      if (end < 0) break;
+      i = end;
+    } else if (ch === "{") depth++;
+    else if (ch === "}") { if (depth > 0) depth--; else stray.add(i); }
+  }
+  let end = code.replace(/\s+$/, "").length;
+  const kept = end;
+  while (end > 0 && stray.has(end - 1)) end = code.slice(0, end - 1).replace(/\s+$/, "").length;
+  return end === kept ? code : code.slice(0, end);
+}
+
+/**
  * The source to draw: the model's own (with anything that would load from another host taken out,
  * withoutRemoteLoads) if Mermaid parses it, else the same source with its labels quoted if that
- * parses, else null (show diagramFallback). Also null when CSS that loads still spans lines.
+ * parses; failing both, the same two tries without a stray `}` at its end (withoutStrayClosers); else
+ * null (show diagramFallback). Also null when CSS that loads still spans lines.
  */
 export async function drawableMermaid(code: string, parse: MermaidParse): Promise<string | null> {
   const ok = async (src: string) => { try { return await parse(src); } catch { return false; } };
   const safe = withoutRemoteLoads(code);
   if (cssLoadsRemote(decodeRefs(safe))) return null;
-  if (await ok(safe)) return safe;
-  const quoted = quoteMermaidLabels(safe);
-  if (quoted !== safe && (await ok(quoted))) return quoted;
+  const trimmed = withoutStrayClosers(safe);
+  for (const base of trimmed === safe ? [safe] : [safe, trimmed]) {
+    if (await ok(base)) return base;
+    const quoted = quoteMermaidLabels(base);
+    if (quoted !== base && (await ok(quoted))) return quoted;
+  }
   return null;
 }
 

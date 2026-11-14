@@ -10,6 +10,7 @@
 
 import { Marked, type Token } from "marked";
 import { chatMathExtension } from "./chat-math";
+import { fenceBareMermaid } from "./mermaid-source";
 
 /** What a fenced or indented code block is read as. */
 export const CODE_SPOKEN = "Code";
@@ -285,7 +286,8 @@ function sentence(raw: string): string {
  * blocks as one word. Empty when there is nothing to say.
  */
 export function speakableText(markdown: string): string {
-  const parts = blocks(speechMarked.lexer(markdown));
+  // Mermaid written with no fence is read as the fenced diagram the chat draws (mermaid-source.ts).
+  const parts = blocks(speechMarked.lexer(fenceBareMermaid(markdown)));
   return parts.flatMap((p) => p.split(BREAK)).map(sentence).filter(Boolean).join(" ");
 }
 

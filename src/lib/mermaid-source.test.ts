@@ -2,7 +2,7 @@
 // (Mermaid's parser needs a DOM.)
 import { describe, it, expect, beforeAll } from "vitest";
 import mermaid from "mermaid";
-import { splitReplyDiagrams, drawableMermaid, diagramFallback, withoutRemoteLoads, type MermaidParse } from "./mermaid-source";
+import { splitReplyDiagrams, drawableMermaid, diagramFallback, withoutRemoteLoads, withoutStrayClosers, type MermaidParse } from "./mermaid-source";
 import mermaidSourceRaw from "./mermaid-source.ts?raw";
 import remoteUrlRaw from "./remote-url.ts?raw";
 
@@ -227,6 +227,108 @@ describe("mermaid-source loads without DOMPurify", () => {
       const imports = [...src.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]);
       expect(imports, name).not.toContain("dompurify");
       expect(imports, name).not.toContain("./sanitize-html");
+    }
+  });
+});
+
+// The rerun's two smaller diagram defects (B9 r1, 2026-11-14). These diagrams are written for the test,
+// not copied from the eval.
+const FLOW = "graph TD;\n    A[Mix flour and water] --> B{Is the dough sticky?};\n    B -- Yes --> C[Add flour];\n    B -- No --> D[Knead it];\n    C --> D;";
+
+describe("drawableMermaid: a stray } after a valid flowchart", () => {
+  it.each([
+    ["on its own line", `${FLOW}\n}`],
+    ["at the end of the last line", `${FLOW}}`],
+    ["twice, with trailing space", `${FLOW}\n}\n}  \n`],
+  ])("%s: rejected as written, drawn without it", async (_case, code) => {
+    expect(await parse(code)).toBe(false);
+    const drawn = await drawableMermaid(code, parse);
+    expect(drawn).toBe(FLOW);
+  });
+
+  it("with a label that also needs quoting", async () => {
+    const code = "graph TD;\n    A[Area: (l x w)] --> B[Done];\n}";
+    expect(await drawableMermaid(code, parse)).toBe('graph TD;\n    A["Area: (l x w)"] --> B[Done];');
+  });
+
+  it("a diamond's own } and a brace inside quotes are never taken", async () => {
+    expect(withoutStrayClosers(FLOW)).toBe(FLOW);
+    const quoted = 'graph TD;\n    A["set {x}"] --> B{Done?}';
+    expect(withoutStrayClosers(quoted)).toBe(quoted);
+    expect(withoutStrayClosers(`${quoted}\n}`)).toBe(quoted);
+    // A stray } in the middle is not at the end: the diamond that ends the diagram keeps its own.
+    const middle = "graph TD;\n    A --> B}\n    B --> C{Ok?}";
+    expect(withoutStrayClosers(middle)).toBe(middle);
+  });
+
+  it("only a flowchart is touched, and a diagram that parses comes back as written", async () => {
+    const cls = "classDiagram\n  class Duck{\n    +swim()\n  }";
+    expect(withoutStrayClosers(cls)).toBe(cls);
+    expect(await drawableMermaid(FLOW, parse)).toBe(FLOW);
+  });
+});
+
+describe("splitReplyDiagrams: Mermaid with no fence is drawn, not shown as source", () => {
+  const BEFORE = "Here is how to make dough:";
+  const AFTER = "Try it at home and tell me how it went.";
+
+  it("a \"mermaid\" line, then the diagram: the label goes and the diagram is drawn", async () => {
+    const reply = `${BEFORE}\n\nmermaid\n${FLOW}\n\n${AFTER}`;
+    const segments = splitReplyDiagrams(reply);
+    expect(segments).toEqual([
+      { kind: "markdown", text: `${BEFORE}\n` },
+      { kind: "mermaid", code: FLOW, closed: true },
+      { kind: "markdown", text: `\n${AFTER}` },
+    ]);
+    expect(await drawableMermaid((segments[1] as { code: string }).code, parse)).toBe(FLOW);
+  });
+
+  it("a diagram's first line with no label, and prose straight after it", () => {
+    const reply = `${BEFORE}\n${FLOW}\n${AFTER}`;
+    expect(splitReplyDiagrams(reply)).toEqual([
+      { kind: "markdown", text: BEFORE },
+      { kind: "mermaid", code: FLOW, closed: true },
+      { kind: "markdown", text: AFTER },
+    ]);
+  });
+
+  it("a sequence diagram, and a blank line inside an indented diagram", () => {
+    const seq = "sequenceDiagram\n    Student->>Tutor: What is 3 x 4?\n\n    Tutor-->>Student: Count 3 groups of 4.";
+    expect(splitReplyDiagrams(`${seq}\n\n${AFTER}`)).toEqual([
+      { kind: "mermaid", code: seq, closed: true },
+      { kind: "markdown", text: `\n${AFTER}` },
+    ]);
+  });
+
+  it("while it streams, its source is never in the markdown; it stays open until it ends", () => {
+    const reply = `${BEFORE}\n\nmermaid\n${FLOW}\n\n${AFTER}`;
+    const from = reply.indexOf("graph TD") + "graph TD".length;
+    for (let n = from; n < reply.indexOf(AFTER); n++) {
+      for (const s of splitReplyDiagrams(reply.slice(0, n))) if (s.kind === "markdown") expect(s.text).not.toMatch(/graph TD|-->/);
+    }
+    const partial = splitReplyDiagrams(reply.slice(0, reply.indexOf("C --> D")));
+    expect(partial[partial.length - 1]).toMatchObject({ kind: "mermaid", closed: false });
+  });
+
+  it("a diagram that cannot be drawn becomes a sentence, not source", async () => {
+    const reply = `mermaid\ngraph TD;\n    A[Start] --> B[[[broken\n\n${AFTER}`;
+    const [diagram] = splitReplyDiagrams(reply);
+    expect(diagram.kind).toBe("mermaid");
+    const code = (diagram as { code: string }).code;
+    expect(await drawableMermaid(code, parse)).toBeNull();
+    expect(diagramFallback(code).message).toMatch(/could not be shown/);
+  });
+
+  it("prose that mentions graphs, a word \"mermaid\", and code fences are left alone", () => {
+    for (const reply of [
+      "A graph shows how two things change. Let's draw one together.",
+      "graph TD is how a flowchart starts.\nNow you try.",
+      "flowchart LR means left to right.",
+      "A mermaid is a sea creature from stories.\n\nWhat do you think it looks like?",
+      "mermaid\n\nThat word means a sea creature.",
+      "```text\ngraph TD\n  A --> B\n```\nThat is the source.",
+    ]) {
+      expect(splitReplyDiagrams(reply), reply).toEqual([{ kind: "markdown", text: reply }]);
     }
   });
 });

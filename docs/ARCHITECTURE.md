@@ -120,9 +120,11 @@ written: they came from a once-a-minute timer whose only reader was the learning
 - **`knowledge.ts` / `progress.ts`** — persistent per-course knowledge files and subtopic mastery tracking;
   both feed context back into the tutor.
 - **`quiz.ts` / `quiz-grading.ts` / `quiz-review.ts`** — quiz & promotion-test generation (schema-enforced,
-  topped up to a target count, with answer↔explanation self-consistency checks and an independent verify
-  pass on capable tiers) and the end-of-test batched grader (deterministic match first, one model call for
-  the rest). The `-grading` / `-review` helpers are pure and unit-tested.
+  topped up to a target count, with answer↔explanation self-consistency checks that also read clock
+  times, money and fractions, rejection of explanations that correct themselves and of repeated options,
+  near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
+  independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
+  one model call for the rest). The `-grading` / `-review` helpers are pure and unit-tested.
 - **`notebook.ts` / `notebook-links.ts`** — the notebook layer (retrieval + linking). See below.
 - **`kernel/`, `tools/`, `skills/`, `permissions/`** — the tutoring runtime. See below.
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
@@ -283,9 +285,12 @@ filter removed) is never left blank: the kernel shows and saves `MIXED_UP_REPLY`
 one that stalled, keeps its own handling.
 
 In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
-`diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Source Mermaid cannot
-parse is retried with its node labels quoted inside their shapes (a circle stays a circle); if that
-fails too, the child sees a plain sentence and the diagram's labels, never the source.
+`diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
+wrote with no fence (a "mermaid" line and then `graph TD`, or a diagram's first line on its own) is
+fenced first (`fenceBareMermaid`) and treated the same way. Source Mermaid cannot parse is retried with
+its node labels quoted inside their shapes (a circle stays a circle), then, for a flowchart, without
+`}`s at its end that close nothing; if that fails too, the child sees a plain sentence and the
+diagram's labels, never the source.
 
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
