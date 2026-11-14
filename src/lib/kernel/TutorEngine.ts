@@ -19,6 +19,9 @@ import { callLLMTurn, OllamaToolCallParseError, type NeutralMessage, type Provid
 import type { LLMConfig } from "../../types";
 import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent } from "./toolDispatch";
+import { toolRegistry } from "../tools/registry";
+import { evaluatePermission } from "../permissions/evaluate";
+import { loadPermissionRules } from "../permissions/store";
 import { shouldContinue } from "./stopHooks";
 import { toolsLayer } from "./systemPrompt";
 import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
@@ -30,9 +33,14 @@ import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOK
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
 import { ReplyTextFilter } from "./textToolCalls";
-import { toolRegistry } from "../tools/registry";
+import { choicesInReply, type ReplyChoices } from "./replyChoices";
+import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
+const ASK_USER_TOOL = "ask_user.question";
+// The id of the flashcard.create call the app makes itself (flashcard stage). It never reaches a
+// provider: the model sees a note, not a tool call, so no tool_use id rules apply.
+const APP_FLASHCARD_CALL_ID = "app_flashcard";
 
 // A single tool result may claim at most this share of the grounding slice. A notebook.search hit
 // can be several thousand tokens of JSON; uncapped it evicts the entire conversation behind it.
@@ -56,13 +64,18 @@ export interface TutorTurn {
   // lever 19's paired baseline at the same commit (EVAL_SENSE_RANK=off). Default "on"; the app never
   // sets it.
   senseRank?: "on" | "off";
+  // "off" skips the flashcard stage (flashcardRequest.ts), so the tool goldens still measure whether
+  // the model itself calls flashcard.create. Default "on"; the app never sets it.
+  flashcardStage?: "on" | "off";
 }
 
 export interface TutorTurnResult {
   text: string;
-  // `fromText` marks a call the model wrote as reply text and the kernel parsed (textToolCalls.ts)
-  // rather than a call the provider returned.
-  toolCalls: Array<{ name: string; args: unknown; ok: boolean; fromText?: true }>;
+  // `byApp` marks a call the app made itself rather than the model (the flashcard stage,
+  // flashcardRequest.ts), so an eval can tell the model's tool choice from the app's. `fromText` marks a
+  // call the model wrote as reply text and the kernel parsed (textToolCalls.ts) rather than a call the
+  // provider returned.
+  toolCalls: Array<{ name: string; args: unknown; ok: boolean; byApp?: true; fromText?: true }>;
   // True if knowledge.update_map ran successfully this turn — the caller skips its post-turn
   // auto-reflection so there's exactly one writer to the knowledge files.
   usedKnowledgeUpdate: boolean;
@@ -101,6 +114,10 @@ export interface TutorTurnResult {
   // is the model call that failed (0 = the first); `error` is Ollama's own error text. Null on every
   // other turn.
   toolCallRecovery: { iteration: number; error: string } | null;
+  // Choices a completed reply wrote as a trailing numbered or lettered list instead of calling
+  // ask_user.question (replyChoices.ts). The caller shows them as the same buttons ask_user shows.
+  // Null when the turn called ask_user.question, did not complete, or offers no such list.
+  replyChoices: ReplyChoices | null;
 }
 
 /**
@@ -170,7 +187,34 @@ export class TutorEngine {
       ? lookupDictionary(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
       : Promise.resolve(null);
 
-    const eduTools = await selectTools(ctx);
+    let eduTools = await selectTools(ctx);
+
+    // The flashcard stage (flashcardRequest.ts): a student who asks for a card gets one made by the
+    // app, through flashcard.create's own dispatch (permissions, confirm card, chip), whatever the
+    // mode. It does not run at all when the permission rules deny the tool. A chip shows while the
+    // card call runs, so a slow model is not a blank screen. Once a card has been dispatched, the model
+    // is not offered the tool again this turn, so it cannot make a second card. A failed card call
+    // clears the chip and the turn goes on as before.
+    let appCard: { call: TutorTurnResult["toolCalls"][number]; saved: Card | null } | null = null;
+    const cardTool = toolRegistry.get(FLASHCARD_TOOL);
+    if (
+      turn.flashcardStage !== "off" && cardTool && newest?.role === "user" && asksForFlashcard(newest.content) &&
+      evaluatePermission(cardTool, ctx.permissionMode, await loadPermissionRules()) !== "deny"
+    ) {
+      turn.onToolEvent?.({ kind: "progress", id: APP_FLASHCARD_CALL_ID, name: FLASHCARD_TOOL, message: "making a flashcard…" });
+      const lastReply = [...messages].reverse().find((m) => m.role === "assistant")?.content ?? "";
+      const card = await cardFromRequest(newest.content, lastReply, turn.config, { tier: ctx.modelTier, signal: ctx.abort });
+      if (card && !ctx.abort.aborted) {
+        const call = { id: APP_FLASHCARD_CALL_ID, name: FLASHCARD_TOOL, args: card };
+        const result = await dispatchToolCall(call, ctx, turn.onToolEvent);
+        appCard = { call: { name: FLASHCARD_TOOL, args: card, ok: result.ok, byApp: true }, saved: result.ok ? card : null };
+        eduTools = eduTools.filter((t) => t.name !== FLASHCARD_TOOL);
+      } else {
+        // The chat hides an error chip, so this only takes the progress chip away.
+        turn.onToolEvent?.({ kind: "error", id: APP_FLASHCARD_CALL_ID, name: FLASHCARD_TOOL, error: "no card was made" });
+      }
+    }
+
     const offered = new Set(eduTools.map((t) => t.name));
     const toolDefs = eduTools.length ? buildProviderToolDefs(eduTools) : undefined;
 
@@ -241,13 +285,18 @@ ${lastUser.content}` };
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withDictionaryNote(messages[idx].content, dictionaryNote) };
     }
+    if (appCard) {
+      // Same place as the other notes: after the grounding block and the student's text.
+      const idx = messages.map((m) => m.role).lastIndexOf("user");
+      messages[idx] = { ...messages[idx], content: withFlashcardNote(messages[idx].content, appCard.saved) };
+    }
     if (import.meta.env?.DEV) {
       const t = grounding.trace;
       console.info(`[ground] ${t.skipped ? `skipped: ${t.skipped}` : `${t.hitTitles.length} hit(s) — ${t.hitTitles.join(", ")}`} · ${t.candidates} candidate(s) · top ${t.topScore.toFixed(2)} · ${t.blockTokens} tok${t.error ? ` · ${t.error}` : ""}`);
     }
 
     try {
-      return await this.respond(turn, ctx, { messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -258,6 +307,7 @@ ${lastUser.content}` };
     turn: TutorTurn,
     ctx: ToolContext,
     prepared: {
+      appCall: TutorTurnResult["toolCalls"][number] | null;
       messages: NeutralMessage[];
       budget: Budget;
       toolResultCap: number;
@@ -286,7 +336,7 @@ ${lastUser.content}` };
     }
 
     let streamedText = ""; // everything shown to the user this turn = what we persist
-    const toolCalls: TutorTurnResult["toolCalls"] = [];
+    const toolCalls: TutorTurnResult["toolCalls"] = prepared.appCall ? [prepared.appCall] : [];
     let usedKnowledgeUpdate = false;
     let endedNaturally = false; // the model gave a closing answer without calling a tool
     // Set when the provider reports the turn did not finish cleanly. "length" is included because
@@ -421,6 +471,12 @@ ${lastUser.content}` };
     // case the UI is required to show rather than quietly drop.
     const usedHits = groundedIn(streamedText, grounding.hits);
 
+    // A list of choices the model wrote instead of calling ask_user.question becomes buttons anyway.
+    // Read from the finished text by code; never on a turn that asked through the tool.
+    const replyChoices = stopReason === "complete" && !toolCalls.some((c) => c.name === ASK_USER_TOOL)
+      ? choicesInReply(streamedText)
+      : null;
+
     return {
       text: streamedText,
       toolCalls,
@@ -435,6 +491,7 @@ ${lastUser.content}` };
       dictionaryNote,
       dictionaryShown: prepared.dictionaryShown,
       toolCallRecovery,
+      replyChoices,
     };
   }
 }

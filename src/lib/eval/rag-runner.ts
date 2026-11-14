@@ -20,6 +20,7 @@
 
 import { tutorEngine, TutorTurnError, EMPTY_GROUNDING, type TutorTurn, type TutorTurnResult, type Grounding } from "../kernel";
 import type { RetrievalMode } from "../kernel/ground";
+import { modelToolCalls } from "../kernel/modelToolCalls";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
 import { buildSystemPrompt, TUTOR_RULES } from "../curriculum";
@@ -275,7 +276,7 @@ export async function runRagEval(opts?: {
             // the tool path only if the answer reused its text; that asymmetry is the thing measured.
             citedTitles = [...new Set(result.usedHits.map((h) => h.title))];
             retrievedTitles = result.grounding.trace.hitTitles;
-            toolCalls = result.toolCalls.map((c) => c.name);
+            toolCalls = modelToolCalls(result.toolCalls).map((c) => c.name);
             toolCallRecovery = result.toolCallRecovery;
           } catch (e) {
             // A model or transport failure is an ERROR row with the real message. The kernel hands

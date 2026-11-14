@@ -283,7 +283,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
     // ── Heavy recompute (mastery → progress → knowledge) + spaced-card minting runs in the
     // background so results render immediately and the machine no longer bogs at finish (issue #83). ──
-    const persist = async (studyPlanText: string | null) => {
+    // The study plan is awaited last, so a slow plan never holds back mastery, progress or cards.
+    const persist = async (studyPlan: Promise<string | null>) => {
       const t0 = performance.now();
       try {
         const freshSyllabus = await getSyllabus(courseId, currentLevel);
@@ -292,7 +293,6 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           await updateUserProgress(courseId);
           await refreshProgressContext(courseId, freshSyllabus);
         }
-        await updateKnowledgeAfterQuiz(courseId, overall, answered.length, missedTopics, studyPlanText, cfg);
         await mintCardsFromMisses(
           courseId,
           answered.filter((q) => !q.is_correct).map((q) => ({
@@ -301,6 +301,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           })),
           currentLevel,
         );
+        await updateKnowledgeAfterQuiz(courseId, overall, answered.length, missedTopics, await studyPlan, cfg);
         log.info("promotion", `test finish persistence done in ${Math.round(performance.now() - t0)}ms`);
       } catch (e) { console.error("promotion finish persistence failed", e); }
     };
@@ -327,30 +328,25 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         setTestState("results");
         onPassed(nextLevel ?? currentLevel);
       }
-      void persist(null);
+      void persist(Promise.resolve(null));
       return;
     }
 
-    // ── Fail: show results immediately, then stream the study plan + persist in the background. ──
+    // ── Fail: show results immediately; persist and generate the study plan in parallel in the
+    // background. The plan reaches the screen when it is ready and the study log after the rest is saved. ──
     setOverallScore(overall);
     setReviewScore(reviewQs.length > 0 ? reviewPct : null);
     setPassed(false);
     setTestState("results");
-    void (async () => {
-      setGeneratingPlan(true);
-      let studyPlanText = "";
-      try {
-        const missed = answered
-          .filter((q) => !q.is_correct)
-          .map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
-        await generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, cfg, (t) => {
-          studyPlanText += t;
-          setStudyPlan((p) => p + t);
-        });
-      } catch { /* study plan is a nice-to-have */ }
-      setGeneratingPlan(false);
-      await persist(studyPlanText || null);
-    })();
+    setGeneratingPlan(true);
+    const missed = answered
+      .filter((q) => !q.is_correct)
+      .map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
+    const studyPlan = generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, cfg)
+      .then((plan) => { setStudyPlan(plan); return plan || null; })
+      .catch(() => null) // generateStudyPlan falls back to code; this only guards the unexpected
+      .finally(() => setGeneratingPlan(false));
+    void persist(studyPlan);
   }, [timeLeft, currentLevel, courseId, currentSyllabus, onPassed]);
 
   const question = questions[currentIndex];

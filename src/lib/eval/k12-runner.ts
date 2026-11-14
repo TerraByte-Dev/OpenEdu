@@ -14,6 +14,7 @@
 // Do not save a source file during a run: Vite HMR reloads the webview and kills it.
 
 import { tutorEngine, skillBundleLayer } from "../kernel";
+import { modelToolCalls } from "../kernel/modelToolCalls";
 import { registerBuiltinTools, type ToolContext } from "../tools";
 import { loadBuiltinSkills, resolveSkill } from "../skills";
 import { buildSystemPrompt } from "../curriculum";
@@ -242,7 +243,7 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
               row.stopReason = result.stopReason;
               row.hitTitles = result.grounding.trace.hitTitles;
               row.groundError = result.grounding.trace.error ?? null;
-              row.toolCalls = result.toolCalls.map((c) => c.name);
+              row.toolCalls = modelToolCalls(result.toolCalls).map((c) => c.name); // the model's calls only
             }
           } catch (e) {
             row.text = `ERROR: ${e instanceof Error ? e.message : String(e)}`;

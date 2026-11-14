@@ -12,6 +12,7 @@
 // a tie (an even number of repeats split evenly) counts as a fail.
 
 import { containsAlternative } from "./rag-dev-v2";
+import { modelToolCalls } from "../kernel/modelToolCalls";
 import { mcnemarExact, wilson95 } from "./k12-fixture";
 import type { DefineItem, DefineSplit } from "./define-items";
 import type { GradeBand } from "../grade";
@@ -71,7 +72,7 @@ export interface DefineRunRow extends DefineRowLike {
   dictionaryNote: string | null;
   attempts: number;
   stopReason: string | null;
-  toolCalls: ReadonlyArray<unknown>;
+  toolCalls: ReadonlyArray<{ byApp?: boolean }>;
   toolCallRecovery: unknown;
   chatRequests: number;
   structuredRequests: number;
@@ -89,7 +90,8 @@ export interface DefineRunRow extends DefineRowLike {
 export function addedCalls(row: DefineRunRow): { added: number; retried: boolean } {
   const retried = !!row.error || row.attempts !== 1;
   if (retried) return { added: row.structuredRequests, retried };
-  const bound = row.toolCalls.length + 1 + (row.stopReason === "max_iterations" || row.toolCallRecovery ? 1 : 0);
+  // A call the app made itself (byApp) sent no turn request, so it does not raise the bound.
+  const bound = modelToolCalls(row.toolCalls).length + 1 + (row.stopReason === "max_iterations" || row.toolCallRecovery ? 1 : 0);
   return { added: row.structuredRequests + Math.max(0, row.chatRequests - bound), retried };
 }
 

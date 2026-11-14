@@ -14,6 +14,7 @@
 // 3, and a group smaller than the frozen test split. DEFINE_OUT writes to a file.
 
 import { DEFINE_ITEMS, DEFINE_SPLIT } from "../define-items";
+import { modelToolCalls } from "../../kernel/modelToolCalls";
 import { compareDefineArms, judgeDefine, addedCalls, type ArmContrast } from "../define-grade";
 import { compareRefusals, shortGroups, type Saved } from "./define-script-lib";
 import { env, fs, writeText } from "./node-io";
@@ -51,7 +52,7 @@ async function main(): Promise<void> {
     const unnoted = name === "D" ? ok.filter((r) => !r.dictionaryNote).map((r) => `${r.id}#${r.repeat}`) : [];
     const added = s.rows.reduce((k, r) => k + addedCalls(r).added, 0);
     const retried = ok.filter((r) => r.attempts > 1).length;
-    const tools = ok.reduce((k, r) => k + r.toolCalls.length, 0);
+    const tools = ok.reduce((k, r) => k + modelToolCalls(r.toolCalls).length, 0);
     out.push(`${name}: rows ${s.rows.length}, ERROR ${s.rows.length - ok.length}${s.rows.length - ok.length ? ` (${s.rows.filter((r) => r.error).map((r) => `${r.id}#${r.repeat}`).join(", ")})` : ""}; detected ${ok.length - missedWord.length}/${ok.length}${missedWord.length ? ` (missed ${missedWord.join(", ")})` : ""}; noted ${noted}/${ok.length}${unnoted.length ? ` (no note: ${unnoted.join(", ")})` : ""}; added calls ${added}; retried rows ${retried}; tool calls ${tools}`);
   }
   out.push("");

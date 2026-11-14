@@ -1,4 +1,4 @@
-import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } from "./llm";
+import { callLLMStructured, detectModelTier, log } from "./llm";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { splitNewVsReview, storedToGenQuestion, pickReview, interleaveReview } from "./quiz-review";
 import {
@@ -740,24 +740,83 @@ export async function gradeAnswersBatch(
   return out;
 }
 
+// The study plan is 3-5 items the model returns as a JSON list, and code writes the bullets. Asked for
+// "3-5 bullet points" in "plain text", gemma4:e2b wrote paragraphs in 17 of 20 plans (B9 readiness run,
+// 2026-11-13). minItems is halved for small tiers like every structured schema, so a tiny model may
+// return fewer than 3; each item is still its own bullet. The count and length caps are applied by
+// renderStudyPlan, not the schema, so a long or sixth item is trimmed instead of failing the call.
+const STUDY_PLAN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items"],
+  properties: {
+    items: {
+      type: "array",
+      minItems: 3,
+      items: { type: "string", minLength: 10 },
+    },
+  },
+};
+const STUDY_PLAN_MAX_ITEMS = 5;
+const STUDY_PLAN_MAX_ITEM_CHARS = 300;
+
+/** One item, cut at a word boundary when it runs over STUDY_PLAN_MAX_ITEM_CHARS. */
+function capItem(text: string): string {
+  if (text.length <= STUDY_PLAN_MAX_ITEM_CHARS) return text;
+  const cut = text.slice(0, STUDY_PLAN_MAX_ITEM_CHARS);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 0 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, "")}…`;
+}
+
+/**
+ * The plan as the results screen shows it: one "• " line per item, at most STUDY_PLAN_MAX_ITEMS,
+ * with any list marker or markdown bold the model wrote removed.
+ */
+function renderStudyPlan(items: readonly string[]): string {
+  return items
+    .map((it) => it.replace(/\*\*/g, "").replace(/(^|\W)\*(\S[^*]*?)\*(?!\w)/g, "$1$2").replace(/\s+/g, " ").trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").trim())
+    .filter(Boolean)
+    .slice(0, STUDY_PLAN_MAX_ITEMS)
+    .map((it) => `• ${capItem(it)}`)
+    .join("\n");
+}
+
+/** The plan code can write without a model: each missed question with its answer and why. */
+function fallbackStudyPlan(missedQuestions: ReadonlyArray<{ question_text: string; correct_answer: string; explanation: string }>): string {
+  return renderStudyPlan(missedQuestions.map((q) =>
+    `Review "${q.question_text.trim()}" The answer is ${q.correct_answer.trim()}. ${q.explanation.trim()}`));
+}
+
 // Generate a study plan from missed questions after a failed promotion test
 export async function generateStudyPlan(
   topic: string,
   level: number,
   missedQuestions: Array<{ question_text: string; correct_answer: string; explanation: string }>,
   config: LLMConfig,
-  onChunk?: (token: string) => void,
 ): Promise<string> {
   const prompt = `A student studying "${topic}" just failed their Level ${level} promotion test.
 
 Missed questions:
 ${missedQuestions.slice(0, 10).map((q, i) => `${i + 1}. ${q.question_text}\n   Correct answer: ${q.correct_answer}\n   Why: ${q.explanation}`).join("\n\n")}
 
-Write a focused, actionable study plan (3-5 bullet points) that tells them exactly what to review and practice before retaking the test. Be specific, direct, and encouraging. Use plain text — no markdown headers.
+Write a focused, actionable study plan of 3 to 5 items that tells them exactly what to review and practice before retaking the test. Each item is one or two sentences about one thing to do. Be specific, direct, and encouraging.
 
 ${MATH_FORMATTING_RULES_PROSE}`;
 
-  return onChunk
-    ? await callLLMStreaming([{ role: "user", content: prompt }], config, onChunk)
-    : await callLLM([{ role: "user", content: prompt }], config);
+  // One repair at most: the plan is shown on the results screen, and each attempt can take the tier's
+  // full timeout. When the model still fails, the learner gets the plan code can write.
+  try {
+    const tier = config.modelTier ?? await detectModelTier(config);
+    config.modelTier = tier;
+    const { items } = await callLLMStructured<{ items: string[] }>(
+      [{ role: "user", content: prompt }],
+      config,
+      { schema: STUDY_PLAN_SCHEMA, toolName: "emit_study_plan", tier, maxRepairAttempts: 1 },
+    );
+    const plan = renderStudyPlan(items);
+    if (plan) return plan;
+  } catch (e) {
+    log.warn("quiz", "study plan call failed — showing the missed questions instead", e instanceof Error ? e.message : String(e));
+  }
+  return fallbackStudyPlan(missedQuestions);
 }

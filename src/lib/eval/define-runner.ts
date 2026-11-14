@@ -61,7 +61,8 @@ export interface DefineRow {
   stopReason: string | null;
   attempts: number;
   /** The final attempt's tool calls and tool-call recovery (TutorTurnResult), for the cost clause. */
-  toolCalls: Array<{ name: string; ok: boolean }>;
+  // byApp: a call the app made itself (the flashcard stage), not the model; define-grade.ts skips it.
+  toolCalls: Array<{ name: string; ok: boolean; byApp?: true }>;
   toolCallRecovery: { iteration: number; error: string } | null;
   /** Chat requests the row sent, over all its attempts (the warm-up is not counted): turn requests,
    *  and structured ones (a request with a `format`, which no define turn should send). Counted on the
@@ -214,7 +215,7 @@ export async function runDefineItems(
               askedWord: result.askedWord, dictionaryNote: result.dictionaryNote,
               noteTokens: result.dictionaryNote ? estTokens(result.dictionaryNote) : 0,
               reply: result.text, stopReason: result.stopReason, attempts: attempt,
-              toolCalls: result.toolCalls.map(({ name, ok }) => ({ name, ok })), toolCallRecovery: result.toolCallRecovery,
+              toolCalls: result.toolCalls.map(({ name, ok, byApp }) => (byApp ? { name, ok, byApp } : { name, ok })), toolCallRecovery: result.toolCallRecovery,
               ...sent(), error: null,
               ttftMs, totalMs: Date.now() - started, grade: item.expect ? gradeDefine(item as DefineItem, result.text) : null,
             };
