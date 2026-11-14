@@ -23,6 +23,34 @@ export interface QuestionLike {
   options?: string[] | null;
 }
 
+// ─── Multiple-choice answer key ───────────────────────────────────────────────
+
+// Small local models (gemma4:e2b) answer a multiple-choice key with the letter alone ("D", "D)",
+// "(d)") while the options read "D) hop and top". The B9 readiness run (2026-11-13) saw that in
+// 1,818 of 2,127 question calls, and repair-retry got the same letter back, so quizzes came out
+// empty. Resolving the letter to its option is deterministic and loses nothing. Returns the question
+// unchanged when it isn't multiple choice, when the key already names an option's text, or when the
+// letter has no matching option.
+const LETTER_KEY_RE = /^\s*(?:option\s+)?\(?([A-D])\)?[.):]?\s*$/i;
+const OPTION_LABEL_RE = /^\s*\(?([A-D])[).:]\s*/i;
+
+export function resolveLetterKey<Q extends QuestionLike>(q: Q): Q {
+  if (q.question_type !== "multiple_choice" || !Array.isArray(q.options) || q.options.length === 0) return q;
+  const m = LETTER_KEY_RE.exec(String(q.correct_answer ?? ""));
+  if (!m) return q;
+  const letter = m[1].toUpperCase();
+  const opts = q.options.map((o) => String(o));
+  // An option whose own text is the key's letter ("A", as written) is a real answer, not a label.
+  if (opts.some((o) => o.replace(OPTION_LABEL_RE, "").trim() === m[1])) return q;
+  const labelled = opts.filter((o) => OPTION_LABEL_RE.test(o)).length;
+  // Map by label only when every option is labelled, and by position only when none is; a mixed set
+  // ("B. vitamins", "minerals", ...) is ambiguous and stays as it is.
+  const hit = labelled === opts.length
+    ? opts.find((o) => OPTION_LABEL_RE.exec(o)?.[1].toUpperCase() === letter)
+    : labelled === 0 ? opts["ABCD".indexOf(letter)] : undefined;
+  return hit === undefined ? q : { ...q, correct_answer: hit };
+}
+
 // ─── Number / text extraction ─────────────────────────────────────────────────
 
 // Strip a leading multiple-choice option label like "A) " / "b. " so we compare the bare value.
