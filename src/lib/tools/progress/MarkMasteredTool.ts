@@ -7,6 +7,7 @@ import { z } from "zod";
 import { defineTool, type ToolEvent } from "../EduTool";
 import { getSyllabus } from "../../db";
 import { setSubtopicStatus, updateUserProgress, refreshProgressContext } from "../../progress";
+import { log } from "../../llm";
 
 export const markMasteredTool = defineTool({
   name: "progress.mark_mastered",
@@ -44,10 +45,16 @@ export const markMasteredTool = defineTool({
       return;
     }
 
-    // Recompute gaps + refresh the tutor's progress context from fresh DB state.
-    const fresh = await getSyllabus(ctx.courseId, ctx.level);
-    await updateUserProgress(ctx.courseId);
-    await refreshProgressContext(ctx.courseId, fresh);
+    // Recompute gaps + refresh the tutor's progress context from fresh DB state. The mark is already
+    // saved at this point, so a failure here is logged, not reported: an error would tell the model
+    // (and the student) that nothing was saved when it was.
+    try {
+      const fresh = await getSyllabus(ctx.courseId, ctx.level);
+      await updateUserProgress(ctx.courseId);
+      await refreshProgressContext(ctx.courseId, fresh);
+    } catch (e) {
+      log.warn("progress", "mark saved; progress refresh failed", e instanceof Error ? e.message : String(e));
+    }
 
     yield { kind: "result", value: { subtopic_id: input.subtopic_id, status: input.status, title: res.title ?? input.subtopic_id } };
   },
