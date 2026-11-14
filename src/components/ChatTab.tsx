@@ -22,6 +22,7 @@ import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { splitReplyDiagrams } from "../lib/mermaid-source";
 import { displayReplyText } from "../lib/kernel/textToolCalls";
+import { repeatsQuestion } from "../lib/kernel/askCard";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
 import { describeToolActivity, describeToolDone, describeToolRequest, friendlyError, STALLED_TURN } from "../lib/plain-language";
@@ -238,8 +239,17 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
   const pickSuggestion = (s: Suggestion) => { setInput(s.message); setPendingMode(s.mode ?? null); inputRef.current?.focus(); };
 
-  // `picked` is a reply-choice button's text, sent as is; otherwise the input box is sent.
+  // `picked` is a reply-choice button's text, sent as is; otherwise the input box is sent. While a
+  // question card waits, the box stays usable and what the child types answers the card: a card whose
+  // buttons don't fit what they want to say is never a dead end (click test 2026-11-14).
   const sendMessage = async (picked?: string) => {
+    if (askPending && picked === undefined) {
+      const typed = input.trim();
+      if (!typed) return;
+      setInput("");
+      handleAskChoice(typed);
+      return;
+    }
     const text = picked ?? input;
     if (!text.trim() || streaming || settingUpRef.current) return;
     const setupToken = {};
@@ -563,7 +573,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             </div>
           );
         })}
-        {streaming && (
+        {/* No empty "Thinking..." bubble above a question card: the card is what the tutor is saying. */}
+        {streaming && !(askPending && !streamingText) && (
           <div className="flex gap-3">
             <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
               AI
@@ -591,11 +602,20 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           <SuggestionChips suggestions={suggestions} onPick={pickSuggestion} />
         )}
         {askPending && (
-          <AskUserChoices question={askPending.question} choices={askPending.choices} onPick={handleAskChoice} />
+          <AskUserChoices
+            question={repeatsQuestion(streamingText, askPending.question) ? "" : askPending.question}
+            choices={askPending.choices}
+            onPick={handleAskChoice}
+            onTypeOwn={() => inputRef.current?.focus()}
+          />
         )}
         {!streaming && !askPending && !confirmPending && replyChoices && (
           <>
-            <AskUserChoices question={replyChoices.question} choices={replyChoices.choices} onPick={(value) => void sendMessage(value)} />
+            <AskUserChoices
+              question={repeatsQuestion(messages[messages.length - 1]?.role === "assistant" ? messages[messages.length - 1].content : "", replyChoices.question) ? "" : replyChoices.question}
+              choices={replyChoices.choices}
+              onPick={(value) => void sendMessage(value)}
+            />
             {/* Beside the buttons, only the stuck chips and due cards (chipsBesideChoices). */}
             {chipsBesideChoices(suggestions).length > 0 && (
               <SuggestionChips suggestions={chipsBesideChoices(suggestions)} onPick={pickSuggestion} />
@@ -643,11 +663,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                 sendMessage();
               }
             }}
-            placeholder="Ask your tutor anything..."
+            placeholder={askPending ? "Or type your own answer..." : "Ask your tutor anything..."}
             className="flex-1 px-4 py-3 rounded-xl bg-panel-lite border border-[var(--rule)] text-ink placeholder-[var(--ink-faint)] text-sm focus:outline-none focus:border-phosphor"
-            disabled={streaming}
+            disabled={streaming && !askPending}
           />
-          {streaming ? (
+          {streaming && !askPending ? (
             <button
               onClick={cancelStream}
               title="Stop generating"
@@ -820,6 +840,8 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
   // which already receives it and retries. A learner never needs to read it.
   if (ev.kind === "error") return null;
   if (ev.kind === "result") {
+    // ask_user.question → nothing: the question and the answer are in the reply's text (askCard.ts).
+    if (ev.name === "ask_user.question") return null;
     // notebook.search → a ✓ summary plus a "📓 Source: …" chip per cited document.
     if (ev.name === "notebook.search") {
       const results = (ev.value as { results?: NotebookSearchResult[] } | undefined)?.results ?? [];
@@ -972,15 +994,17 @@ function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; su
   );
 }
 
-// ask_user.question — choice buttons that resolve the suspended turn on click.
-function AskUserChoices({ question, choices, onPick }: { question: string; choices: AskChoice[]; onPick: (value: string) => void }) {
+// ask_user.question — choice buttons that resolve the suspended turn on click. An empty `question` is
+// one the reply above already ends on (repeatsQuestion), so only the buttons show. `onTypeOwn` adds a
+// "Type my own answer" button that puts the cursor in the chat box, which answers the card.
+function AskUserChoices({ question, choices, onPick, onTypeOwn }: { question: string; choices: AskChoice[]; onPick: (value: string) => void; onTypeOwn?: () => void }) {
   return (
     <div className="flex gap-3">
       <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
         AI
       </span>
       <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
-        <p className="mb-2.5">{question}</p>
+        {question && <p className="mb-2.5">{question}</p>}
         <div className="flex flex-wrap gap-2">
           {choices.map((c) => (
             <button
@@ -991,6 +1015,14 @@ function AskUserChoices({ question, choices, onPick }: { question: string; choic
               {c.label}
             </button>
           ))}
+          {onTypeOwn && (
+            <button
+              onClick={onTypeOwn}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-phosphor-bright hover:border-phosphor/40 transition-colors"
+            >
+              Type my own answer
+            </button>
+          )}
         </div>
       </div>
     </div>
