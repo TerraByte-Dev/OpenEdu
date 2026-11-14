@@ -52,6 +52,7 @@ describe("cloudModelTier for the catalog", () => {
     expect(cloudModelTier("anthropic", "claude-opus-4-6")).toBe("large");
     expect(cloudModelTier("anthropic", "claude-sonnet-4-6")).toBe("large");
     expect(cloudModelTier("anthropic", "claude-haiku-5-5")).toBe("medium");
+    expect(cloudModelTier("anthropic", "claude-fable-5-2")).toBe("large");
   });
 });
 
@@ -84,9 +85,18 @@ describe("every catalog model", () => {
     }
   });
 
-  it("no Anthropic id is from a family that rejects forced tool_choice", () => {
-    for (const id of all("anthropic")) {
+  it("no Anthropic chat id is from a family that thinks without being able to turn it off", () => {
+    // Tutor turns call tools and do not send thinking blocks back (streamAnthropicTurn), so the chat
+    // picker keeps to models whose thinking is off or switched off. Generation runs on structured outputs.
+    for (const id of CHAT_MODELS.anthropic.map((m) => m.id)) {
       expect(id).not.toMatch(/^claude-(?:opus-5-5|sonnet-5-5|fable-5)/);
+    }
+  });
+
+  it("every Anthropic 5.x generation id tiers large and is sent no temperature", () => {
+    for (const id of GENERATION_MODELS.anthropic.map((m) => m.id).filter((i) => /^claude-[a-z]+-5/.test(i) && !i.startsWith("claude-haiku"))) {
+      expect(cloudModelTier("anthropic", id)).toBe("large");
+      expect(anthropicRequestFields(id, 0.2)).not.toHaveProperty("temperature");
     }
   });
 });

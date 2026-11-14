@@ -45,12 +45,20 @@ describe("callLLMStructured repairs LaTeX that JSON escapes ate, on every provid
     expect(await callLLMStructured(USER, config, { schema: SCHEMA })).toEqual(SHOWN);
   });
 
-  it("Anthropic (tool input arrives already parsed)", async () => {
+  it("Anthropic (structured outputs: the JSON arrives in a text block)", async () => {
+    fake(() => Response.json({ stop_reason: "end_turn", content: [{ type: "text", text: MODEL_JSON }] }));
+    const config = { provider: "anthropic", model: "claude-opus-4-6", apiKey: "test-key" } as LLMConfig;
+    expect(await callLLMStructured(USER, config, { schema: SCHEMA })).toEqual(SHOWN);
+  });
+
+  it("Anthropic forced-tool fallback (tool input arrives already parsed)", async () => {
     // Anthropic's server parses the model's tool JSON and re-serialises it, so the reply is valid JSON
     // whose strings already hold the TAB / form feed / backspace.
     const input = tryParseJsonLenient(MODEL_JSON);
     expect(JSON.stringify(input)).toContain("\\t");
-    fake(() => Response.json({ content: [{ type: "tool_use", input }] }));
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => (JSON.parse(String(init?.body)).output_config
+      ? Response.json({ type: "error", error: { message: "output_config.format is not supported" } }, { status: 400 })
+      : Response.json({ content: [{ type: "tool_use", input }] }))) as unknown as typeof fetch;
     const config = { provider: "anthropic", model: "claude-opus-4-6", apiKey: "test-key" } as LLMConfig;
     expect(await callLLMStructured(USER, config, { schema: SCHEMA })).toEqual(SHOWN);
   });

@@ -197,3 +197,23 @@ describe("Anthropic catalog keeps the 4.6 models that still work (#257 review)",
     expect(CHAT_MODELS.anthropic.map((m) => m.id)).toContain("claude-opus-4-6");
   });
 });
+
+describe("Anthropic 5.x models are back in the generation picker (structured outputs, B10 round 2)", () => {
+  // They left the picker because they reject the forced tool_choice; callAnthropicStructured now sends
+  // output_config.format, which all of them accept (llm-anthropic-structured.test.ts).
+  const ids = () => GENERATION_MODELS.anthropic.map((m) => m.id);
+
+  it("offers Sonnet 5.5, Opus 5.5 and Fable 5.2 for course generation (and so as a checking model)", () => {
+    expect(ids()).toEqual(expect.arrayContaining(["claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-2"]));
+  });
+
+  it("keeps them out of tutor chat, whose tool turns do not send thinking blocks back", () => {
+    for (const id of ["claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-2"]) {
+      expect(CHAT_MODELS.anthropic.map((m) => m.id)).not.toContain(id);
+    }
+  });
+
+  it("does not change the default a family already has", () => {
+    expect(defaultGenerationModel("anthropic")).toBe("claude-opus-4-6");
+  });
+});

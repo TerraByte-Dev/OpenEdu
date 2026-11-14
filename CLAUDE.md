@@ -83,7 +83,7 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 
 1. **Decompose, don't dump.** Research is 5 small structured sub-calls (`subject_overview`, `knowledge_domains`, `progression`, `obstacles`, `prerequisites`) code-assembled into the markdown brief downstream consumers slice. A single free-text dump was unreliable on e4b.
 
-2. **Schema-enforced everywhere.** Provider-native enforcement (Ollama format-schema, OpenAI json_schema strict, Anthropic forced tool_use) + local validator + repair-retry up to 2 times. See `callLLMStructured` in `llm.ts`. Ollama and Anthropic do not enforce `maxLength` while the model writes, so a reply whose only fault is an over-long string is trimmed at a sentence or word boundary (`trimOverlongStrings`) instead of failing; B10 lost 19 of 20 Claude Haiku course builds to that.
+2. **Schema-enforced everywhere.** Provider-native enforcement (Ollama format-schema, OpenAI json_schema strict, Anthropic structured outputs via `output_config.format`, with a forced tool as the fallback) + local validator + repair-retry up to 2 times. See `callLLMStructured` in `llm.ts`. Ollama and Anthropic do not enforce `maxLength` while the model writes, so a reply whose only fault is an over-long string is trimmed at a sentence or word boundary (`trimOverlongStrings`) instead of failing; B10 lost 19 of 20 Claude Haiku course builds to that.
 
 3. **Auto-detected model tier.** `detectModelTier` reads Ollama `/api/show` parameter_size and maps to `tiny | small | medium | large`. Cloud models use a static name map. Tier drives:
    - Prompt compression (research snippet halved, older-levels ledger digest dropped)

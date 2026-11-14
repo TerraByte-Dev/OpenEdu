@@ -28,7 +28,7 @@ beforeEach(() => {
         : sse([{ choices: [{ delta: { content: "ok" } }] }, "[DONE]"]), { status: 200 });
     }
     return Response.json(anthropic
-      ? { content: [{ type: "text", text: "ok" }, { type: "tool_use", input: { ok: true } }] }
+      ? { content: [{ type: "text", text: body.output_config ? "{\"ok\":true}" : "ok" }] }
       : { choices: [{ message: { content: "{\"ok\":true}" } }] });
   }) as unknown as typeof fetch;
 });

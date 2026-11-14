@@ -21,9 +21,12 @@ export const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] =
 //   - gpt-6.1-sol, gpt-6-astra and gpt-6.1-terra need the Responses API for tool calls, so they are
 //     generation-only (the tutor calls tools on Chat Completions). gpt-6-luna can call tools there
 //     with reasoning_effort "none", which llm.ts sends.
-//   - claude-opus-5-5, claude-sonnet-5-5 and claude-fable-5-x reject the forced tool_choice that
-//     callAnthropicStructured uses, so they are left out until that path moves to output_config.format.
-//     claude-opus-4-6 (retirement not before 2027-02-05) stays the Anthropic generation default.
+//   - claude-sonnet-5-5, claude-opus-5-5 and claude-fable-5-2 reject a forced tool_choice. They are offered
+//     for generation since callAnthropicStructured sends output_config.format instead (2026-11-14; all
+//     three answered real structured calls through it). They stay out of tutor chat: Opus 5.5 and Fable
+//     5.2 always think and Sonnet 5.5 cannot switch thinking off, and streamAnthropicTurn does not send
+//     thinking blocks back on tool turns. A generation model is also what review_model ("Checking model")
+//     can name. claude-opus-4-6 (retirement not before 2027-02-05) stays the Anthropic generation default.
 //   - claude-haiku-4-5-20251001 left the picker (Haiku 5.5 replaces it). It is not shut down, so a stored
 //     one keeps working, and Settings shows it as an extra selected chip (withStoredOption).
 export const GENERATION_MODELS: Record<CloudProvider, ModelOption[]> = {
@@ -35,6 +38,9 @@ export const GENERATION_MODELS: Record<CloudProvider, ModelOption[]> = {
   ],
   anthropic: [
     { id: "claude-opus-4-6", label: "Claude Opus 4.6", recommended: true },
+    { id: "claude-opus-5-5", label: "Claude Opus 5.5" },
+    { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5" },
+    { id: "claude-fable-5-2", label: "Claude Fable 5.2" },
     { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
     { id: "claude-haiku-5-5", label: "Claude Haiku 5.5" },
   ],
