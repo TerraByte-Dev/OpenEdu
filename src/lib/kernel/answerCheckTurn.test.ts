@@ -232,7 +232,7 @@ describe("a wrong answer in a mastery check", () => {
 // ── A right answer is never called wrong ────────────────────────────────────────────────────────
 
 describe("a right answer in a mastery check", () => {
-  it.each(["48", "forty-eight", "it's 48", "Is it 48?", "I think it's 48.", "6 x 8 = 48", "48!", "I got 48 because 6 x 4 is 24 and double that is 48"])(
+  it.each(["48", "forty-eight", "it's 48", "Is it 48?", "I think it's 48.", "6 x 8 = 48", "48!", "6 x 8 is 48 because it is 8 sixes"])(
     "%j: correct by code, with no model call, and the reply's doubt never reaches the child",
     async (text) => {
       script = [reply(FALSE_DOUBT)];
@@ -277,6 +277,12 @@ describe("a right answer in a mastery check", () => {
     const { result } = await answer([student(ASSESS_MESSAGE), tutor("Next one. Calculate 6 x 8.")], "48");
     expect(structured.map((c) => c.tool)).toEqual(["AnswerKey"]);
     expect(result.answerCheck).toMatchObject({ key: "48", verdict: "correct", by: "code" });
+  });
+
+  it("a right answer with its working shown goes to the grader, and code agrees with the grader's copy", async () => {
+    gradeOut = { student_answer: "48", verdict: "correct" };
+    const { result } = await answer(CHECK, "I got 48 because 6 x 4 is 24 and double that is 48");
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", by: "code+model" });
   });
 
   it("a mastery claim stays when the mark was saved earlier in the turn", async () => {
@@ -407,15 +413,42 @@ describe("failures and turns that get no check", () => {
     },
   );
 
-  it("outside a mastery check nothing is called and the reply is not touched (but for mastery claims)", async () => {
+  it("outside a mastery check nothing is called and the reply is not touched, streamed as it came", async () => {
     const history = [student("Teach me times tables."), tutor("Sure! What is 6 x 8?")];
-    script = [reply("That is correct! Great job.")];
-    const { result } = await answer(history, "46");
+    // The system prompt asks the tutor to name what the record shows mastered; outside a check that stays.
+    const text = "That is correct! Great job. Since you've mastered your 5s, the 6s come next.";
+    script = [reply(text)];
+    const { result, shown } = await answer(history, "46");
     expect(structured).toEqual([]);
     expect(result.answerCheck).toBeNull();
     // The check-before-praise note still governs this turn, as before.
     expect(lastUser(replies[0])).toBe(`46\n\n${CHECK_BEFORE_PRAISE_NOTE}`);
-    expect(result.text).toBe("That is correct! Great job.");
+    expect(result.text).toBe(text);
+    expect(result.removedClaims).toEqual([]);
+    // Not held a sentence at a time: every 3-character piece showed as it arrived.
+    expect(shown).toHaveLength(Math.ceil(text.length / 3));
+  });
+
+  it("on the chip's own turn a mastery claim is taken out, with no answer to check", async () => {
+    script = [reply("Let's see what you know. You have mastered times tables already! What is 6 x 8?")];
+    const { result } = await answer([student("Teach me times tables."), tutor("Times tables are groups of the same number.")], ASSESS_MESSAGE, "assess");
+    expect(result.answerCheck).toBeNull();
+    expect(result.text).toBe("Let's see what you know. What is 6 x 8?");
+  });
+
+  it("two questions in one message: code keys neither, and both answers go to the grader", async () => {
+    keyOut = { question: "What is 7 x 9? What is 8 x 9?", working: "7 x 9 = 63; 8 x 9 = 72", answer: "63; 72" };
+    gradeOut = { student_answer: "62 and 72", verdict: "partly" };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor("Two quick ones. What is 7 x 9? What is 8 x 9?")], "62 and 72");
+    expect(structured.map((c) => c.tool)).toEqual(["AnswerKey", "AnswerGrade"]);
+    expect(result.answerCheck).toMatchObject({ key: "63; 72", verdict: "partly" });
+  });
+
+  it("an operation with more after it is not keyed by code", async () => {
+    keyOut = { question: "What is 5 + 3 and then double it?", working: "5 + 3 = 8, 8 x 2 = 16", answer: "16" };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor("What is 5 + 3 and then double it?")], "16");
+    expect(structured.map((c) => c.tool)).toEqual(["AnswerKey"]);
+    expect(result.answerCheck).toMatchObject({ key: "16", verdict: "correct", by: "code" });
   });
 
   it("the chip's own turn is not an answer, and a check opened more than four answers ago has ended", async () => {

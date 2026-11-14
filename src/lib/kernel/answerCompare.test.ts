@@ -39,12 +39,15 @@ describe("numbers in an answer", () => {
 describe("a right answer is a match, in any plain form", () => {
   it.each([
     "48", "forty-eight", "Forty eight", "it's 48", "Is it 48?", "I think it's 48.", "48!", "  48  ",
-    "6 x 8 = 48", "6 x 8 is 48", "I got 48 because 6 x 4 is 24 and double that is 48", "48 cm",
+    "6 x 8 = 48", "6 x 8 is 48", "48 cm",
   ])("%j against 48", (answer) => {
     expect(compareToKey("48", answer, { question: Q })).toBe("match");
   });
 
-  it.each([["48 cm", "48 cm"], ["48 cm", "48 centimeters"], ["48 cm", "48"], ["31.4 cm", "31.4"], ["0.5", ".5".replace(".", "0.")], ["-2", "negative two"], ["-2", "-2"]])(
+  it.each([
+    ["48 cm", "48 cm"], ["48 cm", "48 centimeters"], ["48 cm", "48"], ["31.4 cm", "31.4"], ["0.5", "0.5"],
+    ["-2", "negative two"], ["-2", "-2"], ["-5", "negative 5"], ["-5", "minus 5"], ["negative 5", "-5"], ["300", "three hundred"],
+  ])(
     "key %j, answer %j", (key, answer) => { expect(compareToKey(key, answer)).toBe("match"); },
   );
 
@@ -64,6 +67,13 @@ describe("a wrong answer is a mismatch only when plain numbers settle it", () =>
   it.each(["46", "forty-six", "it's 46", "I think it's 46?", "6 x 8 is 46", "6 x 8 is 46 because 6 x 7 is 42", "46 cm", "about 50", "8"])(
     "%j against 48", (answer) => { expect(compareToKey("48", answer, { question: Q })).toBe("mismatch"); },
   );
+
+  it("a sign is read in words too", () => {
+    expect(compareToKey("negative 5", "5")).toBe("mismatch");
+    // "minus" after a number is the operation.
+    expect(numbersIn("10 minus 5").map((n) => n.value)).toEqual([10, 5]);
+    expect(numbersIn("minus five").map((n) => n.value)).toEqual([-5]);
+  });
 
   it("yes against no, and another lettered option", () => {
     expect(compareToKey("yes", "no")).toBe("mismatch");
@@ -87,8 +97,22 @@ describe("anything in doubt is undecided, never a mismatch", () => {
     ["$1.50", "150 cents", "money"],
     ["48 cm", "0.48 m", "another unit"],
     ["27 cubic centimeters", "27 square centimeters", "another unit, same number"],
-    ["48", "48 or 49", "the key among others, last not the key"],
-    ["48", "It's not 48, it's 46", "the key named, then another"],
+    ["48", "48 or 49", "the key among others"],
+    ["72", "is it 63 or 72?", "a guess between two, the key last"],
+    ["63", "It's 72, not 63", "the key named as what it is not"],
+    ["46", "It's not 46", "a not in front of the key"],
+    ["72", "62 and 72", "an answer to two questions"],
+    ["48", "I got 48 because 6 x 4 is 24 and double that is 48", "working on the way to the key"],
+    ["2x", "2", "an algebra key"],
+    ["3 n", "3", "an algebra key, spaced"],
+    ["2", "2x", "an algebra answer"],
+    ["300", "3 hundred", "digits and a scale word"],
+    ["50", "5 tens", "place value"],
+    ["2000", "2 thousand", "digits and a scale word"],
+    ["more than 5", "7", "a comparison key"],
+    ["about 30", "28", "an estimate key"],
+    ["1000", "1 000", "thousands grouped with a space"],
+    ["1000", "1.000", "thousands grouped with a dot"],
     ["63", "6-9", "a range"],
     ["9", "3^2", "a power"],
     ["carbon dioxide", "CO2", "other words"],

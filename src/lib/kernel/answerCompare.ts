@@ -5,12 +5,14 @@
 // enough that a string or number compare cannot be fooled. A false "mismatch" tells a child a right
 // answer is wrong, which is as bad as praising a wrong one, so anything in doubt is "undecided":
 //   - match: the same words once cue phrases ("I think it's", "the answer is") are off; the same number
-//     (digits or words: "72", "seventy-two", "it's 72", "72 cm"); the same lettered option or yes/no.
+//     (digits or words: "72", "seventy-two", "it's 72", "negative 5", "72 cm") and no other number of
+//     the student's own; the same lettered option or yes/no.
 //   - mismatch: the key is one plain number and the student's answer states plain numbers, none of them
 //     the key or a rounding of it, with no unit that could be a conversion; a different lettered
 //     option; the opposite yes/no.
-//   - undecided: fractions, percents, times, money, "half", ranges, powers, a different unit, an answer
-//     that names the key's number among others, a text answer in other words.
+//   - undecided: fractions, percents, times, money, "half", ranges, powers, place value ("5 tens"), a
+//     different unit, a "not", algebra ("2x"), a comparison or estimate as the key ("more than 5"), the
+//     key's number among others ("63 or 72"), a text answer in other words.
 // Numbers the question itself holds ("7 x 9") are not read as the student's answer.
 
 export type KeyMatch = "match" | "mismatch" | "undecided";
@@ -46,16 +48,32 @@ export interface FoundNumber {
 const DIGITS = /(?<![\w.,])([-−])?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?![\d])/g;
 const WORD = /[a-z]+/gi;
 
-/** Every plain number in `text`, in order: digits ("1,000", "-3", "3.14") and number words ("seventy-two"). */
+/**
+ * Where a sign word right before `at` starts, or -1: "negative 5", "minus five". "minus" after a number
+ * ("10 minus 3") is the operation, not a sign.
+ */
+function signWordBefore(text: string, at: number): number {
+  const m = /(negative|minus)\s+$/i.exec(text.slice(0, at));
+  if (!m || (m.index > 0 && /[\p{L}\p{N}]/u.test(text[m.index - 1]))) return -1;
+  if (m[1].toLowerCase() === "minus") {
+    const prev = text.slice(0, m.index).trimEnd();
+    if (/\p{N}$/u.test(prev) || isNumberWord((/[a-z]+$/i.exec(prev)?.[0] ?? "").toLowerCase())) return -1;
+  }
+  return m.index;
+}
+
+/** Every plain number in `text`, in order: digits ("1,000", "-3", "3.14") and number words ("seventy-two"), with a sign word before either ("negative 5"). */
 export function numbersIn(text: string): FoundNumber[] {
   const out: FoundNumber[] = [];
   for (const m of text.matchAll(DIGITS)) {
-    const negative = !!m[1] && (m.index === 0 || /[\s(=:]/.test(text[m.index - 1]));
+    const signed = !!m[1] && (m.index === 0 || /[\s(=:]/.test(text[m.index - 1]));
     const digits = m[2].replace(/,/g, "");
     const value = Number(`${digits}${m[3] ? `.${m[3]}` : ""}`);
     if (!Number.isFinite(value)) continue;
-    const from = m.index + (m[1] && !negative ? 1 : 0);
-    out.push({ value: negative ? -value : value, from, to: m.index + m[0].length, decimals: m[3]?.length ?? 0 });
+    const start = m.index + (m[1] && !signed ? 1 : 0);
+    const word = m[1] ? -1 : signWordBefore(text, m.index);
+    const negative = signed || word >= 0;
+    out.push({ value: negative ? -value : value, from: word >= 0 ? word : start, to: m.index + m[0].length, decimals: m[3]?.length ?? 0 });
   }
   // Number words: runs like "seventy-two", "one hundred and five", "negative six".
   const words = [...text.matchAll(WORD)].map((m) => ({ w: m[0].toLowerCase(), from: m.index!, to: m.index! + m[0].length }));
@@ -79,12 +97,11 @@ export function numbersIn(text: string): FoundNumber[] {
       else if (w === "hundred") current = (current || 1) * 100;
       else { total += (current || 1) * SCALES[w]; current = 0; }
     }
-    const before = words[i - 1];
-    const negative = !!before && before.w === "negative" && /^\s+$/.test(text.slice(before.to, words[i].from));
+    const sign = signWordBefore(text, words[i].from);
     const value = total + current;
     out.push({
-      value: negative ? -value : value,
-      from: negative ? before.from : words[i].from,
+      value: sign >= 0 ? -value : value,
+      from: sign >= 0 ? sign : words[i].from,
       to: words[j - 1].to,
       decimals: 0,
       ...(run.length === 1 && run[0] === "one" ? { loneOne: true as const } : {}),
@@ -101,8 +118,17 @@ const approximates = (x: FoundNumber, k: FoundNumber) =>
   !agree(x.value, k.value) && (agree(roundTo(k.value, x.decimals), x.value) || agree(roundTo(x.value, k.decimals), k.value));
 
 // A form a plain number compare could misread: fractions, percents, times and ratios, money, ranges,
-// powers and roots, decimal commas, pi, and the words for parts.
-const NOT_PLAIN = /\d\s*\/\s*\d|%|\bpercent\b|\d\s*:\s*\d|[$£€¢]|\bcents?\b|\bdollars?\b|\d\s*(?:[–—]|-\s*\d|\bto\b\s*\d)|\^|[²³√]|\bsquare root\b|\d,\d{1,2}(?!\d)|\bpi\b|π|\b(?:half|halves|quarters?|thirds?|fourths?|fifths?|sixths?|eighths?|tenths?|hundredths?|point)\b|\be\d/i;
+// powers and roots, decimal commas, pi, the words for parts, place value and scale after digits
+// ("5 tens", "3 hundred", "2 dozen"), and thousands grouped with a space or a dot ("1 000", "1.000").
+const NOT_PLAIN = /\d\s*\/\s*\d|%|\bpercent\b|\d\s*:\s*\d|[$£€¢]|\bcents?\b|\bdollars?\b|\d\s*(?:[–—]|-\s*\d|\bto\b\s*\d)|\^|[²³√]|\bsquare root\b|\d,\d{1,2}(?!\d)|\bpi\b|π|\b(?:half|halves|quarters?|thirds?|fourths?|fifths?|sixths?|eighths?|tenths?|hundredths?|point)\b|\be\d|\d\s*(?:ones|tens|hundreds?|thousands?|millions?|dozens?)\b|\b(?:ones|tens|hundreds|thousands|millions|dozens?)\b|\d \d{3}(?!\d)|\d\.\d{3}(?!\d)/i;
+// A key that is a comparison or an estimate, not one value: "more than 5", "about 30", "at least 4".
+const NOT_ONE_VALUE = /\b(?:more|less|greater|fewer|smaller|bigger|larger|than|least|most|between|about|around|approximately|roughly|nearly|almost|over|under|above|below|up to|or)\b|[<>≤≥≈~]/i;
+
+/** A number written straight against letters that are not a unit ("2x", "3n"): algebra, not a value. */
+function gluedToLetters(text: string): boolean {
+  for (const m of text.matchAll(/\d([a-z]+)\b/gi)) if (!UNIT[singular(m[1].toLowerCase())]) return true;
+  return false;
+}
 
 // ── Units ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -169,15 +195,20 @@ function optionText(answer: string, options?: ReadonlyMap<string, string>): stri
 const YES = new Set(["yes", "true", "yep", "yeah"]);
 const NO = new Set(["no", "false", "nope"]);
 
+/** A "not" in the answer can turn the number it names around: "it's not 46". */
+const NEGATION = /\b(?:not|no|never|nor)\b|n't\b|n’t\b/i;
+
 /** The key's value when the key is one plain number, with at most a unit or three words after it. */
 function keyNumber(key: string): { n: FoundNumber; unit: string | null } | null {
   const t = bareAnswer(key);
-  if (NOT_PLAIN.test(t)) return null;
+  if (NOT_PLAIN.test(t) || NOT_ONE_VALUE.test(t) || NEGATION.test(t) || gluedToLetters(t)) return null;
   const nums = numbersIn(t);
   if (nums.length !== 1) return null;
   const [n] = nums;
   const rest = `${t.slice(0, n.from)} ${t.slice(n.to)}`.replace(/[()[\],.;:!?]/g, " ").trim();
   if (rest && rest.split(/\s+/).length > 3) return null;
+  // A lone letter beside the number that is not a unit is a variable: "3 n".
+  if (rest.split(/\s+/).some((w) => /^[a-z]$/i.test(w) && !UNIT[w.toLowerCase()] && w.toLowerCase() !== "a")) return null;
   return { n, unit: unitAfter(t, n.to) };
 }
 
@@ -218,7 +249,8 @@ export function compareToKey(key: string, student: string, ctx: CompareContext =
   if ((YES.has(k) || NO.has(k)) && (YES.has(s) || NO.has(s))) return YES.has(k) === YES.has(s) ? "match" : "mismatch";
 
   const keyed = keyNumber(key);
-  if (!keyed || NOT_PLAIN.test(bareAnswer(student))) return "undecided";
+  const answer = bareAnswer(student);
+  if (!keyed || NOT_PLAIN.test(answer) || NEGATION.test(answer) || gluedToLetters(answer)) return "undecided";
   const kv = keyed.n;
 
   const lone = loneValue(student);
@@ -234,11 +266,9 @@ export function compareToKey(key: string, student: string, ctx: CompareContext =
   const all = numbersIn(text).filter((n) => !n.loneOne);
   const theirs = all.filter((n) => !asked.has(n.value));
   if (!theirs.length) return "undecided";
-  if (theirs.some((n) => agree(n.value, kv.value))) {
-    const distinct = new Set(theirs.map((n) => n.value));
-    const last = all[all.length - 1];
-    return distinct.size === 1 || agree(last.value, kv.value) ? "match" : "undecided";
-  }
+  // The key's number and no other of their own: a match. The key among others ("63 or 72", "72, not
+  // 63", "62 and 72" to two questions, working on the way to it) is left to the grader.
+  if (theirs.some((n) => agree(n.value, kv.value))) return new Set(theirs.map((n) => n.value)).size === 1 ? "match" : "undecided";
   if (theirs.some((n) => approximates(n, kv))) return "undecided";
   if (theirs.some((n) => unitsDiffer(unitAfter(text, n.to), keyed.unit))) return "undecided";
   return "mismatch";

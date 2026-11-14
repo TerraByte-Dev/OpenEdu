@@ -1,14 +1,15 @@
 // Claims a reply may not make, taken out by code as the reply streams (docs/ARCHITECTURE.md, "The answer
-// check in assess mode"). Two kinds:
+// check in assess mode"). Two kinds, on the turns of a mastery check (the kernel decides which):
 //   - Mastery. Mastery is recorded by quiz and test scores, or by a progress.mark_mastered call the
 //     learner allowed; never by the tutor saying so. A sentence claiming it ("You have mastered
 //     loops.", "I will mark that as mastered.") is removed unless a mastery write succeeded earlier in
-//     the same turn. Every turn.
+//     the same turn. Not on other turns: there the system prompt itself asks the tutor to say which
+//     subtopics the record shows mastered (curriculum.ts), and a blanket rule removed true sentences.
 //   - The verdict on the student's answer, on a turn the answer check gave one (answerCheck.ts): praise
 //     when code says the answer is wrong or only partly right, "not quite" when code says it is right,
 //     and either when code could not tell.
 // The filter holds each sentence until it ends, then lets it through, trims it ("Great, but 7 x 9 is
-// 63." → "But 7 x 9 is 63."; "Great! Now try 8 x 9" → "Now try 8 x 9"), or removes it. The first time it
+// 63." → "7 x 9 is 63."; "Great! Now try 8 x 9" → "Now try 8 x 9"), or removes it. The first time it
 // takes out a verdict claim, if the reply has not already said the true verdict, a short line saying it
 // takes its place ("That's not right yet."). Questions are never claims, a mastery claim inside "if"
 // or "once" is not one, and nothing inside a code fence or `code` is read. Text with no claim comes
@@ -64,16 +65,20 @@ const REJECTION: ReadonlyArray<[RegExp, { between?: number; other?: RegExp }]> =
   [/\b(?:that|this|it|your (?:final )?answer|you)(?:'s|’s|'re|’re|\s+is|\s+are|\s+was|\s+were)?\s+(?:not|n't)\s+(?:quite\s+|exactly\s+|entirely\s+|completely\s+)?(?:correct|right)\b/i, { other: OTHER_RIGHT }],
   [/\b(?:that|this|it|your (?:final )?answer)\s+(?:isn't|isn’t|wasn't|wasn’t)\s+(?:quite\s+|exactly\s+)?(?:correct|right)\b/i, { other: OTHER_RIGHT }],
   [/\b(?:that|this|it|your (?:final )?answer)(?:'s|’s|\s+is|\s+was)\s+(?:[\w’']+\s+){0,2}?(?:incorrect|wrong|a mistake|not the (?:right|correct) answer)\b(?!\s+to\b)/i, {}],
-  [/\b(?:not quite|not exactly|try again|try once more|have another (?:go|try|look)|give it another (?:go|try)|let'?s try (?:that|it) again|(?:you|you've|you’ve) made a (?:small |little )?mistake|there(?:'s| is) a (?:small |little )?mistake|check your (?:work|answer|math|maths|calculation)|you got (?:it|that|this) wrong|almost there|so close|you'?re close|you are close|nearly there)\b/i, {}],
+  [/\b(?:not quite|not exactly|try again(?!\s+(?:with|on|using|for)\b)|try once more|have another (?:go|try|look)|give it another (?:go|try)|let'?s try (?:that|it) again|(?:you|you've|you’ve) made a (?:small |little )?mistake|there(?:'s| is) a (?:small |little )?mistake|check your (?:work|answer|math|maths|calculation)|you got (?:it|that|this) wrong|almost there|so close|you'?re close|you are close|nearly there)\b/i, {}],
   [/\bincorrect\b/i, {}],
 ];
 
-// A mastery claim: the student has mastered it, or the tutor has marked (or will mark) it mastered.
+// A mastery claim: the student has (just) mastered it, or the tutor has marked (or will mark) it
+// mastered. A rule about mastery ("A skill is marked as mastered after the quiz", "To mark a skill as
+// mastered, you need…") is not one.
+const ADVERBS = "(?:\\s+(?:now|already|really|truly|fully|officially|completely|clearly|definitely|totally))*";
 const MASTERY: ReadonlyArray<RegExp> = [
-  /\byou(?:'ve|’ve|\s+have)?(?:\s+(?:now|already|really|truly|fully|officially|completely|clearly|definitely|totally))*\s+mastered\b/i,
-  /\b(?:mark|marked|marking|record|recorded|recording|log|logged|save|saved|set|update|updated)\b[^.!?]{0,60}?\bas\s+(?:being\s+)?mastered\b/i,
-  // "is now mastered", "has been marked as mastered"; not "is mastered through practice".
-  /\b(?:is|are|has been|have been)\s+(?:now\s+(?:officially\s+)?(?:marked\s+(?:as\s+)?)?|(?:now\s+|officially\s+)?marked\s+(?:as\s+)?)mastered\b/i,
+  new RegExp(`\\byou(?:'ve|’ve|\\s+have)${ADVERBS}\\s+mastered\\b`, "i"),
+  new RegExp(`\\byou${ADVERBS}\\s+mastered\\s+(?:it|this|that|these|them|the (?:topic|subtopic|skill|lesson|unit|level))\\b`, "i"),
+  /\b(?:i|i'll|i’ll|i will|i'm going to|i’m going to|i am going to|i've|i’ve|i have|i can|i'd|i would|let me|let's|let’s|we can|we'll|we’ll|we will)\s+(?:\w+\s+){0,3}?(?:mark|record|log|save|set|update)(?:ed|ing)?\b[^.!?]{0,60}?\bas\s+(?:being\s+)?mastered\b/i,
+  // "is now mastered", "has been marked as mastered"; not "is mastered through practice" or "is marked as mastered after the quiz".
+  /\b(?:has been|have been)\s+(?:officially\s+)?(?:marked\s+(?:as\s+)?)?mastered\b|\b(?:is|are)\s+now\s+(?:officially\s+)?(?:marked\s+(?:as\s+)?)?mastered\b/i,
   /\byou(?:'ve|’ve|\s+have)?\s+(?:\w+\s+)?(?:achieved|reached|shown|demonstrated|earned|got)\s+(?:\w+\s+){0,2}?mastery\b/i,
 ];
 
@@ -116,7 +121,8 @@ const capitalize = (s: string) => s.replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: 
 
 // ── The filter ──────────────────────────────────────────────────────────────────────────────────
 
-const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+// Any indent: a fence inside a list item is indented past the usual three spaces.
+const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})/;
 // The end of a sentence: closing punctuation (and quotes, brackets or emphasis after it) followed by
 // whitespace, or a line break.
 const SENTENCE_END = /[.!?]+["'”’)\]*_]*(?=\s)|\n/;
@@ -126,6 +132,9 @@ export interface ClaimFilterOptions {
   verdict: Verdict | null;
   /** True once a progress.mark_mastered call saved a "mastered" mark this turn. */
   masteryWritten: () => boolean;
+  /** Read mastery claims (a turn of a mastery check). Default true. With no verdict and this false,
+   *  the filter passes text straight through, unheld. */
+  checkMastery?: boolean;
 }
 
 export class ReplyClaimFilter {
@@ -145,8 +154,13 @@ export class ReplyClaimFilter {
 
   /** Text from the model; returns what can be shown now. */
   push(text: string): string {
+    if (!this.active) return text;
     this.buf += text;
     return this.drain(false);
+  }
+
+  private get active(): boolean {
+    return !!this.opts.verdict || this.opts.checkMastery !== false;
   }
 
   /** The end of one model call: everything held is checked and shown. */
@@ -171,7 +185,7 @@ export class ReplyClaimFilter {
         if (this.fence.test(line.replace(/\r?\n$/, ""))) this.fence = null;
         continue;
       }
-      if (this.lineStart && /^ {0,3}(?:[`~]|$)/.test(this.buf)) {
+      if (this.lineStart && /^[ \t]*(?:[`~]|$)/.test(this.buf)) {
         // It may open a code fence: wait for the whole line.
         const nl = this.buf.indexOf("\n");
         if (nl < 0 && !final) break;
@@ -180,7 +194,7 @@ export class ReplyClaimFilter {
         if (open) {
           out += this.take(line);
           this.buf = this.buf.slice(line.length);
-          this.fence = new RegExp(`^ {0,3}${open[1][0] === "`" ? "`" : "~"}{${open[1].length},}[ \\t]*$`);
+          this.fence = new RegExp(`^[ \\t]*${open[1][0] === "`" ? "`" : "~"}{${open[1].length},}[ \\t]*$`);
           this.lineStart = true;
           continue;
         }
@@ -232,7 +246,7 @@ export class ReplyClaimFilter {
   /** The sentence as it may be shown: unchanged, trimmed, replaced, or "" (removed). */
   private rewrite(core: string): string {
     const plain = plainOf(core);
-    if (!this.opts.masteryWritten() && claimsMastery(plain)) {
+    if (this.opts.checkMastery !== false && !this.opts.masteryWritten() && claimsMastery(plain)) {
       this.removed.push({ kind: "mastery", text: core });
       return "";
     }
@@ -271,8 +285,13 @@ export class ReplyClaimFilter {
     }
     const afterLead = rest !== core ? usable(rest) : "";
     if (afterLead) return afterLead;
-    const but = /(?:,\s*|\s+)(?:but|however|although|though)\b[,\s]*/i.exec(core);
-    return but ? usable(core.slice(but.index + but[0].length)) : "";
+    // What follows "but", or a colon or semicolon: "That is the right answer to another question: 7 x 10 is 70."
+    for (const split of [/(?:,\s*|\s+)(?:but|however|although|though)\b[,\s]*/i, /[:;]\s+/]) {
+      const m = split.exec(core);
+      const after = m ? usable(core.slice(m.index + m[0].length)) : "";
+      if (after) return after;
+    }
+    return "";
   }
 }
 

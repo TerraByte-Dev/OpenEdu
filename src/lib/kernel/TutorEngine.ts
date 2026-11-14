@@ -36,7 +36,7 @@ import { ReplyTextFilter } from "./textToolCalls";
 import { MIXED_UP_REPLY } from "../plain-language";
 import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
-import { isAssessAnswerTurn, checkAnswer, withAnswerCheckNote, type AnswerCheck } from "./answerCheck";
+import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
@@ -329,7 +329,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -354,9 +354,10 @@ ${lastUser.content}` };
       dictionaryNote: string | null;
       dictionaryShown: DictionaryShown | null;
       answerCheck: AnswerCheck | null;
+      masteryCheck: boolean;
     },
   ): Promise<TutorTurnResult> {
-    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, dictionaryNote, answerCheck } = prepared;
+    const { budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, dictionaryNote, answerCheck, masteryCheck } = prepared;
     let messages = prepared.messages;
 
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
@@ -385,11 +386,16 @@ ${lastUser.content}` };
     // saved: a tool call the model wrote as text never reaches either (textToolCalls.ts).
     const toolNames = [...toolRegistry.all().map((t) => t.name), ...offered];
     const show = (text: string) => { if (text) { streamedText += text; turn.onText(text); } };
-    // After that, every model call's text goes through the claim filter (replyClaims.ts): a mastery
-    // claim with no mastery saved this turn, and a claim against the answer check's verdict, never reach
-    // the student or the transcript. It holds each sentence until it ends.
+    // On a turn of a mastery check, every model call's text then goes through the claim filter
+    // (replyClaims.ts): a mastery claim with no mastery saved this turn, and a claim against the answer
+    // check's verdict, never reach the student or the transcript. It holds each sentence until it ends.
+    // On any other turn it passes text straight through.
     let masteryWritten = false;
-    const claims = new ReplyClaimFilter({ verdict: answerCheck?.verdict ?? null, masteryWritten: () => masteryWritten });
+    const claims = new ReplyClaimFilter({
+      verdict: answerCheck?.verdict ?? null,
+      masteryWritten: () => masteryWritten,
+      checkMastery: masteryCheck || !!answerCheck,
+    });
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;

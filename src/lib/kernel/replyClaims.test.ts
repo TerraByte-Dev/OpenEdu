@@ -32,6 +32,11 @@ describe("text with no claim comes out byte for byte, however it streams", () =>
     "You're on the right track. The correct answer is 63. Is that right? Turn right at the corner.",
     "You haven't mastered this yet, and that's okay. I can't mark it as mastered until the quiz.",
     "The skill is mastered through practice. This counts as mastered when you score 90% on the quiz. Students who have reached mastery move on.",
+    // Rules about mastery, and the past (from a review of the first draft).
+    "To mark a skill as mastered, you need three right in a row. A skill is marked as mastered after you pass the quiz.",
+    "Skills are marked as mastered when you score 80% on the quiz. Your progress page shows which skills are marked as mastered.",
+    "Remember, you mastered counting to 10 last time.",
+    "1. Add the tens.\n2. Then the ones:\n\n    ```\n    print(\"You have mastered loops\")\n    ```\n\nDone.",
   ];
   it.each(replies)("%j", (text) => {
     for (const verdict of [null, "correct", "incorrect", "partly", "unsure"] as const) {
@@ -60,6 +65,13 @@ describe("mastery claims", () => {
     expect(run("Well explained.\n\nYou have mastered loops.\n\nNext up: lists.")).toBe("Well explained.\n\n\n\nNext up: lists.");
   });
 
+  it("is not read at all on a turn outside a mastery check, and nothing is held", () => {
+    const f = new ReplyClaimFilter({ verdict: null, masteryWritten: () => false, checkMastery: false });
+    expect(f.push("You have mastered loops")).toBe("You have mastered loops");
+    expect(f.push(". Since you've mastered addition, try this.")).toBe(". Since you've mastered addition, try this.");
+    expect(f.flush()).toBe("");
+  });
+
   it("is never read in a question, a condition or a negation", () => {
     for (const s of ["Do you think you have mastered it?", "When you have mastered this, try the quiz.", "You have not mastered it yet.", "If you have mastered loops, take the test."]) {
       expect(claimsMastery(s), s).toBe(false);
@@ -74,6 +86,14 @@ describe("against a verdict", () => {
     expect(run("Yes, that's right, 6 x 8 is 46.", "incorrect")).toBe("That's not right yet.");
     expect(run("Great, but 6 x 8 is 48.", "incorrect")).toBe("That's not right yet. 6 x 8 is 48.");
     expect(run("Great! Let's look at it again.", "incorrect")).toBe("That's not right yet. Let's look at it again.");
+  });
+
+  it("incorrect: what follows a colon is kept", () => {
+    expect(run("That is the right answer to a different question: 7 x 10 is 70.", "incorrect")).toBe("That's not right yet. 7 x 10 is 70.");
+  });
+
+  it("correct: moving on to a new problem is not doubt", () => {
+    expect(run("That's right! Now let's try again with 8 x 9.", "correct")).toBe("That's right! Now let's try again with 8 x 9.");
   });
 
   it("incorrect: no line is added when the reply has already said so", () => {

@@ -77,6 +77,16 @@ export function isAssessAnswerTurn(conversation: ReadonlyArray<{ role: string; c
     .some((m) => m.content.trim() === ASSESS_MESSAGE);
 }
 
+/**
+ * True on any turn of a mastery check, the chip's own turn included: the turn runs in assess mode, or the
+ * assess chip is among the student's last ASSESS_LOOKBACK + 1 messages. The reply filter reads mastery
+ * claims on these turns (replyClaims.ts).
+ */
+export function inMasteryCheck(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill?: string | null): boolean {
+  if (activeSkill === "assess") return true;
+  return conversation.filter((m) => m.role === "user").slice(-(ASSESS_LOOKBACK + 1)).some((m) => m.content.trim() === ASSESS_MESSAGE);
+}
+
 // ── Step 1: the key, blind ──────────────────────────────────────────────────────────────────────
 
 const MAX_MESSAGE_CHARS = 1500;
@@ -97,6 +107,7 @@ export const KEY_INSTRUCTION =
   'Copy that question word for word into "question". ' +
   'Work the question out yourself in "working", in one or two short lines. ' +
   'Put the correct answer in "answer": only the final answer, as short as you can (a number with its unit, a word, or a short phrase). ' +
+  'If the message asks more than one question, copy them all into "question" and put every answer in "answer", separated by "; ". ' +
   'If the message asks the student nothing that has one right answer (for example which topic to do next, or how they feel), set "question", "working" and "answer" to "". ' +
   'Return JSON: {"question": "...", "working": "...", "answer": "..."}';
 
@@ -130,8 +141,10 @@ export function validateKey(out: KeyOut, tutorMessage: string): string[] {
   return issues;
 }
 
-// "What is 7 x 9?", "Calculate 56 ÷ 8.": one plain operation the question asks for, worked by code.
-const ARITHMETIC_QUESTION = /\b(?:what is|what's|whats|calculate|compute|work out|find|solve)\s+(\d+(?:\.\d+)?)\s*([+\-−×xX*·÷/])\s*(\d+(?:\.\d+)?)\s*(?=[?.,!]|\s+(?:and|equal|equals)\b|$)/i;
+// "What is 7 x 9?", "Calculate 56 ÷ 8.", "What is 7 x 9, and what fact helped you?": one plain operation
+// the question asks for, worked by code. The operation must end the question, or be followed only by a
+// second clause asking about the method; "What is 5 + 3 and then double it?" is not one.
+const ARITHMETIC_QUESTION = /\b(?:what is|what's|whats|calculate|compute|work out|find|solve)\s+(\d+(?:\.\d+)?)\s*([+\-−×xX*·÷/])\s*(\d+(?:\.\d+)?)\s*(?=[?.!]|,?\s+and\s+(?:what|how|why|which|explain|tell|show|can)\b|$)/i;
 
 /** The key code can work out itself: a question asking for one plain operation; else null. */
 export function keyFromArithmetic(question: string): string | null {
@@ -168,22 +181,23 @@ async function withDeadline<T>(opts: CallOpts, run: (signal: AbortSignal) => Pro
   }
 }
 
-/** The last sentence of the message that asks something ("?"), or "". */
-export function lastQuestion(message: string): string {
+/** The message's question when it asks exactly one ("?" in one sentence), or "". */
+export function onlyQuestion(message: string): string {
   const asks = message.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter((s) => s.includes("?"));
-  return asks[asks.length - 1] ?? "";
+  return asks.length === 1 ? asks[0] : "";
 }
 
 /**
  * The key for the tutor's question; "none" when the message asks nothing with one right answer; null
- * when the call failed. A last question asking for one plain operation is keyed by code, with no call.
+ * when the call failed. A message whose one question asks for one plain operation is keyed by code,
+ * with no call. (Two questions in one message go to the model, which keys both.)
  */
 export async function answerKey(
   tutorMessage: string,
   config: LLMConfig,
   opts: CallOpts,
 ): Promise<{ question: string; key: string } | "none" | null> {
-  const asked = lastQuestion(tutorMessage);
+  const asked = onlyQuestion(tutorMessage);
   const byCode = asked ? keyFromArithmetic(asked) : null;
   if (byCode !== null) return { question: asked, key: byCode };
   const out = await withDeadline(opts, (signal) => callLLMStructured<KeyOut>(keyMessages(tutorMessage), config, {
