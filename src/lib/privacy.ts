@@ -72,3 +72,11 @@ export function parseNoticesSeen(raw: unknown): string[] {
 export function isOllamaCloudModel(model: string): boolean {
   return /cloud$/i.test(model.trim());
 }
+
+/**
+ * Whether a call on this provider and model stays on this computer: Ollama, with a model whose name
+ * does not end in cloud. Work on data about the learner (which questions they missed) runs only here.
+ */
+export function isLocalModel(config: { provider: LLMProvider; model: string }): boolean {
+  return config.provider === "ollama" && !isOllamaCloudModel(config.model);
+}

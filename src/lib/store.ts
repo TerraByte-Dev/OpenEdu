@@ -4,11 +4,11 @@ import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
 import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
 import { detectModelProfile, detectModelTier, getOllamaModels, type ModelProfile } from "./llm";
-import { resolveReviewConfig, type ReviewKind } from "./content-review";
+import { resolveReviewConfig, type ProviderCredentials, type ReviewKind } from "./content-review";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 import type { RetrievalMode } from "./kernel/ground";
 import { normalizeGoal, type ActiveMinutes } from "./daily-goal";
-import { parseNoticesSeen, withNoticeSeen, type CloudFeature } from "./privacy";
+import { isLocalModel, parseNoticesSeen, withNoticeSeen, type CloudFeature } from "./privacy";
 
 let store: Store | null = null;
 
@@ -66,11 +66,34 @@ export async function getGenerationConfig(): Promise<LLMConfig> {
 
 // The content review's model for generated lessons or questions, or null for no review
 // (content-review.ts resolveReviewConfig). `gen` is the generation config the content is made with.
+// A "<provider>:<model>" value reviews on another provider with the key saved for it here.
 export async function getReviewConfig(gen: LLMConfig, kind: ReviewKind): Promise<LLMConfig | null> {
   const s = await getStore();
   const tier = gen.modelTier ?? await detectModelTier(gen);
-  return resolveReviewConfig(await s.get<string>(STORE_KEYS.reviewModel), gen, tier,
-    parseNoticesSeen(await s.get<unknown>(STORE_KEYS.cloudNoticesSeen)), kind);
+  const creds: ProviderCredentials = {
+    ollama: { ollamaUrl: (await s.get<string>(STORE_KEYS.ollamaUrl)) ?? "http://127.0.0.1:11434" },
+    openai: { apiKey: (await s.get<string>(apiKeyStoreKey("openai")))?.trim() || undefined },
+    anthropic: { apiKey: (await s.get<string>(apiKeyStoreKey("anthropic")))?.trim() || undefined },
+  };
+  const review = resolveReviewConfig(await s.get<string>(STORE_KEYS.reviewModel), gen, tier,
+    parseNoticesSeen(await s.get<unknown>(STORE_KEYS.cloudNoticesSeen)), kind, creds);
+  // A local reviewer on another provider gets the same num_ctx every Ollama call sends.
+  return review && review.provider === "ollama" && review.contextTokens === undefined ? withOllamaNumCtx(review) : review;
+}
+
+// The model for work on data about the learner that lane 1 keeps on this computer: the quiz review
+// pool's verify pass (quiz.ts generateQuizQuestions, poolVerifier). The generation model when it is
+// local; otherwise this machine's default Ollama model when Ollama has it pulled; otherwise null, and
+// that pass is skipped. Never a cloud model.
+export async function getLocalVerifyConfig(gen: LLMConfig): Promise<LLMConfig | null> {
+  if (isLocalModel(gen)) return gen;
+  const s = await getStore();
+  const ollamaUrl = (await s.get<string>(STORE_KEYS.ollamaUrl)) ?? "http://127.0.0.1:11434";
+  const installed = await installedOllamaModels(ollamaUrl);
+  if (!installed || installed.length === 0) return null;
+  const model = defaultGenerationModel("ollama", await systemMemoryBytes(), installed);
+  if (!installed.some((m) => m.trim().toLowerCase() === model)) return null;
+  return withOllamaNumCtx({ provider: "ollama", model, ollamaUrl });
 }
 
 // Chat model (tutor chat) — defaults to the catalog's recommended fast/cheap model.
