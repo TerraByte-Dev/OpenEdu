@@ -44,6 +44,11 @@ export const HOLD_CAP = 1500;
 /** Characters a call may hold in all, string bodies included (a long Mermaid source is fine). */
 export const STRING_CAP = 20000;
 
+// After the last `<|"|>` of a call whose string never closed: a `}` followed by a blank line or by
+// `<tool_call|>` is where the call really ended. The match covers the `}` and the closing token, not the
+// blank line, which stays as the paragraph break.
+const STRAY_QUOTE_END = /\}(?:[ \t]*<tool_call\|>|(?=[ \t]*\n[ \t]*\n))/;
+
 /** Tools never run from reply text, however the call is written. Quiz and test scores decide mastery. */
 export const NEVER_FROM_TEXT: ReadonlySet<string> = new Set(["progress.mark_mastered"]);
 
@@ -309,10 +314,12 @@ export class ReplyTextFilter {
 
   /**
    * Remove an unclosed call and return what to keep scanning. Text inside a string is never released:
-   * an unclosed `<|"|>` string runs to the end of the stream, and an unclosed `"` string to the blank
-   * line that ended it, unless a `}` closes the call on its first line (a stray quote: `{x:"y} Well
-   * done.`). Outside a string, only the call's first line goes: through a `}` on it, the whole line when
-   * what follows the `{` reads as arguments, or just `name{`; never less than every string that closed.
+   * an unclosed `<|"|>` string runs to the end of the stream, unless after the last `<|"|>` a `}` is
+   * followed by a blank line or `<tool_call|>` (one stray quote token: `{query:<|"|>cats}\n\nCats are
+   * mammals.`), which ends the call there. An unclosed `"` string runs to the blank line that ended it,
+   * unless a `}` closes the call on its first line (a stray quote: `{x:"y} Well done.`). Outside a
+   * string, only the call's first line goes: through a `}` on it, the whole line when what follows the
+   * `{` reads as arguments, or just `name{`; never less than every string that closed.
    */
   private giveUp(h: Held, final: boolean): void {
     const rest = this.pending;
@@ -325,7 +332,9 @@ export class ReplyTextFilter {
     }
     let cut: number;
     if (h.str === "gemma") {
-      cut = rest.length;
+      const afterQuote = rest.lastIndexOf(QUOTE) + QUOTE.length;
+      const end = final ? STRAY_QUOTE_END.exec(rest.slice(afterQuote)) : null;
+      cut = end ? afterQuote + end.index + end[0].length : rest.length;
       if (!final) this.discarding = true;
     } else if (h.str === "json" && !(firstLineClose > h.strAt)) {
       const blank = rest.indexOf("\n\n", h.strAt);

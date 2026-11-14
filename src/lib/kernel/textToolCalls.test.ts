@@ -23,6 +23,7 @@ import { tutorEngine, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
 import { ReplyTextFilter, displayReplyText, HOLD_CAP } from "./textToolCalls";
 import { registerBuiltinTools, toolRegistry } from "../tools";
+import { MIXED_UP_REPLY } from "../plain-language";
 import type { LLMConfig } from "../../types";
 
 const FC02 = "I will save a flashcard for you. This will help you remember important ideas.\n\nflashcard.create{front:<|\"|>What is the divisor in division?<|\"|>,back:<|\"|>The divisor is how many groups you are splitting things into.<|\"|>,subtopic_id:<|\"|>Division as Sharing<|\"|>}";
@@ -309,6 +310,49 @@ describe("text inside a call's string is never released", () => {
     const r = await run("explain", [reply]);
     expect(r.result.text).toBe(reply);
     expect(chat).toHaveLength(1);
+  });
+});
+
+describe("one stray <|\"|> token does not hide the rest of the reply", () => {
+  it("a } then a blank line after the stray token ends the call; the reply after it is shown", async () => {
+    const r = await run("explain", ["library.search{query:<|\"|>cats}\n\nCats are mammals. They purr when they are happy."]);
+    expectClean(r);
+    expect(r.result.text).toBe("\n\nCats are mammals. They purr when they are happy.");
+  });
+
+  it("mm17's call with its first string left open: only the call is removed", async () => {
+    const reply = "Good work!\nprogress.mark_mastered{status:<|\"|>mastered,subtopic_id:<|\"|>Atomic Structure<|\"|>}\n\nYou have shown you understand atoms. Want to try isotopes next?";
+    const r = await run("assess", [reply]);
+    expectClean(r);
+    expect(r.result.text).toBe("Good work!\n\n\nYou have shown you understand atoms. Want to try isotopes next?");
+    expect(r.result.toolCalls).toEqual([]);
+  });
+
+  it("a } then <tool_call|> after the stray token ends the call too", async () => {
+    const r = await run("explain", ["Nice.\nlibrary.search{query:<|\"|>cats}<tool_call|> Cats purr."]);
+    expectClean(r);
+    expect(r.result.text).toBe("Nice.\n Cats purr.");
+  });
+});
+
+describe("never a blank turn", () => {
+  it("a reply that was only a call nothing ran shows and saves one plain line", async () => {
+    const r = await run("assess", [MM02.slice(MM02.indexOf("progress."))]);
+    expectClean(r);
+    expect(r.result.text).toBe(MIXED_UP_REPLY);
+    expect(r.shown[r.shown.length - 1]).toBe(MIXED_UP_REPLY);
+    expect(r.result.stopReason).toBe("complete");
+  });
+
+  it("an empty reply gets the same line", async () => {
+    const r = await run("explain", [""]);
+    expect(r.result.text).toBe(MIXED_UP_REPLY);
+  });
+
+  it("a turn where a tool ran keeps its own (empty) text: the tool's card is the answer", async () => {
+    const r = await run("explain", ["math.render{latex:<|\"|>x^2<|\"|>}", ""]);
+    expect(r.result.toolCalls).toMatchObject([{ name: "math.render", ok: true }]);
+    expect(r.result.text).toBe("");
   });
 });
 
