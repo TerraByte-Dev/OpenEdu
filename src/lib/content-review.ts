@@ -31,8 +31,8 @@ type Messages = Array<{ role: string; content: string }>;
 // ─── Which model reviews ──────────────────────────────────────────────────────
 
 // Stored value of the "review model" setting (STORE_KEYS.reviewModel) → the config the review runs on,
-// or null for no review. Unset or "" = the generation model, except for LESSONS on the tiny tier
-// (LESSON_REVIEW_DEFAULT_OFF_TIERS). "off" = no review. Any other value = that model on the current
+// or null for no review. Unset or "" = the generation model, except for LESSONS on the tiny and small
+// tiers (LESSON_REVIEW_DEFAULT_OFF_TIERS). "off" = no review. Any other value = that model on the current
 // provider. An Ollama cloud model whose privacy notice was never confirmed is ignored (the default
 // applies), so a hand-edited settings file cannot send content off the computer unannounced.
 //
@@ -40,9 +40,13 @@ type Messages = Array<{ role: string; content: string }>;
 // 0 of the 5 known false lessons and flagged 5 true statements in 4 other lessons. On questions the
 // same reviewer flagged 17 of 118 questions, 14 of them truly bad (12 of 12 on one test of 38 that had
 // about 19 bad), so the question review stays on.
+// Why also small: gemma4:e4b, the default on 16 GB machines, tiers as small and has never been measured
+// as a lesson reviewer. The only measurement (e2b) caught nothing, and a false flag costs a regeneration
+// plus a second review (about three lesson calls on a CPU) and can drop a true section. Naming a model
+// in review_model still turns it on.
 export const REVIEW_OFF = "off";
 export type ReviewKind = "lesson" | "questions";
-export const LESSON_REVIEW_DEFAULT_OFF_TIERS: ReadonlySet<ModelTier> = new Set<ModelTier>(["tiny"]);
+export const LESSON_REVIEW_DEFAULT_OFF_TIERS: ReadonlySet<ModelTier> = new Set<ModelTier>(["tiny", "small"]);
 
 export function resolveReviewConfig(
   stored: string | null | undefined,
