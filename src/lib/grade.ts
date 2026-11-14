@@ -51,16 +51,25 @@ const BAND_RULES: Record<GradeBand, string> = {
   "9-12": "Write for a high school student. Use the subject's proper terms. Keep sentences clear and direct.",
 };
 
+// The band in words, for the reading-level line. The prompt names the band, never the exact grade, so
+// the learner's grade does not leave the computer when a cloud model is the tutor.
+const BAND_WORDS: Record<GradeBand, string> = {
+  "K-2": "kindergarten to grade 2",
+  "3-5": "grades 3 to 5",
+  "6-8": "grades 6 to 8",
+  "9-12": "grades 9 to 12",
+};
+
 /**
- * The reading-level section for the tutor's system prompt, or undefined when no grade is set.
- * buildSystemPrompt places it after the mode suffix and before the output rules; undefined adds
- * nothing, so an unset grade leaves the prompt byte-identical.
+ * The reading-level section for the tutor's system prompt, or undefined when no grade is set. It
+ * names the grade band only, so every grade in a band gets the same text. buildSystemPrompt places
+ * it after the mode suffix and before the output rules; undefined adds nothing, so an unset grade
+ * leaves the prompt byte-identical.
  */
 export function readingLevelLayer(grade: Grade | null): string | undefined {
   const band = gradeBand(grade);
-  if (band === null || grade === null) return undefined;
-  const who = grade === 0 ? "kindergarten" : `grade ${grade}`;
-  return `## Reading level\nThe student is in ${who}. ${BAND_RULES[band]}`;
+  if (band === null) return undefined;
+  return `## Reading level\nThe student is in ${BAND_WORDS[band]}. ${BAND_RULES[band]}`;
 }
 
 /**
