@@ -46,7 +46,7 @@ export const STORE_KEYS = {
   // not count as the person here having read the notice.
   cloudNoticesSeen: "cloud_notices_seen",
   // The content review model (content-review.ts resolveReviewConfig): unset = the generation model
-  // (lessons: off on the tiny tier), "off", or a model name on the current provider. No Settings control yet and
+  // (lessons: off on the tiny and small tiers), "off", or a model name on the current provider. No Settings control yet and
   // not importable: a cloud review model must go through the privacy confirm first.
   reviewModel: "review_model",
 } as const;

@@ -274,8 +274,11 @@ describe("withoutFlaggedParts", () => {
 
 describe("resolveReviewConfig", () => {
   const gen = { provider: "ollama", model: "gemma4:e2b" } as LLMConfig;
-  it("defaults to the generation model; lessons are off on the tiny tier, questions are not", () => {
-    expect(resolveReviewConfig(undefined, gen, "small", [], "lesson")?.model).toBe("gemma4:e2b");
+  it("defaults to the generation model; lessons are off on the tiny and small tiers, questions are not", () => {
+    expect(resolveReviewConfig(undefined, gen, "medium", [], "lesson")?.model).toBe("gemma4:e2b");
+    expect(resolveReviewConfig(undefined, gen, "large", [], "lesson")?.model).toBe("gemma4:e2b");
+    expect(resolveReviewConfig(undefined, gen, "small", [], "lesson")).toBeNull();
+    expect(resolveReviewConfig(undefined, gen, "small", [], "questions")).toMatchObject({ model: "gemma4:e2b", modelTier: "small" });
     expect(resolveReviewConfig(undefined, gen, "tiny", [], "lesson")).toBeNull();
     expect(resolveReviewConfig("", gen, "tiny", [], "lesson")).toBeNull();
     expect(resolveReviewConfig(undefined, gen, "tiny", [], "questions")).toMatchObject({ model: "gemma4:e2b", modelTier: "tiny" });
