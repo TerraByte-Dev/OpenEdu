@@ -87,6 +87,7 @@ export interface SuggestionInput {
 // What the stuck chips send. A tap on one of these is a request for help, not a try at the problem.
 const HINT_MESSAGE = "Give me a hint.";
 const WALK_MESSAGE = "Walk me through it.";
+const REVIEW_DUE_MESSAGE = "Review my due flashcards.";
 // Measured on 2026-11-06 after a wrong first try: this wording got the worked answer from gemma4:e4b
 // in 8 of 8 runs, and "Walk me through it." in 5 of 8 (the tutor often kept asking instead).
 export const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
@@ -249,7 +250,7 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   }
 
   if ((input.dueFlashcards ?? 0) > 0) {
-    push({ label: "Review due cards", message: "Review my due flashcards.", mode: "review" });
+    push({ label: "Review due cards", message: REVIEW_DUE_MESSAGE, mode: "review" });
   }
 
   // Everything above is contextual. Trim to leave room for a mode chip — see MAX_CONTEXTUAL.
@@ -277,4 +278,13 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
 function short(title: string, max = 22): string {
   const clean = title.replace(/\s+/g, " ").trim();
   return clean.length <= max ? clean : `${clean.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** The chips that stay on screen beside reply-choice buttons (replyChoices.ts): the ways out for a stuck
+ *  student (show the answer, a hint, walk me through it) and due cards. The rest would turn the buttons
+ *  and chips into one long menu. */
+const BESIDE_CHOICES = new Set([SHOW_ANSWER_MESSAGE, HINT_MESSAGE, WALK_MESSAGE, REVIEW_DUE_MESSAGE]);
+
+export function chipsBesideChoices(suggestions: Suggestion[]): Suggestion[] {
+  return suggestions.filter((s) => BESIDE_CHOICES.has(s.message));
 }

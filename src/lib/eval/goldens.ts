@@ -284,6 +284,8 @@ export const GOLDENS: Golden[] = [
       mode: "review",
     }],
     // Asserts tool SELECTION + well-formed args (front/back non-empty) — mirrors the mark_mastered golden.
+    // The MODEL's selection: runner.ts turns the app's flashcard stage off for goldens and drops any
+    // byApp call from the transcript, so an app-made card can never pass this.
     success: (t) => {
       const calls = t.flatMap((e) => e.toolCalls ?? []);
       const made = calls.find((c) => c.name === "flashcard.create");

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { suggestFollowUps, endsWithQuestion, hasTriedOpenQuestion, offersShowAnswer, showAnswerOfferedAfter, SHOW_ANSWER_MESSAGE, type SuggestionInput } from "./suggestions";
+import { suggestFollowUps, chipsBesideChoices, endsWithQuestion, hasTriedOpenQuestion, offersShowAnswer, showAnswerOfferedAfter, SHOW_ANSWER_MESSAGE, type SuggestionInput } from "./suggestions";
 import { persistedReply } from "./persistedReply";
 import type { GroundingHit } from "./ground";
 import type { Syllabus } from "../../types";
@@ -330,5 +330,19 @@ describe("assess chip is reachable (#146)", () => {
     const partial = syllabus([{ title: "Moles", mastered: true }, { title: "Balancing equations", mastered: false }]);
     expect(suggestFollowUps(input({ syllabus: partial })).map((s) => s.mode)).not.toContain("assess");
     expect(suggestFollowUps(input()).map((s) => s.mode)).not.toContain("assess");
+  });
+});
+
+describe("chipsBesideChoices", () => {
+  it("keeps the stuck chips and due cards beside reply-choice buttons, and drops the rest", () => {
+    // A tutor question: the stuck chips (answer / hint / walk-through) fill the three slots.
+    const asked = suggestFollowUps(input({ answer: `${ANSWER} Which balanced equation would you pick first?`, studentAttempted: true }));
+    expect(asked.length).toBeGreaterThan(0);
+    expect(chipsBesideChoices(asked)).toEqual(asked.filter((s) => ["Show me the answer", "Give me a hint", "Walk me through it"].includes(s.label)));
+    expect(chipsBesideChoices(asked).length).toBeGreaterThan(0);
+    // No question: due cards stay, the context and mode chips go.
+    const told = suggestFollowUps(input({ dueFlashcards: 2, syllabus: syllabus([{ title: "Limiting reagents", mastered: false }]) }));
+    expect(told.map((s) => s.label)).toContain("Review due cards");
+    expect(chipsBesideChoices(told).map((s) => s.label)).toEqual(["Review due cards"]);
   });
 });
