@@ -5,7 +5,10 @@ import {
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
   getEmbeddingConfig, setEmbeddingModel,
   getMaxContextTokens, setMaxContextTokens, CONTEXT_TOKEN_CHOICES,
+  getCloudNoticesSeen, markCloudNoticeSeen,
 } from "../../../lib/store";
+import { needsCloudNotice, modelNeedsCloudNotice, withNoticeSeen } from "../../../lib/privacy";
+import { CloudNoticePanel } from "../CloudNotice";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
   OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type ModelOption,
@@ -28,6 +31,14 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const [ollamaStatus, setOllamaStatus] = useState<"checking" | "connected" | "disconnected">("checking");
   const [ollamaError, setOllamaError] = useState<string | null>(null);
   const [maxCtx, setMaxCtx] = useState<number>(8192);
+  // A cloud provider waiting on its one-time privacy confirm (privacy.ts); the switch happens on confirm.
+  const [pendingCloud, setPendingCloud] = useState<"openai" | "anthropic" | null>(null);
+  // An Ollama model whose name ends in cloud, waiting on the same one-time confirm; saved on confirm.
+  const [pendingModel, setPendingModel] = useState<{ job: ModelJob; model: string } | null>(null);
+  // The confirms accepted here and the models as saved, read synchronously: an input's blur commits just
+  // before a click on the confirm's buttons, and an async check there could reopen a confirm just answered.
+  const seen = useRef<string[]>([]);
+  const saved = useRef<Record<ModelJob, string>>({ gen: "", chat: "" });
 
   // Initial load probes Ollama exactly once with the persisted URL; the effect below re-probes only when the
   // PROVIDER changes — NOT on every keystroke in the URL field (that fired a network probe per character and
@@ -46,9 +57,12 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
       const base = await getLLMProvider();
       setOllamaUrlValue(base.ollamaUrl);
       if (current()) setProvider(base.provider);
+      seen.current = await getCloudNoticesSeen();
       const gen = (await getGenerationConfig()).model;
+      saved.current.gen = gen;
       if (current()) setGenModel(gen);
       const chat = (await getChatConfig()).model;
+      saved.current.chat = chat;
       if (current()) setChatModelState(chat);
       setEmbeddingModelState((await getEmbeddingConfig()).model);
       setMaxCtx(await getMaxContextTokens());
@@ -93,6 +107,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const pickProvider = async (p: LLMProvider) => {
     const ticket = ++providerLoad.current;
     const current = () => ticket === providerLoad.current;
+    setPendingModel(null); // a waiting cloud-model confirm was for the provider being left
     setProvider(p);
     await setLLMProvider(p);
     markSaved();
@@ -100,15 +115,65 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
     // Re-read the models the app will now send for this provider: with nothing stored, the getters fall
     // back to the provider's own defaults, so the chips never show the previous provider's model.
     const gen = (await getGenerationConfig()).model;
+    saved.current.gen = gen;
     if (current()) setGenModel(gen);
     const chat = (await getChatConfig()).model;
+    saved.current.chat = chat;
     if (current()) setChatModelState(chat);
     const key = p === "ollama" ? "" : (await getApiKey(p)) || "";
     if (current()) setApiKeyValue(key);
   };
 
-  const commitGen = async (m: string) => { setGenModel(m); await setGenerationModel(m); markSaved(); };
-  const commitChat = async (m: string) => { setChatModelState(m); await setChatModel(m); markSaved(); };
+  // The first time OpenAI or Anthropic is picked on this PC, say what will be sent before switching.
+  const chooseProvider = async (p: LLMProvider) => {
+    if (needsCloudNotice(p, await getCloudNoticesSeen())) { setPendingCloud(p); return; }
+    setPendingCloud(null);
+    await pickProvider(p);
+  };
+  const confirmCloud = async () => {
+    if (!pendingCloud) return;
+    const p = pendingCloud;
+    setPendingCloud(null);
+    await markCloudNoticeSeen(p);
+    seen.current = withNoticeSeen(seen.current, p);
+    await pickProvider(p);
+  };
+
+  const saveModel = async (job: ModelJob, m: string) => {
+    saved.current[job] = m;
+    if (job === "gen") { setGenModel(m); await setGenerationModel(m); }
+    else { setChatModelState(m); await setChatModel(m); }
+    markSaved();
+  };
+  const showModel = (job: ModelJob, m: string) => (job === "gen" ? setGenModel : setChatModelState)(m);
+
+  // The first Ollama model picked here whose name ends in cloud waits on its one-time confirm (privacy.ts).
+  // One confirm at a time: saving another job's model puts back the model a waiting confirm was for.
+  const commitModel = (job: ModelJob, m: string) => {
+    if (m === saved.current[job]) { if (pendingModel?.job === job) setPendingModel(null); return; }
+    if (pendingModel && pendingModel.job !== job) showModel(pendingModel.job, saved.current[pendingModel.job]);
+    if (modelNeedsCloudNotice(provider, m, seen.current)) { showModel(job, m); setPendingModel({ job, model: m }); return; }
+    setPendingModel(null);
+    void saveModel(job, m);
+  };
+  const confirmModel = async () => {
+    if (!pendingModel) return;
+    const { job, model } = pendingModel;
+    setPendingModel(null);
+    await markCloudNoticeSeen("ollama-cloud");
+    seen.current = withNoticeSeen(seen.current, "ollama-cloud");
+    await saveModel(job, model);
+  };
+  // "Not now" puts back the model that was saved.
+  const cancelModel = () => {
+    if (pendingModel) showModel(pendingModel.job, saved.current[pendingModel.job]);
+    setPendingModel(null);
+  };
+  const modelNotice = (job: ModelJob) =>
+    pendingModel?.job === job && <CloudNoticePanel feature="ollama-cloud" onConfirm={confirmModel} onCancel={cancelModel} />;
+
+  const commitGen = (m: string) => commitModel("gen", m);
+  const commitChat = (m: string) => commitModel("chat", m);
   const commitEmbedding = async () => { await setEmbeddingModel(embeddingModel.trim() || "nomic-embed-text"); markSaved(); };
 
   const verifyKey = async (key: string) => {
@@ -133,7 +198,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           {PROVIDERS.map((p) => (
             <button
               key={p.id}
-              onClick={() => pickProvider(p.id)}
+              onClick={() => chooseProvider(p.id)}
               className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 provider === p.id ? "btn-primary btn" : "bg-panel-lite text-[var(--ink-dim)] hover:bg-lcd border border-[var(--rule)]"
               }`}
@@ -142,6 +207,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             </button>
           ))}
         </div>
+        {pendingCloud && <CloudNoticePanel feature={pendingCloud} onConfirm={confirmCloud} onCancel={() => setPendingCloud(null)} />}
       </Section>
 
       {provider === "ollama" && (
@@ -219,6 +285,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           ) : (
             <CloudModelChips models={GENERATION_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={genModel} onChange={commitGen} />
           )}
+          {modelNotice("gen")}
         </SettingRow>
 
         <SettingRow label="Tutor chat model" help="Used for live tutoring. Faster models give snappier responses." keywords="chat tutor live">
@@ -227,6 +294,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           ) : (
             <CloudModelChips models={CHAT_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={chatModel} onChange={commitChat} />
           )}
+          {modelNotice("chat")}
         </SettingRow>
 
         {provider === "ollama" && (
@@ -238,7 +306,12 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             <ModelImport
               ollamaUrl={ollamaUrlValue}
               onImported={(m) => {
+                saved.current.chat = m;
+                saved.current.gen = m;
+                void getCloudNoticesSeen().then((s) => { seen.current = s; });
+                setPendingModel(null);
                 setChatModelState(m);
+                setGenModel(m);
                 markSaved();
                 void checkOllama();
                 onProviderChanged?.();
@@ -294,6 +367,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
     </>
   );
 }
+
+type ModelJob = "gen" | "chat";
 
 // ── Cloud model chips ───────────────────────────────────────────────────────────────────────────────────
 function CloudModelChips({ models, value, onChange }: { models: ModelOption[]; value: string; onChange: (id: string) => void }) {
