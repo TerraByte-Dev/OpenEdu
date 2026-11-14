@@ -66,7 +66,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
       setConfig(cfg);
       // Pull the spaced "review pool" (prior misses) so ~20% of the quiz is retrieval practice.
       const reviewPool = await getReviewPoolQuestions(courseId, 6);
-      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }), await getReviewConfig(cfg));
+      const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }), await getReviewConfig(cfg, "questions"));
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
       startedAtRef.current = Date.now();

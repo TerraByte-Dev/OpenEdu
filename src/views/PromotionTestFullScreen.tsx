@@ -121,7 +121,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       const { current, review } = await generatePromotionTestQuestions(
         currentSyllabus, previousSyllabuses, cfg,
         (done, total, phase) => { setGenPhase(phase); setGenProgress({ done, total }); },
-        await getReviewConfig(cfg),
+        await getReviewConfig(cfg, "questions"),
       );
       setGenPhase("done");
 

@@ -31,25 +31,33 @@ type Messages = Array<{ role: string; content: string }>;
 // ─── Which model reviews ──────────────────────────────────────────────────────
 
 // Stored value of the "review model" setting (STORE_KEYS.reviewModel) → the config the review runs on,
-// or null for no review. Unset or "" = the generation model, except on the tiny tier, where it is off
-// by default (see REVIEW_DEFAULT_OFF_TIERS). "off" = no review. Any other value = that model on the
-// current provider. An Ollama cloud model whose privacy notice was never confirmed is ignored (the
-// default applies), so a hand-edited settings file cannot send content off the computer unannounced.
+// or null for no review. Unset or "" = the generation model, except for LESSONS on the tiny tier
+// (LESSON_REVIEW_DEFAULT_OFF_TIERS). "off" = no review. Any other value = that model on the current
+// provider. An Ollama cloud model whose privacy notice was never confirmed is ignored (the default
+// applies), so a hand-edited settings file cannot send content off the computer unannounced.
+//
+// Why lessons are off on tiny: replaying B9 rerun 2 (2026-11-14) through a gemma4:e2b review caught
+// 0 of the 5 known false lessons and flagged 5 true statements in 4 other lessons. On questions the
+// same reviewer flagged 17 of 118 questions, 14 of them truly bad (12 of 12 on one test of 38 that had
+// about 19 bad), so the question review stays on.
 export const REVIEW_OFF = "off";
-export const REVIEW_DEFAULT_OFF_TIERS: ReadonlySet<ModelTier> = new Set<ModelTier>(["tiny"]);
+export type ReviewKind = "lesson" | "questions";
+export const LESSON_REVIEW_DEFAULT_OFF_TIERS: ReadonlySet<ModelTier> = new Set<ModelTier>(["tiny"]);
 
 export function resolveReviewConfig(
   stored: string | null | undefined,
   gen: LLMConfig,
   genTier: ModelTier,
   noticesSeen: readonly string[],
+  kind: ReviewKind,
 ): LLMConfig | null {
   const value = (stored ?? "").trim();
   if (value.toLowerCase() === REVIEW_OFF) return null;
   if (value && value !== gen.model && !modelNeedsCloudNotice(gen.provider, value, noticesSeen)) {
     return { ...gen, model: value, modelTier: undefined };
   }
-  return REVIEW_DEFAULT_OFF_TIERS.has(genTier) ? null : { ...gen, modelTier: genTier };
+  if (kind === "lesson" && LESSON_REVIEW_DEFAULT_OFF_TIERS.has(genTier)) return null;
+  return { ...gen, modelTier: genTier };
 }
 
 // ─── Payloads (pure; the privacy test calls these through the production path) ──

@@ -178,10 +178,16 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
 - **The review's words never reach the learner.** They go to the log and into the lesson's one
   regeneration prompt.
 - **Which model:** the `review_model` setting (`store.ts` `getReviewConfig` → `resolveReviewConfig`).
-  Unset = the generation model, except on the **tiny tier, where it is off by default** (the shipped
-  8 GB default `gemma4:e2b` keeps its existing verify pass); `"off"` = no review; any other value = that
-  model on the current provider. An Ollama cloud model whose privacy confirm was never accepted is
-  ignored. There is no Settings control yet, and the key is not importable.
+  Unset = the generation model, except that **lessons are not reviewed on the tiny tier**; `"off"` = no
+  review; any other value = that model on the current provider. An Ollama cloud model whose privacy
+  confirm was never accepted is ignored. There is no Settings control yet, and the key is not importable.
+- **Measured on `gemma4:e2b` as its own reviewer** (B9 rerun 2's saved output replayed, 2026-11-14, one
+  pass, prompt written before the replay, labels from the run's audit and Claude's reading of one test):
+  lessons, 0 of the 5 known false lessons caught and 5 true statements flagged in 4 other lessons, so
+  the lesson review is off on tiny. Questions, 17 of 118 flagged and 14 of those truly bad: 12 of 12
+  flags right on one promotion test of 38 with about 19 bad (money and clock arithmetic), but only 1 of
+  the 5 confirmed wrong keys in the 80-question blind key-check sample, with 3 false flags. A small
+  model's review catches checkable arithmetic, not facts; the lesson review needs a bigger or cloud model.
 - **Privacy.** The payload is a function of (topic, generated content) only: no learner name, grade,
   answers, knowledge files or history. Lesson generation takes (topic, level, subtopic) and fresh
   question generation takes the syllabus, so their output carries no learner data. The quiz's review

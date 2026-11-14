@@ -274,17 +274,18 @@ describe("withoutFlaggedParts", () => {
 
 describe("resolveReviewConfig", () => {
   const gen = { provider: "ollama", model: "gemma4:e2b" } as LLMConfig;
-  it("defaults to the generation model, off on the tiny tier", () => {
-    expect(resolveReviewConfig(undefined, gen, "small", [])?.model).toBe("gemma4:e2b");
-    expect(resolveReviewConfig(undefined, gen, "tiny", [])).toBeNull();
-    expect(resolveReviewConfig("", gen, "tiny", [])).toBeNull();
+  it("defaults to the generation model; lessons are off on the tiny tier, questions are not", () => {
+    expect(resolveReviewConfig(undefined, gen, "small", [], "lesson")?.model).toBe("gemma4:e2b");
+    expect(resolveReviewConfig(undefined, gen, "tiny", [], "lesson")).toBeNull();
+    expect(resolveReviewConfig("", gen, "tiny", [], "lesson")).toBeNull();
+    expect(resolveReviewConfig(undefined, gen, "tiny", [], "questions")).toMatchObject({ model: "gemma4:e2b", modelTier: "tiny" });
   });
   it("honours off and a named model", () => {
-    expect(resolveReviewConfig("off", gen, "large", [])).toBeNull();
-    expect(resolveReviewConfig("qwen3.5:9b", gen, "tiny", [])).toMatchObject({ provider: "ollama", model: "qwen3.5:9b" });
+    expect(resolveReviewConfig("off", gen, "large", [], "questions")).toBeNull();
+    expect(resolveReviewConfig("qwen3.5:9b", gen, "tiny", [], "lesson")).toMatchObject({ provider: "ollama", model: "qwen3.5:9b" });
   });
   it("ignores an Ollama cloud review model whose privacy notice was never confirmed", () => {
-    expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", [])?.model).toBe("gemma4:e2b");
-    expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", ["ollama-cloud"])?.model).toBe("gpt-oss:120b-cloud");
+    expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", [], "questions")?.model).toBe("gemma4:e2b");
+    expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", ["ollama-cloud"], "questions")?.model).toBe("gpt-oss:120b-cloud");
   });
 });

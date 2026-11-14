@@ -43,7 +43,7 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
     setGeneratingId(sub.id);
     try {
       const cfg = await getGenerationConfig();
-      const lesson = await generateLesson(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, cfg, undefined, await getReviewConfig(cfg));
+      const lesson = await generateLesson(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, cfg, undefined, await getReviewConfig(cfg, "lesson"));
       setLessons((prev) => [lesson, ...prev.filter((l) => l.id !== lesson.id)]);
       return lesson;
     } catch (e) {
