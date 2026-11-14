@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { resolveDomainSkill, matchSkillsForCourse, isSkillAvailable } from "./trigger";
+import { resolveDomainSkill, matchSkillsForCourse, isSkillAvailable, type CourseSyllabus } from "./trigger";
+import {
+  MATH_SWEEP, SCIENCE_SWEEP, PHYSICS_SWEEP, OTHER_SWEEP, HELDOUT_MATH, HELDOUT_SCIENCE, HELDOUT_OTHER,
+} from "./subjectSweep";
 import { buildSkill, loadBuiltinSkills, skillRegistry } from "./registry";
 import { registerBuiltinTools } from "../tools/builtins";
 import { toolRegistry } from "../tools/registry";
@@ -29,7 +32,7 @@ describe("domain skill routing (word-boundary matching)", () => {
     // Previously misrouted substring false positives → undefined
     ["Animal Husbandry", undefined],
     ["First Aid: Bandaging Wounds", undefined],
-    ["Ear Anatomy: Eardrums", undefined],
+    ["Ear Anatomy: Eardrums", "science-tutor"], // "drums" no longer matches music; "anatomy" is science
     ["Metaphysics", undefined],
     ["Aftermath of World War I", undefined],
     ["Trusts and Estates", undefined],
@@ -53,9 +56,9 @@ describe("domain skill routing (word-boundary matching)", () => {
     // Multiple domains match → first registered skill wins
     ["Music Programming", "code-tutor"],
 
-    // Unrouted general/language/science topics
+    // Unrouted general/language topics; science routes to science-tutor
     ["Beginner Spanish", undefined],
-    ["Introductory Chemistry", undefined],
+    ["Introductory Chemistry", "science-tutor"],
     ["General Knowledge", undefined],
   ];
 
@@ -98,6 +101,95 @@ describe("domain skill routing (word-boundary matching)", () => {
     expect(matchSkillsForCourse({ topic: "Calculus I" }, [highTierSkill], "large")).toEqual([
       highTierSkill,
     ]);
+  });
+});
+
+// Click test 2026-11-14: a course called only "Fractions" got no math skill, so diagram.render was
+// never offered. Before the fix (topic words math/algebra/geometry/…, no science skill): 33 of 42
+// sweep math courses and 26 of 40 held-out math courses got no math skill; no science course got a
+// science skill (22 of 22, 30 of 30).
+describe("K-12 course sweep (subjectSweep.ts)", () => {
+  const route = (t: string) => resolveDomainSkill(t, "tiny")?.name;
+
+  it.each(MATH_SWEEP)("math: %j → math-tutor", (t) => expect(route(t)).toBe("math-tutor"));
+  it.each(SCIENCE_SWEEP)("science: %j → science-tutor", (t) => expect(route(t)).toBe("science-tutor"));
+  it.each(PHYSICS_SWEEP)("physics: %j → math-tutor", (t) => expect(route(t)).toBe("math-tutor"));
+  it.each(OTHER_SWEEP)("other: %j → %s", (t, want) => expect(route(t)).toBe(want));
+
+  // Held-out titles: never tuned against. These are the titles the topic alone still misses; such a
+  // course routes by its syllabus instead (below).
+  const HELDOUT_MISSES = new Set([
+    "Number Bonds", "Mean, Median, and Mode",
+    "Phases of the Moon", "The Digestive System", "Layers of the Earth", "Acids and Bases",
+  ]);
+  it("held out: 38 of 40 math and 26 of 30 science titles route by topic alone, no other title does", () => {
+    const missed = [
+      ...HELDOUT_MATH.filter((t) => route(t) !== "math-tutor"),
+      ...HELDOUT_SCIENCE.filter((t) => route(t) !== "science-tutor"),
+    ];
+    expect(new Set(missed)).toEqual(HELDOUT_MISSES);
+    for (const t of missed) expect(route(t), t).toBeUndefined();
+    for (const [t, want] of HELDOUT_OTHER) expect(route(t), t).toBe(want);
+  });
+
+  it("keeps words that name another subject from routing", () => {
+    for (const t of ["Political Science", "Social Science", "Animal Farm", "Counting Syllables", "Circuit Training", "Spanish Numbers"]) {
+      expect(route(t), t).toBeUndefined();
+    }
+    expect(route("Computer Science 101")).toBe("code-tutor");
+    // Known and accepted: an art course about shapes is offered the math tools.
+    expect(route("Shapes in Art")).toBe("math-tutor");
+  });
+});
+
+describe("routing by the syllabus when the topic names no subject", () => {
+  const syl = (subtopics: Array<[string, string[]]>): CourseSyllabus => ({
+    subtopics: subtopics.map(([title, key_concepts], i) => ({
+      id: `s${i}`, title, key_concepts, practice_type: "practice", mastered: false,
+    })),
+  });
+
+  const PIZZA = syl([
+    ["Halves and Quarters", ["equal parts", "fraction", "numerator and denominator"]],
+    ["Comparing Slices", ["compare fractions", "greater than and less than"]],
+    ["Sharing Fairly", ["equal shares", "parts of a whole"]],
+  ]);
+  const RAIN = syl([
+    ["Evaporation", ["the water cycle", "heat from the sun"]],
+    ["Clouds", ["condensation", "water vapor", "weather"]],
+    ["Rain and Snow", ["precipitation", "weather"]],
+    ["Puddles", ["collection", "runoff"]],
+  ]);
+  const POETRY = syl([
+    ["Rhythm and Meter", ["rhythm", "stressed syllables"]],
+    ["Rhyme Schemes", ["rhyme", "couplet"]],
+    ["Imagery", ["metaphor", "simile"]],
+    ["Writing a Haiku", ["syllable count", "nature words"]],
+  ]);
+  const COOKING = syl([
+    ["Kitchen Safety", ["knives", "hot surfaces"]],
+    ["Measuring Ingredients", ["measurement", "fraction of a cup"]],
+    ["Following a Recipe", ["steps in order", "timing"]],
+  ]);
+
+  it("routes a course whose title names no subject by most of its subtopics", () => {
+    expect(resolveDomainSkill("Pizza Party", "tiny", PIZZA)?.name).toBe("math-tutor");
+    expect(resolveDomainSkill("Where Rain Comes From", "tiny", RAIN)?.name).toBe("science-tutor");
+  });
+
+  it("does not route on one subtopic that touches a subject", () => {
+    expect(resolveDomainSkill("Poetry", "tiny", POETRY)).toBeUndefined();
+    expect(resolveDomainSkill("Cooking Basics", "tiny", COOKING)).toBeUndefined();
+  });
+
+  it("lets the topic decide when it names a subject", () => {
+    expect(resolveDomainSkill("Python Programming", "tiny", PIZZA)?.name).toBe("code-tutor");
+    expect(resolveDomainSkill("Pizza Party", "tiny", null)).toBeUndefined();
+  });
+
+  it("needs at least two subtopics", () => {
+    const one = syl([["Halves", ["fraction"]]]);
+    expect(resolveDomainSkill("Pizza Party", "tiny", one)).toBeUndefined();
   });
 });
 

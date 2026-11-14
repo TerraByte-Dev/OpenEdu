@@ -12,8 +12,14 @@ import { z } from "zod";
 export const SkillFrontmatterSchema = z.object({
   name: z.string().min(1), // must equal a TutorModeId for the converted pedagogical skills
   description: z.string().min(1), // one line
+  // course_subject: words that route a course to this domain skill (matched on word boundaries
+  // against the topic, and by majority against the syllabus's subtopics; skills/trigger.ts).
+  // course_subject_exclude: phrases removed before matching ("political science" is not science).
   trigger: z
-    .object({ course_subject: z.array(z.string()).default([]) })
+    .object({
+      course_subject: z.array(z.string()).default([]),
+      course_subject_exclude: z.array(z.string()).optional(),
+    })
     .default({ course_subject: [] }),
   tools_required: z.array(z.string()).default([]), // tool names, e.g. ["progress.mark_mastered"]
   model_tier_min: z.enum(["tiny", "small", "medium", "large"]).default("tiny"),

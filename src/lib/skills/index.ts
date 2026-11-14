@@ -3,6 +3,7 @@ export { skillRegistry, loadBuiltinSkills, buildSkill, resolveSkill, resolvePers
 export type { SkillRegistry } from "./registry";
 export { parseSkillFile } from "./parse";
 export type { ParsedSkillFile } from "./parse";
-export { matchSkillsForCourse, isSkillAvailable, resolveDomainSkill } from "./trigger";
+export { matchSkillsForCourse, matchSkillForSyllabus, isSkillAvailable, resolveDomainSkill } from "./trigger";
+export type { CourseSyllabus } from "./trigger";
 export { SkillFrontmatterSchema } from "../dsl/skill";
 export type { Skill, SkillFrontmatter } from "../dsl/skill";

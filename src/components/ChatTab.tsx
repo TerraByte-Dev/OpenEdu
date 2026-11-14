@@ -301,7 +301,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const modelTier = profile.tier;
     // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rule
     // lives in kernel/chatSkills.ts so the k12-flow eval builds its prompt the same way.
-    const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(activeMode, course.topic, modelTier, profile.supportsTools);
+    const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(activeMode, course.topic, modelTier, profile.supportsTools, currentSyllabus);
     if (import.meta.env.DEV && !profile.supportsTools && !toolsSuppressedLogged.has(config.model)) {
       toolsSuppressedLogged.add(config.model);
       console.info(`[OpenEdu:tools] ${config.model} reports no tool support — offering no tools or domain skill, grounded chat only`);
