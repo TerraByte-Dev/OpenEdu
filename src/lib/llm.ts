@@ -1,5 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import type { LLMConfig, ModelTier } from "../types";
+import { sanitizeJsonEscapes, tryParseJsonLenient } from "./json-lenient";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // Strip trailing slashes so we never build double-slash paths like /api//tags
@@ -19,20 +20,8 @@ function normalizeBase(url: string): string {
 // model-quality problem. Chat is the one place reasoning may earn its cost; every path below is not chat.
 const OLLAMA_THINK_OFF = { think: false } as const;
 
-// Small Ollama models often emit raw LaTeX (\alpha, \frac, \pi, \sum, ...) inside
-// JSON string values without doubling the backslash. JSON.parse rejects those as
-// "Bad escaped character", and even when grammar-constrained sampling lets them
-// through, \t / \b / \n get silently decoded into control characters that corrupt
-// stored content. Double any backslash that isn't followed by a valid JSON escape.
-export function sanitizeJsonEscapes(s: string): string {
-  return s.replace(/\\(?!["\\\/bfnrtu])/g, "\\\\");
-}
-
-// Try JSON.parse, with a stray-backslash repair retry as a fallback.
-function tryParseJsonLenient(raw: string): unknown {
-  try { return JSON.parse(raw); }
-  catch { return JSON.parse(sanitizeJsonEscapes(raw)); }
-}
+// sanitizeJsonEscapes / tryParseJsonLenient live in the Tauri-free json-lenient.ts.
+export { sanitizeJsonEscapes };
 
 // ─── Logger ──────────────────────────────────────────────────────────────────
 // Structured debug log — visible in Tauri's DevTools console and tagged clearly.

@@ -1,5 +1,6 @@
 import { getTutorInstructions, saveTutorInstruction } from "./db";
 import { callLLM } from "./llm";
+import { KNOWLEDGE_TYPES, appendStudyLog, parseReflection, tutorCorrectedLearner, type KnowledgeType } from "./knowledge-reflect";
 import type { LLMConfig } from "../types";
 
 // Update knowledge files after a quiz or promotion test completes (no LLM call — direct write)
@@ -18,7 +19,8 @@ export async function updateKnowledgeAfterQuiz(
   const dateStr = new Date().toLocaleDateString();
   const quizEntry = `[${dateStr}] Quiz: ${score.toFixed(0)}% (${totalQuestions} questions)` +
     (missedTopics.length > 0 ? `. Weak areas: ${missedTopics.slice(0, 5).join(", ")}.` : ". All areas strong.") +
-    (studyPlan ? ` Study plan: ${studyPlan.slice(0, 250)}` : "");
+    // One line: the study log is split on newlines and keeps its last 3, and a bulleted plan has several.
+    (studyPlan ? ` Study plan: ${studyPlan.replace(/\s+/g, " ").trim().slice(0, 250)}` : "");
 
   const logLines = currentStudyLog.split("\n").filter((l) => l.trim());
   logLines.push(quizEntry);
@@ -30,9 +32,6 @@ export async function updateKnowledgeAfterQuiz(
     await saveTutorInstruction(courseId, "knowledge_map", updatedMap.slice(-500));
   }
 }
-
-const KNOWLEDGE_TYPES = ["knowledge_map", "misconceptions", "study_log", "learning_profile"] as const;
-type KnowledgeType = typeof KNOWLEDGE_TYPES[number];
 
 // Character budgets per section (total <= 1500)
 const BUDGETS: Record<KnowledgeType, number> = {
@@ -129,23 +128,17 @@ Respond with ONLY valid JSON.`;
     return; // knowledge file updates are best-effort
   }
 
-  let parsed: Record<string, string>;
-  try {
-    let jsonStr = response.trim();
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-    }
-    const start = jsonStr.indexOf("{");
-    const end = jsonStr.lastIndexOf("}");
-    if (start !== -1 && end !== -1) jsonStr = jsonStr.slice(start, end + 1);
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    return;
-  }
+  // Arrays and objects become the file's text instead of being dropped (knowledge-reflect.ts).
+  const files = parseReflection(response);
+  // The misconceptions file is permanent tutor context, so it is written only when the tutor's reply
+  // shows the learner was wrong. On a confirmed answer the model invents one ("Corrected
+  // misconception: ...") about as often as not.
+  if (files.misconceptions && !tutorCorrectedLearner(assistantResponse)) delete files.misconceptions;
+  // The study log is appended to, never replaced, so the quiz-score line survives.
+  if (files.study_log) files.study_log = appendStudyLog(instructions["study_log"] ?? "", files.study_log);
 
   for (const type of KNOWLEDGE_TYPES) {
-    if (typeof parsed[type] === "string" && parsed[type].trim()) {
-      await saveTutorInstruction(courseId, type, parsed[type].trim());
-    }
+    const text = files[type];
+    if (text) await saveTutorInstruction(courseId, type, text);
   }
 }
