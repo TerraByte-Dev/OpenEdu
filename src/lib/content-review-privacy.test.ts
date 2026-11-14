@@ -34,7 +34,7 @@ vi.mock("./db", async (importOriginal) => ({
 
 import { callLLMStructured } from "./llm";
 import { generateLesson } from "./curriculum";
-import { generateQuizQuestions, generatePromotionTestQuestions } from "./quiz";
+import { generateQuizQuestions, generatePromotionTestQuestions, gradeAnswersBatch, generateStudyPlan } from "./quiz";
 import { buildLessonReviewMessages, resolveReviewConfig } from "./content-review";
 import { isLocalModel } from "./privacy";
 import type { LessonContent } from "./lesson-format";
@@ -77,6 +77,12 @@ function stub() {
         return { question_text: `Which fraction is larger, item ${n}: 1/2 or 1/3?`, question_type: "multiple_choice",
           options: [`A) 1/2 (item ${n})`, "B) 1/3", "C) They are equal", "D) Neither"], correct_answer: `A) 1/2 (item ${n})`, difficulty_level: 1,
           explanation: `Halves are bigger than thirds. Therefore the answer is A) 1/2 (item ${n})`, subtopic_id: "1.1", blank_position: "", matching_pairs: [] } as never;
+      case "emit_grades": { // one verdict per [index N] the grading prompt lists
+        const indexes = [...content.matchAll(/\[index (\d+)\]/g)].map((m) => Number(m[1]));
+        return { results: indexes.map((index) => ({ index, correct: false, feedback: "Not quite." })) } as never;
+      }
+      case "emit_study_plan":
+        return { items: ["Review how to compare fractions with unlike denominators.", "Practice with fraction strips.", "Retake a short quiz."] } as never;
       default:
         return { verdicts: [] } as never;
     }
@@ -205,5 +211,63 @@ describe("a cloud reviewer on another provider", () => {
     // The lesson itself was written on the local model.
     expect(calls.find((c) => c.tool === "emit_lesson")).toMatchObject({ provider: "ollama", model: GEN.model });
     assertLearnerFree(history);
+  });
+});
+
+// Lane 1 also keeps the learner's own words and their misses on the computer: free-text answers sent for
+// grading (quiz.ts gradeAnswersBatch) and the missed questions behind the study plan after a failed test
+// (generateStudyPlan). Both used to go to the generation model, so a cloud generation model received
+// them. Now each runs only on a local model (the screens pass store.ts getLocalVerifyConfig); given a
+// cloud model or none, nothing is sent and code decides instead.
+describe("with a cloud generation model, a learner's answers and missed questions never leave the computer", () => {
+  const LOCAL = { provider: "ollama", model: "gemma4:e4b", modelTier: "small" } as LLMConfig;
+  const ANSWER = "my nana on Example Lane says the bigger bottom number wins";
+  const ANSWERS = [
+    { index: 0, question: "Explain why 1/2 is larger than 1/3.", expected: "Halves are bigger pieces than thirds.", student: ANSWER, type: "written_response" },
+    { index: 1, question: "Write 0.5 as a fraction.", expected: "1/2", student: "1/2", type: "short_answer" },
+  ];
+  const MISSED_PLAN = MISSED.map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
+  const CLOUD_CONFIGS: Array<LLMConfig | null> = [
+    { ...CLOUD_GEN }, { provider: "openai", model: "gpt-6.1-sol", apiKey: "test-key" } as LLMConfig,
+    { provider: "ollama", model: "gpt-oss:120b-cloud" } as LLMConfig, null,
+  ];
+
+  it("grading: no cloud-bound payload holds the answer; the fuzzy answer is passed by code, not sent", async () => {
+    for (const config of CLOUD_CONFIGS) {
+      full = true; stub();
+      const out = await gradeAnswersBatch(ANSWERS, config);
+      expect(cloudPayloads().join(" ")).not.toContain("Example Lane");
+      expect(calls).toHaveLength(0);
+      expect(out.get(1)).toMatchObject({ isCorrect: true, by: "exact" });
+      expect(out.get(0)).toMatchObject({ isCorrect: true, by: "fallback" });
+    }
+  });
+
+  it("grading: a local model still marks the answer (positive control)", async () => {
+    full = true; stub();
+    const out = await gradeAnswersBatch(ANSWERS, { ...LOCAL });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ provider: "ollama", tool: "emit_grades" });
+    expect(calls[0].content).toContain("Example Lane");
+    expect(out.get(0)).toMatchObject({ isCorrect: false, by: "model" });
+  });
+
+  it("study plan: no cloud-bound payload holds a missed question; the plan code writes is shown", async () => {
+    for (const config of CLOUD_CONFIGS) {
+      full = true; stub();
+      const plan = await generateStudyPlan("Fractions", 1, MISSED_PLAN, config);
+      expect(calls).toHaveLength(0);
+      assertLearnerFree(cloudPayloads());
+      expect(plan).toContain(`• Review "${MISSED_PLAN[0].question_text}"`);
+    }
+  });
+
+  it("study plan: a local model still writes it (positive control)", async () => {
+    full = true; stub();
+    const plan = await generateStudyPlan("Fractions", 1, MISSED_PLAN, { ...LOCAL });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ provider: "ollama", tool: "emit_study_plan" });
+    expect(calls[0].content).toContain("3/8");
+    expect(plan).toContain("• Practice with fraction strips.");
   });
 });

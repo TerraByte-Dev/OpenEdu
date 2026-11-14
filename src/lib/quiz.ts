@@ -753,6 +753,9 @@ export async function generatePromotionTestQuestions(
 // matches are settled deterministically with zero model calls; only the genuinely fuzzy answers go to
 // a single batched structured call. Returns answer-index → {isCorrect, feedback}. Best-effort: a
 // grader failure marks the unresolved answers correct (lenient) rather than punishing the student.
+// The answers are the learner's own words, which lane 1 of TerraTutor's docs/CLOUD-PRIVACY.md keeps on
+// the computer: `config` is the local grader (store.ts getLocalVerifyConfig). Given a cloud model or
+// null, nothing is sent and the answers code cannot settle are passed the same lenient way ("fallback").
 export interface AnswerToGrade {
   index: number;     // stable id back to the caller's question list
   question: string;
@@ -784,7 +787,7 @@ const BATCH_GRADE_SCHEMA = {
 
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
-  config: LLMConfig,
+  config: LLMConfig | null,
 ): Promise<Map<number, GradeOutcome>> {
   const out = new Map<number, GradeOutcome>();
   const needsLLM: AnswerToGrade[] = [];
@@ -799,7 +802,10 @@ export async function gradeAnswersBatch(
     }
   }
 
-  if (needsLLM.length > 0) {
+  if (needsLLM.length > 0 && !(config && isLocalModel(config))) {
+    log.info("quiz", `no local model to grade ${needsLLM.length} written answer(s); passing them leniently rather than sending them off this computer`);
+    for (const it of needsLLM) out.set(it.index, { isCorrect: true, feedback: "", by: "fallback" });
+  } else if (needsLLM.length > 0 && config) {
     const tier = config.modelTier ?? await detectModelTier(config);
     config.modelTier = tier;
     try {
@@ -865,13 +871,19 @@ function fallbackStudyPlan(missedQuestions: ReadonlyArray<{ question_text: strin
     `Review "${q.question_text.trim()}" The answer is ${q.correct_answer.trim()}. ${q.explanation.trim()}`));
 }
 
-// Generate a study plan from missed questions after a failed promotion test
+// Generate a study plan from missed questions after a failed promotion test. Which questions the learner
+// missed is data about them, kept on the computer (lane 1): `config` is a local model (store.ts
+// getLocalVerifyConfig). Given a cloud model or null, no model is asked and the plan code writes is used.
 export async function generateStudyPlan(
   topic: string,
   level: number,
   missedQuestions: Array<{ question_text: string; correct_answer: string; explanation: string }>,
-  config: LLMConfig,
+  config: LLMConfig | null,
 ): Promise<string> {
+  if (!config || !isLocalModel(config)) {
+    log.info("quiz", "no local model for the study plan; showing the missed questions instead");
+    return fallbackStudyPlan(missedQuestions);
+  }
   const prompt = `A student studying "${topic}" just failed their Level ${level} promotion test.
 
 Missed questions:
