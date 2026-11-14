@@ -6,6 +6,7 @@ import {
   gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, resolveLetterKey,
+  hasSelfCorrection, duplicateOptionPair, rewriteLetterRefs, isNearDuplicate,
   type GradeOutcome,
 } from "./quiz-grading";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
@@ -133,6 +134,11 @@ export function validateQuizBatch(
       if (opts.length > 0 && !set.has(stripPrefix(String(q.correct_answer ?? "")))) {
         issues.push(`${at}: multiple_choice correct_answer ("${q.correct_answer}") must exactly match one of the options.`);
       }
+      // Grading compares the exact option string, so a child who picks the twin of the key is marked wrong.
+      const twins = duplicateOptionPair(opts);
+      if (twins) {
+        issues.push(`${at}: options ${twins.map((i) => `"${opts[i]}"`).join(" and ")} are the same answer. Give 4 different options with exactly one correct.`);
+      }
     } else if (type === "fill_in_blank") {
       if (!String(q.blank_position ?? "").includes("___")) {
         issues.push(`${at}: fill_in_blank blank_position must be the full sentence containing "___".`);
@@ -160,6 +166,12 @@ export function validateQuizBatch(
     // (catches the C³⁻ "stores 6 but reasons to 9" bug). Applies on every tier — it's free.
     const consistency = checkAnswerConsistency(q);
     if (consistency) issues.push(`${at}: ${consistency}`);
+
+    // An explanation that corrects itself mid-way ("Wait, let's re-evaluate") is not one to show a child,
+    // and its key is often the value it argued against.
+    if (hasSelfCorrection(String(q.explanation ?? ""))) {
+      issues.push(`${at}: the explanation corrects itself ("Wait", "let's re-evaluate", "Actually,"...). Solve the problem first, then write a clean explanation that reaches correct_answer without revising itself.`);
+    }
 
     // On the floor model, a multi-step numeric question with no shown working is where correct_answer
     // drifts. Force it to either go conceptual or show its work (which the consistency check then
@@ -201,7 +213,21 @@ function shuffleMultipleChoiceOptions(
   const correctIdx = texts.findIndex((t) => t === correctText);
   const newCorrect = correctIdx !== -1 ? relabeled[correctIdx] : q.correct_answer;
 
-  return { ...q, options: relabeled, correct_answer: newCorrect };
+  // The explanation was written against the model's labels ("Therefore the answer is C", "Option A is
+  // 2:45"). Rename each letter to where that option now sits, so it names what the learner sees. Label
+  // by the model's own "X) " labels when every option has one, else by position. When an option is
+  // itself a letter ("Which letter comes after A?"), "the answer is B" may mean the letter: left as is.
+  const before = q.options.map((o) => /^([A-D])\)/.exec(o)?.[1]);
+  const byLabel = before.every(Boolean);
+  const letterOptions = texts.some((t) => /^[a-z]$/i.test(t));
+  const explanation = letterOptions ? q.explanation : rewriteLetterRefs(q.explanation, (letter) => {
+    const at = byLabel ? before.indexOf(letter) : labels.indexOf(letter);
+    if (at < 0 || at >= q.options!.length) return null;
+    const moved = texts.indexOf(stripPrefix(q.options![at]));
+    return moved < 0 ? null : labels[moved];
+  });
+
+  return { ...q, options: relabeled, correct_answer: newCorrect, explanation };
 }
 
 // Build a typed parsed question object (extracted for type inference)
@@ -430,7 +456,7 @@ async function generatePerQuestion(
   const add = (q: GenQuestion | null): void => {
     if (!q) return;
     const k = keyOf(q);
-    if (!k || seen.has(k)) return;
+    if (!k || seen.has(k) || produced.some((p) => isNearDuplicate(p, q))) return;
     seen.add(k); produced.push(q); onProgress?.(produced.length, target);
   };
 
