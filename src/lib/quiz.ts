@@ -743,7 +743,8 @@ export async function gradeAnswersBatch(
 // The study plan is 3-5 items the model returns as a JSON list, and code writes the bullets. Asked for
 // "3-5 bullet points" in "plain text", gemma4:e2b wrote paragraphs in 17 of 20 plans (B9 readiness run,
 // 2026-11-13). minItems is halved for small tiers like every structured schema, so a tiny model may
-// return fewer than 3; each item is still its own bullet.
+// return fewer than 3; each item is still its own bullet. The count and length caps are applied by
+// renderStudyPlan, not the schema, so a long or sixth item is trimmed instead of failing the call.
 const STUDY_PLAN_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -752,20 +753,38 @@ const STUDY_PLAN_SCHEMA = {
     items: {
       type: "array",
       minItems: 3,
-      maxItems: 5,
-      items: { type: "string", minLength: 10, maxLength: 400 },
+      items: { type: "string", minLength: 10 },
     },
   },
 };
+const STUDY_PLAN_MAX_ITEMS = 5;
+const STUDY_PLAN_MAX_ITEM_CHARS = 300;
 
-/** The plan as the results screen shows it: one "• " line per item, any list marker the model wrote removed. */
+/** One item, cut at a word boundary when it runs over STUDY_PLAN_MAX_ITEM_CHARS. */
+function capItem(text: string): string {
+  if (text.length <= STUDY_PLAN_MAX_ITEM_CHARS) return text;
+  const cut = text.slice(0, STUDY_PLAN_MAX_ITEM_CHARS);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 0 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, "")}…`;
+}
+
+/**
+ * The plan as the results screen shows it: one "• " line per item, at most STUDY_PLAN_MAX_ITEMS,
+ * with any list marker or markdown bold the model wrote removed.
+ */
 function renderStudyPlan(items: readonly string[]): string {
   return items
-    .map((it) => it.replace(/\s+/g, " ").trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").trim())
+    .map((it) => it.replace(/\*\*/g, "").replace(/\s+/g, " ").trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").trim())
     .filter(Boolean)
-    .slice(0, 5)
-    .map((it) => `• ${it}`)
+    .slice(0, STUDY_PLAN_MAX_ITEMS)
+    .map((it) => `• ${capItem(it)}`)
     .join("\n");
+}
+
+/** The plan code can write without a model: each missed question with its answer and why. */
+function fallbackStudyPlan(missedQuestions: ReadonlyArray<{ question_text: string; correct_answer: string; explanation: string }>): string {
+  return renderStudyPlan(missedQuestions.map((q) =>
+    `Review "${q.question_text.trim()}" The answer is ${q.correct_answer.trim()}. ${q.explanation.trim()}`));
 }
 
 // Generate a study plan from missed questions after a failed promotion test
@@ -784,12 +803,20 @@ Write a focused, actionable study plan of 3 to 5 items that tells them exactly w
 
 ${MATH_FORMATTING_RULES_PROSE}`;
 
-  const tier = config.modelTier ?? await detectModelTier(config);
-  config.modelTier = tier;
-  const { items } = await callLLMStructured<{ items: string[] }>(
-    [{ role: "user", content: prompt }],
-    config,
-    { schema: STUDY_PLAN_SCHEMA, toolName: "emit_study_plan", tier },
-  );
-  return renderStudyPlan(items);
+  // One repair at most: the plan is shown on the results screen, and each attempt can take the tier's
+  // full timeout. When the model still fails, the learner gets the plan code can write.
+  try {
+    const tier = config.modelTier ?? await detectModelTier(config);
+    config.modelTier = tier;
+    const { items } = await callLLMStructured<{ items: string[] }>(
+      [{ role: "user", content: prompt }],
+      config,
+      { schema: STUDY_PLAN_SCHEMA, toolName: "emit_study_plan", tier, maxRepairAttempts: 1 },
+    );
+    const plan = renderStudyPlan(items);
+    if (plan) return plan;
+  } catch (e) {
+    log.warn("quiz", "study plan call failed — showing the missed questions instead", e instanceof Error ? e.message : String(e));
+  }
+  return fallbackStudyPlan(missedQuestions);
 }

@@ -32,9 +32,38 @@ describe("generateStudyPlan", () => {
     const prompt = messages[0].content;
     expect(prompt).not.toMatch(/bullet|use plain text/i);
     expect(prompt).toContain("Which is larger, 1/3 or 1/4?");
-    const items = (opts.schema as { properties: { items: { minItems: number; maxItems: number; items: { type: string } } } }).properties.items;
-    expect(items).toMatchObject({ minItems: 3, maxItems: 5, items: { type: "string" } });
+    // No maxItems / maxLength: a sixth or long item is trimmed by code instead of failing the call.
+    const items = (opts.schema as { properties: { items: Record<string, unknown> & { items: Record<string, unknown> } } }).properties.items;
+    expect(items).toMatchObject({ minItems: 3, items: { type: "string" } });
+    expect(items).not.toHaveProperty("maxItems");
+    expect(items.items).not.toHaveProperty("maxLength");
     expect(opts.tier).toBe("tiny");
+    expect(opts.maxRepairAttempts).toBe(1);
+  });
+
+  it("falls back to the missed questions with their answers when the call fails", async () => {
+    vi.mocked(callLLMStructured).mockRejectedValue(new Error("LLM call timed out after 180s (tier=tiny)."));
+    const plan = await generateStudyPlan("Fractions", 1, missed, config);
+    expect(plan.split("\n")).toEqual([
+      "• Review \"Which is larger, 1/3 or 1/4?\" The answer is 1/3. Thirds are bigger pieces than fourths.",
+      "• Review \"What is 1/2 + 1/4?\" The answer is 3/4. 1/2 = 2/4, and 2/4 + 1/4 = 3/4.",
+    ]);
+  });
+
+  it("strips markdown bold and cuts a long item at a word", async () => {
+    const long = `Practice ${"counting aloud for measures of 4/4 and 3/4 ".repeat(10)}`.trim();
+    vi.mocked(callLLMStructured).mockResolvedValue({ items: [
+      "**Treble Clef Staff Practice:** Draw the treble clef and physically label the spaces from bottom to top (F A C E).",
+      long,
+      "Review the definitions.",
+    ] });
+    const lines = (await generateStudyPlan("Music", 1, missed, config)).split("\n");
+    expect(lines[0]).toBe("• Treble Clef Staff Practice: Draw the treble clef and physically label the spaces from bottom to top (F A C E).");
+    expect(lines[1].endsWith("…")).toBe(true);
+    const kept = lines[1].slice(2, -1);
+    expect(kept.length).toBeLessThanOrEqual(300);
+    expect(long.startsWith(kept)).toBe(true);
+    expect(long[kept.length]).toBe(" ");
   });
 
   it("renders each item as one bullet line (s02)", async () => {
