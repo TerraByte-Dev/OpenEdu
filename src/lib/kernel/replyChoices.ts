@@ -11,14 +11,18 @@
 // that means nothing, so anything in doubt gets no buttons. A list only counts when:
 //   - it ends the reply, or (numbered lists only) is followed only by the question that asks for the pick;
 //   - it has 2 to 5 items (ask_user.question's own bounds), numbered 1, 2, 3... or lettered A, B, C...
-//     (or a, b, c...) in order, one marker style throughout;
+//     (or a, b, c...) in order, or bulleted (-, *, + or a bullet sign), one marker style throughout;
 //   - every item is short (at most MAX_LABEL_CHARS and MAX_LABEL_WORDS) and is not a sentence (it does
 //     not end in . ? : ; or =, and holds no second sentence), and is not maths or a blank to fill in
 //     (no $, \ or __);
 //   - the question next to it asks for one pick: it says which, choose or pick (PICK_CUE), and none of
 //     NOT_A_PICK (order, two of, all, each, why, explain, notice, another...), which ask for something
 //     else about the items. "Do you want to..." and "Would you like to..." alone are offers to go on,
-//     not picks. A lettered list needs that question before it.
+//     not picks. A lettered list needs that question before it. A bulleted list is also the shape a
+//     tutor uses for facts it then asks about ("- The numerator is the top number ... Which number
+//     tells how many parts?"), so its question must also ask what the student wants (PREFERENCE: would
+//     you like, do you want, would you rather, should we...). Click test 2026-11-14: "* Cutting a
+//     pizza ... Which one would you like to try first?" got no buttons.
 // The reply text is never changed. The buttons are extra.
 
 import type { AskChoice } from "../tools/EduTool";
@@ -35,10 +39,14 @@ const MAX_CHOICES = 5;
 const MAX_LABEL_CHARS = 80;
 const MAX_LABEL_WORDS = 12;
 
-// "1. x", "1) x", "A. x", "A) x", "(A) x", "(1) x". Optionally bold: "**1.** x", "**A)** x".
-const ITEM = /^[ \t]*(?:\*\*)?(?:\(([0-9]|[A-Ea-e])\)|([0-9]|[A-Ea-e])[.)])(?:\*\*)?[ \t]+(\S.*)$/;
+// "1. x", "1) x", "A. x", "A) x", "(A) x", "(1) x". Optionally bold: "**1.** x", "**A)** x". Or a bullet:
+// "- x", "* x", "+ x", "• x".
+const ITEM = /^[ \t]*(?:([-*+•])|(?:\*\*)?(?:\(([0-9]|[A-Ea-e])\)|([0-9]|[A-Ea-e])[.)])(?:\*\*)?)[ \t]+(\S.*)$/;
+const BULLETS = new Set(["-", "*", "+", "•"]);
 const PICK_CUE = /\b(?:which|choose|pick)\b/i;
 const NOT_A_PICK = /\b(?:order|two of|three of|both|all|each|why|explain|notice|another)\b/i;
+// What a bulleted list's question must also say: it asks what the student wants, not about the items.
+const PREFERENCE = /\b(?:(?:would|do) you (?:like|want|prefer|rather)|you['’]d (?:like|prefer|rather)|should we|shall we|sounds?|interests? you|choose|pick)\b/i;
 
 interface Item { marker: string; label: string; raw: string }
 
@@ -53,12 +61,13 @@ function isQuestion(line: string): boolean {
 function itemOf(line: string): Item | null {
   const m = ITEM.exec(line);
   if (!m) return null;
-  return { marker: m[1] ?? m[2], label: plain(m[3]), raw: m[3] };
+  return { marker: m[1] ?? m[2] ?? m[3], label: plain(m[4]), raw: m[4] };
 }
 
-// Markers must be 1, 2, 3... or A, B, C... or a, b, c..., starting at the first.
+// Markers must be 1, 2, 3... or A, B, C... or a, b, c..., starting at the first; or one bullet throughout.
 function inOrder(markers: string[]): boolean {
   const first = markers[0];
+  if (BULLETS.has(first)) return markers.every((m) => m === first);
   const start = /[0-9]/.test(first) ? "1" : /[A-E]/.test(first) ? "A" : "a";
   return markers.every((m, i) => m === String.fromCharCode(start.charCodeAt(0) + i));
 }
@@ -73,7 +82,7 @@ function isChoiceLabel({ label, raw }: Item): boolean {
 }
 
 /**
- * The choices a reply offers as a trailing numbered or lettered list, or null when it offers none by
+ * The choices a reply offers as a trailing numbered, lettered or bulleted list, or null when it offers none by
  * the rules above. Pure; the kernel calls it on every completed turn without an ask_user.question call.
  */
 export function choicesInReply(text: string): ReplyChoices | null {
@@ -104,12 +113,14 @@ export function choicesInReply(text: string): ReplyChoices | null {
   if (!items.every(isChoiceLabel)) return null;
   if (new Set(items.map((it) => it.label.toLowerCase())).size !== items.length) return null;
 
-  const lettered = !/[0-9]/.test(items[0].marker);
+  const bulleted = BULLETS.has(items[0].marker);
+  const lettered = !bulleted && !/[0-9]/.test(items[0].marker);
   if (lettered && after) return null;
   const before = i >= 0 ? lines[i] : null;
   const question = after ?? (before && isQuestion(before) ? before : null);
   if (!question) return null;
   if (!PICK_CUE.test(question) || NOT_A_PICK.test(question)) return null;
+  if (bulleted && !PREFERENCE.test(question)) return null;
 
   return {
     question: plain(question),

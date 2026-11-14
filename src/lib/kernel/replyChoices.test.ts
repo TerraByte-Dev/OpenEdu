@@ -47,7 +47,53 @@ describe("choicesInReply finds choices offered as a trailing list", () => {
   });
 });
 
+describe("choicesInReply reads a bulleted list offered as a pick", () => {
+  // Click test 2026-11-14: the tutor listed ways to go on as bullets and asked which one; no buttons.
+  it("reads bullets followed by a question that asks which one the student wants", () => {
+    const reply = [
+      "Fractions are everywhere! We can explore them in a few ways:",
+      "",
+      "* Cutting a pizza into equal slices",
+      "* Sharing a chocolate bar",
+      "* Folding a piece of paper",
+      "",
+      "Which one would you like to try first?",
+    ].join("\n");
+    expect(choicesInReply(reply)).toEqual({
+      question: "Which one would you like to try first?",
+      choices: [
+        { label: "Cutting a pizza into equal slices", value: "Cutting a pizza into equal slices" },
+        { label: "Sharing a chocolate bar", value: "Sharing a chocolate bar" },
+        { label: "Folding a piece of paper", value: "Folding a piece of paper" },
+      ],
+    });
+  });
+
+  it("reads -, + and • bullets, bold labels, and the question before the list", () => {
+    expect(labels("Here are two ideas.\n\n- **Arrays**\n- **Fact families**\n\nWhich do you want to practice?")).toEqual(["Arrays", "Fact families"]);
+    expect(labels("Which topic should we do next?\n+ Arrays\n+ Fact families")).toEqual(["Arrays", "Fact families"]);
+    expect(labels("• Arrays\n• Fact families\n\nWhich would you rather do?")).toEqual(["Arrays", "Fact families"]);
+  });
+});
+
 describe("choicesInReply leaves other lists alone (fails closed)", () => {
+  it("gives no buttons for an ordinary bullet list, even one followed by a which-question", () => {
+    for (const reply of [
+      // Facts, then a question about them: the bullets are not the answers to pick from.
+      "Here is what to remember:\n- The numerator is the top number\n- The denominator is the bottom number\n\nWhich number tells how many equal parts there are?",
+      "Some animals that live in the sea:\n* Whales\n* Sharks\n* Octopuses\n\nWhich of these is a mammal?",
+      // No question, or not a pick.
+      "Key ideas:\n- Arrays\n- Fact families",
+      "We covered:\n- Arrays\n- Fact families\n\nDo you want to keep going?",
+      "Which would you like?\n- Arrays\n- Fact families\n\nBoth help with division later.",
+      // Mixed bullets, or bullets mixed with numbers.
+      "Which would you like to try?\n- Arrays\n* Fact families",
+      "Which would you like to try?\n1. Arrays\n- Fact families",
+    ]) {
+      expect(choicesInReply(reply), reply).toBeNull();
+    }
+  });
+
   it("gives no buttons for the lists that are not choices", () => {
     for (const reply of [
       "Do you want to know how to find the area?\n1. Measure the length\n2. Measure the width\n3. Multiply them",
