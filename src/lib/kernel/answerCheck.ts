@@ -55,16 +55,37 @@ const REQUEST = /^(?:give me|walk me|show me|help|explain|tell me|continue|more 
 /** True when `text`, the student's newest message, reads as an answer rather than a request. */
 export function readsAsAnswer(text: string): boolean {
   const t = text.trim();
-  if (!t || t.length > 600) return false;
+  if (!t || t.length > 600 || asksForMasteryCheck(t)) return false;
   return !REQUEST.test(t) || isAttemptText(t);
+}
+
+// A typed request to be checked on what the student knows: "quiz me", "test me on fractions", "can you
+// check if I've mastered fractions?", "am I ready for the test?". Narrow on purpose. It must open the
+// message or a clause of it, as a request ("Okay, can you quiz me?"), so "My teacher will quiz me
+// tomorrow" and "Don't quiz me yet" are not one; nor are "check my spelling", "can you check this
+// sentence" and "check if I got this right" (one answer, not what they know).
+const ASK_LEAD = String.raw`(?:^|[.!?,;:]\s+)[^\p{L}\p{N}]*(?:(?:ok(?:ay)?|now|alright|right|great|cool|so|and|then|hey|hi|yes|yeah|please|pls)\b[\s,!.]*)*(?:(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:now\s+)?|please\s+|i\s+(?:want|would like|['’]d like)\s+(?:you\s+)?to\s+|let['’]?s\s+)?`;
+const MASTERY_CHECK_REQUEST = new RegExp(`${ASK_LEAD}(?:${[
+  String.raw`(?:quiz|test)\s+me\b`,
+  String.raw`give\s+me\s+a\s+(?:quick\s+|short\s+|little\s+)?(?:quiz|test)\b`,
+  String.raw`(?:check|see|test|find out)\s+(?:if|whether)\s+i(?:\s+have|['’]ve)?\s+(?:really\s+|actually\s+|fully\s+|now\s+)?(?:mastered|master|learned|learnt|understand|understood|know|(?:got|get)\s+(?:this|it|that|them)\b(?!\s+(?:right|wrong|correct)))`,
+  String.raw`check\s+my\s+understanding\b`,
+  String.raw`am\s+i\s+ready\s+(?:for|to\s+take)\s+(?:the|a|my|this)\s+(?:test|quiz|exam|next level|mastery)`,
+].join("|")})`, "iu");
+
+/** True when the student's message asks for a mastery check in their own words (or is the assess chip's). */
+export function asksForMasteryCheck(text: string): boolean {
+  const t = text.trim();
+  return t === ASSESS_MESSAGE || (t.length <= 300 && MASTERY_CHECK_REQUEST.test(t));
 }
 
 /**
  * True when this turn gets the answer check: the newest message is the student's answer to the tutor's
  * message just before it, and the conversation is a mastery check: the turn runs in assess mode, or
- * the student opened the check with the assess chip within their last ASSESS_LOOKBACK messages. (The
- * chat resets the mode after every send, so the answers to the check's questions arrive in the default
- * mode.) `conversation` is the user and assistant messages, ending with the newest.
+ * the student opened the check (the assess chip, or the same request typed) within their last
+ * ASSESS_LOOKBACK messages. (The chat resets the mode after every send, so the answers to the check's
+ * questions arrive in the default mode.) `conversation` is the user and assistant messages, ending
+ * with the newest.
  */
 export function isAssessAnswerTurn(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill?: string | null): boolean {
   const n = conversation.length;
@@ -74,17 +95,17 @@ export function isAssessAnswerTurn(conversation: ReadonlyArray<{ role: string; c
   if (!readsAsAnswer(newest.content)) return false;
   if (activeSkill === "assess") return true;
   return conversation.slice(0, n - 1).filter((m) => m.role === "user").slice(-ASSESS_LOOKBACK)
-    .some((m) => m.content.trim() === ASSESS_MESSAGE);
+    .some((m) => asksForMasteryCheck(m.content));
 }
 
 /**
- * True on any turn of a mastery check, the chip's own turn included: the turn runs in assess mode, or the
- * assess chip is among the student's last ASSESS_LOOKBACK + 1 messages. The reply filter reads mastery
- * claims on these turns (replyClaims.ts).
+ * True on any turn of a mastery check, the opening request's own turn included: the turn runs in assess
+ * mode, or a request for a check is among the student's last ASSESS_LOOKBACK + 1 messages. The reply
+ * filter reads mastery claims on these turns (replyClaims.ts).
  */
 export function inMasteryCheck(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill?: string | null): boolean {
   if (activeSkill === "assess") return true;
-  return conversation.filter((m) => m.role === "user").slice(-(ASSESS_LOOKBACK + 1)).some((m) => m.content.trim() === ASSESS_MESSAGE);
+  return conversation.filter((m) => m.role === "user").slice(-(ASSESS_LOOKBACK + 1)).some((m) => asksForMasteryCheck(m.content));
 }
 
 // ── Step 1: the key, blind ──────────────────────────────────────────────────────────────────────

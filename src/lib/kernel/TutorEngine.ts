@@ -45,6 +45,9 @@ const MARK_MASTERED_TOOL = "progress.mark_mastered";
 /** What the model is told when it tries to mark mastered on an answer code did not find correct. */
 export const MASTERY_REFUSED =
   "Not saved: the app checked the student's answer and did not find it correct, so this subtopic can't be marked mastered now.";
+/** What the model is told when the claim filter left nothing of an ask_user.question card to show. */
+export const CARD_REFUSED =
+  "Not shown: this question said something about the student's answer or mastery that the app's check does not show. Ask again without saying whether the answer is right, or that anything is mastered.";
 const marksMastered = (args: unknown) => !!args && typeof args === "object" && (args as { status?: unknown }).status === "mastered";
 // The id of the flashcard.create call the app makes itself (flashcard stage). It never reaches a
 // provider: the model sees a note, not a tool call, so no tool_use id rules apply.
@@ -329,7 +332,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -354,6 +357,8 @@ ${lastUser.content}` };
       dictionaryNote: string | null;
       dictionaryShown: DictionaryShown | null;
       answerCheck: AnswerCheck | null;
+      /** The student's newest message as they typed it. */
+      answered: string;
       masteryCheck: boolean;
     },
   ): Promise<TutorTurnResult> {
@@ -395,6 +400,7 @@ ${lastUser.content}` };
       verdict: answerCheck?.verdict ?? null,
       masteryWritten: () => masteryWritten,
       checkMastery: masteryCheck || !!answerCheck,
+      answer: answerCheck ? { student: answerCheck.studentAnswer || prepared.answered, key: answerCheck.key } : undefined,
     });
 
     for (let iteration = 0; ; iteration++) {
@@ -446,6 +452,18 @@ ${lastUser.content}` };
       if (interrupted && interrupted !== "length") break;
       if (pendingCalls.length === 0) { endedNaturally = true; break; }
 
+      // An ask_user.question card is the tutor speaking too: on a turn of a mastery check its question and
+      // choice labels go through the claim filter before the student sees them (and before the model's
+      // own record of the call, so it does not read back what was taken out). A card left with no
+      // question or fewer than two choices is not shown; the model is told.
+      const refusedCards = new Set<string>();
+      for (const call of pendingCalls) {
+        if (call.name !== ASK_USER_TOOL) continue;
+        const shown = claims.card(call.args);
+        if (shown === null) refusedCards.add(call.id);
+        else call.args = shown;
+      }
+
       // Record the assistant's tool-call turn, then dispatch each call and reinject its result.
       messages.push({
         role: "assistant",
@@ -459,6 +477,7 @@ ${lastUser.content}` };
         const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && !!answerCheck && answerCheck.verdict !== "correct";
         let result: ToolDispatchResult;
         if (refused) result = { name: call.name, ok: false, error: MASTERY_REFUSED };
+        else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
         else result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
         toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}) });
