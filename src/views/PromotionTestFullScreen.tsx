@@ -5,6 +5,7 @@ import {
   updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade, setPromotionResult,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
+import { answerMark, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getGenerationConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
@@ -48,7 +49,17 @@ interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   // DB row id (for the deferred grade write) + grader feedback, both filled at finish (issue #83).
   saved_id?: string;
   feedback?: string;
+  // How the end-of-test grading marked it, so the results can show an unchecked answer as unchecked.
+  graded_by?: GradedBy;
 }
+
+// How each answer looks on the results screen. An unchecked one (graded_by 'fallback') counts as right
+// but must not look like an answer something checked (quiz-grading.ts answerMark).
+const MARK_STYLE: Record<AnswerMark, { row: string; text: string; sign: string }> = {
+  right: { row: "border-success/30 bg-success-tint", text: "text-success", sign: "✓" },
+  wrong: { row: "border-danger/30 bg-danger-tint", text: "text-danger", sign: "✗" },
+  unchecked: { row: "border-warning/30 bg-warning-tint", text: "text-warning", sign: "?" },
+};
 
 interface Props {
   context: QuizViewContext;
@@ -225,7 +236,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       );
       gradedQuestions = finalQuestions.map((q, i) => {
         const o = outcomes.get(i);
-        return o ? { ...q, is_correct: o.isCorrect, feedback: o.feedback } : q;
+        return o ? { ...q, is_correct: o.isCorrect, feedback: o.feedback, graded_by: o.by } : q;
       });
       await Promise.all(pending.map(({ index }) => {
         const q = gradedQuestions[index];
@@ -594,6 +605,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   }
 
   // ── Results ──
+  const uncheckedLine = uncheckedSummary(questions.filter((q) => answerMark(q) === "unchecked").length);
   return (
     <div className="fixed inset-0 z-50 bg-bg flex flex-col">
       <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
@@ -615,6 +627,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
               {Math.round(overallScore)}%
             </div>
             <div className="text-[var(--ink-faint)] text-sm">Overall Score</div>
+            {uncheckedLine && (
+              <p className="text-warning text-sm mt-2">{uncheckedLine}</p>
+            )}
             {reviewScore !== null && (
               <div className={`mt-2 text-sm ${reviewScore >= 60 ? "text-success" : "text-danger"}`}>
                 Review section: {Math.round(reviewScore)}% {reviewScore >= 60 ? "✓" : "✗ (need 60%)"}
@@ -652,21 +667,26 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
           {/* Question breakdown */}
           <div className="space-y-3">
-            {questions.map((q, i) => (
-              <div key={i} className={`p-3 rounded-xl border text-sm ${q.is_correct ? "border-success/30 bg-success-tint" : "border-danger/30 bg-danger-tint"}`}>
+            {questions.map((q, i) => {
+              const mark = answerMark(q);
+              const style = MARK_STYLE[mark];
+              return (
+              <div key={i} className={`p-3 rounded-xl border text-sm ${style.row}`}>
                 <div className="flex items-start gap-2">
-                  <span className={`font-bold shrink-0 ${q.is_correct ? "text-success" : "text-danger"}`}>{q.is_correct ? "✓" : "✗"}</span>
+                  <span className={`font-bold shrink-0 ${style.text}`}>{style.sign}</span>
                   <div className="min-w-0">
                     <p className="text-ink">{q.question_text}</p>
-                    {!q.is_correct && q.user_answer && (
-                      <p className="text-xs text-danger mt-0.5">Your: {q.user_answer} · Correct: {q.correct_answer}</p>
+                    {mark === "unchecked" && <p className="text-xs text-warning mt-0.5">{UNCHECKED_NOTE}</p>}
+                    {mark !== "right" && q.user_answer && (
+                      <p className={`text-xs mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
                     {q.feedback && <p className="text-xs text-[var(--ink-faint)] italic mt-1">{q.feedback}</p>}
                     {q.explanation && <p className="text-xs text-[var(--ink-faint)] mt-1">{q.explanation}</p>}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

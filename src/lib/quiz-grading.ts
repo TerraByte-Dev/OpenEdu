@@ -615,41 +615,83 @@ export type GradedBy = "key" | "exact" | "model" | "fallback" | "unanswered";
 
 export interface GradeOutcome { isCorrect: boolean; feedback: string; by: GradedBy }
 
-// Build one prompt that grades every item in a single structured call (replaces N round-trips).
+// How a results screen shows one answer. A 'fallback' answer counts as right (a grader hiccup never fails
+// a learner) but nothing checked it, so it is shown as not checked rather than with a right answer's tick.
+export type AnswerMark = "right" | "wrong" | "unchecked";
+
+export function answerMark(q: { is_correct: boolean | null; graded_by?: GradedBy | null }): AnswerMark {
+  if (q.graded_by === "fallback") return "unchecked";
+  return q.is_correct ? "right" : "wrong";
+}
+
+export const UNCHECKED_NOTE = "Not checked. No model on this computer could check this written answer, so it counts as right. Compare it with the answer key.";
+
+/** The line under a score when some answers in it were never checked, or null when all were. */
+export function uncheckedSummary(n: number): string | null {
+  if (n <= 0) return null;
+  return n === 1 ? "1 written answer was not checked. It counts as right." : `${n} written answers were not checked. They count as right.`;
+}
+
+// One verdict per answer, named answer_1..answer_N in the order of `items` (the caller's own indices
+// can be anything, so the model never has to copy them). A list of any length let gemma4:e2b close it
+// after the first entry in 3 of 5 batches (B10 round 3: 8 of 20 typed answers marked); with every key
+// required, Ollama's grammar cannot end the reply until each answer has one. `feedback` comes before
+// `correct` so the verdict is written after the model has said what the student wrote. Measured on e2b
+// with round 3's 20 typed codes that answer nothing: the required keys alone, with the old prompt and
+// the verdict first, marked all 20 and passed 16; with this prompt and feedback first, 1 (dev, n=20).
+const gradeKey = (position: number) => `answer_${position + 1}`;
+
+export function batchGradeSchema(items: GradeItem[]): Record<string, unknown> {
+  const keys = items.map((_, k) => gradeKey(k));
+  const verdict = {
+    type: "object",
+    additionalProperties: false,
+    required: ["feedback", "correct"],
+    properties: { feedback: { type: "string", maxLength: 300 }, correct: { type: "boolean" } },
+  };
+  return { type: "object", additionalProperties: false, required: keys, properties: Object.fromEntries(keys.map((k) => [k, verdict])) };
+}
+
+export type BatchGradeReply = Record<string, { feedback?: string; correct?: boolean } | undefined>;
+
+// Build one prompt that grades every item in a single structured call (replaces N round-trips). The
+// grader compares the student's words with the key. "Be generous with partial credit" and "demonstrates
+// understanding of the core concept" are gone: with them, e2b and e4b marked a typed code that answers
+// nothing ("I think it is TAXb05Q0TAX") correct, apparently grading the key's concept instead.
 export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): string {
   const body = items
-    .map((it) =>
-      `[index ${it.index}] (${it.type})\n` +
+    .map((it, k) =>
+      `[${gradeKey(k).replace("_", " ")}] (${it.type})\n` +
       `Question: ${it.question}\n` +
       `Expected answer: ${it.expected}\n` +
       `Student answer: ${it.student}`,
     )
     .join("\n\n");
 
-  return `You are grading ${items.length} student answer${items.length === 1 ? "" : "s"}. For each item, decide whether the student's answer demonstrates understanding of the core concept. Allow different wording as long as the meaning is correct, and be generous with partial credit — if they clearly show understanding, mark it correct.
+  return `You are checking ${items.length} answer${items.length === 1 ? "" : "s"} a student typed. For each one, compare the student's answer with the expected answer.
+- correct: true when the student's answer means the same as the expected answer, even if it is worded differently, shorter, or misspelled. A student may leave out the option letter.
+- correct: false when the student's answer is wrong, says something else, or does not answer the question.
+Judge only what the student wrote. Do not mark an answer correct because the expected answer is right.
 
-Return ONLY a JSON object: {"results":[{"index": <the item's index>, "correct": true/false, "feedback": "<1 short sentence>"}]} — exactly one entry per item, reusing each item's index.
+Return ONLY a JSON object with one key per answer: ${items.map((_, k) => `"${gradeKey(k)}": {"feedback": "<1 short sentence on what the student wrote>", "correct": true/false}`).join(", ")}.
 
 ${body}${mathRules ? `\n\n${mathRules}` : ""}`;
 }
 
-// Reconcile the model's results back onto the items by index. Missing / malformed entries default to
-// correct=true (lenient) — never punish a student for a grader hiccup (mirrors the old inline grader's
-// catch behavior). Returns a map keyed by item.index.
+// Reconcile the model's verdicts back onto the items by position. Missing / malformed entries default to
+// correct=true (lenient) and are marked `fallback` — never punish a student for a grader hiccup.
+// Returns a map keyed by item.index.
 export function parseBatchGradeResults(
-  parsed: { results?: Array<{ index?: number; correct?: boolean; feedback?: string }> } | null | undefined,
+  parsed: BatchGradeReply | null | undefined,
   items: GradeItem[],
 ): Map<number, GradeOutcome> {
   const out = new Map<number, GradeOutcome>();
-  for (const it of items) out.set(it.index, { isCorrect: true, feedback: "", by: "fallback" });
-  const results = parsed?.results;
-  if (Array.isArray(results)) {
-    for (const r of results) {
-      if (typeof r?.index === "number" && out.has(r.index)) {
-        out.set(r.index, { isCorrect: Boolean(r.correct), feedback: String(r.feedback ?? ""), by: "model" });
-      }
-    }
-  }
+  items.forEach((it, k) => {
+    const v = parsed?.[gradeKey(k)];
+    out.set(it.index, v && typeof v.correct === "boolean"
+      ? { isCorrect: v.correct, feedback: String(v.feedback ?? ""), by: "model" }
+      : { isCorrect: true, feedback: "", by: "fallback" });
+  });
   return out;
 }
 

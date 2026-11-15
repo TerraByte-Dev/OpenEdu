@@ -77,9 +77,9 @@ function stub() {
         return { question_text: `Which fraction is larger, item ${n}: 1/2 or 1/3?`, question_type: "multiple_choice",
           options: [`A) 1/2 (item ${n})`, "B) 1/3", "C) They are equal", "D) Neither"], correct_answer: `A) 1/2 (item ${n})`, difficulty_level: 1,
           explanation: `Halves are bigger than thirds. Therefore the answer is A) 1/2 (item ${n})`, subtopic_id: "1.1", blank_position: "", matching_pairs: [] } as never;
-      case "emit_grades": { // one verdict per [index N] the grading prompt lists
-        const indexes = [...content.matchAll(/\[index (\d+)\]/g)].map((m) => Number(m[1]));
-        return { results: indexes.map((index) => ({ index, correct: false, feedback: "Not quite." })) } as never;
+      case "emit_grades": { // one verdict per [answer N] the grading prompt lists
+        const ns = [...content.matchAll(/\[answer (\d+)\]/g)].map((m) => Number(m[1]));
+        return Object.fromEntries(ns.map((n) => [`answer_${n}`, { feedback: "Not quite.", correct: false }])) as never;
       }
       case "emit_study_plan":
         return { items: ["Review how to compare fractions with unlike denominators.", "Practice with fraction strips.", "Retake a short quiz."] } as never;

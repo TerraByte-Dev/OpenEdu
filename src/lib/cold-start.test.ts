@@ -216,7 +216,7 @@ describe("the first chat turn, on a model that takes 200 s to load", () => {
 describe("quiz grading, on a model that takes 200 s to load", () => {
   it("is graded by the model, not waved through by the lenient fallback", async () => {
     // A tiny model's per-call budget is 180 s, which the load used to eat.
-    fakeOllama({ loaded: false, loadMs: 200_000, reply: JSON.stringify({ results: [{ index: 0, correct: false, feedback: "Not quite." }] }) });
+    fakeOllama({ loaded: false, loadMs: 200_000, reply: JSON.stringify({ answer_1: { feedback: "Not quite.", correct: false } }) });
 
     const pending = gradeAnswersBatch(
       [{ index: 0, question: "What do plants need for photosynthesis?", expected: "sunlight, water and carbon dioxide", student: "soil", type: "short_answer" }],
@@ -234,7 +234,7 @@ describe("one model, one size: app open, then chat, then Create course, then qui
   // Each request gets the answer its schema asks for; a chat turn and the pedagogy step get prose.
   const reply = (body: Body) => {
     const props = (body.format as { properties?: Record<string, unknown> } | undefined)?.properties ?? {};
-    if ("results" in props) return JSON.stringify({ results: [{ index: 0, correct: false, feedback: "Not quite." }] });
+    if ("answer_1" in props) return JSON.stringify({ answer_1: { feedback: "Not quite.", correct: false } });
     if ("name" in props) return JSON.stringify({ name: "Ada", age: 36 });
     return "Plants make food from light.";
   };

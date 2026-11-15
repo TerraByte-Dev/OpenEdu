@@ -3,11 +3,11 @@ import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting
 import { splitNewVsReview, storedToGenQuestion, pickReview, interleaveReview } from "./quiz-review";
 import {
   checkAnswerConsistency, shouldRejectNumericReasoning, runsVerifyPass,
-  gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults,
+  gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults, batchGradeSchema,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, resolveLetterKey,
   hasSelfCorrection, duplicateOptionPair, rewriteLetterRefs, isNearDuplicate,
-  type GradeOutcome,
+  type GradeOutcome, type BatchGradeReply,
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
@@ -764,27 +764,6 @@ export interface AnswerToGrade {
   type: string;
 }
 
-const BATCH_GRADE_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["results"],
-  properties: {
-    results: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["index", "correct", "feedback"],
-        properties: {
-          index: { type: "number" },
-          correct: { type: "boolean" },
-          feedback: { type: "string", maxLength: 300 },
-        },
-      },
-    },
-  },
-};
-
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
   config: LLMConfig | null,
@@ -809,10 +788,10 @@ export async function gradeAnswersBatch(
     const tier = config.modelTier ?? await detectModelTier(config);
     config.modelTier = tier;
     try {
-      const parsed = await callLLMStructured<{ results: Array<{ index: number; correct: boolean; feedback: string }> }>(
+      const parsed = await callLLMStructured<BatchGradeReply>(
         [{ role: "user", content: buildBatchGradePrompt(needsLLM, MATH_FORMATTING_RULES) }],
         config,
-        { schema: BATCH_GRADE_SCHEMA, toolName: "emit_grades", tier },
+        { schema: batchGradeSchema(needsLLM), toolName: "emit_grades", tier },
       );
       for (const [idx, outcome] of parseBatchGradeResults(parsed, needsLLM)) out.set(idx, outcome);
     } catch (e) {
