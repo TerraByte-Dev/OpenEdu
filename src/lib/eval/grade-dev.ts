@@ -1,0 +1,140 @@
+// Dev sets for written-answer grading (settleByCode, then gradeAnswersBatch). DEV only: prompts and code
+// may be tuned on these. Labels by Claude, not blind.
+//
+// GRADE_DEV_ROUND2 is the 30-question set the grader was tuned on in OpenEdu #317/#318: one right and
+// one wrong answer per question. GRADE_DEV_SYNONYMS (2026-11-15) is weighted to what the round-2
+// held-out run found the small grader fails: right answers in other words (a synonym, another name,
+// the same amount in other units), against wrong answers that are partial or on the same topic.
+
+export interface GradeDevAnswer { text: string; right: boolean; kind: string }
+export interface GradeDevQuestion { id: string; question: string; key: string; answers: GradeDevAnswer[] }
+
+// Right kinds: synonym, alt-name, units (the same amount in other units), form (the key in another
+// form), number-in-words. Wrong kinds: partial, same-topic, wrong-unit, opposite.
+const R = (text: string, kind: string): GradeDevAnswer => ({ text, right: true, kind });
+const W = (text: string, kind: string): GradeDevAnswer => ({ text, right: false, kind });
+
+export const GRADE_DEV_SYNONYMS: GradeDevQuestion[] = [
+  { id: "s01", question: "What is the young of a butterfly called before it makes a chrysalis?", key: "A caterpillar",
+    answers: [R("a larva", "synonym"), R("a butterfly larva", "synonym"), W("a pupa", "same-topic"), W("the chrysalis", "same-topic")] },
+  { id: "s02", question: "Which branch of the U.S. government interprets the laws?", key: "The judicial branch",
+    answers: [R("the courts", "alt-name"), R("the judiciary", "synonym"), W("the executive branch", "same-topic"), W("the lawmakers", "same-topic")] },
+  { id: "s03", question: "What force slows down two surfaces that rub against each other?", key: "Friction",
+    answers: [R("frictional force", "synonym"), R("the force of friction", "form"), W("inertia", "same-topic"), W("gravity", "same-topic")] },
+  { id: "s04", question: "How long is one hour?", key: "60 minutes",
+    answers: [R("3,600 seconds", "units"), R("sixty mins", "number-in-words"), W("60 seconds", "wrong-unit"), W("100 minutes", "same-topic")] },
+  { id: "s05", question: "About how long is a marathon race?", key: "About 42 kilometers",
+    answers: [R("about 26 miles", "units"), R("42,195 meters", "units"), W("about 42 miles", "wrong-unit"), W("10 kilometers", "same-topic")] },
+  { id: "s06", question: "What is the normal temperature of a healthy human body?", key: "About 37 °C",
+    answers: [R("98.6 degrees Fahrenheit", "units"), R("thirty-seven degrees", "number-in-words"), W("37 degrees Fahrenheit", "wrong-unit"), W("about 40 °C", "same-topic")] },
+  { id: "s07", question: "How much does one liter of water weigh?", key: "About 1 kilogram",
+    answers: [R("1000 grams", "units"), R("about 2.2 pounds", "units"), W("about 1 pound", "wrong-unit"), W("100 grams", "same-topic")] },
+  { id: "s08", question: "At what temperature does water freeze?", key: "0 °C",
+    answers: [R("32 degrees Fahrenheit", "units"), R("zero degrees Celsius", "number-in-words"), W("zero degrees Fahrenheit", "wrong-unit"), W("100 °C", "same-topic")] },
+  { id: "s09", question: "What is the area of a square whose sides are 1 meter long?", key: "1 square meter",
+    answers: [R("10,000 square centimeters", "units"), R("1 m²", "form"), W("100 square centimeters", "wrong-unit"), W("4 meters", "same-topic")] },
+  { id: "s10", question: "What is the lower house of the U.S. Congress called?", key: "The House of Representatives",
+    answers: [R("the House", "alt-name"), R("the U.S. House", "alt-name"), W("the Senate", "same-topic"), W("Congress", "partial")] },
+  { id: "s11", question: "What do we call the bones of the head that protect the brain?", key: "The skull",
+    answers: [R("the cranium", "synonym"), R("the braincase", "synonym"), W("the spine", "same-topic"), W("the jawbone", "partial")] },
+  { id: "s12", question: "What is the hard outer layer of a tooth called?", key: "Enamel",
+    answers: [R("tooth enamel", "form"), W("dentin", "same-topic"), W("the gums", "same-topic")] },
+  { id: "s13", question: "Which gas makes up most of Earth's air?", key: "Nitrogen",
+    answers: [R("N2", "form"), R("nitrogen gas", "form"), W("oxygen", "same-topic"), W("carbon dioxide", "same-topic")] },
+  { id: "s14", question: "Who was the 16th President of the United States?", key: "Abraham Lincoln",
+    answers: [R("Honest Abe", "alt-name"), R("President Lincoln", "alt-name"), W("Abraham", "partial"), W("George Washington", "same-topic")] },
+  { id: "s15", question: "Which gas do plants give off during photosynthesis?", key: "Oxygen",
+    answers: [R("O2", "form"), R("oxygen gas", "form"), W("carbon dioxide", "opposite"), W("nitrogen", "same-topic")] },
+  { id: "s16", question: "What is the name of the galaxy we live in?", key: "The Milky Way",
+    answers: [R("the Milky Way galaxy", "form"), R("our galaxy, the Milky Way", "form"), W("Andromeda", "same-topic"), W("the solar system", "same-topic")] },
+  { id: "s17", question: "What is the opposite of 'increase'?", key: "Decrease",
+    answers: [R("reduce", "synonym"), R("lessen", "synonym"), W("expand", "opposite"), W("raise", "opposite")] },
+  { id: "s18", question: "Give a word that means the same as 'big'.", key: "Large",
+    answers: [R("enormous", "synonym"), R("huge", "synonym"), W("tiny", "opposite"), W("fast", "same-topic")] },
+  { id: "s19", question: "Which planet is called the Red Planet?", key: "Mars",
+    answers: [R("the fourth planet from the sun", "alt-name"), R("planet Mars", "form"), W("Jupiter", "same-topic"), W("Venus", "same-topic")] },
+  { id: "s20", question: "What do we call the imaginary line around the middle of the Earth?", key: "The equator",
+    answers: [R("zero degrees latitude", "alt-name"), R("the line at 0° latitude", "alt-name"), W("the prime meridian", "same-topic"), W("the Tropic of Cancer", "same-topic")] },
+  { id: "s21", question: "What is the chemical name for table salt?", key: "Sodium chloride",
+    answers: [R("NaCl", "form"), W("sodium", "partial"), W("potassium chloride", "same-topic")] },
+  { id: "s22", question: "Which part of a cell holds its genetic material?", key: "The nucleus",
+    answers: [R("the cell nucleus", "form"), W("the cell membrane", "same-topic"), W("the cytoplasm", "same-topic")] },
+  { id: "s23", question: "What is the basic unit of money in the United States?", key: "The dollar",
+    answers: [R("the US dollar", "form"), R("USD", "alt-name"), W("the cent", "same-topic"), W("the euro", "same-topic")] },
+  { id: "s24", question: "How long is one meter?", key: "100 centimeters",
+    answers: [R("1000 millimeters", "units"), R("about 3.3 feet", "units"), W("10 centimeters", "same-topic"), W("1000 centimeters", "wrong-unit")] },
+  { id: "s25", question: "What force keeps the planets moving around the Sun?", key: "Gravity",
+    answers: [R("gravitation", "synonym"), R("gravitational pull", "synonym"), W("magnetism", "same-topic"), W("the sun's heat", "same-topic")] },
+  { id: "s26", question: "Which country gave the Statue of Liberty to the United States?", key: "France",
+    answers: [R("the French", "alt-name"), R("the people of France", "alt-name"), W("England", "same-topic"), W("Spain", "same-topic")] },
+  { id: "s27", question: "What do we call a baby dog?", key: "A puppy",
+    answers: [R("a pup", "synonym"), R("a whelp", "synonym"), W("a kitten", "same-topic"), W("a cub", "same-topic")] },
+  { id: "s28", question: "Which organ is the control center of the nervous system?", key: "The brain",
+    answers: [W("the cerebrum", "partial"), W("the spinal cord", "same-topic")] },
+  { id: "s29", question: "What is the longest river in Africa?", key: "The Nile",
+    answers: [R("the Nile River", "form"), R("River Nile", "form"), W("the Congo", "same-topic"), W("the Amazon", "same-topic")] },
+  { id: "s30", question: "What is the hottest planet in our solar system?", key: "Venus",
+    answers: [R("the second planet from the sun", "alt-name"), R("planet Venus", "form"), W("Mercury", "same-topic"), W("the Sun", "same-topic")] },
+  { id: "s31", question: "What is the longest bone in the human body?", key: "The femur",
+    answers: [R("the thigh bone", "alt-name"), R("thighbone", "alt-name"), W("the tibia", "same-topic"), W("the shin bone", "same-topic")] },
+  { id: "s32", question: "What is the official language of Brazil?", key: "Portuguese",
+    answers: [R("Brazilian Portuguese", "form"), R("the Portuguese language", "form"), W("Spanish", "same-topic"), W("Brazilian", "same-topic")] },
+  { id: "s33", question: "In what unit is electrical resistance measured?", key: "Ohms",
+    answers: [R("Ω", "form"), R("ohm", "form"), W("volts", "same-topic"), W("amps", "same-topic")] },
+  { id: "s34", question: "How big is a straight angle?", key: "180°",
+    answers: [R("180 degrees", "form"), R("pi radians", "units"), W("90 degrees", "same-topic"), W("360 degrees", "same-topic")] },
+  { id: "s35", question: "How long does the Earth take to go once around the Sun?", key: "About 365 days",
+    answers: [R("one year", "units"), R("about 52 weeks", "units"), W("24 hours", "same-topic"), W("about 30 days", "same-topic")] },
+  { id: "s36", question: "How long does the Earth take to spin once on its axis?", key: "About 24 hours",
+    answers: [R("one day", "units"), R("1,440 minutes", "units"), W("365 days", "same-topic"), W("12 hours", "same-topic")] },
+  { id: "s37", question: "What is the outermost layer of the Earth called?", key: "The crust",
+    answers: [R("the Earth's crust", "form"), R("the outer crust", "form"), W("the mantle", "same-topic"), W("the core", "same-topic")] },
+  { id: "s38", question: "What are the three common states of matter?", key: "Solid, liquid and gas",
+    answers: [R("gas, liquid, solid", "form"), R("solids, liquids and gases", "form"), W("solid and liquid", "partial"), W("solid and gas", "partial")] },
+  { id: "s39", question: "What are the three primary colors of paint?", key: "Red, yellow and blue",
+    answers: [R("blue, red and yellow", "form"), W("red and blue", "partial"), W("red, green and blue", "same-topic")] },
+  { id: "s40", question: "In photosynthesis, which gas do plants take in and which do they give off?", key: "They take in carbon dioxide and give off oxygen",
+    answers: [R("CO2 in, O2 out", "form"), R("absorb carbon dioxide, release oxygen", "synonym"), W("carbon dioxide", "partial"), W("they take in oxygen and give off carbon dioxide", "opposite")] },
+];
+
+// [question, key, right answer, wrong answer]
+export const GRADE_DEV_ROUND2: Array<[string, string, string, string]> = [
+  ["What gas do plants take in from the air to make food?", "Carbon dioxide", "they take in CO2", "oxygen"],
+  ["What is the boiling point of water at sea level in Celsius?", "100 degrees Celsius", "a hundred degrees", "50 degrees"],
+  ["Name the largest planet in our solar system.", "Jupiter", "it's jupiter", "Saturn is the biggest"],
+  ["What do we call an animal that eats only plants?", "Herbivore", "a herbivor", "a carnivore"],
+  ["What is 7 times 8?", "56", "fifty-six", "54"],
+  ["What is the main job of the heart?", "To pump blood around the body", "it pushes blood through your body", "it helps you breathe air"],
+  ["Who wrote the play Romeo and Juliet?", "William Shakespeare", "shakespeare wrote it", "Charles Dickens"],
+  ["What is the capital city of France?", "Paris", "paris is the capital", "Lyon"],
+  ["What force pulls objects toward the Earth?", "Gravity", "the force of gravity", "magnetism"],
+  ["What is the opposite of the word 'ancient'?", "Modern", "new or modern", "old"],
+  ["How many sides does a hexagon have?", "6", "six sides", "8"],
+  ["What part of a plant takes in water from the soil?", "The roots", "the root system", "the leaves"],
+  ["What is the freezing point of water in Fahrenheit?", "32 degrees Fahrenheit", "thirty two F", "0 degrees Fahrenheit"],
+  ["What is a noun?", "A word that names a person, place, thing or idea", "a naming word for people places or things", "a word that describes an action"],
+  ["Which organ do humans use to breathe?", "The lungs", "our lungs", "the stomach"],
+  ["What is half of 50?", "25", "twenty five", "20"],
+  ["What do you call the process when water turns into vapor?", "Evaporation", "it evaporates, evaporation", "condensation"],
+  ["Which ocean is the largest?", "The Pacific Ocean", "pacific", "the Atlantic"],
+  ["What is the past tense of 'run'?", "Ran", "he ran", "runned"],
+  ["What is the area of a rectangle 3 cm by 4 cm?", "12 square centimeters", "12 cm squared", "7 square centimeters"],
+  ["What do bees collect from flowers to make honey?", "Nectar", "flower nectar", "pollen only, not nectar"],
+  ["Who was the first President of the United States?", "George Washington", "washington", "Abraham Lincoln"],
+  ["What is the chemical symbol for water?", "H2O", "h two o", "CO2"],
+  ["What shape has three sides?", "A triangle", "triangle shape", "a square"],
+  ["What do we call a baby frog?", "A tadpole", "tadpoles", "a cub"],
+  ["Which continent is Egypt in?", "Africa", "it is in africa", "Asia"],
+  ["What is 100 minus 37?", "63", "sixty three", "73"],
+  ["Why do we have day and night?", "Because the Earth spins on its axis", "the earth rotates so one side faces the sun", "because the sun goes around the earth every day"],
+  ["What is a synonym for 'happy'?", "Joyful", "glad", "angry"],
+  ["What is the smallest unit of life?", "The cell", "a cell", "an atom"],
+];
+
+/** The round-2 set in the same shape as the others. */
+export function round2AsQuestions(): GradeDevQuestion[] {
+  return GRADE_DEV_ROUND2.map(([question, key, right, wrong], k) => ({
+    id: `r${String(k + 1).padStart(2, "0")}`, question, key,
+    answers: [{ text: right, right: true, kind: "round2" }, { text: wrong, right: false, kind: "round2" }],
+  }));
+}

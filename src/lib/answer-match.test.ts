@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, type WrittenAnswer } from "./answer-match";
+import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, type WrittenAnswer } from "./answer-match";
+import { GRADE_DEV_ROUND2, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
 // The dictionary's verdict, for the words these tests use.
@@ -26,6 +27,31 @@ describe("answerWords", () => {
   });
   it("keeps a minus sign and a decimal point", () => {
     expect(answerWords("-5.5 degrees")).toEqual(["-5.5", "degrees"]);
+  });
+  it("reads the degree sign as degrees", () => {
+    expect(answerWords("100 °C")).toEqual(["100", "degrees", "c"]);
+    expect(answerWords("100°C")).toEqual(["100", "degrees", "c"]);
+    expect(answerWords("100℃")).toEqual(["100", "degrees", "c"]);
+    expect(answerWords("90°")).toEqual(["90", "degrees"]);
+  });
+  it("turns ordinals in words or digits into one form", () => {
+    expect(answerWords("the thirteenth")).toEqual(["13th"]);
+    expect(answerWords("13th Amendment")).toEqual(["13th", "amendment"]);
+    expect(answerWords("the first")).toEqual(["1st"]);
+    expect(answerWords("twenty-first century")).toEqual(["21st", "century"]);
+    expect(answerWords("21st century")).toEqual(["21st", "century"]);
+    expect(answerWords("one hundredth")).toEqual(["100th"]);
+    expect(answerWords("two hundred and fifth")).toEqual(["205th"]);
+    expect(answerWords("2nd")).toEqual(["2nd"]);
+  });
+  it("keeps second as a unit after a number", () => {
+    expect(answerWords("one second")).toEqual(["1", "second"]);
+    expect(answerWords("1 second")).toEqual(["1", "second"]);
+    expect(answerWords("the second")).toEqual(["2nd"]);
+  });
+  it("writes an ordinal's suffix by its number", () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinalToken)).toEqual(
+      ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd", "101st", "111th"]);
   });
 });
 
@@ -78,7 +104,48 @@ describe("settleByCode: the measured failures", () => {
   });
 });
 
+describe("settleByCode: the degree sign and ordinals", () => {
+  it("accepts degrees in words for a key written with the sign", () => {
+    expect(settle("What is the boiling point of water at sea level?", "100 °C", "100 degrees C")).toBe(true);
+    expect(settle("What is the boiling point of water at sea level?", "100 °C", "a hundred degrees")).toBe(true);
+    expect(settle("What is the boiling point of water at sea level?", "100 °C", "100 degrees celsius")).toBe(true);
+    expect(settle("How many degrees are in a right angle?", "90°", "ninety degrees")).toBe(true);
+    expect(settle("What is the boiling point of water at sea level?", "100 C", "100 degrees C")).toBe(true);
+    expect(settle("What is the boiling point of water in Fahrenheit?", "212°F", "212 degrees fahrenheit")).toBe(true);
+  });
+  it("accepts an ordinal in words for the key's digits, and the other way round", () => {
+    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the thirteenth amendment")).toBe(true);
+    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the thirteenth")).toBe(true);
+    expect(settle("Which amendment abolished slavery?", "13th Amendment", "13th")).toBe(true);
+    expect(settle("Which amendment abolished slavery?", "The Thirteenth Amendment", "13th amendment")).toBe(true);
+    expect(settle("What place did the runner finish in?", "First place", "the first")).toBe(true);
+    expect(settle("In which century did World War II happen?", "The 20th century", "twentieth")).toBe(true);
+  });
+});
+
 describe("settleByCode: never a wrong answer", () => {
+  it("never takes a plain number for an ordinal, or another ordinal", () => {
+    expect(settle("Which amendment gave women the right to vote?", "30th", "13")).toBeNull();
+    expect(settle("Which amendment abolished slavery?", "13th Amendment", "13")).toBeNull();
+    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the thirtieth")).toBeNull();
+    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the fifteenth amendment")).toBeNull();
+    expect(settle("What place did the runner finish in?", "Third place", "first")).toBeNull();
+    expect(settle("What place did the runner finish in?", "Third place", "first place")).toBeNull();
+    expect(settle("Which planet is third from the sun?", "Earth", "third")).toBeNull();
+    expect(settle("How long is the pause?", "1 second", "the second")).toBeNull();
+  });
+  it("needs every other word of the key in the question to take the number alone", () => {
+    expect(settle("Which change to the Constitution abolished slavery?", "13th Amendment", "the thirteenth")).toBeNull();
+    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the 13th century")).toBeNull();
+    expect(settle("How many branches?", "There are 3 branches of government", "3")).toBeNull();
+  });
+  it("never passes a different scale or number for a key with the degree sign", () => {
+    expect(settle("What is the boiling point of water at sea level?", "100 °C", "100 degrees F")).toBeNull();
+    expect(settle("What is the boiling point of water at sea level?", "100 °C", "100 °F")).toBeNull();
+    expect(settle("What is the boiling point of water at sea level?", "100 °C", "90 degrees")).toBeNull();
+    expect(settle("How many degrees are in a right angle?", "90°", "90 degrees celsius")).toBeNull();
+    expect(settle("How many degrees are in a right angle?", "90°", "180 degrees")).toBeNull();
+  });
   it("never accepts on a shared word", () => {
     expect(settle("What carries oxygen in the blood?", "Red blood cells", "red")).toBeNull();
     expect(settle("Which ocean is the largest?", "The Pacific Ocean", "the Atlantic Ocean")).toBeNull();
@@ -142,40 +209,10 @@ describe("misspellingCandidates", () => {
   });
 });
 
-// The 30-question dev set the grader is tuned on (OpenEdu #317's batch measurement; labels by Claude, not
-// blind). Code may settle some right answers and must settle none of the wrong ones.
-const DEV: Array<[string, string, string, string]> = [
-  ["What gas do plants take in from the air to make food?", "Carbon dioxide", "they take in CO2", "oxygen"],
-  ["What is the boiling point of water at sea level in Celsius?", "100 degrees Celsius", "a hundred degrees", "50 degrees"],
-  ["Name the largest planet in our solar system.", "Jupiter", "it's jupiter", "Saturn is the biggest"],
-  ["What do we call an animal that eats only plants?", "Herbivore", "a herbivor", "a carnivore"],
-  ["What is 7 times 8?", "56", "fifty-six", "54"],
-  ["What is the main job of the heart?", "To pump blood around the body", "it pushes blood through your body", "it helps you breathe air"],
-  ["Who wrote the play Romeo and Juliet?", "William Shakespeare", "shakespeare wrote it", "Charles Dickens"],
-  ["What is the capital city of France?", "Paris", "paris is the capital", "Lyon"],
-  ["What force pulls objects toward the Earth?", "Gravity", "the force of gravity", "magnetism"],
-  ["What is the opposite of the word 'ancient'?", "Modern", "new or modern", "old"],
-  ["How many sides does a hexagon have?", "6", "six sides", "8"],
-  ["What part of a plant takes in water from the soil?", "The roots", "the root system", "the leaves"],
-  ["What is the freezing point of water in Fahrenheit?", "32 degrees Fahrenheit", "thirty two F", "0 degrees Fahrenheit"],
-  ["What is a noun?", "A word that names a person, place, thing or idea", "a naming word for people places or things", "a word that describes an action"],
-  ["Which organ do humans use to breathe?", "The lungs", "our lungs", "the stomach"],
-  ["What is half of 50?", "25", "twenty five", "20"],
-  ["What do you call the process when water turns into vapor?", "Evaporation", "it evaporates, evaporation", "condensation"],
-  ["Which ocean is the largest?", "The Pacific Ocean", "pacific", "the Atlantic"],
-  ["What is the past tense of 'run'?", "Ran", "he ran", "runned"],
-  ["What is the area of a rectangle 3 cm by 4 cm?", "12 square centimeters", "12 cm squared", "7 square centimeters"],
-  ["What do bees collect from flowers to make honey?", "Nectar", "flower nectar", "pollen only, not nectar"],
-  ["Who was the first President of the United States?", "George Washington", "washington", "Abraham Lincoln"],
-  ["What is the chemical symbol for water?", "H2O", "h two o", "CO2"],
-  ["What shape has three sides?", "A triangle", "triangle shape", "a square"],
-  ["What do we call a baby frog?", "A tadpole", "tadpoles", "a cub"],
-  ["Which continent is Egypt in?", "Africa", "it is in africa", "Asia"],
-  ["What is 100 minus 37?", "63", "sixty three", "73"],
-  ["Why do we have day and night?", "Because the Earth spins on its axis", "the earth rotates so one side faces the sun", "because the sun goes around the earth every day"],
-  ["What is a synonym for 'happy'?", "Joyful", "glad", "angry"],
-  ["What is the smallest unit of life?", "The cell", "a cell", "an atom"],
-];
+// The 30-question dev set the grader is tuned on (OpenEdu #317's batch measurement) and the synonyms set
+// (2026-11-15); labels by Claude, not blind. Code may settle some right answers and must settle none of
+// the wrong ones.
+const DEV = GRADE_DEV_ROUND2;
 
 describe("settleByCode on the dev set", () => {
   it("settles no wrong answer", () => {
@@ -185,5 +222,9 @@ describe("settleByCode on the dev set", () => {
   it("settles the four measured failures", () => {
     const settled = new Set(DEV.filter(([q, key, right]) => settleByCode(ask(q, key, right), isWord) === true).map((d) => d[2]));
     for (const a of ["washington", "h two o", "a hundred degrees", "tadpoles"]) expect(settled.has(a)).toBe(true);
+  });
+  it("settles no wrong answer on the synonyms set", () => {
+    const passed = GRADE_DEV_SYNONYMS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), () => false) === true).map((a) => a.text));
+    expect(passed).toEqual([]);
   });
 });
