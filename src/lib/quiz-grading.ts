@@ -675,10 +675,13 @@ export type BatchGradeReply = Record<string, { feedback?: string; correct?: bool
 // understanding of the core concept" are gone: with them, e2b and e4b marked a typed code that answers
 // nothing ("I think it is TAXb05Q0TAX") correct, apparently grading the key's concept instead.
 // Synonyms, other names and other units (eval/grade-dev.ts GRADE_DEV_SYNONYMS, e2b x3, 74 right / 80
-// wrong): the old wording failed 17, 19, 17 right answers and passed 1, 1, 1 wrong. Saying the same
-// amount in other units counts, and asking the feedback to convert it, fails 15, 16, 16 and passes 0,
-// 1, 1. "Convert it and compare" without asking for the conversion, or with a "1 km" / "1 mile"
-// example, passed "about 42 miles" for "about 42 kilometers" (results/2026-11-15-grade-dev-synonyms.md).
+// wrong): the old wording failed 17, 19, 17 right answers and passed 1, 1, 1 wrong. Saying an amount
+// in other units counts only when it converts (with a feedback line that asked for the conversion)
+// fails 15, 16, 16 and passes 0, 1, 1. "Convert it and compare", or a "1 km" / "1 mile" example,
+// passed "about 42 miles" for "about 42 kilometers". The feedback line asking the model to convert was
+// dropped: a wrong conversion shown to a child is misinformation, and without it e2b failed 16, 15, 13
+// and passed 1, 1, 2 against 16, 15, 12 and 1, 2, 1 with it, code settling the same answers in both
+// (e4b, one run: 12 and 1 against 9 and 1). Results: results/2026-11-15-grade-dev-synonyms.md.
 export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): string {
   const body = items
     .map((it, k) =>
@@ -694,7 +697,7 @@ export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): s
 - correct: false when the student's answer is wrong, says something else, names a different or only related thing, gives only part of the expected answer, or does not answer the question.
 Judge only what the student wrote. Do not mark an answer correct because the expected answer is right.
 
-Return ONLY a JSON object with one key per answer: ${items.map((_, k) => `"${gradeKey(k)}": {"feedback": "<1 short sentence on what the student wrote; if it uses other units, convert it to the expected answer's units>", "correct": true/false}`).join(", ")}.
+Return ONLY a JSON object with one key per answer: ${items.map((_, k) => `"${gradeKey(k)}": {"feedback": "<1 short sentence on what the student wrote>", "correct": true/false}`).join(", ")}.
 
 ${body}${mathRules ? `\n\n${mathRules}` : ""}`;
 }
