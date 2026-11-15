@@ -286,7 +286,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   "it's" or article, number words as digits, plurals) and accepts the answer when it is the key or one
   of the key's accepted forms: a part of the key in brackets or after a slash, the key's number with
   none, some or all of its own units ("a hundred degrees" for "100 degrees Celsius", never an added
-  unit), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
+  unit; the degree sign reads as "degrees", so "100 degrees C" is "100 °C"), an ordinal in words or
+  digits ("the thirteenth" for "13th Amendment" when the question names the amendment; never "13" for
+  "30th"), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
   a name, and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
   itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). It never accepts
   on a shared word ("red" for "red blood cells") and never marks an answer wrong; what it cannot settle

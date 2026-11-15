@@ -10,9 +10,12 @@
 //   - the key's parts: "Carbon dioxide (CO2)" also accepts "carbon dioxide" and "co2" (one word in
 //     brackets, so "(the planet)" is not an answer); "a / b" (spaced) either;
 //   - a number with units: the same number, bare or with the key's own units ("100", "a hundred
-//     degrees" for "100 degrees Celsius"). Degrees and the scale may be left out; any other unit the
-//     answer gives must be all of the key's ("12 cm" is not "12 square centimeters"), never a unit the
-//     key does not have;
+//     degrees" for "100 degrees Celsius" or "100 °C"; the sign is read as "degrees"). Degrees and the
+//     scale may be left out; any other unit the answer gives must be all of the key's ("12 cm" is not
+//     "12 square centimeters"), never a unit the key does not have;
+//   - an ordinal in words or digits: "the thirteenth" is "13th", "first" is "1st". A key that is one
+//     number or ordinal plus words the question already says ("13th Amendment" for "Which amendment
+//     ended slavery?") also accepts the number alone, but not a plain number for an ordinal;
 //   - a person's surname: the key is a person's name (the question asks "who", the key is 2-4
 //     capitalised words) and the answer is that name's last word;
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
@@ -25,6 +28,8 @@
 import { gradeFreeTextDeterministic } from "./quiz-grading";
 
 // ─── One form for both sides ──────────────────────────────────────────────────
+
+const isNumber = (w: string) => /^-?\d+(?:\.\d+)?$/.test(w);
 
 const UNITS: Record<string, number> = {
   zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
@@ -39,36 +44,67 @@ const SCALES: Record<string, number> = { thousand: 1000, million: 1_000_000 };
 
 const isNumberWord = (w: string) => w in UNITS || w in TEENS || w in TENS || w === "hundred" || w in SCALES;
 
+// Ordinal words. Each ends the number it is part of: "twenty first" → 21st, "one hundredth" → 100th.
+const ORD_UNITS: Record<string, number> = {
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9,
+};
+const ORD_TEENS: Record<string, number> = {
+  tenth: 10, eleventh: 11, twelfth: 12, thirteenth: 13, fourteenth: 14, fifteenth: 15, sixteenth: 16, seventeenth: 17, eighteenth: 18, nineteenth: 19,
+};
+const ORD_TENS: Record<string, number> = {
+  twentieth: 20, thirtieth: 30, fortieth: 40, fiftieth: 50, sixtieth: 60, seventieth: 70, eightieth: 80, ninetieth: 90,
+};
+const ORD_SCALES: Record<string, number> = { thousandth: 1000, millionth: 1_000_000 };
+
+const isOrdinalWord = (w: string) => w in ORD_UNITS || w in ORD_TEENS || w in ORD_TENS || w === "hundredth" || w in ORD_SCALES;
+
+/** 13 → "13th", 1 → "1st", 22 → "22nd": one form for an ordinal however it was written. */
+export function ordinalToken(n: number): string {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  return `${n}${suffix}`;
+}
+const ORDINAL_RE = /^\d+(?:st|nd|rd|th)$/;
+
 /**
  * Number words as digits: "a hundred" → 100, "fifty six" → 56, "one hundred and five" → 105, "two
  * thousand" → 2000. Takes the words already split; a run that does not read as one number ("nineteen
- * eighty") is cut where it stops making sense, so each part stays its own number.
+ * eighty") is cut where it stops making sense, so each part stays its own number. An ordinal word ends
+ * its run as an ordinal: "the thirteenth" → 13th, "twenty first" → 21st. "second" straight after a
+ * number is the unit of time ("one second"), not 2nd.
  */
 function numberWordsToDigits(words: string[]): string[] {
   const out: string[] = [];
   let i = 0;
   while (i < words.length) {
     const w = words[i];
-    const startsRun = isNumberWord(w) || ((w === "a" || w === "an") && (words[i + 1] === "hundred" || words[i + 1] in SCALES));
+    const afterNumber = out.length > 0 && isNumber(out[out.length - 1]);
+    const startsRun = isNumberWord(w) || (isOrdinalWord(w) && !(w === "second" && afterNumber)) ||
+      ((w === "a" || w === "an") && (words[i + 1] === "hundred" || words[i + 1] in SCALES));
     if (!startsRun) { out.push(w); i++; continue; }
     let total = 0;
     let current = 0;
+    let ordinal = false;
     // What may come next inside the run: after a unit or teen only a scale; after a tens word a unit.
     let expect: "any" | "unit" | "scale" | "after-hundred" = "any";
     let j = i;
     if (w === "a" || w === "an") { current = 1; expect = "scale"; j++; }
     for (; j < words.length; j++) {
       const t = words[j];
-      if (t === "and" && expect === "after-hundred" && j + 1 < words.length && (words[j + 1] in UNITS || words[j + 1] in TEENS || words[j + 1] in TENS)) continue;
+      if (t === "and" && expect === "after-hundred" && j + 1 < words.length && (words[j + 1] in UNITS || words[j + 1] in TEENS || words[j + 1] in TENS || words[j + 1] in ORD_UNITS || words[j + 1] in ORD_TEENS || words[j + 1] in ORD_TENS)) continue;
       if (t in UNITS && (expect === "any" || expect === "unit" || expect === "after-hundred")) { current += UNITS[t]; expect = "scale"; continue; }
       if (t in TEENS && (expect === "any" || expect === "after-hundred")) { current += TEENS[t]; expect = "scale"; continue; }
       if (t in TENS && (expect === "any" || expect === "after-hundred")) { current += TENS[t]; expect = "unit"; continue; }
       if (t === "hundred" && current > 0 && current < 10 && expect !== "after-hundred") { current *= 100; expect = "after-hundred"; continue; }
       if (t === "hundred" && expect === "any") { current = 100; expect = "after-hundred"; continue; }
       if (t in SCALES) { total += (current || 1) * SCALES[t]; current = 0; expect = "any"; continue; }
+      // An ordinal word is the run's last word. "second" after a unit word is the unit of time.
+      if (t in ORD_UNITS && (expect === "any" || expect === "unit" || expect === "after-hundred")) { current += ORD_UNITS[t]; ordinal = true; j++; break; }
+      if ((t in ORD_TEENS || t in ORD_TENS) && (expect === "any" || expect === "after-hundred")) { current += ORD_TEENS[t] ?? ORD_TENS[t]; ordinal = true; j++; break; }
+      if (t === "hundredth" && (expect === "any" || (expect === "scale" && current < 10))) { current = (current || 1) * 100; ordinal = true; j++; break; }
+      if (t in ORD_SCALES && expect !== "unit") { total += (current || 1) * ORD_SCALES[t]; current = 0; ordinal = true; j++; break; }
       break;
     }
-    out.push(String(total + current));
+    out.push(ordinal ? ordinalToken(total + current) : String(total + current));
     i = j;
   }
   return out;
@@ -88,18 +124,21 @@ export function answerWords(s: string): string[] {
     .toLowerCase()
     .replace(/[’‘`]/g, "'")
     .replace(/−/g, "-")
+    .replace(/°/g, " degrees ")                         // 100°C, 90° (℃ is °C after NFKC)
+    .replace(/(\d)(?:st|nd|rd|th)\b/g, "$1\u0002")      // an ordinal in digits stays one word: 13th
     .replace(/^\s*\(?[a-d][).:]\s+/, "")                // an option label "B) "
     .replace(/(\d),(\d{3})(?!\d)/g, "$1$2")             // 1,000
     .replace(/(^|[\s(])-(?=\d)/g, "$1\u0000")           // keep a leading minus through the punctuation strip
     .replace(/(\d)\.(\d)/g, "$1\u0001$2")               // and a decimal point
-    .replace(/[^\p{L}\p{N}\s'\u0000\u0001]/gu, " ")      // every other punctuation mark is a space
+    .replace(/[^\p{L}\p{N}\s'\u0000\u0001\u0002]/gu, " ") // every other punctuation mark is a space
     .replace(/'(?!s\b|re\b)/g, " ")                     // quotes, but not it's / they're
     .replace(/\u0000/g, "-").replace(/\u0001/g, ".")
     .replace(/(\d)(\p{L})/gu, "$1 $2").replace(/(\p{L})(\d)/gu, "$1 $2") // 100c → 100 c, h2o → h 2 o
     .replace(/\s+/g, " ")
     .trim();
   t = t.replace(FILLER_RE, "").replace(ARTICLE_RE, "");
-  return numberWordsToDigits(t.split(" ").filter(Boolean));
+  const words = t.split(" ").filter(Boolean).map((w) => (/^\d+\u0002$/.test(w) ? ordinalToken(parseInt(w, 10)) : w.replace(/\u0002/g, "")));
+  return numberWordsToDigits(words);
 }
 
 /** One word with a plural ending taken off, so "tadpoles" and "tadpole" are the same word. */
@@ -126,8 +165,6 @@ export function editDistance(a: string, b: string): number {
 
 /** The shortest key word a one-edit misspelling is accepted for. */
 export const MISSPELLING_MIN_LETTERS = 6;
-
-const isNumber = (w: string) => /^-?\d+(?:\.\d+)?$/.test(w);
 
 /** True when the answer's word could be a misspelling of the key's word: one edit, key word long enough. */
 function oneEditOff(answer: string, key: string): boolean {
@@ -225,9 +262,11 @@ function unitsIn(words: string[]): Set<string> {
   return new Set(words.map((w) => UNIT_NAMES[w]).filter((u): u is string => !!u));
 }
 
-/** The answer's units against the key's: none of its own, and all of the key's unless it gives none. */
+/** The answer's units against the key's: none of its own, and all of the key's unless it gives none.
+ * "Degrees" goes with Celsius and Fahrenheit, so "100 degrees C" fits "100 C". */
 function unitsFit(answer: Set<string>, key: Set<string>): boolean {
-  if ([...answer].some((u) => !key.has(u))) return false;
+  const keyHas = (u: string) => key.has(u) || (u === "degree" && (key.has("celsius") || key.has("fahrenheit")));
+  if ([...answer].some((u) => !keyHas(u))) return false;
   const required = (s: Set<string>) => [...s].filter((u) => !OPTIONAL_UNITS.has(u));
   const given = required(answer);
   return given.length === 0 || given.length === required(key).length;
@@ -247,6 +286,25 @@ function sameNumberAndUnits(answer: string[], key: string[]): boolean {
   const a = numberWithUnits(rest);
   if (!a || Math.abs(a.n - k.n) > 1e-9) return false;
   return unitsFit(a.units, k.units);
+}
+
+// ─── A number the question already names ──────────────────────────────────────
+
+/**
+ * The key is one number or ordinal plus words the question already says ("13th Amendment" for "Which
+ * amendment ended slavery?"), and the answer is that number with none, some or all of those words.
+ * Every other word of the key must be in the question, so "red" is still not "red blood cells".
+ */
+function sameNumberQuestionNames(answer: string[], key: string[], question: string): boolean {
+  const isNum = (w: string) => isNumber(w) || ORDINAL_RE.test(w);
+  const keyNums = key.filter(isNum);
+  if (keyNums.length !== 1 || key.length < 2) return false;
+  const asked = new Set(answerWords(question).map(singular));
+  const named = key.filter((w) => !isNum(w)).map(singular);
+  if (!named.every((w) => asked.has(w))) return false;
+  const answerNums = answer.filter(isNum);
+  if (answerNums.length !== 1 || answerNums[0] !== keyNums[0]) return false;
+  return answer.every((w) => isNum(w) || named.includes(singular(w)));
 }
 
 // ─── Chemical formulas ────────────────────────────────────────────────────────
@@ -301,6 +359,7 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
     const key = answerWords(form);
     if (sameWords(answer, key, isWord)) return true;
     if (sameNumberAndUnits(answer, key)) return true;
+    if (sameNumberQuestionNames(answer, key, item.question)) return true;
     if (sameFormula(answer, form)) return true;
     const surname = personSurname(item.question, form);
     if (surname && sameWords(answer, surname.split(" "), isWord)) return true;
