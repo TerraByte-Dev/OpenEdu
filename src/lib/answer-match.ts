@@ -7,9 +7,12 @@
 // one form (case, punctuation, a leading article, number words as digits, a spelled formula, plurals),
 // and an answer is accepted when it is the key, or one of the key's accepted forms:
 //
-//   - the key's parts: "Carbon dioxide (CO2)" also accepts "carbon dioxide" and "co2"; "a / b" either;
-//   - a number with units: the same number, with none, some or all of the key's own units ("100",
-//     "a hundred degrees" for "100 degrees Celsius"), never a unit the key does not have;
+//   - the key's parts: "Carbon dioxide (CO2)" also accepts "carbon dioxide" and "co2" (one word in
+//     brackets, so "(the planet)" is not an answer); "a / b" (spaced) either;
+//   - a number with units: the same number, bare or with the key's own units ("100", "a hundred
+//     degrees" for "100 degrees Celsius"). Degrees and the scale may be left out; any other unit the
+//     answer gives must be all of the key's ("12 cm" is not "12 square centimeters"), never a unit the
+//     key does not have;
 //   - a person's surname: the key is a person's name (the question asks "who", the key is 2-4
 //     capitalised words) and the answer is that name's last word;
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
@@ -147,15 +150,20 @@ function sameWords(answer: string[], key: string[], isWord: (w: string) => boole
 // ─── The key's accepted forms ─────────────────────────────────────────────────
 
 /**
- * The key as written, plus its parts: the text outside and inside brackets ("Carbon dioxide (CO2)"),
- * and each side of a slash or semicolon ("H2O / water"). Never single words of a longer key.
+ * The key as written, plus its parts: the text outside brackets and a single word inside them
+ * ("Carbon dioxide (CO2)"; "(the planet)" says what the key is, it is not another answer), and each
+ * side of a spaced slash or a semicolon ("H2O / water"; "km/h" stays whole). Never single words of a
+ * longer key.
  */
 export function keyForms(expected: string): string[] {
   const forms = new Set<string>([expected]);
   const outside = expected.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
   if (outside) forms.add(outside);
-  for (const m of expected.matchAll(/\(([^)]+)\)/g)) forms.add(m[1].replace(/^(?:or|also|e\.g\.,?|i\.e\.,?)\s+/i, "").trim());
-  for (const f of [...forms]) for (const part of f.split(/\s*[/;]\s*/)) if (part.trim()) forms.add(part.trim());
+  for (const m of expected.matchAll(/\(([^)]+)\)/g)) {
+    const inside = m[1].replace(/^(?:or|also)\s+/i, "").trim();
+    if (/^[\p{L}\p{N}₀-₉]+$/u.test(inside)) forms.add(inside);
+  }
+  for (const f of [...forms]) for (const part of f.split(/\s+\/\s+|\s*;\s*/)) if (part.trim()) forms.add(part.trim());
   return [...forms].filter((f) => answerWords(f).length > 0);
 }
 
@@ -190,9 +198,13 @@ const UNIT_NAMES: Record<string, string> = {
   mph: "mph", kph: "kph",
   square: "square", squared: "square", sq: "square",
   cubic: "cubic", cubed: "cubic", cu: "cubic",
-  percent: "percent", per: "per", cent: "cent",
+  percent: "percent", cent: "cent",
   units: "unit", unit: "unit",
 };
+// Units an answer may leave out on its own: "100 degrees" or "100" for "100 degrees Celsius".
+const OPTIONAL_UNITS = new Set(["degree", "celsius", "fahrenheit", "kelvin", "unit"]);
+// Said between units and meaning nothing on its own: "km per hour" is "km/h".
+const UNIT_JOINERS = new Set(["per", "a", "an"]);
 
 /** The one number in a key whose other words are all units, with those units; otherwise null. */
 function numberWithUnits(words: string[]): { n: number; units: Set<string> } | null {
@@ -200,12 +212,25 @@ function numberWithUnits(words: string[]): { n: number; units: Set<string> } | n
   if (nums.length !== 1) return null;
   const units = new Set<string>();
   for (const w of words) {
-    if (isNumber(w)) continue;
+    if (isNumber(w) || UNIT_JOINERS.has(w)) continue;
     const u = UNIT_NAMES[w];
     if (!u) return null;
     units.add(u);
   }
   return { n: parseFloat(nums[0]), units };
+}
+
+/** The unit words among some words, each by its one name. */
+function unitsIn(words: string[]): Set<string> {
+  return new Set(words.map((w) => UNIT_NAMES[w]).filter((u): u is string => !!u));
+}
+
+/** The answer's units against the key's: none of its own, and all of the key's unless it gives none. */
+function unitsFit(answer: Set<string>, key: Set<string>): boolean {
+  if ([...answer].some((u) => !key.has(u))) return false;
+  const required = (s: Set<string>) => [...s].filter((u) => !OPTIONAL_UNITS.has(u));
+  const given = required(answer);
+  return given.length === 0 || given.length === required(key).length;
 }
 
 // "half" where the key is a number. Only as the whole number part of the answer.
@@ -216,18 +241,12 @@ function sameNumberAndUnits(answer: string[], key: string[]): boolean {
   if (!k) return false;
   const joined = answer.join(" ");
   let rest = answer;
-  let n: number | null = null;
   for (const h of HALF_WORDS) {
-    if (joined === h || joined.startsWith(h + " ")) { n = 0.5; rest = answer.slice(h.split(" ").length); break; }
+    if (joined === h || joined.startsWith(h + " ")) { rest = ["0.5", ...answer.slice(h.split(" ").length)]; break; }
   }
-  if (n === null) {
-    const a = numberWithUnits(answer);
-    if (!a) return false;
-    n = a.n;
-    rest = answer.filter((w) => !isNumber(w));
-  }
-  if (Math.abs(n - k.n) > 1e-9) return false;
-  return rest.every((w) => k.units.has(UNIT_NAMES[w] ?? ""));
+  const a = numberWithUnits(rest);
+  if (!a || Math.abs(a.n - k.n) > 1e-9) return false;
+  return unitsFit(a.units, k.units);
 }
 
 // ─── Chemical formulas ────────────────────────────────────────────────────────
@@ -245,9 +264,11 @@ function sameFormula(answer: string[], keyForm: string): boolean {
 
 const NAME_SUFFIX = /^(?:jr|sr|ii|iii|iv)$/;
 
-/** The key is a person's name: the question asks who, and the key is 2-4 capitalised words. */
+/** The key is a person's name: the question asks who, and the key is 2-4 capitalised words, the first
+ * not an article ("The Roman Empire" is not a person). */
 function personSurname(question: string, keyForm: string): string | null {
   if (!/\bwho\b/i.test(question)) return null;
+  if (/^(?:the|a|an)\s/i.test(keyForm.trim())) return null;
   const parts = keyForm.normalize("NFKC").replace(/[.,]/g, " ").trim().split(/\s+/);
   const named = parts.filter((p) => !NAME_SUFFIX.test(p.toLowerCase()));
   if (named.length < 2 || named.length > 4) return null;
@@ -270,9 +291,12 @@ export interface WrittenAnswer {
  * accepted.
  */
 export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true): true | null {
-  if (gradeFreeTextDeterministic(item.expected, item.student, item.type) === true) return true;
   const answer = answerWords(item.student);
   if (answer.length === 0) return null;
+  // The older number match reads the first number and ignores units, so it also has to pass the unit
+  // rule here: "3 m" is not "3 cm", and "60 km" is not "60 km/h".
+  if (gradeFreeTextDeterministic(item.expected, item.student, item.type) === true &&
+      unitsFit(unitsIn(answer), unitsIn(answerWords(item.expected)))) return true;
   for (const form of keyForms(item.expected)) {
     const key = answerWords(form);
     if (sameWords(answer, key, isWord)) return true;

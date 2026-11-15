@@ -102,6 +102,22 @@ describe("settleByCode: never a wrong answer", () => {
     expect(settle("What is half of 50?", "25", "half")).toBeNull();
     expect(settle("What is 7 times 8?", "56", "not fifty six")).toBeNull();
   });
+  it("needs all of the key's units when the answer gives a unit (12 cm is a length, not an area)", () => {
+    expect(settle("What is the area of a rectangle 3 cm by 4 cm?", "12 square centimeters", "12 cm")).toBeNull();
+    expect(settle("What is the area of a rectangle 3 cm by 4 cm?", "12 square centimeters", "12")).toBe(true);
+    expect(settle("How fast does it go?", "60 km/h", "60 km")).toBeNull();
+    expect(settle("How fast does it go?", "60 km/h", "sixty kilometers per hour")).toBe(true);
+    expect(settle("How long?", "3 cm", "3 m")).toBeNull();
+    expect(settle("How many electrons?", "9", "9 electrons")).toBe(true);
+    expect(settle("How long?", "3 cm", "3cm")).toBe(true);
+  });
+  it("takes a word in brackets as another form, not a description in brackets", () => {
+    expect(settle("Which planet is closest to the sun?", "Mercury (the planet)", "the planet")).toBeNull();
+    expect(settle("Which planet is closest to the sun?", "Mercury (the planet)", "mercury")).toBe(true);
+  });
+  it("does not split a unit written with a slash", () => {
+    expect(keyForms("60 km/h")).toEqual(["60 km/h"]);
+  });
   it("does not read a prose key with one number as a number with units", () => {
     expect(settle("How many branches?", "There are 3 branches of government", "3")).toBeNull();
   });
@@ -110,6 +126,7 @@ describe("settleByCode: never a wrong answer", () => {
     expect(settle("Who was the first President of the United States?", "George Washington", "martha washington")).toBeNull();
     expect(settle("Which city is the capital of the United States?", "Washington D.C.", "dc")).toBeNull();
     expect(settle("What is the capital of the USA?", "Washington DC", "washington")).toBeNull();
+    expect(settle("Who ruled the Mediterranean?", "The Roman Empire", "empire")).toBeNull();
   });
   it("does not accept a different formula", () => {
     expect(settle("What is the chemical symbol for water?", "H2O", "h two")).toBeNull();

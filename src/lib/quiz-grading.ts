@@ -593,7 +593,9 @@ export function gradeFreeTextDeterministic(expected: string, student: string, ty
     const en = numericValueOf(expected);
     const sn = numericValueOf(student);
     const expectedIsBasicallyNumeric = en !== null && e.replace(/-?\d+(?:\.\d+)?/, "").trim().length <= 6;
-    if (en !== null && sn !== null && expectedIsBasicallyNumeric && numbersAgree(en, sn)) return true;
+    // One number, not negated: "6 or 8" and "not 6" both start with 6 but are not the answer 6.
+    const oneNumber = countNumbers(stripNumericNoise(stripOptionLabel(student))) === 1 && !/\b(?:not|no|never|isn'?t|aren'?t)\b/i.test(student);
+    if (en !== null && sn !== null && expectedIsBasicallyNumeric && oneNumber && numbersAgree(en, sn)) return true;
   }
   return null;
 }
