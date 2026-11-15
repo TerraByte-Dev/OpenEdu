@@ -38,18 +38,23 @@ export default function RaiseHand({ surface, targets, load, onTypeToTutor }: Rai
   // Help already loaded this time the panel's subtopics are on screen, so raising a hand again (or
   // after an older lesson's help was just written) does not load or write it twice.
   const loaded = useRef(new Map<string, LessonHelp>());
+  // Bumped on every load and close, so a slow load that finishes late never replaces a newer one.
+  const turn = useRef(0);
 
   const choose = async (t: HandTarget) => {
+    const mine = ++turn.current;
     setTarget(t);
     setHand({ at: "pick" });
     setStatus("loading");
     try {
       const h = loaded.current.get(t.id) ?? await load(t.id);
       if (h) loaded.current.set(t.id, h);
+      if (mine !== turn.current) return;
       setHelp(h);
       setStatus(h ? "ready" : "none");
     } catch (e) {
       log.warn("RaiseHand", "help could not be loaded", e instanceof Error ? e.message : String(e));
+      if (mine !== turn.current) return;
       setHelp(null);
       setStatus("none");
     }
@@ -60,7 +65,7 @@ export default function RaiseHand({ surface, targets, load, onTypeToTutor }: Rai
     if (targets.length === 1) void choose(targets[0]);
     else { setTarget(null); setStatus("idle"); }
   };
-  const close = () => { read.stop(); setOpen(false); setHand({ at: "pick" }); };
+  const close = () => { turn.current++; read.stop(); setOpen(false); setHand({ at: "pick" }); };
   const go = (e: HandEvent) => { read.stop(); setHand((s) => handStep(s, e, surface)); };
 
   useEffect(() => { if (open) void ensureChatKatex(); }, [open]);
