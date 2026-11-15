@@ -81,6 +81,12 @@ export async function getReviewConfig(gen: LLMConfig, kind: ReviewKind): Promise
   return review && review.provider === "ollama" && review.contextTokens === undefined ? withOllamaNumCtx(review) : review;
 }
 
+// A lesson's model and its Checking model: for writing a lesson, and its Raise hand help (raise-hand.ts).
+export async function getLessonConfigs(): Promise<{ config: LLMConfig; review: LLMConfig | null }> {
+  const config = await getGenerationConfig();
+  return { config, review: await getReviewConfig(config, "lesson") };
+}
+
 // The stored Checking model (review_model), "" when unset. getReviewConfig resolves it.
 export async function getReviewModel(): Promise<string> {
   const s = await getStore();

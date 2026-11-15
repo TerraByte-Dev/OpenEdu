@@ -1,6 +1,7 @@
 import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } from "./llm";
 import { outputRulesLayer } from "./kernel/outputRules";
-import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson } from "./db";
+import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson, getLessons, saveLessonHelp } from "./db";
+import { writeLessonHelp, parseLessonHelp, type LessonHelp } from "./raise-hand";
 import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { assembleLessonMarkdown, lessonIssues, type LessonContent } from "./lesson-format";
@@ -871,9 +872,48 @@ export async function generateLesson(
   }
 
   const content = assembleLessonMarkdown(subtopic.title, result);
-  const lesson = await createLesson(courseId, level, subtopic.title, content, subtopic.id);
-  log.info("generateLesson", `L${level} "${subtopic.title}" → ${content.length} chars`);
+  // Raise hand's stuck points, written now from the finished lesson (raise-hand.ts). Best-effort: a
+  // failure saves the lesson without them, and the first Raise hand writes them (lessonHelpFor).
+  const help = await writeLessonHelp(topic, subtopic, content, config, tier, review);
+  const lesson = await createLesson(courseId, level, subtopic.title, content, subtopic.id, help ? JSON.stringify(help) : null);
+  log.info("generateLesson", `L${level} "${subtopic.title}" → ${content.length} chars, ${help?.stuck_points.length ?? 0} stuck point(s)`);
   return lesson;
+}
+
+// Raise hand's help for a lesson: the stored stuck points, or, for a lesson written before them, new ones
+// written the way generateLesson writes them (the same model and Checking model) and saved with it. The
+// configs are asked for only then, so opening stored help reads the database and nothing else. The
+// inputs are the topic, the syllabus subtopic and the stored lesson text: nothing about the learner.
+export async function lessonHelpFor(
+  lesson: Lesson,
+  subtopic: { title: string; key_concepts: string[] },
+  topic: string,
+  configs: () => Promise<{ config: LLMConfig; review: LLMConfig | null }>,
+): Promise<LessonHelp | null> {
+  const stored = parseLessonHelp(lesson.help_json);
+  if (stored) return stored;
+  const { config, review } = await configs();
+  const tier = config.modelTier ?? await detectModelTier(config);
+  config.modelTier = tier;
+  const help = await writeLessonHelp(topic, subtopic, lesson.content, config, tier, review);
+  if (help) await saveLessonHelp(lesson.id, JSON.stringify(help));
+  return help;
+}
+
+// Raise hand from practice, where the learner may not have opened the subtopic's lesson: the saved
+// lesson for that subtopic, or a new one (written with its stuck points, as on the Lessons tab).
+export async function lessonWithHelp(
+  courseId: string,
+  level: number,
+  subtopic: { id: string; title: string; key_concepts: string[] },
+  topic: string,
+  configs: () => Promise<{ config: LLMConfig; review: LLMConfig | null }>,
+): Promise<{ lesson: Lesson; help: LessonHelp | null }> {
+  const saved = (await getLessons(courseId, level)).find((l) => l.subtopic_id === subtopic.id);
+  if (saved) return { lesson: saved, help: await lessonHelpFor(saved, subtopic, topic, configs) };
+  const { config, review } = await configs();
+  const lesson = await generateLesson(courseId, level, subtopic, topic, config, undefined, review);
+  return { lesson, help: parseLessonHelp(lesson.help_json) };
 }
 
 function buildTopicListPrompt(

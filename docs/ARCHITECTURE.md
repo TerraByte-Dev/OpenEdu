@@ -593,6 +593,41 @@ by code, with no model call.
   late. The count belongs to one session: it starts at zero when a learner comes in (a switch resets
   it) and is not saved, so it also starts again after a restart.
 
+## Raise hand (`raise-hand.ts`, `components/RaiseHand.tsx`)
+
+Help a learner gets by tapping, never by typing. A **Raise hand** button sits in the lesson reader's
+header and under the card in Review. It is not in the quiz or the level test, where help would change
+the result. Pressing it opens a small panel, "Your tutor" with the AI disclosure under it, that has no
+text box: the learner taps what is tricky, reads (or hears, through the app's read-aloud) one kind of
+help, and answers "Did this help?". No moves on to the next kind; after two Nos the panel offers one
+more way (the third kind) and "Try typing to your tutor", which opens the course chat with its box
+filled in for that subtopic. Buttons are 56 px tall and the labels are a few short words.
+
+- **What is stored.** Each lesson has 3-5 *stuck points* in `lessons.help_json` (migration 21): a label
+  in the learner's voice ("What does denominator mean?", at most 8 words) and three kinds of help:
+  `another_way`, `example` (worked, with the answer), `hint`. A lesson starts with another way, practice
+  with a hint (`helpOrder`).
+- **When it is written.** `generateLesson` writes them right after the lesson, on the same model, in one
+  structured call (`writeLessonHelp`, `emit_stuck_points`, validated by `stuckPointIssues`: distinct
+  labels, short labels, no cut-off help). With a Checking model the help is fact-checked like the lesson
+  (`helpAsLesson` → `reviewLesson`) and a stuck point with a flagged part is dropped. A failure saves the
+  lesson without help. A lesson written before this has none: the first Raise hand writes them the same
+  way (`curriculum.ts lessonHelpFor`) and saves them. In Review, a card's subtopic with no lesson yet
+  gets its lesson written first, with its stuck points (`lessonWithHelp`), so it then shows on the
+  Lessons tab too.
+- **What goes in.** The course topic, the syllabus subtopic's title and key concepts, and the lesson
+  text (`buildStuckPointsPrompt`). Never a card's text (a learner may have written it), a chat, a note, a
+  grade, a name or a result. The same request for every learner, so in TerraTutor it may go to a cloud
+  model at any age (lane 1 of its `docs/CLOUD-PRIVACY.md`).
+- **During a session nothing calls a model.** Tapping reads the stored help; `handStep` (pure) picks the
+  next screen. "Did this help?" answers live in the panel's state and are never saved or sent. Nothing
+  rephrases the stored help.
+- **Tests.** `raise-hand.test.ts` runs the real migrations and `db.ts` on in-memory SQLite with canary
+  strings in a learner's chats, notes, cards, knowledge files and name: a session on stored help makes
+  no model call and no network request, and writing stuck points (with the lesson, or later for an older
+  lesson, from the reader or from Review) sends exactly the prompt and its review, identical for a fresh
+  learner and one with a history.
+
 ## Notebook & retrieval (`notebook.ts`, `notebook-links.ts`)
 
 The notebook is an Obsidian-style vault: notes in nested folders, a live-preview CodeMirror editor, and a

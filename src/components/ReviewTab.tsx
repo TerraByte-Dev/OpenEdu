@@ -1,11 +1,30 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Flashcard } from "../types";
+import type { Flashcard, Syllabus, Subtopic } from "../types";
 import { getDueFlashcards, getFlashcards, updateFlashcardAfterReview, createFlashcard, deleteFlashcard } from "../lib/db";
 import { review, type FlashcardGrade } from "../lib/srs";
+import { lessonWithHelp } from "../lib/curriculum";
+import { getLessonConfigs } from "../lib/store";
+import RaiseHand from "./RaiseHand";
 
 interface ReviewTabProps {
   courseId: string;
   level: number;
+  topic: string;
+  syllabuses: Syllabus[];
+  /** Raise hand's "Try typing to your tutor": open the chat for this subtopic. */
+  onTypeToTutor?: (subtopicTitle: string | null) => void;
+}
+
+// What Raise hand can help with for a card: its own subtopic when the card names one the syllabus has,
+// else every subtopic of the level being viewed. Only the subtopic is used, never the card's text, which
+// the learner may have written.
+function handTargets(card: Flashcard | undefined, syllabuses: Syllabus[], level: number): Array<{ level: number; sub: Subtopic }> {
+  if (!card) return [];
+  const own = card.level != null && card.subtopic_id
+    ? syllabuses.find((s) => s.level === card.level)?.subtopics.find((t) => t.id === card.subtopic_id)
+    : undefined;
+  if (own) return [{ level: card.level!, sub: own }];
+  return (syllabuses.find((s) => s.level === level)?.subtopics ?? []).map((sub) => ({ level, sub }));
 }
 
 const GRADES: { grade: FlashcardGrade; label: string; hint: string; cls: string }[] = [
@@ -15,7 +34,7 @@ const GRADES: { grade: FlashcardGrade; label: string; hint: string; cls: string 
   { grade: "easy", label: "Easy", hint: "too easy", cls: "border-success/40 text-success hover:bg-success-tint" },
 ];
 
-export default function ReviewTab({ courseId, level }: ReviewTabProps) {
+export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeToTutor }: ReviewTabProps) {
   const [queue, setQueue] = useState<Flashcard[]>([]);
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -79,6 +98,7 @@ export default function ReviewTab({ courseId, level }: ReviewTabProps) {
   }
 
   const done = idx >= queue.length;
+  const targets = handTargets(card, syllabuses, level);
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -184,6 +204,19 @@ export default function ReviewTab({ courseId, level }: ReviewTabProps) {
                 <button onClick={removeCurrent} className="hover:text-danger transition-colors">Delete card</button>
               </div>
             </div>
+          </div>
+        )}
+        {!done && targets.length > 0 && (
+          <div className="mt-4 flex justify-center">
+            <RaiseHand
+              surface="practice"
+              targets={targets.map((t) => ({ id: `${t.level}:${t.sub.id}`, title: t.sub.title }))}
+              load={async (id) => {
+                const t = targets.find((x) => `${x.level}:${x.sub.id}` === id);
+                return t ? (await lessonWithHelp(courseId, t.level, t.sub, topic, getLessonConfigs)).help : null;
+              }}
+              onTypeToTutor={(t) => onTypeToTutor?.(t?.title ?? null)}
+            />
           </div>
         )}
       </div>

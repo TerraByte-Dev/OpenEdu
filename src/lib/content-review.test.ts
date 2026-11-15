@@ -87,7 +87,7 @@ describe("generateLesson with a review model", () => {
 
     const lesson = await generateLesson("c1", 1, { id: "s1", title: "Making water", key_concepts: ["combustion"] }, "Chemistry", { ...GEN }, undefined, { ...REVIEW });
 
-    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review", "emit_lesson", "emit_lesson_review"]);
+    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review", "emit_lesson", "emit_lesson_review", "emit_stuck_points"]);
     expect(reviewCalls().every((c) => c.model === "reviewer:big")).toBe(true);
     expect(calls[2].content).toContain("produces water and carbon dioxide");
     expect(calls[2].content).toContain("only water");
@@ -123,7 +123,7 @@ describe("generateLesson with a review model", () => {
     const invented: ReviewReply = { verdicts: [{ index: 1, verdict: "false_fact", sentence: "Water boils at 50 degrees on the moon.", reason: "no", statement_is_false: true }] };
     stub((tool) => (tool === "emit_lesson" ? WATER_GOOD : invented));
     await generateLesson("c1", 1, { id: "s1", title: "Water", key_concepts: [] }, "Chemistry", { ...GEN }, undefined, { ...REVIEW });
-    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review"]);
+    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review", "emit_stuck_points"]);
   });
 
   it("does not regenerate for a false_fact the reviewer itself marks as true (B10's false alarms)", async () => {
@@ -133,7 +133,7 @@ describe("generateLesson with a review model", () => {
       reason: "This is actually true; hydrogen combustion yields only water.", statement_is_false: false }] };
     stub((tool) => (tool === "emit_lesson" ? WATER_GOOD : selfContradicting));
     const lesson = await generateLesson("c1", 1, { id: "s1", title: "Water", key_concepts: [] }, "Chemistry", { ...GEN }, undefined, { ...REVIEW });
-    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review"]);
+    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_lesson_review", "emit_stuck_points"]);
     expect(lesson.content).toContain("produces water and nothing else");
   });
 
@@ -150,7 +150,7 @@ describe("generateLesson with a review model", () => {
   it("makes no review call when the review is off (null), so the lesson path is unchanged", async () => {
     stub(() => WATER_BAD);
     await generateLesson("c1", 1, { id: "s1", title: "Water", key_concepts: [] }, "Chemistry", { ...GEN });
-    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson"]);
+    expect(calls.map((c) => c.tool)).toEqual(["emit_lesson", "emit_stuck_points"]); // Raise hand's help (raise-hand.ts) follows the lesson
   });
 
   it("keeps the lesson when the review call fails", async () => {

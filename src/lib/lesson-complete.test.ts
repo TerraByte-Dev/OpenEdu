@@ -35,9 +35,15 @@ const WHOLE: LessonContent = {
   sections: [{ heading: "What is matter?", body: CUT.sections[0].body.replace(/ \(it has$/, " and takes up space.") }],
 };
 
+// Raise hand's stuck points, which generateLesson writes after the lesson (raise-hand.ts).
+const HELP = { stuck_points: ["What is mass?", "What is a state?", "Why does air spread out?"].map((label) => ({
+  label, another_way: "Mass is how much stuff something has. A rock has more stuff than a feather.",
+  example: "A brick and a sponge are the same size. The brick has more mass, so it is heavier.", hint: "Think about how heavy it feels.",
+})) };
+
 describe("generateLesson rejects a section cut off mid-sentence", () => {
   it("retries the cut-off lesson and saves the complete one", async () => {
-    const replies = [CUT, WHOLE];
+    const replies: unknown[] = [CUT, WHOLE, HELP];
     const chats: unknown[] = [];
     globalThis.fetch = ((url: string, init?: { body?: string }) => {
       if (!String(url).endsWith("/api/chat")) return Promise.resolve(new Response("{}", { status: 404 }));
@@ -48,8 +54,9 @@ describe("generateLesson rejects a section cut off mid-sentence", () => {
 
     const lesson = await generateLesson("c1", 1, { id: "s1", title: "Matter", key_concepts: ["mass"] }, "Science", { ...LOCAL });
 
-    expect(chats).toHaveLength(2);
+    expect(chats).toHaveLength(3); // the cut lesson, its retry, then the stuck points
     expect(JSON.stringify(chats[1])).toContain("stops mid-sentence");
+    expect(JSON.stringify(chats[2])).toContain("anything that has mass and takes up space.");
     expect(lesson.content).toContain("anything that has mass and takes up space.");
     expect(lesson.content).not.toContain("(it has");
   });

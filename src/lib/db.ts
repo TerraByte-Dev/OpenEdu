@@ -969,12 +969,13 @@ export async function createLesson(
   topic: string,
   content: string,
   subtopicId: string | null,
+  helpJson: string | null = null,
 ): Promise<Lesson> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    "INSERT INTO lessons (id, course_id, level, subtopic_id, topic_string, content) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, courseId, level, subtopicId, topic, content]
+    "INSERT INTO lessons (id, course_id, level, subtopic_id, topic_string, content, help_json) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    [id, courseId, level, subtopicId, topic, content, helpJson]
   );
   const rows: Lesson[] = await d.select("SELECT * FROM lessons WHERE id = $1", [id]);
   return rows[0];
@@ -998,6 +999,12 @@ export async function getLesson(id: string): Promise<Lesson | null> {
   const d = await getDb();
   const rows: Lesson[] = await d.select("SELECT * FROM lessons WHERE id = $1", [id]);
   return rows[0] ?? null;
+}
+
+// Raise hand's stuck points for a lesson written before them (src/lib/raise-hand.ts, migration 21).
+export async function saveLessonHelp(id: string, helpJson: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE lessons SET help_json = $1 WHERE id = $2", [helpJson, id]);
 }
 
 export async function markLessonRead(id: string): Promise<void> {

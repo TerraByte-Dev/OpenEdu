@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import type { Lesson } from "../types";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
 import { markLessonRead } from "../lib/db";
@@ -8,10 +8,12 @@ interface LessonReaderProps {
   lesson: Lesson;
   onBack: () => void;
   onRead?: () => void;
+  /** Raise hand, in the header's right corner. */
+  raiseHand?: ReactNode;
 }
 
 // Reads one cached lesson as Obsidian-style prose (reusing the chat markdown + KaTeX render path).
-export default function LessonReader({ lesson, onBack, onRead }: LessonReaderProps) {
+export default function LessonReader({ lesson, onBack, onRead, raiseHand }: LessonReaderProps) {
   useEffect(() => {
     void ensureChatKatex();
     markLessonRead(lesson.id).then(() => onRead?.()).catch(() => {});
@@ -30,6 +32,7 @@ export default function LessonReader({ lesson, onBack, onRead }: LessonReaderPro
           Lessons
         </button>
         <span className="text-xs text-[var(--ink-faint)] truncate">{lesson.topic_string}</span>
+        {raiseHand && <div className="ml-auto shrink-0">{raiseHand}</div>}
       </div>
       <div className="p-6">
         <article className="note-prose max-w-2xl mx-auto" dangerouslySetInnerHTML={{ __html: html }} />
