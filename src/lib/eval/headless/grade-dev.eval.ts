@@ -1,6 +1,6 @@
 import { it } from "vitest";
-import { writeFileSync } from "node:fs";
 import { installAppOrigin } from "./origin";
+import { env, writeText } from "./node-io";
 import { gradeAnswersBatch, type AnswerToGrade } from "../../quiz";
 import { GRADE_DEV_SYNONYMS, round2AsQuestions } from "../grade-dev";
 import type { LLMConfig } from "../../../types";
@@ -22,14 +22,14 @@ function shuffled<T>(xs: T[], seed: number): T[] {
   return a;
 }
 
-const setName = process.env.EVAL_GRADE_SET;
+const setName = env().EVAL_GRADE_SET;
 
 it.skipIf(!setName)("grades a written-answer dev set", async () => {
   installAppOrigin();
   const set = setName === "round2" ? round2AsQuestions() : setName === "synonyms" ? GRADE_DEV_SYNONYMS : null;
   if (!set) throw new Error(`EVAL_GRADE_SET must be synonyms or round2, not ${setName}`);
-  const model = process.env.EVAL_MODEL ?? "gemma4:e2b";
-  const runs = Number(process.env.EVAL_REPEATS ?? 1);
+  const model = env().EVAL_MODEL ?? "gemma4:e2b";
+  const runs = Number(env().EVAL_REPEATS ?? 1);
   const items = set.flatMap((q) => q.answers.map((a, k) => ({ id: `${q.id}.${k}`, question: q.question, expected: q.key, student: a.text, label: a.right, kind: a.kind })));
   const order = shuffled(items, 7);
   const rows: Array<{ run: number; id: string; kind: string; label: boolean; by: string; correct: boolean | null; student: string; feedback: string }> = [];
@@ -52,7 +52,7 @@ it.skipIf(!setName)("grades a written-answer dev set", async () => {
     console.log(`[grade]   right failed: ${rightFailed.map((r) => `${r.id} ${r.kind} "${r.student}"`).join("; ")}`);
     console.log(`[grade]   wrong passed: ${wrongPassed.map((r) => `${r.id} ${r.kind} "${r.student}"`).join("; ")}`);
   }
-  const out = process.env.EVAL_OUT ?? `grade-dev-${setName}-${model.replace(/[:/]/g, "_")}.json`;
-  writeFileSync(out, JSON.stringify({ model, set: setName, runs, rows }, null, 1));
+  const out = env().EVAL_OUT ?? `grade-dev-${setName}-${model.replace(/[:/]/g, "_")}.json`;
+  await writeText(out, JSON.stringify({ model, set: setName, runs, rows }, null, 1));
   console.log(`[grade] wrote ${out}`);
 });
