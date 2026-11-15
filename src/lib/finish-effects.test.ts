@@ -24,7 +24,7 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 
 import {
   setActiveLearnerId, createPromotionAttempt, createQuizAttempt, saveQuizQuestion, updateQuizQuestionGrade,
-  completeQuizAttempt, getQuizAttempt, getTutorInstructions,
+  completeQuizAttempt, getQuizAttempt, getTutorInstructions, saveTutorInstruction,
 } from "./db";
 import { saveLevelTestResult, settleLevelTest } from "./level-test-checks";
 import { markAgain } from "./written-answer-checks";
@@ -127,7 +127,7 @@ describe("a hand mark brings what the finish saved into line", () => {
     const t = await takeTest("T", [...many(4, R("2.1")), M("2.1"), ...many(12, R("2.2")), ...many(3, W("2.2"))]);
     expect(skills()["2.1"]).toEqual({ mastered: false, practiced: true, review_needed: false });
     expect(cards()).toHaveLength(4);
-    expect((await knowledge()).log).toContain("Quiz: 80% (20 questions). Weak areas: 2.1, 2.2, 2.2, 2.2.");
+    expect((await knowledge()).log).toContain("Level test: 80% (20 questions). Weak areas: 2.1, 2.2, 2.2, 2.2.");
 
     const done = await markAgain(t.attemptId, new Map([[t.ids[4], true]]), "self");
     expect(done).toMatchObject({ status: "passed", score: 85 });
@@ -135,7 +135,7 @@ describe("a hand mark brings what the finish saved into line", () => {
     expect(marked.skills["2.1"]).toEqual({ mastered: true, practiced: true, review_needed: false });
     expect(marked.cards).not.toContain("T Q4");
     expect(marked.cards).toHaveLength(3);
-    expect(marked.log).toMatch(/Quiz: 85% \(20 questions\)\. Weak areas: 2\.2, 2\.2, 2\.2\.$/);
+    expect(marked.log).toMatch(/Level test: 85% \(20 questions\)\. Weak areas: 2\.2, 2\.2, 2\.2\.$/);
     expect(marked.map).toBe("Needs review: 2.2, 2.2, 2.2");
     expect(marked.gaps).toEqual(["2.2"]);
     expect(marked.context).toContain("Mastered subtopics: Fractions");
@@ -180,7 +180,7 @@ describe("a hand mark brings what the finish saved into line", () => {
     expect(skills()["2.1"]).toEqual({ mastered: true, practiced: true, review_needed: true });
     expect(cards()).toContain("T Q4");
     const k = await knowledge();
-    expect(k.log).toMatch(/Quiz: 80% \(20 questions\)\. Weak areas: 2\.1, 2\.2, 2\.2, 2\.2\.$/);
+    expect(k.log).toMatch(/Level test: 80% \(20 questions\)\. Weak areas: 2\.1, 2\.2, 2\.2, 2\.2\.$/);
     expect(k.map).toBe("Needs review: 2.1, 2.2, 2.2, 2.2");
   });
 
@@ -195,8 +195,8 @@ describe("a hand mark brings what the finish saved into line", () => {
     expect(after.map).toBe(before.map);
     // 16 of 20 (80%, the unchecked one not counted) at the finish; 17 of 20 (85%) marked. The wrong answers did not
     // change, so the plan written for them stays.
-    expect(before.log).toContain("Quiz: 80% (20 questions)");
-    expect(after.log).toMatch(/Quiz: 85% \(20 questions\)\. Weak areas: 2\.2, 2\.2, 2\.2\. Study plan: Review decimals\.$/);
+    expect(before.log).toContain("Level test: 80% (20 questions)");
+    expect(after.log).toMatch(/Level test: 85% \(20 questions\)\. Weak areas: 2\.2, 2\.2, 2\.2\. Study plan: Review decimals\.$/);
   });
 
   it("a study plan written for the old wrong answers is dropped, and one that arrives after the mark is not added", async () => {
@@ -225,6 +225,33 @@ describe("a hand mark brings what the finish saved into line", () => {
     // Marked right on the first test too: no attempt has it wrong now, so the app's card goes, the learner's stays.
     await markAgain(first.attemptId, new Map([[first.ids[4], true]]), "self");
     expect(rows<{ id: string }>("SELECT id FROM flashcards WHERE front = 'T Q4'").map((c) => c.id)).toEqual(["mine"]);
+  });
+
+  it("the study log names a level test and a quiz, and a mark finds the level test's line by its name", async () => {
+    // Same day, same score: the level test's line first, then the quiz's. A mark on the test changes only its own line.
+    const t = await takeTest("T", [...many(4, R("2.1")), M("2.1"), ...many(12, R("2.2")), ...many(3, W("2.2"))]);
+    const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+    await takeQuiz("A", [...many(4, R("2.1")), W("2.1")], now);
+    const [testLine, quizLine] = (await knowledge()).log.split("\n");
+    expect(testLine).toMatch(/^\[.+\] Level test: 80% \(20 questions\)\. Weak areas: 2\.1, 2\.2, 2\.2, 2\.2\.$/);
+    expect(quizLine).toMatch(/^\[.+\] Quiz: 80% \(5 questions\)\. Weak areas: 2\.1\.$/);
+
+    await markAgain(t.attemptId, new Map([[t.ids[4], true]]), "self");
+    const log = (await knowledge()).log.split("\n");
+    expect(log[0]).toMatch(/^\[.+\] Level test: 85% \(20 questions\)\. Weak areas: 2\.2, 2\.2, 2\.2\.$/);
+    expect(log[1]).toBe(quizLine);
+  });
+
+  it("a level test's line saved as a quiz before level tests had their own name is still found by a mark, and keeps its text but the score", async () => {
+    const t = await takeTest("T", [...many(4, R("2.1")), M("2.1"), ...many(12, R("2.2")), ...many(3, W("2.2"))]);
+    const written = (await knowledge()).log;
+    await saveTutorInstruction("c1", "study_log", written.replace("] Level test: ", "] Quiz: "));
+    expect((await knowledge()).log).toMatch(/Quiz: 80% \(20 questions\)\. Weak areas: 2\.1, 2\.2, 2\.2, 2\.2\.$/);
+
+    await markAgain(t.attemptId, new Map([[t.ids[4], true]]), "self");
+    const log = (await knowledge()).log;
+    expect(log).toMatch(/Quiz: 85% \(20 questions\)\. Weak areas: 2\.2, 2\.2, 2\.2\.$/);
+    expect(log).not.toContain("Level test");
   });
 
   it("Not yet on a model's wrong mark changes nothing the finish saved", async () => {

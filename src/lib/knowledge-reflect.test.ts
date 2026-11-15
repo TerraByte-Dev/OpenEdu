@@ -312,7 +312,7 @@ describe("updateKnowledgeAfterQuiz: a bulleted study plan stays on the quiz's on
   it("keeps the score line among the last three entries", async () => {
     vi.mocked(getTutorInstructions).mockResolvedValue({ study_log: "earlier entry" });
     const plan = "• Review comparing fractions.\n• Practice adding fractions.\n• Practice shading fractions.";
-    await updateKnowledgeAfterQuiz("course-1", 60, 10, ["s1"], plan, config);
+    await updateKnowledgeAfterQuiz("course-1", 60, 10, ["s1"], plan, false, config);
     const log = vi.mocked(saveTutorInstruction).mock.calls.find(([, type]) => type === "study_log")![2];
     const lines = log.split("\n");
     expect(lines).toHaveLength(2);
