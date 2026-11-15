@@ -26,10 +26,10 @@ describe("gradeAnswersBatch: how each answer was marked", () => {
   beforeEach(() => { vi.mocked(callLLMStructured).mockReset(); });
 
   it("marks a string or number match 'exact', and the model's verdicts 'model'", async () => {
-    vi.mocked(callLLMStructured).mockResolvedValue({ results: [
-      { index: 1, correct: true, feedback: "ok" },
-      { index: 2, correct: false, feedback: "no" },
-    ] });
+    vi.mocked(callLLMStructured).mockResolvedValue({
+      answer_1: { feedback: "ok", correct: true },
+      answer_2: { feedback: "no", correct: false },
+    });
     const out = await gradeAnswersBatch(items, config);
     expect(out.get(0)).toMatchObject({ isCorrect: true, by: "exact" });
     expect(out.get(1)).toMatchObject({ isCorrect: true, by: "model" });
@@ -37,7 +37,7 @@ describe("gradeAnswersBatch: how each answer was marked", () => {
   });
 
   it("marks an item the model skipped 'fallback'", async () => {
-    vi.mocked(callLLMStructured).mockResolvedValue({ results: [{ index: 1, correct: true, feedback: "ok" }] });
+    vi.mocked(callLLMStructured).mockResolvedValue({ answer_1: { feedback: "ok", correct: true } });
     const out = await gradeAnswersBatch(items, config);
     expect(out.get(2)).toMatchObject({ isCorrect: true, by: "fallback" });
   });

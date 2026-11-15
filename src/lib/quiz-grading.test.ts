@@ -216,11 +216,13 @@ describe("buildBatchGradePrompt", () => {
     { index: 0, question: "What is a cell?", expected: "the basic unit of life", student: "smallest living thing", type: "short_answer" },
     { index: 3, question: "Define osmosis", expected: "water moving across a membrane", student: "water flow", type: "written_response" },
   ];
-  it("includes every item with its stable index and the JSON contract", () => {
+  it("numbers every item by position and names one key per answer", () => {
     const p = buildBatchGradePrompt(items);
-    expect(p).toContain("[index 0]");
-    expect(p).toContain("[index 3]");
-    expect(p).toContain('"results"');
+    expect(p).toContain("[answer 1]");
+    expect(p).toContain("[answer 2]");
+    expect(p).not.toContain("[index");
+    expect(p).toContain('"answer_1"');
+    expect(p).toContain('"answer_2"');
     expect(p).toContain("smallest living thing");
   });
   it("appends math rules when provided", () => {
@@ -233,18 +235,18 @@ describe("parseBatchGradeResults", () => {
     { index: 0, question: "q0", expected: "e", student: "s", type: "short_answer" },
     { index: 1, question: "q1", expected: "e", student: "s", type: "short_answer" },
   ];
-  it("maps results back by index", () => {
-    const map = parseBatchGradeResults({ results: [
-      { index: 0, correct: true, feedback: "good" },
-      { index: 1, correct: false, feedback: "off" },
-    ] }, items);
+  it("maps each answer_N back to the Nth item's index", () => {
+    const map = parseBatchGradeResults({
+      answer_1: { feedback: "good", correct: true },
+      answer_2: { feedback: "off", correct: false },
+    }, [items[0], { ...items[1], index: 7 }]);
     expect(map.get(0)).toEqual({ isCorrect: true, feedback: "good", by: "model" });
-    expect(map.get(1)).toEqual({ isCorrect: false, feedback: "off", by: "model" });
+    expect(map.get(7)).toEqual({ isCorrect: false, feedback: "off", by: "model" });
   });
   it("defaults missing/malformed entries to lenient-correct", () => {
-    const map = parseBatchGradeResults({ results: [{ index: 0, correct: false, feedback: "x" }] }, items);
+    const map = parseBatchGradeResults({ answer_1: { feedback: "x", correct: false }, answer_2: { feedback: "y" } }, items);
     expect(map.get(0)?.isCorrect).toBe(false);
-    expect(map.get(1)).toEqual({ isCorrect: true, feedback: "", by: "fallback" }); // not returned → lenient, and marked as such
+    expect(map.get(1)).toEqual({ isCorrect: true, feedback: "", by: "fallback" }); // no verdict → lenient, and marked as such
   });
   it("is lenient when the whole response is missing", () => {
     const map = parseBatchGradeResults(null, items);

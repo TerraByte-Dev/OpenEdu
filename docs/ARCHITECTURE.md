@@ -261,6 +261,14 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   config by mistake still sends nothing; the same privacy test fails if any cloud-bound payload holds an
   answer or a missed question. Before 2026-11-14 both ran on the generation model. This is what lets an edition send generation
   and the review to a cloud model without sending anything about the learner.
+- **One verdict per written answer.** The grading schema (`quiz-grading.ts` `batchGradeSchema`) names a
+  required key per answer (`answer_1`…`answer_N`, `feedback` before `correct`), so Ollama's grammar
+  cannot end the reply early. With a list of any length, `gemma4:e2b` (the default below 14 GB) closed it
+  after the first answer in most batches and the rest were passed as `fallback` (TerraTutor's B10 round
+  3: 8 of 20 marked). The prompt compares the student's words with the key; it no longer asks for
+  generous partial credit, under which e2b and e4b marked typed nonsense right. The results screens
+  show a `fallback` answer as not checked (`answerMark`, `UNCHECKED_NOTE`, `uncheckedSummary`), never
+  with a right answer's tick; it still counts as right.
 
 ## The tutoring runtime (`kernel/`, `tools/`, `skills/`, `permissions/`)
 
