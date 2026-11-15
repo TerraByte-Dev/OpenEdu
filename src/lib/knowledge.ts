@@ -3,34 +3,106 @@ import { callLLM } from "./llm";
 import { KNOWLEDGE_TYPES, appendStudyLog, parseReflection, tutorCorrectedLearner, type KnowledgeType } from "./knowledge-reflect";
 import type { LLMConfig } from "../types";
 
-// Update knowledge files after a quiz or promotion test completes (no LLM call — direct write)
+const STUDY_PLAN = " Study plan: ";
+const NEEDS_REVIEW = "Needs review: ";
+
+// The study log's line for a finished quiz or level test. It starts with the date and the score, by
+// which a mark made later finds it again (reviseQuizLog).
+const quizLogHead = (dateStr: string, score: number) => `[${dateStr}] Quiz: ${score.toFixed(0)}% `;
+// One line: the study log is split on newlines and keeps its last 3, and a bulleted plan has several.
+const planText = (studyPlan: string) => `${STUDY_PLAN}${studyPlan.replace(/\s+/g, " ").trim().slice(0, 250)}`;
+
+function quizLogEntry(dateStr: string, score: number, totalQuestions: number, missedTopics: ReadonlyArray<string>, studyPlan: string | null): string {
+  return `${quizLogHead(dateStr, score)}(${totalQuestions} questions)` +
+    (missedTopics.length > 0 ? `. Weak areas: ${missedTopics.slice(0, 5).join(", ")}.` : ". All areas strong.") +
+    (studyPlan ? planText(studyPlan) : "");
+}
+
+const needsReviewNote = (missedTopics: ReadonlyArray<string>) => `${NEEDS_REVIEW}${missedTopics.slice(0, 8).join(", ")}`;
+
+// Update knowledge files after a quiz or promotion test completes (no LLM call — direct write).
+// Returns the study log line it wrote.
 export async function updateKnowledgeAfterQuiz(
   courseId: string,
   score: number,
   totalQuestions: number,
   missedTopics: string[],
   studyPlan: string | null,
-  _config: LLMConfig,
-): Promise<void> {
+  _config?: LLMConfig,
+): Promise<string> {
   const instructions = await getTutorInstructions(courseId);
   const currentStudyLog = (instructions["study_log"] ?? "").trim();
   const currentKnowledgeMap = (instructions["knowledge_map"] ?? "").trim();
 
-  const dateStr = new Date().toLocaleDateString();
-  const quizEntry = `[${dateStr}] Quiz: ${score.toFixed(0)}% (${totalQuestions} questions)` +
-    (missedTopics.length > 0 ? `. Weak areas: ${missedTopics.slice(0, 5).join(", ")}.` : ". All areas strong.") +
-    // One line: the study log is split on newlines and keeps its last 3, and a bulleted plan has several.
-    (studyPlan ? ` Study plan: ${studyPlan.replace(/\s+/g, " ").trim().slice(0, 250)}` : "");
+  const quizEntry = quizLogEntry(new Date().toLocaleDateString(), score, totalQuestions, missedTopics, studyPlan);
 
   const logLines = currentStudyLog.split("\n").filter((l) => l.trim());
   logLines.push(quizEntry);
   await saveTutorInstruction(courseId, "study_log", logLines.slice(-3).join("\n"));
 
   if (missedTopics.length > 0) {
-    const gapNote = `Needs review: ${missedTopics.slice(0, 8).join(", ")}`;
+    const gapNote = needsReviewNote(missedTopics);
     const updatedMap = currentKnowledgeMap ? `${currentKnowledgeMap}\n${gapNote}` : gapNote;
     await saveTutorInstruction(courseId, "knowledge_map", updatedMap.slice(-500));
   }
+  return quizEntry;
+}
+
+/**
+ * A failed level test's study plan, added to the line updateKnowledgeAfterQuiz wrote for the test once
+ * the plan is ready. Only while that line is still in the log as written: a mark made in the meantime
+ * rewrote it (reviseQuizLog), and the plan was written for the old misses.
+ */
+export async function addStudyPlanToLog(courseId: string, entry: string, studyPlan: string): Promise<void> {
+  const lines = ((await getTutorInstructions(courseId))["study_log"] ?? "").split("\n");
+  const i = lines.lastIndexOf(entry);
+  if (i < 0 || entry.includes(STUDY_PLAN)) return;
+  lines[i] = entry + planText(studyPlan);
+  await saveTutorInstruction(courseId, "study_log", lines.join("\n"));
+}
+
+export interface QuizLogFacts {
+  score: number;
+  /** The subtopic of every wrong answer, as updateKnowledgeAfterQuiz takes them. */
+  missedTopics: string[];
+}
+
+const sameTopics = (a: ReadonlyArray<string>, b: ReadonlyArray<string>) =>
+  a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");
+
+/**
+ * A finished attempt's study log line and "Needs review" note, written again after a hand mark changed
+ * its score or its wrong answers (finish-effects.ts recountAfterMarks). The line is found by its date
+ * (finishedOn, the local date the attempt finished) and old score; the note by its old subtopics. One no
+ * longer there (the log keeps 3 lines, a chat reflection rewrites the map) is left alone, never added
+ * again. A study plan on the line stays only when keepPlan says the wrong answers did not change: it was
+ * written for them, and no model is asked again.
+ */
+export async function reviseQuizLog(courseId: string, finishedOn: string, before: QuizLogFacts, after: QuizLogFacts, keepPlan: boolean): Promise<void> {
+  const instructions = await getTutorInstructions(courseId);
+
+  const logLines = (instructions["study_log"] ?? "").split("\n");
+  const head = quizLogHead(finishedOn, before.score);
+  const at = logLines.map((l) => l.startsWith(head)).lastIndexOf(true);
+  if (at >= 0) {
+    const line = logLines[at];
+    const count = /^\((\d+) questions\)/.exec(line.slice(head.length))?.[1];
+    const plan = line.indexOf(STUDY_PLAN);
+    if (count) {
+      const studyPlan = keepPlan && plan >= 0 ? line.slice(plan + STUDY_PLAN.length) : null;
+      logLines[at] = quizLogEntry(finishedOn, after.score, Number(count), after.missedTopics, studyPlan);
+      await saveTutorInstruction(courseId, "study_log", logLines.join("\n"));
+    }
+  }
+
+  if (before.missedTopics.length === 0 || sameTopics(before.missedTopics, after.missedTopics)) return;
+  const mapLines = (instructions["knowledge_map"] ?? "").split("\n");
+  const old = before.missedTopics.slice(0, 8);
+  const note = mapLines.map((l) => l.startsWith(NEEDS_REVIEW) && sameTopics(l.slice(NEEDS_REVIEW.length).split(", "), old)).lastIndexOf(true);
+  if (note < 0) return;
+  if (after.missedTopics.length > 0) mapLines[note] = needsReviewNote(after.missedTopics);
+  else mapLines.splice(note, 1);
+  await saveTutorInstruction(courseId, "knowledge_map", mapLines.join("\n"));
 }
 
 // Character budgets per section (total <= 1500)

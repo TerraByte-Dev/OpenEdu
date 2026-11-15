@@ -299,8 +299,22 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   quiz's score again, or decides the level test again the way `settleLevelTest` does: a failed test
   the mark passes is passed and the course moves up; one that now depends on answers no model checked
   goes back to waiting for them (`reopenLevelTest`); one whose result cannot change stays decided with
-  its score counted again. Mastery, flashcards and the study log saved at the end of the test are not
-  redone. Only a model's wrong mark can be marked again, never the key's, an exact match's or a hand mark.
+  its score counted again. Only a model's wrong mark can be marked again, never the key's, an exact
+  match's or a hand mark.
+- **A mark made after the finish redoes what the finish saved.** The finish saves skill mastery, the
+  course's progress and the tutor's progress context, a level test's flashcards from its misses, and the
+  study log line with its "Needs review" note (`finish-effects.ts` `saveFinishEffects`, run by both
+  screens). `markAgain` and `settleLevelTest` then run `recountAfterMarks`, which redoes each from the
+  stored answers through the same functions: a skill whose right answers changed gets this attempt's new
+  score and then every later attempt's at that level, in finishing order (`updateSubtopicMastery`);
+  progress and the context are worked out again; a question marked right loses the card made from
+  missing it unless another attempt still has it wrong (cards the learner made are never touched), and
+  one marked wrong gets its card; the study log line (found by its date and old score) and the note are
+  written again. What it does not redo: mastery is never taken away (a lower score flags the skill for
+  review instead, the app's own rule); answers with no skill id; a line no longer in the log. A failed
+  test's study plan joins its log line when the model finishes it (`addStudyPlanToLog`), only while the
+  line is as the finish wrote it, and a rewrite drops a plan when the wrong answers changed, since it was
+  written for them. No model is asked again. The results screens make a mark wait for the finish's saves.
 
 ## The tutoring runtime (`kernel/`, `tools/`, `skills/`, `permissions/`)
 
