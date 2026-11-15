@@ -13,9 +13,13 @@ when the question names the rest of the key, in its code comments, `docs/ARCHITE
 message ("Which amendment ended slavery?"), and the dev-set commit (`c2646ed`) put it in the unit tests
 as "Which amendment abolished slavery?". The first review fix (`f662b37`) replaced it in the tests,
 comments and docs with "the fourth" for "4th planet" on a question about Mars (dev set `s19` has "the
-fourth planet from the sun" for Mars); the two commit messages still name it. The rule still settles
-that item ("the thirteenth" and "the thirteenth amendment" both settle, by the unchanged rule), so a
-held-out set that contains it does not test the ordinal rule on unseen data.
+fourth planet from the sun" for Mars), but left "the twenty second amendment" as a word-reading test;
+the third review fix made that "the twenty second floor". The two commit messages still name the
+amendment. Through the second review fix, both "the thirteenth" and "the thirteenth amendment"
+settled in code for that item. The third review fix removed the rule that took the key's number alone,
+so now only "the thirteenth amendment" settles (the key's words, the ordinal read as its digits) and
+"the thirteenth" goes to the model. Either way the ordinal reading was written with that item known,
+so a held-out set that contains it does not test the ordinal reading on unseen data.
 
 ## Sets
 
@@ -153,3 +157,48 @@ Right failed by kind on `synonyms`, per run:
 Wrong passed after: e2b "the cerebrum" (partial) in every run; e4b "37 degrees Fahrenheit" for "about
 37 °C" (wrong-unit). The feedback field still asks for no conversion: these runs give no reason to
 bring it back.
+
+## Third review fix: words in order, and no number alone past words that are not units
+
+A third review found that the rule taking a key's number alone or with all of the question's words
+compared the words sorted, so an answer that reverses the relation passed when the question repeats
+the key's words: "4 girls per boy" for "4 boys per girl", "5 times as many dogs as cats", "2 cups of
+sugar for each cup of flour", "3 blue to red", "9 nights each hour", "15 hours past the minute" (master
+left each to the model). That rule had passed a wrong answer in each of three reviews, so it is gone
+rather than patched; the right answers only it settled ("4" for "4 light years", "the fourth" for "4th
+planet", "9" for "9 electrons", "4th" for "4th of July") go to the model again. Two more wrong passes of
+the same kind, found while fixing it, were on master: units compared as a set ("60 hours per km" for
+"60 km per hour", "6 s/ft" for "6 ft/s"), and a number alone under a choice the "or" check missed
+("10" for "10 m" on "Which is longer, 10 cm vs 10 m?", "30" for "30 degrees Celsius" when the question
+lists both scales). Now units must come in the key's order, "vs" and "versus" count as a choice, and a
+number alone never settles when the question already says it. The first-number path (master's "6
+arms" for "6 legs", "3 am" for "3 PM", "12" for "12 PM" under a choice, "1st" for "1 second") takes the
+answer only when its words are the key's in the key's order, or differ by the one thing a "how many"
+question counts. Each case is a unit test.
+
+Code settles exactly the same answers as before on both sets (4 of 154 on `synonyms`, 12 of 60 on
+`round2`; none wrong), and the prompt is unchanged, so before and after differ only by run-to-run
+noise. Before is the second review fix (the table above); after is this fix.
+
+| Set, model | Before | After |
+|---|---|---|
+| `synonyms`, e2b x3 | 12 / 1, 14 / 1, 14 / 1 | 14 / 1, 13 / 1, 13 / 1 |
+| `synonyms`, e4b x1 | 11 / 1 | 14 / 1 |
+| `round2`, e2b x3 | 0 / 0, 0 / 0, 0 / 0 | 0 / 0, 0 / 0, 0 / 0 |
+| `round2`, e4b x1 | 1 / 0 ("he ran") | 1 / 0 ("he ran") |
+
+Right failed by kind on `synonyms`, per run:
+
+| Kind | e2b before | e2b after | e4b before | e4b after |
+|---|---|---|---|---|
+| units (15) | 8, 8, 9 | 9, 9, 8 | 6 | 7 |
+| alt-name (14) | 3, 4, 3 | 3, 3, 3 | 3 | 5 |
+| synonym (15) | 1, 2, 2 | 2, 1, 2 | 1 | 1 |
+| form (27) | 0, 0, 0 | 0, 0, 0 | 0 | 0 |
+| number-in-words (3) | 0, 0, 0 | 0, 0, 0 | 1 | 1 ("thirty-seven degrees") |
+
+Wrong passed after: e2b "the cerebrum" (partial) in every run; e4b "37 degrees Fahrenheit" for "about
+37 °C" (wrong-unit). The e4b run fails 3 more right answers than the one before (alt-name 3 → 5,
+units 6 → 7, among them "the House" and "the U.S. House"); all are model verdicts on answers code
+settles in neither version, and one run each cannot tell that from noise. The feedback field still
+asks for no conversion.
