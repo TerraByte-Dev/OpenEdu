@@ -115,6 +115,18 @@ describe("settleByCode: the measured failures", () => {
 });
 
 const MARS = "Counting out from the Sun, which planet is Mars?";
+// The second review's cases: the question repeats the key's words, and the answer keeps only some of them.
+const KMH = "How fast was the car going in km per hour?";
+const MPH = "How fast was the car going in miles per hour?";
+const AREA = "What is the area of the rectangle in square centimeters?";
+const VOLUME = "What is the volume of the box in cubic meters?";
+const LIGHT_YEARS = "How far away is the nearest star in light years?";
+const PER_POUND = "How much do the apples cost in dollars per pound?";
+const DOZEN = "How many dozen eggs are in 24 eggs?";
+const PAIRS = "How many pairs of shoes does she have?";
+const SOUND = "How fast does sound travel in air, in meters per second?";
+const HEART = "How fast does a resting heart beat, in beats per minute?";
+const PENCILS = "A pack holds 4 pencils. How many pencils are in 3 packs?";
 
 describe("settleByCode: the degree sign and ordinals", () => {
   it("accepts degrees in words for a key written with the sign", () => {
@@ -146,6 +158,27 @@ describe("settleByCode: the degree sign and ordinals", () => {
     expect(settle(MARS, "The Fourth Planet", "4th planet")).toBe(true);
     expect(settle("What place did the runner finish in?", "First place", "the first")).toBe(true);
     expect(settle("In which century did World War II happen?", "The 20th century", "twentieth")).toBe(true);
+  });
+  it("takes the key's number alone or with all of the words the question names (the second review's cases)", () => {
+    expect(settle(MARS, "4th planet", "4th")).toBe(true);
+    expect(settle(MARS, "4th planet", "the fourth planet")).toBe(true);
+    expect(settle(KMH, "60 km per hour", "60")).toBe(true);
+    expect(settle(KMH, "60 km per hour", "60 km per hour")).toBe(true);
+    expect(settle(KMH, "60 km per hour", "sixty kilometers per hour")).toBe(true);
+    expect(settle(MPH, "60 miles per hour", "60")).toBe(true);
+    expect(settle(AREA, "12 square centimeters", "12")).toBe(true);
+    expect(settle(VOLUME, "27 cubic meters", "27")).toBe(true);
+    expect(settle(LIGHT_YEARS, "4 light years", "4")).toBe(true);
+    expect(settle(LIGHT_YEARS, "4 light years", "four light years")).toBe(true);
+    expect(settle(PER_POUND, "3 dollars per pound", "3")).toBe(true);
+    expect(settle(DOZEN, "2 dozen eggs", "2")).toBe(true);
+    expect(settle(DOZEN, "2 dozen eggs", "two dozen eggs")).toBe(true);
+    expect(settle(PAIRS, "3 pairs of shoes", "3")).toBe(true);
+    expect(settle(PAIRS, "3 pairs of shoes", "3 pairs of shoes")).toBe(true);
+    expect(settle(SOUND, "343 meters per second", "343")).toBe(true);
+    expect(settle(HEART, "70 beats per minute", "70")).toBe(true);
+    expect(settle(PENCILS, "12", "12 pencils")).toBe(true);
+    expect(settle("How many sides does a hexagon have?", "6", "6 sides")).toBe(true);
   });
 });
 
@@ -186,6 +219,27 @@ describe("settleByCode: never a wrong answer", () => {
     expect(settle("How long is the pause?", "1 second", "1st")).toBeNull();
     expect(settle("How many legs does an insect have?", "6", "6 arms")).toBeNull();
     expect(settle("How many electrons and protons does a fluorine atom have each?", "9 electrons", "9 protons")).toBeNull();
+  });
+  it("never takes some of the key's words for all of them (the second review's cases)", () => {
+    expect(settle(KMH, "60 km per hour", "60 km")).toBeNull();
+    expect(settle(KMH, "60 km per hour", "60 hours")).toBeNull();
+    expect(settle(MPH, "60 miles per hour", "60 miles")).toBeNull();
+    expect(settle(AREA, "12 square centimeters", "12 centimeters")).toBeNull();
+    expect(settle(VOLUME, "27 cubic meters", "27 meters")).toBeNull();
+    expect(settle(LIGHT_YEARS, "4 light years", "4 years")).toBeNull();
+    expect(settle(PER_POUND, "3 dollars per pound", "3 pounds")).toBeNull();
+    expect(settle(DOZEN, "2 dozen eggs", "2 eggs")).toBeNull();
+    expect(settle(PAIRS, "3 pairs of shoes", "3 shoes")).toBeNull();
+  });
+  it("needs the rule, not the ordinal reading of second, for per second; and per minute the same", () => {
+    expect(settle(SOUND, "343 meters per second", "343 meters")).toBeNull();
+    expect(settle(SOUND, "343 meters per second", "343 seconds")).toBeNull();
+    expect(settle(HEART, "70 beats per minute", "70 beats")).toBeNull();
+    expect(settle(HEART, "70 beats per minute", "70 minutes")).toBeNull();
+  });
+  it("never lets the answer add a word the key does not have, other than what the question counts", () => {
+    expect(settle(PENCILS, "12", "12 packs")).toBeNull();
+    expect(settle(DOZEN, "2", "2 eggs")).toBeNull();
   });
   it("needs the key's whole answer when the question offers a choice", () => {
     expect(settle("Does water boil at 100 °C or 100 °F at sea level?", "100 °C", "100")).toBeNull();

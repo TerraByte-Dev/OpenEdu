@@ -294,7 +294,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   word ("red" for "red blood cells"). A number never settles past the key's other words when they say
   something the answer contradicts or leaves out: another noun ("6 arms" for "6 legs"), am/pm, a sign,
   direction or fraction ("4" for "Negative 4", "2" for "Two thirds"), or another unit or an ordinal
-  ("1st" for "1 second"); and when the question offers a choice ("Is noon 12 AM or 12 PM?") the answer
+  ("1st" for "1 second"). Its words the question repeats may all be left out or all given, never some
+  ("60 km" or "60 hours" for "60 km per hour", "4 years" for "4 light years", "2 eggs" for "2 dozen
+  eggs"), and an answer adds no word to a plain number but the thing a "how many" question counts ("12
+  pencils", not "12 packs"). When the question offers a choice ("Is noon 12 AM or 12 PM?") the answer
   must give the key's whole answer. It never marks an answer wrong; what it cannot settle
   goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A formula's count
   is no longer read as a number ("CO2" had passed for "H2O" as the number 2).

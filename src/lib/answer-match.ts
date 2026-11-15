@@ -15,9 +15,11 @@
 //     "12 square centimeters"), never a unit the key does not have;
 //   - an ordinal in words or digits: "the fourth" is "4th", "first" is "1st". A key that is one
 //     number or ordinal plus words the question already says ("4th planet" for "Counting out from the
-//     Sun, which planet is Mars?") also accepts the number alone, but not a plain number for an
-//     ordinal, not when another word of the key is a sign, direction, am/pm or fraction ("Negative 4"
-//     needs "negative"), and not when the question offers a choice ("12 AM or 12 PM?");
+//     Sun, which planet is Mars?") also accepts the number alone or with all of those words, never
+//     some of them ("60 km" or "60 hours" is not "60 km per hour", "2 eggs" is not "2 dozen eggs"); not
+//     a plain number for an ordinal, not when another word of the key is a sign, direction, am/pm or
+//     fraction ("Negative 4" needs "negative"), and not when the question offers a choice ("12 AM or
+//     12 PM?");
 //   - a person's surname: the key is a person's name (the question asks "who", the key is 2-4
 //     capitalised words) and the answer is that name's last word;
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
@@ -26,8 +28,8 @@
 //
 // It never accepts on a shared word: "red" is not "red blood cells". A number never settles on its own
 // when the key's other words say something the answer contradicts or leaves out ("6 arms" for "6 legs",
-// "3 am" for "3 PM"). It never returns false either. An answer code cannot settle goes to the model as
-// before.
+// "3 am" for "3 PM", "4 years" for "4 light years"). It never returns false either. An answer code
+// cannot settle goes to the model as before.
 
 import { gradeFreeTextDeterministic, normalizeAnswer } from "./quiz-grading";
 
@@ -317,7 +319,7 @@ function sameNumberAndUnits(answer: string[], key: string[], choice: boolean): b
 
 // Words that change what a number means, so a number never stands in for them: a sign or direction
 // ("Negative 4", "23 degrees north"), more or less, am/pm, before or after. A fraction's denominator
-// ("Two thirds") is checked by isFractionWord.
+// ("Two thirds") is checked by isFractionWord; "second" is never one (it is 2nd or the unit of time).
 const MEANING_WORDS = new Set([
   "negative", "minus", "positive", "plus", "below", "above", "under", "over", "up", "down", "left", "right",
   "north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest",
@@ -326,7 +328,7 @@ const MEANING_WORDS = new Set([
   "increase", "decrease", "gain", "loss", "rise", "fall", "deficit", "debt",
   "before", "after", "ago", "earlier", "later", "am", "pm", "bc", "bce", "ad", "ce", "not", "no",
 ]);
-const isFractionWord = (w: string) => ["half", "halves", "quarter", "quarters"].includes(w) || isOrdinalWord(singular(w));
+const isFractionWord = (w: string) => ["half", "halves", "quarter", "quarters"].includes(w) || (isOrdinalWord(singular(w)) && singular(w) !== "second");
 const isMeaningWord = (w: string) => MEANING_WORDS.has(w) || isFractionWord(w);
 
 /** The question offers a choice ("Is noon 12 AM or 12 PM?"), so a number alone may name either side. */
@@ -334,10 +336,12 @@ const offersChoice = (question: string) => /\bor\b/i.test(question);
 
 /**
  * The key is one number or ordinal plus words the question already says ("4th planet" for "Counting out
- * from the Sun, which planet is Mars?"), and the answer is that number with none, some or all of those
- * words. Every other word of the key must be in the question, so "red" is still not "red blood cells";
- * none of them may be a sign, direction, am/pm or fraction ("4" is not "Negative 4", "2" is not "Two
- * thirds"); and the question may not offer a choice.
+ * from the Sun, which planet is Mars?"), and the answer is that number alone or with every one of those
+ * words. Some of them is not enough: dropping part of a compound unit or a counting word changes the
+ * amount ("60 km" or "60 hours" for "60 km per hour", "12 centimeters" for "12 square centimeters", "2
+ * eggs" for "2 dozen eggs", "3 shoes" for "3 pairs of shoes"). Every other word of the key must be in
+ * the question, so "red" is still not "red blood cells"; none of them may be a sign, direction, am/pm or
+ * fraction ("4" is not "Negative 4", "2" is not "Two thirds"); and the question may not offer a choice.
  */
 function sameNumberQuestionNames(answer: string[], key: string[], question: string): boolean {
   if (offersChoice(question)) return false;
@@ -350,7 +354,8 @@ function sameNumberQuestionNames(answer: string[], key: string[], question: stri
   if (!named.every((w) => asked.has(w))) return false;
   const answerNums = answer.filter(isNum);
   if (answerNums.length !== 1 || answerNums[0] !== keyNums[0]) return false;
-  return answer.every((w) => isNum(w) || named.includes(singular(w)));
+  const said = answer.filter((w) => !isNum(w)).map(singular);
+  return said.length === 0 || [...said].sort().join(" ") === [...named].sort().join(" ");
 }
 
 // ─── The older first-number match ─────────────────────────────────────────────
@@ -359,10 +364,13 @@ function sameNumberQuestionNames(answer: string[], key: string[], question: stri
  * gradeFreeTextDeterministic reads the first number and ignores the words around it, which passed
  * "6 arms" for "6 legs", "3 am" for "3 PM", "12" for "12 PM" on "Is noon 12 AM or 12 PM?" and "1st" for
  * "1 second". Its number settles here only when the answer is one plain number and nothing else differs
- * from the key. A word only one side has (other than a unit) must be a word of the question that is not a
- * sign, direction, am/pm or fraction, and only one side may have such words: "6 legs" for "6" and "9" for
- * "9 electrons" settle, "9 protons" for "9 electrons" does not even when the question names both. The
- * units fit, and the question offers no choice.
+ * from the key, under the same rule as sameNumberQuestionNames: the answer's other words, units
+ * included, are none or all of the key's ("9" for "9 electrons" settles, "4 years" for "4 light years"
+ * and "70 beats" for "70 beats per minute" do not). A key word the answer leaves out must be a word of
+ * the question that is not a sign, direction, am/pm or fraction. A word the key does not have may only be
+ * what the question counts ("9 electrons" for "9" on "How many electrons?"; "12 packs" for "12" on "How
+ * many pencils are in 3 packs?" does not settle), and never with words of the key left out. The units
+ * fit, and the question offers no choice.
  */
 function firstNumberFits(answer: string[], key: string[], question: string): boolean {
   if (offersChoice(question)) return false;
@@ -374,8 +382,20 @@ function firstNumberFits(answer: string[], key: string[], question: string): boo
   const answerOnly = onlyIn(answer, key);
   const keyOnly = onlyIn(key, answer);
   if (answerOnly.length > 0 && keyOnly.length > 0) return false;
-  if (![...answerOnly, ...keyOnly].every((w) => asked.has(singular(w)) && !isMeaningWord(w))) return false;
+  // The answer's words, units included, are none or all of the key's.
+  const said = (side: string[]) => side.filter((w) => !isNumber(w) && !UNIT_JOINERS.has(w)).map((w) => UNIT_NAMES[w] ?? singular(w));
+  const answerSaid = said(answer);
+  if (answerSaid.length > 0 && !said(key).every((w) => answerSaid.includes(w))) return false;
+  if (!keyOnly.every((w) => asked.has(singular(w)) && !isMeaningWord(w))) return false;
+  if (answerOnly.length > 0 && !(answerOnly.length === 1 && singular(answerOnly[0]) === countedWord(question))) return false;
   return unitsFit(unitsIn(answer), unitsIn(key));
+}
+
+/** What a "how many" question counts: "legs" in "How many legs does an insect have?". */
+function countedWord(question: string): string | null {
+  const q = answerWords(question);
+  const i = q.findIndex((w, k) => w === "how" && q[k + 1] === "many");
+  return i >= 0 && q[i + 2] ? singular(q[i + 2]) : null;
 }
 
 // ─── Chemical formulas ────────────────────────────────────────────────────────
