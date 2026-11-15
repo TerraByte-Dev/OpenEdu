@@ -238,6 +238,9 @@ export interface QuizAttempt {
   time_taken_seconds: number | null;
   started_at: string;
   completed_at: string | null;
+  /** Level tests from migration 18: 1 passed, 0 not passed, NULL before v18 or while the result waits
+   * for written answers to be checked (src/lib/level-test.ts). */
+  passed?: number | null;
 }
 
 export interface QuizQuestion {

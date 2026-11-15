@@ -41,10 +41,27 @@ describe("the results screens mark unchecked answers apart", () => {
     it(`${name} keeps how each answer was graded and draws each row from answerMark`, () => {
       expect(s).toMatch(/graded_by: o\.by/);
       expect(s).toMatch(/answerMark\(q\)/);
-      expect(s).toContain("UNCHECKED_NOTE");
-      expect(s).toContain("uncheckedSummary(");
+      // A quiz says an unchecked answer counts as right; a level test says it does not count toward the test.
+      expect(s).toContain(name === "QuizFullScreen" ? "{UNCHECKED_NOTE}" : "{TEST_UNCHECKED_NOTE}");
+      expect(s).toMatch(name === "QuizFullScreen" ? /[^t]uncheckedSummary\(/ : /testUncheckedSummary\(/);
       // No row picks its tick from is_correct alone any more.
       expect(s).not.toMatch(/\{q\.is_correct \? "✓" : "✗"\}/);
     });
   }
+});
+
+describe("the level test decides with level-test.ts, never on its own", () => {
+  const s = testScreen.replace(/\r\n?/g, "\n");
+  it("saves the result through saveLevelTestResult and has no pass rule of its own", () => {
+    expect(s).toContain("await saveLevelTestResult(aid, answered, timeTaken)");
+    expect(s).not.toMatch(/>= 85 &&/);
+    expect(s).not.toContain("completeQuizAttempt(");
+    expect(s).not.toContain("setPromotionResult(");
+  });
+  it("stores each answer's section, and opens on the marking screen when the last test is waiting", () => {
+    expect(s).toMatch(/"key", question\.section\)/);
+    expect(s).toMatch(/"unanswered", q\.section\)/);
+    expect(s).toContain("pendingLevelTestFor(last)");
+    expect(s).toContain("settleLevelTest(pendingTest.attempt.id, marks, \"self\")");
+  });
 });

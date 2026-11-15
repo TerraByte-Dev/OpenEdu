@@ -85,7 +85,7 @@ describe("migration 18 on an existing install", () => {
 describe("migration 18 writes", () => {
   beforeEach(async () => {
     await openDb();
-    migrate(18);
+    migrate(20); // saveQuizQuestion also writes migration 20's test_section
     setActiveLearnerId(DEFAULT_LEARNER_ID);
   });
 

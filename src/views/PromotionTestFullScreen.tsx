@@ -1,11 +1,14 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
-import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
+import type { QuizViewContext, QuizQuestion, QuizAttempt, LLMConfig } from "../types";
 import {
-  createPromotionAttempt, saveQuizQuestion, completeQuizAttempt, getLastPromotionAttempt,
-  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade, setPromotionResult,
+  createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt,
+  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
-import { answerMark, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro } from "../lib/level-test";
+import { saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, type PendingLevelTest, type SettledLevelTest } from "../lib/level-test-checks";
+import CheckAnswers from "../components/quiz/CheckAnswers";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getGenerationConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
@@ -40,7 +43,23 @@ function formatCooldown(completedAt: string): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress" | "grading" | "results" | "completion";
+// "pending": the test is over, but written answers no model checked must be marked before it counts
+// (level-test.ts). Here the learner marks them against the key; it is also where the screen opens when
+// the course level's last test is still waiting, after a restart too.
+type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress" | "grading" | "pending" | "results" | "completion";
+
+// An answer on screen as the stored row it was saved as (marking right after the test).
+const toRow = (q: ActiveQuestion): LevelTestRow => ({
+  id: q.saved_id!, question_text: q.question_text, question_type: q.question_type, correct_answer: q.correct_answer,
+  user_answer: q.user_answer, is_correct: q.is_correct, explanation: q.explanation, graded_by: q.graded_by ?? null, test_section: q.section,
+});
+
+// A stored answer back as a results row (a test decided after its answers were marked).
+const fromRow = (r: LevelTestRow): ActiveQuestion => ({
+  question_text: r.question_text, question_type: r.question_type, options: null, correct_answer: r.correct_answer,
+  user_answer: r.user_answer, is_correct: r.is_correct, difficulty_level: 0, explanation: r.explanation,
+  section: r.test_section ?? "current", saved_id: r.id, graded_by: r.graded_by ?? undefined,
+});
 
 interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
   user_answer: string | null;
@@ -88,6 +107,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const [generatingPlan, setGeneratingPlan] = useState(false);
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const [finishing, setFinishing] = useState(false);
+  // The finished test waiting for its unchecked written answers to be marked ("pending").
+  const [pendingTest, setPendingTest] = useState<PendingLevelTest | null>(null);
+  // Written answers nothing checked on a decided test (they did not count toward it).
+  const [uncheckedLeft, setUncheckedLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Synchronous single-flight guard for finishTest — blocks a double-click (or a click racing the
   // timeout) from grading + persisting twice (issue #83 review).
@@ -107,7 +130,16 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
   const checkCooldown = async () => {
     const last = await getLastPromotionAttempt(courseId, currentLevel);
-    if (last && last.score !== null && last.score < 85 && last.completed_at) {
+    // A finished test still waiting for its written answers to be marked comes back here, not a new test.
+    const waiting = await pendingLevelTestFor(last).catch(() => null);
+    if (waiting) {
+      setPendingTest(waiting);
+      setTestState("pending");
+      return;
+    }
+    // Not passed (passed = 0), or before migration 18 a score under the bar.
+    const failed = last?.passed === 0 || (last?.passed == null && last?.score != null && last.score < 85);
+    if (last && failed && last.completed_at) {
       const remaining = formatCooldown(last.completed_at);
       if (remaining) {
         setCooldownStr(remaining);
@@ -191,7 +223,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       subtopic_id: question.subtopic_id,
       matching_pairs: question.matching_pairs,
       blank_position: question.blank_position,
-    }, isCorrect === null ? null : "key"); // answered now against the key; free text is graded at finish
+    }, isCorrect === null ? null : "key", question.section); // answered now against the key; free text is graded at finish
     setQuestions((prev) => prev.map((q, i) =>
       i === currentIndex ? { ...q, user_answer: answer, is_correct: isCorrect, saved_id: savedId } : q
     ));
@@ -268,27 +300,19 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           subtopic_id: q.subtopic_id,
           matching_pairs: q.matching_pairs,
           blank_position: q.blank_position,
-        }, "unanswered").catch(console.error)));
+        }, "unanswered", q.section).catch(console.error)));
     }
 
-    const totalCorrect = answered.filter((q) => q.is_correct).length;
-    const total = answered.length;
-    const overall = total > 0 ? (totalCorrect / total) * 100 : 0;
-
-    const reviewQs = answered.filter((q) => q.section === "review");
-    const reviewCorrect = reviewQs.filter((q) => q.is_correct).length;
-    const reviewPct = reviewQs.length > 0 ? (reviewCorrect / reviewQs.length) * 100 : 100;
-
-    const didPass = overall >= 85 && reviewPct >= 60;
     const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
 
-    // Guarded so a DB hiccup can't strand the user on the grading spinner (review #5) — we always
-    // reach a terminal results/completion state below.
-    try { await completeQuizAttempt(aid, overall, totalCorrect, timeTaken); }
-    catch (e) { console.error("completeQuizAttempt failed", e); }
-    try { await setPromotionResult(aid, didPass, reviewQs.length > 0 ? reviewPct : null); }
-    catch (e) { console.error("setPromotionResult failed", e); }
+    // The pass rule with unchecked written answers left out (level-test.ts): passed, failed, or waiting
+    // for them to be marked. Its writes never throw, so the learner always reaches a results screen
+    // (review #5).
+    const result = await saveLevelTestResult(aid, answered, timeTaken);
+    const overall = result.overall;
+    const didPass = result.status === "passed";
     setQuestions(answered);
+    setUncheckedLeft(result.unchecked);
 
     const missedTopics = answered
       .filter((q) => !q.is_correct && q.subtopic_id)
@@ -332,7 +356,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         }
       } catch (e) { console.error("course level update failed", e); }
       setOverallScore(overall);
-      setReviewScore(reviewQs.length > 0 ? reviewPct : null);
+      setReviewScore(result.reviewPct);
       setPassed(true);
       if (nextLevel === null && currentLevel >= 6) {
         // Course complete — hold the view on the capstone; onPassed(null) fires when the user finishes.
@@ -345,24 +369,69 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       return;
     }
 
+    // ── Waiting: written answers no model checked could still pass or fail it. Mastery and the rest
+    // are saved as for any test; the result waits for the marks. ──
+    if (result.status === "pending") {
+      void persist(Promise.resolve(null));
+      const rows = answered.filter((q) => q.saved_id).map(toRow);
+      setPendingTest({ attempt: { id: aid } as QuizAttempt, rows, unchecked: rows.filter((r) => r.graded_by === "fallback") });
+      setTestState("pending");
+      return;
+    }
+
     // ── Fail: show results immediately; persist and generate the study plan in parallel in the
     // background. The plan reaches the screen when it is ready and the study log after the rest is saved. ──
     setOverallScore(overall);
-    setReviewScore(reviewQs.length > 0 ? reviewPct : null);
+    setReviewScore(result.reviewPct);
     setPassed(false);
     setTestState("results");
+    void persist(startStudyPlan(answered, cfg));
+  }, [timeLeft, currentLevel, courseId, currentSyllabus, onPassed]);
+
+  // After a failed test: the study plan for the missed questions, shown when ready.
+  const startStudyPlan = (answers: ReadonlyArray<ActiveQuestion>, cfg: LLMConfig): Promise<string | null> => {
     setGeneratingPlan(true);
-    const missed = answered
+    const missed = answers
       .filter((q) => !q.is_correct)
       .map((q) => ({ question_text: q.question_text, correct_answer: q.correct_answer, explanation: q.explanation }));
     // The missed questions go to a local model only (lane 1); none pulled = the plan code writes.
-    const studyPlan = getLocalVerifyConfig(cfg).catch(() => null)
+    return getLocalVerifyConfig(cfg).catch(() => null)
       .then((local) => generateStudyPlan(currentSyllabus?.title ?? "this level", currentLevel, missed, local))
       .then((plan) => { setStudyPlan(plan); return plan || null; })
       .catch(() => null) // generateStudyPlan falls back to code; this only guards the unexpected
       .finally(() => setGeneratingPlan(false));
-    void persist(studyPlan);
-  }, [timeLeft, currentLevel, courseId, currentSyllabus, onPassed]);
+  };
+
+  // The learner marked the written answers no model checked. Throws when the marks could not be saved,
+  // so the marking screen can say so and keep them.
+  const saveMarks = async (marks: ReadonlyMap<string, boolean>) => {
+    if (!pendingTest) return;
+    const settled = await settleLevelTest(pendingTest.attempt.id, marks, "self");
+    if (!settled) throw new Error("not a finished level test");
+    if (settled.status === "pending") {
+      setPendingTest(await pendingLevelTest(courseId, currentLevel));
+      return;
+    }
+    showSettled(settled);
+  };
+
+  const showSettled = (s: SettledLevelTest) => {
+    const answers = s.rows.map(fromRow);
+    setPendingTest(null);
+    setQuestions(answers);
+    setUncheckedLeft(s.unchecked);
+    setOverallScore(s.overall);
+    setReviewScore(s.reviewPct);
+    setPassed(s.status === "passed");
+    if (s.status === "passed") {
+      if (currentLevel >= 6) { setTestState("completion"); return; }
+      setTestState("results");
+      onPassed(s.nextLevel ?? currentLevel);
+      return;
+    }
+    setTestState("results");
+    void getGenerationConfig().then((cfg) => startStudyPlan(answers, cfg)).catch(() => setGeneratingPlan(false));
+  };
 
   const question = questions[currentIndex];
   const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
@@ -438,6 +507,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
               <p className="text-[var(--ink-faint)]">• ~75% current level material + ~25% previous level review</p>
               <p className="text-[var(--ink-faint)]">• 85% overall and 60% on review questions required to pass</p>
               <p className="text-[var(--ink-faint)]">• Fail = 24-hour cooldown + personalized study plan</p>
+              <p className="text-[var(--ink-faint)]">• A written answer no model on this computer can check counts only after you mark it against the answer key</p>
             </div>
 
             {genError && (
@@ -590,6 +660,29 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     );
   }
 
+  // ── Pending: the learner marks the written answers no model checked, then the test counts ──
+  if (testState === "pending" && pendingTest) {
+    return (
+      <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
+          <div>
+            <h1 className="text-base font-semibold text-ink">{SELF_CHECK.title}</h1>
+            <p className="text-xs text-[var(--ink-faint)]">{course.title} — Level {currentLevel}</p>
+          </div>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-dim)] text-sm transition-colors">
+            Back to Course
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-2xl mx-auto">
+            <p className="text-warning text-base mb-4">{selfCheckIntro(pendingTest.unchecked.length)}</p>
+            <CheckAnswers key={pendingTest.unchecked.map((r) => r.id).join()} answers={pendingTest.unchecked} copy={SELF_CHECK} onSave={saveMarks} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Completion (L6 capstone) ──
   if (testState === "completion") {
     return (
@@ -605,7 +698,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   }
 
   // ── Results ──
-  const uncheckedLine = uncheckedSummary(questions.filter((q) => answerMark(q) === "unchecked").length);
+  const uncheckedLine = testUncheckedSummary(uncheckedLeft);
   return (
     <div className="fixed inset-0 z-50 bg-bg flex flex-col">
       <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
@@ -676,7 +769,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                   <span className={`font-bold shrink-0 ${style.text}`}>{style.sign}</span>
                   <div className="min-w-0">
                     <p className="text-ink">{q.question_text}</p>
-                    {mark === "unchecked" && <p className="text-xs text-warning mt-0.5">{UNCHECKED_NOTE}</p>}
+                    {mark === "unchecked" && <p className="text-xs text-warning mt-0.5">{TEST_UNCHECKED_NOTE}</p>}
                     {mark !== "right" && q.user_answer && (
                       <p className={`text-xs mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}

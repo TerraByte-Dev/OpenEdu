@@ -484,6 +484,18 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 20,
+            description: "level test sections for checks after the test (append-only, never edit v1-v19)",
+            sql: "
+                -- Which part of a level test a question was in: 'current' or 'review'. The pass rule
+                -- needs both parts' scores, and a test whose written answers no model checked is decided
+                -- later, after someone marks them (src/lib/level-test.ts), so the split has to be stored.
+                -- NULL for quiz questions and for level-test rows stored before this version.
+                ALTER TABLE quiz_questions ADD COLUMN test_section TEXT CHECK (test_section IS NULL OR test_section IN ('current', 'review'));
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

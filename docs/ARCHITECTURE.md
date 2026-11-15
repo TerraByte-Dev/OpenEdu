@@ -269,6 +269,18 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   generous partial credit, under which e2b and e4b marked typed nonsense right. The results screens
   show a `fallback` answer as not checked (`answerMark`, `UNCHECKED_NOTE`, `uncheckedSummary`), never
   with a right answer's tick; it still counts as right.
+- **A level test does not count an unchecked answer.** On a quiz a `fallback` answer still counts as
+  right. On a level test it does not count toward passing until someone marks it (`level-test.ts`
+  `levelTestResult`): the stored score leaves it out, and the result waits only when the unchecked
+  answers could still pass or fail the test (it passes even if every one is wrong, or fails even if
+  every one is right, and then nothing waits). A waiting test has `passed` NULL and at least one
+  `fallback` row; each answer stores its part, `current` or `review`, in `quiz_questions.test_section`
+  (migration 20), because the review section has its own bar. OpenEdu has one learner and no grown-up,
+  so the learner marks them: the results screen (and the level test, opened again later) shows each
+  one with the answer key and Right / Not yet (`components/quiz/CheckAnswers.tsx`). The marks are stored
+  as `graded_by` `'self'` and the test is decided by `level-test-checks.ts` `settleLevelTest`, which
+  moves the course up after a pass. A waiting test blocks a new attempt at that level, and a test not
+  passed (`passed` 0) now starts the 24-hour wait even when only the review section fell short.
 
 ## The tutoring runtime (`kernel/`, `tools/`, `skills/`, `permissions/`)
 

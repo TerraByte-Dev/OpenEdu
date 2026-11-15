@@ -610,8 +610,9 @@ export interface GradeItem {
 // the answer key as the learner answered (multiple choice, true/false, matching). 'exact': a string
 // or number match (gradeFreeTextDeterministic). 'model': the grader model's verdict. 'fallback': the
 // grader failed or skipped the item and the answer was passed leniently. 'unanswered': a timed-out
-// level test's unanswered question, scored wrong.
-export type GradedBy = "key" | "exact" | "model" | "fallback" | "unanswered";
+// level test's unanswered question, scored wrong. 'self': a level test's written answer no model
+// checked, which the learner then marked against the answer key (level-test.ts).
+export type GradedBy = "key" | "exact" | "model" | "fallback" | "unanswered" | "self";
 
 export interface GradeOutcome { isCorrect: boolean; feedback: string; by: GradedBy }
 
