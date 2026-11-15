@@ -4,6 +4,7 @@ import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } 
 import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
 import type { GradedBy } from "./quiz-grading";
+import type { TestSection } from "./level-test";
 import type { FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
 
@@ -665,12 +666,13 @@ export async function createQuizAttempt(
 }
 
 // Returns the generated row id so the caller can attach a self-explanation typed after answering.
-export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">, gradedBy: GradedBy | null = null): Promise<string> {
+// testSection: a level test's part, 'current' or 'review' (migration 20); null for a quiz.
+export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">, gradedBy: GradedBy | null = null, testSection: TestSection | null = null): Promise<string> {
   const d = await getDb();
   const id = uuid();
   await d.execute(
-    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position, self_explanation, graded_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    `INSERT INTO quiz_questions (id, attempt_id, question_text, question_type, options, correct_answer, user_answer, is_correct, difficulty_level, explanation, subtopic_id, matching_pairs, blank_position, self_explanation, graded_by, test_section)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
     [
       id, q.attempt_id, q.question_text, q.question_type,
       q.options ? JSON.stringify(q.options) : null,
@@ -682,6 +684,7 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">, gradedBy: Gr
       q.blank_position ?? null,
       q.self_explanation ?? null,
       gradedBy,
+      testSection,
     ]
   );
   return id;
@@ -762,6 +765,68 @@ export async function setPromotionResult(attemptId: string, passed: boolean, rev
     `UPDATE quiz_attempts SET passed = $1, review_score = $2 WHERE id = $3`,
     [passed ? 1 : 0, reviewScore, attemptId]
   );
+}
+
+// A level test decided after its written answers were marked: the score and count as they now stand.
+// completed_at stays the time the learner finished the test.
+export async function updateLevelTestScore(attemptId: string, score: number, correctCount: number): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    `UPDATE quiz_attempts SET score = $1, correct_count = $2 WHERE id = $3`,
+    [score, correctCount, attemptId]
+  );
+}
+
+export async function getQuizAttempt(id: string): Promise<QuizAttempt | null> {
+  const d = await getDb();
+  const rows: QuizAttempt[] = await d.select("SELECT * FROM quiz_attempts WHERE id = $1", [id]);
+  return rows[0] ?? null;
+}
+
+/** One stored level-test answer, as the checks after the test read it (level-test-checks.ts). */
+export interface LevelTestRow {
+  id: string;
+  question_text: string;
+  question_type: QuizQuestion["question_type"];
+  correct_answer: string;
+  user_answer: string | null;
+  is_correct: boolean | null;
+  explanation: string;
+  graded_by: GradedBy | null;
+  test_section: TestSection | null;
+}
+
+// Every stored answer of one attempt, in the order they were saved.
+export async function getLevelTestRows(attemptId: string): Promise<LevelTestRow[]> {
+  const d = await getDb();
+  const rows: Array<Record<string, unknown>> = await d.select(
+    `SELECT id, question_text, question_type, correct_answer, user_answer, is_correct, explanation, graded_by, test_section
+       FROM quiz_questions WHERE attempt_id = $1 ORDER BY rowid`,
+    [attemptId]
+  );
+  return rows.map((r) => ({ ...r, is_correct: r.is_correct === null ? null : r.is_correct === 1 })) as LevelTestRow[];
+}
+
+// After a pass decided later: move the course from `level` to the next one, or finish it after the
+// level 6 test. Only while the course is still at that level, so it can never move twice or move back.
+// Returns the new level, or null when the course was finished or nothing moved.
+export async function advanceCourseAfterPass(courseId: string, level: number): Promise<number | null> {
+  const d = await getDb();
+  if (level >= 1 && level <= 5 && Number.isInteger(level)) {
+    await d.execute(
+      "UPDATE courses SET current_level = $1, updated_at = datetime('now') WHERE id = $2 AND current_level = $3",
+      [level + 1, courseId, level]
+    );
+    const rows: Array<{ current_level: number }> = await d.select("SELECT current_level FROM courses WHERE id = $1", [courseId]);
+    return rows[0]?.current_level === level + 1 ? level + 1 : null;
+  }
+  if (level === 6) {
+    await d.execute(
+      "UPDATE courses SET status = 'completed', updated_at = datetime('now') WHERE id = $1 AND current_level = 6 AND status = 'active'",
+      [courseId]
+    );
+  }
+  return null;
 }
 
 export async function getQuizAttempts(courseId: string): Promise<QuizAttempt[]> {
