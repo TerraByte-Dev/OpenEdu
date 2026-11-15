@@ -2,7 +2,7 @@
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
-import { answerMark, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, showsAnswerAndKey, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
@@ -305,7 +305,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
                     <p className="text-sm text-ink">{q.question_text}</p>
                   </div>
                   {mark === "unchecked" && <p className="ml-5 mb-1 text-xs text-warning">{UNCHECKED_NOTE}</p>}
-                  {mark !== "right" && q.user_answer && (
+                  {showsAnswerAndKey(q) && (
                     <div className="ml-5 text-xs space-y-0.5">
                       <p className={mark === "wrong" ? "text-danger" : "text-ink"}>Your answer: {q.user_answer}</p>
                       <p className="text-success">Correct: {q.correct_answer}</p>

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import quizScreen from "../views/QuizFullScreen.tsx?raw";
 import testScreen from "../views/PromotionTestFullScreen.tsx?raw";
-import { answerMark, uncheckedSummary, UNCHECKED_NOTE } from "./quiz-grading";
+import { answerMark, showsAnswerAndKey, uncheckedSummary, UNCHECKED_NOTE } from "./quiz-grading";
 
 // A written answer no model checked (graded_by 'fallback': no local model, or the grader failed) still
 // counts as right, so a grader hiccup never fails a learner. It must not look like an answer that was
@@ -19,6 +19,33 @@ describe("answerMark", () => {
     }
     expect(answerMark({ is_correct: false, graded_by: "unanswered" })).toBe("wrong");
   });
+});
+
+// "I think I was right" marked Right ('self', written-answer-checks.ts): the card used to drop the answer
+// and the key, leaving only "You marked this against the answer key." with nothing to show what was marked.
+describe("showsAnswerAndKey", () => {
+  it("keeps the answer and the key on an answer the learner marked against the key, Right or Not yet", () => {
+    expect(showsAnswerAndKey({ is_correct: true, graded_by: "self", user_answer: "noon or midnight" })).toBe(true);
+    expect(showsAnswerAndKey({ is_correct: false, graded_by: "self", user_answer: "noon" })).toBe(true);
+  });
+  it("hides them on a right answer something else checked, and shows them on a wrong or unchecked one", () => {
+    for (const by of ["key", "exact", "model", undefined, null] as const) {
+      expect(showsAnswerAndKey({ is_correct: true, graded_by: by, user_answer: "a" })).toBe(false);
+      expect(showsAnswerAndKey({ is_correct: false, graded_by: by, user_answer: "a" })).toBe(true);
+    }
+    expect(showsAnswerAndKey({ is_correct: true, graded_by: "fallback", user_answer: "a" })).toBe(true);
+  });
+  it("shows nothing when there is no answer", () => {
+    expect(showsAnswerAndKey({ is_correct: false, graded_by: "unanswered", user_answer: null })).toBe(false);
+    expect(showsAnswerAndKey({ is_correct: true, graded_by: "self", user_answer: "" })).toBe(false);
+  });
+  for (const [name, raw] of [["QuizFullScreen", quizScreen], ["PromotionTestFullScreen", testScreen]] as const) {
+    it(`${name} draws the answer and key lines from showsAnswerAndKey`, () => {
+      const s = raw.replace(/\r\n?/g, "\n");
+      expect(s).toMatch(/\{showsAnswerAndKey\(q\) && \(/);
+      expect(s).not.toMatch(/mark !== "right" && q\.user_answer/);
+    });
+  }
 });
 
 describe("uncheckedSummary", () => {

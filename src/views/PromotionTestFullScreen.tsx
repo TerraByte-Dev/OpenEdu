@@ -5,7 +5,7 @@ import {
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
-import { answerMark, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, showsAnswerAndKey, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN } from "../lib/level-test";
 import { saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, type PendingLevelTest, type SettledLevelTest } from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
@@ -790,7 +790,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                   <div className="min-w-0">
                     <p className="text-ink">{q.question_text}</p>
                     {mark === "unchecked" && <p className="text-xs text-warning mt-0.5">{TEST_UNCHECKED_NOTE}</p>}
-                    {mark !== "right" && q.user_answer && (
+                    {showsAnswerAndKey(q) && (
                       <p className={`text-xs mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
                     {q.graded_by === "self"
