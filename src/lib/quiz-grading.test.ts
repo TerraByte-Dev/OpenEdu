@@ -204,6 +204,8 @@ describe("gradeFreeTextDeterministic", () => {
     expect(gradeFreeTextDeterministic("O₂", "2", "fill_in_blank")).toBeNull();
     expect(gradeFreeTextDeterministic("x²", "2", "short_answer")).toBeNull();
     expect(gradeFreeTextDeterministic("O₂", "O2", "fill_in_blank")).toBe(true); // formula match still works
+    expect(gradeFreeTextDeterministic("H2O", "CO2", "short_answer")).toBeNull(); // both hold a 2; neither is the number 2
+    expect(gradeFreeTextDeterministic("12 cm", "12cm", "short_answer")).toBe(true); // a unit after its number still reads
   });
   it("defers fraction / percent answers to the grader instead of matching on a misleading scalar", () => {
     expect(gradeFreeTextDeterministic("1/2", "1/3", "fill_in_blank")).toBeNull();

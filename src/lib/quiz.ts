@@ -3,7 +3,7 @@ import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting
 import { splitNewVsReview, storedToGenQuestion, pickReview, interleaveReview } from "./quiz-review";
 import {
   checkAnswerConsistency, shouldRejectNumericReasoning, runsVerifyPass,
-  gradeFreeTextDeterministic, buildBatchGradePrompt, parseBatchGradeResults, batchGradeSchema,
+  buildBatchGradePrompt, parseBatchGradeResults, batchGradeSchema,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, resolveLetterKey,
   hasSelfCorrection, duplicateOptionPair, rewriteLetterRefs, isNearDuplicate,
@@ -11,6 +11,8 @@ import {
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
+import { settleByCode, misspellingCandidates } from "./answer-match";
+import { lookupWord } from "./dictionary";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -764,6 +766,17 @@ export interface AnswerToGrade {
   type: string;
 }
 
+// Which of these words are real words, from the bundled dictionary. A word the dictionary could not be
+// read for counts as real, so a misspelling is accepted only when the dictionary says it is not a word.
+async function realWords(words: string[]): Promise<(w: string) => boolean> {
+  const notWords = new Set<string>();
+  await Promise.all([...new Set(words)].map(async (w) => {
+    try { if ((await lookupWord(w)).length === 0) notWords.add(w); }
+    catch { /* unreadable: treated as a word */ }
+  }));
+  return (w) => !notWords.has(w);
+}
+
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
   config: LLMConfig | null,
@@ -771,10 +784,14 @@ export async function gradeAnswersBatch(
   const out = new Map<number, GradeOutcome>();
   const needsLLM: AnswerToGrade[] = [];
 
+  // An answer that is the key in another form ("washington", "h two o", "a hundred degrees",
+  // "tadpoles") is settled in code first (answer-match.ts), so the model never gets the chance to fail
+  // it. A misspelling counts only when the word is not a real word, which the dictionary says.
+  const isWord = await realWords(items.flatMap(misspellingCandidates));
   for (const it of items) {
-    // gradeFreeTextDeterministic only ever returns true (confident match) or null (defer) — never a
-    // false, so it can't wrongly fail a correct-but-reworded answer.
-    if (gradeFreeTextDeterministic(it.expected, it.student, it.type) === true) {
+    // settleByCode only ever returns true (confident match) or null (defer) — never a false, so it
+    // can't wrongly fail a correct-but-reworded answer.
+    if (settleByCode(it, isWord) === true) {
       out.set(it.index, { isCorrect: true, feedback: "Correct.", by: "exact" });
     } else {
       needsLLM.push(it);

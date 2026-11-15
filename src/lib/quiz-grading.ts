@@ -586,7 +586,10 @@ export function gradeFreeTextDeterministic(expected: string, student: string, ty
   if (e === s) return true;
 
   // Numeric match for value-style answers (the expected is essentially a number, optionally + unit).
-  if (NUMERIC_SHORTCIRCUIT_TYPES.has(type)) {
+  // A digit straight after a letter is a formula's count ("H2O", "CO2"), not a value: both read as 2,
+  // which passed "CO2" for "H2O" (dev set, 2026-11-14). A unit comes after its number, so "12cm" stays.
+  const formula = /\p{L}\d/u;
+  if (NUMERIC_SHORTCIRCUIT_TYPES.has(type) && !formula.test(expected) && !formula.test(student)) {
     const en = numericValueOf(expected);
     const sn = numericValueOf(student);
     const expectedIsBasicallyNumeric = en !== null && e.replace(/-?\d+(?:\.\d+)?/, "").trim().length <= 6;

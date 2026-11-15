@@ -767,6 +767,13 @@ export async function setPromotionResult(attemptId: string, passed: boolean, rev
   );
 }
 
+// A decided level test back to waiting: a written answer the model marked wrong was marked right by
+// hand, and now the answers no model checked could pass or fail it (written-answer-checks.ts).
+export async function reopenLevelTest(attemptId: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE quiz_attempts SET passed = NULL, review_score = NULL WHERE id = $1", [attemptId]);
+}
+
 // A level test decided after its written answers were marked: the score and count as they now stand.
 // completed_at stays the time the learner finished the test.
 export async function updateLevelTestScore(attemptId: string, score: number, correctCount: number): Promise<void> {

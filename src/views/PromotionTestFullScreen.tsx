@@ -2,13 +2,15 @@
 import type { QuizViewContext, QuizQuestion, QuizAttempt, LLMConfig } from "../types";
 import {
   createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt,
-  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade, type LevelTestRow,
+  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
 import { answerMark, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
-import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro } from "../lib/level-test";
+import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN } from "../lib/level-test";
 import { saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, type PendingLevelTest, type SettledLevelTest } from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
+import MarkAgain from "../components/quiz/MarkAgain";
+import { canMarkAgain, markAgain } from "../lib/written-answer-checks";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getGenerationConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
@@ -111,6 +113,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const [pendingTest, setPendingTest] = useState<PendingLevelTest | null>(null);
   // Written answers nothing checked on a decided test (they did not count toward it).
   const [uncheckedLeft, setUncheckedLeft] = useState(0);
+  // The attempt the results screen shows (the test just taken, or a waiting one decided later).
+  const [resultsAttempt, setResultsAttempt] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Synchronous single-flight guard for finishTest — blocks a double-click (or a click racing the
   // timeout) from grading + persisting twice (issue #83 review).
@@ -313,6 +317,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     const didPass = result.status === "passed";
     setQuestions(answered);
     setUncheckedLeft(result.unchecked);
+    setResultsAttempt(aid);
 
     const missedTopics = answered
       .filter((q) => !q.is_correct && q.subtopic_id)
@@ -417,6 +422,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
 
   const showSettled = (s: SettledLevelTest) => {
     const answers = s.rows.map(fromRow);
+    setResultsAttempt(s.attemptId);
     setPendingTest(null);
     setQuestions(answers);
     setUncheckedLeft(s.unchecked);
@@ -431,6 +437,28 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     }
     setTestState("results");
     void getGenerationConfig().then((cfg) => startStudyPlan(answers, cfg)).catch(() => setGeneratingPlan(false));
+  };
+
+  // "I think I was right": the learner marks a written answer the model marked wrong against the key, and
+  // the test is decided again (written-answer-checks.ts). Throws when the mark could not be saved.
+  const saveMarkAgain = async (index: number, right: boolean) => {
+    const q = questions[index];
+    if (!resultsAttempt || !q?.saved_id) throw new Error("the answer is not saved");
+    const done = await markAgain(resultsAttempt, new Map([[q.saved_id, right]]), "self");
+    if (!done) throw new Error("not a finished level test");
+    if (done.status === "pending") {
+      // Now the answers no model checked decide it: mark those next, as after any test.
+      const waiting = await pendingLevelTestFor(await getQuizAttempt(resultsAttempt));
+      if (waiting) { setPendingTest(waiting); setTestState("pending"); return; }
+    }
+    if (done.status === "passed" && !passed) {
+      showSettled({ ...done, status: "passed", overall: done.score, total: done.rows.length });
+      return;
+    }
+    setQuestions((prev) => prev.map((p, i) => (i === index ? { ...p, is_correct: right, graded_by: "self" } : p)));
+    setOverallScore(done.score);
+    setReviewScore(done.reviewPct);
+    setUncheckedLeft(done.unchecked);
   };
 
   const question = questions[currentIndex];
@@ -773,8 +801,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                     {mark !== "right" && q.user_answer && (
                       <p className={`text-xs mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
-                    {q.feedback && <p className="text-xs text-[var(--ink-faint)] italic mt-1">{q.feedback}</p>}
+                    {q.graded_by === "self"
+                      ? <p className="text-xs text-[var(--ink-faint)] mt-1">{MARK_AGAIN.marked}</p>
+                      : q.feedback && <p className="text-xs text-[var(--ink-faint)] italic mt-1">{q.feedback}</p>}
                     {q.explanation && <p className="text-xs text-[var(--ink-faint)] mt-1">{q.explanation}</p>}
+                    {canMarkAgain(q) && q.saved_id && resultsAttempt && (
+                      <MarkAgain copy={MARK_AGAIN} onMark={(right) => saveMarkAgain(i, right)} />
+                    )}
                   </div>
                 </div>
               </div>

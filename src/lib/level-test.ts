@@ -89,3 +89,16 @@ export function selfCheckIntro(n: number): string {
   const what = n === 1 ? "1 of your written answers" : `${n} of your written answers`;
   return `No model on this computer could check ${what}. Compare each one with the answer key and mark it. The test counts once every one is marked.`;
 }
+
+/** A written answer the model marked wrong, marked again by the learner against the key
+ * (written-answer-checks.ts). The model can fail a right answer written in other words. */
+export const MARK_AGAIN = {
+  ask: "I think I was right",
+  intro: "The model on this computer marked this wrong. Compare your answer with the answer key. If it means the same, it was right.",
+  right: "Right",
+  notYet: "Not yet",
+  saving: "Saving…",
+  saveFailed: "Could not save your mark. Try again.",
+  /** Under an answer the learner marked against the key. */
+  marked: "You marked this against the answer key.",
+} as const;
