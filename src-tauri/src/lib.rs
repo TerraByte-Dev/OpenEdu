@@ -496,6 +496,18 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 21,
+            description: "raise-hand help stored with each lesson (append-only, never edit v1-v20)",
+            sql: "
+                -- Raise hand (src/lib/raise-hand.ts): the lesson's stuck points and the help for each
+                -- (another way, a worked example, a hint) as JSON, written by the lesson's model from the
+                -- topic, the syllabus and the lesson text only. NULL = not written yet; the first Raise
+                -- hand on that lesson writes it. Deleting a lesson or its course deletes it.
+                ALTER TABLE lessons ADD COLUMN help_json TEXT;
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Lesson, Syllabus, Subtopic } from "../types";
 import { getLessons, getLesson } from "../lib/db";
-import { generateLesson } from "../lib/curriculum";
-import { getGenerationConfig, getReviewConfig } from "../lib/store";
+import { generateLesson, lessonHelpFor } from "../lib/curriculum";
+import { getLessonConfigs } from "../lib/store";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import LessonReader from "./LessonReader";
+import RaiseHand from "./RaiseHand";
 
 interface LessonsTabProps {
   courseId: string;
@@ -15,9 +16,11 @@ interface LessonsTabProps {
   // Deep-link from NextStepCard: open (generating if needed) the lesson for this subtopic.
   lessonSubtopicId?: string;
   onDeepLinkConsumed?: () => void;
+  /** Raise hand's "Try typing to your tutor": open the chat for this subtopic. */
+  onTypeToTutor?: (subtopicTitle: string | null) => void;
 }
 
-export default function LessonsTab({ courseId, level, topic, currentSyllabus, lessonSubtopicId, onDeepLinkConsumed }: LessonsTabProps) {
+export default function LessonsTab({ courseId, level, topic, currentSyllabus, lessonSubtopicId, onDeepLinkConsumed, onTypeToTutor }: LessonsTabProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
@@ -42,8 +45,8 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
     setError("");
     setGeneratingId(sub.id);
     try {
-      const cfg = await getGenerationConfig();
-      const lesson = await generateLesson(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, cfg, undefined, await getReviewConfig(cfg, "lesson"));
+      const { config: cfg, review } = await getLessonConfigs();
+      const lesson = await generateLesson(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, cfg, undefined, review);
       setLessons((prev) => [lesson, ...prev.filter((l) => l.id !== lesson.id)]);
       return lesson;
     } catch (e) {
@@ -76,7 +79,18 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
   }, [lessonSubtopicId, loading, currentSyllabus]);
 
   if (openLesson) {
-    return <LessonReader lesson={openLesson} onBack={() => setOpenLesson(null)} onRead={load} />;
+    const lesson = openLesson;
+    const sub = currentSyllabus?.subtopics.find((s) => s.id === lesson.subtopic_id)
+      ?? { id: lesson.subtopic_id ?? lesson.id, title: lesson.topic_string, key_concepts: [] };
+    const raiseHand = (
+      <RaiseHand
+        surface="lesson"
+        targets={[{ id: sub.id, title: sub.title }]}
+        load={() => lessonHelpFor(lesson, sub, topic, getLessonConfigs)}
+        onTypeToTutor={(t) => onTypeToTutor?.(t?.title ?? null)}
+      />
+    );
+    return <LessonReader lesson={lesson} onBack={() => setOpenLesson(null)} onRead={load} raiseHand={raiseHand} />;
   }
 
   if (loading) {

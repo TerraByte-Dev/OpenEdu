@@ -269,6 +269,8 @@ export interface Lesson {
   content: string;
   generated_at: string;
   read_at: string | null;
+  /** Raise hand's stuck points as JSON (src/lib/raise-hand.ts, migration 21). Null until written. */
+  help_json?: string | null;
 }
 
 export interface UserProgress {

@@ -362,10 +362,17 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
             currentSyllabus={viewingSyllabus}
             lessonSubtopicId={pendingLessonSubtopic}
             onDeepLinkConsumed={() => setPendingLessonSubtopic(undefined)}
+            onTypeToTutor={(seedTopic) => switchTab("chat", seedTopic ? { seedTopic } : undefined)}
           />
         )}
         {activeTab === "review" && (
-          <ReviewTab courseId={courseId} level={effectiveViewingLevel} />
+          <ReviewTab
+            courseId={courseId}
+            level={effectiveViewingLevel}
+            topic={course.topic}
+            syllabuses={syllabuses}
+            onTypeToTutor={(seedTopic) => switchTab("chat", seedTopic ? { seedTopic } : undefined)}
+          />
         )}
         {activeTab === "quiz" && (
           <QuizTab

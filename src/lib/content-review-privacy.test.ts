@@ -38,6 +38,7 @@ import { generateQuizQuestions, generatePromotionTestQuestions, gradeAnswersBatc
 import { buildLessonReviewMessages, resolveReviewConfig } from "./content-review";
 import { isLocalModel } from "./privacy";
 import type { LessonContent } from "./lesson-format";
+import { helpAsLesson, type LessonHelp } from "./raise-hand";
 import type { LLMConfig, QuizQuestion, Syllabus } from "../types";
 
 const GEN = { provider: "ollama", model: "gemma4:e2b", modelTier: "tiny" } as LLMConfig;
@@ -51,6 +52,9 @@ const LESSON: LessonContent = { summary: "Fractions name equal parts of a whole 
   { heading: "Halves", body: "Cut a pizza into two equal parts and each part is one half of it." },
   { heading: "Thirds", body: "Three equal parts make thirds, so one third is smaller than one half." },
 ], key_takeaways: ["Equal parts matter.", "More parts means smaller parts."] };
+// Raise hand's stuck points, written with the lesson from its text (raise-hand.ts) and reviewed like it.
+const HELP: LessonHelp = { stuck_points: [1, 2, 3].map((i) => ({ label: `Stuck point ${i}`,
+  another_way: "Cut the same pizza into more parts and each part gets smaller.", example: "1/2 of 6 is 3 and 1/3 of 6 is 2, so 1/3 is smaller.", hint: "More pieces, smaller pieces." })) };
 function stub() {
   calls = [];
   let n = 0;
@@ -63,6 +67,8 @@ function stub() {
     switch (opts.toolName) {
       case "emit_lesson":
         return structuredClone(LESSON) as never;
+      case "emit_stuck_points":
+        return structuredClone(HELP) as never;
       case "emit_quiz_questions": { // the cloud path asks for a batch per subtopic
         const count = Number(/Generate (\d+) quiz question/.exec(content)?.[1] ?? 1);
         return { questions: Array.from({ length: count }, () => {
@@ -119,7 +125,7 @@ describe("the review payload carries no learner data", () => {
     await generateLesson("c1", 1, { id: "1.1", title: "Comparing fractions", key_concepts: ["halves"] }, "Fractions", { ...GEN }, undefined, { ...CLOUD_REVIEW });
     const history = reviewPayloads();
 
-    expect(fresh.length).toBe(1);
+    expect(fresh.length).toBe(2); // the lesson, then its Raise hand help
     expect(history).toEqual(fresh);
     assertLearnerFree(history);
   });
@@ -207,7 +213,10 @@ describe("a cloud reviewer on another provider", () => {
     const history = cloudPayloads();
 
     expect(history).toEqual(fresh);
-    expect(history).toEqual([buildLessonReviewMessages("Fractions", "Comparing fractions", LESSON).map((m) => m.content).join("\n")]);
+    expect(history).toEqual([
+      buildLessonReviewMessages("Fractions", "Comparing fractions", LESSON).map((m) => m.content).join("\n"),
+      buildLessonReviewMessages("Fractions", "Comparing fractions", helpAsLesson("Comparing fractions", HELP)).map((m) => m.content).join("\n"),
+    ]);
     // The lesson itself was written on the local model.
     expect(calls.find((c) => c.tool === "emit_lesson")).toMatchObject({ provider: "ollama", model: GEN.model });
     assertLearnerFree(history);
