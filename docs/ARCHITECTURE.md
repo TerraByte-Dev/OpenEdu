@@ -286,10 +286,21 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   "it's" or article, number words as digits, plurals) and accepts the answer when it is the key or one
   of the key's accepted forms: a part of the key in brackets or after a slash, the key's number with
   none, some or all of its own units ("a hundred degrees" for "100 degrees Celsius", never an added
-  unit), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
+  unit, units in the key's order, so "60 hours per km" is not "60 km per hour"; the degree sign reads
+  as "degrees", so "100 degrees C" is "100 °C"), an ordinal in words or digits with the key's other
+  words ("the fourth planet" for "4th planet"; never "4" for "4th", and "the fourth" alone goes to the
+  model), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
   a name, and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
   itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). It never accepts
-  on a shared word ("red" for "red blood cells") and never marks an answer wrong; what it cannot settle
+  on a shared word ("red" for "red blood cells"), and it compares words in order, so the key's words
+  reversed ("4 girls per boy" for "4 boys per girl") are not the key. A number never settles past the
+  key's other words when they say something the answer contradicts or leaves out: another noun ("6
+  arms" for "6 legs"), am/pm, a sign, direction or fraction ("4" for "Negative 4", "2" for "Two
+  thirds"), another unit or an ordinal ("1st" for "1 second"), or any word that is not a unit ("4" for
+  "4 light years", "2" for "2 dozen eggs" go to the model). The only word a number may gain or lose is
+  the thing a "how many" question counts ("12 pencils" for "12", "6" for "6 legs"; not "12 packs").
+  When the question offers a choice ("Is noon 12 AM or 12 PM?", "10 cm vs 10 m?") or already says the
+  number, the answer must give the key's whole answer. It never marks an answer wrong; what it cannot settle
   goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A formula's count
   is no longer read as a number ("CO2" had passed for "H2O" as the number 2).
 - **"I think I was right."** A small model still fails some right answers, so on the quiz and level

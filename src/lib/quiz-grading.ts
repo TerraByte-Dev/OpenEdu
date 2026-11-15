@@ -674,6 +674,14 @@ export type BatchGradeReply = Record<string, { feedback?: string; correct?: bool
 // grader compares the student's words with the key. "Be generous with partial credit" and "demonstrates
 // understanding of the core concept" are gone: with them, e2b and e4b marked a typed code that answers
 // nothing ("I think it is TAXb05Q0TAX") correct, apparently grading the key's concept instead.
+// Synonyms, other names and other units (eval/grade-dev.ts GRADE_DEV_SYNONYMS, e2b x3, 74 right / 80
+// wrong): the old wording failed 17, 19, 17 right answers and passed 1, 1, 1 wrong. Saying an amount
+// in other units counts only when it converts (with a feedback line that asked for the conversion)
+// fails 15, 16, 16 and passes 0, 1, 1. "Convert it and compare", or a "1 km" / "1 mile" example,
+// passed "about 42 miles" for "about 42 kilometers". The feedback line asking the model to convert was
+// dropped: a wrong conversion shown to a child is misinformation, and without it e2b failed 16, 15, 13
+// and passed 1, 1, 2 against 16, 15, 12 and 1, 2, 1 with it, code settling the same answers in both
+// (e4b, one run: 12 and 1 against 9 and 1). Results: results/2026-11-15-grade-dev-synonyms.md.
 export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): string {
   const body = items
     .map((it, k) =>
@@ -685,8 +693,8 @@ export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): s
     .join("\n\n");
 
   return `You are checking ${items.length} answer${items.length === 1 ? "" : "s"} a student typed. For each one, compare the student's answer with the expected answer.
-- correct: true when the student's answer means the same as the expected answer, even if it is worded differently, shorter, or misspelled. A student may leave out the option letter.
-- correct: false when the student's answer is wrong, says something else, or does not answer the question.
+- correct: true when the student's answer means the same as the expected answer, even if it is worded differently, shorter, or misspelled. Another name or a synonym for the same thing counts. An amount in other units counts only when it converts to the expected amount; the same number in another unit is wrong. A student may leave out the option letter.
+- correct: false when the student's answer is wrong, says something else, names a different or only related thing, gives only part of the expected answer, or does not answer the question.
 Judge only what the student wrote. Do not mark an answer correct because the expected answer is right.
 
 Return ONLY a JSON object with one key per answer: ${items.map((_, k) => `"${gradeKey(k)}": {"feedback": "<1 short sentence on what the student wrote>", "correct": true/false}`).join(", ")}.
