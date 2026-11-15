@@ -202,3 +202,30 @@ Wrong passed after: e2b "the cerebrum" (partial) in every run; e4b "37 degrees F
 units 6 → 7, among them "the House" and "the U.S. House"); all are model verdicts on answers code
 settles in neither version, and one run each cannot tell that from noise. The feedback field still
 asks for no conversion.
+
+## Held-out v3 (2026-11-15, run once at the frozen commit)
+
+Run once on OpenEdu `729cf13e5cb21aa870a38dcd785b6f069ecea7d1` (TerraTutor `f9aea3f`), set SHA-256
+`d4bbab77dc6c7378320f969a7853324ead6364020fdf608d2ddfe542dd097b74` (40 right, 80 wrong, written by a separate
+generator that the fixing agent never saw). Bars, pre-registered: per e2b run, right failed ≤ 2/40 and wrong
+passed ≤ 1/80. The code was reviewed four times by an independent agent before the run; the last review found
+no must-fix.
+
+| Model | Right failed | Wrong passed | Settled by code |
+|---|---|---|---|
+| e2b run 1 | 3/40 | 0/80 | 16 |
+| e2b run 2 | 4/40 | 0/80 | 16 |
+| e2b run 3 | 3/40 | 0/80 | 16 |
+| e4b | 4/40 | 1/80 | 16 |
+
+- **Wrong-pass bar: holds** (0/80 on every e2b run; round 2 was 1/80 each run). Code passed no wrong answer.
+- **Right-fail bar: fails** on e2b (3, 4, 3 against 2). Every miss was the model's. On every run: a
+  misspelling ("omnivour" for omnivore), a spelled symbol ("greater than" for ">"), and spaced letters
+  ("n a" for "Na"); once a synonym ("the War Between the States"). e4b missed two extra-words answers, a
+  synonym and a spelled symbol, and passed one partial answer ("a meat eater" for omnivore).
+- **Merged anyway, deliberately:** the change removes wrong answers that master's code marked right with no
+  model check after them ("6 arms" for "6 legs", "3 am" for "3 PM", "60 hours per km" for "60 km/h", and
+  others in the review notes). Keeping master would keep those.
+- **Next, untested here:** the three e2b misses are code-settleable (spelled comparison symbols, spaced
+  chemical symbols, the misspelling rule's threshold). They were found on this set, so a v4 blind set is
+  needed to measure them.
