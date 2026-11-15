@@ -309,8 +309,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   score and then every later attempt's at that level, in finishing order (`updateSubtopicMastery`);
   progress and the context are worked out again; a question marked right loses the card made from
   missing it unless another attempt still has it wrong (cards the learner made are never touched), and
-  one marked wrong gets its card; the study log line (found by its date and old score) and the note are
-  written again. What it does not redo: mastery is never taken away (a lower score flags the skill for
+  one marked wrong gets its card; the study log line (found by its date, "Quiz" or "Level test", and old
+  score; a level test's line written before it had its own name still says "Quiz" and keeps it) and the
+  note are written again. What it does not redo: mastery is never taken away (a lower score flags the skill for
   review instead, the app's own rule); answers with no skill id; a line no longer in the log. A failed
   test's study plan joins its log line when the model finishes it (`addStudyPlanToLog`), only while the
   line is as the finish wrote it, and a rewrite drops a plan when the wrong answers changed, since it was

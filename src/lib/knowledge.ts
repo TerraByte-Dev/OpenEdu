@@ -6,14 +6,19 @@ import type { LLMConfig } from "../types";
 const STUDY_PLAN = " Study plan: ";
 const NEEDS_REVIEW = "Needs review: ";
 
-// The study log's line for a finished quiz or level test. It starts with the date and the score, by
-// which a mark made later finds it again (reviseQuizLog).
-const quizLogHead = (dateStr: string, score: number) => `[${dateStr}] Quiz: ${score.toFixed(0)}% `;
+// What the study log calls the attempt. Lines written before level tests had their own name say
+// "Quiz" for both, and keep it.
+type LogLabel = "Quiz" | "Level test";
+const logLabel = (levelTest: boolean): LogLabel => (levelTest ? "Level test" : "Quiz");
+
+// The study log's line for a finished quiz or level test. It starts with the date, the name and the
+// score, by which a mark made later finds it again (reviseQuizLog).
+const quizLogHead = (dateStr: string, label: LogLabel, score: number) => `[${dateStr}] ${label}: ${score.toFixed(0)}% `;
 // One line: the study log is split on newlines and keeps its last 3, and a bulleted plan has several.
 const planText = (studyPlan: string) => `${STUDY_PLAN}${studyPlan.replace(/\s+/g, " ").trim().slice(0, 250)}`;
 
-function quizLogEntry(dateStr: string, score: number, totalQuestions: number, missedTopics: ReadonlyArray<string>, studyPlan: string | null): string {
-  return `${quizLogHead(dateStr, score)}(${totalQuestions} questions)` +
+function quizLogEntry(dateStr: string, label: LogLabel, score: number, totalQuestions: number, missedTopics: ReadonlyArray<string>, studyPlan: string | null): string {
+  return `${quizLogHead(dateStr, label, score)}(${totalQuestions} questions)` +
     (missedTopics.length > 0 ? `. Weak areas: ${missedTopics.slice(0, 5).join(", ")}.` : ". All areas strong.") +
     (studyPlan ? planText(studyPlan) : "");
 }
@@ -28,13 +33,14 @@ export async function updateKnowledgeAfterQuiz(
   totalQuestions: number,
   missedTopics: string[],
   studyPlan: string | null,
+  levelTest: boolean,
   _config?: LLMConfig,
 ): Promise<string> {
   const instructions = await getTutorInstructions(courseId);
   const currentStudyLog = (instructions["study_log"] ?? "").trim();
   const currentKnowledgeMap = (instructions["knowledge_map"] ?? "").trim();
 
-  const quizEntry = quizLogEntry(new Date().toLocaleDateString(), score, totalQuestions, missedTopics, studyPlan);
+  const quizEntry = quizLogEntry(new Date().toLocaleDateString(), logLabel(levelTest), score, totalQuestions, missedTopics, studyPlan);
 
   const logLines = currentStudyLog.split("\n").filter((l) => l.trim());
   logLines.push(quizEntry);
@@ -73,24 +79,30 @@ const sameTopics = (a: ReadonlyArray<string>, b: ReadonlyArray<string>) =>
 /**
  * A finished attempt's study log line and "Needs review" note, written again after a hand mark changed
  * its score or its wrong answers (finish-effects.ts recountAfterMarks). The line is found by its date
- * (finishedOn, the local date the attempt finished) and old score; the note by its old subtopics. One no
+ * (finishedOn, the local date the attempt finished), its name and old score; the note by its old
+ * subtopics. A level test's line written before level tests had their own name says "Quiz", so that is
+ * looked for when no "Level test" line is there, and the rewritten line keeps the name it had. One no
  * longer there (the log keeps 3 lines, a chat reflection rewrites the map) is left alone, never added
  * again. A study plan on the line stays only when keepPlan says the wrong answers did not change: it was
  * written for them, and no model is asked again.
  */
-export async function reviseQuizLog(courseId: string, finishedOn: string, before: QuizLogFacts, after: QuizLogFacts, keepPlan: boolean): Promise<void> {
+export async function reviseQuizLog(courseId: string, levelTest: boolean, finishedOn: string, before: QuizLogFacts, after: QuizLogFacts, keepPlan: boolean): Promise<void> {
   const instructions = await getTutorInstructions(courseId);
 
   const logLines = (instructions["study_log"] ?? "").split("\n");
-  const head = quizLogHead(finishedOn, before.score);
-  const at = logLines.map((l) => l.startsWith(head)).lastIndexOf(true);
-  if (at >= 0) {
+  const labels: LogLabel[] = levelTest ? ["Level test", "Quiz"] : ["Quiz"];
+  const found = labels
+    .map((label) => ({ label, head: quizLogHead(finishedOn, label, before.score) }))
+    .map((h) => ({ ...h, at: logLines.map((l) => l.startsWith(h.head)).lastIndexOf(true) }))
+    .find((h) => h.at >= 0);
+  if (found) {
+    const { label, head, at } = found;
     const line = logLines[at];
     const count = /^\((\d+) questions\)/.exec(line.slice(head.length))?.[1];
     const plan = line.indexOf(STUDY_PLAN);
     if (count) {
       const studyPlan = keepPlan && plan >= 0 ? line.slice(plan + STUDY_PLAN.length) : null;
-      logLines[at] = quizLogEntry(finishedOn, after.score, Number(count), after.missedTopics, studyPlan);
+      logLines[at] = quizLogEntry(finishedOn, label, after.score, Number(count), after.missedTopics, studyPlan);
       await saveTutorInstruction(courseId, "study_log", logLines.join("\n"));
     }
   }

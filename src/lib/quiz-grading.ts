@@ -630,6 +630,16 @@ export function answerMark(q: { is_correct: boolean | null; graded_by?: GradedBy
   return q.is_correct ? "right" : "wrong";
 }
 
+/**
+ * Whether a results row shows the learner's answer and the key. A right answer hides them, except one a
+ * person marked against the key ('self'): there they are what was marked, and anyone reading the results
+ * should see both.
+ */
+export function showsAnswerAndKey(q: { is_correct: boolean | null; graded_by?: GradedBy | null; user_answer?: string | null }): boolean {
+  if (!q.user_answer) return false;
+  return answerMark(q) !== "right" || q.graded_by === "self";
+}
+
 export const UNCHECKED_NOTE = "Not checked. No model on this computer could check this written answer, so it counts as right. Compare it with the answer key.";
 
 /** The line under a score when some answers in it were never checked, or null when all were. */

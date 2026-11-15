@@ -45,7 +45,7 @@ export async function saveFinishEffects(
     await refreshProgressContext(courseId, await getSyllabus(courseId, level));
   }
   if (levelTest) await mintCardsFromMisses(courseId, answered.filter((q) => !q.is_correct), level);
-  return updateKnowledgeAfterQuiz(courseId, score, answered.length, missedTopics(answered), null);
+  return updateKnowledgeAfterQuiz(courseId, score, answered.length, missedTopics(answered), null, levelTest);
 }
 
 /** The local date an attempt finished, as the study log wrote it then. completed_at is SQLite UTC. */
@@ -112,6 +112,7 @@ export async function recountAfterMarks(before: QuizAttempt, rowsBefore: Readonl
   if (before.score !== null && attempt.score !== null) {
     await reviseQuizLog(
       courseId,
+      attempt.quiz_type === "promotion",
       finishedOn(attempt.completed_at),
       { score: before.score, missedTopics: missedTopics(rowsBefore) },
       { score: attempt.score, missedTopics: missedTopics(rows) },
