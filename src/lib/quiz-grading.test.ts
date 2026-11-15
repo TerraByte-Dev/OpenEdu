@@ -204,6 +204,13 @@ describe("gradeFreeTextDeterministic", () => {
     expect(gradeFreeTextDeterministic("O₂", "2", "fill_in_blank")).toBeNull();
     expect(gradeFreeTextDeterministic("x²", "2", "short_answer")).toBeNull();
     expect(gradeFreeTextDeterministic("O₂", "O2", "fill_in_blank")).toBe(true); // formula match still works
+    expect(gradeFreeTextDeterministic("H2O", "CO2", "short_answer")).toBeNull(); // both hold a 2; neither is the number 2
+    expect(gradeFreeTextDeterministic("12 cm", "12cm", "short_answer")).toBe(true); // a unit after its number still reads
+  });
+  it("does not take a hedge or a negation for the number", () => {
+    expect(gradeFreeTextDeterministic("6", "6 or 8", "short_answer")).toBeNull();
+    expect(gradeFreeTextDeterministic("6", "not 6", "short_answer")).toBeNull();
+    expect(gradeFreeTextDeterministic("6", "it has 6 sides", "short_answer")).toBe(true);
   });
   it("defers fraction / percent answers to the grader instead of matching on a misleading scalar", () => {
     expect(gradeFreeTextDeterministic("1/2", "1/3", "fill_in_blank")).toBeNull();

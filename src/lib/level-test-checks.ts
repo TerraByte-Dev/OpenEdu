@@ -16,7 +16,7 @@ const asAnswer = (r: LevelTestRow): TestAnswer => ({ section: r.test_section ?? 
 
 // The stored answers as the pass rule reads them. A question with no stored row (a timed-out test's
 // unanswered row that failed to save) counts as wrong, as the app scored it.
-function answersOf(attempt: QuizAttempt, rows: ReadonlyArray<LevelTestRow>): TestAnswer[] {
+export function answersOf(attempt: QuizAttempt, rows: ReadonlyArray<LevelTestRow>): TestAnswer[] {
   const missing = Math.max(0, attempt.total_questions - rows.length);
   return [...rows.map(asAnswer), ...Array.from({ length: missing }, (): TestAnswer => ({ section: "current", is_correct: false, graded_by: "unanswered" }))];
 }

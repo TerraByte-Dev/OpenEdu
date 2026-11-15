@@ -281,6 +281,26 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   as `graded_by` `'self'` and the test is decided by `level-test-checks.ts` `settleLevelTest`, which
   moves the course up after a pass. A waiting test blocks a new attempt at that level, and a test not
   passed (`passed` 0) now starts the 24-hour wait even when only the review section fell short.
+- **Code settles an answer that is the key in another form.** Before the batch goes to the model,
+  `answer-match.ts` `settleByCode` puts the answer and the key in one form (case, punctuation, a leading
+  "it's" or article, number words as digits, plurals) and accepts the answer when it is the key or one
+  of the key's accepted forms: a part of the key in brackets or after a slash, the key's number with
+  none, some or all of its own units ("a hundred degrees" for "100 degrees Celsius", never an added
+  unit), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
+  a name, and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
+  itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). It never accepts
+  on a shared word ("red" for "red blood cells") and never marks an answer wrong; what it cannot settle
+  goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A formula's count
+  is no longer read as a number ("CO2" had passed for "H2O" as the number 2).
+- **"I think I was right."** A small model still fails some right answers, so on the quiz and level
+  test results screens a written answer the model marked wrong (`graded_by` `'model'`, wrong) has the
+  button "I think I was right" (`components/quiz/MarkAgain.tsx`). The learner compares it with the key
+  and marks it Right or Not yet, stored as `'self'`. `written-answer-checks.ts` `markAgain` counts the
+  quiz's score again, or decides the level test again the way `settleLevelTest` does: a failed test
+  the mark passes is passed and the course moves up; one that now depends on answers no model checked
+  goes back to waiting for them (`reopenLevelTest`); one whose result cannot change stays decided with
+  its score counted again. Mastery, flashcards and the study log saved at the end of the test are not
+  redone. Only a model's wrong mark can be marked again, never the key's, an exact match's or a hand mark.
 
 ## The tutoring runtime (`kernel/`, `tools/`, `skills/`, `permissions/`)
 

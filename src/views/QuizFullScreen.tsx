@@ -9,6 +9,9 @@ import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/stor
 import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
 import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
+import MarkAgain from "../components/quiz/MarkAgain";
+import { MARK_AGAIN } from "../lib/level-test";
+import { canMarkAgain, markAgain } from "../lib/written-answer-checks";
 import { IconXmark } from "../components/icons";
 
 interface QuizFullScreenProps {
@@ -212,6 +215,17 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     }
   };
 
+  // "I think I was right": the learner marks a written answer the model marked wrong against the key.
+  // Throws when the mark could not be saved, so MarkAgain can say so.
+  const saveMarkAgain = async (index: number, right: boolean) => {
+    const q = questions[index];
+    if (!attemptId || !q?.saved_id) throw new Error("the answer is not saved");
+    const done = await markAgain(attemptId, new Map([[q.saved_id, right]]), "self");
+    if (!done) throw new Error("not a finished quiz");
+    setQuestions((prev) => prev.map((p, i) => (i === index ? { ...p, is_correct: right, graded_by: "self" } : p)));
+    setScore({ correct: done.correct, total: Math.max(questions.length, done.rows.length) });
+  };
+
   const question = questions[currentIndex];
 
   if (state === "generating") {
@@ -301,9 +315,14 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
                       <p className="text-success">Correct: {q.correct_answer}</p>
                     </div>
                   )}
-                  {q.feedback && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)] italic">{q.feedback}</p>}
+                  {q.graded_by === "self"
+                    ? <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)]">{MARK_AGAIN.marked}</p>
+                    : q.feedback && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)] italic">{q.feedback}</p>}
                   {q.explanation && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)]">{q.explanation}</p>}
                   {q.subtopic_id && <p className="ml-5 mt-1 text-[10px] text-[var(--ink-faint)]">Subtopic: {q.subtopic_id}</p>}
+                  {canMarkAgain(q) && q.saved_id && attemptId && (
+                    <div className="ml-5"><MarkAgain copy={MARK_AGAIN} onMark={(right) => saveMarkAgain(i, right)} /></div>
+                  )}
                 </div>
                 );
               })}
