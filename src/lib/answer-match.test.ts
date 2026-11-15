@@ -53,7 +53,7 @@ describe("answerWords", () => {
     expect(answerWords("9.8 meters per second squared")).toEqual(["9.8", "meters", "per", "second", "squared"]);
     expect(answerWords("twenty second")).toEqual(["20", "second"]);
     expect(answerWords("the second planet")).toEqual(["2nd", "planet"]);
-    expect(answerWords("the twenty second amendment")).toEqual(["22nd", "amendment"]);
+    expect(answerWords("the twenty second floor")).toEqual(["22nd", "floor"]);
   });
   it("reads a.m. and p.m. as one word", () => {
     expect(answerWords("3 p.m.")).toEqual(["3", "pm"]);
@@ -127,6 +127,13 @@ const PAIRS = "How many pairs of shoes does she have?";
 const SOUND = "How fast does sound travel in air, in meters per second?";
 const HEART = "How fast does a resting heart beat, in beats per minute?";
 const PENCILS = "A pack holds 4 pencils. How many pencils are in 3 packs?";
+// The third review's cases: the answer has the key's words in another order, which reverses the relation.
+const BOYS = "In a class there are 12 boys and 3 girls. How many boys are there per girl?";
+const CATS = "How many times as many cats as dogs are there?";
+const CUPS = "A cake takes 4 cups of flour and 2 cups of sugar. How many cups of flour are there for each cup of sugar?";
+const MARBLES = "What is the ratio of red marbles to blue marbles?";
+const SLEEP = "How many hours does the baby sleep each night?";
+const CLOCK = "The minute hand points at the 3. How many minutes past the hour is it?";
 
 describe("settleByCode: the degree sign and ordinals", () => {
   it("accepts degrees in words for a key written with the sign", () => {
@@ -153,32 +160,45 @@ describe("settleByCode: the degree sign and ordinals", () => {
   });
   it("accepts an ordinal in words for the key's digits, and the other way round", () => {
     expect(settle(MARS, "4th planet", "the fourth planet")).toBe(true);
-    expect(settle(MARS, "4th planet", "the fourth")).toBe(true);
-    expect(settle(MARS, "4th planet", "4th")).toBe(true);
     expect(settle(MARS, "The Fourth Planet", "4th planet")).toBe(true);
-    expect(settle("What place did the runner finish in?", "First place", "the first")).toBe(true);
-    expect(settle("In which century did World War II happen?", "The 20th century", "twentieth")).toBe(true);
+    expect(settle("What place did the runner finish in?", "First place", "the first place")).toBe(true);
+    expect(settle("In which century did World War II happen?", "The 20th century", "the twentieth century")).toBe(true);
+    expect(settle("Which floor is the library on?", "The 22nd floor", "the twenty-second floor")).toBe(true);
   });
-  it("takes the key's number alone or with all of the words the question names (the second review's cases)", () => {
-    expect(settle(MARS, "4th planet", "4th")).toBe(true);
+  it("takes the key's number alone when its other words are units, or with all of the key's words in order (the reviews' cases)", () => {
     expect(settle(MARS, "4th planet", "the fourth planet")).toBe(true);
     expect(settle(KMH, "60 km per hour", "60")).toBe(true);
     expect(settle(KMH, "60 km per hour", "60 km per hour")).toBe(true);
     expect(settle(KMH, "60 km per hour", "sixty kilometers per hour")).toBe(true);
+    expect(settle(KMH, "60 km per hour", "60 km/h")).toBe(true);
     expect(settle(MPH, "60 miles per hour", "60")).toBe(true);
     expect(settle(AREA, "12 square centimeters", "12")).toBe(true);
     expect(settle(VOLUME, "27 cubic meters", "27")).toBe(true);
-    expect(settle(LIGHT_YEARS, "4 light years", "4")).toBe(true);
     expect(settle(LIGHT_YEARS, "4 light years", "four light years")).toBe(true);
-    expect(settle(PER_POUND, "3 dollars per pound", "3")).toBe(true);
-    expect(settle(DOZEN, "2 dozen eggs", "2")).toBe(true);
     expect(settle(DOZEN, "2 dozen eggs", "two dozen eggs")).toBe(true);
-    expect(settle(PAIRS, "3 pairs of shoes", "3")).toBe(true);
     expect(settle(PAIRS, "3 pairs of shoes", "3 pairs of shoes")).toBe(true);
     expect(settle(SOUND, "343 meters per second", "343")).toBe(true);
-    expect(settle(HEART, "70 beats per minute", "70")).toBe(true);
     expect(settle(PENCILS, "12", "12 pencils")).toBe(true);
     expect(settle("How many sides does a hexagon have?", "6", "6 sides")).toBe(true);
+    expect(settle("How many legs does an insect have?", "6 legs", "6")).toBe(true);
+    expect(settle("How many electrons?", "9", "9 electrons")).toBe(true);
+    expect(settle(BOYS, "4 boys per girl", "4 boys per girl")).toBe(true);
+    expect(settle(CATS, "5 times as many cats as dogs", "five times as many cats as dogs")).toBe(true);
+  });
+  // The rule that took a number alone when the question repeats the key's other words was removed
+  // after it passed a wrong answer in each of three reviews. These right answers now go to the model.
+  it("leaves the number alone for a key with words that are not units to the model", () => {
+    expect(settle(MARS, "4th planet", "4th")).toBeNull();
+    expect(settle(MARS, "4th planet", "the fourth")).toBeNull();
+    expect(settle("What place did the runner finish in?", "First place", "the first")).toBeNull();
+    expect(settle("In which century did World War II happen?", "The 20th century", "twentieth")).toBeNull();
+    expect(settle(LIGHT_YEARS, "4 light years", "4")).toBeNull();
+    expect(settle(PER_POUND, "3 dollars per pound", "3")).toBeNull();
+    expect(settle(DOZEN, "2 dozen eggs", "2")).toBeNull();
+    expect(settle(PAIRS, "3 pairs of shoes", "3")).toBeNull();
+    expect(settle(HEART, "70 beats per minute", "70")).toBeNull();
+    expect(settle("How many electrons does a fluorine atom have?", "9 electrons", "9")).toBeNull();
+    expect(settle("Which day of July is Independence Day in the United States?", "4th of July", "4th")).toBeNull();
   });
 });
 
@@ -195,7 +215,32 @@ describe("settleByCode: never a wrong answer", () => {
     expect(settle("How long is the pause?", "1 second", "1st")).toBeNull();
     expect(settle("What is the SI base unit of time?", "The second", "2nd")).toBeNull();
   });
-  it("needs every other word of the key in the question to take the number alone", () => {
+  it("never takes the key's words in another order (the third review's cases)", () => {
+    expect(settle(BOYS, "4 boys per girl", "4 girls per boy")).toBeNull();
+    expect(settle(CATS, "5 times as many cats as dogs", "5 times as many dogs as cats")).toBeNull();
+    expect(settle(CUPS, "2 cups of flour for each cup of sugar", "2 cups of sugar for each cup of flour")).toBeNull();
+    expect(settle(MARBLES, "3 red to blue", "3 blue to red")).toBeNull();
+    expect(settle(SLEEP, "9 hours each night", "9 nights each hour")).toBeNull();
+    expect(settle(CLOCK, "15 minutes past the hour", "15 hours past the minute")).toBeNull();
+    expect(settle(CUPS, "2 cups of flour for each cup of sugar", "cups of flour for each 2 cups of sugar")).toBeNull();
+    expect(settle("How fast?", "5 cats per dog", "5 dogs per cat")).toBeNull();
+  });
+  it("never takes units in another order", () => {
+    expect(settle(KMH, "60 km per hour", "60 hours per km")).toBeNull();
+    expect(settle("How fast does it go?", "60 km/h", "60 h/km")).toBeNull();
+    expect(settle("How fast does it go?", "6 ft/s", "6 s/ft")).toBeNull();
+    expect(settle(SOUND, "343 meters per second", "343 seconds per meter")).toBeNull();
+  });
+  it("never takes the number alone when the question already says it, or offers a choice with vs", () => {
+    expect(settle("Which is longer, 10 cm vs 10 m?", "10 m", "10")).toBeNull();
+    expect(settle("Which is longer: 10 cm, 10 m?", "10 m", "10")).toBeNull();
+    expect(settle("Which is warmer: 30 degrees Celsius, 30 degrees Fahrenheit?", "30 degrees Celsius", "30")).toBeNull();
+    expect(settle("Which is warmer: 30 degrees Celsius, 30 degrees Fahrenheit?", "30 degrees Celsius", "30 degrees")).toBeNull();
+    expect(settle("Which animal has 8 legs: How many legs?", "8 legs", "8")).toBeNull();
+    expect(settle("Which is longer, 10 cm versus 10 m?", "10 m", "10 meters")).toBe(true);
+    expect(settle("A spider has 8 legs. How many legs do 8 spiders have?", "64 legs", "64")).toBe(true);
+  });
+  it("never takes the number alone for a key with words that are not units", () => {
     expect(settle("Counting out from the Sun, where is Mars?", "4th planet", "the fourth")).toBeNull();
     expect(settle(MARS, "4th planet", "the 4th moon")).toBeNull();
     expect(settle("How many branches?", "There are 3 branches of government", "3")).toBeNull();
