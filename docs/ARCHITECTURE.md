@@ -287,11 +287,15 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   of the key's accepted forms: a part of the key in brackets or after a slash, the key's number with
   none, some or all of its own units ("a hundred degrees" for "100 degrees Celsius", never an added
   unit; the degree sign reads as "degrees", so "100 degrees C" is "100 °C"), an ordinal in words or
-  digits ("the thirteenth" for "13th Amendment" when the question names the amendment; never "13" for
-  "30th"), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
-  a name, and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
-  itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). It never accepts
-  on a shared word ("red" for "red blood cells") and never marks an answer wrong; what it cannot settle
+  digits ("the fourth" for "4th planet" when the question names the planet; never "4" for "4th"), a
+  spelled formula ("h two o"), a person's surname when the question asks who and the key is a name, and
+  a one-edit misspelling of a key word of 6 letters or more when the answer's word is not itself a word
+  in the bundled dictionary ("neuron" for "neutron" goes to the model). It never accepts on a shared
+  word ("red" for "red blood cells"). A number never settles past the key's other words when they say
+  something the answer contradicts or leaves out: another noun ("6 arms" for "6 legs"), am/pm, a sign,
+  direction or fraction ("4" for "Negative 4", "2" for "Two thirds"), or another unit or an ordinal
+  ("1st" for "1 second"); and when the question offers a choice ("Is noon 12 AM or 12 PM?") the answer
+  must give the key's whole answer. It never marks an answer wrong; what it cannot settle
   goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A formula's count
   is no longer read as a number ("CO2" had passed for "H2O" as the number 2).
 - **"I think I was right."** A small model still fails some right answers, so on the quiz and level

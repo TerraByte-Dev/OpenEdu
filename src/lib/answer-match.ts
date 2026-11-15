@@ -13,19 +13,23 @@
 //     degrees" for "100 degrees Celsius" or "100 °C"; the sign is read as "degrees"). Degrees and the
 //     scale may be left out; any other unit the answer gives must be all of the key's ("12 cm" is not
 //     "12 square centimeters"), never a unit the key does not have;
-//   - an ordinal in words or digits: "the thirteenth" is "13th", "first" is "1st". A key that is one
-//     number or ordinal plus words the question already says ("13th Amendment" for "Which amendment
-//     ended slavery?") also accepts the number alone, but not a plain number for an ordinal;
+//   - an ordinal in words or digits: "the fourth" is "4th", "first" is "1st". A key that is one
+//     number or ordinal plus words the question already says ("4th planet" for "Counting out from the
+//     Sun, which planet is Mars?") also accepts the number alone, but not a plain number for an
+//     ordinal, not when another word of the key is a sign, direction, am/pm or fraction ("Negative 4"
+//     needs "negative"), and not when the question offers a choice ("12 AM or 12 PM?");
 //   - a person's surname: the key is a person's name (the question asks "who", the key is 2-4
 //     capitalised words) and the answer is that name's last word;
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
 //     word ("herbivor"). "neuron" for "neutron" or "photon" for "proton" is a real word, so it is a
 //     different answer, and the model decides it. The caller supplies the word list (the dictionary).
 //
-// It never accepts on a shared word: "red" is not "red blood cells". It never returns false either. An
-// answer code cannot settle goes to the model as before.
+// It never accepts on a shared word: "red" is not "red blood cells". A number never settles on its own
+// when the key's other words say something the answer contradicts or leaves out ("6 arms" for "6 legs",
+// "3 am" for "3 PM"). It never returns false either. An answer code cannot settle goes to the model as
+// before.
 
-import { gradeFreeTextDeterministic } from "./quiz-grading";
+import { gradeFreeTextDeterministic, normalizeAnswer } from "./quiz-grading";
 
 // ─── One form for both sides ──────────────────────────────────────────────────
 
@@ -69,16 +73,15 @@ const ORDINAL_RE = /^\d+(?:st|nd|rd|th)$/;
  * Number words as digits: "a hundred" → 100, "fifty six" → 56, "one hundred and five" → 105, "two
  * thousand" → 2000. Takes the words already split; a run that does not read as one number ("nineteen
  * eighty") is cut where it stops making sense, so each part stays its own number. An ordinal word ends
- * its run as an ordinal: "the thirteenth" → 13th, "twenty first" → 21st. "second" straight after a
- * number is the unit of time ("one second"), not 2nd.
+ * its run as an ordinal: "the fourth" → 4th, "twenty first" → 21st. "second" is 2nd only before a
+ * word that is not a unit ("the second planet"); see secondIsOrdinal.
  */
 function numberWordsToDigits(words: string[]): string[] {
   const out: string[] = [];
   let i = 0;
   while (i < words.length) {
     const w = words[i];
-    const afterNumber = out.length > 0 && isNumber(out[out.length - 1]);
-    const startsRun = isNumberWord(w) || (isOrdinalWord(w) && !(w === "second" && afterNumber)) ||
+    const startsRun = isNumberWord(w) || (isOrdinalWord(w) && (w !== "second" || secondIsOrdinal(out[out.length - 1], words[i + 1]))) ||
       ((w === "a" || w === "an") && (words[i + 1] === "hundred" || words[i + 1] in SCALES));
     if (!startsRun) { out.push(w); i++; continue; }
     let total = 0;
@@ -97,7 +100,9 @@ function numberWordsToDigits(words: string[]): string[] {
       if (t === "hundred" && current > 0 && current < 10 && expect !== "after-hundred") { current *= 100; expect = "after-hundred"; continue; }
       if (t === "hundred" && expect === "any") { current = 100; expect = "after-hundred"; continue; }
       if (t in SCALES) { total += (current || 1) * SCALES[t]; current = 0; expect = "any"; continue; }
-      // An ordinal word is the run's last word. "second" after a unit word is the unit of time.
+      // An ordinal word is the run's last word. "second" after a unit word is the unit of time, and
+      // "twenty second" with nothing after it is 20 seconds as often as 22nd, so it stays 20 + "second".
+      if (t === "second" && !secondIsOrdinal(undefined, words[j + 1])) break;
       if (t in ORD_UNITS && (expect === "any" || expect === "unit" || expect === "after-hundred")) { current += ORD_UNITS[t]; ordinal = true; j++; break; }
       if ((t in ORD_TEENS || t in ORD_TENS) && (expect === "any" || expect === "after-hundred")) { current += ORD_TEENS[t] ?? ORD_TENS[t]; ordinal = true; j++; break; }
       if (t === "hundredth" && (expect === "any" || (expect === "scale" && current < 10))) { current = (current || 1) * 100; ordinal = true; j++; break; }
@@ -108,6 +113,18 @@ function numberWordsToDigits(words: string[]): string[] {
     i = j;
   }
   return out;
+}
+
+/**
+ * "second" is the ordinal 2nd only before a word that is not a unit ("the second planet", "second
+ * place"). After a number, "per", "a"/"an" or a unit word, before a unit or a number, or as the last
+ * word it is the unit of time or the word itself: "343 meters per second", "9.8 meters per second
+ * squared", "a second", and "The second" (the SI unit) stays "second", so "seconds" matches it and
+ * "2nd" does not.
+ */
+function secondIsOrdinal(before: string | undefined, after: string | undefined): boolean {
+  if (before !== undefined && (isNumber(before) || UNIT_JOINERS.has(before) || isUnitWord(before))) return false;
+  return after !== undefined && !isUnitWord(after) && !isNumber(after) && !isNumberWord(after);
 }
 
 // A leading "it's" / "the answer is" says nothing; the rest is the answer.
@@ -125,6 +142,7 @@ export function answerWords(s: string): string[] {
     .replace(/[’‘`]/g, "'")
     .replace(/−/g, "-")
     .replace(/°/g, " degrees ")                         // 100°C, 90° (℃ is °C after NFKC)
+    .replace(/\b([ap])\.\s?m\b\.?/g, "$1m")             // a.m. / p.m. → am / pm, one word
     .replace(/(\d)(?:st|nd|rd|th)\b/g, "$1\u0002")      // an ordinal in digits stays one word: 13th
     .replace(/^\s*\(?[a-d][).:]\s+/, "")                // an option label "B) "
     .replace(/(\d),(\d{3})(?!\d)/g, "$1$2")             // 1,000
@@ -238,6 +256,7 @@ const UNIT_NAMES: Record<string, string> = {
   percent: "percent", cent: "cent",
   units: "unit", unit: "unit",
 };
+const isUnitWord = (w: string) => Object.prototype.hasOwnProperty.call(UNIT_NAMES, w);
 // Units an answer may leave out on its own: "100 degrees" or "100" for "100 degrees Celsius".
 const OPTIONAL_UNITS = new Set(["degree", "celsius", "fahrenheit", "kelvin", "unit"]);
 // Said between units and meaning nothing on its own: "km per hour" is "km/h".
@@ -275,7 +294,13 @@ function unitsFit(answer: Set<string>, key: Set<string>): boolean {
 // "half" where the key is a number. Only as the whole number part of the answer.
 const HALF_WORDS = new Set(["half", "1 half"]);
 
-function sameNumberAndUnits(answer: string[], key: string[]): boolean {
+/** Under a choice ("100 °C or 100 °F?") the answer has to name every unit of the key; "degrees" may still
+ * go when the scale is given. */
+function unitsCover(answer: Set<string>, key: Set<string>): boolean {
+  return [...key].every((u) => answer.has(u) || (u === "degree" && (answer.has("celsius") || answer.has("fahrenheit"))));
+}
+
+function sameNumberAndUnits(answer: string[], key: string[], choice: boolean): boolean {
   const k = numberWithUnits(key);
   if (!k) return false;
   const joined = answer.join(" ");
@@ -285,26 +310,72 @@ function sameNumberAndUnits(answer: string[], key: string[]): boolean {
   }
   const a = numberWithUnits(rest);
   if (!a || Math.abs(a.n - k.n) > 1e-9) return false;
-  return unitsFit(a.units, k.units);
+  return unitsFit(a.units, k.units) && (!choice || unitsCover(a.units, k.units));
 }
 
 // ─── A number the question already names ──────────────────────────────────────
 
+// Words that change what a number means, so a number never stands in for them: a sign or direction
+// ("Negative 4", "23 degrees north"), more or less, am/pm, before or after. A fraction's denominator
+// ("Two thirds") is checked by isFractionWord.
+const MEANING_WORDS = new Set([
+  "negative", "minus", "positive", "plus", "below", "above", "under", "over", "up", "down", "left", "right",
+  "north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest",
+  "northern", "southern", "eastern", "western", "latitude", "longitude",
+  "more", "less", "fewer", "greater", "smaller", "larger", "bigger", "higher", "lower", "most", "least",
+  "increase", "decrease", "gain", "loss", "rise", "fall", "deficit", "debt",
+  "before", "after", "ago", "earlier", "later", "am", "pm", "bc", "bce", "ad", "ce", "not", "no",
+]);
+const isFractionWord = (w: string) => ["half", "halves", "quarter", "quarters"].includes(w) || isOrdinalWord(singular(w));
+const isMeaningWord = (w: string) => MEANING_WORDS.has(w) || isFractionWord(w);
+
+/** The question offers a choice ("Is noon 12 AM or 12 PM?"), so a number alone may name either side. */
+const offersChoice = (question: string) => /\bor\b/i.test(question);
+
 /**
- * The key is one number or ordinal plus words the question already says ("13th Amendment" for "Which
- * amendment ended slavery?"), and the answer is that number with none, some or all of those words.
- * Every other word of the key must be in the question, so "red" is still not "red blood cells".
+ * The key is one number or ordinal plus words the question already says ("4th planet" for "Counting out
+ * from the Sun, which planet is Mars?"), and the answer is that number with none, some or all of those
+ * words. Every other word of the key must be in the question, so "red" is still not "red blood cells";
+ * none of them may be a sign, direction, am/pm or fraction ("4" is not "Negative 4", "2" is not "Two
+ * thirds"); and the question may not offer a choice.
  */
 function sameNumberQuestionNames(answer: string[], key: string[], question: string): boolean {
+  if (offersChoice(question)) return false;
   const isNum = (w: string) => isNumber(w) || ORDINAL_RE.test(w);
   const keyNums = key.filter(isNum);
   if (keyNums.length !== 1 || key.length < 2) return false;
+  if (key.some((w) => !isNum(w) && isMeaningWord(w))) return false;
   const asked = new Set(answerWords(question).map(singular));
   const named = key.filter((w) => !isNum(w)).map(singular);
   if (!named.every((w) => asked.has(w))) return false;
   const answerNums = answer.filter(isNum);
   if (answerNums.length !== 1 || answerNums[0] !== keyNums[0]) return false;
   return answer.every((w) => isNum(w) || named.includes(singular(w)));
+}
+
+// ─── The older first-number match ─────────────────────────────────────────────
+
+/**
+ * gradeFreeTextDeterministic reads the first number and ignores the words around it, which passed
+ * "6 arms" for "6 legs", "3 am" for "3 PM", "12" for "12 PM" on "Is noon 12 AM or 12 PM?" and "1st" for
+ * "1 second". Its number settles here only when the answer is one plain number and nothing else differs
+ * from the key. A word only one side has (other than a unit) must be a word of the question that is not a
+ * sign, direction, am/pm or fraction, and only one side may have such words: "6 legs" for "6" and "9" for
+ * "9 electrons" settle, "9 protons" for "9 electrons" does not even when the question names both. The
+ * units fit, and the question offers no choice.
+ */
+function firstNumberFits(answer: string[], key: string[], question: string): boolean {
+  if (offersChoice(question)) return false;
+  if (answer.filter(isNumber).length !== 1 || key.filter(isNumber).length !== 1) return false;
+  if ([...answer, ...key].some((w) => ORDINAL_RE.test(w))) return false;
+  const asked = new Set(answerWords(question).map(singular));
+  const onlyIn = (side: string[], other: string[]) => side.filter((w) =>
+    !isNumber(w) && !isUnitWord(w) && !UNIT_JOINERS.has(w) && !other.some((o) => singular(o) === singular(w)));
+  const answerOnly = onlyIn(answer, key);
+  const keyOnly = onlyIn(key, answer);
+  if (answerOnly.length > 0 && keyOnly.length > 0) return false;
+  if (![...answerOnly, ...keyOnly].every((w) => asked.has(singular(w)) && !isMeaningWord(w))) return false;
+  return unitsFit(unitsIn(answer), unitsIn(key));
 }
 
 // ─── Chemical formulas ────────────────────────────────────────────────────────
@@ -351,17 +422,20 @@ export interface WrittenAnswer {
 export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true): true | null {
   const answer = answerWords(item.student);
   if (answer.length === 0) return null;
-  // The older number match reads the first number and ignores units, so it also has to pass the unit
-  // rule here: "3 m" is not "3 cm", and "60 km" is not "60 km/h".
+  const choice = offersChoice(item.question);
+  if (normalizeAnswer(item.student) === normalizeAnswer(item.expected)) return true;
+  // The older number match reads the first number and ignores the words around it, so its number has
+  // to fit the key's other words here: "3 m" is not "3 cm", "6 arms" is not "6 legs".
   if (gradeFreeTextDeterministic(item.expected, item.student, item.type) === true &&
-      unitsFit(unitsIn(answer), unitsIn(answerWords(item.expected)))) return true;
+      firstNumberFits(answer, answerWords(item.expected), item.question)) return true;
   for (const form of keyForms(item.expected)) {
     const key = answerWords(form);
     if (sameWords(answer, key, isWord)) return true;
-    if (sameNumberAndUnits(answer, key)) return true;
+    if (sameNumberAndUnits(answer, key, choice)) return true;
     if (sameNumberQuestionNames(answer, key, item.question)) return true;
     if (sameFormula(answer, form)) return true;
-    const surname = personSurname(item.question, form);
+    // Under a choice the surname may be what both sides share ("Theodore Roosevelt or Franklin Roosevelt?").
+    const surname = choice ? null : personSurname(item.question, form);
     if (surname && sameWords(answer, surname.split(" "), isWord)) return true;
   }
   return null;

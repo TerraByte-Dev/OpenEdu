@@ -35,8 +35,8 @@ describe("answerWords", () => {
     expect(answerWords("90°")).toEqual(["90", "degrees"]);
   });
   it("turns ordinals in words or digits into one form", () => {
-    expect(answerWords("the thirteenth")).toEqual(["13th"]);
-    expect(answerWords("13th Amendment")).toEqual(["13th", "amendment"]);
+    expect(answerWords("the fourth")).toEqual(["4th"]);
+    expect(answerWords("4th planet")).toEqual(["4th", "planet"]);
     expect(answerWords("the first")).toEqual(["1st"]);
     expect(answerWords("twenty-first century")).toEqual(["21st", "century"]);
     expect(answerWords("21st century")).toEqual(["21st", "century"]);
@@ -44,10 +44,20 @@ describe("answerWords", () => {
     expect(answerWords("two hundred and fifth")).toEqual(["205th"]);
     expect(answerWords("2nd")).toEqual(["2nd"]);
   });
-  it("keeps second as a unit after a number", () => {
+  it("reads second as 2nd only before a word that is not a unit", () => {
     expect(answerWords("one second")).toEqual(["1", "second"]);
     expect(answerWords("1 second")).toEqual(["1", "second"]);
-    expect(answerWords("the second")).toEqual(["2nd"]);
+    expect(answerWords("the second")).toEqual(["second"]);
+    expect(answerWords("a second")).toEqual(["second"]);
+    expect(answerWords("343 meters per second")).toEqual(["343", "meters", "per", "second"]);
+    expect(answerWords("9.8 meters per second squared")).toEqual(["9.8", "meters", "per", "second", "squared"]);
+    expect(answerWords("twenty second")).toEqual(["20", "second"]);
+    expect(answerWords("the second planet")).toEqual(["2nd", "planet"]);
+    expect(answerWords("the twenty second amendment")).toEqual(["22nd", "amendment"]);
+  });
+  it("reads a.m. and p.m. as one word", () => {
+    expect(answerWords("3 p.m.")).toEqual(["3", "pm"]);
+    expect(answerWords("3 a.m")).toEqual(["3", "am"]);
   });
   it("writes an ordinal's suffix by its number", () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinalToken)).toEqual(
@@ -104,6 +114,8 @@ describe("settleByCode: the measured failures", () => {
   });
 });
 
+const MARS = "Counting out from the Sun, which planet is Mars?";
+
 describe("settleByCode: the degree sign and ordinals", () => {
   it("accepts degrees in words for a key written with the sign", () => {
     expect(settle("What is the boiling point of water at sea level?", "100 °C", "100 degrees C")).toBe(true);
@@ -113,11 +125,25 @@ describe("settleByCode: the degree sign and ordinals", () => {
     expect(settle("What is the boiling point of water at sea level?", "100 C", "100 degrees C")).toBe(true);
     expect(settle("What is the boiling point of water in Fahrenheit?", "212°F", "212 degrees fahrenheit")).toBe(true);
   });
+  it("keeps second the unit of time after per, and the word on its own (the reviewer's cases)", () => {
+    expect(settle("How fast does sound travel in air?", "343 meters per second", "343 m/s")).toBe(true);
+    expect(settle("How fast does light travel?", "300,000 km per second", "300,000 km/s")).toBe(true);
+    expect(settle("How fast does a falling object speed up near Earth?", "9.8 meters per second squared", "9.8 m/s squared")).toBe(true);
+    expect(settle("What is the SI base unit of time?", "The second", "seconds")).toBe(true);
+    expect(settle("What is the SI base unit of time?", "The second (SI unit of time)", "seconds")).toBe(true);
+  });
+  it("still accepts the key's number with the words that give it its meaning", () => {
+    expect(settle("What is negative 7 plus 3?", "Negative 4", "negative four")).toBe(true);
+    expect(settle("What time is 15:00 on a 12-hour clock?", "3 PM", "3 p.m.")).toBe(true);
+    expect(settle("Is noon 12 AM or 12 PM?", "12 PM", "12 pm")).toBe(true);
+    expect(settle("How many legs does an insect have?", "6 legs", "6")).toBe(true);
+    expect(settle("Does water boil at 100 °C or 100 °F at sea level?", "100 °C", "100 degrees C")).toBe(true);
+  });
   it("accepts an ordinal in words for the key's digits, and the other way round", () => {
-    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the thirteenth amendment")).toBe(true);
-    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the thirteenth")).toBe(true);
-    expect(settle("Which amendment abolished slavery?", "13th Amendment", "13th")).toBe(true);
-    expect(settle("Which amendment abolished slavery?", "The Thirteenth Amendment", "13th amendment")).toBe(true);
+    expect(settle(MARS, "4th planet", "the fourth planet")).toBe(true);
+    expect(settle(MARS, "4th planet", "the fourth")).toBe(true);
+    expect(settle(MARS, "4th planet", "4th")).toBe(true);
+    expect(settle(MARS, "The Fourth Planet", "4th planet")).toBe(true);
     expect(settle("What place did the runner finish in?", "First place", "the first")).toBe(true);
     expect(settle("In which century did World War II happen?", "The 20th century", "twentieth")).toBe(true);
   });
@@ -125,19 +151,47 @@ describe("settleByCode: the degree sign and ordinals", () => {
 
 describe("settleByCode: never a wrong answer", () => {
   it("never takes a plain number for an ordinal, or another ordinal", () => {
-    expect(settle("Which amendment gave women the right to vote?", "30th", "13")).toBeNull();
-    expect(settle("Which amendment abolished slavery?", "13th Amendment", "13")).toBeNull();
-    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the thirtieth")).toBeNull();
-    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the fifteenth amendment")).toBeNull();
+    expect(settle("Which place did she finish in?", "30th", "13")).toBeNull();
+    expect(settle(MARS, "4th planet", "4")).toBeNull();
+    expect(settle(MARS, "4th planet", "the fortieth")).toBeNull();
+    expect(settle(MARS, "4th planet", "the fifth planet")).toBeNull();
     expect(settle("What place did the runner finish in?", "Third place", "first")).toBeNull();
     expect(settle("What place did the runner finish in?", "Third place", "first place")).toBeNull();
     expect(settle("Which planet is third from the sun?", "Earth", "third")).toBeNull();
     expect(settle("How long is the pause?", "1 second", "the second")).toBeNull();
+    expect(settle("How long is the pause?", "1 second", "1st")).toBeNull();
+    expect(settle("What is the SI base unit of time?", "The second", "2nd")).toBeNull();
   });
   it("needs every other word of the key in the question to take the number alone", () => {
-    expect(settle("Which change to the Constitution abolished slavery?", "13th Amendment", "the thirteenth")).toBeNull();
-    expect(settle("Which amendment abolished slavery?", "13th Amendment", "the 13th century")).toBeNull();
+    expect(settle("Counting out from the Sun, where is Mars?", "4th planet", "the fourth")).toBeNull();
+    expect(settle(MARS, "4th planet", "the 4th moon")).toBeNull();
     expect(settle("How many branches?", "There are 3 branches of government", "3")).toBeNull();
+  });
+  it("never takes the number alone when the key has a sign, direction or fraction (the reviewer's cases)", () => {
+    expect(settle("What is negative 7 plus 3?", "Negative 4", "4")).toBeNull();
+    expect(settle("What is negative 8 plus 3?", "Negative 5", "5")).toBeNull();
+    expect(settle("What is negative 8 plus 3?", "Negative 5", "five")).toBeNull();
+    expect(settle("What is 3 minus 8?", "minus five", "5")).toBeNull();
+    expect(settle("What is 3 minus 8?", "minus 5", "5")).toBeNull();
+    expect(settle("How far north or south of the equator is the Tropic of Cancer?", "23 degrees north", "23 degrees")).toBeNull();
+    expect(settle("Is the jar one third or two thirds full?", "Two thirds", "two")).toBeNull();
+    expect(settle("What fraction of the pizza is left, in thirds?", "2 thirds", "2")).toBeNull();
+  });
+  it("never lets a first number settle past a different noun, am/pm, unit or a choice (the reviewer's cases)", () => {
+    expect(settle("How many legs does an insect have?", "6 legs", "6 arms")).toBeNull();
+    expect(settle("What time is 15:00 on a 12-hour clock?", "3 PM", "3 am")).toBeNull();
+    expect(settle("What time is 15:00 on a 12-hour clock?", "3 PM", "3 a.m.")).toBeNull();
+    expect(settle("What time is 15:00 on a 12-hour clock?", "3 p.m.", "3")).toBeNull();
+    expect(settle("Is noon 12 AM or 12 PM?", "12 PM", "12")).toBeNull();
+    expect(settle("How long is the pause?", "1 second", "1st")).toBeNull();
+    expect(settle("How many legs does an insect have?", "6", "6 arms")).toBeNull();
+    expect(settle("How many electrons and protons does a fluorine atom have each?", "9 electrons", "9 protons")).toBeNull();
+  });
+  it("needs the key's whole answer when the question offers a choice", () => {
+    expect(settle("Does water boil at 100 °C or 100 °F at sea level?", "100 °C", "100")).toBeNull();
+    expect(settle("Does water boil at 100 °C or 100 °F at sea level?", "100 °C", "100 degrees")).toBeNull();
+    expect(settle("Who started the New Deal, Theodore Roosevelt or Franklin Roosevelt?", "Franklin Roosevelt", "roosevelt")).toBeNull();
+    expect(settle("How many sides does a hexagon have, 6 or 8?", "6", "6 sides")).toBeNull();
   });
   it("never passes a different scale or number for a key with the degree sign", () => {
     expect(settle("What is the boiling point of water at sea level?", "100 °C", "100 degrees F")).toBeNull();
