@@ -6,7 +6,8 @@
 // The quiz's score is counted again. A level test is decided again the way settleLevelTest decides a
 // waiting one: a failed test the mark now passes is passed and the course moves up; one that now
 // depends on answers no model checked waits for those; one whose result cannot change stays decided.
-// Mastery, flashcards and the study log were saved when the test ended and are not redone.
+// Mastery, flashcards and the study log saved when it ended are then brought into line with the new
+// marks (finish-effects.ts recountAfterMarks).
 
 import {
   getQuizAttempt, getLevelTestRows, updateQuizQuestionGrade, updateLevelTestScore, setPromotionResult,
@@ -14,7 +15,9 @@ import {
 } from "./db";
 import { levelTestResult, type LevelTestStatus } from "./level-test";
 import { answersOf, type HandChecker } from "./level-test-checks";
+import { recountAfterMarks } from "./finish-effects";
 import type { GradedBy } from "./quiz-grading";
+import type { QuizAttempt } from "../types";
 
 /** A written answer the grader model marked wrong, which a person may mark again. */
 export function canMarkAgain(q: { graded_by?: GradedBy | null; is_correct: boolean | null }): boolean {
@@ -46,6 +49,15 @@ export async function markAgain(attemptId: string, marks: ReadonlyMap<string, bo
   const attempt = await getQuizAttempt(attemptId);
   if (!attempt || attempt.completed_at === null) return null;
   const rows = await getLevelTestRows(attemptId);
+  const rowsBefore = rows.map((r) => ({ ...r }));
+  const out = await countAgain(attempt, rows, marks, by);
+  // The mark is saved and the attempt counted; what the finish saved from the old marks follows, best effort.
+  await recountAfterMarks(attempt, rowsBefore).catch((e) => console.error("recount after a mark failed", e));
+  return out;
+}
+
+async function countAgain(attempt: QuizAttempt, rows: LevelTestRow[], marks: ReadonlyMap<string, boolean>, by: HandChecker): Promise<RemarkedAttempt> {
+  const attemptId = attempt.id;
   for (const r of rows) {
     const right = marks.get(r.id);
     if (right === undefined || !canMarkAgain(r)) continue;

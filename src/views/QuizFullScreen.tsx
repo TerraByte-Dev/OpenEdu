@@ -1,13 +1,12 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
-import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getSyllabus, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
+import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
 import { answerMark, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
-import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
-import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
+import { saveFinishEffects } from "../lib/finish-effects";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
 import MarkAgain from "../components/quiz/MarkAgain";
 import { MARK_AGAIN } from "../lib/level-test";
@@ -57,6 +56,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   // Synchronous single-flight guard — a fast double-click can fire handleFinish twice before the
   // `finishing` state re-renders, which would double-grade and double-persist (issue #83 review).
   const finishingRef = useRef(false);
+  // The finish's saves (mastery, progress, the study log). A mark made on the results waits for them, so
+  // it brings them into line instead of being overwritten by them (finish-effects.ts recountAfterMarks).
+  const savedRef = useRef<Promise<void>>(Promise.resolve());
   // When the questions appeared, so the attempt stores how long the learner took (not grading time).
   const startedAtRef = useRef<number | null>(null);
   // React StrictMode (dev) invokes mount effects twice. Without this guard the quiz generates TWICE,
@@ -158,7 +160,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
 
     // ── 3. Persist (attempt + heavy mastery → progress → knowledge recompute) in the background —
     // results are already on screen, so the machine no longer bogs down at finish (issue #83). ──
-    void persistQuizResults(graded, pct, correct, total, timeTaken);
+    savedRef.current = persistQuizResults(graded, pct, correct, timeTaken);
   };
 
   // Grade the pending free-text answers (is_correct === null) in one batched call and write the
@@ -197,18 +199,11 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
     return graded;
   };
 
-  const persistQuizResults = async (graded: ActiveQuestion[], pct: number, correct: number, total: number, timeTaken: number) => {
+  const persistQuizResults = async (graded: ActiveQuestion[], pct: number, correct: number, timeTaken: number) => {
     const t0 = performance.now();
     try {
       if (attemptId) await completeQuizAttempt(attemptId, pct, correct, timeTaken);
-      const freshSyllabus = await getSyllabus(courseId, syllabus.level);
-      if (freshSyllabus) {
-        await updateSubtopicMastery(courseId, freshSyllabus, graded, attemptId);
-        await updateUserProgress(courseId);
-        await refreshProgressContext(courseId, freshSyllabus);
-      }
-      const missedTopics = graded.filter((q) => !q.is_correct && q.subtopic_id).map((q) => q.subtopic_id!);
-      await updateKnowledgeAfterQuiz(courseId, pct, total, missedTopics, null, config!);
+      await saveFinishEffects(courseId, syllabus.level, attemptId, false, graded, pct);
       log.info("quiz", `quiz finish persistence done in ${Math.round(performance.now() - t0)}ms`);
     } catch (e) {
       console.error("quiz finish persistence failed", e);
@@ -220,6 +215,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
   const saveMarkAgain = async (index: number, right: boolean) => {
     const q = questions[index];
     if (!attemptId || !q?.saved_id) throw new Error("the answer is not saved");
+    await savedRef.current;
     const done = await markAgain(attemptId, new Map([[q.saved_id, right]]), "self");
     if (!done) throw new Error("not a finished quiz");
     setQuestions((prev) => prev.map((p, i) => (i === index ? { ...p, is_correct: right, graded_by: "self" } : p)));

@@ -2,7 +2,7 @@
 import type { QuizViewContext, QuizQuestion, QuizAttempt, LLMConfig } from "../types";
 import {
   createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt,
-  updateCourseLevel, updateCourseStatus, getSyllabus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
+  updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
 import { answerMark, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
@@ -15,9 +15,8 @@ import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getGenerationConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
 import { getLevelMeaning } from "../lib/curriculum";
-import { updateSubtopicMastery, updateUserProgress, refreshProgressContext } from "../lib/progress";
-import { updateKnowledgeAfterQuiz } from "../lib/knowledge";
-import { mintCardsFromMisses } from "../lib/flashcards";
+import { saveFinishEffects } from "../lib/finish-effects";
+import { addStudyPlanToLog } from "../lib/knowledge";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
 import CompletionCapstone from "../components/CompletionCapstone";
 import { IconXmark } from "../components/icons";
@@ -54,6 +53,7 @@ type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress
 const toRow = (q: ActiveQuestion): LevelTestRow => ({
   id: q.saved_id!, question_text: q.question_text, question_type: q.question_type, correct_answer: q.correct_answer,
   user_answer: q.user_answer, is_correct: q.is_correct, explanation: q.explanation, graded_by: q.graded_by ?? null, test_section: q.section,
+  subtopic_id: q.subtopic_id ?? null,
 });
 
 // A stored answer back as a results row (a test decided after its answers were marked).
@@ -119,6 +119,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   // Synchronous single-flight guard for finishTest — blocks a double-click (or a click racing the
   // timeout) from grading + persisting twice (issue #83 review).
   const finishingRef = useRef(false);
+  // The finish's saves (mastery, progress, cards, the study log). A mark made on the results waits for
+  // them, so it brings them into line instead of being overwritten by them (finish-effects.ts).
+  const savedRef = useRef<Promise<void>>(Promise.resolve());
   // Question indexes whose answer save has started, so a timeout never writes a second row for one.
   const savingRef = useRef(new Set<number>());
   // Mirrors the latest `questions` so the timeout path grades the answers the student actually gave,
@@ -319,33 +322,20 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     setUncheckedLeft(result.unchecked);
     setResultsAttempt(aid);
 
-    const missedTopics = answered
-      .filter((q) => !q.is_correct && q.subtopic_id)
-      .map((q) => q.subtopic_id!);
-
     // ── Heavy recompute (mastery → progress → knowledge) + spaced-card minting runs in the
     // background so results render immediately and the machine no longer bogs at finish (issue #83). ──
-    // The study plan is awaited last, so a slow plan never holds back mastery, progress or cards.
-    const persist = async (studyPlan: Promise<string | null>) => {
+    // The study plan joins the study log line when it is ready, so a slow plan never holds back the
+    // rest, and a mark made on the results ("I think I was right") waits only for the rest.
+    const persist = (studyPlan: Promise<string | null>) => {
       const t0 = performance.now();
-      try {
-        const freshSyllabus = await getSyllabus(courseId, currentLevel);
-        if (freshSyllabus) {
-          await updateSubtopicMastery(courseId, freshSyllabus, answered, aid);
-          await updateUserProgress(courseId);
-          await refreshProgressContext(courseId, freshSyllabus);
-        }
-        await mintCardsFromMisses(
-          courseId,
-          answered.filter((q) => !q.is_correct).map((q) => ({
-            question_text: q.question_text, correct_answer: q.correct_answer,
-            explanation: q.explanation, subtopic_id: q.subtopic_id,
-          })),
-          currentLevel,
-        );
-        await updateKnowledgeAfterQuiz(courseId, overall, answered.length, missedTopics, await studyPlan, cfg);
-        log.info("promotion", `test finish persistence done in ${Math.round(performance.now() - t0)}ms`);
-      } catch (e) { console.error("promotion finish persistence failed", e); }
+      const saved = saveFinishEffects(courseId, currentLevel, aid, true, answered, overall)
+        .then((entry) => { log.info("promotion", `test finish persistence done in ${Math.round(performance.now() - t0)}ms`); return entry; })
+        .catch((e) => { console.error("promotion finish persistence failed", e); return null; });
+      savedRef.current = saved.then(() => undefined);
+      void saved.then(async (entry) => {
+        const plan = await studyPlan;
+        if (entry && plan) await addStudyPlanToLog(courseId, entry, plan);
+      }).catch((e) => console.error("adding the study plan to the log failed", e));
     };
 
     if (didPass) {
@@ -411,6 +401,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   // so the marking screen can say so and keep them.
   const saveMarks = async (marks: ReadonlyMap<string, boolean>) => {
     if (!pendingTest) return;
+    await savedRef.current;
     const settled = await settleLevelTest(pendingTest.attempt.id, marks, "self");
     if (!settled) throw new Error("not a finished level test");
     if (settled.status === "pending") {
@@ -444,6 +435,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
   const saveMarkAgain = async (index: number, right: boolean) => {
     const q = questions[index];
     if (!resultsAttempt || !q?.saved_id) throw new Error("the answer is not saved");
+    await savedRef.current;
     const done = await markAgain(resultsAttempt, new Map([[q.saved_id, right]]), "self");
     if (!done) throw new Error("not a finished level test");
     if (done.status === "pending") {

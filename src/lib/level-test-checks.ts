@@ -7,6 +7,7 @@ import {
   getLevelTestRows, getLastPromotionAttempt, advanceCourseAfterPass, type LevelTestRow,
 } from "./db";
 import { levelTestResult, type LevelTestResult, type TestAnswer } from "./level-test";
+import { recountAfterMarks } from "./finish-effects";
 import type { QuizAttempt } from "../types";
 
 /** Who marked an unchecked answer by hand. OpenEdu has one learner, so only the learner. */
@@ -82,6 +83,7 @@ export async function settleLevelTest(attemptId: string, marks: ReadonlyMap<stri
     return { ...levelTestResult(answersOf(attempt, rows)), ...base, status: attempt.passed === 1 ? "passed" : "failed" };
   }
 
+  const rowsBefore = rows.map((r) => ({ ...r }));
   for (const r of rows) {
     const right = marks.get(r.id);
     if (r.graded_by !== "fallback" || right === undefined) continue;
@@ -90,10 +92,13 @@ export async function settleLevelTest(attemptId: string, marks: ReadonlyMap<stri
     r.graded_by = by;
   }
   const result = levelTestResult(answersOf(attempt, rows));
-  if (result.status === "pending") return { ...result, ...base };
-
-  await updateLevelTestScore(attemptId, result.overall, result.correct);
-  await setPromotionResult(attemptId, result.status === "passed", result.reviewPct);
-  const nextLevel = result.status === "passed" ? await advanceCourseAfterPass(attempt.course_id, attempt.level) : null;
+  let nextLevel: number | null = null;
+  if (result.status !== "pending") {
+    await updateLevelTestScore(attemptId, result.overall, result.correct);
+    await setPromotionResult(attemptId, result.status === "passed", result.reviewPct);
+    if (result.status === "passed") nextLevel = await advanceCourseAfterPass(attempt.course_id, attempt.level);
+  }
+  // The finish counted an unchecked answer as right for mastery and the study log; a Not yet changes that.
+  await recountAfterMarks(attempt, rowsBefore).catch((e) => console.error("recount after the marks failed", e));
   return { ...result, ...base, nextLevel };
 }

@@ -801,13 +801,14 @@ export interface LevelTestRow {
   explanation: string;
   graded_by: GradedBy | null;
   test_section: TestSection | null;
+  subtopic_id: string | null;
 }
 
 // Every stored answer of one attempt, in the order they were saved.
 export async function getLevelTestRows(attemptId: string): Promise<LevelTestRow[]> {
   const d = await getDb();
   const rows: Array<Record<string, unknown>> = await d.select(
-    `SELECT id, question_text, question_type, correct_answer, user_answer, is_correct, explanation, graded_by, test_section
+    `SELECT id, question_text, question_type, correct_answer, user_answer, is_correct, explanation, graded_by, test_section, subtopic_id
        FROM quiz_questions WHERE attempt_id = $1 ORDER BY rowid`,
     [attemptId]
   );
@@ -1084,6 +1085,25 @@ export async function updateFlashcardAfterReview(
 export async function deleteFlashcard(id: string): Promise<void> {
   const d = await getDb();
   await d.execute("DELETE FROM flashcards WHERE id = $1", [id]);
+}
+
+// A card the app made from a missed question, taken away when that question is no longer missed anywhere
+// in the course: no stored answer to it is wrong (a level test's unanswered questions count as wrong, as
+// the app scored them). Cards the learner made are never touched. Returns how many went.
+export async function deleteMissCardsNoLongerMissed(courseId: string, front: string): Promise<number> {
+  const d = await getDb();
+  const missed: Array<{ n: number }> = await d.select(
+    `SELECT COUNT(*) as n FROM quiz_questions qq JOIN quiz_attempts qa ON qq.attempt_id = qa.id
+      WHERE qa.course_id = $1 AND TRIM(qq.question_text) = $2 AND qq.is_correct = 0`,
+    [courseId, front]
+  );
+  if (Number(missed[0]?.n ?? 0) > 0) return 0;
+  const cards: Array<{ id: string }> = await d.select(
+    "SELECT id FROM flashcards WHERE course_id = $1 AND front = $2 AND source = 'quiz_miss'",
+    [courseId, front]
+  );
+  for (const c of cards) await deleteFlashcard(c.id);
+  return cards.length;
 }
 
 // Has a card with this exact front already been minted for the course? (dedup for auto-mint)
