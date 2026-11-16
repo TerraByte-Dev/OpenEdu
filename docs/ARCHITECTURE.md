@@ -299,12 +299,24 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   ("madame curie", "dr king", "lord byron"), under the same guards. "Dr" says nothing of the person; a
   title that says man or woman ("mrs", "lord") counts only when the question says the same and never the
   other ("the first woman", "his"), so "mrs roosevelt" for Franklin or "mr curie" for Marie goes to the
-  model. A depth or height with its
-  sign written as a direction ("11 meters below the surface", "11 m down" for -11 m; "250 m
-  above sea level" for 250 m), only with a unit of length, the key's amount and the direction its sign
-  means ("above" for a negative, "11 m" or "11 below" go to the model; "below" is a sign nowhere else),
-  and never on a question that asks for the sign (an integer, a signed or negative number, "represent",
-  "express") or already says the amount and the direction ("A diver is 11 m below the surface");
+  model. An amount with its
+  sign written as a word: a depth or height ("11 meters below the surface", "11 m down" for -11 m; "250 m
+  above sea level" for 250 m, only with a unit of length), a balance ("$15 overdrawn", "owes $15", "$15
+  in debt"; "$15 in credit" for $15), a temperature ("15 below zero", "15 above zero"), a score ("15
+  points behind", "3 under par" on a question that says par), and, only on a question whose last
+  sentence asks for a change, a profit, a gain or a loss, a change ("a loss of $12", "a drop of 8
+  degrees", "down 12"; "a gain of $12", "up 12"); a change form is never a balance or a temperature,
+  nor the other way round. Only the key's amount and the sign the word means ("$15 in credit" for -$15,
+  a bare "$15" or "fifteen" go to the model; a direction word is a sign nowhere else), never on a
+  question that asks for the sign (an integer, a signed or negative number, "represent", "express") or
+  already says the amount and a word of the same direction ("A diver is 11 m below the surface"), and
+  a positive key, often a size with no sign, only on a question that asks no "how much" or "how many"
+  and whose last sentence says no fall, debt or depth. A minus before a dollar sign is a sign ("-$15" is
+  -15), so "$15" is no longer taken for -$15 (nor "-$5" for $5). A year said in pairs ("twelve
+  fifteen" for 1215, "nineteen sixty-nine", "eighteen oh five", "twenty oh one", "two thousand and
+  one") for a key of 1000-2099 in digits, only on a question that asks "what year", "which year" or
+  "when did/was", never one about a count or a size ("How many books", "number of"), a clock time, a
+  choice of years ("1215 or 1512?"), one that says the key, or one that asks for a form;
   and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
   itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). Never two edits
   ("omnivour" goes to the model: "glucogan" is as close to glycogen as to glucagon). No
