@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
-import { getLessonConfigs } from "../../lib/store";
+import { getLessonsNoteInput } from "../../lib/store";
 import { log } from "../../lib/llm";
 import { lessonsNote, type LessonsNote as Note } from "../../lib/ai-notice";
 
 // "About the lessons", the grown-up's note on whether lessons are checked (ai-notice.ts lessonsNote, Fable's
 // decisions 2026-11-16). The description above the Checking model picker in Settings › Models, always open: the
-// only place it shows in OpenEdu. Every word and every choice is in ai-notice.ts; this only draws it. Calm,
+// only place it shows in OpenEdu. Every word and every choice is in ai-notice.ts; this only draws it, from the
+// settings store.ts getLessonsNoteInput reads (the Lessons tab's models, saved cloud keys, confirmed notices). Calm,
 // no warning colour or icon. `refresh` changes when a setting here is saved, so the body follows it.
 export default function LessonsNote({ refresh }: { refresh?: unknown }) {
   const [note, setNote] = useState<Note | null>(null);
 
   useEffect(() => {
     let live = true;
-    getLessonConfigs()
-      .then(({ config, review }) => { if (live) setNote(lessonsNote(config, review)); })
+    getLessonsNoteInput()
+      .then((input) => { if (live) setNote(lessonsNote(input)); })
       .catch((e) => log.error("LessonsNote", "could not read the lesson settings", e));
     return () => { live = false; };
   }, [refresh]);

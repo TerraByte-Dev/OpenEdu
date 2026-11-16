@@ -304,7 +304,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
         <SettingRow
           label="Checking model"
-          help="Reads each new lesson and set of quiz or test questions for false facts and wrong answer keys before the learner sees them. It is sent only the course topic and the text the course model wrote, never anything about the learner. Same as the course model is the default; a cloud model here asks for the same one-time confirm as choosing that company above."
+          help="Reads each new lesson and set of quiz or test questions for false facts and wrong answer keys before the learner sees them. It is sent the course topic as the learner typed it and the text the course model wrote, and nothing else. Same as the course model is the default; a cloud model here asks for the same one-time confirm as choosing that company above."
           keywords="checking review reviewer check verify false facts answer key content review_model"
         >
           <LessonsNote refresh={noteRefresh} />

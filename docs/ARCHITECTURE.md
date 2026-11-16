@@ -727,16 +727,21 @@ by code, with no model call.
 ## Whether a lesson was checked (`ai-notice.ts`, migration 22)
 
 Fable's decisions, 2026-11-16. The default 8 GB model, `gemma4:e2b`, was measured writing a major false fact
-in 11 of 80 held-out lessons on a lesson path close to OpenEdu's, and two rounds of local fixes did not move
-it. OpenEdu writes lessons the same way on the same default, so it says so too, in two places, keyed on
-whether a cloud Checking model other than the writer actually read a lesson, not on the machine. Every word
-and every choice is in `ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the components only draw it.
+in 11 of 80 held-out lessons on grade 4 and 8 school topics, on a close copy of OpenEdu's `generateLesson`:
+the same model, schema, `lessonIssues` checks and tier handling, with one paragraph added to the lesson
+prompt (a topics-left-to-parents rule, with a rewrite when a lesson touches those topics). Two rounds of
+local fixes did not move it. OpenEdu writes lessons that way on the same default, so it says so, in two
+places, keyed on whether a cloud Checking model other than the writer actually read a lesson, not on the
+machine. Every word and every choice is in `ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the
+components only draw it. The copy never says "your child": the reader may be a grown-up or the learner, so
+it names no person where a sentence works without one, and says "the learner" where it needs one.
 
-- **The grown-up note, "About the lessons"** (`lessonsNote(courseModel, lessonChecker)`), as the description
-  above the Checking model picker in Settings › Models (`views/settings/LessonsNote.tsx`), always shown;
-  OpenEdu has no grown-ups view, so this is the only place. Both models come from `store.ts
-  getLessonConfigs` (`config` writes, `review` checks: the same call the Lessons tab writes with, so a cloud
-  checker needs its saved key and that company's one-time notice). The first body that holds:
+- **The grown-up note, "About the lessons"** (`lessonsNote(input)`), as the description above the Checking
+  model picker in Settings › Models (`views/settings/LessonsNote.tsx`), always shown; OpenEdu has no
+  grown-ups view, so this is the only place. Its input comes from `store.ts getLessonsNoteInput`: both
+  models from `getLessonConfigs` (`config` writes, `review` checks: the same call the Lessons tab writes
+  with, so a cloud checker needs its saved key and that company's one-time notice), which cloud providers
+  have a key saved here, and the one-time notices confirmed here. The first body that holds:
   1. *checked* (`LESSONS_NOTE_CHECKED`) when lesson checking resolves to a cloud model that is not the course
      model (`lessonCheckCounts`; a Checking model on this computer, however big, is not "checked");
   2. *self-review* (`LESSONS_NOTE_SELF_REVIEW`) when it resolves to the cloud course model itself, which is
@@ -746,16 +751,26 @@ and every choice is in `ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the
   3. *unchecked, cloud course model* (`LESSONS_NOTE_UNCHECKED_CLOUD`; OpenAI, Anthropic, or an Ollama model
      whose name ends in `cloud`): no number, since no cloud writer has a held-out false-lesson rate ("We have
      not measured how often…"), and no "on this computer", since the lessons are not written here;
-  4. and 5. *unchecked, local course model* (`LESSONS_NOTE_UNCHECKED`), `gemma4:e2b` and every other local
-     model alike. No number: the 11 of 80 figure was measured on a `generateLesson` whose lesson prompt adds a
-     topics-left-to-parents rule and rewrite, so it is not a measurement of OpenEdu's path. A held-out run of
-     OpenEdu's own `generateLesson` on `gemma4:e2b` would earn e2b its own body with the figure.
+  4. *unchecked, `gemma4:e2b` on this computer* (`LESSONS_NOTE_UNCHECKED_E2B`; the course model is exactly
+     `MEASURED_COURSE_MODEL` on Ollama, trimmed, case-insensitive): the one body with a figure, "about 1
+     lesson in 7", with its provenance in the copy (Fable's decision: "The test ran on a close copy of
+     OpenEdu's lesson writer, not this exact one, so treat the number as a guide."). It also says the test
+     was on school topics for grades 4 and 8, since an OpenEdu learner types any topic. The provenance
+     sentence goes only when OpenEdu's own `generateLesson` has a held-out `gemma4:e2b` run, and the figure is
+     then that run's;
+  5. *unchecked, any other local course model* (`LESSONS_NOTE_UNCHECKED`): no number, since no other local
+     model has a held-out false-lesson rate.
 
-  In states 2 and 3 one more line follows (`LESSONS_NOTE_NUDGE_DIFFERENT`): "A different cloud model can
-  check new lessons…", since the default Checking model is the self-review. It says what the picker's help
-  says is sent (the course topic and the lesson text, never anything about the learner), has no link (the
-  note sits above the picker) and turns nothing on. States 1, 4 and 5 have no extra line. No model names,
-  tiers, RAM, price or upgrade.
+  One more line follows in some states, and turns nothing on. In states 2 and 3,
+  `LESSONS_NOTE_NUDGE_DIFFERENT` ("A different cloud model can check new lessons…"), since the default
+  Checking model is the self-review. In states 4 and 5, `LESSONS_NOTE_NUDGE_LOCAL` ("You have a cloud model
+  set up. It can check new lessons…", Fable's decision), only when a cloud provider is already set up here:
+  an OpenAI or Anthropic key is saved and that same company's one-time notice was confirmed. Without that it
+  never shows: for anyone who has not chosen cloud use it would be an upsell. State 1 has no extra line.
+  Both nudges say exactly what a lesson review is sent (`buildLessonReviewMessages`: "the course topic as
+  the learner typed it and the lesson text, and nothing else"), never "nothing about the learner", which
+  overclaims when the topic itself is personal. No link (the note sits above the picker), no model names,
+  tiers, RAM, price, paid edition or upgrade, and no number anywhere but the e2b body.
 - **The lesson's status line** (`lessonStatusLine`), one caption line (`--ink-faint`, 14 px, no icon, no
   colour) at the foot of the lesson reader (`LessonReader.tsx`). Four lines by checked and by K-2
   (`grade.ts isEarlyReader`); "checked" always says "It can still be wrong."; each ends "If something looks
@@ -780,9 +795,11 @@ and every choice is in `ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the
   self-reviews, and every lesson written before migration 22. A failed write of the row leaves the lesson
   unchecked. The rows go with their lessons (`ON DELETE CASCADE`; sqlx sets `foreign_keys=ON` on every
   connection). `db-lesson-checks.test.ts` runs the real `generateLesson`, the real migrations and the real
-  `getLessonConfigs` for each case, with cloud models tiered large as `llm.ts` tiers them: a cloud course
-  model on the default Checking model, an explicit pick of the same model and a case/whitespace variant of
-  it (reviewed, not checked), and Haiku writing with Sonnet checking (checked).
+  `getLessonConfigs` and `getLessonsNoteInput` for each case, with cloud models tiered large as `llm.ts`
+  tiers them: a cloud course model on the default Checking model, an explicit pick of the same model and a
+  case/whitespace variant of it (reviewed, not checked), Haiku writing with Sonnet checking (checked), and an
+  Ollama `gemma4:e2b` writer with an OpenAI key saved and its notice confirmed on the default Checking model
+  (unchecked, the e2b body and the local nudge).
 
 ## Raise hand (`raise-hand.ts`, `components/RaiseHand.tsx`)
 

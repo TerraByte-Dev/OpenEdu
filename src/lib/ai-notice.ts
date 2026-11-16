@@ -5,7 +5,7 @@
 
 import { APP_NAME } from "./product";
 import { isEarlyReader, type Grade } from "./grade";
-import { isLocalModel } from "./privacy";
+import { isLocalModel, needsCloudNotice } from "./privacy";
 import type { LLMProvider } from "../types";
 
 /** Always on screen in a course chat: in its header, next to the tutor's name, from the first message on. */
@@ -25,19 +25,31 @@ export function breakReminder(hours: number, grade: Grade | null): string {
 // Two places, keyed on whether a cloud Checking model other than the writer actually read the lesson, not
 // on the machine: one standing note for the grown-up ("About the lessons", above the Checking model picker
 // in Settings › Models) and one quiet status line at the foot of every lesson in the lesson reader. Plain
-// copy chosen by code; no model names, tiers, RAM, figures, price or upgrade. docs/ARCHITECTURE.md,
-// "Whether a lesson was checked".
+// copy chosen by code; no model names, tiers, RAM, price or upgrade. One figure, in the gemma4:e2b body
+// only, with its provenance in the copy (Fable's decision). Never "your child": the reader may be the
+// learner, so the copy names no person where it can, and "the learner" where it needs one.
+// docs/ARCHITECTURE.md, "Whether a lesson was checked".
 
 /** The grown-up note's title, in every state. */
 export const LESSONS_NOTE_TITLE = "About the lessons";
 
+/** The course model the e2b body is for: exactly this, on this computer (privacy.ts isLocalModel), trimmed, case-insensitive. */
+export const MEASURED_COURSE_MODEL = "gemma4:e2b";
+
 /**
- * Unchecked, a course model on this computer (gemma4:e2b and every other local model). No number: the
- * measured false-lesson figure for gemma4:e2b was taken on a lesson path whose prompt and rewrite differ
- * from OpenEdu's, so it is not OpenEdu's figure until OpenEdu's own generateLesson has a held-out measure.
+ * Unchecked, the course model is gemma4:e2b on this computer (Fable's decision, 2026-11-16: the figure, with
+ * its provenance stated in the copy). About 1 in 7 is 11 of 80 held-out lessons on grade 4 and 8 school topics
+ * with a major false fact, measured on a close copy of OpenEdu's generateLesson (the same model, schema,
+ * checks and tier handling; its lesson prompt adds one paragraph, a topics-left-to-parents rule with a
+ * rewrite). The sentence "The test ran on a close copy..." goes only when
+ * OpenEdu's own generateLesson has a held-out e2b run, and the figure is then that run's.
  */
+export const LESSONS_NOTE_UNCHECKED_E2B =
+  `${APP_NAME}'s AI writes each lesson on this computer, and nothing checks it. When this model was tested on school topics for grades 4 and 8, about 1 lesson in 7 taught a fact that was wrong. The test ran on a close copy of ${APP_NAME}'s lesson writer, not this exact one, so treat the number as a guide. The Raise hand help can be wrong too. Read new lessons closely, and trust your own judgment over the app's.`;
+
+/** Unchecked, any other course model on this computer. No number: no other local model has a held-out false-lesson rate. */
 export const LESSONS_NOTE_UNCHECKED =
-  `${APP_NAME}'s AI writes each lesson on this computer, and nothing checks it. Some lessons will teach a fact that is wrong, and the Raise hand help can be wrong too. Read new lessons with your child, and trust your own judgment over the app's.`;
+  `${APP_NAME}'s AI writes each lesson on this computer, and nothing checks it. Some lessons will teach a fact that is wrong, and the Raise hand help can be wrong too. Read new lessons closely, and trust your own judgment over the app's.`;
 
 /**
  * Unchecked, a cloud course model (OpenAI, Anthropic, an Ollama model whose name ends in "cloud"). No
@@ -45,24 +57,37 @@ export const LESSONS_NOTE_UNCHECKED =
  * written here.
  */
 export const LESSONS_NOTE_UNCHECKED_CLOUD =
-  `${APP_NAME}'s AI writes each lesson, and nothing checks it. We have not measured how often these lessons get a fact wrong, so expect that some do. The Raise hand help can be wrong too. Read new lessons with your child, and trust your own judgment over the app's.`;
+  `${APP_NAME}'s AI writes each lesson, and nothing checks it. We have not measured how often these lessons get a fact wrong, so expect that some do. The Raise hand help can be wrong too. Read new lessons closely, and trust your own judgment over the app's.`;
 
 /** Lesson checking resolves to the cloud course model itself: the writer reads its own work, which is not a second check. */
 export const LESSONS_NOTE_SELF_REVIEW =
-  `${APP_NAME}'s AI writes each lesson and then reads its own work over. That is not a second check, and we do not count it as one. Some lessons will teach a fact that is wrong, and the Raise hand help can be wrong too. Read new lessons with your child, and trust your own judgment over the app's.`;
+  `${APP_NAME}'s AI writes each lesson and then reads its own work over. That is not a second check, and we do not count it as one. Some lessons will teach a fact that is wrong, and the Raise hand help can be wrong too. Read new lessons closely, and trust your own judgment over the app's.`;
 
 /** A cloud Checking model other than the course model resolves for lessons (lessonCheckCounts). OpenEdu has no course approval, so every new lesson is read. */
 export const LESSONS_NOTE_CHECKED =
-  "A second AI reads each new lesson before your child sees it. It catches many mistakes, not all of them. It is still worth reading new lessons with your child.";
+  "A second AI reads each new lesson before the learner sees it. It catches many mistakes, not all of them. It is still worth reading new lessons closely.";
+
+// The nudges say exactly what a lesson review is sent (content-review.ts buildLessonReviewMessages: the
+// course topic, which the learner typed, and the lesson text) "and nothing else". Never "nothing about the
+// learner": the topic itself can be personal. No link (the note already sits above the picker), no price, no
+// upgrade; they turn nothing on.
 
 /**
  * The extra line when a cloud model writes the lessons and no different one checks them (self-review and
  * cloud-unchecked). The default Checking model, "Same as the course model", is the self-review, so it
- * points at a different one. What is sent is what the picker's help says: the course topic and the lesson
- * text, never anything about the learner. No link: the note already sits above the picker.
+ * points at a different one.
  */
 export const LESSONS_NOTE_NUDGE_DIFFERENT =
-  "A different cloud model can check new lessons. It is sent only the course topic and the lesson text, never anything about the learner.";
+  "A different cloud model can check new lessons. It is sent the course topic as the learner typed it and the lesson text, and nothing else.";
+
+/**
+ * The extra line under a local course model's body (Fable's decision, 2026-11-16), only when a cloud
+ * provider is already set up here (its key saved and its one-time notice confirmed) and lesson checking
+ * does not resolve to a counted cloud model. Never shown without a confirmed cloud key: for anyone else it
+ * would be an upsell.
+ */
+export const LESSONS_NOTE_NUDGE_LOCAL =
+  "You have a cloud model set up. It can check new lessons. It is sent the course topic as the learner typed it and the lesson text, and nothing else.";
 
 export interface LessonsNote {
   /** A cloud Checking model other than the course model reads new lessons. */
@@ -71,6 +96,18 @@ export interface LessonsNote {
   body: string;
   /** The extra line under the body, or null for none. */
   nudge: string | null;
+}
+
+/** What the note is chosen from (store.ts getLessonsNoteInput). */
+export interface LessonsNoteInput {
+  /** The model that writes lessons (store.ts getLessonConfigs `config`). */
+  courseModel: { provider: LLMProvider; model: string };
+  /** What lesson checking resolves to (getLessonConfigs `review`), or null when off. */
+  lessonChecker: { provider: LLMProvider; model: string } | null;
+  /** Which cloud providers have a key saved here. */
+  cloudKeys: Partial<Record<"openai" | "anthropic", boolean>>;
+  /** The one-time cloud notices confirmed here (cloud_notices_seen). */
+  noticesSeen: readonly string[];
 }
 
 type ModelRef = { provider: LLMProvider; model: string };
@@ -91,18 +128,27 @@ export function lessonCheckCounts(checker: ModelRef | null, writer: ModelRef): b
 }
 
 /**
- * The grown-up note for the lesson's models (store.ts getLessonConfigs: `config` writes, `review` checks,
- * null when off), the first that holds: checked (lessonCheckCounts); self-review (lesson checking resolves
- * to the cloud course model itself); unchecked with a cloud course model; unchecked on a local course
- * model (gemma4:e2b and the rest share one body: OpenEdu has no measured figure to print for e2b).
+ * The grown-up note for these settings, the first that holds: checked (lessonCheckCounts); self-review
+ * (lesson checking resolves to the cloud course model itself); unchecked with a cloud course model;
+ * unchecked on gemma4:e2b (the one body with a figure); unchecked on any other local model. The nudge: with a
+ * cloud course model, always, pointing at a different model; with a local one, only when a cloud provider is
+ * set up here (cloudReady: its key saved and its one-time notice confirmed). Never when checked.
  */
-export function lessonsNote(courseModel: ModelRef, lessonChecker: ModelRef | null): LessonsNote {
+export function lessonsNote(input: LessonsNoteInput): LessonsNote {
+  const { courseModel, lessonChecker } = input;
   const base = { title: LESSONS_NOTE_TITLE };
   if (lessonCheckCounts(lessonChecker, courseModel)) return { ...base, checked: true, body: LESSONS_NOTE_CHECKED, nudge: null };
   const self = lessonChecker !== null && !isLocalModel(lessonChecker) && sameModel(lessonChecker, courseModel);
   if (self) return { ...base, checked: false, body: LESSONS_NOTE_SELF_REVIEW, nudge: LESSONS_NOTE_NUDGE_DIFFERENT };
   if (!isLocalModel(courseModel)) return { ...base, checked: false, body: LESSONS_NOTE_UNCHECKED_CLOUD, nudge: LESSONS_NOTE_NUDGE_DIFFERENT };
-  return { ...base, checked: false, body: LESSONS_NOTE_UNCHECKED, nudge: null };
+  const measured = courseModel.model.trim().toLowerCase() === MEASURED_COURSE_MODEL;
+  const cloudReady = (["openai", "anthropic"] as const)
+    .some((p) => input.cloudKeys[p] === true && !needsCloudNotice(p, input.noticesSeen));
+  return {
+    ...base, checked: false,
+    body: measured ? LESSONS_NOTE_UNCHECKED_E2B : LESSONS_NOTE_UNCHECKED,
+    nudge: cloudReady ? LESSONS_NOTE_NUDGE_LOCAL : null,
+  };
 }
 
 // The lesson reader's status line. OpenEdu is for one learner with no grown-up set up to ask, so each line

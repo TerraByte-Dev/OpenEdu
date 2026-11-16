@@ -9,6 +9,7 @@ import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "
 import type { RetrievalMode } from "./kernel/ground";
 import { normalizeGoal, type ActiveMinutes } from "./daily-goal";
 import { isLocalModel, parseNoticesSeen, withNoticeSeen, type CloudFeature } from "./privacy";
+import type { LessonsNoteInput } from "./ai-notice";
 
 let store: Store | null = null;
 
@@ -85,6 +86,21 @@ export async function getReviewConfig(gen: LLMConfig, kind: ReviewKind): Promise
 export async function getLessonConfigs(): Promise<{ config: LLMConfig; review: LLMConfig | null }> {
   const config = await getGenerationConfig();
   return { config, review: await getReviewConfig(config, "lesson") };
+}
+
+// What "About the lessons" (ai-notice.ts lessonsNote, views/settings/LessonsNote.tsx) is chosen from: the
+// lesson's models as the Lessons tab writes with them, which cloud providers have a key saved here, and the
+// one-time cloud notices confirmed here (the local-writer nudge needs both for the same provider).
+export async function getLessonsNoteInput(): Promise<LessonsNoteInput> {
+  const s = await getStore();
+  const { config, review } = await getLessonConfigs();
+  const keySaved = async (p: "openai" | "anthropic") => Boolean((await s.get<string>(apiKeyStoreKey(p)))?.trim());
+  return {
+    courseModel: config,
+    lessonChecker: review,
+    cloudKeys: { openai: await keySaved("openai"), anthropic: await keySaved("anthropic") },
+    noticesSeen: parseNoticesSeen(await s.get<unknown>(STORE_KEYS.cloudNoticesSeen)),
+  };
 }
 
 // The stored Checking model (review_model), "" when unset. getReviewConfig resolves it.

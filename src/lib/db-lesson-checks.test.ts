@@ -5,7 +5,8 @@ import libRs from "../../src-tauri/src/lib.rs?raw";
 // it was written (Fable's decisions 2026-11-16; migration 22, lesson_checks). Run for real: every
 // migration parsed out of lib.rs, the real curriculum.ts generateLesson with only the model call stubbed,
 // the real db.ts writes and reads on an in-memory SQLite, the real store.ts getLessonConfigs the Lessons
-// tab and the Settings note read, and the status line the lesson reader draws from them.
+// tab writes with and getLessonsNoteInput the Settings note reads, and the status line the lesson reader
+// draws from them.
 
 type Sqlite = {
   exec(sql: string): void;
@@ -41,11 +42,12 @@ import { callLLMStructured } from "./llm";
 import { generateLesson } from "./curriculum";
 import { createCourse, createLesson, deleteCourse, lessonWasChecked, setActiveLearnerId } from "./db";
 import { DEFAULT_LEARNER_ID } from "./learners";
-import { getLessonConfigs } from "./store";
+import { getLessonConfigs, getLessonsNoteInput } from "./store";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey } from "./store-keys";
 import { Store } from "./eval/headless/shims/plugin-store";
 import {
-  LESSONS_NOTE_CHECKED, LESSONS_NOTE_NUDGE_DIFFERENT, LESSONS_NOTE_SELF_REVIEW, LESSONS_NOTE_UNCHECKED, LESSONS_NOTE_UNCHECKED_CLOUD,
+  LESSONS_NOTE_CHECKED, LESSONS_NOTE_NUDGE_DIFFERENT, LESSONS_NOTE_NUDGE_LOCAL, LESSONS_NOTE_SELF_REVIEW, LESSONS_NOTE_UNCHECKED,
+  LESSONS_NOTE_UNCHECKED_CLOUD, LESSONS_NOTE_UNCHECKED_E2B,
   LESSON_STATUS_CHECKED, LESSON_STATUS_UNCHECKED, LESSON_STATUS_UNCHECKED_EARLY, lessonStatusLine, lessonsNote,
 } from "./ai-notice";
 import type { LessonContent } from "./lesson-format";
@@ -251,7 +253,7 @@ describe("a lesson is stored as checked only when a cloud Checking model reviewe
   });
 });
 
-describe("through the saved settings (store.ts getLessonConfigs), as the Lessons tab and Settings read them", () => {
+describe("through the saved settings (store.ts getLessonConfigs, getLessonsNoteInput), as the Lessons tab and Settings read them", () => {
   const LOCAL_SETUP = { [STORE_KEYS.provider]: "ollama", [STORE_KEYS.genModel]: "gemma4:e2b" };
   const CLOUD_CHECKER = {
     ...LOCAL_SETUP,
@@ -261,15 +263,53 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
     const { config, review } = await getLessonConfigs();
     return generateLesson(courseId, 1, SUB, "Chemistry", config, undefined, review);
   };
+  // The note as Settings › Models draws it (views/settings/LessonsNote.tsx).
+  const noteAsSettings = async () => lessonsNote(await getLessonsNoteInput());
 
-  it("an 8 GB machine on its defaults: no review runs, the lesson is unchecked, and the note says so", async () => {
+  it("an 8 GB machine on its defaults: no review runs, the lesson is unchecked, and the note gives the e2b figure, with no nudge", async () => {
     await seedSettings(LOCAL_SETUP);
     stub([]);
     const lesson = await writeAsLessonsTab();
     expect(vi.mocked(callLLMStructured).mock.calls.some(([, , o]) => o.toolName === "emit_lesson_review")).toBe(false);
     expect(await lessonWasChecked(lesson.id)).toBe(false);
-    const { config, review } = await getLessonConfigs();
-    expect(lessonsNote(config, review)).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED, nudge: null });
+    expect(await noteAsSettings()).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED_E2B, nudge: null });
+  });
+
+  it("an Ollama e2b writer with an OpenAI key saved and its notice confirmed, Checking model on the default: unchecked, and the local nudge", async () => {
+    await seedSettings({ ...LOCAL_SETUP, [apiKeyStoreKey("openai")]: "test-key", [STORE_KEYS.cloudNoticesSeen]: ["openai"] });
+    stub([]);
+    const lesson = await writeAsLessonsTab();
+    expect(reviewCalls()).toHaveLength(0);
+    expect(await lessonWasChecked(lesson.id)).toBe(false);
+    expect(await noteAsSettings()).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED_E2B, nudge: LESSONS_NOTE_NUDGE_LOCAL });
+  });
+
+  it("another local writer with a cloud provider set up: the no-number body, and the local nudge", async () => {
+    await seedSettings({
+      [STORE_KEYS.provider]: "ollama", [STORE_KEYS.genModel]: "qwen3.5:9b",
+      [apiKeyStoreKey("anthropic")]: "test-key", [STORE_KEYS.cloudNoticesSeen]: ["anthropic"],
+    });
+    expect(await noteAsSettings()).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED, nudge: LESSONS_NOTE_NUDGE_LOCAL });
+  });
+
+  it("no local nudge without a confirmed cloud key: a key whose notice was never confirmed, or a notice with no key saved", async () => {
+    for (const settings of [
+      { ...LOCAL_SETUP, [apiKeyStoreKey("openai")]: "test-key", [STORE_KEYS.cloudNoticesSeen]: [] },
+      { ...LOCAL_SETUP, [apiKeyStoreKey("openai")]: "  ", [STORE_KEYS.cloudNoticesSeen]: ["openai", "anthropic"] },
+      { ...LOCAL_SETUP, [apiKeyStoreKey("openai")]: "test-key", [STORE_KEYS.cloudNoticesSeen]: ["anthropic"] },
+    ]) {
+      await seedSettings(settings);
+      expect(await noteAsSettings()).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED_E2B, nudge: null });
+    }
+  });
+
+  it("lesson checking off with a cloud provider set up: still unchecked, still the local nudge (it turns nothing on)", async () => {
+    await seedSettings({ ...LOCAL_SETUP, [STORE_KEYS.reviewModel]: "off", [apiKeyStoreKey("openai")]: "test-key", [STORE_KEYS.cloudNoticesSeen]: ["openai"] });
+    stub([]);
+    const lesson = await writeAsLessonsTab();
+    expect(reviewCalls()).toHaveLength(0);
+    expect(await lessonWasChecked(lesson.id)).toBe(false);
+    expect(await noteAsSettings()).toMatchObject({ checked: false, body: LESSONS_NOTE_UNCHECKED_E2B, nudge: LESSONS_NOTE_NUDGE_LOCAL });
   });
 
   it("a cloud Checking model saved with its key and its one-time notice: the lesson is checked, and the note says so", async () => {
@@ -277,8 +317,7 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
     stub([OK]);
     const lesson = await writeAsLessonsTab();
     expect(checkRows()).toEqual([{ lesson_id: lesson.id, checked_by: "anthropic:claude-haiku-5-5" }]);
-    const { config, review } = await getLessonConfigs();
-    expect(lessonsNote(config, review)).toMatchObject({ checked: true, body: LESSONS_NOTE_CHECKED, nudge: null });
+    expect(await noteAsSettings()).toEqual({ checked: true, title: "About the lessons", body: LESSONS_NOTE_CHECKED, nudge: null });
   });
 
   it("the key saved but its notice never confirmed: the cloud checker does not resolve, nothing is checked", async () => {
@@ -286,8 +325,7 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
     stub([OK]);
     const lesson = await writeAsLessonsTab();
     expect(await lessonWasChecked(lesson.id)).toBe(false);
-    const { config, review } = await getLessonConfigs();
-    expect(lessonsNote(config, review).checked).toBe(false);
+    expect(await noteAsSettings()).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED_E2B, nudge: null });
   });
 
   describe("a cloud course model (Anthropic key saved, its notice confirmed)", () => {
@@ -313,8 +351,7 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
         expect(reviewCalls()[0][1]).toMatchObject({ provider: "anthropic", model: reviewedAs });
         expect(await lessonWasChecked(lesson.id)).toBe(false);
         expect(checkRows()).toEqual([]);
-        const { config, review } = await getLessonConfigs();
-        expect(lessonsNote(config, review)).toEqual({
+        expect(await noteAsSettings()).toEqual({
           checked: false, title: "About the lessons", body: LESSONS_NOTE_SELF_REVIEW, nudge: LESSONS_NOTE_NUDGE_DIFFERENT,
         });
       });
@@ -325,8 +362,7 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
       stub([OK]);
       const lesson = await writeAsLessonsTab();
       expect(checkRows()).toEqual([{ lesson_id: lesson.id, checked_by: "anthropic:claude-sonnet-5-5" }]);
-      const { config, review } = await getLessonConfigs();
-      expect(lessonsNote(config, review)).toEqual({ checked: true, title: "About the lessons", body: LESSONS_NOTE_CHECKED, nudge: null });
+      expect(await noteAsSettings()).toEqual({ checked: true, title: "About the lessons", body: LESSONS_NOTE_CHECKED, nudge: null });
     });
 
     it("lesson checking off: not checked, and the cloud note with no number and no 'on this computer'", async () => {
@@ -335,8 +371,7 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
       const lesson = await writeAsLessonsTab();
       expect(reviewCalls()).toHaveLength(0);
       expect(await lessonWasChecked(lesson.id)).toBe(false);
-      const { config, review } = await getLessonConfigs();
-      expect(lessonsNote(config, review)).toMatchObject({ checked: false, body: LESSONS_NOTE_UNCHECKED_CLOUD, nudge: LESSONS_NOTE_NUDGE_DIFFERENT });
+      expect(await noteAsSettings()).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED_CLOUD, nudge: LESSONS_NOTE_NUDGE_DIFFERENT });
     });
   });
 });
