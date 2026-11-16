@@ -23,14 +23,15 @@
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
 //     word ("herbivor"). "neuron" for "neutron" or "photon" for "proton" is a real word, so it is a
 //     different answer, and the model decides it. The caller supplies the word list (the dictionary).
-//     Two edits for a key word of 8 letters or more when only vowels differ or a letter is doubled
-//     ("omnivour", "skelitin"). Never when another real word is one edit from the answer's word
-//     ("slovania" is Slovenia or Slovakia), when a word the question offers is as close ("hypetonic"
-//     on "hypertonic or hypotonic?"), or when the key word is not in the dictionary, which has no
-//     names of places or people ("Zambia" for "Gambia");
-//   - a sign written as its name, or a name written as the sign, when the key is just that: ">" is
-//     "greater than", "more than" or "bigger than"; never "greater than or equal to", never "<". One
-//     side has to be the sign itself: two names ("smaller than" for "Less than") go to the model;
+//     Never when another real word is one edit from the answer's word ("slovania" is Slovenia or
+//     Slovakia), when a word the question offers is as close ("hypetonic" on "hypertonic or
+//     hypotonic?"), or when the key word is not in the dictionary, which has no names of places or
+//     people ("Zambia" for "Gambia"). Never two edits: "glucogan" is as close to glycogen as to
+//     glucagon, and two edits leave too many words that close, so "omnivour" goes to the model;
+//   - a sign's name, when the key is the sign itself: ">" takes "greater than", "more than" or
+//     "bigger than"; never "greater than or equal to", never "<". Never the sign for a key that is a
+//     name, never two names ("smaller than" for "Less than"), and never when the question already
+//     shows the sign or says the name ("Which symbol means 'greater than'?");
 //   - a short code (3 letters or fewer, like an element symbol) written as spaced or dotted letters:
 //     "n a" or "N.a." for "Na". When the letters cased another way are another symbol ("CO" carbon
 //     monoxide, "Co" cobalt; "NO", "No"), an answer cased as that other symbol is never accepted, and
@@ -205,22 +206,6 @@ function oneEditOff(answer: string, key: string): boolean {
   return k.length >= MISSPELLING_MIN_LETTERS && a !== k && editDistance(a, k) === 1;
 }
 
-/** The shortest key word a two-edit misspelling is accepted for. */
-export const MISSPELLING_TWO_EDITS_MIN_LETTERS = 8;
-
-// A word's first letter, then its consonants in order with a doubled letter once: "omnivour" and
-// "omnivore" are both "omnvr". Two spellings with one skeleton differ only in vowels and doubling.
-const skeleton = (w: string) => (w[0] + w.slice(1).replace(/[aeiouy]/g, "")).replace(/(.)\1+/g, "$1");
-
-/** True when the answer's word could be a two-edit misspelling of the key's word: the key word has 8
- * letters or more and the two differ only in vowels or doubled letters ("omnivour", "skelitin"). */
-function twoEditsOff(answer: string, key: string): boolean {
-  const a = singular(answer);
-  const k = singular(key);
-  if (!/^[a-z]+$/.test(a) || !/^[a-z]+$/.test(k)) return false;
-  return k.length >= MISSPELLING_TWO_EDITS_MIN_LETTERS && skeleton(a) === skeleton(k) && editDistance(a, k) === 2;
-}
-
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
 /** Every string one edit from a word: a letter dropped, added, changed, or swapped with the next. */
@@ -256,9 +241,8 @@ function nearerWords(answer: string, key: string): string[] {
  * "Gambia" misspelt. */
 function sameWord(answer: string, key: string, isWord: (w: string) => boolean, rivals: string[]): boolean {
   if (answer === key || singular(answer) === singular(key)) return true;
-  const edits = oneEditOff(answer, key) ? 1 : twoEditsOff(answer, key) ? 2 : 0;
-  if (edits === 0 || isWord(answer) || !isWord(key)) return false;
-  if (rivals.some((r) => editDistance(singular(answer), singular(r)) <= edits)) return false;
+  if (!oneEditOff(answer, key) || isWord(answer) || !isWord(key)) return false;
+  if (rivals.some((r) => editDistance(singular(answer), singular(r)) <= 1)) return false;
   return !nearerWords(answer, key).some(isWord);
 }
 
@@ -502,6 +486,14 @@ function signOf(s: string): { sign: string; written: boolean } | null {
   return Object.prototype.hasOwnProperty.call(SIGNS, t) ? { sign: SIGNS[t], written: !/\p{L}/u.test(t) } : null;
 }
 
+/** The question shows this sign or says one of its names ("Which sign means less than?", "What does
+ * 7 > 2 say?"), so its name can be read off the question. A hyphen counts as the minus sign. */
+function questionShowsSign(question: string, sign: string): boolean {
+  const raw = (question ?? "").normalize("NFKC").toLowerCase().replace(/[−–]/g, "-");
+  const words = ` ${raw.replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `;
+  return Object.entries(SIGNS).some(([text, s]) => s === sign && (/\p{L}/u.test(text) ? words.includes(` ${text} `) : raw.includes(text)));
+}
+
 // ─── Short codes ──────────────────────────────────────────────────────────────
 
 const ELEMENTS = new Set((
@@ -561,13 +553,16 @@ export interface WrittenAnswer {
  * accepted.
  */
 export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true): true | null {
-  // A sign has no words, so it is read before anything else: ">" and "greater than" are one answer,
-  // and another sign ("<", "greater than or equal to") is never taken by a later rule. One side has to
-  // be the sign itself: two names ("Less than", "smaller than") go to the model, and so would "The
-  // Times" against "multiplied by".
+  // A sign has no words, so it is read before anything else. Only a name for a key that is the sign
+  // itself: "greater than" for ">"; another sign's name ("less than", "greater than or equal to") is
+  // never taken by a later rule. The sign for a key that is a name ("What does > mean?"), two names,
+  // and a word key ("The Times", "equal") go to the model or the rules below as before. Not when the
+  // question already shows the sign or says the name ("Which symbol means 'greater than'?").
   const keySign = signOf(item.expected);
-  const answerSign = keySign && signOf(item.student);
-  if (keySign && answerSign && (keySign.written || answerSign.written)) return keySign.sign === answerSign.sign ? true : null;
+  if (keySign?.written) {
+    const answerSign = signOf(item.student);
+    if (answerSign && !answerSign.written) return answerSign.sign === keySign.sign && !questionShowsSign(item.question, keySign.sign) ? true : null;
+  }
   // A short code before the case-blind rules below, which would take "CO" for "Co".
   const code = settleShortCode(item);
   if (code !== undefined) return code;
@@ -608,7 +603,7 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
     for (const key of keys) {
       if (key.length !== answer.length) continue;
       answer.forEach((w, i) => {
-        if (!oneEditOff(w, key[i]) && !twoEditsOff(w, key[i])) return;
+        if (!oneEditOff(w, key[i])) return;
         out.add(w);
         out.add(key[i]);
         for (const n of nearerWords(w, key[i])) out.add(n);

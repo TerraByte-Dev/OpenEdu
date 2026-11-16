@@ -418,10 +418,42 @@ describe("settleByCode: a sign and its name", () => {
     expect(settle("Which sign goes in the blank: 8 __ 2 = 6?", "−", "minus")).toBe(true);
     expect(settle("Which sign goes in the blank: 5 __ 5?", "≥", "greater than or equal to")).toBe(true);
   });
-  it("takes the sign for its name", () => {
-    expect(settle("What does the sign > mean?", "Greater than", ">")).toBe(true);
-    expect(settle("What does the sign < mean?", "Less than", "<")).toBe(true);
-    expect(settle("What does the sign = mean?", "Equal to", "=")).toBe(true);
+  it("never takes the sign for a key that is its name: the question shows the sign", () => {
+    const cases: Array<[string, string, string]> = [
+      ["What does the sign > mean?", "Greater than", ">"],
+      ["What does the symbol < mean?", "less than", "<"],
+      ["What does the = sign mean?", "equal to", "="],
+      ["What is the name of the sign ÷?", "divided by", "÷"],
+      ["What word do we say for the + sign?", "plus", "+"],
+      ["What word do we say for the × sign?", "times", "×"],
+      ["What does ≠ mean?", "not equal to", "≠"],
+      ["What does ≥ mean?", "greater than or equal to", "≥"],
+      ["What does the - sign mean in 5 - 2?", "minus", "-"],
+    ];
+    for (const [q, key, a] of cases) {
+      expect(settle(q, key, a)).toBeNull();
+      expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
+    }
+  });
+  it("never takes a sign's name the question already says", () => {
+    const cases: Array<[string, string, string]> = [
+      ["Which symbol means 'greater than'?", ">", "greater than"],
+      ["Which sign means less than?", "<", "less than"],
+      ["Which sign means equal to?", "=", "equal to"],
+      ["Which sign means is greater than or equal to?", "≥", "greater than or equal to"],
+      ["Which symbol do we use for 'divided by'?", "÷", "divided by"],
+      ["Which symbol stands for plus?", "+", "plus"],
+      // Another name for the same sign is still in the question.
+      ["Which sign means more than?", ">", "greater than"],
+      // The question shows the sign itself.
+      ["Is 7 > 2 or 7 < 2 true? Which sign makes it true?", ">", "greater than"],
+    ];
+    for (const [q, key, a] of cases) expect(settle(q, key, a)).toBeNull();
+  });
+  it("never takes a sign for a word key that is not about signs", () => {
+    expect(settle("Which newspaper did he read?", "The Times", "×")).toBeNull();
+    expect(settle("Fill in: all people are created ___.", "equal", "=")).toBeNull();
+    expect(settleByCode(ask("Fill in: all people are created ___.", "equal", "="), keyOnly("equal"))).toBeNull();
   });
   it("leaves two names to the model", () => {
     expect(settle("What does the sign = mean?", "Equal to", "equals")).toBeNull();
@@ -494,27 +526,40 @@ describe("settleByCode: a short code in spaced or dotted letters", () => {
 
 const OMNI = "Which word names an animal that eats plants and animals alike?";
 describe("settleByCode: a misspelling two edits off", () => {
-  it("takes two edits in the vowels or doubled letters of a word of 8 letters or more", () => {
-    expect(settle(OMNI, "Omnivore", "omnivour")).toBe(true);
-    expect(settle(OMNI, "Omnivore", "an omnivour")).toBe(true);
-    expect(settle("What is the frame of bones in the body called?", "Skeleton", "skelitin")).toBe(true);
-    expect(settle("What tool measures temperature?", "Thermometer", "thurmometor")).toBe(true);
-    expect(settle("What is an educated guess called?", "Hypothesis", "hipothisis")).toBe(true);
-    expect(settle("Where do travellers stay?", "Accommodation", "acomodation")).toBe(true);
-  });
-  it("the app's path: every word the rule asks the dictionary about is in the candidates", () => {
-    // gradeAnswersBatch counts a word it did not look up as real; here the dictionary has the key word
-    // and no other candidate.
-    const item = ask(OMNI, "Omnivore", "omnivour");
-    const looked = new Set(misspellingCandidates(item));
-    expect(looked.has("omnivour")).toBe(true);
-    expect(looked.has("omnivore")).toBe(true);
-    expect(looked.size).toBeGreaterThan(400);
-    expect(settleByCode(item, (w) => !looked.has(w) || w === "omnivore")).toBe(true);
-    // A key word the dictionary does not have takes no misspelling.
-    expect(settleByCode(item, (w) => !looked.has(w))).toBeNull();
-    // Without the words one edit away, nothing two edits off is taken.
-    expect(settleByCode(item, (w) => w !== "omnivour")).toBeNull();
+  it("takes none, even when only vowels or doubled letters differ: the model decides", () => {
+    // With the most a dictionary could allow (the key's words real, nothing else), so no other rule
+    // blocks them: two edits are never taken.
+    const cases: Array<[string, string, string]> = [
+      [OMNI, "Omnivore", "omnivour"],
+      [OMNI, "Omnivore", "an omnivour"],
+      ["What is the frame of bones in the body called?", "Skeleton", "skelitin"],
+      ["What tool measures temperature?", "Thermometer", "thurmometor"],
+      ["What tool measures temperature?", "Thermometer", "thermomitur"],
+      ["What is an educated guess called?", "Hypothesis", "hipothisis"],
+      ["Where do travellers stay?", "Accommodation", "acomodation"],
+      ["Is a fox a carnivore or an omnivore?", "Omnivore", "omnivour"],
+      // Each as close to another dictionary word as to the key (review of #325).
+      ["Which hormone raises blood sugar?", "Glucagon", "glucigen"],
+      ["Which hormone raises blood sugar?", "Glucagon", "glucogin"],
+      ["Which hormone raises blood sugar?", "Glucagon", "glucogan"],
+      ["Which hormone raises blood sugar?", "Glucagon", "glycigon"],
+      ["How do animals store sugar in the liver and muscles?", "Glycogen", "glycagan"],
+      ["Which word means without hope?", "Desperate", "desperity"],
+      ["What word means a great difference between two things?", "Disparity", "desperity"],
+      ["What word means a great difference between two things?", "Disparity", "disperite"],
+      ["What do you use to track days and months?", "Calendar", "cilindar"],
+      ["What does a battery provide to a circuit?", "Electricity", "electricuta"],
+      ["What part of a picture is closest to the viewer?", "Foreground", "ferrground"],
+      ["What process makes food in leaves?", "Photosynthesis", "fotosynthesis"],
+      ["What is the air around the Earth called?", "Atmosphere", "atmosfere"],
+      ["Which planet is farthest from the Sun?", "Neptune", "naptuni"],
+      ["What tool measures temperature?", "Thermometer", "termomiter"],
+    ];
+    for (const [q, key, a] of cases) {
+      expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
+      expect(settle(q, key, a)).toBeNull();
+      expect(misspellingCandidates(ask(q, key, a))).toEqual([]);
+    }
   });
   it("never takes another answer, misspelt or not", () => {
     for (const a of ["carnivour", "carnivore", "herbivore", "herbivour", "carnivor"]) expect(settleByCode(ask(OMNI, "Omnivore", a), keyOnly("Omnivore"))).toBeNull();
@@ -523,23 +568,33 @@ describe("settleByCode: a misspelling two edits off", () => {
     expect(settleByCode(ask("What do we call an animal with a backbone?", "Vertebrate", "invertebrate"), keyOnly("Vertebrate"))).toBeNull();
     expect(settleByCode(ask("What do we call a scientist who studies rocks?", "Geologist", "biologist"), keyOnly("Geologist"))).toBeNull();
   });
+});
+
+describe("settleByCode: a misspelling one edit off", () => {
+  it("the app's path: every word the rule asks the dictionary about is in the candidates", () => {
+    // gradeAnswersBatch counts a word it did not look up as real; here the dictionary has the key word
+    // and no other candidate.
+    const item = ask(OMNI, "Omnivore", "omnivor");
+    const looked = new Set(misspellingCandidates(item));
+    expect(looked.has("omnivor")).toBe(true);
+    expect(looked.has("omnivore")).toBe(true);
+    expect(looked.size).toBeGreaterThan(200);
+    expect(settleByCode(item, (w) => !looked.has(w) || w === "omnivore")).toBe(true);
+    // A key word the dictionary does not have takes no misspelling.
+    expect(settleByCode(item, (w) => !looked.has(w))).toBeNull();
+    // Without the words one edit away, no misspelling is taken.
+    expect(settleByCode(item, (w) => w !== "omnivor")).toBeNull();
+  });
   it("never takes a word one edit from another real word", () => {
     const real = (w: string) => w === "chlorite";
-    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlerite"), real)).toBeNull();
-    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlerite"), keyOnly("Chlorate"))).toBe(true);
+    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlorote"), real)).toBeNull();
+    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlorote"), keyOnly("Chlorate"))).toBe(true);
   });
   it("never takes a misspelling as close to another word the question offers", () => {
     const Q = "Is sea water hypertonic or hypotonic to a cell?";
     expect(settleByCode(ask(Q, "Hypertonic", "hypetonic"), keyOnly("Hypertonic"))).toBeNull();
     expect(settleByCode(ask(Q, "Hypertonic", "hipertonic"), keyOnly("Hypertonic"))).toBe(true);
-    expect(settleByCode(ask("Is a fox a carnivore or an omnivore?", "Omnivore", "omnivour"), keyOnly("Omnivore"))).toBe(true);
-  });
-  it("never takes two edits in a consonant, the first letter, or a shorter word", () => {
-    expect(settleByCode(ask("What process makes food in leaves?", "Photosynthesis", "fotosynthesis"), keyOnly("Photosynthesis"))).toBeNull();
-    expect(settleByCode(ask("What is the air around the Earth called?", "Atmosphere", "atmosfere"), keyOnly("Atmosphere"))).toBeNull();
-    expect(settleByCode(ask("Which planet is farthest from the Sun?", "Neptune", "naptuni"), keyOnly("Neptune"))).toBeNull();
-    expect(settleByCode(ask("What tool measures temperature?", "Thermometer", "thermomitur"), keyOnly("Thermometer"))).toBe(true);
-    expect(settleByCode(ask("What tool measures temperature?", "Thermometer", "termomiter"), keyOnly("Thermometer"))).toBeNull();
+    expect(settleByCode(ask("Is a fox a carnivore or an omnivore?", "Omnivore", "omnivor"), keyOnly("Omnivore"))).toBe(true);
   });
   it("oneEditAway lists drops, additions, changes and swaps", () => {
     const n = oneEditAway("cat");
