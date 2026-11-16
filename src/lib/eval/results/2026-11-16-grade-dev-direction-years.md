@@ -138,3 +138,10 @@ arithmetic. `direction-years` was rerun; the other sets settle exactly as before
 e2b fails "in credit by $15" on all three runs and passes "$15 in credit"; e4b passes both. Wrong passed
 is the same set of answers as before the fix (all by the model; e4b's 4 → 5 is "eighteen fifty", which
 e4b passed before this PR too). Code never passed a wrong answer and never marked an answer wrong.
+
+**After the review fix's verification.** A rise, credit or "ahead" form for a positive key was still
+accepted whenever the question had no fall word from a list: "a gain of 15" for a score that went from 40
+to 25, "rose 15 °C" for a temperature that cooled. A positive key is how an unsigned size is written, so no
+word list can tell a rise from the opposite. Code now reads a direction word only for a key written
+negative; every rise-side answer goes to the model. The dev set's code-settled right answers go from 40 to
+38 ("15 above zero" and one other mirror item), with no wrong answer accepted.

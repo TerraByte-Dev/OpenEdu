@@ -1581,11 +1581,10 @@ const DIRECTED_FORMS: DirectedForm[] = [
 // The question asks how much something changed: its last sentence says a change, a profit, a gain or a
 // loss ("What was the change in its price?", "What was its profit?").
 const ASKS_CHANGE_RE = /\b(?:change[ds]?|profits?|gains?|loss(?:es)?|increase or decrease|rise or fall)\b/i;
-// What a positive key cannot be read as a rise or a credit after: the question asks how much (a size,
-// not a sign: "How many degrees did it fall?") or says a fall, a debt or a depth anywhere: "The price went
-// down from $40 to $25. What was the price change?" asks after a fall in its first sentence.
-const MAGNITUDE_RE = /\bhow (?:many|much|far|deep)\b/i;
-const OPPOSITE_OF_RISE = new Set([...BELOW_WORDS, ...DEBT_WORDS, ...FALL_WORDS, "behind", "deficit", "less", "fewer", "colder", "cooler"]);
+// A rise, a credit or "ahead" is never read for a positive key: a positive key is how an unsigned size is
+// written ("15" for a change in a score that went from 40 to 25), so no list of fall words can tell when
+// "a gain of 15" is the opposite of the key. Only a key written negative (-$15, -15 °C, -11 m) carries a
+// direction code can match; every rise-side answer goes to the model.
 
 /** The question's last sentence: what it asks, not what it tells. */
 const askingClause = (question: string): string => {
@@ -1629,7 +1628,7 @@ function settleDirected(item: WrittenAnswer): true | null {
     if (k.kind === "plain" && a.kind === "money" && a.f === 1) a = { ...a, kind: "plain" };
     if (questionWords.some((w) => form.echo.has(w)) &&
         (questionHasAmount(item.question, a.num.v) || questionHasAmount(item.question, k.num.v))) return null;
-    if (form.sign === 1 && (MAGNITUDE_RE.test(item.question) || questionWords.some((w) => OPPOSITE_OF_RISE.has(w)))) return null;
+    if (form.sign === 1) return null;
     const signed: Quantity = form.sign === -1 ? { ...a, v: -a.v, num: { ...a.num, v: -a.num.v } } : a;
     return compareQuantities(k, signed, item.question) === true ? true : null;
   }

@@ -44,7 +44,7 @@ describe("gradeAnswersBatch: a sign written as a word and a year said in pairs",
     const got = await verdicts(items.map(({ q, a }) => [q.question, q.key, a.text]));
     const bad = items.filter((_, i) => got[i].by === "exact" && (!got[i].isCorrect || !items[i].a.right)).map(({ q, a }) => `${q.id} ${a.text}`);
     expect(bad).toEqual([]);
-    expect(got.filter((v, i) => v.by === "exact" && items[i].a.right)).toHaveLength(40);
+    expect(got.filter((v, i) => v.by === "exact" && items[i].a.right)).toHaveLength(38);
   }, 30_000);
 
   it("leaves to the model the other direction, a dropped sign, another year, and a pair on a count or a choice", async () => {

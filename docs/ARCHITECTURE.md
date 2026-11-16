@@ -300,19 +300,17 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   title that says man or woman ("mrs", "lord") counts only when the question says the same and never the
   other ("the first woman", "his"), so "mrs roosevelt" for Franklin or "mr curie" for Marie goes to the
   model. An amount with its
-  sign written as a word: a depth or height ("11 meters below the surface", "11 m down" for -11 m; "250 m
-  above sea level" for 250 m, only with a unit of length), a balance ("$15 overdrawn", "owes $15", "$15
-  in debt"; "$15 in credit" for $15), a temperature ("15 below zero", "15 above zero"), a score ("15
+  sign written as a word: a depth or height ("11 meters below the surface", "11 m down" for -11 m, only with a unit of length), a balance ("$15 overdrawn", "owes $15", "$15
+  in debt"), a temperature ("15 below zero"), a score ("15
   points behind", "3 under par" on a question that says par), and, only on a question whose last
   sentence asks for a change, a profit, a gain or a loss, a change ("a loss of $12", "a drop of 8
-  degrees", "down 12"; "a gain of $12", "up 12"); a change form is never a balance or a temperature,
+  degrees", "down 12"); a change form is never a balance or a temperature,
   nor the other way round. Only the key's amount and the sign the word means ("$15 in credit" for -$15,
   a bare "$15" or "fifteen" go to the model; a direction word is a sign nowhere else), never on a
   question that asks for the sign (an integer, a signed or negative number, "represent", "express") or
-  already says the amount and a word of the same direction ("A diver is 11 m below the surface"), and
-  a positive key, often a size with no sign, only on a question that asks no "how much" or "how many"
-  and says no fall, debt or depth in any sentence ("The price went down from $40 to $25. What was the
-  price change?" key $15: "went up $15" goes to the model). A minus before a dollar sign is a sign ("-$15" is
+  already says the amount and a word of the same direction ("A diver is 11 m below the surface"). Only a key written negative carries a direction code can match: a
+  positive key is how an unsigned size is written ("15" for a score that went from 40 to 25), so a rise, a
+  credit, "above" or "ahead" for a positive key always goes to the model. A minus before a dollar sign is a sign ("-$15" is
   -15), so "$15" is no longer taken for -$15 (nor "-$5" for $5). A year said in pairs ("twelve
   fifteen" for 1215, "nineteen sixty-nine", "eighteen oh five", "twenty oh one", "two thousand and
   one") for a key of 1000-2099 in digits, only on a question that asks "what year", "which year" or
