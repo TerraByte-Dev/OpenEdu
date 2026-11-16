@@ -688,7 +688,8 @@ export type BatchGradeReply = Record<string, { feedback?: string; correct?: bool
 // misspelled conduction" and marked it wrong: it saw the misspelling and counted it. So the note says
 // that, for that answer, spelling is not marked. On GRADE_DEV_MISSPELLINGS (e2b x3) right failed went
 // 23, 20, 23 → 8, 6, 6 with wrong passed 0, 1, 0 → 0, 0, 1 (the same ambiguous answer, in a batch with no
-// note). A note that only said "may be a misspelling" left 16, 17, 13; one line for the whole batch
+// note); 13, 8, 9 and 0, 1, 1 once another word's -ing or -ed form counted as a rival (three fewer
+// notes). A note that only said "may be a misspelling" left 16, 17, 13; one line for the whole batch
 // ("spelling is not marked") passed "meitosis" for mitosis, which has no note, on every run; a fixed line
 // with no notes passed "content" for continent on every run. Results:
 // results/2026-11-16-grade-dev-misspelling-hint.md.

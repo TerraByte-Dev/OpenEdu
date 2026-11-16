@@ -31,7 +31,8 @@ under an answer when:
   ("aluminium");
 - the key's word is in the dictionary (it has no names of places or people);
 - no other one-word dictionary headword or irregular form is as close to it ("glucogan": glycogen;
-  "orbet": sorbet; "volumn": column; "vertebrait": vertebra);
+  "orbet": sorbet; "volumn": column; "vertebrait": vertebra), nor any regular form of one the
+  dictionary resolves ("attatching": attaching; added in review cycle 2, below);
 - no other word in the question is as close (checked for real words too).
 
 Review of #327 (after these runs): the first version took any one-word WordNet synonym of a real word,
@@ -43,6 +44,32 @@ spelling-swap rule 3,028 remain, and those read as other spellings (colour, haem
 metre). The notes on the four dev sets are the same 26 answers before and after the fix, so every dev
 prompt is unchanged and the runs below stand.
 
+Review of #327, cycle 2: the word list for "no other real word is as close" held headwords and
+irregular forms only, so another word's regular -ing or -ed form never counted. "attatching" for
+Attacking (one edit from attaching, two from attacking) got a note, and e2b passed it 3/3 with the
+note against 0/3 at master. "imigrating" for Emigrating (immigrating), "enhaling" for Exhaling
+(inhaling), "enhaled" for Exhaled (inhaled) and "emmigrating" for Immigrating (emigrating) got one too.
+The fix (`formsWithin`) makes every spelling WordNet's suffix rules read back to a headword that is
+within the edits, and counts the ones `lookupWord` resolves. That is every string that close the
+dictionary resolves, including morphy's over-generation: "mitosiss" (mitosis + s), "glacer" (glace +
+r), "bipolarest". So "mitossis", "glaicer" and "biolagest" lost their notes: 17 of the `misspell`
+set's 60 right answers get one now, still 0 of the wrong. That is the conservative side, and the note
+has now leaked in two review cycles, so it stays there. The `signs`, `synonyms` and `round2` prompts are
+byte-identical to before, so only `misspell` was rerun (`a7f4bfa`):
+
+| Set | Model | Before | After (cycle 1) | After (cycle 2) |
+|---|---|---|---|---|
+| misspell (60 / 60) | e2b x3 | 23 / 0, 20 / 1, 23 / 0 | 8 / 0, 6 / 0, 6 / 1 | 13 / 0, 8 / 1, 9 / 1 |
+| misspell (60 / 60) | e4b x1 | 2 / 2 | 1 / 2 | 4 / 2 |
+
+- e2b: "biolagest" and "mitossis" fail 3/3 again, "glaicer" 2/3. "sulfer" (no note) fails 3/3 again: its
+  batch's only note was "mitossis", so that batch is back to the old prompt. Run 1 also failed
+  "antanim", "hybernasion", "volumn" and "ajektive", which runs 2 and 3 passed.
+- Wrong passed: "glucogan" in runs 2 and 3. Its batch has no note before or after (the prompt is
+  byte-identical to master), so this is sampling noise; it passed 1/3 at master too.
+- e4b: right failed "verbe", "biolagest", "mytosys", "an orbet"; wrong passed "meitosis" and "glucogan",
+  the same two as before, both in batches with no note.
+
 The item then reads:
 
     Student answer: skelitin
@@ -53,7 +80,7 @@ answer applies to that answer only; check every other answer as above.` A batch 
 old prompt byte for byte, so `synonyms` and `round2`, which get no note, measure only run-to-run noise.
 
 Notes on the dev sets (bundled dictionary, `quiz-misspelling-note.test.ts`): `misspell` 20 of 60
-right answers, 0 of 60 wrong; `signs` 6 of 60 right (the two-edit misspellings, except "vertebrait":
+right answers (17 after review cycle 2), 0 of 60 wrong; `signs` 6 of 60 right (the two-edit misspellings, except "vertebrait":
 vertebra is as close), 0 wrong; `synonyms` and `round2` none.
 
 ## Set
@@ -127,7 +154,8 @@ line in every batch), e4b `synonyms` failed 16 right answers against 10-12 for t
 
 Kept. On e2b the misspelling right-fails drop from 66 to 20 (`misspell`) and from 13 to 0 (`signs`)
 over three runs. Wrong passed doesn't rise on any set: each new wrong pass came from a batch whose
-prompt didn't change.
+prompt didn't change. After review cycle 2 (three fewer notes) `misspell` is 66 → 30, wrong passed
+again only "glucogan" on an unchanged prompt.
 
 Limits:
 - The wording was picked on these sets after three tries (B, B2, B3), and the labels are Claude's. A
