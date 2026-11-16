@@ -23,6 +23,16 @@
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
 //     word ("herbivor"). "neuron" for "neutron" or "photon" for "proton" is a real word, so it is a
 //     different answer, and the model decides it. The caller supplies the word list (the dictionary).
+//     Two edits for a key word of 8 letters or more when only vowels differ or a letter is doubled
+//     ("omnivour", "skelitin"), and only when no real word is one edit from the answer's word;
+//     never when a word the question offers is as close ("carnivour" on a carnivore-or-omnivore
+//     question);
+//   - a sign written as its name, or a name written as the sign, when the key is just that: ">" is
+//     "greater than", "more than" or "bigger than"; never "greater than or equal to", never "<";
+//   - a short code (3 letters or fewer, like an element symbol) written as spaced or dotted letters:
+//     "n a" or "N.a." for "Na". When the letters cased another way are another symbol ("CO" carbon
+//     monoxide, "Co" cobalt; "NO", "No"), an answer cased as that other symbol is never accepted, and
+//     on a question about symbols or formulas the case has to be the key's.
 //
 // It never accepts on a shared word: "red" is not "red blood cells". Words are compared in order, so an
 // answer with the key's words reversed ("4 girls per boy" for "4 boys per girl") is not the key. A
@@ -193,14 +203,64 @@ function oneEditOff(answer: string, key: string): boolean {
   return k.length >= MISSPELLING_MIN_LETTERS && a !== k && editDistance(a, k) === 1;
 }
 
-/** Is this the key's word, as written, as a plural, or (when it is not itself a word) misspelled. */
-function sameWord(answer: string, key: string, isWord: (w: string) => boolean): boolean {
-  if (answer === key || singular(answer) === singular(key)) return true;
-  return oneEditOff(answer, key) && !isWord(answer);
+/** The shortest key word a two-edit misspelling is accepted for. */
+export const MISSPELLING_TWO_EDITS_MIN_LETTERS = 8;
+
+// A word's first letter, then its consonants in order with a doubled letter once: "omnivour" and
+// "omnivore" are both "omnvr". Two spellings with one skeleton differ only in vowels and doubling.
+const skeleton = (w: string) => (w[0] + w.slice(1).replace(/[aeiouy]/g, "")).replace(/(.)\1+/g, "$1");
+
+/** True when the answer's word could be a two-edit misspelling of the key's word: the key word has 8
+ * letters or more and the two differ only in vowels or doubled letters ("omnivour", "skelitin"). */
+function twoEditsOff(answer: string, key: string): boolean {
+  const a = singular(answer);
+  const k = singular(key);
+  if (!/^[a-z]+$/.test(a) || !/^[a-z]+$/.test(k)) return false;
+  return k.length >= MISSPELLING_TWO_EDITS_MIN_LETTERS && skeleton(a) === skeleton(k) && editDistance(a, k) === 2;
 }
 
-function sameWords(answer: string[], key: string[], isWord: (w: string) => boolean): boolean {
-  return answer.length === key.length && answer.every((w, i) => sameWord(w, key[i], isWord));
+const LETTERS = "abcdefghijklmnopqrstuvwxyz";
+
+/** Every string one edit from a word: a letter dropped, added, changed, or swapped with the next. */
+export function oneEditAway(w: string): string[] {
+  const out = new Set<string>();
+  for (let i = 0; i <= w.length; i++) {
+    for (const c of LETTERS) {
+      out.add(w.slice(0, i) + c + w.slice(i));
+      if (i < w.length) out.add(w.slice(0, i) + c + w.slice(i + 1));
+    }
+    if (i < w.length) out.add(w.slice(0, i) + w.slice(i + 1));
+    if (i + 1 < w.length) out.add(w.slice(0, i) + w[i + 1] + w[i] + w.slice(i + 2));
+  }
+  out.delete(w);
+  return [...out];
+}
+
+/** The words one edit from a two-edit misspelling, other than the key word's own forms. If one of them
+ * is a real word, the answer may be that word misspelt, so code does not take it. */
+function nearerWords(answer: string, key: string): string[] {
+  return oneEditAway(answer).filter((n) => singular(n) !== singular(key));
+}
+
+/** Is this the key's word, as written, as a plural, or (when it is not itself a word) misspelled.
+ * `rivals` are the question's other words: one as close to the answer as the key word is (a choice the
+ * question offers) means the answer may be that one misspelt. */
+function sameWord(answer: string, key: string, isWord: (w: string) => boolean, rivals: string[]): boolean {
+  if (answer === key || singular(answer) === singular(key)) return true;
+  const edits = oneEditOff(answer, key) ? 1 : twoEditsOff(answer, key) ? 2 : 0;
+  if (edits === 0 || isWord(answer)) return false;
+  if (rivals.some((r) => editDistance(singular(answer), singular(r)) <= edits)) return false;
+  return edits === 1 || !nearerWords(answer, key).some(isWord);
+}
+
+function sameWords(answer: string[], key: string[], isWord: (w: string) => boolean, rivals: string[] = []): boolean {
+  return answer.length === key.length && answer.every((w, i) => sameWord(w, key[i], isWord, rivals));
+}
+
+/** The question's words that are not the key's: what a misspelling could also be of. */
+function rivalWords(question: string, key: string[]): string[] {
+  const own = new Set(key.map(singular));
+  return answerWords(question).filter((w) => !isNumber(w) && !own.has(singular(w)));
 }
 
 // ─── The key's accepted forms ─────────────────────────────────────────────────
@@ -401,6 +461,82 @@ function personSurname(question: string, keyForm: string): string | null {
   return answerWords(named[named.length - 1]).join(" ") || null;
 }
 
+// ─── Signs ────────────────────────────────────────────────────────────────────
+
+// A comparison or operation sign and its names. "greater than or equal to" is its own sign (≥), so it
+// is never ">"; "less than" is never ">".
+const SIGNS: Record<string, string> = {
+  ">": "gt", "greater than": "gt", "more than": "gt", "bigger than": "gt", "larger than": "gt",
+  "<": "lt", "less than": "lt", "smaller than": "lt", "fewer than": "lt",
+  "=": "eq", "equals": "eq", "equal": "eq", "equal to": "eq",
+  "≥": "ge", ">=": "ge", "greater than or equal to": "ge", "greater than or equal": "ge", "more than or equal to": "ge",
+  "≤": "le", "<=": "le", "less than or equal to": "le", "less than or equal": "le",
+  "≠": "ne", "!=": "ne", "not equal to": "ne", "not equal": "ne", "does not equal": "ne",
+  "+": "plus", "plus": "plus",
+  "-": "minus", "minus": "minus",
+  "×": "times", "times": "times", "multiplied by": "times",
+  "÷": "divide", "divided by": "divide",
+};
+
+/** The sign a whole key or answer is, written as the sign or its name ("is greater than", "the equal
+ * sign", ">"), and whether it is the sign itself; null when it is anything more or else ("x > 3",
+ * "greater"). */
+function signOf(s: string): { sign: string; written: boolean } | null {
+  const t = (s ?? "").normalize("NFKC").toLowerCase()
+    .replace(/[−–]/g, "-")
+    .replace(/["'`“”‘’]/g, "")
+    .replace(/(\p{L})-(\p{L})/gu, "$1 $2")             // greater-than
+    .replace(/[.!]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(FILLER_RE, "").replace(ARTICLE_RE, "").replace(/^is /, "").replace(/ (?:sign|symbol)$/, "");
+  return Object.prototype.hasOwnProperty.call(SIGNS, t) ? { sign: SIGNS[t], written: !/\p{L}/u.test(t) } : null;
+}
+
+// ─── Short codes ──────────────────────────────────────────────────────────────
+
+const ELEMENTS = new Set((
+  "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr " +
+  "Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb " +
+  "Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf " +
+  "Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og").split(" "));
+
+/** The letters read as element symbols, case as written: "Co" (cobalt), "CO" (C and O), not "co". */
+function readsAsSymbols(s: string): boolean {
+  if (s === "") return true;
+  return (s.length >= 2 && ELEMENTS.has(s.slice(0, 2)) && readsAsSymbols(s.slice(2))) ||
+    (ELEMENTS.has(s[0]) && readsAsSymbols(s.slice(1)));
+}
+
+/** Every way of casing a few letters: "co" → co, Co, cO, CO. */
+function casings(s: string): string[] {
+  return [...s].reduce<string[]>((acc, ch) => acc.flatMap((p) => [p + ch.toLowerCase(), p + ch.toUpperCase()]), [""]);
+}
+
+// The question is about symbols or formulas, so the case of a symbol's letters is part of the answer.
+const ASKS_FOR_SYMBOL = /\b(?:symbols?|formulas?|formulae|elements?|chemical|chemistry|compounds?|molecules?|atoms?|atomic|periodic)\b/i;
+
+/**
+ * A key of 1-3 letters (an element symbol, "TX", "USA") and an answer of those letters, run together,
+ * spaced or dotted ("n a", "N.a.", "NA" for "Na"): true. When the letters cased another way are other
+ * symbols ("CO" carbon monoxide, "Co" cobalt; "NO", "No"), an answer cased as those other symbols is
+ * null, and on a question about symbols or formulas any case but the key's is null. Undefined when the
+ * key or the answer is something else, and the other rules decide.
+ */
+function settleShortCode(item: WrittenAnswer): true | null | undefined {
+  const code = item.expected.normalize("NFKC").trim().replace(/\.$/, "");
+  if (!/^[A-Za-z]{1,3}$/.test(code)) return undefined;
+  const written = item.student.normalize("NFKC").trim();
+  if (!/^(?:[A-Za-z][\s.-]*){1,3}$/.test(written)) return undefined;
+  const letters = written.replace(/[^A-Za-z]/g, "");
+  if (letters === code) return true;
+  if (letters.toLowerCase() !== code.toLowerCase()) return undefined;
+  if (readsAsSymbols(code) && readsAsSymbols(letters)) return null;
+  const caseCarries = readsAsSymbols(code) && casings(code).some((c) => c !== code && readsAsSymbols(c));
+  if (caseCarries && ASKS_FOR_SYMBOL.test(item.question)) return null;
+  return true;
+}
+
 // ─── Settling ─────────────────────────────────────────────────────────────────
 
 export interface WrittenAnswer {
@@ -416,6 +552,16 @@ export interface WrittenAnswer {
  * accepted.
  */
 export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true): true | null {
+  // A sign has no words, so it is read before anything else: ">" and "greater than" are one answer,
+  // and another sign ("<", "greater than or equal to") is never taken by a later rule. One side has to
+  // be the sign itself: two names ("Less than", "smaller than") go to the model, and so would "The
+  // Times" against "multiplied by".
+  const keySign = signOf(item.expected);
+  const answerSign = keySign && signOf(item.student);
+  if (keySign && answerSign && (keySign.written || answerSign.written)) return keySign.sign === answerSign.sign ? true : null;
+  // A short code before the case-blind rules below, which would take "CO" for "Co".
+  const code = settleShortCode(item);
+  if (code !== undefined) return code;
   const answer = answerWords(item.student);
   if (answer.length === 0) return null;
   const choice = offersChoice(item.question);
@@ -426,19 +572,21 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
       firstNumberFits(answer, answerWords(item.expected), item.question)) return true;
   for (const form of keyForms(item.expected)) {
     const key = answerWords(form);
-    if (sameWords(answer, key, isWord)) return true;
+    if (sameWords(answer, key, isWord, rivalWords(item.question, key))) return true;
     if (sameNumberAndUnits(answer, key, item.question)) return true;
     if (sameFormula(answer, form)) return true;
     // Under a choice the surname may be what both sides share ("Theodore Roosevelt or Franklin Roosevelt?").
     const surname = choice ? null : personSurname(item.question, form);
-    if (surname && sameWords(answer, surname.split(" "), isWord)) return true;
+    if (surname && sameWords(answer, surname.split(" "), isWord, rivalWords(item.question, surname.split(" ")))) return true;
   }
   return null;
 }
 
 /**
- * The answer's words that settleByCode would accept as a misspelling if they are not real words, so
- * the caller can look them up first (the dictionary is loaded asynchronously).
+ * The words settleByCode needs the dictionary for, so the caller can look them up first (the dictionary
+ * is loaded asynchronously): each of the answer's words it would accept as a misspelling if it is not a
+ * real word, and for a two-edit misspelling every word one edit from it. A word not looked up counts as
+ * real, so a misspelling is never accepted on a word the caller did not check.
  */
 export function misspellingCandidates(item: WrittenAnswer): string[] {
   const answer = answerWords(item.student);
@@ -449,7 +597,10 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
     if (surname) keys.push(surname.split(" "));
     for (const key of keys) {
       if (key.length !== answer.length) continue;
-      answer.forEach((w, i) => { if (oneEditOff(w, key[i])) out.add(w); });
+      answer.forEach((w, i) => {
+        if (oneEditOff(w, key[i])) out.add(w);
+        else if (twoEditsOff(w, key[i])) { out.add(w); for (const n of nearerWords(w, key[i])) out.add(n); }
+      });
     }
   }
   return [...out];

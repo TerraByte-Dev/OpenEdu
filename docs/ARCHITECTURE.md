@@ -291,7 +291,13 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   words ("the fourth planet" for "4th planet"; never "4" for "4th", and "the fourth" alone goes to the
   model), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
   a name, and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
-  itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). It never accepts
+  itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). Two edits count
+  for a key word of 8 letters or more when only vowels or doubled letters differ ("omnivour") and no
+  dictionary word is one edit from the answer's word; no misspelling counts when a word the question
+  offers is as close. A sign and its name are one answer when one side is the sign itself (">" and
+  "greater than"; never "greater than or equal to" or "<"). A key of 1-3 letters may be written spaced
+  or dotted ("n a" for "Na"), but letters cased as another element symbol never settle ("CO" for
+  "Co"), and on a question about symbols or formulas such a key needs its own case. It never accepts
   on a shared word ("red" for "red blood cells"), and it compares words in order, so the key's words
   reversed ("4 girls per boy" for "4 boys per girl") are not the key. A number never settles past the
   key's other words when they say something the answer contradicts or leaves out: another noun ("6
