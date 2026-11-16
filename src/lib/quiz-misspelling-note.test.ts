@@ -51,6 +51,37 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
     expect(p).not.toContain("Note");
   }, 30_000);
 
+  // Review of #327: each answer below is a real word the dictionary lists as a synonym of the key's word,
+  // and each got a note. They are other forms or related words, not other spellings, or the question
+  // offers the answer as the other choice.
+  it("gives no note to a real word that is another form or a related word, or that the question offers", async () => {
+    const cases: Array<[string, string, string]> = [
+      ["What is the plural of bacterium?", "bacteria", "bacterium"],
+      ["What is the singular of bacteria?", "bacterium", "bacteria"],
+      ["What is the plural of alga?", "algae", "alga"],
+      ["What is the superlative of early?", "earliest", "earlier"],
+      ["What is the comparative of early?", "earlier", "earliest"],
+      ["What is the adverb form of quick?", "quickly", "quick"],
+      ["What is the adverb form of heavy?", "heavily", "heavier"],
+      ["What is the adverb form of clear?", "clearly", "clear"],
+      ["What is the adverb form of awful?", "awfully", "awful"],
+      ["What do we call the space inside a flat shape?", "Area", "arena"],
+      ["What is the curved top of a doorway called?", "Arch", "arc"],
+      ["What is the opposite of dead?", "alive", "live"],
+      ["What word means with nobody else?", "alone", "lone"],
+      ["What verb means to come up or come into being?", "arise", "rise"],
+      ["What word means real, existing in fact?", "actual", "factual"],
+      ["Which is about distance you can measure: farther or further?", "farther", "further"],
+      ["Which word is the plural: bacterium or bacteria?", "bacteria", "bacterium"],
+      ["Which word is plural: alga or algae?", "algae", "alga"],
+    ];
+    for (let start = 0; start < cases.length; start += 6) {
+      vi.mocked(callLLMStructured).mockReset();
+      const p = await promptFor(cases.slice(start, start + 6).map(([q, key, a], k) => item(k, q, key, a)));
+      expect(p).not.toContain("Note");
+    }
+  }, 60_000);
+
   it("leaves a batch with no note byte-identical to the prompt without notes", async () => {
     const items = [item(0, "Which gas do plants give off?", "Oxygen", "carbon dioxide"), item(1, "What is 7 times 8?", "56", "54")];
     const p = await promptFor(items);

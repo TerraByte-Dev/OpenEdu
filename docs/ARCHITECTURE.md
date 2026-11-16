@@ -317,10 +317,12 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   one edit (key word 4+ letters) or two edits (7+) off ("skelitin" for skeleton) goes to the model with
   a note under it: `"skelitin" may be a misspelling of "skeleton". If it is, mark it correct: for this
   answer, spelling is not marked.` (`answer-match.ts` `misspellingNote`, `quiz.ts` `misspellingNotes`).
-  The model still decides. No note when the answer's word is a real word (unless the dictionary lists
-  it as another spelling of the key's word, "aluminium"), when the key's word is not in the dictionary,
-  or when another real word or a word of the question is as close ("glucogan": glycogen; "orbet":
-  sorbet). The check reads every one-word dictionary headword once per session
+  The model still decides. No note when a word of the question is as close ("farther or further?"),
+  when the answer's word is a real word (unless it is the key's word with one British/American
+  spelling swap, our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um, and the dictionary lists the two
+  as synonyms: "aluminium"; WordNet's synonyms alone also hold other forms, bacterium for bacteria,
+  earlier for earliest), when the key's word is not in the dictionary, or when another real word is as
+  close ("glucogan": glycogen; "orbet": sorbet). The check reads every one-word dictionary headword once per session
   (`dictionary.ts` `oneWordHeadwords`), only when an answer needs it; if the dictionary cannot be read,
   no note. A batch with no note gets the old prompt byte for byte. Measured in
   `src/lib/eval/results/2026-11-16-grade-dev-misspelling-hint.md`.

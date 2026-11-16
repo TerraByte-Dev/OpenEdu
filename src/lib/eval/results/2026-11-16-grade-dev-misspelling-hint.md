@@ -26,12 +26,22 @@ Code (`answer-match.ts` `misspellingNote`, dictionary from `quiz.ts` `misspellin
 under an answer when:
 - the answer follows one of the key's forms word for word, and each differing word is one edit (key
   word 4+ letters) or two edits (7+) from the key's word;
-- that word is not a real word, or the dictionary lists it as another spelling of the key's word
+- that word is not a real word, or it is the key's word with one British/American spelling swap
+  (our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um) and the dictionary lists the two as synonyms
   ("aluminium");
 - the key's word is in the dictionary (it has no names of places or people);
 - no other one-word dictionary headword or irregular form is as close to it ("glucogan": glycogen;
   "orbet": sorbet; "volumn": column; "vertebrait": vertebra);
-- no other word in the question is as close.
+- no other word in the question is as close (checked for real words too).
+
+Review of #327 (after these runs): the first version took any one-word WordNet synonym of a real word,
+and WordNet's synonym sets also hold other forms and related words, so "bacterium" for bacteria,
+"earlier" for earliest, "quick" for quickly, "arena" for area and "arc" for arch all got a note; the
+real-word branch also skipped the question check, so "further" for "farther or further?" did too.
+Over the whole dictionary, 12,846 (real word, synonym) pairs fall inside the edit limits; with the
+spelling-swap rule 3,028 remain, and those read as other spellings (colour, haemal, travelled,
+metre). The notes on the four dev sets are the same 26 answers before and after the fix, so every dev
+prompt is unchanged and the runs below stand.
 
 The item then reads:
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, wordsWithin, type WrittenAnswer, type SpellingLookup } from "./answer-match";
+import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, wordsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
 import { GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
@@ -685,6 +685,21 @@ describe("misspellingNote", () => {
     expect(note("Which metal makes soda cans?", "Aluminum", "aluminium")).toBe('"aluminium" may be a misspelling of "aluminum"');
     expect(note("Which metal makes soda cans?", "Aluminum", "aluminium", dict(WORDS, {}))).toBeNull();
   });
+  it("is null for a real word the dictionary lists as a synonym that is not a spelling swap of the key's word", () => {
+    const words = ["bacteria", "bacterium", "earlier", "earliest", "quick", "quickly", "area", "arena"];
+    const syn = { bacterium: ["bacteria"], earlier: ["earliest"], quick: ["quickly"], arena: ["area"] };
+    expect(note("Which germs can make you ill?", "Bacteria", "bacterium", dict(words, syn))).toBeNull();
+    expect(note("Who came first?", "The earliest", "the earlier", dict(words, syn))).toBeNull();
+    expect(note("How did the hare run?", "Quickly", "quick", dict(words, syn))).toBeNull();
+    expect(note("What do we call the space inside a flat shape?", "Area", "arena", dict(words, syn))).toBeNull();
+  });
+  it("checks the question's words before a real word: a word the question offers gets no note", () => {
+    const words = ["color", "colour", "farther", "further"];
+    const syn = { colour: ["color"], further: ["farther"] };
+    expect(note("How do you spell the word for red or blue?", "Color", "colour", dict(words, syn))).toBe('"colour" may be a misspelling of "color"');
+    expect(note("Is it colour or color in American English?", "Color", "colour", dict(words, syn))).toBeNull();
+    expect(note("Which is about distance you can measure: farther or further?", "Farther", "further", dict(words, syn))).toBeNull();
+  });
   it("is null when the key's word is not in the dictionary (names of places and people)", () => {
     expect(note("Which country has Ljubljana as its capital?", "Slovenia", "slovinia")).toBeNull();
   });
@@ -695,6 +710,24 @@ describe("misspellingNote", () => {
   });
   it("names a form of the key's own word as no rival", () => {
     expect(note("Who studies rocks?", "Geologist", "geolagest", dict(["geologist", "geologists"]))).toBe('"geolagest" may be a misspelling of "geologist"');
+  });
+});
+
+describe("spellingVariant", () => {
+  it("is true for one British/American spelling swap", () => {
+    for (const [a, b] of [["colour", "color"], ["organisation", "organization"], ["analyse", "analyze"], ["centre", "center"],
+      ["anaemia", "anemia"], ["oestrogen", "estrogen"], ["sulphur", "sulfur"], ["travelled", "traveled"], ["aluminium", "aluminum"]]) {
+      expect(spellingVariant(a, b)).toBe(true);
+      expect(spellingVariant(b, a)).toBe(true);
+    }
+  });
+  it("is false for other forms and related words, and for the word itself", () => {
+    for (const [a, b] of [["bacterium", "bacteria"], ["alga", "algae"], ["earlier", "earliest"], ["quick", "quickly"],
+      ["heavier", "heavily"], ["clear", "clearly"], ["awful", "awfully"], ["arena", "area"], ["arc", "arch"], ["live", "alive"],
+      ["lone", "alone"], ["rise", "arise"], ["factual", "actual"], ["further", "farther"], ["larva", "larvae"], ["color", "color"]]) {
+      expect(spellingVariant(a, b)).toBe(false);
+      expect(spellingVariant(b, a)).toBe(false);
+    }
   });
 });
 

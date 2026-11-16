@@ -644,9 +644,9 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
 // words that close, and the rule leaked. gemma4:e2b fails those answers on every run, though e4b passes
 // them. So code tells the model what it can see, and the model still decides: a note on the item,
 // '"skelitin" may be a misspelling of "skeleton"'. The note is given only when the answer's word can be
-// nothing but the key's word misspelt: it is not itself a real word (or the dictionary lists it as
-// another spelling of the key's word, "sulphur"), the key's word is in the dictionary, and no other real
-// word, and no other word in the question, is as close to it. "geolagist" (one edit from geologist) for
+// nothing but the key's word misspelt: no other word in the question is as close to it, it is not itself
+// a real word (or it is the key's word with one British/American spelling swap the dictionary lists as a
+// synonym, "sulphur"), the key's word is in the dictionary, and no other real word is as close to it. "geolagist" (one edit from geologist) for
 // Biologist gets no note, nor "glucogan" (two edits from glucagon and from glycogen).
 
 /** The shortest key word a note is given for, at one edit and at two. */
@@ -695,12 +695,45 @@ export function wordsWithin(words: readonly string[], w: string, edits: number):
   return words.filter((h) => Math.abs(h.length - w.length) <= edits && h !== w && editDistance(h, w) <= edits);
 }
 
+// The British and American spellings of one word, as one swap: [one spelling, the other, where]. A real
+// word is noted only when it is the key's word with one of these swaps. WordNet's synonym sets alone
+// also hold other forms and related words (bacterium for bacteria, earlier for earliest, quick for
+// quickly, arena for area), so a synonym is not enough. "end" is the word's last letters (centre); "inside"
+// is not the last letters (anaemia: a final "ae" is a Latin plural, algae).
+const SPELLING_SWAPS: ReadonlyArray<readonly [string, string, "end" | "inside" | "any"]> = [
+  ["our", "or", "any"], // colour, color
+  ["ise", "ize", "any"], ["isa", "iza", "any"], ["isi", "izi", "any"], // organise, organisation, organising
+  ["yse", "yze", "any"], ["ysi", "yzi", "any"], // analyse, analysing
+  ["re", "er", "end"], // centre, center
+  ["ae", "e", "inside"], ["oe", "e", "inside"], // anaemia, oestrogen
+  ["ph", "f", "any"], // sulphur, sulfur
+  ["ll", "l", "any"], // travelled, traveled
+  ["ium", "um", "any"], // aluminium, aluminum
+];
+
+/** True when one word is the other with one British/American spelling swap ("aluminium", "aluminum"). */
+export function spellingVariant(a: string, b: string): boolean {
+  const swapsTo = (from: string, to: string) => {
+    for (const [x, y, where] of SPELLING_SWAPS) {
+      for (const [p, q] of [[x, y], [y, x]]) {
+        for (let i = from.indexOf(p); i >= 0; i = from.indexOf(p, i + 1)) {
+          const atEnd = i + p.length === from.length;
+          if ((where === "end" && !atEnd) || (where === "inside" && atEnd)) continue;
+          if (from.slice(0, i) + q + from.slice(i + p.length) === to) return true;
+        }
+      }
+    }
+    return false;
+  };
+  return a !== b && swapsTo(a, b);
+}
+
 /**
  * A note for the grader model when the answer may be the key with words misspelt, or null. Never a
- * verdict: the model still decides. Null when any misspelt word could be another word: a real word
- * itself (unless the dictionary lists it as another spelling of the key's word), a key word the
- * dictionary does not have (names of places and people), or another real word or a word of the question
- * as close to it as the key's word.
+ * verdict: the model still decides. Null when any misspelt word could be another word: a word of the
+ * question as close to it as the key's word, a real word itself (unless it is the key's word with one
+ * British/American spelling swap and the dictionary lists the two as synonyms), a key word the
+ * dictionary does not have (names of places and people), or another real word as close to it.
  */
 export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): string | null {
   const words = misspeltKeyWords(item);
@@ -708,12 +741,12 @@ export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): stri
   const rivals = rivalWords(item.question, answerWords(item.expected));
   for (const { answer, key, edits } of words) {
     if (!dict.isWord(key)) return null;
-    if (dict.isWord(answer)) {
-      if (!dict.synonyms(answer).includes(key)) return null;
-      continue;
-    }
     const a = singular(answer);
     if (rivals.some((r) => editDistance(a, singular(r)) <= edits)) return null;
+    if (dict.isWord(answer)) {
+      if (!spellingVariant(answer, key) || !dict.synonyms(answer).includes(key)) return null;
+      continue;
+    }
     if (dict.wordsNear(a, edits).some((n) => singular(n) !== singular(key) && stem(n) !== stem(key))) return null;
   }
   return words.map((w) => `"${w.answer}" may be a misspelling of "${w.key}"`).join("; ");
