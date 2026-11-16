@@ -45,8 +45,8 @@
 //
 // One rule decides both ways: a number with a unit (see "Numbers and units, both ways" below). When the key
 // and the answer are each one quantity and nothing else, code compares the amounts after converting
-// units, and marks the answer right or wrong ("4.5%" for 45% is wrong, "1 g/mL" for 1 g/cm³ is right).
-// Every other rule only accepts. An answer code cannot settle goes to the model as before.
+// units, and marks the answer right, or wrong only when it misses grossly ("4.5%" for 45% is wrong, "1
+// g/mL" for 1 g/cm³ is right, "340 m/s" for 343 m/s is the model's). Every other rule only accepts. An answer code cannot settle goes to the model as before.
 
 import { gradeFreeTextDeterministic, normalizeAnswer } from "./quiz-grading";
 import { SUFFIX_RULES } from "./dictionary";
@@ -580,14 +580,24 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
 // between scales. A clock time ("4:15 p.m.", "16:15") is read on its own. Anything else in either, or
 // any word the table does not know, and code does not decide.
 //
-// Right (true) when the amounts are equal after converting units, and wrong (false) when they differ by
-// more than the precision either was written to. Rejecting is the dangerous direction, so code says
-// nothing (null) when:
+// Right (true) when the amounts are equal after converting units (within the precision written; on an
+// estimate question, "Estimate 49 x 21", "roughly", "about how", within 10%). Wrong (false) only on a
+// gross miss (grossMiss), when both sides read fully:
+//   - another kind of unit: an area for a volume, a mass for a volume, a length for a time, "$10" for 25%;
+//   - a factor of about 10, 100 or 1000: "4.5%" for 45%, "0.33 g/cm³" for 3 g/cm³, "1 kg/mL" for 1 g/cm³,
+//     "46,020" for 406,020. Not 100 between two plain numbers or on a percent question: "45" for 0.45 and
+//     "50" for a probability of 0.5 are the same number read as a percent;
+//   - a different fraction for a fraction key: "2/8" for 1/2, "4/3" for 3/4;
+//   - a.m. for p.m. on a clock time ("4:15 a.m." for 4:15 p.m.); any other time is the model's;
+//   - the other sign ("-3" for 3), except on a question about a fall, drop, decrease, loss, depth, being
+//     below, a change or a difference, where either sign may be meant ("-6 °C" for a fall of 6 °C);
+//   - otherwise, more than 20% apart, only when the question gives the numbers (not just a year) and asks
+//     for no estimate: "20" for half of 50, "6 cm³" for a cube of edge 2 cm.
+// Never on precision alone: a measured fact ("8,848 m" for Everest's 8,849 m, "340 m/s" for 343 m/s,
+// "98 °F" for 98.6 °F), an estimate, pi or a rounded conversion factor ("12.57" for 12.56, "62.5 miles"
+// for 62.1) is the model's. Code also says nothing (null) when:
 //   - the answer says "about" (or "approximately", "around"), or was read with a guess ("406 020");
-//   - one may be the other rounded: "273 K" for 273.15 K, "0.13" for an exact 0.125, "5,000" when the
-//     question asks to round (an answer's trailing zeros count as rounding only then);
-//   - the key says "about": then the answer is right within 2% (and the key's last digit), wrong past
-//     25%, and between them the model decides;
+//   - the key says "about": then the answer is right within 2% (and the key's last digit);
 //   - the units differ in kind and the answer used a one-letter unit ("9 m" for 9 m² may mean 9
 //     minutes; "m", "s", "g", "l", "h", "in");
 //   - a temperature is on another scale ("212 °C" for 212 °F), has a scale the key lacks ("90 degrees
@@ -597,13 +607,16 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
 //   - the answer's number read with the comma and point swapped is the key ("1.000" for 1,000);
 //   - a bare number for a key with a unit could be the key in some other unit of its kind, within 5%
 //     ("1000" for 1 L, "2.2" for 1 kg, "0.45" for 45%), or the question asks for the unit ("Include the
-//     unit"), or the key is about or a temperature;
+//     unit"), or the key is about or a temperature; otherwise it is read in the key's unit;
+//   - a bare count on a question that names what it counts ("How many fourths", "in thirds", "how many
+//     tens"): read in that unit, right when it is the key ("3" for 3/4) and the model's otherwise, and
+//     the model's when the question asks "what fraction";
 //   - percent against a plain number when the reading is the other one: "45%" for 45. "45%" for 9/20 is
 //     right only when the question asks for no form;
 //   - the question asks for a form (as a percent, decimal or fraction, simplest form, scientific or
 //     standard notation, rounded, exact, in digits) and the answer has the right value in another form:
 //     "0.45" on "Write 9/20 as a percent", "75/100" for simplest form, "30 × 10^3" for scientific
-//     notation. A different value is still wrong;
+//     notation. A different value is still judged as above;
 //   - the question asks for the key's unit ("in kilometers", "how many grams") and the answer gives the
 //     same amount in another ("1500 m"): not converted, which the model decides;
 //   - the key is a ratio ("2:3"), or a clock time that cannot be told from a.m. ("4:15" for 4:15 p.m.).
@@ -905,7 +918,19 @@ function allUnits(): Array<{ f: number; dims: string }> {
 // The question asks for the answer in a set form, so the same value in another form is not the answer.
 const ASKS_FORM_RE = /\b(?:as|in|into|to)\s+(?:an?\s+)?(?:exact\s+)?(?:percent(?:age)?s?|decimals?|fractions?|mixed numbers?|improper fractions?|whole numbers?|ratios?|words|digits|numerals)\b|\bwhat (?:percent(?:age)?|fraction|decimal)\b|\bby what percent|\bsimplest\b|\blowest terms\b|\bsimplif|\b(?:scientific|standard|expanded) (?:notation|form)\b|\bround|\bnearest\b|\bexact\b|\bdecimal places?\b|\bsignificant\b/i;
 // The question allows rounding, so an answer's trailing zeros may be rounding ("5,000").
-const ASKS_ROUNDING_RE = /\b(?:round(?:ed|ing)?|nearest|estimate|approximate(?:ly)?|about)\b/i;
+const ASKS_ROUNDING_RE = /\b(?:round(?:ed|ing)?|nearest|estimate|approximate(?:ly)?|about|roughly|around)\b/i;
+// The question asks for an estimate, so a near amount is right and only a gross miss is wrong. "About"
+// and "around" only before how, what or a number: "go around the Sun" asks for no estimate.
+const ESTIMATE_RE = /\b(?:estimate[ds]?|estimating|approximate(?:ly)?|roughly)\b|\b(?:about|around)\s+(?:how|what|\$?\d)/i;
+// The question is about a fall, a loss or a depth, so either sign may be meant ("-6 °C" for a fall of 6 °C).
+const CHANGE_RE = /\b(?:fall(?:s|en|ing)?|fell|drop(?:s|ped|ping)?|decreas\w*|loss(?:es)?|lose[sr]?|losing|lost|below|depth|deep(?:er)?|chang\w*|differen\w*)\b/i;
+// "How many fourths", "in thirds", "how many tens": a bare number counts that unit.
+const COUNT_UNITS: Record<string, number> = {
+  halves: 1 / 2, thirds: 1 / 3, fourths: 1 / 4, quarters: 1 / 4, fifths: 1 / 5, sixths: 1 / 6, sevenths: 1 / 7,
+  eighths: 1 / 8, ninths: 1 / 9, tenths: 0.1, twelfths: 1 / 12, hundredths: 0.01, thousandths: 0.001,
+  ones: 1, tens: 10, hundreds: 100, thousands: 1000,
+};
+const COUNT_UNIT_RE = new RegExp(`\\b(?:in|how many|number of)\\s+(${Object.keys(COUNT_UNITS).join("|")})\\b`, "i");
 // The question asks for the unit, so a bare number is not the whole answer.
 const ASKS_UNIT_RE = /\b(?:include|with|give|show|write)\s+(?:the\s+|its\s+|your\s+|a\s+)?units?\b/i;
 
@@ -940,6 +965,39 @@ function sameForm(k: Quantity, a: Quantity, question: string): boolean {
   return kn.a === an.a && kn.b === an.b && kn.whole === an.whole;
 }
 
+/** The question gives the numbers the answer is worked out from: at least one that is not a year on its
+ * own ("in 1987"), or two of any kind. A question with none asks for a fact. */
+function givesNumbers(question: string): boolean {
+  const nums = (question ?? "").match(/\d+(?:[.,]\d+)*/g) ?? [];
+  return nums.length >= 2 || nums.some((n) => !/^(?:1\d{3}|20\d{2})$/.test(n));
+}
+
+/**
+ * Two different amounts of one kind, in the same base units (`kv`, `av`): wrong only when the miss is
+ * gross. A different sign (not on a question about a fall, loss or depth); a factor of about 10, 100 or
+ * 1000 (not 100 between two plain numbers or on a percent question: 45 for 0.45 is the same number read
+ * as a percent); a different fraction for a fraction key; or, when the question gives the numbers and
+ * asks for no estimate, more than 20% apart. Never on precision alone.
+ */
+function grossMiss(kv: number, av: number, kn: WrittenNumber, an: WrittenNumber, question: string, plainPair: boolean, precision: number): boolean {
+  const change = CHANGE_RE.test(question);
+  if (kv * av < 0 && !change && Math.abs(kv + av) <= precision * (1 + 1e-9)) return true;
+  const k = change ? Math.abs(kv) : kv;
+  const a = change ? Math.abs(av) : av;
+  if (k !== 0 && a !== 0 && k * a > 0) {
+    const lg = Math.log10(a / k);
+    const n = Math.round(lg);
+    if (n !== 0 && Math.abs(n) <= 3 && Math.abs(lg - n) <= 0.1) {
+      return !(Math.abs(n) === 2 && (plainPair || /percent|%/i.test(question)));
+    }
+  }
+  const fraction = (w: WrittenNumber) => w.form === "frac" || w.form === "mixed";
+  if (fraction(kn) && fraction(an)) return true;
+  if (!givesNumbers(question) || ESTIMATE_RE.test(question)) return false;
+  if (k * a <= 0) return k !== a;
+  return Math.max(Math.abs(k), Math.abs(a)) / Math.min(Math.abs(k), Math.abs(a)) > 1.2 + 1e-9;
+}
+
 /** Two amounts of one kind, in the same base units. */
 function compareAmounts(k: Quantity, a: Quantity, question: string): boolean | null {
   const diff = Math.abs(a.v - k.v);
@@ -953,16 +1011,15 @@ function compareAmounts(k: Quantity, a: Quantity, question: string): boolean | n
     }
     return sameForm(k, a, question) ? true : null;
   }
-  const mayReject = !a.approx && !a.guessed;
-  if (k.approx) {
-    const rel = k.v === 0 ? Infinity : diff / Math.abs(k.v);
-    if (rel <= 0.02 && diff <= Math.max(k.loose, a.loose) / 2 * (1 + 1e-9)) return true;
-    return rel > 0.25 && mayReject && !rough ? false : null;
-  }
-  if (rough) return null;
+  const mayReject = !a.approx && !a.guessed && !rough;
+  const rel = k.v === 0 ? Infinity : diff / Math.abs(k.v);
+  if (k.approx && rel <= 0.02 && diff <= Math.max(k.loose, a.loose) / 2 * (1 + 1e-9)) return true;
+  // An estimate: within 10% of the key is right.
+  if (ESTIMATE_RE.test(question) && !rough && rel <= 0.1) return sameForm(k, a, question) ? true : null;
+  if (!mayReject || swappedReading(a, k.v)) return null;
   const answerHalf = (ASKS_ROUNDING_RE.test(question) ? a.loose : a.ulp) / 2;
-  if (diff <= Math.max(k.ulp / 2, answerHalf) * (1 + 1e-9) || swappedReading(a, k.v)) return null;
-  return mayReject ? false : null;
+  const plainPair = k.kind === "plain" && a.kind === "plain";
+  return grossMiss(k.v, a.v, k.num, a.num, question, plainPair, Math.max(k.ulp / 2, answerHalf)) ? false : null;
 }
 
 /** A bare number for a key with a unit: "1.75" for $1.75 is right; "2.75" is wrong; "175" may be cents. */
@@ -974,7 +1031,8 @@ function bareForUnit(k: Quantity, a: Quantity, question: string): boolean | null
   const readings = k.kind === "percent" ? [1, 100] : k.kind === "money" ? [1, 0.01] : allUnits().filter((u) => u.dims === k.dims).map((u) => u.f);
   if (readings.length === 0) return null;
   const close = readings.some((g) => Math.abs(a.v * g - k.v) <= Math.max(a.loose * g / 2, k.ulp / 2, 0.05 * Math.abs(k.v)) || swappedReading(a, k.v / g));
-  return close ? null : false;
+  // Not the key in any unit of its kind: read in the key's unit, wrong only when the miss is gross.
+  return !close && grossMiss(written, a.v, k.num, a.num, question, false, Math.max(k.ulp / k.f, a.ulp) / 2) ? false : null;
 }
 
 /** Two quantities: right, wrong, or null when code cannot be sure. */
@@ -990,6 +1048,14 @@ function compareQuantities(k: Quantity, a: Quantity, question: string): boolean 
       return verdict === false && k.scale !== a.scale ? null : verdict;
     }
     if (k.kind === "measure" && k.dims !== a.dims) return mayReject && !a.abbrev ? false : null;
+    // "3" on "How many fourths are in 3/4?": a bare count of the unit the question names.
+    const counted = COUNT_UNIT_RE.exec(question);
+    if (k.kind === "plain" && counted && !sameAmount(a.v, k.v)) {
+      const m = COUNT_UNITS[counted[1].toLowerCase()];
+      const isCount = (q: Quantity) => q.num.form === "int" && q.v >= 0;
+      if (isCount(a) && sameAmount(a.v * m, k.v)) return ASKS_FORM_RE.test(question) ? null : true;
+      return null;
+    }
     return compareAmounts(k, a, question);
   }
   if (a.kind === "plain") return bareForUnit(k, a, question);
@@ -998,7 +1064,7 @@ function compareQuantities(k: Quantity, a: Quantity, question: string): boolean 
       // "45%" for 9/20 is the same part; "45%" for 45 is not, but may be what was meant.
       if (sameAmount(a.v / 100, k.v)) return ASKS_FORM_RE.test(question) ? null : true;
       if (sameAmount(a.v, k.v) || Math.abs(a.v / 100 - k.v) <= Math.max(k.ulp, a.ulp / 100) / 2 * (1 + 1e-9) || swappedReading(a, k.v * 100)) return null;
-      return mayReject ? false : null;
+      return mayReject && grossMiss(k.v, a.v / 100, k.num, a.num, question, true, Math.max(k.ulp, a.ulp / 100) / 2) ? false : null;
     }
     if (a.kind === "measure") {
       const asked = askedUnit(question);
@@ -1044,7 +1110,8 @@ function settleQuantity(item: WrittenAnswer): boolean | null {
     const a = clockReadings(item.student);
     if (!a) return null;
     if (a.some((x) => k.includes(x))) return a.length === 1 && k.length === 1 ? true : null;
-    return false;
+    // Wrong only when it is the key with a.m. and p.m. swapped; any other time is the model's.
+    return a.length === 1 && k.length === 1 && a[0] === (k[0] + 720) % 1440 ? false : null;
   }
   const k = parseQuantity(item.expected);
   if (!k || k.guessed) return null;

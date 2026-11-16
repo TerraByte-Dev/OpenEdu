@@ -319,19 +319,24 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   zero", and one unit from a small table: length, mass, volume, time, square and cubic, one unit per
   another such as km/h or g/cm³, percent, money, temperature on one scale, or a clock time), code
   converts units and compares amounts. The same amount is right ("1 g/mL" for 1 g/cm³, "8 mL" for 8
-  cm³, "16:15" for 4:15 p.m., "45%" for 9/20 when the question asks for no form); a different amount,
-  beyond the precision either side was written to, is wrong ("4.5%" for 45%, "0.33 g/cm³" for 3 g/cm³,
-  "2/8" for 1/2, "75 cents" for $1.75, "-15 km" when the question asks for meters), stored as
-  `graded_by` `'exact'`, wrong, with the feedback "This does not match the answer key." Rejecting is the
-  dangerous direction, so code leaves to the model: an answer that says "about", has two numbers, a
-  range, an expression or any word the table does not know; one side that may be the other rounded
-  ("273 K" for 273.15 K, "0.13" for an exact 0.125, "5,000" on a question that asks to round); a
-  one-letter unit of another kind ("9 m" for 9 m², which may mean minutes); another temperature scale,
-  or a scale left out when the amount differs ("32 degrees" for 0 °C); years against days; a bare
+  cm³, "16:15" for 4:15 p.m., "45%" for 9/20 when the question asks for no form; on an estimate question,
+  within 10%: "1,050" on "Estimate 49 x 21"). Code marks an answer wrong only on a gross miss: another
+  kind of unit ("8 cm²" for 8 cm³), a factor of about 10, 100 or 1000 ("4.5%" for 45%, "0.33 g/cm³" for
+  3 g/cm³, "-15 km" when the question asks for meters; not "45" for 0.45, the same number read as a
+  percent), a different fraction for a fraction key ("2/8" for 1/2), a.m. for p.m., the other sign
+  ("-3" for 3, but not on a question about a fall, loss, depth or change), or, when the question gives
+  the numbers and asks for no estimate, more than 20% apart ("75 cents" for $1.75). Such a mark is
+  stored as `graded_by` `'exact'`, wrong, with the feedback "This does not match the answer key."
+  Never on precision alone: a measured fact ("340 m/s" for 343 m/s, "8,848 m" for Everest), an
+  estimate, pi or a rounded conversion factor goes to the model. Code also leaves to the model: an
+  answer that says "about", has two numbers, a range, an expression or any word the table does not
+  know; a one-letter unit of another kind ("9 m" for 9 m², which may mean minutes); another temperature
+  scale, or a scale left out when the amount differs ("32 degrees" for 0 °C); years against days; a bare
   number that may be the key in some other unit ("1000" for 1 L, "0.45" for 45%) or on a question that
-  asks for the unit; the right value in another form than the question asks ("0.45" on "Write 9/20 as
-  a percent", "75/100" for simplest form, "30 × 10^3" for scientific notation, "1500 m" on "in
-  kilometers?"); a ratio; and a clock time with no a.m. or p.m. that could be the key. Measured in
+  asks for the unit; a bare count other than the key on a question that names what it counts ("How
+  many fourths", "in thirds"; "3" for 3/4 there is right); the right value in another form than the
+  question asks ("0.45" on "Write 9/20 as a percent", "75/100" for simplest form, "30 × 10^3" for
+  scientific notation, "1500 m" on "in kilometers?"); a ratio; and any other clock time. Measured in
   `src/lib/eval/results/2026-11-16-grade-dev-numbers.md`.
 - **A note to the model on a misspelling code cannot accept.** An answer that is the key with a word
   one edit (key word 4+ letters) or two edits (7+) off ("skelitin" for skeleton) goes to the model with

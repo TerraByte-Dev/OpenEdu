@@ -254,8 +254,8 @@ describe("settleByCode: never a wrong answer", () => {
     expect(settle("What is 3 minus 8?", "minus five", "5")).toBe(false);
     expect(settle("What is 3 minus 8?", "minus 5", "5")).toBe(false);
     expect(settle("How far north or south of the equator is the Tropic of Cancer?", "23 degrees north", "23 degrees")).toBeNull();
-    expect(settle("Is the jar one third or two thirds full?", "Two thirds", "two")).toBe(false);
-    expect(settle("What fraction of the pizza is left, in thirds?", "2 thirds", "2")).toBe(false);
+    expect(settle("Is the jar one third or two thirds full?", "Two thirds", "two")).toBeNull();
+    expect(settle("What fraction of the pizza is left, in thirds?", "2 thirds", "2")).toBeNull();
   });
   it("never lets a first number settle past a different noun, am/pm, unit or a choice (the reviewer's cases)", () => {
     expect(settle("How many legs does an insect have?", "6 legs", "6 arms")).toBeNull();
@@ -299,7 +299,7 @@ describe("settleByCode: never a wrong answer", () => {
     expect(settle("What is the boiling point of water at sea level?", "100 °C", "100 °F")).toBeNull();
     expect(settle("What is the boiling point of water at sea level?", "100 °C", "90 degrees")).toBeNull();
     expect(settle("How many degrees are in a right angle?", "90°", "90 degrees celsius")).toBeNull();
-    expect(settle("How many degrees are in a right angle?", "90°", "180 degrees")).toBe(false);
+    expect(settle("How many degrees are in a right angle?", "90°", "180 degrees")).toBeNull();
   });
   it("never accepts on a shared word", () => {
     expect(settle("What carries oxygen in the blood?", "Red blood cells", "red")).toBeNull();
@@ -320,7 +320,7 @@ describe("settleByCode: never a wrong answer", () => {
   it("needs the number and never an extra unit", () => {
     expect(settle("What is the boiling point of water at sea level in Celsius?", "100 degrees Celsius", "50 degrees")).toBeNull();
     expect(settle("What is the boiling point of water at sea level in Celsius?", "100 degrees Celsius", "100 degrees Fahrenheit")).toBeNull();
-    expect(settle("What is the freezing point of water in Fahrenheit?", "32 degrees Fahrenheit", "0 degrees Fahrenheit")).toBe(false);
+    expect(settle("What is the freezing point of water in Fahrenheit?", "32 degrees Fahrenheit", "0 degrees Fahrenheit")).toBeNull();
     expect(settle("What is half of 50?", "25", "half")).toBeNull();
     expect(settle("What is 7 times 8?", "56", "not fifty six")).toBeNull();
   });
@@ -666,7 +666,7 @@ describe("settleByCode: numbers and units, both ways", () => {
   it("settles most of the numbers set and passes none of its wrong answers", () => {
     const v = verdicts(GRADE_DEV_NUMBERS, keyOnly);
     expect(v.filter((x) => x.right && x.got === true)).toHaveLength(87);
-    expect(v.filter((x) => !x.right && x.got === false)).toHaveLength(68);
+    expect(v.filter((x) => !x.right && x.got === false)).toHaveLength(54);
     expect(v.filter((x) => !x.right && x.got === true)).toEqual([]);
   });
   it("marks wrong what the model passed on the numbers set and held-out v5", () => {
@@ -676,7 +676,6 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("What is the density of pure water? Include the unit.", "1 g/cm³", "1 kg/mL")).toBe(false);
     expect(settle("You pay with a $5 bill for something that costs $3.25. How much change do you get?", "$1.75", "75 cents")).toBe(false);
     expect(settle("A movie starts at 2:45 p.m. and lasts 1 hour 30 minutes. What time does it end?", "4:15 p.m.", "4:15 a.m.")).toBe(false);
-    expect(settle("About how far is the Sun from the Earth?", "About 1.5 × 10^8 km", "150 million miles")).toBe(false);
   });
   it("marks right the same amount in other units, which the model failed", () => {
     expect(settle("What is the density of pure water?", "1 g/cm³", "1 gram per milliliter")).toBe(true);
@@ -716,9 +715,9 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("How long is a foot?", "1 foot", "30 cm")).toBeNull();
     expect(settle("How long is a mile?", "1 mile", "1.6 km")).toBeNull();
     expect(settle("How much does one liter of water weigh?", "1 kilogram", "2.2 pounds")).toBeNull();
-    // But a slip is wrong: "0.66" for 0.67, "4,800" for 4,900, "20" for 25.
-    expect(settle("Write 2/3 as a decimal rounded to the nearest hundredth.", "0.67", "0.66")).toBe(false);
-    expect(settle("Round 4,872 to the nearest hundred.", "4,900", "4,800")).toBe(false);
+    // A slip of one place is the model's ("0.66" for 0.67, "4,800" for 4,900); a gross miss on numbers the question gives is wrong ("20" for 25).
+    expect(settle("Write 2/3 as a decimal rounded to the nearest hundredth.", "0.67", "0.66")).toBeNull();
+    expect(settle("Round 4,872 to the nearest hundred.", "4,900", "4,800")).toBeNull();
     expect(settle("What is half of 50?", "25", "20")).toBe(false);
   });
   it("never marks wrong an answer that says about, two numbers, a range or an expression", () => {
@@ -755,17 +754,81 @@ describe("settleByCode: numbers and units, both ways", () => {
   it("never marks wrong a comma and point the other way round, a clock with no a.m. or p.m., or a ratio", () => {
     expect(settle("How many meters are in a kilometer?", "1,000", "1.000")).toBeNull();
     expect(settle("What time does it end?", "4:15 p.m.", "4:15")).toBeNull();
-    expect(settle("What time does it end?", "4:15 p.m.", "3:15")).toBe(false);
+    expect(settle("What time does it end?", "4:15 p.m.", "3:15")).toBeNull();
     expect(settle("What is the ratio of red to blue?", "2:3", "3:2")).toBeNull();
     expect(settle("What is the ratio of red to blue?", "2:30", "1:15")).toBeNull();
   });
   it("gives a bare key the unit the question asks for, and no other", () => {
     expect(settle("A diver is 15 meters below sea level. Write the elevation as a number of meters.", "−15", "-15 km")).toBe(false);
     expect(settle("How many days are in a leap year?", "366", "366 days")).toBe(true);
-    expect(settle("How many days are in a leap year?", "366", "367 days")).toBe(false);
+    expect(settle("How many days are in a leap year?", "366", "367 days")).toBeNull();
     expect(settle("How many hours is 120 minutes?", "2", "120 minutes")).toBeNull();
     expect(settle("A rope 3 meters long is cut into pieces 0.5 meters long. How many pieces are there?", "6", "6 meters")).toBeNull();
     expect(settle("What is -7 + 10?", "3", "3 meters")).toBeNull();
+  });
+  // Code rejects only a gross miss: another kind of unit, a factor of about 10, 100 or 1000, a different
+  // fraction for a fraction key, a.m. for p.m., a sign flip, or more than 20% off the numbers the question
+  // gives. The third review's cases are all right answers, or close enough that the model decides.
+  it("never marks wrong a measured fact given to another precision (the third review's cases)", () => {
+    expect(settle("How tall is Mount Everest?", "8,849 m", "8,848 m")).toBeNull();
+    expect(settle("How tall is Mount Everest?", "8,849 m", "8,850 meters")).toBeNull();
+    expect(settle("How tall is Mount Everest?", "8,849 m", "29,029 ft")).toBeNull();
+    expect(settle("How fast does sound travel in air?", "343 m/s", "340 m/s")).toBeNull();
+    expect(settle("How fast does light travel?", "299,792 km/s", "300,000 km/s")).toBeNull();
+    expect(settle("How far is the Moon from the Earth?", "384,400 km", "385,000 km")).toBeNull();
+    expect(settle("How many days does the Moon take to go around the Earth?", "27.3 days", "28 days")).toBeNull();
+    expect(settle("What is room temperature in Celsius?", "20 °C", "21 °C")).toBeNull();
+    expect(settle("What is normal body temperature in Fahrenheit?", "98.6 °F", "98 °F")).toBeNull();
+    expect(settle("How fast does sound travel in air at 20 °C?", "343 m/s", "340 m/s")).toBeNull();
+  });
+  it("takes a near amount on an estimate question, and never marks one wrong on precision", () => {
+    expect(settle("Estimate 49 x 21.", "1,000", "1,050")).toBe(true);
+    expect(settle("Estimate 49 x 21.", "1,000", "1,029")).toBe(true);
+    expect(settle("Roughly how many seconds are in a day?", "86,400", "90,000")).toBe(true);
+    expect(settle("Around how many people fit on the bus if each row holds 4 and there are 12 rows?", "50", "48")).toBe(true);
+    expect(settle("Estimate 49 x 21.", "1,000", "1,200")).toBeNull();
+    // A factor of 10 is still wrong.
+    expect(settle("Estimate 49 x 21.", "1,000", "100")).toBe(false);
+  });
+  it("never marks wrong pi or a conversion factor rounded another way", () => {
+    expect(settle("What is the area of a circle with a radius of 2 cm?", "12.56 cm²", "12.57 cm²")).toBeNull();
+    expect(settle("What is the circumference of a circle with a diameter of 10 cm?", "31.4 cm", "31.42 cm")).toBeNull();
+    expect(settle("What is pi to two decimal places?", "3.14", "3.1416")).toBeNull();
+    expect(settle("How many miles is 100 km?", "62.1 miles", "62.5 miles")).toBeNull();
+    expect(settle("A ball is dropped and falls for 3 seconds. How fast is it going?", "29.4 m/s", "30 m/s")).toBeNull();
+  });
+  it("reads a bare number in the unit the question counts, right when equal and the model's otherwise", () => {
+    expect(settle("How many fourths are in three quarters?", "3/4", "3")).toBe(true);
+    expect(settle("How many tenths are in 0.7?", "0.7", "7")).toBe(true);
+    expect(settle("How many hundreds are in 300?", "300", "3")).toBe(true);
+    expect(settle("How many fourths are in three quarters?", "3/4", "4")).toBeNull();
+    // "What fraction" asks for a fraction, so a count is the model's.
+    expect(settle("What fraction of the pizza is left, in thirds?", "2 thirds", "2")).toBeNull();
+  });
+  it("never marks wrong the other sign on a fall, a loss or a depth", () => {
+    expect(settle("The temperature falls by 6 °C. What is the change in temperature?", "6 °C", "-6 °C")).toBeNull();
+    expect(settle("A diver is 15 m below sea level. How deep is the diver?", "15 m", "-15 m")).toBeNull();
+    expect(settle("A diver is 15 meters below sea level. Write the elevation as a number of meters.", "−15", "15")).toBeNull();
+    expect(settle("Sam had $20 and lost $5 of it. How much money did Sam lose?", "$5", "-$5")).toBe(true); // the older number match
+    // A sign flip on plain arithmetic is wrong.
+    expect(settle("What is -7 + 10?", "3", "-3")).toBe(false);
+    expect(settle("What is 0 °C on the Kelvin scale?", "273.15 K", "-273 K")).toBe(false);
+  });
+  it("never marks wrong a percent read as a decimal, or a decimal as a percent", () => {
+    expect(settle("What part of the class walks to school?", "0.45", "45")).toBeNull();
+    expect(settle("What is the probability of heads on a fair coin?", "0.5", "50")).toBeNull();
+    expect(settle("What percent of the class walks to school?", "45", "0.45")).toBeNull();
+    // A factor of 10 is not a percent reading.
+    expect(settle("What part of the class walks to school?", "0.45", "4.5")).toBe(false);
+  });
+  it("marks wrong only a.m. for p.m. on a clock time", () => {
+    expect(settle("A movie starts at 2:45 p.m. and lasts 1 hour 30 minutes. What time does it end?", "4:15 p.m.", "4:15 a.m.")).toBe(false);
+    expect(settle("A movie starts at 2:45 p.m. and lasts 1 hour 30 minutes. What time does it end?", "4:15 p.m.", "3:15 p.m.")).toBeNull();
+  });
+  it("leaves a near miss on a fact to the model, and marks a gross one wrong", () => {
+    expect(settle("About how far is the Sun from the Earth?", "About 1.5 × 10^8 km", "150 million miles")).toBeNull();
+    expect(settle("About how far is the Sun from the Earth?", "About 1.5 × 10^8 km", "1.5 × 10^8 m")).toBe(false);
+    expect(settle("How many degrees are in a right angle?", "90°", "180 degrees")).toBeNull();
   });
   it("marks wrong a different kind of quantity, each with its own unit", () => {
     expect(settle("A price rises from $40 to $50. By what percent did it increase?", "25%", "$10")).toBe(false);
