@@ -608,6 +608,8 @@ export interface GradeItem {
   expected: string;
   student: string;
   type: string;
+  /** A note code adds for the model ('"skelitin" may be a misspelling of "skeleton"'), never a verdict. */
+  note?: string | null;
 }
 
 // How an answer was marked, stored as quiz_questions.graded_by (migration 18) so the stored history
@@ -682,20 +684,37 @@ export type BatchGradeReply = Record<string, { feedback?: string; correct?: bool
 // dropped: a wrong conversion shown to a child is misinformation, and without it e2b failed 16, 15, 13
 // and passed 1, 1, 2 against 16, 15, 12 and 1, 2, 1 with it, code settling the same answers in both
 // (e4b, one run: 12 and 1 against 9 and 1). Results: results/2026-11-15-grade-dev-synonyms.md.
+// A misspelling code cannot accept gets a note (answer-match.ts misspellingNote). e2b wrote "The student
+// misspelled conduction" and marked it wrong: it saw the misspelling and counted it. So the note says
+// that, for that answer, spelling is not marked. On GRADE_DEV_MISSPELLINGS (e2b x3) right failed went
+// 23, 20, 23 → 8, 6, 6 with wrong passed 0, 1, 0 → 0, 0, 1 (the same ambiguous answer, in a batch with no
+// note); 13, 8, 9 and 0, 1, 1 once another word's -ing or -ed form counted as a rival (three fewer
+// notes). A note that only said "may be a misspelling" left 16, 17, 13; one line for the whole batch
+// ("spelling is not marked") passed "meitosis" for mitosis, which has no note, on every run; a fixed line
+// with no notes passed "content" for continent on every run. Results:
+// results/2026-11-16-grade-dev-misspelling-hint.md.
 export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): string {
+  // Only a batch with a note changes, so every other batch's prompt is unchanged. In it, each answer is
+  // kept to one line and cannot open with "Note:", so no answer a learner typed passes for a note.
+  const noted = items.some((it) => it.note);
+  const student = (s: string) => (noted ? s.replace(/[\r\n\v\f\u0085\u001c-\u001e\u2028\u2029]+/g, " ").replace(/^(\s*note)\s*:/i, "$1 -") : s);
   const body = items
     .map((it, k) =>
       `[${gradeKey(k).replace("_", " ")}] (${it.type})\n` +
       `Question: ${it.question}\n` +
       `Expected answer: ${it.expected}\n` +
-      `Student answer: ${it.student}`,
+      `Student answer: ${student(it.student)}` +
+      (it.note ? `\nNote: ${it.note}. If it is, mark it correct: for this answer, spelling is not marked.` : ""),
     )
     .join("\n\n");
+  const noteLine = noted
+    ? "\nA Note under an answer applies to that answer only; check every other answer as above."
+    : "";
 
   return `You are checking ${items.length} answer${items.length === 1 ? "" : "s"} a student typed. For each one, compare the student's answer with the expected answer.
 - correct: true when the student's answer means the same as the expected answer, even if it is worded differently, shorter, or misspelled. Another name or a synonym for the same thing counts. An amount in other units counts only when it converts to the expected amount; the same number in another unit is wrong. A student may leave out the option letter.
 - correct: false when the student's answer is wrong, says something else, names a different or only related thing, gives only part of the expected answer, or does not answer the question.
-Judge only what the student wrote. Do not mark an answer correct because the expected answer is right.
+Judge only what the student wrote. Do not mark an answer correct because the expected answer is right.${noteLine}
 
 Return ONLY a JSON object with one key per answer: ${items.map((_, k) => `"${gradeKey(k)}": {"feedback": "<1 short sentence on what the student wrote>", "correct": true/false}`).join(", ")}.
 

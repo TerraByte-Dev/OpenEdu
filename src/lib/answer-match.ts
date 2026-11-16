@@ -45,6 +45,7 @@
 // either. An answer code cannot settle goes to the model as before.
 
 import { gradeFreeTextDeterministic, normalizeAnswer } from "./quiz-grading";
+import { SUFFIX_RULES } from "./dictionary";
 
 // ─── One form for both sides ──────────────────────────────────────────────────
 
@@ -636,4 +637,238 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
     }
   }
   return [...out];
+}
+
+// ─── A note for the model: the answer may be the key misspelt ─────────────────
+//
+// Code cannot accept a two-edit misspelling ("skelitin" for skeleton): two edits leave too many other
+// words that close, and the rule leaked. gemma4:e2b fails those answers on every run, though e4b passes
+// them. So code tells the model what it can see, and the model still decides: a note on the item,
+// '"skelitin" may be a misspelling of "skeleton"'. The note is given only when the answer's word can be
+// nothing but the key's word misspelt: no other word in the question is as close to it, it is not itself
+// a real word, in WordNet or in the full English word list (or it is the key's word with one
+// British/American spelling swap the dictionary lists as a synonym, "sulphur"), the key's word is in the dictionary, and no other real word is as close to it,
+// another word's -ing or -ed form included. "geolagist" (one edit from geologist) for Biologist gets no
+// note, nor "glucogan" (two edits from glucagon and from glycogen), nor "attatching" for Attacking (one
+// edit from attaching).
+
+/** The shortest key word a note is given for, at one edit and at two. */
+export const HINT_MIN_LETTERS: Record<1 | 2, number> = { 1: 4, 2: 7 };
+
+/** One of the answer's words that may be the key's word misspelt. */
+export interface MisspeltWord { answer: string; key: string; edits: 1 | 2 }
+
+/**
+ * The answer's words that may be misspellings of the key's, for one of the key's forms the answer
+ * follows word for word: every other word is the key's own (or its plural), and each of these is one or
+ * two edits from the key's word. Empty when the answer is not the key with some words misspelt.
+ */
+export function misspeltKeyWords(item: WrittenAnswer): MisspeltWord[] {
+  const answer = answerWords(item.student);
+  for (const form of keyForms(item.expected)) {
+    const key = answerWords(form);
+    if (key.length !== answer.length) continue;
+    const out: MisspeltWord[] = [];
+    const fits = answer.every((w, i) => {
+      const k = key[i];
+      if (w === k || singular(w) === singular(k)) return true;
+      if (isNumber(w) || isNumber(k)) return false;
+      const edits = editDistance(singular(w), singular(k));
+      if ((edits !== 1 && edits !== 2) || singular(k).length < HINT_MIN_LETTERS[edits]) return false;
+      out.push({ answer: w, key: k, edits });
+      return true;
+    });
+    if (fits && out.length > 0) return out;
+  }
+  return [];
+}
+
+/** What the note needs from the dictionary. */
+export interface SpellingLookup {
+  /** Whether a word is a real word: a WordNet headword or one of its forms. */
+  isWord: (w: string) => boolean;
+  /** Whether a word is in the full English word list (wordlist.ts), which has many words WordNet lacks. */
+  listed: (w: string) => boolean;
+  /** The one-word synonyms the dictionary lists for a real word ("sulphur": sulfur). */
+  synonyms: (w: string) => string[];
+  /** The real words at most `edits` edits from a word, other words' inflected forms included. */
+  wordsNear: (w: string, edits: number) => string[];
+}
+
+// Letters one word has more of than the other, the larger side: never more than the edits between
+// them, and quick, so most of a word list is ruled out before editDistance.
+const counts = new Int32Array(32);
+function letterGap(a: string, b: string): number {
+  counts.fill(0);
+  for (let i = 0; i < a.length; i++) counts[(a.charCodeAt(i) - 97) & 31]++;
+  for (let i = 0; i < b.length; i++) counts[(b.charCodeAt(i) - 97) & 31]--;
+  let more = 0, fewer = 0;
+  for (const c of counts) { if (c > 0) more += c; else fewer -= c; }
+  return Math.max(more, fewer);
+}
+const within = (h: string, w: string, edits: number) =>
+  Math.abs(h.length - w.length) <= edits && h !== w && letterGap(h, w) <= edits && editDistance(h, w) <= edits;
+
+/** The real words at most `edits` edits from a word, out of a word list. */
+export function wordsWithin(words: readonly string[], w: string, edits: number): string[] {
+  return words.filter((h) => within(h, w, edits));
+}
+
+/**
+ * The spellings at most `edits` edits from a word that WordNet's suffix rules read back to a word of the
+ * list: "attaching" from attach, "inhaling" from inhale. The word list holds headwords and irregular
+ * forms only, and a misspelling is as often another word's -ing or -ed form ("attatching" is one edit
+ * from attaching). Spellings only: the dictionary says which are real words.
+ */
+export function formsWithin(words: readonly string[], w: string, edits: number): string[] {
+  const out = new Set<string>();
+  for (const [suffix, ending] of SUFFIX_RULES) {
+    const grow = suffix.length - ending.length;
+    for (const h of words) {
+      if (Math.abs(h.length + grow - w.length) > edits || h.length <= ending.length || !h.endsWith(ending)) continue;
+      const f = h.slice(0, h.length - ending.length) + suffix;
+      if (within(f, w, edits)) out.add(f);
+    }
+  }
+  return [...out];
+}
+
+// The British and American spellings of one word, as one swap: [one spelling, the other, where]. A real
+// word is noted only when it is the key's word with one of these swaps. WordNet's synonym sets alone
+// also hold other forms and related words (bacterium for bacteria, earlier for earliest, quick for
+// quickly, arena for area), so a synonym is not enough. "end" is the word's last letters (centre); "inside"
+// is not the last letters (anaemia: a final "ae" is a Latin plural, algae).
+const SPELLING_SWAPS: ReadonlyArray<readonly [string, string, "end" | "inside" | "any"]> = [
+  ["our", "or", "any"], // colour, color
+  ["ise", "ize", "any"], ["isa", "iza", "any"], ["isi", "izi", "any"], // organise, organisation, organising
+  ["yse", "yze", "any"], ["ysi", "yzi", "any"], // analyse, analysing
+  ["re", "er", "end"], // centre, center
+  ["ae", "e", "inside"], ["oe", "e", "inside"], // anaemia, oestrogen
+  ["ph", "f", "any"], // sulphur, sulfur
+  ["ll", "l", "any"], // travelled, traveled
+  ["ium", "um", "any"], // aluminium, aluminum
+];
+
+/** True when one word is the other with one British/American spelling swap ("aluminium", "aluminum"). */
+export function spellingVariant(a: string, b: string): boolean {
+  const swapsTo = (from: string, to: string) => {
+    for (const [x, y, where] of SPELLING_SWAPS) {
+      for (const [p, q] of [[x, y], [y, x]]) {
+        for (let i = from.indexOf(p); i >= 0; i = from.indexOf(p, i + 1)) {
+          const atEnd = i + p.length === from.length;
+          if ((where === "end" && !atEnd) || (where === "inside" && atEnd)) continue;
+          if (from.slice(0, i) + q + from.slice(i + p.length) === to) return true;
+        }
+      }
+    }
+    return false;
+  };
+  return a !== b && swapsTo(a, b);
+}
+
+// Prefixes that make a word its opposite or its lack: "unextinct", "abiotic", "nontoxic", "disagree".
+const NEGATING_PREFIXES = ["un", "in", "im", "il", "ir", "a", "an", "de", "non", "dis", "anti", "counter", "mis"];
+
+/**
+ * True when the answer's word is the key's word with letters added at the front ("unextinct" for
+ * extinct, "abiotic" for biotic), or a negating prefix the key's word does not start with on the key's
+ * word one edit off ("atipical" for typical), or the other way round: the key's word is the answer's
+ * with a negating prefix, the answer's word one edit off allowed ("matchable" for Unmatchable). Such a
+ * word may mean the opposite, so it is never noted as a misspelling.
+ */
+export function prefixAdded(answer: string, key: string): boolean {
+  const a = singular(answer), k = singular(key);
+  if (a.length > k.length && a.endsWith(k)) return true;
+  const negated = (x: string, y: string) =>
+    NEGATING_PREFIXES.some((p) => x.startsWith(p) && !y.startsWith(p) && editDistance(x.slice(p.length), y) <= 1);
+  return negated(a, k) || (k.length > a.length && negated(k, a));
+}
+
+// Affixes that name a contrasting thing, in groups: swapping one for another of its group makes another
+// word, often the opposite ("hypoventilation" for Hyperventilation, "lipophobic" for Lipophilic,
+// "radioprotector" for Radioprotection). Technical words like these are often missing from WordNet, so
+// the dictionary cannot say the answer is a real word.
+const CONTRAST_PREFIXES: ReadonlyArray<readonly string[]> = [
+  ["hyper", "hypo"], ["inter", "intra", "extra"], ["macro", "micro"], ["kilo", "mega", "giga", "tera", "peta"],
+  ["uni", "mono", "bi", "di", "tri", "tetra", "penta", "hexa", "hepta", "octa"], ["endo", "exo", "ecto"], ["in", "ex", "de", "en"], ["ana", "cata"],
+];
+const CONTRAST_SUFFIXES: ReadonlyArray<readonly string[]> = [
+  ["philic", "phobic"], ["phile", "phobe"], ["philia", "phobia"], ["itis", "osis"], ["ectomy", "otomy", "ostomy"],
+  ["ane", "ene", "yne"], ["ate", "ite", "ide"], ["ase", "ose"],
+  ["tion", "tor"], ["ion", "or"], ["gram", "graph"], ["er", "ee"],
+];
+
+/**
+ * True when the answer's word and the key's differ only in a leading or trailing affix, one swapped for
+ * another of its contrast group ("intramuscular" for Intermuscular, "gigawatt" for megawatt, "ethene" for
+ * ethane). Such a word may name another thing, so it is never noted as a misspelling.
+ */
+export function affixSwapped(answer: string, key: string): boolean {
+  const a = singular(answer), k = singular(key);
+  const swapped = (groups: ReadonlyArray<readonly string[]>, rest: (w: string, x: string) => string | null) =>
+    groups.some((g) => g.some((x) => {
+      const r = rest(a, x);
+      return r !== null && g.some((y) => y !== x && rest(k, y) === r);
+    }));
+  return swapped(CONTRAST_PREFIXES, (w, x) => (w.startsWith(x) ? w.slice(x.length) : null)) ||
+    swapped(CONTRAST_SUFFIXES, (w, x) => (w.endsWith(x) ? w.slice(0, w.length - x.length) : null));
+}
+
+/** True when the key writes this word with two or more capitals: an acronym or a symbol ("NADP", "ATP"). */
+function inCapitals(expected: string, word: string): boolean {
+  return (expected.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) ?? [])
+    .some((t) => t.toLowerCase() === word && (t.match(/\p{Lu}/gu) ?? []).length >= 2);
+}
+
+// Closed-class words (pronouns, determiners, prepositions, conjunctions, auxiliaries) WordNet does not
+// list, or lists only in part. Each is a real word: never a misspelling, and a rival to one ("wheather" is
+// as close to whether as to weather).
+const FUNCTION_WORDS = new Set([
+  "i", "me", "my", "mine", "myself", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself",
+  "she", "her", "hers", "herself", "it", "its", "itself", "we", "us", "our", "ours", "ourselves", "they", "them",
+  "their", "theirs", "themselves", "this", "that", "these", "those", "who", "whom", "whose", "which", "what",
+  "whatever", "whichever", "whoever", "where", "when", "why", "how", "whereas", "whereby", "wherever", "whenever",
+  "a", "an", "the", "some", "any", "each", "every", "either", "neither", "both", "few", "many", "much", "more",
+  "most", "several", "such", "no", "none", "nor", "not", "about", "above", "across", "after", "against", "along",
+  "among", "amongst", "around", "at", "before", "behind", "below", "beneath", "beside", "besides", "between",
+  "beyond", "by", "despite", "down", "during", "except", "for", "from", "in", "inside", "into", "like", "near",
+  "of", "off", "on", "onto", "out", "outside", "over", "past", "since", "through", "throughout", "till", "to",
+  "toward", "towards", "under", "underneath", "until", "unto", "up", "upon", "with", "within", "without", "and",
+  "but", "or", "so", "yet", "because", "although", "though", "unless", "whether", "while", "whilst", "if", "than",
+  "then", "there", "here", "am", "is", "are", "was", "were", "be", "been", "being", "do", "does", "did", "have",
+  "has", "had", "can", "could", "shall", "should", "will", "would", "may", "might", "must", "ought",
+  // Contractions typed without the apostrophe ("theyre" is not a misspelling of there).
+  "theyre", "youre", "whos", "lets", "thats", "whats", "theres", "dont", "doesnt", "cant", "wont", "isnt",
+  "wasnt", "arent", "werent", "hasnt", "havent", "hadnt", "didnt", "shouldnt", "couldnt", "wouldnt", "im", "ive",
+  "id", "ill", "youve", "weve", "theyve", "aint",
+]);
+
+/**
+ * A note for the grader model when the answer may be the key with words misspelt, or null. Never a
+ * verdict: the model still decides. Null when any misspelt word could be another word: the key's word
+ * with letters added at the front or a negating prefix taken off (prefixAdded: "unextinct" may be the
+ * opposite), the key's word with a contrasting affix swapped (affixSwapped: "hypoventilation"), a key word
+ * written in capitals (an acronym or symbol: "NADPH" for NADP is another molecule), a word of the question
+ * as close to it as the key's word, a function word or a function word as close, a real word itself,
+ * in WordNet or in the full English word list ("chalcogens" for Halogens, "granivore" for Carnivore),
+ * unless it is the key's word with one British/American spelling swap and the dictionary lists the two
+ * as synonyms, a key word the dictionary does not have (names of places and people), or another real
+ * word as close to it.
+ */
+export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): string | null {
+  const words = misspeltKeyWords(item);
+  if (words.length === 0) return null;
+  const rivals = [...rivalWords(item.question, answerWords(item.expected)), ...FUNCTION_WORDS];
+  for (const { answer, key, edits } of words) {
+    if (!dict.isWord(key) || prefixAdded(answer, key) || affixSwapped(answer, key) || FUNCTION_WORDS.has(answer)) return null;
+    if (inCapitals(item.expected, key)) return null;
+    const a = singular(answer);
+    if (rivals.some((r) => r !== key && editDistance(a, singular(r)) <= edits)) return null;
+    if (dict.isWord(answer) || dict.listed(answer) || dict.listed(a)) {
+      if (!spellingVariant(answer, key) || !dict.synonyms(answer).includes(key)) return null;
+      continue;
+    }
+    if (dict.wordsNear(a, edits).some((n) => singular(n) !== singular(key) && stem(n) !== stem(key))) return null;
+  }
+  return words.map((w) => `"${w.answer}" may be a misspelling of "${w.key}"`).join("; ");
 }

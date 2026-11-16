@@ -313,6 +313,37 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   number, the answer must give the key's whole answer. It never marks an answer wrong; what it cannot settle
   goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A formula's count
   is no longer read as a number ("CO2" had passed for "H2O" as the number 2).
+- **A note to the model on a misspelling code cannot accept.** An answer that is the key with a word
+  one edit (key word 4+ letters) or two edits (7+) off ("skelitin" for skeleton) goes to the model with
+  a note under it: `"skelitin" may be a misspelling of "skeleton". If it is, mark it correct: for this
+  answer, spelling is not marked.` (`answer-match.ts` `misspellingNote`, `quiz.ts` `misspellingNotes`).
+  The model still decides. No note when the answer's word is the key's word with letters added at the
+  front, which may mean the opposite ("unextinct", "intransparent"; `prefixAdded`, which also takes a
+  negating prefix on the key's word one edit off, "atipical", and the key's word with a negating prefix
+  taken off, "matchable" for Unmatchable), when the answer swaps a contrasting prefix or suffix of the
+  key's word (hyper/hypo, inter/intra/extra, mega/giga, bi/tri/penta/hepta, -philic/-phobic,
+  -philia/-phobia, -itis/-osis, -ectomy/-otomy, -tion/-tor and others;
+  `affixSwapped`: "hypoventilation", "lipophobic"), when the key writes the word in capitals (an acronym
+  or symbol: "NADPH" for NADP), when it is a function word WordNet lacks, a contraction typed without its
+  apostrophe included, or one is as close ("until" for Untie, "their" for Heir, "theyre" for there), when
+  a word of the question is as close ("farther or further?"),
+  when the answer's word is a real word, in WordNet or in the bundled English word list (unless it is
+  the key's word with one British/American spelling swap, our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um, and the dictionary lists the two
+  as synonyms: "aluminium"; WordNet's synonyms alone also hold other forms, bacterium for bacteria,
+  earlier for earliest), when the key's word is not in the dictionary, or when another real word is as
+  close ("glucogan": glycogen; "orbet": sorbet), counting another word's -ing, -ed or -s form the
+  dictionary resolves ("attatching" for Attacking: attaching; "enhaled" for Exhaled: inhaled). The check
+  reads every one-word dictionary headword once per session (`dictionary.ts` `oneWordHeadwords`), only
+  when an answer needs it, and makes the forms from them with WordNet's suffix rules
+  (`answer-match.ts` `formsWithin`). WordNet lacks many real words ("chalcogens" for Halogens,
+  "granivore" for Carnivore, "voltammeter" for Voltmeter), so the answer's word is also looked up in
+  `public/wordlist/` (`wordlist.ts` `inWordList`: one shard by two-letter prefix, fetched when asked
+  for), which `scripts/build-wordlist.mjs` builds from the word-list npm package (MIT, 274,137 words,
+  version and sha256 pinned in `meta.json`, licence in `LICENSE` beside it). If the dictionary or the
+  word list cannot be read, no note. A batch with no note
+  gets the old prompt byte for byte; in a batch with a note, each answer is kept to one line and an
+  answer that opens with "Note:" has its colon replaced, so no typed answer passes for a note. Measured in
+  `src/lib/eval/results/2026-11-16-grade-dev-misspelling-hint.md`.
 - **"I think I was right."** A small model still fails some right answers, so on the quiz and level
   test results screens a written answer the model marked wrong (`graded_by` `'model'`, wrong) has the
   button "I think I was right" (`components/quiz/MarkAgain.tsx`). The learner compares it with the key

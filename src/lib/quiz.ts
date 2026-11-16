@@ -11,8 +11,9 @@ import {
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
-import { settleByCode, misspellingCandidates } from "./answer-match";
-import { lookupWord } from "./dictionary";
+import { settleByCode, misspellingCandidates, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup } from "./answer-match";
+import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
+import { inWordList } from "./wordlist";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -777,6 +778,45 @@ async function realWords(words: string[]): Promise<(w: string) => boolean> {
   return (w) => !notWords.has(w);
 }
 
+// A note for the model on each answer that may be the key misspelt (answer-match.ts misspellingNote),
+// or null. The dictionary says what is a real word and which real words are near, and the English word
+// list (wordlist.ts) says what else is a real word; WordNet's full headword list is read only when some
+// answer's word is in neither. If either cannot be read, no note.
+async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | null>> {
+  const none = items.map(() => null);
+  const words = items.flatMap(misspeltKeyWords);
+  if (words.length === 0) return none;
+  try {
+    const entries = new Map<string, DictionaryEntry[]>();
+    await Promise.all([...new Set(words.flatMap((w) => [w.answer, w.key]))].map(async (w) => { entries.set(w, await lookupWord(w)); }));
+    const isWord = (w: string) => (entries.get(w) ?? []).length > 0;
+    const listedWords = new Set<string>();
+    await Promise.all([...new Set(words.flatMap((w) => [w.answer, singular(w.answer)]))].map(async (w) => { if (await inWordList(w)) listedWords.add(w); }));
+    const listed = (w: string) => listedWords.has(w);
+    // The real words near each answer word that is not one: headwords and irregular forms, plus other
+    // words' regular forms ("attaching" for "attatching") that the dictionary resolves.
+    const open = words.filter((w) => isWord(w.key) && !isWord(w.answer) && !listed(w.answer) && !listed(singular(w.answer)));
+    const headwords = open.length > 0 ? await oneWordHeadwords() : [];
+    const near = new Map<string, string[]>();
+    for (const { answer, edits } of open) {
+      const a = singular(answer);
+      if (near.has(`${a} ${edits}`)) continue;
+      const forms = await Promise.all(formsWithin(headwords, a, edits).map(async (f) => ((await lookupWord(f)).length > 0 ? [f] : [])));
+      near.set(`${a} ${edits}`, [...wordsWithin(headwords, a, edits), ...forms.flat()]);
+    }
+    const dict: SpellingLookup = {
+      isWord,
+      listed,
+      synonyms: (w) => (entries.get(w) ?? []).flatMap((e) => e.senses.flatMap((s) => s.synonyms.map((x) => x.toLowerCase()))),
+      wordsNear: (w, edits) => near.get(`${w} ${edits}`) ?? [],
+    };
+    return items.map((it) => misspellingNote(it, dict));
+  } catch (e) {
+    log.warn("quiz", "misspelling notes skipped: the dictionary could not be read", e instanceof Error ? e.message : String(e));
+    return none;
+  }
+}
+
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
   config: LLMConfig | null,
@@ -805,8 +845,9 @@ export async function gradeAnswersBatch(
     const tier = config.modelTier ?? await detectModelTier(config);
     config.modelTier = tier;
     try {
+      const notes = await misspellingNotes(needsLLM);
       const parsed = await callLLMStructured<BatchGradeReply>(
-        [{ role: "user", content: buildBatchGradePrompt(needsLLM, MATH_FORMATTING_RULES) }],
+        [{ role: "user", content: buildBatchGradePrompt(needsLLM.map((it, k) => ({ ...it, note: notes[k] })), MATH_FORMATTING_RULES) }],
         config,
         { schema: batchGradeSchema(needsLLM), toolName: "emit_grades", tier },
       );

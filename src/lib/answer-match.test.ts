@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, type WrittenAnswer } from "./answer-match";
+import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, prefixAdded, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
 import { GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
@@ -635,5 +635,147 @@ describe("settleByCode on the round-4 dev set", () => {
   it("settles no wrong answer, even with no word known to be real", () => {
     const passed = GRADE_DEV_SIGNS_LETTERS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), keyOnly(q.key)) === true).map((a) => `${q.id} ${a.text}`));
     expect(passed).toEqual([]);
+  });
+});
+
+// Round 5: a note for the model when the answer may be the key misspelt. Code never decides here.
+// A small stand-in dictionary: the real words these tests need, and the synonyms it lists.
+const WORDS = ["skeleton", "glucagon", "glycogen", "biologist", "geologist", "history", "mystery", "verb", "herb",
+  "orbit", "sorbet", "aluminum", "aluminium", "hypertonic", "hypotonic", "geologists", "membrane", "cell"];
+const dict = (words: string[] = WORDS, synonyms: Record<string, string[]> = { aluminium: ["aluminum", "al"] }, listed: string[] = []): SpellingLookup => ({
+  isWord: (w) => words.includes(w),
+  listed: (w) => listed.includes(w),
+  synonyms: (w) => synonyms[w] ?? [],
+  wordsNear: (w, edits) => wordsWithin(words, w, edits),
+});
+const note = (q: string, key: string, a: string, d = dict()) => misspellingNote(ask(q, key, a), d);
+const BONES = "What is the frame of bones that holds up the body called?";
+
+describe("misspeltKeyWords", () => {
+  it("pairs each misspelt word with the key's word, one or two edits, when every other word is the key's", () => {
+    expect(misspeltKeyWords(ask(BONES, "The skeleton", "skelitin"))).toEqual([{ answer: "skelitin", key: "skeleton", edits: 2 }]);
+    expect(misspeltKeyWords(ask("q", "The cell membrane", "the cell membrain"))).toEqual([{ answer: "membrain", key: "membrane", edits: 2 }]);
+    expect(misspeltKeyWords(ask("q", "A verb", "a virb"))).toEqual([{ answer: "virb", key: "verb", edits: 1 }]);
+  });
+  it("is empty for the key itself, another number of words, three edits, a number, or a key word too short", () => {
+    expect(misspeltKeyWords(ask(BONES, "Skeleton", "skeletons"))).toEqual([]);
+    expect(misspeltKeyWords(ask("q", "The cell membrane", "membrain"))).toEqual([]);
+    expect(misspeltKeyWords(ask("q", "Conduction", "convecshun"))).toEqual([]);
+    expect(misspeltKeyWords(ask("q", "56", "58"))).toEqual([]);
+    expect(misspeltKeyWords(ask("q", "Cat", "cot"))).toEqual([]); // one edit: 4 letters or more
+    expect(misspeltKeyWords(ask("q", "Honey", "hunny"))).toEqual([]); // two edits: 7 letters or more
+  });
+});
+
+describe("misspellingNote", () => {
+  it("notes a misspelling no other real word is as close to", () => {
+    expect(note(BONES, "The skeleton", "skelitin")).toBe('"skelitin" may be a misspelling of "skeleton"');
+    expect(note("What part of speech names an action?", "A verb", "a virb")).toBe('"virb" may be a misspelling of "verb"');
+  });
+  it("is null when another real word is as close (two edits from glucagon and from glycogen)", () => {
+    expect(note("Which hormone raises blood sugar?", "Glucagon", "glucogan")).toBeNull();
+    expect(note("Which hormone raises blood sugar?", "Glucagon", "glucogan", dict(["glucagon"]))).toBe('"glucogan" may be a misspelling of "glucagon"');
+  });
+  it("is null when another real word is nearer (one edit from mystery, two from history)", () => {
+    expect(note("What is the study of the past?", "History", "mistery")).toBeNull();
+    expect(note("What is the path a planet follows?", "An orbit", "orbet")).toBeNull(); // sorbet
+  });
+  it("is null for a real word, unless the dictionary lists it as another spelling of the key's word", () => {
+    expect(note("What do we call a scientist who studies living things?", "Biologist", "geologist")).toBeNull();
+    expect(note("What part of speech names an action?", "A verb", "a herb")).toBeNull();
+    expect(note("Which metal makes soda cans?", "Aluminum", "aluminium")).toBe('"aluminium" may be a misspelling of "aluminum"');
+    expect(note("Which metal makes soda cans?", "Aluminum", "aluminium", dict(WORDS, {}))).toBeNull();
+  });
+  it("is null for a word of the English word list that WordNet lacks: chalcogens for Halogens", () => {
+    const words = ["halogens", "carnivore"];
+    expect(note("Which group of elements includes chlorine?", "Halogens", "chalcogens", dict(words))).toBe('"chalcogens" may be a misspelling of "halogens"');
+    expect(note("Which group of elements includes chlorine?", "Halogens", "chalcogens", dict(words, {}, ["chalcogens"]))).toBeNull();
+    expect(note("Which group of elements includes chlorine?", "Halogens", "chalcogens", dict(words, {}, ["chalcogen"]))).toBeNull();
+    expect(note("What do we call an animal that eats meat?", "Carnivore", "granivore", dict(words, {}, ["granivore"]))).toBeNull();
+  });
+  it("is null for a real word the dictionary lists as a synonym that is not a spelling swap of the key's word", () => {
+    const words = ["bacteria", "bacterium", "earlier", "earliest", "quick", "quickly", "area", "arena"];
+    const syn = { bacterium: ["bacteria"], earlier: ["earliest"], quick: ["quickly"], arena: ["area"] };
+    expect(note("Which germs can make you ill?", "Bacteria", "bacterium", dict(words, syn))).toBeNull();
+    expect(note("Who came first?", "The earliest", "the earlier", dict(words, syn))).toBeNull();
+    expect(note("How did the hare run?", "Quickly", "quick", dict(words, syn))).toBeNull();
+    expect(note("What do we call the space inside a flat shape?", "Area", "arena", dict(words, syn))).toBeNull();
+  });
+  it("checks the question's words before a real word: a word the question offers gets no note", () => {
+    const words = ["color", "colour", "farther", "further"];
+    const syn = { colour: ["color"], further: ["farther"] };
+    expect(note("How do you spell the word for red or blue?", "Color", "colour", dict(words, syn))).toBe('"colour" may be a misspelling of "color"');
+    expect(note("Is it colour or color in American English?", "Color", "colour", dict(words, syn))).toBeNull();
+    expect(note("Which is about distance you can measure: farther or further?", "Farther", "further", dict(words, syn))).toBeNull();
+  });
+  it("is null when the key's word is not in the dictionary (names of places and people)", () => {
+    expect(note("Which country has Ljubljana as its capital?", "Slovenia", "slovinia")).toBeNull();
+  });
+  it("is null when a word the question offers is as close", () => {
+    expect(note("Is sea water hypertonic or hypotonic to a cell?", "Hypotonic", "hypotonik", dict(["hypotonic"]))).toBe('"hypotonik" may be a misspelling of "hypotonic"');
+    // "hypetonic" is one edit from both; the dictionary here does not have hypotonic, the question does.
+    expect(note("Is sea water hypertonic or hypotonic to a cell?", "Hypertonic", "hypetonic", dict(["hypertonic"]))).toBeNull();
+  });
+  it("names a form of the key's own word as no rival", () => {
+    expect(note("Who studies rocks?", "Geologist", "geolagest", dict(["geologist", "geologists"]))).toBe('"geolagest" may be a misspelling of "geologist"');
+  });
+});
+
+describe("prefixAdded", () => {
+  it("is true for the key's word with letters added at the front, and for a negating prefix on it one edit off", () => {
+    for (const p of ["un", "in", "im", "il", "ir", "a", "an", "de", "non", "dis", "anti", "counter", "mis"]) expect(prefixAdded(`${p}skeleton`, "skeleton")).toBe(true);
+    expect(prefixAdded("unextincts", "extinct")).toBe(true);
+    expect(prefixAdded("atipical", "typical")).toBe(true);
+  });
+  it("is false for a misspelling, and for a prefix the key's word starts with too", () => {
+    expect(prefixAdded("skelitin", "skeleton")).toBe(false);
+    expect(prefixAdded("antanim", "antonym")).toBe(false);
+    expect(prefixAdded("imigrating", "immigrating")).toBe(false);
+    expect(prefixAdded("extinct", "extinct")).toBe(false);
+  });
+});
+
+describe("misspellingNote: prefixes and function words", () => {
+  it("is null for the key's word with a prefix added, though no dictionary word is near", () => {
+    expect(note("What do we call a kind of animal with no living members left?", "Extinct", "unextinct", dict(["extinct"]))).toBeNull();
+    expect(note("What word describes animals that are active during the day?", "Diurnal", "undiurnal", dict(["diurnal"]))).toBeNull();
+  });
+  it("is null for a function word, and for a misspelling as close to one as to the key's word", () => {
+    expect(note("What do you do to a knot to open it?", "Untie", "until", dict(["untie"]))).toBeNull();
+    expect(note("What word means all of something?", "Whole", "whose", dict(["whole"]))).toBeNull();
+    expect(note("What is it like outside today?", "The weather", "wheather", dict(["weather"]))).toBeNull(); // whether
+  });
+});
+
+describe("spellingVariant", () => {
+  it("is true for one British/American spelling swap", () => {
+    for (const [a, b] of [["colour", "color"], ["organisation", "organization"], ["analyse", "analyze"], ["centre", "center"],
+      ["anaemia", "anemia"], ["oestrogen", "estrogen"], ["sulphur", "sulfur"], ["travelled", "traveled"], ["aluminium", "aluminum"]]) {
+      expect(spellingVariant(a, b)).toBe(true);
+      expect(spellingVariant(b, a)).toBe(true);
+    }
+  });
+  it("is false for other forms and related words, and for the word itself", () => {
+    for (const [a, b] of [["bacterium", "bacteria"], ["alga", "algae"], ["earlier", "earliest"], ["quick", "quickly"],
+      ["heavier", "heavily"], ["clear", "clearly"], ["awful", "awfully"], ["arena", "area"], ["arc", "arch"], ["live", "alive"],
+      ["lone", "alone"], ["rise", "arise"], ["factual", "actual"], ["further", "farther"], ["larva", "larvae"], ["color", "color"]]) {
+      expect(spellingVariant(a, b)).toBe(false);
+      expect(spellingVariant(b, a)).toBe(false);
+    }
+  });
+});
+
+describe("wordsWithin", () => {
+  it("lists the words at most that many edits away, not the word itself", () => {
+    expect(wordsWithin(["glucagon", "glycogen", "gluten", "glucogan"], "glucogan", 2)).toEqual(["glucagon", "glycogen"]);
+    expect(wordsWithin(["glucagon", "glycogen"], "glucogan", 1)).toEqual([]);
+  });
+});
+
+describe("formsWithin", () => {
+  it("lists the regular forms of the words that are that close: -ing, -ed, -s, the e dropped", () => {
+    expect(formsWithin(["attach", "attack", "skeleton"], "attatching", 2).sort()).toEqual(["attaching", "attacking"]);
+    expect(formsWithin(["inhale", "exhale"], "enhaled", 1).sort()).toEqual(["exhaled", "inhaled"]);
+    expect(formsWithin(["skeleton"], "skelitin", 2)).toEqual([]);
   });
 });
