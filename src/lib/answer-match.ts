@@ -27,10 +27,13 @@
 //     names a place or a thing ("South Africa", "Soviet Union": see namesAThing), and a surname that is
 //     also a common word ("Bell", "Young") only on such a question about a person;
 //   - a title in place of the first name, where the surname alone is accepted: "madame curie", "dr
-//     king", "lord byron" (TITLES). The title is noise only, never checked against the person;
+//     king", "lord byron" (TITLES). A title that says man or woman ("mrs", "lord") only when the question
+//     says the same and never the other ("the first woman", "his"): it is what tells "mrs roosevelt" from
+//     "mr roosevelt" (titleFits);
 //   - a depth or height with its sign written as a direction (settleDirected): "11 meters below the
 //     surface", "11 m deep" or "11 m down" for -11 m, "250 m above sea level" for 250 m. Only with a unit
-//     of length and the direction the key's sign means; never a sign anywhere else;
+//     of length and the direction the key's sign means; never a sign anywhere else, never on a question
+//     that asks for the sign or already says the amount and the direction;
 //   - a misspelt name: a key word written with a capital that is in neither the dictionary nor the word
 //     list (a place or a person: Sahara, Pompeii), and an answer word that is not a word either, with
 //     the same first and last letters, at most one slip of spelling by ear away (two for a name of 7+
@@ -592,12 +595,40 @@ const surnameForms = (p: PersonName): string[][] =>
   p.parts.slice(1).map((_, k) => p.parts.slice(p.parts.length - 1 - k).join(" ").split(" ")).slice(0, 2)
     .filter((words) => words.length === 1 || words[0].length > 1);
 
-// A title an answer may give in place of the first name: "madame curie", "dr king", "lord byron". It is
-// read as noise only: never checked against the person.
+// A title an answer may give in place of the first name: "madame curie", "dr king", "lord byron".
 const TITLES = new Set(["madame", "madam", "mme", "mr", "mrs", "ms", "miss", "dr", "doctor", "sir", "dame", "lord", "lady", "saint", "st"]);
+// A title that says the person is a man or a woman is the only part of "mrs roosevelt" or "mr curie" that
+// names which of a famous couple the answer means, so it is taken off only when the question says the
+// same (titleFits).
+const MALE_TITLES = new Set(["mr", "sir", "lord"]);
+const FEMALE_TITLES = new Set(["madame", "madam", "mme", "mrs", "ms", "miss", "dame", "lady"]);
+const MALE_CUES = new Set(["he", "him", "his", "himself", "man", "men", "boy", "husband", "father", "son", "brother", "king", "prince", "emperor"]);
+const FEMALE_CUES = new Set(["she", "her", "hers", "herself", "woman", "women", "girl", "wife", "mother", "daughter", "sister", "queen", "princess", "empress", "lady"]);
 
 /** The answer with a leading title taken off, when it has one and more words after it; else null. */
 const withoutTitle = (answer: string[]): string[] | null => (answer.length > 1 && TITLES.has(answer[0]) ? answer.slice(1) : null);
+
+/**
+ * The question's words with a quoted title left out ('She Walks in Beauty' says nothing of the poet) and
+ * a possessive 's taken off ("Lincoln's" says Lincoln).
+ */
+const questionWords = (question: string): string[] =>
+  answerWords(question.replace(/(^|[\s(])['‘"“][^'‘’"“”]*['’"”](?=[\s.,;:?!)]|$)/g, "$1")).map((w) => w.replace(/'s$/, ""));
+
+/**
+ * The answer with its title taken off when the title fits the question: a title such as "dr" says
+ * nothing of the person; "mrs" or "lord" only on a question that says she (or he) and never the other.
+ * Null when the answer has no title or it does not fit: the model decides "mrs roosevelt" for Franklin.
+ */
+function titleFits(answer: string[], question: string): string[] | null {
+  const untitled = withoutTitle(answer);
+  if (!untitled) return null;
+  const male = MALE_TITLES.has(answer[0]);
+  if (!male && !FEMALE_TITLES.has(answer[0])) return untitled;
+  const words = questionWords(question);
+  const says = (cues: Set<string>) => words.some((w) => cues.has(w));
+  return says(male ? MALE_CUES : FEMALE_CUES) && !says(male ? FEMALE_CUES : MALE_CUES) ? untitled : null;
+}
 
 /** The name's first and last words. */
 const firstWord = (p: PersonName): string => p.parts[0].split(" ")[0];
@@ -632,7 +663,7 @@ function namesAThing(p: PersonName, senses: (w: string) => WordSenses): boolean 
 function personSurnames(question: string, keyForm: string, senses: (w: string) => WordSenses): string[][] {
   const p = personName(question, keyForm);
   if (!p || namesAThing(p, senses)) return [];
-  const said = new Set(answerWords(question));
+  const said = new Set(answerWords(question).map((w) => w.replace(/'s$/, "")));
   if (p.parts[p.parts.length - 1].split(" ").some((w) => said.has(w))) return [];
   return surnameForms(p);
 }
@@ -755,7 +786,8 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
 // small table: length, mass, volume, time, and compounds of them (square and cubic, "per" or a
 // slash: km/h, g/cm³, g/mL), percent, money ($, dollars, cents, ¢), and temperature, never converted
 // between scales. Decades, centuries, millennia, fortnights and months ("5 decades", "a fortnight") are
-// read only to accept (RESTATE_UNITS): an amount in one is never marked wrong. A clock time ("4:15 p.m.", "16:15", "quarter past four in the afternoon") is read on
+// read only to accept (RESTATE_UNITS): an amount in one is never marked wrong, and never settled when
+// the answer may be the question said back (restatesTheQuestion). A clock time ("4:15 p.m.", "16:15", "quarter past four in the afternoon") is read on
 // its own, and a word time is only ever accepted, never marked wrong. Anything else in either, or
 // any word the table does not know, and code does not decide.
 //
@@ -1459,10 +1491,31 @@ function settleQuantity(item: WrittenAnswer): boolean | null {
   // A unit only a restatement uses is never grounds to mark an answer wrong, and months against days or
   // weeks never settle, even on an "about" key: "about 2 months" for about 61 days is the model's.
   const restated = k.restated || a.restated;
-  if (restated && k.calendar !== a.calendar) return null;
+  if (restated && (k.calendar !== a.calendar || restatesTheQuestion(item, k, a))) return null;
   const verdict = compareQuantities(k, a, item.question);
   return verdict === false && restated ? null : verdict;
 }
+
+/** Whether one of the question's numbers is `v` or -`v`. */
+const questionHasAmount = (question: string, v: number): boolean =>
+  answerWords(question).some((w) => /^-?\d+(?:\.\d+)?$/.test(w) && Math.abs(Number(w)) === Math.abs(v));
+
+/**
+ * A restatement unit where the answer may only be the question said back: the key is the word itself
+ * ("A decade", "a fortnight"), the question names a restatement unit ("How long is a decade?"), or it
+ * says the answer's amount ("What is a period of ten years called?" for "10 years"). The model decides.
+ */
+function restatesTheQuestion(item: WrittenAnswer, k: Quantity, a: Quantity): boolean {
+  if (k.restated && /^\s*an?\s/i.test(item.expected)) return true;
+  if (answerWords(item.question).some((w) => RESTATE_UNITS.has(Q_UNIT_ALIASES[w] ?? ""))) return true;
+  return questionHasAmount(item.question, a.num.v);
+}
+
+// A question that asks for the sign itself: writing it is the skill (6.NS.C.5), so "300 m below sea
+// level" for "Use a signed number to represent 300 m below sea level" is the model's.
+const ASKS_FOR_SIGN_RE = /\b(?:integers?|signed|negative|positive|represent(?:s|ed|ing)?|express(?:es|ed|ing)?)\b/i;
+const BELOW_WORDS = new Set(["below", "beneath", "under", "underwater", "underground", "deep", "down", "lower"]);
+const ABOVE_WORDS = new Set(["above", "up", "high", "higher"]);
 
 // A depth or a height written in words: "11 meters below the surface", "35 m deep", "250 m above sea level".
 const BELOW_RE = /^(.+?)\s+(?:(?:below|beneath|under)\s+(?:the\s+)?(?:surface(?:\s+of\s+the\s+(?:sea|ocean|water|lake))?|sea\s+level|sea|ocean|ground(?:\s+level)?|water(?:\s+level|\s+surface)?)|underwater|underground|deep|down)$/;
@@ -1474,9 +1527,13 @@ const ABOVE_RE = /^(.+?)\s+above\s+(?:the\s+)?(?:surface|sea\s+level|sea|ground(
  * a key that is a negative (below) or positive (above) length, or a bare number on a question that asks
  * for a length ("a number of meters"), and only when the answer gives the amount with a unit of length
  * and no sign of its own. Null otherwise, and never false: "below" is a sign nowhere else, and "11 m
- * above sea level" for -11 m, a bare "11 m" or "11 km below" go on to the other rules (the model).
+ * above sea level" for -11 m, a bare "11 m" or "11 km below" go on to the other rules (the model). Never
+ * on a question that asks for the sign (an integer, a signed or negative number, "represent"), or one that
+ * already says the amount and the direction ("A diver is 11 m below the surface"): the answer may be the
+ * question said back without the sign.
  */
 function settleDirected(item: WrittenAnswer): true | null {
+  if (ASKS_FOR_SIGN_RE.test(item.question)) return null;
   const t = (item.student ?? "").normalize("NFKC").toLowerCase().replace(/[.!]+$/, "").replace(/\s+/g, " ").trim();
   const below = BELOW_RE.exec(t);
   const above = below ? null : ABOVE_RE.exec(t);
@@ -1487,6 +1544,9 @@ function settleDirected(item: WrittenAnswer): true | null {
   if (!k || k.guessed || !a || a.kind !== "measure" || a.dims !== "1,0,0" || a.v <= 0) return null;
   if (k.kind !== "plain" && !(k.kind === "measure" && k.dims === "1,0,0")) return null;
   if (below ? k.v >= 0 : k.v <= 0) return null;
+  const direction = below ? BELOW_WORDS : ABOVE_WORDS;
+  if (answerWords(item.question).some((w) => direction.has(w)) &&
+      (questionHasAmount(item.question, a.num.v) || questionHasAmount(item.question, k.num.v))) return null;
   const signed: Quantity = below ? { ...a, v: -a.v, num: { ...a.num, v: -a.num.v } } : a;
   return compareQuantities(k, signed, item.question) === true ? true : null;
 }
@@ -1538,8 +1598,9 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
     if (sameNumberAndUnits(answer, key, item.question)) return true;
     if (sameFormula(answer, form)) return true;
     // Under a choice the surname may be what both sides share ("Theodore Roosevelt or Franklin Roosevelt?").
-    // A title before the surname ("madame curie") under the same guards as the surname alone.
-    const untitled = withoutTitle(answer);
+    // A title before the surname ("madame curie") under the same guards as the surname alone, when the
+    // title fits the question (titleFits).
+    const untitled = titleFits(answer, item.question);
     for (const surname of choice ? [] : personSurnames(item.question, form, senses)) {
       for (const a of untitled ? [answer, untitled] : [answer]) {
         if (sameWords(a, surname, isWord, rivalWords(item.question, surname), names)) return true;

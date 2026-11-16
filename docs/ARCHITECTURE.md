@@ -295,11 +295,16 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   choice, for a role the question does not ask for ("Which country's president"), for a key that names a
   place or a thing ("South Africa", "Soviet Union": a direction, "New" or "Holy" first, or an adjective
   in the dictionary before an everyday word), or when the question itself says
-  the surname ("Which Roosevelt...?"), also after a title in place of the first name ("madame curie",
-  "dr king", "lord byron"; a title is noise only, under the same guards); a depth or height with its
-  sign written as a direction ("11 meters below the surface", "35 m deep", "11 m down" for -11 m; "250 m
+  the surname ("Which Roosevelt...?", "Lincoln's wife"), also after a title in place of the first name
+  ("madame curie", "dr king", "lord byron"), under the same guards. "Dr" says nothing of the person; a
+  title that says man or woman ("mrs", "lord") counts only when the question says the same and never the
+  other ("the first woman", "his"), so "mrs roosevelt" for Franklin or "mr curie" for Marie goes to the
+  model. A depth or height with its
+  sign written as a direction ("11 meters below the surface", "11 m down" for -11 m; "250 m
   above sea level" for 250 m), only with a unit of length, the key's amount and the direction its sign
-  means ("above" for a negative, "11 m" or "11 below" go to the model; "below" is a sign nowhere else);
+  means ("above" for a negative, "11 m" or "11 below" go to the model; "below" is a sign nowhere else),
+  and never on a question that asks for the sign (an integer, a signed or negative number, "represent",
+  "express") or already says the amount and the direction ("A diver is 11 m below the surface");
   and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
   itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). Never two edits
   ("omnivour" goes to the model: "glucogan" is as close to glycogen as to glucagon). No
@@ -370,7 +375,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   `src/lib/eval/results/2026-11-16-grade-dev-numbers.md`. The table also reads decades, centuries,
   millennia, fortnights and months ("5 decades" for 50 years, "a fortnight" for 14 days, "1.5 years"
   for 18 months), but only to accept: an amount in one of these is never marked wrong ("4 decades" for
-  50 years goes to the model), and a bare number is never read in one. Measured in `src/lib/eval/results/2026-11-16-grade-dev-restate.md`.
+  50 years goes to the model), and a bare number is never read in one. Nor do they settle where the
+  answer may be the question said back: a key that is the word ("A decade"), a question that names one
+  of these units ("How long is a decade?") or says the answer's amount ("What is a period of ten years
+  called?"). Measured in `src/lib/eval/results/2026-11-16-grade-dev-restate.md`.
 - **A note to the model on a misspelling code cannot accept.** An answer that is the key with a word
   one edit (key word 4+ letters) or two edits (7+) off ("skelitin" for skeleton) goes to the model with
   a note under it: `"skelitin" may be a misspelling of "skeleton". If it is, mark it correct: for this
