@@ -29,7 +29,8 @@
 //     on "hypertonic or hypotonic?"), or when the key word is not in the dictionary, which has no
 //     names of places or people ("Zambia" for "Gambia");
 //   - a sign written as its name, or a name written as the sign, when the key is just that: ">" is
-//     "greater than", "more than" or "bigger than"; never "greater than or equal to", never "<";
+//     "greater than", "more than" or "bigger than"; never "greater than or equal to", never "<". One
+//     side has to be the sign itself: two names ("smaller than" for "Less than") go to the model;
 //   - a short code (3 letters or fewer, like an element symbol) written as spaced or dotted letters:
 //     "n a" or "N.a." for "Na". When the letters cased another way are another symbol ("CO" carbon
 //     monoxide, "Co" cobalt; "NO", "No"), an answer cased as that other symbol is never accepted, and
