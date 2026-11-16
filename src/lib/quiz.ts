@@ -11,7 +11,7 @@ import {
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
-import { settleByCode, misspellingCandidates, misspeltKeyWords, misspellingNote, wordsWithin, type SpellingLookup } from "./answer-match";
+import { settleByCode, misspellingCandidates, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup } from "./answer-match";
 import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
@@ -788,11 +788,21 @@ async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | 
     const entries = new Map<string, DictionaryEntry[]>();
     await Promise.all([...new Set(words.flatMap((w) => [w.answer, w.key]))].map(async (w) => { entries.set(w, await lookupWord(w)); }));
     const isWord = (w: string) => (entries.get(w) ?? []).length > 0;
-    const headwords = words.some((w) => isWord(w.key) && !isWord(w.answer)) ? await oneWordHeadwords() : [];
+    // The real words near each answer word that is not one: headwords and irregular forms, plus other
+    // words' regular forms ("attaching" for "attatching") that the dictionary resolves.
+    const open = words.filter((w) => isWord(w.key) && !isWord(w.answer));
+    const headwords = open.length > 0 ? await oneWordHeadwords() : [];
+    const near = new Map<string, string[]>();
+    for (const { answer, edits } of open) {
+      const a = singular(answer);
+      if (near.has(`${a} ${edits}`)) continue;
+      const forms = await Promise.all(formsWithin(headwords, a, edits).map(async (f) => ((await lookupWord(f)).length > 0 ? [f] : [])));
+      near.set(`${a} ${edits}`, [...wordsWithin(headwords, a, edits), ...forms.flat()]);
+    }
     const dict: SpellingLookup = {
       isWord,
       synonyms: (w) => (entries.get(w) ?? []).flatMap((e) => e.senses.flatMap((s) => s.synonyms.map((x) => x.toLowerCase()))),
-      wordsNear: (w, edits) => wordsWithin(headwords, w, edits),
+      wordsNear: (w, edits) => near.get(`${w} ${edits}`) ?? [],
     };
     return items.map((it) => misspellingNote(it, dict));
   } catch (e) {

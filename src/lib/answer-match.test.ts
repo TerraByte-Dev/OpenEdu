@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, wordsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
+import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
 import { GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
@@ -735,5 +735,13 @@ describe("wordsWithin", () => {
   it("lists the words at most that many edits away, not the word itself", () => {
     expect(wordsWithin(["glucagon", "glycogen", "gluten", "glucogan"], "glucogan", 2)).toEqual(["glucagon", "glycogen"]);
     expect(wordsWithin(["glucagon", "glycogen"], "glucogan", 1)).toEqual([]);
+  });
+});
+
+describe("formsWithin", () => {
+  it("lists the regular forms of the words that are that close: -ing, -ed, -s, the e dropped", () => {
+    expect(formsWithin(["attach", "attack", "skeleton"], "attatching", 2).sort()).toEqual(["attaching", "attacking"]);
+    expect(formsWithin(["inhale", "exhale"], "enhaled", 1).sort()).toEqual(["exhaled", "inhaled"]);
+    expect(formsWithin(["skeleton"], "skelitin", 2)).toEqual([]);
   });
 });

@@ -322,9 +322,12 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   spelling swap, our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um, and the dictionary lists the two
   as synonyms: "aluminium"; WordNet's synonyms alone also hold other forms, bacterium for bacteria,
   earlier for earliest), when the key's word is not in the dictionary, or when another real word is as
-  close ("glucogan": glycogen; "orbet": sorbet). The check reads every one-word dictionary headword once per session
-  (`dictionary.ts` `oneWordHeadwords`), only when an answer needs it; if the dictionary cannot be read,
-  no note. A batch with no note gets the old prompt byte for byte. Measured in
+  close ("glucogan": glycogen; "orbet": sorbet), counting another word's -ing, -ed or -s form the
+  dictionary resolves ("attatching" for Attacking: attaching; "enhaled" for Exhaled: inhaled). The check
+  reads every one-word dictionary headword once per session (`dictionary.ts` `oneWordHeadwords`), only
+  when an answer needs it, and makes the forms from them with WordNet's suffix rules
+  (`answer-match.ts` `formsWithin`); if the dictionary cannot be read, no note. A batch with no note
+  gets the old prompt byte for byte. Measured in
   `src/lib/eval/results/2026-11-16-grade-dev-misspelling-hint.md`.
 - **"I think I was right."** A small model still fails some right answers, so on the quiz and level
   test results screens a written answer the model marked wrong (`graded_by` `'model'`, wrong) has the

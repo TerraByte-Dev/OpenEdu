@@ -45,6 +45,7 @@
 // either. An answer code cannot settle goes to the model as before.
 
 import { gradeFreeTextDeterministic, normalizeAnswer } from "./quiz-grading";
+import { SUFFIX_RULES } from "./dictionary";
 
 // ─── One form for both sides ──────────────────────────────────────────────────
 
@@ -646,8 +647,10 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
 // '"skelitin" may be a misspelling of "skeleton"'. The note is given only when the answer's word can be
 // nothing but the key's word misspelt: no other word in the question is as close to it, it is not itself
 // a real word (or it is the key's word with one British/American spelling swap the dictionary lists as a
-// synonym, "sulphur"), the key's word is in the dictionary, and no other real word is as close to it. "geolagist" (one edit from geologist) for
-// Biologist gets no note, nor "glucogan" (two edits from glucagon and from glycogen).
+// synonym, "sulphur"), the key's word is in the dictionary, and no other real word is as close to it,
+// another word's -ing or -ed form included. "geolagist" (one edit from geologist) for Biologist gets no
+// note, nor "glucogan" (two edits from glucagon and from glycogen), nor "attatching" for Attacking (one
+// edit from attaching).
 
 /** The shortest key word a note is given for, at one edit and at two. */
 export const HINT_MIN_LETTERS: Record<1 | 2, number> = { 1: 4, 2: 7 };
@@ -686,13 +689,46 @@ export interface SpellingLookup {
   isWord: (w: string) => boolean;
   /** The one-word synonyms the dictionary lists for a real word ("sulphur": sulfur). */
   synonyms: (w: string) => string[];
-  /** The real words at most `edits` edits from a word. */
+  /** The real words at most `edits` edits from a word, other words' inflected forms included. */
   wordsNear: (w: string, edits: number) => string[];
 }
 
+// Letters one word has more of than the other, the larger side: never more than the edits between
+// them, and quick, so most of a word list is ruled out before editDistance.
+const counts = new Int32Array(32);
+function letterGap(a: string, b: string): number {
+  counts.fill(0);
+  for (let i = 0; i < a.length; i++) counts[(a.charCodeAt(i) - 97) & 31]++;
+  for (let i = 0; i < b.length; i++) counts[(b.charCodeAt(i) - 97) & 31]--;
+  let more = 0, fewer = 0;
+  for (const c of counts) { if (c > 0) more += c; else fewer -= c; }
+  return Math.max(more, fewer);
+}
+const within = (h: string, w: string, edits: number) =>
+  Math.abs(h.length - w.length) <= edits && h !== w && letterGap(h, w) <= edits && editDistance(h, w) <= edits;
+
 /** The real words at most `edits` edits from a word, out of a word list. */
 export function wordsWithin(words: readonly string[], w: string, edits: number): string[] {
-  return words.filter((h) => Math.abs(h.length - w.length) <= edits && h !== w && editDistance(h, w) <= edits);
+  return words.filter((h) => within(h, w, edits));
+}
+
+/**
+ * The spellings at most `edits` edits from a word that WordNet's suffix rules read back to a word of the
+ * list: "attaching" from attach, "inhaling" from inhale. The word list holds headwords and irregular
+ * forms only, and a misspelling is as often another word's -ing or -ed form ("attatching" is one edit
+ * from attaching). Spellings only: the dictionary says which are real words.
+ */
+export function formsWithin(words: readonly string[], w: string, edits: number): string[] {
+  const out = new Set<string>();
+  for (const [suffix, ending] of SUFFIX_RULES) {
+    const grow = suffix.length - ending.length;
+    for (const h of words) {
+      if (Math.abs(h.length + grow - w.length) > edits || h.length <= ending.length || !h.endsWith(ending)) continue;
+      const f = h.slice(0, h.length - ending.length) + suffix;
+      if (within(f, w, edits)) out.add(f);
+    }
+  }
+  return [...out];
 }
 
 // The British and American spellings of one word, as one swap: [one spelling, the other, where]. A real

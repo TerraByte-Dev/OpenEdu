@@ -82,6 +82,20 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
     }
   }, 60_000);
 
+  // Review of #327, cycle 2: each answer is another word's -ing or -ed form misspelt, as close to it as to
+  // the key's word, and each got a note: the word list held headwords only. "attatching" for Attacking
+  // passed on e2b 3/3 with the note and 0/3 without it.
+  it("gives no note when another word's regular form is as close: attaching, inhaling, immigrating", async () => {
+    const p = await promptFor([
+      item(0, "What are white blood cells doing to germs?", "Attacking", "attatching"), // attaching, one edit
+      item(1, "What do people do when they move out of a country to live elsewhere?", "Emigrating", "imigrating"), // immigrating
+      item(2, "What are your lungs doing when you breathe out?", "Exhaling", "enhaling"), // inhaling
+      item(3, "What did your lungs do when you breathed out?", "Exhaled", "enhaled"), // inhaled
+      item(4, "What do people do when they move into a country to live there?", "Immigrating", "emmigrating"), // emigrating
+    ]);
+    expect(p).not.toContain("Note");
+  }, 30_000);
+
   it("leaves a batch with no note byte-identical to the prompt without notes", async () => {
     const items = [item(0, "Which gas do plants give off?", "Oxygen", "carbon dioxide"), item(1, "What is 7 times 8?", "56", "54")];
     const p = await promptFor(items);
@@ -111,7 +125,9 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
     expect(noted.filter((n) => n.startsWith("signs"))).toEqual(
       ["carnivour", "herbivour", "thurmometor", "hipothisis", "skelitin", "geolagest"].map((w) => expect.stringContaining(w)));
     expect(noted.filter((n) => n.startsWith("synonyms") || n.startsWith("round2"))).toEqual([]);
-    expect(noted.filter((n) => n.startsWith("misspell")).length).toBe(20);
+    // 17 of the set's 20 right misspellings: "mitossis", "glaicer" and "biolagest" are as close to spellings
+    // the dictionary resolves as forms ("mitosiss", "glacer", "bipolarest"), so they get no note.
+    expect(noted.filter((n) => n.startsWith("misspell")).length).toBe(17);
   }, 120_000);
 
   it("gives no note when the dictionary cannot be read", async () => {

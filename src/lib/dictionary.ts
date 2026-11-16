@@ -46,6 +46,9 @@ const RULES: Record<Exclude<Pos, "r">, Array<[string, string]>> = {
   v: [["s", ""], ["ies", "y"], ["es", "e"], ["es", ""], ["ed", "e"], ["ed", ""], ["ing", "e"], ["ing", ""]],
   a: [["er", ""], ["est", ""], ["er", "e"], ["est", "e"]],
 };
+/** Every [suffix, ending] pair of the rules above, once ("ing" read back to "e" or to nothing). */
+export const SUFFIX_RULES: ReadonlyArray<readonly [string, string]> =
+  [...new Map(Object.values(RULES).flat().map((r) => [r.join(" "), r] as const)).values()];
 const POS_ORDER: Pos[] = ["n", "v", "a", "r"];
 /** Own keys only: a word such as "constructor" or "__proto__" must not read Object.prototype. */
 const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
