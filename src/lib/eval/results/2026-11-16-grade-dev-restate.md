@@ -145,3 +145,32 @@ question said back without the sign; the set labels them right, and the model ma
 review's point (the sign is the skill). Read the rise as a label question on d02, d03 and d07, not a model
 regression. Wrong passed, all by the model: "mr curie" under the choice (2 e2b runs), "10 centuries" (2),
 "2 fortnights", "10 decades", "lady babbage", "monsieur curie", "4 decades" (1 each).
+
+## Held-out v8 (blind, run once at 34f6377)
+
+v8 is a fresh blind set laid out like v7: 40 questions, 120 answers, 22 numeric or unit keys, and the same kind
+counts. A generator that read no grading code wrote it. It has 0 overlap with v7 and earlier sets, the dev sets
+or the grading test strings, and question similarity is 0.66 at most. SHA-256 `d205ca71…31ca9`.
+
+| Run | Right failed | Wrong passed (by code) | Settled by code (accepted / rejected) |
+|---|---|---|---|
+| e2b 1 | 1/40 | 1/80 (1) | 30 (26 / 4) |
+| e2b 2 | 2/40 | 1/80 (1) | 30 (26 / 4) |
+| e2b 3 | 2/40 | 1/80 (1) | 30 (26 / 4) |
+| e4b 1 (reported) | 1/40 | 1/80 (1) | 30 (26 / 4) |
+
+The bars, per e2b run, are right failed ≤ 2/40 and wrong passed ≤ 1/80. **Both pass, for the first time in this
+series.** Two of the runs are exactly at the right-failed bar, and every run is exactly at the wrong-passed bar.
+
+**The one wrong pass was code's, on every run.** Code accepted "about 337 K" for about 373.15 K: the digits are
+swapped and the value is 10% low. #332's estimate band let it through, because the band fired on a fact asked with
+"about" that gives no numbers to estimate from. Fixed in #336: the band now needs the question to give the
+numbers. Code's other decisions were all correct: 25 accepts were right answers and 4 rejects were wrong answers.
+
+**Right answers failed, all by the model:**
+- "$15 overdrawn" for -$15, on every e2b run and on e4b. A negative written as a word, the third held-out set in
+  a row.
+- "twelve fifteen" for the year 1215, on two e2b runs. A year said in pairs of digits.
+
+**Against v7:** e2b right failed went from 4, 5, 5 to 1, 2, 2, partly because code settles 30 answers here
+against 23. v8 also has fewer loose approximations than v7, so it is somewhat easier on the right side.
