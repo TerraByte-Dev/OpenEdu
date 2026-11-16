@@ -666,7 +666,8 @@ describe("settleByCode: numbers and units, both ways", () => {
   it("settles most of the numbers set and passes none of its wrong answers", () => {
     const v = verdicts(GRADE_DEV_NUMBERS, keyOnly);
     expect(v.filter((x) => x.right && x.got === true)).toHaveLength(87);
-    expect(v.filter((x) => !x.right && x.got === false)).toHaveLength(54);
+    // 53: "-273 K" (n33) is a sign flip on a conversion question, now left to the model.
+    expect(v.filter((x) => !x.right && x.got === false)).toHaveLength(53);
     expect(v.filter((x) => !x.right && x.got === true)).toEqual([]);
   });
   it("marks wrong what the model passed on the numbers set and held-out v5", () => {
@@ -812,7 +813,8 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("Sam had $20 and lost $5 of it. How much money did Sam lose?", "$5", "-$5")).toBe(true); // the older number match
     // A sign flip on plain arithmetic is wrong.
     expect(settle("What is -7 + 10?", "3", "-3")).toBe(false);
-    expect(settle("What is 0 °C on the Kelvin scale?", "273.15 K", "-273 K")).toBe(false);
+    // Not bare arithmetic, so the sign flip is the model's (signMatters).
+    expect(settle("What is 0 °C on the Kelvin scale?", "273.15 K", "-273 K")).toBeNull();
   });
   it("never marks wrong a percent read as a decimal, or a decimal as a percent", () => {
     expect(settle("What part of the class walks to school?", "0.45", "45")).toBeNull();
@@ -837,6 +839,11 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("How much of Earth's surface is covered by water?", "70%", "0.07")).toBe(false);
     expect(settle("How much of Earth's surface is covered by water?", "70%", "7")).toBe(false);
     expect(settle("The temperature was 10 °C in the afternoon and 4 °C at night. How much did it go down?", "6 °C", "-60 °C")).toBe(false);
+    // A sign flip is gross only on bare arithmetic (signMatters); elsewhere either sign may be meant.
+    expect(settle("What is 3 - 5?", "-2", "2")).toBe(false);
+    expect(settle("What is 4 × -3?", "-12", "12")).toBe(false);
+    expect(settle("How much less is 3 than 10?", "7", "-7")).toBeNull();
+    expect(settle("What is the temperature at night if it is -4 °C?", "-4 °C", "4 °C")).toBeNull();
   });
   it("marks wrong a different kind of quantity, each with its own unit", () => {
     expect(settle("A price rises from $40 to $50. By what percent did it increase?", "25%", "$10")).toBe(false);

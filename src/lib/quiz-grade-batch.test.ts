@@ -120,6 +120,17 @@ const NEVER_CODE_WRONG: Array<[question: string, expected: string, student: stri
   ["It was 5 °C at noon and -3 °C at midnight. How much colder was it at midnight?", "8 °C", "-8 °C"],
   ["It was 5 °C at noon and -3 °C at midnight. How much did the temperature go down?", "8 degrees", "-8 degrees"],
   ["How much lower is -5 than 3?", "8", "-8"],
+  // Verification of the fourth fix: more ways to ask for a decrease. A sign flip is now gross only on bare
+  // arithmetic (signMatters), so no list of decrease words is needed.
+  ["How much less is 3 than 10?", "7", "-7"],
+  ["How many fewer apples does Ann have if she has 4 and Ben has 9?", "5", "-5"],
+  ["How much smaller is 12 than 20?", "8", "-8"],
+  ["The temperature cooled from 20 °C to 12 °C. By how much did it cool?", "8 °C", "-8 °C"],
+  ["A balloon shrank from 30 cm to 22 cm. How much did it shrink?", "8 cm", "-8 cm"],
+  ["Sales declined from 120 to 90. By how much did they decline?", "30", "-30"],
+  ["Ann is 150 cm tall and Ben is 138 cm. How much shorter is Ben?", "12 cm", "-12 cm"],
+  ["The temperature was 3 °C at 6 p.m. and -4 °C at 6 a.m. How much did it dip?", "7 °C", "-7 °C"],
+  ["A car slowed from 60 mph to 45 mph. How much did it slow?", "15 mph", "-15 mph"],
 ];
 
 describe("gradeAnswersBatch: code never marks wrong a near fact or the sign of a fall (the fourth review's cases)", () => {

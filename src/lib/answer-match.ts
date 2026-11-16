@@ -925,6 +925,14 @@ const ESTIMATE_RE = /\b(?:estimate[ds]?|estimating|approximate(?:ly)?|roughly)\b
 // The question is about a fall, a loss or a depth, so either sign may be meant ("-6 °C" for a fall of 6 °C,
 // "-8" for "how much lower").
 const CHANGE_RE = /\b(?:fall(?:s|en|ing)?|fell|drop(?:s|ped|ping)?|decreas\w*|loss(?:es)?|lose[sr]?|losing|lost|below|depth|deep(?:er)?|chang\w*|differen\w*|down|colder|cooler|lower|sank|sink(?:s|ing)?|sunk|descen\w*)\b/i;
+// A sign flip is gross only on bare arithmetic: the question writes an operation between numbers ("What is
+// 3 - 5?") and does not ask for an amount of change. Elsewhere either sign may be meant ("how much less",
+// "how much shorter", "how much did it slow": a list of decrease words never ends), so the model decides.
+const ARITHMETIC_RE = /\d\s*[-−–+×x*÷/]\s*[-−(]?\s*\d|\b(?:plus|minus|times|divided by|multiplied by)\b/i;
+const ASKS_AMOUNT_RE = /\b(?:how (?:much|many|far)|by how|differen\w*|chang\w*)\b/i;
+function signMatters(question: string): boolean {
+  return ARITHMETIC_RE.test(question) && !ASKS_AMOUNT_RE.test(question) && !CHANGE_RE.test(question);
+}
 // "How many fourths", "in thirds", "how many tens": a bare number counts that unit.
 const COUNT_UNITS: Record<string, number> = {
   halves: 1 / 2, thirds: 1 / 3, fourths: 1 / 4, quarters: 1 / 4, fifths: 1 / 5, sixths: 1 / 6, sevenths: 1 / 7,
@@ -975,14 +983,14 @@ function givesNumbers(question: string): boolean {
 
 /**
  * Two different amounts of one kind, in the same base units (`kv`, `av`): wrong only when the miss is
- * gross. A different sign (not on a question about a fall, loss or depth); a factor of about 10, 100 or
+ * gross. A different sign only on bare arithmetic (signMatters); a factor of about 10, 100 or
  * 1000 (not 100 between two plain numbers or on a percent question: 45 for 0.45 is the same number read
  * as a percent); or, when the question gives the numbers and asks for no estimate, a different fraction
  * for a fraction key that does not say about, or more than 20% apart. Never on precision alone: "3/4"
  * for 7/10 of Earth's surface is the model's.
  */
 function grossMiss(kv: number, av: number, kn: WrittenNumber, an: WrittenNumber, question: string, plainPair: boolean, precision: number, about = false): boolean {
-  const change = CHANGE_RE.test(question);
+  const change = !signMatters(question);
   if (kv * av < 0 && !change && Math.abs(kv + av) <= precision * (1 + 1e-9)) return true;
   const k = change ? Math.abs(kv) : kv;
   const a = change ? Math.abs(av) : av;

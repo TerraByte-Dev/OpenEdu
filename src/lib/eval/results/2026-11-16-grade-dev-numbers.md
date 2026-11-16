@@ -160,3 +160,12 @@ as a fall. Each case is pinned null or right through `gradeAnswersBatch`
 (`quiz-grade-batch.test.ts`). Code's verdict on every answer of the five dev sets is the same before and
 after (compared answer by answer, with no word known to be real), so the prompts the model gets are
 unchanged and the runs above were not repeated.
+
+**Fifth change, after the fourth fix's verification.** That verification found more ways to ask for a
+decrease ("how much less", "how much shorter", "how much did it slow") where a minus sign was still marked
+wrong. A list of decrease words never ends, so a sign flip is now gross only on bare arithmetic
+(`signMatters`): the question writes an operation between numbers ("What is 3 - 5?", "negative 7 plus 3")
+and does not ask for an amount or a change. Every other sign flip goes to the model. One dev answer moves:
+"-273 K" for 0 °C on the Kelvin scale (n33) is now the model's, so the numbers set has 53 wrong answers
+marked by code, not 54. The other four sets' verdicts are unchanged. Not rerun; the blind held-out v6
+run measures it.
