@@ -249,3 +249,35 @@ WordNet's headwords only. A misspelling as close to a word only the word list ha
 rivals too would cost right-answer notes: on the dev sets it would take the notes off "carnivour"
 (carnivora, carnivory), "herbivour" (herbivora, herbivory) and "thurmometor" (thermomotor), half of the
 signs set's six.
+
+## Held-out v5 (blind, run once at the frozen commit)
+
+The set is v5: 40 questions, 120 answers, the same grade-by-subject layout and the same answer-kind counts as v4. A blind generator wrote it without reading any grading code. Overlap with v4, v3, round 2, the dev sets and the grading tests' strings: 0 hits. Its set.json SHA-256 is `0e852794…ea79ba`. It ran once at OpenEdu `198bafeb` (the last commit of #327) through `gradeAnswersBatch`, with the dictionary and the word list loaded. Nothing was tuned on it.
+
+| Run | Right failed | Wrong passed (by code) | Settled by code | Answers with a Note | Bars |
+|---|---|---|---|---|---|
+| e2b 1 | 3/40 | 2/80 (0) | 13/120 | 1 | fail (both) |
+| e2b 2 | 5/40 | 3/80 (0) | 13/120 | 1 | fail (both) |
+| e2b 3 | 3/40 | 3/80 (0) | 13/120 | 1 | fail (both) |
+| e4b 1 (reported) | 4/40 | 0/80 (0) | 13/120 | 1 | — |
+
+Bars, per e2b run: right failed ≤ 2/40, wrong passed ≤ 1/80. **Every e2b run fails both bars.**
+
+**What the Note did:**
+- It fired on one answer of 120: "homofones" for homophones. That answer is right, and it passed on all four runs.
+- No wrong answer passed in the batch that carried the Note.
+- A batch with no Note gets master's prompt byte for byte. On this set the change therefore equals master on 119 of 120 answers.
+- Code settled 4 of the 6 misspellings before any model saw them (crysalis, glossery, hexigon, habbitat).
+- "the lousiana purchase" got no Note and failed on every e2b run. The rule withholds a Note for a name the dictionary lacks, and when another real word is as close; which of the two applied here was not checked.
+
+**What fails the bars is the model's own grading, on items no Note touches.** Each failed on all three e2b runs:
+- **Wrong passed:**
+  - "4.5%" for 45%
+  - "a Greek letter" for Σ
+- **Right failed:**
+  - "1 gram per milliliter" for 1 g/cm³ (e4b too)
+  - "Black Tuesday" for the 1929 stock market crash (e4b too)
+
+Also, "the back of the book" passed for glossary on two runs.
+
+Verdict: merged as a strict improvement. On dev, misspelling right-fails drop from 23/20/23 to 13/8/9 of 60. On v5 there is no measured leak. The absolute bars still fail on gemma4:e2b, and the misses left are numbers, units and partial answers. Code that settles a numeric or unit key both ways (equivalent units right, a different number wrong) would reach most of them without a model. That is the next lever.
