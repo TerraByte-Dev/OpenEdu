@@ -169,3 +169,11 @@ and does not ask for an amount or a change. Every other sign flip goes to the mo
 "-273 K" for 0 °C on the Kelvin scale (n33) is now the model's, so the numbers set has 53 wrong answers
 marked by code, not 54. The other four sets' verdicts are unchanged. Not rerun; the blind held-out v6
 run measures it.
+
+**Sixth change, after the fifth change's verification.** "Bare arithmetic" was read as any operation
+between numbers, so a word problem that held a school year ("2019-2020"), a grade range ("Grades 3-5"), a
+size ("4 x 6") or scientific notation still marked a minus sign wrong, and the different-fraction rule
+marked "-1/2" wrong for "how much less is 1/4 than 3/4?". Now a sign flip is gross only when the question
+is nothing but an expression to evaluate (an optional "what is / compute / evaluate / simplify / find /
+solve", then only numbers, number words and operations), and a fraction with the other sign is not "a
+different fraction". Code's verdicts on the five dev sets are unchanged from the fifth change.

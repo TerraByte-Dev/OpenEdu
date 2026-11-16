@@ -925,13 +925,16 @@ const ESTIMATE_RE = /\b(?:estimate[ds]?|estimating|approximate(?:ly)?|roughly)\b
 // The question is about a fall, a loss or a depth, so either sign may be meant ("-6 °C" for a fall of 6 °C,
 // "-8" for "how much lower").
 const CHANGE_RE = /\b(?:fall(?:s|en|ing)?|fell|drop(?:s|ped|ping)?|decreas\w*|loss(?:es)?|lose[sr]?|losing|lost|below|depth|deep(?:er)?|chang\w*|differen\w*|down|colder|cooler|lower|sank|sink(?:s|ing)?|sunk|descen\w*)\b/i;
-// A sign flip is gross only on bare arithmetic: the question writes an operation between numbers ("What is
-// 3 - 5?") and does not ask for an amount of change. Elsewhere either sign may be meant ("how much less",
-// "how much shorter", "how much did it slow": a list of decrease words never ends), so the model decides.
-const ARITHMETIC_RE = /\d\s*[-−–+×x*÷/]\s*[-−(]?\s*\d|\b(?:plus|minus|times|divided by|multiplied by)\b/i;
-const ASKS_AMOUNT_RE = /\b(?:how (?:much|many|far)|by how|differen\w*|chang\w*)\b/i;
+// A sign flip is gross only when the question is nothing but an expression to evaluate ("What is 3 - 5?",
+// "Compute -2 - 3.", "negative 7 plus 3"). In a word problem either sign may be meant ("how much less",
+// "the decline from 2019-2020", "a 4 x 6 photo"), and a list of decrease words never ends, so the model
+// decides there.
+const EXPRESSION_LEAD_RE = /^\s*(?:what(?:'s|’s| is)|compute|calculate|evaluate|simplify|find(?: the value of)?|solve)\s*:?\s*/i;
+const EXPRESSION_BODY_RE = /^(?:[-−–+×x*÷/().,\d\s]|\b(?:negative|minus|plus|times|divided|multiplied|by|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\b)+[?=!]?\s*$/i;
+const OPERATION_RE = /\d\s*[-−–+×x*÷/]\s*[-−(]?\s*\d|\b(?:plus|minus|times|divided by|multiplied by)\b/i;
 function signMatters(question: string): boolean {
-  return ARITHMETIC_RE.test(question) && !ASKS_AMOUNT_RE.test(question) && !CHANGE_RE.test(question);
+  const body = question.replace(EXPRESSION_LEAD_RE, "");
+  return OPERATION_RE.test(body) && EXPRESSION_BODY_RE.test(body);
 }
 // "How many fourths", "in thirds", "how many tens": a bare number counts that unit.
 const COUNT_UNITS: Record<string, number> = {
@@ -1003,7 +1006,8 @@ function grossMiss(kv: number, av: number, kn: WrittenNumber, an: WrittenNumber,
   }
   if (!givesNumbers(question) || ESTIMATE_RE.test(question)) return false;
   const fraction = (w: WrittenNumber) => w.form === "frac" || w.form === "mixed";
-  if (fraction(kn) && fraction(an) && !about) return true;
+  // A different fraction, not the same one with the other sign (that is the sign rule above).
+  if (fraction(kn) && fraction(an) && !about && !sameAmount(Math.abs(k), Math.abs(a))) return true;
   if (k * a <= 0) return k !== a;
   return Math.max(Math.abs(k), Math.abs(a)) / Math.min(Math.abs(k), Math.abs(a)) > 1.2 + 1e-9;
 }

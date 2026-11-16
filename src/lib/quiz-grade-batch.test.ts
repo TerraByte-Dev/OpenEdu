@@ -131,6 +131,15 @@ const NEVER_CODE_WRONG: Array<[question: string, expected: string, student: stri
   ["Ann is 150 cm tall and Ben is 138 cm. How much shorter is Ben?", "12 cm", "-12 cm"],
   ["The temperature was 3 °C at 6 p.m. and -4 °C at 6 a.m. How much did it dip?", "7 °C", "-7 °C"],
   ["A car slowed from 60 mph to 45 mph. How much did it slow?", "15 mph", "-15 mph"],
+  // Verification of the fifth change: a fraction with the other sign, and word problems that hold a range,
+  // a size or scientific notation. A sign flip is gross only when the question is just an expression.
+  ["How much less is 1/4 than 3/4?", "1/2", "-1/2"],
+  ["A rope 5 1/2 ft long was cut to 3 1/4 ft. How much shorter is it now?", "2 1/4 ft", "-2 1/4 ft"],
+  ["Water went from 2/3 full to 1/3 full. What was the change?", "-1/3", "1/3"],
+  ["Enrollment was 420 in 2019-2020 and 390 in 2020-2021. What was the decline in enrollment?", "30", "-30"],
+  ["Grades 3-5 had 120 students last year and 100 this year. What is the decline?", "20", "-20"],
+  ["A car's speed went from 3 × 10^3 m/s to 2 × 10^3 m/s. What was the reduction in speed?", "1000 m/s", "-1000 m/s"],
+  ["A 4 x 6 photo was cropped to 4 x 5. By what length was the long side reduced?", "1 inch", "-1 inch"],
 ];
 
 describe("gradeAnswersBatch: code never marks wrong a near fact or the sign of a fall (the fourth review's cases)", () => {
