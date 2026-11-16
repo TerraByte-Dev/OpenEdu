@@ -787,7 +787,11 @@ describe("settleByCode: numbers and units, both ways", () => {
   it("takes a near amount on an estimate question, and never marks one wrong on precision", () => {
     expect(settle("Estimate 49 x 21.", "1,000", "1,050")).toBe(true);
     expect(settle("Estimate 49 x 21.", "1,000", "1,029")).toBe(true);
-    expect(settle("Roughly how many seconds are in a day?", "86,400", "90,000")).toBe(true);
+    // No numbers to estimate from: a fact asked roughly keeps the key's own rounding, so the model decides
+    // (held-out v8: the 10% band took "about 337 K" for about 373.15 K, digits swapped).
+    expect(settle("Roughly how many seconds are in a day?", "86,400", "90,000")).toBeNull();
+    expect(settle("About what temperature in kelvin does water boil at sea level?", "about 373.15 K", "about 337 K")).not.toBe(true);
+    expect(settle("About what temperature in kelvin does water boil at sea level?", "about 373.15 K", "about 373 K")).toBe(true);
     expect(settle("Around how many people fit on the bus if each row holds 4 and there are 12 rows?", "50", "48")).toBe(true);
     expect(settle("Estimate 49 x 21.", "1,000", "1,200")).toBeNull();
     // A factor of 10 is still wrong.

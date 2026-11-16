@@ -1258,8 +1258,11 @@ function compareAmounts(k: Quantity, a: Quantity, question: string): boolean | n
   const mayReject = !a.approx && !a.guessed && !rough;
   const rel = k.v === 0 ? Infinity : diff / Math.abs(k.v);
   if (k.approx && rel <= 0.02 && diff <= Math.max(k.loose, a.loose) / 2 * (1 + 1e-9)) return true;
-  // An estimate: within 10% of the key is right.
-  if (ESTIMATE_RE.test(question) && !rough && rel <= 0.1) return sameForm(k, a, question) ? true : null;
+  // An estimate worked out from the question's numbers ("Estimate 49 x 21"): within 10% of the key is
+  // right. A fact asked with "about" gives no numbers to estimate from ("About what temperature does water
+  // boil?"), so it keeps the key's own rounding above: held-out v8 had "about 337 K" for about 373.15 K
+  // accepted by this band, digits swapped and 10% off.
+  if (ESTIMATE_RE.test(question) && givesNumbers(question) && !rough && rel <= 0.1) return sameForm(k, a, question) ? true : null;
   if (!mayReject || swappedReading(a, k.v)) return null;
   const answerHalf = (ASKS_ROUNDING_RE.test(question) ? a.loose : a.ulp) / 2;
   const plainPair = k.kind === "plain" && a.kind === "plain";
