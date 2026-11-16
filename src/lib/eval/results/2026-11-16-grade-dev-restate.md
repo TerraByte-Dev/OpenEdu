@@ -98,3 +98,50 @@ mostly wrong ones and passes a few more of them.
    never with a surname the question says, never where the surname alone would not be taken. The title
    is noise only; it is never checked against the person ("mr curie" for Marie Curie on a question that
    offers no choice would be taken, as "curie" is).
+
+## After review (3aebca6)
+
+The review of #335 found code accepting the question said back, all null on master: a depth in words on
+a question that asks for the sign ("300 m below sea level" for "Use a signed number to represent 300 m
+below sea level"), a restatement unit that echoes the question either way ("a decade" for "What is a
+decade?", "14 days" for "What word means a period of two weeks?" with key "A fortnight"), and a
+gendered title naming the spouse ("mrs roosevelt" for Franklin, "mr curie" for Marie, "mr lincoln" for
+"Who was Abraham Lincoln's wife?"). The fix narrows each settler (null, never false):
+
+- `settleDirected`: never on a question that asks for the sign (integer, signed, negative, positive,
+  represent, express), nor when the question already says the amount (the answer's or the key's) and a
+  word of the same direction (below, beneath, under, deep, down, lower; above, up, high, higher).
+- Restatement units: never when the key is the word ("A decade"), the question names one of the units,
+  or the question says the answer's amount.
+- Titles: "dr", "doctor", "saint" as before; a gendered title only when the question says the same gender
+  (she, her, woman, wife, queen, lady, ...; he, his, man, husband, king, ...) and never the other, with a
+  quoted title left out of the question. The said-surname guard drops a possessive 's.
+
+Pinned through `gradeAnswersBatch` in `src/lib/quiz-restate.test.ts`.
+
+Code verdicts on all seven dev sets, as before: only `restate` changes. Eight right answers it settled go
+to the model: "35 m deep", "35 meters down" (d02: "goes straight down 35 m"), "430 m below sea level" and
+"four hundred thirty meters below sea level" (d03: "430 m lower than sea level"), "250 meters above sea
+level" (d04: "250 m higher than sea level"), "15 meters below the ground" (d07: "climbs down 15 meters"),
+"lord byron" (c03: no "he" or "his") and "lady lovelace" (c04: no "she" or "her"). Code now settles 28
+right answers (was 36), still no wrong one, and still marks nothing wrong.
+
+| Set | Model | Right failed | Wrong passed | Settled by code |
+|---|---|---|---|---|
+| restate | e2b run 1 | 5 / 42 | 3 / 44 | 28 |
+| restate | e2b run 2 | 6 / 42 | 2 / 44 | 28 |
+| restate | e2b run 3 | 7 / 42 | 1 / 44 | 28 |
+| restate | e4b run 1 | 5 / 42 | 3 / 44 | 28 |
+
+No fallbacks; code never passed a wrong answer or marked an answer wrong.
+
+Right failed rose (e2b 1, 1, 4 → 5, 6, 7; e4b 1 → 5), and the rise is the echoed depths: "15 meters below
+the ground" on every run of both models, "430 m below sea level" on every e2b run, "35 m deep" on two e2b
+runs and e4b. The model accepted "lord byron" and "lady lovelace" on every run. The rest is as before:
+"madame curie" under the choice, "half a century", "doctor livingstone", "about 2 months".
+
+Those depth items each say the amount and the direction in the question, so these answers are the
+question said back without the sign; the set labels them right, and the model marking them wrong is the
+review's point (the sign is the skill). Read the rise as a label question on d02, d03 and d07, not a model
+regression. Wrong passed, all by the model: "mr curie" under the choice (2 e2b runs), "10 centuries" (2),
+"2 fortnights", "10 decades", "lady babbage", "monsieur curie", "4 decades" (1 each).
