@@ -275,6 +275,9 @@ describe("judgesEveryItem: did the reply settle every part?", () => {
     expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2), flag(3, "Atoms are conserved.")] }, PARTS, ALLOWED)).toBe(false);
     // ...even when the same part also got an ok.
     expect(judgesEveryItem({ verdicts: [v(0), v(1), flag(1, "Rivers flow uphill in winter."), v(2)] }, PARTS, ALLOWED)).toBe(false);
+    // A flag that names no part, or a verdict outside the list beside an ok, leaves it unchecked.
+    for (const index of [-1, "1", undefined] as unknown as number[]) expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2), { ...flag(1, "The Nile is the longest river in Africa."), index }] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2), v(1, "maybe_wrong")] }, PARTS, ALLOWED)).toBe(false);
   });
 });
 

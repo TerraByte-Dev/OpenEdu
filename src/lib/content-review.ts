@@ -297,7 +297,8 @@ export function judgesEveryItem(reply: ReviewReply | null | undefined, itemTexts
   for (const v of Array.isArray(reply?.verdicts) ? reply!.verdicts! : []) {
     const i = v?.index;
     const verdict = v?.verdict as ReviewVerdict;
-    if (!allowed.includes(verdict)) continue;
+    // A verdict outside the allowed list is unreadable, not an ok: unchecked.
+    if (!allowed.includes(verdict)) return false;
     const inRange = typeof i === "number" && Number.isInteger(i) && i >= 0 && i < itemTexts.length;
     if (verdict !== "ok" && !(inRange && kept.has(i))) return false;
     if (inRange) judged.add(i);
