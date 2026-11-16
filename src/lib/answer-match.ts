@@ -922,9 +922,6 @@ const ASKS_ROUNDING_RE = /\b(?:round(?:ed|ing)?|nearest|estimate|approximate(?:l
 // The question asks for an estimate, so a near amount is right and only a gross miss is wrong. "About"
 // and "around" only before how, what or a number: "go around the Sun" asks for no estimate.
 const ESTIMATE_RE = /\b(?:estimate[ds]?|estimating|approximate(?:ly)?|roughly)\b|\b(?:about|around)\s+(?:how|what|\$?\d)/i;
-// The question is about a fall, a loss or a depth, so either sign may be meant ("-6 °C" for a fall of 6 °C,
-// "-8" for "how much lower").
-const CHANGE_RE = /\b(?:fall(?:s|en|ing)?|fell|drop(?:s|ped|ping)?|decreas\w*|loss(?:es)?|lose[sr]?|losing|lost|below|depth|deep(?:er)?|chang\w*|differen\w*|down|colder|cooler|lower|sank|sink(?:s|ing)?|sunk|descen\w*)\b/i;
 // A sign flip is gross only when the question is nothing but an expression to evaluate ("What is 3 - 5?",
 // "Compute -2 - 3.", "negative 7 plus 3"). In a word problem either sign may be meant ("how much less",
 // "the decline from 2019-2020", "a 4 x 6 photo"), and a list of decrease words never ends, so the model
