@@ -4,7 +4,9 @@ import { GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from ".
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
 // The dictionary's verdict, for the words these tests use.
-const REAL = new Set(["neuron", "photon", "affect", "effect", "zambia", "dessert", "stationery", "proton", "neutron", "gambia"]);
+const REAL = new Set(["neuron", "photon", "affect", "effect", "zambia", "dessert", "stationery", "proton", "neutron", "gambia", "herbivore", "evaporation", "omnivore", "skeleton", "thermometer", "hypothesis", "accommodation"]);
+// The most a dictionary could allow a misspelling: the key's own words are real words and nothing else is.
+const keyOnly = (key: string) => { const own = new Set(keyForms(key).flatMap(answerWords)); return (w: string) => own.has(w); };
 const isWord = (w: string) => REAL.has(w);
 const settle = (q: string, key: string, a: string) => settleByCode(ask(q, key, a), isWord);
 
@@ -355,10 +357,28 @@ describe("settleByCode: never a wrong answer", () => {
 });
 
 describe("misspellingCandidates", () => {
-  it("lists the answer's words one edit off a long key word, for the dictionary", () => {
-    expect(misspellingCandidates(ask("q", "Herbivore", "a herbivor"))).toEqual(["herbivor"]);
-    expect(misspellingCandidates(ask("q", "Neutron", "neuron"))).toEqual(["neuron"]);
+  it("lists the answer's words one edit off a long key word, and the words one edit from them, for the dictionary", () => {
+    const herb = misspellingCandidates(ask("q", "Herbivore", "a herbivor"));
+    expect(herb[0]).toBe("herbivor");
+    expect(herb).toContain("herbivar");
+    expect(herb).toContain("herbivore");
+    expect(misspellingCandidates(ask("q", "Neutron", "neuron"))[0]).toBe("neuron");
     expect(misspellingCandidates(ask("q", "Blue", "blur"))).toEqual([]);
+  });
+  it("never takes a one-edit misspelling that is one edit from another real word", () => {
+    const real = (w: string) => w === "slovakia" || w === "principle";
+    expect(settleByCode(ask("Which country has Ljubljana as its capital?", "Slovenia", "slovania"), real)).toBeNull();
+    expect(settleByCode(ask("Who runs the school?", "The principal", "principel"), real)).toBeNull();
+    expect(settleByCode(ask("Which country has Ljubljana as its capital?", "Slovenia", "slovania"), (w) => w === "slovenia")).toBe(true);
+  });
+  it("never takes a misspelling of a word the dictionary does not have (names of places and people)", () => {
+    // The bundled dictionary has no "gambia" or "zambia", so it cannot tell that "zambia" is a real name.
+    const noNames = (w: string) => !["gambia", "zambia", "slovenia", "slovakia"].includes(w);
+    expect(settleByCode(ask("Which country lies along the Gambia River?", "The Gambia", "Zambia"), noNames)).toBeNull();
+    expect(settleByCode(ask("Which country has Ljubljana as its capital?", "Slovenia", "slovania"), noNames)).toBeNull();
+    // A form of the key's own word is not another word: "evaporating" is one edit from "evaporatin".
+    const forms = (w: string) => ["evaporation", "evaporating", "evaporations"].includes(w);
+    expect(settleByCode(ask("What is water turning into vapor called?", "Evaporation", "evaporatin"), forms)).toBe(true);
   });
 });
 
@@ -369,7 +389,7 @@ const DEV = GRADE_DEV_ROUND2;
 
 describe("settleByCode on the dev set", () => {
   it("settles no wrong answer", () => {
-    const passed = DEV.filter(([q, key, , wrong]) => settleByCode(ask(q, key, wrong), () => false) === true);
+    const passed = DEV.filter(([q, key, , wrong]) => settleByCode(ask(q, key, wrong), keyOnly(key)) === true);
     expect(passed.map((d) => d[3])).toEqual([]);
   });
   it("settles the four measured failures", () => {
@@ -377,7 +397,7 @@ describe("settleByCode on the dev set", () => {
     for (const a of ["washington", "h two o", "a hundred degrees", "tadpoles"]) expect(settled.has(a)).toBe(true);
   });
   it("settles no wrong answer on the synonyms set", () => {
-    const passed = GRADE_DEV_SYNONYMS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), () => false) === true).map((a) => a.text));
+    const passed = GRADE_DEV_SYNONYMS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), keyOnly(q.key)) === true).map((a) => a.text));
     expect(passed).toEqual([]);
   });
 });
@@ -480,42 +500,46 @@ describe("settleByCode: a misspelling two edits off", () => {
     expect(settle("What is the frame of bones in the body called?", "Skeleton", "skelitin")).toBe(true);
     expect(settle("What tool measures temperature?", "Thermometer", "thurmometor")).toBe(true);
     expect(settle("What is an educated guess called?", "Hypothesis", "hipothisis")).toBe(true);
-    expect(settle("Which river flows past Memphis?", "The Mississippi", "missisipi")).toBe(true);
+    expect(settle("Where do travellers stay?", "Accommodation", "acomodation")).toBe(true);
   });
   it("the app's path: every word the rule asks the dictionary about is in the candidates", () => {
-    // gradeAnswersBatch counts a word it did not look up as real; here every candidate is not a word.
+    // gradeAnswersBatch counts a word it did not look up as real; here the dictionary has the key word
+    // and no other candidate.
     const item = ask(OMNI, "Omnivore", "omnivour");
     const looked = new Set(misspellingCandidates(item));
     expect(looked.has("omnivour")).toBe(true);
+    expect(looked.has("omnivore")).toBe(true);
     expect(looked.size).toBeGreaterThan(400);
-    expect(settleByCode(item, (w) => !looked.has(w))).toBe(true);
+    expect(settleByCode(item, (w) => !looked.has(w) || w === "omnivore")).toBe(true);
+    // A key word the dictionary does not have takes no misspelling.
+    expect(settleByCode(item, (w) => !looked.has(w))).toBeNull();
     // Without the words one edit away, nothing two edits off is taken.
     expect(settleByCode(item, (w) => w !== "omnivour")).toBeNull();
   });
   it("never takes another answer, misspelt or not", () => {
-    for (const a of ["carnivour", "carnivore", "herbivore", "herbivour", "carnivor"]) expect(settleByCode(ask(OMNI, "Omnivore", a), () => false)).toBeNull();
+    for (const a of ["carnivour", "carnivore", "herbivore", "herbivour", "carnivor"]) expect(settleByCode(ask(OMNI, "Omnivore", a), keyOnly("Omnivore"))).toBeNull();
     expect(settle(OMNI, "Omnivore", "carnivour")).toBeNull();
-    expect(settleByCode(ask("What do we call an animal with a backbone?", "Vertebrate", "vertebra"), () => false)).toBeNull();
-    expect(settleByCode(ask("What do we call an animal with a backbone?", "Vertebrate", "invertebrate"), () => false)).toBeNull();
-    expect(settleByCode(ask("What do we call a scientist who studies rocks?", "Geologist", "biologist"), () => false)).toBeNull();
+    expect(settleByCode(ask("What do we call an animal with a backbone?", "Vertebrate", "vertebra"), keyOnly("Vertebrate"))).toBeNull();
+    expect(settleByCode(ask("What do we call an animal with a backbone?", "Vertebrate", "invertebrate"), keyOnly("Vertebrate"))).toBeNull();
+    expect(settleByCode(ask("What do we call a scientist who studies rocks?", "Geologist", "biologist"), keyOnly("Geologist"))).toBeNull();
   });
   it("never takes a word one edit from another real word", () => {
     const real = (w: string) => w === "chlorite";
     expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlerite"), real)).toBeNull();
-    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlerite"), () => false)).toBe(true);
+    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlerite"), keyOnly("Chlorate"))).toBe(true);
   });
   it("never takes a misspelling as close to another word the question offers", () => {
     const Q = "Is sea water hypertonic or hypotonic to a cell?";
-    expect(settleByCode(ask(Q, "Hypertonic", "hypetonic"), () => false)).toBeNull();
-    expect(settleByCode(ask(Q, "Hypertonic", "hipertonic"), () => false)).toBe(true);
-    expect(settleByCode(ask("Is a fox a carnivore or an omnivore?", "Omnivore", "omnivour"), () => false)).toBe(true);
+    expect(settleByCode(ask(Q, "Hypertonic", "hypetonic"), keyOnly("Hypertonic"))).toBeNull();
+    expect(settleByCode(ask(Q, "Hypertonic", "hipertonic"), keyOnly("Hypertonic"))).toBe(true);
+    expect(settleByCode(ask("Is a fox a carnivore or an omnivore?", "Omnivore", "omnivour"), keyOnly("Omnivore"))).toBe(true);
   });
   it("never takes two edits in a consonant, the first letter, or a shorter word", () => {
-    expect(settleByCode(ask("What process makes food in leaves?", "Photosynthesis", "fotosynthesis"), () => false)).toBeNull();
-    expect(settleByCode(ask("What is the air around the Earth called?", "Atmosphere", "atmosfere"), () => false)).toBeNull();
-    expect(settleByCode(ask("Which planet is farthest from the Sun?", "Neptune", "naptuni"), () => false)).toBeNull();
-    expect(settleByCode(ask("What tool measures temperature?", "Thermometer", "thermomitur"), () => false)).toBe(true);
-    expect(settleByCode(ask("What tool measures temperature?", "Thermometer", "termomiter"), () => false)).toBeNull();
+    expect(settleByCode(ask("What process makes food in leaves?", "Photosynthesis", "fotosynthesis"), keyOnly("Photosynthesis"))).toBeNull();
+    expect(settleByCode(ask("What is the air around the Earth called?", "Atmosphere", "atmosfere"), keyOnly("Atmosphere"))).toBeNull();
+    expect(settleByCode(ask("Which planet is farthest from the Sun?", "Neptune", "naptuni"), keyOnly("Neptune"))).toBeNull();
+    expect(settleByCode(ask("What tool measures temperature?", "Thermometer", "thermomitur"), keyOnly("Thermometer"))).toBe(true);
+    expect(settleByCode(ask("What tool measures temperature?", "Thermometer", "termomiter"), keyOnly("Thermometer"))).toBeNull();
   });
   it("oneEditAway lists drops, additions, changes and swaps", () => {
     const n = oneEditAway("cat");
@@ -526,7 +550,7 @@ describe("settleByCode: a misspelling two edits off", () => {
 
 describe("settleByCode on the round-4 dev set", () => {
   it("settles no wrong answer, even with no word known to be real", () => {
-    const passed = GRADE_DEV_SIGNS_LETTERS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), () => false) === true).map((a) => `${q.id} ${a.text}`));
+    const passed = GRADE_DEV_SIGNS_LETTERS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), keyOnly(q.key)) === true).map((a) => `${q.id} ${a.text}`));
     expect(passed).toEqual([]);
   });
 });

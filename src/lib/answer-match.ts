@@ -24,9 +24,10 @@
 //     word ("herbivor"). "neuron" for "neutron" or "photon" for "proton" is a real word, so it is a
 //     different answer, and the model decides it. The caller supplies the word list (the dictionary).
 //     Two edits for a key word of 8 letters or more when only vowels differ or a letter is doubled
-//     ("omnivour", "skelitin"), and only when no real word is one edit from the answer's word;
-//     never when a word the question offers is as close ("carnivour" on a carnivore-or-omnivore
-//     question);
+//     ("omnivour", "skelitin"). Never when another real word is one edit from the answer's word
+//     ("slovania" is Slovenia or Slovakia), when a word the question offers is as close ("hypetonic"
+//     on "hypertonic or hypotonic?"), or when the key word is not in the dictionary, which has no
+//     names of places or people ("Zambia" for "Gambia");
 //   - a sign written as its name, or a name written as the sign, when the key is just that: ">" is
 //     "greater than", "more than" or "bigger than"; never "greater than or equal to", never "<";
 //   - a short code (3 letters or fewer, like an element symbol) written as spaced or dotted letters:
@@ -236,21 +237,28 @@ export function oneEditAway(w: string): string[] {
   return [...out];
 }
 
-/** The words one edit from a two-edit misspelling, other than the key word's own forms. If one of them
- * is a real word, the answer may be that word misspelt, so code does not take it. */
+// An ending that makes another form of the same word: "evaporating" and "evaporation" are one stem.
+const INFLECTION_RE = /(?:s|es|ed|ing|er|ers|ion|ions|ly)$/;
+const stem = (w: string) => singular(w).replace(INFLECTION_RE, "");
+
+/** The words one edit from a misspelling, other than forms of the key word. If one of them is a real
+ * word, the answer may be that word misspelt ("slovania" is one edit from Slovenia and from Slovakia),
+ * so code does not take it. */
 function nearerWords(answer: string, key: string): string[] {
-  return oneEditAway(answer).filter((n) => singular(n) !== singular(key));
+  return oneEditAway(answer).filter((n) => singular(n) !== singular(key) && stem(n) !== stem(key));
 }
 
 /** Is this the key's word, as written, as a plural, or (when it is not itself a word) misspelled.
  * `rivals` are the question's other words: one as close to the answer as the key word is (a choice the
- * question offers) means the answer may be that one misspelt. */
+ * question offers) means the answer may be that one misspelt. The key word has to be in the dictionary
+ * itself: it has no names of places or people, so it cannot say that "zambia" is a real word and not
+ * "Gambia" misspelt. */
 function sameWord(answer: string, key: string, isWord: (w: string) => boolean, rivals: string[]): boolean {
   if (answer === key || singular(answer) === singular(key)) return true;
   const edits = oneEditOff(answer, key) ? 1 : twoEditsOff(answer, key) ? 2 : 0;
-  if (edits === 0 || isWord(answer)) return false;
+  if (edits === 0 || isWord(answer) || !isWord(key)) return false;
   if (rivals.some((r) => editDistance(singular(answer), singular(r)) <= edits)) return false;
-  return edits === 1 || !nearerWords(answer, key).some(isWord);
+  return !nearerWords(answer, key).some(isWord);
 }
 
 function sameWords(answer: string[], key: string[], isWord: (w: string) => boolean, rivals: string[] = []): boolean {
@@ -585,8 +593,9 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
 /**
  * The words settleByCode needs the dictionary for, so the caller can look them up first (the dictionary
  * is loaded asynchronously): each of the answer's words it would accept as a misspelling if it is not a
- * real word, and for a two-edit misspelling every word one edit from it. A word not looked up counts as
- * real, so a misspelling is never accepted on a word the caller did not check.
+ * real word, the key word it would be a misspelling of, and every word one edit from the answer's
+ * word. The caller counts a word it did not look up as real, so a misspelling is never accepted on an
+ * answer word or a nearer word it did not check.
  */
 export function misspellingCandidates(item: WrittenAnswer): string[] {
   const answer = answerWords(item.student);
@@ -598,8 +607,10 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
     for (const key of keys) {
       if (key.length !== answer.length) continue;
       answer.forEach((w, i) => {
-        if (oneEditOff(w, key[i])) out.add(w);
-        else if (twoEditsOff(w, key[i])) { out.add(w); for (const n of nearerWords(w, key[i])) out.add(n); }
+        if (!oneEditOff(w, key[i]) && !twoEditsOff(w, key[i])) return;
+        out.add(w);
+        out.add(key[i]);
+        for (const n of nearerWords(w, key[i])) out.add(n);
       });
     }
   }

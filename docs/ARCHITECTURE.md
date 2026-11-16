@@ -292,9 +292,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   model), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
   a name, and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
   itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). Two edits count
-  for a key word of 8 letters or more when only vowels or doubled letters differ ("omnivour") and no
-  dictionary word is one edit from the answer's word; no misspelling counts when a word the question
-  offers is as close. A sign and its name are one answer when one side is the sign itself (">" and
+  for a key word of 8 letters or more when only vowels or doubled letters differ ("omnivour"). No
+  misspelling counts when another dictionary word is one edit from the answer's word ("slovania"),
+  when a word the question offers is as close, or when the key word is not in the dictionary (it has
+  no names of places or people, so "Zambia" for "Gambia" goes to the model). A sign and its name are one answer when one side is the sign itself (">" and
   "greater than"; never "greater than or equal to" or "<"). A key of 1-3 letters may be written spaced
   or dotted ("n a" for "Na"), but letters cased as another element symbol never settle ("CO" for
   "Co"), and on a question about symbols or formulas such a key needs its own case. It never accepts
