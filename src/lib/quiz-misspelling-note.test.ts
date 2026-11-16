@@ -239,7 +239,8 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
   }, 30_000);
 
   it("leaves a batch with no note byte-identical to the prompt without notes", async () => {
-    const items = [item(0, "Which gas do plants give off?", "Oxygen", "carbon dioxide"), item(1, "What is 7 times 8?", "56", "54")];
+    // Two answers code cannot settle ("54" for 56 is now settled by code, so it never reaches the model).
+    const items = [item(0, "Which gas do plants give off?", "Oxygen", "carbon dioxide"), item(1, "Name the largest planet.", "Jupiter", "Saturn")];
     const p = await promptFor(items);
     expect(p).toBe(buildBatchGradePrompt(items, (await import("./formatting")).MATH_FORMATTING_RULES));
   }, 30_000);

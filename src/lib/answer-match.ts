@@ -41,8 +41,12 @@
 // It never accepts on a shared word: "red" is not "red blood cells". Words are compared in order, so an
 // answer with the key's words reversed ("4 girls per boy" for "4 boys per girl") is not the key. A
 // number never settles on its own when the key's other words say something the answer contradicts or
-// leaves out ("6 arms" for "6 legs", "3 am" for "3 PM", "4" for "4 light years"). It never returns false
-// either. An answer code cannot settle goes to the model as before.
+// leaves out ("6 arms" for "6 legs", "3 am" for "3 PM", "4" for "4 light years").
+//
+// One rule decides both ways: a number with a unit (see "Numbers and units, both ways" below). When the key
+// and the answer are each one quantity and nothing else, code compares the amounts after converting
+// units, and marks the answer right or wrong ("4.5%" for 45% is wrong, "1 g/mL" for 1 g/cm³ is right).
+// Every other rule only accepts. An answer code cannot settle goes to the model as before.
 
 import { gradeFreeTextDeterministic, normalizeAnswer } from "./quiz-grading";
 import { SUFFIX_RULES } from "./dictionary";
@@ -563,6 +567,491 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
   return true;
 }
 
+// ─── Numbers and units, both ways ─────────────────────────────────────────────
+//
+// The small grader model fails the same amount in other units ("1 g/mL" for 1 g/cm³, "8 mL" for 8 cm³,
+// "0.25 km per minute" for 15 km/h) and passes a different amount ("4.5%" for 45%, "0.33 g/cm³" for 3
+// g/cm³, "2/8" for 1/2): GRADE_DEV_NUMBERS, results/2026-11-16-grade-dev-numbers.md. Code can compute
+// both. The key and the answer are each read as one quantity (parseQuantity): a number (digits with or
+// without thousands commas, a leading dot, a fraction or mixed number, scientific or e notation,
+// "150 million", number words), a sign (-, minus, negative, "below zero"), and at most one unit from a
+// small table: length, mass, volume, time, and compounds of them (square and cubic, "per" or a
+// slash: km/h, g/cm³, g/mL), percent, money ($, dollars, cents, ¢), and temperature, never converted
+// between scales. A clock time ("4:15 p.m.", "16:15") is read on its own. Anything else in either, or
+// any word the table does not know, and code does not decide.
+//
+// Right (true) when the amounts are equal after converting units, and wrong (false) when they differ by
+// more than the precision either was written to. Rejecting is the dangerous direction, so code says
+// nothing (null) when:
+//   - the answer says "about" (or "approximately", "around"), or was read with a guess ("406 020");
+//   - one may be the other rounded: "273 K" for 273.15 K, "0.13" for an exact 0.125, "5,000" when the
+//     question asks to round (an answer's trailing zeros count as rounding only then);
+//   - the key says "about": then the answer is right within 2% (and the key's last digit), wrong past
+//     25%, and between them the model decides;
+//   - the units differ in kind and the answer used a one-letter unit ("9 m" for 9 m² may mean 9
+//     minutes; "m", "s", "g", "l", "h", "in");
+//   - a temperature is on another scale ("212 °C" for 212 °F), has a scale the key lacks ("90 degrees
+//     Celsius" for an angle of 90°), or leaves the key's scale out and the amount differs ("32 degrees"
+//     for 0 °C may be Fahrenheit) or the question offers a choice;
+//   - years against days or weeks (a year is not a set number of days);
+//   - the answer's number read with the comma and point swapped is the key ("1.000" for 1,000);
+//   - a bare number for a key with a unit could be the key in some other unit of its kind, within 5%
+//     ("1000" for 1 L, "2.2" for 1 kg, "0.45" for 45%), or the question asks for the unit ("Include the
+//     unit"), or the key is about or a temperature;
+//   - percent against a plain number when the reading is the other one: "45%" for 45. "45%" for 9/20 is
+//     right only when the question asks for no form;
+//   - the question asks for a form (as a percent, decimal or fraction, simplest form, scientific or
+//     standard notation, rounded, exact, in digits) and the answer has the right value in another form:
+//     "0.45" on "Write 9/20 as a percent", "75/100" for simplest form, "30 × 10^3" for scientific
+//     notation. A different value is still wrong;
+//   - the question asks for the key's unit ("in kilometers", "how many grams") and the answer gives the
+//     same amount in another ("1500 m"): not converted, which the model decides;
+//   - the key is a ratio ("2:3"), or a clock time that cannot be told from a.m. ("4:15" for 4:15 p.m.).
+// A bare key takes the unit the question asks for ("Write the elevation as a number of meters": "-15
+// km" is wrong, "negative 15 meters" right). A code rejection is stored like any other code mark
+// (graded_by 'exact'), and the learner can still say "I think I was right" (written-answer-checks.ts).
+
+/** A number as written. `ulp` is the place of its last digit (0.01 for "0.67", 1 for "273", 0 for an
+ * exact fraction); `loose` also counts an integer's trailing zeros (100 for "4,900"). */
+interface WrittenNumber {
+  v: number;
+  ulp: number;
+  loose: number;
+  form: "int" | "dec" | "frac" | "mixed" | "sci";
+  /** The number read with the comma and the point swapped ("1.000" may be a thousand, "1,000" one). */
+  alt?: number;
+  /** frac and mixed: numerator and denominator; sci: mantissa and exponent. */
+  a?: number;
+  b?: number;
+  whole?: number;
+}
+
+interface Quantity {
+  kind: "plain" | "percent" | "money" | "measure" | "temperature";
+  /** plain: the number; percent: the percent (45); money: dollars; measure: SI units; temperature: on its scale. */
+  v: number;
+  /** The last digit's place, in the same units as v, and the same counting trailing zeros. */
+  ulp: number;
+  loose: number;
+  /** Units of v per written unit (cents 0.01, km 1000). */
+  f: number;
+  num: WrittenNumber;
+  /** measure: exponents of length, mass and time ("1,0,-1" is a speed). */
+  dims: string;
+  /** temperature: "c", "f", "k", or "" for degrees with no scale. */
+  scale: string;
+  approx: boolean;
+  guessed: boolean;
+  abbrev: boolean;
+  /** Written in years, which convert to other units of time only roughly. */
+  calendar: boolean;
+}
+
+// [SI units per one, exponents of length (m), mass (kg), time (s)]. A year is 365.25 days, but how many
+// days a year is depends on the year, so years against another unit of time never settle exactly
+// (Quantity.calendar).
+const Q_UNIT_DEFS: Record<string, [number, [number, number, number]]> = {
+  mm: [1e-3, [1, 0, 0]], cm: [1e-2, [1, 0, 0]], m: [1, [1, 0, 0]], km: [1e3, [1, 0, 0]],
+  inch: [0.0254, [1, 0, 0]], foot: [0.3048, [1, 0, 0]], yard: [0.9144, [1, 0, 0]], mile: [1609.344, [1, 0, 0]],
+  mg: [1e-6, [0, 1, 0]], g: [1e-3, [0, 1, 0]], kg: [1, [0, 1, 0]], pound: [0.45359237, [0, 1, 0]], ounce: [0.028349523125, [0, 1, 0]],
+  ml: [1e-6, [3, 0, 0]], liter: [1e-3, [3, 0, 0]],
+  second: [1, [0, 0, 1]], minute: [60, [0, 0, 1]], hour: [3600, [0, 0, 1]], day: [86400, [0, 0, 1]], week: [604800, [0, 0, 1]],
+  year: [365.25 * 86400, [0, 0, 1]],
+  mph: [1609.344 / 3600, [1, 0, -1]], kph: [1000 / 3600, [1, 0, -1]],
+};
+const Q_UNIT_ALIASES: Record<string, string> = {
+  mm: "mm", millimeter: "mm", millimeters: "mm", millimetre: "mm", millimetres: "mm",
+  cm: "cm", centimeter: "cm", centimeters: "cm", centimetre: "cm", centimetres: "cm",
+  m: "m", meter: "m", meters: "m", metre: "m", metres: "m",
+  km: "km", kilometer: "km", kilometers: "km", kilometre: "km", kilometres: "km",
+  in: "inch", inch: "inch", inches: "inch", ft: "foot", foot: "foot", feet: "foot",
+  yd: "yard", yds: "yard", yard: "yard", yards: "yard", mi: "mile", mile: "mile", miles: "mile",
+  mg: "mg", milligram: "mg", milligrams: "mg", g: "g", gram: "g", grams: "g",
+  kg: "kg", kilogram: "kg", kilograms: "kg", lb: "pound", lbs: "pound", pound: "pound", pounds: "pound",
+  oz: "ounce", ounce: "ounce", ounces: "ounce",
+  ml: "ml", milliliter: "ml", milliliters: "ml", millilitre: "ml", millilitres: "ml",
+  l: "liter", liter: "liter", liters: "liter", litre: "liter", litres: "liter",
+  s: "second", sec: "second", secs: "second", second: "second", seconds: "second",
+  min: "minute", mins: "minute", minute: "minute", minutes: "minute",
+  h: "hour", hr: "hour", hrs: "hour", hour: "hour", hours: "hour",
+  day: "day", days: "day", week: "week", weeks: "week", year: "year", years: "year", yr: "year", yrs: "year",
+  mph: "mph", kph: "kph", kmh: "kph",
+};
+// A unit an answer may have meant as another ("m" for minutes).
+const ONE_LETTER_UNITS = new Set(["m", "s", "g", "l", "h", "in"]);
+const TEMP_SCALES: Record<string, string> = { c: "c", celsius: "c", centigrade: "c", f: "f", fahrenheit: "f", k: "k", kelvin: "k", kelvins: "k" };
+const SCALE_WORDS: Record<string, number> = { thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12 };
+const SUPERSCRIPTS: Record<string, string> = { "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁻": "-", "⁺": "+" };
+const APPROX_RE = /^(?:about|approximately|approx|around|roughly|nearly|almost|close to|~|≈)\s*/;
+const own = (o: object, k: string | undefined) => k !== undefined && Object.prototype.hasOwnProperty.call(o, k);
+
+/** The words and signs of a quantity, number words as digits, and whether it opens with "about". */
+function quantityTokens(s: string): { toks: string[]; approx: boolean } {
+  let t = (s ?? "")
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+/g, (m) => ` ^ ${[...m].map((c) => SUPERSCRIPTS[c]).join("")} `) // before NFKC makes ² a 2
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[’‘`]/g, "'")
+    .replace(/[−–—]/g, "-")
+    .replace(/[×·*✕]/g, " x ")
+    .replace(/°/g, " degrees ")
+    .replace(/\bper\s+cent\b/g, "percent")
+    .replace(/(\p{L})-(\p{L})/gu, "$1 $2")              // thirty-six
+    .trim()
+    .replace(/[.!?]+$/, "")
+    .trim()
+    .replace(FILLER_RE, "");
+  const approx = APPROX_RE.test(t);
+  t = t.replace(APPROX_RE, "");
+  const raw = t.match(/\d+(?:\.\d+)?e[+-]?\d+(?![\p{L}\d])|\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d,])|\d+(?:\.\d+)?|\.\d+|\p{L}+|\S/gu) ?? [];
+  // A scale word after digits stays with them ("150 million"); other number words become digits.
+  const marked = raw.map((w, i) => (own(SCALE_WORDS, w) && i > 0 && /^[\d.,]+$/.test(raw[i - 1]) ? `*${w}` : w));
+  return { toks: numberWordsToDigits(marked), approx };
+}
+
+function readDigits(tok: string | undefined): WrittenNumber | null {
+  const m = /^(\d{1,3}(?:,\d{3})+|\d+)?(?:\.(\d+))?$/.exec(tok ?? "");
+  if (!m || (m[1] === undefined && m[2] === undefined)) return null;
+  const int = (m[1] ?? "0").replace(/,/g, "");
+  const dec = m[2] ?? "";
+  const v = Number(`${int}.${dec || "0"}`);
+  if (dec) return { v, ulp: 10 ** -dec.length, loose: 10 ** -dec.length, form: "dec", alt: dec.length === 3 && !m[1]?.includes(",") ? Number(int + dec) : undefined };
+  const alt = /^\d{1,3},\d{3}$/.test(m[1]!) ? Number(m[1]!.replace(",", ".")) : undefined;
+  return { v, ulp: 1, loose: v === 0 ? 1 : 10 ** /0*$/.exec(int)![0].length, form: "int", alt };
+}
+
+const sci = (m: WrittenNumber, e: number): WrittenNumber =>
+  ({ v: Number(`${m.v}e${e}`), ulp: m.ulp * 10 ** e, loose: m.loose * 10 ** e, form: "sci", a: m.v, b: e });
+const frac = (a: number, b: number): WrittenNumber => ({ v: a / b, ulp: 0, loose: 0, form: "frac", a, b });
+
+/** What a fraction word divides by: "half" 2, "quarters" 4, "twentieths" 20 ("1 4th" from "one fourth"). Never "second". */
+function denominator(w: string | undefined): number | null {
+  if (!w) return null;
+  if (w === "half" || w === "halves") return 2;
+  if (w === "quarter" || w === "quarters") return 4;
+  const ord = /^(\d+)(?:st|nd|rd|th)$/.exec(w) ?? /^(\d+)(?:st|nd|rd|th)$/.exec(numberWordsToDigits([singular(w)])[0] ?? "");
+  const d = ord ? Number(ord[1]) : 0;
+  return d >= 3 ? d : null;
+}
+
+/** The number starting at toks[i]: its value as written and where it ends. */
+function readNumber(toks: string[], i: number): { num: WrittenNumber; next: number; guessed: boolean } | null {
+  const t = toks[i];
+  if (t === "a" || t === "an") {
+    const d = denominator(toks[i + 1]);
+    return d ? { num: frac(1, d), next: i + 2, guessed: false } : null;
+  }
+  const e = /^(\d+(?:\.\d+)?)e([+-]?\d+)$/.exec(t ?? "");
+  if (e) return { num: sci(readDigits(e[1])!, Number(e[2])), next: i + 1, guessed: false };
+  let n = readDigits(t);
+  if (!n) return null;
+  let j = i + 1;
+  let guessed = false;
+  // "406 020": groups of three digits after a space read as one number, with a guess.
+  if (/^\d{1,3}$/.test(t) && /^\d{3}$/.test(toks[j] ?? "") && toks[j + 1] !== "/") {
+    let joined = t;
+    while (/^\d{3}$/.test(toks[j] ?? "")) joined += toks[j++];
+    n = readDigits(joined)!;
+    guessed = true;
+  }
+  const exponent = (k: number): { e: number; next: number } | null => {
+    const sign = toks[k] === "-" ? -1 : 1;
+    if (toks[k] === "-" || toks[k] === "+") k++;
+    return /^\d+$/.test(toks[k] ?? "") ? { e: sign * Number(toks[k]), next: k + 1 } : null;
+  };
+  if (!guessed && (toks[j] === "x" || toks[j] === "times") && toks[j + 1] === "10" && toks[j + 2] === "^") {
+    const x = exponent(j + 3);
+    return x ? { num: sci(n, x.e), next: x.next, guessed } : null;
+  }
+  if (!guessed && t === "10" && toks[j] === "^") {
+    const x = exponent(j + 1);
+    return x ? { num: sci({ v: 1, ulp: 1, loose: 1, form: "int" }, x.e), next: x.next, guessed } : null;
+  }
+  if (n.form === "int" && !guessed) {
+    if (toks[j] === "/") {
+      const d = readDigits(toks[j + 1]);
+      return d && d.form === "int" && d.v > 0 ? { num: frac(n.v, d.v), next: j + 2, guessed } : null;
+    }
+    const top = readDigits(toks[j]);
+    const bottom = readDigits(toks[j + 2]);
+    if (top?.form === "int" && toks[j + 1] === "/" && bottom?.form === "int" && top.v < bottom.v) {
+      return { num: { ...frac(top.v, bottom.v), v: n.v + top.v / bottom.v, form: "mixed", whole: n.v }, next: j + 3, guessed };
+    }
+    if (toks[j] === "and" && (toks[j + 1] === "a" || toks[j + 1] === "1") && toks[j + 2] === "half") {
+      return { num: { ...frac(1, 2), v: n.v + 0.5, form: "mixed", whole: n.v }, next: j + 3, guessed };
+    }
+    const d = denominator(toks[j]);
+    if (d) return { num: frac(n.v, d), next: j + 1, guessed };
+  }
+  const scale = toks[j]?.startsWith("*") ? toks[j].slice(1) : toks[j] === "billion" || toks[j] === "trillion" ? toks[j] : null;
+  if (scale && own(SCALE_WORDS, scale)) {
+    const s = SCALE_WORDS[scale];
+    n = { ...n, v: n.v * s, ulp: n.ulp * s, loose: n.loose * s };
+    j++;
+  }
+  return { num: n, next: j, guessed };
+}
+
+interface UnitRead { f: number; dims: number[]; next: number; abbrev: boolean; simple: boolean; calendar: boolean }
+
+/** One unit, maybe squared or cubed: "cm", "square meters", "m^2", "cm cubed". */
+function readUnitTerm(toks: string[], i: number): UnitRead | null {
+  let power = 1;
+  let j = i;
+  if (toks[j] === "square" || toks[j] === "sq") { power = 2; j++; } else if (toks[j] === "cubic" || toks[j] === "cu") { power = 3; j++; }
+  if (!own(Q_UNIT_ALIASES, toks[j])) return null;
+  const name = Q_UNIT_ALIASES[toks[j]];
+  const abbrev = ONE_LETTER_UNITS.has(toks[j]);
+  j++;
+  let after = 1;
+  if (toks[j] === "^" && (toks[j + 1] === "2" || toks[j + 1] === "3")) { after = Number(toks[j + 1]); j += 2; }
+  else if (toks[j] === "squared") { after = 2; j++; } else if (toks[j] === "cubed") { after = 3; j++; }
+  else if ((toks[j] === "2" || toks[j] === "3") && (j + 1 === toks.length || toks[j + 1] === "/" || toks[j + 1] === "per")) { after = Number(toks[j]); j++; }
+  if (power > 1 && after > 1) return null;
+  power = Math.max(power, after);
+  const [f, d] = Q_UNIT_DEFS[name];
+  if (power > 1 && d.join() !== "1,0,0") return null;
+  return { f: f ** power, dims: d.map((x) => x * power), next: j, abbrev, simple: power === 1 && d.filter(Boolean).length === 1 && d.some((x) => x === 1), calendar: name === "year" };
+}
+
+/** A unit, or one unit per another: "km/h", "grams per cubic centimeter", "miles an hour". */
+function readUnits(toks: string[], i: number): UnitRead | null {
+  const a = readUnitTerm(toks, i);
+  if (!a) return null;
+  const per = toks[a.next];
+  if (per !== "/" && per !== "per" && per !== "a" && per !== "an") return a;
+  const b = readUnitTerm(toks, a.next + 1);
+  if (!b) return null;
+  return { f: a.f / b.f, dims: a.dims.map((x, k) => x - b.dims[k]), next: b.next, abbrev: a.abbrev || b.abbrev, simple: false, calendar: a.calendar || b.calendar };
+}
+
+/** The key or answer as one quantity, or null when it is anything more or else. */
+function parseQuantity(s: string): Quantity | null {
+  const { toks, approx } = quantityTokens(s);
+  let i = 0;
+  const take = (...ws: string[]) => (ws.includes(toks[i]) ? (i++, true) : false);
+  let money = take("$");
+  let sign = take("-", "minus", "negative") ? -1 : (take("+", "positive", "plus"), 1);
+  if (!money) money = take("$");
+  const read = readNumber(toks, i);
+  if (!read) return null;
+  i = read.next;
+  const num = read.num;
+  let kind: Quantity["kind"] = "plain";
+  let f = 1;
+  let value = num.v;  // in written units, until a second part is added in base units below
+  let ulp = num.ulp;
+  let loose = num.loose;
+  let base = false;   // value, ulp and loose are already in base units
+  let dims = "";
+  let scale = "";
+  let abbrev = false;
+  let calendar = false;
+  if (money) { kind = "money"; take("dollar", "dollars"); }
+  else if (take("%", "percent", "pct")) kind = "percent";
+  else if (take("¢", "cent", "cents")) { kind = "money"; f = 0.01; }
+  else if (take("dollar", "dollars")) {
+    kind = "money";
+    const and = toks[i] === "and" ? 1 : 0;
+    const cents = readDigits(toks[i + and]);
+    if (num.form === "int" && cents?.form === "int" && ["cent", "cents", "¢"].includes(toks[i + and + 1])) {
+      value = num.v + cents.v / 100; ulp = 0.01; loose = 0.01; base = true;
+      i += and + 2;
+    }
+  } else if (take("degree", "degrees", "deg") || own(TEMP_SCALES, toks[i])) {
+    kind = "temperature";
+    if (own(TEMP_SCALES, toks[i])) scale = TEMP_SCALES[toks[i++]];
+  } else {
+    const u = readUnits(toks, i);
+    if (u) {
+      kind = "measure"; f = u.f; dims = u.dims.join(); abbrev = u.abbrev; calendar = u.calendar; i = u.next;
+      // "1 hour 30 minutes", "5 feet and 6 inches": a second part in a smaller unit of the same kind.
+      const and = toks[i] === "and" ? 1 : 0;
+      const n2 = readDigits(toks[i + and]);
+      const u2 = n2 ? readUnits(toks, i + and + 1) : null;
+      if (u.simple && n2 && u2 && u2.simple && u2.dims.join() === dims && u2.f < u.f) {
+        value = num.v * u.f + n2.v * u2.f; ulp = n2.ulp * u2.f; loose = n2.loose * u2.f; base = true;
+        abbrev ||= u2.abbrev; calendar ||= u2.calendar; i = u2.next;
+      }
+      if (calendar) take("old");
+    }
+  }
+  // "5 degrees below zero", "5 below zero".
+  if ((kind === "temperature" || kind === "plain") && toks[i] === "below" && (toks[i + 1] === "0" || toks[i + 1] === "zero")) {
+    if (sign === -1) return null;
+    sign = -1;
+    i += 2;
+  }
+  if (i !== toks.length) return null;
+  const toBase = base ? 1 : f;
+  return {
+    kind, v: sign * value * toBase, ulp: ulp * toBase, loose: loose * toBase, f, num: { ...num, v: sign * num.v },
+    dims, scale, approx, guessed: read.guessed, abbrev, calendar,
+  };
+}
+
+// Every unit the table can make, for a bare number that may be the key in some other unit.
+let unitCombos: Array<{ f: number; dims: string }> | null = null;
+function allUnits(): Array<{ f: number; dims: string }> {
+  if (unitCombos) return unitCombos;
+  const simple = Object.values(Q_UNIT_DEFS).map(([f, d]) => ({ f, d }));
+  const lengths = simple.filter((u) => u.d.join() === "1,0,0");
+  const terms = [...simple, ...lengths.flatMap((u) => [{ f: u.f ** 2, d: [2, 0, 0] }, { f: u.f ** 3, d: [3, 0, 0] }])];
+  unitCombos = [...terms, ...terms.flatMap((x) => simple.map((y) => ({ f: x.f / y.f, d: x.d.map((v, k) => v - y.d[k]) })))]
+    .map((u) => ({ f: u.f, dims: u.d.join() }));
+  return unitCombos;
+}
+
+// The question asks for the answer in a set form, so the same value in another form is not the answer.
+const ASKS_FORM_RE = /\b(?:as|in|into|to)\s+(?:an?\s+)?(?:exact\s+)?(?:percent(?:age)?s?|decimals?|fractions?|mixed numbers?|improper fractions?|whole numbers?|ratios?|words|digits|numerals)\b|\bwhat (?:percent(?:age)?|fraction|decimal)\b|\bby what percent|\bsimplest\b|\blowest terms\b|\bsimplif|\b(?:scientific|standard|expanded) (?:notation|form)\b|\bround|\bnearest\b|\bexact\b|\bdecimal places?\b|\bsignificant\b/i;
+// The question allows rounding, so an answer's trailing zeros may be rounding ("5,000").
+const ASKS_ROUNDING_RE = /\b(?:round(?:ed|ing)?|nearest|estimate|approximate(?:ly)?|about)\b/i;
+// The question asks for the unit, so a bare number is not the whole answer.
+const ASKS_UNIT_RE = /\b(?:include|with|give|show|write)\s+(?:the\s+|its\s+|your\s+|a\s+)?units?\b/i;
+
+/** The unit the question asks the answer in: "how many grams", "a number of meters", "in kilometers?" at its end. */
+function askedUnit(question: string): { f: number; dims: string } | null {
+  const w = answerWords(question);
+  for (let i = 0; i < w.length; i++) {
+    const lead = (w[i] === "how" && w[i + 1] === "many") || (w[i] === "number" && w[i + 1] === "of") ? i + 2 : w[i] === "in" ? i + 1 : -1;
+    if (lead < 0) continue;
+    const u = readUnits(w, lead);
+    if (!u || (w[i] === "in" && u.next !== w.length)) continue;
+    return { f: u.f, dims: u.dims.join() };
+  }
+  return null;
+}
+
+const sameAmount = (x: number, y: number) => Math.abs(x - y) <= 1e-9 * Math.max(Math.abs(x), Math.abs(y));
+
+/** The answer is the key when its number is read with the comma and point swapped ("1.000" for 1,000). */
+const swappedReading = (a: Quantity, target: number) =>
+  a.num.alt !== undefined && a.num.v !== 0 && sameAmount(a.v * (a.num.alt / a.num.v), target);
+
+/** The answer is in the form the question asks for, when it asks for one. */
+function sameForm(k: Quantity, a: Quantity, question: string): boolean {
+  if (!ASKS_FORM_RE.test(question)) return true;
+  if (k.kind !== a.kind) return false;
+  const kn = k.num, an = a.num;
+  const decimal = (n: WrittenNumber) => n.form === "int" || n.form === "dec";
+  if (decimal(kn)) return decimal(an);
+  if (kn.form !== an.form) return false;
+  if (kn.form === "sci") return sameAmount(kn.a!, an.a!) && kn.b === an.b;
+  return kn.a === an.a && kn.b === an.b && kn.whole === an.whole;
+}
+
+/** Two amounts of one kind, in the same base units. */
+function compareAmounts(k: Quantity, a: Quantity, question: string): boolean | null {
+  const diff = Math.abs(a.v - k.v);
+  // Years against days or weeks: never exactly the same, never marked wrong; an "about" key may still match.
+  const rough = k.calendar !== a.calendar;
+  if (!rough && sameAmount(a.v, k.v)) {
+    // The question asks for the key's unit and the answer gives the same amount in another: not converted.
+    if (k.kind === "measure" && !sameAmount(a.f, k.f)) {
+      const asked = askedUnit(question);
+      if (asked && asked.dims === k.dims && sameAmount(asked.f, k.f)) return null;
+    }
+    return sameForm(k, a, question) ? true : null;
+  }
+  const mayReject = !a.approx && !a.guessed;
+  if (k.approx) {
+    const rel = k.v === 0 ? Infinity : diff / Math.abs(k.v);
+    if (rel <= 0.02 && diff <= Math.max(k.loose, a.loose) / 2 * (1 + 1e-9)) return true;
+    return rel > 0.25 && mayReject && !rough ? false : null;
+  }
+  if (rough) return null;
+  const answerHalf = (ASKS_ROUNDING_RE.test(question) ? a.loose : a.ulp) / 2;
+  if (diff <= Math.max(k.ulp / 2, answerHalf) * (1 + 1e-9) || swappedReading(a, k.v)) return null;
+  return mayReject ? false : null;
+}
+
+/** A bare number for a key with a unit: "1.75" for $1.75 is right; "2.75" is wrong; "175" may be cents. */
+function bareForUnit(k: Quantity, a: Quantity, question: string): boolean | null {
+  if (ASKS_UNIT_RE.test(question)) return null;
+  const written = k.v / k.f;
+  if (sameAmount(a.v, written)) return !offersChoice(question) && !questionSays(question, written) ? true : null;
+  if (k.approx || k.kind === "temperature" || a.approx || a.guessed) return null;
+  const readings = k.kind === "percent" ? [1, 100] : k.kind === "money" ? [1, 0.01] : allUnits().filter((u) => u.dims === k.dims).map((u) => u.f);
+  if (readings.length === 0) return null;
+  const close = readings.some((g) => Math.abs(a.v * g - k.v) <= Math.max(a.loose * g / 2, k.ulp / 2, 0.05 * Math.abs(k.v)) || swappedReading(a, k.v / g));
+  return close ? null : false;
+}
+
+/** Two quantities: right, wrong, or null when code cannot be sure. */
+function compareQuantities(k: Quantity, a: Quantity, question: string): boolean | null {
+  const mayReject = !a.approx && !a.guessed;
+  if (k.kind === a.kind) {
+    if (k.kind === "temperature") {
+      // Another scale is never converted. A scale the key does not have ("90 degrees Celsius" for an
+      // angle of 90°) is not the key's; leaving the key's scale out is, unless the question offers a
+      // choice or says the number ("30 °C or 30 °F?").
+      if (k.scale !== a.scale && (a.scale || offersChoice(question) || questionSays(question, k.v))) return null;
+      const verdict = compareAmounts(k, a, question);
+      return verdict === false && k.scale !== a.scale ? null : verdict;
+    }
+    if (k.kind === "measure" && k.dims !== a.dims) return mayReject && !a.abbrev ? false : null;
+    return compareAmounts(k, a, question);
+  }
+  if (a.kind === "plain") return bareForUnit(k, a, question);
+  if (k.kind === "plain") {
+    if (a.kind === "percent") {
+      // "45%" for 9/20 is the same part; "45%" for 45 is not, but may be what was meant.
+      if (sameAmount(a.v / 100, k.v)) return ASKS_FORM_RE.test(question) ? null : true;
+      if (sameAmount(a.v, k.v) || Math.abs(a.v / 100 - k.v) <= Math.max(k.ulp, a.ulp / 100) / 2 * (1 + 1e-9) || swappedReading(a, k.v * 100)) return null;
+      return mayReject ? false : null;
+    }
+    if (a.kind === "measure") {
+      const asked = askedUnit(question);
+      if (!asked || asked.dims !== a.dims) return null;
+      const key: Quantity = { ...k, kind: "measure", v: k.v * asked.f, ulp: k.ulp * asked.f, loose: k.loose * asked.f, f: asked.f, dims: asked.dims };
+      return compareAmounts(key, a, question);
+    }
+    return null;
+  }
+  // Different kinds, each with its own unit ("$10" for 25%). A temperature may be any of them.
+  if (k.kind === "temperature" || a.kind === "temperature") return null;
+  return mayReject && !a.abbrev ? false : null;
+}
+
+// A clock time: "4:15 p.m.", "4 pm", "16:15". Minutes after midnight, one reading or, with no a.m./p.m.
+// and an hour of 1 to 12, two.
+const CLOCK_RE = /^(?:it's |it is |at )?(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?\s?m\b\.?)?$/;
+function clockReadings(s: string): number[] | null {
+  const m = CLOCK_RE.exec((s ?? "").normalize("NFKC").toLowerCase().replace(/[’‘`]/g, "'").replace(/!+$/, "").trim());
+  if (!m || (m[2] === undefined && !m[3])) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2] ?? 0);
+  if (min > 59) return null;
+  if (m[3]) return h >= 1 && h <= 12 ? [((h % 12) + (m[3] === "p" ? 12 : 0)) * 60 + min] : null;
+  if (h > 23) return null;
+  return h >= 13 || h === 0 ? [h * 60 + min] : [h * 60 + min, ((h + 12) % 24) * 60 + min];
+}
+
+/** A key that is a clock time: with a.m./p.m. or a 24-hour hour, or on a question about the time; never a ratio. */
+function isClockKey(expected: string, question: string): boolean {
+  if (/\bratio\b/i.test(question)) return false;
+  const k = clockReadings(expected);
+  return !!k && (k.length === 1 || /\btime\b|o'?clock|\bnoon\b|\bmidnight\b/i.test(question));
+}
+
+/**
+ * Settles an answer when the key and the answer are each one quantity: true when the amounts are the
+ * same, false when code is sure they differ, null otherwise (see the notes above).
+ */
+function settleQuantity(item: WrittenAnswer): boolean | null {
+  if (isClockKey(item.expected, item.question)) {
+    const k = clockReadings(item.expected)!;
+    const a = clockReadings(item.student);
+    if (!a) return null;
+    if (a.some((x) => k.includes(x))) return a.length === 1 && k.length === 1 ? true : null;
+    return false;
+  }
+  const k = parseQuantity(item.expected);
+  if (!k || k.guessed) return null;
+  const a = parseQuantity(item.student);
+  return a ? compareQuantities(k, a, item.question) : null;
+}
+
 // ─── Settling ─────────────────────────────────────────────────────────────────
 
 export interface WrittenAnswer {
@@ -573,11 +1062,12 @@ export interface WrittenAnswer {
 }
 
 /**
- * True when code can tell the answer is the key; null when it cannot, and the model decides. Never
- * false. `isWord` says whether a word is a real word (the dictionary); without it, no misspelling is
+ * True when code can tell the answer is the key; false when the key and the answer are each one
+ * quantity and code can tell the amounts differ (settleQuantity); null when it cannot, and the model
+ * decides. `isWord` says whether a word is a real word (the dictionary); without it, no misspelling is
  * accepted.
  */
-export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true): true | null {
+export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true): boolean | null {
   // A sign has no words, so it is read before anything else. Only a name for a key that is the sign
   // itself: "greater than" for ">"; another sign's name ("less than", "greater than or equal to") is
   // never taken by a later rule. The sign for a key that is a name ("What does > mean?"), two names,
@@ -609,7 +1099,8 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
     const surname = choice ? null : personSurname(item.question, form);
     if (surname && sameWords(answer, surname.split(" "), isWord, rivalWords(item.question, surname.split(" ")))) return true;
   }
-  return null;
+  // Last, so it never overrides an accept above: a quantity, right or wrong.
+  return settleQuantity(item);
 }
 
 /**

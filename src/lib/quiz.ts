@@ -817,6 +817,11 @@ async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | 
   }
 }
 
+// What a learner reads under an answer code marked wrong (an amount, unit or time that differs from the
+// key's). Code says no more: a reason it worked out ("you wrote grams") could be wrong about what the
+// learner meant.
+export const CODE_MISMATCH_FEEDBACK = "This does not match the answer key.";
+
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
   config: LLMConfig | null,
@@ -829,10 +834,14 @@ export async function gradeAnswersBatch(
   // it. A misspelling counts only when the word is not a real word, which the dictionary says.
   const isWord = await realWords(items.flatMap(misspellingCandidates));
   for (const it of items) {
-    // settleByCode only ever returns true (confident match) or null (defer) — never a false, so it
-    // can't wrongly fail a correct-but-reworded answer.
-    if (settleByCode(it, isWord) === true) {
+    // settleByCode returns false only when the key and the answer are each one quantity and code is
+    // sure the amounts differ ("4.5%" for 45%); anything it is unsure of is null and goes to the model.
+    // A code rejection is stored as 'exact' like a code accept, and can be marked again by hand.
+    const settled = settleByCode(it, isWord);
+    if (settled === true) {
       out.set(it.index, { isCorrect: true, feedback: "Correct.", by: "exact" });
+    } else if (settled === false) {
+      out.set(it.index, { isCorrect: false, feedback: CODE_MISMATCH_FEEDBACK, by: "exact" });
     } else {
       needsLLM.push(it);
     }

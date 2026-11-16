@@ -1,5 +1,6 @@
-// "I think I was right": a written answer the grader model marked wrong, marked again by hand against
-// the answer key. A small model fails some right answers written in other words (answer-match.ts settles
+// "I think I was right": a written answer the grader model marked wrong, or code marked wrong on a
+// number and unit (answer-match.ts settleQuantity, graded_by 'exact'), marked again by hand against the
+// answer key. A small model fails some right answers written in other words (answer-match.ts settles
 // the ones code can see), so a model's "wrong" must not be the last word. In OpenEdu the learner marks
 // it (graded_by 'self'), as for the answers no model checked (level-test-checks.ts).
 //
@@ -19,9 +20,10 @@ import { recountAfterMarks } from "./finish-effects";
 import type { GradedBy } from "./quiz-grading";
 import type { QuizAttempt } from "../types";
 
-/** A written answer the grader model marked wrong, which a person may mark again. */
+/** A written answer the grader model, or code comparing a number and unit ('exact', wrong), marked wrong,
+ * which a person may mark again. */
 export function canMarkAgain(q: { graded_by?: GradedBy | null; is_correct: boolean | null }): boolean {
-  return q.graded_by === "model" && q.is_correct === false;
+  return (q.graded_by === "model" || q.graded_by === "exact") && q.is_correct === false;
 }
 
 export interface RemarkedAttempt {
@@ -42,8 +44,8 @@ export interface RemarkedAttempt {
 
 /**
  * Mark written answers the model marked wrong (row id → right) and count the attempt again. Only rows
- * canMarkAgain allows take a mark, so nothing the key, an exact match or an earlier hand mark decided
- * can change. Null when the attempt is not a finished quiz or level test.
+ * canMarkAgain allows take a mark, so nothing the key, an exact match's accept or an earlier hand mark
+ * decided can change. Null when the attempt is not a finished quiz or level test.
  */
 export async function markAgain(attemptId: string, marks: ReadonlyMap<string, boolean>, by: HandChecker): Promise<RemarkedAttempt | null> {
   const attempt = await getQuizAttempt(attemptId);

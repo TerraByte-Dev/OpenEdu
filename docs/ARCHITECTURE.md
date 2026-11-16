@@ -310,9 +310,29 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   "4 light years", "2" for "2 dozen eggs" go to the model). The only word a number may gain or lose is
   the thing a "how many" question counts ("12 pencils" for "12", "6" for "6 legs"; not "12 packs").
   When the question offers a choice ("Is noon 12 AM or 12 PM?", "10 cm vs 10 m?") or already says the
-  number, the answer must give the key's whole answer. It never marks an answer wrong; what it cannot settle
-  goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A formula's count
-  is no longer read as a number ("CO2" had passed for "H2O" as the number 2).
+  number, the answer must give the key's whole answer. These rules never mark an answer wrong; what code
+  cannot settle goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A
+  formula's count is no longer read as a number ("CO2" had passed for "H2O" as the number 2).
+- **Code decides a number and unit both ways, when it is sure.** When the key and the answer are each one
+  quantity and nothing else (`answer-match.ts` `settleQuantity`: digits, commas, a leading dot,
+  fractions and mixed numbers, scientific or e notation, "150 million", number words, a sign or "below
+  zero", and one unit from a small table: length, mass, volume, time, square and cubic, one unit per
+  another such as km/h or g/cm³, percent, money, temperature on one scale, or a clock time), code
+  converts units and compares amounts. The same amount is right ("1 g/mL" for 1 g/cm³, "8 mL" for 8
+  cm³, "16:15" for 4:15 p.m., "45%" for 9/20 when the question asks for no form); a different amount,
+  beyond the precision either side was written to, is wrong ("4.5%" for 45%, "0.33 g/cm³" for 3 g/cm³,
+  "2/8" for 1/2, "75 cents" for $1.75, "-15 km" when the question asks for meters), stored as
+  `graded_by` `'exact'`, wrong, with the feedback "This does not match the answer key." Rejecting is the
+  dangerous direction, so code leaves to the model: an answer that says "about", has two numbers, a
+  range, an expression or any word the table does not know; one side that may be the other rounded
+  ("273 K" for 273.15 K, "0.13" for an exact 0.125, "5,000" on a question that asks to round); a
+  one-letter unit of another kind ("9 m" for 9 m², which may mean minutes); another temperature scale,
+  or a scale left out when the amount differs ("32 degrees" for 0 °C); years against days; a bare
+  number that may be the key in some other unit ("1000" for 1 L, "0.45" for 45%) or on a question that
+  asks for the unit; the right value in another form than the question asks ("0.45" on "Write 9/20 as
+  a percent", "75/100" for simplest form, "30 × 10^3" for scientific notation, "1500 m" on "in
+  kilometers?"); a ratio; and a clock time with no a.m. or p.m. that could be the key. Measured in
+  `src/lib/eval/results/2026-11-16-grade-dev-numbers.md`.
 - **A note to the model on a misspelling code cannot accept.** An answer that is the key with a word
   one edit (key word 4+ letters) or two edits (7+) off ("skelitin" for skeleton) goes to the model with
   a note under it: `"skelitin" may be a misspelling of "skeleton". If it is, mark it correct: for this
@@ -345,14 +365,15 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   answer that opens with "Note:" has its colon replaced, so no typed answer passes for a note. Measured in
   `src/lib/eval/results/2026-11-16-grade-dev-misspelling-hint.md`.
 - **"I think I was right."** A small model still fails some right answers, so on the quiz and level
-  test results screens a written answer the model marked wrong (`graded_by` `'model'`, wrong) has the
+  test results screens a written answer the model or code marked wrong (`graded_by` `'model'` or
+  `'exact'`, wrong) has the
   button "I think I was right" (`components/quiz/MarkAgain.tsx`). The learner compares it with the key
   and marks it Right or Not yet, stored as `'self'`. `written-answer-checks.ts` `markAgain` counts the
   quiz's score again, or decides the level test again the way `settleLevelTest` does: a failed test
   the mark passes is passed and the course moves up; one that now depends on answers no model checked
   goes back to waiting for them (`reopenLevelTest`); one whose result cannot change stays decided with
-  its score counted again. Only a model's wrong mark can be marked again, never the key's, an exact
-  match's or a hand mark.
+  its score counted again. Only a model's or code's wrong mark can be marked again, never the key's, a
+  right exact match or a hand mark.
 - **A mark made after the finish redoes what the finish saved.** The finish saves skill mastery, the
   course's progress and the tutor's progress context, a level test's flashcards from its misses, and the
   study log line with its "Needs review" note (`finish-effects.ts` `saveFinishEffects`, run by both
