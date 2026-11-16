@@ -214,3 +214,38 @@ Four more ways an answer gets no note, and one more line break in a batch with a
 Not rerun. Every dev prompt (synonyms, signs, round2, misspell, batches of 10 as the eval runs them)
 is byte-identical before and after this change: no dev answer gained or lost a note, and no dev answer
 has one of the new line breaks. The results above stand.
+
+## After review cycle 5
+
+The leaks of cycles 2-5 had one cause: "not a real word" meant "not in WordNet", and WordNet lacks many
+real English words. A sweep in review found 15,291 key/answer pairs where the answer is a real word
+WordNet does not resolve ("chalcogens" for Halogens, "voltammeter" for Voltmeter, "granivore" for
+Carnivore). Two changes:
+- An answer word in a full English word list is a real word, so it gets no note, unless it is the key's
+  word with one British/American spelling swap the dictionary lists as a synonym (the existing path,
+  "aluminium"). The list is the word-list npm package 4.1.0 (MIT, 274,137 words), already a
+  devDependency, shipped as `public/wordlist/` (360 shards by two-letter prefix, 3.5 MB) by
+  `scripts/build-wordlist.mjs`, which pins the version and the sha256 of `words.txt`. Only the shard of
+  the answer's word is fetched, only when an answer could get a note. If the list cannot be read, no
+  note at all.
+- More contrast groups, as backstops for coinages absent from both lists: -philia/-phobia,
+  -itis/-osis, -ectomy/-otomy/-ostomy, and tetra/penta/hexa/hepta/octa joined to uni/mono/bi/di/tri.
+
+Every one of the 15 pairs the reviewer named got a note at 9b6f6d7 and gets none now (production-path
+test in `quiz-misspelling-note.test.ts`). The word list alone stops seven (granivore, chalcogens,
+voltammeter, nucleotidases, tritagonist, mesosome, holarchy); the new contrast groups alone stop the
+other eight (arachnophilia, agoraphilia, photophilia, ailurophilia, spondylosis, osteoarthrosis,
+cholecystotomy, heptathlon), and most of those are in the word list too.
+
+Not rerun. Every dev prompt (synonyms, signs, round2, misspell, batches of 10 in the eval's order) is
+byte-identical before and after this change (one sha256 over all of them, 23 notes both times): the 17
+misspell-set notes and the 6 signs-set notes all survive. No right misspelling in the dev sets is in the
+word list; the only right answer that is, "aluminium", is noted through the spelling-swap path as
+before. The results above stand.
+
+Still open, same cause, not changed here: the rival check ("another real word is as close") still reads
+WordNet's headwords only. A misspelling as close to a word only the word list has, such as "chalkogens"
+(one edit from chalcogens, two from halogens), still gets a note for Halogens. Using the word list as
+rivals too would cost right-answer notes: on the dev sets it would take the notes off "carnivour"
+(carnivora, carnivory), "herbivour" (herbivora, herbivory) and "thurmometor" (thermomotor), half of the
+signs set's six.
