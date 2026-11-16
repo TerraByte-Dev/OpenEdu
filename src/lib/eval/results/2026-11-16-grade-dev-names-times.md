@@ -100,3 +100,36 @@ A list of clock names never ends, so any word about the answer's form now makes 
 words, write, convert, express, format). Telling-time questions with no form word ("When does the bread
 come out?", "What time is it when the clock shows 11:15?") still settle a time in words. Dev-set code
 verdicts unchanged.
+
+## Held-out v7 (blind, run once at 3ad4c9b)
+
+v7 is a fresh blind set laid out like v6: 40 questions and 120 answers, 22 with numeric or unit keys, and the
+same kind counts. A generator that read no grading code wrote it. Overlap with v6 and earlier sets, the dev
+sets and the grading test strings is 0; question similarity is under 0.7. SHA-256 `53be38ef…2f48`.
+
+| Run | Right failed | Wrong passed | Settled by code (accepted / rejected) |
+|---|---|---|---|
+| e2b 1 | 4/40 | 0/80 | 23 (17 / 6) |
+| e2b 2 | 5/40 | 0/80 | 23 (17 / 6) |
+| e2b 3 | 5/40 | 0/80 | 23 (17 / 6) |
+| e4b 1 (reported) | 1/40 | 0/80 | 23 (17 / 6) |
+
+Bars, per e2b run: right failed ≤ 2/40 and wrong passed ≤ 1/80. **Wrong passed meets the bar for the first
+time** (0/80 on every run). **Right failed still fails it.**
+
+Code made no mistakes. All 17 of its accepts were right answers and all 6 of its rejects were wrong answers.
+Against v6:
+- misspellings accepted by code went from 1 of 5 to 4 of 5;
+- surnames went from 0 of 5 to 2 of 5;
+- the clock answer "half past four" is now accepted by code (e2b failed v6's clock item on all 3 runs).
+
+Every right answer that failed was the model's call:
+- **On all three e2b runs:**
+  - "5 decades" for 50 years.
+  - "about 2 months" for a voyage of about 66 days. This one is arguable.
+  - "11 meters below the surface" for -11 m. The sign rule leaves it to the model on purpose.
+  - "madame curie" for Marie Curie: the title is not in the key.
+- **On two runs:** "a warren" for a burrow, also arguable.
+
+The next code levers are restatements code could accept safely: time units such as decades and centuries,
+"below" or "under" written for a negative depth, and a title in place of a first name.
