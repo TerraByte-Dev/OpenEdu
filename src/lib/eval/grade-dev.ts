@@ -525,8 +525,8 @@ export const GRADE_DEV_RESTATE: GradeDevQuestion[] = [
 // count in full words), pair-under-choice (a pair reading where the question offers two years: right,
 // but left to the model).
 // Wrong kinds: direction-swapped (the other direction's word), sign-dropped (the amount with no sign or
-// direction), year-other (another year said in pairs: digits swapped, a near year), pair-non-year (a pair
-// reading of a count that is not a year).
+// direction), amount-other (another amount), year-other (another year said in pairs: digits swapped, a
+// near year), pair-non-year (a pair reading of a count that is not a year).
 // Labels by Claude, not blind. None of these questions is from a held-out set.
 export const GRADE_DEV_DIRECTION_YEARS: GradeDevQuestion[] = [
   { id: "x01", question: "A bank account holds $40. Its owner pays a bill of $55 from it. What is the account balance now?", key: "-$15",
@@ -536,7 +536,7 @@ export const GRADE_DEV_DIRECTION_YEARS: GradeDevQuestion[] = [
   { id: "x03", question: "At dawn the temperature was 4 °C. By midnight it had dropped 19 degrees. What was the temperature at midnight?", key: "-15 °C",
     answers: [R("15 degrees below zero", "state-words"), R("15 below zero", "state-words"), W("15 above zero", "direction-swapped")] },
   { id: "x04", question: "The air over a frozen lake was -3 °C in the morning and fell another 9 degrees by night. What was the temperature at night?", key: "-12 °C",
-    answers: [R("twelve below zero", "state-words"), R("12 degrees below zero", "state-words"), W("fifteen", "sign-dropped")] },
+    answers: [R("twelve below zero", "state-words"), R("12 degrees below zero", "state-words"), W("fifteen", "amount-other")] },
   { id: "x05", question: "A team has 48 points and the leading team has 63. Taking the leader's score as 0, what is the team's score?", key: "-15",
     answers: [R("15 points behind", "state-words"), R("behind by 15", "state-words"), W("fifteen", "sign-dropped")] },
   { id: "x06", question: "A golfer took 69 strokes on a course where par is 72. What is the golfer's score relative to par?", key: "-3",
