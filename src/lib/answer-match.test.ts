@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, prefixAdded, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
-import { GRADE_DEV_MISSPELLINGS, GRADE_DEV_NUMBERS, GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions, type GradeDevQuestion } from "./eval/grade-dev";
+import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, misspeltNameCandidates, slipEdits, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, prefixAdded, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
+import { GRADE_DEV_MISSPELLINGS, GRADE_DEV_NAMES_TIMES, GRADE_DEV_NUMBERS, GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions, type GradeDevQuestion } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
 // The dictionary's verdict, for the words these tests use.
@@ -586,7 +586,8 @@ describe("settleByCode: a misspelling two edits off", () => {
     for (const [q, key, a] of cases) {
       expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
       expect(settle(q, key, a)).toBeNull();
-      expect(misspellingCandidates(ask(q, key, a))).toEqual([]);
+      // A capitalised key word may be a name, so its words are looked up for that rule; none for this one.
+      expect(misspellingCandidates(ask(q, key, a)).filter((w) => !misspeltNameCandidates(ask(q, key, a)).includes(w))).toEqual([]);
     }
   });
   it("never takes another answer, misspelt or not", () => {
@@ -651,7 +652,7 @@ describe("settleByCode on the numbers dev set", () => {
 
 // Code decides a number and unit both ways (settleQuantity). Rejecting is the dangerous direction: on
 // every dev set, code marks no right answer wrong.
-const ALL_SETS = { numbers: GRADE_DEV_NUMBERS, synonyms: GRADE_DEV_SYNONYMS, signs: GRADE_DEV_SIGNS_LETTERS, misspell: GRADE_DEV_MISSPELLINGS, round2: round2AsQuestions() };
+const ALL_SETS = { namesTimes: GRADE_DEV_NAMES_TIMES, numbers: GRADE_DEV_NUMBERS, synonyms: GRADE_DEV_SYNONYMS, signs: GRADE_DEV_SIGNS_LETTERS, misspell: GRADE_DEV_MISSPELLINGS, round2: round2AsQuestions() };
 const verdicts = (set: GradeDevQuestion[], dict: (key: string) => (w: string) => boolean) =>
   set.flatMap((q) => q.answers.map((a) => ({ id: q.id, text: a.text, right: a.right, got: settleByCode(ask(q.question, q.key, a.text), dict(q.key)) })));
 
@@ -665,7 +666,8 @@ describe("settleByCode: numbers and units, both ways", () => {
   });
   it("settles most of the numbers set and passes none of its wrong answers", () => {
     const v = verdicts(GRADE_DEV_NUMBERS, keyOnly);
-    expect(v.filter((x) => x.right && x.got === true)).toHaveLength(87);
+    // 88: "quarter past four in the afternoon" (n19), a clock time in words.
+    expect(v.filter((x) => x.right && x.got === true)).toHaveLength(88);
     // 53: "-273 K" (n33) is a sign flip on a conversion question, now left to the model.
     expect(v.filter((x) => !x.right && x.got === false)).toHaveLength(53);
     expect(v.filter((x) => !x.right && x.got === true)).toEqual([]);
@@ -873,6 +875,202 @@ const dict = (words: string[] = WORDS, synonyms: Record<string, string[]> = { al
 });
 const note = (q: string, key: string, a: string, d = dict()) => misspellingNote(ask(q, key, a), d);
 const BONES = "What is the frame of bones that holds up the body called?";
+
+// Round 7: held-out v6's model misses, in new questions (GRADE_DEV_NAMES_TIMES): a clock time in words, a
+// surname on a question that names a role or a surname of two words, and a misspelt place or person.
+// The words these tests treat as real, as the bundled dictionary and word list have them.
+const NAMES_REAL = new Set(["fleming", "einstein", "nightingale", "cook", "newton", "curie", "bell", "graham", "alexander", "young", "army", "continental", "gobi", "alps", "niger", "desert", "dessert"]);
+const nameWord = (w: string) => NAMES_REAL.has(w);
+const named = (q: string, key: string, a: string) => settleByCode(ask(q, key, a), nameWord, nameWord);
+// The most any lookup could allow a name: no word is real, in the dictionary or the word list.
+const noWords = () => false;
+
+describe("settleByCode: a clock time in words", () => {
+  const CLASS = "A science class begins at 10:50 and lasts 25 minutes. When does it end?";
+  const WALK = "A girl leaves home at 3:10 p.m. and walks for 20 minutes. What time does she get to the park?";
+  it("accepts the key's time in words", () => {
+    for (const a of ["quarter past eleven", "quarter after eleven", "a quarter past 11", "eleven fifteen", "fifteen minutes past eleven", "at quarter past eleven"]) {
+      expect(named(CLASS, "11:15", a)).toBe(true);
+    }
+    expect(named("What time does the shop open?", "9:45", "a quarter to ten")).toBe(true);
+    expect(named("What time does the shop open?", "3:05", "three oh five")).toBe(true);
+    expect(named("What time does the shop open?", "3:05", "five past three")).toBe(true);
+    expect(named("What time does the shop open?", "4:00", "four o'clock")).toBe(true);
+    expect(named("What time does the shop open?", "12:30", "half past twelve")).toBe(true);
+    expect(named("What time is lunch?", "12:00 p.m.", "noon")).toBe(true);
+    expect(named("What time is lunch?", "12:00 p.m.", "twelve noon")).toBe(true);
+    expect(named("What time does the day start?", "12:00 a.m.", "midnight")).toBe(true);
+    expect(named("What time does the day end?", "11:45 p.m.", "quarter to midnight")).toBe(true);
+    expect(named("When does the flight land?", "15:30", "fifteen thirty")).toBe(true);
+  });
+  it("takes the half of the day only when it is the key's", () => {
+    expect(named(WALK, "3:30 p.m.", "half past three in the afternoon")).toBe(true);
+    expect(named(WALK, "3:30 p.m.", "half past three p.m.")).toBe(true);
+    expect(named("What time does the film start?", "9:40 p.m.", "nine forty at night")).toBe(true);
+    expect(named("What time does the film start?", "5:15 p.m.", "five fifteen in the evening")).toBe(true);
+    expect(named("What time does the bus come?", "9:45 a.m.", "quarter to ten in the morning")).toBe(true);
+    expect(named("What time does the bus come?", "4:00 p.m.", "four in the afternoon")).toBe(true);
+    // The other half of the day: never accepted, and never marked wrong in words; the model decides.
+    expect(named(WALK, "3:30 p.m.", "half past three in the morning")).toBeNull();
+    expect(named("What time does the bus come?", "9:45 a.m.", "nine forty-five p.m.")).toBeNull();
+    expect(named("What time does the film start?", "9:40 p.m.", "nine forty in the morning")).toBeNull();
+    expect(named("What time is lunch?", "12:00 p.m.", "midnight")).toBeNull();
+    // A half that cannot be told: "twelve in the morning", "two at night".
+    expect(named("What time does the bus come?", "12:00 a.m.", "twelve in the morning")).toBeNull();
+    expect(named("What time does the bus come?", "2:00 a.m.", "two at night")).toBeNull();
+    // A half the key does not give.
+    expect(named(CLASS, "11:15", "quarter past eleven at night")).toBeNull();
+  });
+  it("takes no half of the day only when the key has none or the question pins it", () => {
+    expect(named(WALK, "3:30 p.m.", "half past three")).toBe(true);
+    expect(named(WALK, "3:30 p.m.", "3:30")).toBe(true);
+    expect(named("What time does the bus come?", "3:30 p.m.", "half past three")).toBeNull();
+    expect(named("What time does the bus come?", "3:30 p.m.", "3:30")).toBeNull();
+    // The question says the other half: "8:30 p.m." then a time the next morning.
+    expect(named("Sam goes to bed at 8:30 p.m. and sleeps for 10 hours. What time does he wake up?", "6:30 a.m.", "six thirty")).toBeNull();
+    expect(named("Lunch starts at 11:40 a.m. and lasts 30 minutes. When does it end?", "12:10 p.m.", "ten past twelve")).toBeNull();
+  });
+  it("never takes another time", () => {
+    for (const a of ["quarter to eleven", "half past eleven", "eleven fifty", "quarter past ten", "about quarter past eleven", "eleven", "fifteen past", "half to eleven"]) {
+      expect(named(CLASS, "11:15", a)).toBeNull();
+    }
+    expect(named("What time does the bus come?", "3:05 p.m.", "five to three")).toBeNull();
+    expect(named("What is the ratio of boys to girls?", "11:15", "quarter past eleven")).toBeNull();
+    // A key that is no clock time on a question about no time.
+    expect(named("What is the score?", "11:15", "quarter past eleven")).toBeNull();
+  });
+  it("still marks wrong a.m. for p.m. in digits", () => {
+    expect(named("A swimming lesson starts at 4:35 in the afternoon and lasts 40 minutes. When does it end?", "5:15 p.m.", "5:15 a.m.")).toBe(false);
+  });
+});
+
+describe("settleByCode: a surname", () => {
+  it("takes the surname on a question that names a person's role, not only one that asks who", () => {
+    expect(named("Which scientist noticed that a mould killed bacteria?", "Alexander Fleming", "fleming")).toBe(true);
+    expect(named("Which naturalist wrote On the Origin of Species?", "Charles Darwin", "darwin")).toBe(true);
+    expect(named("Which nurse was called the Lady with the Lamp?", "Florence Nightingale", "nightingale")).toBe(true);
+    expect(named("Which explorer charted the east coast of Australia in 1770?", "James Cook", "cook")).toBe(true);
+    expect(named("Name the author of Pride and Prejudice.", "Jane Austen", "austen")).toBe(true);
+    expect(named("Which English physicist described universal gravitation?", "Isaac Newton", "newton")).toBe(true);
+    expect(named("Which 19th-century scientist wrote about natural selection?", "Charles Darwin", "darwin")).toBe(true);
+  });
+  it("takes the last two words of a three- or four-word name", () => {
+    expect(named("Which writer invented the detective who lives at 221B Baker Street?", "Arthur Conan Doyle", "conan doyle")).toBe(true);
+    expect(named("Which writer invented the detective who lives at 221B Baker Street?", "Arthur Conan Doyle", "doyle")).toBe(true);
+    expect(named("Who was granted the first patent for the telephone?", "Alexander Graham Bell", "graham bell")).toBe(true);
+    expect(named("Who was granted the first patent for the telephone?", "Alexander Graham Bell", "bell")).toBe(true);
+    expect(named("Who led the march?", "Martin Luther King Jr.", "luther king")).toBe(true);
+  });
+  it("takes a misspelt surname", () => {
+    expect(named("Which naturalist wrote On the Origin of Species?", "Charles Darwin", "darwen")).toBe(true);
+    expect(named("Who wrote Pride and Prejudice?", "Jane Austen", "jane austin")).toBe(true);
+    expect(named("Which physicist explained that mass and energy are linked?", "Albert Einstein", "einstien")).toBe(true);
+    expect(named("Which scientist noticed that a mould killed bacteria?", "Alexander Fleming", "flemming")).toBe(true);
+  });
+  it("never takes a first name, a middle name alone, another person or a role that is an everyday word", () => {
+    expect(named("Which writer invented Sherlock Holmes?", "Arthur Conan Doyle", "arthur")).toBeNull();
+    expect(named("Which writer invented Sherlock Holmes?", "Arthur Conan Doyle", "conan")).toBeNull();
+    expect(named("Which writer invented Sherlock Holmes?", "Arthur Conan Doyle", "arthur conan")).toBeNull();
+    expect(named("Which writer invented Sherlock Holmes?", "Arthur Conan Doyle", "sherlock holmes")).toBeNull();
+    expect(named("Which scientist noticed that a mould killed bacteria?", "Alexander Fleming", "Ian Fleming")).toBeNull();
+    expect(named("Which naturalist wrote On the Origin of Species?", "Charles Darwin", "Erasmus Darwin")).toBeNull();
+    expect(named("Which president issued the Emancipation Proclamation?", "Abraham Lincoln", "Mary Todd Lincoln")).toBeNull();
+    expect(named("Which composer wrote the Brandenburg Concertos?", "Johann Sebastian Bach", "Carl Philipp Emanuel Bach")).toBeNull();
+    expect(named("Which general idea drove settlers west?", "Manifest Destiny", "destiny")).toBeNull();
+    expect(named("Which man-made lake lies behind the Hoover Dam?", "Lake Mead", "mead")).toBeNull();
+    expect(named("Which city is the capital of the United States?", "Washington D.C.", "dc")).toBeNull();
+  });
+  it("never takes the surname the question says, or one under a choice", () => {
+    expect(named("Which Roosevelt was president for most of World War II?", "Franklin D. Roosevelt", "roosevelt")).toBeNull();
+    expect(named("Which Roosevelt was president for most of World War II?", "Franklin D. Roosevelt", "Theodore Roosevelt")).toBeNull();
+    expect(named("Who won two Nobel Prizes, Marie Curie or Pierre Curie?", "Marie Curie", "curie")).toBeNull();
+    expect(named("Which composer was a son of Johann Sebastian Bach?", "Carl Philipp Emanuel Bach", "bach")).toBeNull();
+    expect(named("Which composer was a son of Johann Sebastian Bach?", "Carl Philipp Emanuel Bach", "emanuel bach")).toBeNull();
+  });
+});
+
+describe("settleByCode: a misspelt name", () => {
+  it("takes a place or person's name misspelt by ear", () => {
+    expect(named("Which great desert stretches across North Africa?", "The Sahara", "the sahera")).toBe(true);
+    expect(named("Which great desert stretches across North Africa?", "The Sahara Desert", "the sahera desert")).toBe(true);
+    expect(named("Which great desert stretches across North Africa?", "The Sahara", "sahra")).toBe(true);
+    expect(named("Which Roman town near Naples was buried in ash?", "Pompeii", "pompei")).toBe(true);
+    expect(named("Which Roman town near Naples was buried in ash?", "Pompeii", "pompii")).toBe(true);
+    expect(named("Which mountain range lies between France and Spain?", "The Pyrenees", "the pyranees")).toBe(true);
+    expect(named("Which mountain range lies between France and Spain?", "The Pyrenees", "pyrennees")).toBe(true);
+    expect(named("Which South American country has Caracas as its capital?", "Venezuela", "venezuala")).toBe(true);
+    expect(named("Which king of Babylon wrote an early law code?", "Hammurabi", "hamurabi")).toBe(true);
+    expect(named("Which Carthaginian general crossed the Alps?", "Hannibal", "hannibel")).toBe(true);
+    expect(named("Which planet has the Great Red Spot?", "Jupiter", "jupeter")).toBe(true);
+    expect(named("Which European country has Ljubljana as its capital?", "Slovenia", "solvenia")).toBe(true);
+    expect(named("Which country has Vienna as its capital?", "Austria", "austrea")).toBe(true);
+  });
+  it("never takes another place, a consonant changed, an end letter changed, or a misspelling as close to another name", () => {
+    // Another country, state, continent or planet as close.
+    expect(named("Which European country has Ljubljana as its capital?", "Slovenia", "slovinia")).toBeNull();
+    expect(named("Which European country has Ljubljana as its capital?", "Slovenia", "slovania")).toBeNull();
+    expect(named("Which European country has Ljubljana as its capital?", "Slovenia", "Slovakia")).toBeNull();
+    expect(named("Which European country has Ljubljana as its capital?", "Slovenia", "slovakea")).toBeNull();
+    expect(named("Which country lies along the Gambia River?", "The Gambia", "Zambia")).toBeNull();
+    expect(named("Which country has Vienna as its capital?", "Austria", "australia")).toBeNull();
+    expect(named("Which country has Abuja as its capital?", "Nigeria", "niger")).toBeNull();
+    expect(named("Which country has Abuja as its capital?", "Nigeria", "nigerea")).toBeNull();
+    expect(named("Which state has Atlanta as its capital?", "Georgia", "george")).toBeNull();
+    expect(named("Which country has Georgetown as its capital?", "Guyana", "guiana")).toBeNull();
+    // A word of the question as close: the question offers it.
+    expect(named("Did Hannibal or Hamilcar cross the Alps?", "Hannibal", "hamilcal")).toBeNull();
+    expect(named("Did the Zorvani or the Zorvena build the temple?", "The Zorvena", "zorvana")).toBeNull();
+    expect(named("Which people built the temple?", "The Zorvena", "zorvana")).toBe(true);
+    // The name of another place, misspelt.
+    expect(named("Which Roman town near Naples was buried in ash?", "Pompeii", "herculanium")).toBeNull();
+    expect(named("Which great desert stretches across North Africa?", "The Sahara", "the kalahary")).toBeNull();
+    expect(named("Which planet has the Great Red Spot?", "Jupiter", "nepchune")).toBeNull();
+    // An end letter changed: "pompey" is Pompey the Great.
+    expect(named("Which Roman town near Naples was buried in ash?", "Pompeii", "pompey")).toBeNull();
+    expect(named("Which great desert stretches across North Africa?", "The Sahara", "the sahare")).toBeNull();
+    expect(named("Which great desert stretches across North Africa?", "The Sahara", "zahara")).toBeNull();
+    // Too short to tell: "Mali" and "Bali".
+    expect(named("Which country is Timbuktu in?", "Mali", "malli")).toBeNull();
+    // The rest of the answer must be the key's: "dessert" is another word.
+    expect(named("Which great desert stretches across North Africa?", "The Sahara Desert", "the sahera dessert")).toBeNull();
+  });
+  it("never takes a name when a lookup is missing or the word is real", () => {
+    // Without the word list, no misspelt name.
+    expect(settleByCode(ask("Which Roman town near Naples was buried in ash?", "Pompeii", "pompei"), noWords)).toBeNull();
+    // A key word the word list has is a word, not a name.
+    expect(settleByCode(ask("What do we call a scientist who studies stars?", "Astronomer", "astronamer"), noWords, (w) => w === "astronomer")).toBeNull();
+    // An answer word the word list has is a real word.
+    expect(settleByCode(ask("Which Roman town near Naples was buried in ash?", "Pompeii", "pompei"), noWords, (w) => w === "pompei")).toBeNull();
+  });
+  it("counts only slips of spelling by ear", () => {
+    expect(slipEdits("sahara", "sahera")).toBe(1);
+    expect(slipEdits("pompeii", "pompei")).toBe(1);
+    expect(slipEdits("hannibal", "hanibal")).toBe(1);
+    expect(slipEdits("slovenia", "solvenia")).toBe(1);
+    expect(slipEdits("nigeria", "niger")).toBe(2);
+    expect(slipEdits("slovenia", "slovakia")).toBeGreaterThan(2);
+    expect(slipEdits("austria", "australia")).toBeGreaterThan(2);
+    expect(slipEdits("gambia", "zambia")).toBeGreaterThan(2);
+  });
+});
+
+describe("settleByCode on the names and times dev set", () => {
+  const lookups: Array<[string, (key: string) => (w: string) => boolean, (w: string) => boolean]> = [
+    ["no word real", () => noWords, noWords],
+    ["the dictionary's words", () => nameWord, nameWord],
+    ["the key's words real", keyOnly, noWords],
+  ];
+  it.each(lookups)("settles no wrong answer, with %s", (_, isWord, listed) => {
+    const passed = GRADE_DEV_NAMES_TIMES.flatMap((q) => q.answers
+      .filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), isWord(q.key), listed) === true)
+      .map((a) => `${q.id} ${a.text}`));
+    expect(passed).toEqual([]);
+  });
+  it("settles held-out v6's kinds of miss, rewritten", () => {
+    const settled = GRADE_DEV_NAMES_TIMES.flatMap((q) => q.answers.filter((a) => a.right && named(q.question, q.key, a.text) === true).map((a) => a.text));
+    for (const a of ["quarter past eleven", "the sahera", "pompei", "fleming", "conan doyle"]) expect(settled).toContain(a);
+  });
+});
 
 describe("misspeltKeyWords", () => {
   it("pairs each misspelt word with the key's word, one or two edits, when every other word is the key's", () => {
