@@ -26,6 +26,11 @@
 //     does not ask for ("Which country's president", "What did the emperor X rule?"), never a key that
 //     names a place or a thing ("South Africa", "Soviet Union": see namesAThing), and a surname that is
 //     also a common word ("Bell", "Young") only on such a question about a person;
+//   - a title in place of the first name, where the surname alone is accepted: "madame curie", "dr
+//     king", "lord byron" (TITLES). The title is noise only, never checked against the person;
+//   - a depth or height with its sign written as a direction (settleDirected): "11 meters below the
+//     surface", "11 m deep" or "11 m down" for -11 m, "250 m above sea level" for 250 m. Only with a unit
+//     of length and the direction the key's sign means; never a sign anywhere else;
 //   - a misspelt name: a key word written with a capital that is in neither the dictionary nor the word
 //     list (a place or a person: Sahara, Pompeii), and an answer word that is not a word either, with
 //     the same first and last letters, at most one slip of spelling by ear away (two for a name of 7+
@@ -587,6 +592,13 @@ const surnameForms = (p: PersonName): string[][] =>
   p.parts.slice(1).map((_, k) => p.parts.slice(p.parts.length - 1 - k).join(" ").split(" ")).slice(0, 2)
     .filter((words) => words.length === 1 || words[0].length > 1);
 
+// A title an answer may give in place of the first name: "madame curie", "dr king", "lord byron". It is
+// read as noise only: never checked against the person.
+const TITLES = new Set(["madame", "madam", "mme", "mr", "mrs", "ms", "miss", "dr", "doctor", "sir", "dame", "lord", "lady", "saint", "st"]);
+
+/** The answer with a leading title taken off, when it has one and more words after it; else null. */
+const withoutTitle = (answer: string[]): string[] | null => (answer.length > 1 && TITLES.has(answer[0]) ? answer.slice(1) : null);
+
 /** The name's first and last words. */
 const firstWord = (p: PersonName): string => p.parts[0].split(" ")[0];
 const lastWord = (p: PersonName): string => { const w = p.parts[p.parts.length - 1].split(" "); return w[w.length - 1]; };
@@ -742,7 +754,8 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
 // "150 million", number words), a sign (-, minus, negative, "below zero"), and at most one unit from a
 // small table: length, mass, volume, time, and compounds of them (square and cubic, "per" or a
 // slash: km/h, g/cm³, g/mL), percent, money ($, dollars, cents, ¢), and temperature, never converted
-// between scales. A clock time ("4:15 p.m.", "16:15", "quarter past four in the afternoon") is read on
+// between scales. Decades, centuries, millennia, fortnights and months ("5 decades", "a fortnight") are
+// read only to accept (RESTATE_UNITS): an amount in one is never marked wrong. A clock time ("4:15 p.m.", "16:15", "quarter past four in the afternoon") is read on
 // its own, and a word time is only ever accepted, never marked wrong. Anything else in either, or
 // any word the table does not know, and code does not decide.
 //
@@ -827,13 +840,17 @@ interface Quantity {
   approx: boolean;
   guessed: boolean;
   abbrev: boolean;
-  /** Written in years, which convert to other units of time only roughly. */
+  /** Written in years or months, which convert to other units of time only roughly. */
   calendar: boolean;
+  /** Written in a unit only a restatement uses (RESTATE_UNITS): such an answer is accepted, never marked wrong. */
+  restated: boolean;
 }
 
 // [SI units per one, exponents of length (m), mass (kg), time (s)]. A year is 365.25 days, but how many
 // days a year is depends on the year, so years against another unit of time never settle exactly
-// (Quantity.calendar).
+// (Quantity.calendar). Decades, centuries, millennia and months are counted in years (a month is a
+// twelfth of one) and are calendar units too: "5 decades" is 50 years and "18 months" 1.5 years, but
+// "2 months" is no set number of days.
 const Q_UNIT_DEFS: Record<string, [number, [number, number, number]]> = {
   mm: [1e-3, [1, 0, 0]], cm: [1e-2, [1, 0, 0]], m: [1, [1, 0, 0]], km: [1e3, [1, 0, 0]],
   inch: [0.0254, [1, 0, 0]], foot: [0.3048, [1, 0, 0]], yard: [0.9144, [1, 0, 0]], mile: [1609.344, [1, 0, 0]],
@@ -841,6 +858,8 @@ const Q_UNIT_DEFS: Record<string, [number, [number, number, number]]> = {
   ml: [1e-6, [3, 0, 0]], liter: [1e-3, [3, 0, 0]],
   second: [1, [0, 0, 1]], minute: [60, [0, 0, 1]], hour: [3600, [0, 0, 1]], day: [86400, [0, 0, 1]], week: [604800, [0, 0, 1]],
   year: [365.25 * 86400, [0, 0, 1]],
+  fortnight: [14 * 86400, [0, 0, 1]], month: [365.25 * 86400 / 12, [0, 0, 1]], decade: [3652.5 * 86400, [0, 0, 1]],
+  century: [36525 * 86400, [0, 0, 1]], millennium: [365250 * 86400, [0, 0, 1]],
   mph: [1609.344 / 3600, [1, 0, -1]], kph: [1000 / 3600, [1, 0, -1]],
 };
 const Q_UNIT_ALIASES: Record<string, string> = {
@@ -860,7 +879,15 @@ const Q_UNIT_ALIASES: Record<string, string> = {
   h: "hour", hr: "hour", hrs: "hour", hour: "hour", hours: "hour",
   day: "day", days: "day", week: "week", weeks: "week", year: "year", years: "year", yr: "year", yrs: "year",
   mph: "mph", kph: "kph", kmh: "kph",
+  fortnight: "fortnight", fortnights: "fortnight", month: "month", months: "month", decade: "decade", decades: "decade",
+  century: "century", centuries: "century", millennium: "millennium", millennia: "millennium", millenniums: "millennium",
 };
+// Units counted in years: never exactly the same as days, weeks or less (Quantity.calendar).
+const CALENDAR_UNITS = new Set(["year", "month", "decade", "century", "millennium"]);
+// Units only an answer that restates the key uses ("5 decades" for 50 years). An amount in one is
+// accepted when it is the key's and never marked wrong: "5 decades" for 5 years goes to the model. They
+// are not readings of a bare number either (allUnits), so "5" for 50 years is judged as before.
+const RESTATE_UNITS = new Set(["fortnight", "month", "decade", "century", "millennium"]);
 // A unit an answer may have meant as another ("m" for minutes).
 const ONE_LETTER_UNITS = new Set(["m", "s", "g", "l", "h", "in"]);
 const TEMP_SCALES: Record<string, string> = { c: "c", celsius: "c", centigrade: "c", f: "f", fahrenheit: "f", k: "k", kelvin: "k", kelvins: "k" };
@@ -922,6 +949,8 @@ function denominator(w: string | undefined): number | null {
 function readNumber(toks: string[], i: number): { num: WrittenNumber; next: number; guessed: boolean } | null {
   const t = toks[i];
   if (t === "a" || t === "an") {
+    // "a decade", "a fortnight": one of a unit only a restatement uses.
+    if (RESTATE_UNITS.has(Q_UNIT_ALIASES[toks[i + 1]] ?? "")) return { num: { v: 1, ulp: 1, loose: 1, form: "int" }, next: i + 1, guessed: false };
     const d = denominator(toks[i + 1]);
     return d ? { num: frac(1, d), next: i + 2, guessed: false } : null;
   }
@@ -976,7 +1005,7 @@ function readNumber(toks: string[], i: number): { num: WrittenNumber; next: numb
   return { num: n, next: j, guessed };
 }
 
-interface UnitRead { f: number; dims: number[]; next: number; abbrev: boolean; simple: boolean; calendar: boolean }
+interface UnitRead { f: number; dims: number[]; next: number; abbrev: boolean; simple: boolean; calendar: boolean; restated: boolean }
 
 /** One unit, maybe squared or cubed: "cm", "square meters", "m^2", "cm cubed". */
 function readUnitTerm(toks: string[], i: number): UnitRead | null {
@@ -995,7 +1024,7 @@ function readUnitTerm(toks: string[], i: number): UnitRead | null {
   power = Math.max(power, after);
   const [f, d] = Q_UNIT_DEFS[name];
   if (power > 1 && d.join() !== "1,0,0") return null;
-  return { f: f ** power, dims: d.map((x) => x * power), next: j, abbrev, simple: power === 1 && d.filter(Boolean).length === 1 && d.some((x) => x === 1), calendar: name === "year" };
+  return { f: f ** power, dims: d.map((x) => x * power), next: j, abbrev, simple: power === 1 && d.filter(Boolean).length === 1 && d.some((x) => x === 1), calendar: CALENDAR_UNITS.has(name), restated: RESTATE_UNITS.has(name) };
 }
 
 /** A unit, or one unit per another: "km/h", "grams per cubic centimeter", "miles an hour". */
@@ -1006,7 +1035,7 @@ function readUnits(toks: string[], i: number): UnitRead | null {
   if (per !== "/" && per !== "per" && per !== "a" && per !== "an") return a;
   const b = readUnitTerm(toks, a.next + 1);
   if (!b) return null;
-  return { f: a.f / b.f, dims: a.dims.map((x, k) => x - b.dims[k]), next: b.next, abbrev: a.abbrev || b.abbrev, simple: false, calendar: a.calendar || b.calendar };
+  return { f: a.f / b.f, dims: a.dims.map((x, k) => x - b.dims[k]), next: b.next, abbrev: a.abbrev || b.abbrev, simple: false, calendar: a.calendar || b.calendar, restated: a.restated || b.restated };
 }
 
 /** The key or answer as one quantity, or null when it is anything more or else. */
@@ -1031,6 +1060,7 @@ function parseQuantity(s: string): Quantity | null {
   let scale = "";
   let abbrev = false;
   let calendar = false;
+  let restated = false;
   if (money) { kind = "money"; take("dollar", "dollars"); }
   else if (take("%", "percent", "pct")) kind = "percent";
   else if (take("¢", "cent", "cents")) { kind = "money"; f = 0.01; }
@@ -1048,14 +1078,14 @@ function parseQuantity(s: string): Quantity | null {
   } else {
     const u = readUnits(toks, i);
     if (u) {
-      kind = "measure"; f = u.f; dims = u.dims.join(); abbrev = u.abbrev; calendar = u.calendar; i = u.next;
+      kind = "measure"; f = u.f; dims = u.dims.join(); abbrev = u.abbrev; calendar = u.calendar; restated = u.restated; i = u.next;
       // "1 hour 30 minutes", "5 feet and 6 inches": a second part in a smaller unit of the same kind.
       const and = toks[i] === "and" ? 1 : 0;
       const n2 = readDigits(toks[i + and]);
       const u2 = n2 ? readUnits(toks, i + and + 1) : null;
       if (u.simple && n2 && u2 && u2.simple && u2.dims.join() === dims && u2.f < u.f) {
         value = num.v * u.f + n2.v * u2.f; ulp = n2.ulp * u2.f; loose = n2.loose * u2.f; base = true;
-        abbrev ||= u2.abbrev; calendar ||= u2.calendar; i = u2.next;
+        abbrev ||= u2.abbrev; calendar ||= u2.calendar; restated ||= u2.restated; i = u2.next;
       }
       if (calendar) take("old");
     }
@@ -1070,7 +1100,7 @@ function parseQuantity(s: string): Quantity | null {
   const toBase = base ? 1 : f;
   return {
     kind, v: sign * value * toBase, ulp: ulp * toBase, loose: loose * toBase, f, num: { ...num, v: sign * num.v },
-    dims, scale, approx, guessed: read.guessed, abbrev, calendar,
+    dims, scale, approx, guessed: read.guessed, abbrev, calendar, restated,
   };
 }
 
@@ -1078,7 +1108,7 @@ function parseQuantity(s: string): Quantity | null {
 let unitCombos: Array<{ f: number; dims: string }> | null = null;
 function allUnits(): Array<{ f: number; dims: string }> {
   if (unitCombos) return unitCombos;
-  const simple = Object.values(Q_UNIT_DEFS).map(([f, d]) => ({ f, d }));
+  const simple = Object.entries(Q_UNIT_DEFS).filter(([name]) => !RESTATE_UNITS.has(name)).map(([, [f, d]]) => ({ f, d }));
   const lengths = simple.filter((u) => u.d.join() === "1,0,0");
   const terms = [...simple, ...lengths.flatMap((u) => [{ f: u.f ** 2, d: [2, 0, 0] }, { f: u.f ** 3, d: [3, 0, 0] }])];
   unitCombos = [...terms, ...terms.flatMap((x) => simple.map((y) => ({ f: x.f / y.f, d: x.d.map((v, k) => v - y.d[k]) })))]
@@ -1425,7 +1455,40 @@ function settleQuantity(item: WrittenAnswer): boolean | null {
   const k = parseQuantity(item.expected);
   if (!k || k.guessed) return null;
   const a = parseQuantity(item.student);
-  return a ? compareQuantities(k, a, item.question) : null;
+  if (!a) return null;
+  // A unit only a restatement uses is never grounds to mark an answer wrong, and months against days or
+  // weeks never settle, even on an "about" key: "about 2 months" for about 61 days is the model's.
+  const restated = k.restated || a.restated;
+  if (restated && k.calendar !== a.calendar) return null;
+  const verdict = compareQuantities(k, a, item.question);
+  return verdict === false && restated ? null : verdict;
+}
+
+// A depth or a height written in words: "11 meters below the surface", "35 m deep", "250 m above sea level".
+const BELOW_RE = /^(.+?)\s+(?:(?:below|beneath|under)\s+(?:the\s+)?(?:surface(?:\s+of\s+the\s+(?:sea|ocean|water|lake))?|sea\s+level|sea|ocean|ground(?:\s+level)?|water(?:\s+level|\s+surface)?)|underwater|underground|deep|down)$/;
+const ABOVE_RE = /^(.+?)\s+above\s+(?:the\s+)?(?:surface|sea\s+level|sea|ground(?:\s+level)?|water(?:\s+level|\s+surface)?)$/;
+
+/**
+ * True when the answer is the key's depth or height with its sign written as a direction: "11 meters
+ * below the surface", "11 m deep" or "11 m down" for -11 m; "250 m above sea level" for 250 m. Only for
+ * a key that is a negative (below) or positive (above) length, or a bare number on a question that asks
+ * for a length ("a number of meters"), and only when the answer gives the amount with a unit of length
+ * and no sign of its own. Null otherwise, and never false: "below" is a sign nowhere else, and "11 m
+ * above sea level" for -11 m, a bare "11 m" or "11 km below" go on to the other rules (the model).
+ */
+function settleDirected(item: WrittenAnswer): true | null {
+  const t = (item.student ?? "").normalize("NFKC").toLowerCase().replace(/[.!]+$/, "").replace(/\s+/g, " ").trim();
+  const below = BELOW_RE.exec(t);
+  const above = below ? null : ABOVE_RE.exec(t);
+  const m = below ?? above;
+  if (!m) return null;
+  const k = parseQuantity(item.expected);
+  const a = parseQuantity(m[1]);
+  if (!k || k.guessed || !a || a.kind !== "measure" || a.dims !== "1,0,0" || a.v <= 0) return null;
+  if (k.kind !== "plain" && !(k.kind === "measure" && k.dims === "1,0,0")) return null;
+  if (below ? k.v >= 0 : k.v <= 0) return null;
+  const signed: Quantity = below ? { ...a, v: -a.v, num: { ...a.num, v: -a.num.v } } : a;
+  return compareQuantities(k, signed, item.question) === true ? true : null;
 }
 
 // ─── Settling ─────────────────────────────────────────────────────────────────
@@ -1475,10 +1538,15 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
     if (sameNumberAndUnits(answer, key, item.question)) return true;
     if (sameFormula(answer, form)) return true;
     // Under a choice the surname may be what both sides share ("Theodore Roosevelt or Franklin Roosevelt?").
+    // A title before the surname ("madame curie") under the same guards as the surname alone.
+    const untitled = withoutTitle(answer);
     for (const surname of choice ? [] : personSurnames(item.question, form, senses)) {
-      if (sameWords(answer, surname, isWord, rivalWords(item.question, surname), names)) return true;
+      for (const a of untitled ? [answer, untitled] : [answer]) {
+        if (sameWords(a, surname, isWord, rivalWords(item.question, surname), names)) return true;
+      }
     }
   }
+  if (settleDirected(item)) return true;
   // Last, so it never overrides an accept above: a quantity, right or wrong.
   return settleQuantity(item);
 }
@@ -1495,12 +1563,12 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
   const answer = answerWords(item.student);
   const out = new Set<string>(misspeltNameCandidates(item));
   for (const form of keyForms(item.expected)) {
-    const keys = [answerWords(form)];
     const person = personName(item.question, form);
-    if (person) keys.push(...surnameForms(person));
-    for (const key of keys) {
-      if (key.length !== answer.length) continue;
-      answer.forEach((w, i) => {
+    const pairs: Array<[string[], string[]]> = [[answerWords(form), answer]];
+    for (const s of person ? surnameForms(person) : []) pairs.push([s, answer], [s, withoutTitle(answer) ?? []]);
+    for (const [key, words] of pairs) {
+      if (key.length !== words.length) continue;
+      words.forEach((w, i) => {
         if (!oneEditOff(w, key[i])) return;
         out.add(w);
         out.add(key[i]);
@@ -1535,12 +1603,12 @@ export function misspeltNameCandidates(item: WrittenAnswer): string[] {
   for (const form of keyForms(item.expected)) {
     const names = capitalisedWords(form);
     if (names.size === 0) continue;
-    const keys = [answerWords(form)];
     const person = personName(item.question, form);
-    if (person) keys.push(...surnameForms(person));
-    for (const key of keys) {
-      if (key.length !== answer.length) continue;
-      answer.forEach((w, i) => {
+    const pairs: Array<[string[], string[]]> = [[answerWords(form), answer]];
+    for (const s of person ? surnameForms(person) : []) pairs.push([s, answer], [s, withoutTitle(answer) ?? []]);
+    for (const [key, words] of pairs) {
+      if (key.length !== words.length) continue;
+      words.forEach((w, i) => {
         if (!names.has(key[i]) || w === key[i] || key[i].length < MISSPELLING_MIN_LETTERS || editDistance(w, key[i]) > 2) return;
         out.add(w);
         out.add(key[i]);

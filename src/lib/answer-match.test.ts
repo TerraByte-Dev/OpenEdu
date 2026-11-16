@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, misspeltNameCandidates, slipEdits, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, prefixAdded, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
-import { GRADE_DEV_MISSPELLINGS, GRADE_DEV_NAMES_TIMES, GRADE_DEV_NUMBERS, GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions, type GradeDevQuestion } from "./eval/grade-dev";
+import { GRADE_DEV_MISSPELLINGS, GRADE_DEV_NAMES_TIMES, GRADE_DEV_NUMBERS, GRADE_DEV_RESTATE, GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions, type GradeDevQuestion } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
 // The dictionary's verdict, for the words these tests use.
@@ -652,7 +652,7 @@ describe("settleByCode on the numbers dev set", () => {
 
 // Code decides a number and unit both ways (settleQuantity). Rejecting is the dangerous direction: on
 // every dev set, code marks no right answer wrong.
-const ALL_SETS = { namesTimes: GRADE_DEV_NAMES_TIMES, numbers: GRADE_DEV_NUMBERS, synonyms: GRADE_DEV_SYNONYMS, signs: GRADE_DEV_SIGNS_LETTERS, misspell: GRADE_DEV_MISSPELLINGS, round2: round2AsQuestions() };
+const ALL_SETS = { restate: GRADE_DEV_RESTATE, namesTimes: GRADE_DEV_NAMES_TIMES, numbers: GRADE_DEV_NUMBERS, synonyms: GRADE_DEV_SYNONYMS, signs: GRADE_DEV_SIGNS_LETTERS, misspell: GRADE_DEV_MISSPELLINGS, round2: round2AsQuestions() };
 const verdicts = (set: GradeDevQuestion[], dict: (key: string) => (w: string) => boolean) =>
   set.flatMap((q) => q.answers.map((a) => ({ id: q.id, text: a.text, right: a.right, got: settleByCode(ask(q.question, q.key, a.text), dict(q.key)) })));
 
@@ -1069,6 +1069,120 @@ describe("settleByCode on the names and times dev set", () => {
   it("settles held-out v6's kinds of miss, rewritten", () => {
     const settled = GRADE_DEV_NAMES_TIMES.flatMap((q) => q.answers.filter((a) => a.right && named(q.question, q.key, a.text) === true).map((a) => a.text));
     for (const a of ["quarter past eleven", "the sahera", "pompei", "fleming", "conan doyle"]) expect(settled).toContain(a);
+  });
+});
+
+// Round 8: held-out v7's model misses, in new questions (GRADE_DEV_RESTATE): a length of time in other
+// units, a depth written with "below", and a title in place of a first name. Accept only.
+describe("settleByCode: a length of time in decades, centuries, millennia, fortnights or months", () => {
+  const PARK = "A park opened in 1974. How old was it in 2024?";
+  it("accepts the key's amount in another unit of time", () => {
+    expect(named(PARK, "50 years", "5 decades")).toBe(true);
+    expect(named(PARK, "50 years", "five decades")).toBe(true);
+    expect(named("How long ago was the cathedral finished?", "300 years", "3 centuries")).toBe(true);
+    expect(named("How long was the pot buried?", "2,000 years", "2 millennia")).toBe(true);
+    expect(named("How long can she keep the book?", "14 days", "a fortnight")).toBe(true);
+    expect(named("How long can she keep the book?", "14 days", "one fortnight")).toBe(true);
+    expect(named("How long between two counts?", "10 years", "a decade")).toBe(true);
+    expect(named("How old was the school?", "100 years", "a century")).toBe(true);
+    expect(named("How old was the school?", "100 years", "10 decades")).toBe(true);
+    expect(named("How long did the work take?", "18 months", "1.5 years")).toBe(true);
+    expect(named("How long did the work take?", "18 months", "one and a half years")).toBe(true);
+    expect(named("How long did the work take?", "1.5 years", "18 months")).toBe(true);
+    expect(named("How long is a century?", "1 century", "100 years")).toBe(true);
+  });
+  it("never marks an answer wrong because of these units: another count or unit goes to the model", () => {
+    expect(named(PARK, "50 years", "4 decades")).toBeNull();
+    expect(named(PARK, "50 years", "5 centuries")).toBeNull();
+    expect(named("How old was the school?", "100 years", "a millennium")).toBeNull();
+    expect(named("How long between two counts?", "10 years", "10 decades")).toBeNull();
+    expect(named("How long can she keep the book?", "14 days", "2 fortnights")).toBeNull();
+    expect(named("How long did the work take?", "18 months", "18 years")).toBeNull();
+    expect(named("How long did the work take?", "18 months", "15 months")).toBeNull();
+    expect(named("How many decades are in 50 years?", "5 decades", "50 decades")).toBeNull();
+    // The units it already had still decide both ways, and a bare number is not read in decades.
+    expect(named(PARK, "50 years", "5")).toBe(false);
+    expect(named(PARK, "50 years", "500 years")).toBe(false);
+  });
+  it("keeps the calendar caution: a month is no set number of days or weeks", () => {
+    expect(named("About how long was the trip?", "About 61 days", "about 2 months")).toBeNull();
+    expect(named("How long was the trip?", "61 days", "2 months")).toBeNull();
+    expect(named("How long can she keep the book?", "14 days", "a month")).toBeNull();
+    expect(named("How long is a month?", "4 weeks", "1 month")).toBeNull();
+    expect(named("How long is the course?", "1 year", "52 weeks")).toBeNull();
+  });
+  it("leaves the unit the question asks for to the model", () => {
+    expect(named("How many years old was the park in 2024?", "50 years", "5 decades")).toBeNull();
+  });
+});
+
+describe("settleByCode: a depth or height in words", () => {
+  const DIVER = "A diver is 20 meters below the surface of a lake and swims up 9 meters. Where is she now?";
+  it("accepts the key's depth with below, deep or down, and a height with above", () => {
+    for (const a of ["11 meters below the surface", "11 m below sea level", "eleven metres below the surface of the lake", "11 m deep", "11 meters down", "11 m underwater", "1100 cm below the surface", "11 meters below the water"]) {
+      expect(named(DIVER, "-11 m", a), a).toBe(true);
+    }
+    expect(named("What is the elevation of the bottom of the well?", "−12 m", "12 m below ground level")).toBe(true);
+    expect(named("What is the village's elevation?", "250 m", "250 meters above sea level")).toBe(true);
+    expect(named("Write her position as a number of meters, with the mouth at 0.", "-15", "15 meters below the ground")).toBe(true);
+  });
+  it("never takes the other direction, another amount or unit, no unit, or a bare amount", () => {
+    for (const a of ["11 meters above the surface", "11 km below the surface", "110 m below the surface", "11 below the surface", "11 m", "11", "11 seconds below the surface", "-11 m below the surface", "11 m below", "12 m below the surface"]) {
+      expect(named(DIVER, "-11 m", a), a).toBeNull();
+    }
+    expect(named("What is the village's elevation?", "250 m", "250 m below sea level")).toBeNull();
+    expect(named("How deep is the pool?", "3 m", "3 m deep")).toBeNull();
+    expect(named("What is the temperature?", "-5 °C", "5 degrees below the surface")).toBeNull();
+    expect(named("What number is 11 less than 0?", "-11", "11 m below the surface")).toBeNull();
+  });
+});
+
+describe("settleByCode: a title and the surname", () => {
+  const NOBEL = "Which scientist was the first woman to win a Nobel Prize?";
+  it("accepts a title in place of the first name where the surname alone is accepted", () => {
+    for (const a of ["madame curie", "Madame Curie", "mme curie", "Mme. Curie", "madam curie", "dr curie"]) expect(named(NOBEL, "Marie Curie", a), a).toBe(true);
+    expect(named("Which civil rights leader gave the 'I Have a Dream' speech?", "Martin Luther King Jr.", "dr king")).toBe(true);
+    expect(named("Which civil rights leader gave the 'I Have a Dream' speech?", "Martin Luther King Jr.", "Dr. Luther King")).toBe(true);
+    expect(named("Who wrote 'She Walks in Beauty'?", "George Gordon Byron", "lord byron")).toBe(true);
+    expect(named("Which suffragette leader founded the WSPU?", "Emmeline Pankhurst", "Mrs. Pankhurst")).toBe(true);
+    expect(named("Which explorer was found by Stanley in 1871?", "David Livingstone", "doctor livingstone")).toBe(true);
+    // Only where the surname alone is taken: "missionary" names no role the surname rule knows.
+    expect(named("Which missionary was found by Stanley in 1871?", "David Livingstone", "doctor livingstone")).toBeNull();
+  });
+  it("never takes a title with another surname, under a choice, with a surname the question says, or on a question about no person", () => {
+    expect(named(NOBEL, "Marie Curie", "madame pasteur")).toBeNull();
+    expect(named(NOBEL, "Marie Curie", "Pierre Curie")).toBeNull();
+    expect(named(NOBEL, "Marie Curie", "madame")).toBeNull();
+    expect(named(NOBEL, "Marie Curie", "madame marie")).toBeNull();
+    expect(named("Which scientist won two Nobel Prizes, Marie Curie or Pierre Curie?", "Marie Curie", "madame curie")).toBeNull();
+    expect(named("Which scientist won two Nobel Prizes, Marie Curie or Pierre Curie?", "Marie Curie", "mr curie")).toBeNull();
+    expect(named("Which Curie won two Nobel Prizes?", "Marie Curie", "madame curie")).toBeNull();
+    expect(named("Which explorer was found by Stanley in 1871?", "David Livingstone", "dr stanley")).toBeNull();
+    expect(named("Which mathematician wrote a program for Babbage's engine?", "Ada Lovelace", "lady babbage")).toBeNull();
+    expect(named("What city is the capital of Minnesota?", "Saint Paul", "st paul")).toBeNull();
+  });
+  it("takes a misspelt surname after a title, as it does alone", () => {
+    expect(named("Which naturalist wrote On the Origin of Species?", "Charles Darwin", "mr darwen")).toBe(true);
+    expect(misspeltNameCandidates(ask("Which naturalist wrote On the Origin of Species?", "Charles Darwin", "mr darwen"))).toEqual(expect.arrayContaining(["darwen", "darwin"]));
+  });
+});
+
+describe("settleByCode on the restatements dev set", () => {
+  const lookups: Array<[string, (key: string) => (w: string) => boolean, (w: string) => boolean]> = [
+    ["no word real", () => noWords, noWords],
+    ["the dictionary's words", () => nameWord, nameWord],
+    ["the key's words real", keyOnly, noWords],
+  ];
+  it.each(lookups)("settles no wrong answer and marks no answer wrong, with %s", (_, isWord, listed) => {
+    const settled = GRADE_DEV_RESTATE.flatMap((q) => q.answers
+      .map((a) => ({ a, got: settleByCode(ask(q.question, q.key, a.text), isWord(q.key), listed) }))
+      .filter(({ a, got }) => (!a.right && got === true) || got === false)
+      .map(({ a, got }) => `${q.id} ${a.text} ${got}`));
+    expect(settled).toEqual([]);
+  });
+  it("settles held-out v7's kinds of miss, rewritten", () => {
+    const settled = GRADE_DEV_RESTATE.flatMap((q) => q.answers.filter((a) => a.right && named(q.question, q.key, a.text) === true).map((a) => a.text));
+    for (const a of ["5 decades", "11 meters below the surface", "madame curie", "a fortnight", "35 m deep", "dr king"]) expect(settled).toContain(a);
   });
 });
 
