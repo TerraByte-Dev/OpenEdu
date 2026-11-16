@@ -608,6 +608,8 @@ export interface GradeItem {
   expected: string;
   student: string;
   type: string;
+  /** A note code adds for the model ('"skelitin" may be a misspelling of "skeleton"'), never a verdict. */
+  note?: string | null;
 }
 
 // How an answer was marked, stored as quiz_questions.graded_by (migration 18) so the stored history
@@ -688,14 +690,19 @@ export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): s
       `[${gradeKey(k).replace("_", " ")}] (${it.type})\n` +
       `Question: ${it.question}\n` +
       `Expected answer: ${it.expected}\n` +
-      `Student answer: ${it.student}`,
+      `Student answer: ${it.student}` +
+      (it.note ? `\nNote: ${it.note}.` : ""),
     )
     .join("\n\n");
+  // Only a batch with a note gets this line, so every other batch's prompt is unchanged.
+  const noteLine = items.some((it) => it.note)
+    ? "\nA Note under an answer says a word the student typed may be a misspelling of the expected answer's word. It is not a verdict: decide from the question whether that is what the student meant."
+    : "";
 
   return `You are checking ${items.length} answer${items.length === 1 ? "" : "s"} a student typed. For each one, compare the student's answer with the expected answer.
 - correct: true when the student's answer means the same as the expected answer, even if it is worded differently, shorter, or misspelled. Another name or a synonym for the same thing counts. An amount in other units counts only when it converts to the expected amount; the same number in another unit is wrong. A student may leave out the option letter.
 - correct: false when the student's answer is wrong, says something else, names a different or only related thing, gives only part of the expected answer, or does not answer the question.
-Judge only what the student wrote. Do not mark an answer correct because the expected answer is right.
+Judge only what the student wrote. Do not mark an answer correct because the expected answer is right.${noteLine}
 
 Return ONLY a JSON object with one key per answer: ${items.map((_, k) => `"${gradeKey(k)}": {"feedback": "<1 short sentence on what the student wrote>", "correct": true/false}`).join(", ")}.
 

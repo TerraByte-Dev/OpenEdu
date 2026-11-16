@@ -11,8 +11,8 @@ import {
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
-import { settleByCode, misspellingCandidates } from "./answer-match";
-import { lookupWord } from "./dictionary";
+import { settleByCode, misspellingCandidates, misspeltKeyWords, misspellingNote, wordsWithin, type SpellingLookup } from "./answer-match";
+import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -777,6 +777,30 @@ async function realWords(words: string[]): Promise<(w: string) => boolean> {
   return (w) => !notWords.has(w);
 }
 
+// A note for the model on each answer that may be the key misspelt (answer-match.ts misspellingNote),
+// or null. The dictionary says what is a real word and which real words are near; the full word list is
+// read only when some answer's word is not a real word. If the dictionary cannot be read, no note.
+async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | null>> {
+  const none = items.map(() => null);
+  const words = items.flatMap(misspeltKeyWords);
+  if (words.length === 0) return none;
+  try {
+    const entries = new Map<string, DictionaryEntry[]>();
+    await Promise.all([...new Set(words.flatMap((w) => [w.answer, w.key]))].map(async (w) => { entries.set(w, await lookupWord(w)); }));
+    const isWord = (w: string) => (entries.get(w) ?? []).length > 0;
+    const headwords = words.some((w) => isWord(w.key) && !isWord(w.answer)) ? await oneWordHeadwords() : [];
+    const dict: SpellingLookup = {
+      isWord,
+      synonyms: (w) => (entries.get(w) ?? []).flatMap((e) => e.senses.flatMap((s) => s.synonyms.map((x) => x.toLowerCase()))),
+      wordsNear: (w, edits) => wordsWithin(headwords, w, edits),
+    };
+    return items.map((it) => misspellingNote(it, dict));
+  } catch (e) {
+    log.warn("quiz", "misspelling notes skipped: the dictionary could not be read", e instanceof Error ? e.message : String(e));
+    return none;
+  }
+}
+
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
   config: LLMConfig | null,
@@ -805,8 +829,9 @@ export async function gradeAnswersBatch(
     const tier = config.modelTier ?? await detectModelTier(config);
     config.modelTier = tier;
     try {
+      const notes = await misspellingNotes(needsLLM);
       const parsed = await callLLMStructured<BatchGradeReply>(
-        [{ role: "user", content: buildBatchGradePrompt(needsLLM, MATH_FORMATTING_RULES) }],
+        [{ role: "user", content: buildBatchGradePrompt(needsLLM.map((it, k) => ({ ...it, note: notes[k] })), MATH_FORMATTING_RULES) }],
         config,
         { schema: batchGradeSchema(needsLLM), toolName: "emit_grades", tier },
       );

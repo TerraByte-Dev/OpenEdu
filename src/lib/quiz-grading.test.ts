@@ -235,6 +235,15 @@ describe("buildBatchGradePrompt", () => {
   it("appends math rules when provided", () => {
     expect(buildBatchGradePrompt(items, "PLAIN TEXT MATH ONLY")).toContain("PLAIN TEXT MATH ONLY");
   });
+  it("puts a note under its answer and says what a note is, only when a batch has one", () => {
+    const plain = buildBatchGradePrompt(items);
+    expect(plain).not.toContain("Note");
+    expect(buildBatchGradePrompt(items.map((it) => ({ ...it, note: null })))).toBe(plain);
+    const noted = buildBatchGradePrompt([items[0], { ...items[1], note: '"osmosys" may be a misspelling of "osmosis"' }]);
+    expect(noted).toContain('Student answer: water flow\nNote: "osmosys" may be a misspelling of "osmosis".');
+    expect(noted.match(/\nNote: /g)).toHaveLength(1);
+    expect(noted).toContain("It is not a verdict");
+  });
 });
 
 describe("parseBatchGradeResults", () => {

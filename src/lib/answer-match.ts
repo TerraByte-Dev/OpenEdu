@@ -637,3 +637,84 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
   }
   return [...out];
 }
+
+// ─── A note for the model: the answer may be the key misspelt ─────────────────
+//
+// Code cannot accept a two-edit misspelling ("skelitin" for skeleton): two edits leave too many other
+// words that close, and the rule leaked. gemma4:e2b fails those answers on every run, though e4b passes
+// them. So code tells the model what it can see, and the model still decides: a note on the item,
+// '"skelitin" may be a misspelling of "skeleton"'. The note is given only when the answer's word can be
+// nothing but the key's word misspelt: it is not itself a real word (or the dictionary lists it as
+// another spelling of the key's word, "sulphur"), the key's word is in the dictionary, and no other real
+// word, and no other word in the question, is as close to it. "geolagist" (one edit from geologist) for
+// Biologist gets no note, nor "glucogan" (two edits from glucagon and from glycogen).
+
+/** The shortest key word a note is given for, at one edit and at two. */
+export const HINT_MIN_LETTERS: Record<1 | 2, number> = { 1: 4, 2: 7 };
+
+/** One of the answer's words that may be the key's word misspelt. */
+export interface MisspeltWord { answer: string; key: string; edits: 1 | 2 }
+
+/**
+ * The answer's words that may be misspellings of the key's, for one of the key's forms the answer
+ * follows word for word: every other word is the key's own (or its plural), and each of these is one or
+ * two edits from the key's word. Empty when the answer is not the key with some words misspelt.
+ */
+export function misspeltKeyWords(item: WrittenAnswer): MisspeltWord[] {
+  const answer = answerWords(item.student);
+  for (const form of keyForms(item.expected)) {
+    const key = answerWords(form);
+    if (key.length !== answer.length) continue;
+    const out: MisspeltWord[] = [];
+    const fits = answer.every((w, i) => {
+      const k = key[i];
+      if (w === k || singular(w) === singular(k)) return true;
+      if (isNumber(w) || isNumber(k)) return false;
+      const edits = editDistance(singular(w), singular(k));
+      if ((edits !== 1 && edits !== 2) || singular(k).length < HINT_MIN_LETTERS[edits]) return false;
+      out.push({ answer: w, key: k, edits });
+      return true;
+    });
+    if (fits && out.length > 0) return out;
+  }
+  return [];
+}
+
+/** What the note needs from the dictionary. */
+export interface SpellingLookup {
+  /** Whether a word is a real word. */
+  isWord: (w: string) => boolean;
+  /** The one-word synonyms the dictionary lists for a real word ("sulphur": sulfur). */
+  synonyms: (w: string) => string[];
+  /** The real words at most `edits` edits from a word. */
+  wordsNear: (w: string, edits: number) => string[];
+}
+
+/** The real words at most `edits` edits from a word, out of a word list. */
+export function wordsWithin(words: readonly string[], w: string, edits: number): string[] {
+  return words.filter((h) => Math.abs(h.length - w.length) <= edits && h !== w && editDistance(h, w) <= edits);
+}
+
+/**
+ * A note for the grader model when the answer may be the key with words misspelt, or null. Never a
+ * verdict: the model still decides. Null when any misspelt word could be another word: a real word
+ * itself (unless the dictionary lists it as another spelling of the key's word), a key word the
+ * dictionary does not have (names of places and people), or another real word or a word of the question
+ * as close to it as the key's word.
+ */
+export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): string | null {
+  const words = misspeltKeyWords(item);
+  if (words.length === 0) return null;
+  const rivals = rivalWords(item.question, answerWords(item.expected));
+  for (const { answer, key, edits } of words) {
+    if (!dict.isWord(key)) return null;
+    if (dict.isWord(answer)) {
+      if (!dict.synonyms(answer).includes(key)) return null;
+      continue;
+    }
+    const a = singular(answer);
+    if (rivals.some((r) => editDistance(a, singular(r)) <= edits)) return null;
+    if (dict.wordsNear(a, edits).some((n) => singular(n) !== singular(key) && stem(n) !== stem(key))) return null;
+  }
+  return words.map((w) => `"${w.answer}" may be a misspelling of "${w.key}"`).join("; ");
+}

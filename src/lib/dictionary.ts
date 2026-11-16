@@ -208,6 +208,23 @@ export async function lookupWord(raw: string): Promise<DictionaryEntry[]> {
   return resolveEntries(word, exc, (k) => loaded.get(k), { trailingDot });
 }
 
+let headwordsPromise: Promise<string[]> | null = null;
+
+/** Every one-word headword (letters only) and irregular form ("vertebrae"), for finding the real words a
+ *  few edits from a misspelling (answer-match.ts misspellingNote). Every shard is read once per session,
+ *  one at a time, and only the words are kept. Throws if the bundled files can't be read. */
+export function oneWordHeadwords(): Promise<string[]> {
+  headwordsPromise ??= loadIndex().then(async ({ exc, shards }) => {
+    const words = new Set<string>();
+    const add = (w: string) => { if (/^[a-z]+$/.test(w)) words.add(w); };
+    for (const pos of POS_ORDER) Object.keys(exc[pos] ?? {}).forEach(add);
+    for (const key of shards) Object.keys(await (shardCache.get(key) ?? fetchJson<Shard>(`${key}.json`))).forEach(add);
+    return [...words];
+  });
+  headwordsPromise.catch(() => { headwordsPromise = null; });
+  return headwordsPromise;
+}
+
 // ── Credit (#255) ──────────────────────────────────────────────────────────────────────────────────
 
 /** The credit Settings › About shows. Open English WordNet is CC BY 4.0, and the WordNet licence asks
@@ -236,4 +253,5 @@ export async function readLicence(file: string): Promise<string> {
 export function resetDictionaryCache(): void {
   shardCache.clear();
   indexPromise = null;
+  headwordsPromise = null;
 }
