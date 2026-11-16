@@ -169,3 +169,24 @@ Limits:
   that scope breaks.
 - The check reads every one-word dictionary headword the first time an answer needs it (72,539 words,
   about 0.5 s headless), then keeps the word list (not the shards) for the session.
+
+## After review cycle 3
+
+Three more ways an answer gets no note, and one change to a batch with a note:
+- The key's word with letters added at the front ("unextinct", "unendangered", "intransparent",
+  "undiurnal"; 16 such answers each got a note before), or a negating prefix (un, in, im, il, ir, a, an,
+  de, non, dis, anti, counter, mis) on the key's word one edit off ("atipical"). These may mean the
+  opposite.
+- A function word WordNet lacks ("until" for Untie, "their" for Heir both got a note before), or a
+  misspelling as close to one as to the key's word.
+- In a batch with a note, the learner's answer is kept to one line and a leading "Note:" loses its
+  colon. A batch with no note is unchanged.
+
+Not rerun. Every dev prompt (synonyms, signs, round2, misspell, batches of 10 as the eval runs them)
+is byte-identical before and after this change: no dev answer gained or lost a note, and no dev answer
+has a line break or opens with "Note:". The results above stand.
+
+Found on the way, not changed here (it is on master): settleByCode accepts "abiotic" for Biotic and
+"abiotic factors" for Biotic factors as a one-edit misspelling, with no model call, because WordNet
+lacks "abiotic" ("toward" for Coward too). The same prefix rule belongs in its misspelling
+acceptance: issue #328.
