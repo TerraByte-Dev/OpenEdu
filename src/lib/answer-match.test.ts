@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, type WrittenAnswer } from "./answer-match";
-import { GRADE_DEV_ROUND2, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
+import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, type WrittenAnswer } from "./answer-match";
+import { GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
 // The dictionary's verdict, for the words these tests use.
-const REAL = new Set(["neuron", "photon", "affect", "effect", "zambia", "dessert", "stationery", "proton", "neutron", "gambia"]);
+const REAL = new Set(["neuron", "photon", "affect", "effect", "zambia", "dessert", "stationery", "proton", "neutron", "gambia", "herbivore", "evaporation", "omnivore", "skeleton", "thermometer", "hypothesis", "accommodation"]);
+// The most a dictionary could allow a misspelling: the key's own words are real words and nothing else is.
+const keyOnly = (key: string) => { const own = new Set(keyForms(key).flatMap(answerWords)); return (w: string) => own.has(w); };
 const isWord = (w: string) => REAL.has(w);
 const settle = (q: string, key: string, a: string) => settleByCode(ask(q, key, a), isWord);
 
@@ -355,10 +357,28 @@ describe("settleByCode: never a wrong answer", () => {
 });
 
 describe("misspellingCandidates", () => {
-  it("lists the answer's words one edit off a long key word, for the dictionary", () => {
-    expect(misspellingCandidates(ask("q", "Herbivore", "a herbivor"))).toEqual(["herbivor"]);
-    expect(misspellingCandidates(ask("q", "Neutron", "neuron"))).toEqual(["neuron"]);
+  it("lists the answer's words one edit off a long key word, and the words one edit from them, for the dictionary", () => {
+    const herb = misspellingCandidates(ask("q", "Herbivore", "a herbivor"));
+    expect(herb[0]).toBe("herbivor");
+    expect(herb).toContain("herbivar");
+    expect(herb).toContain("herbivore");
+    expect(misspellingCandidates(ask("q", "Neutron", "neuron"))[0]).toBe("neuron");
     expect(misspellingCandidates(ask("q", "Blue", "blur"))).toEqual([]);
+  });
+  it("never takes a one-edit misspelling that is one edit from another real word", () => {
+    const real = (w: string) => w === "slovakia" || w === "principle";
+    expect(settleByCode(ask("Which country has Ljubljana as its capital?", "Slovenia", "slovania"), real)).toBeNull();
+    expect(settleByCode(ask("Who runs the school?", "The principal", "principel"), real)).toBeNull();
+    expect(settleByCode(ask("Which country has Ljubljana as its capital?", "Slovenia", "slovania"), (w) => w === "slovenia")).toBe(true);
+  });
+  it("never takes a misspelling of a word the dictionary does not have (names of places and people)", () => {
+    // The bundled dictionary has no "gambia" or "zambia", so it cannot tell that "zambia" is a real name.
+    const noNames = (w: string) => !["gambia", "zambia", "slovenia", "slovakia"].includes(w);
+    expect(settleByCode(ask("Which country lies along the Gambia River?", "The Gambia", "Zambia"), noNames)).toBeNull();
+    expect(settleByCode(ask("Which country has Ljubljana as its capital?", "Slovenia", "slovania"), noNames)).toBeNull();
+    // A form of the key's own word is not another word: "evaporating" is one edit from "evaporatin".
+    const forms = (w: string) => ["evaporation", "evaporating", "evaporations"].includes(w);
+    expect(settleByCode(ask("What is water turning into vapor called?", "Evaporation", "evaporatin"), forms)).toBe(true);
   });
 });
 
@@ -369,7 +389,7 @@ const DEV = GRADE_DEV_ROUND2;
 
 describe("settleByCode on the dev set", () => {
   it("settles no wrong answer", () => {
-    const passed = DEV.filter(([q, key, , wrong]) => settleByCode(ask(q, key, wrong), () => false) === true);
+    const passed = DEV.filter(([q, key, , wrong]) => settleByCode(ask(q, key, wrong), keyOnly(key)) === true);
     expect(passed.map((d) => d[3])).toEqual([]);
   });
   it("settles the four measured failures", () => {
@@ -377,7 +397,243 @@ describe("settleByCode on the dev set", () => {
     for (const a of ["washington", "h two o", "a hundred degrees", "tadpoles"]) expect(settled.has(a)).toBe(true);
   });
   it("settles no wrong answer on the synonyms set", () => {
-    const passed = GRADE_DEV_SYNONYMS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), () => false) === true).map((a) => a.text));
+    const passed = GRADE_DEV_SYNONYMS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), keyOnly(q.key)) === true).map((a) => a.text));
+    expect(passed).toEqual([]);
+  });
+});
+
+// Round 4: the round-3 held-out run's three kinds of right answer the model failed, in new questions.
+const BLANK_GT = "Which sign goes in the blank to make 7 __ 2 true?";
+const BLANK_LT = "Which sign goes in the blank to make 1 __ 5 true?";
+const BLANK_EQ = "Which sign goes in the blank: 2 + 2 __ 4?";
+describe("settleByCode: a sign and its name", () => {
+  it("takes a sign's name for the sign", () => {
+    for (const a of ["greater than", "more than", "bigger than", "is greater than", "the greater-than sign", "Greater than."]) {
+      expect(settle(BLANK_GT, ">", a)).toBe(true);
+    }
+    for (const a of ["less than", "smaller than", "is less than"]) expect(settle(BLANK_LT, "<", a)).toBe(true);
+    for (const a of ["equals", "equal to", "is equal to", "the equal sign", "equals sign"]) expect(settle(BLANK_EQ, "=", a)).toBe(true);
+    expect(settle("Which sign goes in the blank: 3 __ 3 = 9?", "×", "times")).toBe(true);
+    expect(settle("Which sign goes in the blank: 8 __ 2 = 4?", "÷", "divided by")).toBe(true);
+    expect(settle("Which sign goes in the blank: 8 __ 2 = 6?", "−", "minus")).toBe(true);
+    expect(settle("Which sign goes in the blank: 5 __ 5?", "≥", "greater than or equal to")).toBe(true);
+  });
+  it("never takes the sign for a key that is its name: the question shows the sign", () => {
+    const cases: Array<[string, string, string]> = [
+      ["What does the sign > mean?", "Greater than", ">"],
+      ["What does the symbol < mean?", "less than", "<"],
+      ["What does the = sign mean?", "equal to", "="],
+      ["What is the name of the sign ÷?", "divided by", "÷"],
+      ["What word do we say for the + sign?", "plus", "+"],
+      ["What word do we say for the × sign?", "times", "×"],
+      ["What does ≠ mean?", "not equal to", "≠"],
+      ["What does ≥ mean?", "greater than or equal to", "≥"],
+      ["What does the - sign mean in 5 - 2?", "minus", "-"],
+    ];
+    for (const [q, key, a] of cases) {
+      expect(settle(q, key, a)).toBeNull();
+      expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
+    }
+  });
+  it("never takes a sign's name the question already says", () => {
+    const cases: Array<[string, string, string]> = [
+      ["Which symbol means 'greater than'?", ">", "greater than"],
+      ["Which sign means less than?", "<", "less than"],
+      ["Which sign means equal to?", "=", "equal to"],
+      ["Which sign means is greater than or equal to?", "≥", "greater than or equal to"],
+      ["Which symbol do we use for 'divided by'?", "÷", "divided by"],
+      ["Which symbol stands for plus?", "+", "plus"],
+      // Another name for the same sign is still in the question.
+      ["Which sign means more than?", ">", "greater than"],
+      // The question shows the sign itself.
+      ["Is 7 > 2 or 7 < 2 true? Which sign makes it true?", ">", "greater than"],
+      // The question says only a word of a name (the second review's cases).
+      ["Which symbol means greater?", ">", "greater than"],
+      ["Which sign shows the first number is greater?", ">", "greater than"],
+      ["Which sign shows that the first number is bigger?", ">", "bigger than"],
+      ["Which symbol do we use when a number is larger?", ">", "larger than"],
+      ["Which sign shows 9 is more?", ">", "more than"],
+      ["Which sign shows the first number is less?", "<", "less than"],
+      ["Which symbol shows the first number is smaller?", "<", "smaller than"],
+      ["Which symbol stands for divide?", "÷", "divided by"],
+      ["Which symbol means to multiply?", "×", "multiplied by"],
+      ["Which symbol means 'multiply'?", "×", "times"],
+      // Or what the sign does.
+      ["Which sign means to add?", "+", "plus"],
+      ["Which sign do we use to take away?", "−", "minus"],
+      ["Which sign means the same as?", "=", "equals"],
+    ];
+    for (const [q, key, a] of cases) {
+      expect(settle(q, key, a)).toBeNull();
+      expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
+      // With a blank to fill as well, the word still gives the name away.
+      expect(settle(`${q} (6 __ 3)`, key, a)).toBeNull();
+    }
+  });
+  it("takes a sign's name only to fill a blank between two numbers", () => {
+    expect(settle("Which sign goes between 1/2 and 2/4 to compare them?", "=", "equal to")).toBeNull();
+    expect(settle("Which sign compares 9 and 4?", ">", "greater than")).toBeNull();
+    expect(settle("Which sign goes in the blank?", ">", "greater than")).toBeNull();
+    expect(settle("Which sign compares 0.5 and 0.25 in that order (0.5 __ 0.25)?", ">", "more than")).toBe(true);
+    expect(settle("Which sign goes in the blank: 1/2 __ 2/4?", "=", "equal to")).toBe(true);
+    expect(settle("Which sign goes in the blank: 12 □ 3 = 4?", "÷", "divided by")).toBe(true);
+  });
+  it("never takes a sign for a word key that is not about signs", () => {
+    expect(settle("Which newspaper did he read?", "The Times", "×")).toBeNull();
+    expect(settle("Fill in: all people are created ___.", "equal", "=")).toBeNull();
+    expect(settleByCode(ask("Fill in: all people are created ___.", "equal", "="), keyOnly("equal"))).toBeNull();
+  });
+  it("leaves two names to the model", () => {
+    expect(settle("What does the sign = mean?", "Equal to", "equals")).toBeNull();
+    expect(settle("What does the sign < mean?", "Less than", "smaller than")).toBeNull();
+    expect(settle("Which newspaper did he read?", "The Times", "multiplied by")).toBeNull();
+  });
+  it("never takes another sign", () => {
+    for (const a of ["<", "less than", "smaller than", "greater than or equal to", "greater than or equal", "≥", ">=", "=", "equal to"]) {
+      expect(settle(BLANK_GT, ">", a)).toBeNull();
+    }
+    for (const a of [">", "greater than", "less than or equal to", "≤"]) expect(settle(BLANK_LT, "<", a)).toBeNull();
+    for (const a of ["not equal to", "≠", "does not equal", "+"]) expect(settle(BLANK_EQ, "=", a)).toBeNull();
+    expect(settle("What does the sign > mean?", "Greater than", "<")).toBeNull();
+    expect(settle("What does the sign > mean?", "Greater than", "≥")).toBeNull();
+    expect(settle("What does the sign > mean?", "Greater than", "greater than or equal to")).toBeNull();
+    expect(settle("Which sign goes in the blank: 3 __ 3 = 9?", "×", "plus")).toBeNull();
+    expect(settle("Which sign goes in the blank: 8 __ 2 = 6?", "−", "plus")).toBeNull();
+  });
+  it("never takes part of a sign's name, or a sign inside a longer key", () => {
+    expect(settle(BLANK_GT, ">", "greater")).toBeNull();
+    expect(settle(BLANK_GT, ">", "more")).toBeNull();
+    expect(settle(BLANK_GT, ">", "greater than 2")).toBeNull();
+    expect(settle("Which is true?", "x > 3", "x greater than 3")).toBeNull();
+    expect(settle("Which is true?", "7 > 2", "greater than")).toBeNull();
+  });
+});
+
+describe("settleByCode: a short code in spaced or dotted letters", () => {
+  it("takes the letters spaced, dotted or in another case when the case carries nothing", () => {
+    for (const a of ["n a", "N.a.", "N A", "NA", "na", "N a"]) expect(settle("What is the chemical symbol for sodium?", "Na", a)).toBe(true);
+    expect(settle("What is the chemical symbol for potassium?", "K", "k")).toBe(true);
+    expect(settle("What is the chemical symbol for iron?", "Fe", "f e")).toBe(true);
+    expect(settle("What is the two-letter postal code for Ohio?", "OH", "o h")).toBe(true);
+    expect(settle("What is the two-letter postal code for Ohio?", "OH", "O.H.")).toBe(true);
+  });
+  it("takes a case-carrying symbol only in the key's case", () => {
+    expect(settle("What is the chemical symbol for cobalt?", "Co", "C o")).toBe(true);
+    expect(settle("What is the chemical symbol for cobalt?", "Co", "Co.")).toBe(true);
+    expect(settle("What is the chemical formula for carbon monoxide?", "CO", "C O")).toBe(true);
+    expect(settle("What is the chemical formula for carbon monoxide?", "CO", "C.O.")).toBe(true);
+  });
+  it("still reads a spelled formula with its counts", () => {
+    expect(settle("What is the chemical formula for water?", "H2O", "h 2 o")).toBe(true);
+    expect(settle("What is the chemical formula for water?", "H2O", "h two o")).toBe(true);
+  });
+  it("never takes other letters", () => {
+    for (const a of ["K", "k", "n", "N", "Ne", "n e", "Nb", "a n"]) expect(settle("What is the chemical symbol for sodium?", "Na", a)).toBeNull();
+  });
+  it("never takes letters cased as another symbol", () => {
+    for (const a of ["CO", "C O", "C.O."]) expect(settle("What is the chemical symbol for cobalt?", "Co", a)).toBeNull();
+    for (const a of ["Co", "C o"]) expect(settle("What is the chemical formula for carbon monoxide?", "CO", a)).toBeNull();
+    expect(settle("What is the chemical symbol for nobelium?", "No", "NO")).toBeNull();
+    expect(settle("What is the chemical formula for nitric oxide?", "NO", "No")).toBeNull();
+    expect(settle("What is the chemical symbol for hafnium?", "Hf", "HF")).toBeNull();
+    // A question that is not about symbols still never takes another symbol's case.
+    expect(settle("Which metal makes glass blue?", "Co", "CO")).toBeNull();
+  });
+  it("on a question about symbols, takes no other case of a case-carrying symbol", () => {
+    for (const a of ["co", "c o", "cO"]) expect(settle("What is the chemical symbol for cobalt?", "Co", a)).toBeNull();
+    for (const a of ["co", "c.o."]) expect(settle("What is the chemical formula for carbon monoxide?", "CO", a)).toBeNull();
+    expect(settle("What is the chemical formula for nitric oxide?", "NO", "no")).toBeNull();
+  });
+  it("leaves a yes-or-no answer as it was, but never in a symbol's case", () => {
+    expect(settle("Is a whale a fish?", "No", "no")).toBe(true);
+    expect(settle("Is a whale a fish?", "No", "No.")).toBe(true);
+    expect(settle("Is a whale a fish?", "No", "NO")).toBeNull();
+    expect(settle("Is a whale a mammal?", "Yes", "YES")).toBe(true);
+  });
+});
+
+const OMNI = "Which word names an animal that eats plants and animals alike?";
+describe("settleByCode: a misspelling two edits off", () => {
+  it("takes none, even when only vowels or doubled letters differ: the model decides", () => {
+    // With the most a dictionary could allow (the key's words real, nothing else), so no other rule
+    // blocks them: two edits are never taken.
+    const cases: Array<[string, string, string]> = [
+      [OMNI, "Omnivore", "omnivour"],
+      [OMNI, "Omnivore", "an omnivour"],
+      ["What is the frame of bones in the body called?", "Skeleton", "skelitin"],
+      ["What tool measures temperature?", "Thermometer", "thurmometor"],
+      ["What tool measures temperature?", "Thermometer", "thermomitur"],
+      ["What is an educated guess called?", "Hypothesis", "hipothisis"],
+      ["Where do travellers stay?", "Accommodation", "acomodation"],
+      ["Is a fox a carnivore or an omnivore?", "Omnivore", "omnivour"],
+      // Each as close to another dictionary word as to the key (review of #325).
+      ["Which hormone raises blood sugar?", "Glucagon", "glucigen"],
+      ["Which hormone raises blood sugar?", "Glucagon", "glucogin"],
+      ["Which hormone raises blood sugar?", "Glucagon", "glucogan"],
+      ["Which hormone raises blood sugar?", "Glucagon", "glycigon"],
+      ["How do animals store sugar in the liver and muscles?", "Glycogen", "glycagan"],
+      ["Which word means without hope?", "Desperate", "desperity"],
+      ["What word means a great difference between two things?", "Disparity", "desperity"],
+      ["What word means a great difference between two things?", "Disparity", "disperite"],
+      ["What do you use to track days and months?", "Calendar", "cilindar"],
+      ["What does a battery provide to a circuit?", "Electricity", "electricuta"],
+      ["What part of a picture is closest to the viewer?", "Foreground", "ferrground"],
+      ["What process makes food in leaves?", "Photosynthesis", "fotosynthesis"],
+      ["What is the air around the Earth called?", "Atmosphere", "atmosfere"],
+      ["Which planet is farthest from the Sun?", "Neptune", "naptuni"],
+      ["What tool measures temperature?", "Thermometer", "termomiter"],
+    ];
+    for (const [q, key, a] of cases) {
+      expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
+      expect(settle(q, key, a)).toBeNull();
+      expect(misspellingCandidates(ask(q, key, a))).toEqual([]);
+    }
+  });
+  it("never takes another answer, misspelt or not", () => {
+    for (const a of ["carnivour", "carnivore", "herbivore", "herbivour", "carnivor"]) expect(settleByCode(ask(OMNI, "Omnivore", a), keyOnly("Omnivore"))).toBeNull();
+    expect(settle(OMNI, "Omnivore", "carnivour")).toBeNull();
+    expect(settleByCode(ask("What do we call an animal with a backbone?", "Vertebrate", "vertebra"), keyOnly("Vertebrate"))).toBeNull();
+    expect(settleByCode(ask("What do we call an animal with a backbone?", "Vertebrate", "invertebrate"), keyOnly("Vertebrate"))).toBeNull();
+    expect(settleByCode(ask("What do we call a scientist who studies rocks?", "Geologist", "biologist"), keyOnly("Geologist"))).toBeNull();
+  });
+});
+
+describe("settleByCode: a misspelling one edit off", () => {
+  it("the app's path: every word the rule asks the dictionary about is in the candidates", () => {
+    // gradeAnswersBatch counts a word it did not look up as real; here the dictionary has the key word
+    // and no other candidate.
+    const item = ask(OMNI, "Omnivore", "omnivor");
+    const looked = new Set(misspellingCandidates(item));
+    expect(looked.has("omnivor")).toBe(true);
+    expect(looked.has("omnivore")).toBe(true);
+    expect(looked.size).toBeGreaterThan(200);
+    expect(settleByCode(item, (w) => !looked.has(w) || w === "omnivore")).toBe(true);
+    // A key word the dictionary does not have takes no misspelling.
+    expect(settleByCode(item, (w) => !looked.has(w))).toBeNull();
+    // Without the words one edit away, no misspelling is taken.
+    expect(settleByCode(item, (w) => w !== "omnivor")).toBeNull();
+  });
+  it("never takes a word one edit from another real word", () => {
+    const real = (w: string) => w === "chlorite";
+    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlorote"), real)).toBeNull();
+    expect(settleByCode(ask("Which ion is ClO3-?", "Chlorate", "chlorote"), keyOnly("Chlorate"))).toBe(true);
+  });
+  it("never takes a misspelling as close to another word the question offers", () => {
+    const Q = "Is sea water hypertonic or hypotonic to a cell?";
+    expect(settleByCode(ask(Q, "Hypertonic", "hypetonic"), keyOnly("Hypertonic"))).toBeNull();
+    expect(settleByCode(ask(Q, "Hypertonic", "hipertonic"), keyOnly("Hypertonic"))).toBe(true);
+    expect(settleByCode(ask("Is a fox a carnivore or an omnivore?", "Omnivore", "omnivor"), keyOnly("Omnivore"))).toBe(true);
+  });
+  it("oneEditAway lists drops, additions, changes and swaps", () => {
+    const n = oneEditAway("cat");
+    for (const w of ["at", "ct", "ca", "cart", "bat", "cot", "act", "cta"]) expect(n).toContain(w);
+    expect(n).not.toContain("cat");
+  });
+});
+
+describe("settleByCode on the round-4 dev set", () => {
+  it("settles no wrong answer, even with no word known to be real", () => {
+    const passed = GRADE_DEV_SIGNS_LETTERS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), keyOnly(q.key)) === true).map((a) => `${q.id} ${a.text}`));
     expect(passed).toEqual([]);
   });
 });
