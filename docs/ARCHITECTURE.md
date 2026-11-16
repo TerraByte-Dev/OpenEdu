@@ -323,8 +323,8 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   within 10%: "1,050" on "Estimate 49 x 21"). Code marks an answer wrong only on a gross miss: another
   kind of unit ("8 cm²" for 8 cm³), a factor of about 10, 100 or 1000 ("4.5%" for 45%, "0.33 g/cm³" for
   3 g/cm³, "-15 km" when the question asks for meters; not "45" for 0.45, the same number read as a
-  percent), a.m. for p.m., the other sign ("-3" for 3, but not on a question about a fall, loss, depth,
-  change or "how much lower / colder / did it go down"), or, when the question gives the numbers and
+  percent), a.m. for p.m., the other sign only when the question is nothing but an expression ("2" for
+  "What is 3 - 5?"; in a word problem either sign may be meant, so the model decides), or, when the question gives the numbers and
   asks for no estimate, a different fraction for a fraction key that does not say about ("2/8" for 1/2)
   or more than 20% apart ("75 cents" for $1.75). A bare number for a percent key is read as a part when
   that is nearer ("3/4" for 70% is 75%). Such a mark is
