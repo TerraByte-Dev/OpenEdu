@@ -12,7 +12,8 @@
 import { callLLMStructured, detectModelTier, log } from "./llm";
 import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, LLMProvider, ModelTier } from "../types";
-import { isLocalModel, isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
+import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
+import { lessonCheckCounts } from "./ai-notice";
 import { GENERATION_MODELS } from "./models";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
@@ -353,11 +354,15 @@ export async function reviewLessonIfRan(
   }
 }
 
-// What lesson_checks stores for a lesson this reviewer read and returned on: "<provider>:<model>" when it
-// is a cloud model, else null. A Checking model on this computer is never "checked": TerraTutor measured the
-// local reviewer (gemma4:e2b) catching 0 of 5 known false lessons (Fable's decision, 2026-11-16).
-export function cloudCheckedBy(review: LLMConfig | null): string | null {
-  return review && !isLocalModel(review) ? `${review.provider}:${review.model}` : null;
+// What lesson_checks stores for a lesson this reviewer read and returned on: "<provider>:<model>" when the
+// review counts as a check (ai-notice.ts lessonCheckCounts), else null. `writer` is the config that wrote
+// that lesson (generateLesson's own `config`, not the setting). Never "checked": a Checking model on this
+// computer (the measured local reviewer, gemma4:e2b, caught 0 of 5 known false lessons), or the model that
+// wrote the lesson reading its own work (a self-review was never measured). Another model from the same
+// company counts. Fable's decisions, 2026-11-16. The review still runs and its flags are still acted on;
+// only the label depends on this.
+export function cloudCheckedBy(review: LLMConfig | null, writer: LLMConfig): string | null {
+  return review && lessonCheckCounts(review, writer) ? `${review.provider}:${review.model}` : null;
 }
 
 // Questions per review call. A tiny or small model loses track of long verdict lists.

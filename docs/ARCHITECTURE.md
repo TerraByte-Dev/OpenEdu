@@ -726,38 +726,61 @@ by code, with no model call.
 
 ## Whether a lesson was checked (`ai-notice.ts`, migration 22)
 
-Ported from TerraTutor #144 (Fable's decision, 2026-11-16). TerraTutor measured its default 8 GB model,
-`gemma4:e2b`, writing a major false fact in 11 of 80 held-out lessons, and two rounds of local fixes did not
-move it. OpenEdu writes lessons the same way on the same default, so it says so too, in two places, keyed on
-whether a cloud Checking model actually read a lesson, not on the machine. Every word and every choice is in
-`ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the components only draw it.
+Fable's decisions, 2026-11-16. The default 8 GB model, `gemma4:e2b`, was measured writing a major false fact
+in 11 of 80 held-out lessons on a lesson path close to OpenEdu's, and two rounds of local fixes did not move
+it. OpenEdu writes lessons the same way on the same default, so it says so too, in two places, keyed on
+whether a cloud Checking model other than the writer actually read a lesson, not on the machine. Every word
+and every choice is in `ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the components only draw it.
 
-- **The grown-up note, "About the lessons"** (`lessonsNote`), as the description above the Checking model
-  picker in Settings › Models (`views/settings/LessonsNote.tsx`), always shown; OpenEdu has no grown-ups
-  view, so this is the only place. Two bodies: *checked* when lesson checking resolves to a cloud model
-  through `store.ts getLessonConfigs` (the same call the Lessons tab writes with: a saved key and that
-  company's one-time notice; a Checking model on this computer, however big, is not "checked"), else
-  *unchecked*. Neither carries a number: TerraTutor's "about 1 lesson in 7" was measured on TerraTutor's
-  `generateLesson`, whose lesson prompt adds its topics-left-to-parents rule and rewrite, so it is not a
-  measurement of OpenEdu's path. No model names, tiers, RAM, price or upgrade, and no line pointing at a
-  cloud model.
+- **The grown-up note, "About the lessons"** (`lessonsNote(courseModel, lessonChecker)`), as the description
+  above the Checking model picker in Settings › Models (`views/settings/LessonsNote.tsx`), always shown;
+  OpenEdu has no grown-ups view, so this is the only place. Both models come from `store.ts
+  getLessonConfigs` (`config` writes, `review` checks: the same call the Lessons tab writes with, so a cloud
+  checker needs its saved key and that company's one-time notice). The first body that holds:
+  1. *checked* (`LESSONS_NOTE_CHECKED`) when lesson checking resolves to a cloud model that is not the course
+     model (`lessonCheckCounts`; a Checking model on this computer, however big, is not "checked");
+  2. *self-review* (`LESSONS_NOTE_SELF_REVIEW`) when it resolves to the cloud course model itself, which is
+     what the default "Same as the course model" does with a cloud course model, or an explicit pick of the
+     same model (`sameModel`: provider and model name, trimmed, case-insensitive). "That is not a second
+     check, and we do not count it as one";
+  3. *unchecked, cloud course model* (`LESSONS_NOTE_UNCHECKED_CLOUD`; OpenAI, Anthropic, or an Ollama model
+     whose name ends in `cloud`): no number, since no cloud writer has a held-out false-lesson rate ("We have
+     not measured how often…"), and no "on this computer", since the lessons are not written here;
+  4. and 5. *unchecked, local course model* (`LESSONS_NOTE_UNCHECKED`), `gemma4:e2b` and every other local
+     model alike. No number: the 11 of 80 figure was measured on a `generateLesson` whose lesson prompt adds a
+     topics-left-to-parents rule and rewrite, so it is not a measurement of OpenEdu's path. A held-out run of
+     OpenEdu's own `generateLesson` on `gemma4:e2b` would earn e2b its own body with the figure.
+
+  In states 2 and 3 one more line follows (`LESSONS_NOTE_NUDGE_DIFFERENT`): "A different cloud model can
+  check new lessons…", since the default Checking model is the self-review. It says what the picker's help
+  says is sent (the course topic and the lesson text, never anything about the learner), has no link (the
+  note sits above the picker) and turns nothing on. States 1, 4 and 5 have no extra line. No model names,
+  tiers, RAM, price or upgrade.
 - **The lesson's status line** (`lessonStatusLine`), one caption line (`--ink-faint`, 14 px, no icon, no
   colour) at the foot of the lesson reader (`LessonReader.tsx`). Four lines by checked and by K-2
   (`grade.ts isEarlyReader`); "checked" always says "It can still be wrong."; each ends "If something looks
-  wrong, look it up." (TerraTutor's Just me wording: OpenEdu has no grown-up set up to ask). The lesson
-  reader has no read-aloud, so the line is never read out by itself. Raise hand gets no line of its own.
+  wrong, look it up." (Fable's wording for a learner on their own: OpenEdu has no grown-up set up to ask).
+  The lesson reader has no read-aloud, so the line is never read out by itself. Raise hand gets no line of
+  its own. A self-reviewed lesson reads as unchecked; there is no third state.
 - **"Checked" is stored per lesson, at write time, never read from a setting.** `curriculum.ts
   generateLesson` writes a `lesson_checks` row (migration 22: `lesson_id`, `checked_by` as
-  `<provider>:<model>`, `checked_at`) only when its Checking model was a cloud model
-  (`content-review.ts cloudCheckedBy`) and the review that read the saved text returned a verdict on every
-  part of it (`reviewLessonIfRan` `judgedEveryPart`, `judgesEveryItem`: the summary, each section and each
-  takeaway; the first review when it flagged nothing, else the one on the regeneration). A reply that skips
-  a part, `{"verdicts":[]}` included, still has its flags acted on but leaves the lesson unchecked.
+  `<provider>:<model>`, `checked_at`) only when its Checking model was a cloud model that was not the model
+  that wrote that lesson (`content-review.ts cloudCheckedBy(review, config)` → `ai-notice.ts
+  lessonCheckCounts`, compared against `generateLesson`'s own `config`, not the setting; another model from
+  the same company counts, so Haiku writing with Sonnet checking is checked), and the review that read the
+  saved text returned a verdict on every part of it (`reviewLessonIfRan` `judgedEveryPart`,
+  `judgesEveryItem`: the summary, each section and each takeaway; the first review when it flagged nothing,
+  else the one on the regeneration). A reply that skips a part, `{"verdicts":[]}` included, still has its
+  flags acted on but leaves the lesson unchecked. A self-review still runs and its flags are still acted on;
+  only the label differs.
   Everything else reads as unchecked (`db.ts lessonWasChecked`): lessons written on this computer only,
   lessons whose review was off (the tiny and small tiers' default), failed or never reached the saved text,
-  and every lesson written before migration 22. A failed write of the row leaves the lesson unchecked.
-  The rows go with their lessons (`ON DELETE CASCADE`; sqlx sets `foreign_keys=ON` on every connection). `db-lesson-checks.test.ts` runs the real
-  `generateLesson`, the real migrations and the real `getLessonConfigs` for each case.
+  self-reviews, and every lesson written before migration 22. A failed write of the row leaves the lesson
+  unchecked. The rows go with their lessons (`ON DELETE CASCADE`; sqlx sets `foreign_keys=ON` on every
+  connection). `db-lesson-checks.test.ts` runs the real `generateLesson`, the real migrations and the real
+  `getLessonConfigs` for each case, with cloud models tiered large as `llm.ts` tiers them: a cloud course
+  model on the default Checking model, an explicit pick of the same model and a case/whitespace variant of
+  it (reviewed, not checked), and Haiku writing with Sonnet checking (checked).
 
 ## Raise hand (`raise-hand.ts`, `components/RaiseHand.tsx`)
 

@@ -885,9 +885,10 @@ export async function generateLesson(
   const help = await writeLessonHelp(topic, subtopic, content, config, tier, review);
   const lesson = await createLesson(courseId, level, subtopic.title, content, subtopic.id, help ? JSON.stringify(help) : null);
   log.info("generateLesson", `L${level} "${subtopic.title}" → ${content.length} chars, ${help?.stuck_points.length ?? 0} stuck point(s)`);
-  // "Checked" in the lesson reader only when a cloud Checking model read this text (migration 22).
-  // Best-effort: without the row the lesson reads as not checked, which is the safe side.
-  const checkedBy = reviewed ? cloudCheckedBy(review) : null;
+  // "Checked" in the lesson reader only when a cloud Checking model other than the one that wrote this text
+  // (`config`) read it (migration 22). Best-effort: without the row the lesson reads as not checked, which
+  // is the safe side.
+  const checkedBy = reviewed ? cloudCheckedBy(review, config) : null;
   if (checkedBy) {
     await markLessonChecked(lesson.id, checkedBy).catch((e) => log.error("generateLesson", "could not record the lesson's check", e));
   }

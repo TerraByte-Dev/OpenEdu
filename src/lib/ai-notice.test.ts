@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   AI_DISCLOSURE, breakReminder, lessonsNote, lessonStatusLine, LESSONS_NOTE_TITLE, LESSONS_NOTE_UNCHECKED, LESSONS_NOTE_CHECKED,
+  LESSONS_NOTE_UNCHECKED_CLOUD, LESSONS_NOTE_SELF_REVIEW, LESSONS_NOTE_NUDGE_DIFFERENT, lessonCheckCounts, sameModel,
   LESSON_STATUS_UNCHECKED, LESSON_STATUS_CHECKED, LESSON_STATUS_UNCHECKED_EARLY, LESSON_STATUS_CHECKED_EARLY,
 } from "./ai-notice";
 import { APP_NAME } from "./product";
@@ -70,26 +71,84 @@ describe("the docs", () => {
   });
 });
 
-// ─── Whether a lesson was checked (from TerraTutor #144, Fable's decision 2026-11-16) ─────────────────
+// ─── Whether a lesson was checked (Fable's decisions 2026-11-16) ────────────────────────────────────────
+
+const e2b = { provider: "ollama", model: "gemma4:e2b" } as const;
+const e4b = { provider: "ollama", model: "gemma4:e4b" } as const;
+const qwen27 = { provider: "ollama", model: "qwen3.5:27b" } as const;
+const sonnet = { provider: "anthropic", model: "claude-sonnet-5-5" } as const;
+const haiku = { provider: "anthropic", model: "claude-haiku-5-5" } as const;
+const gpt = { provider: "openai", model: "gpt-5.5" } as const;
+const ollamaCloud = { provider: "ollama", model: "gpt-oss:120b-cloud" } as const;
 
 describe("About the lessons: the grown-up note", () => {
   it("has Fable's words, with OpenEdu's name and no course approval", () => {
     expect(LESSONS_NOTE_TITLE).toBe("About the lessons");
     expect(LESSONS_NOTE_UNCHECKED).toBe("OpenEdu's AI writes each lesson on this computer, and nothing checks it. Some lessons will teach a fact that is wrong, and the Raise hand help can be wrong too. Read new lessons with your child, and trust your own judgment over the app's.");
     expect(LESSONS_NOTE_CHECKED).toBe("A second AI reads each new lesson before your child sees it. It catches many mistakes, not all of them. It is still worth reading new lessons with your child.");
+    expect(LESSONS_NOTE_UNCHECKED_CLOUD).toBe("OpenEdu's AI writes each lesson, and nothing checks it. We have not measured how often these lessons get a fact wrong, so expect that some do. The Raise hand help can be wrong too. Read new lessons with your child, and trust your own judgment over the app's.");
+    expect(LESSONS_NOTE_SELF_REVIEW).toBe("OpenEdu's AI writes each lesson and then reads its own work over. That is not a second check, and we do not count it as one. Some lessons will teach a fact that is wrong, and the Raise hand help can be wrong too. Read new lessons with your child, and trust your own judgment over the app's.");
+    expect(LESSONS_NOTE_NUDGE_DIFFERENT).toBe("A different cloud model can check new lessons. It is sent only the course topic and the lesson text, never anything about the learner.");
   });
 
-  it("unchecked with no Checking model, or one on this computer however big; never a number", () => {
-    for (const checker of [null, { provider: "ollama", model: "gemma4:e2b" }, { provider: "ollama", model: "qwen3.5:27b" }] as const) {
-      expect(lessonsNote(checker)).toEqual({ checked: false, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_UNCHECKED });
-    }
-    expect(LESSONS_NOTE_UNCHECKED).not.toMatch(/\d/);
+  it("every body that names who writes names OpenEdu", () => {
+    for (const s of [LESSONS_NOTE_UNCHECKED, LESSONS_NOTE_UNCHECKED_CLOUD, LESSONS_NOTE_SELF_REVIEW]) expect(s.startsWith(`${APP_NAME}'s AI writes`)).toBe(true);
   });
 
-  it("checked when lesson checking resolves to a cloud model", () => {
-    for (const checker of [{ provider: "anthropic", model: "claude-haiku-5-5" }, { provider: "openai", model: "gpt-5.5-mini" }, { provider: "ollama", model: "gpt-oss:120b-cloud" }] as const) {
-      expect(lessonsNote(checker)).toEqual({ checked: true, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_CHECKED });
+  it("a local course model with no Checking model, or one on this computer however big: unchecked, no number, no nudge", () => {
+    for (const courseModel of [e2b, e4b, { provider: "ollama", model: " Gemma4:E2B " }] as const) {
+      for (const checker of [null, e2b, qwen27] as const) {
+        expect(lessonsNote(courseModel, checker)).toEqual({ checked: false, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_UNCHECKED, nudge: null });
+      }
     }
+  });
+
+  it("checked when lesson checking resolves to a cloud model other than the course model", () => {
+    for (const checker of [haiku, { provider: "openai", model: "gpt-5.5-mini" }, ollamaCloud] as const) {
+      expect(lessonsNote(e2b, checker)).toEqual({ checked: true, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_CHECKED, nudge: null });
+    }
+    // A cloud course model checked by a different one, from the same company too (Haiku writes, Sonnet checks).
+    expect(lessonsNote(haiku, sonnet)).toMatchObject({ checked: true, body: LESSONS_NOTE_CHECKED, nudge: null });
+    expect(lessonsNote(sonnet, gpt).checked).toBe(true);
+  });
+
+  it("self-review: lesson checking that resolves to the cloud course model itself, however it is spelled, is not checked", () => {
+    for (const checker of [sonnet, { provider: "anthropic", model: " Claude-Sonnet-5-5 " }] as const) {
+      expect(lessonsNote(sonnet, checker)).toEqual({ checked: false, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_SELF_REVIEW, nudge: LESSONS_NOTE_NUDGE_DIFFERENT });
+    }
+    expect(lessonsNote(ollamaCloud, ollamaCloud).body).toBe(LESSONS_NOTE_SELF_REVIEW);
+  });
+
+  it("a cloud course model with no cloud Checking model: the cloud body, and the different-model nudge", () => {
+    for (const courseModel of [sonnet, gpt, ollamaCloud] as const) {
+      for (const checker of [null, e4b, qwen27] as const) {
+        expect(lessonsNote(courseModel, checker)).toEqual({ checked: false, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_UNCHECKED_CLOUD, nudge: LESSONS_NOTE_NUDGE_DIFFERENT });
+      }
+    }
+  });
+
+  it("the state order: checked, then self-review, then a cloud writer, then a local one", () => {
+    // A cloud checker on a local writer is checked, never the cloud body.
+    expect(lessonsNote(e2b, sonnet).body).toBe(LESSONS_NOTE_CHECKED);
+    // A cloud writer reading its own work is the self-review, never the cloud-unchecked body.
+    expect(lessonsNote(sonnet, sonnet).body).toBe(LESSONS_NOTE_SELF_REVIEW);
+    // A local checker on a cloud writer is the cloud body, never the local "on this computer" one.
+    expect(lessonsNote(sonnet, e4b).body).toBe(LESSONS_NOTE_UNCHECKED_CLOUD);
+  });
+
+  it("no number in any note, and no 'on this computer' when the lessons are not written here", () => {
+    for (const s of [LESSONS_NOTE_UNCHECKED, LESSONS_NOTE_CHECKED, LESSONS_NOTE_UNCHECKED_CLOUD, LESSONS_NOTE_SELF_REVIEW, LESSONS_NOTE_NUDGE_DIFFERENT]) expect(s).not.toMatch(/\d/);
+    for (const s of [LESSONS_NOTE_UNCHECKED_CLOUD, LESSONS_NOTE_SELF_REVIEW, LESSONS_NOTE_NUDGE_DIFFERENT]) expect(s).not.toMatch(/on this computer/);
+  });
+
+  it("lessonCheckCounts: a cloud checker that is not the writer; sameModel ignores case and spaces, not the provider", () => {
+    expect(lessonCheckCounts(sonnet, haiku)).toBe(true);
+    expect(lessonCheckCounts(sonnet, e2b)).toBe(true);
+    expect(lessonCheckCounts(sonnet, sonnet)).toBe(false);
+    expect(lessonCheckCounts({ provider: "anthropic", model: "CLAUDE-SONNET-5-5 " }, sonnet)).toBe(false);
+    expect(lessonCheckCounts(e4b, e2b)).toBe(false);
+    expect(lessonCheckCounts(null, e2b)).toBe(false);
+    expect(sameModel({ provider: "openai", model: "x" }, { provider: "anthropic", model: "x" })).toBe(false);
   });
 });
 
@@ -116,7 +175,7 @@ describe("the lesson's status line", () => {
 
 describe("the words it never uses", () => {
   const all = [
-    LESSONS_NOTE_TITLE, LESSONS_NOTE_UNCHECKED, LESSONS_NOTE_CHECKED,
+    LESSONS_NOTE_TITLE, LESSONS_NOTE_UNCHECKED, LESSONS_NOTE_CHECKED, LESSONS_NOTE_UNCHECKED_CLOUD, LESSONS_NOTE_SELF_REVIEW, LESSONS_NOTE_NUDGE_DIFFERENT,
     LESSON_STATUS_UNCHECKED, LESSON_STATUS_CHECKED, LESSON_STATUS_UNCHECKED_EARLY, LESSON_STATUS_CHECKED_EARLY,
   ];
   it("no quality claim, model name, tier, RAM, price or upgrade", () => {
@@ -152,6 +211,9 @@ describe("where it shows", () => {
     expect(noteAt).toBeLessThan(providerModels.indexOf("<ReviewModelPicker", row));
     expect(lessonsNoteTsx).toContain("getLessonConfigs()");
     expect(lessonsTab).toContain("getLessonConfigs()");
+    // The note is chosen from the model that writes as well as the one that checks, and draws its nudge line.
+    expect(lessonsNoteTsx).toContain("lessonsNote(config, review)");
+    expect(lessonsNoteTsx).toContain("{note.nudge && ");
     // The note only says what is set: it saves no Checking model and confirms no notice.
     expect(lessonsNoteTsx).not.toMatch(/setReviewModel|markCloudNoticeSeen/);
   });

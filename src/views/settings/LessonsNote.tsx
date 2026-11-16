@@ -3,8 +3,8 @@ import { getLessonConfigs } from "../../lib/store";
 import { log } from "../../lib/llm";
 import { lessonsNote, type LessonsNote as Note } from "../../lib/ai-notice";
 
-// "About the lessons", the grown-up's note on whether lessons are checked (ai-notice.ts lessonsNote, from
-// TerraTutor #144). The description above the Checking model picker in Settings › Models, always open: the
+// "About the lessons", the grown-up's note on whether lessons are checked (ai-notice.ts lessonsNote, Fable's
+// decisions 2026-11-16). The description above the Checking model picker in Settings › Models, always open: the
 // only place it shows in OpenEdu. Every word and every choice is in ai-notice.ts; this only draws it. Calm,
 // no warning colour or icon. `refresh` changes when a setting here is saved, so the body follows it.
 export default function LessonsNote({ refresh }: { refresh?: unknown }) {
@@ -13,7 +13,7 @@ export default function LessonsNote({ refresh }: { refresh?: unknown }) {
   useEffect(() => {
     let live = true;
     getLessonConfigs()
-      .then(({ review }) => { if (live) setNote(lessonsNote(review)); })
+      .then(({ config, review }) => { if (live) setNote(lessonsNote(config, review)); })
       .catch((e) => log.error("LessonsNote", "could not read the lesson settings", e));
     return () => { live = false; };
   }, [refresh]);
@@ -23,6 +23,7 @@ export default function LessonsNote({ refresh }: { refresh?: unknown }) {
     <div className="flex flex-col gap-1.5 mb-3">
       <p className="text-sm font-semibold text-ink">{note.title}</p>
       <p className="text-sm text-[var(--ink-dim)]">{note.body}</p>
+      {note.nudge && <p className="text-sm text-[var(--ink-dim)]">{note.nudge}</p>}
     </div>
   );
 }

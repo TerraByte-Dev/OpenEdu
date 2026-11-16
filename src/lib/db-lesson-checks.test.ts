@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import libRs from "../../src-tauri/src/lib.rs?raw";
 
-// "Checked" under a lesson only when a cloud Checking model actually reviewed it when it was written
-// (from TerraTutor #144, Fable's decision 2026-11-16; migration 22, lesson_checks). Run for real: every
+// "Checked" under a lesson only when a cloud Checking model other than its writer actually reviewed it when
+// it was written (Fable's decisions 2026-11-16; migration 22, lesson_checks). Run for real: every
 // migration parsed out of lib.rs, the real curriculum.ts generateLesson with only the model call stubbed,
 // the real db.ts writes and reads on an in-memory SQLite, the real store.ts getLessonConfigs the Lessons
 // tab and the Settings note read, and the status line the lesson reader draws from them.
@@ -25,7 +25,9 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 vi.mock("./llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./llm")>()),
   callLLMStructured: vi.fn(),
-  detectModelTier: vi.fn(async () => "tiny"),
+  // Local models tier as tiny (the 8 GB default); cloud models as large, as llm.ts's name map tiers them,
+  // so "Same as the course model" resolves to a cloud course model itself and a self-review really runs.
+  detectModelTier: vi.fn(async (c: { provider: string; model: string }) => (c.provider === "ollama" && !/cloud$/i.test(c.model.trim()) ? "tiny" : "large")),
   detectModelProfile: vi.fn(async () => ({ tier: "tiny", contextTokens: 8192, supportsTools: true })),
   getOllamaModels: vi.fn(async () => ({ models: ["gemma4:e2b"] })),
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -43,7 +45,8 @@ import { getLessonConfigs } from "./store";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey } from "./store-keys";
 import { Store } from "./eval/headless/shims/plugin-store";
 import {
-  LESSONS_NOTE_CHECKED, LESSONS_NOTE_UNCHECKED, LESSON_STATUS_CHECKED, LESSON_STATUS_UNCHECKED, lessonStatusLine, lessonsNote,
+  LESSONS_NOTE_CHECKED, LESSONS_NOTE_NUDGE_DIFFERENT, LESSONS_NOTE_SELF_REVIEW, LESSONS_NOTE_UNCHECKED, LESSONS_NOTE_UNCHECKED_CLOUD,
+  LESSON_STATUS_CHECKED, LESSON_STATUS_UNCHECKED, LESSON_STATUS_UNCHECKED_EARLY, lessonStatusLine, lessonsNote,
 } from "./ai-notice";
 import type { LessonContent } from "./lesson-format";
 import type { ReviewReply } from "./content-review";
@@ -103,7 +106,8 @@ function stub(reviews: Array<ReviewReply | Error>) {
 
 let courseId = "";
 const SUB = { id: "s1", title: "Making water", key_concepts: ["combustion"] };
-const write = (review: LLMConfig | null) => generateLesson(courseId, 1, SUB, "Chemistry", { ...GEN }, undefined, review && { ...review });
+const write = (review: LLMConfig | null, writer: LLMConfig = GEN) => generateLesson(courseId, 1, SUB, "Chemistry", { ...writer }, undefined, review && { ...review });
+const reviewCalls = () => vi.mocked(callLLMStructured).mock.calls.filter(([, , o]) => o.toolName === "emit_lesson_review");
 const checkRows = () => sqlite.prepare("SELECT lesson_id, checked_by FROM lesson_checks").all() as Array<{ lesson_id: string; checked_by: string }>;
 
 // store.ts keeps the Store it loaded first, so each test rewrites that same settings file in place.
@@ -177,6 +181,26 @@ describe("a lesson is stored as checked only when a cloud Checking model reviewe
     expect(await lessonWasChecked(lesson.id)).toBe(false);
   });
 
+  it("the model that wrote the lesson reviewing it (a self-review): the review runs, but the lesson is not checked", async () => {
+    const SONNET_WRITER = { provider: "anthropic", model: "claude-sonnet-5-5", apiKey: "k", modelTier: "large" } as LLMConfig;
+    for (const review of [CLOUD_REVIEW, { ...CLOUD_REVIEW, model: " Claude-Sonnet-5-5 " }]) {
+      stub([OK]);
+      const lesson = await write(review, SONNET_WRITER);
+      expect(reviewCalls()).toHaveLength(1);
+      expect(lessonStatusLine({ checked: await lessonWasChecked(lesson.id), grade: 1 })).toBe(LESSON_STATUS_UNCHECKED_EARLY);
+    }
+    expect(checkRows()).toEqual([]);
+  });
+
+  it("a self-review's flags are still acted on: the lesson is rewritten, and still not checked", async () => {
+    const SONNET_WRITER = { provider: "anthropic", model: "claude-sonnet-5-5", apiKey: "k", modelTier: "large" } as LLMConfig;
+    stub([FLAG, OK]);
+    const lesson = await write(CLOUD_REVIEW, SONNET_WRITER);
+    expect(vi.mocked(callLLMStructured).mock.calls.filter(([, , o]) => o.toolName === "emit_lesson")).toHaveLength(2);
+    expect(reviewCalls()).toHaveLength(2);
+    expect(await lessonWasChecked(lesson.id)).toBe(false);
+  });
+
   it("no review (lesson checking off, or the tiny and small tiers' default): not checked", async () => {
     stub([]);
     const lesson = await write(null);
@@ -209,7 +233,8 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
     const lesson = await writeAsLessonsTab();
     expect(vi.mocked(callLLMStructured).mock.calls.some(([, , o]) => o.toolName === "emit_lesson_review")).toBe(false);
     expect(await lessonWasChecked(lesson.id)).toBe(false);
-    expect(lessonsNote((await getLessonConfigs()).review)).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED });
+    const { config, review } = await getLessonConfigs();
+    expect(lessonsNote(config, review)).toEqual({ checked: false, title: "About the lessons", body: LESSONS_NOTE_UNCHECKED, nudge: null });
   });
 
   it("a cloud Checking model saved with its key and its one-time notice: the lesson is checked, and the note says so", async () => {
@@ -217,7 +242,8 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
     stub([OK]);
     const lesson = await writeAsLessonsTab();
     expect(checkRows()).toEqual([{ lesson_id: lesson.id, checked_by: "anthropic:claude-haiku-5-5" }]);
-    expect(lessonsNote((await getLessonConfigs()).review)).toMatchObject({ checked: true, body: LESSONS_NOTE_CHECKED });
+    const { config, review } = await getLessonConfigs();
+    expect(lessonsNote(config, review)).toMatchObject({ checked: true, body: LESSONS_NOTE_CHECKED, nudge: null });
   });
 
   it("the key saved but its notice never confirmed: the cloud checker does not resolve, nothing is checked", async () => {
@@ -225,7 +251,58 @@ describe("through the saved settings (store.ts getLessonConfigs), as the Lessons
     stub([OK]);
     const lesson = await writeAsLessonsTab();
     expect(await lessonWasChecked(lesson.id)).toBe(false);
-    expect(lessonsNote((await getLessonConfigs()).review).checked).toBe(false);
+    const { config, review } = await getLessonConfigs();
+    expect(lessonsNote(config, review).checked).toBe(false);
+  });
+
+  describe("a cloud course model (Anthropic key saved, its notice confirmed)", () => {
+    const cloudWriter = (genModel: string, reviewModel?: string) => ({
+      [STORE_KEYS.provider]: "anthropic", [STORE_KEYS.genModel]: genModel,
+      [apiKeyStoreKey("anthropic")]: "test-key", [STORE_KEYS.cloudNoticesSeen]: ["anthropic"],
+      ...(reviewModel === undefined ? {} : { [STORE_KEYS.reviewModel]: reviewModel }),
+    });
+
+    // The default, an explicit pick of the same model, and the same model spelled differently: the review
+    // runs with the course model itself, so the lesson is reviewed but not checked, and the note says so.
+    const selfReviews: Array<[string, string | undefined, string]> = [
+      ["on the default, Same as the course model", undefined, "claude-sonnet-5-5"],
+      ["the course model picked as its own Checking model", "anthropic:claude-sonnet-5-5", "claude-sonnet-5-5"],
+      ["the course model picked with other case and spaces", " anthropic: Claude-Sonnet-5-5 ", "Claude-Sonnet-5-5"],
+    ];
+    for (const [name, reviewModel, reviewedAs] of selfReviews) {
+      it(`${name}: a self-review, reviewed but not checked`, async () => {
+        await seedSettings(cloudWriter("claude-sonnet-5-5", reviewModel));
+        stub([OK]);
+        const lesson = await writeAsLessonsTab();
+        expect(reviewCalls()).toHaveLength(1);
+        expect(reviewCalls()[0][1]).toMatchObject({ provider: "anthropic", model: reviewedAs });
+        expect(await lessonWasChecked(lesson.id)).toBe(false);
+        expect(checkRows()).toEqual([]);
+        const { config, review } = await getLessonConfigs();
+        expect(lessonsNote(config, review)).toEqual({
+          checked: false, title: "About the lessons", body: LESSONS_NOTE_SELF_REVIEW, nudge: LESSONS_NOTE_NUDGE_DIFFERENT,
+        });
+      });
+    }
+
+    it("Haiku writes, Sonnet checks: checked, by Sonnet", async () => {
+      await seedSettings(cloudWriter("claude-haiku-5-5", "anthropic:claude-sonnet-5-5"));
+      stub([OK]);
+      const lesson = await writeAsLessonsTab();
+      expect(checkRows()).toEqual([{ lesson_id: lesson.id, checked_by: "anthropic:claude-sonnet-5-5" }]);
+      const { config, review } = await getLessonConfigs();
+      expect(lessonsNote(config, review)).toEqual({ checked: true, title: "About the lessons", body: LESSONS_NOTE_CHECKED, nudge: null });
+    });
+
+    it("lesson checking off: not checked, and the cloud note with no number and no 'on this computer'", async () => {
+      await seedSettings(cloudWriter("claude-sonnet-5-5", "off"));
+      stub([]);
+      const lesson = await writeAsLessonsTab();
+      expect(reviewCalls()).toHaveLength(0);
+      expect(await lessonWasChecked(lesson.id)).toBe(false);
+      const { config, review } = await getLessonConfigs();
+      expect(lessonsNote(config, review)).toMatchObject({ checked: false, body: LESSONS_NOTE_UNCHECKED_CLOUD, nudge: LESSONS_NOTE_NUDGE_DIFFERENT });
+    });
   });
 });
 
