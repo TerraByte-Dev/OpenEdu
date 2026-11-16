@@ -190,3 +190,27 @@ Found on the way, not changed here (it is on master): settleByCode accepts "abio
 "abiotic factors" for Biotic factors as a one-edit misspelling, with no model call, because WordNet
 lacks "abiotic" ("toward" for Coward too). The same prefix rule belongs in its misspelling
 acceptance: issue #328.
+
+## After review cycle 4
+
+Four more ways an answer gets no note, and one more line break in a batch with a note:
+- The key's word with a contrasting leading or trailing affix swapped for another of its group
+  (hyper/hypo, inter/intra/extra, macro/micro, kilo/mega/giga/tera/peta, uni/mono/bi/di/tri,
+  endo/exo/ecto, in/ex/de/en, ana/cata; -philic/-phobic, -phile/-phobe, -ane/-ene/-yne, -ate/-ite/-ide,
+  -ase/-ose, -tion/-tor, -ion/-or, -gram/-graph, -er/-ee). "hypoventilation" for Hyperventilation,
+  "a gigawatt" for A megawatt, "lipophobic" for Lipophilic and 13 more each got a note before: WordNet
+  lacks them, so the dictionary could not say they were real words. The affixes are grouped, so this
+  rule does not take a swap across groups (de for di, -er for -or).
+- The key's word is the answer's with a negating prefix, the answer one edit off allowed
+  ("matchable" for Unmatchable, "controvertibleness" for Incontrovertibleness): the answer is the
+  opposite.
+- The key writes the word with two or more capitals, an acronym or symbol ("NADPH" for NADP). A rule
+  for any letters added at the end is not used: it would also catch dev's right answer "verbe" for verb.
+- Contractions typed without the apostrophe ("theyre", "havent", "didnt" and 29 more) count as function
+  words: never a misspelling, and a rival to one. "theyre" for there got a note before.
+- In a batch with a note, NEL (U+0085) and U+001C-U+001E also become spaces, as Unicode and Python's
+  splitlines break lines at them. Whether gemma reads them as line breaks was not measured.
+
+Not rerun. Every dev prompt (synonyms, signs, round2, misspell, batches of 10 as the eval runs them)
+is byte-identical before and after this change: no dev answer gained or lost a note, and no dev answer
+has one of the new line breaks. The results above stand.
