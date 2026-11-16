@@ -101,3 +101,50 @@ describe("gradeAnswersBatch on a local model: one verdict per answer", () => {
     expect(prompt).not.toContain("generous");
   });
 });
+
+// Code marks an amount wrong only on a gross miss (answer-match.ts grossMiss). The fourth review's cases
+// are a fact given as another fraction or as a fraction of a percent key, and a fall given with a minus
+// sign: each is right, or close enough that the model decides, so none is marked wrong by code. With no
+// local model the answers code leaves open pass as `fallback`.
+const NEVER_CODE_WRONG: Array<[question: string, expected: string, student: string]> = [
+  ["What fraction of Earth's surface is covered by water?", "7/10", "3/4"],
+  ["What fraction of Earth's surface is covered by water?", "71/100", "3/4"],
+  ["What fraction of Earth's surface is covered by water?", "about 7/10", "3/4"],
+  ["What fraction of the air is nitrogen?", "4/5", "3/4"],
+  ["What fraction of the air is nitrogen?", "78/100", "4/5"],
+  ["What fraction of the human body is water?", "3/5", "2/3"],
+  ["How much of Earth's surface is covered by water?", "70%", "3/4"],
+  ["How much of Earth's surface is covered by water?", "71%", "3/4"],
+  ["How much of the human body is water?", "60%", "2/3"],
+  ["The temperature was 10 °C in the afternoon and 4 °C at night. How much did it go down?", "6 °C", "-6 °C"],
+  ["It was 5 °C at noon and -3 °C at midnight. How much colder was it at midnight?", "8 °C", "-8 °C"],
+  ["It was 5 °C at noon and -3 °C at midnight. How much did the temperature go down?", "8 degrees", "-8 degrees"],
+  ["How much lower is -5 than 3?", "8", "-8"],
+  // Verification of the fourth fix: more ways to ask for a decrease. A sign flip is now gross only on bare
+  // arithmetic (signMatters), so no list of decrease words is needed.
+  ["How much less is 3 than 10?", "7", "-7"],
+  ["How many fewer apples does Ann have if she has 4 and Ben has 9?", "5", "-5"],
+  ["How much smaller is 12 than 20?", "8", "-8"],
+  ["The temperature cooled from 20 °C to 12 °C. By how much did it cool?", "8 °C", "-8 °C"],
+  ["A balloon shrank from 30 cm to 22 cm. How much did it shrink?", "8 cm", "-8 cm"],
+  ["Sales declined from 120 to 90. By how much did they decline?", "30", "-30"],
+  ["Ann is 150 cm tall and Ben is 138 cm. How much shorter is Ben?", "12 cm", "-12 cm"],
+  ["The temperature was 3 °C at 6 p.m. and -4 °C at 6 a.m. How much did it dip?", "7 °C", "-7 °C"],
+  ["A car slowed from 60 mph to 45 mph. How much did it slow?", "15 mph", "-15 mph"],
+  // Verification of the fifth change: a fraction with the other sign, and word problems that hold a range,
+  // a size or scientific notation. A sign flip is gross only when the question is just an expression.
+  ["How much less is 1/4 than 3/4?", "1/2", "-1/2"],
+  ["A rope 5 1/2 ft long was cut to 3 1/4 ft. How much shorter is it now?", "2 1/4 ft", "-2 1/4 ft"],
+  ["Water went from 2/3 full to 1/3 full. What was the change?", "-1/3", "1/3"],
+  ["Enrollment was 420 in 2019-2020 and 390 in 2020-2021. What was the decline in enrollment?", "30", "-30"],
+  ["Grades 3-5 had 120 students last year and 100 this year. What is the decline?", "20", "-20"],
+  ["A car's speed went from 3 × 10^3 m/s to 2 × 10^3 m/s. What was the reduction in speed?", "1000 m/s", "-1000 m/s"],
+  ["A 4 x 6 photo was cropped to 4 x 5. By what length was the long side reduced?", "1 inch", "-1 inch"],
+];
+
+describe("gradeAnswersBatch: code never marks wrong a near fact or the sign of a fall (the fourth review's cases)", () => {
+  it.each(NEVER_CODE_WRONG)("%s %s / %s", async (question, expected, student) => {
+    const out = await gradeAnswersBatch([{ index: 0, question, expected, student, type: "short_answer" }], null);
+    expect(out.get(0)?.isCorrect).toBe(true);
+  });
+});

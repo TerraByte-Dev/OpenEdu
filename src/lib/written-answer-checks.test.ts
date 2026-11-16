@@ -59,6 +59,8 @@ const W: Spec = { section: "current", correct: false, by: "key" };
 const U: Spec = { section: "current", correct: true, by: "fallback" };
 // A written answer the model marked wrong.
 const M: Spec = { section: "current", correct: false, by: "model" };
+// A written answer code marked wrong: a number and unit whose amount differs from the key's.
+const C: Spec = { section: "current", correct: false, by: "exact" };
 
 /** Take a level test the way the screen does: each answer saved with its section, written answers graded at finish. */
 async function takeTest(level: number, specs: Spec[]): Promise<{ attemptId: string; ids: string[] }> {
@@ -94,8 +96,9 @@ describe("marking again a written answer the model marked wrong", () => {
     sqlite.exec(`INSERT INTO courses (id, title, topic, current_level, learner_id) VALUES ('c1', 'Algebra', 'algebra', 2, '${DEFAULT_LEARNER_ID}');`);
   });
 
-  it("only a model's wrong mark can be marked again", () => {
+  it("only a model's or code's wrong mark can be marked again", () => {
     expect(canMarkAgain({ graded_by: "model", is_correct: false })).toBe(true);
+    expect(canMarkAgain({ graded_by: "exact", is_correct: false })).toBe(true);
     expect(canMarkAgain({ graded_by: "model", is_correct: true })).toBe(false);
     expect(canMarkAgain({ graded_by: "key", is_correct: false })).toBe(false);
     expect(canMarkAgain({ graded_by: "exact", is_correct: true })).toBe(false);
@@ -114,6 +117,15 @@ describe("marking again a written answer the model marked wrong", () => {
     expect(courseRow().current_level).toBe(3);
     // A second mark changes nothing: it is no longer the model's mark.
     await markAgain(attemptId, new Map([[ids[16], false]]), "self");
+    expect(graded(ids[16])).toEqual({ is_correct: 1, graded_by: "self" });
+    expect(courseRow().current_level).toBe(3);
+  });
+
+  it("an answer code marked wrong is marked again like the model's: the test is passed and the course moves up", async () => {
+    const { attemptId, ids } = await takeTest(2, [...many(16, R), C, ...many(3, W)]);
+    expect(attemptRow(attemptId).passed).toBe(0);
+    const done = await markAgain(attemptId, new Map([[ids[16], true]]), "self");
+    expect(done).toMatchObject({ status: "passed", score: 85, correct: 17, nextLevel: 3 });
     expect(graded(ids[16])).toEqual({ is_correct: 1, graded_by: "self" });
     expect(courseRow().current_level).toBe(3);
   });

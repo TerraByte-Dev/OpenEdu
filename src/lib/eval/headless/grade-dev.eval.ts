@@ -48,7 +48,7 @@ it.skipIf(!setName)("grades a written-answer dev set", async () => {
     const rightFailed = mine.filter((r) => r.label && r.correct !== true);
     const wrongPassed = mine.filter((r) => !r.label && r.correct === true);
     const nRight = mine.filter((r) => r.label).length;
-    console.log(`[grade] ${model} ${setName} run ${run}: right failed ${rightFailed.length}/${nRight}, wrong passed ${wrongPassed.length}/${mine.length - nRight}, by code ${mine.filter((r) => r.by === "exact").length}, fallback ${mine.filter((r) => r.by === "fallback").length}`);
+    console.log(`[grade] ${model} ${setName} run ${run}: right failed ${rightFailed.length}/${nRight}, wrong passed ${wrongPassed.length}/${mine.length - nRight}, by code ${mine.filter((r) => r.by === "exact").length} (marked wrong ${mine.filter((r) => r.by === "exact" && r.correct === false).length}), fallback ${mine.filter((r) => r.by === "fallback").length}`);
     console.log(`[grade]   right failed: ${rightFailed.map((r) => `${r.id} ${r.kind} "${r.student}"`).join("; ")}`);
     console.log(`[grade]   wrong passed: ${wrongPassed.map((r) => `${r.id} ${r.kind} "${r.student}"`).join("; ")}`);
   }

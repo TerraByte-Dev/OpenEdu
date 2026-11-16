@@ -11,7 +11,7 @@ vi.mock("./llm", () => ({
   log: { info: vi.fn(), warn: vi.fn() },
 }));
 
-import { gradeAnswersBatch } from "./quiz";
+import { gradeAnswersBatch, CODE_MISMATCH_FEEDBACK } from "./quiz";
 import { callLLMStructured } from "./llm";
 import type { LLMConfig } from "../types";
 
@@ -34,6 +34,22 @@ describe("gradeAnswersBatch: how each answer was marked", () => {
     expect(out.get(0)).toMatchObject({ isCorrect: true, by: "exact" });
     expect(out.get(1)).toMatchObject({ isCorrect: true, by: "model" });
     expect(out.get(2)).toMatchObject({ isCorrect: false, by: "model" });
+  });
+
+  it("marks a number and unit code is sure is wrong 'exact' and wrong, and never asks the model about it", async () => {
+    vi.mocked(callLLMStructured).mockResolvedValue({ answer_1: { feedback: "ok", correct: true } });
+    const out = await gradeAnswersBatch([
+      { index: 0, question: "Write 9/20 as a percent.", expected: "45%", student: "4.5%", type: "short_answer" },
+      { index: 1, question: "What is the density of pure water?", expected: "1 g/cm³", student: "1 g/mL", type: "short_answer" },
+      { index: 2, question: "Write 9/20 as a percent.", expected: "45%", student: "0.45", type: "short_answer" },
+    ], config);
+    expect(out.get(0)).toEqual({ isCorrect: false, feedback: CODE_MISMATCH_FEEDBACK, by: "exact" });
+    expect(out.get(1)).toMatchObject({ isCorrect: true, by: "exact" });
+    // "0.45" asked as a percent: the value is the key's, the form is not. The model decides.
+    expect(out.get(2)).toMatchObject({ isCorrect: true, by: "model" });
+    const prompt = vi.mocked(callLLMStructured).mock.calls[0][0][0].content as string;
+    expect(prompt).toContain("0.45");
+    expect(prompt).not.toContain("4.5%");
   });
 
   it("marks an item the model skipped 'fallback'", async () => {
