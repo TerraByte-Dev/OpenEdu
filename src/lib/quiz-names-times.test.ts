@@ -83,6 +83,44 @@ describe("gradeAnswersBatch: names and clock times code must leave to the model"
     ]);
   }, 30_000);
 
+  // Review of #333: other wordings of the form, and a question that gives the key's time in another form,
+  // are conversions too; an answer that skips the conversion (or echoes the question) is the model's.
+  it("leaves a time that skips the conversion to the model, however the form is worded", async () => {
+    await expectUnsettled([
+      ["Write 4:15 p.m. using the 24 hour system.", "16:15", "4:15"],
+      ["Write 4:15 p.m. using the 24 hour system.", "16:15", "quarter past four"],
+      ["A clock in a train station uses the 24-hour system. How would it show 4:15 p.m.?", "16:15", "4:15"],
+      ["Write 4:15 p.m. in 24 hour system time.", "16:15", "quarter past four in the afternoon"],
+      ["Write 4:15 p.m. in twenty four hour time.", "16:15", "4:15"],
+      ["Write 16:15 in standard time.", "4:15 p.m.", "sixteen fifteen"],
+      ["Change 16:15 to standard time.", "4:15 p.m.", "sixteen fifteen"],
+      ["Write 16:15 using a.m. or p.m.", "4:15 p.m.", "sixteen fifteen"],
+      // No form named: the question's time is the key's, written another way.
+      ["What is 16:15 on a clock with a.m. and p.m.?", "4:15 p.m.", "sixteen fifteen"],
+      ["What is 16:15 on a clock with a.m. and p.m.?", "4:15 p.m.", "4:15"],
+      ["What is 16:15 on a clock with a.m. and p.m.?", "4:15 p.m.", "16:15"],
+      ["How does a station clock show 4:15 p.m.?", "16:15", "4:15"],
+      ["How does a station clock show 4:15 p.m.?", "16:15", "quarter past four"],
+      ["How does a station clock show 4:15 p.m.?", "16:15", "4:15 p.m."],
+      ["Write 4:15 p.m. in 24-hour time.", "16:15", "4:15 p.m."],
+      ["Write 16:15 in standard time.", "4:15 p.m.", "16:15"],
+    ]);
+  }, 30_000);
+
+  it("still takes the converted time and marks a.m. for p.m. wrong on a conversion", async () => {
+    const cases: Array<[string, string, string]> = [
+      ["Write 4:15 p.m. using the 24 hour system.", "16:15", "16:15"],
+      ["A clock in a train station uses the 24-hour system. How would it show 4:15 p.m.?", "16:15", "16:15"],
+      ["Write 16:15 in standard time.", "4:15 p.m.", "4:15 pm"],
+      ["Write 16:15 using a.m. or p.m.", "4:15 p.m.", "4:15 p.m."],
+      ["How does a station clock show 4:15 p.m.?", "16:15", "16:15"],
+      ["What time is 15:00 on a 12-hour clock?", "3 PM", "3 p.m."],
+      ["Write 16:15 in standard time.", "4:15 p.m.", "4:15 a.m."],
+    ];
+    const out = await gradeAnswersBatch(cases.map(([question, expected, student], index) => ({ index, question, expected, student, type: "short_answer" })), null);
+    expect(cases.map((_, i) => `${out.get(i)!.by} ${out.get(i)!.isCorrect}`)).toEqual([...cases.slice(0, 6).map(() => "exact true"), "exact false"]);
+  }, 30_000);
+
   it("never takes a two-word surname that starts with an initial", async () => {
     await expectUnsettled([
       ["Who was the 41st president of the United States?", "George H. W. Bush", "w bush"],

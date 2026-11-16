@@ -1268,9 +1268,13 @@ function compareQuantities(k: Quantity, a: Quantity, question: string): boolean 
 // A clock time: "4:15 p.m.", "4 pm", "16:15". Minutes after midnight, one reading or, with no a.m./p.m.
 // and an hour of 1 to 12, two.
 const CLOCK_RE = /^(?:it's |it is |at )?(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?\s?m\b\.?)?$/;
-function clockReadings(s: string): number[] | null {
+function clockMatch(s: string): RegExpExecArray | null {
   const m = CLOCK_RE.exec((s ?? "").normalize("NFKC").toLowerCase().replace(/[’‘`]/g, "'").replace(/!+$/, "").trim());
-  if (!m || (m[2] === undefined && !m[3])) return null;
+  return m && (m[2] !== undefined || m[3]) ? m : null;
+}
+function clockReadings(s: string): number[] | null {
+  const m = clockMatch(s);
+  if (!m) return null;
   const h = Number(m[1]);
   const min = Number(m[2] ?? 0);
   if (min > 59) return null;
@@ -1362,9 +1366,32 @@ function questionHalf(question: string): "am" | "pm" | null {
   return am === pm ? null : am ? "am" : "pm";
 }
 
-// The question asks for a time written another way: "Write 4:15 p.m. in 24-hour time", "as a 12-hour
-// time". The conversion is the answer, so a time without its half of the day, or in words, skips it.
-const CLOCK_FORM_RE = /\b(?:24|12|twenty-four|twelve)[- ]hour\s+(?:time|clock|format|form|notation)\b|\bmilitary time\b/i;
+/** How a clock time in digits is written: with a.m./p.m. ("half"), as a 24-hour time ("24": an hour of 0
+ * or 13-23, or a leading zero), or neither ("bare": "4:15"). */
+function clockForm(s: string): "half" | "24" | "bare" | null {
+  const m = clockMatch(s);
+  if (!m) return null;
+  if (m[3]) return "half";
+  const h = Number(m[1]);
+  return h === 0 || h >= 13 || /^0\d/.test(m[1]) ? "24" : "bare";
+}
+
+// The question asks for a time written another way: "Write 4:15 p.m. in 24-hour time", "using the 24
+// hour system", "as a 12-hour time", "in standard time", "using a.m. or p.m.".
+const CLOCK_FORM_RE = /\b(?:24|12|twenty[- ]four|twelve)[- ]hour\b|\bmilitary time\b|\bstandard time\b|\ba\.?\s?m\.?\s*(?:or|\/)\s*p\.?\s?m\b/i;
+const QUESTION_CLOCK_RE = /\b\d{1,2}(?::\d{2})?(?:\s*[ap]\.?\s?m\b\.?)?/gi;
+
+/** The question asks for the key's time written another way: it says a form (CLOCK_FORM_RE), or it gives
+ * the key's time of day in another form ("Write 16:15 in standard time" for 4:15 p.m.). */
+function asksClockForm(question: string, expected: string): boolean {
+  if (CLOCK_FORM_RE.test(question)) return true;
+  const k = clockReadings(expected) ?? [];
+  const form = clockForm(expected);
+  return (question.match(QUESTION_CLOCK_RE) ?? []).some((t) => {
+    const q = clockReadings(t);
+    return !!q && q.some((x) => k.includes(x)) && clockForm(t) !== form;
+  });
+}
 
 /**
  * Settles an answer when the key and the answer are each one quantity: true when the amounts are the
@@ -1376,7 +1403,9 @@ function settleQuantity(item: WrittenAnswer): boolean | null {
     const digits = clockReadings(item.student);
     const a = digits ?? spokenClock(item.student);
     if (!a) return null;
-    if (CLOCK_FORM_RE.test(item.question) && (!digits || a.length === 2)) return null;
+    // The conversion is the answer, so a time in words, without its half of the day, or in another form
+    // than the key's skips it ("4:15 p.m." echoed for 16:15); the model decides.
+    if (asksClockForm(item.question, item.expected) && (!digits || a.length === 2 || (k.length === 1 && clockForm(item.student) !== clockForm(item.expected)))) return null;
     if (a.length === 1 && k.length === 1) {
       if (a[0] === k[0]) return true;
       // Wrong only when it is the key with a.m. and p.m. swapped, in digits; any other time is the model's.

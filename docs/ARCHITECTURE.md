@@ -311,8 +311,11 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   morning" and the like only when they are the key's half of the day, and no half only when the key
   has none or the question pins it ("half past three" for 3:30 p.m. after "leaves at 3:10 p.m.", and
   "3:30" too). A half the answer gives and the key does not goes to the model ("1:30 a.m." for 1:30 on
-  an elapsed time that crosses noon), and so does a time without its half or in words on a question that
-  asks for 12-hour or 24-hour time. A time in words is never marked wrong. A sign's name settles
+  an elapsed time that crosses noon), and so does, on a conversion, a time without its half, in words, or
+  in another form than the key's ("4:15", "quarter past four" or "4:15 p.m." for 16:15): a conversion
+  is a question that names a form (12-hour, 24-hour, military or standard time, "a.m. or p.m.") or gives
+  the key's time of day written another way ("Write 16:15 ..." for 4:15 p.m.). A time in words is never
+  marked wrong. A sign's name settles
   when the key is the sign itself ("greater than" for ">"; never "greater than or equal to" or "less
   than"), never the sign for a key that is a name, and only to fill a blank between two numbers
   ("7 __ 2") on a question that neither shows the sign nor says a word of its names or what it does
