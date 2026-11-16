@@ -18,8 +18,21 @@
 //   - an ordinal in words or digits: "the fourth planet" is "4th planet", "first" is "1st". Never a
 //     plain number for an ordinal, and never the ordinal without the key's other words ("the fourth"
 //     for "4th planet" goes to the model);
-//   - a person's surname: the key is a person's name (the question asks "who", the key is 2-4
-//     capitalised words) and the answer is that name's last word;
+//   - a person's surname: the key is a person's name (the question asks "who" or names a person's role,
+//     "Which scientist", "Name the author"; the key is 2-4 capitalised words) and the answer is that
+//     name's last word, or for a name of 3 or 4 words its last two ("conan doyle" for Arthur Conan
+//     Doyle). Never under a choice, never a surname the question itself says ("Which Roosevelt"), and
+//     a surname that is also a common word ("Bell", "Young") only on such a question about a person;
+//   - a misspelt name: a key word written with a capital that is in neither the dictionary nor the word
+//     list (a place or a person: Sahara, Pompeii), and an answer word that is not a word either, with
+//     the same first and last letters, at most one slip of spelling by ear away (two for a name of 7+
+//     letters): a vowel for a vowel, a vowel added or left out, a letter doubled or undoubled, two
+//     neighbours swapped ("sahera", "pompei"). Never when a word of the question or the key, a country,
+//     a US state, a continent or a planet is as close ("slovania" may be Slovakia), so "Zambia" for
+//     Gambia and "Niger" for Nigeria go to the model;
+//   - a clock time in words for a clock-time key: "quarter after eleven", "half past three", "ten to
+//     four", "eleven fifteen", "noon"; a.m./p.m. or "in the morning" only when the key's half of the day
+//     matches, and none only when the key has none or the question pins it (see settleQuantity);
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
 //     word ("herbivor"). "neuron" for "neutron" or "photon" for "proton" is a real word, so it is a
 //     different answer, and the model decides it. The caller supplies the word list (the dictionary).
@@ -246,15 +259,96 @@ function nearerWords(answer: string, key: string): string[] {
  * question offers) means the answer may be that one misspelt. The key word has to be in the dictionary
  * itself: it has no names of places or people, so it cannot say that "zambia" is a real word and not
  * "Gambia" misspelt. */
-function sameWord(answer: string, key: string, isWord: (w: string) => boolean, rivals: string[]): boolean {
+function sameWord(answer: string, key: string, isWord: (w: string) => boolean, rivals: string[], name?: { known: (w: string) => boolean; rivals: string[] }): boolean {
   if (answer === key || singular(answer) === singular(key)) return true;
+  if (name && misspeltName(answer, key, name.known, name.rivals)) return true;
   if (!oneEditOff(answer, key) || isWord(answer) || !isWord(key)) return false;
   if (rivals.some((r) => editDistance(singular(answer), singular(r)) <= 1)) return false;
   return !nearerWords(answer, key).some(isWord);
 }
 
-function sameWords(answer: string[], key: string[], isWord: (w: string) => boolean, rivals: string[] = []): boolean {
-  return answer.length === key.length && answer.every((w, i) => sameWord(w, key[i], isWord, rivals));
+/** The key's words that may be misspelt names (misspeltName): those written with a capital. `known` says
+ * whether a word is in the dictionary or the English word list. */
+interface Names { words: Set<string>; known: (w: string) => boolean }
+
+/** The answer's words against the key's, in order. A name's rivals include the key's other words. */
+function sameWords(answer: string[], key: string[], isWord: (w: string) => boolean, rivals: string[] = [], names?: Names): boolean {
+  return answer.length === key.length && answer.every((w, i) => sameWord(w, key[i], isWord, rivals,
+    names?.words.has(key[i]) ? { known: names.known, rivals: [...rivals, ...key.filter((k) => k !== key[i])] } : undefined));
+}
+
+// ─── A misspelt name ──────────────────────────────────────────────────────────
+
+// Names a misspelt place could also be: countries, US states, continents and planets. Neither the
+// dictionary nor the word list has names, so without these "slovania" would be Slovenia, when it may be
+// Slovakia.
+const PLACE_NAMES = new Set((
+  "afghanistan albania algeria andorra angola antigua argentina armenia australia austria azerbaijan bahamas " +
+  "bahrain bangladesh barbados belarus belgium belize benin bhutan bolivia bosnia botswana brazil brunei " +
+  "bulgaria burkina burundi cambodia cameroon canada chad chile china colombia comoros congo croatia cuba " +
+  "cyprus czechia denmark djibouti dominica ecuador egypt eritrea estonia eswatini ethiopia fiji finland " +
+  "france gabon gambia georgia germany ghana greece grenada guatemala guinea guyana haiti honduras hungary " +
+  "iceland india indonesia iran iraq ireland israel italy jamaica japan jordan kazakhstan kenya kiribati " +
+  "korea kosovo kuwait kyrgyzstan laos latvia lebanon lesotho liberia libya liechtenstein lithuania " +
+  "luxembourg madagascar malawi malaysia maldives mali malta mauritania mauritius mexico micronesia moldova " +
+  "monaco mongolia montenegro morocco mozambique myanmar namibia nauru nepal netherlands nicaragua niger " +
+  "nigeria norway oman pakistan palau palestine panama paraguay peru philippines poland portugal qatar " +
+  "romania russia rwanda samoa senegal serbia seychelles singapore slovakia slovenia somalia spain sudan " +
+  "suriname swaziland sweden switzerland syria taiwan tajikistan tanzania thailand togo tonga trinidad " +
+  "tunisia turkey turkmenistan tuvalu uganda ukraine uruguay uzbekistan vanuatu vatican venezuela vietnam " +
+  "yemen zambia zimbabwe " +
+  "alabama alaska arizona arkansas california colorado connecticut delaware florida hawaii idaho illinois " +
+  "indiana iowa kansas kentucky louisiana maine maryland massachusetts michigan minnesota mississippi " +
+  "missouri montana nebraska nevada ohio oklahoma oregon pennsylvania tennessee texas utah vermont virginia " +
+  "washington wisconsin wyoming carolina dakota " +
+  "africa asia europe antarctica oceania america mercury venus earth mars jupiter saturn uranus neptune pluto"
+).split(" "));
+
+const VOWELS = new Set(["a", "e", "i", "o", "u"]);
+
+/**
+ * Edits from the key's word to the answer's, counting only slips of spelling a name by ear: a vowel for
+ * another vowel, a vowel added or left out, a letter doubled or undoubled, two neighbours swapped. Any
+ * other edit (a consonant changed, added or dropped) counts as too many: "slovakia" is not a slip from
+ * Slovenia, "pompei" is from Pompeii.
+ */
+export function slipEdits(key: string, answer: string): number {
+  const TOO_MANY = 99;
+  const d: number[][] = Array.from({ length: key.length + 1 }, () => Array(answer.length + 1).fill(TOO_MANY));
+  d[0][0] = 0;
+  // A letter that may come or go: a vowel, or one of a doubled pair.
+  const loose = (w: string, i: number) => VOWELS.has(w[i]) || w[i] === w[i - 1] || w[i] === w[i + 1];
+  for (let i = 0; i <= key.length; i++) {
+    for (let j = 0; j <= answer.length; j++) {
+      if (i > 0) d[i][j] = Math.min(d[i][j], d[i - 1][j] + (loose(key, i - 1) ? 1 : TOO_MANY));
+      if (j > 0) d[i][j] = Math.min(d[i][j], d[i][j - 1] + (loose(answer, j - 1) ? 1 : TOO_MANY));
+      if (i > 0 && j > 0) {
+        const k = key[i - 1], a = answer[j - 1];
+        d[i][j] = Math.min(d[i][j], d[i - 1][j - 1] + (k === a ? 0 : VOWELS.has(k) && VOWELS.has(a) ? 1 : TOO_MANY));
+      }
+      if (i > 1 && j > 1 && key[i - 1] === answer[j - 2] && key[i - 2] === answer[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[key.length][answer.length];
+}
+
+/** The key's words written with a capital then small letters: "Sahara", "Pompeii", not "NASA". */
+function capitalisedWords(form: string): Set<string> {
+  return new Set((form.normalize("NFKC").match(/[\p{L}'’]+/gu) ?? []).filter((w) => /^\p{Lu}\p{Ll}/u.test(w)).flatMap((w) => answerWords(w)));
+}
+
+/**
+ * The answer's word is the key's name misspelt: the key's word is in neither the dictionary nor the word
+ * list (`known` says both), and neither is the answer's; the same first and last letters; at most one
+ * slip (slipEdits) for a name of 6 letters, two for 7 or more; and no rival (a word of the question or
+ * the key, a country, a US state, a continent, a planet) that close to it.
+ */
+function misspeltName(answer: string, key: string, known: (w: string) => boolean, rivals: string[]): boolean {
+  const edits = key.length >= 7 ? 2 : key.length >= MISSPELLING_MIN_LETTERS ? 1 : 0;
+  if (edits === 0 || isNumber(answer) || known(key) || known(answer)) return false;
+  if (answer[0] !== key[0] || answer[answer.length - 1] !== key[key.length - 1]) return false;
+  if (slipEdits(key, answer) > edits) return false;
+  return ![...rivals, ...PLACE_NAMES].some((r) => r !== key && editDistance(answer, r) <= edits);
 }
 
 /** The question's words that are not the key's: what a misspelling could also be of. */
@@ -449,16 +543,49 @@ function sameFormula(answer: string[], keyForm: string): boolean {
 
 const NAME_SUFFIX = /^(?:jr|sr|ii|iii|iv)$/;
 
-/** The key is a person's name: the question asks who, and the key is 2-4 capitalised words, the first
- * not an article ("The Roman Empire" is not a person). */
-function personSurname(question: string, keyForm: string): string | null {
-  if (!/\bwho\b/i.test(question)) return null;
+// The question asks about a person: "who", or a person's role ("Which scientist discovered penicillin?",
+// "Name the author of Hamlet", "Which Greek philosopher"). Not roles that are also everyday words for
+// other things ("general", "man-made").
+const WHO_RE = /\bwho(?:m|se)?\b/i;
+const PERSON_ROLES = [
+  "scientist", "author", "writer", "poet", "playwright", "novelist", "president", "king", "queen", "emperor",
+  "empress", "pharaoh", "ruler", "leader", "explorer", "inventor", "artist", "painter", "sculptor", "composer",
+  "musician", "mathematician", "physicist", "chemist", "biologist", "botanist", "geologist", "astronomer",
+  "naturalist", "philosopher", "person", "woman", "prince", "princess", "astronaut", "aviator", "admiral",
+  "minister", "senator", "governor", "activist", "abolitionist", "reformer", "engineer", "architect",
+  "economist", "psychologist", "physician", "doctor", "nurse", "founder", "saint", "pope",
+];
+const PERSON_ROLE_RE = new RegExp(`\\b(?:which|what|name\\s+(?:the|a|an|this|that))\\s+(?:[\\p{L}\\p{N}'’-]+\\s+){0,2}?(?:${PERSON_ROLES.join("|")})\\b(?!-)`, "iu");
+
+/** A person's name in the key, on a question about a person: its 2-4 capitalised words (a suffix such as
+ * "Jr." dropped), the first not an article ("The Roman Empire" is not a person). */
+interface PersonName { parts: string[] }
+function personName(question: string, keyForm: string): PersonName | null {
+  if (!WHO_RE.test(question) && !PERSON_ROLE_RE.test(question)) return null;
   if (/^(?:the|a|an)\s/i.test(keyForm.trim())) return null;
-  const parts = keyForm.normalize("NFKC").replace(/[.,]/g, " ").trim().split(/\s+/);
-  const named = parts.filter((p) => !NAME_SUFFIX.test(p.toLowerCase()));
+  const named = keyForm.normalize("NFKC").replace(/[.,]/g, " ").trim().split(/\s+/).filter((p) => !NAME_SUFFIX.test(p.toLowerCase()));
   if (named.length < 2 || named.length > 4) return null;
   if (!named.every((p) => /^\p{Lu}[\p{L}'’-]*$/u.test(p))) return null;
-  return answerWords(named[named.length - 1]).join(" ") || null;
+  const parts = named.map((p) => answerWords(p).join(" "));
+  return parts.every(Boolean) ? { parts } : null;
+}
+
+/** The name's last word, and for a name of 3 or 4 words its last two ("conan doyle"), each as words. */
+const surnameForms = (p: PersonName): string[][] =>
+  p.parts.slice(1).map((_, k) => p.parts.slice(p.parts.length - 1 - k).join(" ").split(" ")).slice(0, 2);
+
+/**
+ * The surname forms an answer may give for the key, on a question about a person; none when the
+ * question already says the surname ("Which Roosevelt...?"): it names someone the surname cannot tell
+ * apart from the key. A surname that is a common word ("Bell", "Young") is taken only here, where the
+ * question asks who or names a person's role.
+ */
+function personSurnames(question: string, keyForm: string): string[][] {
+  const p = personName(question, keyForm);
+  if (!p) return [];
+  const said = new Set(answerWords(question));
+  if (p.parts[p.parts.length - 1].split(" ").some((w) => said.has(w))) return [];
+  return surnameForms(p);
 }
 
 // ─── Signs ────────────────────────────────────────────────────────────────────
@@ -578,7 +705,8 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
 // "150 million", number words), a sign (-, minus, negative, "below zero"), and at most one unit from a
 // small table: length, mass, volume, time, and compounds of them (square and cubic, "per" or a
 // slash: km/h, g/cm³, g/mL), percent, money ($, dollars, cents, ¢), and temperature, never converted
-// between scales. A clock time ("4:15 p.m.", "16:15") is read on its own. Anything else in either, or
+// between scales. A clock time ("4:15 p.m.", "16:15", "quarter past four in the afternoon") is read on
+// its own, and a word time is only ever accepted, never marked wrong. Anything else in either, or
 // any word the table does not know, and code does not decide.
 //
 // Right (true) when the amounts are equal after converting units (within the precision written; on an
@@ -620,7 +748,8 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
 //     notation. A different value is still judged as above;
 //   - the question asks for the key's unit ("in kilometers", "how many grams") and the answer gives the
 //     same amount in another ("1500 m"): not converted, which the model decides;
-//   - the key is a ratio ("2:3"), or a clock time that cannot be told from a.m. ("4:15" for 4:15 p.m.).
+//   - the key is a ratio ("2:3"), or a clock time that cannot be told from a.m. ("4:15" for 4:15 p.m.),
+//     unless the question pins the half of the day ("A film starts at 2:45 p.m. ...").
 // A bare key takes the unit the question asks for ("Write the elevation as a number of meters": "-15
 // km" is wrong, "negative 15 meters" right). A code rejection is stored like any other code mark
 // (graded_by 'exact'), and the learner can still say "I think I was right" (written-answer-checks.ts).
@@ -1109,11 +1238,87 @@ function clockReadings(s: string): number[] | null {
   return h >= 13 || h === 0 ? [h * 60 + min] : [h * 60 + min, ((h + 12) % 24) * 60 + min];
 }
 
-/** A key that is a clock time: with a.m./p.m. or a 24-hour hour, or on a question about the time; never a ratio. */
+/** A key that is a clock time: with a.m./p.m. or a 24-hour hour, or on a question about the time (it
+ * says time, o'clock, noon or midnight, asks when, or gives a clock time: "in at 10:40"); never a ratio. */
 function isClockKey(expected: string, question: string): boolean {
   if (/\bratio\b/i.test(question)) return false;
   const k = clockReadings(expected);
-  return !!k && (k.length === 1 || /\btime\b|o'?clock|\bnoon\b|\bmidnight\b/i.test(question));
+  return !!k && (k.length === 1 || /\btime\b|o'?clock|\bnoon\b|\bmidnight\b|\bwhen\b|\d:\d\d/i.test(question));
+}
+
+// A half of the day said after a time in words, and the hours (1-12) it can go with: "twelve in the
+// morning" and "two at night" could be either half, so they are not read.
+const DAY_HALVES: Array<{ words: string[]; pm: boolean; hours: (h: number) => boolean }> = [
+  { words: ["am"], pm: false, hours: () => true },
+  { words: ["pm"], pm: true, hours: () => true },
+  { words: ["in", "the", "morning"], pm: false, hours: (h) => h <= 11 },
+  { words: ["in", "the", "afternoon"], pm: true, hours: (h) => h === 12 || h <= 6 },
+  { words: ["in", "the", "evening"], pm: true, hours: (h) => h >= 4 && h <= 11 },
+  { words: ["at", "night"], pm: true, hours: (h) => h >= 7 && h <= 11 },
+];
+const PAST_WORDS = new Set(["past", "after"]);
+const TO_WORDS = new Set(["to", "before", "till", "til", "of"]);
+
+/**
+ * A clock time in words, as clockReadings reads one in digits: "quarter after eleven", "half past
+ * three", "ten to four", "twenty-five minutes past six", "eleven fifteen", "three oh five", "four
+ * o'clock", "noon", "midnight", each maybe with "a.m."/"p.m.", "in the morning", "in the afternoon", "in
+ * the evening" or "at night" after it. Null for anything else, "about half past three" included.
+ */
+function spokenClock(s: string): number[] | null {
+  let w = answerWords(s);
+  if (w[0] === "at") w = w.slice(1);
+  if (w.length === 0) return null;
+  const half = DAY_HALVES.find((d) => w.length > d.words.length && d.words.every((x, i) => w[w.length - d.words.length + i] === x));
+  if (half) w = w.slice(0, w.length - half.words.length);
+  const t = w.join(" ");
+  // Noon and midnight are one time each, and take no half of the day.
+  const fixed: Record<string, number> = { noon: 720, midday: 720, "12 noon": 720, midnight: 0, "12 midnight": 0 };
+  if (t in fixed) return half ? null : [fixed[t]];
+  const int = (x: string | undefined, lo: number, hi: number) => (x !== undefined && /^\d+$/.test(x) && +x >= lo && +x <= hi ? +x : null);
+  let hour: number | null = null;  // 0-23 as said
+  let minutes = 0;                 // after the hour; negative before it
+  let anchor: number | null = null; // "quarter past noon": the hour is noon or midnight, one reading
+  // "quarter past eleven", "ten to four", "25 minutes past 6".
+  const m = w.length >= 3 ? w[0] === "quarter" ? 15 : w[0] === "half" ? 30 : int(w[0], 1, 30) : null;
+  const rest = w[1] === "minutes" || w[1] === "minute" ? 2 : 1;
+  if (m !== null && w.length === rest + 2 && (PAST_WORDS.has(w[rest]) || (TO_WORDS.has(w[rest]) && w[0] !== "half"))) {
+    minutes = PAST_WORDS.has(w[rest]) ? m : -m;
+    const h = w[rest + 1];
+    if (h === "noon" || h === "midnight") anchor = h === "noon" ? 720 : 1440;
+    else hour = int(h, 1, 12);
+    if (hour === null && anchor === null) return null;
+  } else if (w.length === 3 && w[1] === "o" && w[2] === "clock") {
+    hour = int(w[0], 1, 12);                                      // "four o'clock"
+  } else if (w.length === 1 && half) {
+    hour = int(w[0], 1, 12);                                      // "four in the afternoon"
+  } else if (w.length === 2) {
+    hour = int(w[0], 0, 23);                                      // "eleven fifteen"
+    minutes = int(w[1], 10, 59) ?? -1;
+    if (minutes < 0) return null;
+  } else if (w.length === 3 && (w[1] === "oh" || w[1] === "o")) {
+    hour = int(w[0], 0, 23);                                      // "three oh five"
+    minutes = int(w[2], 1, 9) ?? -1;
+    if (minutes < 0) return null;
+  } else {
+    return null;
+  }
+  if (anchor !== null) return half ? null : [(anchor + minutes + 1440) % 1440];
+  if (hour === null) return null;
+  if (hour === 0 || hour >= 13) return half ? null : [(hour * 60 + minutes + 1440) % 1440];
+  // On a 12-hour clock: 0-719 from twelve o'clock, then a.m. or p.m.
+  const onDial = ((hour % 12) * 60 + minutes + 720) % 720;
+  if (!half) return [onDial, onDial + 720];
+  if (!half.hours(Math.floor(onDial / 60) || 12)) return null;
+  return [onDial + (half.pm ? 720 : 0)];
+}
+
+/** The half of the day the question pins: it says a.m. or the morning, or p.m., the afternoon, the evening
+ * or the night, and not both. */
+function questionHalf(question: string): "am" | "pm" | null {
+  const am = /\d\s*a\.?\s?m\b|\ba\.m\.|\bmorning\b/i.test(question);
+  const pm = /\d\s*p\.?\s?m\b|\bp\.m\.|\b(?:afternoon|evening|night|tonight)\b/i.test(question);
+  return am === pm ? null : am ? "am" : "pm";
 }
 
 /**
@@ -1123,11 +1328,20 @@ function isClockKey(expected: string, question: string): boolean {
 function settleQuantity(item: WrittenAnswer): boolean | null {
   if (isClockKey(item.expected, item.question)) {
     const k = clockReadings(item.expected)!;
-    const a = clockReadings(item.student);
+    const digits = clockReadings(item.student);
+    const a = digits ?? spokenClock(item.student);
     if (!a) return null;
-    if (a.some((x) => k.includes(x))) return a.length === 1 && k.length === 1 ? true : null;
-    // Wrong only when it is the key with a.m. and p.m. swapped; any other time is the model's.
-    return a.length === 1 && k.length === 1 && a[0] === (k[0] + 720) % 1440 ? false : null;
+    if (a.length === 1 && k.length === 1) {
+      if (a[0] === k[0]) return true;
+      // Wrong only when it is the key with a.m. and p.m. swapped, in digits; any other time is the model's.
+      return digits && a[0] === (k[0] + 720) % 1440 ? false : null;
+    }
+    // Neither says the half of the day ("quarter past four" for 4:15): the same two times.
+    if (a.length === 2 && k.length === 2) return a.every((x) => k.includes(x)) ? true : null;
+    // One side says the half and the other does not: right only when the question pins that half
+    // ("4:15" for 4:15 p.m. on "A film starts at 2:45 p.m. ..."). "4:15" alone could be a.m.
+    const time = a.length === 1 ? a[0] : k[0];
+    return a.includes(time) && k.includes(time) && questionHalf(item.question) === (time < 720 ? "am" : "pm") ? true : null;
   }
   const k = parseQuantity(item.expected);
   if (!k || k.guessed) return null;
@@ -1148,9 +1362,10 @@ export interface WrittenAnswer {
  * True when code can tell the answer is the key; false when the key and the answer are each one
  * quantity and code can tell the amounts differ (settleQuantity); null when it cannot, and the model
  * decides. `isWord` says whether a word is a real word (the dictionary); without it, no misspelling is
- * accepted.
+ * accepted. `listed` says whether a word is in the English word list (wordlist.ts); without it, no
+ * misspelt name is accepted.
  */
-export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true): boolean | null {
+export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true, listed: (w: string) => boolean = () => true): boolean | null {
   // A sign has no words, so it is read before anything else. Only a name for a key that is the sign
   // itself: "greater than" for ">"; another sign's name ("less than", "greater than or equal to") is
   // never taken by a later rule. The sign for a key that is a name ("What does > mean?"), two names,
@@ -1175,12 +1390,14 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
       firstNumberFits(answer, answerWords(item.expected), item.question)) return true;
   for (const form of keyForms(item.expected)) {
     const key = answerWords(form);
-    if (sameWords(answer, key, isWord, rivalWords(item.question, key))) return true;
+    const names: Names = { words: capitalisedWords(form), known: (w) => isWord(w) || listed(w) };
+    if (sameWords(answer, key, isWord, rivalWords(item.question, key), names)) return true;
     if (sameNumberAndUnits(answer, key, item.question)) return true;
     if (sameFormula(answer, form)) return true;
     // Under a choice the surname may be what both sides share ("Theodore Roosevelt or Franklin Roosevelt?").
-    const surname = choice ? null : personSurname(item.question, form);
-    if (surname && sameWords(answer, surname.split(" "), isWord, rivalWords(item.question, surname.split(" ")))) return true;
+    for (const surname of choice ? [] : personSurnames(item.question, form)) {
+      if (sameWords(answer, surname, isWord, rivalWords(item.question, surname), names)) return true;
+    }
   }
   // Last, so it never overrides an accept above: a quantity, right or wrong.
   return settleQuantity(item);
@@ -1190,16 +1407,17 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
  * The words settleByCode needs the dictionary for, so the caller can look them up first (the dictionary
  * is loaded asynchronously): each of the answer's words it would accept as a misspelling if it is not a
  * real word, the key word it would be a misspelling of, and every word one edit from the answer's
- * word. The caller counts a word it did not look up as real, so a misspelling is never accepted on an
- * answer word or a nearer word it did not check.
+ * word; and the answer and key words of a misspelt name (misspeltNameCandidates). The caller counts a
+ * word it did not look up as real, so a misspelling is never accepted on an answer word or a nearer word
+ * it did not check.
  */
 export function misspellingCandidates(item: WrittenAnswer): string[] {
   const answer = answerWords(item.student);
-  const out = new Set<string>();
+  const out = new Set<string>(misspeltNameCandidates(item));
   for (const form of keyForms(item.expected)) {
     const keys = [answerWords(form)];
-    const surname = personSurname(item.question, form);
-    if (surname) keys.push(surname.split(" "));
+    const person = personName(item.question, form);
+    if (person) keys.push(...surnameForms(person));
     for (const key of keys) {
       if (key.length !== answer.length) continue;
       answer.forEach((w, i) => {
@@ -1207,6 +1425,32 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
         out.add(w);
         out.add(key[i]);
         for (const n of nearerWords(w, key[i])) out.add(n);
+      });
+    }
+  }
+  return [...out];
+}
+
+/**
+ * The answer's words that settleByCode could take as a misspelt name, and the key's names they would be
+ * misspellings of: the words it needs the English word list for (settleByCode's `listed`), and the
+ * dictionary too. A name is in neither, so a misspelling that is a real word is never taken for a name.
+ */
+export function misspeltNameCandidates(item: WrittenAnswer): string[] {
+  const answer = answerWords(item.student);
+  const out = new Set<string>();
+  for (const form of keyForms(item.expected)) {
+    const names = capitalisedWords(form);
+    if (names.size === 0) continue;
+    const keys = [answerWords(form)];
+    const person = personName(item.question, form);
+    if (person) keys.push(...surnameForms(person));
+    for (const key of keys) {
+      if (key.length !== answer.length) continue;
+      answer.forEach((w, i) => {
+        if (!names.has(key[i]) || w === key[i] || key[i].length < MISSPELLING_MIN_LETTERS || editDistance(w, key[i]) > 2) return;
+        out.add(w);
+        out.add(key[i]);
       });
     }
   }

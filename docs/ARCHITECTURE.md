@@ -289,13 +289,25 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   unit, units in the key's order, so "60 hours per km" is not "60 km per hour"; the degree sign reads
   as "degrees", so "100 degrees C" is "100 °C"), an ordinal in words or digits with the key's other
   words ("the fourth planet" for "4th planet"; never "4" for "4th", and "the fourth" alone goes to the
-  model), a spelled formula ("h two o"), a person's surname when the question asks who and the key is
-  a name, and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
+  model), a spelled formula ("h two o"), a person's surname when the question asks who or names a
+  person's role ("Which scientist", "Name the author") and the key is a name: its last word, or for a
+  name of 3-4 words its last two ("conan doyle"), never under a choice or when the question itself says
+  the surname ("Which Roosevelt...?"); and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
   itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). Never two edits
   ("omnivour" goes to the model: "glucogan" is as close to glycogen as to glucagon). No
   misspelling counts when another dictionary word is one edit from the answer's word ("slovania"),
   when a word the question offers is as close, or when the key word is not in the dictionary (it has
-  no names of places or people, so "Zambia" for "Gambia" goes to the model). A sign's name settles
+  no names of places or people, so "Zambia" for "Gambia" goes to the model). A name has its own rule:
+  a capitalised key word in neither the dictionary nor the English word list (Sahara, Pompeii) takes an
+  answer word in neither that keeps its first and last letters and is one slip of spelling by ear away,
+  two for a name of 7+ letters (a vowel for a vowel, a vowel added or dropped, a letter doubled or
+  undoubled, two neighbours swapped: "sahera", "pompei"), unless a word of the question or key, a
+  country, a US state, a continent or a planet is as close ("slovania" may be Slovakia; "Zambia",
+  "niger" for Nigeria and "george" for Georgia go to the model). A clock time in words settles for a
+  clock-time key ("quarter after eleven" for 11:15, "noon" for 12:00 p.m.); a.m./p.m., "in the
+  morning" and the like only when they are the key's half of the day, and no half only when the key
+  has none or the question pins it ("half past three" for 3:30 p.m. after "leaves at 3:10 p.m.", and
+  "3:30" too). A time in words is never marked wrong. A sign's name settles
   when the key is the sign itself ("greater than" for ">"; never "greater than or equal to" or "less
   than"), never the sign for a key that is a name, and only to fill a blank between two numbers
   ("7 __ 2") on a question that neither shows the sign nor says a word of its names or what it does

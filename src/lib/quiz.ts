@@ -11,7 +11,7 @@ import {
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
-import { settleByCode, misspellingCandidates, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup } from "./answer-match";
+import { settleByCode, misspellingCandidates, misspeltNameCandidates, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup } from "./answer-match";
 import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
 import { inWordList } from "./wordlist";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
@@ -778,6 +778,17 @@ async function realWords(words: string[]): Promise<(w: string) => boolean> {
   return (w) => !notWords.has(w);
 }
 
+// Which of these words are in the English word list (wordlist.ts). A word the list could not be read
+// for counts as listed, so a misspelt name is accepted only when the list says it is not a word.
+async function wordListHas(words: string[]): Promise<(w: string) => boolean> {
+  const unlisted = new Set<string>();
+  await Promise.all([...new Set(words)].map(async (w) => {
+    try { if (!(await inWordList(w))) unlisted.add(w); }
+    catch { /* unreadable: treated as listed */ }
+  }));
+  return (w) => !unlisted.has(w);
+}
+
 // A note for the model on each answer that may be the key misspelt (answer-match.ts misspellingNote),
 // or null. The dictionary says what is a real word and which real words are near, and the English word
 // list (wordlist.ts) says what else is a real word; WordNet's full headword list is read only when some
@@ -831,13 +842,15 @@ export async function gradeAnswersBatch(
 
   // An answer that is the key in another form ("washington", "h two o", "a hundred degrees",
   // "tadpoles") is settled in code first (answer-match.ts), so the model never gets the chance to fail
-  // it. A misspelling counts only when the word is not a real word, which the dictionary says.
+  // it. A misspelling counts only when the word is not a real word, which the dictionary says; a misspelt
+  // name ("sahera" for the Sahara) only when neither the dictionary nor the English word list has it.
   const isWord = await realWords(items.flatMap(misspellingCandidates));
+  const listed = await wordListHas(items.flatMap(misspeltNameCandidates));
   for (const it of items) {
     // settleByCode returns false only when the key and the answer are each one quantity and code is
     // sure the amounts differ ("4.5%" for 45%); anything it is unsure of is null and goes to the model.
     // A code rejection is stored as 'exact' like a code accept, and can be marked again by hand.
-    const settled = settleByCode(it, isWord);
+    const settled = settleByCode(it, isWord, listed);
     if (settled === true) {
       out.set(it.index, { isCorrect: true, feedback: "Correct.", by: "exact" });
     } else if (settled === false) {
