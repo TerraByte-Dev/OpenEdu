@@ -375,6 +375,82 @@ export const GRADE_DEV_NUMBERS: GradeDevQuestion[] = [
     answers: [R("37", "form"), R("thirty-seven years old", "form"), W("47 years", "near-number"), W("36 years", "near-number")] },
 ];
 
+// GRADE_DEV_NAMES_TIMES (round 7, 2026-11-16) is weighted to what held-out v6 left: e2b failed a clock
+// time in words ("quarter after eleven" for 11:15), a misspelt place ("sahera", "pompei") and a surname
+// on a question that names a role instead of asking who, or a surname of two words ("conan doyle").
+// Three kinds of question, each with the right forms and the wrong forms closest to them. Right kinds:
+// time-words (the key's time in words), time-half (in words with the key's half of the day), surname,
+// surname-2 (a two-word surname), surname-misspelt, name-misspelt (a place or person spelt by ear),
+// title-surname ("captain cook"), first-name-under-choice (the first name where the question offers two
+// people who share the surname).
+// Wrong kinds: time-other (another time in words), time-half-swapped (the key's time with the other
+// half of the day), first-name (the first name only), same-surname (another person with the key's
+// surname), surname-in-question (the surname the question already says), rival (another famous name the
+// question is about), other-place (another place), other-place-misspelt (another place, misspelt).
+// Labels by Claude, not blind. None of these questions is from a held-out set.
+export const GRADE_DEV_NAMES_TIMES: GradeDevQuestion[] = [
+  { id: "t01", question: "A science class begins at 10:50 and lasts 25 minutes. When does it end?", key: "11:15",
+    answers: [R("quarter past eleven", "time-words"), R("eleven fifteen", "time-words"), W("quarter to eleven", "time-other"), W("half past eleven", "time-other")] },
+  { id: "t02", question: "A girl leaves home at 3:10 p.m. and walks for 20 minutes. What time does she get to the park?", key: "3:30 p.m.",
+    answers: [R("half past three", "time-words"), R("half past three in the afternoon", "time-half"), W("half past three in the morning", "time-half-swapped"), W("half past four", "time-other")] },
+  { id: "t03", question: "A train leaves at 9:20 a.m. and the trip takes 25 minutes. What time does it arrive?", key: "9:45 a.m.",
+    answers: [R("a quarter to ten", "time-words"), R("quarter to ten in the morning", "time-half"), W("quarter past ten", "time-other"), W("nine forty-five p.m.", "time-half-swapped")] },
+  { id: "t04", question: "What time is it when both hands of a clock point to the 12 in the middle of the day?", key: "12:00 p.m.",
+    answers: [R("noon", "time-words"), R("twelve noon", "time-words"), W("midnight", "time-half-swapped")] },
+  { id: "t05", question: "A school play starts at 7:00 p.m. and runs for 2 hours 40 minutes. What time does it end?", key: "9:40 p.m.",
+    answers: [R("twenty to ten", "time-words"), R("nine forty at night", "time-half"), W("twenty past ten", "time-other"), W("nine forty in the morning", "time-half-swapped")] },
+  { id: "t06", question: "On a clock, the hour hand is just past the 4 and the minute hand points at the 3. What time is it?", key: "4:15",
+    answers: [R("quarter after four", "time-words"), R("four fifteen", "time-words"), W("quarter to four", "time-other"), W("three twenty", "time-other")] },
+  { id: "t07", question: "Sam goes to bed at 8:30 p.m. and sleeps for 10 hours. What time does he wake up?", key: "6:30 a.m.",
+    answers: [R("half past six in the morning", "time-half"), R("six thirty", "time-words"), W("half past six in the evening", "time-half-swapped"), W("half past eight", "time-other")] },
+  { id: "t08", question: "A bus is due at 2:55 p.m. but arrives 10 minutes late. When does it arrive?", key: "3:05 p.m.",
+    answers: [R("five past three", "time-words"), R("three oh five in the afternoon", "time-half"), W("five to three", "time-other"), W("ten past three", "time-other")] },
+  { id: "t09", question: "A swimming lesson starts at 4:35 in the afternoon and lasts 40 minutes. When does it end?", key: "5:15 p.m.",
+    answers: [R("quarter past five", "time-words"), R("five fifteen in the evening", "time-half"), W("quarter to five", "time-other"), W("5:15 a.m.", "time-half-swapped")] },
+  { id: "t10", question: "A pot of soup goes on the stove at 11:20 a.m. and cooks for 40 minutes. What time is it ready?", key: "12:00 p.m.",
+    answers: [R("noon", "time-words"), R("twelve o'clock", "time-words"), W("midnight", "time-half-swapped"), W("twenty to twelve", "time-other")] },
+  { id: "p01", question: "Which scientist first noticed that a mould in his London lab killed bacteria, leading to penicillin?", key: "Alexander Fleming",
+    answers: [R("fleming", "surname"), R("flemming", "surname-misspelt"), W("Ian Fleming", "same-surname"), W("Louis Pasteur", "rival")] },
+  { id: "p02", question: "Which writer invented the detective who lives at 221B Baker Street?", key: "Arthur Conan Doyle",
+    answers: [R("conan doyle", "surname-2"), R("doyle", "surname"), W("Agatha Christie", "rival"), W("arthur", "first-name")] },
+  { id: "p03", question: "Which naturalist wrote On the Origin of Species?", key: "Charles Darwin",
+    answers: [R("darwin", "surname"), R("darwen", "surname-misspelt"), W("Erasmus Darwin", "same-surname"), W("Gregor Mendel", "rival")] },
+  { id: "p04", question: "Which president issued the Emancipation Proclamation in 1863?", key: "Abraham Lincoln",
+    answers: [R("lincoln", "surname"), W("Mary Todd Lincoln", "same-surname"), W("Frederick Douglass", "rival")] },
+  { id: "p05", question: "Which physicist explained that mass and energy are linked by E = mc²?", key: "Albert Einstein",
+    answers: [R("einstein", "surname"), R("einstien", "surname-misspelt"), W("Isaac Newton", "rival"), W("albert", "first-name")] },
+  { id: "p06", question: "Who was granted the first patent for the telephone in 1876?", key: "Alexander Graham Bell",
+    answers: [R("bell", "surname"), R("graham bell", "surname-2"), W("Thomas Edison", "rival"), W("alexander", "first-name")] },
+  { id: "p07", question: "Which nurse cared for wounded soldiers in the Crimean War and was called the Lady with the Lamp?", key: "Florence Nightingale",
+    answers: [R("nightingale", "surname"), W("Clara Barton", "rival"), W("florence", "first-name")] },
+  { id: "p08", question: "Which Roosevelt was president for most of World War II?", key: "Franklin D. Roosevelt",
+    answers: [R("Franklin Roosevelt", "surname-2"), W("roosevelt", "surname-in-question"), W("Theodore Roosevelt", "same-surname")] },
+  { id: "p09", question: "Who wrote the novel Pride and Prejudice?", key: "Jane Austen",
+    answers: [R("austen", "surname"), R("jane austin", "surname-misspelt"), W("Charlotte Bronte", "rival"), W("Jane Eyre", "rival")] },
+  { id: "p10", question: "Who was the first scientist to win two Nobel Prizes, Marie Curie or Pierre Curie?", key: "Marie Curie",
+    answers: [R("marie", "first-name-under-choice"), W("curie", "same-surname"), W("pierre", "rival")] },
+  { id: "p11", question: "Which explorer commanded the ship Endeavour when it charted the east coast of Australia in 1770?", key: "James Cook",
+    answers: [R("cook", "surname"), R("captain cook", "title-surname"), W("Christopher Columbus", "rival"), W("Ferdinand Magellan", "rival")] },
+  { id: "m01", question: "Which great desert stretches across North Africa from the Atlantic Ocean to the Red Sea?", key: "The Sahara",
+    answers: [R("the sahera", "name-misspelt"), R("sahra", "name-misspelt"), W("the Gobi", "other-place"), W("the kalahary", "other-place-misspelt")] },
+  { id: "m02", question: "Which Roman town near Naples was buried in ash so deep that its streets and homes survived?", key: "Pompeii",
+    answers: [R("pompei", "name-misspelt"), R("pompii", "name-misspelt"), W("herculanium", "other-place-misspelt"), W("Rome", "other-place")] },
+  { id: "m03", question: "Which mountain range lies along the border between France and Spain?", key: "The Pyrenees",
+    answers: [R("the pyranees", "name-misspelt"), R("pyrennees", "name-misspelt"), W("the Alps", "other-place"), W("the apenines", "other-place-misspelt")] },
+  { id: "m04", question: "Which South American country has Caracas as its capital?", key: "Venezuela",
+    answers: [R("venezuala", "name-misspelt"), R("venezula", "name-misspelt"), W("bolivea", "other-place-misspelt"), W("Colombia", "other-place")] },
+  { id: "m05", question: "Which European country has Ljubljana as its capital?", key: "Slovenia",
+    answers: [R("solvenia", "name-misspelt"), W("Slovakia", "other-place"), W("slovakea", "other-place-misspelt")] },
+  { id: "m06", question: "Which Greek city-state trained every boy as a soldier and fought Athens in the Peloponnesian War?", key: "Sparta",
+    answers: [R("sparrta", "name-misspelt"), W("athins", "other-place-misspelt"), W("Troy", "other-place")] },
+  { id: "m07", question: "Which king of Babylon set down one of the earliest written law codes?", key: "Hammurabi",
+    answers: [R("hamurabi", "name-misspelt"), R("hammurrabi", "name-misspelt"), W("Nebuchadnezzar", "rival"), W("Gilgamesh", "rival")] },
+  { id: "m08", question: "Which Carthaginian general led elephants across the Alps to attack Rome?", key: "Hannibal",
+    answers: [R("hanibal", "name-misspelt"), R("hannibel", "name-misspelt"), W("Hamilcar", "rival"), W("Scipio", "rival")] },
+  { id: "m09", question: "Which planet has a giant storm called the Great Red Spot?", key: "Jupiter",
+    answers: [R("jupeter", "name-misspelt"), R("jupitar", "name-misspelt"), W("Saturn", "other-place"), W("nepchune", "other-place-misspelt")] },
+];
+
 // [question, key, right answer, wrong answer]
 export const GRADE_DEV_ROUND2: Array<[string, string, string, string]> = [
   ["What gas do plants take in from the air to make food?", "Carbon dioxide", "they take in CO2", "oxygen"],
