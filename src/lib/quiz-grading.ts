@@ -684,6 +684,14 @@ export type BatchGradeReply = Record<string, { feedback?: string; correct?: bool
 // dropped: a wrong conversion shown to a child is misinformation, and without it e2b failed 16, 15, 13
 // and passed 1, 1, 2 against 16, 15, 12 and 1, 2, 1 with it, code settling the same answers in both
 // (e4b, one run: 12 and 1 against 9 and 1). Results: results/2026-11-15-grade-dev-synonyms.md.
+// A misspelling code cannot accept gets a note (answer-match.ts misspellingNote). e2b wrote "The student
+// misspelled conduction" and marked it wrong: it saw the misspelling and counted it. So the note says
+// that, for that answer, spelling is not marked. On GRADE_DEV_MISSPELLINGS (e2b x3) right failed went
+// 23, 20, 23 → 8, 6, 6 with wrong passed 0, 1, 0 → 0, 0, 1 (the same ambiguous answer, in a batch with no
+// note). A note that only said "may be a misspelling" left 16, 17, 13; one line for the whole batch
+// ("spelling is not marked") passed "meitosis" for mitosis, which has no note, on every run; a fixed line
+// with no notes passed "content" for continent on every run. Results:
+// results/2026-11-16-grade-dev-misspelling-hint.md.
 export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): string {
   const body = items
     .map((it, k) =>
@@ -691,12 +699,12 @@ export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): s
       `Question: ${it.question}\n` +
       `Expected answer: ${it.expected}\n` +
       `Student answer: ${it.student}` +
-      (it.note ? `\nNote: ${it.note}.` : ""),
+      (it.note ? `\nNote: ${it.note}. If it is, mark it correct: for this answer, spelling is not marked.` : ""),
     )
     .join("\n\n");
   // Only a batch with a note gets this line, so every other batch's prompt is unchanged.
   const noteLine = items.some((it) => it.note)
-    ? "\nA Note under an answer says a word the student typed may be a misspelling of the expected answer's word. It is not a verdict: decide from the question whether that is what the student meant."
+    ? "\nA Note under an answer applies to that answer only; check every other answer as above."
     : "";
 
   return `You are checking ${items.length} answer${items.length === 1 ? "" : "s"} a student typed. For each one, compare the student's answer with the expected answer.

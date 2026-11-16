@@ -313,6 +313,17 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   number, the answer must give the key's whole answer. It never marks an answer wrong; what it cannot settle
   goes to the model as before, and what it settles is stored as `graded_by` `'exact'`. A formula's count
   is no longer read as a number ("CO2" had passed for "H2O" as the number 2).
+- **A note to the model on a misspelling code cannot accept.** An answer that is the key with a word
+  one edit (key word 4+ letters) or two edits (7+) off ("skelitin" for skeleton) goes to the model with
+  a note under it: `"skelitin" may be a misspelling of "skeleton". If it is, mark it correct: for this
+  answer, spelling is not marked.` (`answer-match.ts` `misspellingNote`, `quiz.ts` `misspellingNotes`).
+  The model still decides. No note when the answer's word is a real word (unless the dictionary lists
+  it as another spelling of the key's word, "aluminium"), when the key's word is not in the dictionary,
+  or when another real word or a word of the question is as close ("glucogan": glycogen; "orbet":
+  sorbet). The check reads every one-word dictionary headword once per session
+  (`dictionary.ts` `oneWordHeadwords`), only when an answer needs it; if the dictionary cannot be read,
+  no note. A batch with no note gets the old prompt byte for byte. Measured in
+  `src/lib/eval/results/2026-11-16-grade-dev-misspelling-hint.md`.
 - **"I think I was right."** A small model still fails some right answers, so on the quiz and level
   test results screens a written answer the model marked wrong (`graded_by` `'model'`, wrong) has the
   button "I think I was right" (`components/quiz/MarkAgain.tsx`). The learner compares it with the key

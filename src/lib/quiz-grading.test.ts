@@ -240,9 +240,9 @@ describe("buildBatchGradePrompt", () => {
     expect(plain).not.toContain("Note");
     expect(buildBatchGradePrompt(items.map((it) => ({ ...it, note: null })))).toBe(plain);
     const noted = buildBatchGradePrompt([items[0], { ...items[1], note: '"osmosys" may be a misspelling of "osmosis"' }]);
-    expect(noted).toContain('Student answer: water flow\nNote: "osmosys" may be a misspelling of "osmosis".');
+    expect(noted).toContain('Student answer: water flow\nNote: "osmosys" may be a misspelling of "osmosis". If it is, mark it correct: for this answer, spelling is not marked.');
     expect(noted.match(/\nNote: /g)).toHaveLength(1);
-    expect(noted).toContain("It is not a verdict");
+    expect(noted).toContain("A Note under an answer applies to that answer only");
   });
 });
 

@@ -38,7 +38,7 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
   it("notes a two-edit misspelling no other real word is as close to, and tells the model what a note is", async () => {
     const p = await promptFor([item(0, "What is the frame of bones that holds up the body called?", "The skeleton", "skelitin")]);
     expect(p).toContain('Student answer: skelitin\nNote: "skelitin" may be a misspelling of "skeleton".');
-    expect(p).toContain("It is not a verdict");
+    expect(p).toContain("A Note under an answer applies to that answer only");
   }, 30_000);
 
   it("gives no note when another real word is as close, the answer is another real word, or it is the other word misspelt", async () => {
