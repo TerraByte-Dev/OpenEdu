@@ -68,3 +68,34 @@ Wrong passed:
   word, for one edit as well as two. A word the question offers that is as close blocks it too
   ("hypetonic" on "hypertonic or hypotonic?"). Two edits only on a key word of 8 letters or more, only
   vowels or doubled letters ("thermomitur" yes, "termomiter" and "fotosynthesis" no).
+
+## Review fix (cycle 1): signs one way only, no two-edit misspellings
+
+Review of #325 found code accepting answers it cannot know are right. Both rules changed; see
+`answer-match.ts`.
+
+- Signs: the branch took the sign for a name key and the name for a sign key without reading the
+  question, so "What does the sign > mean?" took ">", "Which sign means less than?" took "less than",
+  and "The Times" took "×". Now only a sign's name for a key that is the sign itself settles, and not
+  when the question shows that sign or says one of its names.
+- Two edits: "glucogan" settled for Glucagon though it is also two edits from glycogen (the reviewer
+  found 947 dictionary keys with such a tied answer). A check of every same-skeleton word within two
+  edits blocked all the reported cases, but a sweep of 240 random two-edit answers over the bundled
+  dictionary still left 10 of the 214 it accepted two edits from another word by a consonant edit
+  ("demontyze": demonize; "kallablle": callable; "sacantoly": vacantly). A full check is about 150,000
+  lookups per answer. The two-edit rule is deleted; those answers go to the model.
+
+With the real dictionary, code on `signs` now settles 46 answers (was 53), none wrong: the 7 lost are
+the two-edit misspellings ("carnivour", "herbivour", "vertebrait", "thurmometor", "hipothisis",
+"skelitin", "geolagest"). Sign and letter answers settle as before. Code settles exactly the same
+answers as before on `synonyms` and `round2`, so those were not rerun.
+
+| Set | Model | Before review fix | After review fix |
+|---|---|---|---|
+| signs (60 / 60) | e2b x3 | 0 / 0, 0 / 0, 1 / 0 | 7 / 0, 4 / 0, 5 / 0 |
+| signs (60 / 60) | e4b x1 | 0 / 1 | 1 / 1 |
+
+Right failed by kind on e2b after the fix: misspelling 5, 3, 3 (all two edits: "skelitin",
+"vertebrait" and "geolagest" in every run); sign 2, 1, 2 ("fewer than" / "smaller than" for "Less
+than", two names, unchanged rule); letters 0. e4b failed "geolagest" and again passed "CO" for "Co" on
+its own.
