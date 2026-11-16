@@ -92,3 +92,11 @@ mostly wrong answers, and passes those two.
 3. A misspelt name (`misspeltName`): a capitalised key word in neither WordNet nor the word list, an
    answer word in neither, same first and last letters, one slip by ear (two for 7+ letters), and no
    word of the question or key, country, US state, continent or planet as close.
+
+**After the conversion fix's verification.** Wordings the hour-clock guard did not know ("24-hr", "24h",
+"railway time", "in digits", "as a digital time") still let a worded or bare time through on a conversion.
+A list of clock names never ends, so any word about the answer's form now makes the question a conversion
+(`CLOCK_FORM_RE`: hour-clock wording, military, railway, standard or digital time, "a.m. or p.m.", digits,
+words, write, convert, express, format). Telling-time questions with no form word ("When does the bread
+come out?", "What time is it when the clock shows 11:15?") still settle a time in words. Dev-set code
+verdicts unchanged.

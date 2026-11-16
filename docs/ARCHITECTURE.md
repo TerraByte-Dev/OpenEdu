@@ -313,7 +313,8 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   "3:30" too). A half the answer gives and the key does not goes to the model ("1:30 a.m." for 1:30 on
   an elapsed time that crosses noon), and so does, on a conversion, a time without its half, in words, or
   in another form than the key's ("4:15", "quarter past four" or "4:15 p.m." for 16:15): a conversion
-  is a question that names a form (12-hour, 24-hour, military or standard time, "a.m. or p.m.") or gives
+  is a question that says anything about the answer's form (any hour-clock wording such as "24-hr" or "24h", military,
+  railway, standard or digital time, "a.m. or p.m.", digits, words, or write / convert / express) or gives
   the key's time of day written another way ("Write 16:15 ..." for 4:15 p.m.). A time in words is never
   marked wrong. A sign's name settles
   when the key is the sign itself ("greater than" for ">"; never "greater than or equal to" or "less

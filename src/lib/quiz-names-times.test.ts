@@ -104,6 +104,17 @@ describe("gradeAnswersBatch: names and clock times code must leave to the model"
       ["How does a station clock show 4:15 p.m.?", "16:15", "4:15 p.m."],
       ["Write 4:15 p.m. in 24-hour time.", "16:15", "4:15 p.m."],
       ["Write 16:15 in standard time.", "4:15 p.m.", "16:15"],
+      // Verification of the conversion fix: any word about the answer's form leaves a worded or bare time
+      // to the model ("24-hr", "24h", "railway time", "in digits", "as a digital time").
+      ["Write quarter to six in the evening in 24-hr time.", "17:45", "5:45"],
+      ["How would a 24h clock show quarter to six in the evening?", "17:45", "5:45"],
+      ["How would a 24h clock show quarter to six in the evening?", "17:45", "quarter to six in the evening"],
+      ["Write quarter to six in the evening in 24-hr format.", "17:45", "quarter to six in the evening"],
+      ["Write quarter to six in the evening as railway time.", "17:45", "5:45"],
+      ["Write quarter past four in the afternoon in digits.", "4:15 p.m.", "quarter past four in the afternoon"],
+      ["Write the time in digits: quarter past four in the afternoon.", "4:15 p.m.", "quarter past four in the afternoon"],
+      ["Write a quarter to nine in the morning in digits.", "8:45 a.m.", "quarter to nine in the morning"],
+      ["Write twenty past three as a digital time.", "3:20", "twenty past three"],
     ]);
   }, 30_000);
 

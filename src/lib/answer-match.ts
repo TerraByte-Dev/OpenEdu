@@ -1376,9 +1376,10 @@ function clockForm(s: string): "half" | "24" | "bare" | null {
   return h === 0 || h >= 13 || /^0\d/.test(m[1]) ? "24" : "bare";
 }
 
-// The question asks for a time written another way: "Write 4:15 p.m. in 24-hour time", "using the 24
-// hour system", "as a 12-hour time", "in standard time", "using a.m. or p.m.".
-const CLOCK_FORM_RE = /\b(?:24|12|twenty[- ]four|twelve)[- ]hour\b|\bmilitary time\b|\bstandard time\b|\ba\.?\s?m\.?\s*(?:or|\/)\s*p\.?\s?m\b/i;
+// The question says anything about the form of the answer (a clock type, a.m./p.m., digits, words, or an
+// instruction to write, convert or express it): a time in words or a bare time is then the model's. A list
+// of ways to name a clock never ends ("24-hr", "24h", "railway time"), so any form word counts.
+const CLOCK_FORM_RE = /\b(?:24|12|twenty[- ]four|twelve)[- ]?(?:hours?|hrs?|h)\b|\b(?:military|railway|standard|digital)\b|\ba\.?\s?m\.?\s*(?:or|\/|and)\s*p\.?\s?m\b|\b(?:write|written|convert|change|express|format|form|digits?|numerals?|numbers|words)\b/i;
 const QUESTION_CLOCK_RE = /\b\d{1,2}(?::\d{2})?(?:\s*[ap]\.?\s?m\b\.?)?/gi;
 
 /** The question asks for the key's time written another way: it says a form (CLOCK_FORM_RE), or it gives
