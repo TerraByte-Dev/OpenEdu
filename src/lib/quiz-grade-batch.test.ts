@@ -101,3 +101,30 @@ describe("gradeAnswersBatch on a local model: one verdict per answer", () => {
     expect(prompt).not.toContain("generous");
   });
 });
+
+// Code marks an amount wrong only on a gross miss (answer-match.ts grossMiss). The fourth review's cases
+// are a fact given as another fraction or as a fraction of a percent key, and a fall given with a minus
+// sign: each is right, or close enough that the model decides, so none is marked wrong by code. With no
+// local model the answers code leaves open pass as `fallback`.
+const NEVER_CODE_WRONG: Array<[question: string, expected: string, student: string]> = [
+  ["What fraction of Earth's surface is covered by water?", "7/10", "3/4"],
+  ["What fraction of Earth's surface is covered by water?", "71/100", "3/4"],
+  ["What fraction of Earth's surface is covered by water?", "about 7/10", "3/4"],
+  ["What fraction of the air is nitrogen?", "4/5", "3/4"],
+  ["What fraction of the air is nitrogen?", "78/100", "4/5"],
+  ["What fraction of the human body is water?", "3/5", "2/3"],
+  ["How much of Earth's surface is covered by water?", "70%", "3/4"],
+  ["How much of Earth's surface is covered by water?", "71%", "3/4"],
+  ["How much of the human body is water?", "60%", "2/3"],
+  ["The temperature was 10 °C in the afternoon and 4 °C at night. How much did it go down?", "6 °C", "-6 °C"],
+  ["It was 5 °C at noon and -3 °C at midnight. How much colder was it at midnight?", "8 °C", "-8 °C"],
+  ["It was 5 °C at noon and -3 °C at midnight. How much did the temperature go down?", "8 degrees", "-8 degrees"],
+  ["How much lower is -5 than 3?", "8", "-8"],
+];
+
+describe("gradeAnswersBatch: code never marks wrong a near fact or the sign of a fall (the fourth review's cases)", () => {
+  it.each(NEVER_CODE_WRONG)("%s %s / %s", async (question, expected, student) => {
+    const out = await gradeAnswersBatch([{ index: 0, question, expected, student, type: "short_answer" }], null);
+    expect(out.get(0)?.isCorrect).toBe(true);
+  });
+});

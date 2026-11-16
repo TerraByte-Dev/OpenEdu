@@ -79,11 +79,13 @@ quantity each and compares amounts after converting units. Same amount: right (o
 "Estimate 49 x 21", "roughly", "about how", within 10%). Wrong only on a gross miss (`graded_by`
 `'exact'`, wrong, feedback "This does not match the answer key.", and "I think I was right" still
 offered): another kind of unit; a factor of about 10, 100 or 1000 (not 100 between two plain numbers or
-on a percent question, which is the same number read as a percent); a different fraction for a fraction
-key; a.m. for p.m.; the other sign, except on a question about a fall, drop, decrease, loss, depth,
-being below, a change or a difference; or, when the question gives the numbers and asks for no
-estimate, more than 20% apart. Never on precision alone: a measured fact, an estimate, pi or a rounded
-conversion factor goes to the model. Everything else it is not sure of stays null for the model; the
+on a percent question, which is the same number read as a percent; a bare number for a percent key is
+read as a part when that is nearer, so "3/4" for 70% is 75%); a.m. for p.m.; the other sign, except on a
+question about a fall, drop, decrease, loss, depth, being below, a change or a difference, or one that
+asks how much it went down, sank or descended, or how much colder, cooler or lower; or, when the
+question gives the numbers and asks for no estimate, a different fraction for a fraction key that does
+not say about, or more than 20% apart. Never on precision alone: a measured fact ("3/4" for 7/10 or 70%
+of Earth's surface), an estimate, pi or a rounded conversion factor goes to the model. Everything else it is not sure of stays null for the model; the
 list is in the code comment and `docs/ARCHITECTURE.md`.
 
 History. The first version (`1bb7318`) marked wrong any different amount beyond the precision either side
@@ -147,3 +149,14 @@ order as the baseline; each run its own process):
   alt-name and synonym answers as before; "the courts" (s02) failed once. "the cerebrum" passed on
   every run, as before.
 - round2, e2b: the 4 near misses now left to the model were graded wrong on every run.
+
+Fourth review. Code still marked wrong a fact given as another fraction ("3/4" for 7/10 or about 7/10 of
+Earth's surface, "2/3" for 3/5 of the body), a fraction for a percent key ("3/4" for 70%, "2/3" for
+60%), and the minus sign on a fall phrased as "go down", "colder" or "lower" ("-6 °C" for 6 °C). Now a
+different fraction is wrong only on the 20% rule's terms (the question gives the numbers, asks for no
+estimate, and the key does not say about), a bare number for a percent key is read as a part when that
+is nearer before the gross-miss test, and down, colder, cooler, lower, sank/sink/sunk and descend count
+as a fall. Each case is pinned null or right through `gradeAnswersBatch`
+(`quiz-grade-batch.test.ts`). Code's verdict on every answer of the five dev sets is the same before and
+after (compared answer by answer, with no word known to be real), so the prompts the model gets are
+unchanged and the runs above were not repeated.

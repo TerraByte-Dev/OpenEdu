@@ -922,8 +922,9 @@ const ASKS_ROUNDING_RE = /\b(?:round(?:ed|ing)?|nearest|estimate|approximate(?:l
 // The question asks for an estimate, so a near amount is right and only a gross miss is wrong. "About"
 // and "around" only before how, what or a number: "go around the Sun" asks for no estimate.
 const ESTIMATE_RE = /\b(?:estimate[ds]?|estimating|approximate(?:ly)?|roughly)\b|\b(?:about|around)\s+(?:how|what|\$?\d)/i;
-// The question is about a fall, a loss or a depth, so either sign may be meant ("-6 °C" for a fall of 6 °C).
-const CHANGE_RE = /\b(?:fall(?:s|en|ing)?|fell|drop(?:s|ped|ping)?|decreas\w*|loss(?:es)?|lose[sr]?|losing|lost|below|depth|deep(?:er)?|chang\w*|differen\w*)\b/i;
+// The question is about a fall, a loss or a depth, so either sign may be meant ("-6 °C" for a fall of 6 °C,
+// "-8" for "how much lower").
+const CHANGE_RE = /\b(?:fall(?:s|en|ing)?|fell|drop(?:s|ped|ping)?|decreas\w*|loss(?:es)?|lose[sr]?|losing|lost|below|depth|deep(?:er)?|chang\w*|differen\w*|down|colder|cooler|lower|sank|sink(?:s|ing)?|sunk|descen\w*)\b/i;
 // "How many fourths", "in thirds", "how many tens": a bare number counts that unit.
 const COUNT_UNITS: Record<string, number> = {
   halves: 1 / 2, thirds: 1 / 3, fourths: 1 / 4, quarters: 1 / 4, fifths: 1 / 5, sixths: 1 / 6, sevenths: 1 / 7,
@@ -976,10 +977,11 @@ function givesNumbers(question: string): boolean {
  * Two different amounts of one kind, in the same base units (`kv`, `av`): wrong only when the miss is
  * gross. A different sign (not on a question about a fall, loss or depth); a factor of about 10, 100 or
  * 1000 (not 100 between two plain numbers or on a percent question: 45 for 0.45 is the same number read
- * as a percent); a different fraction for a fraction key; or, when the question gives the numbers and
- * asks for no estimate, more than 20% apart. Never on precision alone.
+ * as a percent); or, when the question gives the numbers and asks for no estimate, a different fraction
+ * for a fraction key that does not say about, or more than 20% apart. Never on precision alone: "3/4"
+ * for 7/10 of Earth's surface is the model's.
  */
-function grossMiss(kv: number, av: number, kn: WrittenNumber, an: WrittenNumber, question: string, plainPair: boolean, precision: number): boolean {
+function grossMiss(kv: number, av: number, kn: WrittenNumber, an: WrittenNumber, question: string, plainPair: boolean, precision: number, about = false): boolean {
   const change = CHANGE_RE.test(question);
   if (kv * av < 0 && !change && Math.abs(kv + av) <= precision * (1 + 1e-9)) return true;
   const k = change ? Math.abs(kv) : kv;
@@ -991,9 +993,9 @@ function grossMiss(kv: number, av: number, kn: WrittenNumber, an: WrittenNumber,
       return !(Math.abs(n) === 2 && (plainPair || /percent|%/i.test(question)));
     }
   }
-  const fraction = (w: WrittenNumber) => w.form === "frac" || w.form === "mixed";
-  if (fraction(kn) && fraction(an)) return true;
   if (!givesNumbers(question) || ESTIMATE_RE.test(question)) return false;
+  const fraction = (w: WrittenNumber) => w.form === "frac" || w.form === "mixed";
+  if (fraction(kn) && fraction(an) && !about) return true;
   if (k * a <= 0) return k !== a;
   return Math.max(Math.abs(k), Math.abs(a)) / Math.min(Math.abs(k), Math.abs(a)) > 1.2 + 1e-9;
 }
@@ -1019,7 +1021,7 @@ function compareAmounts(k: Quantity, a: Quantity, question: string): boolean | n
   if (!mayReject || swappedReading(a, k.v)) return null;
   const answerHalf = (ASKS_ROUNDING_RE.test(question) ? a.loose : a.ulp) / 2;
   const plainPair = k.kind === "plain" && a.kind === "plain";
-  return grossMiss(k.v, a.v, k.num, a.num, question, plainPair, Math.max(k.ulp / 2, answerHalf)) ? false : null;
+  return grossMiss(k.v, a.v, k.num, a.num, question, plainPair, Math.max(k.ulp / 2, answerHalf), k.approx) ? false : null;
 }
 
 /** A bare number for a key with a unit: "1.75" for $1.75 is right; "2.75" is wrong; "175" may be cents. */
@@ -1031,8 +1033,12 @@ function bareForUnit(k: Quantity, a: Quantity, question: string): boolean | null
   const readings = k.kind === "percent" ? [1, 100] : k.kind === "money" ? [1, 0.01] : allUnits().filter((u) => u.dims === k.dims).map((u) => u.f);
   if (readings.length === 0) return null;
   const close = readings.some((g) => Math.abs(a.v * g - k.v) <= Math.max(a.loose * g / 2, k.ulp / 2, 0.05 * Math.abs(k.v)) || swappedReading(a, k.v / g));
-  // Not the key in any unit of its kind: read in the key's unit, wrong only when the miss is gross.
-  return !close && grossMiss(written, a.v, k.num, a.num, question, false, Math.max(k.ulp / k.f, a.ulp) / 2) ? false : null;
+  if (close) return null;
+  // Not the key in any unit of its kind: read in the key's unit, wrong only when the miss is gross. A
+  // percent key reads the answer as a part when that is nearer ("3/4" for 70% is 75%, a precision gap).
+  const near = (g: number) => Math.abs(Math.log10(Math.abs(a.v * g / written)));
+  const g = k.kind === "percent" && a.v !== 0 && written !== 0 && near(100) < near(1) ? 100 : 1;
+  return grossMiss(written, a.v * g, k.num, a.num, question, false, Math.max(k.ulp / k.f, a.ulp * g) / 2) ? false : null;
 }
 
 /** Two quantities: right, wrong, or null when code cannot be sure. */

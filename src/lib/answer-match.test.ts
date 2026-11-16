@@ -766,9 +766,9 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("A rope 3 meters long is cut into pieces 0.5 meters long. How many pieces are there?", "6", "6 meters")).toBeNull();
     expect(settle("What is -7 + 10?", "3", "3 meters")).toBeNull();
   });
-  // Code rejects only a gross miss: another kind of unit, a factor of about 10, 100 or 1000, a different
-  // fraction for a fraction key, a.m. for p.m., a sign flip, or more than 20% off the numbers the question
-  // gives. The third review's cases are all right answers, or close enough that the model decides.
+  // Code rejects only a gross miss: another kind of unit, a factor of about 10, 100 or 1000, a.m. for p.m.,
+  // a sign flip, or, on the numbers the question gives, a different fraction or more than 20% off. The
+  // third review's cases are all right answers, or close enough that the model decides.
   it("never marks wrong a measured fact given to another precision (the third review's cases)", () => {
     expect(settle("How tall is Mount Everest?", "8,849 m", "8,848 m")).toBeNull();
     expect(settle("How tall is Mount Everest?", "8,849 m", "8,850 meters")).toBeNull();
@@ -829,6 +829,14 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("About how far is the Sun from the Earth?", "About 1.5 × 10^8 km", "150 million miles")).toBeNull();
     expect(settle("About how far is the Sun from the Earth?", "About 1.5 × 10^8 km", "1.5 × 10^8 m")).toBe(false);
     expect(settle("How many degrees are in a right angle?", "90°", "180 degrees")).toBeNull();
+    // A fact given as another fraction, or as a fraction of a percent key, is the model's (the fourth
+    // review's cases are in quiz-grade-batch.test.ts); a different fraction worked out from the
+    // question's numbers, or a factor of 10, is still wrong.
+    expect(settle("A pizza has 10 slices and 7 are eaten. What fraction is eaten?", "7/10", "3/4")).toBe(false);
+    expect(settle("A pizza has 10 slices and 7 are eaten. What fraction is eaten?", "about 7/10", "3/4")).toBeNull();
+    expect(settle("How much of Earth's surface is covered by water?", "70%", "0.07")).toBe(false);
+    expect(settle("How much of Earth's surface is covered by water?", "70%", "7")).toBe(false);
+    expect(settle("The temperature was 10 °C in the afternoon and 4 °C at night. How much did it go down?", "6 °C", "-60 °C")).toBe(false);
   });
   it("marks wrong a different kind of quantity, each with its own unit", () => {
     expect(settle("A price rises from $40 to $50. By what percent did it increase?", "25%", "$10")).toBe(false);
