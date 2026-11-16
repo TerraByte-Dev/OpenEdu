@@ -1224,8 +1224,12 @@ describe("settleByCode: a sign written as a word", () => {
     expect(named(COOLING, "-8 °C", "down 8")).toBe(true);
   });
   it("accepts the mirror for a positive key: a credit, above zero, ahead, a gain", () => {
-    const PAID = "A bank account was $10 overdrawn. Its owner then paid in $25. What is the balance now?";
+    const PAID = "A savings account held $5. Its owner then paid in $10. What is the balance now?";
     for (const a of ["$15 in credit", "in credit by $15", "$15 in the black"]) expect(named(PAID, "$15", a), a).toBe(true);
+    // A debt said in any sentence: the same words fit "Sam is $40 in debt. He pays back $25.", still owed.
+    for (const a of ["$15 in credit", "in credit by $15"]) {
+      expect(named("A bank account was $10 overdrawn. Its owner then paid in $25. What is the balance now?", "$15", a), a).toBeNull();
+    }
     expect(named("Before sunrise it was -6 °C. By noon the temperature had risen 21 degrees. What was the temperature at noon?", "15 °C", "15 above zero")).toBe(true);
     expect(named("A team has 63 points and the next team has 48. Taking the second team's score as 0, what is the leader's score?", "15", "15 points ahead")).toBe(true);
     expect(named("A plant was 12 cm tall last week and is 17 cm tall now. What was the change in its height?", "5 cm", "an increase of 5 cm")).toBe(true);
@@ -1330,9 +1334,10 @@ describe("settleByCode on the direction-and-years dev set", () => {
   });
   it("settles held-out v8's kinds of miss, rewritten, and leaves the pair under a choice to the model", () => {
     const settled = GRADE_DEV_DIRECTION_YEARS.flatMap((q) => q.answers.filter((a) => a.right && named(q.question, q.key, a.text) === true).map((a) => `${q.id} ${a.text}`));
-    for (const a of ["x01 $15 overdrawn", "x07 a loss of $12", "x10 $15 in credit", "x11 15 above zero", "y01 twelve fifteen", "y03 eighteen oh five", "y04 twenty oh one"]) expect(settled).toContain(a);
-    expect(settled).not.toContain("y09 twelve fifteen");
-    expect(settled).toHaveLength(42);
+    for (const a of ["x01 $15 overdrawn", "x07 a loss of $12", "x11 15 above zero", "y01 twelve fifteen", "y03 eighteen oh five", "y04 twenty oh one"]) expect(settled).toContain(a);
+    // x10's credit is after "overdrawn": a positive key is never read as a credit after a debt.
+    for (const a of ["y09 twelve fifteen", "x10 $15 in credit", "x10 in credit by $15"]) expect(settled).not.toContain(a);
+    expect(settled).toHaveLength(40);
   });
 });
 

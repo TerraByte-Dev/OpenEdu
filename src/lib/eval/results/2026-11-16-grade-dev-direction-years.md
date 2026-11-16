@@ -99,8 +99,9 @@ Wrong passed, all by the model (e2b over 3 runs / e4b over 1):
    "about" go to the model. Never on a question that asks for the sign or already says the amount and a
    word of the same direction ("An account is overdrawn by $15"). A positive key is often a size with no
    sign, so a rise or credit word is read for one only on a question that asks no "how much" or "how
-   many" and whose last sentence says no fall, debt or depth ("What was its loss?" key $12: "a profit of
-   $12" goes to the model).
+   many" and says no fall, debt or depth in any sentence ("What was its loss?" key $12: "a profit of
+   $12" goes to the model; so does "went up $15" on "The price went down from $40 to $25. What was the
+   price change?" key $15). See the review fix below.
 2. `settleYear`: a key of 1000-2099 in digits (AD or CE allowed) on a question that asks "what year",
    "which year" or "when did/was", said in pairs ("twelve fifteen", "nineteen sixty nine", "eighteen oh
    five", "twenty oh one", "nineteen hundred", "twelve hundred and fifteen") or with thousand ("two
@@ -109,3 +110,31 @@ Wrong passed, all by the model (e2b over 3 runs / e4b over 1):
    question with no year word ("Columbus reached the Americas in ___") is not read; that is left open.
 3. `answerWords` keeps the minus of a negative amount of money ("-$15", "$-15"). It had dropped it, so the
    word match took "$15" and "fifteen" for -$15 (and "-$5" for $5); each now goes to the model.
+
+## Review fix: a fall said in an earlier sentence
+
+Review found that a positive key was read as a rise or a credit when the question said the fall or the
+debt before its last sentence: "The temperature fell from 25 °C to 10 °C. What was the change in
+temperature?" key 15 °C took "rose 15 °C", and likewise "went up $15" after "went down", "an increase
+of 15" after "decreased", "gained 15 points" after "lost", "$15 in credit" after "in debt" and "15 above
+zero" after "below zero" (six cases, each null on master `f1ba6f1`). The guard read only the last
+sentence. It now reads the whole question, so all six go to the model
+(`src/lib/quiz-direction-years.test.ts`).
+
+Code verdicts, all eight dev sets, no model: only `direction-years` x10 changes. "$15 in credit" and "in
+credit by $15" for $15 on "A bank account was $10 overdrawn. Its owner then paid in $25. What is the
+balance now?" now go to the model (code settles 40 right answers, was 42), because the question says
+"overdrawn". That is the cost of the fix: the same words with the debt still owed ("Sam is $40 in debt.
+He pays back $25.") must not be read as a credit, and code cannot tell the two apart without the
+arithmetic. `direction-years` was rerun; the other sets settle exactly as before.
+
+| Set | Model | Right failed | Wrong passed | Settled by code |
+|---|---|---|---|---|
+| direction-years | e2b run 1 | 1 / 43 | 6 / 23 | 40 |
+| direction-years | e2b run 2 | 1 / 43 | 7 / 23 | 40 |
+| direction-years | e2b run 3 | 1 / 43 | 6 / 23 | 40 |
+| direction-years | e4b run 1 | 0 / 43 | 5 / 23 | 40 |
+
+e2b fails "in credit by $15" on all three runs and passes "$15 in credit"; e4b passes both. Wrong passed
+is the same set of answers as before the fix (all by the model; e4b's 4 → 5 is "eighteen fifty", which
+e4b passed before this PR too). Code never passed a wrong answer and never marked an answer wrong.

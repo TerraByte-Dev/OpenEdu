@@ -44,7 +44,7 @@ describe("gradeAnswersBatch: a sign written as a word and a year said in pairs",
     const got = await verdicts(items.map(({ q, a }) => [q.question, q.key, a.text]));
     const bad = items.filter((_, i) => got[i].by === "exact" && (!got[i].isCorrect || !items[i].a.right)).map(({ q, a }) => `${q.id} ${a.text}`);
     expect(bad).toEqual([]);
-    expect(got.filter((v, i) => v.by === "exact" && items[i].a.right)).toHaveLength(42);
+    expect(got.filter((v, i) => v.by === "exact" && items[i].a.right)).toHaveLength(40);
   }, 30_000);
 
   it("leaves to the model the other direction, a dropped sign, another year, and a pair on a count or a choice", async () => {
@@ -60,6 +60,19 @@ describe("gradeAnswersBatch: a sign written as a word and a year said in pairs",
       ["In what year did astronauts first walk on the Moon?", "1969", "nineteen ninety-six"],
       ["A school library has 800 fiction books and 415 other books. How many books does it have?", "1215", "twelve fifteen"],
       ["Was the Magna Carta sealed in 1215 or 1512?", "1215", "twelve fifteen"],
+    ];
+    const got = await verdicts(cases);
+    expect(cases.filter((_, i) => got[i].by === "exact")).toEqual([]);
+  }, 30_000);
+
+  it("leaves to the model a rise or a credit for a positive key when an earlier sentence says the fall or the debt", async () => {
+    const cases: Array<[string, string, string]> = [
+      ["The temperature fell from 25 °C to 10 °C. What was the change in temperature?", "15 °C", "rose 15 °C"],
+      ["The price went down from $40 to $25. What was the price change?", "$15", "went up $15"],
+      ["A town's population decreased from 415 to 400. What was the change in population?", "15", "an increase of 15"],
+      ["Jo lost 15 points in the second round. What was the change in her score?", "15 points", "gained 15 points"],
+      ["Sam is $40 in debt. He pays back $25. What is his situation now?", "$15", "$15 in credit"],
+      ["It was 5 degrees below zero and the temperature fell 10 more degrees. What is the temperature?", "15 °F", "15 above zero"],
     ];
     const got = await verdicts(cases);
     expect(cases.filter((_, i) => got[i].by === "exact")).toEqual([]);

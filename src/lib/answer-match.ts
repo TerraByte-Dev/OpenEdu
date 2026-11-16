@@ -1582,7 +1582,8 @@ const DIRECTED_FORMS: DirectedForm[] = [
 // loss ("What was the change in its price?", "What was its profit?").
 const ASKS_CHANGE_RE = /\b(?:change[ds]?|profits?|gains?|loss(?:es)?|increase or decrease|rise or fall)\b/i;
 // What a positive key cannot be read as a rise or a credit after: the question asks how much (a size,
-// not a sign: "How many degrees did it fall?") or asks after a fall, a debt or a depth.
+// not a sign: "How many degrees did it fall?") or says a fall, a debt or a depth anywhere: "The price went
+// down from $40 to $25. What was the price change?" asks after a fall in its first sentence.
 const MAGNITUDE_RE = /\bhow (?:many|much|far|deep)\b/i;
 const OPPOSITE_OF_RISE = new Set([...BELOW_WORDS, ...DEBT_WORDS, ...FALL_WORDS, "behind", "deficit", "less", "fewer", "colder", "cooler"]);
 
@@ -1606,7 +1607,7 @@ const POINTS_RE = /\s+(?:points?|pts)$/;
  * already says the amount and a word of the same direction ("A diver is 11 m below the surface"): the
  * answer may be the question said back without the sign. A positive key is often a size with no sign at
  * all, so it is read as a rise, a credit or a height only when the question asks for no size ("how much",
- * "how many") and its last sentence says no fall, debt or depth.
+ * "how many") and says no fall, debt or depth in any sentence.
  */
 function settleDirected(item: WrittenAnswer): true | null {
   if (ASKS_FOR_SIGN_RE.test(item.question)) return null;
@@ -1628,7 +1629,7 @@ function settleDirected(item: WrittenAnswer): true | null {
     if (k.kind === "plain" && a.kind === "money" && a.f === 1) a = { ...a, kind: "plain" };
     if (questionWords.some((w) => form.echo.has(w)) &&
         (questionHasAmount(item.question, a.num.v) || questionHasAmount(item.question, k.num.v))) return null;
-    if (form.sign === 1 && (MAGNITUDE_RE.test(item.question) || answerWords(asking).some((w) => OPPOSITE_OF_RISE.has(w)))) return null;
+    if (form.sign === 1 && (MAGNITUDE_RE.test(item.question) || questionWords.some((w) => OPPOSITE_OF_RISE.has(w)))) return null;
     const signed: Quantity = form.sign === -1 ? { ...a, v: -a.v, num: { ...a.num, v: -a.num.v } } : a;
     return compareQuantities(k, signed, item.question) === true ? true : null;
   }

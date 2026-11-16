@@ -311,7 +311,8 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   question that asks for the sign (an integer, a signed or negative number, "represent", "express") or
   already says the amount and a word of the same direction ("A diver is 11 m below the surface"), and
   a positive key, often a size with no sign, only on a question that asks no "how much" or "how many"
-  and whose last sentence says no fall, debt or depth. A minus before a dollar sign is a sign ("-$15" is
+  and says no fall, debt or depth in any sentence ("The price went down from $40 to $25. What was the
+  price change?" key $15: "went up $15" goes to the model). A minus before a dollar sign is a sign ("-$15" is
   -15), so "$15" is no longer taken for -$15 (nor "-$5" for $5). A year said in pairs ("twelve
   fifteen" for 1215, "nineteen sixty-nine", "eighteen oh five", "twenty oh one", "two thousand and
   one") for a key of 1000-2099 in digits, only on a question that asks "what year", "which year" or
