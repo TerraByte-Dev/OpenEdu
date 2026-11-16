@@ -473,7 +473,7 @@ export const GRADE_DEV_RESTATE: GradeDevQuestion[] = [
     answers: [R("3 centuries", "time-unit"), R("three hundred years", "time-unit"), W("30 centuries", "time-count"), W("3 decades", "time-unit-wrong")] },
   { id: "u03", question: "A clay pot lay buried from 24 BCE until it was dug up in 1977. For how long was it buried?", key: "2,000 years",
     answers: [R("2 millennia", "time-unit"), R("two millennia", "time-unit"), W("2 centuries", "time-unit-wrong"), W("20 millennia", "time-count")] },
-  { id: "u04", question: "Mia may keep a library book for 14 days. How long can she keep it?", key: "14 days",
+  { id: "u04", question: "A library lends a book for 14 days. How long can a reader keep it?", key: "14 days",
     answers: [R("a fortnight", "time-unit"), R("one fortnight", "time-unit"), W("2 fortnights", "time-count"), W("a month", "time-unit-wrong")] },
   { id: "u05", question: "A country counts its people every 10 years. How long is it between two counts?", key: "10 years",
     answers: [R("a decade", "time-unit"), R("one decade", "time-unit"), W("a century", "time-unit-wrong"), W("10 decades", "time-count")] },
