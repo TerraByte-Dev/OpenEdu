@@ -451,6 +451,68 @@ export const GRADE_DEV_NAMES_TIMES: GradeDevQuestion[] = [
     answers: [R("jupeter", "name-misspelt"), R("jupitar", "name-misspelt"), W("Saturn", "other-place"), W("nepchune", "other-place-misspelt")] },
 ];
 
+// GRADE_DEV_RESTATE (round 8, 2026-11-16) is weighted to what held-out v7 left: e2b failed "5 decades"
+// for 50 years, "11 meters below the surface" for -11 m and "madame curie" for Marie Curie on every run.
+// Three kinds of question, each with the right forms and the wrong forms closest to them.
+// Right kinds: time-unit (the key's length of time in decades, centuries, millennia, fortnights or
+// months), month-calendar (months for a number of days: a month is no fixed number of days, so arguable),
+// depth-words (a negative depth or elevation written with below, deep or down), height-words (a positive
+// elevation written with above), depth-signed (the key with its sign), title-surname (a title and the
+// surname), surname, title-under-choice (a title and the surname where the question offers two people
+// who share it).
+// Wrong kinds: time-count (another number of the same unit), time-unit-wrong (the key's number in another
+// unit), direction-swapped (above for a negative, below for a positive), depth-amount (another
+// amount), depth-unit (another unit), title-other (a title and another person's surname), same-surname
+// (another person with the key's surname), title-same-surname (a title that names the other person
+// under a choice), rival (another person the question is about).
+// Labels by Claude, not blind. None of these questions is from a held-out set.
+export const GRADE_DEV_RESTATE: GradeDevQuestion[] = [
+  { id: "u01", question: "A park opened in 1974. How old was it in 2024?", key: "50 years",
+    answers: [R("5 decades", "time-unit"), R("half a century", "time-unit"), W("4 decades", "time-count"), W("5 centuries", "time-unit-wrong")] },
+  { id: "u02", question: "A cathedral was finished in 1724. How many years had passed by 2024?", key: "300 years",
+    answers: [R("3 centuries", "time-unit"), R("three hundred years", "time-unit"), W("30 centuries", "time-count"), W("3 decades", "time-unit-wrong")] },
+  { id: "u03", question: "A clay pot lay buried from 24 BCE until it was dug up in 1977. For how long was it buried?", key: "2,000 years",
+    answers: [R("2 millennia", "time-unit"), R("two millennia", "time-unit"), W("2 centuries", "time-unit-wrong"), W("20 millennia", "time-count")] },
+  { id: "u04", question: "A library lends a book for 14 days. How long can a reader keep it?", key: "14 days",
+    answers: [R("a fortnight", "time-unit"), R("one fortnight", "time-unit"), W("2 fortnights", "time-count"), W("a month", "time-unit-wrong")] },
+  { id: "u05", question: "A country counts its people every 10 years. How long is it between two counts?", key: "10 years",
+    answers: [R("a decade", "time-unit"), R("one decade", "time-unit"), W("a century", "time-unit-wrong"), W("10 decades", "time-count")] },
+  { id: "u06", question: "A school opened in 1924. How old was it on its birthday in 2024?", key: "100 years",
+    answers: [R("a century", "time-unit"), R("10 decades", "time-unit"), W("10 centuries", "time-count"), W("a millennium", "time-unit-wrong")] },
+  { id: "u07", question: "A bridge was built from January 2023 to the end of June 2024. How long did the work take?", key: "18 months",
+    answers: [R("1.5 years", "time-unit"), R("one and a half years", "time-unit"), W("18 years", "time-unit-wrong"), W("15 months", "time-count")] },
+  { id: "u08", question: "A sailing ship left port and reached land 61 days later. About how long was the trip?", key: "About 61 days",
+    answers: [R("about 2 months", "month-calendar"), W("about 6 months", "time-count"), W("about 61 weeks", "time-unit-wrong")] },
+  { id: "d01", question: "A diver is 20 meters below the surface of a lake and swims up 9 meters. Where is she now?", key: "-11 m",
+    answers: [R("11 meters below the surface", "depth-words"), R("-11 meters", "depth-signed"), W("11 meters above the surface", "direction-swapped"), W("11 km below the surface", "depth-unit")] },
+  { id: "d02", question: "A shipwreck lies on the sea floor. A diver goes straight down 35 m from the surface to reach it. What is the wreck's elevation relative to sea level?", key: "-35 m",
+    answers: [R("35 m deep", "depth-words"), R("35 meters down", "depth-words"), W("35 m above sea level", "direction-swapped"), W("53 m below sea level", "depth-amount")] },
+  { id: "d03", question: "The shore of a salt lake is 430 m lower than sea level. What is its elevation?", key: "-430 m",
+    answers: [R("430 m below sea level", "depth-words"), R("four hundred thirty meters below sea level", "depth-words"), W("430 m above sea level", "direction-swapped"), W("43 m below sea level", "depth-amount")] },
+  { id: "d04", question: "A mountain village sits 250 m higher than sea level. What is its elevation?", key: "250 m",
+    answers: [R("250 meters above sea level", "height-words"), R("250 m", "depth-signed"), W("250 m below sea level", "direction-swapped"), W("25 m above sea level", "depth-amount")] },
+  { id: "d05", question: "A well is dug 12 m into the ground. Taking ground level as 0, what is the elevation of the bottom of the well?", key: "-12 m",
+    answers: [R("12 m below ground", "depth-words"), R("12 meters below ground level", "depth-words"), W("12 m above ground", "direction-swapped"), W("12 cm below ground", "depth-unit")] },
+  { id: "d06", question: "A fish swims 6 m below the surface of a pond, then rises 2 m. Where is it now, relative to the surface?", key: "-4 m",
+    answers: [R("4 m below the surface", "depth-words"), R("4 meters under the water", "depth-words"), W("8 m below the surface", "depth-amount"), W("4 m above the surface", "direction-swapped")] },
+  { id: "d07", question: "A cave explorer starts at the cave's mouth and climbs down 15 meters. Write her position as a number of meters, with the mouth at 0.", key: "-15",
+    answers: [R("15 meters below the ground", "depth-words"), R("negative 15", "depth-signed"), W("15 meters above the ground", "direction-swapped"), W("150 meters below the ground", "depth-amount")] },
+  { id: "c01", question: "Which scientist was the first woman to win a Nobel Prize?", key: "Marie Curie",
+    answers: [R("madame curie", "title-surname"), R("mme curie", "title-surname"), W("madame pasteur", "title-other"), W("Pierre Curie", "same-surname")] },
+  { id: "c02", question: "Which civil rights leader gave the 'I Have a Dream' speech in 1963?", key: "Martin Luther King Jr.",
+    answers: [R("dr king", "title-surname"), R("Dr. King", "title-surname"), W("mr lincoln", "title-other"), W("Malcolm X", "rival")] },
+  { id: "c03", question: "Which poet wrote 'She Walks in Beauty' and died in Greece in 1824?", key: "George Gordon Byron",
+    answers: [R("lord byron", "title-surname"), R("byron", "surname"), W("lord tennyson", "title-other"), W("Percy Shelley", "rival")] },
+  { id: "c04", question: "Which mathematician wrote what is often called the first computer program, for Charles Babbage's Analytical Engine?", key: "Ada Lovelace",
+    answers: [R("lady lovelace", "title-surname"), R("lovelace", "surname"), W("lady babbage", "title-other"), W("Charles Babbage", "rival")] },
+  { id: "c05", question: "Which suffragette leader founded the Women's Social and Political Union in 1903?", key: "Emmeline Pankhurst",
+    answers: [R("mrs pankhurst", "title-surname"), R("Mrs. Pankhurst", "title-surname"), W("Christabel Pankhurst", "same-surname"), W("mrs fawcett", "title-other")] },
+  { id: "c06", question: "Which scientist won a Nobel Prize in both physics and chemistry, Marie Curie or Pierre Curie?", key: "Marie Curie",
+    answers: [R("madame curie", "title-under-choice"), W("mr curie", "title-same-surname"), W("monsieur curie", "title-same-surname")] },
+  { id: "c07", question: "Which Scottish missionary and explorer was found in Africa by Henry Morton Stanley in 1871?", key: "David Livingstone",
+    answers: [R("dr livingstone", "title-surname"), R("doctor livingstone", "title-surname"), W("dr stanley", "title-other"), W("Mungo Park", "rival")] },
+];
+
 // [question, key, right answer, wrong answer]
 export const GRADE_DEV_ROUND2: Array<[string, string, string, string]> = [
   ["What gas do plants take in from the air to make food?", "Carbon dioxide", "they take in CO2", "oxygen"],
