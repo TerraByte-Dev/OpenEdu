@@ -7,7 +7,7 @@
 // the same amount in other units), against wrong answers that are partial or on the same topic.
 
 export interface GradeDevAnswer { text: string; right: boolean; kind: string }
-export interface GradeDevQuestion { id: string; question: string; key: string; answers: GradeDevAnswer[] }
+export interface GradeDevQuestion { id: string; question: string; key: string; answers: GradeDevAnswer[]; why?: string }
 
 // Right kinds: synonym, alt-name, units (the same amount in other units), form (the key in another
 // form), number-in-words. Wrong kinds: partial, same-topic, wrong-unit, opposite.
@@ -235,6 +235,144 @@ export const GRADE_DEV_MISSPELLINGS: GradeDevQuestion[] = [
     answers: [R("merkurey", "misspelt-2"), R("murcury", "misspelt-1"), W("Venus", "same-topic"), W("Mars", "same-topic")] },
   { id: "x30", question: "What do we call one of Earth's seven very large areas of land, like Africa?", key: "A continent",
     answers: [R("a kontinant", "misspelt-2"), R("continant", "misspelt-1"), W("a country", "same-topic"), W("content", "near-word")] },
+];
+
+// GRADE_DEV_NUMBERS (round 6, 2026-11-16) is weighted to what held-out v5 left: e2b passed "4.5%" for
+// 45% and failed "1 gram per milliliter" for 1 g/cm³ on every run. Numeric and unit keys across K-12
+// math and science: percent, fractions, decimals, money, time, metric and customary measures, area and
+// volume, density, speed, temperature, scientific notation, ratios, negative numbers, years, counts.
+// Each question's `why` says what a teacher accepts there, and whether a unit is wanted.
+// Right kinds: form (the same number written another way: words, commas, a leading + or a trailing
+// zero, "about"), equivalent (the same value as a fraction, decimal or percent), units (the same amount
+// in other units), unit-name (the unit spelt out or abbreviated another way), notation (scientific or
+// standard notation for the same value), allowed-rounding (rounding the question allows). Wrong kinds:
+// place-value (a decimal point or digit shifted: "4.5%" for 45%), wrong-unit (the right number with a
+// unit that changes the amount), sign (off by a sign), over-rounded (rounded further than the question
+// allows), near-number (an arithmetic slip), inverse (the reciprocal or the ratio reversed),
+// not-converted (the given form, not the asked one), not-simplest, not-scientific, no-unit (the
+// question asks for a unit), other-quantity (a different quantity from the one asked).
+// Labels by Claude, not blind. None of these questions is from a held-out set.
+export const GRADE_DEV_NUMBERS: GradeDevQuestion[] = [
+  { id: "n01", question: "Write 9/20 as a percent.", key: "45%",
+    why: "The task is the conversion, so the answer must be a percent: 45 with % or the word percent. 0.45 is the decimal, not done; 4.5% is a different amount.",
+    answers: [R("45 percent", "unit-name"), R("45.0%", "form"), W("4.5%", "place-value"), W("0.45", "not-converted")] },
+  { id: "n02", question: "Of the 20 students in a class, 9 walk to school. What part of the class walks to school?", key: "9/20",
+    why: "The question asks for the part, in no set form, so 9/20, 0.45 and 45% all name it. 9/11 compares walkers to non-walkers; 20/9 is upside down.",
+    answers: [R("45%", "equivalent"), R("0.45", "equivalent"), R("nine twentieths", "form"), W("9/11", "other-quantity"), W("20/9", "inverse")] },
+  { id: "n03", question: "What is 20% of 50?", key: "10",
+    why: "A plain number; 10.0 is the same number. 2.5 is 50 divided by 20; 40 is the other 80%.",
+    answers: [R("ten", "form"), R("10.0", "form"), W("2.5", "near-number"), W("40", "other-quantity")] },
+  { id: "n04", question: "A price rises from $40 to $50. By what percent did it increase?", key: "25%",
+    why: "The question asks for a percent of the old price. 20% divides by the new price; $10 is the increase in dollars, not the percent.",
+    answers: [R("25 percent", "unit-name"), R("a 25% increase", "form"), W("20%", "near-number"), W("$10", "other-quantity")] },
+  { id: "n05", question: "What is 1/4 + 1/4?", key: "1/2",
+    why: "Any form of one half is right. 2/8 adds the denominators too, and equals 1/4.",
+    answers: [R("0.5", "equivalent"), R(".5", "equivalent"), R("one half", "form"), W("2/8", "near-number"), W("1/8", "near-number")] },
+  { id: "n06", question: "Write 0.75 as a fraction in simplest form.", key: "3/4",
+    why: "The question asks for simplest form, so 75/100 is not finished. Three fourths and three quarters are both 3/4.",
+    answers: [R("three fourths", "form"), R("three quarters", "form"), W("75/100", "not-simplest"), W("4/3", "inverse")] },
+  { id: "n07", question: "What is 2/3 of 12?", key: "8",
+    why: "A plain number. 18 is 12 divided by 2/3; 4 is a third of 12.",
+    answers: [R("eight", "form"), R("8.0", "form"), W("18", "inverse"), W("4", "near-number")] },
+  { id: "n08", question: "Write 1/8 as an exact decimal.", key: "0.125",
+    why: "The question asks for the exact decimal, so a rounded 0.13 is wrong. A missing leading zero or a trailing zero doesn't change the value.",
+    answers: [R(".125", "form"), R("0.1250", "form"), W("0.13", "over-rounded"), W("0.8", "near-number")] },
+  { id: "n09", question: "Write 2/3 as a decimal rounded to the nearest hundredth.", key: "0.67",
+    why: "Nearest hundredth is 0.67. 0.66 cuts off instead of rounding; 0.7 rounds to tenths.",
+    answers: [R(".67", "form"), R("about 0.67", "form"), W("0.66", "near-number"), W("0.7", "over-rounded")] },
+  { id: "n10", question: "Round 4,872 to the nearest hundred.", key: "4,900",
+    why: "With or without the comma, 4,900. 4,800 cuts off; 5,000 rounds to the nearest thousand.",
+    answers: [R("4900", "form"), R("four thousand nine hundred", "form"), W("4,800", "near-number"), W("5,000", "over-rounded")] },
+  { id: "n11", question: "Write four hundred six thousand twenty in digits.", key: "406,020",
+    why: "Digits with a comma, a space or neither are the same number. 406,200 and 46,020 put a digit in the wrong place.",
+    answers: [R("406020", "form"), R("406 020", "form"), W("406,200", "place-value"), W("46,020", "place-value")] },
+  { id: "n12", question: "How many days are in a leap year?", key: "366",
+    why: "A count; the unit is in the question. 365 is an ordinary year.",
+    answers: [R("366 days", "unit-name"), R("three hundred sixty-six", "form"), W("365", "near-number"), W("367 days", "near-number")] },
+  { id: "n13", question: "What is -7 + 10?", key: "3",
+    why: "+3 and positive three are 3. -3 has the wrong sign; 17 ignores the negative.",
+    answers: [R("+3", "form"), R("positive three", "form"), W("-3", "sign"), W("17", "near-number")] },
+  { id: "n14", question: "The temperature was 3 °C in the morning and fell by 8 degrees by night. What was the temperature at night?", key: "−5 °C",
+    why: "Five below zero Celsius however it is written. 5 °C has the wrong sign; -11 °C subtracts 8 from -3.",
+    answers: [R("-5 degrees Celsius", "unit-name"), R("5 degrees below zero", "form"), R("minus 5 °C", "form"), W("5 °C", "sign"), W("-11 °C", "near-number")] },
+  { id: "n15", question: "A diver is 15 meters below sea level. Write the diver's elevation as an integer number of meters.", key: "−15",
+    why: "The question names the unit, so -15 with or without meters is right. 15 has the wrong sign; -15 km is a thousand times deeper.",
+    answers: [R("-15", "form"), R("negative 15 meters", "unit-name"), W("15", "sign"), W("-15 km", "wrong-unit")] },
+  { id: "n16", question: "The temperature drops from 5 °F to -12 °F. By how many degrees did it drop?", key: "17 degrees",
+    why: "The size of the drop: 17, with or without the unit. 7 subtracts the numbers without their signs.",
+    answers: [R("17", "form"), R("17 degrees Fahrenheit", "unit-name"), W("7 degrees", "sign"), W("-7", "sign")] },
+  { id: "n17", question: "A pen costs $1.75 and a notebook costs $1.75. How much do the two cost together?", key: "$3.50",
+    why: "Three dollars fifty in any form. $3.05 reads 3.5 as three dollars five cents; $35.00 moves the decimal point.",
+    answers: [R("3.5 dollars", "form"), R("3 dollars and 50 cents", "form"), R("350 cents", "units"), W("$3.05", "place-value"), W("$35.00", "place-value")] },
+  { id: "n18", question: "You pay with a $5 bill for something that costs $3.25. How much change do you get?", key: "$1.75",
+    why: "The question is in dollars, so 1.75 with no sign is right. 75 cents leaves out the dollar.",
+    answers: [R("1.75", "form"), R("one dollar and seventy-five cents", "form"), R("175¢", "units"), W("$2.75", "near-number"), W("75 cents", "near-number")] },
+  { id: "n19", question: "A movie starts at 2:45 p.m. and lasts 1 hour 30 minutes. What time does it end?", key: "4:15 p.m.",
+    why: "4:15 in the afternoon in any clock form, 24-hour included. a.m. is a different time of day.",
+    answers: [R("4:15 pm", "form"), R("16:15", "form"), R("quarter past four in the afternoon", "form"), W("4:15 a.m.", "wrong-unit"), W("3:15 p.m.", "near-number")] },
+  { id: "n20", question: "How many minutes are in 2.5 hours?", key: "150 minutes",
+    why: "The question names the unit. 250 reads 2.5 hours as 2 hours 50 minutes; 130 as 1 hour 30.",
+    answers: [R("150", "form"), R("one hundred fifty minutes", "form"), W("250 minutes", "place-value"), W("130 minutes", "near-number")] },
+  { id: "n21", question: "A jug holds 4 cups of water, and each cup is 250 mL. How much water does the jug hold?", key: "1 L",
+    why: "One liter in liters or milliliters. 100 mL is a tenth of it; 1000 L is a thousand times it.",
+    answers: [R("1000 mL", "units"), R("1,000 milliliters", "units"), R("one liter", "unit-name"), W("100 mL", "place-value"), W("1000 L", "wrong-unit")] },
+  { id: "n22", question: "How many grams are in 3.5 kilograms?", key: "3,500 g",
+    why: "The question names the unit, so 3500 alone is right. 350 g is off by ten; 3500 kg names the wrong unit.",
+    answers: [R("3500 grams", "unit-name"), R("3500", "form"), W("350 g", "place-value"), W("3500 kg", "wrong-unit")] },
+  { id: "n23", question: "A path is 1,500 meters long. How long is it in kilometers?", key: "1.5 km",
+    why: "The question names the unit, so 1.5 alone is right; 1 1/2 is 1.5. 15 km is off by ten; 1.5 m is the wrong unit.",
+    answers: [R("1.5", "form"), R("1 1/2 km", "equivalent"), R("one and a half kilometers", "form"), W("15 km", "place-value"), W("1.5 m", "wrong-unit")] },
+  { id: "n24", question: "How many inches are in 3 feet?", key: "36 inches",
+    why: "The unit can be written in. or spelt out. 30 uses 10 inches a foot; 36 feet is the wrong unit.",
+    answers: [R("36 in.", "unit-name"), R("thirty-six inches", "form"), W("30 inches", "near-number"), W("36 feet", "wrong-unit")] },
+  { id: "n25", question: "How many ounces are in 2 pounds?", key: "32 ounces",
+    why: "16 ounces a pound. 24 uses 12; 32 pounds is the wrong unit.",
+    answers: [R("32 oz", "unit-name"), R("thirty-two ounces", "form"), W("24 ounces", "near-number"), W("32 pounds", "wrong-unit")] },
+  { id: "n26", question: "A square has sides 3 meters long. What is its area? Include the unit.", key: "9 m²",
+    why: "The question asks for the unit, and area is in square units: 9 m is a length. 12 m² is the perimeter's number. 90,000 cm² is the same area.",
+    answers: [R("9 square meters", "unit-name"), R("90,000 cm²", "units"), W("9 m", "wrong-unit"), W("12 m²", "other-quantity")] },
+  { id: "n27", question: "What is the volume of a cube with edges 2 cm long?", key: "8 cm³",
+    why: "1 cm³ is exactly 1 mL, so 8 mL is the same volume. 6 cm³ is 2 × 3; 8 cm² is an area unit.",
+    answers: [R("8 cubic centimeters", "unit-name"), R("8 mL", "units"), W("6 cm³", "near-number"), W("8 cm²", "wrong-unit")] },
+  { id: "n28", question: "What is the density of pure water? Include the unit.", key: "1 g/cm³",
+    why: "The question asks for the unit, so 1 alone is not enough. 1 g/mL and 1000 kg/m³ are the same density; 1 kg/mL is a thousand times it.",
+    answers: [R("1 g/mL", "units"), R("1000 kg/m³", "units"), R("one gram per cubic centimeter", "unit-name"), W("1 kg/mL", "wrong-unit"), W("1", "no-unit")] },
+  { id: "n29", question: "A block has a mass of 60 g and a volume of 20 cm³. What is its density?", key: "3 g/cm³",
+    why: "Mass over volume. 3 g/mL is the same density; 0.33 divides volume by mass; 3 kg/cm³ is a thousand times it.",
+    answers: [R("3 g/mL", "units"), R("3 grams per cubic centimeter", "unit-name"), W("0.33 g/cm³", "inverse"), W("3 kg/cm³", "wrong-unit")] },
+  { id: "n30", question: "A cyclist rides 30 km in 2 hours. What is the cyclist's average speed?", key: "15 km/h",
+    why: "Distance over time; 0.25 km per minute is the same speed. 60 km/h multiplies instead of dividing; 15 m/s is a different speed (54 km/h).",
+    answers: [R("15 kilometers per hour", "unit-name"), R("15 km per hr", "unit-name"), R("0.25 km per minute", "units"), W("60 km/h", "near-number"), W("15 m/s", "wrong-unit")] },
+  { id: "n31", question: "A car travels at 60 miles per hour. How far does it go in 30 minutes?", key: "30 miles",
+    why: "Half an hour at 60 mph. 1800 multiplies by 30 minutes as if they were hours; 30 km is the wrong unit.",
+    answers: [R("30 mi", "unit-name"), R("thirty miles", "form"), W("1800 miles", "near-number"), W("30 km", "wrong-unit")] },
+  { id: "n32", question: "Water boils at 100 °C at sea level. What is that temperature in degrees Fahrenheit?", key: "212 °F",
+    why: "The question names the unit, so 212 alone is right. 212 °C is the wrong scale; 180 forgets to add 32.",
+    answers: [R("212 degrees Fahrenheit", "unit-name"), R("212", "form"), W("212 °C", "wrong-unit"), W("180 °F", "near-number")] },
+  { id: "n33", question: "What is 0 °C on the Kelvin scale?", key: "273.15 K",
+    why: "School science uses 273 K and 273.15 K both. -273 K has the wrong sign; 0 K is absolute zero.",
+    answers: [R("273 K", "allowed-rounding"), R("273.15 kelvin", "unit-name"), W("-273 K", "sign"), W("0 K", "not-converted")] },
+  { id: "n34", question: "Write 30,000 in scientific notation.", key: "3 × 10^4",
+    why: "Any way of writing 3 × 10 to the 4th. 30 × 10^3 is the same value but not scientific notation, which the question asks for; 3 × 10^3 is 3,000.",
+    answers: [R("3 x 10^4", "form"), R("3.0 × 10⁴", "form"), W("3 × 10^3", "place-value"), W("30 × 10^3", "not-scientific")] },
+  { id: "n35", question: "Write 4.5 × 10^-3 in standard form.", key: "0.0045",
+    why: "A missing leading zero or a trailing zero doesn't change the value. 0.00045 is off by ten; 4500 reads the exponent as positive.",
+    answers: [R(".0045", "form"), R("0.00450", "form"), W("0.00045", "place-value"), W("4500", "sign")] },
+  { id: "n36", question: "About how far is the Sun from the Earth?", key: "About 1.5 × 10^8 km",
+    why: "150 million km is about 93 million miles, so either unit is right. 150 million miles and 1.5 × 10^8 m put the right number on the wrong unit.",
+    answers: [R("150,000,000 km", "notation"), R("150 million kilometers", "notation"), R("about 93 million miles", "units"), W("150 million miles", "wrong-unit"), W("1.5 × 10^8 m", "wrong-unit")] },
+  { id: "n37", question: "About how fast does light travel in a vacuum?", key: "About 3 × 10^8 m/s",
+    why: "300,000 km/s, 300 million m/s and 186,000 miles per second are the same speed. 3 × 10^8 km/s is the wrong unit; 3 × 10^5 m/s is a thousand times too slow.",
+    answers: [R("300,000 km/s", "units"), R("300 million meters per second", "notation"), R("about 186,000 miles per second", "units"), W("3 × 10^8 km/s", "wrong-unit"), W("3 × 10^5 m/s", "place-value")] },
+  { id: "n38", question: "A bag has 2 red marbles for every 3 blue marbles. What is the ratio of red marbles to blue marbles?", key: "2:3",
+    why: "A ratio can be written a:b, a to b or a/b. 3:2 is blue to red; 2:5 is red to all marbles.",
+    answers: [R("2 to 3", "form"), R("2/3", "form"), W("3:2", "inverse"), W("2:5", "other-quantity")] },
+  { id: "n39", question: "On a map, 1 cm stands for 5 km. Two towns are 4 cm apart on the map. How far apart are they really?", key: "20 km",
+    why: "The real distance in any length unit: 20,000 m is 20 km. 20 cm is the wrong unit; 0.8 km divides.",
+    answers: [R("20 kilometers", "unit-name"), R("20,000 m", "units"), W("20 cm", "wrong-unit"), W("0.8 km", "inverse")] },
+  { id: "n40", question: "A tree was planted in 1987. How old is it in 2024?", key: "37 years",
+    why: "An age in years; the question implies the unit. 47 slips a ten; 36 counts one year short.",
+    answers: [R("37", "form"), R("thirty-seven years old", "form"), W("47 years", "near-number"), W("36 years", "near-number")] },
 ];
 
 // [question, key, right answer, wrong answer]

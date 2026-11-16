@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, prefixAdded, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
-import { GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
+import { GRADE_DEV_NUMBERS, GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
 // The dictionary's verdict, for the words these tests use.
@@ -635,6 +635,17 @@ describe("settleByCode on the round-4 dev set", () => {
   it("settles no wrong answer, even with no word known to be real", () => {
     const passed = GRADE_DEV_SIGNS_LETTERS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), keyOnly(q.key)) === true).map((a) => `${q.id} ${a.text}`));
     expect(passed).toEqual([]);
+  });
+});
+
+// Round 6: numbers and units (GRADE_DEV_NUMBERS). Code must not pass a wrong number, unit or sign.
+describe("settleByCode on the numbers dev set", () => {
+  it("settles no wrong answer, even with no word known to be real", () => {
+    const passed = GRADE_DEV_NUMBERS.flatMap((q) => q.answers.filter((a) => !a.right && settleByCode(ask(q.question, q.key, a.text), keyOnly(q.key)) === true).map((a) => `${q.id} ${a.text}`));
+    expect(passed).toEqual([]);
+  });
+  it("says for every question what a teacher accepts", () => {
+    expect(GRADE_DEV_NUMBERS.filter((q) => !q.why).map((q) => q.id)).toEqual([]);
   });
 });
 
