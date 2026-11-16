@@ -127,3 +127,48 @@ than" in some). e4b failed "geolagest", passed "CO" for "Co" again, and passed "
 a wrong answer the model graded before this change too. A first e4b run hit a 150 s timeout on one
 batch (another program was using the GPU) and the grader's lenient fallback marked its 7 answers right; that
 run is discarded and the table shows the rerun, with no fallback.
+
+## Held-out v4 (2026-11-15, run once at the frozen commit)
+
+A new blind set written by a separate generator that read no grading code: 40 questions with 120
+answers (40 right, 80 wrong), K-12 and four subjects, the same answer kinds as v3, and 0 overlap with
+the earlier sets, the dev sets or the test strings. It was run once at OpenEdu `fcef6b7` (#325's
+head), with the set's SHA-256 checked before the run (`9db8be5d…`). The bars are unchanged from v3:
+on each e2b run, right failed ≤ 2/40 and wrong passed ≤ 1/80.
+
+| Run | Right failed | Wrong passed (by code) | Settled by code | Bar |
+|---|---|---|---|---|
+| e2b 1 | 6/40 | 0/80 (0) | 10/120 | FAIL (right) |
+| e2b 2 | 6/40 | 0/80 (0) | 10/120 | FAIL (right) |
+| e2b 3 | 5/40 | 0/80 (0) | 10/120 | FAIL (right) |
+| e4b 1 (reported only) | 1/40 | 0/80 (0) | 10/120 | n/a |
+
+The right-answer bar fails on every e2b run. The wrong-answer bar holds: no wrong answer passed on
+any run. The model made every failure, and code marked no right answer wrong. Code settled the same
+10 answers on each run, and all 10 were right.
+
+The right answers e2b failed:
+- 3 of the 6 misspellings, on every run: "hunny" for honey, "the panama canel", "chlorophyl".
+  e4b passed all 6.
+- "wright" for the Wright brothers, on every run and on e4b as well.
+- "unhappy" for the opposite of happy (keyed "sad"), on every run. This is the item most open to
+  dispute, but every run fails without it too (5, 5, 4).
+- "25 percent" for 25%, on 2 of the 3 runs.
+
+The misses repeat from run to run, so they come from how the model behaves, not from chance.
+
+Why #325 / TerraTutor #112 merged anyway:
+- On the dev sets they close wrong answers that master's code passed: "CO" for "Co", "No" for "NO",
+  "Zambia" for "Gambia", "slovania" for "Slovenia".
+- The final review passed with nothing to fix.
+- Wrong passed is 0/80 on held-out v4.
+
+The rules that still miss right answers, the two-edit misspellings and two names for one sign, send
+those answers to the model. Code does not mark them wrong.
+
+Where this leaves e2b: code cannot safely settle the misspellings e2b fails (the two-edit rule leaked
+and was deleted), and e2b fails them on every run. Next steps:
+(1) Measure a prompt hint built from `misspellingCandidates`, on dev sets only, and run it against a
+    new blind set.
+(2) Keep "I think I was right" (Mark again) and grown-up checks as the safety net for a wrong mark.
+(3) Where the computer can run it, e4b is the better grader: 1/40 right failed.
