@@ -166,6 +166,7 @@ export function answerWords(s: string): string[] {
     .replace(/(\d)(?:st|nd|rd|th)\b/g, "$1\u0002")      // an ordinal in digits stays one word: 13th
     .replace(/^\s*\(?[a-d][).:]\s+/, "")                // an option label "B) "
     .replace(/(\d),(\d{3})(?!\d)/g, "$1$2")             // 1,000
+    .replace(/(\b10\s*\^?\s*)-(?=\d)/g, "$1\u0000")      // and an exponent's minus: 10^-4, 10⁻⁴ (NFKC: 10-4)
     .replace(/(^|[\s(])-(?=\d)/g, "$1\u0000")           // keep a leading minus through the punctuation strip
     .replace(/(\d)\.(\d)/g, "$1\u0001$2")               // and a decimal point
     .replace(/[^\p{L}\p{N}\s'\u0000\u0001\u0002]/gu, " ") // every other punctuation mark is a space

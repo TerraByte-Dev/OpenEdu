@@ -177,3 +177,39 @@ marked "-1/2" wrong for "how much less is 1/4 than 3/4?". Now a sign flip is gro
 is nothing but an expression to evaluate (an optional "what is / compute / evaluate / simplify / find /
 solve", then only numbers, number words and operations), and a fraction with the other sign is not "a
 different fraction". Code's verdicts on the five dev sets are unchanged from the fifth change.
+
+## Held-out v6 (blind, run once at b47aa08)
+
+v6 is a fresh blind set: 40 questions, 120 answers. 22 of the questions have numeric or unit keys, and four numeric
+answer kinds are new: rounded-value, wrong-sign, misplaced-decimal, wrong-unit. A generator that read no grading
+code wrote it. It overlaps with no earlier set or test string (similarity < 0.7). SHA-256 `a00c1418…91786`.
+
+| Run | Right failed | Wrong passed (by code) | Settled by code (accepted / rejected) |
+|---|---|---|---|
+| e2b 1 | 5/40 | 1/80 (1) | 22 (16 / 6) |
+| e2b 2 | 5/40 | 1/80 (1) | 22 (16 / 6) |
+| e2b 3 | 4/40 | 1/80 (1) | 22 (16 / 6) |
+| e4b 1 (reported) | 3/40 | 1/80 (1) | 22 (16 / 6) |
+
+Bars per e2b run: right failed ≤ 2/40, wrong passed ≤ 1/80. **Right failed fails on every run.** Wrong passed is
+at the bar, but its one pass was code's.
+
+**What code did:**
+- All 6 code rejections were wrong answers: misplaced decimals and near numbers.
+- Wrong-sign, wrong-unit and partial answers went to the model, which rejected them on every run.
+
+**The one wrong pass came from code, on all four runs:** "3.8 × 10^4" was accepted for 3.8 × 10^-4.
+- Cause: `answerWords` dropped the exponent's minus, so both sides read "3.8 10 4" and the word match accepted before `settleQuantity` ran.
+- The bug predates this PR.
+- Fixed here: the minus after "10" or "10^" is kept (also "10⁻⁴", which NFKC makes "10-4"). This is pinned in `answer-match.test.ts`.
+
+**Right answers failed:** every one was the model's, with no code involved.
+- On every e2b run:
+  - "quarter after eleven" for 11:15
+  - "the sahera desert"
+  - "pompei"
+  - "fleming" for Alexander Fleming
+- Once each:
+  - "conan doyle"
+  - "75 meters below sea level" for -75 m: the sign rule leaves this to the model
+- These are the next levers: a clock time in words, surname-only answers for a person key, and misspelt proper names.

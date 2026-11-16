@@ -843,6 +843,13 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("What is 3 - 5?", "-2", "2")).toBe(false);
     expect(settle("What is 4 × -3?", "-12", "12")).toBe(false);
     expect(settle("Compute -2 - 3.", "-5", "5")).toBe(false);
+    // Held-out v6: the word match dropped the exponent's minus, so "3.8 × 10^4" matched 3.8 × 10^-4.
+    for (const a of ["3.8 × 10^4", "3.8 x 10^4", "3.8 × 10⁴"]) {
+      expect(settle("Write 0.00038 in scientific notation.", "3.8 × 10^-4", a), a).not.toBe(true);
+    }
+    for (const a of ["3.8 × 10^-4", "3.8 x 10^-4", "3.8 × 10⁻⁴", "3.8 * 10^-4"]) {
+      expect(settle("Write 0.00038 in scientific notation.", "3.8 × 10^-4", a), a).toBe(true);
+    }
     expect(settle("5 minus 9", "-4", "4")).toBe(false);
     expect(settle("What is 1/4 - 3/4?", "-1/2", "1/2")).toBe(false);
     expect(settle("How much less is 3 than 10?", "7", "-7")).toBeNull();
