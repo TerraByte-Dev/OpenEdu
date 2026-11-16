@@ -291,7 +291,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   words ("the fourth planet" for "4th planet"; never "4" for "4th", and "the fourth" alone goes to the
   model), a spelled formula ("h two o"), a person's surname when the question asks who or names a
   person's role ("Which scientist", "Name the author") and the key is a name: its last word, or for a
-  name of 3-4 words its last two ("conan doyle"), never under a choice or when the question itself says
+  name of 3-4 words its last two ("conan doyle", never "w bush" for George H. W. Bush), never under a
+  choice, for a role the question does not ask for ("Which country's president"), for a key that names a
+  place or a thing ("South Africa", "Soviet Union": a direction, "New" or "Holy" first, or an adjective
+  in the dictionary before an everyday word), or when the question itself says
   the surname ("Which Roosevelt...?"); and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
   itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). Never two edits
   ("omnivour" goes to the model: "glucogan" is as close to glycogen as to glucagon). No
@@ -307,7 +310,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   clock-time key ("quarter after eleven" for 11:15, "noon" for 12:00 p.m.); a.m./p.m., "in the
   morning" and the like only when they are the key's half of the day, and no half only when the key
   has none or the question pins it ("half past three" for 3:30 p.m. after "leaves at 3:10 p.m.", and
-  "3:30" too). A time in words is never marked wrong. A sign's name settles
+  "3:30" too). A half the answer gives and the key does not goes to the model ("1:30 a.m." for 1:30 on
+  an elapsed time that crosses noon), and so does a time without its half or in words on a question that
+  asks for 12-hour or 24-hour time. A time in words is never marked wrong. A sign's name settles
   when the key is the sign itself ("greater than" for ">"; never "greater than or equal to" or "less
   than"), never the sign for a key that is a name, and only to fill a blank between two numbers
   ("7 __ 2") on a question that neither shows the sign nor says a word of its names or what it does

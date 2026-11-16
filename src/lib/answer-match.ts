@@ -21,8 +21,11 @@
 //   - a person's surname: the key is a person's name (the question asks "who" or names a person's role,
 //     "Which scientist", "Name the author"; the key is 2-4 capitalised words) and the answer is that
 //     name's last word, or for a name of 3 or 4 words its last two ("conan doyle" for Arthur Conan
-//     Doyle). Never under a choice, never a surname the question itself says ("Which Roosevelt"), and
-//     a surname that is also a common word ("Bell", "Young") only on such a question about a person;
+//     Doyle), never two words that start with an initial ("w bush" for George H. W. Bush). Never under
+//     a choice, never a surname the question itself says ("Which Roosevelt"), never a role the question
+//     does not ask for ("Which country's president", "What did the emperor X rule?"), never a key that
+//     names a place or a thing ("South Africa", "Soviet Union": see namesAThing), and a surname that is
+//     also a common word ("Bell", "Young") only on such a question about a person;
 //   - a misspelt name: a key word written with a capital that is in neither the dictionary nor the word
 //     list (a place or a person: Sahara, Pompeii), and an answer word that is not a word either, with
 //     the same first and last letters, at most one slip of spelling by ear away (two for a name of 7+
@@ -32,7 +35,8 @@
 //     Gambia and "Niger" for Nigeria go to the model;
 //   - a clock time in words for a clock-time key: "quarter after eleven", "half past three", "ten to
 //     four", "eleven fifteen", "noon"; a.m./p.m. or "in the morning" only when the key's half of the day
-//     matches, and none only when the key has none or the question pins it (see settleQuantity);
+//     matches, and none only when the key has none or the question pins it (see settleQuantity). Never
+//     a half the key does not give, and never on a question that asks for 12-hour or 24-hour time;
 //   - a one-edit misspelling of a key word of 6 letters or more, when the answer's word is not itself a
 //     word ("herbivor"). "neuron" for "neutron" or "photon" for "proton" is a real word, so it is a
 //     different answer, and the model decides it. The caller supplies the word list (the dictionary).
@@ -545,7 +549,9 @@ const NAME_SUFFIX = /^(?:jr|sr|ii|iii|iv)$/;
 
 // The question asks about a person: "who", or a person's role ("Which scientist discovered penicillin?",
 // "Name the author of Hamlet", "Which Greek philosopher"). Not roles that are also everyday words for
-// other things ("general", "man-made").
+// other things ("general", "man-made"), and only a role the question asks for: "Which country's
+// president", "What nation did President Mandela lead?" and "What did the emperor Charlemagne rule?" ask
+// for a place or a thing, so a word before the role is never a possessive, a verb or an article.
 const WHO_RE = /\bwho(?:m|se)?\b/i;
 const PERSON_ROLES = [
   "scientist", "author", "writer", "poet", "playwright", "novelist", "president", "king", "queen", "emperor",
@@ -555,7 +561,12 @@ const PERSON_ROLES = [
   "minister", "senator", "governor", "activist", "abolitionist", "reformer", "engineer", "architect",
   "economist", "psychologist", "physician", "doctor", "nurse", "founder", "saint", "pope",
 ];
-const PERSON_ROLE_RE = new RegExp(`\\b(?:which|what|name\\s+(?:the|a|an|this|that))\\s+(?:[\\p{L}\\p{N}'’-]+\\s+){0,2}?(?:${PERSON_ROLES.join("|")})\\b(?!-)`, "iu");
+const ROLE_MODIFIER = "(?!(?:did|do|does|was|were|is|are|has|had|have|will|would|could|can|the|a|an)\\s)[\\p{L}\\p{N}-]+\\s+";
+const PERSON_ROLE_RE = new RegExp(`\\b(?:which|what|name\\s+(?:the|a|an|this|that))\\s+(?:${ROLE_MODIFIER}){0,2}?(?:${PERSON_ROLES.join("|")})\\b(?!-)`, "iu");
+
+// A key's first word that makes it a place or a thing, not a person: "South Africa", "New Mexico", "Holy
+// Roman Empire".
+const PLACE_QUALIFIERS = new Set(["north", "south", "east", "west", "new", "holy"]);
 
 /** A person's name in the key, on a question about a person: its 2-4 capitalised words (a suffix such as
  * "Jr." dropped), the first not an article ("The Roman Empire" is not a person). */
@@ -570,19 +581,45 @@ function personName(question: string, keyForm: string): PersonName | null {
   return parts.every(Boolean) ? { parts } : null;
 }
 
-/** The name's last word, and for a name of 3 or 4 words its last two ("conan doyle"), each as words. */
+/** The name's last word, and for a name of 3 or 4 words its last two ("conan doyle"), each as words; never
+ * two words that start with an initial ("w bush" is George W. Bush, not George H. W. Bush). */
 const surnameForms = (p: PersonName): string[][] =>
-  p.parts.slice(1).map((_, k) => p.parts.slice(p.parts.length - 1 - k).join(" ").split(" ")).slice(0, 2);
+  p.parts.slice(1).map((_, k) => p.parts.slice(p.parts.length - 1 - k).join(" ").split(" ")).slice(0, 2)
+    .filter((words) => words.length === 1 || words[0].length > 1);
+
+/** The name's first and last words. */
+const firstWord = (p: PersonName): string => p.parts[0].split(" ")[0];
+const lastWord = (p: PersonName): string => { const w = p.parts[p.parts.length - 1].split(" "); return w[w.length - 1]; };
+
+/** What the dictionary says of a word: it has an adjective sense, and a sense written in small letters
+ * (an everyday word, not only a name: "union" and "bell", not "Fleming"). */
+export interface WordSenses { adjective: boolean; everyday: boolean }
+const NO_SENSES: WordSenses = { adjective: false, everyday: false };
+
+/**
+ * The key names a place or a thing, though the question asks who: its first word is a direction, "New"
+ * or "Holy" ("South Africa", "West Virginia"), or an adjective before an everyday word ("Soviet Union",
+ * "World War II", "Roman Empire"), or an everyday word or adjective before a country, US state or
+ * continent ("Central America"). A surname that is an everyday word is still taken after a first name
+ * that is not an adjective ("Alexander Graham Bell", "James Cook"), and "Washington" after "George".
+ */
+function namesAThing(p: PersonName, senses: (w: string) => WordSenses): boolean {
+  const first = firstWord(p);
+  const last = lastWord(p);
+  if (PLACE_QUALIFIERS.has(first)) return true;
+  const f = senses(first);
+  return (f.adjective && senses(last).everyday) || ((f.adjective || f.everyday) && PLACE_NAMES.has(last));
+}
 
 /**
  * The surname forms an answer may give for the key, on a question about a person; none when the
  * question already says the surname ("Which Roosevelt...?"): it names someone the surname cannot tell
- * apart from the key. A surname that is a common word ("Bell", "Young") is taken only here, where the
- * question asks who or names a person's role.
+ * apart from the key; none when the key names a place or a thing (namesAThing). A surname that is a
+ * common word ("Bell", "Young") is taken only here, where the question asks who or names a person's role.
  */
-function personSurnames(question: string, keyForm: string): string[][] {
+function personSurnames(question: string, keyForm: string, senses: (w: string) => WordSenses): string[][] {
   const p = personName(question, keyForm);
-  if (!p) return [];
+  if (!p || namesAThing(p, senses)) return [];
   const said = new Set(answerWords(question));
   if (p.parts[p.parts.length - 1].split(" ").some((w) => said.has(w))) return [];
   return surnameForms(p);
@@ -749,7 +786,11 @@ function settleShortCode(item: WrittenAnswer): true | null | undefined {
 //   - the question asks for the key's unit ("in kilometers", "how many grams") and the answer gives the
 //     same amount in another ("1500 m"): not converted, which the model decides;
 //   - the key is a ratio ("2:3"), or a clock time that cannot be told from a.m. ("4:15" for 4:15 p.m.),
-//     unless the question pins the half of the day ("A film starts at 2:45 p.m. ...").
+//     unless the question pins the half of the day ("A film starts at 2:45 p.m. ...");
+//   - the answer says a half of the day the key does not ("1:30 a.m." for 1:30 on "A movie starts at
+//     11:30 a.m. and lasts 2 hours"): the question's half is the start time's;
+//   - the question asks for 12-hour or 24-hour time and the answer has no half of the day or is in words
+//     ("4:15" or "quarter past four" for 16:15 on "Write 4:15 p.m. in 24-hour time").
 // A bare key takes the unit the question asks for ("Write the elevation as a number of meters": "-15
 // km" is wrong, "negative 15 meters" right). A code rejection is stored like any other code mark
 // (graded_by 'exact'), and the learner can still say "I think I was right" (written-answer-checks.ts).
@@ -1321,6 +1362,10 @@ function questionHalf(question: string): "am" | "pm" | null {
   return am === pm ? null : am ? "am" : "pm";
 }
 
+// The question asks for a time written another way: "Write 4:15 p.m. in 24-hour time", "as a 12-hour
+// time". The conversion is the answer, so a time without its half of the day, or in words, skips it.
+const CLOCK_FORM_RE = /\b(?:24|12|twenty-four|twelve)[- ]hour\s+(?:time|clock|format|form|notation)\b|\bmilitary time\b/i;
+
 /**
  * Settles an answer when the key and the answer are each one quantity: true when the amounts are the
  * same, false when code is sure they differ, null otherwise (see the notes above).
@@ -1331,6 +1376,7 @@ function settleQuantity(item: WrittenAnswer): boolean | null {
     const digits = clockReadings(item.student);
     const a = digits ?? spokenClock(item.student);
     if (!a) return null;
+    if (CLOCK_FORM_RE.test(item.question) && (!digits || a.length === 2)) return null;
     if (a.length === 1 && k.length === 1) {
       if (a[0] === k[0]) return true;
       // Wrong only when it is the key with a.m. and p.m. swapped, in digits; any other time is the model's.
@@ -1338,10 +1384,13 @@ function settleQuantity(item: WrittenAnswer): boolean | null {
     }
     // Neither says the half of the day ("quarter past four" for 4:15): the same two times.
     if (a.length === 2 && k.length === 2) return a.every((x) => k.includes(x)) ? true : null;
-    // One side says the half and the other does not: right only when the question pins that half
+    // The answer says the half and the key does not: the half the question says is its start time's, and
+    // an elapsed time can cross noon or midnight ("1:30 a.m." for 1:30 on "starts at 11:30 a.m. and lasts
+    // 2 hours"), so the model decides.
+    if (a.length === 1) return null;
+    // The key says the half and the answer does not: right only when the question pins that half
     // ("4:15" for 4:15 p.m. on "A film starts at 2:45 p.m. ..."). "4:15" alone could be a.m.
-    const time = a.length === 1 ? a[0] : k[0];
-    return a.includes(time) && k.includes(time) && questionHalf(item.question) === (time < 720 ? "am" : "pm") ? true : null;
+    return a.includes(k[0]) && questionHalf(item.question) === (k[0] < 720 ? "am" : "pm") ? true : null;
   }
   const k = parseQuantity(item.expected);
   if (!k || k.guessed) return null;
@@ -1363,9 +1412,10 @@ export interface WrittenAnswer {
  * quantity and code can tell the amounts differ (settleQuantity); null when it cannot, and the model
  * decides. `isWord` says whether a word is a real word (the dictionary); without it, no misspelling is
  * accepted. `listed` says whether a word is in the English word list (wordlist.ts); without it, no
- * misspelt name is accepted.
+ * misspelt name is accepted. `senses` says what the dictionary has for a key's first and last words
+ * (personNameWords), so that a place or a thing is not taken for a person's name (namesAThing).
  */
-export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true, listed: (w: string) => boolean = () => true): boolean | null {
+export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean = () => true, listed: (w: string) => boolean = () => true, senses: (w: string) => WordSenses = () => NO_SENSES): boolean | null {
   // A sign has no words, so it is read before anything else. Only a name for a key that is the sign
   // itself: "greater than" for ">"; another sign's name ("less than", "greater than or equal to") is
   // never taken by a later rule. The sign for a key that is a name ("What does > mean?"), two names,
@@ -1395,7 +1445,7 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
     if (sameNumberAndUnits(answer, key, item.question)) return true;
     if (sameFormula(answer, form)) return true;
     // Under a choice the surname may be what both sides share ("Theodore Roosevelt or Franklin Roosevelt?").
-    for (const surname of choice ? [] : personSurnames(item.question, form)) {
+    for (const surname of choice ? [] : personSurnames(item.question, form, senses)) {
       if (sameWords(answer, surname, isWord, rivalWords(item.question, surname), names)) return true;
     }
   }
@@ -1427,6 +1477,19 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
         for (const n of nearerWords(w, key[i])) out.add(n);
       });
     }
+  }
+  return [...out];
+}
+
+/** The first and last words of each key form that may be a person's name: what settleByCode's `senses`
+ * is asked about (namesAThing). */
+export function personNameWords(item: WrittenAnswer): string[] {
+  const out = new Set<string>();
+  for (const form of keyForms(item.expected)) {
+    const p = personName(item.question, form);
+    if (!p) continue;
+    out.add(firstWord(p));
+    out.add(lastWord(p));
   }
   return [...out];
 }

@@ -11,7 +11,7 @@ import {
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
-import { settleByCode, misspellingCandidates, misspeltNameCandidates, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup } from "./answer-match";
+import { settleByCode, misspellingCandidates, misspeltNameCandidates, personNameWords, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup, type WordSenses } from "./answer-match";
 import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
 import { inWordList } from "./wordlist";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
@@ -789,6 +789,20 @@ async function wordListHas(words: string[]): Promise<(w: string) => boolean> {
   return (w) => !unlisted.has(w);
 }
 
+// What the dictionary says of each of these words: an adjective sense, a sense in small letters (an
+// everyday word). A word the dictionary could not be read for counts as both, so no key is taken for a
+// person's name on a guess (answer-match.ts namesAThing).
+async function dictionarySenses(words: string[]): Promise<(w: string) => WordSenses> {
+  const out = new Map<string, WordSenses>();
+  await Promise.all([...new Set(words)].map(async (w) => {
+    try {
+      const senses = (await lookupWord(w)).flatMap((e) => e.senses);
+      out.set(w, { adjective: senses.some((s) => s.pos === "a"), everyday: senses.some((s) => s.form === s.form.toLowerCase()) });
+    } catch { out.set(w, { adjective: true, everyday: true }); }
+  }));
+  return (w) => out.get(w) ?? { adjective: true, everyday: true };
+}
+
 // A note for the model on each answer that may be the key misspelt (answer-match.ts misspellingNote),
 // or null. The dictionary says what is a real word and which real words are near, and the English word
 // list (wordlist.ts) says what else is a real word; WordNet's full headword list is read only when some
@@ -846,11 +860,13 @@ export async function gradeAnswersBatch(
   // name ("sahera" for the Sahara) only when neither the dictionary nor the English word list has it.
   const isWord = await realWords(items.flatMap(misspellingCandidates));
   const listed = await wordListHas(items.flatMap(misspeltNameCandidates));
+  // A key that names a place or a thing ("Soviet Union") is not taken for a person's name.
+  const senses = await dictionarySenses(items.flatMap(personNameWords));
   for (const it of items) {
     // settleByCode returns false only when the key and the answer are each one quantity and code is
     // sure the amounts differ ("4.5%" for 45%); anything it is unsure of is null and goes to the model.
     // A code rejection is stored as 'exact' like a code accept, and can be marked again by hand.
-    const settled = settleByCode(it, isWord, listed);
+    const settled = settleByCode(it, isWord, listed, senses);
     if (settled === true) {
       out.set(it.index, { isCorrect: true, feedback: "Correct.", by: "exact" });
     } else if (settled === false) {
