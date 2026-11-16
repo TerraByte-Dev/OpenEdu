@@ -1,11 +1,11 @@
 import { callLLM, callLLMStreaming, callLLMStructured, detectModelTier, log } from "./llm";
 import { outputRulesLayer } from "./kernel/outputRules";
-import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson, getLessons, saveLessonHelp } from "./db";
+import { saveSyllabus, saveTutorInstruction, getTutorInstruction, updateGenerationState, createLesson, getLessons, saveLessonHelp, markLessonChecked } from "./db";
 import { writeLessonHelp, parseLessonHelp, type LessonHelp } from "./raise-hand";
 import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { assembleLessonMarkdown, lessonIssues, type LessonContent } from "./lesson-format";
-import { reviewLesson, withoutFlaggedParts, correctionsNote } from "./content-review";
+import { reviewLessonIfRan, cloudCheckedBy, withoutFlaggedParts, correctionsNote } from "./content-review";
 import type { LLMConfig, ModelTier, Syllabus, Subtopic, Lesson, CourseOutline, OutlineLevel, ConceptLedger, LevelLedgerEntry } from "../types";
 
 // ─── JSON Schemas for structured pipeline stages ──────────────────────────────
@@ -856,12 +856,20 @@ export async function generateLesson(
   );
 
   let result = await write();
+  // Whether the reviewer gave a verdict on every part of the text that is saved: the first review when it
+  // flagged nothing, else the second one, on the regeneration. A failed call, or a reply that skipped any
+  // part, leaves it false (lesson_checks).
+  let reviewed = false;
   if (review) {
-    const flagged = await reviewLesson(topic, subtopic.title, result, review);
+    const first = await reviewLessonIfRan(topic, subtopic.title, result, review);
+    reviewed = first?.judgedEveryPart ?? false;
+    const flagged = first?.findings ?? [];
     if (flagged.length) {
       log.info("generateLesson", `L${level} "${subtopic.title}": review flagged ${flagged.length} part(s) — regenerating once`);
       result = await write(correctionsNote(flagged));
-      const still = await reviewLesson(topic, subtopic.title, result, review);
+      const second = await reviewLessonIfRan(topic, subtopic.title, result, review);
+      reviewed = second?.judgedEveryPart ?? false;
+      const still = second?.findings ?? [];
       if (still.length) {
         const kept = withoutFlaggedParts(result, still);
         if (!kept) throw new Error("This lesson did not pass its fact check twice, so it was not saved. Try again.");
@@ -877,6 +885,13 @@ export async function generateLesson(
   const help = await writeLessonHelp(topic, subtopic, content, config, tier, review);
   const lesson = await createLesson(courseId, level, subtopic.title, content, subtopic.id, help ? JSON.stringify(help) : null);
   log.info("generateLesson", `L${level} "${subtopic.title}" → ${content.length} chars, ${help?.stuck_points.length ?? 0} stuck point(s)`);
+  // "Checked" in the lesson reader only when a cloud Checking model other than the one that wrote this text
+  // (`config`) read it (migration 22). Best-effort: without the row the lesson reads as not checked, which
+  // is the safe side.
+  const checkedBy = reviewed ? cloudCheckedBy(review, config) : null;
+  if (checkedBy) {
+    await markLessonChecked(lesson.id, checkedBy).catch((e) => log.error("generateLesson", "could not record the lesson's check", e));
+  }
   return lesson;
 }
 

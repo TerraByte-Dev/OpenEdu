@@ -363,6 +363,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
             lessonSubtopicId={pendingLessonSubtopic}
             onDeepLinkConsumed={() => setPendingLessonSubtopic(undefined)}
             onTypeToTutor={(seedTopic) => switchTab("chat", seedTopic ? { seedTopic } : undefined)}
+            grade={grade}
           />
         )}
         {activeTab === "review" && (

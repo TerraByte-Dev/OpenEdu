@@ -13,6 +13,7 @@ import { callLLMStructured, detectModelTier, log } from "./llm";
 import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, LLMProvider, ModelTier } from "../types";
 import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
+import { lessonCheckCounts } from "./ai-notice";
 import { GENERATION_MODELS } from "./models";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
@@ -284,6 +285,27 @@ export function parseReviewFindings(
   return [...out.values()].sort((a, b) => a.index - b.index);
 }
 
+// Whether the review settled every one of the items: each has an "ok", or a finding parseReviewFindings keeps,
+// which code acts on (the lesson is rewritten, or the part dropped). A reply that skips any part has not judged
+// the whole lesson. Nor has one with a flag parseReviewFindings throws away (a false_fact whose
+// statement_is_false is not true, or whose quote is not in the lesson, or one on a part the lesson does not
+// have): that part was neither passed nor acted on. Either way the lesson is not stored as checked
+// (lesson_checks), even when nothing in it was flagged.
+export function judgesEveryItem(reply: ReviewReply | null | undefined, itemTexts: readonly string[], allowed: readonly ReviewVerdict[]): boolean {
+  const kept = new Set(parseReviewFindings(reply, itemTexts, allowed).map((f) => f.index));
+  const judged = new Set<number>();
+  for (const v of Array.isArray(reply?.verdicts) ? reply!.verdicts! : []) {
+    const i = v?.index;
+    const verdict = v?.verdict as ReviewVerdict;
+    // A verdict outside the allowed list is unreadable, not an ok: unchecked.
+    if (!allowed.includes(verdict)) return false;
+    const inRange = typeof i === "number" && Number.isInteger(i) && i >= 0 && i < itemTexts.length;
+    if (verdict !== "ok" && !(inRange && kept.has(i))) return false;
+    if (inRange) judged.add(i);
+  }
+  return itemTexts.length > 0 && judged.size === itemTexts.length;
+}
+
 // The lesson without the flagged parts. null when no section is left to teach from.
 export function withoutFlaggedParts(c: LessonContent, findings: readonly ReviewFinding[]): LessonContent | null {
   const bad = new Set(findings.map((f) => f.index));
@@ -315,17 +337,42 @@ async function tierOf(review: LLMConfig): Promise<ModelTier> {
 
 // Best-effort, like the verify pass: a failed review call returns no findings and is logged.
 export async function reviewLesson(topic: string, title: string, lesson: LessonContent, review: LLMConfig): Promise<ReviewFinding[]> {
+  return (await reviewLessonIfRan(topic, title, lesson, review))?.findings ?? [];
+}
+
+// The same review, with null when the call failed (logged; the lesson is kept), so generateLesson can tell
+// a lesson the reviewer read and passed from one it never read (lesson_checks, ai-notice.ts lessonStatusLine).
+// `judgedEveryPart` is false when the reply left any part without a verdict ({"verdicts":[]} included), or
+// flagged one in a way parseReviewFindings throws away (judgesEveryItem): its findings still count, but the
+// lesson is not "checked".
+export async function reviewLessonIfRan(
+  topic: string, title: string, lesson: LessonContent, review: LLMConfig,
+): Promise<{ findings: ReviewFinding[]; judgedEveryPart: boolean } | null> {
   const tier = await tierOf(review);
   try {
     const reply = await callLLMStructured<ReviewReply>(
       buildLessonReviewMessages(topic, title, lesson), review,
       { schema: reviewSchema(LESSON_VERDICTS), toolName: "emit_lesson_review", tier },
     );
-    return parseReviewFindings(reply, lessonParts(lesson), LESSON_VERDICTS);
+    const parts = lessonParts(lesson);
+    const judgedEveryPart = judgesEveryItem(reply, parts, LESSON_VERDICTS);
+    if (!judgedEveryPart) log.warn("content-review", `lesson "${title}": the review left part of the lesson without a verdict it could act on, so it is not marked checked`);
+    return { findings: parseReviewFindings(reply, parts, LESSON_VERDICTS), judgedEveryPart };
   } catch (e) {
     log.warn("content-review", `lesson "${title}": review failed, lesson kept`, e instanceof Error ? e.message : String(e));
-    return [];
+    return null;
   }
+}
+
+// What lesson_checks stores for a lesson this reviewer read and returned on: "<provider>:<model>" when the
+// review counts as a check (ai-notice.ts lessonCheckCounts), else null. `writer` is the config that wrote
+// that lesson (generateLesson's own `config`, not the setting). Never "checked": a Checking model on this
+// computer (the measured local reviewer, gemma4:e2b, caught 0 of 5 known false lessons), or the model that
+// wrote the lesson reading its own work (a self-review was never measured). Another model from the same
+// company counts. Fable's decisions, 2026-11-16. The review still runs and its flags are still acted on;
+// only the label depends on this.
+export function cloudCheckedBy(review: LLMConfig | null, writer: LLMConfig): string | null {
+  return review && lessonCheckCounts(review, writer) ? `${review.provider}:${review.model}` : null;
 }
 
 // Questions per review call. A tiny or small model loses track of long verdict lists.

@@ -508,6 +508,24 @@ pub fn run() {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 22,
+            description: "lessons a cloud Checking model reviewed (append-only, never edit v1-v21)",
+            sql: "
+                -- A lesson a cloud Checking model actually reviewed when it was written: curriculum.ts
+                -- generateLesson writes one row once that review ran and gave a verdict on every part of
+                -- the text it saved. checked_by is the reviewer as <provider>:<model>. A lesson with no row
+                -- (written before this version, on this computer only, or whose review was off, skipped or
+                -- failed) reads as not checked in the lesson reader (ai-notice.ts lessonStatusLine). The
+                -- row goes with its lesson.
+                CREATE TABLE IF NOT EXISTS lesson_checks (
+                    lesson_id TEXT PRIMARY KEY REFERENCES lessons(id) ON DELETE CASCADE,
+                    checked_by TEXT NOT NULL,
+                    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+            ",
+            kind: MigrationKind::Up,
+        },
     ];
 
     let builder = tauri::Builder::default()

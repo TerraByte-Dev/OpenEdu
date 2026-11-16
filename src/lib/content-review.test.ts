@@ -21,7 +21,7 @@ import { callLLMStructured } from "./llm";
 import { generateLesson } from "./curriculum";
 import { generateQuizQuestions, generatePromotionTestQuestions } from "./quiz";
 import {
-  parseReviewFindings, quoteFound, resolveReviewConfig, withoutFlaggedParts, lessonParts, reviewModelChoices, reviewChoiceNotice,
+  judgesEveryItem, parseReviewFindings, quoteFound, resolveReviewConfig, withoutFlaggedParts, lessonParts, reviewModelChoices, reviewChoiceNotice,
   type ReviewReply,
 } from "./content-review";
 import { GENERATION_MODELS } from "./models";
@@ -249,6 +249,37 @@ describe("generatePromotionTestQuestions with a review model", () => {
 });
 
 // ─── Pure pieces ──────────────────────────────────────────────────────────────
+
+describe("judgesEveryItem: did the reply settle every part?", () => {
+  const ALLOWED = ["ok", "false_fact"] as const;
+  const PARTS = ["Water boils at 100 degrees at sea level.", "The Nile is the longest river in Africa.", "Atoms are conserved."];
+  const v = (index: number, verdict = "ok") => ({ index, verdict, sentence: "", reason: "", statement_is_false: false });
+  const flag = (index: number, sentence: string, statement_is_false = true) => ({ index, verdict: "false_fact", sentence, reason: "x", statement_is_false });
+  it("yes when each part has an ok, or a flag the code acts on", () => {
+    expect(judgesEveryItem({ verdicts: [v(0), flag(1, "The Nile is the longest river in Africa."), v(2)] }, PARTS, ALLOWED)).toBe(true);
+    expect(judgesEveryItem({ verdicts: [v(2), v(0), v(1)] }, PARTS, ALLOWED)).toBe(true);
+  });
+  it("no for an empty, missing, partial, out-of-range, duplicated or unknown-verdict reply", () => {
+    expect(judgesEveryItem({ verdicts: [] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({}, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem(null, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(3)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2, "wrong_key")] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1.5)] }, PARTS, ALLOWED)).toBe(false);
+  });
+  it("no when a flag was thrown away: a quote not in the part, statement_is_false not true, or a part that does not exist", () => {
+    expect(judgesEveryItem({ verdicts: [v(0), flag(1, "The Amazon carries more water than any other river."), v(2)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), flag(1, "The Nile is the longest river in Africa.", false), v(2)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2), flag(3, "Atoms are conserved.")] }, PARTS, ALLOWED)).toBe(false);
+    // ...even when the same part also got an ok.
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), flag(1, "Rivers flow uphill in winter."), v(2)] }, PARTS, ALLOWED)).toBe(false);
+    // A flag that names no part, or a verdict outside the list beside an ok, leaves it unchecked.
+    for (const index of [-1, "1", undefined] as unknown as number[]) expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2), { ...flag(1, "The Nile is the longest river in Africa."), index }] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2), v(1, "maybe_wrong")] }, PARTS, ALLOWED)).toBe(false);
+  });
+});
 
 describe("parseReviewFindings", () => {
   const items = ["Position is a scalar.", "A square has four equal sides, so its corners are right angles."];

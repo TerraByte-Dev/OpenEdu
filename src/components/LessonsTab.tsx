@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Lesson, Syllabus, Subtopic } from "../types";
-import { getLessons, getLesson } from "../lib/db";
+import { getLessons, getLesson, lessonWasChecked } from "../lib/db";
 import { generateLesson, lessonHelpFor } from "../lib/curriculum";
 import { getLessonConfigs } from "../lib/store";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import LessonReader from "./LessonReader";
+import { lessonStatusLine } from "../lib/ai-notice";
+import type { Grade } from "../lib/grade";
 import RaiseHand from "./RaiseHand";
 
 interface LessonsTabProps {
@@ -18,14 +20,18 @@ interface LessonsTabProps {
   onDeepLinkConsumed?: () => void;
   /** Raise hand's "Try typing to your tutor": open the chat for this subtopic. */
   onTypeToTutor?: (subtopicTitle: string | null) => void;
+  /** For the status line under the lesson (ai-notice.ts lessonStatusLine): K-2 wording. */
+  grade?: Grade | null;
 }
 
-export default function LessonsTab({ courseId, level, topic, currentSyllabus, lessonSubtopicId, onDeepLinkConsumed, onTypeToTutor }: LessonsTabProps) {
+export default function LessonsTab({ courseId, level, topic, currentSyllabus, lessonSubtopicId, onDeepLinkConsumed, onTypeToTutor, grade = null }: LessonsTabProps) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [openLesson, setOpenLesson] = useState<Lesson | null>(null);
   const [error, setError] = useState("");
+  // Whether the open lesson was checked when it was written (lesson_checks), once read for that lesson.
+  const [check, setCheck] = useState<{ id: string; checked: boolean } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +75,16 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
     if (made) setOpenLesson(made);
   }, [lessonFor, generate]);
 
+  useEffect(() => {
+    if (!openLesson) return;
+    const id = openLesson.id;
+    let live = true;
+    lessonWasChecked(id)
+      .then((checked) => { if (live) setCheck({ id, checked }); })
+      .catch(() => { if (live) setCheck({ id, checked: false }); }); // unknown reads as not checked
+    return () => { live = false; };
+  }, [openLesson?.id]);
+
   // Consume a deep-link once the syllabus is loaded.
   useEffect(() => {
     if (!lessonSubtopicId || loading || !currentSyllabus) return;
@@ -90,7 +106,8 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
         onTypeToTutor={(t) => onTypeToTutor?.(t?.title ?? null)}
       />
     );
-    return <LessonReader lesson={lesson} onBack={() => setOpenLesson(null)} onRead={load} raiseHand={raiseHand} />;
+    const status = check?.id === lesson.id ? lessonStatusLine({ checked: check.checked, grade }) : null;
+    return <LessonReader lesson={lesson} onBack={() => setOpenLesson(null)} onRead={load} raiseHand={raiseHand} status={status} />;
   }
 
   if (loading) {
