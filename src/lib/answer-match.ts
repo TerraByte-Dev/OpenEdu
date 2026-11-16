@@ -646,8 +646,8 @@ export function misspellingCandidates(item: WrittenAnswer): string[] {
 // them. So code tells the model what it can see, and the model still decides: a note on the item,
 // '"skelitin" may be a misspelling of "skeleton"'. The note is given only when the answer's word can be
 // nothing but the key's word misspelt: no other word in the question is as close to it, it is not itself
-// a real word (or it is the key's word with one British/American spelling swap the dictionary lists as a
-// synonym, "sulphur"), the key's word is in the dictionary, and no other real word is as close to it,
+// a real word, in WordNet or in the full English word list (or it is the key's word with one
+// British/American spelling swap the dictionary lists as a synonym, "sulphur"), the key's word is in the dictionary, and no other real word is as close to it,
 // another word's -ing or -ed form included. "geolagist" (one edit from geologist) for Biologist gets no
 // note, nor "glucogan" (two edits from glucagon and from glycogen), nor "attatching" for Attacking (one
 // edit from attaching).
@@ -685,8 +685,10 @@ export function misspeltKeyWords(item: WrittenAnswer): MisspeltWord[] {
 
 /** What the note needs from the dictionary. */
 export interface SpellingLookup {
-  /** Whether a word is a real word. */
+  /** Whether a word is a real word: a WordNet headword or one of its forms. */
   isWord: (w: string) => boolean;
+  /** Whether a word is in the full English word list (wordlist.ts), which has many words WordNet lacks. */
+  listed: (w: string) => boolean;
   /** The one-word synonyms the dictionary lists for a real word ("sulphur": sulfur). */
   synonyms: (w: string) => string[];
   /** The real words at most `edits` edits from a word, other words' inflected forms included. */
@@ -788,10 +790,11 @@ export function prefixAdded(answer: string, key: string): boolean {
 // the dictionary cannot say the answer is a real word.
 const CONTRAST_PREFIXES: ReadonlyArray<readonly string[]> = [
   ["hyper", "hypo"], ["inter", "intra", "extra"], ["macro", "micro"], ["kilo", "mega", "giga", "tera", "peta"],
-  ["uni", "mono", "bi", "di", "tri"], ["endo", "exo", "ecto"], ["in", "ex", "de", "en"], ["ana", "cata"],
+  ["uni", "mono", "bi", "di", "tri", "tetra", "penta", "hexa", "hepta", "octa"], ["endo", "exo", "ecto"], ["in", "ex", "de", "en"], ["ana", "cata"],
 ];
 const CONTRAST_SUFFIXES: ReadonlyArray<readonly string[]> = [
-  ["philic", "phobic"], ["phile", "phobe"], ["ane", "ene", "yne"], ["ate", "ite", "ide"], ["ase", "ose"],
+  ["philic", "phobic"], ["phile", "phobe"], ["philia", "phobia"], ["itis", "osis"], ["ectomy", "otomy", "ostomy"],
+  ["ane", "ene", "yne"], ["ate", "ite", "ide"], ["ase", "ose"],
   ["tion", "tor"], ["ion", "or"], ["gram", "graph"], ["er", "ee"],
 ];
 
@@ -846,9 +849,10 @@ const FUNCTION_WORDS = new Set([
  * with letters added at the front or a negating prefix taken off (prefixAdded: "unextinct" may be the
  * opposite), the key's word with a contrasting affix swapped (affixSwapped: "hypoventilation"), a key word
  * written in capitals (an acronym or symbol: "NADPH" for NADP is another molecule), a word of the question
- * as close to it as the key's word, a function word or a function word as close, a real word itself
- * (unless it is the key's word with one British/American spelling swap and the dictionary lists the two
- * as synonyms), a key word the dictionary does not have (names of places and people), or another real
+ * as close to it as the key's word, a function word or a function word as close, a real word itself,
+ * in WordNet or in the full English word list ("chalcogens" for Halogens, "granivore" for Carnivore),
+ * unless it is the key's word with one British/American spelling swap and the dictionary lists the two
+ * as synonyms, a key word the dictionary does not have (names of places and people), or another real
  * word as close to it.
  */
 export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): string | null {
@@ -860,7 +864,7 @@ export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): stri
     if (inCapitals(item.expected, key)) return null;
     const a = singular(answer);
     if (rivals.some((r) => r !== key && editDistance(a, singular(r)) <= edits)) return null;
-    if (dict.isWord(answer)) {
+    if (dict.isWord(answer) || dict.listed(answer) || dict.listed(a)) {
       if (!spellingVariant(answer, key) || !dict.synonyms(answer).includes(key)) return null;
       continue;
     }

@@ -13,6 +13,7 @@ import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
 import { settleByCode, misspellingCandidates, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup } from "./answer-match";
 import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
+import { inWordList } from "./wordlist";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -778,8 +779,9 @@ async function realWords(words: string[]): Promise<(w: string) => boolean> {
 }
 
 // A note for the model on each answer that may be the key misspelt (answer-match.ts misspellingNote),
-// or null. The dictionary says what is a real word and which real words are near; the full word list is
-// read only when some answer's word is not a real word. If the dictionary cannot be read, no note.
+// or null. The dictionary says what is a real word and which real words are near, and the English word
+// list (wordlist.ts) says what else is a real word; WordNet's full headword list is read only when some
+// answer's word is in neither. If either cannot be read, no note.
 async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | null>> {
   const none = items.map(() => null);
   const words = items.flatMap(misspeltKeyWords);
@@ -788,9 +790,12 @@ async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | 
     const entries = new Map<string, DictionaryEntry[]>();
     await Promise.all([...new Set(words.flatMap((w) => [w.answer, w.key]))].map(async (w) => { entries.set(w, await lookupWord(w)); }));
     const isWord = (w: string) => (entries.get(w) ?? []).length > 0;
+    const listedWords = new Set<string>();
+    await Promise.all([...new Set(words.flatMap((w) => [w.answer, singular(w.answer)]))].map(async (w) => { if (await inWordList(w)) listedWords.add(w); }));
+    const listed = (w: string) => listedWords.has(w);
     // The real words near each answer word that is not one: headwords and irregular forms, plus other
     // words' regular forms ("attaching" for "attatching") that the dictionary resolves.
-    const open = words.filter((w) => isWord(w.key) && !isWord(w.answer));
+    const open = words.filter((w) => isWord(w.key) && !isWord(w.answer) && !listed(w.answer) && !listed(singular(w.answer)));
     const headwords = open.length > 0 ? await oneWordHeadwords() : [];
     const near = new Map<string, string[]>();
     for (const { answer, edits } of open) {
@@ -801,6 +806,7 @@ async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | 
     }
     const dict: SpellingLookup = {
       isWord,
+      listed,
       synonyms: (w) => (entries.get(w) ?? []).flatMap((e) => e.senses.flatMap((s) => s.synonyms.map((x) => x.toLowerCase()))),
       wordsNear: (w, edits) => near.get(`${w} ${edits}`) ?? [],
     };

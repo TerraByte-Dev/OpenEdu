@@ -1,4 +1,6 @@
 public/library/** text eol=lf
 public/dictionary/** text eol=lf
 public/dictionary/*.json linguist-generated=true
+public/wordlist/** text eol=lf
+public/wordlist/*.json linguist-generated=true
 scripts/*.mjs text eol=lf

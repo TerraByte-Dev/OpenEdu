@@ -321,20 +321,26 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   front, which may mean the opposite ("unextinct", "intransparent"; `prefixAdded`, which also takes a
   negating prefix on the key's word one edit off, "atipical", and the key's word with a negating prefix
   taken off, "matchable" for Unmatchable), when the answer swaps a contrasting prefix or suffix of the
-  key's word (hyper/hypo, inter/intra/extra, mega/giga, bi/tri, -philic/-phobic, -tion/-tor and others;
+  key's word (hyper/hypo, inter/intra/extra, mega/giga, bi/tri/penta/hepta, -philic/-phobic,
+  -philia/-phobia, -itis/-osis, -ectomy/-otomy, -tion/-tor and others;
   `affixSwapped`: "hypoventilation", "lipophobic"), when the key writes the word in capitals (an acronym
   or symbol: "NADPH" for NADP), when it is a function word WordNet lacks, a contraction typed without its
   apostrophe included, or one is as close ("until" for Untie, "their" for Heir, "theyre" for there), when
   a word of the question is as close ("farther or further?"),
-  when the answer's word is a real word (unless it is the key's word with one British/American
-  spelling swap, our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um, and the dictionary lists the two
+  when the answer's word is a real word, in WordNet or in the bundled English word list (unless it is
+  the key's word with one British/American spelling swap, our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um, and the dictionary lists the two
   as synonyms: "aluminium"; WordNet's synonyms alone also hold other forms, bacterium for bacteria,
   earlier for earliest), when the key's word is not in the dictionary, or when another real word is as
   close ("glucogan": glycogen; "orbet": sorbet), counting another word's -ing, -ed or -s form the
   dictionary resolves ("attatching" for Attacking: attaching; "enhaled" for Exhaled: inhaled). The check
   reads every one-word dictionary headword once per session (`dictionary.ts` `oneWordHeadwords`), only
   when an answer needs it, and makes the forms from them with WordNet's suffix rules
-  (`answer-match.ts` `formsWithin`); if the dictionary cannot be read, no note. A batch with no note
+  (`answer-match.ts` `formsWithin`). WordNet lacks many real words ("chalcogens" for Halogens,
+  "granivore" for Carnivore, "voltammeter" for Voltmeter), so the answer's word is also looked up in
+  `public/wordlist/` (`wordlist.ts` `inWordList`: one shard by two-letter prefix, fetched when asked
+  for), which `scripts/build-wordlist.mjs` builds from the word-list npm package (MIT, 274,137 words,
+  version and sha256 pinned in `meta.json`, licence in `LICENSE` beside it). If the dictionary or the
+  word list cannot be read, no note. A batch with no note
   gets the old prompt byte for byte; in a batch with a note, each answer is kept to one line and an
   answer that opens with "Note:" has its colon replaced, so no typed answer passes for a note. Measured in
   `src/lib/eval/results/2026-11-16-grade-dev-misspelling-hint.md`.

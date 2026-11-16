@@ -642,8 +642,9 @@ describe("settleByCode on the round-4 dev set", () => {
 // A small stand-in dictionary: the real words these tests need, and the synonyms it lists.
 const WORDS = ["skeleton", "glucagon", "glycogen", "biologist", "geologist", "history", "mystery", "verb", "herb",
   "orbit", "sorbet", "aluminum", "aluminium", "hypertonic", "hypotonic", "geologists", "membrane", "cell"];
-const dict = (words: string[] = WORDS, synonyms: Record<string, string[]> = { aluminium: ["aluminum", "al"] }): SpellingLookup => ({
+const dict = (words: string[] = WORDS, synonyms: Record<string, string[]> = { aluminium: ["aluminum", "al"] }, listed: string[] = []): SpellingLookup => ({
   isWord: (w) => words.includes(w),
+  listed: (w) => listed.includes(w),
   synonyms: (w) => synonyms[w] ?? [],
   wordsNear: (w, edits) => wordsWithin(words, w, edits),
 });
@@ -684,6 +685,13 @@ describe("misspellingNote", () => {
     expect(note("What part of speech names an action?", "A verb", "a herb")).toBeNull();
     expect(note("Which metal makes soda cans?", "Aluminum", "aluminium")).toBe('"aluminium" may be a misspelling of "aluminum"');
     expect(note("Which metal makes soda cans?", "Aluminum", "aluminium", dict(WORDS, {}))).toBeNull();
+  });
+  it("is null for a word of the English word list that WordNet lacks: chalcogens for Halogens", () => {
+    const words = ["halogens", "carnivore"];
+    expect(note("Which group of elements includes chlorine?", "Halogens", "chalcogens", dict(words))).toBe('"chalcogens" may be a misspelling of "halogens"');
+    expect(note("Which group of elements includes chlorine?", "Halogens", "chalcogens", dict(words, {}, ["chalcogens"]))).toBeNull();
+    expect(note("Which group of elements includes chlorine?", "Halogens", "chalcogens", dict(words, {}, ["chalcogen"]))).toBeNull();
+    expect(note("What do we call an animal that eats meat?", "Carnivore", "granivore", dict(words, {}, ["granivore"]))).toBeNull();
   });
   it("is null for a real word the dictionary lists as a synonym that is not a spelling swap of the key's word", () => {
     const words = ["bacteria", "bacterium", "earlier", "earliest", "quick", "quickly", "area", "arena"];

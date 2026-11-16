@@ -15,6 +15,7 @@ import { gradeAnswersBatch } from "./quiz";
 import { callLLMStructured } from "./llm";
 import { buildBatchGradePrompt } from "./quiz-grading";
 import { resetDictionaryCache } from "./dictionary";
+import { resetWordListCache } from "./wordlist";
 import { installAppOrigin } from "./eval/headless/origin";
 import { GRADE_DEV_MISSPELLINGS, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions } from "./eval/grade-dev";
 import type { LLMConfig } from "../types";
@@ -31,8 +32,8 @@ async function promptFor(items: Array<{ index: number; question: string; expecte
 const item = (index: number, question: string, expected: string, student: string) => ({ index, question, expected, student, type: "short_answer" });
 
 describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () => {
-  beforeAll(() => { resetDictionaryCache(); installAppOrigin(); });
-  afterAll(() => { globalThis.fetch = original; resetDictionaryCache(); });
+  beforeAll(() => { resetDictionaryCache(); resetWordListCache(); installAppOrigin(); });
+  afterAll(() => { globalThis.fetch = original; resetDictionaryCache(); resetWordListCache(); });
   beforeEach(() => { vi.mocked(callLLMStructured).mockReset(); });
 
   it("notes a two-edit misspelling no other real word is as close to, and tells the model what a note is", async () => {
@@ -165,6 +166,36 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
     }
   }, 60_000);
 
+  // Review of #327, cycle 5: each answer is a real word WordNet lacks (in the English word list), or a
+  // coinage absent from both with a contrasting affix swapped (philia/phobia, itis/osis,
+  // ectomy/otomy/ostomy, the number prefixes). Each would name another thing.
+  it("gives no note to a real word WordNet lacks or a swapped contrast affix: chalcogens, granivore, arachnophilia", async () => {
+    const cases: Array<[string, string, string]> = [
+      ["What do we call a strong fear of spiders?", "Arachnophobia", "arachnophilia"],
+      ["What do we call a strong fear of open or crowded places?", "Agoraphobia", "agoraphilia"],
+      ["What do we call being made uneasy by bright light?", "Photophobia", "photophilia"],
+      ["What do we call a strong fear of cats?", "Ailurophobia", "ailurophilia"],
+      ["What do we call swelling of the joints of the spine?", "Spondylitis", "spondylosis"],
+      ["What do we call swelling of a joint that comes with wear on the bone?", "Osteoarthritis", "osteoarthrosis"],
+      ["What do we call an operation that takes out the gallbladder?", "Cholecystectomy", "cholecystotomy"],
+      ["What do we call a contest made of five events?", "Pentathlon", "heptathlon"],
+      ["What do we call an animal that eats meat?", "Carnivore", "granivore"],
+      ["Which group of elements includes fluorine and chlorine?", "Halogens", "chalcogens"],
+      ["What tool measures the voltage across a part of a circuit?", "Voltmeter", "voltammeter"],
+      ["What are the building blocks of DNA called?", "Nucleotides", "nucleotidases"],
+      ["What do we call the main character of a story?", "Protagonist", "tritagonist"],
+      ["Which part of a cell breaks down waste with enzymes?", "Lysosome", "mesosome"],
+      ["What do we call a country ruled by a king or queen?", "Monarchy", "holarchy"],
+    ];
+    for (let start = 0; start < cases.length; start += 8) {
+      vi.mocked(callLLMStructured).mockReset();
+      const p = await promptFor(cases.slice(start, start + 8).map(([q, key, a], k) => item(k, q, key, a)));
+      for (const [, , a] of cases.slice(start, start + 8)) expect(p).toContain(`Student answer: ${a}
+`);
+      expect(p).not.toContain("Note");
+    }
+  }, 60_000);
+
   // Review of #327, cycle 4: the key's word is the answer's with a negating prefix (the answer is the
   // opposite), or the key is an acronym the answer adds a letter to, and each got a note.
   it("gives no note to the key's word without its negating prefix, or to an acronym with a letter added: matchable, NADPH", async () => {
@@ -240,6 +271,20 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
     // the dictionary resolves as forms ("mitosiss", "glacer", "bipolarest"), so they get no note.
     expect(noted.filter((n) => n.startsWith("misspell")).length).toBe(17);
   }, 120_000);
+
+  it("gives no note when the English word list cannot be read, though the dictionary can", async () => {
+    const withList = globalThis.fetch;
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+      String(input).includes("wordlist/") ? new Response("not found", { status: 404 }) : withList(input, init)) as typeof fetch;
+    resetWordListCache();
+    try {
+      const p = await promptFor([item(0, "What is the frame of bones that holds up the body called?", "The skeleton", "skelitin")]);
+      expect(p).not.toContain("Note");
+    } finally {
+      globalThis.fetch = withList;
+      resetWordListCache();
+    }
+  }, 30_000);
 
   it("gives no note when the dictionary cannot be read", async () => {
     globalThis.fetch = (async () => new Response("not found", { status: 404 })) as typeof fetch;
