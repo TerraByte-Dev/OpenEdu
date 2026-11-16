@@ -319,8 +319,13 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   answer, spelling is not marked.` (`answer-match.ts` `misspellingNote`, `quiz.ts` `misspellingNotes`).
   The model still decides. No note when the answer's word is the key's word with letters added at the
   front, which may mean the opposite ("unextinct", "intransparent"; `prefixAdded`, which also takes a
-  negating prefix on the key's word one edit off, "atipical"), when it is a function word WordNet lacks
-  or one is as close ("until" for Untie, "their" for Heir), when a word of the question is as close ("farther or further?"),
+  negating prefix on the key's word one edit off, "atipical", and the key's word with a negating prefix
+  taken off, "matchable" for Unmatchable), when the answer swaps a contrasting prefix or suffix of the
+  key's word (hyper/hypo, inter/intra/extra, mega/giga, bi/tri, -philic/-phobic, -tion/-tor and others;
+  `affixSwapped`: "hypoventilation", "lipophobic"), when the key writes the word in capitals (an acronym
+  or symbol: "NADPH" for NADP), when it is a function word WordNet lacks, a contraction typed without its
+  apostrophe included, or one is as close ("until" for Untie, "their" for Heir, "theyre" for there), when
+  a word of the question is as close ("farther or further?"),
   when the answer's word is a real word (unless it is the key's word with one British/American
   spelling swap, our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um, and the dictionary lists the two
   as synonyms: "aluminium"; WordNet's synonyms alone also hold other forms, bacterium for bacteria,

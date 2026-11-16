@@ -697,7 +697,7 @@ export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): s
   // Only a batch with a note changes, so every other batch's prompt is unchanged. In it, each answer is
   // kept to one line and cannot open with "Note:", so no answer a learner typed passes for a note.
   const noted = items.some((it) => it.note);
-  const student = (s: string) => (noted ? s.replace(/[\r\n\v\f\u2028\u2029]+/g, " ").replace(/^(\s*note)\s*:/i, "$1 -") : s);
+  const student = (s: string) => (noted ? s.replace(/[\r\n\v\f\u0085\u001c-\u001e\u2028\u2029]+/g, " ").replace(/^(\s*note)\s*:/i, "$1 -") : s);
   const body = items
     .map((it, k) =>
       `[${gradeKey(k).replace("_", " ")}] (${it.type})\n` +

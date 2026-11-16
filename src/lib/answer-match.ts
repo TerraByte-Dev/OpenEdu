@@ -770,13 +770,51 @@ const NEGATING_PREFIXES = ["un", "in", "im", "il", "ir", "a", "an", "de", "non",
 /**
  * True when the answer's word is the key's word with letters added at the front ("unextinct" for
  * extinct, "abiotic" for biotic), or a negating prefix the key's word does not start with on the key's
- * word one edit off ("atipical" for typical). Such a word may mean the opposite, so it is never noted as
- * a misspelling.
+ * word one edit off ("atipical" for typical), or the other way round: the key's word is the answer's
+ * with a negating prefix, the answer's word one edit off allowed ("matchable" for Unmatchable). Such a
+ * word may mean the opposite, so it is never noted as a misspelling.
  */
 export function prefixAdded(answer: string, key: string): boolean {
   const a = singular(answer), k = singular(key);
   if (a.length > k.length && a.endsWith(k)) return true;
-  return NEGATING_PREFIXES.some((p) => a.startsWith(p) && !k.startsWith(p) && editDistance(a.slice(p.length), k) <= 1);
+  const negated = (x: string, y: string) =>
+    NEGATING_PREFIXES.some((p) => x.startsWith(p) && !y.startsWith(p) && editDistance(x.slice(p.length), y) <= 1);
+  return negated(a, k) || (k.length > a.length && negated(k, a));
+}
+
+// Affixes that name a contrasting thing, in groups: swapping one for another of its group makes another
+// word, often the opposite ("hypoventilation" for Hyperventilation, "lipophobic" for Lipophilic,
+// "radioprotector" for Radioprotection). Technical words like these are often missing from WordNet, so
+// the dictionary cannot say the answer is a real word.
+const CONTRAST_PREFIXES: ReadonlyArray<readonly string[]> = [
+  ["hyper", "hypo"], ["inter", "intra", "extra"], ["macro", "micro"], ["kilo", "mega", "giga", "tera", "peta"],
+  ["uni", "mono", "bi", "di", "tri"], ["endo", "exo", "ecto"], ["in", "ex", "de", "en"], ["ana", "cata"],
+];
+const CONTRAST_SUFFIXES: ReadonlyArray<readonly string[]> = [
+  ["philic", "phobic"], ["phile", "phobe"], ["ane", "ene", "yne"], ["ate", "ite", "ide"], ["ase", "ose"],
+  ["tion", "tor"], ["ion", "or"], ["gram", "graph"], ["er", "ee"],
+];
+
+/**
+ * True when the answer's word and the key's differ only in a leading or trailing affix, one swapped for
+ * another of its contrast group ("intramuscular" for Intermuscular, "gigawatt" for megawatt, "ethene" for
+ * ethane). Such a word may name another thing, so it is never noted as a misspelling.
+ */
+export function affixSwapped(answer: string, key: string): boolean {
+  const a = singular(answer), k = singular(key);
+  const swapped = (groups: ReadonlyArray<readonly string[]>, rest: (w: string, x: string) => string | null) =>
+    groups.some((g) => g.some((x) => {
+      const r = rest(a, x);
+      return r !== null && g.some((y) => y !== x && rest(k, y) === r);
+    }));
+  return swapped(CONTRAST_PREFIXES, (w, x) => (w.startsWith(x) ? w.slice(x.length) : null)) ||
+    swapped(CONTRAST_SUFFIXES, (w, x) => (w.endsWith(x) ? w.slice(0, w.length - x.length) : null));
+}
+
+/** True when the key writes this word with two or more capitals: an acronym or a symbol ("NADP", "ATP"). */
+function inCapitals(expected: string, word: string): boolean {
+  return (expected.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) ?? [])
+    .some((t) => t.toLowerCase() === word && (t.match(/\p{Lu}/gu) ?? []).length >= 2);
 }
 
 // Closed-class words (pronouns, determiners, prepositions, conjunctions, auxiliaries) WordNet does not
@@ -796,12 +834,18 @@ const FUNCTION_WORDS = new Set([
   "but", "or", "so", "yet", "because", "although", "though", "unless", "whether", "while", "whilst", "if", "than",
   "then", "there", "here", "am", "is", "are", "was", "were", "be", "been", "being", "do", "does", "did", "have",
   "has", "had", "can", "could", "shall", "should", "will", "would", "may", "might", "must", "ought",
+  // Contractions typed without the apostrophe ("theyre" is not a misspelling of there).
+  "theyre", "youre", "whos", "lets", "thats", "whats", "theres", "dont", "doesnt", "cant", "wont", "isnt",
+  "wasnt", "arent", "werent", "hasnt", "havent", "hadnt", "didnt", "shouldnt", "couldnt", "wouldnt", "im", "ive",
+  "id", "ill", "youve", "weve", "theyve", "aint",
 ]);
 
 /**
  * A note for the grader model when the answer may be the key with words misspelt, or null. Never a
  * verdict: the model still decides. Null when any misspelt word could be another word: the key's word
- * with letters added at the front (prefixAdded: "unextinct" may be the opposite), a word of the question
+ * with letters added at the front or a negating prefix taken off (prefixAdded: "unextinct" may be the
+ * opposite), the key's word with a contrasting affix swapped (affixSwapped: "hypoventilation"), a key word
+ * written in capitals (an acronym or symbol: "NADPH" for NADP is another molecule), a word of the question
  * as close to it as the key's word, a function word or a function word as close, a real word itself
  * (unless it is the key's word with one British/American spelling swap and the dictionary lists the two
  * as synonyms), a key word the dictionary does not have (names of places and people), or another real
@@ -812,7 +856,8 @@ export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): stri
   if (words.length === 0) return null;
   const rivals = [...rivalWords(item.question, answerWords(item.expected)), ...FUNCTION_WORDS];
   for (const { answer, key, edits } of words) {
-    if (!dict.isWord(key) || prefixAdded(answer, key) || FUNCTION_WORDS.has(answer)) return null;
+    if (!dict.isWord(key) || prefixAdded(answer, key) || affixSwapped(answer, key) || FUNCTION_WORDS.has(answer)) return null;
+    if (inCapitals(item.expected, key)) return null;
     const a = singular(answer);
     if (rivals.some((r) => r !== key && editDistance(a, singular(r)) <= edits)) return null;
     if (dict.isWord(answer)) {
