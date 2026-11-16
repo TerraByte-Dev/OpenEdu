@@ -297,8 +297,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   when a word the question offers is as close, or when the key word is not in the dictionary (it has
   no names of places or people, so "Zambia" for "Gambia" goes to the model). A sign's name settles
   when the key is the sign itself ("greater than" for ">"; never "greater than or equal to" or "less
-  than"), never the sign for a key that is a name, and never when the question already shows the sign
-  or says the name ("Which symbol means 'greater than'?"). A key of 1-3 letters may be written spaced
+  than"), never the sign for a key that is a name, and only to fill a blank between two numbers
+  ("7 __ 2") on a question that neither shows the sign nor says a word of its names or what it does
+  ("Which symbol means greater?" goes to the model). A key of 1-3 letters may be written spaced
   or dotted ("n a" for "Na"), but letters cased as another element symbol never settle ("CO" for
   "Co"), and on a question about symbols or formulas such a key needs its own case. It never accepts
   on a shared word ("red" for "red blood cells"), and it compares words in order, so the key's words

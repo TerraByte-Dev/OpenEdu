@@ -99,3 +99,31 @@ Right failed by kind on e2b after the fix: misspelling 5, 3, 3 (all two edits: "
 "vertebrait" and "geolagest" in every run); sign 2, 1, 2 ("fewer than" / "smaller than" for "Less
 than", two names, unchanged rule); letters 0. e4b failed "geolagest" and again passed "CO" for "Co" on
 its own.
+
+## Review fix (cycle 2): a sign's name only to fill a blank between two numbers
+
+The second review found the echo guard matched only a sign's whole name, so a question that says one
+word of it still gave the name away: "Which symbol means greater?" took "greater than" for ">",
+"Which sign shows 9 is more?" took "more than", "Which symbol means to multiply?" took "multiplied
+by" for "×". Master settled none of them. A sign's name now settles only when the question has a
+blank between two numbers for the sign ("7 __ 2", "(0.5 __ 0.25)") and no word starting like one of
+the sign's names or what it does (greater, more, bigger, larger, less, smaller, fewer, equal, same,
+plus, add, sum, minus, subtract, take, times, multipl-, product, divid-, share). A word list alone
+would leave every synonym ("Which sign means to add?" for "plus"); the blank keeps a question that
+asks what a sign means out entirely.
+
+On the dev sets code changes 2 answers, both right: g10 "Which sign goes between 1/2 and 2/4 to
+compare them?" has no blank, so "equal to" and "is equal to" go to the model. `signs` now settles 44
+by code, none wrong; `synonyms` and `round2` are unchanged, so only `signs` was rerun.
+
+| Set | Model | After cycle 1 | After cycle 2 |
+|---|---|---|---|
+| signs (60 / 60) | e2b x3 | 7 / 0, 4 / 0, 5 / 0 | 7 / 0, 4 / 0, 6 / 0 |
+| signs (60 / 60) | e4b x1 | 1 / 1 | 1 / 2 |
+
+The model got both g10 answers right in every run. e2b failed the same kinds as cycle 1
+("skelitin", "vertebrait", "geolagest" every run; "carnivour", "hipothisis", "fewer than", "smaller
+than" in some). e4b failed "geolagest", passed "CO" for "Co" again, and passed "<" for "=" on g10,
+a wrong answer the model graded before this change too. A first e4b run hit a 150 s timeout on one
+batch (another program was using the GPU) and the grader's lenient fallback marked its 7 answers right; that
+run is discarded and the table shows the rerun, with no fallback.
