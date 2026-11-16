@@ -145,3 +145,32 @@ to 25, "rose 15 °C" for a temperature that cooled. A positive key is how an uns
 word list can tell a rise from the opposite. Code now reads a direction word only for a key written
 negative; every rise-side answer goes to the model. The dev set's code-settled right answers go from 40 to
 38 ("15 above zero" and one other mirror item), with no wrong answer accepted.
+
+## Held-out v9 (blind, run once at c9fcc01)
+
+v9 is a fresh blind set laid out like v8: 40 questions, 120 answers, 22 of them with numeric or unit keys,
+and the same kind counts. It has v7's share of loose approximations (6), so it is harder on the right side
+than v8 (4). A generator that read no grading code wrote it. Overlap with v8 and earlier sets, the dev sets
+and the grading test strings is 0. SHA-256 `648c7167…d63d`.
+
+| Run | Right failed | Wrong passed (by code) | Settled by code (accepted / rejected) |
+|---|---|---|---|
+| e2b 1 | 3/40 | 1/80 (0) | 26 (21 / 5) |
+| e2b 2 | 2/40 | 1/80 (0) | 26 (21 / 5) |
+| e2b 3 | 2/40 | 0/80 (0) | 26 (21 / 5) |
+| e4b 1 (reported) | 0/40 | 0/80 (0) | 26 (21 / 5) |
+
+Bars per e2b run: right failed ≤ 2/40 and wrong passed ≤ 1/80. **Run 1 fails the right bar (3/40).** Runs 2 and
+3 pass both bars. Run 2 sits at both limits and run 3 at the right limit.
+
+**What code did.** Code made no errors: its 21 accepts were all right answers and its 5 rejects were all wrong
+answers. It settled both of this round's targets: "ten sixty-six" for 1066, and "9 °C below zero" for -9 °C.
+All five wrong-sign answers went to the model, which rejected each of them on every run, so the direction rule
+produced no false accept. Every loose approximation passed.
+
+**What failed.** Every remaining miss was the model's call:
+- Right failed: "ross" for Betsy Ross (every run), "the climacks" for the climax (every run), and "a capitel
+  letter" for a capital letter (run 1).
+- Wrong passed: "Rudyard" for Rudyard Kipling (runs 1 and 2).
+
+The next levers are a surname the code rule does not yet settle, and misspellings more than one edit away.
