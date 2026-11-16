@@ -447,8 +447,36 @@ describe("settleByCode: a sign and its name", () => {
       ["Which sign means more than?", ">", "greater than"],
       // The question shows the sign itself.
       ["Is 7 > 2 or 7 < 2 true? Which sign makes it true?", ">", "greater than"],
+      // The question says only a word of a name (the second review's cases).
+      ["Which symbol means greater?", ">", "greater than"],
+      ["Which sign shows the first number is greater?", ">", "greater than"],
+      ["Which sign shows that the first number is bigger?", ">", "bigger than"],
+      ["Which symbol do we use when a number is larger?", ">", "larger than"],
+      ["Which sign shows 9 is more?", ">", "more than"],
+      ["Which sign shows the first number is less?", "<", "less than"],
+      ["Which symbol shows the first number is smaller?", "<", "smaller than"],
+      ["Which symbol stands for divide?", "÷", "divided by"],
+      ["Which symbol means to multiply?", "×", "multiplied by"],
+      ["Which symbol means 'multiply'?", "×", "times"],
+      // Or what the sign does.
+      ["Which sign means to add?", "+", "plus"],
+      ["Which sign do we use to take away?", "−", "minus"],
+      ["Which sign means the same as?", "=", "equals"],
     ];
-    for (const [q, key, a] of cases) expect(settle(q, key, a)).toBeNull();
+    for (const [q, key, a] of cases) {
+      expect(settle(q, key, a)).toBeNull();
+      expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
+      // With a blank to fill as well, the word still gives the name away.
+      expect(settle(`${q} (6 __ 3)`, key, a)).toBeNull();
+    }
+  });
+  it("takes a sign's name only to fill a blank between two numbers", () => {
+    expect(settle("Which sign goes between 1/2 and 2/4 to compare them?", "=", "equal to")).toBeNull();
+    expect(settle("Which sign compares 9 and 4?", ">", "greater than")).toBeNull();
+    expect(settle("Which sign goes in the blank?", ">", "greater than")).toBeNull();
+    expect(settle("Which sign compares 0.5 and 0.25 in that order (0.5 __ 0.25)?", ">", "more than")).toBe(true);
+    expect(settle("Which sign goes in the blank: 1/2 __ 2/4?", "=", "equal to")).toBe(true);
+    expect(settle("Which sign goes in the blank: 12 □ 3 = 4?", "÷", "divided by")).toBe(true);
   });
   it("never takes a sign for a word key that is not about signs", () => {
     expect(settle("Which newspaper did he read?", "The Times", "×")).toBeNull();

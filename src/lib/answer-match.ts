@@ -30,8 +30,9 @@
 //     glucagon, and two edits leave too many words that close, so "omnivour" goes to the model;
 //   - a sign's name, when the key is the sign itself: ">" takes "greater than", "more than" or
 //     "bigger than"; never "greater than or equal to", never "<". Never the sign for a key that is a
-//     name, never two names ("smaller than" for "Less than"), and never when the question already
-//     shows the sign or says the name ("Which symbol means 'greater than'?");
+//     name, never two names ("smaller than" for "Less than"), and only on a question with a blank
+//     between two numbers ("7 __ 2") that neither shows the sign nor says a word of its names or
+//     what it does ("Which symbol means greater?", "Which sign shows 9 is bigger? 9 __ 2");
 //   - a short code (3 letters or fewer, like an element symbol) written as spaced or dotted letters:
 //     "n a" or "N.a." for "Na". When the letters cased another way are another symbol ("CO" carbon
 //     monoxide, "Co" cobalt; "NO", "No"), an answer cased as that other symbol is never accepted, and
@@ -486,12 +487,35 @@ function signOf(s: string): { sign: string; written: boolean } | null {
   return Object.prototype.hasOwnProperty.call(SIGNS, t) ? { sign: SIGNS[t], written: !/\p{L}/u.test(t) } : null;
 }
 
-/** The question shows this sign or says one of its names ("Which sign means less than?", "What does
- * 7 > 2 say?"), so its name can be read off the question. A hyphen counts as the minus sign. */
-function questionShowsSign(question: string, sign: string): boolean {
+// The start of every word in a sign's names, and of the words that say what it does, so a question
+// that says any of them ("Which symbol means greater?", "Which sign shows 9 is bigger?", "Which symbol
+// means to multiply?") gives the name away.
+const SIGN_WORDS: Record<string, string[]> = {
+  gt: ["great", "more", "most", "big", "larg"],
+  lt: ["less", "least", "small", "few"],
+  eq: ["equal", "same"],
+  ge: ["great", "more", "most", "big", "larg", "equal", "same"],
+  le: ["less", "least", "small", "few", "equal", "same"],
+  ne: ["not", "equal", "same"],
+  plus: ["plus", "add", "sum", "total"],
+  minus: ["minus", "subtract", "take", "differen"],
+  times: ["time", "multipl", "product"],
+  divide: ["divid", "divis", "share", "quotient"],
+};
+
+// A blank between two numbers to put the sign in: "7 __ 2", "(0.5 __ 0.25)", "3 + 4 □ 7".
+const SIGN_BLANK = /[\p{N})]\s*(?:_{2,}|□)\s*[(\p{N}]/u;
+
+/** The name can only be known from the numbers: the question has a blank between two numbers for the
+ * sign, and neither shows this sign nor says a word of its names or what it does. Anything else (a
+ * question asking what a sign means, "Which sign goes between 1/2 and 2/4?") goes to the model. A
+ * hyphen counts as the minus sign. */
+function signOnlyFromNumbers(question: string, sign: string): boolean {
   const raw = (question ?? "").normalize("NFKC").toLowerCase().replace(/[−–]/g, "-");
-  const words = ` ${raw.replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `;
-  return Object.entries(SIGNS).some(([text, s]) => s === sign && (/\p{L}/u.test(text) ? words.includes(` ${text} `) : raw.includes(text)));
+  if (!SIGN_BLANK.test(raw)) return false;
+  if (Object.entries(SIGNS).some(([text, s]) => s === sign && !/\p{L}/u.test(text) && raw.includes(text))) return false;
+  const words = raw.split(/[^\p{L}]+/u).filter(Boolean);
+  return !words.some((w) => SIGN_WORDS[sign].some((stem) => w.startsWith(stem)));
 }
 
 // ─── Short codes ──────────────────────────────────────────────────────────────
@@ -556,12 +580,13 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
   // A sign has no words, so it is read before anything else. Only a name for a key that is the sign
   // itself: "greater than" for ">"; another sign's name ("less than", "greater than or equal to") is
   // never taken by a later rule. The sign for a key that is a name ("What does > mean?"), two names,
-  // and a word key ("The Times", "equal") go to the model or the rules below as before. Not when the
-  // question already shows the sign or says the name ("Which symbol means 'greater than'?").
+  // and a word key ("The Times", "equal") go to the model or the rules below as before. Only on a
+  // question with a blank between two numbers that says no word of the sign's names ("Which sign goes
+  // in the blank to make 7 __ 2 true?"); never on "Which symbol means greater?".
   const keySign = signOf(item.expected);
   if (keySign?.written) {
     const answerSign = signOf(item.student);
-    if (answerSign && !answerSign.written) return answerSign.sign === keySign.sign && !questionShowsSign(item.question, keySign.sign) ? true : null;
+    if (answerSign && !answerSign.written) return answerSign.sign === keySign.sign && signOnlyFromNumbers(item.question, keySign.sign) ? true : null;
   }
   // A short code before the case-blind rules below, which would take "CO" for "Co".
   const code = settleShortCode(item);
