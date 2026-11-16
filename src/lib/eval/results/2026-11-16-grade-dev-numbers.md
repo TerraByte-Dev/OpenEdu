@@ -75,10 +75,24 @@ e4b, one run:
 ## Code decides numbers and units both ways (`settleQuantity`)
 
 `answer-match.ts` `settleQuantity`, called last from `settleByCode`, reads the key and the answer as one
-quantity each and compares amounts after converting units. Same amount: right. A different amount
-beyond the precision either side was written to: wrong (`graded_by` `'exact'`, wrong, feedback "This
-does not match the answer key.", and "I think I was right" still offered). Anything it is not sure of
-stays null for the model; every such case is listed in the code comment and `docs/ARCHITECTURE.md`.
+quantity each and compares amounts after converting units. Same amount: right (on an estimate question,
+"Estimate 49 x 21", "roughly", "about how", within 10%). Wrong only on a gross miss (`graded_by`
+`'exact'`, wrong, feedback "This does not match the answer key.", and "I think I was right" still
+offered): another kind of unit; a factor of about 10, 100 or 1000 (not 100 between two plain numbers or
+on a percent question, which is the same number read as a percent); a different fraction for a fraction
+key; a.m. for p.m.; the other sign, except on a question about a fall, drop, decrease, loss, depth,
+being below, a change or a difference; or, when the question gives the numbers and asks for no
+estimate, more than 20% apart. Never on precision alone: a measured fact, an estimate, pi or a rounded
+conversion factor goes to the model. Everything else it is not sure of stays null for the model; the
+list is in the code comment and `docs/ARCHITECTURE.md`.
+
+History. The first version (`1bb7318`) marked wrong any different amount beyond the precision either side
+was written to. Review found right answers it rejected: measured facts with a precise key ("8,848 m" for
+Everest's 8,849 m, "340 m/s" for 343, "300,000 km/s", "385,000 km", "28 days" for 27.3, "21 °C" for
+20, "98 °F" for 98.6), estimates ("1,050" on "Estimate 49 x 21"), pi and rounded conversion factors
+("12.57" for 12.56, "62.5 miles" for 62.1, "30 m/s" for 29.4), bare counts ("3" on "how many
+fourths" for 3/4), the other sign on a drop, loss or depth, and "45" for 0.45. Those are all null or
+right now (`answer-match.test.ts` pins them), and the decision was made to reject only gross misses.
 
 The choices that keep it conservative, all tuned on this set (DEV, so these numbers overstate a new set):
 
@@ -87,46 +101,49 @@ The choices that keep it conservative, all tuned on this set (DEV, so these numb
 - A question that asks for a form (as a percent, decimal or fraction, simplest form, scientific or
   standard notation, rounded, exact, in digits) or for the key's unit ("in kilometers?", "how many
   grams") leaves the right value in another form or unit to the model: "0.45", "75/100", "30 × 10^3",
-  "1500 m". A different value is still wrong.
-- Rounding: never wrong when one side may be the other rounded ("273 K", "0.13", "0.7"; "5,000" on a
-  rounding question). An "about" key is right within 2% and its last digit, wrong past 25%.
+  "1500 m".
 - Never wrong: an answer that says "about", a one-letter unit of another kind ("9 m" for 9 m²), another
   temperature scale ("212 °C"), years against days, a bare number that may be the key in another unit,
-  a question that asks for the unit, a ratio, a clock time without a.m./p.m. that could be the key.
+  a question that asks for the unit, a ratio, any clock time other than a.m. for p.m.
 
 On the five dev sets, with no word known to be real (`answer-match.test.ts`), code marks no right answer
-wrong. Code's decisions against master's (every answer of every set, master's `answer-match.ts` against
-this one): `numbers` 49 more right answers settled and 68 wrong answers marked wrong; `synonyms` 13 more
-right settled ("3,600 seconds", "about 26 miles", "1 m²", "one year" for about 365 days) and 14 wrong
-marked wrong ("60 seconds", "100 grams", "4 meters" for 1 square meter); `round2` 6 wrong marked wrong
-("54", "7 square centimeters", "0 degrees Fahrenheit"); `signs` and `misspell` unchanged, so their prompts
-are byte-identical to master's.
+wrong. Against the first version, code now leaves 27 wrong answers to the model that it had marked
+wrong, all near misses: `numbers` 14 ("0.66" for 0.67, "4,800" for 4,900, "406,200", "365" and "367
+days" for 366, "5 °C" for −5 °C after a fall, "15" for −15 below sea level, "$3.05" for $3.50, "3:15
+p.m." for 4:15 p.m., "130 minutes" for 150, "30 inches" for 36, "180 °F" for 212 °F, "150 million
+miles" for about 1.5 × 10^8 km, "36 years" for 37); `synonyms` 9 ("60 seconds" and "100 minutes" for
+an hour, "10 kilometers" for a marathon, "100 °C" for freezing, "90" and "360 degrees" for a straight
+angle, "24 hours" for a year, "365 days" and "12 hours" for a day); `round2` 4 ("54" for 7 × 8, "8"
+sides for a hexagon, "0 degrees Fahrenheit" for freezing, "73" for 100 − 37). Right answers settled are
+unchanged. `signs` and `misspell` are unchanged, so their prompts are byte-identical to master's and
+they were not rerun.
 
 Right failed / wrong passed / settled by code, per run (local Ollama, RTX 3070 laptop, same runner and
-order as the baseline):
+order as the baseline; each run its own process):
 
-| Set | Model | Before (master + set) | After |
-|---|---|---|---|
-| numbers (92 / 80) | e2b run 1 | 14 / 3 / 38 | 0 / 0 / 155 (68 wrong) |
-| numbers (92 / 80) | e2b run 2 | 13 / 3 / 38 | 0 / 0 / 155 (68 wrong) |
-| numbers (92 / 80) | e2b run 3 | 14 / 3 / 38 | 0 / 0 / 155 (68 wrong) |
-| numbers (92 / 80) | e4b run 1 | 8 / 5 / 38 | 1 / 2 / 155 (68 wrong) |
-| synonyms (74 / 80) | e2b x3 | 13 / 1, 14 / 1, 15 / 1 | 7 / 1, 6 / 1, 8 / 1 |
-| round2 (30 / 30) | e2b x3 | 0 / 0, 0 / 0, 0 / 0 | 0 / 0, 0 / 0, 0 / 0 |
-| signs (60 / 60) | e2b x3 | 1 / 1, 2 / 0, 2 / 0 | 2 / 0, 2 / 0, 2 / 1 |
-| misspell (60 / 60) | e2b x3 | 13 / 0, 8 / 1, 9 / 1 | 11 / 0, 11 / 0, 11 / 0 |
+| Set | Model | Before (master + set) | First version (`1bb7318`) | Gross misses only |
+|---|---|---|---|---|
+| numbers (92 / 80) | e2b run 1 | 14 / 3 / 38 | 0 / 0 / 155 (68 wrong) | 0 / 1 / 141 (54 wrong) |
+| numbers (92 / 80) | e2b run 2 | 13 / 3 / 38 | 0 / 0 / 155 (68 wrong) | 0 / 1 / 141 (54 wrong) |
+| numbers (92 / 80) | e2b run 3 | 14 / 3 / 38 | 0 / 0 / 155 (68 wrong) | 0 / 1 / 141 (54 wrong) |
+| numbers (92 / 80) | e4b run 1 | 8 / 5 / 38 | 1 / 2 / 155 (68 wrong) | 0 / 2 / 141 (54 wrong) |
+| synonyms (74 / 80) | e2b x3 | 13 / 1, 14 / 1, 15 / 1 | 7 / 1, 6 / 1, 8 / 1 | 8 / 2, 8 / 1, 8 / 1 (22, 5 wrong) |
+| round2 (30 / 30) | e2b x3 | 0 / 0, 0 / 0, 0 / 0 | 0 / 0, 0 / 0, 0 / 0 | 0 / 0, 0 / 0, 0 / 0 (14, 2 wrong) |
+| signs (60 / 60) | e2b x3 | 1 / 1, 2 / 0, 2 / 0 | 2 / 0, 2 / 0, 2 / 1 | not rerun (code unchanged) |
+| misspell (60 / 60) | e2b x3 | 13 / 0, 8 / 1, 9 / 1 | 11 / 0, 11 / 0, 11 / 0 | not rerun (code unchanged) |
 
 "Before" for the other sets is the last recorded master run (results/2026-11-16-grade-dev-misspelling-hint.md).
-`signs` and `misspell` send the model the same prompts as master, so their changes are run-to-run noise,
-not this change: "fewer than" and "smaller than" (g05) failed every run, "Go" passed once (l03), and the
-misspell fails are the misspellings with no note or a two-edit note, as in that file.
 
-- numbers, e2b: the 17 answers code leaves to the model (5 right, 12 wrong: "0.45" as a percent,
-  "75/100", "30 × 10^3", "0.13", "0.7", "5,000", "9 m", "1" with "Include the unit", "212 °C", "-7" for a
-  17-degree drop, "3:2" and "2:5" for 2:3) were all graded right on every run.
-- numbers, e4b: failed "273 K" for 273.15 K (allowed rounding, left to the model), passed "30 × 10^3"
-  for scientific notation and "75/100" for simplest form (form calls code leaves to the model).
-- synonyms, e2b: the unit answers code now settles no longer reach the model. Still failed: "about 3.3
-  feet" for 100 centimeters (s24: an "about" answer against an exact key it does not equal, so code
-  leaves it; only an "about" key takes a near amount as right), "pi radians" (s34, not in the table),
-  and the alt-name and synonym answers as before. "the cerebrum" passed on every run, as before.
+- numbers, e2b: the 14 near misses now left to the model were all graded wrong on every run. The one
+  wrong pass, on all 3 runs, is "0.45" on "Write 9/20 as a percent" (n01, a form call code leaves to the
+  model, as in the first version, where it was graded wrong on every run). This change does not alter
+  that call: the other nine answers in its batch of 10 are settled by code in both versions, so the
+  model gets the same one-answer prompt. The cause of the flip is not known; it is not this change.
+- numbers, e4b: no right answer failed; passed "150 million miles" for about 1.5 × 10^8 km (n36, now
+  left to the model) and "75/100" for simplest form (n06, a form call, as before).
+- synonyms, e2b: the near misses now left to the model were graded wrong, except that run 1 passed
+  "about 42 miles" for about 42 km (s05, an "about" answer code never rejects, in both versions). Still
+  failed: "about 3.3 feet" for 100 centimeters (s24), "pi radians" (s34, not in the table), and the
+  alt-name and synonym answers as before; "the courts" (s02) failed once. "the cerebrum" passed on
+  every run, as before.
+- round2, e2b: the 4 near misses now left to the model were graded wrong on every run.
