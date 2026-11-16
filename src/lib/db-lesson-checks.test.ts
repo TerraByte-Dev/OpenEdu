@@ -162,6 +162,41 @@ describe("a lesson is stored as checked only when a cloud Checking model reviewe
     expect(await lessonWasChecked(lesson.id)).toBe(false);
   });
 
+  // A flag the code throws away (content-review.ts parseReviewFindings): a quote that is not in the lesson
+  // (here a paraphrase of part 1), or statement_is_false not true. Nothing is rewritten or dropped for it, so
+  // that part was neither passed nor acted on, and the lesson is not checked.
+  const thrownAway: Array<[string, ReviewReply]> = [
+    ["a false_fact quoting a paraphrase the lesson never says", { verdicts: [
+      ...okOn([0, 2, 3, 4]).verdicts!,
+      { index: 1, verdict: "false_fact", sentence: "Burning hydrogen in oxygen makes only water, with nothing else produced.", reason: "x", statement_is_false: true },
+    ] }],
+    ["a false_fact whose statement_is_false is not true", { verdicts: [
+      ...okOn([0, 2, 3, 4]).verdicts!,
+      { index: 1, verdict: "false_fact", sentence: "When hydrogen burns in oxygen, it produces water and nothing else.", reason: "x", statement_is_false: false },
+    ] }],
+  ];
+  for (const [name, reply] of thrownAway) {
+    it(`first review, ${name} and ok on every other part: saved unchanged, not checked`, async () => {
+      stub([reply]);
+      const lesson = await write(CLOUD_REVIEW);
+      expect(vi.mocked(callLLMStructured).mock.calls.filter(([, , o]) => o.toolName === "emit_lesson")).toHaveLength(1);
+      expect(reviewCalls()).toHaveLength(1);
+      expect(lesson.content).toContain("it produces water and nothing else.");
+      expect(await lessonWasChecked(lesson.id)).toBe(false);
+      expect(checkRows()).toEqual([]);
+      expect(lessonStatusLine({ checked: await lessonWasChecked(lesson.id), grade: 5 })).toBe(LESSON_STATUS_UNCHECKED);
+    });
+
+    it(`flagged, rewritten, and the second review has ${name}: not checked`, async () => {
+      stub([FLAG, reply]);
+      const lesson = await write(CLOUD_REVIEW);
+      expect(vi.mocked(callLLMStructured).mock.calls.filter(([, , o]) => o.toolName === "emit_lesson")).toHaveLength(2);
+      expect(reviewCalls()).toHaveLength(2);
+      expect(await lessonWasChecked(lesson.id)).toBe(false);
+      expect(checkRows()).toEqual([]);
+    });
+  }
+
   it("a cloud review whose call failed: not checked", async () => {
     stub([new Error("timeout")]);
     const lesson = await write(CLOUD_REVIEW);

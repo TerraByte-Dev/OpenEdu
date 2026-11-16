@@ -250,22 +250,31 @@ describe("generatePromotionTestQuestions with a review model", () => {
 
 // ─── Pure pieces ──────────────────────────────────────────────────────────────
 
-describe("judgesEveryItem: did the reply give a verdict on every part?", () => {
+describe("judgesEveryItem: did the reply settle every part?", () => {
   const ALLOWED = ["ok", "false_fact"] as const;
+  const PARTS = ["Water boils at 100 degrees at sea level.", "The Nile is the longest river in Africa.", "Atoms are conserved."];
   const v = (index: number, verdict = "ok") => ({ index, verdict, sentence: "", reason: "", statement_is_false: false });
-  it("yes only when each index 0..count-1 has an allowed verdict", () => {
-    expect(judgesEveryItem({ verdicts: [v(0), v(1, "false_fact"), v(2)] }, 3, ALLOWED)).toBe(true);
-    expect(judgesEveryItem({ verdicts: [v(2), v(0), v(1)] }, 3, ALLOWED)).toBe(true);
+  const flag = (index: number, sentence: string, statement_is_false = true) => ({ index, verdict: "false_fact", sentence, reason: "x", statement_is_false });
+  it("yes when each part has an ok, or a flag the code acts on", () => {
+    expect(judgesEveryItem({ verdicts: [v(0), flag(1, "The Nile is the longest river in Africa."), v(2)] }, PARTS, ALLOWED)).toBe(true);
+    expect(judgesEveryItem({ verdicts: [v(2), v(0), v(1)] }, PARTS, ALLOWED)).toBe(true);
   });
   it("no for an empty, missing, partial, out-of-range, duplicated or unknown-verdict reply", () => {
-    expect(judgesEveryItem({ verdicts: [] }, 3, ALLOWED)).toBe(false);
-    expect(judgesEveryItem({}, 3, ALLOWED)).toBe(false);
-    expect(judgesEveryItem(null, 3, ALLOWED)).toBe(false);
-    expect(judgesEveryItem({ verdicts: [v(0), v(1)] }, 3, ALLOWED)).toBe(false);
-    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(3)] }, 3, ALLOWED)).toBe(false);
-    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1)] }, 3, ALLOWED)).toBe(false);
-    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2, "wrong_key")] }, 3, ALLOWED)).toBe(false);
-    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1.5)] }, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({}, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem(null, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(3)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2, "wrong_key")] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1.5)] }, PARTS, ALLOWED)).toBe(false);
+  });
+  it("no when a flag was thrown away: a quote not in the part, statement_is_false not true, or a part that does not exist", () => {
+    expect(judgesEveryItem({ verdicts: [v(0), flag(1, "The Amazon carries more water than any other river."), v(2)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), flag(1, "The Nile is the longest river in Africa.", false), v(2)] }, PARTS, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2), flag(3, "Atoms are conserved.")] }, PARTS, ALLOWED)).toBe(false);
+    // ...even when the same part also got an ok.
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), flag(1, "Rivers flow uphill in winter."), v(2)] }, PARTS, ALLOWED)).toBe(false);
   });
 });
 

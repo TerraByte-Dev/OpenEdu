@@ -285,16 +285,24 @@ export function parseReviewFindings(
   return [...out.values()].sort((a, b) => a.index - b.index);
 }
 
-// Whether the reply gives a verdict the reviewer could mean (an allowed one, on an index in range) for every
-// one of the `count` items. A reply that skips any part has not judged the whole lesson, so the lesson is
-// not stored as checked (lesson_checks), even when nothing in it was flagged.
-export function judgesEveryItem(reply: ReviewReply | null | undefined, count: number, allowed: readonly ReviewVerdict[]): boolean {
+// Whether the review settled every one of the items: each has an "ok", or a finding parseReviewFindings keeps,
+// which code acts on (the lesson is rewritten, or the part dropped). A reply that skips any part has not judged
+// the whole lesson. Nor has one with a flag parseReviewFindings throws away (a false_fact whose
+// statement_is_false is not true, or whose quote is not in the lesson, or one on a part the lesson does not
+// have): that part was neither passed nor acted on. Either way the lesson is not stored as checked
+// (lesson_checks), even when nothing in it was flagged.
+export function judgesEveryItem(reply: ReviewReply | null | undefined, itemTexts: readonly string[], allowed: readonly ReviewVerdict[]): boolean {
+  const kept = new Set(parseReviewFindings(reply, itemTexts, allowed).map((f) => f.index));
   const judged = new Set<number>();
   for (const v of Array.isArray(reply?.verdicts) ? reply!.verdicts! : []) {
     const i = v?.index;
-    if (typeof i === "number" && Number.isInteger(i) && i >= 0 && i < count && allowed.includes(v.verdict as ReviewVerdict)) judged.add(i);
+    const verdict = v?.verdict as ReviewVerdict;
+    if (!allowed.includes(verdict)) continue;
+    const inRange = typeof i === "number" && Number.isInteger(i) && i >= 0 && i < itemTexts.length;
+    if (verdict !== "ok" && !(inRange && kept.has(i))) return false;
+    if (inRange) judged.add(i);
   }
-  return count > 0 && judged.size === count;
+  return itemTexts.length > 0 && judged.size === itemTexts.length;
 }
 
 // The lesson without the flagged parts. null when no section is left to teach from.
@@ -333,8 +341,9 @@ export async function reviewLesson(topic: string, title: string, lesson: LessonC
 
 // The same review, with null when the call failed (logged; the lesson is kept), so generateLesson can tell
 // a lesson the reviewer read and passed from one it never read (lesson_checks, ai-notice.ts lessonStatusLine).
-// `judgedEveryPart` is false when the reply left any part without a verdict ({"verdicts":[]} included): its
-// findings still count, but the lesson is not "checked".
+// `judgedEveryPart` is false when the reply left any part without a verdict ({"verdicts":[]} included), or
+// flagged one in a way parseReviewFindings throws away (judgesEveryItem): its findings still count, but the
+// lesson is not "checked".
 export async function reviewLessonIfRan(
   topic: string, title: string, lesson: LessonContent, review: LLMConfig,
 ): Promise<{ findings: ReviewFinding[]; judgedEveryPart: boolean } | null> {
@@ -345,8 +354,8 @@ export async function reviewLessonIfRan(
       { schema: reviewSchema(LESSON_VERDICTS), toolName: "emit_lesson_review", tier },
     );
     const parts = lessonParts(lesson);
-    const judgedEveryPart = judgesEveryItem(reply, parts.length, LESSON_VERDICTS);
-    if (!judgedEveryPart) log.warn("content-review", `lesson "${title}": the review left part of the lesson without a verdict, so it is not marked checked`);
+    const judgedEveryPart = judgesEveryItem(reply, parts, LESSON_VERDICTS);
+    if (!judgedEveryPart) log.warn("content-review", `lesson "${title}": the review left part of the lesson without a verdict it could act on, so it is not marked checked`);
     return { findings: parseReviewFindings(reply, parts, LESSON_VERDICTS), judgedEveryPart };
   } catch (e) {
     log.warn("content-review", `lesson "${title}": review failed, lesson kept`, e instanceof Error ? e.message : String(e));

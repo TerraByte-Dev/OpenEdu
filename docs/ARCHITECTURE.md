@@ -768,10 +768,12 @@ and every choice is in `ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the
   that wrote that lesson (`content-review.ts cloudCheckedBy(review, config)` → `ai-notice.ts
   lessonCheckCounts`, compared against `generateLesson`'s own `config`, not the setting; another model from
   the same company counts, so Haiku writing with Sonnet checking is checked), and the review that read the
-  saved text returned a verdict on every part of it (`reviewLessonIfRan` `judgedEveryPart`,
-  `judgesEveryItem`: the summary, each section and each takeaway; the first review when it flagged nothing,
-  else the one on the regeneration). A reply that skips a part, `{"verdicts":[]}` included, still has its
-  flags acted on but leaves the lesson unchecked. A self-review still runs and its flags are still acted on;
+  saved text settled every part of it (`reviewLessonIfRan` `judgedEveryPart`, `judgesEveryItem`: the summary,
+  each section and each takeaway, each with an "ok" or a flag the code acts on; the first review when it
+  flagged nothing, else the one on the regeneration). A reply that skips a part, `{"verdicts":[]}` included,
+  still has its flags acted on but leaves the lesson unchecked. So does a flag `parseReviewFindings` throws
+  away (a `false_fact` whose quote is not in the lesson, or whose `statement_is_false` is not true): nothing
+  is rewritten or dropped for it, so that part was neither passed nor acted on. A self-review still runs and its flags are still acted on;
   only the label differs.
   Everything else reads as unchecked (`db.ts lessonWasChecked`): lessons written on this computer only,
   lessons whose review was off (the tiny and small tiers' default), failed or never reached the saved text,
