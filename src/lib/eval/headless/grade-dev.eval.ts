@@ -2,13 +2,13 @@ import { it } from "vitest";
 import { installAppOrigin } from "./origin";
 import { env, writeText } from "./node-io";
 import { gradeAnswersBatch, type AnswerToGrade } from "../../quiz";
-import { GRADE_DEV_SYNONYMS, round2AsQuestions } from "../grade-dev";
+import { GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions } from "../grade-dev";
 import type { LLMConfig } from "../../../types";
 
 // Written-answer grading on a dev set, through the app's path: code first (settleByCode), then the model
 // (gradeAnswersBatch), in batches of 10 in a fixed shuffled order. Runs only when EVAL_GRADE_SET is set,
 // so a plain `npm run eval` never starts it:
-//   EVAL_GRADE_SET=synonyms|round2  EVAL_MODEL (gemma4:e2b)  EVAL_REPEATS (1)  EVAL_OUT (results JSON)
+//   EVAL_GRADE_SET=synonyms|round2|signs  EVAL_MODEL (gemma4:e2b)  EVAL_REPEATS (1)  EVAL_OUT (results JSON)
 //   npx vitest run -c vitest.eval.config.ts src/lib/eval/headless/grade-dev.eval.ts
 
 function shuffled<T>(xs: T[], seed: number): T[] {
@@ -26,8 +26,8 @@ const setName = env().EVAL_GRADE_SET;
 
 it.skipIf(!setName)("grades a written-answer dev set", async () => {
   installAppOrigin();
-  const set = setName === "round2" ? round2AsQuestions() : setName === "synonyms" ? GRADE_DEV_SYNONYMS : null;
-  if (!set) throw new Error(`EVAL_GRADE_SET must be synonyms or round2, not ${setName}`);
+  const set = setName === "round2" ? round2AsQuestions() : setName === "synonyms" ? GRADE_DEV_SYNONYMS : setName === "signs" ? GRADE_DEV_SIGNS_LETTERS : null;
+  if (!set) throw new Error(`EVAL_GRADE_SET must be synonyms, round2 or signs, not ${setName}`);
   const model = env().EVAL_MODEL ?? "gemma4:e2b";
   const runs = Number(env().EVAL_REPEATS ?? 1);
   const items = set.flatMap((q) => q.answers.map((a, k) => ({ id: `${q.id}.${k}`, question: q.question, expected: q.key, student: a.text, label: a.right, kind: a.kind })));
