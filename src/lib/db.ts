@@ -195,7 +195,7 @@ export async function deleteCourse(id: string): Promise<void> {
   await d.execute("DELETE FROM notebook_folders WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM tutor_instructions WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM syllabuses WHERE course_id = $1", [id]);
-  await d.execute("DELETE FROM lessons WHERE course_id = $1", [id]);
+  await d.execute("DELETE FROM lessons WHERE course_id = $1", [id]); // lesson_checks rows go with them (ON DELETE CASCADE)
   await d.execute("DELETE FROM flashcard_reviews WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM flashcards WHERE course_id = $1", [id]);
   await d.execute("DELETE FROM subtopic_events WHERE course_id = $1", [id]);
@@ -999,6 +999,24 @@ export async function getLesson(id: string): Promise<Lesson | null> {
   const d = await getDb();
   const rows: Lesson[] = await d.select("SELECT * FROM lessons WHERE id = $1", [id]);
   return rows[0] ?? null;
+}
+
+// A cloud Checking model reviewed this lesson when it was written (migration 22, lesson_checks;
+// curriculum.ts generateLesson writes it, `checkedBy` as <provider>:<model>). Never written from a setting.
+export async function markLessonChecked(lessonId: string, checkedBy: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "INSERT INTO lesson_checks (lesson_id, checked_by) VALUES ($1, $2) ON CONFLICT(lesson_id) DO NOTHING",
+    [lessonId, checkedBy],
+  );
+}
+
+// Whether the lesson reader may say a second AI checked this lesson: only with a lesson_checks row. A lesson
+// without one (older, written on this computer only, or whose review was off, skipped or failed) was not.
+export async function lessonWasChecked(lessonId: string): Promise<boolean> {
+  const d = await getDb();
+  const rows: Array<{ n: number }> = await d.select("SELECT COUNT(*) AS n FROM lesson_checks WHERE lesson_id = $1", [lessonId]);
+  return (rows[0]?.n ?? 0) > 0;
 }
 
 // Raise hand's stuck points for a lesson written before them (src/lib/raise-hand.ts, migration 21).

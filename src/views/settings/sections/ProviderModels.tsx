@@ -10,6 +10,7 @@ import {
 import { needsCloudNotice, modelNeedsCloudNotice, withNoticeSeen } from "../../../lib/privacy";
 import { CloudNoticePanel } from "../CloudNotice";
 import ReviewModelPicker from "../ReviewModelPicker";
+import LessonsNote from "../LessonsNote";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
   OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type ModelOption,
@@ -21,7 +22,10 @@ import type { SectionProps } from "../types";
 import { APP_NAME } from "../../../lib/product";
 
 export default function ProviderModels({ onProviderChanged }: SectionProps) {
-  const { markSaved } = useSettings();
+  const { markSaved: markSavedInSettings } = useSettings();
+  // Bumped on every save here, so "About the lessons" above the Checking model reads the settings again.
+  const [noteRefresh, setNoteRefresh] = useState(0);
+  const markSaved = () => { markSavedInSettings(); setNoteRefresh((n) => n + 1); };
   const [provider, setProvider] = useState<LLMProvider>("ollama");
   const [genModel, setGenModel] = useState("gemma4:e4b");
   const [chatModel, setChatModelState] = useState("gemma4:e4b");
@@ -303,7 +307,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           help="Reads each new lesson and set of quiz or test questions for false facts and wrong answer keys before the learner sees them. It is sent only the course topic and the text the course model wrote, never anything about the learner. Same as the course model is the default; a cloud model here asks for the same one-time confirm as choosing that company above."
           keywords="checking review reviewer check verify false facts answer key content review_model"
         >
-          <ReviewModelPicker provider={provider} discovered={ollamaStatus === "connected" ? ollamaModels : []} />
+          <LessonsNote refresh={noteRefresh} />
+          <ReviewModelPicker provider={provider} discovered={ollamaStatus === "connected" ? ollamaModels : []} onSaved={() => setNoteRefresh((n) => n + 1)} />
         </SettingRow>
 
         {provider === "ollama" && (

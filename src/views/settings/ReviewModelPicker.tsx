@@ -16,7 +16,7 @@ const GROUP_LABEL: Record<ReviewChoice["group"], string> = {
 // is saved only after its one-time notice (reviewChoiceNotice, CloudNoticePanel), like the other pickers.
 // `provider` and `discovered` (the Ollama models the section found at the saved URL) come from the Models
 // section; a change of either re-reads the saved keys, and with none discovered, asks Ollama at the saved URL.
-export default function ReviewModelPicker({ provider, discovered }: { provider: LLMProvider; discovered: string[] }) {
+export default function ReviewModelPicker({ provider, discovered, onSaved }: { provider: LLMProvider; discovered: string[]; onSaved?: () => void }) {
   const { markSaved } = useSettings();
   const [value, setValue] = useState("");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
@@ -41,6 +41,7 @@ export default function ReviewModelPicker({ provider, discovered }: { provider: 
     setValue(v);
     await setReviewModel(v);
     markSaved();
+    onSaved?.();
   };
   const choose = async (v: string) => {
     if (v === value) { setPending(null); return; }

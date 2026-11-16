@@ -21,7 +21,7 @@ import { callLLMStructured } from "./llm";
 import { generateLesson } from "./curriculum";
 import { generateQuizQuestions, generatePromotionTestQuestions } from "./quiz";
 import {
-  parseReviewFindings, quoteFound, resolveReviewConfig, withoutFlaggedParts, lessonParts, reviewModelChoices, reviewChoiceNotice,
+  judgesEveryItem, parseReviewFindings, quoteFound, resolveReviewConfig, withoutFlaggedParts, lessonParts, reviewModelChoices, reviewChoiceNotice,
   type ReviewReply,
 } from "./content-review";
 import { GENERATION_MODELS } from "./models";
@@ -249,6 +249,25 @@ describe("generatePromotionTestQuestions with a review model", () => {
 });
 
 // ─── Pure pieces ──────────────────────────────────────────────────────────────
+
+describe("judgesEveryItem: did the reply give a verdict on every part?", () => {
+  const ALLOWED = ["ok", "false_fact"] as const;
+  const v = (index: number, verdict = "ok") => ({ index, verdict, sentence: "", reason: "", statement_is_false: false });
+  it("yes only when each index 0..count-1 has an allowed verdict", () => {
+    expect(judgesEveryItem({ verdicts: [v(0), v(1, "false_fact"), v(2)] }, 3, ALLOWED)).toBe(true);
+    expect(judgesEveryItem({ verdicts: [v(2), v(0), v(1)] }, 3, ALLOWED)).toBe(true);
+  });
+  it("no for an empty, missing, partial, out-of-range, duplicated or unknown-verdict reply", () => {
+    expect(judgesEveryItem({ verdicts: [] }, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({}, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem(null, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1)] }, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(3)] }, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1)] }, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(2, "wrong_key")] }, 3, ALLOWED)).toBe(false);
+    expect(judgesEveryItem({ verdicts: [v(0), v(1), v(1.5)] }, 3, ALLOWED)).toBe(false);
+  });
+});
 
 describe("parseReviewFindings", () => {
   const items = ["Position is a scalar.", "A square has four equal sides, so its corners are right angles."];

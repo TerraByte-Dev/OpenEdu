@@ -12,7 +12,7 @@
 import { callLLMStructured, detectModelTier, log } from "./llm";
 import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, LLMProvider, ModelTier } from "../types";
-import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
+import { isLocalModel, isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
 import { GENERATION_MODELS } from "./models";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
@@ -284,6 +284,18 @@ export function parseReviewFindings(
   return [...out.values()].sort((a, b) => a.index - b.index);
 }
 
+// Whether the reply gives a verdict the reviewer could mean (an allowed one, on an index in range) for every
+// one of the `count` items. A reply that skips any part has not judged the whole lesson, so the lesson is
+// not stored as checked (lesson_checks), even when nothing in it was flagged.
+export function judgesEveryItem(reply: ReviewReply | null | undefined, count: number, allowed: readonly ReviewVerdict[]): boolean {
+  const judged = new Set<number>();
+  for (const v of Array.isArray(reply?.verdicts) ? reply!.verdicts! : []) {
+    const i = v?.index;
+    if (typeof i === "number" && Number.isInteger(i) && i >= 0 && i < count && allowed.includes(v.verdict as ReviewVerdict)) judged.add(i);
+  }
+  return count > 0 && judged.size === count;
+}
+
 // The lesson without the flagged parts. null when no section is left to teach from.
 export function withoutFlaggedParts(c: LessonContent, findings: readonly ReviewFinding[]): LessonContent | null {
   const bad = new Set(findings.map((f) => f.index));
@@ -315,17 +327,37 @@ async function tierOf(review: LLMConfig): Promise<ModelTier> {
 
 // Best-effort, like the verify pass: a failed review call returns no findings and is logged.
 export async function reviewLesson(topic: string, title: string, lesson: LessonContent, review: LLMConfig): Promise<ReviewFinding[]> {
+  return (await reviewLessonIfRan(topic, title, lesson, review))?.findings ?? [];
+}
+
+// The same review, with null when the call failed (logged; the lesson is kept), so generateLesson can tell
+// a lesson the reviewer read and passed from one it never read (lesson_checks, ai-notice.ts lessonStatusLine).
+// `judgedEveryPart` is false when the reply left any part without a verdict ({"verdicts":[]} included): its
+// findings still count, but the lesson is not "checked".
+export async function reviewLessonIfRan(
+  topic: string, title: string, lesson: LessonContent, review: LLMConfig,
+): Promise<{ findings: ReviewFinding[]; judgedEveryPart: boolean } | null> {
   const tier = await tierOf(review);
   try {
     const reply = await callLLMStructured<ReviewReply>(
       buildLessonReviewMessages(topic, title, lesson), review,
       { schema: reviewSchema(LESSON_VERDICTS), toolName: "emit_lesson_review", tier },
     );
-    return parseReviewFindings(reply, lessonParts(lesson), LESSON_VERDICTS);
+    const parts = lessonParts(lesson);
+    const judgedEveryPart = judgesEveryItem(reply, parts.length, LESSON_VERDICTS);
+    if (!judgedEveryPart) log.warn("content-review", `lesson "${title}": the review left part of the lesson without a verdict, so it is not marked checked`);
+    return { findings: parseReviewFindings(reply, parts, LESSON_VERDICTS), judgedEveryPart };
   } catch (e) {
     log.warn("content-review", `lesson "${title}": review failed, lesson kept`, e instanceof Error ? e.message : String(e));
-    return [];
+    return null;
   }
+}
+
+// What lesson_checks stores for a lesson this reviewer read and returned on: "<provider>:<model>" when it
+// is a cloud model, else null. A Checking model on this computer is never "checked": TerraTutor measured the
+// local reviewer (gemma4:e2b) catching 0 of 5 known false lessons (Fable's decision, 2026-11-16).
+export function cloudCheckedBy(review: LLMConfig | null): string | null {
+  return review && !isLocalModel(review) ? `${review.provider}:${review.model}` : null;
 }
 
 // Questions per review call. A tiny or small model loses track of long verdict lists.

@@ -26,7 +26,7 @@ All state lives in **one SQLite database** — no per-course files:
 
 Tables: `courses`, `syllabuses`, `tutor_instructions`, `notes`, `notebook_folders`,
 `notebook_documents` / `chunks` / `embeddings`, `chat_messages`, `quiz_questions`, `quiz_attempts`,
-`user_progress`, `lessons`, `flashcards`, `learners`, and the tables kept from removed features (below). The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
+`user_progress`, `lessons`, `lesson_checks`, `flashcards`, `learners`, and the tables kept from removed features (below). The schema evolves through **append-only versioned migrations** (`tauri-plugin-sql`, in
 `src-tauri/`). The plugin hashes each migration's SQL — **never edit a shipped migration**; add a new
 version, or move the change into application code. API keys and app settings persist separately via
 `@tauri-apps/plugin-store`.
@@ -134,8 +134,9 @@ written: they came from a once-a-minute timer whose only reader was the learning
   App adds one minute per minute the window is visible with a learner in, on the learner's own screens
   (`countsTowardGoal`): a minute in Settings is a grown-up's and never counts (click test 2026-11-14).
   The learner picker and its PIN screen never count either: no timer runs without an active learner.
-- **`ai-notice.ts` / `break-reminder.ts`** — the AI disclosure and the break reminder. See
-  "AI disclosure and the break reminder" below.
+- **`ai-notice.ts` / `break-reminder.ts`** — the AI disclosure and the break reminder, and what the
+  grown-up and the learner are told about whether a lesson was checked. See "AI disclosure and the break
+  reminder" and "Whether a lesson was checked" below.
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
   catalog, the Light / Dark / Match my computer switch, and pure import/export helpers. `store-keys.ts` is the single source of
   truth for setting keys + the secret/import allow-list.
@@ -722,6 +723,41 @@ by code, with no model call.
   added. Every learner screen counts, not only the chat: over-counting shows the reminder early, never
   late. The count belongs to one session: it starts at zero when a learner comes in (a switch resets
   it) and is not saved, so it also starts again after a restart.
+
+## Whether a lesson was checked (`ai-notice.ts`, migration 22)
+
+Ported from TerraTutor #144 (Fable's decision, 2026-11-16). TerraTutor measured its default 8 GB model,
+`gemma4:e2b`, writing a major false fact in 11 of 80 held-out lessons, and two rounds of local fixes did not
+move it. OpenEdu writes lessons the same way on the same default, so it says so too, in two places, keyed on
+whether a cloud Checking model actually read a lesson, not on the machine. Every word and every choice is in
+`ai-notice.ts` (pure, tested in `ai-notice.test.ts`); the components only draw it.
+
+- **The grown-up note, "About the lessons"** (`lessonsNote`), as the description above the Checking model
+  picker in Settings › Models (`views/settings/LessonsNote.tsx`), always shown; OpenEdu has no grown-ups
+  view, so this is the only place. Two bodies: *checked* when lesson checking resolves to a cloud model
+  through `store.ts getLessonConfigs` (the same call the Lessons tab writes with: a saved key and that
+  company's one-time notice; a Checking model on this computer, however big, is not "checked"), else
+  *unchecked*. Neither carries a number: TerraTutor's "about 1 lesson in 7" was measured on TerraTutor's
+  `generateLesson`, whose lesson prompt adds its topics-left-to-parents rule and rewrite, so it is not a
+  measurement of OpenEdu's path. No model names, tiers, RAM, price or upgrade, and no line pointing at a
+  cloud model.
+- **The lesson's status line** (`lessonStatusLine`), one caption line (`--ink-faint`, 14 px, no icon, no
+  colour) at the foot of the lesson reader (`LessonReader.tsx`). Four lines by checked and by K-2
+  (`grade.ts isEarlyReader`); "checked" always says "It can still be wrong."; each ends "If something looks
+  wrong, look it up." (TerraTutor's Just me wording: OpenEdu has no grown-up set up to ask). The lesson
+  reader has no read-aloud, so the line is never read out by itself. Raise hand gets no line of its own.
+- **"Checked" is stored per lesson, at write time, never read from a setting.** `curriculum.ts
+  generateLesson` writes a `lesson_checks` row (migration 22: `lesson_id`, `checked_by` as
+  `<provider>:<model>`, `checked_at`) only when its Checking model was a cloud model
+  (`content-review.ts cloudCheckedBy`) and the review that read the saved text returned a verdict on every
+  part of it (`reviewLessonIfRan` `judgedEveryPart`, `judgesEveryItem`: the summary, each section and each
+  takeaway; the first review when it flagged nothing, else the one on the regeneration). A reply that skips
+  a part, `{"verdicts":[]}` included, still has its flags acted on but leaves the lesson unchecked.
+  Everything else reads as unchecked (`db.ts lessonWasChecked`): lessons written on this computer only,
+  lessons whose review was off (the tiny and small tiers' default), failed or never reached the saved text,
+  and every lesson written before migration 22. A failed write of the row leaves the lesson unchecked.
+  The rows go with their lessons (`ON DELETE CASCADE`; sqlx sets `foreign_keys=ON` on every connection). `db-lesson-checks.test.ts` runs the real
+  `generateLesson`, the real migrations and the real `getLessonConfigs` for each case.
 
 ## Raise hand (`raise-hand.ts`, `components/RaiseHand.tsx`)
 
