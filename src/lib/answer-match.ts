@@ -1594,19 +1594,18 @@ const askingClause = (question: string): string => {
 const POINTS_RE = /\s+(?:points?|pts)$/;
 
 /**
- * True when the answer is the key with its sign written as a word (DIRECTED_FORMS): a depth or height
- * ("11 meters below the surface", "11 m deep", "250 m above sea level"), a balance ("$15 overdrawn", "owes
- * $12", "$15 in credit"), a temperature ("15 below zero", "15 above zero"), a score ("15 points behind",
- * "3 under par") or a change ("a loss of $12", "a drop of 8 degrees", "down 12", "up $15"). Only when the
- * word's sign is the key's, the amount has no sign of its own and is the key's in a kind the form allows,
- * and the question asks for what the form says: a change only on a question that asks for a change, and
- * the others never there. Null otherwise, and never false: a direction word is a sign nowhere else, and
- * the other direction, another amount or a bare "15" go on to the other rules (the model). Never on a
- * question that asks for the sign (an integer, a signed or negative number, "represent"), or one that
- * already says the amount and a word of the same direction ("A diver is 11 m below the surface"): the
- * answer may be the question said back without the sign. A positive key is often a size with no sign at
- * all, so it is read as a rise, a credit or a height only when the question asks for no size ("how much",
- * "how many") and says no fall, debt or depth in any sentence.
+ * True when the answer is the key with its sign written as a word (DIRECTED_FORMS), for a key written
+ * negative only: a depth ("11 meters below the surface", "11 m deep"), a balance ("$15 overdrawn", "owes
+ * $12", "$15 in debt"), a temperature ("15 below zero"), a score ("15 points behind", "3 under par") or a
+ * change ("a loss of $12", "a drop of 8 degrees", "down 12"). Only when the amount has no sign of its own
+ * and is the key's in a kind the form allows, and the question asks for what the form says: a change only
+ * on a question that asks for a change, and the others never there. Null otherwise, and never false: a
+ * direction word is a sign nowhere else, and the other direction, another amount or a bare "15" go on to
+ * the other rules (the model). Never on a question that asks for the sign (an integer, a signed or negative
+ * number, "represent"), or one that already says the amount and a word of the same direction ("A diver is
+ * 11 m below the surface"): the answer may be the question said back without the sign. A rise, a credit,
+ * "above" or "ahead" is never read: a positive key is how an unsigned size is written, so those forms are
+ * matched only to stop here and leave the answer to the model.
  */
 function settleDirected(item: WrittenAnswer): true | null {
   if (ASKS_FOR_SIGN_RE.test(item.question)) return null;
