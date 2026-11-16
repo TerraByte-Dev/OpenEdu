@@ -30,10 +30,16 @@
 //     king", "lord byron" (TITLES). A title that says man or woman ("mrs", "lord") only when the question
 //     says the same and never the other ("the first woman", "his"): it is what tells "mrs roosevelt" from
 //     "mr roosevelt" (titleFits);
-//   - a depth or height with its sign written as a direction (settleDirected): "11 meters below the
-//     surface", "11 m deep" or "11 m down" for -11 m, "250 m above sea level" for 250 m. Only with a unit
-//     of length and the direction the key's sign means; never a sign anywhere else, never on a question
-//     that asks for the sign or already says the amount and the direction;
+//   - an amount with its sign written as a word (settleDirected): a depth or height ("11 meters below the
+//     surface", "11 m deep" for -11 m, "250 m above sea level" for 250 m, with a unit of length), a
+//     balance ("$15 overdrawn", "owes $15", "$15 in credit"), a temperature ("15 below zero", "15 above
+//     zero"), a score ("15 points behind", "3 under par") or, on a question that asks for a change, a
+//     change ("a loss of $12", "a drop of 8 degrees", "down 12", "up $15"). Only the word's sign is the
+//     key's; never a sign anywhere else, never on a question that asks for the sign or already says the
+//     amount and the direction, and a positive key only where it cannot be a size ("how much");
+//   - a year said in pairs for a year key (settleYear): "twelve fifteen" for 1215, "eighteen oh five",
+//     "twenty oh one", "two thousand and one", only on a question that asks for a year, never a count,
+//     a clock time or a choice of years;
 //   - a misspelt name: a key word written with a capital that is in neither the dictionary nor the word
 //     list (a place or a person: Sahara, Pompeii), and an answer word that is not a word either, with
 //     the same first and last letters, at most one slip of spelling by ear away (two for a name of 7+
@@ -192,6 +198,7 @@ export function answerWords(s: string): string[] {
     .replace(/^\s*\(?[a-d][).:]\s+/, "")                // an option label "B) "
     .replace(/(\d),(\d{3})(?!\d)/g, "$1$2")             // 1,000
     .replace(/(\b10\s*\^?\s*)-(?=\d)/g, "$1\u0000")      // and an exponent's minus: 10^-4, 10⁻⁴ (NFKC: 10-4)
+    .replace(/(^|[\s(])-\s?\$(?=\d)|\$\s?-(?=\d)/g, "$1-") // a negative amount of money: -$15 or $-15 is -15
     .replace(/(^|[\s(])-(?=\d)/g, "$1\u0000")           // keep a leading minus through the punctuation strip
     .replace(/(\d)\.(\d)/g, "$1\u0001$2")               // and a decimal point
     .replace(/[^\p{L}\p{N}\s'\u0000\u0001\u0002]/gu, " ") // every other punctuation mark is a space
@@ -1517,41 +1524,180 @@ function restatesTheQuestion(item: WrittenAnswer, k: Quantity, a: Quantity): boo
 // A question that asks for the sign itself: writing it is the skill (6.NS.C.5), so "300 m below sea
 // level" for "Use a signed number to represent 300 m below sea level" is the model's.
 const ASKS_FOR_SIGN_RE = /\b(?:integers?|signed|negative|positive|represent(?:s|ed|ing)?|express(?:es|ed|ing)?)\b/i;
-const BELOW_WORDS = new Set(["below", "beneath", "under", "underwater", "underground", "deep", "down", "lower"]);
-const ABOVE_WORDS = new Set(["above", "up", "high", "higher"]);
-
-// A depth or a height written in words: "11 meters below the surface", "35 m deep", "250 m above sea level".
-const BELOW_RE = /^(.+?)\s+(?:(?:below|beneath|under)\s+(?:the\s+)?(?:surface(?:\s+of\s+the\s+(?:sea|ocean|water|lake))?|sea\s+level|sea|ocean|ground(?:\s+level)?|water(?:\s+level|\s+surface)?)|underwater|underground|deep|down)$/;
-const ABOVE_RE = /^(.+?)\s+above\s+(?:the\s+)?(?:surface|sea\s+level|sea|ground(?:\s+level)?|water(?:\s+level|\s+surface)?)$/;
 
 /**
- * True when the answer is the key's depth or height with its sign written as a direction: "11 meters
- * below the surface", "11 m deep" or "11 m down" for -11 m; "250 m above sea level" for 250 m. Only for
- * a key that is a negative (below) or positive (above) length, or a bare number on a question that asks
- * for a length ("a number of meters"), and only when the answer gives the amount with a unit of length
- * and no sign of its own. Null otherwise, and never false: "below" is a sign nowhere else, and "11 m
- * above sea level" for -11 m, a bare "11 m" or "11 km below" go on to the other rules (the model). Never
- * on a question that asks for the sign (an integer, a signed or negative number, "represent"), or one that
- * already says the amount and the direction ("A diver is 11 m below the surface"): the answer may be the
- * question said back without the sign.
+ * A way of writing an amount's sign as a word. `re` takes the whole answer and captures the amount;
+ * `sign` is the sign the word means; `keys` and `answers` are the kinds of quantity the key and the
+ * amount may be; `echo` are the question's words that, with the amount, mean the question already
+ * says the answer. `change` forms say how much something changed ("a loss of $12", "down 8 degrees") and
+ * the others where something is ("$15 overdrawn", "15 below zero"): each only on a question that asks for
+ * that, so "a drop of 10" is not a temperature and "15 below zero" is not a change.
+ */
+interface DirectedForm {
+  re: RegExp;
+  sign: -1 | 1;
+  keys: ReadonlyArray<Quantity["kind"]>;
+  answers: ReadonlyArray<Quantity["kind"]>;
+  echo: ReadonlySet<string>;
+  change?: boolean;
+  /** A length: the amount needs a unit of length (a depth or a height). */
+  length?: boolean;
+  /** Golf: only on a question that says par. */
+  par?: boolean;
+}
+
+const BELOW_WORDS = new Set(["below", "beneath", "under", "underwater", "underground", "deep", "down", "lower"]);
+const ABOVE_WORDS = new Set(["above", "up", "high", "higher"]);
+const DEBT_WORDS = new Set(["overdrawn", "debt", "owe", "owes", "owing", "owed", "red"]);
+const CREDIT_WORDS = new Set(["credit", "black"]);
+const FALL_WORDS = new Set(["loss", "lose", "loses", "lost", "drop", "drops", "dropped", "fall", "falls", "fell", "decrease", "decreased", "decline", "declined", "down", "reduction"]);
+const RISE_WORDS = new Set(["gain", "gains", "gained", "rise", "rises", "rose", "increase", "increased", "up", "profit"]);
+const AMOUNTS: ReadonlyArray<Quantity["kind"]> = ["plain", "money", "temperature", "measure", "percent"];
+const M = "(.+?)";
+
+// A depth or a height: "11 meters below the surface", "35 m deep", "250 m above sea level".
+const BELOW_RE = new RegExp(`^${M}\\s+(?:(?:below|beneath|under)\\s+(?:the\\s+)?(?:surface(?:\\s+of\\s+the\\s+(?:sea|ocean|water|lake))?|sea\\s+level|sea|ocean|ground(?:\\s+level)?|water(?:\\s+level|\\s+surface)?)|underwater|underground|deep|down)$`);
+const ABOVE_RE = new RegExp(`^${M}\\s+above\\s+(?:the\\s+)?(?:surface|sea\\s+level|sea|ground(?:\\s+level)?|water(?:\\s+level|\\s+surface)?)$`);
+
+const DIRECTED_FORMS: DirectedForm[] = [
+  { re: BELOW_RE, sign: -1, keys: ["plain", "measure"], answers: ["measure"], echo: BELOW_WORDS, length: true },
+  { re: ABOVE_RE, sign: 1, keys: ["plain", "measure"], answers: ["measure"], echo: ABOVE_WORDS, length: true },
+  // A balance: "$15 overdrawn", "overdrawn by $15", "$12 in debt", "owes $12", "$15 in credit".
+  { re: new RegExp(`^${M} overdrawn$|^overdrawn (?:by )?${M}$|^${M} in debt$|^in debt (?:by )?${M}$|^(?:owes?|owing) ${M}$|^${M} in the red$`), sign: -1, keys: ["money", "plain"], answers: ["money", "plain"], echo: DEBT_WORDS },
+  { re: new RegExp(`^${M} in credit$|^in credit (?:by )?${M}$|^${M} in the black$`), sign: 1, keys: ["money", "plain"], answers: ["money", "plain"], echo: CREDIT_WORDS },
+  // A temperature: "15 below zero", "15 degrees above zero".
+  { re: new RegExp(`^${M} below zero$`), sign: -1, keys: ["temperature", "plain"], answers: ["temperature", "plain"], echo: new Set(["below"]) },
+  { re: new RegExp(`^${M} above zero$`), sign: 1, keys: ["temperature", "plain"], answers: ["temperature", "plain"], echo: new Set(["above"]) },
+  // A score: "15 points behind", "behind by 15", "3 under par".
+  { re: new RegExp(`^${M} behind$|^behind by ${M}$`), sign: -1, keys: ["plain"], answers: ["plain"], echo: new Set(["behind"]) },
+  { re: new RegExp(`^${M} ahead$|^ahead by ${M}$`), sign: 1, keys: ["plain"], answers: ["plain"], echo: new Set(["ahead"]) },
+  { re: new RegExp(`^${M} under par$`), sign: -1, keys: ["plain"], answers: ["plain"], echo: new Set(["under"]), par: true },
+  { re: new RegExp(`^${M} over par$`), sign: 1, keys: ["plain"], answers: ["plain"], echo: new Set(["over"]), par: true },
+  // A change: "a loss of $12", "lost $12", "a drop of 8 degrees", "down $15"; "a gain of $12", "up 12".
+  { re: new RegExp(`^(?:an? )?(?:loss|drop|fall|decrease|decline|reduction) of ${M}$|^(?:lost|dropped|fell|decreased|declined|went down|down)(?: by)? ${M}$|^(?:an? )?${M} (?:loss|drop|decrease)$`), sign: -1, keys: AMOUNTS, answers: AMOUNTS, echo: FALL_WORDS, change: true },
+  { re: new RegExp(`^(?:an? )?(?:gain|rise|increase|profit) of ${M}$|^(?:gained|rose|increased|went up|up)(?: by)? ${M}$|^(?:an? )?${M} (?:gain|profit|rise|increase)$`), sign: 1, keys: AMOUNTS, answers: AMOUNTS, echo: RISE_WORDS, change: true },
+];
+
+// The question asks how much something changed: its last sentence says a change, a profit, a gain or a
+// loss ("What was the change in its price?", "What was its profit?").
+const ASKS_CHANGE_RE = /\b(?:change[ds]?|profits?|gains?|loss(?:es)?|increase or decrease|rise or fall)\b/i;
+// A rise, a credit or "ahead" is never read for a positive key: a positive key is how an unsigned size is
+// written ("15" for a change in a score that went from 40 to 25), so no list of fall words can tell when
+// "a gain of 15" is the opposite of the key. Only a key written negative (-$15, -15 °C, -11 m) carries a
+// direction code can match; every rise-side answer goes to the model.
+
+/** The question's last sentence: what it asks, not what it tells. */
+const askingClause = (question: string): string => {
+  const parts = (question ?? "").trim().split(/(?<=[.?!])\s+/).filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+};
+const POINTS_RE = /\s+(?:points?|pts)$/;
+
+/**
+ * True when the answer is the key with its sign written as a word (DIRECTED_FORMS): a depth or height
+ * ("11 meters below the surface", "11 m deep", "250 m above sea level"), a balance ("$15 overdrawn", "owes
+ * $12", "$15 in credit"), a temperature ("15 below zero", "15 above zero"), a score ("15 points behind",
+ * "3 under par") or a change ("a loss of $12", "a drop of 8 degrees", "down 12", "up $15"). Only when the
+ * word's sign is the key's, the amount has no sign of its own and is the key's in a kind the form allows,
+ * and the question asks for what the form says: a change only on a question that asks for a change, and
+ * the others never there. Null otherwise, and never false: a direction word is a sign nowhere else, and
+ * the other direction, another amount or a bare "15" go on to the other rules (the model). Never on a
+ * question that asks for the sign (an integer, a signed or negative number, "represent"), or one that
+ * already says the amount and a word of the same direction ("A diver is 11 m below the surface"): the
+ * answer may be the question said back without the sign. A positive key is often a size with no sign at
+ * all, so it is read as a rise, a credit or a height only when the question asks for no size ("how much",
+ * "how many") and says no fall, debt or depth in any sentence.
  */
 function settleDirected(item: WrittenAnswer): true | null {
   if (ASKS_FOR_SIGN_RE.test(item.question)) return null;
-  const t = (item.student ?? "").normalize("NFKC").toLowerCase().replace(/[.!]+$/, "").replace(/\s+/g, " ").trim();
-  const below = BELOW_RE.exec(t);
-  const above = below ? null : ABOVE_RE.exec(t);
-  const m = below ?? above;
+  const t = (item.student ?? "").normalize("NFKC").toLowerCase().replace(/[−–]/g, "-").replace(/[.!]+$/, "").replace(/\s+/g, " ").trim().replace(FILLER_RE, "");
+  const asking = askingClause(item.question);
+  const asksChange = ASKS_CHANGE_RE.test(asking);
+  const questionWords = answerWords(item.question);
+  for (const form of DIRECTED_FORMS) {
+    const m = form.re.exec(t);
+    if (!m) continue;
+    if (!!form.change !== asksChange || (form.par && !/\bpar\b/i.test(item.question))) return null;
+    const amount = m.slice(1).find((g) => g !== undefined)!;
+    const k = parseQuantity(form.length ? item.expected : item.expected.replace(POINTS_RE, ""));
+    let a = parseQuantity(form.length ? amount : amount.replace(POINTS_RE, ""));
+    if (!k || k.guessed || !a || a.approx || a.num.v <= 0 || k.v === 0 || Math.sign(k.v) !== form.sign) return null;
+    if (!form.keys.includes(k.kind) || !form.answers.includes(a.kind)) return null;
+    if (form.length && (a.dims !== "1,0,0" || (k.kind === "measure" && k.dims !== "1,0,0"))) return null;
+    // "$15 overdrawn" for a key of -15: the dollars are the key's unit.
+    if (k.kind === "plain" && a.kind === "money" && a.f === 1) a = { ...a, kind: "plain" };
+    if (questionWords.some((w) => form.echo.has(w)) &&
+        (questionHasAmount(item.question, a.num.v) || questionHasAmount(item.question, k.num.v))) return null;
+    if (form.sign === 1) return null;
+    const signed: Quantity = form.sign === -1 ? { ...a, v: -a.v, num: { ...a.num, v: -a.num.v } } : a;
+    return compareQuantities(k, signed, item.question) === true ? true : null;
+  }
+  return null;
+}
+
+// ─── A year said in pairs ─────────────────────────────────────────────────────
+
+// The question asks for a year: "In which year", "what year", "When was ... fought?", "When did ...".
+const ASKS_YEAR_RE = /\b(?:what|which) year\b|\bwhen (?:did|was|were|is|does|do|had|has|will)\b/i;
+// Not a year: a count or a size ("How many books"), a number of something, or a clock time.
+const NOT_A_YEAR_RE = /\bhow (?:many|much|long|old|far|fast|tall|big|heavy)\b|\bnumber of\b|\bpopulation\b|\btime\b|o'?clock|\bclock\b|\bhours?\b|\bminutes?\b|\d\s*[ap]\.?\s?m\b|\b[ap]\.m\./i;
+
+/** 1 to 99 in words ("fifteen", "sixty nine"), or null. */
+function wordsToTwoDigits(w: string[]): number | null {
+  if (w.length === 1) {
+    const n = own(UNITS, w[0]) ? UNITS[w[0]] : own(TEENS, w[0]) ? TEENS[w[0]] : own(TENS, w[0]) ? TENS[w[0]] : 0;
+    return n > 0 ? n : null;
+  }
+  if (w.length === 2 && own(TENS, w[0]) && own(UNITS, w[1]) && UNITS[w[1]] > 0) return TENS[w[0]] + UNITS[w[1]];
+  return null;
+}
+
+/**
+ * A year said in words: in pairs ("twelve fifteen" 1215, "nineteen sixty nine", "eighteen oh five",
+ * "twenty oh one", "nineteen hundred"), or with thousand ("two thousand and one"), maybe after "in" or
+ * "the year" and before AD or CE. Null for anything else, a year before Christ included.
+ */
+export function spokenYear(s: string): number | null {
+  let w = (s ?? "").normalize("NFKC").toLowerCase().replace(/[’‘`]/g, "'").replace(/[^a-z' ]+/g, " ").trim()
+    .replace(FILLER_RE, "").replace(/^(?:in )?(?:the year )?/, "").split(/\s+/).filter(Boolean);
+  const end = w.join(" ").match(/ (?:ad|ce|a d|c e)$/);
+  if (end) w = w.slice(0, w.length - end[0].trim().split(" ").length);
+  if (w.length < 2) return null;
+  // "two thousand", "two thousand and one", "one thousand and sixty six".
+  if (w[1] === "thousand" && (w[0] === "one" || w[0] === "two")) {
+    const rest = w.slice(2);
+    const lo = rest.length === 0 ? 0 : wordsToTwoDigits(rest[0] === "and" ? rest.slice(1) : rest);
+    return lo === null ? null : UNITS[w[0]] * 1000 + lo;
+  }
+  // In pairs: ten to twenty, then "hundred", "oh five", or 10 to 99.
+  const hi = own(TEENS, w[0]) ? TEENS[w[0]] : w[0] === "twenty" ? 20 : null;
+  if (hi === null) return null;
+  const rest = w.slice(1);
+  if (rest[0] === "hundred") {
+    const after = rest.slice(rest[1] === "and" ? 2 : 1);
+    const lo = after.length === 0 ? 0 : wordsToTwoDigits(after);
+    return lo === null ? null : hi * 100 + lo;
+  }
+  if ((rest[0] === "oh" || rest[0] === "o") && rest.length === 2 && own(UNITS, rest[1]) && UNITS[rest[1]] > 0) return hi * 100 + UNITS[rest[1]];
+  const lo = wordsToTwoDigits(rest);
+  return lo !== null && lo >= 10 ? hi * 100 + lo : null;
+}
+
+/**
+ * True when the key is a year (1000 to 2099, in digits, maybe with AD or CE) on a question that asks for
+ * a year ("In which year", "When did"), and the answer says it in words (spokenYear: "twelve fifteen"
+ * for 1215). Null otherwise, and never false: "twelve fifty" for 1215 goes to the model. Never on a
+ * question about a count or a size ("How many books", 1215 books), a clock time, a choice ("1215 or
+ * 1512?"), one that already says the key, or one that asks for a form ("in words").
+ */
+function settleYear(item: WrittenAnswer): true | null {
+  const m = /^(?:(?:ad|a\.d\.)\s*)?(\d{4})(?:\s*(?:ad|a\.d\.?|ce|c\.e\.?))?$/i.exec((item.expected ?? "").normalize("NFKC").trim().replace(/\.$/, ""));
   if (!m) return null;
-  const k = parseQuantity(item.expected);
-  const a = parseQuantity(m[1]);
-  if (!k || k.guessed || !a || a.kind !== "measure" || a.dims !== "1,0,0" || a.v <= 0) return null;
-  if (k.kind !== "plain" && !(k.kind === "measure" && k.dims === "1,0,0")) return null;
-  if (below ? k.v >= 0 : k.v <= 0) return null;
-  const direction = below ? BELOW_WORDS : ABOVE_WORDS;
-  if (answerWords(item.question).some((w) => direction.has(w)) &&
-      (questionHasAmount(item.question, a.num.v) || questionHasAmount(item.question, k.num.v))) return null;
-  const signed: Quantity = below ? { ...a, v: -a.v, num: { ...a.num, v: -a.num.v } } : a;
-  return compareQuantities(k, signed, item.question) === true ? true : null;
+  const key = Number(m[1]);
+  if (key < 1000 || key > 2099) return null;
+  const q = item.question ?? "";
+  if (!ASKS_YEAR_RE.test(q) || NOT_A_YEAR_RE.test(q) || offersChoice(q) || ASKS_FORM_RE.test(q) || questionSays(q, key)) return null;
+  return spokenYear(item.student) === key ? true : null;
 }
 
 // ─── Settling ─────────────────────────────────────────────────────────────────
@@ -1611,6 +1757,7 @@ export function settleByCode(item: WrittenAnswer, isWord: (w: string) => boolean
     }
   }
   if (settleDirected(item)) return true;
+  if (settleYear(item)) return true;
   // Last, so it never overrides an accept above: a quantity, right or wrong.
   return settleQuantity(item);
 }

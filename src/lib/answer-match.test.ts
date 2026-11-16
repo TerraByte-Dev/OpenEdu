@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, misspeltNameCandidates, slipEdits, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, prefixAdded, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
-import { GRADE_DEV_MISSPELLINGS, GRADE_DEV_NAMES_TIMES, GRADE_DEV_NUMBERS, GRADE_DEV_RESTATE, GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions, type GradeDevQuestion } from "./eval/grade-dev";
+import { GRADE_DEV_DIRECTION_YEARS, GRADE_DEV_MISSPELLINGS, GRADE_DEV_NAMES_TIMES, GRADE_DEV_NUMBERS, GRADE_DEV_RESTATE, GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS, round2AsQuestions, type GradeDevQuestion } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
 // The dictionary's verdict, for the words these tests use.
@@ -652,7 +652,7 @@ describe("settleByCode on the numbers dev set", () => {
 
 // Code decides a number and unit both ways (settleQuantity). Rejecting is the dangerous direction: on
 // every dev set, code marks no right answer wrong.
-const ALL_SETS = { restate: GRADE_DEV_RESTATE, namesTimes: GRADE_DEV_NAMES_TIMES, numbers: GRADE_DEV_NUMBERS, synonyms: GRADE_DEV_SYNONYMS, signs: GRADE_DEV_SIGNS_LETTERS, misspell: GRADE_DEV_MISSPELLINGS, round2: round2AsQuestions() };
+const ALL_SETS = { directionYears: GRADE_DEV_DIRECTION_YEARS, restate: GRADE_DEV_RESTATE, namesTimes: GRADE_DEV_NAMES_TIMES, numbers: GRADE_DEV_NUMBERS, synonyms: GRADE_DEV_SYNONYMS, signs: GRADE_DEV_SIGNS_LETTERS, misspell: GRADE_DEV_MISSPELLINGS, round2: round2AsQuestions() };
 const verdicts = (set: GradeDevQuestion[], dict: (key: string) => (w: string) => boolean) =>
   set.flatMap((q) => q.answers.map((a) => ({ id: q.id, text: a.text, right: a.right, got: settleByCode(ask(q.question, q.key, a.text), dict(q.key)) })));
 
@@ -816,7 +816,13 @@ describe("settleByCode: numbers and units, both ways", () => {
     expect(settle("The temperature falls by 6 °C. What is the change in temperature?", "6 °C", "-6 °C")).toBeNull();
     expect(settle("A diver is 15 m below sea level. How deep is the diver?", "15 m", "-15 m")).toBeNull();
     expect(settle("A diver is 15 meters below sea level. Write the elevation as a number of meters.", "−15", "15")).toBeNull();
-    expect(settle("Sam had $20 and lost $5 of it. How much money did Sam lose?", "$5", "-$5")).toBe(true); // the older number match
+    // The older number match read "-$5" as 5, and so took "$15" for -$15 too. A minus before a dollar
+    // sign is a sign now, so either way the model decides.
+    expect(settle("Sam had $20 and lost $5 of it. How much money did Sam lose?", "$5", "-$5")).toBeNull();
+    expect(settle("A bank account holds $40 and a bill of $55 is paid from it. What is the balance?", "-$15", "$15")).toBeNull();
+    expect(settle("A bank account holds $40 and a bill of $55 is paid from it. What is the balance?", "-$15", "fifteen")).toBeNull();
+    expect(settle("A bank account holds $40 and a bill of $55 is paid from it. What is the balance?", "-$15", "-15")).toBe(true);
+    expect(settle("A bank account holds $40 and a bill of $55 is paid from it. What is the balance?", "$-15", "-$15")).toBe(true);
     // A sign flip on plain arithmetic is wrong.
     expect(settle("What is -7 + 10?", "3", "-3")).toBe(false);
     // Not bare arithmetic, so the sign flip is the model's (signMatters).
@@ -1122,12 +1128,12 @@ describe("settleByCode: a length of time in decades, centuries, millennia, fortn
 
 describe("settleByCode: a depth or height in words", () => {
   const DIVER = "A diver is 20 meters below the surface of a lake and swims up 9 meters. Where is she now?";
-  it("accepts the key's depth with below, deep or down, and a height with above", () => {
+  it("accepts the key's depth with below, deep or down, and leaves a height with above to the model", () => {
     for (const a of ["11 meters below the surface", "11 m below sea level", "eleven metres below the surface of the lake", "11 m deep", "11 meters down", "11 m underwater", "1100 cm below the surface", "11 meters below the water"]) {
       expect(named(DIVER, "-11 m", a), a).toBe(true);
     }
     expect(named("What is the elevation of the bottom of the well?", "−12 m", "12 m below ground level")).toBe(true);
-    expect(named("What is the village's elevation?", "250 m", "250 meters above sea level")).toBe(true);
+    expect(named("What is the village's elevation?", "250 m", "250 meters above sea level")).toBeNull(); // a positive key carries no direction (see settleDirected)
     expect(named("Write her position as a number of meters, with the mouth at 0.", "-15", "15 meters below the ground")).toBe(true);
   });
   it("never takes the other direction, another amount or unit, no unit, or a bare amount", () => {
@@ -1187,6 +1193,164 @@ describe("settleByCode on the restatements dev set", () => {
   it("settles held-out v7's kinds of miss, rewritten", () => {
     const settled = GRADE_DEV_RESTATE.flatMap((q) => q.answers.filter((a) => a.right && named(q.question, q.key, a.text) === true).map((a) => a.text));
     for (const a of ["5 decades", "11 meters below the surface", "madame curie", "a fortnight", "4 meters under the water", "dr king"]) expect(settled).toContain(a);
+  });
+});
+
+// Round 11: held-out v8's model misses, in new questions (GRADE_DEV_DIRECTION_YEARS): a negative written
+// as a word ("$15 overdrawn" for -$15) and a year said in pairs ("twelve fifteen" for 1215). Accept only.
+describe("settleByCode: a sign written as a word", () => {
+  const BILL = "A bank account holds $40. Its owner pays a bill of $55 from it. What is the account balance now?";
+  const NIGHT = "At dawn the temperature was 4 °C. By midnight it had dropped 19 degrees. What was the temperature at midnight?";
+  const SHARE = "A share was worth $52 on Monday and $37 on Friday. What was the change in its price over the week?";
+  it("accepts a balance, temperature or score whose sign is a word that means the key's sign", () => {
+    for (const a of ["$15 overdrawn", "overdrawn by $15", "overdrawn $15", "15 dollars overdrawn", "$15 in debt", "in debt by $15", "owes $15", "$15 in the red", "15 overdrawn", "It's $15 overdrawn."]) {
+      expect(named(BILL, "-$15", a), a).toBe(true);
+    }
+    expect(named(BILL, "-15", "$15 overdrawn")).toBe(true);
+    for (const a of ["15 below zero", "15 degrees below zero", "fifteen below zero", "15 °C below zero"]) expect(named(NIGHT, "-15 °C", a), a).toBe(true);
+    const LEADER = "A team has 48 points and the leading team has 63. Taking the leader's score as 0, what is the team's score?";
+    for (const a of ["15 points behind", "behind by 15", "15 behind", "fifteen points behind"]) expect(named(LEADER, "-15", a), a).toBe(true);
+    expect(named(LEADER, "-15 points", "15 points behind")).toBe(true);
+    expect(named("A golfer took 69 strokes on a course where par is 72. What is the golfer's score relative to par?", "-3", "3 under par")).toBe(true);
+  });
+  it("accepts a change whose sign is a word, on a question that asks for a change", () => {
+    for (const a of ["a drop of $15", "down $15", "down by $15", "dropped $15", "fell $15", "a fall of $15", "a decrease of $15", "a $15 drop", "went down $15"]) {
+      expect(named(SHARE, "-$15", a), a).toBe(true);
+    }
+    const STAND = "A lemonade stand spent $30 on supplies and took in $18 in sales. What was its profit?";
+    for (const a of ["a loss of $12", "lost $12", "a $12 loss", "$12 loss"]) expect(named(STAND, "-$12", a), a).toBe(true);
+    const COOLING = "At noon it was 21 °C and by evening it was 13 °C. What was the change in temperature?";
+    expect(named(COOLING, "-8 °C", "a drop of 8 degrees")).toBe(true);
+    expect(named(COOLING, "-8 °C", "down 8")).toBe(true);
+  });
+  it("leaves the mirror for a positive key to the model: a positive key is an unsigned size", () => {
+    const PAID = "A savings account held $5. Its owner then paid in $10. What is the balance now?";
+    for (const a of ["$15 in credit", "in credit by $15", "$15 in the black"]) expect(named(PAID, "$15", a), a).toBeNull();
+    // A debt said in any sentence: the same words fit "Sam is $40 in debt. He pays back $25.", still owed.
+    for (const a of ["$15 in credit", "in credit by $15"]) {
+      expect(named("A bank account was $10 overdrawn. Its owner then paid in $25. What is the balance now?", "$15", a), a).toBeNull();
+    }
+    expect(named("Before sunrise it was -6 °C. By noon the temperature had risen 21 degrees. What was the temperature at noon?", "15 °C", "15 above zero")).toBeNull();
+    expect(named("A team has 63 points and the next team has 48. Taking the second team's score as 0, what is the leader's score?", "15", "15 points ahead")).toBeNull();
+    expect(named("A plant was 12 cm tall last week and is 17 cm tall now. What was the change in its height?", "5 cm", "an increase of 5 cm")).toBeNull();
+    expect(named("A stand spent $18 and took in $30. What was its profit?", "$12", "a profit of $12")).toBeNull();
+    expect(named("A stand spent $18 and took in $30. What was its profit?", "$12", "up $12")).toBeNull();
+  });
+  it("never takes a rise for an unsigned key, whatever the question says or doesn't say (the verifier's cases)", () => {
+    const cases: Array<[string, string, string]> = [
+      ["Leo's score went from 40 to 25. What was the change in his score?", "15", "a gain of 15"],
+      ["A plane's altitude went from 4000 m to 2500 m. What was the change in altitude?", "1500 m", "an increase of 1500 m"],
+      ["The class had 30 students and now has 25. What was the change in class size?", "5", "an increase of 5"],
+      ["The temperature cooled from 25 °C to 10 °C. What was the change in temperature?", "15 °C", "rose 15 °C"],
+      ["A stock's price plunged from $40 to $25. What was the change in price?", "$15", "went up $15"],
+      ["The water level sank from 40 cm to 25 cm. What was the change in the water level?", "15 cm", "rose 15 cm"],
+      ["The town's population shrank from 415 to 400. What was the change in population?", "15", "an increase of 15"],
+      ["The price of a game dipped from $40 to $25. What was the price change?", "$15", "a gain of $15"],
+    ];
+    for (const [q, k, a] of cases) expect(named(q, k, a), a).not.toBe(true);
+  });
+  it("never takes the other direction, another amount, a bare amount, or a sign of its own", () => {
+    for (const a of ["$15 in credit", "in credit by $15", "$16 overdrawn", "$1.50 overdrawn", "$15", "15", "fifteen", "-$15 overdrawn", "about $15 overdrawn", "15 points ahead", "15 above zero"]) {
+      expect(named(BILL, "-$15", a), a).not.toBe(true);
+    }
+    for (const a of ["15 above zero", "15 degrees above zero", "fifteen"]) expect(named(NIGHT, "-15 °C", a), a).not.toBe(true);
+    for (const a of ["up $15", "a rise of $15", "a gain of $15", "a drop of $51"]) expect(named(SHARE, "-$15", a), a).not.toBe(true);
+    expect(named("A golfer took 69 strokes on a course where par is 72. What is the golfer's score relative to par?", "-3", "3 over par")).not.toBe(true);
+  });
+  it("reads a change only on a question that asks for one, and a balance or temperature only where it does not", () => {
+    // "A drop of 10" is how far something fell, not where it is.
+    expect(named("It was 5 °C and fell 15 degrees by night. What was the temperature at night?", "-10 °C", "a drop of 10")).toBeNull();
+    expect(named(BILL, "-$15", "lost $15")).toBeNull();
+    expect(named(SHARE, "-$15", "$15 overdrawn")).toBeNull();
+    expect(named(SHARE, "-$15", "$15 in debt")).toBeNull();
+  });
+  it("never reads a positive key's size as a rise or a credit", () => {
+    expect(named("A stand spent $30 and took in $18. What was its loss?", "$12", "a profit of $12")).toBeNull();
+    expect(named("A stand spent $30 and took in $18. What was its loss?", "$12", "a gain of $12")).toBeNull();
+    expect(named("It was 5 °C at noon and -10 °C at night. How many degrees did the temperature fall?", "15 °C", "15 above zero")).toBeNull();
+    expect(named("It was 5 °C at noon and -10 °C at night. How many degrees did the temperature fall?", "15 °C", "up 15")).toBeNull();
+    expect(named("A customer paid $40 of a $55 bill. How much does the customer still owe?", "$15", "$15 in credit")).toBeNull();
+    expect(named("A share fell from $52 to $37. What was the change in its price, as a drop?", "$15", "up $15")).toBeNull();
+  });
+  it("never on a question that asks for the sign or already says the amount and the direction", () => {
+    expect(named("Write an integer for a balance that is $15 overdrawn.", "-15", "$15 overdrawn")).toBeNull();
+    expect(named("An account is overdrawn by $15. What is its balance?", "-$15", "$15 overdrawn")).toBeNull();
+    expect(named("A team is behind by 15 points. Taking the leader's score as 0, what is its score?", "-15", "15 points behind")).toBeNull();
+    expect(named("A share lost $15 this week. What was the change in its price?", "-$15", "lost $15")).toBeNull();
+    // Par: only on a question about golf.
+    expect(named("A team scored 3 fewer goals than its rival. What is the difference in goals?", "-3", "3 under par")).toBeNull();
+  });
+  it("reads no other words as a sign", () => {
+    expect(named("What is the temperature?", "-15 °C", "15 cold")).toBeNull();
+    expect(named(BILL, "-$15", "$15 short")).toBeNull();
+    expect(named(BILL, "-$15", "$15 owed")).toBeNull();
+    expect(named(NIGHT, "-15 °C", "15 kg below zero")).toBeNull();
+  });
+});
+
+describe("settleByCode: a year said in pairs", () => {
+  const MAGNA = "In which year was the Magna Carta sealed?";
+  it("accepts a year key said in pairs or in words, on a question that asks for a year", () => {
+    for (const a of ["twelve fifteen", "Twelve-fifteen", "in twelve fifteen", "the year twelve fifteen", "twelve fifteen AD", "It was twelve fifteen.", "twelve hundred and fifteen", "twelve hundred fifteen", "one thousand two hundred fifteen"]) {
+      expect(named(MAGNA, "1215", a), a).toBe(true);
+    }
+    const MOON = "In what year did astronauts first walk on the Moon?";
+    expect(named(MOON, "1969", "nineteen sixty-nine")).toBe(true);
+    expect(named(MOON, "1969", "nineteen sixty nine")).toBe(true);
+    expect(named("When was the Battle of Trafalgar fought?", "1805", "eighteen oh five")).toBe(true);
+    expect(named("When was the Battle of Trafalgar fought?", "1805", "eighteen o five")).toBe(true);
+    const CENTURY = "In what year did the 21st century begin?";
+    for (const a of ["two thousand and one", "two thousand one", "twenty oh one"]) expect(named(CENTURY, "2001", a), a).toBe(true);
+    expect(named("In which year did Columbus first reach the Americas?", "1492", "fourteen ninety-two")).toBe(true);
+    expect(named("When was the Battle of Hastings fought?", "1066", "ten sixty-six")).toBe(true);
+    expect(named("When was the Battle of Hastings fought?", "1066 AD", "ten sixty six")).toBe(true);
+    expect(named("When was the Battle of Hastings fought?", "1066 A.D.", "ten sixty six")).toBe(true);
+    expect(named("In what year did the century begin?", "1900", "nineteen hundred")).toBe(true);
+    expect(named("What year did the decade begin?", "2020", "twenty twenty")).toBe(true);
+    expect(named("What year did the millennium begin?", "2000", "two thousand")).toBe(true);
+  });
+  it("never takes another year, and never marks one wrong", () => {
+    for (const a of ["twelve fifty", "fifteen twelve", "twelve five", "twelve", "twelve fifteen BC", "twelve fifteen pm", "quarter past twelve", "twelve oh fifteen", "twelve fifteen sixteen"]) {
+      expect(named(MAGNA, "1215", a), a).toBeNull();
+    }
+    expect(named("In what year did astronauts first walk on the Moon?", "1969", "nineteen ninety-six")).toBeNull();
+    expect(named("In what year did the 21st century begin?", "2001", "two thousand")).toBeNull();
+    expect(named("When was the Battle of Trafalgar fought?", "1805", "eighteen fifty")).toBeNull();
+  });
+  it("never on a count, a clock time, a choice of years, or a question that says the key", () => {
+    expect(named("A school library has 800 fiction books and 415 other books. How many books does it have?", "1215", "twelve fifteen")).toBeNull();
+    expect(named("What is 800 + 415?", "1215", "twelve fifteen")).toBeNull();
+    expect(named("At what time does the bell ring, in 24-hour time?", "1215", "twelve fifteen")).toBeNull();
+    expect(named("When does the bell ring? Give the time.", "1215", "twelve fifteen")).toBeNull();
+    expect(named("Was the Magna Carta sealed in 1215 or 1512?", "1215", "twelve fifteen")).toBeNull();
+    expect(named("The Magna Carta was sealed in 1215. In which year was it sealed?", "1215", "twelve fifteen")).toBeNull();
+    expect(named("In which year was it? Write it in words.", "1215", "twelve fifteen")).toBeNull();
+    expect(named("Name the charter sealed at Runnymede.", "1215", "twelve fifteen")).toBeNull();
+    // Not a year.
+    expect(named(MAGNA, "3215", "thirty two fifteen")).toBeNull();
+    expect(named(MAGNA, "1215 people", "twelve fifteen")).toBeNull();
+  });
+});
+
+describe("settleByCode on the direction-and-years dev set", () => {
+  const lookups: Array<[string, (key: string) => (w: string) => boolean, (w: string) => boolean]> = [
+    ["no word real", () => noWords, noWords],
+    ["the dictionary's words", () => nameWord, nameWord],
+    ["the key's words real", keyOnly, noWords],
+  ];
+  it.each(lookups)("settles no wrong answer and marks no answer wrong, with %s", (_, isWord, listed) => {
+    const settled = GRADE_DEV_DIRECTION_YEARS.flatMap((q) => q.answers
+      .map((a) => ({ a, got: settleByCode(ask(q.question, q.key, a.text), isWord(q.key), listed) }))
+      .filter(({ a, got }) => (!a.right && got === true) || got === false)
+      .map(({ a, got }) => `${q.id} ${a.text} ${got}`));
+    expect(settled).toEqual([]);
+  });
+  it("settles held-out v8's kinds of miss, rewritten, and leaves the pair under a choice to the model", () => {
+    const settled = GRADE_DEV_DIRECTION_YEARS.flatMap((q) => q.answers.filter((a) => a.right && named(q.question, q.key, a.text) === true).map((a) => `${q.id} ${a.text}`));
+    for (const a of ["x01 $15 overdrawn", "x07 a loss of $12", "y01 twelve fifteen", "y03 eighteen oh five", "y04 twenty oh one"]) expect(settled).toContain(a);
+    // x10's credit is after "overdrawn": a positive key is never read as a credit after a debt.
+    for (const a of ["y09 twelve fifteen", "x10 $15 in credit", "x10 in credit by $15"]) expect(settled).not.toContain(a);
+    expect(settled).toHaveLength(38);
   });
 });
 
