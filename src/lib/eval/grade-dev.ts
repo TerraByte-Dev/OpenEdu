@@ -513,6 +513,68 @@ export const GRADE_DEV_RESTATE: GradeDevQuestion[] = [
     answers: [R("dr livingstone", "title-surname"), R("doctor livingstone", "title-surname"), W("dr stanley", "title-other"), W("Mungo Park", "rival")] },
 ];
 
+// GRADE_DEV_DIRECTION_YEARS (round 11, 2026-11-16) is weighted to what held-out v8 left: the model failed
+// "$15 overdrawn" for -$15 on every run (a negative written as a word, the third held-out set in a row)
+// and "twelve fifteen" for the year 1215 on two e2b runs. Two kinds of question, each with the right
+// forms and the wrong forms closest to them.
+// Right kinds: state-words (a balance, temperature or score whose sign is a word: overdrawn, in debt,
+// owes, below zero, behind, under par; in credit, above zero, ahead for a positive), change-words (a
+// change whose sign is a word: a loss of, lost, a drop of, down; a gain of, a rise of, up), year-pairs (a
+// year said in pairs: "twelve fifteen", "eighteen oh five", "twenty oh one"), year-words (a year in full
+// words: "two thousand and one"), year-digits and number-digits (the key in digits), number-words (a
+// count in full words), pair-under-choice (a pair reading where the question offers two years: right,
+// but left to the model).
+// Wrong kinds: direction-swapped (the other direction's word), sign-dropped (the amount with no sign or
+// direction), year-other (another year said in pairs: digits swapped, a near year), pair-non-year (a pair
+// reading of a count that is not a year).
+// Labels by Claude, not blind. None of these questions is from a held-out set.
+export const GRADE_DEV_DIRECTION_YEARS: GradeDevQuestion[] = [
+  { id: "x01", question: "A bank account holds $40. Its owner pays a bill of $55 from it. What is the account balance now?", key: "-$15",
+    answers: [R("$15 overdrawn", "state-words"), R("overdrawn by $15", "state-words"), W("$15 in credit", "direction-swapped")] },
+  { id: "x02", question: "A savings account has $20 in it, and a check for $32 is paid out of it. What is the balance after the check?", key: "-$12",
+    answers: [R("$12 in debt", "state-words"), R("owes $12", "state-words"), W("twelve dollars", "sign-dropped")] },
+  { id: "x03", question: "At dawn the temperature was 4 °C. By midnight it had dropped 19 degrees. What was the temperature at midnight?", key: "-15 °C",
+    answers: [R("15 degrees below zero", "state-words"), R("15 below zero", "state-words"), W("15 above zero", "direction-swapped")] },
+  { id: "x04", question: "The air over a frozen lake was -3 °C in the morning and fell another 9 degrees by night. What was the temperature at night?", key: "-12 °C",
+    answers: [R("twelve below zero", "state-words"), R("12 degrees below zero", "state-words"), W("fifteen", "sign-dropped")] },
+  { id: "x05", question: "A team has 48 points and the leading team has 63. Taking the leader's score as 0, what is the team's score?", key: "-15",
+    answers: [R("15 points behind", "state-words"), R("behind by 15", "state-words"), W("fifteen", "sign-dropped")] },
+  { id: "x06", question: "A golfer took 69 strokes on a course where par is 72. What is the golfer's score relative to par?", key: "-3",
+    answers: [R("3 under par", "state-words"), R("three under par", "state-words"), W("3 over par", "direction-swapped")] },
+  { id: "x07", question: "A lemonade stand spent $30 on supplies and took in $18 in sales. What was its profit?", key: "-$12",
+    answers: [R("a loss of $12", "change-words"), R("lost $12", "change-words"), W("a profit of $12", "direction-swapped")] },
+  { id: "x08", question: "A share was worth $52 on Monday and $37 on Friday. What was the change in its price over the week?", key: "-$15",
+    answers: [R("a drop of $15", "change-words"), R("down $15", "change-words"), W("up $15", "direction-swapped")] },
+  { id: "x09", question: "At noon it was 21 °C and by evening it was 13 °C. What was the change in temperature?", key: "-8 °C",
+    answers: [R("a drop of 8 degrees", "change-words"), R("down 8 degrees", "change-words"), W("a rise of 8 degrees", "direction-swapped")] },
+  { id: "x10", question: "A bank account was $10 overdrawn. Its owner then paid in $25. What is the balance now?", key: "$15",
+    answers: [R("$15 in credit", "state-words"), R("in credit by $15", "state-words"), W("$15 overdrawn", "direction-swapped")] },
+  { id: "x11", question: "Before sunrise it was -6 °C. By noon the temperature had risen 21 degrees. What was the temperature at noon?", key: "15 °C",
+    answers: [R("15 above zero", "state-words"), R("15 degrees above zero", "state-words"), W("15 below zero", "direction-swapped")] },
+  { id: "x12", question: "A football team scored 31 points in the first half and 19 in the second. What was the change in its score from the first half to the second?", key: "-12",
+    answers: [R("a drop of 12", "change-words"), R("down 12", "change-words"), W("up 12", "direction-swapped")] },
+  { id: "y01", question: "In which year was the Magna Carta sealed?", key: "1215",
+    answers: [R("twelve fifteen", "year-pairs"), R("in twelve fifteen", "year-pairs"), W("twelve fifty", "year-other")] },
+  { id: "y02", question: "In what year did astronauts first walk on the Moon?", key: "1969",
+    answers: [R("nineteen sixty-nine", "year-pairs"), R("nineteen sixty nine", "year-pairs"), W("nineteen ninety-six", "year-other")] },
+  { id: "y03", question: "When was the Battle of Trafalgar fought?", key: "1805",
+    answers: [R("eighteen oh five", "year-pairs"), R("eighteen o five", "year-pairs"), W("eighteen fifty", "year-other")] },
+  { id: "y04", question: "In what year did the 21st century begin?", key: "2001",
+    answers: [R("two thousand and one", "year-words"), R("twenty oh one", "year-pairs"), W("two thousand", "year-other")] },
+  { id: "y05", question: "In which year did Columbus first reach the Americas?", key: "1492",
+    answers: [R("fourteen ninety-two", "year-pairs"), R("fourteen ninety two", "year-pairs"), W("fourteen twenty-nine", "year-other")] },
+  { id: "y06", question: "When was the Battle of Hastings fought?", key: "1066",
+    answers: [R("ten sixty-six", "year-pairs"), R("in ten sixty six", "year-pairs"), W("ten sixteen", "year-other")] },
+  { id: "y07", question: "In what year did the First World War end?", key: "1918",
+    answers: [R("nineteen eighteen", "year-pairs"), R("nineteen-eighteen", "year-pairs"), W("nineteen eighty-one", "year-other")] },
+  { id: "y08", question: "In which year did the Berlin Wall fall?", key: "1989",
+    answers: [R("nineteen eighty-nine", "year-pairs"), W("nineteen ninety-eight", "year-other"), W("nineteen eighty", "year-other")] },
+  { id: "y09", question: "Was the Magna Carta sealed in 1215 or 1512?", key: "1215",
+    answers: [R("twelve fifteen", "pair-under-choice"), R("1215", "year-digits"), W("fifteen twelve", "year-other")] },
+  { id: "y10", question: "A school library has 800 fiction books and 415 other books. How many books does it have?", key: "1215",
+    answers: [R("one thousand two hundred fifteen", "number-words"), R("1,215", "number-digits"), W("twelve fifteen", "pair-non-year")] },
+];
+
 // [question, key, right answer, wrong answer]
 export const GRADE_DEV_ROUND2: Array<[string, string, string, string]> = [
   ["What gas do plants take in from the air to make food?", "Carbon dioxide", "they take in CO2", "oxygen"],
