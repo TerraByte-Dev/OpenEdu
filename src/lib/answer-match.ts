@@ -764,21 +764,57 @@ export function spellingVariant(a: string, b: string): boolean {
   return a !== b && swapsTo(a, b);
 }
 
+// Prefixes that make a word its opposite or its lack: "unextinct", "abiotic", "nontoxic", "disagree".
+const NEGATING_PREFIXES = ["un", "in", "im", "il", "ir", "a", "an", "de", "non", "dis", "anti", "counter", "mis"];
+
+/**
+ * True when the answer's word is the key's word with letters added at the front ("unextinct" for
+ * extinct, "abiotic" for biotic), or a negating prefix the key's word does not start with on the key's
+ * word one edit off ("atipical" for typical). Such a word may mean the opposite, so it is never noted as
+ * a misspelling.
+ */
+export function prefixAdded(answer: string, key: string): boolean {
+  const a = singular(answer), k = singular(key);
+  if (a.length > k.length && a.endsWith(k)) return true;
+  return NEGATING_PREFIXES.some((p) => a.startsWith(p) && !k.startsWith(p) && editDistance(a.slice(p.length), k) <= 1);
+}
+
+// Closed-class words (pronouns, determiners, prepositions, conjunctions, auxiliaries) WordNet does not
+// list, or lists only in part. Each is a real word: never a misspelling, and a rival to one ("wheather" is
+// as close to whether as to weather).
+const FUNCTION_WORDS = new Set([
+  "i", "me", "my", "mine", "myself", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself",
+  "she", "her", "hers", "herself", "it", "its", "itself", "we", "us", "our", "ours", "ourselves", "they", "them",
+  "their", "theirs", "themselves", "this", "that", "these", "those", "who", "whom", "whose", "which", "what",
+  "whatever", "whichever", "whoever", "where", "when", "why", "how", "whereas", "whereby", "wherever", "whenever",
+  "a", "an", "the", "some", "any", "each", "every", "either", "neither", "both", "few", "many", "much", "more",
+  "most", "several", "such", "no", "none", "nor", "not", "about", "above", "across", "after", "against", "along",
+  "among", "amongst", "around", "at", "before", "behind", "below", "beneath", "beside", "besides", "between",
+  "beyond", "by", "despite", "down", "during", "except", "for", "from", "in", "inside", "into", "like", "near",
+  "of", "off", "on", "onto", "out", "outside", "over", "past", "since", "through", "throughout", "till", "to",
+  "toward", "towards", "under", "underneath", "until", "unto", "up", "upon", "with", "within", "without", "and",
+  "but", "or", "so", "yet", "because", "although", "though", "unless", "whether", "while", "whilst", "if", "than",
+  "then", "there", "here", "am", "is", "are", "was", "were", "be", "been", "being", "do", "does", "did", "have",
+  "has", "had", "can", "could", "shall", "should", "will", "would", "may", "might", "must", "ought",
+]);
+
 /**
  * A note for the grader model when the answer may be the key with words misspelt, or null. Never a
- * verdict: the model still decides. Null when any misspelt word could be another word: a word of the
- * question as close to it as the key's word, a real word itself (unless it is the key's word with one
- * British/American spelling swap and the dictionary lists the two as synonyms), a key word the
- * dictionary does not have (names of places and people), or another real word as close to it.
+ * verdict: the model still decides. Null when any misspelt word could be another word: the key's word
+ * with letters added at the front (prefixAdded: "unextinct" may be the opposite), a word of the question
+ * as close to it as the key's word, a function word or a function word as close, a real word itself
+ * (unless it is the key's word with one British/American spelling swap and the dictionary lists the two
+ * as synonyms), a key word the dictionary does not have (names of places and people), or another real
+ * word as close to it.
  */
 export function misspellingNote(item: WrittenAnswer, dict: SpellingLookup): string | null {
   const words = misspeltKeyWords(item);
   if (words.length === 0) return null;
-  const rivals = rivalWords(item.question, answerWords(item.expected));
+  const rivals = [...rivalWords(item.question, answerWords(item.expected)), ...FUNCTION_WORDS];
   for (const { answer, key, edits } of words) {
-    if (!dict.isWord(key)) return null;
+    if (!dict.isWord(key) || prefixAdded(answer, key) || FUNCTION_WORDS.has(answer)) return null;
     const a = singular(answer);
-    if (rivals.some((r) => editDistance(a, singular(r)) <= edits)) return null;
+    if (rivals.some((r) => r !== key && editDistance(a, singular(r)) <= edits)) return null;
     if (dict.isWord(answer)) {
       if (!spellingVariant(answer, key) || !dict.synonyms(answer).includes(key)) return null;
       continue;

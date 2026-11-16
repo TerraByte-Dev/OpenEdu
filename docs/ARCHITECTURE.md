@@ -317,7 +317,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   one edit (key word 4+ letters) or two edits (7+) off ("skelitin" for skeleton) goes to the model with
   a note under it: `"skelitin" may be a misspelling of "skeleton". If it is, mark it correct: for this
   answer, spelling is not marked.` (`answer-match.ts` `misspellingNote`, `quiz.ts` `misspellingNotes`).
-  The model still decides. No note when a word of the question is as close ("farther or further?"),
+  The model still decides. No note when the answer's word is the key's word with letters added at the
+  front, which may mean the opposite ("unextinct", "intransparent"; `prefixAdded`, which also takes a
+  negating prefix on the key's word one edit off, "atipical"), when it is a function word WordNet lacks
+  or one is as close ("until" for Untie, "their" for Heir), when a word of the question is as close ("farther or further?"),
   when the answer's word is a real word (unless it is the key's word with one British/American
   spelling swap, our/or, ise/ize, re/er, ae/oe/e, ph/f, ll/l, ium/um, and the dictionary lists the two
   as synonyms: "aluminium"; WordNet's synonyms alone also hold other forms, bacterium for bacteria,
@@ -327,7 +330,8 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   reads every one-word dictionary headword once per session (`dictionary.ts` `oneWordHeadwords`), only
   when an answer needs it, and makes the forms from them with WordNet's suffix rules
   (`answer-match.ts` `formsWithin`); if the dictionary cannot be read, no note. A batch with no note
-  gets the old prompt byte for byte. Measured in
+  gets the old prompt byte for byte; in a batch with a note, each answer is kept to one line and an
+  answer that opens with "Note:" has its colon replaced, so no typed answer passes for a note. Measured in
   `src/lib/eval/results/2026-11-16-grade-dev-misspelling-hint.md`.
 - **"I think I was right."** A small model still fails some right answers, so on the quiz and level
   test results screens a written answer the model marked wrong (`graded_by` `'model'`, wrong) has the

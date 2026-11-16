@@ -694,17 +694,20 @@ export type BatchGradeReply = Record<string, { feedback?: string; correct?: bool
 // with no notes passed "content" for continent on every run. Results:
 // results/2026-11-16-grade-dev-misspelling-hint.md.
 export function buildBatchGradePrompt(items: GradeItem[], mathRules?: string): string {
+  // Only a batch with a note changes, so every other batch's prompt is unchanged. In it, each answer is
+  // kept to one line and cannot open with "Note:", so no answer a learner typed passes for a note.
+  const noted = items.some((it) => it.note);
+  const student = (s: string) => (noted ? s.replace(/[\r\n\v\f\u2028\u2029]+/g, " ").replace(/^(\s*note)\s*:/i, "$1 -") : s);
   const body = items
     .map((it, k) =>
       `[${gradeKey(k).replace("_", " ")}] (${it.type})\n` +
       `Question: ${it.question}\n` +
       `Expected answer: ${it.expected}\n` +
-      `Student answer: ${it.student}` +
+      `Student answer: ${student(it.student)}` +
       (it.note ? `\nNote: ${it.note}. If it is, mark it correct: for this answer, spelling is not marked.` : ""),
     )
     .join("\n\n");
-  // Only a batch with a note gets this line, so every other batch's prompt is unchanged.
-  const noteLine = items.some((it) => it.note)
+  const noteLine = noted
     ? "\nA Note under an answer applies to that answer only; check every other answer as above."
     : "";
 

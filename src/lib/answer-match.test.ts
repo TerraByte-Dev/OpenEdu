@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
+import { answerWords, singular, editDistance, keyForms, settleByCode, misspellingCandidates, ordinalToken, oneEditAway, misspeltKeyWords, misspellingNote, prefixAdded, wordsWithin, formsWithin, spellingVariant, type WrittenAnswer, type SpellingLookup } from "./answer-match";
 import { GRADE_DEV_ROUND2, GRADE_DEV_SIGNS_LETTERS, GRADE_DEV_SYNONYMS } from "./eval/grade-dev";
 
 const ask = (question: string, expected: string, student: string, type = "short_answer"): WrittenAnswer => ({ question, expected, student, type });
@@ -710,6 +710,32 @@ describe("misspellingNote", () => {
   });
   it("names a form of the key's own word as no rival", () => {
     expect(note("Who studies rocks?", "Geologist", "geolagest", dict(["geologist", "geologists"]))).toBe('"geolagest" may be a misspelling of "geologist"');
+  });
+});
+
+describe("prefixAdded", () => {
+  it("is true for the key's word with letters added at the front, and for a negating prefix on it one edit off", () => {
+    for (const p of ["un", "in", "im", "il", "ir", "a", "an", "de", "non", "dis", "anti", "counter", "mis"]) expect(prefixAdded(`${p}skeleton`, "skeleton")).toBe(true);
+    expect(prefixAdded("unextincts", "extinct")).toBe(true);
+    expect(prefixAdded("atipical", "typical")).toBe(true);
+  });
+  it("is false for a misspelling, and for a prefix the key's word starts with too", () => {
+    expect(prefixAdded("skelitin", "skeleton")).toBe(false);
+    expect(prefixAdded("antanim", "antonym")).toBe(false);
+    expect(prefixAdded("imigrating", "immigrating")).toBe(false);
+    expect(prefixAdded("extinct", "extinct")).toBe(false);
+  });
+});
+
+describe("misspellingNote: prefixes and function words", () => {
+  it("is null for the key's word with a prefix added, though no dictionary word is near", () => {
+    expect(note("What do we call a kind of animal with no living members left?", "Extinct", "unextinct", dict(["extinct"]))).toBeNull();
+    expect(note("What word describes animals that are active during the day?", "Diurnal", "undiurnal", dict(["diurnal"]))).toBeNull();
+  });
+  it("is null for a function word, and for a misspelling as close to one as to the key's word", () => {
+    expect(note("What do you do to a knot to open it?", "Untie", "until", dict(["untie"]))).toBeNull();
+    expect(note("What word means all of something?", "Whole", "whose", dict(["whole"]))).toBeNull();
+    expect(note("What is it like outside today?", "The weather", "wheather", dict(["weather"]))).toBeNull(); // whether
   });
 });
 
