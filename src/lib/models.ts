@@ -29,15 +29,20 @@ export const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] =
 //     can name. claude-opus-4-6 (retirement not before 2027-02-05) stays the Anthropic generation default.
 //   - claude-haiku-4-5-20251001 left the picker (Haiku 5.5 replaces it). It is not shut down, so a stored
 //     one keeps working, and Settings shows it as an extra selected chip (withStoredOption).
+// No generation model is marked recommended: none has been measured writing courses on its own. B10
+// measured Anthropic writers only as pairs with a Checking model (Haiku 5.5 writing passed only with Sonnet
+// 5.5 checking; with the default "Same as the course model" it failed the checking rows), Opus 4.6/5.5 and
+// Sonnet 5.5 never as writers, and no OpenAI model. So each provider's first entry is its default,
+// unflagged, and the order keeps the defaults people already have.
 export const GENERATION_MODELS: Record<CloudProvider, ModelOption[]> = {
   openai: [
-    { id: "gpt-6.1-sol", label: "GPT-6.1 Sol", recommended: true },
+    { id: "gpt-6.1-sol", label: "GPT-6.1 Sol" },
     { id: "gpt-6-astra", label: "GPT-6 Astra" },
     { id: "gpt-6-luna", label: "GPT-6 Luna" },
     { id: "gpt-5.4", label: "GPT-5.4" },
   ],
   anthropic: [
-    { id: "claude-opus-4-6", label: "Claude Opus 4.6", recommended: true },
+    { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
     { id: "claude-opus-5-5", label: "Claude Opus 5.5" },
     { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5" },
     { id: "claude-fable-5-2", label: "Claude Fable 5.2" },
@@ -59,7 +64,7 @@ export const CHAT_MODELS: Record<CloudProvider, ModelOption[]> = {
 };
 
 // Cloud ids OpenEdu used to offer, with the provider's shutdown date (UTC). From that date a stored one
-// resolves to today's recommended model for the same provider and role, instead of a 404 on every call.
+// resolves to today's default model for the same provider and role, instead of a 404 on every call.
 // OpenAI announced all four on 2026-10-14 (https://developers.openai.com/api/docs/deprecations). Bare
 // gpt-4o is included because both snapshots it can still point to (2024-08-06, 2024-11-20) shut down
 // that day; 2024-05-13 already has.
@@ -137,7 +142,8 @@ function recommendedId(options: ModelOption[]): string {
 
 // Default model id when the user hasn't picked one — DERIVED from the catalog's `recommended` flag, so the
 // store default always equals the chip Settings highlights. Cloud providers fall back to their recommended
-// catalog entry; Ollama picks by RAM and what is pulled (discovery fills the rest in the picker).
+// catalog entry, or the first entry where none is recommended (generation, see GENERATION_MODELS); Ollama
+// picks by RAM and what is pulled (discovery fills the rest in the picker).
 // `ramBytes` and `installed` are ignored for cloud providers.
 export function defaultGenerationModel(provider: LLMProvider, ramBytes: number | null = null, installed: string[] | null = null): string {
   return provider === "ollama" ? defaultOllamaModel(ramBytes, installed) : recommendedId(GENERATION_MODELS[provider]);
@@ -170,7 +176,7 @@ export function modelProvider(id: string): LLMProvider {
 // stored id that belongs to another provider (modelProvider) is ignored: after a switch from Ollama to
 // Anthropic, a stored "gemma4:e2b" must not reach Anthropic's API, nor a stored "claude-opus-4-6" Ollama.
 // A stored id is otherwise kept as is unless its provider has shut it down (CLOUD_SHUTDOWNS); then the
-// recommended model for the same provider and role is used. This never moves anyone to another provider,
+// default model for the same provider and role is used. This never moves anyone to another provider,
 // and nothing is written back: the stored value stays until the user picks again.
 export function resolveStoredModel(
   provider: LLMProvider,

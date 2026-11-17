@@ -56,8 +56,8 @@ describe("cloudModelTier for the catalog", () => {
   });
 });
 
-describe("effective per-call timeout for the recommended generation model", () => {
-  it("gives OpenAI's recommended generation model the full 90s, not the halved cloud budget", () => {
+describe("effective per-call timeout for the default generation model", () => {
+  it("gives OpenAI's default generation model the full 90s, not the halved cloud budget", () => {
     const model = defaultGenerationModel("openai");
     expect(effectivePerCallTimeoutMs("openai", cloudModelTier("openai", model), model)).toBe(90_000);
   });

@@ -49,7 +49,7 @@ export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?
   return { provider, apiKey, ollamaUrl };
 }
 
-// Generation model (course creation, syllabus) — defaults to the catalog's recommended model, or for
+// Generation model (course creation, syllabus) — defaults to the catalog's default model, or for
 // Ollama the one that fits this machine's RAM (see models.ts).
 export async function getGenerationConfig(): Promise<LLMConfig> {
   const s = await getStore();

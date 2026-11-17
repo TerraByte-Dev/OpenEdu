@@ -64,7 +64,7 @@ describe("a stored cloud model the provider shut down", () => {
   beforeEach(() => saved.clear());
   afterEach(() => vi.useRealTimers());
 
-  it("resolves to today's recommended model for the same role, and the stored value is not rewritten", async () => {
+  it("resolves to today's default model for the same role, and the stored value is not rewritten", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2027-02-01T00:00:00Z"));
     saved.set("llm_provider", "openai");

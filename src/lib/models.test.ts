@@ -11,10 +11,11 @@ const CLOUD = ["openai", "anthropic"] as const;
 
 describe("model catalog ↔ defaults (the issue #2 contract)", () => {
   for (const provider of CLOUD) {
-    it(`generation default for ${provider} equals the recommended catalog entry`, () => {
-      const rec = GENERATION_MODELS[provider].find((m) => m.recommended);
-      expect(rec).toBeDefined();
-      expect(defaultGenerationModel(provider)).toBe(rec!.id);
+    // No cloud model was measured writing courses on its own, so none is recommended (models.ts). The
+    // default is then the first entry, and Settings shows no RECOMMENDED chip for it to disagree with.
+    it(`no ${provider} generation model is marked recommended; the default is the first entry`, () => {
+      expect(GENERATION_MODELS[provider].filter((m) => m.recommended)).toEqual([]);
+      expect(defaultGenerationModel(provider)).toBe(GENERATION_MODELS[provider][0].id);
     });
 
     it(`chat default for ${provider} equals the recommended catalog entry`, () => {
@@ -23,8 +24,7 @@ describe("model catalog ↔ defaults (the issue #2 contract)", () => {
       expect(defaultChatModel(provider)).toBe(rec!.id);
     });
 
-    it(`exactly one recommended generation + chat model for ${provider}`, () => {
-      expect(GENERATION_MODELS[provider].filter((m) => m.recommended)).toHaveLength(1);
+    it(`exactly one recommended chat model for ${provider}`, () => {
       expect(CHAT_MODELS[provider].filter((m) => m.recommended)).toHaveLength(1);
     });
 
@@ -135,7 +135,7 @@ describe("resolveStoredModel (a stored id the provider shut down)", () => {
     expect(resolveStoredModel("openai", "chat", "gpt-4o-mini", before)).toBe("gpt-4o-mini");
   });
 
-  it("from the shutdown date, resolves to the recommended model for the same role", () => {
+  it("from the shutdown date, resolves to the default model for the same role", () => {
     expect(resolveStoredModel("openai", "chat", "gpt-4o-mini", after)).toBe(defaultChatModel("openai"));
     expect(resolveStoredModel("openai", "generation", "gpt-4.1", after)).toBe(defaultGenerationModel("openai"));
     expect(resolveStoredModel("openai", "generation", "gpt-4o", after)).toBe(defaultGenerationModel("openai"));
@@ -272,5 +272,6 @@ describe("Anthropic 5.x models are back in the generation picker (structured out
 
   it("does not change the default a family already has", () => {
     expect(defaultGenerationModel("anthropic")).toBe("claude-opus-4-6");
+    expect(defaultGenerationModel("openai")).toBe("gpt-6.1-sol");
   });
 });

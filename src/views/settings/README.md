@@ -48,7 +48,7 @@ The decisions most likely to harbor bugs are factored out of the components so t
 | Module | Responsibility |
 |---|---|
 | `lib/store-keys.ts` | Single source of truth for plugin-store key names + the secret predicate + the import allow-list. Consumed by `store.ts` **and** `settings-io.ts` so the two can't drift. |
-| `lib/models.ts` | Model catalog + `defaultGeneration/Chat/EmbeddingModel` (derived from the `recommended` flag) — one source for the pickers and the store defaults. `modelProvider` says which provider a model id belongs to; a stored model is used only by that provider (`resolveStoredModel`), and a provider switch clears one that belongs to another (`store.ts setLLMProvider`). |
+| `lib/models.ts` | Model catalog + `defaultGeneration/Chat/EmbeddingModel` (the `recommended` entry, else the first; no generation model is recommended until one is measured) — one source for the pickers and the store defaults. `modelProvider` says which provider a model id belongs to; a stored model is used only by that provider (`resolveStoredModel`), and a provider switch clears one that belongs to another (`store.ts setLLMProvider`). |
 | `lib/version.ts` | `compareVersions` / `isNewerVersion` for the About → Check-for-updates flow (SemVer core + prerelease aware). |
 | `lib/text-match.ts` | `matchText` — the search filter. |
 | `lib/settings-schema.ts` | `parseSettingsExport`, `sanitizeImportedPermissions` (drops garbage so the kernel never reads bad rules), `importedThemeChoice` (maps a CRT-era theme id in an old export; an old file's `crtOff` is accepted and ignored) — the import-validation core. |
