@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isSafetyDisclosure, SAFETY_NOTICE, CHILD_SAFETY_RULES } from "./child-safety";
+import { isSafetyDisclosure, pregnancyShape, SAFETY_NOTICE, CHILD_SAFETY_RULES } from "./child-safety";
+import { GRADES } from "./grade";
+import { fs, path, cwd } from "./eval/headless/node-io";
+import {
+  STRONG_PREGNANCY, REVIEW_342_STRONG, NOT_STRONG_PREGNANCY, REVIEW7_CLASS_A, REVIEW8_CLASS_A, REVIEW8_STILL_STRONG,
+} from "./child-safety-pregnancy.fixtures";
 import { speakableText } from "./speech";
 import chatTabSource from "../components/ChatTab.tsx?raw";
 
@@ -124,9 +129,9 @@ describe("CHILD_SAFETY_RULES", () => {
 // matches, not a production-path test: they pin that the chat calls the functions above, which are
 // the parts tested through the code production runs.
 describe("ChatTab wiring", () => {
-  it("screens each student message with isSafetyDisclosure and shows SAFETY_NOTICE", () => {
+  it("screens each student message with isSafetyDisclosure and the learner's grade, and shows SAFETY_NOTICE", () => {
     expect(chatTabSource).toContain('from "../lib/child-safety"');
-    expect(chatTabSource).toMatch(/msg\.role === "user" && isSafetyDisclosure\(msg\.content\) && \(/);
+    expect(chatTabSource).toMatch(/msg\.role === "user" && isSafetyDisclosure\(msg\.content, grade\) && \(/);
     expect(chatTabSource).toContain("{SAFETY_NOTICE}");
   });
 
@@ -139,5 +144,88 @@ describe("ChatTab wiring", () => {
   it("builds the tutor's system prompt with gradePromptLayer(grade, userText), not the reading level alone", () => {
     expect(chatTabSource).toMatch(/personaIdentityLayer\(persona\),\s*gradePromptLayer\(grade, userText\),\s*\)/);
     expect(chatTabSource).not.toContain("readingLevelLayer(");
+  });
+});
+
+// A K-12 learner who says they may be pregnant (ported from TerraTutor #158). With a K-12 grade set, a strong
+// self-disclosure in the message is a safety disclosure: ChatTab shows SAFETY_NOTICE under it, and the tutor
+// already has CHILD_SAFETY_RULES for every K-12 learner. Nothing blocks on it. With no grade (an adult, or a
+// learner who never set one), isSafetyDisclosure answers exactly as before. These call isSafetyDisclosure the
+// way ChatTab does, with the message and the grade (ChatTab wiring, above).
+describe("a strong self-disclosure of a pregnancy", () => {
+  it("is a safety disclosure for a learner with any K-12 grade", () => {
+    for (const g of GRADES) {
+      for (const m of [...STRONG_PREGNANCY, ...REVIEW_342_STRONG, ...REVIEW8_STILL_STRONG]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+    }
+  });
+
+  it("is not one with no grade set, so an adult sees exactly what they saw before", () => {
+    for (const m of [...STRONG_PREGNANCY, ...REVIEW_342_STRONG, ...REVIEW8_STILL_STRONG]) {
+      expect(isSafetyDisclosure(m, null), m).toBe(false);
+      expect(isSafetyDisclosure(m), m).toBe(false);
+    }
+  });
+
+  it("leaves a harm disclosure a disclosure with or without a grade", () => {
+    const m = "my stepdad touches me at night and im scared im pregnant";
+    expect(isSafetyDisclosure(m, null)).toBe(true);
+    expect(isSafetyDisclosure(m, 7)).toBe(true);
+    for (const g of [null, 0, 12] as const) {
+      expect(isSafetyDisclosure("what is 9 x 9?", g)).toBe(false);
+      expect(isSafetyDisclosure("", g)).toBe(false);
+    }
+  });
+
+  it("stays quiet on anyone else, a baby one day, grade, Bible, story, game, joke, language and pretend forms", () => {
+    for (const g of [null, ...GRADES]) {
+      for (const m of NOT_STRONG_PREGNANCY) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+    }
+  });
+
+  it("keeps the guarded jokes, play and language-lesson forms as with no grade, at every grade", () => {
+    for (const m of [...REVIEW7_CLASS_A, ...REVIEW8_CLASS_A]) {
+      for (const g of GRADES) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(isSafetyDisclosure(m, null));
+    }
+  });
+
+  it("stays strong where the narrowing must not reach: a length of time, a might-be, the test's own words, a verb", () => {
+    for (const m of [
+      "i missed my period for 2 months", "i missed my period for a while now", "i feel like i might be pregnant",
+      "my pregnancy test says positive", "i think im pregnant can you show me what to do", "im pregnant and i cant play soccer",
+      "im pregnant and my mom said to ask you",
+    ]) {
+      expect(isSafetyDisclosure(m, 8), m).toBe(true);
+      expect(isSafetyDisclosure(m, null), m).toBe(false);
+    }
+  });
+
+  // An adult who got a K-12 learner pregnant is also an abuse disclosure; with a grade set it gets the notice
+  // here. (With no grade, ABUSE_RE decides it, as on master.)
+  it("counts someone else who got the learner pregnant, at every grade", () => {
+    for (const g of GRADES) expect(isSafetyDisclosure("my stepdad got me pregnant", g), `${g}`).toBe(true);
+  });
+
+  it("reads the pregnancy word by its shape", () => {
+    for (const w of ["prenant", "pragnent", "pregrant", "pregnat", "pregnet", "pregnint", "pergnant", "preganant", "pregnent", "pregant", "pregnantly"])
+      expect(pregnancyShape(w), w).toBe("pregnant");
+    for (const w of ["preg", "prego", "preggo", "preggy", "preggie", "preggers", "pregers"]) expect(pregnancyShape(w), w).toBe("pregnant");
+    for (const w of ["pregnancy", "pregnancies", "pregnacy", "pregancy", "pregnency", "pregnance"]) expect(pregnancyShape(w), w).toBe("pregnancy");
+    for (const w of ["pennant", "remnant", "poignant", "regnant", "poignancy", "present", "prevent", "prenatal", "pregame", "pre", "pig"])
+      expect(pregnancyShape(w), w).toBe(null);
+  });
+
+  // The whole bundled English word list (public/wordlist/): every real word pregnancyShape accepts is a
+  // pregnancy word. A word list update that adds a new neighbour fails here until it is excluded.
+  it("accepts no ordinary English word", { timeout: 60_000 }, async () => {
+    const [f, p] = await Promise.all([fs(), path()]);
+    const dir = p.join(cwd(), "public", "wordlist");
+    const files = (await f.readdir(dir, { withFileTypes: true })).map((d) => d.name).filter((n) => /^[a-z]{2}\.json$/.test(n));
+    const accepted: string[] = [];
+    for (const n of files) {
+      for (const w of (JSON.parse(await f.readFile(p.join(dir, n), "utf8")) as string).split(" ")) if (pregnancyShape(w)) accepted.push(w);
+    }
+    expect(accepted.sort()).toEqual([
+      "impregnant", "preggers", "preggy", "pregnance", "pregnances", "pregnancies", "pregnancy", "pregnant", "pregnantly", "unpregnant",
+    ]);
   });
 });

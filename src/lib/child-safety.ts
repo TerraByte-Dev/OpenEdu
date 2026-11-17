@@ -6,9 +6,12 @@
 //    learner has a grade (K-12) set, and on any turn whose message trips isSafetyDisclosure, grade or
 //    not. Every other turn with no grade stays byte-identical (systemPrompt-master.test.ts pins that).
 // 2. isSafetyDisclosure, a check of a student's chat message for self-harm, suicide and abuse
-//    disclosures. A match shows SAFETY_NOTICE under that message. A notice, never a block: the tutor
+//    disclosures, and, for a learner with a K-12 grade set, a strong self-disclosure of a pregnancy
+//    (strongPregnancy, below). A match shows SAFETY_NOTICE under that message. A notice, never a block: the tutor
 //    turn still runs, always with CHILD_SAFETY_RULES, so the child is not met with silence. Like health-notice.ts, a deterministic list is auditable and costs nothing on a CPU box.
 //    A false positive costs one kind line of text; a miss means no notice, never a block. English only.
+
+import type { Grade } from "./grade";
 
 /** The child-safety section of the tutor's system prompt. Plain and short, for small models. */
 export const CHILD_SAFETY_RULES =
@@ -82,6 +85,204 @@ const ABUSE_RE = new RegExp(
 const KMS_RE =
   /^kms(?: (?:lol|lmao|rn|fr|bruh|omg))*[.!?]*$|(?<![\p{L}\p{N}])(?:i|i'll|ill|i'm|im|gonna|imma|ima|wanna|want to|going to|might|should|just) kms(?![\p{L}\p{N}])/u;
 
+// A K-12 learner who says they may be pregnant (ported from TerraTutor #158). Only a STRONG
+// SELF-DISCLOSURE in the newest message counts, and only when the learner has a K-12 grade set
+// (isSafetyDisclosure's grade). OpenEdu also serves adults: with no grade set this never counts, so
+// nothing changes for them. A hit only ADDS what any safety disclosure gets: SAFETY_NOTICE under the
+// message (it names Childhelp), and the tutor answers under CHILD_SAFETY_RULES (grade.ts already adds
+// them for every K-12 learner). It never blocks or changes a turn, so a false hit costs one notice.
+// Strong means the learner about themselves:
+//   - the first person with the pregnancy word: "am i pregnant", "i think i'm pregnant", "i might be pregnant",
+//     "could i be pregnant", "i'm (only / really / probably ...) pregnant", "i got pregnant", "he knocked me up",
+//     "he got me pregnant";
+//   - their own age with it, or with having a baby, in either order: "im 14 and pregnant", "i am 13 years old
+//     and pregnant", "im 15 and having a baby", "i'm having a baby and i'm 15";
+//   - their own missed or late period: "i missed my period", "my period is 2 weeks late";
+//   - their own positive test: "my pregnancy test was positive", "i took a pregnancy test and it said
+//     positive".
+// The pregnancy word is read by its shape (pregnancyShape: any spelling within two edits, the short forms,
+// digits for letters, letters spelled one at a time) and the pregnant-person emoji. Not strong, so no
+// notice: anyone else ("my mom is pregnant", "is my goat pregnant"), "have a baby" without the learner's own
+// age, "will i have babies one day", grade, Bible and story forms, "can i get pregnant from ...". Strong is
+// the learner's own real state, so a cue does not count when it is laughed off right after it ("lol", "jk",
+// "haha", a laughing emoji), inside quotation marks, or in a clause that names a story, book, show, game,
+// costume, doll or halloween, a language lesson, a hypothetical ("when i grow up", "if i were / was"), or
+// someone else's words ("said", "asked", "saying"). Those guards read only the cue's own clause or sentence
+// (cueIsGuarded), never the whole message: "I'm pregnant. Can you help with my book report?" counts. Only a
+// food-baby joke, "im a boy", family news ("were having a baby", "im going to be a big sister") and a school
+// class period ("i missed my period on monday, what did we learn?") quiet the whole message. The open
+// vocabulary this leaves out (euphemisms, "i'm late", "we didn't use protection") gets no notice.
+
+// Damerau-Levenshtein distance (optimal string alignment: insert, delete, change, or swap two neighbours).
+function editDistance(a: string, b: string): number {
+  let prev2: number[] = [];
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      let d = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d = Math.min(d, prev2[j - 2] + 1);
+      row.push(d);
+    }
+    prev2 = prev;
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+// The real English words inside pregnancyShape's reach that are not pregnancy words. Found by sweeping the
+// bundled word list (public/wordlist/, 274,137 words); child-safety.test.ts sweeps it again and fails on any
+// new one. The pregnancy words it also finds (pregnant, pregnantly, pregnancy, pregnancies, pregnance,
+// pregnances, impregnant, unpregnant, preggers, preggy) keep their shape.
+const NOT_PREGNANCY_SHAPE = new Set([
+  "pennant", "poignant", "preenact", "preplant", "regnant", "regrant", "remnant",
+  "pernancy", "pernancies", "poignancy", "poignancies", "prevenancy", "prevenancies", "regnancy", "regnancies",
+  "reggo", "priggers", "proggers",
+]);
+
+/**
+ * The pregnancy word by its shape, not by a list of spellings ("prenant", "pragnent" and "pregrant" each fell
+ * outside a list). A lower-case word is "pregnant" when it is 7 to 10 letters and within two edits of
+ * "pregnant", or a short form: "preg", "preggie(s)", or 5 to 9 letters within one edit of "preggo" (prego,
+ * preggos) or "preggers" (pregers). It is "pregnancy" (the noun) when it is within two edits of "pregnancy"
+ * (7-11 letters) or "pregnancies" (9-13) and closer to it than to "pregnant", or ends in "cy" or "cies".
+ * Short forms get one edit, not two: two edits of a six-letter word reach ordinary words. Real words in reach
+ * are never it (NOT_PREGNANCY_SHAPE). Otherwise null.
+ */
+export function pregnancyShape(word: string): "pregnant" | "pregnancy" | null {
+  const n = word.length;
+  if (n < 4 || n > 13 || NOT_PREGNANCY_SHAPE.has(word)) return null;
+  if (word === "preg" || word === "preggie" || word === "preggies") return "pregnant";
+  if (n >= 5 && n <= 9 && (editDistance(word, "preggo") <= 1 || editDistance(word, "preggers") <= 1)) return "pregnant";
+  const adj = n >= 7 && n <= 10 ? editDistance(word, "pregnant") : 99;
+  const noun = Math.min(n >= 7 && n <= 11 ? editDistance(word, "pregnancy") : 99, n >= 9 ? editDistance(word, "pregnancies") : 99);
+  if (noun <= 2 && (noun < adj || /c(?:y|ies)$/.test(word))) return "pregnancy";
+  return adj <= 2 ? "pregnant" : null;
+}
+
+// Every pregnancy-shaped word written as "pregnant" or "pregnancy", so the patterns below name one spelling.
+// Not "prego" before sauce or pasta. Digits read as letters inside a word ("pr3gnant"), and letters spelled
+// out one at a time ("p r e g n a n t", "am i p.r.e.g.n.a.n.t") are joined when the joined word has the
+// shape; a single letter before the run ("i") is kept as its own word. The pregnant woman, man and person
+// emoji are the word ("am i 🤰"); the breast-feeding emoji is not (a baby already born).
+const SAUCE = /^ (?:sauce|pasta|spaghetti)(?![\p{L}\p{N}])/u;
+const LEET: Record<string, string> = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "6": "g", "9": "g" };
+const SPELLED = /(?<![\p{L}\p{N}])\p{L}(?:[ .-]\p{L}(?![\p{L}\p{N}])){4,}/gu;
+const PREGNANT_EMOJI = /[\u{1F930}\u{1FAC3}\u{1FAC4}]/gu;
+function pregnancyWords(text: string): string {
+  const joined = text.replace(PREGNANT_EMOJI, " pregnant ").replace(/\s+/g, " ").trim().replace(SPELLED, (run: string) => {
+    const w = run.replace(/[ .-]/g, "");
+    if (pregnancyShape(w.slice(1))) return `${w[0]} ${w.slice(1)}`;
+    return pregnancyShape(w) ? w : run;
+  });
+  return joined.replace(/\p{L}[\p{L}\d]*/gu, (w: string, at: number) => {
+    const shape = pregnancyShape(/\d/.test(w) ? w.replace(/\d/g, (d) => LEET[d] ?? d) : w);
+    return shape && !SAUCE.test(joined.slice(at + w.length)) ? shape : w;
+  });
+}
+
+// After pregnancyWords.
+const PREG = "(?:pregnant|knocked[- ]up)";
+const AGE =
+  "(?:(?<!\\p{N})(?:1[0-7]|[1-9])(?!\\p{N})|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen)";
+const IM = "(?:i'm|im|i am)";
+const ADVERB = "(?:only|just|so|really|actually|probably|maybe|possibly|definitely|still|also|now|kinda|like|totally|literally|already)";
+// A cue laughed off right after it is a joke ("im pregnant lol", "i ate so much im pregnant 😂"), not a
+// disclosure. A laughing emoji further on ("im pregnant omg what do i do 😂😭") is not.
+const NOT_JOKE =
+  "(?![\\s.,!?]*(?:(?:lol|lmao|jk|j/k|ha(?:ha)+|hehe)(?![\\p{L}\\p{N}])|[\\u{1F602}\\u{1F606}\\u{1F639}\\u{1F923}]))";
+const YEARS_OLD = "(?: ?(?:years?|yrs?|yr)[- ]?old| ?y/?o)?";
+// The learner's own baby, not a sibling's, a doll or a pet ("im 7 and going to have a baby sister").
+const HAVING_A_BABY =
+  "(?:having|(?:going to|gonna) have) a baby(?! (?:sister|brother|sibling|cousin|niece|nephew|doll|shower|tooth|teeth|goat|lamb|chick|bunny|kitten|puppy)(?![\\p{L}\\p{N}]))";
+// What makes "i missed my period" a school class period: a day, the sub or class right after it, or "for"
+// before anything but a length of time ("for the assembly", not "for 2 months"); or a lesson question later.
+const WEEKDAY = "(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)";
+const DURATION =
+  "(?:(?:a|about|over|like|almost|nearly|more than) )?(?:\\d|one|two|three|four|five|six|seven|eight|nine|ten|a few|a couple|a while|a long|months?|weeks?|days?|so long|too long)";
+const SCHOOL_PERIOD =
+  "(?! (?:(?:on " + WEEKDAY + "|with the sub(?:stitute)?|in class)(?![\\p{L}\\p{N}])|for (?!" + DURATION + ")))" +
+  "(?!.*(?:what did we learn|homework|(?:math|history|science) period))";
+const STRONG_PREGNANCY = [
+  // The first person with the word. Not "i feel like im pregnant" or "like i'm pregnant" (a full tummy).
+  "(?:am i|(?:could|might|may) i be|i (?:might|may|could|must) be|i think (?:" + IM + "|i (?:might|may|could) be)|(?<!like )" + IM +
+    "(?: " + ADVERB + ")*|i (?:got|was|became|have been|'ve been|ve been)|i'm getting|im getting) " + PREG,
+  "(?:knocked me up|(?:got|gotten|made|get|gets) me " + PREG + ")",
+  // The child's own age with it, or with having a baby, in either order.
+  IM + " (?:only |just )?" + AGE + YEARS_OLD + ",? (?:and|&) (?:" + PREG + "|(?:" + IM + " )?" + HAVING_A_BABY + ")",
+  IM + " " + HAVING_A_BABY + ",? (?:and|&) (?:" + IM + " )?(?:only |just )?" + AGE + YEARS_OLD,
+  // The child's own missed or late period. Not a school period ("i missed my period 2 class", "i missed my
+  // period on monday, what did we learn?").
+  "(?:missed|skipped|miss|missing) my (?:last )?period" +
+    "(?! ?(?:\\d|one|two|three|four|five|six|seven|eight|class\\p{L}*|block|lesson|teacher|bell|of|because|cause|bc|today|at school|in school|for class)(?![\\p{L}\\p{N}]))" +
+    SCHOOL_PERIOD,
+  "my period(?:'s|s| is| was| has been| seems)(?: (?:like|about|really|so|very|a|an|one|two|three|four|five|six|few|couple|of|\\d+|days?|weeks?|little|bit|lot))* (?:late|overdue)",
+  // The child's own positive test.
+  "my pregnancy tests? (?:(?:came back|came out|was|is|were|are|said|says|showed|shows|turned|read|reads) )+(?:[\\p{L}']+ )?positive",
+  "i (?:took|did|had|got|used) (?:a |the |an |another )?(?:home )?pregnancy tests?(?: [\\p{L}'&]+){0,6}? positive",
+  "i (?:got|have|had) (?:a )?positive pregnancy tests?",
+].map((s) => new RegExp("(?<![\\p{L}\\p{N}])" + s + "(?![\\p{L}\\p{N}])" + NOT_JOKE, "gu"));
+
+// The guards below read only the cue's own clause or sentence, so a disclosure next to an ordinary mention
+// still counts ("im pregnant and i dont want to go to the school play", "I'm pregnant. Can you help with my
+// book report?", "my friend said i should take a test because i think im pregnant"). A clause ends at , ; :
+// . ! ? or a joining word; a sentence at . ! ?
+const CLAUSE_BREAK = /[,;:.!?]|(?<![\p{L}\p{N}])(?:and|but|so|because|cause|cuz|bc|then|or)(?![\p{L}\p{N}])/gu;
+const SENTENCE_BREAK = /[.!?]/gu;
+function lastBreakEnd(text: string, re: RegExp): number {
+  let end = 0;
+  for (const m of text.matchAll(re)) end = m.index + m[0].length;
+  return end;
+}
+function firstBreak(text: string, re: RegExp): number {
+  for (const m of text.matchAll(re)) return m.index;
+  return text.length;
+}
+// In the cue's clause, before or after it: a story, a book, a show, a game, pretend play, a school play, a
+// costume, a doll ("write a story where the queen says i'm pregnant", "i got pregnant in bitlife", "in toca boca
+// i am pregnant", "i was pregnant in the school play", "im pregnant with my baby doll"), or a language lesson
+// ("i am pregnant in french"). "play" and "show" count as nouns only ("the school play", "a tv show"), never
+// "show me" or "playing soccer".
+const FICTION_RE =
+  /(?<![\p{L}\p{N}])(?:story|stories|books?|novels?|movies?|films?|poems?|chapters?|characters?|pretend\p{L}*|role ?play\p{L}*|fanfic|scripts?|games?|toca(?: boca)?|gacha|bitlife|sims|minecraft|roblox|costumes?|halloween|dolls?|tv|episodes?|cartoons?|(?:school|class|church|christmas|nativity|the|a|our|my) play|play(?:ing|ed|s)? (?:house|pretend|mom|mommy|family|doctors?|hospital|vet)|(?:tv|a|the|this|that|my|our|favou?rite) shows?|(?:in|into|to) (?:spanish|french))(?![\p{L}\p{N}])/u;
+// Earlier in the cue's sentence: pretend play that frames what follows ("lets play doctor, im pregnant", "im
+// playing house with my sister and im pregnant").
+const PLAY_FRAME =
+  /(?<![\p{L}\p{N}])(?:pretend\p{L}*|role ?play\p{L}*|play(?:ing|ed|s)? (?:house|pretend|mom|mommy|family|doctors?|hospital|vet))(?![\p{L}\p{N}])/u;
+// Earlier in the cue's clause: someone else's words ("my teacher asked am i pregnant?", "my brother keeps
+// saying im pregnant"; not "the test said" or "it said", the child's own test), a language lesson ("how do you
+// say i am pregnant"), or a hypothetical ("when i grow up could i be pregnant", "if i was a seahorse dad could
+// i be pregnant"). After the cue, "if i was" is the learner's own question ("could i be pregnant if i was ...").
+const FRAMED =
+  /(?<![\p{L}\p{N}])(?:(?<!(?:tests?|it) )(?:said|says|asked|asks|saying)|how do (?:you|u|i) say|when i grow up|if i (?:were|was))(?![\p{L}\p{N}])/u;
+// Anywhere in the message: a food-baby joke, a boy asking, or family news, someone else's baby ("were having
+// a baby", "so now im going to be a cousin").
+const NOT_OWN_STATE =
+  /(?<![\p{L}\p{N}])(?:food[- ]?bab(?:y|ies)|(?:i'm|im|i am) a boy|(?:we're|were|we are) having a baby|(?:going to|gonna) be (?:a |an )?(?:big )?(?:cousin|aunt|auntie|uncle|sister|brother|sibling))(?![\p{L}\p{N}])/u;
+// Someone else's words inside quotation marks (an unclosed double quote runs to the end) never count.
+const QUOTED = /"[^"]*(?:"|$)|“[^”]*(?:”|$)|(?<![\p{L}\p{N}])'.*?'(?![\p{L}\p{N}])/gu;
+
+function cueIsGuarded(text: string, start: number, end: number): boolean {
+  const before = text.slice(0, start);
+  const after = text.slice(end);
+  const clauseBefore = before.slice(lastBreakEnd(before, CLAUSE_BREAK));
+  const clauseAfter = after.slice(0, firstBreak(after, CLAUSE_BREAK));
+  const sentenceBefore = before.slice(lastBreakEnd(before, SENTENCE_BREAK));
+  return (
+    FICTION_RE.test(clauseBefore) || FICTION_RE.test(clauseAfter) || FRAMED.test(clauseBefore) || PLAY_FRAME.test(sentenceBefore)
+  );
+}
+
+function strongPregnancy(text: string): boolean {
+  const c = pregnancyWords(text);
+  if (NOT_OWN_STATE.test(c)) return false;
+  const own = c.replace(QUOTED, " ");
+  return STRONG_PREGNANCY.some((re) => {
+    for (const m of own.matchAll(re)) if (!cueIsGuarded(own, m.index, m.index + m[0].length)) return true;
+    return false;
+  });
+}
+
 function normalise(s: string): string {
   // Apostrophes first: NFKC turns "´" into a space and a combining accent.
   return s.replace(/[‘’ʼ`´]/g, "'").normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
@@ -95,11 +296,16 @@ function endsWord(text: string, i: number): boolean {
   return i >= text.length || !WORD_CHAR.test(text[i]);
 }
 
-/** True when a student's message reads as a self-harm, suicide or abuse disclosure. */
-export function isSafetyDisclosure(message: string): boolean {
+/**
+ * True when a student's message reads as a self-harm, suicide or abuse disclosure, or, when the learner
+ * has a K-12 grade set, as a strong self-disclosure of a pregnancy (strongPregnancy). With no grade (an
+ * adult, or a learner who never set one) only the first part applies.
+ */
+export function isSafetyDisclosure(message: string, grade: Grade | null = null): boolean {
   const text = normalise(message);
   if (!text) return false;
   if (ABUSE_RE.test(text) || KMS_RE.test(text)) return true;
+  if (grade !== null && strongPregnancy(text)) return true;
   return PHRASES.some((entry) => {
     const stem = entry.endsWith("*");
     const phrase = stem ? entry.slice(0, -1) : entry;
