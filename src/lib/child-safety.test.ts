@@ -4,6 +4,7 @@ import { GRADES } from "./grade";
 import { fs, path, cwd } from "./eval/headless/node-io";
 import {
   STRONG_PREGNANCY, REVIEW_342_STRONG, NOT_STRONG_PREGNANCY, REVIEW7_CLASS_A, REVIEW8_CLASS_A, REVIEW8_STILL_STRONG,
+  PREGNANCY_CORPUS,
 } from "./child-safety-pregnancy.fixtures";
 import { speakableText } from "./speech";
 import chatTabSource from "../components/ChatTab.tsx?raw";
@@ -180,6 +181,42 @@ describe("a strong self-disclosure of a pregnancy", () => {
     for (const g of [null, ...GRADES]) {
       for (const m of NOT_STRONG_PREGNANCY) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
     }
+  });
+
+  // The corpus shared with TerraTutor #161 (every review input and fixture, tagged by source), through the call
+  // ChatTab and grade.ts make: the notice on every strong input at every K-12 grade, none on any not-strong
+  // input, and none at all with no grade. The accepted extra notices (lead decision after TerraTutor #161's
+  // second final review: the notice never blocks, so a missed disclosure costs more) get the notice at every
+  // K-12 grade too, pinned so a change to them shows here, and none with no grade.
+  it("decides every input of the shared corpus as the reviews ruled", () => {
+    const { strong, notStrong, acceptedExtraNotice } = PREGNANCY_CORPUS;
+    expect(strong.length).toBe(85);
+    expect(notStrong.length).toBe(144);
+    expect(acceptedExtraNotice.length).toBe(10);
+    const texts = [...strong, ...notStrong, ...acceptedExtraNotice].map((e) => e.text);
+    expect(new Set(texts).size).toBe(texts.length);
+    const wrong: string[] = [];
+    for (const g of [null, ...GRADES]) {
+      for (const e of [...strong, ...acceptedExtraNotice])
+        if (isSafetyDisclosure(e.text, g) !== (g !== null)) wrong.push(`${g} notice: ${e.text} (${e.source})`);
+      for (const e of notStrong) if (isSafetyDisclosure(e.text, g)) wrong.push(`${g} not strong: ${e.text} (${e.source})`);
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  // TerraTutor #161's second final review, must-fix 1: "pregnant with" a partner, "nobody", "no money" or
+  // "nowhere" is a disclosure, so there is no "pregnant with <thing>" guard. A laughing emoji and "food baby"
+  // still make it a joke.
+  it("gives the notice on \"pregnant with\" anything but a laughed-off joke or a food baby", () => {
+    for (const m of [
+      "im pregnant with my boyfriend", "i'm pregnant with my ex", "im pregnant with my bf's", "im pregnant with nobody to help me",
+      "i'm pregnant with nobody to talk to", "im pregnant with no money and no job", "im pregnant with nowhere to go",
+      "im pregnant with tacos",
+    ]) {
+      expect(isSafetyDisclosure(m, 8), m).toBe(true);
+      expect(isSafetyDisclosure(m, null), m).toBe(false);
+    }
+    for (const m of ["im pregnant with tacos 😂", "im pregnant with a food baby"]) expect(isSafetyDisclosure(m, 8), m).toBe(false);
   });
 
   it("keeps the guarded jokes, play and language-lesson forms as with no grade, at every grade", () => {

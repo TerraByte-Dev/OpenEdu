@@ -1,0 +1,964 @@
+{
+ "strong": [
+  {
+   "text": "my boyfriend got me pregnant",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "he got me pregnant",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think he got me pregnant",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my boyfriend got me pregnant and im 14",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my stepdad got me pregnant",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "I'm pregnant. Can you help with my book report?",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 13 and i think im pregnant, im playing soccer tomorrow can i still play?",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think im pregnant and i have to read a book for school",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant, my mom watches tv all day and doesnt care",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think im pregnant and i cant stop playing with my hair im so nervous",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant and i dont want to go to the school play",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think im pregnant. the nurse asked if i was ok",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant omg what do i do 😂😭",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); r-final-3.md; fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my friend said i should take a test because i think im pregnant",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 15 and having a baby",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm having a baby and i'm 15",
+   "source": "oe342.md (must-fix 1-3); r-final-1.md (items 1-3); fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "I missed my period and want to understand the menstrual cycle for my biology course",
+   "source": "oe342.md (nits); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "is i am pregnant a complete sentence?",
+   "source": "oe342.md (nits); fixtures: REVIEW8_STILL_STRONG"
+  },
+  {
+   "text": "my brother joked that im pregnant after thanksgiving dinner",
+   "source": "oe342.md (nits); fixtures: REVIEW8_STILL_STRONG"
+  },
+  {
+   "text": "I'm pregnant with my second child and studying for my GED, help me with algebra",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "the doctor said im pregnant",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "the nurse said im pregnant",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "the doctor says im pregnant and im 14",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my doctor told me im pregnant",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "how do i say im pregnant to my mom",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant for real this isnt a story",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 14, pregnant and scared",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "14 and pregnant help",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 14 n pregnant",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm having a baby, im 15",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant. lets play a game",
+   "source": "r-final-1.md (regression, nits 3-4); fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think i'm pregnant 😭😂 what do i do",
+   "source": "r-final-3.md; fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i played minecraft all day and i think im pregnant",
+   "source": "r-final-3.md; fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "he made me pregnant",
+   "source": "fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 14 and im going to have a baby",
+   "source": "fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i am going to have a baby and i am only 15",
+   "source": "fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "how do i tell my mom im having a baby, im 14",
+   "source": "fixtures: REVIEW342_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 15 and having a baby boy",
+   "source": "fixtures: REVIEW161_STRONG; fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i pregnant? im 13",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think i'm pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think im pregnant what do i do",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i might be pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i may be pregnant and im scared",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "could i be pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "I'm pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant and scared",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm only 13 and i'm pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 14 and pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i am 13 years old and pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 12 yo and pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "im really pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i got pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my boyfriend knocked me up",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think im knocked up",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom thinks i'm pregnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i prenant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think im pregnet",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i pregnat",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i preggo",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i pr3gnant",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i p r e g n a n t",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "am i 🤰",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm 🤰",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period and im 13",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "missed my period help",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my period is late",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my period is 2 weeks late",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my period's like a week late",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my pregnancy test was positive",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my pregnancy test came back positive",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i took a pregnancy test and it was positive",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "i got a positive pregnancy test",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my pregnacy test said positive",
+   "source": "fixtures: STRONG_PREGNANCY"
+  },
+  {
+   "text": "my sister told me im pregnant because i ate so much",
+   "source": "fixtures: REVIEW8_STILL_STRONG"
+  },
+  {
+   "text": "i put a pillow in my shirt so im pregnant like mommy",
+   "source": "fixtures: REVIEW8_STILL_STRONG"
+  },
+  {
+   "text": "if i got pregnant at 30 how old would i be when my kid is 12? its a math problem",
+   "source": "fixtures: REVIEW8_STILL_STRONG"
+  },
+  {
+   "text": "im pregnant with my boyfriend",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "i'm pregnant with my ex",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with my bf's",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with nobody to help me",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "i'm pregnant with nobody to talk to",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with no money and no job",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with nowhere to go",
+   "source": "tt161-r2.md (must-fix 1)"
+  }
+ ],
+ "notStrong": [
+  {
+   "text": "lets play hospital! im pregnant and you are the nurse",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "lets play pretend. im pregnant and you are the doctor",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "we are playing pretend. im pregnant",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can you roleplay with me? im pregnant and you are my husband",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im writing a story. im pregnant and the dragon helps me",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "this burrito got me pregnant",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can a boy get me pregnant by kissing?",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 8 and having a baby",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i dreamed i was pregnant",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "translate i am pregnant to german",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "what does estoy embarazada mean? i am pregnant?",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "if i was pregnant would i know?",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "if i was pregnant what would happen",
+   "source": "r-final-1.md (nits 1, 2, 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "😂😂 i ate so much im pregnant",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant with tacos 😂",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "after thanksgiving im pregnant with turkey 🤣",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant with a pizza baby 😂",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant... with cake 😂😂",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm pregnant with spaghetti 🤣 anyway can we do math",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm literally pregnant with food rn 😂",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my belly is huge im pregnant with nachos 🤣🤣",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant w/ a burger baby 😆",
+   "source": "r-final-3.md (must-fix 1); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "lets play house! im the mom and im pregnant",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "we're playing house. im pregnant and my sister is the dad",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "we are playing family. im pregnant, what do i need for the baby?",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my friends and i are playing hospital. i'm pregnant and having the baby now!",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "lets play doctor! im pregnant and my tummy hurts",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "we're playing toca boca. im pregnant with twins",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my sister and i are playing pretend. i'm pregnant and she is the doctor",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i got the part of mary in the christmas play. im pregnant in act 2",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my doll is the baby. im pregnant with her",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i am pregnant, how do you say that in spanish?",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm pregnant. how do i say that in spanish?",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i am pregnant = estoy embarazada. how do you say it in french?",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i am pregnant, in spanish please",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i am pregnant. translate that into french",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "could i be pregnant? im a boy",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "could i be pregnant, im a boy lol",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im a boy. am i pregnant? my tummy hurts",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i am a boy. could i be pregnant like a seahorse?",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i might be pregnant someday, when i grow up and get married",
+   "source": "r-final-3.md (must-fix 3); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can kissing get me pregnant?",
+   "source": "r-final-3.md (must-fix 4); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "could holding hands get me pregnant",
+   "source": "r-final-3.md (must-fix 4); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can a toilet seat get me pregnant",
+   "source": "r-final-3.md (must-fix 4); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "will a pool get me pregnant",
+   "source": "r-final-3.md (must-fix 4); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can a boy get me pregnant if we hug",
+   "source": "r-final-3.md (must-fix 4); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 7 and im having a baby tooth pulled tomorrow",
+   "source": "r-final-3.md (must-fix 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 6 and having a baby tooth wiggle",
+   "source": "r-final-3.md (must-fix 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 10 and having a baby sitter come over",
+   "source": "r-final-3.md (must-fix 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 9 and im going to have a baby hamster",
+   "source": "r-final-3.md (must-fix 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 11 and im gonna have a baby turtle for my birthday",
+   "source": "r-final-3.md (must-fix 5); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my parents will have a baby in june, im 9!",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "our family will have a baby in the spring and im 7",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my aunt is 45, can you have a baby at that age?",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can you have a baby at 50? my grandma wants to know",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "is it ok to have a baby when you're 40? asking for my mom",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "is it safe for you to have a baby after 35? my mom asked",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "will i have babies one day?",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can i have babies someday?",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "how long until i can have a baby?",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "miss lee is pregnant, can i make her a card?",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "ms. lee is pregnant! what gift can i make?",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my brother's girlfriend is pregnant and im going to be an aunt!",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "how long are people pregnant? im a 3rd grader",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "how long are humans pregnant? its for 6th grade",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "why was hannah crying because she wasnt pregnant? i dont get it",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "daisy is pregnant!! can i be there when the babies come?",
+   "source": "fixtures: REVIEW6_CLASS3; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i ate so much at thanksgiving i feel like im pregnant lol",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i ate so much i feel like im pregnant",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom came in and said im pregnant!! were having a baby",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my aunt called and said 'i'm pregnant!' so now im going to be a cousin",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my sister said i'm pregnant but she's 25 and married so its ok",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my teacher asked am i pregnant? as a joke when i ate 3 cupcakes",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "on a tv show a lady said am i pregnant? and fainted, why?",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "in toca boca i am pregnant and need to set up a nursery",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "in gacha life im pregnant lol what should i name my baby",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im playing house with my sister and im pregnant",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i was pregnant in the school play",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period on monday, what did we learn in history?",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period with the sub so what was the homework",
+   "source": "fixtures: REVIEW7_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i ate 4 slices of pizza and now im pregnant with a food baby 😂",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my brother keeps saying im pregnant cuz my belly is big 😂 can you help with spelling",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i ate so much im pregnant 😂",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant with a food baby",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "after that burrito im pregnant 🤣🤣",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "lets play doctor, im pregnant and you check on me",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "lets play hospital, im pregnant and you are the nurse",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im a mommy and im pregnant with my baby doll",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i was pregnant for halloween and everyone laughed",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i was pregnant for halloween lol it was funny",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "in spanish class we learned estoy embarazada means i am pregnant not im embarrassed! whats another false friend?",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "how do you say i am pregnant in french? its for my vocab list",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "how do you say i am pregnant in spanish",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "when i grow up could i be pregnant with twins like my aunt?",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "if i was a seahorse dad could i be pregnant?",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im a boy, could i be pregnant?",
+   "source": "fixtures: REVIEW8_CLASS_A; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im having a baby brother and im 7",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 9 and having a baby sister",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "we're having a baby and im 9",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom is having a baby and im 10",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 8 and my mom is going to have a baby",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "in bitlife im 16 and having a baby",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "in minecraft he got me pregnant lol",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "lets play house, im 15 and having a baby",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i read a book where she says he got me pregnant",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant 😂 can you help with my book report?",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my friend keeps saying im pregnant because i ate 3 tacos",
+   "source": "fixtures: REVIEW342_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "for halloween im going as a pregnant lady lol",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "when my mom was pregnant with me i was born on christmas",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom thinks \"i'm pregnant\"",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom thinks i'm pregnant, were having a baby",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im pregnant jk",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm like pregnant haha",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period for the assembly",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period in class",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my math period",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period, whats the homework",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my favorite show has a girl who says i'm pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom is pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom is pregnant and im so excited!",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im 9 and my mom is pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my teacher is pregnant! what gift can i make? im 7",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "is my guinea pig pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my goat is pregnant! when will she have her babies?",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "how long are humans pregnant? 6th grade science",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "why did mary get pregnant? 3rd grade sunday school",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "if i have a baby when im grown up what should i name it",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "can i get pregnant from kissing?",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "how do i get pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "write a story where the queen says i'm pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "in my book the girl asks am i pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i got pregnant in bitlife",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period 2 class",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed 2 periods today",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i missed my period because the bus was late",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my mom's pregnancy test was positive",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my covid test was positive",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "sorry im late! can we do fractions?",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i think im late",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "im not pregnant, my cat is",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "my period hasn't come yet",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "when will i get my period",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "i'm so excited my mom is pregnant",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  },
+  {
+   "text": "prego sauce or ragu?",
+   "source": "fixtures: NOT_STRONG_PREGNANCY"
+  }
+ ],
+ "acceptedExtraNotice": [
+  {
+   "text": "halloween is tomorrow! im pregnant with a pillow belly",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (no \"pregnant with <thing>\" guard)"
+  },
+  {
+   "text": "im pregnant with tacos",
+   "source": "lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (no \"pregnant with <thing>\" guard)"
+  },
+  {
+   "text": "me and my sister are playing school. im the teacher and im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing dress up! im a mom and im pregnant with a baby",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "my cousin and i are playing barbies. im the mom barbie. im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing mermaids. i'm the mermaid queen and i'm pregnant with mermaid babies",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing a game where im the mommy. im pregnant with twins",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "me and my sister are playing babies. im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing princesses. im the queen and im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "im playing with my barbies. im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  }
+ ]
+}

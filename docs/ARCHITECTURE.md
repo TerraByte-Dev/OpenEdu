@@ -737,6 +737,28 @@ by code, with no model call.
   late. The count belongs to one session: it starts at zero when a learner comes in (a switch resets
   it) and is not saved, so it also starts again after a restart.
 
+## The safety notice for a pregnancy (`child-safety.ts strongPregnancy`)
+
+With a K-12 grade set, a strong pregnancy self-disclosure in the learner's message ("am i pregnant", "im 14
+and pregnant", "i missed my period", "my pregnancy test was positive") is a safety disclosure: ChatTab shows
+`SAFETY_NOTICE` under it. With no grade set nothing changes. The notice never blocks an answer, so a missed
+disclosure costs far more than an extra notice, and the guards that keep jokes, pretend play, language lessons
+and someone else's words quiet are kept narrow (the lead's decision after TerraTutor #161's second final
+review, which the two repos share):
+
+- There is no "pregnant with <thing>" guard. "im pregnant with my boyfriend", "im pregnant with nobody to help
+  me" and "im pregnant with nowhere to go" get the notice, and so does "im pregnant with tacos". A laughing
+  emoji anywhere (unless the message also shows distress) and "food baby" in the cue's clause still make it a
+  joke.
+- `PRETEND_FRAME` is a fixed list (play house, pretend, toca boca, the school play, ...). A pretend game set up
+  in an earlier sentence that is not on it ("we're playing school. im the teacher and im pregnant") gets one
+  notice; a wider frame could hide a real disclosure.
+
+`src/lib/child-safety-pregnancy-corpus.json` holds every input both repos' reviews ruled on, tagged by source:
+`strong` (the notice), `notStrong` (no notice) and `acceptedExtraNotice` (the notice, accepted under the
+decision above). `child-safety.test.ts` runs all of it through `isSafetyDisclosure` at every grade and with
+none.
+
 ## Whether a lesson was checked (`ai-notice.ts`, migration 22)
 
 Fable's decisions, 2026-11-16. The default 8 GB model, `gemma4:e2b`, was measured writing a major false fact
