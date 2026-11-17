@@ -117,8 +117,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
     await setLLMProvider(p);
     markSaved();
     onProviderChanged?.();
-    // Re-read the models the app will now send for this provider: with nothing stored, the getters fall
-    // back to the provider's own defaults, so the chips never show the previous provider's model.
+    // Re-read the models the app will now send for this provider: its own pick, or with none, its default
+    // (each provider keeps its own pick), so the chips never show the previous provider's model.
     const gen = (await getGenerationConfig()).model;
     saved.current.gen = gen;
     if (current()) setGenModel(gen);
@@ -146,8 +146,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
   const saveModel = async (job: ModelJob, m: string) => {
     saved.current[job] = m;
-    if (job === "gen") { setGenModel(m); await setGenerationModel(m); }
-    else { setChatModelState(m); await setChatModel(m); }
+    if (job === "gen") { setGenModel(m); await setGenerationModel(m, provider); }
+    else { setChatModelState(m); await setChatModel(m, provider); }
     markSaved();
   };
   const showModel = (job: ModelJob, m: string) => (job === "gen" ? setGenModel : setChatModelState)(m);

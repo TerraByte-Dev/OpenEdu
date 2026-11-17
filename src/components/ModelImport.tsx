@@ -84,9 +84,10 @@ export default function ModelImport({ ollamaUrl, onImported }: { ollamaUrl: stri
 
   // The imported model becomes the tutor for chat AND for building courses: setup checks both, and a
   // course build that still points at a model this computer doesn't have would fail at Create course.
+  // It is an Ollama model, so it is saved as Ollama's pick whatever provider is selected.
   const useModel = async (model: string, checked: boolean) => {
-    await setChatModel(model);
-    await setGenerationModel(model);
+    await setChatModel(model, "ollama");
+    await setGenerationModel(model, "ollama");
     setRun({ at: "done", name: model, checked, used: true });
     onImported(model);
   };

@@ -3,7 +3,7 @@
 
 import type { LLMProvider } from "../../../types";
 import type { RetrievalMode } from "../../kernel/ground";
-import { STORE_KEYS, apiKeyStoreKey } from "../../store-keys";
+import { STORE_KEYS, apiKeyStoreKey, modelStoreKey } from "../../store-keys";
 import type { RagPrompt } from "../rag-runner";
 
 export type EvalSuite = "rag" | "k12-flow" | "k12-flow-fr" | "b7-cpu" | "define";
@@ -218,8 +218,8 @@ export function parseEvalEnv(env: Record<string, string | undefined>): EvalOptio
 export function storeValuesFor(o: EvalOptions): Record<string, unknown> {
   const v: Record<string, unknown> = {
     [STORE_KEYS.provider]: o.provider,
-    [STORE_KEYS.chatModel]: o.model,
-    [STORE_KEYS.genModel]: o.model,
+    [modelStoreKey("chat", o.provider)]: o.model,
+    [modelStoreKey("generation", o.provider)]: o.model,
     [STORE_KEYS.ollamaUrl]: o.ollamaUrl,
   };
   if (o.embedModel) v[STORE_KEYS.embeddingModel] = o.embedModel;

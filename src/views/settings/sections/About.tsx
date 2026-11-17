@@ -14,7 +14,7 @@ import {
 } from "../../../lib/settings-io";
 import { checkForUpdate, installUpdate, type Update } from "../../../lib/updater";
 import { DICTIONARY_CREDIT, DICTIONARY_LICENCES, readLicence } from "../../../lib/dictionary";
-import { STORE_FILE, STORE_KEYS } from "../../../lib/store-keys";
+import { STORE_FILE, STORE_KEYS, MODEL_STORE_KEYS, LEGACY_MODEL_STORE_KEYS } from "../../../lib/store-keys";
 import { Section, SettingRow, ActionButton, Toggle, INPUT_CLS, useSettings } from "../primitives";
 import { BrandMark } from "../../../components/BrandMark";
 import type { SectionProps } from "../types";
@@ -149,7 +149,7 @@ export default function About({ onProviderChanged }: SectionProps) {
     await savePermissionRules({ ...DEFAULT_PERMISSION_RULES });
     try {
       const store = await Store.load(STORE_FILE);
-      for (const k of [STORE_KEYS.genModel, STORE_KEYS.chatModel, STORE_KEYS.embeddingModel, STORE_KEYS.embeddingProvider, STORE_KEYS.libraryUrl]) await store.delete(k);
+      for (const k of [...MODEL_STORE_KEYS, ...LEGACY_MODEL_STORE_KEYS, STORE_KEYS.embeddingModel, STORE_KEYS.embeddingProvider, STORE_KEYS.libraryUrl]) await store.delete(k);
       await store.set(STORE_KEYS.libraryEnabled, true);
       await store.save();
     } catch { /* ignore */ }

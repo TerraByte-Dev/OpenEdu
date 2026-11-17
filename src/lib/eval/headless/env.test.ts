@@ -178,7 +178,7 @@ describe("sealedGitRefusal (protocol rule 4)", () => {
 describe("storeValuesFor", () => {
   it("sets only what a learner sets by picking a model in Settings, plus explicit overrides", () => {
     expect(storeValuesFor(parseEvalEnv({}))).toEqual({
-      llm_provider: "ollama", chat_model: DEFAULT_EVAL_MODEL, gen_model: DEFAULT_EVAL_MODEL, ollama_url: "http://127.0.0.1:11434",
+      llm_provider: "ollama", chat_model_ollama: DEFAULT_EVAL_MODEL, gen_model_ollama: DEFAULT_EVAL_MODEL, ollama_url: "http://127.0.0.1:11434",
     });
     expect(storeValuesFor(parseEvalEnv({ EVAL_CTX: "4096", EVAL_EMBED_MODEL: "e" }))).toMatchObject({ max_context_tokens: 4096, embedding_model: "e" });
   });

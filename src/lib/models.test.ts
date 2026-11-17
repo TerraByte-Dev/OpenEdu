@@ -3,18 +3,18 @@ import {
   GENERATION_MODELS, CHAT_MODELS,
   defaultGenerationModel, defaultChatModel, defaultEmbeddingModel,
   defaultOllamaModelForRam, defaultOllamaModel, isOllamaDefaultModel,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, CLOUD_SHUTDOWNS, resolveStoredModel, withStoredOption,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, CLOUD_SHUTDOWNS, FORMER_CLOUD_MODELS, isOllamaTag, legacyModelOwner, resolveStoredModel, withStoredOption,
 } from "./models";
-import type { LLMProvider } from "../types";
 
 const CLOUD = ["openai", "anthropic"] as const;
 
 describe("model catalog ↔ defaults (the issue #2 contract)", () => {
   for (const provider of CLOUD) {
-    it(`generation default for ${provider} equals the recommended catalog entry`, () => {
-      const rec = GENERATION_MODELS[provider].find((m) => m.recommended);
-      expect(rec).toBeDefined();
-      expect(defaultGenerationModel(provider)).toBe(rec!.id);
+    // No cloud model was measured writing courses on its own, so none is recommended (models.ts). The
+    // default is then the first entry, and Settings shows no RECOMMENDED chip for it to disagree with.
+    it(`no ${provider} generation model is marked recommended; the default is the first entry`, () => {
+      expect(GENERATION_MODELS[provider].filter((m) => m.recommended)).toEqual([]);
+      expect(defaultGenerationModel(provider)).toBe(GENERATION_MODELS[provider][0].id);
     });
 
     it(`chat default for ${provider} equals the recommended catalog entry`, () => {
@@ -23,8 +23,7 @@ describe("model catalog ↔ defaults (the issue #2 contract)", () => {
       expect(defaultChatModel(provider)).toBe(rec!.id);
     });
 
-    it(`exactly one recommended generation + chat model for ${provider}`, () => {
-      expect(GENERATION_MODELS[provider].filter((m) => m.recommended)).toHaveLength(1);
+    it(`exactly one recommended chat model for ${provider}`, () => {
       expect(CHAT_MODELS[provider].filter((m) => m.recommended)).toHaveLength(1);
     });
 
@@ -127,7 +126,7 @@ describe("defaultOllamaModel (an upgrade must not point a working install at a m
   });
 });
 
-describe("resolveStoredModel (a stored id the provider shut down)", () => {
+describe("resolveStoredModel (a provider's own pick)", () => {
   const before = new Date("2027-01-13T23:59:59Z");
   const after = new Date("2027-01-14T00:00:00Z");
 
@@ -135,23 +134,54 @@ describe("resolveStoredModel (a stored id the provider shut down)", () => {
     expect(resolveStoredModel("openai", "chat", "gpt-4o-mini", before)).toBe("gpt-4o-mini");
   });
 
-  it("from the shutdown date, resolves to the recommended model for the same role", () => {
+  it("from the shutdown date, resolves to the default model for the same role", () => {
     expect(resolveStoredModel("openai", "chat", "gpt-4o-mini", after)).toBe(defaultChatModel("openai"));
     expect(resolveStoredModel("openai", "generation", "gpt-4.1", after)).toBe(defaultGenerationModel("openai"));
     expect(resolveStoredModel("openai", "generation", "gpt-4o", after)).toBe(defaultGenerationModel("openai"));
     expect(resolveStoredModel("openai", "chat", "gpt-4o", after)).toBe(defaultChatModel("openai"));
   });
 
-  it("keeps current, unknown and hand-typed ids", () => {
+  // Review 2 of #341: a stored "GPT-4o" skipped the shutdown remap and "Claude-Opus-4-6" was sent as is.
+  it("matches catalog and shutdown ids in any case, and sends the catalog's spelling", () => {
+    expect(resolveStoredModel("openai", "chat", "GPT-4o", after)).toBe(defaultChatModel("openai"));
+    expect(resolveStoredModel("openai", "chat", "GPT-4o", before)).toBe("gpt-4o");
+    expect(resolveStoredModel("anthropic", "generation", " Claude-Opus-4-6 ", after)).toBe("claude-opus-4-6");
+  });
+
+  // The pick was made on this provider, so an id outside the catalog is sent as is, whatever its name.
+  it("keeps current, unknown and hand-typed ids, whatever they look like", () => {
     expect(resolveStoredModel("openai", "generation", "gpt-5.4", after)).toBe("gpt-5.4");
     expect(resolveStoredModel("openai", "generation", "gpt-5.4-2026-03-05", after)).toBe("gpt-5.4-2026-03-05");
+    expect(resolveStoredModel("openai", "generation", "codex-mini-latest", after)).toBe("codex-mini-latest");
+    expect(resolveStoredModel("openai", "chat", "ft:gpt-4o-mini-2024-07-18:Org::abc123", after)).toBe("ft:gpt-4o-mini-2024-07-18:Org::abc123");
     expect(resolveStoredModel("anthropic", "chat", "claude-haiku-4-5-20251001", after)).toBe("claude-haiku-4-5-20251001");
   });
 
-  it("never switches provider, and leaves Ollama and an empty store alone", () => {
-    expect(resolveStoredModel("anthropic", "chat", "gpt-4o", after)).toBe("gpt-4o");
-    expect(resolveStoredModel("ollama", "chat", "gpt-4o", after)).toBe("gpt-4o");
+  it("leaves Ollama's own picks alone, whatever they look like, and an empty pick means the default", () => {
+    for (const role of ["generation", "chat"] as const) {
+      for (const local of ["gemma4:e2b", "gpt-oss:120b-cloud", "claude-3.7-sonnet-reasoning-gemma3-12b", "gpt-2", "o1-distill", "gpt-4o", "claude-opus-4-6"]) {
+        expect(resolveStoredModel("ollama", role, local, after), local).toBe(local);
+      }
+    }
     expect(resolveStoredModel("openai", "chat", undefined, after)).toBeUndefined();
+    expect(resolveStoredModel("ollama", "chat", "  ", after)).toBeUndefined();
+  });
+
+  it("returns the id trimmed, for every provider", () => {
+    expect(resolveStoredModel("anthropic", "generation", " claude-opus-4-6 ", after)).toBe("claude-opus-4-6");
+    expect(resolveStoredModel("openai", "chat", " gpt-6-luna\n", after)).toBe("gpt-6-luna");
+    expect(resolveStoredModel("ollama", "chat", " gemma4:e2b ", after)).toBe("gemma4:e2b");
+  });
+
+  // The last guard: an Ollama tag found under a cloud provider's key (a hand-edited settings file) is never
+  // sent to a cloud API.
+  it("never resolves an Ollama name:tag for a cloud provider", () => {
+    for (const role of ["generation", "chat"] as const) {
+      for (const tag of ["gemma4:e2b", "gemma4:e4b", "qwen3.5:0.8b", "gpt-oss:20b", "claude-ish:7b", "o3:latest", " Gemma4:E2B "]) {
+        expect(resolveStoredModel("anthropic", role, tag, after), tag).toBeUndefined();
+        expect(resolveStoredModel("openai", role, tag, after), tag).toBeUndefined();
+      }
+    }
   });
 
   it("treats a non-string stored value (hand-edited settings import) as nothing stored", () => {
@@ -160,11 +190,12 @@ describe("resolveStoredModel (a stored id the provider shut down)", () => {
     }
   });
 
-  it("leaves Object prototype keys and unknown providers alone", () => {
+  it("never reads an Object prototype key as a catalog or shutdown entry", () => {
     for (const id of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+      expect(legacyModelOwner(id)).toBe("ollama");
       expect(resolveStoredModel("openai", "generation", id, after)).toBe(id);
+      expect(resolveStoredModel("ollama", "generation", id, after)).toBe(id);
     }
-    expect(resolveStoredModel("groq" as LLMProvider, "chat", "gpt-4o", after)).toBe("gpt-4o");
   });
 
   for (const provider of CLOUD) {
@@ -188,6 +219,41 @@ describe("withStoredOption (Settings shows the model the app will use)", () => {
     expect(withStoredOption(list, list[0].id)).toBe(list);
     expect(withStoredOption(list, "")).toBe(list);
     expect(withStoredOption(list, "  ")).toBe(list);
+  });
+
+  // Click test 5 showed a selected "gemma4:e2b" chip among Anthropic's course-generation models.
+  it("never adds an Ollama tag as a chip", () => {
+    for (const tag of ["gemma4:e2b", "gemma4:e4b", "gpt-oss:20b"]) expect(withStoredOption(list, tag)).toBe(list);
+  });
+});
+
+// Review 2 of #341: no name rule can tell a local "gpt-2" from a cloud id, so the old shared gen_model /
+// chat_model value goes to a cloud provider only on an exact catalog or shutdown id, and otherwise to Ollama.
+describe("legacyModelOwner: where an old shared gen_model / chat_model value moves", () => {
+  for (const provider of CLOUD) {
+    it(`every id OpenEdu offered for ${provider} (catalog, shutdowns, former) belongs to ${provider}, in any case`, () => {
+      const ids = [...GENERATION_MODELS[provider], ...CHAT_MODELS[provider]].map((m) => m.id);
+      for (const id of [...ids, ...Object.keys(CLOUD_SHUTDOWNS[provider]), ...FORMER_CLOUD_MODELS[provider]]) {
+        expect(legacyModelOwner(id), id).toBe(provider);
+        expect(legacyModelOwner(` ${id.toUpperCase()} `), id).toBe(provider);
+      }
+    });
+  }
+
+  it("every Ollama suggestion and default, and any name only shaped like a cloud id, belongs to Ollama", () => {
+    const local = [...OLLAMA_GEN_SUGGESTIONS, ...OLLAMA_CHAT_SUGGESTIONS, defaultOllamaModel(null, null), defaultEmbeddingModel("ollama")];
+    const cloudShaped = ["claude-3.7-sonnet-reasoning-gemma3-12b", "gpt-2", "o1-distill", "gpt-2-medium", "chatgpt-clone",
+      "gpt-oss:20b", "claude-ish:7b", "claude-haiku-4-5", "codex-mini-latest", "gpt-5.4-2026-03-05"];
+    for (const id of [...local, ...cloudShaped]) expect(legacyModelOwner(id), id).toBe("ollama");
+  });
+});
+
+describe("isOllamaTag: the last guard before a cloud API", () => {
+  it("is a name:tag, and never a cloud id or an OpenAI fine-tune", () => {
+    for (const id of ["gemma4:e2b", "gpt-oss:20b", "claude-ish:7b", "o3:latest", " Qwen3.5:9B "]) expect(isOllamaTag(id), id).toBe(true);
+    for (const id of ["claude-opus-4-6", "gpt-6-luna", "gpt-2", "llama3", "ft:gpt-4o-mini-2024-07-18:org::abc123", "FT:gpt-4o:x"]) {
+      expect(isOllamaTag(id), id).toBe(false);
+    }
   });
 });
 
@@ -215,5 +281,6 @@ describe("Anthropic 5.x models are back in the generation picker (structured out
 
   it("does not change the default a family already has", () => {
     expect(defaultGenerationModel("anthropic")).toBe("claude-opus-4-6");
+    expect(defaultGenerationModel("openai")).toBe("gpt-6.1-sol");
   });
 });

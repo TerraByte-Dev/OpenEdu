@@ -47,8 +47,8 @@ The decisions most likely to harbor bugs are factored out of the components so t
 
 | Module | Responsibility |
 |---|---|
-| `lib/store-keys.ts` | Single source of truth for plugin-store key names + the secret predicate + the import allow-list. Consumed by `store.ts` **and** `settings-io.ts` so the two can't drift. |
-| `lib/models.ts` | Model catalog + `defaultGeneration/Chat/EmbeddingModel` (derived from the `recommended` flag) — one source for the pickers and the store defaults. |
+| `lib/store-keys.ts` | Single source of truth for plugin-store key names + the secret predicate + the import allow-list. Consumed by `store.ts` **and** `settings-io.ts` so the two can't drift. The per-provider model keys (`modelStoreKey`, `MODEL_STORE_KEYS`) and the one-time move of the old shared ones (`legacyModelKeyMoves`, used by `store.ts` on an existing install and by `importableSettings` on an old settings file) live here too. |
+| `lib/models.ts` | Model catalog + `defaultGeneration/Chat/EmbeddingModel` (the `recommended` entry, else the first; no generation model is recommended until one is measured) — one source for the pickers and the store defaults. Each provider keeps its own generation and chat pick (`store-keys.ts` `modelStoreKey`: `gen_model_<provider>`, `chat_model_<provider>`), and `resolveStoredModel` resolves the current provider's own pick or, with none, its default; a switch never overwrites another provider's pick. `legacyModelOwner` decides once where an old shared `gen_model` / `chat_model` value goes (a cloud provider only for an exact id OpenEdu offered there, otherwise Ollama); `isOllamaTag` is the last guard that keeps an Ollama `name:tag` from a cloud API. |
 | `lib/version.ts` | `compareVersions` / `isNewerVersion` for the About → Check-for-updates flow (SemVer core + prerelease aware). |
 | `lib/text-match.ts` | `matchText` — the search filter. |
 | `lib/settings-schema.ts` | `parseSettingsExport`, `sanitizeImportedPermissions` (drops garbage so the kernel never reads bad rules), `importedThemeChoice` (maps a CRT-era theme id in an old export; an old file's `crtOff` is accepted and ignored) — the import-validation core. |

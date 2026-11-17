@@ -6,7 +6,7 @@
 // allow-list all come from store-keys.ts; parsing/validation comes from settings-schema.ts (both pure).
 
 import { Store } from "@tauri-apps/plugin-store";
-import { STORE_FILE, isSecretKey, NON_PORTABLE_KEYS, ALLOWED_IMPORT_KEYS, isLearnerScopedKey } from "./store-keys";
+import { STORE_FILE, isSecretKey, NON_PORTABLE_KEYS, importableSettings, isLearnerScopedKey } from "./store-keys";
 import {
   type SettingsExport, EXPORT_KIND, EXPORT_VERSION,
   parseSettingsExport, sanitizeImportedPermissions, importedThemeChoice,
@@ -71,7 +71,9 @@ export interface ImportSummary {
   themeSkipped: boolean;
 }
 
-// Apply a parsed export back into the live stores. Only allow-listed keys are written; permissions are
+// Apply a parsed export back into the live stores. Only allow-listed keys are written, and a file from before
+// per-provider model keys has its gen_model / chat_model moved to the provider each belongs to
+// (store-keys.ts importableSettings); permissions are
 // sanitized against the known tool/mode/decision space; a CRT-era theme id is mapped onto light/dark, an
 // unrecognized one is skipped (not silently coerced), and an old file's `crtOff` is ignored. The theme is
 // applied through theme.ts so open surfaces (titlebar/Appearance) stay in sync.
@@ -79,8 +81,7 @@ export async function applyImportedSettings(payload: SettingsExport): Promise<Im
   const store = await Store.load(STORE_FILE);
 
   let settingsApplied = 0;
-  for (const [key, value] of Object.entries(payload.settings ?? {})) {
-    if (!ALLOWED_IMPORT_KEYS.has(key)) continue;
+  for (const [key, value] of importableSettings(payload.settings ?? {})) {
     await store.set(key, value);
     settingsApplied++;
   }
