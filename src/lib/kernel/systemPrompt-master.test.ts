@@ -6,7 +6,7 @@ import { turnSystemPrompt, OUTPUT_RULES, WORKED_ANSWER_RULES } from "./outputRul
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
 import { PROMPT_CASES, type MasterPromptArgs } from "./systemPromptCases";
 import master from "./__fixtures__/system-prompt-master.json";
-import { STRONG_PREGNANCY, REVIEW8_CLASS_A } from "../child-safety-pregnancy.fixtures";
+import { STRONG_PREGNANCY, REVIEW_342_STRONG, REVIEW8_CLASS_A } from "../child-safety-pregnancy.fixtures";
 
 // #243's hard requirement: with no grade set, the tutor's system prompt is byte-identical to master
 // (86aadaa), so every benchmark result stays comparable. The fixture was written by master's
@@ -151,7 +151,7 @@ describe("system prompt with no grade set: a safety-disclosure turn", () => {
 describe("system prompt on a strong pregnancy self-disclosure", () => {
   it("is byte-identical to master with no grade set", () => {
     for (const [i, c] of PROMPT_CASES.entries()) {
-      for (const m of [...STRONG_PREGNANCY, ...REVIEW8_CLASS_A]) {
+      for (const m of [...STRONG_PREGNANCY, ...REVIEW_342_STRONG, ...REVIEW8_CLASS_A]) {
         expect(withGrade(c.args, gradePromptLayer(null, m)), m).toBe(master[i].prompt);
       }
     }
@@ -159,7 +159,7 @@ describe("system prompt on a strong pregnancy self-disclosure", () => {
 
   it("carries the safety section once with a grade set, as on any K-12 turn", () => {
     for (const g of GRADES) {
-      for (const m of STRONG_PREGNANCY) expect(gradePromptLayer(g, m), m).toBe(gradePromptLayer(g));
+      for (const m of [...STRONG_PREGNANCY, ...REVIEW_342_STRONG]) expect(gradePromptLayer(g, m), m).toBe(gradePromptLayer(g));
     }
   });
 });

@@ -3,7 +3,7 @@ import { isSafetyDisclosure, pregnancyShape, SAFETY_NOTICE, CHILD_SAFETY_RULES }
 import { GRADES } from "./grade";
 import { fs, path, cwd } from "./eval/headless/node-io";
 import {
-  STRONG_PREGNANCY, NOT_STRONG_PREGNANCY, REVIEW7_CLASS_A, REVIEW8_CLASS_A, REVIEW8_STILL_STRONG,
+  STRONG_PREGNANCY, REVIEW_342_STRONG, NOT_STRONG_PREGNANCY, REVIEW7_CLASS_A, REVIEW8_CLASS_A, REVIEW8_STILL_STRONG,
 } from "./child-safety-pregnancy.fixtures";
 import { speakableText } from "./speech";
 import chatTabSource from "../components/ChatTab.tsx?raw";
@@ -155,12 +155,12 @@ describe("ChatTab wiring", () => {
 describe("a strong self-disclosure of a pregnancy", () => {
   it("is a safety disclosure for a learner with any K-12 grade", () => {
     for (const g of GRADES) {
-      for (const m of [...STRONG_PREGNANCY, ...REVIEW8_STILL_STRONG]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+      for (const m of [...STRONG_PREGNANCY, ...REVIEW_342_STRONG, ...REVIEW8_STILL_STRONG]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
     }
   });
 
   it("is not one with no grade set, so an adult sees exactly what they saw before", () => {
-    for (const m of [...STRONG_PREGNANCY, ...REVIEW8_STILL_STRONG]) {
+    for (const m of [...STRONG_PREGNANCY, ...REVIEW_342_STRONG, ...REVIEW8_STILL_STRONG]) {
       expect(isSafetyDisclosure(m, null), m).toBe(false);
       expect(isSafetyDisclosure(m), m).toBe(false);
     }
@@ -197,6 +197,12 @@ describe("a strong self-disclosure of a pregnancy", () => {
       expect(isSafetyDisclosure(m, 8), m).toBe(true);
       expect(isSafetyDisclosure(m, null), m).toBe(false);
     }
+  });
+
+  // An adult who got a K-12 learner pregnant is also an abuse disclosure; with a grade set it gets the notice
+  // here. (With no grade, ABUSE_RE decides it, as on master.)
+  it("counts someone else who got the learner pregnant, at every grade", () => {
+    for (const g of GRADES) expect(isSafetyDisclosure("my stepdad got me pregnant", g), `${g}`).toBe(true);
   });
 
   it("reads the pregnancy word by its shape", () => {

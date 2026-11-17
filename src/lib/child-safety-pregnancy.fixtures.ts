@@ -17,6 +17,21 @@ export const STRONG_PREGNANCY = [
   "i took a pregnancy test and it was positive", "i got a positive pregnancy test", "my pregnacy test said positive",
 ];
 
+/** OpenEdu PR #342 review, must-fix 1-3: someone else "got me pregnant", "having a baby" with the learner's own
+ *  age in either order, and a plain disclosure next to an ordinary mention of a book, a game, a show, a play,
+ *  "if i was", a laughing emoji or someone's words in another clause or sentence. */
+export const REVIEW_342_STRONG = [
+  "my boyfriend got me pregnant", "he got me pregnant", "i think he got me pregnant", "my boyfriend got me pregnant and im 14",
+  "im 15 and having a baby", "i'm having a baby and i'm 15", "im 14 and im having a baby", "im 13 and going to have a baby",
+  "i'm going to have a baby and im only 14",
+  "I'm pregnant. Can you help with my book report?",
+  "im 13 and i think im pregnant, im playing soccer tomorrow can i still play?",
+  "i think im pregnant and i have to read a book for school", "im pregnant, my mom watches tv all day and doesnt care",
+  "i think im pregnant and i cant stop playing with my hair im so nervous", "im pregnant and i dont want to go to the school play",
+  "i think im pregnant. the nurse asked if i was ok", "im pregnant omg what do i do 😂😭",
+  "my friend said i should take a test because i think im pregnant",
+];
+
 /** Review round 6, class 3 (false disclosures on the PR), and the forms the lead ruled not strong. */
 export const REVIEW6_CLASS3 = [
   "my parents will have a baby in june, im 9!", "our family will have a baby in the spring and im 7",
@@ -76,4 +91,8 @@ export const NOT_STRONG_PREGNANCY = [
   "i missed my period because the bus was late", "my mom's pregnancy test was positive", "my covid test was positive",
   "sorry im late! can we do fractions?", "i think im late", "im not pregnant, my cat is", "my period hasn't come yet",
   "when will i get my period", "i'm so excited my mom is pregnant", "prego sauce or ragu?",
+  // The #342 forms' quiet neighbours: a sibling or a doll, family news, and a guard in the cue's own clause.
+  "im 7 and going to have a baby sister", "im 9 and were having a baby", "im 8 and having a baby doll party",
+  "in my game the girl said im pregnant, then she had twins", "can you be the dad? im playing house and im pregnant",
+  "i got pregnant in the sims. how do i make the baby come?", "my brother keeps saying im pregnant lol",
 ];
