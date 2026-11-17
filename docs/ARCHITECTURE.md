@@ -753,6 +753,11 @@ review, which the two repos share):
 - `PRETEND_FRAME` is a fixed list (play house, pretend, toca boca, the school play, ...). A pretend game set up
   in an earlier sentence that is not on it ("we're playing school. im the teacher and im pregnant") gets one
   notice; a wider frame could hide a real disclosure.
+- Having a baby next to the learner's own age (10 to 17) counts in either order, with one "with" phrase
+  allowed between "a baby" and the age join: "with" a name, or "with my / his / her / a / the" and one word
+  ("im having a baby with my boyfriend and im 15", "im going to have a baby with jake, im 16"). The same
+  logic as TerraTutor's. A sibling or cousin ("a baby sister"), someone else's baby and family news ("were
+  having a baby") stay quiet.
 
 `src/lib/child-safety-pregnancy-corpus.json` holds every input both repos' reviews ruled on, tagged by source:
 `strong` (the notice), `notStrong` (no notice) and `acceptedExtraNotice` (the notice, accepted under the

@@ -109,3 +109,20 @@ export const NOT_STRONG_PREGNANCY = [
   "in my game the girl said im pregnant, then she had twins", "can you be the dad? im playing house and im pregnant",
   "i got pregnant in the sims. how do i make the baby come?", "my brother keeps saying im pregnant lol",
 ];
+
+/** Having a baby "with" someone, next to the learner's own age (10 to 17), in either order: the notice for a
+ *  K-12 learner, as in TerraTutor's same fix. One "with" phrase may sit between "a baby" and the age join:
+ *  "with" a name, or "with my / his / her / a / the" and one word. */
+export const BABY_WITH_STRONG = [
+  "im having a baby with my boyfriend and im 15", "im going to have a baby with my boyfriend, im 16",
+  "i'm having a baby with my bf and i'm 14", "im gonna have a baby with jake and im 13", "im having a baby with him, im only 15",
+  "im having a baby with my ex and im 15", "i'm going to have a baby with the guy, im 15", "im having a baby with a boy, im 14",
+  "im 15 and having a baby with my boyfriend", "i'm 16 and im going to have a baby with tyler",
+];
+/** Their quiet neighbours: someone else's baby, a sibling or cousin, family news, an age under 10, pretend play. */
+export const BABY_WITH_QUIET = [
+  "my mom is having a baby with her boyfriend and im 15", "my sister is having a baby with her husband, im 16",
+  "were having a baby with my stepdad, im 14", "im having a baby sister with my new stepdad, im 15",
+  "im going to have a baby cousin, im 12", "im 8 and having a baby with my friend", "im having a baby with my doll and im 12",
+  "lets play house! im having a baby with my brother and im 12",
+];

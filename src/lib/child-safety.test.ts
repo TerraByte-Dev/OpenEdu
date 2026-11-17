@@ -4,7 +4,7 @@ import { GRADES } from "./grade";
 import { fs, path, cwd } from "./eval/headless/node-io";
 import {
   STRONG_PREGNANCY, REVIEW_342_STRONG, NOT_STRONG_PREGNANCY, REVIEW7_CLASS_A, REVIEW8_CLASS_A, REVIEW8_STILL_STRONG,
-  PREGNANCY_CORPUS,
+  PREGNANCY_CORPUS, BABY_WITH_STRONG, BABY_WITH_QUIET,
 } from "./child-safety-pregnancy.fixtures";
 import { speakableText } from "./speech";
 import chatTabSource from "../components/ChatTab.tsx?raw";
@@ -217,6 +217,19 @@ describe("a strong self-disclosure of a pregnancy", () => {
       expect(isSafetyDisclosure(m, null), m).toBe(false);
     }
     for (const m of ["im pregnant with tacos 😂", "im pregnant with a food baby"]) expect(isSafetyDisclosure(m, 8), m).toBe(false);
+  });
+
+  // Having a baby "with" someone next to the learner's own age, in either order (TerraTutor's same fix): the
+  // notice at every K-12 grade, none with no grade. Someone else's baby, a sibling, family news, an age under 10
+  // and pretend play stay quiet.
+  it("gives the notice on having a baby with someone next to the learner's own age", () => {
+    for (const g of GRADES) {
+      for (const m of BABY_WITH_STRONG) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+    }
+    for (const m of BABY_WITH_STRONG) expect(isSafetyDisclosure(m, null), m).toBe(false);
+    for (const g of [null, ...GRADES]) {
+      for (const m of BABY_WITH_QUIET) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+    }
   });
 
   it("keeps the guarded jokes, play and language-lesson forms as with no grade, at every grade", () => {
