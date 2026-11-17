@@ -311,6 +311,34 @@
   {
    "text": "if i got pregnant at 30 how old would i be when my kid is 12? its a math problem",
    "source": "fixtures: REVIEW8_STILL_STRONG"
+  },
+  {
+   "text": "im pregnant with my boyfriend",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "i'm pregnant with my ex",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with my bf's",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with nobody to help me",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "i'm pregnant with nobody to talk to",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with no money and no job",
+   "source": "tt161-r2.md (must-fix 1)"
+  },
+  {
+   "text": "im pregnant with nowhere to go",
+   "source": "tt161-r2.md (must-fix 1)"
   }
  ],
  "notStrong": [
@@ -436,10 +464,6 @@
   },
   {
    "text": "my doll is the baby. im pregnant with her",
-   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
-  },
-  {
-   "text": "halloween is tomorrow! im pregnant with a pillow belly",
    "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; fixtures: NOT_STRONG_PREGNANCY"
   },
   {
@@ -893,6 +917,48 @@
   {
    "text": "prego sauce or ragu?",
    "source": "fixtures: NOT_STRONG_PREGNANCY"
+  }
+ ],
+ "acceptedExtraNotice": [
+  {
+   "text": "halloween is tomorrow! im pregnant with a pillow belly",
+   "source": "r-final-3.md (must-fix 2); fixtures: REVIEW161_NOT_STRONG; lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (no \"pregnant with <thing>\" guard)"
+  },
+  {
+   "text": "im pregnant with tacos",
+   "source": "lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (no \"pregnant with <thing>\" guard)"
+  },
+  {
+   "text": "me and my sister are playing school. im the teacher and im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing dress up! im a mom and im pregnant with a baby",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "my cousin and i are playing barbies. im the mom barbie. im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing mermaids. i'm the mermaid queen and i'm pregnant with mermaid babies",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing a game where im the mommy. im pregnant with twins",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "me and my sister are playing babies. im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "we're playing princesses. im the queen and im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
+  },
+  {
+   "text": "im playing with my barbies. im pregnant",
+   "source": "tt161-r2.md (must-fix 2); lead decision after tt161-r2.md: the notice never blocks, so an extra notice is accepted (PRETEND_FRAME is not widened)"
   }
  ]
 }

@@ -7,10 +7,15 @@
 import corpus from "./child-safety-pregnancy-corpus.json";
 
 /** The corpus shared with TerraTutor (its PR #161): every input of OpenEdu #342's reviews, TerraTutor #161's
- *  final review and TerraTutor's fixture lists, each tagged with where it came from. Copied unchanged from
- *  TerraTutor's pregnancyCorpus(); strong gets the notice for a K-12 learner, notStrong never does. */
+ *  final reviews and TerraTutor's fixture lists, each tagged with where it came from. Copied unchanged from
+ *  TerraTutor's pregnancyCorpus(); strong gets the notice for a K-12 learner, notStrong never does.
+ *  acceptedExtraNotice gets the notice for a K-12 learner although it is not a disclosure: the lead's decision
+ *  after TerraTutor #161's second final review. The notice never blocks, so a missed disclosure costs far more
+ *  than an extra notice: there is no "pregnant with <thing>" guard ("im pregnant with tacos" with no laughing
+ *  emoji gets one), and PRETEND_FRAME is not widened to pretend games set up in an earlier sentence ("we're
+ *  playing school. im the teacher and im pregnant" gets one). */
 export type CorpusEntry = { text: string; source: string };
-export const PREGNANCY_CORPUS: { strong: CorpusEntry[]; notStrong: CorpusEntry[] } = corpus;
+export const PREGNANCY_CORPUS: { strong: CorpusEntry[]; notStrong: CorpusEntry[]; acceptedExtraNotice: CorpusEntry[] } = corpus;
 
 /** The child about themselves: the first person, their own age, their own missed or late period, their own
  *  positive test. Spellings by shape, digits, spelled-out letters and the emoji. */

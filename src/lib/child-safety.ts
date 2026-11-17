@@ -110,12 +110,17 @@ const KMS_RE =
 // functions), and each guard has its own reach: a laughing emoji (unless the message shows distress: "im
 // pregnant omg what do i do 😂😭" counts), a language lesson ("how do you say", "translate", "in spanish"),
 // "im a boy", "when i grow up" and family news anywhere in the message; an explicit pretend frame ("lets play
-// house!", "we're playing toca boca.") anywhere before the cue's clause ends; "pregnant with" a food or a
-// thing, a story, book, show, game, costume, doll, dream, "in my book" or "if i was" in the cue's clause or
-// sentence; quoted words and what follows "said", "asked" or "saying" up to the sentence end or a joining
-// word (not "the doctor said"). A disclosure next to an ordinary mention still counts: "I'm pregnant. Can you
-// help with my book report?", "im pregnant. lets play a game". The shared review corpus
-// (child-safety-pregnancy-corpus.json) is every input both repos' reviews ruled on. The open vocabulary this
+// house!", "we're playing toca boca.") anywhere before the cue's clause ends; "food baby", a story, book,
+// show, game, costume, doll, dream, "in my book" or "if i was" in the cue's clause or sentence; quoted words
+// and what follows "said", "asked" or "saying" up to the sentence end or a joining word (not "the doctor
+// said"). A disclosure next to an ordinary mention still counts: "I'm pregnant. Can you help with my book
+// report?", "im pregnant. lets play a game". The notice never blocks, so a missed disclosure costs far more
+// than an extra notice (lead decision after TerraTutor #161's second final review): there is no "pregnant
+// with <thing>" guard ("im pregnant with my boyfriend", "im pregnant with nobody to help me" get the notice,
+// and so does "im pregnant with tacos" with no laughing emoji), and the pretend frames are not widened past
+// the list below (a game set up in an earlier sentence, "we're playing school. im the teacher and im
+// pregnant", gets one notice). The shared review corpus (child-safety-pregnancy-corpus.json) is every input
+// both repos' reviews ruled on, with these accepted extra notices listed apart. The open vocabulary this
 // leaves out (euphemisms, "i'm late", "we didn't use protection") gets no notice.
 
 // Damerau-Levenshtein distance (optimal string alignment: insert, delete, change, or swap two neighbours).
@@ -250,20 +255,6 @@ const STRONG_PREGNANCY = [
 const LAUGH = /[\u{1F602}\u{1F606}\u{1F639}\u{1F923}]/u;
 const DISTRESS =
   /[\u{1F62D}\u{1F622}\u{1F625}\u{1F630}\u{1F628}\u{1F631}]|(?<![\p{L}\p{N}])(?:what (?:do|should|can) i do|what do i tell|scared|afraid|worried|nervous|freaking out|terrified|i need help|(?:please|pls|plz) help|help me(?! with))(?![\p{L}\p{N}])/u;
-// "pregnant with" anything but a baby or a person is a joke: food, a feeling, an idea ("im pregnant with tacos",
-// "pregnant with a pillow belly"). Read up to four words after "with", to the clause end.
-const WITH_WHAT = /^[\s.…]*(?:with|w\/) ([^.!?;,]*)/u;
-const JOINING = new Set(["and", "but", "so", "because", "cause", "cuz", "bc", "then", "or"]);
-const PERSON =
-  /(?<![\p{L}\p{N}])(?:bab(?:y|ies)|child(?:ren)?|kids?|twins|triplets|quadruplets|quads|sons?|daughters?|boys?|girls?|him|her|them|his|it|one|someone|somebody)(?![\p{L}\p{N}])/u;
-function pregnantWithAThing(after: string): boolean {
-  const m = WITH_WHAT.exec(after);
-  if (!m) return false;
-  const words = m[1].split(" ").filter(Boolean);
-  const cut = words.findIndex((w) => JOINING.has(w));
-  const what = words.slice(0, Math.min(cut < 0 ? words.length : cut, 4));
-  return what.length > 0 && !PERSON.test(what.join(" "));
-}
 // The guards below read the cue's own clause, its sentence, or the message up to the cue's clause end, never what
 // comes after (review of OpenEdu #342): "im pregnant and i dont want to go to the school play" is a disclosure;
 // "i was pregnant in the school play" is not. A clause ends at a comma, a sentence end or a joining word; a
@@ -279,7 +270,9 @@ const FICTION_RE =
 // one sentence and play in the next ("lets play house! im the mom and im pregnant", "we're playing toca boca. im
 // pregnant with twins", "my doll is the baby. im pregnant with her"). A game is a frame only after "in", "on" or
 // "playing": "i played minecraft all day and i think im pregnant" is a disclosure. A frame after the cue does not
-// reach back to it ("im pregnant. lets play a game" gets the notice).
+// reach back to it ("im pregnant. lets play a game" gets the notice). Kept to this list on purpose: a wider frame
+// could hide a real disclosure, and a game it misses ("we're playing school. im the teacher and im pregnant")
+// costs one notice under play, never a blocked answer.
 const PRETEND_FRAME =
   /(?<![\p{L}\p{N}])(?:pretend\p{L}*|role ?play\p{L}*|make[- ]believe|(?:let's|lets|let us) play|play(?:s|ed|ing)? (?:house|pretend|mom|mommy|family|doctors?|hospital|vet)|(?:in|on|playing) (?:toca(?: boca)?|gacha|bitlife|(?:the )?sims|minecraft|roblox)|(?:school|class|church|christmas|nativity|easter|the|a|our|my) play|dolls? (?:is|are) (?:the |my |a )?bab(?:y|ies)|(?:halloween )?costumes?|for halloween|writ(?:e|es|ing) (?:me )?(?:a |an |my )?(?:story|poem|script|play))(?![\p{L}\p{N}])/u;
 // Earlier in the cue's sentence, or in its clause: a book, a show or a game named after "in" or "on", or a
@@ -337,7 +330,6 @@ function strongPregnancy(text: string): boolean {
       const clauseEnd = firstStartAfter(clauses, end, c.length);
       const clause = guarded.slice(lastEndBefore(clauses, m.index), clauseEnd);
       const sentence = guarded.slice(lastEndBefore(sentences, m.index), clauseEnd);
-      if (pregnantWithAThing(c.slice(end))) continue;
       if (FICTION_RE.test(clause) || FRAME_RE.test(sentence) || PRETEND_FRAME.test(guarded.slice(0, clauseEnd))) continue;
       return true;
     }
