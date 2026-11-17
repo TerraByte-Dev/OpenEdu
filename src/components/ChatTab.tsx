@@ -541,10 +541,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                 reading={readAloud.speakingId === msg.id}
                 onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.role === "assistant" ? displayReplyText(msg.content) : msg.content) : undefined}
               />
-              {/* A self-harm or abuse disclosure gets a fixed notice under it, shown as soon as the message is;
+              {/* A self-harm or abuse disclosure, or with a K-12 grade set a strong pregnancy self-disclosure, gets a
+                  fixed notice under it, shown as soon as the message is;
                   the tutor turn still runs (child-safety.ts). Code-matched, never a model call. A .chat-msg, so
                   K-2's larger chat text applies, with a speaker button so a child who cannot read it can hear it. */}
-              {msg.role === "user" && isSafetyDisclosure(msg.content) && (
+              {msg.role === "user" && isSafetyDisclosure(msg.content, grade) && (
                 <div role="note" className="chat-msg flex items-start gap-3 p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint text-sm text-ink leading-relaxed">
                   <p className="flex-1">{SAFETY_NOTICE}</p>
                   {readAloud.supported && (

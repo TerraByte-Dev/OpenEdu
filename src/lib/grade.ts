@@ -81,7 +81,7 @@ export function readingLevelLayer(grade: Grade | null): string | undefined {
 export function gradePromptLayer(grade: Grade | null, message = ""): string | undefined {
   const level = readingLevelLayer(grade);
   if (level) return `${level}\n\n---\n\n${CHILD_SAFETY_RULES}`;
-  return isSafetyDisclosure(message) ? CHILD_SAFETY_RULES : undefined;
+  return isSafetyDisclosure(message, grade) ? CHILD_SAFETY_RULES : undefined;
 }
 
 /**

@@ -6,6 +6,7 @@ import { turnSystemPrompt, OUTPUT_RULES, WORKED_ANSWER_RULES } from "./outputRul
 import { SHOW_ANSWER_MESSAGE } from "./suggestions";
 import { PROMPT_CASES, type MasterPromptArgs } from "./systemPromptCases";
 import master from "./__fixtures__/system-prompt-master.json";
+import { STRONG_PREGNANCY, REVIEW8_CLASS_A } from "../child-safety-pregnancy.fixtures";
 
 // #243's hard requirement: with no grade set, the tutor's system prompt is byte-identical to master
 // (86aadaa), so every benchmark result stays comparable. The fixture was written by master's
@@ -140,6 +141,25 @@ describe("system prompt with no grade set: a safety-disclosure turn", () => {
       for (const m of ["What is 3/4 + 1/8?", "the story really touched me", ""]) {
         expect(withGrade(c.args, gradePromptLayer(null, m))).toBe(master[i].prompt);
       }
+    }
+  });
+});
+
+// A strong pregnancy self-disclosure counts only for a K-12 learner (child-safety.ts strongPregnancy). With no
+// grade (an adult, or a learner who never set one) it changes nothing: the prompt stays byte-identical to master.
+// With a grade, the safety section is already there, once, as on every K-12 turn.
+describe("system prompt on a strong pregnancy self-disclosure", () => {
+  it("is byte-identical to master with no grade set", () => {
+    for (const [i, c] of PROMPT_CASES.entries()) {
+      for (const m of [...STRONG_PREGNANCY, ...REVIEW8_CLASS_A]) {
+        expect(withGrade(c.args, gradePromptLayer(null, m)), m).toBe(master[i].prompt);
+      }
+    }
+  });
+
+  it("carries the safety section once with a grade set, as on any K-12 turn", () => {
+    for (const g of GRADES) {
+      for (const m of STRONG_PREGNANCY) expect(gradePromptLayer(g, m), m).toBe(gradePromptLayer(g));
     }
   });
 });
