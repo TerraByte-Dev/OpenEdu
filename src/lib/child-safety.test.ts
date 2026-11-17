@@ -4,6 +4,7 @@ import { GRADES } from "./grade";
 import { fs, path, cwd } from "./eval/headless/node-io";
 import {
   STRONG_PREGNANCY, REVIEW_342_STRONG, NOT_STRONG_PREGNANCY, REVIEW7_CLASS_A, REVIEW8_CLASS_A, REVIEW8_STILL_STRONG,
+  PREGNANCY_CORPUS,
 } from "./child-safety-pregnancy.fixtures";
 import { speakableText } from "./speech";
 import chatTabSource from "../components/ChatTab.tsx?raw";
@@ -180,6 +181,22 @@ describe("a strong self-disclosure of a pregnancy", () => {
     for (const g of [null, ...GRADES]) {
       for (const m of NOT_STRONG_PREGNANCY) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
     }
+  });
+
+  // The corpus shared with TerraTutor #161 (every review input and fixture, tagged by source), through the call
+  // ChatTab and grade.ts make: the notice on every strong input at every K-12 grade, none on any other input,
+  // and none at all with no grade.
+  it("decides every input of the shared corpus as the reviews ruled", () => {
+    const { strong, notStrong } = PREGNANCY_CORPUS;
+    expect(strong.length).toBe(78);
+    expect(notStrong.length).toBe(145);
+    for (const { text } of strong) expect(notStrong.map((e) => e.text), text).not.toContain(text);
+    const wrong: string[] = [];
+    for (const g of [null, ...GRADES]) {
+      for (const e of strong) if (isSafetyDisclosure(e.text, g) !== (g !== null)) wrong.push(`${g} strong: ${e.text} (${e.source})`);
+      for (const e of notStrong) if (isSafetyDisclosure(e.text, g)) wrong.push(`${g} not strong: ${e.text} (${e.source})`);
+    }
+    expect(wrong).toEqual([]);
   });
 
   it("keeps the guarded jokes, play and language-lesson forms as with no grade, at every grade", () => {

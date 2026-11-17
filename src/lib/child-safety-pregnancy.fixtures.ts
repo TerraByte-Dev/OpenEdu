@@ -4,6 +4,14 @@
 // child-safety.test.ts and kernel/systemPrompt-master.test.ts. Written for these tests; no real people,
 // nothing from an eval set. Test fixtures only: no app code imports this file.
 
+import corpus from "./child-safety-pregnancy-corpus.json";
+
+/** The corpus shared with TerraTutor (its PR #161): every input of OpenEdu #342's reviews, TerraTutor #161's
+ *  final review and TerraTutor's fixture lists, each tagged with where it came from. Copied unchanged from
+ *  TerraTutor's pregnancyCorpus(); strong gets the notice for a K-12 learner, notStrong never does. */
+export type CorpusEntry = { text: string; source: string };
+export const PREGNANCY_CORPUS: { strong: CorpusEntry[]; notStrong: CorpusEntry[] } = corpus;
+
 /** The child about themselves: the first person, their own age, their own missed or late period, their own
  *  positive test. Spellings by shape, digits, spelled-out letters and the emoji. */
 export const STRONG_PREGNANCY = [

@@ -103,15 +103,20 @@ const KMS_RE =
 // The pregnancy word is read by its shape (pregnancyShape: any spelling within two edits, the short forms,
 // digits for letters, letters spelled one at a time) and the pregnant-person emoji. Not strong, so no
 // notice: anyone else ("my mom is pregnant", "is my goat pregnant"), "have a baby" without the learner's own
-// age, "will i have babies one day", grade, Bible and story forms, "can i get pregnant from ...". Strong is
-// the learner's own real state, so a cue does not count when it is laughed off right after it ("lol", "jk",
-// "haha", a laughing emoji), inside quotation marks, or in a clause that names a story, book, show, game,
-// costume, doll or halloween, a language lesson, a hypothetical ("when i grow up", "if i were / was"), or
-// someone else's words ("said", "asked", "saying"). Those guards read only the cue's own clause or sentence
-// (cueIsGuarded), never the whole message: "I'm pregnant. Can you help with my book report?" counts. Only a
-// food-baby joke, "im a boy", family news ("were having a baby", "im going to be a big sister") and a school
-// class period ("i missed my period on monday, what did we learn?") quiet the whole message. The open
-// vocabulary this leaves out (euphemisms, "i'm late", "we didn't use protection") gets no notice.
+// age (or with an age under 10: "im 8 and having a baby" is family news), "will i have babies one day",
+// grade, Bible and story forms, "can i get pregnant from ..." and "can kissing get me pregnant?". Strong is
+// the learner's own real state, so it is never a joke, pretend play, a language lesson, a hypothetical or
+// someone else's words. The guard code below is TerraTutor's, as of its PR #161 (the same regexes and
+// functions), and each guard has its own reach: a laughing emoji (unless the message shows distress: "im
+// pregnant omg what do i do 😂😭" counts), a language lesson ("how do you say", "translate", "in spanish"),
+// "im a boy", "when i grow up" and family news anywhere in the message; an explicit pretend frame ("lets play
+// house!", "we're playing toca boca.") anywhere before the cue's clause ends; "pregnant with" a food or a
+// thing, a story, book, show, game, costume, doll, dream, "in my book" or "if i was" in the cue's clause or
+// sentence; quoted words and what follows "said", "asked" or "saying" up to the sentence end or a joining
+// word (not "the doctor said"). A disclosure next to an ordinary mention still counts: "I'm pregnant. Can you
+// help with my book report?", "im pregnant. lets play a game". The shared review corpus
+// (child-safety-pregnancy-corpus.json) is every input both repos' reviews ruled on. The open vocabulary this
+// leaves out (euphemisms, "i'm late", "we didn't use protection") gets no notice.
 
 // Damerau-Levenshtein distance (optimal string alignment: insert, delete, change, or swap two neighbours).
 function editDistance(a: string, b: string): number {
@@ -187,14 +192,9 @@ const AGE =
   "(?:(?<!\\p{N})(?:1[0-7]|[1-9])(?!\\p{N})|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen)";
 const IM = "(?:i'm|im|i am)";
 const ADVERB = "(?:only|just|so|really|actually|probably|maybe|possibly|definitely|still|also|now|kinda|like|totally|literally|already)";
-// A cue laughed off right after it is a joke ("im pregnant lol", "i ate so much im pregnant 😂"), not a
-// disclosure. A laughing emoji further on ("im pregnant omg what do i do 😂😭") is not.
-const NOT_JOKE =
-  "(?![\\s.,!?]*(?:(?:lol|lmao|jk|j/k|ha(?:ha)+|hehe)(?![\\p{L}\\p{N}])|[\\u{1F602}\\u{1F606}\\u{1F639}\\u{1F923}]))";
-const YEARS_OLD = "(?: ?(?:years?|yrs?|yr)[- ]?old| ?y/?o)?";
-// The learner's own baby, not a sibling's, a doll or a pet ("im 7 and going to have a baby sister").
-const HAVING_A_BABY =
-  "(?:having|(?:going to|gonna) have) a baby(?! (?:sister|brother|sibling|cousin|niece|nephew|doll|shower|tooth|teeth|goat|lamb|chick|bunny|kitten|puppy)(?![\\p{L}\\p{N}]))";
+// A cue laughed off right after it in words is a joke ("im pregnant lol", "im pregnant jk"). A laughing emoji
+// counts anywhere in the message (LAUGH, in strongPregnancy).
+const NOT_JOKE = "(?![\\s.,!?]*(?:lol|lmao|jk|j/k|ha(?:ha)+|hehe)(?![\\p{L}\\p{N}]))";
 // What makes "i missed my period" a school class period: a day, the sub or class right after it, or "for"
 // before anything but a length of time ("for the assembly", not "for 2 months"); or a lesson question later.
 const WEEKDAY = "(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)";
@@ -203,14 +203,35 @@ const DURATION =
 const SCHOOL_PERIOD =
   "(?! (?:(?:on " + WEEKDAY + "|with the sub(?:stitute)?|in class)(?![\\p{L}\\p{N}])|for (?!" + DURATION + ")))" +
   "(?!.*(?:what did we learn|homework|(?:math|history|science) period))";
+const AGE_SUFFIX = "(?: ?(?:years?|yrs?|yr)[- ]?old| ?y/?o)?";
+const MY_AGE = AGE + AGE_SUFFIX;
+// Having a baby counts with an age of 10 or more: "im 8 and having a baby" is family news.
+const MY_AGE_10 = "(?:(?<!\\p{N})1[0-7](?!\\p{N})|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen)" + AGE_SUFFIX;
+// "and", "&", "n" or a comma between the age and the rest: "im 14 and pregnant", "im 14 n pregnant", "im having
+// a baby, im 14".
+const AND = "(?:,? (?:and|&|n)|,) ";
+const MONTH = "(?:jan(?:uary)?|feb(?:ruary)?|march|april|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const SEASON = "(?:the )?(?:spring|summer|fall|autumn|winter)";
+// The child's own baby: "a baby" followed only by the end, punctuation, a joining word or a few words of time
+// ("soon", "in june", "next year"). Not "a baby tooth", "a baby sitter", "a baby hamster", "a baby brother".
+const HAVING_A_BABY =
+  "(?:having|going to have|gonna have) a baby(?=\\s*(?:$|[^\\p{L}\\p{N}\\s])|\\s(?:(?:and|but|so|because|cause|cuz|bc|then|or|n|soon|too|now|already|this|next|boy|girl|what|help|omg|please|pls|i|im|i'm|with|at)(?![\\p{L}\\p{N}'])|in (?:" +
+  MONTH + "|" + SEASON + "|a few|a couple|a month|a week|\\p{N})))";
+// The "g" flag is for matchAll in strongPregnancy only: never call .test() or .exec() on these (lastIndex).
 const STRONG_PREGNANCY = [
-  // The first person with the word. Not "i feel like im pregnant" or "like i'm pregnant" (a full tummy).
+  // The first person with the word. Not "i feel like im pregnant" or "like i'm pregnant" (a full tummy), and not
+  // "if i was pregnant" (a hypothetical; "if i got pregnant at 30 ..." stays strong).
   "(?:am i|(?:could|might|may) i be|i (?:might|may|could|must) be|i think (?:" + IM + "|i (?:might|may|could) be)|(?<!like )" + IM +
-    "(?: " + ADVERB + ")*|i (?:got|was|became|have been|'ve been|ve been)|i'm getting|im getting) " + PREG,
-  "(?:knocked me up|(?:got|gotten|made|get|gets) me " + PREG + ")",
-  // The child's own age with it, or with having a baby, in either order.
-  IM + " (?:only |just )?" + AGE + YEARS_OLD + ",? (?:and|&) (?:" + PREG + "|(?:" + IM + " )?" + HAVING_A_BABY + ")",
-  IM + " " + HAVING_A_BABY + ",? (?:and|&) (?:" + IM + " )?(?:only |just )?" + AGE + YEARS_OLD,
+    "(?: " + ADVERB + ")*|i (?:got|became|have been|'ve been|ve been)|(?<!if )i was|i'm getting|im getting) " + PREG,
+  "knocked me up",
+  // Someone got the child pregnant. Not "can kissing get me pregnant?" (a curiosity question) or "this burrito
+  // got me pregnant" (a food joke).
+  "(?<!(?:this|that|these|those) [\\p{L}']+ )(?:got|made) me " + PREG,
+  // The child's own age with it, or with having a baby, in either order; or the age opening the message ("14
+  // and pregnant help").
+  IM + " (?:only |just )?(?:" + MY_AGE + AND + PREG + "|" + MY_AGE_10 + AND + "(?:" + IM + " )?" + HAVING_A_BABY + ")",
+  "^" + MY_AGE + AND + PREG,
+  IM + " " + HAVING_A_BABY + AND + "(?:" + IM + " )?(?:only |just )?" + MY_AGE_10,
   // The child's own missed or late period. Not a school period ("i missed my period 2 class", "i missed my
   // period on monday, what did we learn?").
   "(?:missed|skipped|miss|missing) my (?:last )?period" +
@@ -222,63 +243,104 @@ const STRONG_PREGNANCY = [
   "i (?:took|did|had|got|used) (?:a |the |an |another )?(?:home )?pregnancy tests?(?: [\\p{L}'&]+){0,6}? positive",
   "i (?:got|have|had) (?:a )?positive pregnancy tests?",
 ].map((s) => new RegExp("(?<![\\p{L}\\p{N}])" + s + "(?![\\p{L}\\p{N}])" + NOT_JOKE, "gu"));
-
-// The guards below read only the cue's own clause or sentence, so a disclosure next to an ordinary mention
-// still counts ("im pregnant and i dont want to go to the school play", "I'm pregnant. Can you help with my
-// book report?", "my friend said i should take a test because i think im pregnant"). A clause ends at , ; :
-// . ! ? or a joining word; a sentence at . ! ?
-const CLAUSE_BREAK = /[,;:.!?]|(?<![\p{L}\p{N}])(?:and|but|so|because|cause|cuz|bc|then|or)(?![\p{L}\p{N}])/gu;
-const SENTENCE_BREAK = /[.!?]/gu;
-function lastBreakEnd(text: string, re: RegExp): number {
-  let end = 0;
-  for (const m of text.matchAll(re)) end = m.index + m[0].length;
-  return end;
+// A laughing emoji anywhere makes the message a joke ("😂😂 i ate so much im pregnant", "im pregnant with tacos
+// 😂"), unless the message also shows distress: a crying or scared face, "what do i do", "scared", "worried",
+// "help me". 😂 with 😭 is distress, not a joke ("im pregnant omg what do i do 😂😭", "i think i'm pregnant 😭😂
+// what do i do"): decided for the review of TerraTutor #161, since a child who means it may laugh nervously.
+const LAUGH = /[\u{1F602}\u{1F606}\u{1F639}\u{1F923}]/u;
+const DISTRESS =
+  /[\u{1F62D}\u{1F622}\u{1F625}\u{1F630}\u{1F628}\u{1F631}]|(?<![\p{L}\p{N}])(?:what (?:do|should|can) i do|what do i tell|scared|afraid|worried|nervous|freaking out|terrified|i need help|(?:please|pls|plz) help|help me(?! with))(?![\p{L}\p{N}])/u;
+// "pregnant with" anything but a baby or a person is a joke: food, a feeling, an idea ("im pregnant with tacos",
+// "pregnant with a pillow belly"). Read up to four words after "with", to the clause end.
+const WITH_WHAT = /^[\s.…]*(?:with|w\/) ([^.!?;,]*)/u;
+const JOINING = new Set(["and", "but", "so", "because", "cause", "cuz", "bc", "then", "or"]);
+const PERSON =
+  /(?<![\p{L}\p{N}])(?:bab(?:y|ies)|child(?:ren)?|kids?|twins|triplets|quadruplets|quads|sons?|daughters?|boys?|girls?|him|her|them|his|it|one|someone|somebody)(?![\p{L}\p{N}])/u;
+function pregnantWithAThing(after: string): boolean {
+  const m = WITH_WHAT.exec(after);
+  if (!m) return false;
+  const words = m[1].split(" ").filter(Boolean);
+  const cut = words.findIndex((w) => JOINING.has(w));
+  const what = words.slice(0, Math.min(cut < 0 ? words.length : cut, 4));
+  return what.length > 0 && !PERSON.test(what.join(" "));
 }
-function firstBreak(text: string, re: RegExp): number {
-  for (const m of text.matchAll(re)) return m.index;
-  return text.length;
-}
-// In the cue's clause, before or after it: a story, a book, a show, a game, pretend play, a school play, a
-// costume, a doll ("write a story where the queen says i'm pregnant", "i got pregnant in bitlife", "in toca boca
-// i am pregnant", "i was pregnant in the school play", "im pregnant with my baby doll"), or a language lesson
-// ("i am pregnant in french"). "play" and "show" count as nouns only ("the school play", "a tv show"), never
-// "show me" or "playing soccer".
+// The guards below read the cue's own clause, its sentence, or the message up to the cue's clause end, never what
+// comes after (review of OpenEdu #342): "im pregnant and i dont want to go to the school play" is a disclosure;
+// "i was pregnant in the school play" is not. A clause ends at a comma, a sentence end or a joining word; a
+// sentence ends at . ! ? or ;.
+const SENTENCE_END = /[.!?;]/gu;
+const CLAUSE_END = /[.!?;,]|(?<![\p{L}\p{N}'])(?:and|but|so|because|cause|cuz|bc|then|or)(?![\p{L}\p{N}'])/gu;
+// In the cue's clause: a story, a book, a show, a game, pretend play, a school play, a costume, a doll, a dream
+// or a food baby ("i got pregnant in bitlife", "i was pregnant in the school play", "im pregnant with my baby
+// doll", "i dreamed i was pregnant"). "play" and "show" count as nouns only ("the school play", "a tv show").
 const FICTION_RE =
-  /(?<![\p{L}\p{N}])(?:story|stories|books?|novels?|movies?|films?|poems?|chapters?|characters?|pretend\p{L}*|role ?play\p{L}*|fanfic|scripts?|games?|toca(?: boca)?|gacha|bitlife|sims|minecraft|roblox|costumes?|halloween|dolls?|tv|episodes?|cartoons?|(?:school|class|church|christmas|nativity|the|a|our|my) play|play(?:ing|ed|s)? (?:house|pretend|mom|mommy|family|doctors?|hospital|vet)|(?:tv|a|the|this|that|my|our|favou?rite) shows?|(?:in|into|to) (?:spanish|french))(?![\p{L}\p{N}])/u;
-// Earlier in the cue's sentence: pretend play that frames what follows ("lets play doctor, im pregnant", "im
-// playing house with my sister and im pregnant").
-const PLAY_FRAME =
-  /(?<![\p{L}\p{N}])(?:pretend\p{L}*|role ?play\p{L}*|play(?:ing|ed|s)? (?:house|pretend|mom|mommy|family|doctors?|hospital|vet))(?![\p{L}\p{N}])/u;
-// Earlier in the cue's clause: someone else's words ("my teacher asked am i pregnant?", "my brother keeps
-// saying im pregnant"; not "the test said" or "it said", the child's own test), a language lesson ("how do you
-// say i am pregnant"), or a hypothetical ("when i grow up could i be pregnant", "if i was a seahorse dad could
-// i be pregnant"). After the cue, "if i was" is the learner's own question ("could i be pregnant if i was ...").
-const FRAMED =
-  /(?<![\p{L}\p{N}])(?:(?<!(?:tests?|it) )(?:said|says|asked|asks|saying)|how do (?:you|u|i) say|when i grow up|if i (?:were|was))(?![\p{L}\p{N}])/u;
-// Anywhere in the message: a food-baby joke, a boy asking, or family news, someone else's baby ("were having
-// a baby", "so now im going to be a cousin").
-const NOT_OWN_STATE =
-  /(?<![\p{L}\p{N}])(?:food[- ]?bab(?:y|ies)|(?:i'm|im|i am) a boy|(?:we're|were|we are) having a baby|(?:going to|gonna) be (?:a |an )?(?:big )?(?:cousin|aunt|auntie|uncle|sister|brother|sibling))(?![\p{L}\p{N}])/u;
-// Someone else's words inside quotation marks (an unclosed double quote runs to the end) never count.
+  /(?<![\p{L}\p{N}])(?:story|stories|books?|novels?|movies?|films?|poems?|chapters?|characters?|pretend\p{L}*|role ?play\p{L}*|fanfic|scripts?|playing|games?|toca(?: boca)?|gacha|bitlife|sims|minecraft|roblox|costumes?|halloween|dolls?|dream\p{L}*|nightmares?|tv|episodes?|cartoons?|(?:school|class|church|christmas|nativity|the|a|our|my) play|play(?:ed|s)? (?:house|pretend|mom|mommy|family|doctors?|hospital|vet)|(?:tv|a|the|this|that|my|our|favou?rite) shows?|food[- ]?bab(?:y|ies))(?![\p{L}\p{N}])/u;
+// Anywhere in the message up to the cue's clause end: an explicit pretend frame, since children set up the game in
+// one sentence and play in the next ("lets play house! im the mom and im pregnant", "we're playing toca boca. im
+// pregnant with twins", "my doll is the baby. im pregnant with her"). A game is a frame only after "in", "on" or
+// "playing": "i played minecraft all day and i think im pregnant" is a disclosure. A frame after the cue does not
+// reach back to it ("im pregnant. lets play a game" gets the notice).
+const PRETEND_FRAME =
+  /(?<![\p{L}\p{N}])(?:pretend\p{L}*|role ?play\p{L}*|make[- ]believe|(?:let's|lets|let us) play|play(?:s|ed|ing)? (?:house|pretend|mom|mommy|family|doctors?|hospital|vet)|(?:in|on|playing) (?:toca(?: boca)?|gacha|bitlife|(?:the )?sims|minecraft|roblox)|(?:school|class|church|christmas|nativity|easter|the|a|our|my) play|dolls? (?:is|are) (?:the |my |a )?bab(?:y|ies)|(?:halloween )?costumes?|for halloween|writ(?:e|es|ing) (?:me )?(?:a |an |my )?(?:story|poem|script|play))(?![\p{L}\p{N}])/u;
+// Earlier in the cue's sentence, or in its clause: a book, a show or a game named after "in" or "on", or a
+// hypothetical ("in my book im pregnant", "if i was a seahorse dad could i be pregnant?").
+const FRAME_RE =
+  /(?<![\p{L}\p{N}])(?:(?:in|on) (?:a |an |the |my |our |this |that |his |her |their )?(?:\p{L}+ )?(?:story|stories|books?|novels?|movies?|films?|poems?|chapters?|scripts?|fanfic|games?|play|shows?|tv|episodes?|cartoons?)|if i (?:were|was))(?![\p{L}\p{N}])/u;
+// Anywhere in the message: the narrow, high-precision frames. A language lesson ("i am pregnant, how do you say
+// that in spanish?", "translate i am pregnant to german", "what does estoy embarazada mean?") and the clear
+// hypotheticals ("could i be pregnant? im a boy", "i might be pregnant someday, when i grow up"). Not "how do i
+// say im pregnant to my mom": that is asking how to tell a parent.
+const LESSON_FRAME =
+  /(?<![\p{L}\p{N}])(?:how (?:do|would|can|to) (?:you |u |i )?say(?!.*(?<![\p{L}\p{N}])to (?:my|mom|mommy|mum|dad|daddy|her|him|them)(?![\p{L}\p{N}]))|translat\p{L}*|(?:in|into|to) (?:spanish|french|german|italian|portuguese|latin|chinese|japanese|korean)|embarazada|enceinte|schwanger|incinta|(?:i'm|im|i am) a boy|when i grow up|someday when|when (?:i'm|im|i am) (?:older|grown(?: up)?|a grown-?up|an adult))(?![\p{L}\p{N}])/u;
+// Not a frame: "im pregnant for real this isnt a story".
+const NOT_FICTION = /(?<![\p{L}\p{N}])(?:not|isn't|isnt|is not|ain't|aint|no) (?:a |an |just |even )?(?:story|joke|game|pretend|role ?play)(?![\p{L}\p{N}])/gu;
+// Family news: someone else's baby ("were having a baby", "so now im going to be a cousin").
+const FAMILY_NEWS =
+  /(?<![\p{L}\p{N}])(?:(?:we're|were|we are) having a baby|(?:going to|gonna) be (?:a |an )?(?:big )?(?:cousin|aunt|auntie|uncle|sister|brother|sibling))(?![\p{L}\p{N}])/u;
+// Someone else's words: anything inside quotation marks (an unclosed double quote runs to the end), and what
+// follows "said", "says", "saying", "asked" or "asks" up to the end of the sentence or a joining word ("my
+// teacher asked am i pregnant?", "my brother keeps saying im pregnant cuz my belly is big"; not "my friend said i
+// should take a test because i think im pregnant"). Not "the test said", "it said" or "the doctor / nurse said":
+// that is the child's own result ("the doctor said im pregnant").
 const QUOTED = /"[^"]*(?:"|$)|“[^”]*(?:”|$)|(?<![\p{L}\p{N}])'.*?'(?![\p{L}\p{N}])/gu;
+const REPORTED =
+  /(?<![\p{L}\p{N}])(?<!(?:tests?|it|doctor|doctors|doc|nurse|clinic) )(?:said|says|saying|asked|asks)(?![\p{L}\p{N}]).*?(?=[.!?;]|(?<![\p{L}\p{N}'])(?:and|but|so|because|cause|cuz|bc|then|or)(?![\p{L}\p{N}'])|$)/gu;
 
-function cueIsGuarded(text: string, start: number, end: number): boolean {
-  const before = text.slice(0, start);
-  const after = text.slice(end);
-  const clauseBefore = before.slice(lastBreakEnd(before, CLAUSE_BREAK));
-  const clauseAfter = after.slice(0, firstBreak(after, CLAUSE_BREAK));
-  const sentenceBefore = before.slice(lastBreakEnd(before, SENTENCE_BREAK));
-  return (
-    FICTION_RE.test(clauseBefore) || FICTION_RE.test(clauseAfter) || FRAMED.test(clauseBefore) || PLAY_FRAME.test(sentenceBefore)
-  );
+// Where a regex matches in a text, found once per message: [start, end] of each match.
+function boundaries(re: RegExp, text: string): [number, number][] {
+  return [...text.matchAll(re)].map((m): [number, number] => [m.index, m.index + m[0].length]);
+}
+// The end of the last boundary that ends at or before i (0 when none), and the start of the first one at or after
+// i (the text's length when none).
+function lastEndBefore(bounds: [number, number][], i: number): number {
+  let at = 0;
+  for (const [, end] of bounds) if (end <= i) at = end;
+  return at;
+}
+function firstStartAfter(bounds: [number, number][], i: number, length: number): number {
+  for (const [start] of bounds) if (start >= i) return start;
+  return length;
 }
 
 function strongPregnancy(text: string): boolean {
   const c = pregnancyWords(text);
-  if (NOT_OWN_STATE.test(c)) return false;
-  const own = c.replace(QUOTED, " ");
+  if (FAMILY_NEWS.test(c) || LESSON_FRAME.test(c) || (LAUGH.test(c) && !DISTRESS.test(c))) return false;
+  // Someone else's words are blanked to spaces, so every index still points into c; so is "not a story".
+  const blank = (s: string) => " ".repeat(s.length);
+  const own = c.replace(QUOTED, blank).replace(REPORTED, blank);
+  const guarded = c.replace(NOT_FICTION, blank);
+  const clauses = boundaries(CLAUSE_END, c);
+  const sentences = boundaries(SENTENCE_END, c);
   return STRONG_PREGNANCY.some((re) => {
-    for (const m of own.matchAll(re)) if (!cueIsGuarded(own, m.index, m.index + m[0].length)) return true;
+    for (const m of own.matchAll(re)) {
+      const end = m.index + m[0].length;
+      const clauseEnd = firstStartAfter(clauses, end, c.length);
+      const clause = guarded.slice(lastEndBefore(clauses, m.index), clauseEnd);
+      const sentence = guarded.slice(lastEndBefore(sentences, m.index), clauseEnd);
+      if (pregnantWithAThing(c.slice(end))) continue;
+      if (FICTION_RE.test(clause) || FRAME_RE.test(sentence) || PRETEND_FRAME.test(guarded.slice(0, clauseEnd))) continue;
+      return true;
+    }
     return false;
   });
 }
