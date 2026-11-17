@@ -75,6 +75,14 @@ describe("getReviewConfig never sends a model to a provider it does not belong t
     saved.set("review_model", "openai:gemma4:e2b");
     expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "anthropic", model: "claude-haiku-5-5" });
   });
+
+  // Review of #341: an imported local model with no tag, named like a cloud id, is still Ollama's.
+  it("a local model named like a cloud id checks on Ollama, bare or with the ollama: prefix", async () => {
+    saved.set("review_model", "claude-3.7-sonnet-reasoning-gemma3-12b");
+    expect(await getReviewConfig({ ...LOCAL_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "claude-3.7-sonnet-reasoning-gemma3-12b" });
+    saved.set("review_model", "ollama:gpt-2");
+    expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "gpt-2" });
+  });
 });
 
 describe("getLocalVerifyConfig: the model the missed questions may go to", () => {

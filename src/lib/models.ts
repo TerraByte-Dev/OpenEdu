@@ -1,7 +1,8 @@
 // Single source of truth for the model catalogs shown in Settings AND the default model ids used by
-// store.ts. Hoisted out of the Settings view so the "recommended" chip and the actual fallback default can
+// store.ts. Hoisted out of the Settings view so a "recommended" chip and the actual fallback default can
 // never disagree — that disagreement was the root of issue #2 (a picker recommending gpt-5.4 while the
-// store defaulted to gpt-4o). Pure module (no Tauri imports) → unit-testable.
+// store defaulted to gpt-4o). Generation has no recommended chip, so there the default is the first entry.
+// Pure module (no Tauri imports) → unit-testable.
 
 import type { LLMProvider } from "../types";
 
@@ -140,10 +141,10 @@ function recommendedId(options: ModelOption[]): string {
   return (options.find((m) => m.recommended) ?? options[0]).id;
 }
 
-// Default model id when the user hasn't picked one — DERIVED from the catalog's `recommended` flag, so the
-// store default always equals the chip Settings highlights. Cloud providers fall back to their recommended
-// catalog entry, or the first entry where none is recommended (generation, see GENERATION_MODELS); Ollama
-// picks by RAM and what is pulled (discovery fills the rest in the picker).
+// Default model id when the user hasn't picked one — DERIVED from the catalog: the `recommended` entry
+// (chat, the chip Settings marks RECOMMENDED), or the first entry where none is recommended (generation,
+// see GENERATION_MODELS, where Settings marks no chip). Ollama picks by RAM and what is pulled (discovery
+// fills the rest in the picker).
 // `ramBytes` and `installed` are ignored for cloud providers.
 export function defaultGenerationModel(provider: LLMProvider, ramBytes: number | null = null, installed: string[] | null = null): string {
   return provider === "ollama" ? defaultOllamaModel(ramBytes, installed) : recommendedId(GENERATION_MODELS[provider]);
@@ -151,33 +152,46 @@ export function defaultGenerationModel(provider: LLMProvider, ramBytes: number |
 export function defaultChatModel(provider: LLMProvider, ramBytes: number | null = null, installed: string[] | null = null): string {
   return provider === "ollama" ? defaultOllamaModel(ramBytes, installed) : recommendedId(CHAT_MODELS[provider]);
 }
-// The provider a model id belongs to. Every id belongs to exactly one, so a model stored for one provider
-// can never be sent to another (gen_model and chat_model are one key each for all three providers). A
-// cloud id is one in that provider's catalog or shutdown list, or one with its shape: "claude-…" for
-// Anthropic; "gpt-<digit>…", "o<digit>…", "chatgpt-…" or a fine-tune "ft:…" for OpenAI. Anything else is
-// Ollama's, and so is any "name:tag" (gemma4:e2b, gpt-oss:20b): a colon is in no cloud id but a fine-tune's.
-const CLOUD_PROVIDERS: CloudProvider[] = ["openai", "anthropic"];
+// Whether a stored model id may be sent to `provider`. gen_model and chat_model are one key each for all
+// three providers, so after a switch the stored id can be another provider's. The check is one-sided:
+//   - A cloud provider takes only its own ids: one in its catalog or shutdown list, or one with its shape
+//     ("claude-…" for Anthropic; "gpt-<digit>…", "o<digit>…", "chatgpt-…" or a fine-tune "ft:…" for
+//     OpenAI), and never a "name:tag" (gemma4:e2b, gpt-oss:20b; a colon is in no cloud id but a
+//     fine-tune's). So an Ollama tag never reaches a cloud API. A real cloud id outside the catalog with
+//     none of these shapes ("codex-mini-latest", "computer-use-preview") is not taken either and the
+//     default applies; Settings offers cloud models only as buttons, so only a hand-edited or imported
+//     settings file can hold one.
+//   - Ollama takes any name except an exact cloud catalog or shutdown id. A local model whose bare name
+//     only looks like a cloud id stays valid: an offline import saves its folder name with no tag
+//     (model-kit.ts suggestedName), e.g. "claude-3.7-sonnet-reasoning-gemma3-12b" or "gpt-2". A cloud id
+//     sent to the local Ollama by mistake would only get a 404, so nothing looser is needed there.
 const CLOUD_ID_SHAPES: Record<CloudProvider, RegExp> = {
   openai: /^(ft:|gpt-\d|chatgpt-|o\d+(-|$))/,
   anthropic: /^claude-/,
 };
-export function modelProvider(id: string): LLMProvider {
+function inCloudCatalog(provider: CloudProvider, id: string): boolean {
+  // Own keys only, so "constructor" or "__proto__" never read as a shutdown entry. (Object.hasOwn is
+  // ES2022; tsconfig's lib is ES2021, and this is the same check.)
+  return [...GENERATION_MODELS[provider], ...CHAT_MODELS[provider]].some((o) => o.id === id)
+    || Object.prototype.hasOwnProperty.call(CLOUD_SHUTDOWNS[provider], id);
+}
+export function modelFitsProvider(id: string, provider: LLMProvider): boolean {
   const m = id.trim().toLowerCase();
-  for (const p of CLOUD_PROVIDERS) {
-    const listed = [...GENERATION_MODELS[p], ...CHAT_MODELS[p]].some((o) => o.id === m)
-      || Object.prototype.hasOwnProperty.call(CLOUD_SHUTDOWNS[p], m);
-    if (listed) return p;
-  }
-  if (m.includes(":") && !m.startsWith("ft:")) return "ollama";
-  return CLOUD_PROVIDERS.find((p) => CLOUD_ID_SHAPES[p].test(m)) ?? "ollama";
+  if (provider === "ollama") return !(["openai", "anthropic"] as const).some((p) => inCloudCatalog(p, m));
+  const shape: RegExp | undefined = CLOUD_ID_SHAPES[provider];
+  if (!shape) return false;
+  if (inCloudCatalog(provider, m)) return true;
+  if (m.includes(":") && !m.startsWith("ft:")) return false;
+  return shape.test(m);
 }
 
-// The model a stored setting should resolve to, or undefined when the provider's default applies. A
-// stored id that belongs to another provider (modelProvider) is ignored: after a switch from Ollama to
-// Anthropic, a stored "gemma4:e2b" must not reach Anthropic's API, nor a stored "claude-opus-4-6" Ollama.
-// A stored id is otherwise kept as is unless its provider has shut it down (CLOUD_SHUTDOWNS); then the
-// default model for the same provider and role is used. This never moves anyone to another provider,
-// and nothing is written back: the stored value stays until the user picks again.
+// The model a stored setting should resolve to (trimmed), or undefined when the provider's default
+// applies. A stored id the provider does not take (modelFitsProvider) is ignored: after a switch from
+// Ollama to Anthropic, a stored "gemma4:e2b" must not reach Anthropic's API, nor a stored
+// "claude-opus-4-6" Ollama. A stored id is otherwise used unless its provider has shut it down
+// (CLOUD_SHUTDOWNS); then the default model for the same provider and role is used. This never moves
+// anyone to another provider, and nothing is written back: the stored value stays until the user picks
+// again, so switching back to a provider that takes it uses it again.
 export function resolveStoredModel(
   provider: LLMProvider,
   role: "generation" | "chat",
@@ -186,23 +200,22 @@ export function resolveStoredModel(
 ): string | undefined {
   // A hand-edited settings import can put anything here; a non-string means "nothing stored".
   if (typeof stored !== "string") return undefined;
-  if (modelProvider(stored) !== provider) return undefined;
-  if (provider === "ollama") return stored;
-  // Own keys only, so "constructor" or "__proto__" never read as a shutdown entry. (Object.hasOwn is
-  // ES2022; tsconfig's lib is ES2021, and this is the same check.)
-  const shutdowns: Record<string, string> = CLOUD_SHUTDOWNS[provider] ?? {};
   const id = stored.trim();
-  if (!Object.prototype.hasOwnProperty.call(shutdowns, id)) return stored;
-  if (now < new Date(`${shutdowns[id]}T00:00:00Z`)) return stored;
+  if (!id || !modelFitsProvider(id, provider)) return undefined;
+  if (provider === "ollama") return id;
+  // Own keys only, as in inCloudCatalog.
+  const shutdowns: Record<string, string> = CLOUD_SHUTDOWNS[provider] ?? {};
+  if (!Object.prototype.hasOwnProperty.call(shutdowns, id)) return id;
+  if (now < new Date(`${shutdowns[id]}T00:00:00Z`)) return id;
   return role === "generation" ? defaultGenerationModel(provider) : defaultChatModel(provider);
 }
 
 // The chips Settings shows for a cloud role. A stored id that is not in the catalog (one that left the
 // picker but still works, or a hand-typed one) is what the app will actually send, so it is appended as
-// an extra chip labelled with its id, and the selection stays visible. Another provider's model is never
-// appended: the app does not send it to this one (resolveStoredModel).
+// an extra chip labelled with its id, and the selection stays visible. A model this provider does not take
+// is never appended: the app does not send it here (resolveStoredModel).
 export function withStoredOption(options: ModelOption[], stored: string, provider: CloudProvider): ModelOption[] {
-  if (!stored.trim() || options.some((m) => m.id === stored) || modelProvider(stored) !== provider) return options;
+  if (!stored.trim() || options.some((m) => m.id === stored) || !modelFitsProvider(stored, provider)) return options;
   return [...options, { id: stored, label: stored }];
 }
 export function defaultEmbeddingModel(provider: LLMProvider): string {

@@ -2,7 +2,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
-import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, modelProvider, resolveStoredModel } from "./models";
+import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
 import { detectModelProfile, detectModelTier, getOllamaModels, type ModelProfile } from "./llm";
 import { resolveReviewConfig, type ProviderCredentials, type ReviewKind } from "./content-review";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
@@ -132,7 +132,8 @@ export async function getLocalVerifyConfig(gen: LLMConfig): Promise<LLMConfig | 
   return withOllamaNumCtx({ provider: "ollama", model, ollamaUrl });
 }
 
-// Chat model (tutor chat) — defaults to the catalog's recommended fast/cheap model.
+// Chat model (tutor chat) — defaults to the chat catalog's recommended fast, cheap model, or for Ollama
+// the one that fits this machine's RAM (see models.ts).
 export async function getChatConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
@@ -218,16 +219,12 @@ export async function markCloudNoticeSeen(feature: CloudFeature): Promise<void> 
   await s.save();
 }
 
-// A switch also clears a stored generation or chat model that belongs to another provider (models.ts
-// modelProvider), so the new provider's default applies and the store holds what the app sends. The
-// getters already skip such a model (resolveStoredModel); this keeps the stored value from saying otherwise.
+// A switch leaves the stored generation and chat models alone. The getters skip one the new provider does
+// not take (models.ts resolveStoredModel) and use its default, so switching back restores the user's pick:
+// Ollama qwen3.5:0.8b → Anthropic → Ollama is qwen3.5:0.8b again, not a default that may not be pulled.
 export async function setLLMProvider(provider: LLMProvider): Promise<void> {
   const s = await getStore();
   await s.set(STORE_KEYS.provider, provider);
-  for (const key of [STORE_KEYS.genModel, STORE_KEYS.chatModel]) {
-    const stored = await s.get<unknown>(key);
-    if (typeof stored === "string" && modelProvider(stored) !== provider) await s.delete(key);
-  }
   await s.save();
 }
 
