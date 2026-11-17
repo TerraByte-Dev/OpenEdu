@@ -222,9 +222,18 @@ const SEASON = "(?:the )?(?:spring|summer|fall|autumn|winter)";
 const HAVING_A_BABY =
   "(?:having|going to have|gonna have) a baby(?=\\s*(?:$|[^\\p{L}\\p{N}\\s])|\\s(?:(?:and|but|so|because|cause|cuz|bc|then|or|n|soon|too|now|already|this|next|boy|girl|what|help|omg|please|pls|i|im|i'm|with|at)(?![\\p{L}\\p{N}'])|in (?:" +
   MONTH + "|" + SEASON + "|a few|a couple|a month|a week|\\p{N})))";
-// Who the baby is with, between "a baby" and the age join: "with" a name, or "with my / his / her / a / the" and
-// one word ("im having a baby with my boyfriend and im 15", "im going to have a baby with jake, im 16").
-const BABY_WITH = "(?: with (?:(?:my|his|her|a|the) )?\\p{L}+)?";
+// Who the baby is with, between "having a baby" and the child's age ("im having a baby with my boyfriend and im
+// 15", final check of TerraTutor #161): my, his, a, the ... and a person word, with up to three words before it
+// ("my 17 year old boyfriend", "an older guy"), or one word for a name or "him". Never a parent or the family:
+// "im having a baby with my mom and dad and im 12" is family news. Someone else's baby ("a baby sister with my
+// mom") never reaches it: HAVING_A_BABY ends at "a baby".
+const PARENT = "(?:mom|mum|mommy|mummy|mama|momma|mother|ma|stepmom|stepmum|parents?|family|fam)";
+const PERSON =
+  "(?:boyfriend|bf|bae|girlfriend|gf|partner|guy|boy|man|dude|friend|husband|hubby|fianc[eé]e?|ex|crush|teacher|coach|" +
+  "stepdad|stepfather|dad|daddy|father|uncle|cousin|brother|stepbrother|neighbou?r|pastor|tutor|babysitter|someone|somebody)";
+const WITH_SOMEONE =
+  "(?: with (?:(?:my|his|a|an|the|this|that|some) (?:(?!(?:and|n|or|but|" + PARENT + ")(?![\\p{L}\\p{N}']))[\\p{L}\\p{N}'-]+ ){0,3}" + PERSON +
+  "|(?!(?:my|his|a|an|the|this|that|some|" + PARENT + ")(?![\\p{L}\\p{N}']))[\\p{L}']+))?";
 // The "g" flag is for matchAll in strongPregnancy only: never call .test() or .exec() on these (lastIndex).
 const STRONG_PREGNANCY = [
   // The first person with the word. Not "i feel like im pregnant" or "like i'm pregnant" (a full tummy), and not
@@ -239,7 +248,7 @@ const STRONG_PREGNANCY = [
   // and pregnant help").
   IM + " (?:only |just )?(?:" + MY_AGE + AND + PREG + "|" + MY_AGE_10 + AND + "(?:" + IM + " )?" + HAVING_A_BABY + ")",
   "^" + MY_AGE + AND + PREG,
-  IM + " " + HAVING_A_BABY + BABY_WITH + AND + "(?:" + IM + " )?(?:only |just )?" + MY_AGE_10,
+  IM + " " + HAVING_A_BABY + WITH_SOMEONE + AND + "(?:" + IM + " )?(?:only |just )?" + MY_AGE_10,
   // The child's own missed or late period. Not a school period ("i missed my period 2 class", "i missed my
   // period on monday, what did we learn?").
   "(?:missed|skipped|miss|missing) my (?:last )?period" +
