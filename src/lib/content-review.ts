@@ -14,7 +14,7 @@ import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, LLMProvider, ModelTier } from "../types";
 import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
 import { lessonCheckCounts } from "./ai-notice";
-import { GENERATION_MODELS } from "./models";
+import { GENERATION_MODELS, modelProvider } from "./models";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
 
@@ -37,7 +37,9 @@ type Messages = Array<{ role: string; content: string }>;
 // tiers (LESSON_REVIEW_DEFAULT_OFF_TIERS). "off" = no review. "<provider>:<model>" = that model on another
 // configured provider (parseReviewModel), e.g. "anthropic:claude-haiku-5-5" with the key saved for
 // Anthropic, so a local model can write and a cloud model check. Any other value = that model on the
-// current provider. A cloud reviewer whose privacy notice was never confirmed here (an Ollama cloud
+// current provider. A model that belongs to another provider (models.ts modelProvider: a "gemma4:e2b" left
+// from Ollama while the course model is on Anthropic, or "anthropic:gpt-6-luna") is ignored (the default
+// applies). A cloud reviewer whose privacy notice was never confirmed here (an Ollama cloud
 // model, or OpenAI/Anthropic before their confirm), or a cloud provider with no saved key, is ignored
 // (the default applies), so a hand-edited settings file cannot send content off the computer
 // unannounced. The payload is the same for every reviewer: topic, title and generated content.
@@ -74,7 +76,7 @@ export function parseReviewModel(value: string): { provider: LLMProvider | null;
 // checks"), or null when it cannot be used: no key saved for that cloud provider, its one-time privacy
 // confirm never accepted here (needsCloudNotice), or an Ollama cloud model never confirmed.
 function otherProviderReview(provider: LLMProvider, model: string, creds: ProviderCredentials, seen: readonly string[]): LLMConfig | null {
-  if (!model) return null;
+  if (!model || modelProvider(model) !== provider) return null;
   if (provider === "ollama") {
     if (modelNeedsCloudNotice("ollama", model, seen)) return null;
     return { provider, model, ollamaUrl: creds.ollama?.ollamaUrl };
@@ -99,7 +101,7 @@ export function resolveReviewConfig(
   if (named.provider && named.provider !== gen.provider) {
     const other = otherProviderReview(named.provider, named.model, creds, noticesSeen);
     if (other) return other;
-  } else if (named.model && !modelNeedsCloudNotice(gen.provider, named.model, noticesSeen)) {
+  } else if (named.model && modelProvider(named.model) === gen.provider && !modelNeedsCloudNotice(gen.provider, named.model, noticesSeen)) {
     return named.model === gen.model ? { ...gen, modelTier: genTier } : { ...gen, model: named.model, modelTier: undefined };
   }
   if (kind === "lesson" && LESSON_REVIEW_DEFAULT_OFF_TIERS.has(genTier)) return null;

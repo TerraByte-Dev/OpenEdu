@@ -6,7 +6,7 @@
 import type { LLMProvider } from "../types";
 
 export interface ModelOption { id: string; label: string; recommended?: boolean }
-type CloudProvider = Exclude<LLMProvider, "ollama">;
+export type CloudProvider = Exclude<LLMProvider, "ollama">;
 
 export const PROVIDERS: { id: LLMProvider; name: string; needsKey: boolean }[] = [
   { id: "ollama", name: "Ollama (Local — Free)", needsKey: false },
@@ -145,10 +145,33 @@ export function defaultGenerationModel(provider: LLMProvider, ramBytes: number |
 export function defaultChatModel(provider: LLMProvider, ramBytes: number | null = null, installed: string[] | null = null): string {
   return provider === "ollama" ? defaultOllamaModel(ramBytes, installed) : recommendedId(CHAT_MODELS[provider]);
 }
-// The model a stored setting should resolve to. A stored id is kept as is unless its provider has shut
-// it down (CLOUD_SHUTDOWNS); then the recommended model for the same provider and role is used. Only
-// the current provider's own list is consulted, so this never moves anyone to another provider, and
-// nothing is written back: the stored value stays until the user picks again.
+// The provider a model id belongs to. Every id belongs to exactly one, so a model stored for one provider
+// can never be sent to another (gen_model and chat_model are one key each for all three providers). A
+// cloud id is one in that provider's catalog or shutdown list, or one with its shape: "claude-…" for
+// Anthropic; "gpt-<digit>…", "o<digit>…", "chatgpt-…" or a fine-tune "ft:…" for OpenAI. Anything else is
+// Ollama's, and so is any "name:tag" (gemma4:e2b, gpt-oss:20b): a colon is in no cloud id but a fine-tune's.
+const CLOUD_PROVIDERS: CloudProvider[] = ["openai", "anthropic"];
+const CLOUD_ID_SHAPES: Record<CloudProvider, RegExp> = {
+  openai: /^(ft:|gpt-\d|chatgpt-|o\d+(-|$))/,
+  anthropic: /^claude-/,
+};
+export function modelProvider(id: string): LLMProvider {
+  const m = id.trim().toLowerCase();
+  for (const p of CLOUD_PROVIDERS) {
+    const listed = [...GENERATION_MODELS[p], ...CHAT_MODELS[p]].some((o) => o.id === m)
+      || Object.prototype.hasOwnProperty.call(CLOUD_SHUTDOWNS[p], m);
+    if (listed) return p;
+  }
+  if (m.includes(":") && !m.startsWith("ft:")) return "ollama";
+  return CLOUD_PROVIDERS.find((p) => CLOUD_ID_SHAPES[p].test(m)) ?? "ollama";
+}
+
+// The model a stored setting should resolve to, or undefined when the provider's default applies. A
+// stored id that belongs to another provider (modelProvider) is ignored: after a switch from Ollama to
+// Anthropic, a stored "gemma4:e2b" must not reach Anthropic's API, nor a stored "claude-opus-4-6" Ollama.
+// A stored id is otherwise kept as is unless its provider has shut it down (CLOUD_SHUTDOWNS); then the
+// recommended model for the same provider and role is used. This never moves anyone to another provider,
+// and nothing is written back: the stored value stays until the user picks again.
 export function resolveStoredModel(
   provider: LLMProvider,
   role: "generation" | "chat",
@@ -157,6 +180,7 @@ export function resolveStoredModel(
 ): string | undefined {
   // A hand-edited settings import can put anything here; a non-string means "nothing stored".
   if (typeof stored !== "string") return undefined;
+  if (modelProvider(stored) !== provider) return undefined;
   if (provider === "ollama") return stored;
   // Own keys only, so "constructor" or "__proto__" never read as a shutdown entry. (Object.hasOwn is
   // ES2022; tsconfig's lib is ES2021, and this is the same check.)
@@ -169,9 +193,10 @@ export function resolveStoredModel(
 
 // The chips Settings shows for a cloud role. A stored id that is not in the catalog (one that left the
 // picker but still works, or a hand-typed one) is what the app will actually send, so it is appended as
-// an extra chip labelled with its id, and the selection stays visible.
-export function withStoredOption(options: ModelOption[], stored: string): ModelOption[] {
-  if (!stored.trim() || options.some((m) => m.id === stored)) return options;
+// an extra chip labelled with its id, and the selection stays visible. Another provider's model is never
+// appended: the app does not send it to this one (resolveStoredModel).
+export function withStoredOption(options: ModelOption[], stored: string, provider: CloudProvider): ModelOption[] {
+  if (!stored.trim() || options.some((m) => m.id === stored) || modelProvider(stored) !== provider) return options;
   return [...options, { id: stored, label: stored }];
 }
 export function defaultEmbeddingModel(provider: LLMProvider): string {

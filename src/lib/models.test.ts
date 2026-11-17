@@ -3,7 +3,7 @@ import {
   GENERATION_MODELS, CHAT_MODELS,
   defaultGenerationModel, defaultChatModel, defaultEmbeddingModel,
   defaultOllamaModelForRam, defaultOllamaModel, isOllamaDefaultModel,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, CLOUD_SHUTDOWNS, resolveStoredModel, withStoredOption,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, CLOUD_SHUTDOWNS, modelProvider, resolveStoredModel, withStoredOption,
 } from "./models";
 import type { LLMProvider } from "../types";
 
@@ -148,10 +148,28 @@ describe("resolveStoredModel (a stored id the provider shut down)", () => {
     expect(resolveStoredModel("anthropic", "chat", "claude-haiku-4-5-20251001", after)).toBe("claude-haiku-4-5-20251001");
   });
 
-  it("never switches provider, and leaves Ollama and an empty store alone", () => {
-    expect(resolveStoredModel("anthropic", "chat", "gpt-4o", after)).toBe("gpt-4o");
-    expect(resolveStoredModel("ollama", "chat", "gpt-4o", after)).toBe("gpt-4o");
+  it("never switches provider, and leaves Ollama's own models and an empty store alone", () => {
+    expect(resolveStoredModel("ollama", "chat", "gemma4:e2b", after)).toBe("gemma4:e2b");
+    expect(resolveStoredModel("ollama", "chat", "gpt-oss:120b-cloud", after)).toBe("gpt-oss:120b-cloud");
     expect(resolveStoredModel("openai", "chat", undefined, after)).toBeUndefined();
+  });
+
+  // Click test 5: course generation on Ollama gemma4:e2b, then "Use Anthropic"; the next course build sent
+  // the Ollama tag to Anthropic's API. One gen_model key serves every provider, so a stored id is used only
+  // by the provider it belongs to; undefined means the provider's default applies.
+  it("ignores another provider's model, so a cloud provider never gets an Ollama tag (and back)", () => {
+    for (const role of ["generation", "chat"] as const) {
+      for (const tag of ["gemma4:e2b", "gemma4:e4b", "qwen3.5:0.8b", "gpt-oss:20b", "llama3", " gemma4:e2b "]) {
+        expect(resolveStoredModel("anthropic", role, tag, after)).toBeUndefined();
+        expect(resolveStoredModel("openai", role, tag, after)).toBeUndefined();
+      }
+      expect(resolveStoredModel("anthropic", role, "gpt-6-luna", after)).toBeUndefined();
+      expect(resolveStoredModel("anthropic", role, "gpt-4o", after)).toBeUndefined();
+      expect(resolveStoredModel("openai", role, "claude-opus-4-6", after)).toBeUndefined();
+      expect(resolveStoredModel("ollama", role, "claude-opus-4-6", after)).toBeUndefined();
+      expect(resolveStoredModel("ollama", role, "gpt-4o", after)).toBeUndefined();
+      expect(resolveStoredModel("anthropic", role, "", after)).toBeUndefined();
+    }
   });
 
   it("treats a non-string stored value (hand-edited settings import) as nothing stored", () => {
@@ -160,11 +178,13 @@ describe("resolveStoredModel (a stored id the provider shut down)", () => {
     }
   });
 
-  it("leaves Object prototype keys and unknown providers alone", () => {
+  it("never reads an Object prototype key as a catalog or shutdown entry", () => {
     for (const id of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
-      expect(resolveStoredModel("openai", "generation", id, after)).toBe(id);
+      expect(modelProvider(id)).toBe("ollama");
+      expect(resolveStoredModel("openai", "generation", id, after)).toBeUndefined();
+      expect(resolveStoredModel("ollama", "generation", id, after)).toBe(id);
     }
-    expect(resolveStoredModel("groq" as LLMProvider, "chat", "gpt-4o", after)).toBe("gpt-4o");
+    expect(resolveStoredModel("groq" as LLMProvider, "chat", "gpt-4o", after)).toBeUndefined();
   });
 
   for (const provider of CLOUD) {
@@ -179,15 +199,52 @@ describe("withStoredOption (Settings shows the model the app will use)", () => {
   const list = CHAT_MODELS.anthropic;
 
   it("adds a stored id that is not in the list as an extra chip labelled with its id", () => {
-    expect(withStoredOption(list, "claude-haiku-4-5-20251001")).toEqual([
+    expect(withStoredOption(list, "claude-haiku-4-5-20251001", "anthropic")).toEqual([
       ...list, { id: "claude-haiku-4-5-20251001", label: "claude-haiku-4-5-20251001" },
     ]);
   });
 
   it("returns the list unchanged for a listed id or an empty value", () => {
-    expect(withStoredOption(list, list[0].id)).toBe(list);
-    expect(withStoredOption(list, "")).toBe(list);
-    expect(withStoredOption(list, "  ")).toBe(list);
+    expect(withStoredOption(list, list[0].id, "anthropic")).toBe(list);
+    expect(withStoredOption(list, "", "anthropic")).toBe(list);
+    expect(withStoredOption(list, "  ", "anthropic")).toBe(list);
+  });
+
+  // Click test 5 showed a selected "gemma4:e2b" chip among Anthropic's course-generation models.
+  it("never adds another provider's model as a chip", () => {
+    for (const other of ["gemma4:e2b", "gemma4:e4b", "gpt-6-luna"]) expect(withStoredOption(list, other, "anthropic")).toBe(list);
+    expect(withStoredOption(CHAT_MODELS.openai, "claude-haiku-5-5", "openai")).toBe(CHAT_MODELS.openai);
+  });
+});
+
+describe("modelProvider: every model id belongs to exactly one provider", () => {
+  for (const provider of CLOUD) {
+    it(`every ${provider} catalog and shutdown id is ${provider}'s`, () => {
+      const ids = [...GENERATION_MODELS[provider], ...CHAT_MODELS[provider]].map((m) => m.id);
+      for (const id of [...ids, ...Object.keys(CLOUD_SHUTDOWNS[provider])]) expect(modelProvider(id), id).toBe(provider);
+    });
+  }
+
+  it("every Ollama suggestion and default is Ollama's", () => {
+    for (const id of [...OLLAMA_GEN_SUGGESTIONS, ...OLLAMA_CHAT_SUGGESTIONS, defaultOllamaModel(null, null), defaultEmbeddingModel("ollama")]) {
+      expect(modelProvider(id), id).toBe("ollama");
+    }
+  });
+
+  it("an Ollama name:tag is never a cloud id, whatever it starts with", () => {
+    for (const id of ["gpt-oss:20b", "gpt-oss:120b-cloud", "claude-ish:7b", "o3:latest", "qwen3.5:9b", "Gemma4:E2B"]) {
+      expect(modelProvider(id), id).toBe("ollama");
+    }
+  });
+
+  it("hand-typed cloud ids go by their provider's shape", () => {
+    expect(modelProvider("gpt-5.4-2026-03-05")).toBe("openai");
+    expect(modelProvider("o3-mini")).toBe("openai");
+    expect(modelProvider("chatgpt-4o-latest")).toBe("openai");
+    expect(modelProvider("ft:gpt-4o-mini-2024-07-18:org::abc123")).toBe("openai");
+    expect(modelProvider("claude-haiku-4-5-20251001")).toBe("anthropic");
+    expect(modelProvider(" Claude-Sonnet-4-6 ")).toBe("anthropic");
+    for (const id of ["gpt-oss", "olmo2", "llama3", "nomic-embed-text", ""]) expect(modelProvider(id), id).toBe("ollama");
   });
 });
 

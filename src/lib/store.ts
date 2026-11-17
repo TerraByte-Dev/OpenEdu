@@ -2,7 +2,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
 import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
-import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
+import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, modelProvider, resolveStoredModel } from "./models";
 import { detectModelProfile, detectModelTier, getOllamaModels, type ModelProfile } from "./llm";
 import { resolveReviewConfig, type ProviderCredentials, type ReviewKind } from "./content-review";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
@@ -218,9 +218,16 @@ export async function markCloudNoticeSeen(feature: CloudFeature): Promise<void> 
   await s.save();
 }
 
+// A switch also clears a stored generation or chat model that belongs to another provider (models.ts
+// modelProvider), so the new provider's default applies and the store holds what the app sends. The
+// getters already skip such a model (resolveStoredModel); this keeps the stored value from saying otherwise.
 export async function setLLMProvider(provider: LLMProvider): Promise<void> {
   const s = await getStore();
   await s.set(STORE_KEYS.provider, provider);
+  for (const key of [STORE_KEYS.genModel, STORE_KEYS.chatModel]) {
+    const stored = await s.get<unknown>(key);
+    if (typeof stored === "string" && modelProvider(stored) !== provider) await s.delete(key);
+  }
   await s.save();
 }
 

@@ -53,6 +53,30 @@ describe("getReviewConfig with review_model on another provider", () => {
   });
 });
 
+// The Checking model shares the provider-switch bug's pattern: a bare value runs on the course model's
+// provider, so a "gemma4:e2b" chosen while on Ollama would go to Anthropic after a switch.
+describe("getReviewConfig never sends a model to a provider it does not belong to", () => {
+  it("a bare Ollama tag with a cloud course model: the course model checks", async () => {
+    saved.set("review_model", "gemma4:e2b");
+    expect(await getReviewConfig({ ...CLOUD_GEN }, "lesson")).toEqual({ ...CLOUD_GEN });
+    expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "anthropic", model: "claude-haiku-5-5" });
+  });
+
+  it("a bare cloud id with a local course model: the default applies", async () => {
+    saved.set("review_model", "claude-sonnet-5-5");
+    expect(await getReviewConfig({ ...LOCAL_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "gemma4:e2b" });
+  });
+
+  it("a provider prefix with another provider's model is ignored", async () => {
+    saved.set("review_model", "anthropic:gpt-6-luna");
+    saved.set("apikey_anthropic", "test-key");
+    saved.set("cloud_notices_seen", ["anthropic"]);
+    expect(await getReviewConfig({ ...LOCAL_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "gemma4:e2b" });
+    saved.set("review_model", "openai:gemma4:e2b");
+    expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "anthropic", model: "claude-haiku-5-5" });
+  });
+});
+
 describe("getLocalVerifyConfig: the model the missed questions may go to", () => {
   it("is the generation model when that is local", async () => {
     const gen = { ...LOCAL_GEN };

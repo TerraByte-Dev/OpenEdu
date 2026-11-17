@@ -13,7 +13,7 @@ import ReviewModelPicker from "../ReviewModelPicker";
 import LessonsNote from "../LessonsNote";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type ModelOption,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type CloudProvider, type ModelOption,
 } from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
 import { Section, SettingRow, SecretField, SegmentedControl, INPUT_CLS, useSettings } from "../primitives";
@@ -288,7 +288,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           {provider === "ollama" ? (
             <OllamaModelPicker label="generation" value={genModel} onChange={setGenModel} onCommit={commitGen} discoveredModels={ollamaModels} suggestions={OLLAMA_GEN_SUGGESTIONS} ollamaStatus={ollamaStatus} />
           ) : (
-            <CloudModelChips models={GENERATION_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={genModel} onChange={commitGen} />
+            <CloudModelChips provider={provider as CloudProvider} models={GENERATION_MODELS[provider as CloudProvider]} value={genModel} onChange={commitGen} />
           )}
           {modelNotice("gen")}
         </SettingRow>
@@ -297,7 +297,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           {provider === "ollama" ? (
             <OllamaModelPicker label="chat" value={chatModel} onChange={setChatModelState} onCommit={commitChat} discoveredModels={ollamaModels} suggestions={OLLAMA_CHAT_SUGGESTIONS} ollamaStatus={ollamaStatus} />
           ) : (
-            <CloudModelChips models={CHAT_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={chatModel} onChange={commitChat} />
+            <CloudModelChips provider={provider as CloudProvider} models={CHAT_MODELS[provider as CloudProvider]} value={chatModel} onChange={commitChat} />
           )}
           {modelNotice("chat")}
         </SettingRow>
@@ -385,10 +385,10 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 type ModelJob = "gen" | "chat";
 
 // ── Cloud model chips ───────────────────────────────────────────────────────────────────────────────────
-function CloudModelChips({ models, value, onChange }: { models: ModelOption[]; value: string; onChange: (id: string) => void }) {
+function CloudModelChips({ provider, models, value, onChange }: { provider: CloudProvider; models: ModelOption[]; value: string; onChange: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-2">
-      {withStoredOption(models, value).map((m) => (
+      {withStoredOption(models, value, provider).map((m) => (
         <button
           key={m.id}
           onClick={() => onChange(m.id)}
