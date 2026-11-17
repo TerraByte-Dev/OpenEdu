@@ -53,8 +53,9 @@ describe("getReviewConfig with review_model on another provider", () => {
   });
 });
 
-// The Checking model shares the provider-switch bug's pattern: a bare value runs on the course model's
-// provider, so a "gemma4:e2b" chosen while on Ollama would go to Anthropic after a switch.
+// Settings always saves the Checking model as "<provider>:<model>". A bare value (an older version's, or a
+// hand-edited one) belongs to the provider models.ts legacyModelOwner gives it: a cloud provider only for an
+// exact id OpenEdu offered there, otherwise Ollama. It is used only when that is the course model's provider.
 describe("getReviewConfig never sends a model to a provider it does not belong to", () => {
   it("a bare Ollama tag with a cloud course model: the course model checks", async () => {
     saved.set("review_model", "gemma4:e2b");
@@ -67,19 +68,33 @@ describe("getReviewConfig never sends a model to a provider it does not belong t
     expect(await getReviewConfig({ ...LOCAL_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "gemma4:e2b" });
   });
 
-  it("a provider prefix with another provider's model is ignored", async () => {
-    saved.set("review_model", "anthropic:gpt-6-luna");
-    saved.set("apikey_anthropic", "test-key");
-    saved.set("cloud_notices_seen", ["anthropic"]);
-    expect(await getReviewConfig({ ...LOCAL_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "gemma4:e2b" });
+  it("a bare catalog id on its own provider checks there", async () => {
+    saved.set("review_model", "claude-sonnet-5-5");
+    expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "anthropic", model: "claude-sonnet-5-5" });
+  });
+
+  // Review 2 of #341: no name rule can tell these local models from cloud ids, so a bare one is Ollama's and
+  // never reaches a cloud provider.
+  for (const local of ["claude-3.7-sonnet-reasoning-gemma3-12b", "gpt-2", "o1-distill"]) {
+    it(`a bare "${local}" checks on Ollama, and with a cloud course model the default applies`, async () => {
+      saved.set("review_model", local);
+      expect(await getReviewConfig({ ...LOCAL_GEN }, "questions")).toMatchObject({ provider: "ollama", model: local });
+      expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "anthropic", model: "claude-haiku-5-5" });
+      const openaiGen = { provider: "openai", model: "gpt-6-luna", apiKey: "k", modelTier: "large" } as LLMConfig;
+      expect(await getReviewConfig({ ...openaiGen }, "questions")).toMatchObject({ provider: "openai", model: "gpt-6-luna" });
+    });
+  }
+
+  it("an Ollama tag named for a cloud provider is ignored (the last guard)", async () => {
+    saved.set("apikey_openai", "test-key");
+    saved.set("cloud_notices_seen", ["openai", "anthropic"]);
     saved.set("review_model", "openai:gemma4:e2b");
+    expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "anthropic", model: "claude-haiku-5-5" });
+    saved.set("review_model", "anthropic:qwen3.5:9b");
     expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "anthropic", model: "claude-haiku-5-5" });
   });
 
-  // Review of #341: an imported local model with no tag, named like a cloud id, is still Ollama's.
-  it("a local model named like a cloud id checks on Ollama, bare or with the ollama: prefix", async () => {
-    saved.set("review_model", "claude-3.7-sonnet-reasoning-gemma3-12b");
-    expect(await getReviewConfig({ ...LOCAL_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "claude-3.7-sonnet-reasoning-gemma3-12b" });
+  it("a local model named like a cloud id checks on Ollama with the ollama: prefix", async () => {
     saved.set("review_model", "ollama:gpt-2");
     expect(await getReviewConfig({ ...CLOUD_GEN }, "questions")).toMatchObject({ provider: "ollama", model: "gpt-2" });
   });

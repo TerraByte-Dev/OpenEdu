@@ -140,6 +140,17 @@ written: they came from a once-a-minute timer whose only reader was the learning
 - **`store.ts` / `store-keys.ts` / `models.ts` / `theme.ts` / `settings-schema.ts`** — settings, the model
   catalog, the Light / Dark / Match my computer switch, and pure import/export helpers. `store-keys.ts` is the single source of
   truth for setting keys + the secret/import allow-list.
+  The generation and chat models are stored **per provider** (`modelStoreKey`: `gen_model_ollama`,
+  `chat_model_anthropic`, …), so a pick made on one provider never overwrites another's, and switching
+  back finds that provider's own pick (with none, its default). Versions before that kept one
+  `gen_model` and one `chat_model` for all three providers. The first model read or write moves each
+  such value to the provider it belongs to and deletes the old key (`store.ts` `migrateLegacyModelKeys`,
+  `store-keys.ts` `legacyModelKeyMoves`); a settings file that still has them imports the same way
+  (`importableSettings`). A value goes to OpenAI or Anthropic only when it is exactly an id OpenEdu
+  offered there (catalog, `CLOUD_SHUTDOWNS`, `FORMER_CLOUD_MODELS`; `models.ts` `legacyModelOwner`),
+  otherwise to Ollama: a local model imported from a folder can be named `gpt-2` or
+  `claude-3.7-…-gemma3`, and no name rule tells it from a cloud id. The only name rule left is the last
+  guard, `isOllamaTag`: a `name:tag` is never sent to a cloud API.
 
 The pure, Tauri-free modules (`store-keys`, `models`, `version`, `text-match`, `settings-schema`,
 `theme` helpers, `permissions/presets`, `notebook-links`, `quiz-grading`, `quiz-review`, `mastery`, …) are
@@ -222,8 +233,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   Unset = the generation model, except that **lessons are not reviewed on the tiny or small tier**; `"off"` = no
   review; `"<provider>:<model>"` = that model on another provider (`parseReviewModel`), with the key
   saved for it, e.g. `anthropic:claude-haiku-5-5` so a local model writes and a cloud model checks, or
-  `ollama:qwen3.5:9b` for the reverse; any other value = that model on the current provider (an Ollama
-  tag such as `gemma4:e2b` is not a prefix). A cloud reviewer is ignored, and the default applies, when
+  `ollama:qwen3.5:9b` for the reverse. Settings always saves that form. A bare value (an older version's,
+  or hand-edited; an Ollama tag such as `gemma4:e2b` is not a prefix) belongs to the provider
+  `legacyModelOwner` gives it and is used only when that is the course model's provider; an Ollama tag
+  named for a cloud provider (`anthropic:gemma4:e2b`) is ignored. A cloud reviewer is ignored, and the default applies, when
   its privacy confirm was never accepted here (`needsCloudNotice` for OpenAI/Anthropic,
   `modelNeedsCloudNotice` for an Ollama cloud model) or no key is saved for it.
 - **The Checking model setting** (Settings › Models, `ReviewModelPicker.tsx`) writes `review_model`:

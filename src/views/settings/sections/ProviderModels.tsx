@@ -13,7 +13,7 @@ import ReviewModelPicker from "../ReviewModelPicker";
 import LessonsNote from "../LessonsNote";
 import {
   PROVIDERS, GENERATION_MODELS, CHAT_MODELS,
-  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type CloudProvider, type ModelOption,
+  OLLAMA_GEN_SUGGESTIONS, OLLAMA_CHAT_SUGGESTIONS, defaultChatModel, withStoredOption, type ModelOption,
 } from "../../../lib/models";
 import { getOllamaModels, callLLM } from "../../../lib/llm";
 import { Section, SettingRow, SecretField, SegmentedControl, INPUT_CLS, useSettings } from "../primitives";
@@ -117,8 +117,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
     await setLLMProvider(p);
     markSaved();
     onProviderChanged?.();
-    // Re-read the models the app will now send for this provider: with nothing stored, the getters fall
-    // back to the provider's own defaults, so the chips never show the previous provider's model.
+    // Re-read the models the app will now send for this provider: its own pick, or with none, its default
+    // (each provider keeps its own pick), so the chips never show the previous provider's model.
     const gen = (await getGenerationConfig()).model;
     saved.current.gen = gen;
     if (current()) setGenModel(gen);
@@ -146,8 +146,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
   const saveModel = async (job: ModelJob, m: string) => {
     saved.current[job] = m;
-    if (job === "gen") { setGenModel(m); await setGenerationModel(m); }
-    else { setChatModelState(m); await setChatModel(m); }
+    if (job === "gen") { setGenModel(m); await setGenerationModel(m, provider); }
+    else { setChatModelState(m); await setChatModel(m, provider); }
     markSaved();
   };
   const showModel = (job: ModelJob, m: string) => (job === "gen" ? setGenModel : setChatModelState)(m);
@@ -288,7 +288,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           {provider === "ollama" ? (
             <OllamaModelPicker label="generation" value={genModel} onChange={setGenModel} onCommit={commitGen} discoveredModels={ollamaModels} suggestions={OLLAMA_GEN_SUGGESTIONS} ollamaStatus={ollamaStatus} />
           ) : (
-            <CloudModelChips provider={provider as CloudProvider} models={GENERATION_MODELS[provider as CloudProvider]} value={genModel} onChange={commitGen} />
+            <CloudModelChips models={GENERATION_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={genModel} onChange={commitGen} />
           )}
           {modelNotice("gen")}
         </SettingRow>
@@ -297,7 +297,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           {provider === "ollama" ? (
             <OllamaModelPicker label="chat" value={chatModel} onChange={setChatModelState} onCommit={commitChat} discoveredModels={ollamaModels} suggestions={OLLAMA_CHAT_SUGGESTIONS} ollamaStatus={ollamaStatus} />
           ) : (
-            <CloudModelChips provider={provider as CloudProvider} models={CHAT_MODELS[provider as CloudProvider]} value={chatModel} onChange={commitChat} />
+            <CloudModelChips models={CHAT_MODELS[provider as Exclude<LLMProvider, "ollama">]} value={chatModel} onChange={commitChat} />
           )}
           {modelNotice("chat")}
         </SettingRow>
@@ -385,10 +385,10 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 type ModelJob = "gen" | "chat";
 
 // ── Cloud model chips ───────────────────────────────────────────────────────────────────────────────────
-function CloudModelChips({ provider, models, value, onChange }: { provider: CloudProvider; models: ModelOption[]; value: string; onChange: (id: string) => void }) {
+function CloudModelChips({ models, value, onChange }: { models: ModelOption[]; value: string; onChange: (id: string) => void }) {
   return (
     <div className="flex flex-col gap-2">
-      {withStoredOption(models, value, provider).map((m) => (
+      {withStoredOption(models, value).map((m) => (
         <button
           key={m.id}
           onClick={() => onChange(m.id)}

@@ -14,7 +14,7 @@ import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, LLMProvider, ModelTier } from "../types";
 import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
 import { lessonCheckCounts } from "./ai-notice";
-import { GENERATION_MODELS, modelFitsProvider } from "./models";
+import { GENERATION_MODELS, isOllamaTag, legacyModelOwner } from "./models";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
 
@@ -36,12 +36,14 @@ type Messages = Array<{ role: string; content: string }>;
 // or null for no review. Unset or "" = the generation model, except for LESSONS on the tiny and small
 // tiers (LESSON_REVIEW_DEFAULT_OFF_TIERS). "off" = no review. "<provider>:<model>" = that model on another
 // configured provider (parseReviewModel), e.g. "anthropic:claude-haiku-5-5" with the key saved for
-// Anthropic, so a local model can write and a cloud model check. Any other value = that model on the
-// current provider. A model the provider it would run on does not take (models.ts modelFitsProvider: a
-// "gemma4:e2b" left from Ollama while the course model is on Anthropic, or "anthropic:gpt-6-luna") is
-// ignored (the default applies). A cloud reviewer whose privacy notice was never confirmed here (an Ollama cloud
-// model, or OpenAI/Anthropic before their confirm), or a cloud provider with no saved key, is ignored
-// (the default applies), so a hand-edited settings file cannot send content off the computer
+// Anthropic, so a local model can write and a cloud model check. Settings always saves that form. A bare
+// model name (written by an older version, or by hand) belongs to the provider models.ts legacyModelOwner
+// gives it (a cloud provider only for its exact catalog or shutdown ids, otherwise Ollama) and is used only
+// when that is the course model's provider, so a "gemma4:e2b" or a local "claude-3.7-…-gemma3" is never sent
+// to Anthropic. An Ollama "name:tag" named for a cloud provider ("anthropic:gemma4:e2b") is ignored too
+// (models.ts isOllamaTag). Ignored means the default applies. A cloud reviewer whose privacy notice was
+// never confirmed here (an Ollama cloud model, or OpenAI/Anthropic before their confirm), or a cloud
+// provider with no saved key, is ignored (the default applies), so a hand-edited settings file cannot send content off the computer
 // unannounced. The payload is the same for every reviewer: topic, title and generated content.
 //
 // Why lessons are off on tiny: replaying B9 rerun 2 (2026-11-14) through a gemma4:e2b review caught
@@ -76,7 +78,7 @@ export function parseReviewModel(value: string): { provider: LLMProvider | null;
 // checks"), or null when it cannot be used: no key saved for that cloud provider, its one-time privacy
 // confirm never accepted here (needsCloudNotice), or an Ollama cloud model never confirmed.
 function otherProviderReview(provider: LLMProvider, model: string, creds: ProviderCredentials, seen: readonly string[]): LLMConfig | null {
-  if (!model || !modelFitsProvider(model, provider)) return null;
+  if (!model) return null;
   if (provider === "ollama") {
     if (modelNeedsCloudNotice("ollama", model, seen)) return null;
     return { provider, model, ollamaUrl: creds.ollama?.ollamaUrl };
@@ -98,11 +100,14 @@ export function resolveReviewConfig(
   const value = typeof stored === "string" ? stored.trim() : "";
   if (value.toLowerCase() === REVIEW_OFF) return null;
   const named = parseReviewModel(value);
-  if (named.provider && named.provider !== gen.provider) {
-    const other = otherProviderReview(named.provider, named.model, creds, noticesSeen);
-    if (other) return other;
-  } else if (named.model && modelFitsProvider(named.model, gen.provider) && !modelNeedsCloudNotice(gen.provider, named.model, noticesSeen)) {
-    return named.model === gen.model ? { ...gen, modelTier: genTier } : { ...gen, model: named.model, modelTier: undefined };
+  const provider = named.provider ?? legacyModelOwner(named.model);
+  if (named.model && !(provider !== "ollama" && isOllamaTag(named.model))) {
+    if (provider !== gen.provider) {
+      const other = named.provider ? otherProviderReview(provider, named.model, creds, noticesSeen) : null;
+      if (other) return other;
+    } else if (!modelNeedsCloudNotice(gen.provider, named.model, noticesSeen)) {
+      return named.model === gen.model ? { ...gen, modelTier: genTier } : { ...gen, model: named.model, modelTier: undefined };
+    }
   }
   if (kind === "lesson" && LESSON_REVIEW_DEFAULT_OFF_TIERS.has(genTier)) return null;
   return { ...gen, modelTier: genTier };

@@ -87,7 +87,7 @@ async function run(s: Script, opts: { tools?: boolean } = {}): Promise<RagReport
   script = s;
   chat = [];
   tools = opts.tools ?? true;
-  await setChatModel(`fake-qwen-${++modelSeq}:4b`);
+  await setChatModel(`fake-qwen-${++modelSeq}:4b`, "ollama");
   const report = await runRagEval({ custom: { name: "toolcall-error", vault: VAULT, questions: [QUESTION] }, modes: ["always"], syllabus: "matched" });
   expect(script, "every scripted response was used").toHaveLength(0);
   return report;

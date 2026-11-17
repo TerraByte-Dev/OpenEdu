@@ -1,8 +1,11 @@
 import { Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import type { LLMConfig, LLMProvider } from "../types";
-import { STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS } from "./store-keys";
-import { defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
+import {
+  STORE_FILE, STORE_KEYS, apiKeyStoreKey, learnerStoreKey, LEARNER_SCOPED_KEYS,
+  modelStoreKey, legacyModelKeyMoves, LEGACY_MODEL_STORE_KEYS, type ModelRole,
+} from "./store-keys";
+import { PROVIDERS, defaultGenerationModel, defaultChatModel, defaultEmbeddingModel, resolveStoredModel } from "./models";
 import { detectModelProfile, detectModelTier, getOllamaModels, type ModelProfile } from "./llm";
 import { resolveReviewConfig, type ProviderCredentials, type ReviewKind } from "./content-review";
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
@@ -39,10 +42,12 @@ async function installedOllamaModels(ollamaUrl: string): Promise<string[] | null
   return tags.error ? null : tags.models;
 }
 
-// Shared provider/key config
+// Shared provider/key config. A value that is not one of the three providers (a hand-edited or imported
+// settings file) reads as Ollama, the default, rather than failing every model lookup.
 export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?: string; ollamaUrl: string }> {
   const s = await getStore();
-  const provider = ((await s.get<string>(STORE_KEYS.provider)) ?? "ollama") as LLMProvider;
+  const stored = await s.get<unknown>(STORE_KEYS.provider);
+  const provider = PROVIDERS.find((p) => p.id === stored)?.id ?? "ollama";
   const rawKey = await s.get<string>(apiKeyStoreKey(provider));
   const apiKey = rawKey ? rawKey.trim() : undefined;
   const ollamaUrl = (await s.get<string>(STORE_KEYS.ollamaUrl)) ?? "http://127.0.0.1:11434";
@@ -54,7 +59,7 @@ export async function getLLMProvider(): Promise<{ provider: LLMProvider; apiKey?
 export async function getGenerationConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const stored = resolveStoredModel(base.provider, "generation", await s.get<string>(STORE_KEYS.genModel));
+  const stored = resolveStoredModel(base.provider, "generation", await getModelPick(s, "generation", base.provider));
   const model = stored ?? (base.provider === "ollama"
     ? defaultGenerationModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
     : defaultGenerationModel(base.provider));
@@ -137,7 +142,7 @@ export async function getLocalVerifyConfig(gen: LLMConfig): Promise<LLMConfig | 
 export async function getChatConfig(): Promise<LLMConfig> {
   const s = await getStore();
   const base = await getLLMProvider();
-  const stored = resolveStoredModel(base.provider, "chat", await s.get<string>(STORE_KEYS.chatModel));
+  const stored = resolveStoredModel(base.provider, "chat", await getModelPick(s, "chat", base.provider));
   const model = stored ?? (base.provider === "ollama"
     ? defaultChatModel(base.provider, await systemMemoryBytes(), await installedOllamaModels(base.ollamaUrl))
     : defaultChatModel(base.provider));
@@ -219,25 +224,54 @@ export async function markCloudNoticeSeen(feature: CloudFeature): Promise<void> 
   await s.save();
 }
 
-// A switch leaves the stored generation and chat models alone. The getters skip one the new provider does
-// not take (models.ts resolveStoredModel) and use its default, so switching back restores the user's pick:
-// Ollama qwen3.5:0.8b → Anthropic → Ollama is qwen3.5:0.8b again, not a default that may not be pulled.
+// ── The generation and chat model, one pick per provider (store-keys.ts modelStoreKey) ──
+// The getters read only the current provider's own pick and fall back to its default, so a model picked
+// on one provider is never sent to another, and a switch back finds its own pick again: Ollama
+// qwen3.5:0.8b → Anthropic, pick Claude Sonnet 5.5 → Ollama is qwen3.5:0.8b, and back on Anthropic,
+// Sonnet 5.5.
+
+// An install from before per-provider keys has its picks under the old shared keys. Move each to the
+// provider it belongs to (store-keys.ts legacyModelKeyMoves) and drop the old key, before any model read
+// or write; after the first time this finds nothing and writes nothing.
+async function migrateLegacyModelKeys(s: Store): Promise<void> {
+  const legacy: Record<string, unknown> = {};
+  for (const k of LEGACY_MODEL_STORE_KEYS) {
+    const v = await s.get<unknown>(k);
+    if (v !== undefined && v !== null) legacy[k] = v;
+  }
+  if (Object.keys(legacy).length === 0) return;
+  for (const [k, v] of legacyModelKeyMoves(legacy)) await s.set(k, v);
+  for (const k of Object.keys(legacy)) await s.delete(k);
+  await s.save();
+}
+
+async function getModelPick(s: Store, role: ModelRole, provider: LLMProvider): Promise<string | undefined> {
+  await migrateLegacyModelKeys(s);
+  return s.get<string>(modelStoreKey(role, provider));
+}
+
+async function setModelPick(role: ModelRole, provider: LLMProvider, model: string): Promise<void> {
+  const s = await getStore();
+  await migrateLegacyModelKeys(s);
+  await s.set(modelStoreKey(role, provider), model);
+  await s.save();
+}
+
+// A switch writes only the provider: every provider's picks stay stored.
 export async function setLLMProvider(provider: LLMProvider): Promise<void> {
   const s = await getStore();
   await s.set(STORE_KEYS.provider, provider);
   await s.save();
 }
 
-export async function setGenerationModel(model: string): Promise<void> {
-  const s = await getStore();
-  await s.set(STORE_KEYS.genModel, model);
-  await s.save();
+// `provider` is the provider the model was picked on: Settings passes the one selected, and an offline
+// model import passes "ollama", whatever provider is selected.
+export async function setGenerationModel(model: string, provider: LLMProvider): Promise<void> {
+  await setModelPick("generation", provider, model);
 }
 
-export async function setChatModel(model: string): Promise<void> {
-  const s = await getStore();
-  await s.set(STORE_KEYS.chatModel, model);
-  await s.save();
+export async function setChatModel(model: string, provider: LLMProvider): Promise<void> {
+  await setModelPick("chat", provider, model);
 }
 
 export async function setApiKey(provider: LLMProvider, key: string): Promise<void> {
