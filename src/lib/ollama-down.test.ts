@@ -217,4 +217,28 @@ describe("a tutor reply when Ollama quits mid-stream", () => {
     const e = await failure(run());
     expect(friendlyError(e)).toBe(NOT_RUNNING);
   });
+
+  // The model runner crashes (out of memory on an 8 GB PC) while the server stays up: Ollama ends the 200
+  // with an {"error": …} line instead of breaking the stream.
+  const RUNNER_STOPPED = "model runner has unexpectedly stopped, this may be due to resource limitations or an internal error";
+  const endsWithError = (lines: string[]) => {
+    globalThis.fetch = (async (input: unknown) => {
+      if (!String(input).endsWith("/api/chat")) return Promise.reject(REFUSED);
+      return new Response([...lines, JSON.stringify({ error: RUNNER_STOPPED })].join("\n") + "\n", { status: 200 });
+    }) as unknown as typeof fetch;
+  };
+
+  it("keeps what was written when the model runner crashes mid-reply: stalled, saved with its marker", async () => {
+    endsWithError([JSON.stringify({ message: { content: "Birds build nests to keep " } }), JSON.stringify({ message: { content: "their eggs warm" } })]);
+    const events = await run();
+    expect(events[events.length - 1]).toEqual({ type: "done", finishReason: "stalled" });
+    const text = events.flatMap((e) => (e.type === "text" ? [e.delta] : [])).join("");
+    expect(persistedReply(text, "stalled")).toBe("Birds build nests to keep their eggs warm\n\n_[the tutor stopped responding — ask again to continue]_");
+  });
+
+  it("with nothing written yet, a crashed runner still fails the turn", async () => {
+    endsWithError([]);
+    const e = await failure(run());
+    expect(String(e)).toContain(`Ollama error: ${RUNNER_STOPPED}`);
+  });
 });
