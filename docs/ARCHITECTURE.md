@@ -383,7 +383,8 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   the answer?" (once it is saved, on blur; a cleared box is saved too, as NULL, so erased words, a
   disclosure included, don't stay in the database: `db.ts updateQuizQuestionSelfExplanation`, ported from
   TerraTutor #226) and the new-course topic, and a hit shows `SAFETY_NOTICE` with a
-  read-aloud button (`components/SafetyNotice.tsx`). On a question the notice shows as soon as the answer
+  read-aloud button (`components/SafetyNotice.tsx`; at the chat's larger 1.25rem for K-2 on the question and
+  the quiz and level-test results, TerraTutor #231). On a question the notice shows as soon as the answer
   is recorded (`QuestionRenderer`, `quiz-grading.ts showsSafetyNotice`), and again on its results row in
   place of the answer, the key and the not-checked note (`showsAnswerAndKey` is false for it). The answer
   is not marked: `gradeAnswersBatch` never settles it by code or sends it to a model, and passes it as

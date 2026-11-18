@@ -339,7 +339,7 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
                     {/* The question, the answer and key as shown, and the explanation (speech.ts resultSpeech). */}
                     <ReadAloudButton text={resultSpeech(q, grade)} />
                   </div>
-                  {safety && <SafetyNotice className="ml-5 mb-1" />}
+                  {safety && <SafetyNotice className="ml-5 mb-1" large={large} />}
                   {mark === "unchecked" && !safety && <p className={`ml-5 mb-1 ${xs} text-warning`}>{UNCHECKED_NOTE}</p>}
                   {showsAnswerAndKey(q, grade) && (
                     <div className={`ml-5 ${xs} space-y-0.5`}>

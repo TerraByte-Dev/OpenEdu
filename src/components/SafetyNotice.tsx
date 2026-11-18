@@ -8,11 +8,13 @@ import { IconMediaStop, IconVolumeUp } from "./icons";
 // Code-matched by the caller (isSafetyDisclosure with the learner's grade), never a model call. A notice,
 // never a block. Ported from TerraTutor #175.
 
-export default function SafetyNotice({ className = "" }: { className?: string }) {
+// `large`: K-2 (grade.ts isEarlyReader) reads it at the chat's larger size (.chat-text-large, 1.25rem), as the
+// same notice reads in the chat, instead of 14px beside a text-xl quiz (ported from TerraTutor #231).
+export default function SafetyNotice({ className = "", large = false }: { className?: string; large?: boolean }) {
   const readAloud = useReadAloud();
   const reading = readAloud.speakingId === "safety";
   return (
-    <div role="note" className={`flex items-start gap-3 p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint text-sm text-ink leading-relaxed ${className}`}>
+    <div role="note" className={`flex items-start gap-3 p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint ${large ? "text-xl" : "text-sm"} text-ink leading-relaxed ${className}`}>
       <p className="flex-1">{SAFETY_NOTICE}</p>
       {readAloud.supported && (
         <button

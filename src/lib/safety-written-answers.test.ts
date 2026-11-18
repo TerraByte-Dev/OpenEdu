@@ -4,6 +4,7 @@ import questionRenderer from "../components/quiz/QuestionRenderer.tsx?raw";
 import quizScreen from "../views/QuizFullScreen.tsx?raw";
 import testScreen from "../views/PromotionTestFullScreen.tsx?raw";
 import dashboard from "../views/Dashboard.tsx?raw";
+import safetyNotice from "../components/SafetyNotice.tsx?raw";
 
 // A self-harm, abuse or (with a K-12 grade set) pregnancy disclosure typed outside the chat (a quiz or
 // level-test written answer, "why is that the answer?", the new-course topic) gets the chat's
@@ -153,7 +154,13 @@ describe("the screens draw the notice from these checks, with the learner's grad
     expect(s).toMatch(/<Dashboard\n\s+grade=\{normalizeGrade\(activeLearner\.grade\)\}/);
   });
   it("the question shows it as soon as the answer, or the saved 'why', is one", () => {
-    expect(src(questionRenderer)).toMatch(/\{showsSafetyNotice\(question, grade\) && <SafetyNotice \/>\}/);
+    expect(src(questionRenderer)).toMatch(/\{showsSafetyNotice\(question, grade\) && <SafetyNotice large=\{large\} \/>\}/);
+  });
+  // Ported from TerraTutor #231: K-2 reads the notice at the chat's larger size, not 14px beside a text-xl quiz.
+  it("K-2 reads it at the chat's larger size on the question and the quiz and level-test results", () => {
+    expect(safetyNotice).toContain('${large ? "text-xl" : "text-sm"}');
+    expect(src(quizScreen)).toMatch(/\{safety && <SafetyNotice [^>]*large=\{large\}/);
+    expect(src(testScreen)).toMatch(/\{safety && <SafetyNotice [^>]*large=\{large\}/);
   });
   for (const [name, raw] of [["QuizFullScreen", quizScreen], ["PromotionTestFullScreen", testScreen]] as const) {
     it(`${name} grades with the grade, and shows it on the question and the results row in place of the not-checked note`, () => {

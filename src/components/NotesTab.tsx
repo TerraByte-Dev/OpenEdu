@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, type CSSProperties, type ReactNode } from "react";
 // Heavy, view-gated components are lazy-loaded so they leave the eager main bundle: ForceGraph2D
 // (react-force-graph-2d) mounts only in the vault-graph view; MarkdownEditor (CodeMirror) only when
 // a note is open. Both are code-split into their own chunks fetched on first use.
@@ -43,6 +43,9 @@ const GRAPH_PALETTE: Record<ThemeId, Record<"node" | "nodeDim" | "stroke" | "lab
     tag: "#F5C26B", tagDim: "#3A2E17", tagStroke: "#F5C26B",
   },
 };
+
+// The delete-note confirm's buttons: .btn's 44px pill at a small size.
+const CONFIRM_BTN: CSSProperties = { fontSize: "0.9rem", padding: "6px 14px" };
 
 // A one-line plain-text preview of a note's body for the tag-view cards (strips light markdown).
 const snippet = (content: string) =>
@@ -902,11 +905,12 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
 
               {deleteArmed && (
                 <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2 border-b border-[var(--rule)] bg-danger-tint shrink-0" role="group" aria-label="Delete this note?">
-                  <span className="text-xs text-ink">Delete this note? It cannot be brought back.</span>
-                  <button type="button" className="px-2 py-1 rounded text-[11px] text-danger border border-[var(--danger)] hover:bg-panel-lite shrink-0" onClick={() => { void handleDeleteNote(); }}>
+                  <span className="text-sm text-ink">Delete this note? It cannot be brought back.</span>
+                  {/* 44px pills; the danger colour inline, since .btn's colour is unlayered and beats text-danger. */}
+                  <button type="button" className="btn shrink-0" style={{ ...CONFIRM_BTN, borderColor: "var(--danger)", color: "var(--danger)" }} onClick={() => { void handleDeleteNote(); }}>
                     Delete
                   </button>
-                  <button type="button" autoFocus className="px-2 py-1 rounded text-[11px] text-[var(--ink-dim)] border border-[var(--rule)] hover:bg-panel-lite shrink-0" onClick={() => setDeleteArmed(false)}>
+                  <button type="button" autoFocus className="btn shrink-0" style={CONFIRM_BTN} onClick={() => setDeleteArmed(false)}>
                     Keep it
                   </button>
                 </div>
