@@ -13,6 +13,8 @@
 // Nothing here imports from quiz.ts — keep it leaf to avoid a cycle.
 
 import { isOllamaDefaultModel } from "./models";
+import { isSafetyDisclosure } from "./child-safety";
+import type { Grade } from "./grade";
 
 // Minimal structural shapes (we deliberately don't import GeneratedQuestion to stay leaf).
 export interface QuestionLike {
@@ -636,11 +638,23 @@ export function answerMark(q: { is_correct: boolean | null; graded_by?: GradedBy
 /**
  * Whether a results row shows the learner's answer and the key. A right answer hides them, except one a
  * person marked against the key ('self'): there they are what was marked, and anyone reading the results
- * should see both.
+ * should see both. A safety disclosure typed as the answer (with the learner's grade, as the chat reads it)
+ * never shows them: the row shows the safety notice instead (showsSafetyNotice).
  */
-export function showsAnswerAndKey(q: { is_correct: boolean | null; graded_by?: GradedBy | null; user_answer?: string | null }): boolean {
-  if (!q.user_answer) return false;
+export function showsAnswerAndKey(q: { is_correct: boolean | null; graded_by?: GradedBy | null; user_answer?: string | null }, grade: Grade | null = null): boolean {
+  if (!q.user_answer || isSafetyDisclosure(q.user_answer, grade)) return false;
   return answerMark(q) !== "right" || q.graded_by === "self";
+}
+
+/**
+ * Whether a question shows the chat's SAFETY_NOTICE (child-safety.ts): its typed answer or its "why is
+ * that the answer?" text reads as a self-harm or abuse disclosure, or with a K-12 grade set a pregnancy
+ * one (isSafetyDisclosure with the learner's grade, the chat's own check). Shown on the question once the
+ * answer is recorded and on its results row. A notice, never a block; the answer itself is passed as not
+ * checked, never marked wrong (quiz.ts gradeAnswersBatch).
+ */
+export function showsSafetyNotice(q: { user_answer?: string | null; self_explanation?: string | null }, grade: Grade | null): boolean {
+  return isSafetyDisclosure(q.user_answer ?? "", grade) || isSafetyDisclosure(q.self_explanation ?? "", grade);
 }
 
 export const UNCHECKED_NOTE = "Not checked. No model on this computer could check this written answer, so it counts as right. Compare it with the answer key.";

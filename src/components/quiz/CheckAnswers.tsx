@@ -21,9 +21,11 @@ export interface CheckAnswersCopy {
   saveFailed: string;
 }
 
-export default function CheckAnswers({ answers, copy, onSave }: {
+export default function CheckAnswers({ answers, copy, onSave, noteFor }: {
   answers: ReadonlyArray<AnswerToCheck>;
   copy: CheckAnswersCopy;
+  /** A line under an answer's question (the chat's safety notice on a disclosure typed as the answer). */
+  noteFor?: (a: AnswerToCheck) => string | null;
   /** Throws when the marks could not be saved; they stay on screen to try again. */
   onSave: (marks: ReadonlyMap<string, boolean>) => Promise<void>;
 }) {
@@ -48,6 +50,7 @@ export default function CheckAnswers({ answers, copy, onSave }: {
         return (
           <div key={a.id} className="p-4 rounded-xl border border-[var(--rule)] bg-panel text-base">
             <p className="text-ink font-medium">{i + 1}. {a.question_text}</p>
+            {noteFor?.(a) && <p className="mt-1 text-warning">{noteFor(a)}</p>}
             <p className="mt-2 text-[var(--ink-dim)]">{copy.yourAnswer}: <span className="text-ink">{a.user_answer ?? ""}</span></p>
             <p className="mt-1 text-[var(--ink-dim)]">{copy.key}: <span className="text-ink">{a.correct_answer}</span></p>
             <div className="flex gap-2 mt-3" role="radiogroup" aria-label={`${i + 1}. ${a.question_text}`}>
