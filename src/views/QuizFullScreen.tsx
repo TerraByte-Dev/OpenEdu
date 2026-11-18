@@ -2,7 +2,7 @@
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
-import { answerMark, showsAnswerAndKey, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, showsAnswerAndKey, showsSafetyNotice, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
@@ -12,10 +12,14 @@ import MarkAgain from "../components/quiz/MarkAgain";
 import { MARK_AGAIN, MAKING } from "../lib/level-test";
 import { canMarkAgain, markAgain } from "../lib/written-answer-checks";
 import { IconXmark } from "../components/icons";
+import SafetyNotice from "../components/SafetyNotice";
+import type { Grade } from "../lib/grade";
 
 interface QuizFullScreenProps {
   context: QuizViewContext;
   onClose: () => void;
+  // The learner's grade: a safety disclosure typed as an answer or a "why" is read as the chat reads it.
+  grade: Grade | null;
 }
 
 type State = "generating" | "in_progress" | "grading" | "results";
@@ -42,7 +46,7 @@ const MARK_STYLE: Record<AnswerMark, { row: string; text: string; sign: string }
 // The most a quiz question can add to a quiz's stored time: 2 minutes.
 const QUIZ_SECONDS_PER_QUESTION = 120;
 
-export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps) {
+export default function QuizFullScreen({ context, onClose, grade }: QuizFullScreenProps) {
   const { courseId, course, syllabus } = context;
   const [state, setState] = useState<State>("generating");
   const [questions, setQuestions] = useState<ActiveQuestion[]>([]);
@@ -192,6 +196,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
         type: q.question_type,
       })),
       await getLocalVerifyConfig(config).catch(() => null),
+      grade,
     );
     const graded = qs.map((q, i) => {
       const o = outcomes.get(i);
@@ -313,6 +318,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               {questions.map((q, i) => {
                 const mark = answerMark(q);
                 const style = MARK_STYLE[mark];
+                // A safety disclosure typed as the answer or the "why": the chat's notice in place of the
+                // not-checked note (the answer was never marked; quiz.ts gradeAnswersBatch).
+                const safety = showsSafetyNotice(q, grade);
                 return (
                 <div key={i} className={`p-4 rounded-xl border ${style.row}`}>
                   <div className="flex items-start gap-2 mb-2">
@@ -321,8 +329,9 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
                     </span>
                     <p className="text-sm text-ink">{q.question_text}</p>
                   </div>
-                  {mark === "unchecked" && <p className="ml-5 mb-1 text-xs text-warning">{UNCHECKED_NOTE}</p>}
-                  {showsAnswerAndKey(q) && (
+                  {safety && <SafetyNotice className="ml-5 mb-1" />}
+                  {mark === "unchecked" && !safety && <p className="ml-5 mb-1 text-xs text-warning">{UNCHECKED_NOTE}</p>}
+                  {showsAnswerAndKey(q, grade) && (
                     <div className="ml-5 text-xs space-y-0.5">
                       <p className={mark === "wrong" ? "text-danger" : "text-ink"}>Your answer: {q.user_answer}</p>
                       <p className="text-success">Correct: {q.correct_answer}</p>
@@ -399,6 +408,7 @@ export default function QuizFullScreen({ context, onClose }: QuizFullScreenProps
               onAnswer={handleAnswer}
               disabled={answeredCurrent}
               onSelfExplain={handleSelfExplain}
+              grade={grade}
             />
           )}
 

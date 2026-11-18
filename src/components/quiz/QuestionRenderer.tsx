@@ -1,5 +1,8 @@
 ﻿import { useState, useMemo } from "react";
 import type { QuizQuestion } from "../../types";
+import type { Grade } from "../../lib/grade";
+import { showsSafetyNotice } from "../../lib/quiz-grading";
+import SafetyNotice from "../SafetyNotice";
 
 interface QuestionRendererProps {
   question: Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct"> & {
@@ -13,9 +16,11 @@ interface QuestionRendererProps {
   // When provided (study quizzes only), an optional self-explanation prompt is shown after the
   // question is answered; the typed text is persisted via this callback (Chi 1989).
   onSelfExplain?: (text: string) => void;
+  // The learner's grade, for the safety notice (the chat's isSafetyDisclosure check).
+  grade: Grade | null;
 }
 
-export default function QuestionRenderer({ question, onAnswer, disabled, onSelfExplain }: QuestionRendererProps) {
+export default function QuestionRenderer({ question, onAnswer, disabled, onSelfExplain, grade }: QuestionRendererProps) {
   const [selected, setSelected] = useState<string>("");
   const [matchPairs, setMatchPairs] = useState<Record<string, string>>({});
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
@@ -97,6 +102,9 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             {question.explanation && <p className="text-[var(--ink-faint)] text-xs">{question.explanation}</p>}
           </div>
         )}
+        {/* A safety disclosure typed as the answer, or as "why is that the answer?" once it is saved (on
+            blur), gets the chat's notice at once (quiz-grading.ts showsSafetyNotice). Never a block. */}
+        {showsSafetyNotice(question, grade) && <SafetyNotice />}
         {onSelfExplain && (
           <div className="p-3 rounded-xl border border-[var(--rule)] bg-panel-lite/40">
             <label className="block text-xs text-phosphor-ink mb-1.5">

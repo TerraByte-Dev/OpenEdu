@@ -444,6 +444,7 @@ export default function App() {
               {/* The new-course flow stays mounted (hidden) off its view so a build in progress keeps running. */}
               <div className={`flex-1 min-h-0 flex flex-col ${currentView !== "create" ? "hidden" : ""}`}>
                 <Dashboard
+                  grade={normalizeGrade(activeLearner.grade)}
                   onCancel={() => setCurrentView("dashboard")}
                   onCourseCreated={onCourseCreated}
                   onCreationStart={(topic) => setCraftingTopic(topic)}
@@ -491,11 +492,12 @@ export default function App() {
                 />
               )}
               {currentView === "quiz" && quizContext && (
-                <QuizFullScreen context={quizContext} onClose={closeQuiz} />
+                <QuizFullScreen context={quizContext} onClose={closeQuiz} grade={normalizeGrade(activeLearner.grade)} />
               )}
               {currentView === "promotion-test" && quizContext && (
                 <PromotionTestFullScreen
                   context={quizContext}
+                  grade={normalizeGrade(activeLearner.grade)}
                   onClose={closeQuiz}
                   onPassed={handlePromotionPassed}
                 />

@@ -283,6 +283,20 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   generous partial credit, under which e2b and e4b marked typed nonsense right. The results screens
   show a `fallback` answer as not checked (`answerMark`, `UNCHECKED_NOTE`, `uncheckedSummary`), never
   with a right answer's tick; it still counts as right.
+- **A safety disclosure typed outside the chat is not marked** (ported from TerraTutor #175). The chat's
+  own check (`child-safety.ts isSafetyDisclosure` with the learner's grade, nothing wider) reads what the
+  learner types into a quiz or level-test written answer, the study quiz's "In your own words, why is that
+  the answer?" (once it is saved, on blur) and the new-course topic, and a hit shows `SAFETY_NOTICE` with a
+  read-aloud button (`components/SafetyNotice.tsx`). On a question the notice shows as soon as the answer
+  is recorded (`QuestionRenderer`, `quiz-grading.ts showsSafetyNotice`), and again on its results row in
+  place of the answer, the key and the not-checked note (`showsAnswerAndKey` is false for it). The answer
+  is not marked: `gradeAnswersBatch` never settles it by code or sends it to a model, and passes it as
+  not checked (`graded_by 'fallback'`), so it is never a wrong mark and the answer stays in the attempt. On
+  a level test it can make the test wait for the learner's own mark like any unchecked answer; the marking
+  list shows the notice above it. On the new-course topic, the first Create shows the notice and builds and
+  sends nothing; Create again with the same topic builds as usual, so a false hit ("suicide prevention")
+  costs one click, never a block. With no grade set a pregnancy message is none of these, as in the chat.
+  `safety-written-answers.test.ts` pins it.
 - **A level test does not count an unchecked answer.** On a quiz a `fallback` answer still counts as
   right. On a level test it does not count toward passing until someone marks it (`level-test.ts`
   `levelTestResult`): the stored score leaves it out, and the result waits only when the unchecked
@@ -782,7 +796,9 @@ by code, with no model call.
 With a K-12 grade set, a strong pregnancy self-disclosure in the learner's message ("am i pregnant", "im 14
 and pregnant", "i missed my period", "my pregnancy test was positive") is a safety disclosure: ChatTab shows
 `SAFETY_NOTICE` under it, and in a mastery check it is not graded as an answer (the answer check's "When",
-above). With no grade set nothing changes. The notice never blocks an answer, so a missed
+above). Typed as a quiz or level-test written answer, a "why is that the answer?" or a new-course topic, it
+gets the same notice and is not marked (the written-answer grading's "A safety disclosure typed outside the
+chat", above). With no grade set nothing changes. The notice never blocks an answer, so a missed
 disclosure costs far more than an extra notice, and the guards that keep jokes, pretend play, language lessons
 and someone else's words quiet are kept narrow (the lead's decision after TerraTutor #161's second final
 review, which the two repos share):

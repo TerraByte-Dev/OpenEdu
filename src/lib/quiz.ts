@@ -14,6 +14,8 @@ import { isLocalModel } from "./privacy";
 import { settleByCode, misspellingCandidates, misspeltNameCandidates, personNameWords, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup, type WordSenses } from "./answer-match";
 import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
 import { inWordList } from "./wordlist";
+import { isSafetyDisclosure } from "./child-safety";
+import type { Grade } from "./grade";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 
 // The generation-time question shape (no DB/runtime fields yet).
@@ -895,19 +897,32 @@ export const CODE_MISMATCH_FEEDBACK = "This does not match the answer key.";
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
   config: LLMConfig | null,
+  // The learner's grade, as the chat's safety notice reads it (child-safety.ts isSafetyDisclosure).
+  grade: Grade | null = null,
 ): Promise<Map<number, GradeOutcome>> {
   const out = new Map<number, GradeOutcome>();
   const needsLLM: AnswerToGrade[] = [];
+
+  // A self-harm or abuse disclosure (or, with a K-12 grade set, a pregnancy one) typed as an answer
+  // (child-safety.ts isSafetyDisclosure, the chat's own check with the same grade) is not an answer to
+  // mark. It is never settled by code or sent to a model, and never marked wrong: it is passed as not
+  // checked ('fallback'), like an answer no model could check, and the quiz and level-test screens show
+  // the chat's SAFETY_NOTICE on it in place of the answer and the key (ported from TerraTutor #175).
+  const answers: AnswerToGrade[] = [];
+  for (const it of items) {
+    if (isSafetyDisclosure(it.student, grade)) out.set(it.index, { isCorrect: true, feedback: "", by: "fallback" });
+    else answers.push(it);
+  }
 
   // An answer that is the key in another form ("washington", "h two o", "a hundred degrees",
   // "tadpoles") is settled in code first (answer-match.ts), so the model never gets the chance to fail
   // it. A misspelling counts only when the word is not a real word, which the dictionary says; a misspelt
   // name ("sahera" for the Sahara) only when neither the dictionary nor the English word list has it.
-  const isWord = await realWords(items.flatMap(misspellingCandidates));
-  const listed = await wordListHas(items.flatMap(misspeltNameCandidates));
+  const isWord = await realWords(answers.flatMap(misspellingCandidates));
+  const listed = await wordListHas(answers.flatMap(misspeltNameCandidates));
   // A key that names a place or a thing ("Soviet Union") is not taken for a person's name.
-  const senses = await dictionarySenses(items.flatMap(personNameWords));
-  for (const it of items) {
+  const senses = await dictionarySenses(answers.flatMap(personNameWords));
+  for (const it of answers) {
     // settleByCode returns false only when the key and the answer are each one quantity and code is
     // sure the amounts differ ("4.5%" for 45%); anything it is unsure of is null and goes to the model.
     // A code rejection is stored as 'exact' like a code accept, and can be marked again by hand.
