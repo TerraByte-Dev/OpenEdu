@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
 import type { Flashcard, Syllabus, Subtopic } from "../types";
 import { getDueFlashcards, getFlashcards, updateFlashcardAfterReview, createFlashcard, deleteFlashcard } from "../lib/db";
 import { review, requeueIfDue, type FlashcardGrade } from "../lib/srs";
@@ -38,6 +38,10 @@ const GRADES: { grade: FlashcardGrade; label: string; hint: string; cls: string 
   { grade: "easy", label: "Easy", hint: "too easy", cls: "border-success/40 text-success hover:bg-success-tint" },
 ];
 
+/** How long after a grade a "Show answer" click is ignored: the second click of a double-click on a grade
+ * button lands there once the next card is up (Windows' default double-click time). */
+const SHOW_ANSWER_HOLD_MS = 500;
+
 export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeToTutor, grade: learnerGrade = null }: ReviewTabProps) {
   const large = isEarlyReader(learnerGrade);
   // The delete confirm's buttons: the small pill size, or K-2's text-lg (1.125rem) on a large card.
@@ -50,6 +54,13 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
   const [reviewedCount, setReviewedCount] = useState(0);
   // "Delete card" asks in place first: the link sits just under the grade buttons.
   const [askingDelete, setAskingDelete] = useState(false);
+  // A card is graded once: a double-click on a grade button would write two reviews of it (two
+  // flashcard_reviews rows, and the schedule moved twice) and, once the next card is up, its second click
+  // would land on "Show answer" and reveal that card before the learner tried to recall it. The ref is the
+  // synchronous guard; the state disables the buttons while the grade saves.
+  const gradingRef = useRef(false);
+  const [gradingNow, setGradingNow] = useState(false);
+  const gradedAtRef = useRef(0);
 
   // Manual add form
   const [showAdd, setShowAdd] = useState(false);
@@ -74,7 +85,24 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
   const card = queue[idx];
 
   const grade = async (g: FlashcardGrade) => {
-    if (!card) return;
+    if (!card || gradingRef.current) return;
+    gradingRef.current = true;
+    setGradingNow(true);
+    try {
+      await gradeCard(card, g);
+    } finally {
+      gradingRef.current = false;
+      gradedAtRef.current = Date.now();
+      setGradingNow(false);
+    }
+  };
+
+  const showAnswer = () => {
+    if (Date.now() - gradedAtRef.current < SHOW_ANSWER_HOLD_MS) return;
+    setRevealed(true);
+  };
+
+  const gradeCard = async (card: Flashcard, g: FlashcardGrade) => {
     const now = new Date();
     const sched = review(
       { ease: card.ease, interval_days: card.interval_days, reps: card.reps, lapses: card.lapses },
@@ -209,7 +237,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
             <div className="px-6 pb-5">
               {!revealed ? (
                 <button
-                  onClick={() => setRevealed(true)}
+                  onClick={showAnswer}
                   className="w-full px-4 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
                 >
                   Show answer
@@ -220,7 +248,8 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
                     <button
                       key={g.grade}
                       onClick={() => grade(g.grade)}
-                      className={`flex flex-col items-center px-2 py-2.5 rounded-xl border ${large ? "text-lg" : "text-sm"} font-medium transition-colors ${g.cls}`}
+                      disabled={gradingNow}
+                      className={`flex flex-col items-center px-2 py-2.5 rounded-xl border ${large ? "text-lg" : "text-sm"} font-medium transition-colors disabled:opacity-60 ${g.cls}`}
                     >
                       {g.label}
                       {/* Full-strength secondary ink, not a faded status colour: 4.5:1 in both modes, 14px or larger. */}
