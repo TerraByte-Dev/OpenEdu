@@ -551,6 +551,16 @@ tool, so the turn returned "", ChatTab saved nothing, and the question lived onl
 - **Never a dead end.** While a card waits, the chat box stays usable ("Or type your own answer…", plus
   a "Type my own answer" button that focuses it), and what the child sends answers the card. No
   "Thinking…" bubble shows above a card when nothing has streamed.
+- **Unless what they type is a safety disclosure** (ported from TerraTutor #165). Typed words that
+  `isSafetyDisclosure` matches, with the learner's grade (`TutorTurn.grade`, the same check as the notice
+  under a chat message, nothing wider), are not the card's answer: the turn ends at the card, which keeps
+  only its question in the reply (`askedCard`), and nothing is graded, echoed ("*You answered: …*") or sent
+  to the model, and no fallback line follows, even when an earlier card this turn was answered and graded.
+  The kernel hands the words back (`TutorTurnResult.cardMessage`) and ChatTab sends them as the child's own
+  message once that turn is saved (or, if the child opened another conversation first, saves them to their
+  own thread with no reply, so they are never lost), so they get what a typed chat message gets:
+  `SAFETY_NOTICE` under it and `CHILD_SAFETY_RULES` in the system prompt. Before, they reached the model
+  only as a tool result, with no notice.
 - **The model is told the answer in a sentence** (`questionModelText`): `The student picked "1". Reply to
   the student now, following on from their answer.`, or `The student typed their own answer instead of
   picking a choice: "…"`. On the same card that took empty replies from 5 of 8 runs to 1 of 8.
@@ -599,7 +609,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   message or a clause of it; not "check my spelling", "check if I got this right" or "my teacher will
   quiz me tomorrow"). The chat resets the mode after every send, so in the app the answers arrive in the
   default mode; the request in the history is what marks the check. A typed request runs in the
-  default mode, not assess.
+  default mode, not assess. Never when the newest message is a safety disclosure (`isSafetyDisclosure`
+  with the learner's grade, `TutorTurn.grade`; ported from TerraTutor #165): "this is too hard i wanna die"
+  or "my dad hits me when i get them wrong" is not a wrong answer, so that turn gets no answer check, no
+  check-before-praise note, no verdict line ("That's not right yet.") and no check on a card answered
+  during it, and a "mastered" mark on it is refused (`MASTERY_REFUSED_DISCLOSURE`).
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model
@@ -751,7 +765,8 @@ by code, with no model call.
 
 With a K-12 grade set, a strong pregnancy self-disclosure in the learner's message ("am i pregnant", "im 14
 and pregnant", "i missed my period", "my pregnancy test was positive") is a safety disclosure: ChatTab shows
-`SAFETY_NOTICE` under it. With no grade set nothing changes. The notice never blocks an answer, so a missed
+`SAFETY_NOTICE` under it, and in a mastery check it is not graded as an answer (the answer check's "When",
+above). With no grade set nothing changes. The notice never blocks an answer, so a missed
 disclosure costs far more than an extra notice, and the guards that keep jokes, pretend play, language lessons
 and someone else's words quiet are kept narrow (the lead's decision after TerraTutor #161's second final
 review, which the two repos share):

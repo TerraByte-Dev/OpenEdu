@@ -146,6 +146,18 @@ describe("ChatTab wiring", () => {
     expect(chatTabSource).toMatch(/personaIdentityLayer\(persona\),\s*gradePromptLayer\(grade, userText\),\s*\)/);
     expect(chatTabSource).not.toContain("readingLevelLayer(");
   });
+
+  // Ported from TerraTutor #165. The kernel side runs through tutorEngine.run in answerCheckTurn.test.ts.
+  it("gives the kernel the same grade, and sends a disclosure typed into a card as the child's own message", () => {
+    expect(chatTabSource).toMatch(/retrieval: await getRetrievalMode\(\),[^}]*\sgrade,\s+onText:/);
+    expect(chatTabSource).toContain("result.cardMessage ? { thread, text: result.cardMessage, courseId, level } : null;");
+    expect(chatTabSource).toContain("if (handedBack) { setCardMessage(handedBack); return; }");
+    expect(chatTabSource).toContain("if (cardMessage.thread === threadId) void sendMessage(cardMessage.text);");
+    // Never dropped: when the child has opened another conversation, the words are still saved to their own thread.
+    expect(chatTabSource).toContain("if (turnOwnerRef.current !== owner) { if (handedBack) keepCardMessage(handedBack); return; }");
+    expect(chatTabSource).toContain("else keepCardMessage(cardMessage);");
+    expect(chatTabSource).toContain('saveChatMessage(m.courseId, "user", m.text, m.level, m.thread)');
+  });
 });
 
 // A K-12 learner who says they may be pregnant (ported from TerraTutor #158). With a K-12 grade set, a strong

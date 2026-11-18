@@ -70,6 +70,16 @@ interface ChatTabProps {
   grade: Grade | null;
 }
 
+// Words typed into a question card that the kernel handed back (TutorTurnResult.cardMessage), with where
+// they belong.
+interface CardMessage { thread: string; text: string; courseId: string; level: number }
+
+// Saves handed-back card words as the child's message in their own thread when they can't be sent there
+// now (another conversation is open): the safety notice keys off a saved user message.
+function keepCardMessage(m: CardMessage) {
+  void saveChatMessage(m.courseId, "user", m.text, m.level, m.thread).catch(() => {});
+}
+
 export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview, threadId, onThreadCreated, onThreadActivity, learnerId, grade }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -102,6 +112,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // A pending ask_user.question — renders inline buttons and suspends the turn until a pick.
   const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
   const askResolverRef = useRef<((value: string) => void) | null>(null);
+  // Words typed into a card that the kernel handed back as the child's own next message (a safety
+  // disclosure, TutorTurnResult.cardMessage), and the thread they belong to. Sent by the effect below once
+  // the turn that ended at the card has finished, so the send reads that turn's saved reply as history.
+  const [cardMessage, setCardMessage] = useState<CardMessage | null>(null);
   // Choices the last reply wrote as a list instead of calling ask_user.question (kernel replyChoices.ts).
   // Shown as the same buttons; a pick is sent as the student's next message. Cleared on send.
   const [replyChoices, setReplyChoices] = useState<ReplyChoices | null>(null);
@@ -262,6 +276,16 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     }
   };
 
+  // A card's typed words sent as the child's message: saved as a user message, so the safety notice shows
+  // under it, and run as an ordinary turn (the safety rules in the system prompt, no grading). If the
+  // child opened another conversation first, they are still saved to their own thread, with no reply.
+  useEffect(() => {
+    if (!cardMessage || streaming || settingUpRef.current) return;
+    setCardMessage(null);
+    if (cardMessage.thread === threadId) void sendMessage(cardMessage.text);
+    else keepCardMessage(cardMessage);
+  }, [cardMessage, streaming, threadId]); // eslint-disable-line react-hooks/exhaustive-deps -- sendMessage is this render's, which holds the finished turn's messages
+
   const runTurn = async (setupToken: object, text: string, fromInput: boolean) => {
     setChatError("");
 
@@ -356,6 +380,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       messages: llmMessages,
       config,
       retrieval: await getRetrievalMode(),
+      // What tells a safety disclosure from an answer in the kernel: the same grade as the notice below.
+      grade,
       onText: (chunk) => { if (turnOwnerRef.current === owner) setStreamingText((prev) => prev + chunk); },
       onToolEvent: (ev) => { if (turnOwnerRef.current === owner) setToolEvents((prev) => [...prev.filter((e) => e.id !== ev.id), ev]); },
     };
@@ -413,8 +439,12 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           updateKnowledgeFiles(courseId, userText, result.text, config).catch(() => {});
         }
       }
-      // Abandoned by a thread switch: its chips and notices belong to a thread no longer shown.
-      if (turnOwnerRef.current !== owner) return;
+      // The turn ended at a card whose typed words go next as the child's own message (no chips under it).
+      const handedBack: CardMessage | null = result.cardMessage ? { thread, text: result.cardMessage, courseId, level } : null;
+      // Abandoned by a thread switch: its chips and notices belong to a thread no longer shown. Words
+      // handed back from a card are still saved to it, so a disclosure is never lost.
+      if (turnOwnerRef.current !== owner) { if (handedBack) keepCardMessage(handedBack); return; }
+      if (handedBack) { setCardMessage(handedBack); return; }
       // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
       // tutor ends up looking like it read your notes when it didn't.
