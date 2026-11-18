@@ -189,6 +189,18 @@ const THIRD_OBJ = "(?:him|them|her)" + OBJ_END;
 // talk ("sea anemones sting people who touch them", "the woman reached out and touched him").
 const THEIR_KIN = "(?:his|her|their|my|our) " + KIN;
 const KIN_OBJ = "(?:him|them|her)(?= ?(?:$|[^\\p{L}\\p{N}\\s]|again|there|down|at|in|every|all)(?![\\p{L}\\p{N}]))";
+// The child's own family member or grown-up ("my uncle", "my mom's boyfriend") touching him, her or them also
+// counts before when, while, and, too, gently, at night and the like: "my uncle touches her when she sleeps",
+// "my stepdad touches them while mom is at work", "my uncle touches her and she cries". Not with another
+// subject in between ("my teacher read us how the prince touched her and she woke up"), and not before a noun
+// ("in the book my dad touches her hand"). "Our" keeps the narrower rule above ("our teacher touches them
+// gently with the brush"). Known, accepted: "my mom touches her when she cries" fires.
+const MY_KIN_GAP =
+  "(?:,? (?!(?:the|a|an|his|her|their|its|this|that|these|those|he|she|they|it|who|which|where)(?![\\p{L}\\p{N}']))[\\p{L}']+){0,8}?";
+const MY_KIN_OBJ =
+  "(?:him|them|her)(?= ?(?:$|[^\\p{L}\\p{N}\\s]|and|again|there|too|down|when|whenever|while|at|in|every|all|after|before|" +
+  "until|if|but|so|then|because|during|under|sometimes|always|lots|a lot|" +
+  "(?!(?:belly|family|jelly|bully|lily|holly)(?![\\p{L}\\p{N}]))\\p{L}+ly)(?![\\p{L}\\p{N}]))";
 // A named grown-up, family member or stranger (no bare pronoun, no possessive): "a teacher at school touches
 // kids". Not "jesus touched the children", "her kindness touched the children", "he touched the children
 // and blessed them" (a Bible story).
@@ -229,6 +241,7 @@ const SHARE = "threat\\p{L}* to (?:share|post|send|show|leak) ";
 const DISCLOSURE_RES = [
   TOUCHER + "(?:,? [\\p{L}']+){0,8}? " + TOUCH + " (?:me|us|my " + BODY_PART + ")",
   THEIR_KIN + "(?:,? [\\p{L}']+){0,8}? " + TOUCH + " " + KIN_OBJ,
+  "my " + KIN + MY_KIN_GAP + " " + TOUCH + " " + MY_KIN_OBJ,
   // Touched by someone ("i got touched by my uncle", "i was touched by a man at the park"), or the child
   // touched with no one named ("i got touched at school"). Anyone else's "get touched" with no one doing it
   // is a plant or a feeling ("when its hairs get touched", "he gets touched by the story").

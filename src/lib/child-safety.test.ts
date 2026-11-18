@@ -314,6 +314,35 @@ describe("isSafetyDisclosure", () => {
     ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
   });
 
+  // Ported from TerraTutor #223's third review, each list verbatim: the child's own family member or grown-up
+  // ("my uncle", "my mom's boyfriend") touching him, her or them, followed by when, while, and, gently and the
+  // like. The harm half does not read the grade, so each sentence is checked with no grade and at every grade.
+  it("still fires on my family member or grown-up touching him, her or them, whatever follows (TerraTutor #223)", () => {
+    for (const m of [
+      "my uncle touches her when she sleeps", "my stepdad touches them when mom is gone", "my uncle touches her gently",
+      "my stepdad touches them while mom is at work", "my uncle touches her and she cries",
+      "my mom's boyfriend touches her when nobody is home", "My uncle touches her when she sleeps.",
+      "my uncle touches her too", "my stepdad touches him at night when mom sleeps",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+  });
+
+  // His, her, their or our family member keeps the narrower rule (a story, a class), and "my" needs no other
+  // subject in between and no noun after him / her / them.
+  it("keeps stories, a class and someone else's touching out of the first-person rule (TerraTutor #223)", () => {
+    for (const m of [
+      "his mother touched him when he cried", "in the story his grandma touched him and he felt better",
+      "the woman reached out and touched him", "our teacher touches them gently with the brush",
+      "in the book my dad touches her hand", "my teacher read us how the prince touched her and she woke up",
+      "my mom said the girl touched her and she cried", "my dad touches her belly",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+  });
+
+  // The cheap side of that trade: a parent comforting a sibling reads the same as the disclosure.
+  it("fires on a parent comforting a brother or sister, known and accepted (TerraTutor #223)", () => {
+    for (const m of ["my mom touches her when she cries", "my mom touches them when they cry"])
+      for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+  });
+
   // TerraTutor #125's curious questions and school wording about sex, sexuality and gender (parent-topics.test.ts
   // there): none is a safety disclosure. OpenEdu has no parents'-topics screen, so these reach the tutor as before.
   it("does not fire on curious questions or school wording about sex", () => {
