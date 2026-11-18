@@ -463,6 +463,31 @@ export function duplicateOptionPair(options: readonly string[]): [number, number
   return null;
 }
 
+// The side of a drag-to-match question ("left" or "right") on which two items read the same, or null.
+// QuestionRenderer pairs items by their text and lets each right item hold one left, so with "Mammal"
+// twice on the right (dog, whale, frog) at most two pairs can be made, Submit never shows, and the
+// quiz or level test can never be finished.
+export function repeatedMatchSide(pairs: ReadonlyArray<{ left: string; right: string }>): "left" | "right" | null {
+  for (const side of ["left", "right"] as const) {
+    if (new Set(pairs.map((p) => normalizeOption(p[side]))).size < pairs.length) return side;
+  }
+  return null;
+}
+
+// ─── The sentence a fill-in-the-blank question asks ───────────────────────────
+
+// The learner fills in blank_position ("Water vapor cools and turns back into liquid during ___."),
+// which the renderer shows in place of question_text; question_text can be only "Fill in the blank.".
+// So whatever checks the key or the learner's answer (the content review, the verify pass, the grader)
+// gets the sentence too. Every other question, and one whose question_text already holds the sentence,
+// is its question_text unchanged.
+export function questionWithSentence(q: { question_text: string; question_type: string; blank_position?: string | null }): string {
+  const sentence = (q.blank_position ?? "").trim();
+  if (q.question_type !== "fill_in_blank" || !sentence || q.question_text.includes(sentence)) return q.question_text;
+  return `${q.question_text}
+Sentence: ${sentence}`;
+}
+
 // ─── Letter references in an explanation ──────────────────────────────────────
 
 // Prompts ask the model to end with "Therefore the answer is X", and gemma4:e2b often writes the

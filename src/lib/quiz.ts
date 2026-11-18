@@ -7,6 +7,7 @@ import {
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, alignKeyToOption,
   hasSelfCorrection, duplicateOptionPair, rewriteLetterRefs, isNearDuplicate,
+  repeatedMatchSide, questionWithSentence, questionKey,
   type GradeOutcome, type BatchGradeReply,
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
@@ -31,6 +32,10 @@ export const TEST_CURRENT_TARGET = 35;
 export const TEST_REVIEW_TARGET = 10;
 export const TEST_TOTAL_TARGET = TEST_CURRENT_TARGET + TEST_REVIEW_TARGET; // 45
 export const TEST_FLOOR = 30;
+// The fewest review questions a level test is given with. The review section has its own bar
+// (level-test.ts PASS_REVIEW, 60%): with 1 or 2 questions one miss fails it (0% or 50%), and the whole
+// test with it; from 3, one miss leaves 67%. A shorter review section is refused like an empty one.
+export const TEST_REVIEW_FLOOR = 3;
 
 const QUESTION_TYPES = [
   "multiple_choice", "true_false", "fill_in_blank",
@@ -163,6 +168,12 @@ export function validateQuizBatch(
       if (pairs.length < 3 || pairs.length > 5) issues.push(`${at}: drag_to_match needs 3–5 matching_pairs (got ${pairs.length}).`);
       if (pairs.some((p) => !p || !String(p.left).trim() || !String(p.right).trim())) {
         issues.push(`${at}: drag_to_match has an empty pair side.`);
+      }
+      // Each right item can be matched to one left item only, so a repeated item leaves a pair that can
+      // never be made and the question can never be submitted (repeatedMatchSide).
+      const repeated = repeatedMatchSide(pairs.map((p) => ({ left: String(p?.left ?? ""), right: String(p?.right ?? "") })));
+      if (repeated) {
+        issues.push(`${at}: drag_to_match has the same ${repeated} item twice. Every left item and every right item must be different, with exactly one match each.`);
       }
     }
 
@@ -463,6 +474,15 @@ interface GenPlan {
   config: LLMConfig;
   review: LLMConfig | null;
   signal?: AbortSignal;
+  /** Questions already in this quiz or test (the review pool's, the current section's): a fresh one that
+   * repeats one of them, exactly or nearly (isNearDuplicate), is dropped and the top-up refills it. */
+  avoid?: GenQuestion[];
+}
+
+// A fresh question that repeats one already in the quiz or test (GenPlan.avoid).
+function repeatsAvoided(plan: GenPlan, q: GenQuestion): boolean {
+  const k = questionKey(q.question_text);
+  return (plan.avoid ?? []).some((a) => questionKey(a.question_text) === k || isNearDuplicate(a, q));
 }
 
 // The check a round's freshly generated questions get before they count: the content review when a
@@ -498,7 +518,7 @@ async function generatePerQuestion(
   const add = (q: GenQuestion | null): void => {
     if (!q) return;
     const k = keyOf(q);
-    if (!k || seen.has(k) || produced.some((p) => isNearDuplicate(p, q))) return;
+    if (!k || seen.has(k) || produced.some((p) => isNearDuplicate(p, q)) || repeatsAvoided(plan, q)) return;
     seen.add(k); produced.push(q); onProgress?.(produced.length, target);
   };
 
@@ -551,7 +571,8 @@ async function generateBatched(
       .filter((c) => c.count > 0);
     if (ctxs.length === 0) break;
 
-    let batch = (await Promise.all(ctxs.map(generateQuestionBatch))).flat().map(finalizeQuestion);
+    let batch = (await Promise.all(ctxs.map(generateQuestionBatch))).flat().map(finalizeQuestion)
+      .filter((q) => !repeatsAvoided(plan, q));
     if (check) batch = await check(batch, `${label} r${round}`);
     stopIfAborted(plan.signal);
 
@@ -617,7 +638,7 @@ async function verifyAndFilter(
   const items = questions
     .map((q, index) => ({ q, index }))
     .filter(({ q }) => VERIFIABLE_TYPES.has(q.question_type))
-    .map(({ q, index }) => ({ index, question: q.question_text, options: q.options, proposed: q.correct_answer }));
+    .map(({ q, index }) => ({ index, question: questionWithSentence(q), options: q.options, proposed: q.correct_answer }));
   if (items.length === 0) return questions;
 
   try {
@@ -713,6 +734,8 @@ export async function generateQuizQuestions(
       config,
       review: reviewer,
       signal,
+      // A missed question re-posed from the pool is not asked again fresh in the same quiz.
+      avoid: reviewQs,
     },
     fresh,
     `quiz L${syllabus.level}`,
@@ -735,8 +758,9 @@ export interface PromotionTestQuestions {
 /**
  * Why a generated level test cannot be given, or null when it can. A test under TEST_FLOOR questions, or
  * one whose review section came back empty although the course has earlier levels, is not started: it
- * is not taken and cannot promote (the pass rule would skip an empty review section). The learner can
- * try again.
+ * is not taken and cannot promote (the pass rule would skip an empty review section). Nor is one whose
+ * review section has fewer than TEST_REVIEW_FLOOR questions, where a single miss would fail the review
+ * bar and the test. The learner can try again.
  */
 export function levelTestShortfall(t: PromotionTestQuestions): string | null {
   const total = t.current.length + t.review.length;
@@ -745,6 +769,9 @@ export function levelTestShortfall(t: PromotionTestQuestions): string | null {
   }
   if (t.reviewWanted && t.review.length === 0) {
     return "No questions on the earlier levels were made, and a level test needs them. The test was not started and does not count. Try again.";
+  }
+  if (t.reviewWanted && t.review.length < TEST_REVIEW_FLOOR) {
+    return `Only ${t.review.length} ${t.review.length === 1 ? "question" : "questions"} on the earlier levels ${t.review.length === 1 ? "was" : "were"} made, and a level test needs at least ${TEST_REVIEW_FLOOR}, so that one miss there cannot fail the test. The test was not started and does not count. Try again.`;
   }
   return null;
 }
@@ -796,6 +823,7 @@ export async function generatePromotionTestQuestions(
         config,
         review: reviewer,
         signal,
+        avoid: current,
       },
       TEST_REVIEW_TARGET,
       `promotion L${currentSyllabus.level} review`,
