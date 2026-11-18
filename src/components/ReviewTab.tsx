@@ -41,6 +41,8 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reviewedCount, setReviewedCount] = useState(0);
+  // "Delete card" asks in place first: the link sits just under the grade buttons.
+  const [askingDelete, setAskingDelete] = useState(false);
 
   // Manual add form
   const [showAdd, setShowAdd] = useState(false);
@@ -56,6 +58,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     setIdx(0);
     setRevealed(false);
     setReviewedCount(0);
+    setAskingDelete(false);
     setLoading(false);
   }, [courseId]);
 
@@ -73,6 +76,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     await updateFlashcardAfterReview(card.id, sched, g);
     setReviewedCount((n) => n + 1);
     setRevealed(false);
+    setAskingDelete(false);
     setIdx((i) => i + 1);
   };
 
@@ -87,6 +91,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
 
   const removeCurrent = async () => {
     if (!card) return;
+    setAskingDelete(false); // before the await: the buttons go, so a second click can't take the next card
     await deleteFlashcard(card.id);
     setRevealed(false);
     setQueue((q) => q.filter((_, i) => i !== idx));
@@ -201,8 +206,21 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
               )}
               <div className="mt-3 flex items-center justify-between text-[10px] text-[var(--ink-faint)]">
                 <span>Card {idx + 1} of {queue.length} due</span>
-                <button onClick={removeCurrent} className="hover:text-danger transition-colors">Delete card</button>
+                {!askingDelete && (
+                  <button onClick={() => setAskingDelete(true)} className="hover:text-danger transition-colors">Delete card</button>
+                )}
               </div>
+              {askingDelete && (
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-2" role="group" aria-label="Delete this card?">
+                  <span className="text-[12px] text-ink">Delete this card? It cannot be brought back.</span>
+                  <button type="button" className="px-2 py-0.5 rounded text-[11px] text-danger border border-[var(--danger)] hover:bg-panel-lite" onClick={() => { void removeCurrent(); }}>
+                    Delete
+                  </button>
+                  <button type="button" autoFocus className="px-2 py-0.5 rounded text-[11px] text-[var(--ink-dim)] border border-[var(--rule)] hover:bg-panel-lite" onClick={() => setAskingDelete(false)}>
+                    Keep it
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -101,6 +101,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   const [genProgress, setGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [genError, setGenError] = useState("");
   const [passed, setPassed] = useState(false);
+  // The level a passed L1-L5 test advanced to. onPassed waits for the results screen's "Continue
+  // Learning", so a pass shows its score and breakdown as a fail does.
+  const [passedTo, setPassedTo] = useState<number | null>(null);
   const [overallScore, setOverallScore] = useState(0);
   const [reviewScore, setReviewScore] = useState<number | null>(null);
   const [studyPlan, setStudyPlan] = useState("");
@@ -396,8 +399,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
         // Course complete — hold the view on the capstone; onPassed(null) fires when the user finishes.
         setTestState("completion");
       } else {
+        setPassedTo(nextLevel ?? currentLevel);
         setTestState("results");
-        onPassed(nextLevel ?? currentLevel);
       }
       void persist(Promise.resolve(null));
       return;
@@ -420,7 +423,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     setPassed(false);
     setTestState("results");
     void persist(startStudyPlan(answered, cfg));
-  }, [timeLeft, currentLevel, courseId, currentSyllabus, onPassed]);
+  }, [timeLeft, currentLevel, courseId, currentSyllabus]);
 
   // After a failed test: the study plan for the missed questions, shown when ready.
   const startStudyPlan = (answers: ReadonlyArray<ActiveQuestion>, cfg: LLMConfig): Promise<string | null> => {
@@ -461,8 +464,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     setPassed(s.status === "passed");
     if (s.status === "passed") {
       if (currentLevel >= 6) { setTestState("completion"); return; }
+      setPassedTo(s.nextLevel ?? currentLevel);
       setTestState("results");
-      onPassed(s.nextLevel ?? currentLevel);
       return;
     }
     setTestState("results");
@@ -802,7 +805,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           <p className="text-xs text-[var(--ink-faint)]">{course.title} — Level {currentLevel}</p>
         </div>
         <button
-          onClick={onClose}
+          onClick={passed && passedTo !== null ? () => onPassed(passedTo) : onClose}
           className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
         >
           {passed ? "Continue Learning" : "Back to Course"}
