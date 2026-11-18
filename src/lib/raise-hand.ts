@@ -236,7 +236,8 @@ export async function writeLessonHelp(
     const out = await callLLMStructured<LessonHelp>(
       [{ role: "user", content: buildStuckPointsPrompt(topic, subtopic, lessonText) }],
       config,
-      { schema: STUCK_POINTS_SCHEMA, toolName: "emit_stuck_points", tier, validate: stuckPointIssues },
+      // An over-long field is written again shorter, never cut: a cut worked example loses its answer.
+      { schema: STUCK_POINTS_SCHEMA, toolName: "emit_stuck_points", tier, validate: stuckPointIssues, trimOverlong: false },
     );
     let help = parseLessonHelp(JSON.stringify(out));
     if (help && review) help = await withoutFlaggedHelp(topic, subtopic.title, help, review);

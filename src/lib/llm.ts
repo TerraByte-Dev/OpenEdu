@@ -1076,7 +1076,8 @@ export interface StructuredOpts<T = unknown> {
   numPredict?: number;
   // Default true: a reply whose only fault is a string past its maxLength is shortened at a sentence or
   // word boundary (trimOverlongStrings) instead of failing. Set false where a shortened field could
-  // change what it means, e.g. a quiz question whose asking sentence comes last.
+  // change what it means, e.g. a quiz question whose asking sentence comes last, or a lesson section or
+  // worked example whose last steps and answer would be cut (curriculum.ts generateLesson, raise-hand.ts).
   trimOverlong?: boolean;
 }
 
@@ -1184,6 +1185,8 @@ function validateAgainstSchema(value: unknown, schema: Record<string, unknown>, 
 const SENTENCE_END = /[.!?…]["'”’)\]]*(?=\s|$)/g;
 const ABBREVIATION = /(?:^|[\s(])(?:[A-Za-z]\.){1,3}$|(?:^|[\s(])(?:Mr|Mrs|Ms|Dr|St|vs|No|approx|e\.g|i\.e)\.$/i;
 const TOO_LONG = /: string too long \(\d+ > \d+\)$/;
+// "3." at the start of a line is a numbered list's marker, not the end of a sentence.
+const LIST_MARKER = /(?:^|\n)[ \t]*\d+\.$/;
 
 /**
  * `text` shortened to at most `max` characters: up to the last sentence end that fits, or, when no
@@ -1198,7 +1201,7 @@ export function trimToLimit(text: string, max: number, min = 0): string | null {
   for (const m of head.matchAll(SENTENCE_END)) {
     const end = m.index! + m[0].length;
     const before = head.slice(0, m.index! + 1);
-    if (ABBREVIATION.test(before)) continue;
+    if (ABBREVIATION.test(before) || LIST_MARKER.test(before)) continue;
     sentence = text.slice(0, end).trimEnd();
   }
   if (sentence.length >= floor) return sentence;

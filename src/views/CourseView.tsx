@@ -366,6 +366,10 @@ export default function CourseView({ courseId, initialAction, onInitialActionCon
         )}
         {activeTab === "lessons" && (
           <LessonsTab
+            // Remount on a course/level switch, as ChatTab does: a lesson still being written for the
+            // level left behind must not open over this level's list or clear this level's "Writing…".
+            // Coming back to that level shows it as writing again (curriculum.ts writeLessonOnce).
+            key={`${courseId}:${effectiveViewingLevel}`}
             courseId={courseId}
             level={effectiveViewingLevel}
             topic={course.topic}

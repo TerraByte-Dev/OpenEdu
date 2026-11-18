@@ -278,6 +278,45 @@ describe("stuck points are written with the lesson", () => {
 
 // ─── Privacy ────────────────────────────────────────────────────────────────────
 
+describe("help written on the first Raise hand", () => {
+  it("raising the hand again while it is being written joins that write instead of starting a second", async () => {
+    const courseId = await seed(false);
+    const old = await createLesson(courseId, 1, SUB.title, LESSON_TEXT, SUB.id);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    vi.mocked(callLLMStructured).mockImplementation(async (messages, config, opts) => {
+      calls.push({ tool: opts.toolName ?? "", content: messages.map((m) => m.content).join("\n"), model: config.model });
+      if (opts.toolName === "emit_stuck_points") { await gate; return structuredClone(HELP) as never; }
+      return { verdicts: [] } as never;
+    });
+    const configs = vi.fn(async () => ({ config: { ...GEN }, review: null }));
+
+    // Lessons tab, then Review: both hold the lesson as it was read, with no help yet.
+    const first = lessonHelpFor(old, SUB, TOPIC, configs);
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    const second = lessonHelpFor(old, SUB, TOPIC, configs);
+    const practice = lessonWithHelp(courseId, 1, SUB, TOPIC, configs);
+    release();
+
+    expect(await first).toEqual(HELP);
+    expect(await second).toEqual(HELP);
+    expect((await practice).help).toEqual(HELP);
+    expect(calls.filter((c) => c.tool === "emit_stuck_points")).toHaveLength(1);
+    expect(configs).toHaveBeenCalledTimes(1);
+    expect(parseLessonHelp((await getLesson(old.id))!.help_json)).toEqual(HELP);
+  });
+
+  it("a failed write is not joined later: the next Raise hand tries again", async () => {
+    const courseId = await seed(false);
+    const old = await createLesson(courseId, 1, SUB.title, LESSON_TEXT, SUB.id);
+    stuckReply = () => { throw new Error("model down"); };
+    expect(await lessonHelpFor(old, SUB, TOPIC, async () => ({ config: { ...GEN }, review: null }))).toBeNull();
+    stuckReply = () => structuredClone(HELP);
+    expect(await lessonHelpFor(old, SUB, TOPIC, async () => ({ config: { ...GEN }, review: null }))).toEqual(HELP);
+    expect(calls.filter((c) => c.tool === "emit_stuck_points")).toHaveLength(2);
+  });
+});
+
 describe("a Raise-hand session sends nothing", () => {
   it("on a lesson with stored help: no model call, no network request, and the configs are never read", async () => {
     const courseId = await seed(true);
