@@ -277,11 +277,14 @@ function nearerWords(answer: string, key: string): string[] {
  * `rivals` are the question's other words: one as close to the answer as the key word is (a choice the
  * question offers) means the answer may be that one misspelt. The key word has to be in the dictionary
  * itself: it has no names of places or people, so it cannot say that "zambia" is a real word and not
- * "Gambia" misspelt. */
+ * "Gambia" misspelt. Never a misspelling, as for the misspelling note (misspellingNote): the key's word
+ * with a negating prefix added or taken off (prefixAdded: "abiotic" for Biotic may be the opposite), a
+ * contrasting affix swapped (affixSwapped), or a function word WordNet lacks ("toward" for Coward). */
 function sameWord(answer: string, key: string, isWord: (w: string) => boolean, rivals: string[], name?: { known: (w: string) => boolean; rivals: string[] }): boolean {
   if (answer === key || singular(answer) === singular(key)) return true;
   if (name && misspeltName(answer, key, name.known, name.rivals)) return true;
   if (!oneEditOff(answer, key) || isWord(answer) || !isWord(key)) return false;
+  if (prefixAdded(answer, key) || affixSwapped(answer, key) || FUNCTION_WORDS.has(answer)) return false;
   if (rivals.some((r) => editDistance(singular(answer), singular(r)) <= 1)) return false;
   return !nearerWords(answer, key).some(isWord);
 }

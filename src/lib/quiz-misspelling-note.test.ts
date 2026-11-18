@@ -300,3 +300,29 @@ describe("gradeAnswersBatch: a note when an answer may be the key misspelt", () 
     }
   }, 30_000);
 });
+
+// #328 (TerraTutor #122): code accepted the opposite as a one-edit misspelling of the key, because
+// WordNet lacks the word ("abiotic", "toward"), and stored it as `exact` and right with no model call.
+// With the bundled dictionary each now goes to the model instead.
+describe("gradeAnswersBatch: an opposite or a function word is never accepted by code as a misspelling (#328)", () => {
+  beforeAll(() => { resetDictionaryCache(); resetWordListCache(); installAppOrigin(); });
+  afterAll(() => { globalThis.fetch = original; resetDictionaryCache(); resetWordListCache(); });
+  beforeEach(() => { vi.mocked(callLLMStructured).mockReset(); });
+
+  it("sends abiotic for Biotic, abiotic factors for Biotic factors and toward for Coward to the model", async () => {
+    vi.mocked(callLLMStructured).mockResolvedValue({});
+    const out = await gradeAnswersBatch([
+      item(0, "Living things in an ecosystem, such as plants and animals, are called ___ factors.", "Biotic", "abiotic"),
+      item(1, "What are the living parts of an ecosystem called?", "Biotic factors", "abiotic factors"),
+      item(2, "What is a person who lacks courage called?", "Coward", "toward"),
+    ], config);
+    for (const i of [0, 1, 2]) expect(out.get(i)?.by).not.toBe("exact");
+    expect(vi.mocked(callLLMStructured)).toHaveBeenCalledTimes(1);
+  }, 30_000);
+
+  it("still accepts a plain one-edit misspelling by code", async () => {
+    const out = await gradeAnswersBatch([item(0, "What do we call an animal that eats both plants and meat?", "Omnivore", "omnivor")], config);
+    expect(out.get(0)).toMatchObject({ isCorrect: true, by: "exact" });
+    expect(vi.mocked(callLLMStructured)).not.toHaveBeenCalled();
+  }, 30_000);
+});
