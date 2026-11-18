@@ -191,7 +191,11 @@ written: they came from a once-a-minute timer whose only reader was the learning
   (`quiz-grading.ts questionWithSentence`). A drag-to-match question with the same left or right item
   twice is rejected by `validateQuizBatch` (`repeatedMatchSide`), so it is rewritten or dropped and
   never re-posed from the pool: the screen pairs items by their text, one left to each right, so such a
-  question could never be submitted and the quiz or test never finished. In Review, a flashcard graded Again is due at once and comes back at the end of the
+  question could never be submitted and the quiz or test never finished. Its answer is stored as JSON
+  and its `correct_answer` is only the prompt's "See matching_pairs" placeholder, so the answered
+  question, both results screens and their read-aloud show both as pairs ("Frog → Amphibian", read
+  "Frog goes with Amphibian"; `quiz-grading.ts answerShown` / `keyShown`), and a level test's stored rows
+  carry `matching_pairs` for that (`getLevelTestRows`). In Review, a flashcard graded Again is due at once and comes back at the end of the
   same session (`srs.ts requeueIfDue`), and when a grade or a delete empties the queue the due cards are
   read again, so "Nothing is due right now" shows only when nothing is.
 - **`content-review.ts`** — the content review of generated lessons and questions. See below.

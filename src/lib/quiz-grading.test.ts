@@ -17,6 +17,8 @@ import {
   summarizeForLedger,
   questionKey,
   dedupeByQuestionText,
+  answerShown,
+  keyShown,
   type QuestionLike,
   type GradeItem,
   type VerifyItem,
@@ -405,5 +407,34 @@ describe("runsVerifyPass (the answer-key re-check must survive the 8 GB default)
   it("stays on for gemma4:e2b, which tiers as tiny and is the default below 16 GB", () => {
     expect(runsVerifyPass("tiny", "gemma4:e2b")).toBe(true);
     expect(runsVerifyPass("small", "gemma4:e4b")).toBe(true);
+  });
+});
+
+// QuestionRenderer (the answered question), both results screens and resultSpeech show a drag-to-match
+// answer and key through these: readable pairs, never the stored JSON or the prompt's placeholder key.
+describe("answerShown / keyShown: a drag-to-match answer and key as shown", () => {
+  const pairs = [{ left: "Frog", right: "Amphibian" }, { left: "Dog", right: "Mammal" }, { left: "Eagle", right: "Bird" }];
+  // Matched in the order the learner clicked them, two swapped.
+  const match = {
+    question_type: "drag_to_match", matching_pairs: pairs, correct_answer: "See matching_pairs",
+    user_answer: JSON.stringify({ Dog: "Amphibian", Eagle: "Bird", Frog: "Mammal" }),
+  };
+
+  it("shows the learner's matches as pairs in the question's own order", () => {
+    expect(answerShown(match)).toBe("Frog → Mammal, Dog → Amphibian, Eagle → Bird");
+  });
+
+  it("shows the key as the question's pairs, never the placeholder", () => {
+    expect(keyShown(match)).toBe("Frog → Amphibian, Dog → Mammal, Eagle → Bird");
+    expect(keyShown(match, " goes with ")).toBe("Frog goes with Amphibian, Dog goes with Mammal, Eagle goes with Bird");
+  });
+
+  it("shows any other answer and key as stored", () => {
+    const mc = { question_type: "multiple_choice", user_answer: "{\"a\":\"b\"}", correct_answer: "C" };
+    expect(answerShown(mc)).toBe("{\"a\":\"b\"}");
+    expect(keyShown(mc)).toBe("C");
+    // A match whose answer is not a match's JSON shows as stored.
+    expect(answerShown({ ...match, user_answer: "not json" })).toBe("not json");
+    expect(answerShown({ ...match, user_answer: "[1,2]" })).toBe("[1,2]");
   });
 });

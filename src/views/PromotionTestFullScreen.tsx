@@ -5,7 +5,7 @@ import {
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
-import { answerMark, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, answerShown, keyShown, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import {
   testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft,
   STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING,
@@ -54,7 +54,7 @@ type TestState = "checking" | "cooldown" | "ready" | "generating" | "in_progress
 const toRow = (q: ActiveQuestion): LevelTestRow => ({
   id: q.saved_id!, question_text: q.question_text, question_type: q.question_type, correct_answer: q.correct_answer,
   user_answer: q.user_answer, is_correct: q.is_correct, explanation: q.explanation, graded_by: q.graded_by ?? null, test_section: q.section,
-  subtopic_id: q.subtopic_id ?? null,
+  subtopic_id: q.subtopic_id ?? null, matching_pairs: q.matching_pairs ?? null,
 });
 
 // A stored answer back as a results row (a test decided after its answers were marked).
@@ -62,6 +62,7 @@ const fromRow = (r: LevelTestRow): ActiveQuestion => ({
   question_text: r.question_text, question_type: r.question_type, options: null, correct_answer: r.correct_answer,
   user_answer: r.user_answer, is_correct: r.is_correct, difficulty_level: 0, explanation: r.explanation,
   section: r.test_section ?? "current", saved_id: r.id, graded_by: r.graded_by ?? undefined,
+  matching_pairs: r.matching_pairs ?? null,
 });
 
 interface ActiveQuestion extends Omit<QuizQuestion, "id" | "attempt_id"> {
@@ -932,7 +933,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
                     {safety && <SafetyNotice className="mt-1" />}
                     {mark === "unchecked" && !safety && <p className={`${xs} text-warning mt-0.5`}>{TEST_UNCHECKED_NOTE}</p>}
                     {showsAnswerAndKey(q, grade) && (
-                      <p className={`${xs} mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
+                      <p className={`${xs} mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {answerShown(q)} · Correct: {keyShown(q)}</p>
                     )}
                     {q.graded_by === "self"
                       ? <p className={`${xs} text-[var(--ink-faint)] mt-1`}>{MARK_AGAIN.marked}</p>

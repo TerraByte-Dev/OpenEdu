@@ -863,17 +863,23 @@ export interface LevelTestRow {
   subtopic_id: string | null;
   /** A fill-in-the-blank question's sentence, read with the question when it is graded (quiz-grading.ts questionWithSentence). */
   blank_position?: string | null;
+  /** A drag-to-match question's pairs: its key, as the results show it (quiz-grading.ts keyShown). */
+  matching_pairs?: Array<{ left: string; right: string }> | null;
 }
 
 // Every stored answer of one attempt, in the order they were saved.
 export async function getLevelTestRows(attemptId: string): Promise<LevelTestRow[]> {
   const d = await getDb();
   const rows: Array<Record<string, unknown>> = await d.select(
-    `SELECT id, question_text, question_type, correct_answer, user_answer, is_correct, explanation, graded_by, test_section, subtopic_id, blank_position
+    `SELECT id, question_text, question_type, correct_answer, user_answer, is_correct, explanation, graded_by, test_section, subtopic_id, blank_position, matching_pairs
        FROM quiz_questions WHERE attempt_id = $1 ORDER BY rowid`,
     [attemptId]
   );
-  return rows.map((r) => ({ ...r, is_correct: r.is_correct === null ? null : r.is_correct === 1 })) as LevelTestRow[];
+  return rows.map((r) => ({
+    ...r,
+    is_correct: r.is_correct === null ? null : r.is_correct === 1,
+    matching_pairs: r.matching_pairs ? JSON.parse(r.matching_pairs as string) : null,
+  })) as LevelTestRow[];
 }
 
 // After a pass decided later: move the course from `level` to the next one, or finish it after the

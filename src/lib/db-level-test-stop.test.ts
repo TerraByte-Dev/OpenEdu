@@ -27,8 +27,9 @@ vi.mock("./llm", () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } 
 
 import {
   setActiveLearnerId, createCourse, createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt,
-  getCourse, getQuizAttempts, getReviewPoolQuestions,
+  getCourse, getQuizAttempts, getReviewPoolQuestions, getLevelTestRows,
 } from "./db";
+import { keyShown } from "./quiz-grading";
 import { quizAverage } from "./progress";
 import { DEFAULT_LEARNER_ID } from "./learners";
 import { stopTestBody } from "./level-test";
@@ -95,5 +96,22 @@ describe("a level test stopped after it began", () => {
     await beginAndStop(0);
     expect(await getReviewPoolQuestions(courseId, 6)).toEqual([]);
     expect(stopTestBody(0)).not.toMatch(/answers you gave/);
+  });
+});
+
+// A level test decided after its answers were marked shows its results from the stored rows
+// (PromotionTestFullScreen fromRow): a drag-to-match row carries its pairs, so the key shows as them.
+describe("a stored level-test answer to a drag-to-match question", () => {
+  it("comes back with its pairs, and its key shows as them", async () => {
+    const attempt = await createPromotionAttempt(courseId, 1, 45, 45 * 60);
+    const pairs = [{ left: "Frog", right: "Amphibian" }, { left: "Dog", right: "Mammal" }, { left: "Eagle", right: "Bird" }];
+    await saveQuizQuestion({
+      attempt_id: attempt.id, question_text: "Match each animal to its group.", question_type: "drag_to_match", options: [],
+      correct_answer: "See matching_pairs", user_answer: JSON.stringify({ Frog: "Mammal", Dog: "Amphibian", Eagle: "Bird" }),
+      is_correct: false, difficulty_level: 1, explanation: "", subtopic_id: "1.1", matching_pairs: pairs,
+    }, "key", "current");
+    const [row] = await getLevelTestRows(attempt.id);
+    expect(row.matching_pairs).toEqual(pairs);
+    expect(keyShown(row)).toBe("Frog → Amphibian, Dog → Mammal, Eagle → Bird");
   });
 });
