@@ -11,6 +11,10 @@
 //! picked name. `backup_abandon` removes it after a copy that failed. The webview never names a path:
 //! the only file these commands write, check, rename or remove is the one the user picked in the dialog,
 //! plus `.partial`.
+//!
+//! One backup at a time: the picked path is one slot, so a second `backup_pick` while a backup is being
+//! picked or saved is refused with `BUSY` before any dialog opens (TerraTutor #218). Two at once used to
+//! share the slot: each finished or removed the other's copy, both failed and both `.partial` files stayed.
 
 use std::fs;
 use std::io::Read;
@@ -20,15 +24,79 @@ use std::sync::Mutex;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
 
+/// What a second backup is told while one is being picked or saved.
+pub const BUSY: &str = "A backup is already being saved. Wait until it finishes, then try again.";
+
+/// The one backup in progress.
+#[derive(Default)]
+enum Slot {
+    #[default]
+    Idle,
+    /// The Save dialog is open.
+    Picking,
+    /// `VACUUM INTO` is writing `<picked>.partial`, until it is finished or abandoned.
+    Saving(PathBuf),
+}
+
 /// The backup in progress: the path the user picked, until it is finished or abandoned.
 #[derive(Default)]
 pub struct BackupState {
-    picked: Mutex<Option<PathBuf>>,
+    slot: Mutex<Slot>,
 }
 
 impl BackupState {
-    fn picked(&self) -> std::sync::MutexGuard<'_, Option<PathBuf>> {
-        self.picked.lock().unwrap_or_else(|e| e.into_inner())
+    fn slot(&self) -> std::sync::MutexGuard<'_, Slot> {
+        self.slot.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Take the slot for a new backup, or refuse with `BUSY` while another one has it.
+    fn begin(&self) -> Result<(), String> {
+        let mut slot = self.slot();
+        if !matches!(*slot, Slot::Idle) {
+            return Err(BUSY.into());
+        }
+        *slot = Slot::Picking;
+        Ok(())
+    }
+
+    /// The dialog closed: with a path, clear its way and keep it (returning the `.partial` to copy into);
+    /// cancelled, free the slot. A `.partial` that cannot be cleared frees the slot too.
+    fn picked(&self, picked: Option<PathBuf>) -> Result<Option<PathBuf>, String> {
+        let mut slot = self.slot();
+        let Some(picked) = picked else {
+            *slot = Slot::Idle;
+            return Ok(None);
+        };
+        match start_in(&picked) {
+            Ok(partial) => {
+                *slot = Slot::Saving(picked);
+                Ok(Some(partial))
+            }
+            Err(e) => {
+                *slot = Slot::Idle;
+                Err(e.to_string())
+            }
+        }
+    }
+
+    /// Rename this backup's whole copy to the picked name and free the slot. On an error the slot stays
+    /// for `abandon`.
+    fn finish(&self) -> Result<PathBuf, String> {
+        let mut slot = self.slot();
+        let Slot::Saving(picked) = &*slot else { return Err("No backup is being saved.".into()) };
+        let picked = picked.clone();
+        finish_in(&picked)?;
+        *slot = Slot::Idle;
+        Ok(picked)
+    }
+
+    /// Remove this backup's `.partial` and free the slot. Nothing to do while the dialog is still open.
+    fn abandon(&self) -> std::io::Result<()> {
+        let mut slot = self.slot();
+        let Slot::Saving(picked) = &*slot else { return Ok(()) };
+        let partial = partial_of(picked);
+        *slot = Slot::Idle;
+        remove_if_there(&partial)
     }
 }
 
@@ -41,9 +109,10 @@ fn partial_of(picked: &Path) -> PathBuf {
 
 /// Ask where to save the backup. `Ok(Some(partial))` is the temporary file to copy into; `Ok(None)` when
 /// the user cancelled. A `.partial` left there by an earlier backup that was cut short is removed first,
-/// because SQLite will not write over a file.
+/// because SQLite will not write over a file. `Err(BUSY)`, with no dialog, while another backup is running.
 #[tauri::command]
 pub async fn backup_pick(app: tauri::AppHandle, state: State<'_, BackupState>, suggested_name: String) -> Result<Option<String>, String> {
+    state.begin()?;
     let name = sanitize_file_name(&suggested_name);
     // The blocking dialog must not run on the main thread (model_import.rs does the same).
     let picked = tauri::async_runtime::spawn_blocking(move || {
@@ -55,12 +124,15 @@ pub async fn backup_pick(app: tauri::AppHandle, state: State<'_, BackupState>, s
             .blocking_save_file()
     })
     .await
-    .map_err(|e| e.to_string())?;
-    let Some(picked) = picked else { return Ok(None) };
-    let picked = picked.into_path().map_err(|e| e.to_string())?;
-    let partial = start_in(&picked).map_err(|e| e.to_string())?;
-    *state.picked() = Some(picked);
-    Ok(Some(partial.to_string_lossy().into_owned()))
+    .map_err(|e| e.to_string())
+    .and_then(|p| p.map(|p| p.into_path().map_err(|e| e.to_string())).transpose());
+    match picked {
+        Ok(picked) => Ok(state.picked(picked)?.map(|partial| partial.to_string_lossy().into_owned())),
+        Err(e) => {
+            state.picked(None)?;
+            Err(e)
+        }
+    }
 }
 
 /// The copy is done: make it the backup. Returns the backup's path. On an error the `.partial` stays
@@ -69,20 +141,13 @@ pub async fn backup_pick(app: tauri::AppHandle, state: State<'_, BackupState>, s
 /// freeze meanwhile.
 #[tauri::command(async)]
 pub fn backup_finish(state: State<'_, BackupState>) -> Result<String, String> {
-    let mut guard = state.picked();
-    let picked = guard.clone().ok_or_else(|| "No backup is being saved.".to_string())?;
-    finish_in(&picked)?;
-    *guard = None;
-    Ok(picked.to_string_lossy().into_owned())
+    Ok(state.finish()?.to_string_lossy().into_owned())
 }
 
 /// The copy failed: remove what it left under the temporary name. Off the main thread, as `backup_finish`.
 #[tauri::command(async)]
 pub fn backup_abandon(state: State<'_, BackupState>) -> Result<(), String> {
-    if let Some(picked) = state.picked().take() {
-        remove_if_there(&partial_of(&picked)).map_err(|e| e.to_string())?;
-    }
-    Ok(())
+    state.abandon().map_err(|e| e.to_string())
 }
 
 fn remove_if_there(p: &Path) -> std::io::Result<()> {
@@ -247,6 +312,63 @@ mod tests {
         let picked = dir.path().join("backup.db");
         assert!(finish_in(&picked).is_err());
         assert!(!picked.exists());
+    }
+
+    /// One backup through the state the commands use, as backup_pick does once the dialog returns `picked`.
+    fn pick(state: &BackupState, picked: &Path) -> Result<PathBuf, String> {
+        state.begin()?;
+        Ok(state.picked(Some(picked.to_path_buf()))?.expect("a path was picked"))
+    }
+
+    #[test]
+    fn a_second_backup_while_one_is_saving_is_refused_and_the_first_still_finishes() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = BackupState::default();
+        let first = dir.path().join("backup-1.db");
+        let partial = pick(&state, &first).unwrap();
+        // The parent comes back to Settings and starts another before the first VACUUM is done.
+        assert_eq!(pick(&state, &dir.path().join("backup-2.db")).unwrap_err(), BUSY);
+        assert!(!dir.path().join("backup-2.db.partial").exists());
+        db_file(&partial, 4096, 3, 3 * 4096);
+        assert_eq!(state.finish().unwrap(), first);
+        assert_eq!(fs::metadata(&first).unwrap().len(), 3 * 4096);
+        assert!(!partial.exists());
+        // Then the next backup may start, and finishes as its own.
+        let second = dir.path().join("backup-2.db");
+        let partial = pick(&state, &second).unwrap();
+        db_file(&partial, 4096, 2, 2 * 4096);
+        assert_eq!(state.finish().unwrap(), second);
+        assert!(!partial.exists());
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn a_second_backup_while_the_dialog_is_open_is_refused_and_a_cancel_frees_the_slot() {
+        let state = BackupState::default();
+        state.begin().unwrap();
+        assert_eq!(state.begin().unwrap_err(), BUSY);
+        // An abandon from elsewhere does nothing while the dialog is open.
+        state.abandon().unwrap();
+        assert_eq!(state.begin().unwrap_err(), BUSY);
+        assert_eq!(state.picked(None).unwrap(), None);
+        state.begin().unwrap();
+    }
+
+    #[test]
+    fn a_failed_copy_leaves_no_partial_and_frees_the_slot() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = BackupState::default();
+        let picked = dir.path().join("backup.db");
+        let partial = pick(&state, &picked).unwrap();
+        db_file(&partial, 4096, 300, 40 * 4096);
+        // db-resilience.ts backupTo: finish fails, then abandon.
+        assert!(state.finish().unwrap_err().contains("incomplete"));
+        assert_eq!(state.begin().unwrap_err(), BUSY);
+        state.abandon().unwrap();
+        assert!(!partial.exists());
+        assert!(!picked.exists());
+        assert!(state.finish().is_err());
+        state.begin().unwrap();
     }
 
     #[test]

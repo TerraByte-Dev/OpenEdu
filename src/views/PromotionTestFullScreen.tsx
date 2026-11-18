@@ -29,7 +29,7 @@ import SafetyNotice from "../components/SafetyNotice";
 import { SAFETY_NOTICE } from "../lib/child-safety";
 import { isEarlyReader, type Grade } from "../lib/grade";
 import ReadAloudButton from "../components/ReadAloudButton";
-import { questionSpeech } from "../lib/speech";
+import { questionSpeech, resultSpeech } from "../lib/speech";
 import { IconXmark } from "../components/icons";
 
 function getTimeLimitSeconds(level: number): number {
@@ -95,6 +95,9 @@ interface Props {
 
 export default function PromotionTestFullScreen({ context, onClose, onPassed, grade }: Props) {
   const large = isEarlyReader(grade);
+  // The results rows' sizes, as QuestionRenderer's: 14px / 12px, or for K-2 20px / 18px.
+  const sm = large ? "text-xl" : "text-sm";
+  const xs = large ? "text-lg" : "text-xs";
   const { courseId, course, syllabus: currentSyllabus, allSyllabuses } = context;
   const currentLevel = course.current_level;
 
@@ -921,24 +924,26 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
               // note (the answer was never marked; quiz.ts gradeAnswersBatch).
               const safety = showsSafetyNotice(q, grade);
               return (
-              <div key={i} className={`p-3 rounded-xl border text-sm ${style.row}`}>
+              <div key={i} className={`p-3 rounded-xl border ${sm} ${style.row}`}>
                 <div className="flex items-start gap-2">
                   <span className={`font-bold shrink-0 ${style.text}`}>{style.sign}</span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-ink">{q.question_text}</p>
                     {safety && <SafetyNotice className="mt-1" />}
-                    {mark === "unchecked" && !safety && <p className="text-xs text-warning mt-0.5">{TEST_UNCHECKED_NOTE}</p>}
+                    {mark === "unchecked" && !safety && <p className={`${xs} text-warning mt-0.5`}>{TEST_UNCHECKED_NOTE}</p>}
                     {showsAnswerAndKey(q, grade) && (
-                      <p className={`text-xs mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
+                      <p className={`${xs} mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
                     {q.graded_by === "self"
-                      ? <p className="text-xs text-[var(--ink-faint)] mt-1">{MARK_AGAIN.marked}</p>
-                      : q.feedback && <p className="text-xs text-[var(--ink-faint)] italic mt-1">{q.feedback}</p>}
-                    {q.explanation && <p className="text-xs text-[var(--ink-faint)] mt-1">{q.explanation}</p>}
+                      ? <p className={`${xs} text-[var(--ink-faint)] mt-1`}>{MARK_AGAIN.marked}</p>
+                      : q.feedback && <p className={`${xs} text-[var(--ink-faint)] italic mt-1`}>{q.feedback}</p>}
+                    {q.explanation && <p className={`${xs} text-[var(--ink-faint)] mt-1`}>{q.explanation}</p>}
                     {canMarkAgain(q) && q.saved_id && resultsAttempt && (
                       <MarkAgain copy={MARK_AGAIN} onMark={(right) => saveMarkAgain(i, right)} />
                     )}
                   </div>
+                  {/* The question, the answer and key as shown, and the explanation (speech.ts resultSpeech). */}
+                  <ReadAloudButton text={resultSpeech(q, grade)} />
                 </div>
               </div>
               );
