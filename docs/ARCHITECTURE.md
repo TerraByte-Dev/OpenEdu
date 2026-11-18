@@ -812,6 +812,23 @@ So the verdict on the child's answer is the app's, not the reply's:
   `isSafetyDisclosure` with the active learner's grade (CourseView → NotesTab → NotesAssistant), as the
   chat's notice does, so with a K-12 grade a strong pregnancy self-disclosure is left out there too, and with
   no grade it is not. `src/components/notes-summary-grade.test.ts` clicks the real panel to pin it.
+  **Notebook notes and hand-made flashcards** (ported from TerraTutor #236). A note whose title, markdown or
+  plain text reads as a disclosure (`notebook-assistant.ts noteIsDisclosure`) gets `SafetyNotice` above the
+  editor as it is typed (`NotesTab`); it is still saved. "Review this note" never sends it
+  (`notebook-assistant.ts prepareReview`): the panel shows the notice and `NOTE_REVIEW_WITHHELD` in plain
+  text, and no mark is drawn. No other model reads it either: `notebook.ts indexNote` never embeds one (and
+  drops the index of a note that becomes one), the word search skips it, and `searchNotebook` drops any
+  passage that reads as one (an index from before this change), so neither the grounding stage's
+  `[STUDENT NOTE: …]` block nor `notebook.search` carries it to a later, unrelated turn. The Notebook's own
+  search does not find it either; the note stays in the list. A flashcard whose front or back reads as one
+  (`srs.ts cardIsDisclosure`) is never due: `db.ts getDueFlashcards` and `countDueFlashcards` leave it out,
+  so Review never drills it back (nor reads it aloud) and `flashcard.review_due` never hands its front to
+  the model. Review's "+ New card" shows the notice under the form as it is typed and
+  `CARD_NOT_SAVED_DISCLOSURE` in plain text, and Add card saves nothing. Every one of these reads with the
+  learner's grade, as the chat does: the UI passes it, and the kernel's grounding and tools read
+  `ToolContext.grade`, which ChatTab sets. `src/lib/notes-cards-disclosures.test.ts` (real db, notebook,
+  `ground()` and tools; only the embedder stubbed) and `src/components/notes-cards-safety.test.ts` (the real
+  Notebook, its assistant and Review tab) pin it.
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model

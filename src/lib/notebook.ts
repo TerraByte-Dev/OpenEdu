@@ -25,6 +25,8 @@ import type { Note, NotebookSearchResult, NotebookSourceType } from "../types";
 import { encodeVec, readVec, cosine } from "./vec-codec";
 import { contentWords } from "./kernel/contentWords";
 import { buildNoteWordIndex, rankNotePassages } from "./notebook-words";
+import { noteIsDisclosure } from "./notebook-assistant";
+import type { Grade } from "./grade";
 
 // ── Text utilities ───────────────────────────────────────────────────────────
 
@@ -89,19 +91,22 @@ export interface IndexResult {
 
 // (Re)build a note's search index. sha-skips when the text is unchanged and the embedding model is
 // the same. Callers on the save path (embed-on-save) should catch errors — a failed/absent embedder
-// must never block saving a note.
+// must never block saving a note. A note whose title or text reads as a safety disclosure
+// (notebook-assistant.ts noteIsDisclosure, with the learner's `grade`) is never embedded and its old index
+// is dropped, so no model reads it and the tutor's grounding never finds it (TerraTutor #236).
 export async function indexNote(args: {
   courseId: string;
   noteId: string;
   title: string;
   text: string;
   sourceType?: NotebookSourceType;
+  grade?: Grade | null;
 }): Promise<IndexResult> {
   const text = args.text.trim();
   const existing = await findNotebookDocumentByNote(args.noteId);
 
-  if (!text) {
-    if (existing) await deleteNotebookDocumentByNote(args.noteId); // empty note → drop stale index
+  if (!text || noteIsDisclosure(args.title, text, args.grade ?? null)) {
+    if (existing) await deleteNotebookDocumentByNote(args.noteId); // empty or disclosure → drop stale index
     return { documentId: null, chunkCount: 0, skipped: false };
   }
 
@@ -145,6 +150,8 @@ export async function importTextAsNote(args: {
   folderId?: string | null;
   /** Who made the note (notes.origin, migration 18). Defaults to a file import. */
   origin?: NoteOrigin;
+  /** The learner's grade, for indexNote's safety-disclosure check. */
+  grade?: Grade | null;
 }): Promise<{ note: Note; chunkCount: number; embedded: boolean; indexError?: string }> {
   // Always create the visible note first. Indexing (embedding) is best-effort: if the embedder is
   // offline or one file fails, the note is still saved and shows in the vault — reindexCourseNotes
@@ -158,6 +165,7 @@ export async function importTextAsNote(args: {
       title: args.title,
       text: args.text,
       sourceType: args.sourceType ?? "note",
+      grade: args.grade,
     });
     return { note, chunkCount: res.chunkCount, embedded: true };
   } catch (e) {
@@ -172,12 +180,12 @@ export async function importTextAsNote(args: {
 // current, so an indexed vault costs a lookup per note and no embedding. Stops when the embedder itself
 // can't run (missing, Ollama down: every later note would fail the same way) and skips past a note that
 // fails on its own, so one bad note never keeps the rest out of search. `error` is the first failure.
-export async function reindexCourseNotes(courseId: string): Promise<{ indexed: number; error?: string }> {
+export async function reindexCourseNotes(courseId: string, grade: Grade | null = null): Promise<{ indexed: number; error?: string }> {
   let indexed = 0;
   let error: string | undefined;
   for (const n of await getNotes(courseId)) {
     try {
-      const res = await indexNote({ courseId, noteId: n.id, title: n.title, text: n.content });
+      const res = await indexNote({ courseId, noteId: n.id, title: n.title, text: n.content, grade });
       if (!res.skipped && res.documentId) indexed++;
     } catch (e) {
       error ??= e instanceof Error ? e.message : String(e);
@@ -196,20 +204,29 @@ export async function reindexCourseNotes(courseId: string): Promise<{ indexed: n
 // OpenAI embedder with no key or no connection: plain-language.ts embedderUnavailable), the course's
 // notes are searched by their words instead (searchNotesByWords), so the tutor still reads them. Any
 // other failure throws.
+//
+// Never returns a passage of a note that reads as a safety disclosure (notebook-assistant.ts
+// noteIsDisclosure, with the learner's `grade`): the tutor's grounding (kernel/ground.ts) and notebook.search
+// hand these passages to the model, on turns whose newest message is not the disclosure. indexNote never
+// embeds such a note; a passage left in an index from before that, or a word-search note, is dropped here.
 export async function searchNotebook(args: {
   courseId: string;
   query: string;
   topK?: number;
+  grade?: Grade | null;
 }): Promise<NotebookSearchResult[]> {
   const topK = args.topK ?? 5;
+  const grade = args.grade ?? null;
   const q = args.query.trim();
   if (!q) return [];
+  let hits: NotebookSearchResult[];
   try {
-    return await searchByEmbedding(args.courseId, q, topK);
+    hits = await searchByEmbedding(args.courseId, q, topK);
   } catch (e) {
     if (!embedderUnavailable(e)) throw e;
-    return searchNotesByWords(args.courseId, q, topK);
+    hits = await searchNotesByWords(args.courseId, q, topK, grade);
   }
+  return hits.filter((h) => !noteIsDisclosure(h.document_title, h.text, grade));
 }
 
 async function searchByEmbedding(courseId: string, q: string, topK: number): Promise<NotebookSearchResult[]> {
@@ -248,10 +265,11 @@ async function searchByEmbedding(courseId: string, q: string, topK: number): Pro
  * (0.4..1), not a cosine, and `by` says so; ground.ts places it on its own scale. Reads the notes as they
  * are now, so a note saved a moment ago is found.
  */
-export async function searchNotesByWords(courseId: string, query: string, topK: number): Promise<NotebookSearchResult[]> {
+export async function searchNotesByWords(courseId: string, query: string, topK: number, grade: Grade | null = null): Promise<NotebookSearchResult[]> {
   const asked = contentWords(query);
   if (asked.length === 0) return [];
-  const passages = (await getNotes(courseId)).flatMap((n) =>
+  // A note that reads as a safety disclosure is not searched at all, so no passage of it is found (searchNotebook).
+  const passages = (await getNotes(courseId)).filter((n) => !noteIsDisclosure(n.title, n.content, grade)).flatMap((n) =>
     chunkText(n.content).map((text, ord) => ({ note: n, ord, text })));
   if (passages.length === 0) return [];
   const index = buildNoteWordIndex(passages.map((p) => ({ title: p.note.title, text: p.text })));

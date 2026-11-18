@@ -5,7 +5,7 @@ import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
 import type { GradedBy } from "./quiz-grading";
 import type { TestSection } from "./level-test";
-import type { FlashcardGrade } from "./srs";
+import { cardIsDisclosure, type FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
 
 // One shared open. Caching the promise (not the resolved value) stops the burst of callers at boot from
@@ -1134,22 +1134,26 @@ export async function getFlashcards(courseId: string): Promise<Flashcard[]> {
   return await d.select("SELECT * FROM flashcards WHERE course_id = $1 ORDER BY created_at DESC", [courseId]);
 }
 
-// Cards due for review at `nowIso` (ISO timestamp), soonest-due first.
-export async function getDueFlashcards(courseId: string, nowIso: string, limit = 50): Promise<Flashcard[]> {
+// Cards due for review at `nowIso` (ISO timestamp), soonest-due first. A card that reads as a safety
+// disclosure with the learner's `grade` (srs.ts cardIsDisclosure) is never due: it is not drilled back, and
+// flashcard.review_due never hands it to the model. The check is code, so it runs after the query.
+export async function getDueFlashcards(courseId: string, nowIso: string, limit = 50, grade: Grade | null = null): Promise<Flashcard[]> {
   const d = await getDb();
-  return await d.select(
-    "SELECT * FROM flashcards WHERE course_id = $1 AND due_at <= $2 ORDER BY due_at ASC LIMIT $3",
-    [courseId, nowIso, limit]
-  );
-}
-
-export async function countDueFlashcards(courseId: string, nowIso: string): Promise<number> {
-  const d = await getDb();
-  const rows: Array<{ n: number }> = await d.select(
-    "SELECT COUNT(*) as n FROM flashcards WHERE course_id = $1 AND due_at <= $2",
+  const due: Flashcard[] = await d.select(
+    "SELECT * FROM flashcards WHERE course_id = $1 AND due_at <= $2 ORDER BY due_at ASC",
     [courseId, nowIso]
   );
-  return Number(rows[0]?.n ?? 0);
+  return due.filter((c) => !cardIsDisclosure(c, grade)).slice(0, limit);
+}
+
+// How many cards getDueFlashcards would give with no limit (the chat's "N due" chip).
+export async function countDueFlashcards(courseId: string, nowIso: string, grade: Grade | null = null): Promise<number> {
+  const d = await getDb();
+  const rows: Array<{ front: string; back: string }> = await d.select(
+    "SELECT front, back FROM flashcards WHERE course_id = $1 AND due_at <= $2",
+    [courseId, nowIso]
+  );
+  return rows.filter((c) => !cardIsDisclosure(c, grade)).length;
 }
 
 // Persist a post-review SM-2-lite schedule onto a card (also stamps last_reviewed_at + updated_at).
