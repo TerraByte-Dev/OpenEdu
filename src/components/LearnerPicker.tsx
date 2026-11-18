@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { needsPin, type LearnerRow } from "../lib/learners";
 import { verifyPin } from "../lib/learner-pin";
+import { pinKeyAction, PIN_CONTROLS } from "../lib/pin-pad";
 import RestoreSteps from "./RestoreSteps";
 import { APP_NAME } from "../lib/product";
 
@@ -85,7 +86,7 @@ export function Initial({ name }: { name: string }) {
 const PAD_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"] as const;
 
 /** The big number pad for a learner's PIN. */
-function PinScreen({ name, record, onBack, onUnlocked }: {
+export function PinScreen({ name, record, onBack, onUnlocked }: {
   name: string;
   record: { pin_hash: string | null; pin_salt: string | null };
   onBack: () => void;
@@ -113,13 +114,16 @@ function PinScreen({ name, record, onBack, onUnlocked }: {
     setWrong(true);
   };
 
-  // Typing digits on a keyboard works too.
+  // Typing digits on a keyboard works too. Enter on a focused button is that button's press, never a
+  // submit as well (pin-pad.ts).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (/^\d$/.test(e.key)) press(e.key);
-      else if (e.key === "Backspace") press("back");
-      else if (e.key === "Enter") void submit();
-      else if (e.key === "Escape") onBack();
+      const onControl = e.target instanceof Element && e.target.closest(PIN_CONTROLS) !== null;
+      const k = pinKeyAction(e.key, onControl);
+      if (k === null) return;
+      if (k === "submit") void submit();
+      else if (k === "leave") onBack();
+      else press(k);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -142,6 +146,9 @@ function PinScreen({ name, record, onBack, onUnlocked }: {
             key={k}
             className="btn"
             style={PAD_BTN}
+            // A click or tap must not move focus onto the key (WebView2 does on mousedown): Enter after
+            // clicking 1-2-3-4 then opens, instead of pressing the last-clicked key again (pin-pad.ts).
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => press(k)}
             aria-label={k === "back" ? "Delete last digit" : k === "clear" ? "Clear" : k}
           >
