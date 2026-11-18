@@ -127,6 +127,17 @@ const PLAIN_SENTENCES = [
   /Network error — check your internet connection and try again\./,
 ];
 
+/**
+ * True when a model call failed because Ollama can't be reached or doesn't have the tutor's model
+ * (llm.ts ollamaUnreachable, and its 404 "Ollama model … not found"). Trying again, or another
+ * question, fails the same way until someone starts Ollama or adds the model, so the work stops
+ * there and friendlyError shows that sentence, never advice about the model.
+ */
+export function ollamaUnavailable(e: unknown): boolean {
+  const raw = e instanceof Error ? e.message : String(e ?? "");
+  return PLAIN_SENTENCES[0].test(raw) || PLAIN_SENTENCES[1].test(raw) || /Ollama model "[^"]+" not found/.test(raw);
+}
+
 export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
   const raw = (e instanceof Error ? e.message : String(e ?? "")).trim();
 
