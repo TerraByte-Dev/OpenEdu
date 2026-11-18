@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { speakableText, texWords, pickVoice, questionSpeech, resultSpeech, chatCardSpeech, unreadText, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
+import { speakableText, texWords, pickVoice, questionSpeech, resultSpeech, chatCardSpeech, speechAfterNotice, unreadText, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
 import { confirmCardQuestion, CONFIRM_CHOICES } from "./plain-language";
 import { repeatsQuestion } from "./kernel/askCard";
 import type { Grade } from "./grade";
 import { persistedReply } from "./kernel/persistedReply";
+import { SAFETY_NOTICE } from "./child-safety";
+import chatTabSource from "../components/ChatTab.tsx?raw";
 
 // speakableText is what ChatTab's speaker button and the K-2 auto-read hand to speechSynthesis
 // (useReadAloud.ts), on the reply exactly as saved. Nothing a voice would read as a symbol may survive.
@@ -272,5 +274,35 @@ describe("unreadText: the saved reply reads on from where the cards left off", (
   it("is the whole reply when nothing was read with a card, or the saved reply changed after it streamed", () => {
     expect(unreadText("All of it.", "")).toBe("All of it.");
     expect(unreadText("Want me to draw it? Here.", "Here is a picture.")).toBe("Want me to draw it? Here.");
+  });
+});
+
+// The K-2 auto-read on a safety disclosure: the notice under the learner's message, with its numbers,
+// before the reply (ChatTab runTurn speakTurn). Ported from TerraTutor #227. Click test needed for the
+// voice itself.
+describe("speechAfterNotice: the safety notice is read before the reply", () => {
+  it("reads the notice, numbers and all, then the reply", () => {
+    const spoken = speakableText(speechAfterNotice(SAFETY_NOTICE, "I'm sorry that is happening. **Please** tell a grown-up."));
+    expect(spoken.startsWith(speakableText(SAFETY_NOTICE))).toBe(true);
+    for (const n of ["911", "988", "1-800-422-4453"]) expect(spoken).toContain(n);
+    expect(spoken.endsWith("Please tell a grown-up.")).toBe(true);
+  });
+
+  it("reads it once: a turn whose notice was read, or no disclosure, reads the text as is", () => {
+    expect(speechAfterNotice("", "Hello.")).toBe("Hello.");
+  });
+
+  it("does not read it twice when the text already holds it", () => {
+    const quoted = `${SAFETY_NOTICE}
+
+You are not alone.`;
+    expect(speechAfterNotice(SAFETY_NOTICE, quoted)).toBe(quoted);
+  });
+
+  it("ChatTab reads the turn's first card and its reply through it, from the message's own check with the grade", () => {
+    expect(chatTabSource).toMatch(/let noticeUnread = autoRead && isSafetyDisclosure\(userText, grade\) \? SAFETY_NOTICE : "";/);
+    expect(chatTabSource).toMatch(/readAloud\.speak\(id, speechAfterNotice\(noticeUnread, text\)\)/);
+    expect(chatTabSource).toMatch(/speakTurn\(id, chatCardSpeech\(/);
+    expect(chatTabSource).toMatch(/if \(landing\.speak\) speakTurn\(assistantMsg\.id, /);
   });
 });

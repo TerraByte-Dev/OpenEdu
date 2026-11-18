@@ -372,6 +372,17 @@ export function chatCardSpeech(lead: string, question: string, choices: Readonly
 }
 
 /**
+ * What the K-2 auto-read says on a chat turn whose message is a safety disclosure: `notice` (the fixed
+ * SAFETY_NOTICE shown under the message, with its numbers) first, then `text` (a card or the reply), as
+ * one utterance, so starting the reply never cuts the notice off. `notice` is "" once it was read this
+ * turn, or on any other turn; a `text` that already holds it (the fixed safety reply) is read as is.
+ */
+export function speechAfterNotice(notice: string, text: string): string {
+  if (!notice || text.includes(notice)) return text;
+  return [notice, text.trim()].filter(Boolean).join("\n\n");
+}
+
+/**
  * What of `text` is not read yet when `spoken` (an earlier state of the same streamed reply) was read
  * with a card: the rest after it, or all of `text` when it no longer starts with it (the saved reply was
  * changed after it streamed, e.g. a picture claim taken out).

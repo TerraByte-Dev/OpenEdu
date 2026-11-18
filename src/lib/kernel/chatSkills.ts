@@ -11,6 +11,29 @@ import { skillBundleLayer } from "./systemPrompt";
 import type { Skill } from "../dsl/skill";
 import type { ModelTier } from "../../types";
 import type { CourseSyllabus } from "../skills/trigger";
+import type { TutorModeId } from "../tutor-modes";
+import { ASSESS_LOOKBACK, asksForMasteryCheck, isAssessAnswerTurn } from "./answerCheck";
+import { ASSESS_MESSAGE } from "./suggestions";
+
+/**
+ * The mode a ChatTab turn runs in. `picked` is the mode of the chip the child tapped, and wins. With
+ * none, the child's answers to the questions of a check opened by the "Check if I've got this" chip run
+ * in "assess": the newest request for a check within their last ASSESS_LOOKBACK messages
+ * (answerCheck.ts isAssessAnswerTurn) is the chip's own message, ASSESS_MESSAGE. Assess is the one mode
+ * that offers progress.mark_mastered, and the chat resets the mode after every send, so before this the
+ * answer to the check's question ran as "explain" and could never be marked. Every other turn is
+ * "explain", as before: a typed "quiz me on fractions" or "test me" keeps the domain skill's drawing
+ * tools and gets its quiz even when every subtopic is mastered (assess.md stops there), and the quiz
+ * chip's message, as sent or edited, stays a quiz. `conversation` is the user and assistant messages,
+ * ending with the one being sent.
+ */
+export function chatTurnMode(picked: TutorModeId | null, conversation: ReadonlyArray<{ role: string; content: string }>): TutorModeId {
+  if (picked) return picked;
+  if (!isAssessAnswerTurn(conversation)) return "explain";
+  const opener = conversation.slice(0, -1).filter((m) => m.role === "user").slice(-ASSESS_LOOKBACK)
+    .reverse().find((m) => asksForMasteryCheck(m.content));
+  return opener?.content.trim() === ASSESS_MESSAGE ? "assess" : "explain";
+}
 
 export function chatTurnSkills(
   mode: string,

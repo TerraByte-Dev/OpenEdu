@@ -33,20 +33,28 @@ type TurnEvent =
   | { type: "tool_call"; id: string; name: string; args: unknown }
   | { type: "done"; finishReason: "stop" | "tool_calls" };
 const sent: Sent[] = [];
+const events: ToolUIEvent[] = [];
 let script: TurnEvent[][] = [];
+// The assess answer check's calls (answerCheck.ts): the key call, then the grading call when code cannot
+// settle the answer. By default the answer to the tutor's question is 12, so the student's "12, because
+// ..." is correct by code and a "mastered" mark may run.
+const KEY_12 = { question: "How many legs do 3 stools with 4 legs each have?", working: "3 x 4 = 12", answer: "12" };
+let keyOut: { question: string; working: string; answer: string } = KEY_12;
+let gradeOut: { student_answer: string; verdict: string } | null = null;
 vi.mock("../llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../llm")>()),
   callLLMTurn: vi.fn(async function* (messages: Sent) {
     sent.push(messages.map((m) => ({ role: m.role, content: m.content })));
     for (const ev of script.shift() ?? [{ type: "text", delta: "Okay." }, { type: "done", finishReason: "stop" }]) yield ev;
   }),
-  // The assess answer check's key call (answerCheck.ts): the answer to the tutor's question is 12, so
-  // the student's "12, because ..." is correct by code and a "mastered" mark may run.
-  callLLMStructured: vi.fn(async () => ({ question: "How many legs do 3 stools with 4 legs each have?", working: "3 x 4 = 12", answer: "12" })),
+  callLLMStructured: vi.fn(async (_messages: unknown, _config: unknown, opts: { toolName: string }) =>
+    (opts.toolName === "AnswerKey" ? keyOut : gradeOut)),
 }));
 
-import { tutorEngine, type TutorTurnResult } from "./TutorEngine";
-import { chatTurnSkills } from "./chatSkills";
+import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_UNCHECKED, type TutorTurnResult } from "./TutorEngine";
+import type { ToolUIEvent } from "./toolDispatch";
+import { describeToolDone } from "../plain-language";
+import { chatTurnMode, chatTurnSkills } from "./chatSkills";
 import { registerBuiltinTools } from "../tools";
 import type { LLMConfig, Subtopic, Syllabus } from "../../types";
 
@@ -88,17 +96,21 @@ const OPENED_WITH: Syllabus = {
   subtopics: SUBTOPICS, assessment_criteria: [], estimated_hours: 1, generated_at: "2026-11-18 10:00:00",
 };
 
-async function assessTurn(syllabus: Syllabus | null = null): Promise<TutorTurnResult> {
-  const { activeSkill, domainSkill } = chatTurnSkills("assess", "Multiplication", "tiny", true);
+// The child tapped "Check if I've got this", the tutor asked in text, and the child typed the answer. The
+// chip's mode was used up by the first send, so the answer turn runs in the mode ChatTab derives
+// (chatTurnMode with no chip picked), the same call ChatTab makes.
+const CHECK_ANSWER = [
+  { role: "user", content: "Check if I've got this." },
+  { role: "assistant", content: "How many legs do 3 stools with 4 legs each have?" },
+  { role: "user", content: "12, because 3 groups of 4 is 12." },
+];
+
+async function assessTurn(syllabus: Syllabus | null = null, conversation = CHECK_ANSWER): Promise<TutorTurnResult> {
+  const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, conversation), "Multiplication", "tiny", true);
   return tutorEngine.run(
     {
-      messages: [
-        { role: "system", content: "You are a tutor." },
-        { role: "user", content: "Check if I've got this." },
-        { role: "assistant", content: "How many legs do 3 stools with 4 legs each have?" },
-        { role: "user", content: "12, because 3 groups of 4 is 12." },
-      ],
-      config: CONFIG, retrieval: "off", onText: () => {},
+      messages: [{ role: "system", content: "You are a tutor." }, ...conversation],
+      config: CONFIG, retrieval: "off", onText: () => {}, onToolEvent: (ev) => events.push(ev),
     },
     {
       courseId: "c1", level: 1, syllabus, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
@@ -117,9 +129,114 @@ const toolResultSeen = () => sent[1].find((m) => m.role === "tool")?.content ?? 
 
 beforeEach(async () => {
   sent.length = 0;
+  events.length = 0;
   script = [];
+  keyOut = KEY_12;
+  gradeOut = null;
   await openDb();
   seedCourse();
+});
+
+describe("the typed answer to a mastery check's question", () => {
+  it("runs in assess, so the mark is offered and saved", async () => {
+    expect(chatTurnMode(null, CHECK_ANSWER)).toBe("assess");
+    script = [markCall("mastered"), reply("You've got it!")];
+    const result = await assessTurn();
+    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "Equal Groups", status: "mastered" }, ok: true }]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
+  });
+
+});
+
+// #229: on a check's answer turn a "mastered" mark needs the answer check's correct verdict. The check
+// gives none when the tutor's message asks nothing with one right answer (the key comes back empty), or
+// does not run when the child's message asks what a word means; a small model could then mark a skill
+// learned on a turn nothing checked.
+describe("a \"mastered\" mark on a check's answer turn", () => {
+  const mark = (status: "mastered" | "practiced") => ({ name: "progress.mark_mastered", args: { subtopic_id: "Equal Groups", status } });
+
+  it("with no verdict (the tutor's message asked nothing with one right answer) is refused; nothing is saved and the model is told", async () => {
+    // An empty answer is how the key call says "none" (answerKey), so checkAnswer gives no verdict.
+    keyOut = { question: "", working: "", answer: "" };
+    script = [markCall("mastered"), reply("Saved.")];
+    const result = await assessTurn();
+    expect(result.answerCheck).toBeNull();
+    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false }]);
+    expect(toolResultSeen()).toBe(`ERROR: ${MASTERY_REFUSED_UNCHECKED}`);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("with no verdict because the child asked what a word means is refused", async () => {
+    const meaning = [...CHECK_ANSWER.slice(0, 2), { role: "user", content: "12. Meaning of groups?" }];
+    script = [markCall("mastered"), reply("Saved.")];
+    const result = await assessTurn(null, meaning);
+    expect(result.answerCheck).toBeNull();
+    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false }]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("with no verdict, a \"practiced\" mark still saves, as on a wrong answer", async () => {
+    keyOut = { question: "", working: "", answer: "" }; // the key call's "none", as above
+    script = [markCall("practiced"), reply("Saved.")];
+    const result = await assessTurn();
+    expect(result.toolCalls).toEqual([{ ...mark("practiced"), ok: true }]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false, practiced: true });
+  });
+
+  it("with a correct verdict is saved", async () => {
+    script = [markCall("mastered"), reply("Saved.")];
+    const result = await assessTurn();
+    expect(result.answerCheck).toMatchObject({ key: "12", verdict: "correct" });
+    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: true }]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
+  });
+
+  it("with a wrong verdict is refused as before", async () => {
+    gradeOut = { student_answer: "11", verdict: "incorrect" };
+    const wrong = [...CHECK_ANSWER.slice(0, 2), { role: "user", content: "11" }];
+    script = [markCall("mastered"), reply("Saved.")];
+    const result = await assessTurn(null, wrong);
+    expect(result.answerCheck).toMatchObject({ key: "12", verdict: "incorrect" });
+    expect(result.toolCalls).toEqual([{ ...mark("mastered"), ok: false }]);
+    expect(toolResultSeen()).toBe(`ERROR: ${MASTERY_REFUSED}`);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+});
+
+// A typed "quiz me" with no chip runs in the default mode, as on master: assess drops the domain skill's
+// drawing tools, and assess.md ends the check when every subtopic is mastered, so in assess the quiz
+// lost its pictures and, on a mastered course, never came.
+describe("a typed request for a quiz, with no chip tapped", () => {
+  const QUIZ_ME = [{ role: "user", content: "quiz me on fractions" }];
+  const drawCall: TurnEvent[] = [
+    { type: "tool_call", id: "call_0", name: "math.render", args: { latex: "\\frac{1}{2} \\text{ of } 8 = ?" } },
+    { type: "done", finishReason: "tool_calls" },
+  ];
+
+  it("runs in the default mode, which keeps the drawing tools", async () => {
+    expect(chatTurnMode(null, QUIZ_ME)).toBe("explain");
+    script = [drawCall, reply("What is half of 8?")];
+    const result = await assessTurn(null, QUIZ_ME);
+    expect(result.toolCalls[0]).toMatchObject({ name: "math.render", ok: true });
+  });
+
+  it("its answers run in the default mode too, which offers no mark", async () => {
+    const answered = [...QUIZ_ME, ...CHECK_ANSWER.slice(1)];
+    expect(chatTurnMode(null, answered)).toBe("explain");
+    script = [markCall("mastered"), reply("Saved.")];
+    const result = await assessTurn(null, answered);
+    expect(result.toolCalls[0]).toMatchObject({ name: "progress.mark_mastered", ok: false });
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
+  it("an answer to the quiz chip's question still runs in the default mode, which offers no mark", async () => {
+    const quiz = [{ role: "user", content: "Quiz me on this." }, ...CHECK_ANSWER.slice(1)];
+    expect(chatTurnMode(null, quiz)).toBe("explain");
+    script = [markCall("mastered"), reply("Saved.")];
+    const result = await assessTurn(null, quiz);
+    expect(result.toolCalls[0]).toMatchObject({ name: "progress.mark_mastered", ok: false });
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
 });
 
 describe("progress.mark_mastered on a course with no completed quiz", () => {
@@ -147,6 +264,14 @@ describe("progress.mark_mastered on a course with no completed quiz", () => {
     const result = await assessTurn();
     expect(result.toolCalls[0].ok).toBe(true);
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false, practiced: true });
+  });
+
+  it("the chip under the reply says what was saved, practiced or learned (ChatTab ToolChip)", async () => {
+    script = [markCall("practiced"), reply("Saved."), markCall("mastered", "Sharing Fairly"), reply("Saved.")];
+    await assessTurn();
+    await assessTurn();
+    const chips = events.filter((e) => e.kind === "result").map((e) => e.kind === "result" ? describeToolDone(e.name, e.value) : "");
+    expect(chips).toEqual(["Marked “Equal Groups” as practiced", "Marked “Sharing Fairly” as learned"]);
   });
 
   it("still reports the saved mark when the progress refresh after it fails", async () => {

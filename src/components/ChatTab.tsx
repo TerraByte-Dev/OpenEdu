@@ -12,12 +12,12 @@ import { log } from "../lib/llm";
 import { getChatTurnConfig, getRetrievalMode, getReadAloudAuto } from "../lib/store";
 import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
 import { useReadAloud } from "../lib/useReadAloud";
-import { chatCardSpeech, unreadText } from "../lib/speech";
+import { chatCardSpeech, speechAfterNotice, unreadText } from "../lib/speech";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, personaIdentityLayer, suggestFollowUps, chipsBesideChoices, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote, type ReplyChoices } from "../lib/kernel";
 import { resolvePersona } from "../lib/skills";
-import { chatTurnSkills } from "../lib/kernel/chatSkills";
+import { chatTurnMode, chatTurnSkills } from "../lib/kernel/chatSkills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex, isChatKatexReady } from "../lib/chat-markdown";
@@ -90,12 +90,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // turn finishes (chips, notices). Without it the reply showed twice for a moment.
   const [replyLanded, setReplyLanded] = useState(false);
   const [chatError, setChatError] = useState("");
-  // The teaching mode for the NEXT turn. Set by tapping a chip that carries one; reset to the neutral
-  // default after every send. There is no mode bar any more — asking the student to classify their
-  // own intent before they have asked their question was the one thing they came for help with.
-  // Persistent pedagogy lives on the persona instead (the WHO axis), so this is a per-turn override.
+  // The teaching mode for the NEXT turn. Set by tapping a chip that carries one; reset after every
+  // send. With none, the turn's mode comes from the conversation (chatSkills.ts chatTurnMode: the answers
+  // to a "Check if I've got this" chip's check stay in assess). There is no mode bar any more — asking the
+  // student to classify their own intent before they have asked their question was the one thing they
+  // came for help with. Persistent pedagogy lives on the persona instead (the WHO axis), so this is a
+  // per-turn override.
   const [pendingMode, setPendingMode] = useState<TutorModeId | null>(null);
-  const activeMode: TutorModeId = pendingMode ?? "explain";
   // Phase 4b persona (WHO axis). Local mirror of course.sprite_id so a mid-course switch reflects
   // immediately; written through to the DB on switch. resolvePersona maps it to a persona skill.
   const [spriteId, setSpriteId] = useState<string | null>(course.sprite_id ?? null);
@@ -364,9 +365,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const { config, profile } = await getChatTurnConfig();
     const { contextTokens } = config;
     const modelTier = profile.tier;
-    // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rule
-    // lives in kernel/chatSkills.ts so the k12-flow eval builds its prompt the same way.
-    const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(activeMode, course.topic, modelTier, profile.supportsTools, currentSyllabus);
+    // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rules
+    // live in kernel/chatSkills.ts so the k12-flow eval and the tests build the turn the same way.
+    const mode = chatTurnMode(pendingMode, [...history, { role: "user", content: userText }]);
+    const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(mode, course.topic, modelTier, profile.supportsTools, currentSyllabus);
     if (import.meta.env.DEV && !profile.supportsTools && !toolsSuppressedLogged.has(config.model)) {
       toolsSuppressedLogged.add(config.model);
       console.info(`[OpenEdu:tools] ${config.model} reports no tool support — offering no tools or domain skill, grounded chat only`);
@@ -410,11 +412,18 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // A card holds the turn open, so the reply is not saved (or auto-read) until it is answered. For K-2
     // (autoRead) each card is read as it appears, with the text streamed before it that was not read
     // yet; the saved reply then reads on from where the cards left off (speech.ts unreadText).
+    // On a safety disclosure the notice under the learner's message, with its numbers, is read first,
+    // ahead of the first card or the reply (speech.ts speechAfterNotice), and only once.
     let shownText = "";
     let readText = "";
+    let noticeUnread = autoRead && isSafetyDisclosure(userText, grade) ? SAFETY_NOTICE : "";
+    const speakTurn = (id: string, text: string) => {
+      readAloud.speak(id, speechAfterNotice(noticeUnread, text));
+      noticeUnread = "";
+    };
     const readCard = (id: string, question: string, choices: string[]) => {
       if (!autoRead || turnOwnerRef.current !== owner) return;
-      readAloud.speak(id, chatCardSpeech(unreadText(shownText, readText), question, choices));
+      speakTurn(id, chatCardSpeech(unreadText(shownText, readText), question, choices));
       readText = shownText;
     };
 
@@ -485,7 +494,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           setMessages((prev) => appendUnique(prev, assistantMsg));
           if (turnOwnerRef.current === owner) setReplyLanded(true);
         }
-        if (landing.speak) readAloud.speak(assistantMsg.id, unreadText(persisted, readText));
+        if (landing.speak) speakTurn(assistantMsg.id, unreadText(persisted, readText));
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
         // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently. Nor on a
@@ -677,8 +686,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             </div>
           );
         })}
-        {/* No empty "Thinking..." bubble above a question card: the card is what the tutor is saying. */}
-        {streaming && !replyLanded && !(askPending && !streamingText) && (
+        {/* No empty "Thinking..." bubble above a question card or an "Is that okay?" card: the card is what
+            the tutor is saying, and the turn waits on the learner's tap, not on the model. */}
+        {streaming && !replyLanded && !((askPending || confirmPending) && !streamingText) && (
           <div className="flex gap-3">
             <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
               AI
@@ -1084,7 +1094,7 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
     // math.render / diagram.render → nothing: the kernel put the drawing in the reply's text, as a $$
     // block or a ```mermaid fence, where ReplyProse draws it and it is saved (kernel/drawnCards.ts).
     if (ev.name === "math.render" || ev.name === "diagram.render") return null;
-    return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {describeToolDone(ev.name)}</div>;
+    return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {describeToolDone(ev.name, ev.value)}</div>;
   }
   return (
     <div className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-dim)]`}>

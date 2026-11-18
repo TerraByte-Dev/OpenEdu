@@ -51,6 +51,10 @@ const MARK_MASTERED_TOOL = "progress.mark_mastered";
 /** What the model is told when it tries to mark mastered on an answer code did not find correct. */
 export const MASTERY_REFUSED =
   "Not saved: the app checked the student's answer and did not find it correct, so this subtopic can't be marked mastered now.";
+/** What the model is told when it tries to mark mastered on a check's answer turn that the check gave no verdict
+ *  (the tutor's message asked nothing with one right answer, or the child's message was a meaning question). */
+export const MASTERY_REFUSED_UNCHECKED =
+  "Not saved: the app did not check an answer on this turn, so this subtopic can't be marked mastered now.";
 /** What the model is told when it tries to mark mastered on a turn whose newest message is a safety disclosure. */
 export const MASTERY_REFUSED_DISCLOSURE =
   "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
@@ -268,7 +272,8 @@ export class TutorEngine {
     // check. Neither runs when the newest message is a safety disclosure (`disclosure`, the same check
     // ChatTab's notice makes): "this is too hard i wanna die" typed in a quiz is not a wrong answer, and
     // no note may send the child back to the work (CHILD_SAFETY_RULES).
-    const answerCheckRun = !disclosure && turn.answerCheck !== "off" && !firstTurnHold && !asked && isAssessAnswerTurn(conversation, ctx.activeSkill?.name)
+    const answerTurn = !disclosure && turn.answerCheck !== "off" && isAssessAnswerTurn(conversation, ctx.activeSkill?.name);
+    const answerCheckRun = answerTurn && !firstTurnHold && !asked
       ? checkAnswer(conversation[conversation.length - 2].content, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort })
       : Promise.resolve(null);
 
@@ -388,7 +393,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -419,6 +424,9 @@ ${lastUser.content}` };
       /** The newest message is a safety disclosure: a "mastered" mark on this turn is refused, and so is
        *  anything that keeps the learner's words (KEEPS_WORDS). */
       disclosureTurn: boolean;
+      /** The newest message answers a mastery check's question (isAssessAnswerTurn), with the check on: a
+       *  "mastered" mark on this turn needs a correct verdict, so one with no verdict at all is refused. */
+      answerTurn: boolean;
       /** The student's newest message as they typed it. */
       answered: string;
       masteryCheck: boolean;
@@ -595,13 +603,17 @@ ${lastUser.content}` };
         // A "mastered" mark on an answer the check did not find correct is refused by code: the
         // verdict is the app's, not the model's. Nothing runs and nothing is shown; the model is told.
         // Nor on a safety-disclosure turn, where nothing is graded: what the child said is not an answer.
+        // Nor on a check's answer turn that no check gave a verdict (TerraTutor #229): the tutor's message
+        // asked nothing with one right answer, or the child asked what a word means, so nothing was found correct.
+        const checked = [answerCheck, ...cardChecks].filter((c): c is AnswerCheck => !!c);
+        const unchecked = prepared.answerTurn && checked.length === 0;
         const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && (prepared.disclosureTurn ||
-          [answerCheck, ...cardChecks].some((c) => !!c && c.verdict !== "correct"));
+          unchecked || checked.some((c) => c.verdict !== "correct"));
         // On a safety-disclosure turn nothing the learner said is kept: the knowledge files, the notebook
         // and a flashcard are refused the same way. Nothing runs and nothing is shown; the model is told.
         const keepsWords = prepared.disclosureTurn && KEEPS_WORDS.has(call.name);
         let result: ToolDispatchResult;
-        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : MASTERY_REFUSED };
+        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : MASTERY_REFUSED };
         else if (keepsWords) result = { name: call.name, ok: false, error: NOT_SAVED_DISCLOSURE };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design

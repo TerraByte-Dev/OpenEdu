@@ -21,6 +21,12 @@ describe("tool chips", () => {
     expect(describeToolActivity("notebook.search")).toBe("Looking through your notes…");
     expect(describeToolDone("progress.read")).toBe("Checked your progress");
   });
+
+  it("says a progress mark was saved as practiced or as learned, from the tool's result", () => {
+    expect(describeToolDone("progress.mark_mastered", { subtopic_id: "1.1", status: "practiced", title: "Equal Groups" })).toBe("Marked “Equal Groups” as practiced");
+    expect(describeToolDone("progress.mark_mastered", { subtopic_id: "1.1", status: "mastered", title: "Equal Groups" })).toBe("Marked “Equal Groups” as learned");
+    expect(describeToolDone("progress.mark_mastered")).toBe("Marked a topic as learned");
+  });
 });
 
 describe("describeToolCall", () => {

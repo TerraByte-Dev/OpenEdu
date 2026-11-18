@@ -131,7 +131,10 @@ question even when only the reply above shows it). A card holds the turn open, s
 not saved, or read, until the child answers. With auto read-aloud on, each card reads itself as it
 appears, after the text streamed before it that was not read yet, and stops when it is answered; the
 saved reply then reads on from where the cards left off (`unreadText`), or whole if it changed after it
-streamed.
+streamed. When the learner's message is a safety disclosure (`isSafetyDisclosure` with the learner's
+grade), the notice shown under it (`SAFETY_NOTICE`, with 911 and the hotline numbers) is read first, in
+the same utterance as the turn's first card or its reply, so the reply starting never cuts it off
+(`speech.ts speechAfterNotice`; ported from TerraTutor #227).
 
 **Tables kept from removed features.** The family, class and school features (usage modes, the teacher
 view and its CSV, learner groups, the K-1 early-learner screens and the learning record) now live only
@@ -766,9 +769,17 @@ So the verdict on the child's answer is the app's, not the reply's:
   (`ASSESS_MESSAGE`) or the same request typed (`asksForMasteryCheck`: "quiz me", "test me on
   fractions", "can you check if I've mastered fractions?", "am I ready for the test?", opening the
   message or a clause of it; not "check my spelling", "check if I got this right" or "my teacher will
-  quiz me tomorrow"). The chat resets the mode after every send, so in the app the answers arrive in the
-  default mode; the request in the history is what marks the check. A typed request runs in the
-  default mode, not assess. Never when the newest message is a safety disclosure (`isSafetyDisclosure`
+  quiz me tomorrow"). The chat resets the chip's mode after every send, so ChatTab picks the next turn's
+  mode from the conversation (`chatSkills.ts chatTurnMode`, ported from TerraTutor #227): with no chip
+  tapped, the answers to a check whose newest request within those four messages is the assess chip's
+  exact message run in assess again, which is the one mode that offers `progress.mark_mastered` and
+  `ask_user.question`, so the learner's typed answer can be marked (before, it ran in the default mode and
+  a mark was refused as not offered). Every other check stays in the default mode, as before: a typed
+  request ("quiz me on fractions", "test me") and its answers, and the quiz chip's message ("Quiz me on
+  this.", `QUIZ_MESSAGE`), sent as is or edited, and its answers. Those get the answer check and offer no
+  mark; they keep the course's domain skill (assess drops its drawing tools) and get their quiz on a
+  course whose subtopics are all mastered (`assess.md` ends the check there). A request for help during a
+  check ("Give me a hint.") is not an answer and runs in the default mode too. Never when the newest message is a safety disclosure (`isSafetyDisclosure`
   with the learner's grade, `TutorTurn.grade`; ported from TerraTutor #165): "this is too hard i wanna die"
   or "my dad hits me when i get them wrong" is not a wrong answer, so that turn gets no answer check, no
   check-before-praise note, no verdict line ("That's not right yet.") and no check on a card answered
@@ -863,7 +874,13 @@ So the verdict on the child's answer is the app's, not the reply's:
   check they stay: the system prompt asks the tutor to say which subtopics the record shows mastered
   (`curriculum.ts`), and a rule on every turn removed true sentences. On a checked answer whose
   verdict is not `correct`, a `mastered` mark is refused by code (`MASTERY_REFUSED`); `practiced`
-  still runs.
+  still runs. On a check's answer turn with no verdict at all, it is refused too
+  (`MASTERY_REFUSED_UNCHECKED`, ported from TerraTutor #230): `checkAnswer` gave none (the key call said
+  "none", or it failed on a tutor message with no "?"), or the check did not run (the learner asked what a
+  word means, or a first-turn hold), and no card answered in the turn was checked. Before, nothing refused
+  the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
+  `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
+  keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
 
 The turn result carries `answerCheck` (question, key, verdict, how it was reached) and `removedClaims`.
 `TutorTurn.answerCheck: "off"` turns the check off for an eval's paired baseline. Cost on a checked

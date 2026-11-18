@@ -8,8 +8,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 //
 // The conversations are written for this test. None comes from an eval set. They run the way the app
 // runs them: the student taps "Check if I've got this." (assess mode on that one turn), the tutor asks,
-// and the answer arrives in the default mode, since the chat resets the mode after every send. Some
-// also run with assess mode on the answer turn, as an eval runner does.
+// and the typed answer runs in the mode ChatTab picks for it (chatSkills.ts chatTurnMode): assess after
+// that chip, the default mode after the quiz chip or a typed request ("quiz me"). Some pass a mode
+// for the answer turn, as an eval runner does.
 
 type Sent = Array<{ role: string; content: string }>;
 type TurnEvent =
@@ -56,9 +57,9 @@ vi.mock("../db", async (importOriginal) => ({
 }));
 
 import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
-import { chatTurnSkills } from "./chatSkills";
+import { chatTurnMode, chatTurnSkills } from "./chatSkills";
 import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION } from "./answerCheck";
-import { ASSESS_MESSAGE } from "./suggestions";
+import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
 import { VERDICT_FALLBACK } from "./replyClaims";
 import { isSafetyDisclosure } from "../child-safety";
@@ -92,9 +93,10 @@ const askCall = (question: string, labels: string[], before = ""): TurnEvent[] =
 
 interface Run { result: TutorTurnResult; shown: string[]; confirms: string[]; cards: Array<{ question: string; choices: AskChoice[] }> }
 
-// `grade` is the learner's grade as ChatTab passes it (TutorTurn.grade): null when not set.
-async function answer(history: Sent, text: string, mode = "explain", grade: Grade | null = null): Promise<Run> {
-  const { activeSkill, domainSkill } = chatTurnSkills(mode, "Arithmetic", "tiny", true);
+// `grade` is the learner's grade as ChatTab passes it (TutorTurn.grade): null when not set. With no
+// `mode`, the turn runs in the mode ChatTab sends when no chip was tapped (chatTurnMode).
+async function answer(history: Sent, text: string, mode?: string, grade: Grade | null = null): Promise<Run> {
+  const { activeSkill, domainSkill } = chatTurnSkills(mode ?? chatTurnMode(null, [...history, student(text)]), "Arithmetic", "tiny", true);
   const shown: string[] = [];
   const confirms: string[] = [];
   const cards: Run["cards"] = [];
@@ -126,6 +128,7 @@ const PRAISE = /is correct|great job|you got it\.|mastered/i;
 const Q_MULT = "Here is your first question. What is 6 x 8?";
 const KEY_MULT = { question: "What is 6 x 8?", working: "6 x 8 = 48", answer: "48" };
 const CHECK = [student(ASSESS_MESSAGE), tutor(Q_MULT)];
+const QUIZ_CHIP_CHECK = [student(QUIZ_MESSAGE), tutor(Q_MULT)];
 
 const Q_STRING = "A ribbon is cut into 6 pieces that are each 8 cm long. How long was the ribbon?";
 const KEY_STRING = { question: "How long was the ribbon?", working: "6 x 8 = 48", answer: "48 cm" };
@@ -226,10 +229,11 @@ describe("a wrong answer in a mastery check", () => {
   it("a reply that is only a drawing still gives the verdict: the worked answer never stands in for it", async () => {
     // The model draws the worked answer (math.render), then its call after the tool round is empty, as
     // small models often leave it. The drawing is reply text (drawnCards.ts), but it says nothing about
-    // the child's answer, so the verdict line still follows it.
+    // the child's answer, so the verdict line still follows it. A quiz chip's check: its answers run in
+    // the default mode, which offers the drawing tools (an assess chip's run in assess, which does not).
     gradeOut = { student_answer: "46", verdict: "incorrect" };
     script = [[{ type: "tool_call", id: "call_0", name: "math.render", args: { latex: "6 x 8 = 48" } }, { type: "done", finishReason: "tool_calls" }], reply("")];
-    const { result } = await answer(CHECK, "46");
+    const { result } = await answer(QUIZ_CHIP_CHECK, "46");
     expect(result.toolCalls).toMatchObject([{ name: "math.render", ok: true }]);
     expect(result.text).toBe(`$$\n6 x 8 = 48\n$$\n\n${VERDICT_FALLBACK.incorrect}`);
   });
@@ -237,7 +241,7 @@ describe("a wrong answer in a mastery check", () => {
   it("a drawing with a reply that says the verdict gets no second verdict line", async () => {
     gradeOut = { student_answer: "46", verdict: "incorrect" };
     script = [[{ type: "tool_call", id: "call_0", name: "math.render", args: { latex: "6 x 8 = 48" } }, { type: "done", finishReason: "tool_calls" }], reply("Not quite. 6 x 8 is 48.")];
-    const { result } = await answer(CHECK, "46");
+    const { result } = await answer(QUIZ_CHIP_CHECK, "46");
     expect(result.text).toBe("$$\n6 x 8 = 48\n$$\n\nNot quite. 6 x 8 is 48.");
   });
 

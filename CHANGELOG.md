@@ -99,6 +99,22 @@ The section for each release is also what the app shows when you press Check for
   is gone from Settings too (Haiku 5.5 replaces it); it still works, so a saved choice of it is kept.
   A saved model that is no longer in the list now shows as its own selected chip, so Settings always
   shows the model OpenEdu will use. Checking an API key in Settings now uses the current default model.
+- **"Check if I've got this" can mark a skill from a typed answer.** The learner's typed answer to the
+  check's question now runs in the check's own mode, so the tutor can mark the skill learned or
+  practiced. Before, only an answer picked on a question card could be marked. A typed "quiz me" or
+  "test me" stays an ordinary quiz, with its pictures, as before.
+- **"Check if I've got this" marks a skill learned only on a right answer.** On a turn that answers the
+  check's question, the tutor can mark the skill learned only when OpenEdu checked the answer and found
+  it right. Before, a turn whose question had no single right answer, or where the learner asked what a
+  word means, could still be marked learned. Marking it practiced works as before.
+- **A "practiced" mark says practiced.** The line under the reply now reads "Marked “Equal Groups” as
+  practiced" (or "as learned"), matching the Allow / Don't allow card, instead of always "Marked a topic
+  as learned".
+- **The safety notice is read aloud.** When replies read themselves aloud (K-2 by default), a message
+  that shows the safety notice now has the notice, with 911 and the hotline numbers, read before the
+  tutor's reply.
+- **One "still working" sign at a time.** While an Allow / Don't allow card waits for a tap, the empty
+  "Thinking..." bubble above it no longer shows.
 
 ## [0.4.0] - 2026-11-10
 
