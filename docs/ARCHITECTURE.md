@@ -933,10 +933,20 @@ grade: suicide and self-harm wording (`PHRASES`, `KMS_RE`), a person hitting, hu
 `DISCLOSURE_RES`: touching after a person within the sentence, hands in clothes, clothes pulled off, being
 made to touch, nude pictures, sextortion, being watched in the shower, and "i don't feel safe at home".
 Sharing the child's pictures counts only with a threat in the same message (`SHARE_PICS_RE` and
-`THREAT_RE`). The harm half is TerraTutor's code as of its PR #125, character for character apart from
-comments; TerraTutor's parents'-topics screen is not ported, so a third-person report ("his dad makes him
-watch porn") or wording the lists do not know gets no notice here, where TerraTutor gives its parents'-topics
-reply. `child-safety.test.ts` pins both sides, those misses included. The pregnancy half is below.
+`THREAT_RE`). The harm half is TerraTutor's code as of its PR #125, narrowed where it fired on ordinary
+schoolwork (review of #372): "private" counts as the body only as "privates", "private parts" and the like,
+or with no noun after it (not "her private feelings", "their private lives"); touching him, her or them
+counts only after someone's family member or grown-up ("her dad touches her at night", not "sea anemones
+sting people who touch them" or "the woman touched him"); "got touched" needs who did it, and that person is
+never followed by an apostrophe ("touched by my uncle", not "touched by my teacher's words"); and touching
+the children needs a grown-up or family member doing it (not "her kindness touched the children").
+TerraTutor's parents'-topics screen is not ported, so a third-person report ("his dad makes him watch
+porn") or wording the lists do not know ("my babysitter shows me sexy videos") gets no notice here, where
+TerraTutor gives its parents'-topics reply. A false positive costs more than a line of text: it refuses a
+new-course topic (`SAFETY_TOPIC_COURSE_LINE`), passes a quiz or level-test written answer as not checked with
+no mark, and skips that chat turn's mastery-check verdict and dictionary note. `child-safety.test.ts` pins
+both sides, those misses and the accepted false positives (bare "sexual assault", "sextortion", "suicide";
+"the doctor told me to take my shirt off") included. The pregnancy half is below.
 
 ## The safety notice for a pregnancy (`child-safety.ts strongPregnancy`)
 
