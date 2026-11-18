@@ -24,7 +24,9 @@ import QuestionRenderer from "../components/quiz/QuestionRenderer";
 import CompletionCapstone from "../components/CompletionCapstone";
 import SafetyNotice from "../components/SafetyNotice";
 import { SAFETY_NOTICE } from "../lib/child-safety";
-import type { Grade } from "../lib/grade";
+import { isEarlyReader, type Grade } from "../lib/grade";
+import ReadAloudButton from "../components/ReadAloudButton";
+import { questionSpeech } from "../lib/speech";
 import { IconXmark } from "../components/icons";
 
 function getTimeLimitSeconds(level: number): number {
@@ -83,11 +85,13 @@ interface Props {
   onClose: () => void;
   // nextLevel = the level just advanced to; null = course completed (L6 mastery passed).
   onPassed: (nextLevel: number | null) => void;
-  // The learner's grade: a safety disclosure typed as an answer is read as the chat reads it.
+  // The learner's grade: a safety disclosure typed as an answer is read as the chat reads it, and K-2
+  // (grade.ts isEarlyReader) gets the question and answers at the chat's larger size.
   grade: Grade | null;
 }
 
 export default function PromotionTestFullScreen({ context, onClose, onPassed, grade }: Props) {
+  const large = isEarlyReader(grade);
   const { courseId, course, syllabus: currentSyllabus, allSyllabuses } = context;
   const currentLevel = course.current_level;
 
@@ -537,7 +541,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
             <h1 className="text-base font-semibold text-ink">{course.title}</h1>
             <p className="text-xs text-[var(--ink-faint)]">Promotion Test</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-panel-lite text-[var(--ink-faint)] hover:text-ink transition-colors">
+          <button onClick={onClose} aria-label="Close" title="Close" className="p-1.5 rounded-lg hover:bg-panel-lite text-[var(--ink-faint)] hover:text-ink transition-colors">
             <IconXmark size={18} />
           </button>
         </div>
@@ -709,7 +713,11 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
         {/* Question */}
         <div className="flex-1 overflow-y-auto flex items-start justify-center p-6">
           <div className="w-full max-w-2xl">
-            <h2 className="text-lg text-ink leading-relaxed mb-6">{question.question_text}</h2>
+            {/* The chat's speaker button: the question and its choices (speech.ts questionSpeech), never the answer. */}
+            <div className="flex items-start gap-3 mb-6">
+              <h2 className={`flex-1 ${large ? "text-2xl" : "text-lg"} text-ink leading-relaxed`}>{question.question_text}</h2>
+              <ReadAloudButton text={questionSpeech(question)} />
+            </div>
 
             {config && (
               <QuestionRenderer

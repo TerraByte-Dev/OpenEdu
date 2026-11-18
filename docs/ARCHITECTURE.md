@@ -81,7 +81,13 @@ rules, and it is nothing when no grade is set, so that prompt is byte-identical 
 that defaults to on. Every tutor reply has a speaker button: `speech.ts` turns the saved markdown into
 plain words (the same marked + math tokenizer the chat renders with; LaTeX read as words, a code block as
 "Code") and picks an on-device voice, and `useReadAloud.ts` plays it through `speechSynthesis`, one reply
-at a time, so it works offline with the Windows voices.
+at a time, so it works offline with the Windows voices. Lessons, quizzes and level tests have the same
+speaker button for every learner (`components/ReadAloudButton.tsx`): the lesson reader's reads the lesson,
+a question's reads the question and, for multiple choice and true/false, its choices
+(`speech.ts questionSpeech`; a fill-in blank is read as "blank"), never the answer key. Nothing there reads
+itself. K-2 also gets the larger text there: the lesson at 1.25rem (`.lesson-text-large`), and the
+question at 1.5rem with its answers, inputs and feedback at 1.25rem and 1.125rem (`QuestionRenderer`,
+from the `grade` it already takes for the safety notice), from the learner's grade passed down from `App`.
 
 **Tables kept from removed features.** The family, class and school features (usage modes, the teacher
 view and its CSV, learner groups, the K-1 early-learner screens and the learning record) now live only
@@ -884,7 +890,7 @@ it names no person where a sentence works without one, and says "the learner" wh
   colour) at the foot of the lesson reader (`LessonReader.tsx`). Four lines by checked and by K-2
   (`grade.ts isEarlyReader`); "checked" always says "It can still be wrong."; each ends "If something looks
   wrong, look it up." (Fable's wording for a learner on their own: OpenEdu has no grown-up set up to ask).
-  The lesson reader has no read-aloud, so the line is never read out by itself. Raise hand gets no line of
+  The lesson reader's speaker button reads the lesson only, so the line is never read out. Raise hand gets no line of
   its own. A self-reviewed lesson reads as unchecked; there is no third state.
 - **"Checked" is stored per lesson, at write time, never read from a setting.** `curriculum.ts
   generateLesson` writes a `lesson_checks` row (migration 22: `lesson_id`, `checked_by` as

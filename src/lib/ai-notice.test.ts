@@ -251,7 +251,9 @@ describe("where it shows", () => {
   });
 
   it("is not read aloud by itself, and Raise hand gets no line of its own", () => {
-    expect(lessonReader).not.toMatch(/speak|ReadAloud|read-aloud/i);
+    // The reader's one speaker button reads the lesson, never the status line.
+    expect(lessonReader.match(/<ReadAloudButton\b[^>]*>/g)).toEqual(["<ReadAloudButton text={lesson.content} />"]);
+    expect(lessonReader).not.toMatch(/useReadAloud|speak\(|toggle\(/);
     expect(raiseHand).not.toMatch(/lessonStatusLine|LESSON_STATUS|LessonsNote|lessonsNote/);
   });
 

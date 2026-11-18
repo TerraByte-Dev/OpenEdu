@@ -213,6 +213,8 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
         {/* Left: back + title */}
         <button
           onClick={onBack}
+          aria-label="Back to Home"
+          title="Back to Home"
           className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink transition-colors shrink-0"
         >
           <IconArrowLeft size={18} />
