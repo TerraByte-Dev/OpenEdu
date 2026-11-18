@@ -779,6 +779,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               }
             }}
             placeholder={askPending ? "Or type your own answer..." : "Ask your tutor anything..."}
+            aria-label="Message to your tutor"
             className="flex-1 px-4 py-3 rounded-xl bg-panel-lite border border-[var(--rule)] text-ink placeholder-[var(--ink-faint)] text-sm focus:outline-none focus:border-phosphor"
             disabled={streaming && !askPending}
           />
@@ -786,6 +787,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             <button
               onClick={cancelStream}
               title="Stop generating"
+              aria-label="Stop generating"
               className="px-4 py-3 rounded-xl bg-lcd hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger transition-colors"
             >
               <IconMediaStop size={20} className="scale-[0.65]" />
@@ -794,6 +796,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             <button
               onClick={() => sendMessage()}
               disabled={!input.trim()}
+              aria-label="Send"
+              title="Send"
               className="px-4 py-3 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <IconPaperPlane size={20} />
