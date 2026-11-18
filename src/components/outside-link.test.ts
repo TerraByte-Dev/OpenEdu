@@ -106,6 +106,17 @@ describe("a link in rendered prose", () => {
     expect(note()!.textContent).toContain("https://example.com/two");
   });
 
+  // Ported from TerraTutor #231: Copy was bare text and the dismiss a bare ✕ glyph.
+  it("offers Copy as a 44px pill and the dismiss as a 44px round target", async () => {
+    show("[x](https://example.com/one)");
+    await press(prose.querySelector("a")!);
+    const copy = [...note()!.querySelectorAll("button")].find((b) => b.textContent === "Copy")!;
+    expect(copy.classList.contains("btn")).toBe(true);
+    const dismiss = note()!.querySelector('button[aria-label="Dismiss"]')!;
+    expect(dismiss.className.split(" ")).toContain("w-11");
+    expect(dismiss.className.split(" ")).toContain("h-11");
+  });
+
   it("anywhere else on the page is left alone", async () => {
     show("No links here.");
     expect(await press(prose.querySelector("p")!)).toBe(true);

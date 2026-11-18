@@ -108,4 +108,16 @@ describe("deleting a note in the Notebook", () => {
     await act(async () => inQuestion("Delete").click());
     await vi.waitFor(async () => expect(await getNotes(courseId)).toHaveLength(0));
   });
+
+  // Ported from TerraTutor #231: the question was 12px with 11px buttons.
+  it("asks at 14px with .btn 44px pills, Delete in the danger colour", async () => {
+    await act(async () => trash().click());
+    expect(question()!.querySelector("span")!.className.split(" ")).toContain("text-sm");
+    // Inline: .btn's colour is unlayered CSS and beats a text-danger utility (CLAUDE.md › Design system).
+    expect(inQuestion("Delete").classList.contains("btn")).toBe(true);
+    expect(inQuestion("Delete").style.color).toBe("var(--danger)");
+    expect(inQuestion("Delete").style.borderColor).toBe("var(--danger)");
+    expect(inQuestion("Keep it").classList.contains("btn")).toBe(true);
+    expect(inQuestion("Keep it").style.color).toBe("");
+  });
 });

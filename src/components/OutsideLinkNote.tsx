@@ -25,12 +25,14 @@ export default function OutsideLinkNote() {
       </span>
       <button
         type="button"
-        className="font-medium text-phosphor-bright hover:text-phosphor shrink-0"
+        className="btn shrink-0"
+        style={{ fontSize: "0.9rem", padding: "6px 14px" }}
         onClick={() => { navigator.clipboard.writeText(address).then(() => setCopied("yes")).catch(() => setCopied("failed")); }}
       >
         {copied === "yes" ? "Copied" : copied === "failed" ? "Select it and copy" : "Copy"}
       </button>
-      <button type="button" onClick={() => setAddress(null)} aria-label="Dismiss" className="text-phosphor-bright hover:text-phosphor text-lg leading-none shrink-0">✕</button>
+      {/* A 44px round target, .btn's height. */}
+      <button type="button" onClick={() => setAddress(null)} aria-label="Dismiss" className="inline-flex items-center justify-center w-11 h-11 rounded-full text-phosphor-bright hover:text-phosphor hover:bg-panel-lite text-lg leading-none shrink-0">✕</button>
     </div>
   );
 }

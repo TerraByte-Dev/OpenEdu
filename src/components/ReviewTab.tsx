@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import type { Flashcard, Syllabus, Subtopic } from "../types";
 import { getDueFlashcards, getFlashcards, updateFlashcardAfterReview, createFlashcard, deleteFlashcard } from "../lib/db";
 import { review, requeueIfDue, type FlashcardGrade } from "../lib/srs";
@@ -40,6 +40,8 @@ const GRADES: { grade: FlashcardGrade; label: string; hint: string; cls: string 
 
 export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeToTutor, grade: learnerGrade = null }: ReviewTabProps) {
   const large = isEarlyReader(learnerGrade);
+  // The delete confirm's buttons: the small pill size, or K-2's text-lg (1.125rem) on a large card.
+  const confirmBtn: CSSProperties = { fontSize: large ? "1.125rem" : "0.9rem", padding: "6px 14px" };
   const [queue, setQueue] = useState<Flashcard[]>([]);
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -221,7 +223,8 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
                       className={`flex flex-col items-center px-2 py-2.5 rounded-xl border ${large ? "text-lg" : "text-sm"} font-medium transition-colors ${g.cls}`}
                     >
                       {g.label}
-                      <span className={`${large ? "text-sm" : "text-[10px]"} opacity-70`}>{g.hint}</span>
+                      {/* Full-strength secondary ink, not a faded status colour: 4.5:1 in both modes, 14px or larger. */}
+                      <span className={`${large ? "text-base" : "text-sm"} font-normal text-[var(--ink-dim)]`}>{g.hint}</span>
                     </button>
                   ))}
                 </div>
@@ -234,11 +237,12 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
               </div>
               {askingDelete && (
                 <div className="mt-2 flex flex-wrap items-center justify-end gap-2" role="group" aria-label="Delete this card?">
-                  <span className="text-[12px] text-ink">Delete this card? It cannot be brought back.</span>
-                  <button type="button" className="px-2 py-0.5 rounded text-[11px] text-danger border border-[var(--danger)] hover:bg-panel-lite" onClick={() => { void removeCurrent(); }}>
+                  <span className={`${large ? "text-lg" : "text-sm"} text-ink`}>Delete this card? It cannot be brought back.</span>
+                  {/* 44px pills at the card's size; inline because .btn's font and colour are unlayered and beat utilities. */}
+                  <button type="button" className="btn" style={{ ...confirmBtn, borderColor: "var(--danger)", color: "var(--danger)" }} onClick={() => { void removeCurrent(); }}>
                     Delete
                   </button>
-                  <button type="button" autoFocus className="px-2 py-0.5 rounded text-[11px] text-[var(--ink-dim)] border border-[var(--rule)] hover:bg-panel-lite" onClick={() => setAskingDelete(false)}>
+                  <button type="button" autoFocus className="btn" style={confirmBtn} onClick={() => setAskingDelete(false)}>
                     Keep it
                   </button>
                 </div>

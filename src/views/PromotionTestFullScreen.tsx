@@ -930,7 +930,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
                   <span className={`font-bold shrink-0 ${style.text}`}>{style.sign}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-ink">{q.question_text}</p>
-                    {safety && <SafetyNotice className="mt-1" />}
+                    {safety && <SafetyNotice className="mt-1" large={large} />}
                     {mark === "unchecked" && !safety && <p className={`${xs} text-warning mt-0.5`}>{TEST_UNCHECKED_NOTE}</p>}
                     {showsAnswerAndKey(q, grade) && (
                       <p className={`${xs} mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {answerShown(q)} · Correct: {keyShown(q)}</p>

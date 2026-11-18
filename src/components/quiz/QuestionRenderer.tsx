@@ -113,7 +113,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
         )}
         {/* A safety disclosure typed as the answer, or as "why is that the answer?" once it is saved (on
             blur), gets the chat's notice at once (quiz-grading.ts showsSafetyNotice). Never a block. */}
-        {showsSafetyNotice(question, grade) && <SafetyNotice />}
+        {showsSafetyNotice(question, grade) && <SafetyNotice large={large} />}
         {onSelfExplain && (
           <div className="p-3 rounded-xl border border-[var(--rule)] bg-panel-lite/40">
             <label className={`block ${xs} text-phosphor-ink mb-1.5`}>
