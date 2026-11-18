@@ -933,13 +933,22 @@ grade: suicide and self-harm wording (`PHRASES`, `KMS_RE`), a person hitting, hu
 `DISCLOSURE_RES`: touching after a person within the sentence, hands in clothes, clothes pulled off, being
 made to touch, nude pictures, sextortion, being watched in the shower, and "i don't feel safe at home".
 Sharing the child's pictures counts only with a threat in the same message (`SHARE_PICS_RE` and
-`THREAT_RE`). The harm half is TerraTutor's code as of its PR #125, narrowed where it fired on ordinary
-schoolwork (review of #372): "private" counts as the body only as "privates", "private parts" and the like,
-or with no noun after it (not "her private feelings", "their private lives"); touching him, her or them
-counts only after someone's family member or grown-up ("her dad touches her at night", not "sea anemones
-sting people who touch them" or "the woman touched him"); "got touched" needs who did it, and that person is
-never followed by an apostrophe ("touched by my uncle", not "touched by my teacher's words"); and touching
-the children needs a grown-up or family member doing it (not "her kindness touched the children").
+`THREAT_RE`, or a threat to post "them" with pictures named: `SHARE_THEM_RE` and `PICS_RE`). The harm half's
+patterns equal TerraTutor's as of its PR #223: its PR #125's, narrowed in both apps where they fired on
+ordinary schoolwork (review of #372, TerraTutor #221 and #223). "private" counts as the body only as
+"privates", "private parts" and the like, or with no noun after it (not "her private feelings", "her private
+place in the garden"); touching him, her or them counts only after someone's family member or grown-up and
+before the end, a place or a time ("her dad touches her at night", not "sea anemones sting people who touch
+them" or "his mother touched him when he cried"); "touched by" needs the child (or their brother or sister)
+as the one touched and a person, with no apostrophe, as the one touching ("i got touched by my uncle", not
+"touched by my teacher's words" or "the old woman was touched by a stranger"), while the child getting
+touched with no one named still counts ("i got touched at school"); a thing earlier in the clause blocks the
+touching (`NO_THING_BEFORE`: "the story about the old man really touched me"), unless it was given to the
+child ("the man who gave me gifts touched me"); touching the children needs a grown-up or family member;
+"touch down there" needs "me" or "my" ("apollo 11 touched down there"); a threat to share needs the child's
+own things ("threatened to send his army" does not count); "hurt at home" needs the first person; and a
+third-person statement of a suicide with no first-person word in the sentence does not count
+(`thirdPersonSuicide`: "Romeo and Juliet both commit suicide", "suicide rates rose").
 TerraTutor's parents'-topics screen is not ported, so a third-person report ("his dad makes him watch
 porn") or wording the lists do not know ("my babysitter shows me sexy videos") gets no notice here, where
 TerraTutor gives its parents'-topics reply. A false positive costs more than a line of text: it refuses a
