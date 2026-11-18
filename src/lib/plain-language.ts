@@ -181,10 +181,13 @@ export function messageNotSaved(e: unknown): string {
   return `Your message wasn't saved, so it wasn't sent. It's still in the box. ${outOfSpace(e) ? OUT_OF_SPACE : "Try sending it again in a moment."}`;
 }
 
-/** What the notebook says when a note could not be saved. `title` names it, since the learner may have moved on. */
+/**
+ * What the notebook says above a note that could not be saved. Shown only over that note, open with its
+ * unsaved words still in the editor (NotesTab won't open another note over them), beside a Save again button.
+ */
 export function noteNotSaved(title: string, e: unknown): string {
   const name = title.trim() ? `Your note “${title.trim()}”` : "Your note";
-  return `${name} wasn't saved. ${outOfSpace(e) ? OUT_OF_SPACE : "Keep it open and try again in a moment."}`;
+  return `${name} wasn't saved. Your words are still here. ${outOfSpace(e) ? OUT_OF_SPACE : "Press Save again in a moment."}`;
 }
 
 /** True when an embed failed because the embedding model isn't on this computer. */
