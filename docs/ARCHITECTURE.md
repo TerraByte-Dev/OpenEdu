@@ -786,7 +786,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   formatTranscript` leaves out each student message that is a disclosure with the tutor's reply to it
   (everything up to the student's next message), and `finishSummary` withholds a summary that itself reads
   as one, so NotesAssistant shows `SAFETY_NOTICE` in its place and offers no Insert. Both call
-  `isSafetyDisclosure` with no grade, as TerraTutor does, so a pregnancy message is not left out there.
+  `isSafetyDisclosure` with the active learner's grade (CourseView → NotesTab → NotesAssistant), as the
+  chat's notice does, so with a K-12 grade a strong pregnancy self-disclosure is left out there too, and with
+  no grade it is not. `src/components/notes-summary-grade.test.ts` clicks the real panel to pin it.
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model

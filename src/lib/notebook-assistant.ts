@@ -18,6 +18,7 @@
 import { estTokens, capText } from "./kernel/budget";
 import { arithmeticClaims } from "./arithmetic-claims";
 import { isSafetyDisclosure } from "./child-safety";
+import type { Grade } from "./grade";
 import type { ModelTier } from "../types";
 
 export type AnnotationKind = "error" | "gap" | "question" | "correct";
@@ -206,12 +207,14 @@ Output only the markdown body. No preamble, no "here are your notes".`;
 /**
  * The conversation without each student message that reads as a safety disclosure (isSafetyDisclosure) and
  * the tutor's reply to it (everything up to the student's next message). A disclosure never goes into a note,
- * as the kernel keeps it out of the course's memory, notes and flashcards (TutorEngine `disclosure`).
+ * as the kernel keeps it out of the course's memory, notes and flashcards (TutorEngine `disclosure`). It is
+ * read with the learner's grade, as the chat's notice is, so with a K-12 grade a strong pregnancy
+ * self-disclosure is left out too.
  */
-function withoutDisclosureExchanges<M extends { role: string; content: string }>(messages: readonly M[]): M[] {
+function withoutDisclosureExchanges<M extends { role: string; content: string }>(messages: readonly M[], grade: Grade | null): M[] {
   const out: M[] = [];
   for (let i = 0; i < messages.length; i++) {
-    if (messages[i].role === "user" && isSafetyDisclosure(messages[i].content)) {
+    if (messages[i].role === "user" && isSafetyDisclosure(messages[i].content, grade)) {
       while (i + 1 < messages.length && messages[i + 1].role !== "user") i++;
       continue;
     }
@@ -220,13 +223,17 @@ function withoutDisclosureExchanges<M extends { role: string; content: string }>
   return out;
 }
 
-/** Render a transcript for the summariser, newest turns kept when it has to be trimmed. */
+/**
+ * Render a transcript for the summariser, newest turns kept when it has to be trimmed. `grade` is the active
+ * learner's grade, the one ChatTab reads the same messages with.
+ */
 export function formatTranscript(
   messages: readonly { role: string; content: string }[],
+  grade: Grade | null,
   maxTokens = MAX_TRANSCRIPT_TOKENS,
 ): string {
   // An exchange that opens with a safety disclosure is left out (child-safety.ts).
-  const lines = withoutDisclosureExchanges(messages)
+  const lines = withoutDisclosureExchanges(messages, grade)
     .filter((m) => (m.role === "user" || m.role === "assistant") && m.content.trim())
     .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content.trim()}`);
 
@@ -253,11 +260,11 @@ export function buildSummaryMessages(transcript: string): Array<{ role: string; 
 }
 
 /**
- * The summary as the panel shows it, or `withheld: "safety"` when it reads as a safety disclosure
- * (child-safety.ts): the panel then shows SAFETY_NOTICE and never offers it for Insert.
+ * The summary as the panel shows it, or `withheld: "safety"` when it reads as a safety disclosure for a learner
+ * of this grade (child-safety.ts): the panel then shows SAFETY_NOTICE and never offers it for Insert.
  */
-export function finishSummary(markdown: string): { markdown: string } | { withheld: "safety" } {
-  return isSafetyDisclosure(markdown) ? { withheld: "safety" } : { markdown };
+export function finishSummary(markdown: string, grade: Grade | null): { markdown: string } | { withheld: "safety" } {
+  return isSafetyDisclosure(markdown, grade) ? { withheld: "safety" } : { markdown };
 }
 
 /** Where to put a summary in an existing note — appended under a rule, never overwriting. */
