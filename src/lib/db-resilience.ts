@@ -85,10 +85,22 @@ export async function enableWal(db: SqlDb): Promise<string | null> {
 /** `openedu-backup-YYYY-MM-DD-HHMM.db`, in the computer's local time. */
 export function backupFileName(now: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
-  // The time is in the name because SQLite will not overwrite a file. With a date-only name, a second
-  // backup the same day to the same USB folder failed right after Windows asked "replace?" and the
-  // user said yes.
+  // The time is in the name so a second backup the same day to the same USB folder sits beside the
+  // first instead of replacing it. (Before backup.rs, SQLite's refusal to overwrite also made a
+  // date-only name fail right after Windows asked "replace?" and the user said yes.)
   return `${BACKUP_FILE_STEM}-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.db`;
+}
+
+/**
+ * Where a backup goes (backup-file.ts, src-tauri/src/backup.rs). SQLite writes the copy to `partial`, a
+ * temporary name beside the picked one; `finish` flushes it, checks it is whole and gives it the picked
+ * name, returning that path; `abandon` removes the temporary file after a failed copy. A copy cut short
+ * by a shutdown or a power cut is left as `.partial`, never under a backup's name.
+ */
+export interface BackupDestination {
+  partial: string;
+  finish(): Promise<string>;
+  abandon(): Promise<void>;
 }
 
 export interface BackupResult {
@@ -101,24 +113,31 @@ const SIZE_SQL =
   "SELECT (page_count - freelist_count) * page_size AS bytes FROM pragma_page_count(), pragma_freelist_count(), pragma_page_size()";
 
 /**
- * Copy the whole database to `path` with `VACUUM INTO`. It reads a consistent snapshot, so the app can
- * keep working while it runs, and the copy is a normal standalone .db file. SQLite refuses to write
- * over an existing file ("output file already exists").
+ * Copy the whole database with `VACUUM INTO`, to the destination's temporary file, then make that the
+ * backup. VACUUM INTO reads a consistent snapshot, so the app can keep working while it runs, and the
+ * copy is a normal standalone .db file. It writes straight to the path it is given and does not flush it,
+ * so it never writes the picked name itself. A failure removes the temporary file and is thrown for the
+ * UI to explain.
  */
-export async function backupTo(db: SqlDb, path: string): Promise<BackupResult> {
+export async function backupTo(db: SqlDb, dest: BackupDestination): Promise<BackupResult> {
   let approxBytes: number | null = null;
   try {
     const v = firstColumn(await db.select<unknown>(SIZE_SQL))[0];
     if (typeof v === "number" && Number.isFinite(v) && v > 0) approxBytes = v;
   } catch { /* the size is a nicety; never block the backup on it */ }
-  await db.execute("VACUUM INTO $1", [path]);
-  return { path, approxBytes };
+  try {
+    await db.execute("VACUUM INTO $1", [dest.partial]);
+    return { path: await dest.finish(), approxBytes };
+  } catch (e) {
+    await dest.abandon().catch(() => { /* the error that matters is the copy's */ });
+    throw e;
+  }
 }
 
 /** Plain-words reason a backup failed, with what to do next. */
 export function describeBackupError(err: unknown): string {
   const msg = errorText(err);
-  if (/already exists/i.test(msg)) return `${APP_NAME} cannot replace a file that is already there, even if Windows asked whether to replace it. Choose a new name, or delete the old file first.`;
+  if (/already exists/i.test(msg)) return `${APP_NAME} could not use that name because a file is already there. Choose a new name, or delete the old file first.`;
   if (/disk is full|SQLITE_FULL|\(code: 13\)/i.test(msg)) return "The drive is full. Free some space, or save to another drive such as a USB stick.";
   if (/unable to open|SQLITE_CANTOPEN|\(code: 14\)|access is denied|permission/i.test(msg)) {
     return `${APP_NAME} could not write there. Check the USB stick is still plugged in, or pick another folder.`;

@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
-import { enableWal, runQuickCheck, backupTo, isMigrationError, type DbHealth, type BackupResult } from "./db-resilience";
+import { enableWal, runQuickCheck, backupTo, isMigrationError, type DbHealth, type BackupResult, type BackupDestination } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
 import type { GradedBy } from "./quiz-grading";
@@ -58,9 +58,9 @@ export async function checkDatabaseHealth(): Promise<DbHealth> {
   return health;
 }
 
-/** Copy every table to `path` (a file the user picked in a save dialog). */
-export async function backupLearnerData(path: string): Promise<BackupResult> {
-  return backupTo(await getDb(), path);
+/** Copy every table to the backup file the user picked (backup-file.ts: a temporary name, renamed once whole). */
+export async function backupLearnerData(dest: BackupDestination): Promise<BackupResult> {
+  return backupTo(await getDb(), dest);
 }
 
 function uuid(): string {
@@ -763,6 +763,41 @@ export async function completeQuizAttempt(
   );
 }
 
+// A level test handed in: Finish writes the time it took before the written answers are graded, and
+// completeQuizAttempt writes completed_at once they are. An attempt with a time and no completed_at was
+// handed in and its grading never ended (the app was closed or lost power on "Grading your test"). A test
+// the learner stopped, or a window closed mid-test, has neither (level-test-checks.ts finishHandedInLevelTest).
+export async function markLevelTestHandedIn(attemptId: string, timeTaken: number): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "UPDATE quiz_attempts SET time_taken_seconds = $1 WHERE id = $2 AND completed_at IS NULL",
+    [timeTaken, attemptId]
+  );
+}
+
+// Finish a handed-in level test (finishHandedInLevelTest): its score and completed_at, keeping the time
+// Finish wrote. Writes only while completed_at is still unset, and says whether it did, so of two finishes
+// running at once only one goes on to count it.
+export async function completeHandedInLevelTest(attemptId: string, score: number, correctCount: number): Promise<boolean> {
+  const d = await getDb();
+  const r = await d.execute(
+    "UPDATE quiz_attempts SET score = $1, correct_count = $2, completed_at = datetime('now') WHERE id = $3 AND completed_at IS NULL",
+    [score, correctCount, attemptId]
+  );
+  return r.rowsAffected > 0;
+}
+
+// The course level's latest handed-in level test whose grading never ended, if any.
+export async function getHandedInLevelTest(courseId: string, level: number): Promise<QuizAttempt | null> {
+  const d = await getDb();
+  const rows: QuizAttempt[] = await d.select(
+    `SELECT * FROM quiz_attempts WHERE course_id = $1 AND level = $2 AND quiz_type = 'promotion'
+       AND completed_at IS NULL AND time_taken_seconds IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1`,
+    [courseId, level]
+  );
+  return rows[0] ?? null;
+}
+
 // Update one quiz_questions row's grade after deferred end-of-test grading (issue #83): free-text
 // answers are recorded with is_correct = null during the test, then resolved here at finish.
 export async function updateQuizQuestionGrade(id: string, isCorrect: boolean, gradedBy: GradedBy): Promise<void> {
@@ -819,13 +854,15 @@ export interface LevelTestRow {
   graded_by: GradedBy | null;
   test_section: TestSection | null;
   subtopic_id: string | null;
+  /** A fill-in-the-blank question's sentence, read with the question when it is graded (quiz-grading.ts questionWithSentence). */
+  blank_position?: string | null;
 }
 
 // Every stored answer of one attempt, in the order they were saved.
 export async function getLevelTestRows(attemptId: string): Promise<LevelTestRow[]> {
   const d = await getDb();
   const rows: Array<Record<string, unknown>> = await d.select(
-    `SELECT id, question_text, question_type, correct_answer, user_answer, is_correct, explanation, graded_by, test_section, subtopic_id
+    `SELECT id, question_text, question_type, correct_answer, user_answer, is_correct, explanation, graded_by, test_section, subtopic_id, blank_position
        FROM quiz_questions WHERE attempt_id = $1 ORDER BY rowid`,
     [attemptId]
   );

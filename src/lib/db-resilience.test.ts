@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   backupFileName, backupTo, describeBackupError, enableWal, formatApproxSize,
-  interpretDbError, interpretQuickCheck, isMigrationError, runQuickCheck, type SqlDb,
+  interpretDbError, interpretQuickCheck, isMigrationError, runQuickCheck, type SqlDb, type BackupDestination,
 } from "./db-resilience";
 
 // A stand-in for tauri-plugin-sql's Database: records every statement and answers from a script.
@@ -20,7 +20,7 @@ describe("backupFileName", () => {
   it("uses the local date, zero-padded", () => {
     expect(backupFileName(new Date(2026, 0, 5, 23, 59))).toBe("openedu-backup-2026-01-05-2359.db");
     expect(backupFileName(new Date(2026, 10, 7))).toBe("openedu-backup-2026-11-07-0000.db");
-    // Two backups on the same day get different names, because SQLite refuses to overwrite a file.
+    // Two backups on the same day get different names, so the second sits beside the first.
     expect(backupFileName(new Date(2026, 10, 7, 9, 5))).not.toBe(backupFileName(new Date(2026, 10, 7, 17, 30)));
   });
 });
@@ -97,21 +97,44 @@ describe("enableWal", () => {
   });
 });
 
+// A stand-in for backup-file.ts's destination (backup.rs): records what was asked of it, in order.
+function fakeDest(path: string, finishFails?: string): BackupDestination & { log: string[] } {
+  const log: string[] = [];
+  return {
+    log,
+    partial: `${path}.partial`,
+    finish: async () => { log.push("finish"); if (finishFails) throw finishFails; return path; },
+    abandon: async () => { log.push("abandon"); },
+  };
+}
+
 describe("backupTo", () => {
-  it("binds the picked path into VACUUM INTO and reports the estimated size", async () => {
+  const path = "E:\\openedu-backup-2026-11-07.db";
+
+  it("copies into the temporary file, never the picked name, then finishes it and reports the size", async () => {
     const db = fakeDb((sql) => (sql.startsWith("SELECT") ? [{ bytes: 55_222_272 }] : { rowsAffected: 0 }));
-    const path = "E:\\openedu-backup-2026-11-07.db";
-    expect(await backupTo(db, path)).toEqual({ path, approxBytes: 55_222_272 });
-    expect(db.calls[1]).toEqual(["VACUUM INTO $1", [path]]);
+    const dest = fakeDest(path);
+    expect(await backupTo(db, dest)).toEqual({ path, approxBytes: 55_222_272 });
+    expect(db.calls[1]).toEqual(["VACUUM INTO $1", [`${path}.partial`]]);
+    expect(db.calls.some(([, args]) => args?.includes(path))).toBe(false);
+    expect(dest.log).toEqual(["finish"]);
   });
   it("still backs up when the size query fails", async () => {
     const db = fakeDb((sql) => (sql.startsWith("SELECT") ? new Error("no such function") : {}));
-    expect((await backupTo(db, "x.db")).approxBytes).toBeNull();
+    expect((await backupTo(db, fakeDest("x.db"))).approxBytes).toBeNull();
     expect(db.calls.some(([s]) => s === "VACUUM INTO $1")).toBe(true);
   });
-  it("passes the VACUUM INTO error through for the UI to explain", async () => {
-    const db = fakeDb((sql) => (sql.startsWith("VACUUM") ? "error returned from database: (code: 1) output file already exists" : [{ bytes: 1 }]));
-    await expect(backupTo(db, "x.db")).rejects.toContain("output file already exists");
+  it("a copy that fails is never finished: the temporary file is removed and the error passed on", async () => {
+    const db = fakeDb((sql) => (sql.startsWith("VACUUM") ? "error returned from database: (code: 13) database or disk is full" : [{ bytes: 1 }]));
+    const dest = fakeDest("x.db");
+    await expect(backupTo(db, dest)).rejects.toContain("disk is full");
+    expect(dest.log).toEqual(["abandon"]);
+  });
+  it("a copy that comes out incomplete is removed, not kept under the picked name", async () => {
+    const db = fakeDb((sql) => (sql.startsWith("SELECT") ? [{ bytes: 1 }] : {}));
+    const dest = fakeDest("x.db", "The backup copy came out incomplete, so it was not kept. Try again.");
+    await expect(backupTo(db, dest)).rejects.toContain("incomplete");
+    expect(dest.log).toEqual(["finish", "abandon"]);
   });
 });
 
