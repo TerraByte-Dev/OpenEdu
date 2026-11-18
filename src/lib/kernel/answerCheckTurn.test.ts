@@ -886,6 +886,23 @@ describe("a safety disclosure in a mastery check", () => {
     expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_DISCLOSURE}`);
   });
 
+  it("a card picked on a disclosure turn is not checked: no grading call, no verdict for the model or the child", async () => {
+    // Follow-up to PR #346: nothing tested the card-check gate (checkAnswers off on a disclosure turn), so
+    // removing it left the suite green. Without it this wrong pick is graded and the child told it is wrong.
+    const text = "this is too hard i wanna die";
+    pick = pickLabel("72");
+    gradeOut = { student_answer: "72", verdict: "incorrect" };
+    script = [askCall("What is 7 x 9?", ["63", "72"]), reply(KIND)];
+    const { result, cards } = await answer(QUIZ, text, "assess");
+    expect(cards).toHaveLength(1);
+    expect(structured).toEqual([]);
+    expect(result.cardChecks).toEqual([]);
+    expect(replies[1].filter((m) => m.role === "tool").pop()!.content)
+      .toBe('The student picked "72" (value: c1). Reply to the student now, following on from their answer.');
+    expect(result.text).toBe(`What is 7 x 9?\n\n*You picked: 72*\n\n${KIND}`);
+    expect(result.text).not.toMatch(/not right yet/i);
+  });
+
   it("a try at a worked problem that is also a disclosure gets no check-before-praise note", async () => {
     const worked = [student("Teach me adding."), tutor("3 + 4 = 7. Now you try: what is 5 + 6?")];
     const text = "its 11 but i want to kill myself";

@@ -70,15 +70,9 @@ interface ChatTabProps {
   grade: Grade | null;
 }
 
-// Words typed into a question card that the kernel handed back (TutorTurnResult.cardMessage), with where
-// they belong.
-interface CardMessage { thread: string; text: string; courseId: string; level: number }
-
-// Saves handed-back card words as the child's message in their own thread when they can't be sent there
-// now (another conversation is open): the safety notice keys off a saved user message.
-function keepCardMessage(m: CardMessage) {
-  void saveChatMessage(m.courseId, "user", m.text, m.level, m.thread).catch(() => {});
-}
+// Words typed into a question card that the kernel handed back (TutorTurnResult.cardMessage), already
+// saved as the child's own message (`saved`) in the thread they belong to, and still owed a reply.
+interface CardMessage { thread: string; saved: ChatMessage }
 
 export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview, threadId, onThreadCreated, onThreadActivity, learnerId, grade }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -113,8 +107,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const [askPending, setAskPending] = useState<{ question: string; choices: AskChoice[] } | null>(null);
   const askResolverRef = useRef<((value: string) => void) | null>(null);
   // Words typed into a card that the kernel handed back as the child's own next message (a safety
-  // disclosure, TutorTurnResult.cardMessage), and the thread they belong to. Sent by the effect below once
-  // the turn that ended at the card has finished, so the send reads that turn's saved reply as history.
+  // disclosure, TutorTurnResult.cardMessage), saved by the turn that ended at the card. The effect below
+  // asks for the reply to them once that turn has finished, so the reply reads that turn's saved reply as
+  // history.
   const [cardMessage, setCardMessage] = useState<CardMessage | null>(null);
   // Choices the last reply wrote as a list instead of calling ask_user.question (kernel replyChoices.ts).
   // Shown as the same buttons; a pick is sent as the student's next message. Cleared on send.
@@ -256,8 +251,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
   // `picked` is a reply-choice button's text, sent as is; otherwise the input box is sent. While a
   // question card waits, the box stays usable and what the child types answers the card: a card whose
-  // buttons don't fit what they want to say is never a dead end (click test 2026-11-14).
-  const sendMessage = async (picked?: string) => {
+  // buttons don't fit what they want to say is never a dead end (click test 2026-11-14). Unless it reads
+  // as a safety disclosure: the kernel hands those words back (TutorTurnResult.cardMessage), runTurn
+  // saves them as the child's own message, and the effect below passes that message as `saved`, which
+  // runs the reply to it without saving it again.
+  const sendMessage = async (picked?: string, saved?: ChatMessage) => {
     if (askPending && picked === undefined) {
       const typed = input.trim();
       if (!typed) return;
@@ -270,23 +268,24 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const setupToken = {};
     settingUpRef.current = setupToken;
     try {
-      await runTurn(setupToken, text, picked === undefined);
+      await runTurn(setupToken, text, picked === undefined, saved);
     } finally {
       if (settingUpRef.current === setupToken) settingUpRef.current = null;
     }
   };
 
-  // A card's typed words sent as the child's message: saved as a user message, so the safety notice shows
-  // under it, and run as an ordinary turn (the safety rules in the system prompt, no grading). If the
-  // child opened another conversation first, they are still saved to their own thread, with no reply.
+  // The reply to a card's typed words, already saved as the child's message (so the safety notice shows
+  // under it), run as an ordinary turn (the safety rules in the system prompt, no grading). If the child
+  // opened another conversation first, the words stay saved in their own thread, with no reply.
   useEffect(() => {
     if (!cardMessage || streaming || settingUpRef.current) return;
     setCardMessage(null);
-    if (cardMessage.thread === threadId) void sendMessage(cardMessage.text);
-    else keepCardMessage(cardMessage);
+    if (cardMessage.thread === threadId) void sendMessage(cardMessage.saved.content, cardMessage.saved);
   }, [cardMessage, streaming, threadId]); // eslint-disable-line react-hooks/exhaustive-deps -- sendMessage is this render's, which holds the finished turn's messages
 
-  const runTurn = async (setupToken: object, text: string, fromInput: boolean) => {
+  // `saved`: the child's message is already saved (card words handed back by the kernel), so only the
+  // reply runs.
+  const runTurn = async (setupToken: object, text: string, fromInput: boolean, saved?: ChatMessage) => {
     setChatError("");
 
     const userText = text.trim();
@@ -316,9 +315,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const thread = activeThread;
     const shown = () => turnIsShown(thread, transcript.shown());
 
-    // `messages` still holds the history from before this send.
-    const studentAttempted = hasTriedOpenQuestion([...messages, { role: "user", content: userText }]);
-    const userMsg = await saveChatMessage(courseId, "user", userText, level, activeThread);
+    // `history` is the conversation from before this send (`messages` may already show a `saved` one).
+    const history = saved ? messages.filter((m) => m.id !== saved.id) : messages;
+    const studentAttempted = hasTriedOpenQuestion([...history, { role: "user", content: userText }]);
+    const userMsg = saved ?? await saveChatMessage(courseId, "user", userText, level, activeThread);
     if (shown()) setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});
     onThreadActivity();
@@ -357,7 +357,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // Only include system message if it has content
     const llmMessages = [
       ...(systemPrompt.trim() ? [{ role: "system", content: systemPrompt }] : []),
-      ...messages.map((m) => ({ role: m.role as string, content: m.content })),
+      ...history.map((m) => ({ role: m.role as string, content: m.content })),
       { role: "user", content: userText },
     ];
 
@@ -440,10 +440,17 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         }
       }
       // The turn ended at a card whose typed words go next as the child's own message (no chips under it).
-      const handedBack: CardMessage | null = result.cardMessage ? { thread, text: result.cardMessage, courseId, level } : null;
-      // Abandoned by a thread switch: its chips and notices belong to a thread no longer shown. Words
-      // handed back from a card are still saved to it, so a disclosure is never lost.
-      if (turnOwnerRef.current !== owner) { if (handedBack) keepCardMessage(handedBack); return; }
+      // Saved here, straight after the reply and before anything that can drop them: a thread switch, or
+      // the chat closing (another tab, course or level), which loses the state the reply waits in. A lost
+      // disclosure is the worst thing to lose. Only the reply to them is left to the effect above.
+      let handedBack: CardMessage | null = null;
+      if (result.cardMessage) {
+        const cardMsg = await saveChatMessage(courseId, "user", result.cardMessage, level, activeThread);
+        if (shown()) setMessages((prev) => appendUnique(prev, cardMsg));
+        handedBack = { thread, saved: cardMsg };
+      }
+      // Abandoned by a thread switch: its chips and notices belong to a thread no longer shown.
+      if (turnOwnerRef.current !== owner) return;
       if (handedBack) { setCardMessage(handedBack); return; }
       // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a

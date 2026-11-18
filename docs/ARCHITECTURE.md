@@ -556,9 +556,11 @@ tool, so the turn returned "", ChatTab saved nothing, and the question lived onl
   under a chat message, nothing wider), are not the card's answer: the turn ends at the card, which keeps
   only its question in the reply (`askedCard`), and nothing is graded, echoed ("*You answered: …*") or sent
   to the model, and no fallback line follows, even when an earlier card this turn was answered and graded.
-  The kernel hands the words back (`TutorTurnResult.cardMessage`) and ChatTab sends them as the child's own
-  message once that turn is saved (or, if the child opened another conversation first, saves them to their
-  own thread with no reply, so they are never lost), so they get what a typed chat message gets:
+  The kernel hands the words back (`TutorTurnResult.cardMessage`) and ChatTab saves them as the child's own
+  message straight after that turn's reply, before anything that can drop them (a switch to another
+  conversation, or the chat closing for another tab, course or level, which loses its state), then runs the
+  reply to them once the turn has finished (none if the child opened another conversation first; the words
+  stay saved in their own thread), so they get what a typed chat message gets:
   `SAFETY_NOTICE` under it and `CHILD_SAFETY_RULES` in the system prompt. Before, they reached the model
   only as a tool result, with no notice.
 - **The model is told the answer in a sentence** (`questionModelText`): `The student picked "1". Reply to

@@ -150,13 +150,18 @@ describe("ChatTab wiring", () => {
   // Ported from TerraTutor #165. The kernel side runs through tutorEngine.run in answerCheckTurn.test.ts.
   it("gives the kernel the same grade, and sends a disclosure typed into a card as the child's own message", () => {
     expect(chatTabSource).toMatch(/retrieval: await getRetrievalMode\(\),[^}]*\sgrade,\s+onText:/);
-    expect(chatTabSource).toContain("result.cardMessage ? { thread, text: result.cardMessage, courseId, level } : null;");
+    // Saved as the child's own message straight after the turn's reply, before the thread-switch return and
+    // before the effect that runs the reply: closing the chat (tab, course or level) loses that state, never the words.
+    const at = (code: string) => { const i = chatTabSource.indexOf(code); expect(i, code).toBeGreaterThan(0); return i; };
+    const saveWords = at('saveChatMessage(courseId, "user", result.cardMessage, level, activeThread)');
+    expect(at('saveChatMessage(courseId, "assistant", persisted, level, activeThread)')).toBeLessThan(saveWords);
+    expect(saveWords).toBeLessThan(at("// Abandoned by a thread switch: its chips and notices belong to a thread no longer shown."));
+    expect(chatTabSource).toContain("handedBack = { thread, saved: cardMsg };");
     expect(chatTabSource).toContain("if (handedBack) { setCardMessage(handedBack); return; }");
-    expect(chatTabSource).toContain("if (cardMessage.thread === threadId) void sendMessage(cardMessage.text);");
-    // Never dropped: when the child has opened another conversation, the words are still saved to their own thread.
-    expect(chatTabSource).toContain("if (turnOwnerRef.current !== owner) { if (handedBack) keepCardMessage(handedBack); return; }");
-    expect(chatTabSource).toContain("else keepCardMessage(cardMessage);");
-    expect(chatTabSource).toContain('saveChatMessage(m.courseId, "user", m.text, m.level, m.thread)');
+    // The effect only asks for the reply: runTurn takes the saved message and does not save it again.
+    expect(chatTabSource).toContain("if (cardMessage.thread === threadId) void sendMessage(cardMessage.saved.content, cardMessage.saved);");
+    expect(chatTabSource).toContain('const userMsg = saved ?? await saveChatMessage(courseId, "user", userText, level, activeThread);');
+    expect(chatTabSource).toContain("const history = saved ? messages.filter((m) => m.id !== saved.id) : messages;");
   });
 });
 
