@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
-import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } from "./db-resilience";
+import { enableWal, runQuickCheck, backupTo, isMigrationError, type DbHealth, type BackupResult } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
 import type { GradedBy } from "./quiz-grading";
@@ -15,7 +15,12 @@ let dbPromise: Promise<Database> | null = null;
 export function getDb(): Promise<Database> {
   if (!dbPromise) {
     dbPromise = openDb();
-    dbPromise.catch(() => { dbPromise = null; }); // a failed open is retried by the next caller
+    // A failed open is retried by the next caller, except a failed migration. tauri-plugin-sql 2.3.2
+    // (commands.rs load) takes this database's migration list out before it migrates and never puts it
+    // back, so a second Database.load in this process would open the old schema with nothing applied and
+    // the app would run on it for the session. That failure stays (the startup screen says to close and
+    // reopen); the next launch is a new process and migrates again.
+    dbPromise.catch((e) => { if (!isMigrationError(e)) dbPromise = null; });
   }
   return dbPromise;
 }

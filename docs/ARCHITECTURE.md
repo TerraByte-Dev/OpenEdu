@@ -40,6 +40,15 @@ sqlx pool holds up to 10 connections and recycles them. At boot `checkDatabaseHe
 data** writes a full copy with `VACUUM INTO` through the sql plugin (no `fs` capability) and explains how to
 restore it by hand. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 
+**A migration that fails.** tauri-plugin-sql 2.3.2 (`commands.rs load`) takes the database's migration
+list out before it migrates and does not put it back when migrating fails, so a second `Database.load` in
+the same process opens the old schema with nothing applied. `getDb()` retries any other failed open on
+the next call, but keeps a migration failure (`db-resilience.ts isMigrationError`, sqlx's error text) for
+the session: every later call gets the same error, and the startup screen (`StartupFailed.tsx`) says the
+update did not finish, to close the app and open it again, then to restore a backup if it fails again,
+with the error text and the restore steps, and no Try again. The next launch is a new process and runs the
+migrations again. `db-open.test.ts` covers it through the real `getDb`.
+
 **One learner (migration 13).** OpenEdu is a solo-learner app. Each course carries a `learner_id`, and
 every other table hangs off `courses(id)`, so scoping courses scopes everything. `db.ts` holds the active
 learner: `getCourses` lists only that learner's courses, `createCourse` stamps them, and `getCourse`
