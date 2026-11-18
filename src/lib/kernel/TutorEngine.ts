@@ -414,9 +414,9 @@ ${lastUser.content}` };
     let messages = prepared.messages;
 
     // Fit BEFORE the first call, and again after every reinjection, so a fat tool result evicts old
-    // history rather than the student's current question. The grounding block is charged to its own
-    // slice so it does not silently eat the history allowance.
-    let fit = fitMessages(messages, budget, { groundingUsed: grounding.trace.blockTokens });
+    // history rather than the student's current question. The grounding block is already inside the
+    // student's newest message, so it is charged once, as part of that message.
+    let fit = fitMessages(messages, budget);
     messages = fit.messages;
     let droppedTotal = fit.dropped;
     if (import.meta.env?.DEV) {
