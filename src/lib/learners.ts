@@ -112,8 +112,8 @@ export const LEARNER_NAME_DISCLOSURE = "This can't be saved as a name. Please ty
 /**
  * Validate a learner name for create/rename. Names must be unique (case-insensitive) because the
  * picker identifies people by name alone. Returns an error message, or null when the name is fine.
- * The learner menu's Change my name runs this, and shows SafetyNotice when it returns
- * LEARNER_NAME_DISCLOSURE.
+ * The learner menu's Change my name and Settings › Learner › Your name run this, and each shows
+ * SafetyNotice when it returns LEARNER_NAME_DISCLOSURE.
  */
 export function validateLearnerName(
   raw: string,

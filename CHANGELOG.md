@@ -49,8 +49,8 @@ The section for each release is also what the app shows when you press Check for
   change never comes up in Review or reaches the tutor.
 - **A safety disclosure in a chat's title, a name, a folder, a Notebook search or an import gets the safety
   notice.** A conversation whose first message reads as a safety disclosure is titled "New chat" instead of
-  the message. A new learner name that reads as one (Change my name in the learner menu) shows the safety
-  notice and is not saved. A Notebook folder name that reads as one shows the notice and is not saved; a
+  the message. A new learner name that reads as one (Settings › Learner › Your name, or Change my name in the
+  learner menu) shows the safety notice and is not saved. A Notebook folder name that reads as one shows the notice and is not saved; a
   Notebook search that reads as one shows the notice and is not searched; and importing a file whose name or
   text reads as one shows the notice (the note is still made, and kept from the tutor as above). A file name
   counts with its hyphens, underscores, dots and camelCase read as spaces ("i_want_to_die.txt"), and such a
