@@ -28,7 +28,7 @@ export default function CompletionCapstone({ course, syllabuses, masterySyllabus
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+    <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
       <div className="flex items-center justify-end px-6 py-4 shrink-0">
         <button
           onClick={onDone}

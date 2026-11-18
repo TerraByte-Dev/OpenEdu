@@ -319,15 +319,16 @@ export default function App() {
       {/* Main UI */}
       {booted && (
         <>
-          {!isFullscreenView && (
-            <Titlebar
-              provider={activeProvider}
-              ollama={setup?.ollama}
-              onGoSettings={activeLearner ? () => openSettings() : undefined}
-              learnerName={activeLearner && learners && needsPicker(learners) ? activeLearner.name : undefined}
-              onOpenLearner={activeLearner ? () => setLearnerMenuOpen(true) : undefined}
-            />
-          )}
+          {/* Shown over the full-screen quiz and level test too, so the window can always be closed
+              (decorations: false; these are the only window controls). There it keeps only those: no
+              Settings or learner menu to leave a test through. */}
+          <Titlebar
+            provider={activeProvider}
+            ollama={setup?.ollama}
+            onGoSettings={activeLearner && !isFullscreenView ? () => openSettings() : undefined}
+            learnerName={activeLearner && learners && !isFullscreenView && needsPicker(learners) ? activeLearner.name : undefined}
+            onOpenLearner={activeLearner && !isFullscreenView ? () => setLearnerMenuOpen(true) : undefined}
+          />
 
           {startupFailed && <StartupFailed onRetry={() => { void startUp(); }} />}
 

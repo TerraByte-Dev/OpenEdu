@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { levelTestResult, testUncheckedSummary, selfCheckIntro, TEST_UNCHECKED_NOTE, type TestAnswer } from "./level-test";
+import { levelTestResult, testUncheckedSummary, selfCheckIntro, TEST_UNCHECKED_NOTE, stopTestBody, testMakingNote, MAKING, type TestAnswer } from "./level-test";
 
 // A written answer no model checked must not count toward passing a level test until someone marks it.
 // The result waits for the marks only when they could change it.
@@ -75,5 +75,19 @@ describe("level-test wording", () => {
     expect(selfCheckIntro(1)).toMatch(/^No model on this computer could check 1 of your written answers\./);
     expect(selfCheckIntro(4)).toMatch(/4 of your written answers/);
     expect(selfCheckIntro(4)).toMatch(/once every one is marked/);
+  });
+  it("says what stopping a begun test does: not scored, no level change, no wait, and the kept answers only with an answer", () => {
+    for (const n of [0, 1, 12]) {
+      expect(stopTestBody(n)).toMatch(/will not be scored and will not change your level/);
+      expect(stopTestBody(n)).toMatch(/There is no wait/);
+    }
+    expect(stopTestBody(0)).not.toMatch(/answers you gave/);
+    expect(stopTestBody(1)).toMatch(/answers you gave are kept, and ones you missed may come back in a quiz/);
+  });
+  it("says making the test is slow on a slower computer and can be stopped, with no made-up timing", () => {
+    expect(testMakingNote(45)).toMatch(/about 45 questions, one at a time/);
+    expect(testMakingNote(45)).toMatch(/can stop/);
+    expect(testMakingNote(45)).not.toMatch(/\d+\s*(min|hour|second)/);
+    expect(MAKING.canStop).toMatch(/no wait/);
   });
 });

@@ -303,6 +303,20 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   taken and cannot promote, and the intro says why and to try again. The pass rule counts an empty
   review section as passed, which is right only on a level 1 test. A test between the floor and 45
   questions is given with a note.
+- **A learner can always leave a quiz or a level test.** On Ollama the questions are written one model
+  call each (20 for a quiz, 45 for a test, plus top-ups), which on a computer with no graphics card is
+  slow. Both "making" screens have "Stop and go back": it aborts the `AbortSignal` the screen passes to
+  `generateQuizQuestions` / `generatePromotionTestQuestions`, which reaches every `callLLMStructured`
+  (the model load too), the verify pass and the content review; `quiz.ts` `stopIfAborted` then rejects
+  instead of returning a short set, so no attempt is created and nothing is taken or counted
+  (`quiz-stop.test.ts`). The level test's ready screen says that making it can take a long time and can
+  be stopped (`level-test.ts` `testMakingNote`; no timing is given because none was measured on such a
+  computer). A begun level test has "Stop the test", which asks once (`STOP_TEST`, `stopTestBody`) and
+  leaves the attempt unfinished: never scored, the level unchanged, no retake wait
+  (`getLastPromotionAttempt` reads finished tests only). The answers already given stay saved, so a
+  missed one can come back in a quiz (`getReviewPoolQuestions`), and the confirm says so when there is
+  one (`db-level-test-stop.test.ts`). Closing the window does the same; the Titlebar stays over both
+  screens so it can be closed. "Checking eligibility" has a Back button and says when the check failed.
 - **Code settles an answer that is the key in another form.** Before the batch goes to the model,
   `answer-match.ts` `settleByCode` puts the answer and the key in one form (case, punctuation, a leading
   "it's" or article, number words as digits, plurals) and accepts the answer when it is the key or one

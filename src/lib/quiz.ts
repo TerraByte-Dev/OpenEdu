@@ -286,6 +286,14 @@ interface BatchContext {
   difficulty: number;  // difficulty_level to embed
   tier: ModelTier;
   config: LLMConfig;
+  /** Stops the generation when the learner leaves the "making" screen (stopIfAborted). */
+  signal?: AbortSignal;
+}
+
+// The learner left the "making" screen: no more model calls, and the generator rejects instead of
+// returning a short set, so the caller never starts a half-made quiz or test.
+function stopIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error("Aborted");
 }
 
 function subtopicsForGen(syllabus: Syllabus): Array<{ id: string; title: string; key_concepts: string[] }> {
@@ -352,12 +360,14 @@ async function generateQuestionBatch(ctx: BatchContext): Promise<GeneratedQuesti
         tier: ctx.tier,
         // A question cut short can lose the sentence that asks it, or its key; it is rewritten instead.
         trimOverlong: false,
+        signal: ctx.signal,
       },
     );
     const qs = Array.isArray(result?.questions) ? result.questions : [];
     log.info("generateQuestionBatch", `${ctx.levelLabel} [${[...allowedIds].join(",")}] → ${qs.length}/${ctx.count}`);
     return qs;
   } catch (e) {
+    stopIfAborted(ctx.signal);
     log.warn("generateQuestionBatch", `batch failed for ${ctx.levelLabel} [${[...allowedIds].join(",")}] — skipping`, e instanceof Error ? e.message : String(e));
     return [];
   }
@@ -417,10 +427,12 @@ async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]):
         validate: (parsed) => validateQuizBatch(parsed ? [parsed] : [], allowedIds, { tier: ctx.tier }),
         tier: ctx.tier,
         trimOverlong: false,
+        signal: ctx.signal,
       },
     );
     return q ? finalizeQuestion(q) : null;
   } catch (e) {
+    stopIfAborted(ctx.signal);
     log.warn("generateOneQuestion", `failed for ${ctx.levelLabel} [${[...allowedIds].join(",")}]`, e instanceof Error ? e.message : String(e));
     return null;
   }
@@ -442,6 +454,7 @@ interface GenPlan {
   tier: ModelTier;
   config: LLMConfig;
   review: LLMConfig | null;
+  signal?: AbortSignal;
 }
 
 // The check a round's freshly generated questions get before they count: the content review when a
@@ -449,8 +462,8 @@ interface GenPlan {
 // questions and false facts), else the verify pass where runsVerifyPass says to, else none.
 function checkFresh(plan: GenPlan): ((qs: GenQuestion[], label: string) => Promise<GenQuestion[]>) | null {
   const { review, config, tier } = plan;
-  if (review) return (qs, label) => reviewAndFilter(qs, plan.topic, review, label);
-  if (runsVerifyPass(tier, config.model)) return (qs, label) => verifyAndFilter(qs, config, tier, label);
+  if (review) return (qs, label) => reviewAndFilter(qs, plan.topic, review, label, plan.signal);
+  if (runsVerifyPass(tier, config.model)) return (qs, label) => verifyAndFilter(qs, config, tier, label, plan.signal);
   return null;
 }
 
@@ -458,6 +471,7 @@ function planSlotCtx(plan: GenPlan, subIdx: number): BatchContext {
   return {
     topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [plan.subtopics[subIdx]], count: 1,
     highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier: plan.tier, config: plan.config,
+    signal: plan.signal,
   };
 }
 
@@ -484,11 +498,13 @@ async function generatePerQuestion(
     const roundStart = produced.length;
     for (const subIdx of planSlotSubtopics(plan.subtopics.length, target - produced.length)) {
       if (produced.length >= target) break;
+      stopIfAborted(plan.signal);
       add(await generateOneQuestion(planSlotCtx(plan, subIdx), ledgerTail()));
     }
     if (check && produced.length > roundStart) {
       const fresh = produced.slice(roundStart);
       const kept = await check(fresh, `${label} r${round}`);
+      stopIfAborted(plan.signal);
       if (kept.length !== fresh.length) {
         const keptKeys = new Set(kept.map(keyOf));
         for (const q of fresh) if (!keptKeys.has(keyOf(q))) seen.delete(keyOf(q));
@@ -522,13 +538,14 @@ async function generateBatched(
     const ctxs: BatchContext[] = plan.subtopics
       .map((s, i): BatchContext => ({
         topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [s], count: counts[i],
-        highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier, config,
+        highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier, config, signal: plan.signal,
       }))
       .filter((c) => c.count > 0);
     if (ctxs.length === 0) break;
 
     let batch = (await Promise.all(ctxs.map(generateQuestionBatch))).flat().map(finalizeQuestion);
     if (check) batch = await check(batch, `${label} r${round}`);
+    stopIfAborted(plan.signal);
 
     produced = dedupeByQuestionText([...produced, ...batch]);
     onProgress?.(Math.min(produced.length, target), target);
@@ -549,6 +566,7 @@ async function generateToTarget(
   plan: GenPlan, target: number, label: string, onProgress?: (done: number, total: number) => void,
 ): Promise<GenQuestion[]> {
   if (plan.subtopics.length === 0 || target <= 0) return [];
+  stopIfAborted(plan.signal);
   return plan.config.provider === "ollama"
     ? generatePerQuestion(plan, target, label, onProgress)   // local: quality, one call per question
     : generateBatched(plan, target, label, onProgress);       // cloud: cost, batched per subtopic
@@ -584,6 +602,7 @@ async function verifyAndFilter(
   config: LLMConfig,
   tier: ModelTier,
   label: string,
+  signal?: AbortSignal,
 ): Promise<GenQuestion[]> {
   // index = position in `questions` so parseVerifyDrops maps straight back to a filter predicate.
   const items = questions
@@ -596,13 +615,14 @@ async function verifyAndFilter(
     const parsed = await callLLMStructured<{ verdicts: Array<{ index: number; proposed_is_correct: boolean }> }>(
       [{ role: "user", content: buildVerifyPrompt(items) }],
       config,
-      { schema: VERIFY_SCHEMA, toolName: "emit_verdicts", tier },
+      { schema: VERIFY_SCHEMA, toolName: "emit_verdicts", tier, signal },
     );
     const drop = parseVerifyDrops(parsed, items);
     if (drop.size === 0) return questions;
     log.info("quiz", `${label}: verify pass dropped ${drop.size}/${items.length} with disagreeing answers`);
     return questions.filter((_, i) => !drop.has(i));
   } catch (e) {
+    stopIfAborted(signal);
     log.warn("quiz", `${label}: verify pass failed — keeping batch as-is`, e instanceof Error ? e.message : String(e));
     return questions;
   }
@@ -612,9 +632,10 @@ async function verifyAndFilter(
 // flags (wrong_key, unanswerable, false_fact); the top-up loop refills. Only fresh questions come here,
 // never the review pool: which questions a learner missed is data about that learner, so the pool's
 // verify pass runs only on a local model (generateQuizQuestions, poolVerifier).
-async function reviewAndFilter(questions: GenQuestion[], topic: string, review: LLMConfig, label: string): Promise<GenQuestion[]> {
+async function reviewAndFilter(questions: GenQuestion[], topic: string, review: LLMConfig, label: string, signal?: AbortSignal): Promise<GenQuestion[]> {
   if (questions.length === 0) return questions;
-  const findings = await reviewQuestions(topic, questions, review);
+  const findings = await reviewQuestions(topic, questions, review, signal);
+  stopIfAborted(signal);
   if (findings.length === 0) return questions;
   const counts = findings.reduce<Record<string, number>>((m, f) => ({ ...m, [f.verdict]: (m[f.verdict] ?? 0) + 1 }), {});
   log.info("quiz", `${label}: content review dropped ${findings.length}/${questions.length} (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(", ")})`);
@@ -639,6 +660,7 @@ export async function generateQuizQuestions(
   onProgress?: (done: number, total: number) => void,
   reviewer: LLMConfig | null = null,
   poolVerifier?: LLMConfig | null,
+  signal?: AbortSignal,
 ): Promise<GenQuestion[]> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
@@ -661,7 +683,7 @@ export async function generateQuizQuestions(
     if (verifier && isLocalModel(verifier)) {
       const vTier = verifier === config ? tier : verifier.modelTier ?? (verifier.modelTier = await detectModelTier(verifier));
       if (runsVerifyPass(vTier, verifier.model)) {
-        reviewQs = await verifyAndFilter(reviewQs, verifier, vTier, `quiz L${syllabus.level} review`);
+        reviewQs = await verifyAndFilter(reviewQs, verifier, vTier, `quiz L${syllabus.level} review`, signal);
       }
     } else {
       log.info("quiz", `quiz L${syllabus.level} review: no local model, so ${reviewQs.length} re-posed question(s) skip the verify pass`);
@@ -679,6 +701,7 @@ export async function generateQuizQuestions(
       tier,
       config,
       review: reviewer,
+      signal,
     },
     fresh,
     `quiz L${syllabus.level}`,
@@ -721,6 +744,7 @@ export async function generatePromotionTestQuestions(
   config: LLMConfig,
   onProgress?: (done: number, total: number, phase: "current" | "review") => void,
   reviewer: LLMConfig | null = null,
+  signal?: AbortSignal,
 ): Promise<PromotionTestQuestions> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
@@ -737,6 +761,7 @@ export async function generatePromotionTestQuestions(
       tier,
       config,
       review: reviewer,
+      signal,
     },
     TEST_CURRENT_TARGET,
     `promotion L${currentSyllabus.level} current`,
@@ -759,6 +784,7 @@ export async function generatePromotionTestQuestions(
         tier,
         config,
         review: reviewer,
+        signal,
       },
       TEST_REVIEW_TARGET,
       `promotion L${currentSyllabus.level} review`,
