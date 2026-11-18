@@ -488,9 +488,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         if (landing.speak) readAloud.speak(assistantMsg.id, unreadText(persisted, readText));
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
-        // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently.
+        // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently. Nor on a
+        // safety-disclosure turn (result.disclosure): the reflection would write the learner's words into
+        // the course's knowledge files, which every later tutor prompt for the course reads.
         // Stopped when the next turn starts or the chat closes (reflectionRef), so it never delays a reply.
-        if (!result.usedKnowledgeUpdate && !partial) {
+        if (!result.usedKnowledgeUpdate && !partial && !result.disclosure) {
           const reflection = new AbortController();
           reflectionRef.current = reflection;
           updateKnowledgeFiles(courseId, userText, result.text, config, "default", reflection.signal)
