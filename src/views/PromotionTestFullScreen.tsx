@@ -5,7 +5,7 @@ import {
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
-import { answerMark, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import {
   testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft,
   STOP_TEST, stopTestBody, MAKING, testMakingNote,
@@ -313,7 +313,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
       // The learner's own words are marked on a local model only (lane 1); none pulled = passed leniently.
       const outcomes = await gradeAnswersBatch(
         pending.map(({ q, index }) => ({
-          index, question: q.question_text, expected: q.correct_answer,
+          index, question: questionWithSentence(q), expected: q.correct_answer,
           student: q.user_answer ?? "", type: q.question_type,
         })),
         await getLocalVerifyConfig(cfg).catch(() => null),

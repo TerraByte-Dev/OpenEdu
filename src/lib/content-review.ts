@@ -15,6 +15,7 @@ import type { LLMConfig, LLMProvider, ModelTier } from "../types";
 import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
 import { lessonCheckCounts } from "./ai-notice";
 import { GENERATION_MODELS, isOllamaTag, legacyModelOwner } from "./models";
+import { questionWithSentence } from "./quiz-grading";
 
 export type ReviewVerdict = "ok" | "false_fact" | "wrong_key" | "unanswerable";
 
@@ -188,6 +189,8 @@ export interface ReviewableQuestion {
   correct_answer: string;
   explanation?: string | null;
   matching_pairs?: Array<{ left: string; right: string }> | null;
+  /** The sentence a fill-in-the-blank question shows the learner (quiz-grading.ts questionWithSentence). */
+  blank_position?: string | null;
 }
 
 export function questionText(q: ReviewableQuestion): string {
@@ -196,7 +199,7 @@ export function questionText(q: ReviewableQuestion): string {
     ? `\nPairs: ${q.matching_pairs.map((p) => `${p.left} = ${p.right}`).join(" | ")}` : "";
   const key = q.question_type === "drag_to_match" ? "" : `\nMarked answer: ${q.correct_answer}`;
   const expl = q.explanation ? `\nExplanation: ${q.explanation}` : "";
-  return `Question (${q.question_type}): ${q.question_text}${opts}${pairs}${key}${expl}`;
+  return `Question (${q.question_type}): ${questionWithSentence(q)}${opts}${pairs}${key}${expl}`;
 }
 
 export function buildQuestionReviewMessages(topic: string, questions: ReviewableQuestion[]): Messages {

@@ -2,7 +2,7 @@
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
-import { answerMark, showsAnswerAndKey, showsSafetyNotice, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
@@ -194,7 +194,7 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
     const outcomes = await gradeAnswersBatch(
       pending.map(({ q, index }) => ({
         index,
-        question: q.question_text,
+        question: questionWithSentence(q),
         expected: q.correct_answer,
         student: q.user_answer ?? "",
         type: q.question_type,

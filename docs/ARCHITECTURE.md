@@ -162,7 +162,15 @@ written: they came from a once-a-minute timer whose only reader was the learning
   quiz's review pool (`db.ts getReviewPoolQuestions`, about a fifth of a quiz) is the course's missed
   questions, newest first; a miss leaves it once the same question (trimmed, any ASCII letter case) is
   answered right after it in that course, by the key, the model or the learner's own mark, and a later
-  miss puts it back. In Review, a flashcard graded Again is due at once and comes back at the end of the
+  miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`),
+  is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  review section is kept apart from its current section the same way. A fill-in-the-blank question is
+  shown to the learner as its `blank_position` sentence, and its `question_text` can be only "Fill in
+  the blank.", so the content review, the verify pass and the grader get that sentence too
+  (`quiz-grading.ts questionWithSentence`). A drag-to-match question with the same left or right item
+  twice is rejected by `validateQuizBatch` (`repeatedMatchSide`), so it is rewritten or dropped and
+  never re-posed from the pool: the screen pairs items by their text, one left to each right, so such a
+  question could never be submitted and the quiz or test never finished. In Review, a flashcard graded Again is due at once and comes back at the end of the
   same session (`srs.ts requeueIfDue`), and when a grade or a delete empties the queue the due cards are
   read again, so "Nothing is due right now" shows only when nothing is.
 - **`content-review.ts`** — the content review of generated lessons and questions. See below.
@@ -353,8 +361,11 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   generated test under `TEST_FLOOR` (30) questions, or one whose review section came back empty
   although the course has earlier levels (`reviewWanted`): no attempt is created, so the test is not
   taken and cannot promote, and the intro says why and to try again. The pass rule counts an empty
-  review section as passed, which is right only on a level 1 test. A test between the floor and 45
-  questions is given with a note.
+  review section as passed, which is right only on a level 1 test. A review section under
+  `TEST_REVIEW_FLOOR` (3) questions is refused the same way: with 1 or 2, one miss there is 0% or 50%,
+  under the 60% review bar, and fails a test that is otherwise 97% right; from 3, one miss leaves 67%.
+  The pass rule itself is unchanged, so stored tests replay as they were decided. A test between the
+  floor and 45 questions is given with a note.
 - **A learner can always leave a quiz or a level test.** On Ollama the questions are written one model
   call each (20 for a quiz, 45 for a test, plus top-ups), which on a computer with no graphics card is
   slow. Both "making" screens have "Stop and go back": it aborts the `AbortSignal` the screen passes to
