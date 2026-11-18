@@ -26,7 +26,7 @@ import { displayReplyText } from "../lib/kernel/textToolCalls";
 import { repeatsQuestion } from "../lib/kernel/askCard";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
-import { describeToolActivity, describeToolDone, confirmCardQuestion, CONFIRM_CHOICES, friendlyError, STALLED_TURN } from "../lib/plain-language";
+import { describeToolActivity, describeToolDone, confirmCardQuestion, CONFIRM_CHOICES, friendlyError, messageNotSaved, STALLED_TURN } from "../lib/plain-language";
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
 import { DictionaryCard } from "./DictionaryCard";
@@ -327,19 +327,33 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // The thread is created HERE, on first send, not on mount — so opening a level and leaving does
     // not litter the list with empty conversations. The title comes from this first message via a
     // pure function, deliberately not a model call: titling is not worth 3-8s on a CPU box.
+    // A message that could not be saved (a full disk, the database busy past its wait) is not sent:
+    // its words go back in the box, and the chat says so plainly.
     let activeThread = threadId;
-    if (!activeThread) {
-      const t = await createChatThread(courseId, level, deriveThreadTitle(userText));
-      activeThread = t.id;
-      // Record it BEFORE the rail opens it, so opening it does not count as a switch away.
-      owner.thread = t.id;
-      // Claim it BEFORE telling the parent: the prop change that follows would otherwise trigger a
-      // reload that races this send. We already hold this thread's messages — there are none.
-      // Skipped if the student opened another thread while this one was being created.
-      if (turnOwnerRef.current === owner) {
-        transcript.claim(t.id);
-        onThreadCreated(t.id);
+    let userMsg: ChatMessage;
+    try {
+      if (!activeThread) {
+        const t = await createChatThread(courseId, level, deriveThreadTitle(userText));
+        activeThread = t.id;
+        // Record it BEFORE the rail opens it, so opening it does not count as a switch away.
+        owner.thread = t.id;
+        // Claim it BEFORE telling the parent: the prop change that follows would otherwise trigger a
+        // reload that races this send. We already hold this thread's messages — there are none.
+        // Skipped if the student opened another thread while this one was being created.
+        if (turnOwnerRef.current === owner) {
+          transcript.claim(t.id);
+          onThreadCreated(t.id);
+        }
       }
+      userMsg = saved ?? await saveChatMessage(courseId, "user", userText, level, activeThread);
+    } catch (e) {
+      log.error("ChatTab", "saving the student's message failed", e);
+      if (turnOwnerRef.current === owner) {
+        turnOwnerRef.current = null;
+        setInput((cur) => (cur.trim() ? cur : userText));
+        setChatError(messageNotSaved(e));
+      }
+      return;
     }
     const thread = activeThread;
     const shown = () => turnIsShown(thread, transcript.shown());
@@ -347,7 +361,6 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // `history` is the conversation from before this send (`messages` may already show a `saved` one).
     const history = saved ? messages.filter((m) => m.id !== saved.id) : messages;
     const studentAttempted = hasTriedOpenQuestion([...history, { role: "user", content: userText }]);
-    const userMsg = saved ?? await saveChatMessage(courseId, "user", userText, level, activeThread);
     if (shown()) setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});
     onThreadActivity();
@@ -356,8 +369,19 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     // Build system prompt — with fallback if instructions not yet generated. The kernel appends
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
-    const instructions = await getTutorInstructions(courseId);
-    const knowledgeSummary = await getKnowledgeSummary(courseId);
+    let instructions: Awaited<ReturnType<typeof getTutorInstructions>>;
+    let knowledgeSummary: string;
+    try {
+      instructions = await getTutorInstructions(courseId);
+      knowledgeSummary = await getKnowledgeSummary(courseId);
+    } catch (e) {
+      log.error("ChatTab", "reading the tutor's instructions failed", e);
+      if (turnOwnerRef.current === owner) {
+        turnOwnerRef.current = null;
+        setChatError(friendlyError(e));
+      }
+      return;
+    }
     // The window this turn runs in (store.ts getOllamaNumCtx): the same num_ctx every Ollama call for
     // this model sends, so a course build or quiz grading never reloads the model chat just used.
     // Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and dropped the

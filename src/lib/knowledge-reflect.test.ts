@@ -15,7 +15,7 @@ vi.mock("./db", () => ({
   saveTutorInstruction: vi.fn(async () => {}),
 }));
 
-import { updateKnowledgeFiles, updateKnowledgeAfterQuiz } from "./knowledge";
+import { getKnowledgeSummary, updateKnowledgeFiles, updateKnowledgeAfterQuiz } from "./knowledge";
 import { tutorCorrectedLearner } from "./knowledge-reflect";
 import { callLLM } from "./llm";
 import { getTutorInstructions, saveTutorInstruction } from "./db";
@@ -318,5 +318,44 @@ describe("updateKnowledgeAfterQuiz: a bulleted study plan stays on the quiz's on
     expect(lines).toHaveLength(2);
     expect(lines[0]).toBe("earlier entry");
     expect(lines[1]).toMatch(/Quiz: 60% \(10 questions\).*Study plan: • Review comparing fractions\. • Practice adding fractions\./);
+  });
+});
+
+describe("getKnowledgeSummary: the tutor's study log shows the newest entries (TerraTutor #232)", () => {
+  // A month in: a failed level test with its plan, a chat diary line, then a 100% quiz.
+  const LEVEL_TEST = "[11/16/2026] Level test: 45% (20 questions). Weak areas: comparing fractions, equivalent fractions, adding fractions. Study plan: Review comparing fractions with the same denominator, then practice equivalent fractions with pictures.";
+  const DIARY = "Talked through why 2/4 and 1/2 are the same amount using pizza slices.";
+
+  /** What the tutor's "Student Knowledge" section says about the study log, after the quiz is written. */
+  async function studyLogShown(before: string, score: number, missed: string[]): Promise<string> {
+    vi.mocked(saveTutorInstruction).mockClear();
+    vi.mocked(getTutorInstructions).mockResolvedValue({ study_log: before });
+    const entry = await updateKnowledgeAfterQuiz("course-1", score, 10, missed, null, false, config);
+    const log = vi.mocked(saveTutorInstruction).mock.calls.find(([, type]) => type === "study_log")![2];
+    vi.mocked(getTutorInstructions).mockResolvedValue({ study_log: log });
+    const summary = await getKnowledgeSummary("course-1");
+    expect(summary).toContain(entry);
+    return summary.split("**Study Log:**\n")[1];
+  }
+
+  it("keeps the newest whole lines within the budget and drops the oldest", async () => {
+    const shown = await studyLogShown(`${LEVEL_TEST}\n${DIARY}`, 100, []);
+    const lines = shown.split("\n");
+    expect(lines[0]).toBe(DIARY);
+    expect(lines[1]).toMatch(/^\[[^\]]+\] Quiz: 100% \(10 questions\)\. All areas strong\.$/);
+    expect(shown).not.toContain("Level test");
+    expect(shown.length).toBeLessThanOrEqual(200);
+  });
+
+  it("shows all three when they fit, oldest first", async () => {
+    const shown = await studyLogShown("Short entry one.\nShort entry two.", 80, ["s1"]);
+    expect(shown.split("\n").slice(0, 2)).toEqual(["Short entry one.", "Short entry two."]);
+    expect(shown.split("\n")[2]).toMatch(/Quiz: 80%/);
+  });
+
+  it("cuts a newest line longer than the budget at its end, keeping its date and score", async () => {
+    vi.mocked(getTutorInstructions).mockResolvedValue({ study_log: `${DIARY}\n${LEVEL_TEST}` });
+    const shown = (await getKnowledgeSummary("course-1")).split("**Study Log:**\n")[1];
+    expect(shown).toBe(`${LEVEL_TEST.slice(0, 200)}...`);
   });
 });
