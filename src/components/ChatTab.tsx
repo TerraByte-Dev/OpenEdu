@@ -473,6 +473,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       activeSkill,
       domainSkill,
       supportsTools: profile.supportsTools,
+      grade,
       // A turn no longer here (the chat closed, or another thread opened) gets no card: nobody could
       // answer it, and the turn would wait forever. It unwinds as if Stop was pressed.
       askUser: (question, choices) =>
@@ -550,9 +551,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
       // tutor ends up looking like it read your notes when it didn't.
       setGroundingNote(citationNote(result.grounding.hits, result.usedHits, result.grounding.trace));
-      // Follow-up chips. `countDueFlashcards` is a cheap indexed count and the only I/O here; if it
+      // Follow-up chips. `countDueFlashcards` is a cheap indexed read of the due cards and the only I/O here; if it
       // fails the chips just lose one option rather than the turn losing its suggestions.
-      const due = await countDueFlashcards(courseId, new Date().toISOString()).catch(() => 0);
+      const due = await countDueFlashcards(courseId, new Date().toISOString(), grade).catch(() => 0);
       setSuggestions(suggestFollowUps({
         answer: result.text,
         syllabus: currentSyllabus,

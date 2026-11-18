@@ -7,6 +7,7 @@ import type { z } from "zod";
 import type { ReactNode } from "react";
 import type { LLMConfig, ModelTier, Syllabus } from "../../types";
 import type { Skill } from "../dsl/skill";
+import type { Grade } from "../grade";
 
 // Permission mode for a turn. "exam" hard-denies model help during promotion tests;
 // "bypass" is the escape hatch. Wired to the permission layer in Phase 2 (V2 §7).
@@ -61,6 +62,10 @@ export interface ToolContext {
   // support; then selectTools offers nothing and the turn runs as grounded chat instead of failing
   // at the provider. Absent means true, which is what headless callers get (#127).
   supportsTools?: boolean;
+  // The learner's grade, as ChatTab reads the safety notice with it (child-safety.ts isSafetyDisclosure):
+  // notebook search and the due flashcards leave out a note or card that reads as a safety disclosure
+  // with it. Absent or null = no grade (headless callers).
+  grade?: Grade | null;
 }
 
 // Tools are generators so long-running work (web fetch, quiz authoring, notebook indexing)

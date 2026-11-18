@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import type { Flashcard, Syllabus, Subtopic } from "../types";
 import { getDueFlashcards, getFlashcards, updateFlashcardAfterReview, createFlashcard, deleteFlashcard } from "../lib/db";
-import { review, requeueIfDue, type FlashcardGrade } from "../lib/srs";
+import { review, requeueIfDue, cardIsDisclosure, CARD_NOT_SAVED_DISCLOSURE, type FlashcardGrade } from "../lib/srs";
 import { lessonWithHelp } from "../lib/curriculum";
 import { getLessonConfigs } from "../lib/store";
 import RaiseHand from "./RaiseHand";
 import ReadAloudButton from "./ReadAloudButton";
+import SafetyNotice from "./SafetyNotice";
 import { isEarlyReader, type Grade } from "../lib/grade";
 
 interface ReviewTabProps {
@@ -58,7 +59,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
 
   const load = useCallback(async () => {
     setLoading(true);
-    const due = await getDueFlashcards(courseId, new Date().toISOString(), 50);
+    const due = await getDueFlashcards(courseId, new Date().toISOString(), 50, learnerGrade);
     const all = await getFlashcards(courseId);
     setQueue(due);
     setTotal(all.length);
@@ -67,7 +68,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     setReviewedCount(0);
     setAskingDelete(false);
     setLoading(false);
-  }, [courseId]);
+  }, [courseId, learnerGrade]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -88,7 +89,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     // The queue is capped at 50; when it runs out, any card still due starts a new round, so "Nothing is
     // due right now" is shown only when nothing is.
     if (nextIdx >= next.length) {
-      const due = await getDueFlashcards(courseId, new Date().toISOString(), 50);
+      const due = await getDueFlashcards(courseId, new Date().toISOString(), 50, learnerGrade);
       if (due.length > 0) { next = due; nextIdx = 0; }
     }
     setQueue(next);
@@ -98,8 +99,12 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     setIdx(nextIdx);
   };
 
+  // A front or back that reads as a safety disclosure: the notice as it is typed, and no card is saved
+  // (srs.ts cardIsDisclosure), so the learner's words are never drilled back or handed to the tutor.
+  const disclosed = cardIsDisclosure({ front, back }, learnerGrade);
+
   const addCard = async () => {
-    if (!front.trim() || !back.trim()) return;
+    if (!front.trim() || !back.trim() || cardIsDisclosure({ front, back }, learnerGrade)) return;
     await createFlashcard({ courseId, front: front.trim(), back: back.trim(), level, source: "manual" });
     setFront("");
     setBack("");
@@ -114,7 +119,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     setRevealed(false);
     const rest = queue.filter((c, i) => i < idx || c.id !== card.id); // and its "Again" copy further on
     // As in grade: deleting the last queued card starts a new round when cards past the 50-card cap are due.
-    const due = idx >= rest.length ? await getDueFlashcards(courseId, new Date().toISOString(), 50) : [];
+    const due = idx >= rest.length ? await getDueFlashcards(courseId, new Date().toISOString(), 50, learnerGrade) : [];
     if (due.length > 0) { setQueue(due); setIdx(0); } else setQueue(rest);
     setTotal((t) => Math.max(0, t - 1));
   };
@@ -162,9 +167,15 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
               rows={2}
               className="w-full px-3 py-2 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor resize-none"
             />
+            {disclosed && (
+              <>
+                <SafetyNotice large={large} />
+                <p className={`${large ? "text-lg" : "text-sm"} text-ink`}>{CARD_NOT_SAVED_DISCLOSURE}</p>
+              </>
+            )}
             <button
               onClick={addCard}
-              disabled={!front.trim() || !back.trim()}
+              disabled={!front.trim() || !back.trim() || disclosed}
               className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-40 transition-colors"
             >
               Add card

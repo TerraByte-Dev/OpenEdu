@@ -192,6 +192,52 @@ export function buildReviewMessages(title: string, content: string): Array<{ rol
   ];
 }
 
+/** A note's markdown as plain text: no markers, link targets, headings or table rules (TerraTutor's
+ *  record/build.ts notePlainText), so "my dad **hits** me" reads as typed. */
+function notePlainText(markdown: string): string {
+  return markdown
+    .replace(/\r\n?/g, "\n")
+    .replace(/^\s*(?:```|~~~).*$/gm, "")
+    .replace(/<[^>\n]+>/g, " ")
+    .replace(/\[\[([^\]|\n]+)(?:\|([^\]\n]+))?\]\]/g, (_m, target: string, label?: string) => label ?? target)
+    .replace(/!?\[([^\]\n]*)\]\([^)\n]*\)/g, "$1")
+    .replace(/^\s*(?:[-*_]\s*){3,}$/gm, "")
+    .replace(/^\s*\|?(?:\s*:?-+:?\s*\|)+\s*(?::?-+:?)?\s*$/gm, "")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*(?:>\s?)+/gm, "")
+    .replace(/^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/gm, "")
+    .replace(/\|/g, " ")
+    .replace(/\*\*|__|~~|`/g, "")
+    .replace(/(^|[^\w*])[*_]([^*_\n]+)[*_](?=[^\w*]|$)/gm, "$1$2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Whether a Notebook note reads as a safety disclosure (child-safety.ts isSafetyDisclosure, with the learner's
+ * grade, as the chat reads it): its title, its markdown or its plain text. No model reads one: "Review this
+ * note" never sends it (prepareReview), notebook.ts indexNote never embeds it and searchNotebook never returns
+ * it; NotesTab shows the safety notice above the editor. Ported from TerraTutor #236.
+ */
+export function noteIsDisclosure(title: string | null | undefined, content: string | null | undefined, grade: Grade | null = null): boolean {
+  const said = (text: string) => isSafetyDisclosure(text, grade);
+  return said(title ?? "") || said(content ?? "") || said(notePlainText(content ?? ""));
+}
+
+/** Said in plain text under the safety notice when "Review this note" does not send the note (prepareReview). */
+export const NOTE_REVIEW_WITHHELD = "This note wasn't sent to the tutor for review, because of what it says.";
+
+/**
+ * What "Review this note" sends to the model, or that it sends nothing: a note that reads as a safety
+ * disclosure (noteIsDisclosure) is never handed to a model to mark up. NotesAssistant shows the safety
+ * notice and NOTE_REVIEW_WITHHELD instead.
+ */
+export function prepareReview(title: string, content: string, grade: Grade | null):
+  { withheld: "safety" } | { messages: Array<{ role: string; content: string }> } {
+  if (noteIsDisclosure(title, content, grade)) return { withheld: "safety" };
+  return { messages: buildReviewMessages(title, content) };
+}
+
 const SUMMARY_SYSTEM = `Turn a tutoring conversation into study notes the student can keep.
 
 Write markdown the student would have written if they had been taking good notes throughout:
