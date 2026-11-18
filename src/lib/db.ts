@@ -697,11 +697,13 @@ export async function saveQuizQuestion(q: Omit<QuizQuestion, "id">, gradedBy: Gr
 
 // Self-explanation effect (Chi 1989): the student's own "why is that the answer" written after a
 // quiz question is graded. Captured separately because the row is saved on answer, before they type.
+// Whatever is left in the box is stored, a cleared box as NULL, so words the learner erased (a safety
+// disclosure included) don't stay in the database or its backups.
 export async function updateQuizQuestionSelfExplanation(id: string, text: string): Promise<void> {
   const d = await getDb();
   await d.execute(
     "UPDATE quiz_questions SET self_explanation = $1 WHERE id = $2",
-    [text, id]
+    [text.trim() || null, id]
   );
 }
 

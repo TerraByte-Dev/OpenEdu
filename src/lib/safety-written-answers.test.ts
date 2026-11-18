@@ -166,6 +166,22 @@ describe("the screens draw the notice from these checks, with the learner's grad
       expect(s).toMatch(/\{showsAnswerAndKey\(q, grade\) && \(/);
     });
   }
+  // Ported from TerraTutor #226: a cleared "why" box is saved too, so erased words (a disclosure included) don't
+  // stay in the database. db-capture.test.ts covers the save; this pins the wiring that makes the study quiz
+  // call it with an empty box (the old `&& text` guard never did).
+  it("the 'why' box hands what is left in it, trimmed and possibly empty, to onSelfExplain on blur", () => {
+    expect(src(questionRenderer)).toMatch(/onBlur=\{\(\) => onSelfExplain\(explain\.trim\(\)\)\}/);
+  });
+  it("QuizFullScreen saves the 'why' whenever the row is saved, a cleared box included", () => {
+    const s = src(quizScreen);
+    expect(s).toMatch(/onSelfExplain=\{handleSelfExplain\}/);
+    const start = s.indexOf("const handleSelfExplain = async (text: string) => {");
+    expect(start).toBeGreaterThan(-1);
+    const fn = s.slice(start, s.indexOf("\n  };", start));
+    expect(fn).toMatch(/if \(q\?\.saved_id\) \{\s*await updateQuizQuestionSelfExplanation\(q\.saved_id, text\)/);
+    expect(fn.match(/updateQuizQuestionSelfExplanation\(/g)).toHaveLength(1);
+    expect(fn).not.toMatch(/!text\b|\btext\s*(&&|\|\||\?|\.trim|\.length)/);
+  });
   it("the level test shows it next to the answer in the learner's own marking list", () => {
     expect(src(testScreen)).toMatch(/noteFor=\{\(a\) => \(showsSafetyNotice\(a, grade\) \? SAFETY_NOTICE : null\)\}/);
   });

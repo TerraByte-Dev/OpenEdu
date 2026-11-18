@@ -144,10 +144,11 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
   };
 
   // Persist a self-explanation typed after the answer was graded (writes to the same quiz_questions row).
+  // A cleared box is saved too (as NULL), so the row always holds what the learner left in the box.
   const handleSelfExplain = async (text: string) => {
     const q = questions[currentIndex];
     setQuestions((prev) => prev.map((qq, i) => (i === currentIndex ? { ...qq, self_explanation: text } : qq)));
-    if (q?.saved_id && text) {
+    if (q?.saved_id) {
       await updateQuizQuestionSelfExplanation(q.saved_id, text).catch(console.error);
     }
   };

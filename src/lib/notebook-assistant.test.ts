@@ -6,12 +6,14 @@ import {
   unanchorable,
   validateReview,
   formatTranscript,
+  finishSummary,
   appendSummary,
   buildReviewMessages,
   MAX_ANNOTATIONS,
   REVIEW_SCHEMA,
   type Annotation,
 } from "./notebook-assistant";
+import notesAssistant from "../components/NotesAssistant.tsx?raw";
 
 const NOTE = "Photosynthesis happens in the mitochondria.\n\nATP is produced during the light reactions.";
 const a = (quote: string, kind: Annotation["kind"] = "error", note = "x"): Annotation => ({ quote, kind, note });
@@ -120,6 +122,44 @@ describe("formatTranscript", () => {
 
   it("returns an empty string for an empty conversation", () => {
     expect(formatTranscript([])).toBe("");
+  });
+
+  // Ported from TerraTutor #226: a safety disclosure (child-safety.ts isSafetyDisclosure) and the tutor's reply
+  // to it never reach the summariser, so they can never become a note.
+  it("leaves out each exchange that opens with a safety disclosure, reply included", () => {
+    const out = formatTranscript([
+      msg("user", "what is 7 x 8"), msg("assistant", "7 x 8 = 56."),
+      msg("user", "my uncle touches me at night"), msg("assistant", "Thank you for telling me. Please tell a grown-up you trust."),
+      msg("user", "i want to kill myself"), msg("tool", "{}"), msg("assistant", "You matter. Please talk to a grown-up."),
+      msg("user", "and 6 x 7?"), msg("assistant", "6 x 7 = 42."),
+    ]);
+    expect(out).toBe("Student: what is 7 x 8\n\nTutor: 7 x 8 = 56.\n\nStudent: and 6 x 7?\n\nTutor: 6 x 7 = 42.");
+    expect(out).not.toMatch(/uncle|kill|grown-up/);
+  });
+
+  it("is empty when the only exchange was a disclosure", () => {
+    expect(formatTranscript([msg("user", "my dad hits me"), msg("assistant", "I'm sorry. Please tell a grown-up.")])).toBe("");
+  });
+});
+
+describe("finishSummary", () => {
+  it("offers an ordinary summary as written", () => {
+    expect(finishSummary("## Times tables\n- 7 x 8 = 56")).toEqual({ markdown: "## Times tables\n- 7 x 8 = 56" });
+  });
+
+  it("withholds a summary that reads as a safety disclosure, for the safety notice", () => {
+    expect(finishSummary("## Today\n- My uncle touches me at night.")).toEqual({ withheld: "safety" });
+    expect(finishSummary("## Feelings\n- I want to kill myself.")).toEqual({ withheld: "safety" });
+  });
+
+  // The panel acts on it (NotesAssistant runSummary): the notice, never an Insert-able summary.
+  it("NotesAssistant shows the safety notice for a withheld summary, and never names a chat it emptied", () => {
+    const s = notesAssistant.replace(/\r\n?/g, "\n");
+    expect(s).toMatch(/const shown = finishSummary\(markdown\);\s*if \("withheld" in shown\) \{ setSafety\(true\); return; \}\s*setSummary\(shown\.markdown\);/);
+    expect(s).not.toMatch(/setSummary\(markdown\)/);
+    expect(s).toMatch(/\{safety && <SafetyNotice /);
+    // The thread title is the learner's first message (ChatTab deriveThreadTitle), maybe the disclosure left out.
+    expect(s).toMatch(/\? "There's nothing in the last chat to make notes from\."/);
   });
 });
 

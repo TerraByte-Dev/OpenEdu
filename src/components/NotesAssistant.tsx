@@ -14,11 +14,12 @@ import { getChatConfig } from "../lib/store";
 import { listChatThreads, getChatMessages } from "../lib/db";
 import {
   finishReview, validateReview,
-  buildReviewMessages, buildSummaryMessages, formatTranscript,
+  buildReviewMessages, buildSummaryMessages, formatTranscript, finishSummary,
   REVIEW_SCHEMA, SUMMARY_SCHEMA,
   type Annotation, type AnchoredAnnotation, type AnnotationKind,
 } from "../lib/notebook-assistant";
 import { IconCheck12, IconPlus12, IconQuestion12, IconXmark12, type IconComponent } from "./icons";
+import SafetyNotice from "./SafetyNotice";
 
 const KIND_META: Record<AnnotationKind, { label: string; color: string; Glyph: IconComponent }> = {
   error:    { label: "Wrong",   color: "var(--danger)", Glyph: IconXmark12 },
@@ -46,10 +47,12 @@ export default function NotesAssistant({
   const [error, setError] = useState<string | null>(null);
   const [dropped, setDropped] = useState(0);
   const [summary, setSummary] = useState<string | null>(null);
+  // A summary that read as a safety disclosure: the safety notice in its place (finishSummary).
+  const [safety, setSafety] = useState(false);
 
   const runReview = async () => {
     if (!noteContent.trim()) { setError("Nothing to review yet — write something first."); return; }
-    setBusy("review"); setError(null); setSummary(null); setDropped(0);
+    setBusy("review"); setError(null); setSummary(null); setSafety(false); setDropped(0);
     try {
       const cfg = await getChatConfig();
       const { annotations: raw } = await callLLMStructured<{ annotations: Annotation[] }>(
@@ -82,20 +85,30 @@ export default function NotesAssistant({
   };
 
   const runSummary = async () => {
-    setBusy("summary"); setError(null); setSummary(null);
+    setBusy("summary"); setError(null); setSummary(null); setSafety(false);
     try {
       const threads = await listChatThreads(courseId, level);
       if (!threads.length) { setError("No conversation on this level yet."); return; }
       const messages = await getChatMessages(threads[0].id);
       const transcript = formatTranscript(messages);
-      if (!transcript.trim()) { setError(`“${threads[0].title || "Untitled"}” has no messages yet.`); return; }
+      if (!transcript.trim()) {
+        // Every exchange may have been left out (formatTranscript), which is not the same as none at all.
+        // The title is the learner's first message (ChatTab deriveThreadTitle), which may be the disclosure
+        // that was left out, so this line doesn't repeat it.
+        setError(messages.length
+          ? "There's nothing in the last chat to make notes from."
+          : `“${threads[0].title || "Untitled"}” has no messages yet.`);
+        return;
+      }
 
       const cfg = await getChatConfig();
       const { markdown } = await callLLMStructured<{ markdown: string }>(
         buildSummaryMessages(transcript), cfg,
         { schema: SUMMARY_SCHEMA, toolName: "SummariseConversation", temperature: 0.2 },
       );
-      setSummary(markdown);
+      const shown = finishSummary(markdown);
+      if ("withheld" in shown) { setSafety(true); return; }
+      setSummary(shown.markdown);
     } catch (e) {
       log.error("NotesAssistant", "summary failed", e);
       setError(friendlyError(e));
@@ -134,6 +147,8 @@ export default function NotesAssistant({
             {error}
           </p>
         )}
+
+        {safety && <SafetyNotice className="m-3" />}
 
         {/* ── Review marks ── */}
         {annotations.length > 0 && (
@@ -206,7 +221,7 @@ export default function NotesAssistant({
           </div>
         )}
 
-        {!error && !summary && annotations.length === 0 && busy === null && (
+        {!error && !summary && !safety && annotations.length === 0 && busy === null && (
           <p className="px-3 py-4 text-[11px] leading-relaxed text-[var(--ink-faint)]">
             <strong className="text-[var(--ink-dim)]">Review</strong> marks up this note in place —
             what's wrong, what's missing, what to double-check, and what you got right. Marks are an
