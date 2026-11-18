@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 import type { QuizViewContext, QuizQuestion, QuizAttempt, LLMConfig } from "../types";
 import {
-  createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt, getHandedInLevelTest, markLevelTestHandedIn,
+  createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt, getHandedInLevelTest,
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
@@ -11,7 +11,7 @@ import {
   STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING,
 } from "../lib/level-test";
 import {
-  saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, finishHandedInLevelTest,
+  saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, finishHandedInLevelTest, handInLevelTest,
   type PendingLevelTest, type SettledLevelTest,
 } from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
@@ -360,8 +360,15 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
 
     // Handed in: from here closing the app or a power cut never loses the test. Opened again, it is
     // graded then (finishHandedInLevelTest). A failed write only loses that, never the finish.
+    // A timed-out test scores its unanswered questions as wrong. They are stored as rows first, with their
+    // section (graded_by 'unanswered' keeps them out of the review pool), so the stored questions match
+    // what the app scored and a test graded later from the database scores them the same. A question whose
+    // answer was still being saved when time ran out already has its row, so it is skipped.
     const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
-    await markLevelTestHandedIn(aid, timeTaken)
+    const unanswered = timedOut
+      ? finalQuestions.filter((q, i) => q.user_answer === null && !q.saved_id && !savingRef.current.has(i))
+      : [];
+    await handInLevelTest(aid, timeTaken, unanswered)
       .then(() => setHandedIn(true))
       .catch((e) => console.error("marking the test handed in failed", e));
 
@@ -394,30 +401,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
       log.info("promotion", `graded ${pending.length} free-text answer(s) in ${Math.round(performance.now() - tGrade)}ms`);
     }
 
+    // A timed-out test scores its unanswered questions as wrong (stored as rows at the hand-in, above).
     const answered = timedOut
       ? gradedQuestions.map((q) => q.user_answer !== null ? q : { ...q, is_correct: false })
       : gradedQuestions;
-    // A timed-out test scores its unanswered questions as wrong. Store them as rows too, so the stored
-    // questions match what the app scored (graded_by 'unanswered' keeps them out of the review pool).
-    // Not awaited: nothing below reads these rows, and results must never wait on the database. A
-    // question whose answer was still being saved when time ran out already has its row, so it is skipped.
-    if (timedOut) {
-      void Promise.all(answered.filter((q, i) => q.user_answer === null && !q.saved_id && !savingRef.current.has(i)).map((q) =>
-        saveQuizQuestion({
-          attempt_id: aid,
-          question_text: q.question_text,
-          question_type: q.question_type,
-          options: q.options,
-          correct_answer: q.correct_answer,
-          user_answer: null,
-          is_correct: false,
-          difficulty_level: q.difficulty_level,
-          explanation: q.explanation,
-          subtopic_id: q.subtopic_id,
-          matching_pairs: q.matching_pairs,
-          blank_position: q.blank_position,
-        }, "unanswered", q.section).catch(console.error)));
-    }
 
     // The pass rule with unchecked written answers left out (level-test.ts): passed, failed, or waiting
     // for them to be marked. Its writes never throw, so the learner always reaches a results screen
@@ -792,6 +779,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
                 onAnswer={handleAnswer}
                 disabled={answeredCurrent}
                 grade={grade}
+                marksAtFinish
               />
             )}
 
