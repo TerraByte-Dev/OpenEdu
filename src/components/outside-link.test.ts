@@ -8,6 +8,7 @@ import { renderChatMarkdown } from "../lib/chat-markdown";
 import { OUTSIDE_LINK_LINE } from "../lib/link-guard";
 import { downloadSettingsFile } from "../lib/settings-io";
 import { EXPORT_KIND, EXPORT_VERSION, type SettingsExport } from "../lib/settings-schema";
+import appSource from "../App.tsx?raw";
 
 // settings-io reads the Tauri store when it gathers settings; the download itself never does.
 vi.mock("@tauri-apps/plugin-store", () => ({ Store: { load: vi.fn() } }));
@@ -147,5 +148,26 @@ describe("Settings › About › Download .json", () => {
     expect(clicks[0].download).toMatch(/2026-11-18\.json$/);
     expect(clicks[0].prevented).toBe(false);
     expect(note()).toBeNull();
+  });
+});
+
+describe("Switch learner", () => {
+  it("App keys the outside-link note by the active learner", () => {
+    expect(appSource).toContain('<OutsideLinkNote key={activeLearner?.id ?? "none"} />');
+    expect(appSource.match(/<OutsideLinkNote\b/g)).toHaveLength(1);
+  });
+
+  it("(a new key) clears an address one learner clicked, and the link guard still works after", async () => {
+    await act(async () => root.render(createElement(OutsideLinkNote, { key: "l1" })));
+    show("Learn more at [Khan Academy](https://www.khanacademy.org/math).");
+    expect(await press(prose.querySelector("a")!)).toBe(false);
+    expect(note()!.textContent).toContain("https://www.khanacademy.org/math");
+    // Switch learner: App sets the active learner to null (the picker), then to the next learner.
+    await act(async () => root.render(createElement(OutsideLinkNote, { key: "none" })));
+    expect(note()).toBeNull();
+    await act(async () => root.render(createElement(OutsideLinkNote, { key: "l2" })));
+    expect(note()).toBeNull();
+    expect(await press(prose.querySelector("a")!)).toBe(false);
+    expect(note()!.textContent).toContain(OUTSIDE_LINK_LINE);
   });
 });

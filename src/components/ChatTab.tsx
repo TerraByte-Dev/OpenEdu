@@ -130,6 +130,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const confirmResolverRef = useRef<((ok: boolean) => void) | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // The post-turn knowledge reflection still running, stopped when the next turn starts or the chat closes:
+  // on a CPU-only PC Ollama answers one request at a time, so it would hold the learner's next reply.
+  const reflectionRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Which thread's messages are currently in state. Lifting threadId to a PROP created a second
@@ -217,6 +220,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     return () => {
       turnOwnerRef.current = null;
       abortRef.current?.abort();
+      reflectionRef.current?.abort();
+      reflectionRef.current = null;
       askResolverRef.current?.("");
       askResolverRef.current = null;
       confirmResolverRef.current?.(false);
@@ -307,6 +312,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // `saved`: the child's message is already saved (card words handed back by the kernel), so only the
   // reply runs.
   const runTurn = async (setupToken: object, text: string, fromInput: boolean, saved?: ChatMessage) => {
+    reflectionRef.current?.abort();
+    reflectionRef.current = null;
     setChatError("");
 
     const userText = text.trim();
@@ -482,8 +489,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
         // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently.
+        // Stopped when the next turn starts or the chat closes (reflectionRef), so it never delays a reply.
         if (!result.usedKnowledgeUpdate && !partial) {
-          updateKnowledgeFiles(courseId, userText, result.text, config).catch(() => {});
+          const reflection = new AbortController();
+          reflectionRef.current = reflection;
+          updateKnowledgeFiles(courseId, userText, result.text, config, reflection.signal)
+            .catch(() => {})
+            .finally(() => { if (reflectionRef.current === reflection) reflectionRef.current = null; });
         }
       }
       // The turn ended at a card whose typed words go next as the child's own message (no chips under it).
