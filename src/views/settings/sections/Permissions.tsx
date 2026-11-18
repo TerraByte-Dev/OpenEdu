@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   loadPermissionRules, savePermissionRules,
-  PERMISSION_ROWS, PERMISSION_EDITABLE_MODES, PERMISSION_PRESETS, detectPreset,
+  PERMISSION_ROWS, PERMISSION_EDITABLE_MODES, AUTOMATIC_USE_NOTES, PERMISSION_PRESETS, detectPreset,
   type PermissionRules, type PermissionDecision,
 } from "../../../lib/permissions";
 import type { PermissionMode } from "../../../lib/tools";
@@ -123,6 +123,9 @@ export default function Permissions() {
                   <td className="px-3 py-2">
                     <div className="text-[13px] text-ink leading-tight">{TOOL_LABELS[tool] ?? tool}</div>
                     <div className="font-lcd text-[10px] text-[var(--ink-faint)]">{tool}</div>
+                    {AUTOMATIC_USE_NOTES[tool] && (
+                      <p className="text-[11px] text-[var(--ink-faint)] leading-snug mt-1 max-w-md">{AUTOMATIC_USE_NOTES[tool]}</p>
+                    )}
                   </td>
                   {PERMISSION_EDITABLE_MODES.map((mode) => {
                     const decision = (permRules[tool]?.[mode] ?? "ask") as PermissionDecision;

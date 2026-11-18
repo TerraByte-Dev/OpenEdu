@@ -49,7 +49,7 @@ learning at launch, and each learner's PIN still guards their courses.
 - **Generate a course for anything** — a research → outline → tutor-instructions → 6 syllabuses pipeline, fully schema-enforced so it holds up on small local models.
 - **Bring your own key, or none** — runs free on local **Ollama**; OpenAI and Anthropic are drop-in alternates. Separate model choices for generation vs. chat vs. embeddings.
 - **Offline curated Library** — a 150+ card K-12 reference set (periodic table, formulas, definitions, maps…) bundled in the app; the tutor can cite it mid-lesson with zero network.
-- **Notebook with retrieval** — an Obsidian-style vault with a live-preview editor, `[[wiki-links]]`, note-free `#tags`, and a vault graph; documents are embedded locally so the tutor can search and cite your notes.
+- **Notebook with retrieval** — an Obsidian-style vault with a live-preview editor, `[[wiki-links]]`, note-free `#tags`, and a vault graph; documents are embedded locally so the tutor can search and cite your notes. With no embedding model on the computer, notes are still searched by their words (title and text), which misses a note that says the same thing in other words.
 - **Quizzes & promotion tests** — per-level practice plus a code-assembled mastery exam.
 - **Tutor permissions** — a per-tool allow / ask / deny policy (Standard · Cautious · Trusting presets) governing what the tutor may do on its own.
 - **Light and dark** — a calm "Notebook" look (warm paper, navy ink, one blue accent) in light, dark, or matching your computer — all CSS-variable driven.
@@ -145,7 +145,8 @@ Your courses, chats, notes, quizzes and progress live in that one `openedu.db` f
 can damage it, so keep a copy somewhere else.
 
 **Back up:** open **Settings → Learner data → Back up all learner data** and save the file, for example to
-a USB stick. The default name is `openedu-backup-YYYY-MM-DD-HHMM.db`. You can keep using the app while it saves.
+a USB stick. The default name is `openedu-backup-YYYY-MM-DD-HHMM.db`. You can keep using the app while it saves, but wait for
+"Backup saved" before you shut down or unplug the USB stick.
 
 **Restore:** OpenEdu checks the file each time it starts and shows a warning if it finds damage. To restore:
 

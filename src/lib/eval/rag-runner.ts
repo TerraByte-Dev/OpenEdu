@@ -310,6 +310,14 @@ export async function runRagEval(opts?: {
               "empty corpus. Results discarded.",
             );
           }
+          // With no embedder the notes are searched by their words (notebook.ts searchNotesByWords). The
+          // run measures the embedder's retrieval, so a word-searched row would measure something else.
+          if (traceKnown && retrievalTrace.noteSearch === "words") {
+            throw new Error(
+              `The notes were searched by their words at ${question.id}, not by the embedder ` +
+              "(it isn't answering or isn't pulled). Results discarded.",
+            );
+          }
 
           const verdict = scoreRagAnswer(question, answer, citedTitles);
           const realWorld = realWorldAnswered(question, set, answer);

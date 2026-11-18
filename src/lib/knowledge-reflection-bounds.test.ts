@@ -41,7 +41,7 @@ beforeEach(() => {
 afterEach(() => { globalThis.fetch = original; vi.useRealTimers(); });
 
 const reflect = (signal?: AbortSignal) =>
-  updateKnowledgeFiles("course-1", "Is 6 x 7 = 42?", "Yes, 6 x 7 = 42.", config, signal);
+  updateKnowledgeFiles("course-1", "Is 6 x 7 = 42?", "Yes, 6 x 7 = 42.", config, "default", signal);
 
 describe("the post-turn reflection's bounds", () => {
   it("asks Ollama for at most REFLECTION_MAX_TOKENS, on the chat's window, and writes the answer", async () => {
@@ -91,7 +91,7 @@ describe("the post-turn reflection's bounds", () => {
 // ChatTab is React over Tauri and has no render test here; this pins the wiring the tests above rely on.
 describe("ChatTab's reflection signal", () => {
   it("passes its own signal, and aborts it when the next turn starts and when the chat closes", () => {
-    expect(chatSource).toMatch(/updateKnowledgeFiles\(courseId, userText, result\.text, config, reflection\.signal\)/);
+    expect(chatSource).toMatch(/updateKnowledgeFiles\(courseId, userText, result\.text, config, "default", reflection\.signal\)/);
     const runTurn = chatSource.slice(chatSource.indexOf("const runTurn = async"));
     expect(runTurn.slice(0, 300)).toContain("reflectionRef.current?.abort();");
     const cleanup = chatSource.slice(chatSource.indexOf("turnOwnerRef.current = null;"));

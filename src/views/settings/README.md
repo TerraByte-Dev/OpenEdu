@@ -53,7 +53,7 @@ The decisions most likely to harbor bugs are factored out of the components so t
 | `lib/text-match.ts` | `matchText` — the search filter. |
 | `lib/settings-schema.ts` | `parseSettingsExport`, `sanitizeImportedPermissions` (drops garbage so the kernel never reads bad rules), `importedThemeChoice` (maps a CRT-era theme id in an old export; an old file's `crtOff` is accepted and ignored) — the import-validation core. |
 | `lib/theme.ts` | Light / Dark / Match my computer. `normalizeThemeChoice` maps stored and imported ids (unset, `openedu`, unknown → light; CRT recolors → dark); `resolveTheme` picks the palette for "Match my computer". `useTheme.ts` is the React subscription used by the titlebar toggle + Appearance tab. |
-| `lib/db-resilience.ts` | Learner data tab: `backupFileName`, `backupTo` (`VACUUM INTO`), `describeBackupError`; also the boot `quick_check` interpretation. |
+| `lib/db-resilience.ts` | Learner data tab: `backupFileName`, `backupTo` (`VACUUM INTO` a `.partial` that `backup.rs` renames once whole; `backup-file.ts` is the Rust side's wrapper), `describeBackupError`; also the boot `quick_check` interpretation. |
 | `lib/permissions/presets.ts` | Standard / Cautious / Trusting presets + `detectPreset`. The **exam column is identical across presets** (integrity invariant — presets only change `default`/`study`). |
 
 ## Invariants — don't break these

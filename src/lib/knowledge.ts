@@ -2,6 +2,12 @@ import { getTutorInstructions, saveTutorInstruction } from "./db";
 import { callLLM } from "./llm";
 import { KNOWLEDGE_TYPES, appendStudyLog, parseReflection, tutorCorrectedLearner, type KnowledgeType } from "./knowledge-reflect";
 import type { LLMConfig } from "../types";
+import { evaluatePermission } from "./permissions/evaluate";
+import { loadPermissionRules } from "./permissions/store";
+import type { PermissionMode } from "./tools/EduTool";
+
+// The rule the post-turn reflection answers to: the knowledge.update_map tool's (tools/knowledge).
+const KNOWLEDGE_UPDATE = { name: "knowledge.update_map", isReadOnly: false } as const;
 
 const STUDY_PLAN = " Study plan: ";
 const NEEDS_REVIEW = "Needs review: ";
@@ -184,13 +190,18 @@ export const REFLECTION_MAX_TOKENS = 512;
 // Background reflection: update knowledge files after a chat exchange.
 // It never delays the learner: `signal` (ChatTab aborts it when the next turn starts or the chat closes),
 // REFLECTION_TIMEOUT_MS and REFLECTION_MAX_TOKENS bound it, and a stopped or failed one writes nothing.
+// It is the tutor updating its notes on its own, so it obeys the "Update knowledge map" permission: Deny
+// writes nothing. It cannot stop to ask after every reply, so Ask lets it run (Settings › Tutor Permissions says
+// so on that row).
 export async function updateKnowledgeFiles(
   courseId: string,
   userMessage: string,
   assistantResponse: string,
   config: LLMConfig,
+  mode: PermissionMode = "default",
   signal?: AbortSignal,
 ): Promise<void> {
+  if (evaluatePermission(KNOWLEDGE_UPDATE, mode, await loadPermissionRules()) === "deny") return;
   const instructions = await getTutorInstructions(courseId);
   if (signal?.aborted) return;
 

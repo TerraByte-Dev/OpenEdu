@@ -38,7 +38,14 @@ keeps each commit durable in WAL mode. Per-connection PRAGMAs sent from JS are n
 sqlx pool holds up to 10 connections and recycles them. At boot `checkDatabaseHealth()` runs
 `PRAGMA quick_check` and the app shows a plain-words warning if it reports damage. **Settings → Learner
 data** writes a full copy with `VACUUM INTO` through the sql plugin (no `fs` capability) and explains how to
-restore it by hand. The logic is in `src/lib/db-resilience.ts` (pure, tested).
+restore it by hand. `VACUUM INTO` writes straight to the path it is given and does not flush it, so a
+shutdown or power cut part way used to leave a cut-short file under the newest backup's name. Now Rust
+opens the Save dialog (`src-tauri/src/backup.rs backup_pick`) and gives the webview only `<picked>.partial`
+to copy into; `backup_finish` flushes it, checks the SQLite header's page count and page size against the
+file's length, and only then renames it to the picked name (replacing a file there, which the dialog
+already asked about); a failed copy is removed (`backup_abandon`). A cut-short copy keeps the `.partial`
+name, which never ends in `.db`. Settings asks the user to wait for "Backup saved" before shutting down or
+unplugging the stick. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 
 **A migration that fails.** tauri-plugin-sql 2.3.2 (`commands.rs load`) takes the database's migration
 list out before it migrates and does not put it back when migrating fails, so a second `Database.load` in
@@ -386,7 +393,22 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   (`getLastPromotionAttempt` reads finished tests only). The answers already given stay saved, so a
   missed one can come back in a quiz (`getReviewPoolQuestions`), and the confirm says so when there is
   one (`db-level-test-stop.test.ts`). Closing the window does the same; the Titlebar stays over both
-  screens so it can be closed. "Checking eligibility" has a Back button and says when the check failed.
+  screens so it can be closed.
+- **A handed-in level test survives the app closing while it is graded.** Grading a test's written
+  answers is one batch call on the local model after Finish, and on a slow computer it can take minutes
+  (a cold model load on top). Finish first writes the time taken (`db.ts markLevelTestHandedIn`); the
+  answers are already stored. An attempt with a time and no `completed_at` was handed in and never
+  graded, which a stopped test or a window closed mid-test never is. Opening that level's test again
+  finds it before anything else (`getHandedInLevelTest`) and finishes it from the database
+  (`level-test-checks.ts finishHandedInLevelTest`): only answers still unmarked are graded, with the same
+  grader; `completed_at` and the result are saved as at the finish; a pass moves the course up once
+  (`advanceCourseAfterPass`); a test whose written answers no model checked waits for its marks as usual;
+  then the screen runs the finish's other saves, a fail's study plan included. `completed_at` is written
+  only while it is unset (`db.ts completeHandedInLevelTest`), and only the finish that wrote it counts
+  anything, so an attempt is never finished twice, not even by two opens at once (React StrictMode in
+  dev); a fail starts the 24-hour wait like any other. The grading screen says the answers are kept
+  (`level-test.ts GRADING`) only once the hand-in write worked. Quizzes are not covered yet. "Checking
+  eligibility" has a Back button and says when the check failed.
 - **Ollama stopped is not a weak model.** A question call or verify pass that fails because Ollama can't
   be reached, or doesn't have the model (`plain-language.ts` `ollamaUnavailable`, matching the sentences
   `llm.ts` writes), stops making the quiz or test at that call instead of skipping the question. No
@@ -577,7 +599,13 @@ search/ingest, math/diagram render, knowledge-map updates, mastery marking, and 
 tool. Behavior is composed from **skills** (`src/skills/*.md`; user-sideloaded bundles are not implemented yet):
 markdown files with frontmatter that gate on subject/tier. A per-tool **permission** policy
 (allow / ask / deny, with Standard · Cautious · Trusting presets) governs what the tutor may do on its
-own.
+own. Three rows' tools also run with no tool call: the grounding stage searches the notes and the library
+before every reply (`ground.ts groundingSources`), and the post-turn reflection updates the knowledge
+files after it (`knowledge.ts updateKnowledgeFiles`). Deny on "Search your notebook", "Search the library"
+or "Update knowledge map" stops that half too (TerraTutor #202, ported). Ask cannot stop to ask before
+every reply, so there it runs like Allow, and Settings › Tutor Permissions › Advanced says so under those
+rows (`permissions/rules.ts AUTOMATIC_USE_NOTES`). Quiz and test results are always written to the study
+log.
 
 A course's **domain skill** (`math-tutor`, `science-tutor`, `code-tutor`, `music-tutor`) is chosen in code
 on every turn (`skills/trigger.ts`, `kernel/chatSkills.ts`), with no model call. It decides which drawing
@@ -1030,6 +1058,36 @@ are **derived from note content** — no DB column. **`notebook.ts`** handles RA
 embedded on save, and searched by **brute-force cosine** over the course's vectors (fine for a single
 student's vault; vectors are stored as base64 f32 TEXT in `vec_b64`, with pre-migration-12 rows read back
 from JSON-array TEXT, schema kept `sqlite-vec`-compatible for later).
+
+**With no embedder the notes are searched by their words** (TerraTutor #209, ported). When the embed
+fails because the embedder can't run at all (`plain-language.ts embedderUnavailable`: no embedding model
+pulled, Ollama not answering, the OpenAI embedder with no key or connection), `searchNotebook` falls back
+to `searchNotesByWords`: the course's notes as they are now (`getNotes`), cut with `chunkText`, ranked by
+`notebook-words.ts` with a note's title as its topic (a port of TerraTutor's resource-pack matcher,
+`packs/rank.ts`; OpenEdu has no packs). A passage must cover at least 40% of the question's IDF-weighted
+content words; question-shaping words ("why", "explain") and help-asking words ("help", "answer",
+"times") are left out, and numerals never make up the two words a passage must match. One shared word is
+never enough unless it is a topic word of the note's title, or rare in these notes and all the question
+asked. "Rare" is at most max(1, 15%) of the passages, so in a notebook of fewer than about seven passages
+a word only one note has is rare: "what is water?" finds the one note that mentions water. The title rule
+likewise lets a generic title ("My homework") match a question that shares only that word, unless the
+word is one `topicWords` drops; both are pinned in `notebook-words.test.ts` and neither has been measured
+on real notebooks. Any other embed failure still throws. A word hit carries `by: "words"` and its
+coverage as `score`; `ground.ts noteHit` places it at `MIN_NOTE_SCORE + 0.1 × coverage` (0.49–0.55, around
+the library card's 0.50; `selectHits` still reserves the reference slot). Because it lives in
+`searchNotebook`, the grounding stage, the `notebook.search` tool and the Notes tab's passage search all
+use it. Matching by words misses a note that says the same thing in other words or another language.
+The trace records `noteSearch: "words"`, and the RAG eval (`rag-runner.ts`) discards a run that searched
+by words, since it measures the embedder. After an import whose embed failed this way, the Notes tab says
+the notes are searched by their words (`ingest-format.ts ingestResultSummary`), and, when the embedding
+model is missing, that searching by meaning needs it, added in Settings › Provider & Models.
+
+The chip under a reply that quoted nothing names only what was searched (`citation.ts
+ungroundedChipLabel`): "No passage quoted — your notes were searched", "— the library was searched" or
+"— your notes and the library were searched". The notes are named only when their search ran
+(`trace.notesSearched`; not when "Search your notebook" is Deny or the search failed), the library only
+when a card came from it. It used to read "Answered from general knowledge — not your notes" on every
+such turn, which named the notes when they had not been searched and claimed a source nothing proved.
 
 A note that couldn't be embedded when it was imported or saved (no embedding model yet, Ollama down) is
 picked up by `reindexCourseNotes`, which `NotesTab` runs each time it opens a course's notes: it skips

@@ -6,6 +6,7 @@ export {
   PERMISSION_ROWS,
   PERMISSION_EDITABLE_MODES,
   PERMISSION_PERSISTED_MODES,
+  AUTOMATIC_USE_NOTES,
 } from "./rules";
 export type { PermissionDecision, PermissionRules } from "./rules";
 export { PERMISSION_PRESETS, detectPreset } from "./presets";

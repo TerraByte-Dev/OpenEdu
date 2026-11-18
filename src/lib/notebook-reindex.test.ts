@@ -70,17 +70,20 @@ async function importAll(files: Array<{ title: string; text: string }>) {
 }
 
 describe("importing notes with no embedding model on the computer", () => {
-  it("says what's missing and where it's added, and doesn't promise an open-and-save", async () => {
+  it("says the notes are searched by their words, and where searching by meaning is added", async () => {
     const { summary } = await importAll([
       { title: "Roots", text: "Roots drink water from the soil." },
       { title: "Leaves", text: "Leaves catch sunlight to make food." },
     ]);
     expect(summary.kind).toBe("warn");
-    expect(summary.message).toContain("2 notes couldn't be added to notebook search yet");
-    expect(summary.message).toContain("Settings › Provider & Models");
-    expect(summary.message).toContain("tries again each time you open Notes");
-    expect(summary.message).not.toMatch(/open and save/);
+    expect(summary.message).toBe(
+      "Imported 2 notes. They're searched by their words; searching by meaning needs the embedding model, " +
+      "added in Settings › Provider & Models.",
+    );
+    expect(summary.message).not.toMatch(/open and save|couldn't be added/);
     expect(await docsFor(courseId)).toEqual([]);
+    // And they are: with no embedder, searchNotebook searches them by their words (notebook.ts).
+    expect((await searchNotebook({ courseId, query: "do leaves catch sunlight?" })).map((h) => h.document_title)).toEqual(["Leaves"]);
   });
 
   it("indexes them on the next open once the model is there, with nobody editing them", async () => {

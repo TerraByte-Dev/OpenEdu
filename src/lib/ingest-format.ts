@@ -1,7 +1,7 @@
 // Pure formatting for the notebook import result (slice C1/D6). Turns a per-file tally into an honest,
 // actionable message. Kept Tauri-free so it's unit-tested; NotesTab does the importing and renders it.
 
-import { embeddingModelMissing } from "./plain-language";
+import { embeddingModelMissing, embedderUnavailable } from "./plain-language";
 
 export interface IngestTally {
   imported: number; // notes created (embedded or not)
@@ -22,14 +22,28 @@ export function ingestResultSummary({ imported, pending, failed, reason }: Inges
     return { kind: "error", message: `Couldn't import ${plural(failed, "file")}.` };
   }
   if (pending > 0) {
-    // The usual cause on a new computer is the embedding model not being there, not Ollama being down:
-    // say so, and where it's added. NotesTab retries every note on open (reindexCourseNotes).
-    const missing = reason !== undefined && embeddingModelMissing(reason);
+    // With no embedder that can run (none pulled, Ollama not answering, the OpenAI embedder with no key
+    // or connection), the notes are still searched, by their words (notebook.ts searchNotesByWords), so
+    // the message never says they won't be. The missing model is the usual cause on a new computer: say
+    // where it's added. NotesTab retries the embed every time Notes opens (reindexCourseNotes).
+    const byWords = imported === 1 ? "It's searched by its words" : "They're searched by their words";
+    if (reason !== undefined && embeddingModelMissing(reason)) {
+      return {
+        kind: "warn",
+        message: `Imported ${plural(imported, "note")}. ${byWords}; searching by meaning needs the embedding model, added in Settings › Provider & Models.`,
+      };
+    }
+    if (reason !== undefined && embedderUnavailable(reason)) {
+      return {
+        kind: "warn",
+        message: `Imported ${plural(imported, "note")}. ${byWords} for now. OpenEdu tries again each time you open Notes.`,
+      };
+    }
+    // A note's own embed failed (the embedder is up): it is out of search until the retry indexes it.
     return {
       kind: "warn",
       message:
         `Imported ${plural(imported, "note")}, but ${plural(pending, "note")} couldn't be added to notebook search yet.` +
-        (missing ? " Notebook search isn't set up on this computer yet. Add the embedding model in Settings › Provider & Models." : "") +
         " OpenEdu tries again each time you open Notes.",
     };
   }

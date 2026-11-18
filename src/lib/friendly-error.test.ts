@@ -68,7 +68,7 @@ describe("friendlyError", () => {
     expect(friendlyError(new Error(RAW[1]))).toMatch(/took too long.*Try again/);
     expect(friendlyError(new Error(RAW[2]))).toMatch(/too much .* at once/);
     expect(friendlyError(new Error(RAW[3]))).toBe("The tutor's model (gemma4:e2b) isn't on this computer yet. Open Settings to pick one that is, or import it from a USB stick.");
-    expect(friendlyError(new Error(RAW[4]))).toMatch(/^Notebook search isn't set up/);
+    expect(friendlyError(new Error(RAW[4]))).toMatch(/^Searching notes by meaning isn't set up.*still searched by their words/);
     expect(friendlyError(new Error(RAW[5]))).toMatch(/close Ollama and start it again/);
   });
 

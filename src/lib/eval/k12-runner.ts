@@ -63,6 +63,9 @@ export interface K12Row {
   stopReason: string | null;
   hitTitles: string[];
   groundError: string | null;
+  /** How the notes were searched (trace.noteSearch): "words" when no embedder could run. null when the
+   *  turn had no note candidates, so an empty notebook can't tell the two apart. */
+  noteSearch: "embedder" | "words" | null;
   toolCalls: string[];
   ms: number;
   /** 1, or 2 when the first attempt produced no reply and was retried. */
@@ -195,7 +198,7 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
       for (const arm of arms) {
         // Outside the per-row try on purpose: a guard tripping mid-run throws and voids the run (rule 2).
         if (arm === "shipping") await assertLibraryGuards().catch((e) => { logCounts(); throw e; });
-        const row: K12Row = { id: item.id, arm, text: "", letter: null, outcome: "error", stopReason: null, hitTitles: [], groundError: null, toolCalls: [], ms: 0, attempts: 0 };
+        const row: K12Row = { id: item.id, arm, text: "", letter: null, outcome: "error", stopReason: null, hitTitles: [], groundError: null, noteSearch: null, toolCalls: [], ms: 0, attempts: 0 };
         const started = Date.now();
         let failed = false;
         // One retry, for a turn that produced NO reply (rule 1). A reply, right or wrong, is never retried.
@@ -243,6 +246,7 @@ export async function runK12Eval(opts?: { pilot?: boolean; arms?: K12Arm[]; only
               row.stopReason = result.stopReason;
               row.hitTitles = result.grounding.trace.hitTitles;
               row.groundError = result.grounding.trace.error ?? null;
+              row.noteSearch = result.grounding.trace.noteSearch ?? null;
               row.toolCalls = modelToolCalls(result.toolCalls).map((c) => c.name); // the model's calls only
             }
           } catch (e) {

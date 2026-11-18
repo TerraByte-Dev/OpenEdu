@@ -1,16 +1,19 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 import type { QuizViewContext, QuizQuestion, QuizAttempt, LLMConfig } from "../types";
 import {
-  createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt,
+  createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt, getHandedInLevelTest, markLevelTestHandedIn,
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
 import { answerMark, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import {
   testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft,
-  STOP_TEST, stopTestBody, MAKING, testMakingNote,
+  STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING,
 } from "../lib/level-test";
-import { saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, type PendingLevelTest, type SettledLevelTest } from "../lib/level-test-checks";
+import {
+  saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, finishHandedInLevelTest,
+  type PendingLevelTest, type SettledLevelTest,
+} from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
 import MarkAgain from "../components/quiz/MarkAgain";
 import { canMarkAgain, markAgain } from "../lib/written-answer-checks";
@@ -124,6 +127,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   const [checkError, setCheckError] = useState("");
   // "Stop the test" asks once before leaving a begun test (level-test.ts STOP_TEST).
   const [confirmStop, setConfirmStop] = useState(false);
+  // Grading a test handed in before the app closed (finishHandedInLevelTest), not one just finished.
+  const [resumed, setResumed] = useState(false);
+  // The answers are on disk as handed in (markLevelTestHandedIn worked), so "Grading" can say they are kept.
+  const [handedIn, setHandedIn] = useState(false);
   // Stops the questions being made when the learner leaves the "making" screen (quiz.ts stopIfAborted).
   const genAbortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -148,11 +155,18 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
 
   const checkCooldown = async () => {
     let last: QuizAttempt | null;
+    let handedIn: QuizAttempt | null;
     try {
-      last = await getLastPromotionAttempt(courseId, currentLevel);
+      handedIn = await getHandedInLevelTest(courseId, currentLevel);
+      last = handedIn ? null : await getLastPromotionAttempt(courseId, currentLevel);
     } catch (e) {
       log.error("promotion-test", "retake check failed", e);
       setCheckError(`Couldn't check this test. ${friendlyError(e)}`);
+      return;
+    }
+    // Handed in, but the app closed or lost power while it was being graded: grade it now, never a new test.
+    if (handedIn) {
+      await resumeGrading(handedIn.id);
       return;
     }
     // A finished test still waiting for its written answers to be marked comes back here, not a new test.
@@ -240,6 +254,45 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     }
   };
 
+  // A test handed in before the app closed mid-grading, finished from the database (level-test-checks.ts
+  // finishHandedInLevelTest) and shown like a test decided later. Its other saves run here, as at the finish.
+  const resumeGrading = async (aid: string) => {
+    // StrictMode runs the mount twice in dev, so two opens can get here at once: only the first grades.
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setResumed(true);
+    setHandedIn(true);
+    setTestState("grading");
+    try {
+      const cfg = await getGenerationConfig().catch(() => null);
+      // The learner's own words are marked on a local model only (lane 1); none pulled = not checked.
+      const local = cfg ? await getLocalVerifyConfig(cfg).catch(() => null) : null;
+      const settled = await finishHandedInLevelTest(aid, (items) => gradeAnswersBatch(items, local, grade));
+      if (!settled) { finishingRef.current = false; setResumed(false); setTestState("checking"); void checkCooldown(); return; }
+      const saved = saveFinishEffects(courseId, currentLevel, aid, true, settled.rows, settled.overall)
+        .catch((e) => { console.error("promotion finish persistence failed", e); return null; });
+      savedRef.current = saved.then(() => undefined);
+      if (settled.status === "pending") {
+        const attempt = await getQuizAttempt(aid);
+        if (attempt) {
+          setPendingTest({ attempt, rows: settled.rows, unchecked: settled.rows.filter((r) => r.graded_by === "fallback") });
+          setTestState("pending");
+          return;
+        }
+      }
+      // A fail's study plan joins its study log line, as at the finish.
+      const plan = showSettled(settled);
+      void saved.then(async (entry) => {
+        const p = await plan;
+        if (entry && p) await addStudyPlanToLog(courseId, entry, p);
+      }).catch((e) => console.error("adding the study plan to the log failed", e));
+    } catch (e) {
+      log.error("promotion-test", "grading a handed-in test failed", e);
+      setCheckError(`Couldn't finish grading this test. Your answers are kept; open it again to try again. ${friendlyError(e)}`);
+      setTestState("checking");
+    }
+  };
+
   // Leaving the "making" screen stops the model calls, and no attempt is ever created.
   const stopMaking = () => {
     genAbortRef.current?.abort();
@@ -302,6 +355,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     }
     if (!cfg) { finishingRef.current = false; setFinishing(false); return; }
 
+    // Handed in: from here closing the app or a power cut never loses the test. Opened again, it is
+    // graded then (finishHandedInLevelTest). A failed write only loses that, never the finish.
+    const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
+    await markLevelTestHandedIn(aid, timeTaken)
+      .then(() => setHandedIn(true))
+      .catch((e) => console.error("marking the test handed in failed", e));
+
     // ── 1. Deferred grading: settle every recorded free-text answer in ONE batch (issue #83). ──
     let gradedQuestions = finalQuestions;
     const pending = finalQuestions
@@ -355,8 +415,6 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           blank_position: q.blank_position,
         }, "unanswered", q.section).catch(console.error)));
     }
-
-    const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
 
     // The pass rule with unchecked written answers left out (level-test.ts): passed, failed, or waiting
     // for them to be marked. Its writes never throw, so the learner always reaches a results screen
@@ -457,7 +515,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     showSettled(settled);
   };
 
-  const showSettled = (s: SettledLevelTest) => {
+  // Shows a decided test. After a fail, returns its study plan (null when none), once it is ready.
+  const showSettled = (s: SettledLevelTest): Promise<string | null> => {
     const answers = s.rows.map(fromRow);
     setResultsAttempt(s.attemptId);
     setPendingTest(null);
@@ -467,13 +526,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     setReviewScore(s.reviewPct);
     setPassed(s.status === "passed");
     if (s.status === "passed") {
-      if (currentLevel >= 6) { setTestState("completion"); return; }
+      if (currentLevel >= 6) { setTestState("completion"); return Promise.resolve(null); }
       setPassedTo(s.nextLevel ?? currentLevel);
       setTestState("results");
-      return;
+      return Promise.resolve(null);
     }
     setTestState("results");
-    void getGenerationConfig().then((cfg) => startStudyPlan(answers, cfg)).catch(() => setGeneratingPlan(false));
+    return getGenerationConfig().then((cfg) => startStudyPlan(answers, cfg)).catch(() => { setGeneratingPlan(false); return null; });
   };
 
   // "I think I was right": the learner marks a written answer the model marked wrong against the key, and
@@ -652,8 +711,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
       <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col items-center justify-center p-8">
         <div className="w-full max-w-sm text-center">
           <div className="w-12 h-12 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-6" />
-          <h2 className="text-lg font-semibold text-ink mb-1">Grading Your Test</h2>
-          <p className="text-sm text-[var(--ink-faint)]">Scoring your written answers…</p>
+          <h2 className="text-lg font-semibold text-ink mb-1">{GRADING.title}</h2>
+          <p className="text-sm text-[var(--ink-faint)]">{resumed ? GRADING.resumed : GRADING.body}</p>
+          {handedIn && <p className="text-xs text-[var(--ink-faint)] mt-4">{GRADING.kept}</p>}
         </div>
       </div>
     );

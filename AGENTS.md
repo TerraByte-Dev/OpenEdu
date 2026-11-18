@@ -74,7 +74,9 @@ wrapper are **not type-linked**; keep them in sync by hand.
 - **Never modify a shipped migration** in `lib.rs`; `tauri-plugin-sql` hashes them and refuses to
   start. Add a new version, and call out any schema change in the PR.
 - **Filesystem access is read-only and scoped** to user-granted roots, canonicalised, no symlink
-  following. Never widen it to a blanket `fs` capability.
+  following, except the learner-data backup (`backup.rs`), which writes, renames and removes only the
+  file the user picked in a Rust-opened Save dialog and its `.partial`. Never widen it to a blanket
+  `fs` capability.
 - **No secrets** in code, tests, fixtures, commits or PR text. API keys live in the plugin store.
 
 ## Contributor workflow
