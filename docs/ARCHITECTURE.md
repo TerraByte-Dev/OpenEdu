@@ -932,6 +932,45 @@ by code, with no model call.
   late. The count belongs to one session: it starts at zero when a learner comes in (a switch resets
   it) and is not saved, so it also starts again after a restart.
 
+## What counts as a safety disclosure (`child-safety.ts isSafetyDisclosure`)
+
+One check, no model call, read by every place that shows `SAFETY_NOTICE` or withholds a mark (the chat, the
+question cards, written answers, the new-course topic, the dictionary note). Its harm half does not read the
+grade: suicide and self-harm wording (`PHRASES`, `KMS_RE`), a person hitting, hurting or touching the child
+(`ABUSE_RE`), a person and their own genitals (`BODY_RE`), sexual abuse in a child's words (`PHRASES`), and
+`DISCLOSURE_RES`: touching after a person within the sentence, hands in clothes, clothes pulled off, being
+made to touch, nude pictures, sextortion, being watched in the shower, and "i don't feel safe at home".
+Sharing the child's pictures counts only with a threat in the same message (`SHARE_PICS_RE` and
+`THREAT_RE`, or a threat to post "them" with pictures named: `SHARE_THEM_RE` and `PICS_RE`). The harm half's
+patterns equal TerraTutor's as of its PR #223: its PR #125's, narrowed in both apps where they fired on
+ordinary schoolwork (review of #372, TerraTutor #221 and #223). "private" counts as the body only as
+"privates", "private parts" and the like, or with no noun after it (not "her private feelings", "her private
+place in the garden"); touching him, her or them counts after the child's own ("my") family member or
+grown-up with no other subject in between and before the end, a joining or time word or an adverb, never a
+noun ("my uncle touches her when she sleeps", not "in the book my dad touches her hand"), and after anyone
+else's only before the end, a place or a time ("her dad touches her at night", not "sea anemones sting
+people who touch them" or "his mother touched him when he cried"), so "my mom touches her when she cries"
+fires, a known and accepted false positive; "touched her down there", "made me touch him" and "touched by
+him" are their own patterns; "touched by" needs the child (or their brother or sister)
+as the one touched and a person, with no apostrophe, as the one touching ("i got touched by my uncle", not
+"touched by my teacher's words" or "the old woman was touched by a stranger"), while the child getting
+touched with no one named still counts ("i got touched at school"); a thing earlier in the clause blocks the
+touching (`NO_THING_BEFORE`: "the story about the old man really touched me"), unless it was given to the
+child ("the man who gave me gifts touched me"); kids, children, boys or girls touched need a named
+grown-up, family member, man or stranger ("a man touches the boys", not "jesus touched the children");
+"touch down there" needs "me" or "my" ("apollo 11 touched down there"); a threat to share needs the child's
+own things ("threatened to send his army" does not count); "hurt at home" needs the first person; and a
+third-person present form of suicide ("commits", "both / all / each commit") or "suicide rate(s)" does not
+count, but only in a sentence with no first-person word (`thirdPersonSuicide`: "Romeo and Juliet both commit
+suicide", "suicide rates rose"); "hemingway committed suicide" and "my brother committed suicide" still do.
+TerraTutor's parents'-topics screen is not ported, so a third-person report ("his dad makes him watch
+porn") or wording the lists do not know ("my babysitter shows me sexy videos") gets no notice here, where
+TerraTutor gives its parents'-topics reply. A false positive costs more than a line of text: it refuses a
+new-course topic (`SAFETY_TOPIC_COURSE_LINE`), passes a quiz or level-test written answer as not checked with
+no mark, and skips that chat turn's mastery-check verdict and dictionary note. `child-safety.test.ts` pins
+both sides, those misses and the accepted false positives (bare "sexual assault", "sextortion", "suicide";
+"the doctor told me to take my shirt off") included. The pregnancy half is below.
+
 ## The safety notice for a pregnancy (`child-safety.ts strongPregnancy`)
 
 With a K-12 grade set, a strong pregnancy self-disclosure in the learner's message ("am i pregnant", "im 14

@@ -59,6 +59,42 @@ describe("gradeAnswersBatch: a disclosure typed as an answer is not marked", () 
     for (const t of [HARM, ABUSE, PREGNANT]) expect(prompt).not.toContain(t);
   });
 
+  // The sexual-abuse, touching and sextortion patterns ported from TerraTutor #125: each was marked as an
+  // ordinary (wrong) answer before the port. They need no grade.
+  it("passes the ported sexual-abuse, touching and sextortion disclosures as not checked, with no grade set", async () => {
+    vi.mocked(callLLMStructured).mockResolvedValue({ answer_1: { feedback: "no", correct: false } });
+    const ported = [
+      "he made me have sex with him", "my stepdad comes into my room at night and touches me",
+      "someone online keeps asking for my nudes", "he'll post my pics unless i send more",
+    ];
+    const out = await gradeAnswersBatch(
+      [...ported.map((t, i) => item(i, t)), item(4, "they make food from light")], config, null);
+    for (const i of [0, 1, 2, 3]) expect(out.get(i), ported[i]).toEqual({ isCorrect: true, feedback: "", by: "fallback" });
+    expect(out.get(4)).toMatchObject({ isCorrect: false, by: "model" });
+    const prompt = JSON.stringify(vi.mocked(callLLMStructured).mock.calls[0][0]);
+    for (const t of ported) expect(prompt).not.toContain(t);
+  });
+
+  // The review of #372: a science answer that only looks like the ported patterns is marked as usual, so a
+  // wrong one gets no free credit.
+  it("marks schoolwork answers that tripped the patterns as first ported, with or without a grade", async () => {
+    const schoolwork = [
+      "mimosa leaves fold up when people touch them", "a venus flytrap closes when its hairs get touched twice",
+      "sea anemones sting people who touch them", "she kept her private feelings to herself",
+      // TerraTutor #223's list.
+      "apollo 11 touched down there in 1969", "many kids get hurt at home from falls", "Romeo and Juliet both commit suicide",
+    ];
+    for (const grade of [null, GRADE]) {
+      vi.mocked(callLLMStructured).mockReset();
+      vi.mocked(callLLMStructured).mockResolvedValue(Object.fromEntries(
+        schoolwork.map((_, i) => [`answer_${i + 1}`, { feedback: "no", correct: false }])));
+      const out = await gradeAnswersBatch(schoolwork.map((t, i) => item(i, t)), config, grade);
+      for (let i = 0; i < schoolwork.length; i++) expect(out.get(i), schoolwork[i]).toMatchObject({ isCorrect: false, by: "model" });
+      const prompt = JSON.stringify(vi.mocked(callLLMStructured).mock.calls[0][0]);
+      for (const t of schoolwork) expect(prompt).toContain(t);
+    }
+  });
+
   it("calls no model at all when every answer is one", async () => {
     const out = await gradeAnswersBatch([item(0, HARM), item(1, ABUSE)], config, null);
     expect(callLLMStructured).not.toHaveBeenCalled();
