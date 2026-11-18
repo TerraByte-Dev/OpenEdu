@@ -1076,7 +1076,8 @@ export interface StructuredOpts<T = unknown> {
   numPredict?: number;
   // Default true: a reply whose only fault is a string past its maxLength is shortened at a sentence or
   // word boundary (trimOverlongStrings) instead of failing. Set false where a shortened field could
-  // change what it means, e.g. a quiz question whose asking sentence comes last.
+  // change what it means, e.g. a quiz question whose asking sentence comes last, or a lesson section or
+  // worked example whose last steps and answer would be cut (curriculum.ts generateLesson, raise-hand.ts).
   trimOverlong?: boolean;
 }
 
