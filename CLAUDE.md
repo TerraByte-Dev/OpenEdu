@@ -57,7 +57,7 @@ Full architecture tour: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Contribu
 - `src/components/` — shared widgets, including `terminal/*` primitives.
 - `src-tauri/` — Rust backend, SQLite migrations, plugin config.
 
-The pure modules above (`store-keys`, `learners`, `learner-pin`, `pin-pad`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`, `plain-language`, `next-step`, `daily-goal`, `grade`, `speech`, `dictionary`, `dictionary-card`, `privacy`) are Tauri-free and unit-tested in `*.test.ts` next to them.
+The pure modules above (`store-keys`, `learners`, `learner-pin`, `pin-pad`, `models`, `version`, `text-match`, `settings-schema`, `theme` helpers, `permissions/presets`, `notebook-links`, `fuzzy`, `db-resilience`, `plain-language`, `next-step`, `daily-goal`, `grade`, `speech`, `dictionary`, `dictionary-card`, `privacy`, `context-window`, `ollama-status`) are Tauri-free and unit-tested in `*.test.ts` next to them.
 
 DB lives at `%APPDATA%/com.terrabytesolutions.openedu/openedu.db` on Windows. No per-course files — everything is in SQL.
 

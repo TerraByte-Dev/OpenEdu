@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { APP_NAME } from "../lib/product";
+import { RESTORE_PIN_NOTE } from "../lib/db-resilience";
 
 // The steps to restore a learner-data backup by hand. Shown in Settings > Learner data, and on the
 // startup-failure screen, where Settings cannot be reached.
@@ -37,7 +38,7 @@ export default function RestoreSteps() {
         (Windows is hiding file endings), type just <span className="font-lcd">openedu</span>, or Windows will name
         it <span className="font-lcd">openedu.db.db</span> and {APP_NAME} will start with no data.
       </li>
-      <li>Start {APP_NAME}.</li>
+      <li>Start {APP_NAME}. {RESTORE_PIN_NOTE}</li>
     </ol>
   );
 }

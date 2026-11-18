@@ -38,6 +38,20 @@ The section for each release is also what the app shows when you press Check for
   address so a grown-up can copy it into a web browser. Links to a heading on the same page still work.
 
 ### Changed
+- **Settings › Context window says what it changes.** Tutor chat and the notes assistant use the size you
+  pick; lessons, quizzes, level tests and course building never go below 8k, which they need. Choosing 2k
+  or 4k now says so in a warning: it changes chat only, does not make OpenEdu faster, and makes the model
+  reload each time the learner moves between chat and those screens (about a minute and a half on a
+  computer without a graphics card). Choosing 16k on a computer with less than 14 GB of memory warns that
+  it does not fit there. The old help said to lower it when the app was slow or a model failed to load;
+  it no longer does.
+- **Ollama running with no models is no longer "Offline".** Settings › Models shows "Running, no models
+  yet" and points to "Import a model from a USB stick or folder" on the same page, instead of a red
+  "Offline" and "Install from ollama.com". About › Diagnostics says "running, no models yet".
+- **Restoring a backup says it brings back the old PIN.** The restore steps (Settings › Learner data, the
+  learner picker, and the screen shown when the data is damaged) say a backup brings back each learner's
+  PIN from the backup's day, and that settings such as the model are not in it. Setting, changing or
+  removing a PIN suggests making a new backup.
 - **The safety notice knows more ways a child tells.** A message about sexual abuse, unwanted touching,
   nude pictures or someone threatening to share them ("he made me have sex with him", "my stepdad comes
   into my room at night and touches me", "he'll post my pics unless i send more") now shows the safety

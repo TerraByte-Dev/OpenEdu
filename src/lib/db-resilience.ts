@@ -91,6 +91,17 @@ export function backupFileName(now: Date): string {
   return `${BACKUP_FILE_STEM}-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.db`;
 }
 
+// A backup is the whole database, so each learner's PIN hash (learners.pin_hash) is in it, and restoring
+// an older one brings back the PINs of its day. Settings (provider, models, context window) live in the
+// plugin store's own file, not the database, so a restore leaves them as they are. A forgotten PIN cannot
+// be recovered, so the PIN screen suggests a new backup after every change.
+/** The restore steps' last line (RestoreSteps.tsx) and Settings › Learner data's restore help. */
+export const RESTORE_PIN_NOTE =
+  "Restoring also brings back each learner's PIN from the day of the backup: a PIN set, changed or removed since then is undone, so use the PIN you had then. Settings, such as the model, are not in the backup and stay as they are.";
+/** Shown when a learner sets, changes or removes their PIN (LearnerMenu.tsx PinPanel). */
+export const PIN_BACKUP_NOTE =
+  "If you keep backups of learner data, make a new one after this in Settings › Learner data. Restoring an older backup brings back the PIN from the day it was made.";
+
 /**
  * Where a backup goes (backup-file.ts, src-tauri/src/backup.rs). SQLite writes the copy to `partial`, a
  * temporary name beside the picked one; `finish` flushes it, checks it is whole and gives it the picked

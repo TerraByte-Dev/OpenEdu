@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { backupLearnerData } from "../../../lib/db";
 import { pickBackupDestination } from "../../../lib/backup-file";
-import { backupFileName } from "../../../lib/db-resilience";
+import { backupFileName, RESTORE_PIN_NOTE } from "../../../lib/db-resilience";
 import { getBackupStatus, runBackup, subscribeBackupStatus } from "../../../lib/backup-status";
 import { Section, SettingRow, ActionButton } from "../primitives";
 import RestoreSteps from "../../../components/RestoreSteps";
@@ -35,7 +35,7 @@ export default function LearnerData() {
       >
         <SettingRow
           label="Back up all learner data"
-          help={`Saves one file with every course, chat, note, quiz and progress record. You can keep using ${APP_NAME} while it saves, but wait for "Backup saved" before you shut down or unplug the USB stick. Make a new backup often, for example at the end of each day.`}
+          help={`Saves one file with every course, chat, note, quiz and progress record, and each learner's PIN. You can keep using ${APP_NAME} while it saves, but wait for "Backup saved" before you shut down or unplug the USB stick. Make a new backup often, for example at the end of each day, and after a PIN is set, changed or removed.`}
         >
           <div className="space-y-2.5">
             <ActionButton primary disabled={saving} onClick={backUp} busyLabel="Saving backup…">Back up all learner data</ActionButton>
@@ -56,7 +56,7 @@ export default function LearnerData() {
         description={`Use a backup if ${APP_NAME} warns that learner data is damaged, or if work has gone missing.`}
         keywords="restore backup damaged recover replace file power cut"
       >
-        <SettingRow label="How to restore a backup" help="Restoring replaces all current learner data with the data in the backup. Anything done after that backup was made will be lost.">
+        <SettingRow label="How to restore a backup" help={`Restoring replaces all current learner data with the data in the backup. Anything done after that backup was made will be lost. ${RESTORE_PIN_NOTE}`}>
           <RestoreSteps />
         </SettingRow>
       </Section>

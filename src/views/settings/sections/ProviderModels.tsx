@@ -5,8 +5,10 @@ import {
   setApiKey, setOllamaUrl, getApiKey, getGenerationConfig, getChatConfig,
   getEmbeddingConfig, setEmbeddingModel,
   getMaxContextTokens, setMaxContextTokens, CONTEXT_TOKEN_CHOICES,
-  getCloudNoticesSeen, markCloudNoticeSeen,
+  getCloudNoticesSeen, markCloudNoticeSeen, systemMemoryBytes,
 } from "../../../lib/store";
+import { CONTEXT_WINDOW_HELP, contextWindowNote, contextLabel } from "../../../lib/context-window";
+import { ollamaState, ollamaStatusLabel, OLLAMA_NO_MODELS_HINT, type OllamaState } from "../../../lib/ollama-status";
 import { needsCloudNotice, modelNeedsCloudNotice, withNoticeSeen } from "../../../lib/privacy";
 import { CloudNoticePanel } from "../CloudNotice";
 import ReviewModelPicker from "../ReviewModelPicker";
@@ -33,9 +35,11 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [ollamaUrlValue, setOllamaUrlValue] = useState("http://127.0.0.1:11434");
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
-  const [ollamaStatus, setOllamaStatus] = useState<"checking" | "connected" | "disconnected">("checking");
+  const [ollamaStatus, setOllamaStatus] = useState<"checking" | OllamaState>("checking");
   const [ollamaError, setOllamaError] = useState<string | null>(null);
   const [maxCtx, setMaxCtx] = useState<number>(8192);
+  // This computer's memory, for the Context window's warning (context-window.ts); null when unknown.
+  const [ramBytes, setRamBytes] = useState<number | null>(null);
   // A cloud provider waiting on its one-time privacy confirm (privacy.ts); the switch happens on confirm.
   const [pendingCloud, setPendingCloud] = useState<"openai" | "anthropic" | null>(null);
   // An Ollama model whose name ends in cloud, waiting on the same one-time confirm; saved on confirm.
@@ -71,6 +75,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
       if (current()) setChatModelState(chat);
       setEmbeddingModelState((await getEmbeddingConfig()).model);
       setMaxCtx(await getMaxContextTokens());
+      setRamBytes(await systemMemoryBytes());
       if (base.provider !== "ollama") {
         const key = (await getApiKey(base.provider)) || "";
         if (current()) setApiKeyValue(key);
@@ -83,7 +88,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   useEffect(() => {
     if (!didInit.current) { didInit.current = true; return; } // initial probe handled by the load effect
     if (provider === "ollama") void checkOllama();
-    else setOllamaStatus("disconnected");
+    else setOllamaStatus("offline");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
 
@@ -91,14 +96,10 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
     setOllamaStatus("checking");
     setOllamaError(null);
     const result = await getOllamaModels(url);
-    if (result.models.length > 0) {
-      setOllamaModels(result.models);
-      setOllamaStatus("connected");
-    } else {
-      setOllamaModels([]);
-      setOllamaStatus("disconnected");
-      if (result.error) setOllamaError(result.error);
-    }
+    // Reachable with an empty list is "no-models", not offline (ollama-status.ts).
+    setOllamaModels(result.models);
+    setOllamaStatus(ollamaState(result));
+    if (result.error) setOllamaError(result.error);
   };
 
   // Persist the typed Ollama URL, then probe it. The green/red status only updates here (and on
@@ -239,17 +240,23 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
               </button>
               <div className={`flex items-center gap-2 text-sm shrink-0 ${
                 ollamaStatus === "connected" ? "text-success" :
-                ollamaStatus === "disconnected" ? "text-danger" : "text-[var(--ink-faint)]"
+                ollamaStatus === "offline" ? "text-danger" :
+                ollamaStatus === "no-models" ? "text-warning" : "text-[var(--ink-faint)]"
               }`}>
                 <span className={`w-2 h-2 rounded-full ${
                   ollamaStatus === "connected" ? "bg-success" :
-                  ollamaStatus === "disconnected" ? "bg-danger" : "bg-[var(--ink-faint)] animate-pulse"
+                  ollamaStatus === "offline" ? "bg-danger" :
+                  ollamaStatus === "no-models" ? "bg-warning" : "bg-[var(--ink-faint)] animate-pulse"
                 }`} />
-                {ollamaStatus === "connected" ? `${ollamaModels.length} models` :
-                 ollamaStatus === "disconnected" ? "Offline" : "Checking…"}
+                {ollamaStatusLabel(ollamaStatus, ollamaModels.length)}
               </div>
             </div>
-            {ollamaStatus === "disconnected" && (
+            {ollamaStatus === "no-models" && (
+              <p className="mt-2.5 text-xs text-[var(--ink-faint)]">
+                {OLLAMA_NO_MODELS_HINT} <code className="bg-panel-lite px-1 rounded">ollama pull {chatModel}</code>
+              </p>
+            )}
+            {ollamaStatus === "offline" && (
               <div className="mt-2.5 space-y-1">
                 {ollamaError && <p className="text-xs text-danger font-mono bg-panel-lite px-2 py-1.5 rounded">{ollamaError}</p>}
                 <p className="text-xs text-[var(--ink-faint)]">
@@ -353,12 +360,12 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
         <SettingRow
           label="Context window"
-          help={<>How much conversation the tutor can hold at once. <span className="text-phosphor-ink">Bigger is not better.</span> A larger window costs memory <em>and</em> tends to make small local models answer worse, because the relevant part of a long context gets lost among the rest. Raise it only if replies are getting cut off; lower it if the app is sluggish or a model fails to load. Applies to local (Ollama) models — and this setting <span className="text-phosphor-ink">overrides</span> whatever context length Ollama itself is configured with, so there is one place to change it. Cloud models manage their own.</>}
+          help={CONTEXT_WINDOW_HELP}
           keywords="context window num_ctx tokens memory ram history truncation length"
         >
           <div className="flex flex-col gap-1.5">
             <SegmentedControl
-              options={CONTEXT_TOKEN_CHOICES.map((n) => ({ id: String(n), label: n >= 1024 ? `${n / 1024}k` : String(n) }))}
+              options={CONTEXT_TOKEN_CHOICES.map((n) => ({ id: String(n), label: contextLabel(n) }))}
               value={String(maxCtx)}
               onChange={(next) => {
                 const n = Number(next);
@@ -366,15 +373,10 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
                 void setMaxContextTokens(n).then(markSaved);
               }}
             />
-            <span className="text-[11px] text-[var(--ink-faint)]">
-              {maxCtx <= 2048
-                ? "Minimum. Only for very low-memory machines — long answers will be cut short."
-                : maxCtx === 4096
-                  ? "Frugal. Roughly 19 messages of history; long conversations get trimmed sooner."
-                  : maxCtx === 8192
-                    ? "Recommended. Roughly 48 messages of history and room for a long reply."
-                    : "Generous. More history than a small model reliably uses, and about 2GB of memory."}
-            </span>
+            {(() => {
+              const note = contextWindowNote(maxCtx, ramBytes);
+              return <span className={`text-xs ${note.warn ? "text-warning" : "text-[var(--ink-faint)]"}`}>{note.text}</span>;
+            })()}
           </div>
         </SettingRow>
       </Section>
@@ -412,7 +414,7 @@ interface OllamaModelPickerProps {
   onCommit: (model: string) => void;           // persist (chip click or input blur)
   discoveredModels: string[];
   suggestions: string[];
-  ollamaStatus: "checking" | "connected" | "disconnected";
+  ollamaStatus: "checking" | OllamaState;
 }
 
 function OllamaModelPicker({ label, value, onChange, onCommit, discoveredModels, suggestions, ollamaStatus }: OllamaModelPickerProps) {
@@ -447,7 +449,10 @@ function OllamaModelPicker({ label, value, onChange, onCommit, discoveredModels,
       {ollamaStatus === "connected" && (
         <p className="text-[10px] text-[var(--ink-faint)]">{discoveredModels.length} installed model{discoveredModels.length !== 1 ? "s" : ""} · type any name or click a chip</p>
       )}
-      {ollamaStatus === "disconnected" && (
+      {ollamaStatus === "no-models" && (
+        <p className="text-[10px] text-[var(--ink-faint)]">Suggestions shown — Ollama has no models yet</p>
+      )}
+      {ollamaStatus === "offline" && (
         <p className="text-[10px] text-[var(--ink-faint)]">Suggestions shown — connect Ollama to see installed models</p>
       )}
       {!value.trim() && <p className="text-[10px] text-warning">Enter a model name for {label}</p>}
