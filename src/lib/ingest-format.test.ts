@@ -6,23 +6,30 @@ describe("ingestResultSummary", () => {
     expect(ingestResultSummary({ imported: 3, pending: 0, failed: 0 })).toEqual({ kind: "ok", message: null });
   });
 
-  it("warns (not errors) when notes import but can't be embedded — the embedder-offline case", () => {
+  it("with Ollama not running says the notes are searched by their words for now", () => {
     const s = ingestResultSummary({ imported: 3, pending: 3, failed: 0, reason: "Ollama, the program that runs the tutor, isn't running on this computer. Start Ollama, then try again." });
     expect(s.kind).toBe("warn");
-    expect(s.message).toBe(
-      "Imported 3 notes, but 3 notes couldn't be added to notebook search yet. OpenEdu tries again each time you open Notes.",
-    );
+    expect(s.message).toBe("Imported 3 notes. They're searched by their words for now. OpenEdu tries again each time you open Notes.");
+    expect(ingestResultSummary({ imported: 1, pending: 1, failed: 0, reason: "OpenAI API key not set — add it in Settings to use OpenAI embeddings." }).message)
+      .toBe("Imported 1 note. It's searched by its words for now. OpenEdu tries again each time you open Notes.");
   });
 
-  it("names the missing embedding model's fix, and never promises an open-and-save that does nothing", () => {
+  it("with no embedding model says the notes are searched by their words, and where searching by meaning is added", () => {
     const s = ingestResultSummary({
       imported: 2, pending: 2, failed: 0,
       reason: 'Ollama embedding model "nomic-embed-text" not found — run: ollama pull nomic-embed-text',
     });
     expect(s.message).toBe(
-      "Imported 2 notes, but 2 notes couldn't be added to notebook search yet. Notebook search isn't set up on " +
-      "this computer yet. Add the embedding model in Settings › Provider & Models. OpenEdu tries again each " +
-      "time you open Notes.",
+      "Imported 2 notes. They're searched by their words; searching by meaning needs the embedding model, " +
+      "added in Settings › Provider & Models.",
+    );
+  });
+
+  it("warns, and says it will try again, when a note's own embed failed", () => {
+    const s = ingestResultSummary({ imported: 3, pending: 1, failed: 0, reason: "Ollama embed error 500: unexpected input" });
+    expect(s.kind).toBe("warn");
+    expect(s.message).toBe(
+      "Imported 3 notes, but 1 note couldn't be added to notebook search yet. OpenEdu tries again each time you open Notes.",
     );
   });
 

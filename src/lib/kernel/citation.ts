@@ -17,21 +17,37 @@
 // answer and for a refusal that quotes, in every language the app serves, with no refusal-phrase
 // detection to get wrong.
 
-import type { GroundingHit } from "./ground";
+import type { GroundingHit, RetrievalTrace } from "./ground";
 
 /**
  * quoted     — the answer demonstrably reused these passages' wording (n-gram overlap, not the model's
  *              word). Says nothing about whether they answered the question.
- * ungrounded — passages WERE retrieved and the answer reused none of them.
+ * ungrounded — passages WERE retrieved and the answer reused none of them. `label` names only what was
+ *              searched (ungroundedChipLabel).
  */
-export type CitationNote = { kind: "quoted"; titles: string[] } | { kind: "ungrounded" };
+export type CitationNote = { kind: "quoted"; titles: string[] } | { kind: "ungrounded"; label: string };
 
 /** Null when nothing was retrieved: there is nothing to cite and nothing to have ignored. */
-export function citationNote(hits: GroundingHit[], usedHits: GroundingHit[]): CitationNote | null {
+export function citationNote(
+  hits: GroundingHit[], usedHits: GroundingHit[], trace: Pick<RetrievalTrace, "notesSearched">,
+): CitationNote | null {
   if (hits.length === 0) return null;
   return usedHits.length > 0
     ? { kind: "quoted", titles: [...new Set(usedHits.map((h) => h.title))] }
-    : { kind: "ungrounded" };
+    : { kind: "ungrounded", label: ungroundedChipLabel(hits, trace.notesSearched) };
+}
+
+/**
+ * What the "nothing quoted" chip says was searched: the notes only when their search ran and answered
+ * (not when "Search your notebook" is Deny or the search failed), and the library only when a passage
+ * came from it, since that is the only proof this turn searched it. It never says the answer came from
+ * general knowledge: that is the model's word, and not quoting a passage doesn't prove it.
+ */
+export function ungroundedChipLabel(hits: GroundingHit[], notesSearched: boolean): string {
+  const notes = notesSearched || hits.some((h) => h.source === "note");
+  const library = hits.some((h) => h.source === "library");
+  const searched = notes && library ? "your notes and the library were" : notes ? "your notes were" : "the library was";
+  return `No passage quoted — ${searched} searched`;
 }
 
 export function quotedChipLabel(title: string): string {

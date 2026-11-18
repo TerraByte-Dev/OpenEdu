@@ -574,7 +574,13 @@ search/ingest, math/diagram render, knowledge-map updates, mastery marking, and 
 tool. Behavior is composed from **skills** (`src/skills/*.md`; user-sideloaded bundles are not implemented yet):
 markdown files with frontmatter that gate on subject/tier. A per-tool **permission** policy
 (allow / ask / deny, with Standard · Cautious · Trusting presets) governs what the tutor may do on its
-own.
+own. Three rows' tools also run with no tool call: the grounding stage searches the notes and the library
+before every reply (`ground.ts groundingSources`), and the post-turn reflection updates the knowledge
+files after it (`knowledge.ts updateKnowledgeFiles`). Deny on "Search your notebook", "Search the library"
+or "Update knowledge map" stops that half too (TerraTutor #202, ported). Ask cannot stop to ask before
+every reply, so there it runs like Allow, and Settings › Tutor Permissions › Advanced says so under those
+rows (`permissions/rules.ts AUTOMATIC_USE_NOTES`). Quiz and test results are always written to the study
+log.
 
 A course's **domain skill** (`math-tutor`, `science-tutor`, `code-tutor`, `music-tutor`) is chosen in code
 on every turn (`skills/trigger.ts`, `kernel/chatSkills.ts`), with no model call. It decides which drawing
@@ -1027,6 +1033,36 @@ are **derived from note content** — no DB column. **`notebook.ts`** handles RA
 embedded on save, and searched by **brute-force cosine** over the course's vectors (fine for a single
 student's vault; vectors are stored as base64 f32 TEXT in `vec_b64`, with pre-migration-12 rows read back
 from JSON-array TEXT, schema kept `sqlite-vec`-compatible for later).
+
+**With no embedder the notes are searched by their words** (TerraTutor #209, ported). When the embed
+fails because the embedder can't run at all (`plain-language.ts embedderUnavailable`: no embedding model
+pulled, Ollama not answering, the OpenAI embedder with no key or connection), `searchNotebook` falls back
+to `searchNotesByWords`: the course's notes as they are now (`getNotes`), cut with `chunkText`, ranked by
+`notebook-words.ts` with a note's title as its topic (a port of TerraTutor's resource-pack matcher,
+`packs/rank.ts`; OpenEdu has no packs). A passage must cover at least 40% of the question's IDF-weighted
+content words; question-shaping words ("why", "explain") and help-asking words ("help", "answer",
+"times") are left out, and numerals never make up the two words a passage must match. One shared word is
+never enough unless it is a topic word of the note's title, or rare in these notes and all the question
+asked. "Rare" is at most max(1, 15%) of the passages, so in a notebook of fewer than about seven passages
+a word only one note has is rare: "what is water?" finds the one note that mentions water. The title rule
+likewise lets a generic title ("My homework") match a question that shares only that word, unless the
+word is one `topicWords` drops; both are pinned in `notebook-words.test.ts` and neither has been measured
+on real notebooks. Any other embed failure still throws. A word hit carries `by: "words"` and its
+coverage as `score`; `ground.ts noteHit` places it at `MIN_NOTE_SCORE + 0.1 × coverage` (0.49–0.55, around
+the library card's 0.50; `selectHits` still reserves the reference slot). Because it lives in
+`searchNotebook`, the grounding stage, the `notebook.search` tool and the Notes tab's passage search all
+use it. Matching by words misses a note that says the same thing in other words or another language.
+The trace records `noteSearch: "words"`, and the RAG eval (`rag-runner.ts`) discards a run that searched
+by words, since it measures the embedder. After an import whose embed failed this way, the Notes tab says
+the notes are searched by their words (`ingest-format.ts ingestResultSummary`), and, when the embedding
+model is missing, that searching by meaning needs it, added in Settings › Provider & Models.
+
+The chip under a reply that quoted nothing names only what was searched (`citation.ts
+ungroundedChipLabel`): "No passage quoted — your notes were searched", "— the library was searched" or
+"— your notes and the library were searched". The notes are named only when their search ran
+(`trace.notesSearched`; not when "Search your notebook" is Deny or the search failed), the library only
+when a card came from it. It used to read "Answered from general knowledge — not your notes" on every
+such turn, which named the notes when they had not been searched and claimed a source nothing proved.
 
 A note that couldn't be embedded when it was imported or saved (no embedding model yet, Ollama down) is
 picked up by `reindexCourseNotes`, which `NotesTab` runs each time it opens a course's notes: it skips

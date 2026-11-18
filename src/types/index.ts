@@ -147,11 +147,16 @@ export interface NotebookChunk {
 // A retrieval hit returned by searchNotebook / the notebook.search tool.
 export interface NotebookSearchResult {
   chunk_id: string;
+  /** The notebook_documents row the chunk belongs to; for a word-search hit (`by: "words"`), the note's id.
+   *  Either way one id per note within one search, which is all the callers (ground.ts `ref`) rely on. */
   document_id: string;
   document_title: string;
   ord: number;
   text: string;
-  score: number; // cosine similarity, 0..1
+  /** Cosine similarity 0..1; for a word-search hit (`by: "words"`), the share of the question it covers. */
+  score: number;
+  /** Present when the notes were searched by their words because no embedder could run (notebook.ts). */
+  by?: "words";
 }
 
 // One entry in the OpenEdu Library manifest (index.json hosted on the static site). The app fetches

@@ -176,7 +176,7 @@ export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
     return "The model picked in Settings isn't available any more. Open Settings and pick another one.";
   }
   if (EMBEDDER_MISSING.test(raw)) {
-    return "Notebook search isn't set up on this computer yet, so your notes can't be searched. Open Settings to add it.";
+    return "Searching notes by meaning isn't set up on this computer yet; they're still searched by their words. Open Settings to add it.";
   }
   const missing = /model "([^"]+)" not found/i.exec(raw);
   if (missing) {

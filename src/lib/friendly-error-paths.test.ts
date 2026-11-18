@@ -6,17 +6,16 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 vi.mock("@tauri-apps/plugin-http", () => import("./eval/headless/shims/plugin-http"));
 // The memory read fails, the way it does when the Rust command errors.
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => { throw new Error("command failed"); }) }));
-// Notes search reads its model from the settings store; the kit default is nomic-embed-text.
+// The notes' embedder is read from the settings store; the default is nomic-embed-text.
 vi.mock("./store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./store")>()),
   getEmbeddingConfig: vi.fn(async () => ({ provider: "ollama", model: "nomic-embed-text", ollamaUrl: "http://127.0.0.1:11434" })),
 }));
 
-import { callLLMTurn, type NeutralMessage } from "./llm";
+import { callLLMTurn, embed, type NeutralMessage } from "./llm";
 import { generateLesson } from "./curriculum";
-import { searchNotebook } from "./notebook";
-import { systemMemoryBytes } from "./store";
-import { friendlyError, STALLED_TURN } from "./plain-language";
+import { systemMemoryBytes, getEmbeddingConfig } from "./store";
+import { friendlyError, embeddingModelMissing, STALLED_TURN } from "./plain-language";
 import type { LLMConfig } from "../types";
 
 const original = globalThis.fetch;
@@ -52,13 +51,17 @@ describe("the lessons screen", () => {
 });
 
 describe("notes search", () => {
-  it("on a kit install without the search model says search isn't set up, not `ollama pull`", async () => {
+  it("without the embedding model says searching by meaning isn't set up, not `ollama pull`", async () => {
     fakeOllama((url) => url.endsWith("/api/embed")
       ? new Response('{"error":"model \\"nomic-embed-text\\" not found, try pulling it first"}', { status: 404 })
       : new Response("{}", { status: 404 }));
-    const e = await caught(() => searchNotebook({ courseId: "c1", query: "fractions" }));
+    // The embed a note import or save runs (notebook.ts indexNote). Searching no longer fails this way:
+    // without the model, searchNotebook searches the notes by their words (notebook-words.test.ts).
+    const e = await caught(async () => embed(["fractions"], await getEmbeddingConfig()));
 
-    expect(friendlyError(e)).toBe("Notebook search isn't set up on this computer yet, so your notes can't be searched. Open Settings to add it.");
+    expect(friendlyError(e)).toBe("Searching notes by meaning isn't set up on this computer yet; they're still searched by their words. Open Settings to add it.");
+    // The note import message (ingest-format.ts) recognises this error as the missing embedding model.
+    expect(embeddingModelMissing(e)).toBe(true);
   });
 });
 

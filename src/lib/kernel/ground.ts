@@ -15,9 +15,14 @@
 import { estTokens, capText, type Budget } from "./budget";
 import { searchNotebook } from "../notebook";
 import { getManifest, matchResourcesScored, fetchResource, isLibraryAvailable } from "../library";
-import { words, wordLength } from "../library-rank";
 import { getLibraryEnabled } from "../store";
 import type { ToolContext } from "../tools/EduTool";
+import type { NotebookSearchResult } from "../../types";
+import { evaluatePermission } from "../permissions/evaluate";
+import { loadPermissionRules } from "../permissions/store";
+import { contentWords } from "./contentWords";
+
+export { contentWords };
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +45,13 @@ export interface RetrievalTrace {
    *  the pre-floor count can tell those apart, which the eval's integrity check depends on. */
   noteCandidates: number;
   topScore: number;
+  /** True when the notes half ran and answered (with or without passages): false when "Search your
+   *  notebook" is Deny in Tutor Permissions or the search failed. The citation chip names the notes
+   *  only when this is true. */
+  notesSearched: boolean;
+  /** How the note candidates were found: "words" when no embedder could run and notebook.ts searched
+   *  the notes by their words instead. Absent when there were no note candidates. */
+  noteSearch?: "embedder" | "words";
   hitTitles: string[];
   blockTokens: number;
   error?: string;
@@ -58,7 +70,7 @@ export interface Grounding {
 export const EMPTY_GROUNDING: Grounding = {
   block: "",
   hits: [],
-  trace: { skipped: null, candidates: 0, noteCandidates: 0, topScore: 0, hitTitles: [], blockTokens: 0 },
+  trace: { skipped: null, candidates: 0, noteCandidates: 0, topScore: 0, notesSearched: false, hitTitles: [], blockTokens: 0 },
 };
 
 export type RetrievalMode = "always" | "auto" | "off";
@@ -104,25 +116,6 @@ const MAX_HIT_TOKENS = 250;
  *  while any question naming any thing survives. If an acknowledgement does slip through, it retrieves
  *  nothing above the floor and costs one embed. That is the correct direction to be wrong in. */
 const MIN_CONTENT_WORDS = 1;
-
-// Mirrors library.ts's stopword list; kept local so this module stays independent of it. The trailing
-// group is acknowledgement vocabulary — the words that make up a turn carrying no question at all
-// ("ok got it", "sure thanks", "cool"). They are what lets MIN_CONTENT_WORDS sit at 1 without
-// retrieving on every "yeah makes sense".
-const STOPWORDS = new Set([
-  "the", "a", "an", "of", "for", "to", "in", "on", "is", "are", "was", "were", "what", "whats",
-  "show", "me", "my", "tell", "about", "give", "list", "and", "or", "how", "do", "does", "did",
-  "i", "you", "can", "could", "with", "this", "that", "it", "its", "be", "been", "have", "has",
-  "if", "then", "so", "but", "not", "no", "yes", "please", "thanks", "thank", "ok", "okay",
-  "got", "get", "sure", "great", "cool", "nice", "right", "yeah", "yep", "sense", "makes", "wow",
-]);
-
-export function contentWords(s: string): string[] {
-  // words() is the shared Unicode splitter (library-rank.ts). On ASCII it is exactly the old
-  // `.toLowerCase().split(/[^a-z0-9]+/)`; on Hindi, Amharic or Arabic it is the difference between a
-  // question and "short-query", which skipped grounding for every non-Latin student.
-  return words(s).filter((t) => wordLength(t) >= 2 && !STOPWORDS.has(t));
-}
 
 // ── Pure stage 1: should we retrieve at all? ─────────────────────────────────
 
@@ -298,6 +291,36 @@ export function mergeCandidates(original: Array<GroundingHit & { key: string }>,
 // ── The I/O shell ────────────────────────────────────────────────────────────
 
 /**
+ * Which corpora this turn may search, by the tools' own permission rules (Settings › Tutor
+ * Permissions). The stage is the tutor searching on its own, so "Search your notebook" or "Search the
+ * library" set to Deny keeps that half out of it. A stage cannot stop to ask before every reply, so Ask
+ * lets it run, and the Settings row says so (permissions/rules.ts AUTOMATIC_USE_NOTES).
+ */
+async function groundingSources(ctx: Pick<ToolContext, "permissionMode">): Promise<{ notes: boolean; library: boolean }> {
+  const rules = await loadPermissionRules();
+  const on = (name: string) => evaluatePermission({ name, isReadOnly: true }, ctx.permissionMode, rules) !== "deny";
+  return { notes: on("notebook.search"), library: on("library.search") };
+}
+
+const NONE: Promise<never[]> = Promise.resolve([]);
+
+/**
+ * A note search result as a grounding hit. A word-search hit (no embedder, notebook.ts
+ * searchNotesByWords) carries coverage, not a cosine: it is placed just above the note floor and ordered
+ * among the notes by how much of the question it covers, at most 0.05 above a library card (which is
+ * pinned at MIN_NOTE_SCORE + 0.05), so selectHits's reserved reference slot still decides between them.
+ */
+function noteHit(r: NotebookSearchResult): GroundingHit {
+  const score = r.by === "words" ? MIN_NOTE_SCORE + 0.1 * r.score : r.score;
+  return { source: "note", title: r.document_title, text: r.text, score, ref: r.document_id };
+}
+
+function noteSearchOf(results: NotebookSearchResult[]): RetrievalTrace["noteSearch"] {
+  if (results.length === 0) return undefined;
+  return results.some((r) => r.by === "words") ? "words" : "embedder";
+}
+
+/**
  * Retrieve context for one turn. Never throws: a dead embedder, a missing model, an unreachable
  * library — all degrade to "no grounding" with the reason recorded in the trace. A tutoring turn
  * must never fail because retrieval failed; that is the difference between a feature and a
@@ -314,7 +337,8 @@ export async function ground(
   if (!gate.retrieve) {
     return { ...EMPTY_GROUNDING, trace: { ...EMPTY_GROUNDING.trace, skipped: gate.reason } };
   }
-  if (gloss) return groundWithGloss(question, gloss, ctx, budget);
+  const sources = await groundingSources(ctx);
+  if (gloss) return groundWithGloss(question, gloss, ctx, budget, sources);
 
   const candidates: GroundingHit[] = [];
   let noteCandidates = 0;
@@ -324,17 +348,16 @@ export async function ground(
   // model at all, so on the install a school actually ends up with — chat model only, no embedder —
   // grounding still fires.
   const [notes, library] = await Promise.allSettled([
-    searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }),
-    groundFromLibrary(question),
+    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }) : NONE,
+    sources.library ? groundFromLibrary(question) : NONE,
   ]);
 
   if (notes.status === "fulfilled") {
     noteCandidates = notes.value.length;
-    for (const r of notes.value) {
-      candidates.push({ source: "note", title: r.document_title, text: r.text, score: r.score, ref: r.document_id });
-    }
+    for (const r of notes.value) candidates.push(noteHit(r));
   } else {
-    // Most often: no embedding model pulled. Recorded, never surfaced as a turn failure.
+    // A missing embedder no longer lands here (searchNotebook searches the notes by their words), so
+    // this is a real failure: the database, say. Recorded, never surfaced as a turn failure.
     error = notes.reason instanceof Error ? notes.reason.message : String(notes.reason);
   }
   if (library.status === "fulfilled") candidates.push(...library.value);
@@ -354,6 +377,8 @@ export async function ground(
       candidates: candidates.length,
       noteCandidates,
       topScore,
+      notesSearched: sources.notes && notes.status === "fulfilled",
+      noteSearch: notes.status === "fulfilled" ? noteSearchOf(notes.value) : undefined,
       hitTitles: hits.map((h) => h.title),
       blockTokens: estTokens(block),
       error,
@@ -364,12 +389,14 @@ export async function ground(
 // Lever L2: the same stage, searched with the original question AND its English gloss, both corpora,
 // merged per passage (mergeCandidates). The floor, diversity and cap are selectHits's, unchanged. Only
 // reached for a glossed (non-English) question; an English turn never gets here.
-async function groundWithGloss(question: string, gloss: string, ctx: ToolContext, budget: Budget): Promise<Grounding> {
+async function groundWithGloss(
+  question: string, gloss: string, ctx: ToolContext, budget: Budget, sources: { notes: boolean; library: boolean },
+): Promise<Grounding> {
   const [notes, library, glossNotes, glossLibrary] = await Promise.allSettled([
-    searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }),
-    groundFromLibrary(question),
-    searchNotebook({ courseId: ctx.courseId, query: gloss, topK: 6 }),
-    groundFromLibrary(gloss),
+    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }) : NONE,
+    sources.library ? groundFromLibrary(question) : NONE,
+    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: gloss, topK: 6 }) : NONE,
+    sources.library ? groundFromLibrary(gloss) : NONE,
   ]);
 
   type Keyed = GroundingHit & { key: string };
@@ -377,7 +404,7 @@ async function groundWithGloss(question: string, gloss: string, ctx: ToolContext
   const keyed = (n: typeof notes, l: typeof library): Keyed[] => {
     const out: Keyed[] = [];
     if (n.status === "fulfilled") {
-      for (const r of n.value) out.push({ source: "note", title: r.document_title, text: r.text, score: r.score, ref: r.document_id, key: `note:${r.chunk_id}` });
+      for (const r of n.value) out.push({ ...noteHit(r), key: `note:${r.chunk_id}` });
     } else {
       error ??= n.reason instanceof Error ? n.reason.message : String(n.reason);
     }
@@ -386,6 +413,8 @@ async function groundWithGloss(question: string, gloss: string, ctx: ToolContext
   };
   const candidates = mergeCandidates(keyed(notes, library), keyed(glossNotes, glossLibrary));
   const noteCandidates = candidates.filter((h) => h.source === "note").length;
+  const noteResults = [notes, glossNotes].flatMap((n) => (n.status === "fulfilled" ? n.value : []));
+  const notesSearched = sources.notes && notes.status === "fulfilled" && glossNotes.status === "fulfilled";
 
   const topScore = candidates.reduce((m, h) => Math.max(m, h.score), 0);
   const hits = selectHits(candidates);
@@ -396,7 +425,7 @@ async function groundWithGloss(question: string, gloss: string, ctx: ToolContext
   return {
     block,
     hits,
-    trace: { skipped, candidates: candidates.length, noteCandidates, topScore, hitTitles: hits.map((h) => h.title), blockTokens: estTokens(block), error },
+    trace: { skipped, candidates: candidates.length, noteCandidates, topScore, notesSearched, noteSearch: noteSearchOf(noteResults), hitTitles: hits.map((h) => h.title), blockTokens: estTokens(block), error },
   };
 }
 
