@@ -57,6 +57,15 @@ they are. The restore steps and Settings › Learner data say so (`db-resilience
 learner menu's PIN screen suggests a new backup (`PIN_BACKUP_NOTE`), because a forgotten PIN cannot be
 recovered.
 
+**A full disk.** A write that fails because the disk is full (SQLite's `(code: 13) database or disk is
+full`, or the OS's own words) is said plainly: `plain-language.ts friendlyError` gives "This computer is out
+of space…" for a course build, a lesson or a saved tutor reply, instead of "try again in a moment". The
+learner's chat message is saved before anything is sent, so one that can't be saved is not sent: its words
+go back in the box and the chat says so (`messageNotSaved`). A note that can't be saved says so under its
+title and names it (`noteNotSaved`); the edit stays in the editor while the note is open. Tested on a real
+SQLite capped at its size (`disk-full.test.ts`, and `notes-save-error.test.ts` in the real Notebook). Ported
+from TerraTutor #232.
+
 **A migration that fails.** tauri-plugin-sql 2.3.2 (`commands.rs load`) takes the database's migration
 list out before it migrates and does not put it back when migrating fails, so a second `Database.load` in
 the same process opens the old schema with nothing applied. `getDb()` retries any other failed open on
@@ -174,7 +183,9 @@ written: they came from a once-a-minute timer whose only reader was the learning
   both feed context back into the tutor. The post-turn reflection (`updateKnowledgeFiles`) is capped at
   `REFLECTION_MAX_TOKENS`, dropped after `REFLECTION_TIMEOUT_MS`, and stopped by ChatTab when the next turn
   starts or the chat closes, so on a CPU-only PC, where Ollama answers one request at a time, it never holds
-  the learner's next reply; a stopped one writes nothing.
+  the learner's next reply; a stopped one writes nothing. Every study log writer appends the newest line
+  at the end, and the tutor's prompt shows the newest whole lines that fit the study log's 200 characters
+  (`getKnowledgeSummary`), never the oldest (TerraTutor #232).
 - **`quiz.ts` / `quiz-grading.ts` / `quiz-review.ts`** — quiz & promotion-test generation (schema-enforced,
   topped up to a target count, with answer↔explanation self-consistency checks that also read clock
   times, money and fractions, read an equation option by its result and skip a method key ("Subtract 7 from

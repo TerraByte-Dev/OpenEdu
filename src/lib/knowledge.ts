@@ -145,6 +145,24 @@ export async function initKnowledgeFiles(courseId: string): Promise<void> {
   }
 }
 
+// The study log within its budget. Every writer appends the newest line at the end, so whole lines are
+// kept from the end back, oldest first as stored. A newest line longer than the budget on its own keeps
+// its start (the date, the name and the score), cut there.
+function newestLines(log: string, budget: number): string {
+  const lines = log.split("\n").filter((l) => l.trim());
+  const kept: string[] = [];
+  let used = 0;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const cost = lines[i].length + (kept.length > 0 ? 1 : 0);
+    if (used + cost > budget) break;
+    kept.unshift(lines[i]);
+    used += cost;
+  }
+  if (kept.length > 0) return kept.join("\n");
+  const newest = lines[lines.length - 1] ?? "";
+  return newest.slice(0, budget) + "...";
+}
+
 // Read all 4 knowledge types and return a single prompt section (capped at 1500 chars)
 export async function getKnowledgeSummary(courseId: string): Promise<string> {
   const instructions = await getTutorInstructions(courseId);
@@ -154,7 +172,7 @@ export async function getKnowledgeSummary(courseId: string): Promise<string> {
     const content = (instructions[type] ?? "").trim();
     if (!content) continue;
     const budget = BUDGETS[type];
-    const truncated = content.length > budget ? content.slice(0, budget) + "..." : content;
+    const truncated = type === "study_log" ? newestLines(content, budget) : content.length > budget ? content.slice(0, budget) + "..." : content;
     const label = type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     sections.push(`**${label}:**\n${truncated}`);
   }

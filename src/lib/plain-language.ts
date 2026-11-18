@@ -162,6 +162,31 @@ export function ollamaUnavailable(e: unknown): boolean {
 // llm.ts embed(): Ollama answered 404 for the embedding model (Settings › Provider & Models).
 const EMBEDDER_MISSING = /embedding model "[^"]+" not found/i;
 
+// The disk is full: SQLite's SQLITE_FULL ("database or disk is full", code 13) from a course build, a
+// lesson or a saved chat reply, and the OS's own words from a file write (Windows os error 112, Linux
+// and macOS os error 28). Trying again fails the same way until space is freed, so it is said plainly.
+const DISK_FULL = /disk is full|SQLITE_FULL|\(code: 13\)|not enough space on the disk|os error 112|no space left on device|os error 28\b/i;
+export const OUT_OF_SPACE = "This computer is out of space. Delete some files you don't need, then try again.";
+
+/** True when a write failed because the disk is full. */
+export function outOfSpace(e: unknown): boolean {
+  return DISK_FULL.test(e instanceof Error ? e.message : String(e ?? ""));
+}
+
+/**
+ * What the chat says when the learner's message could not be saved: it was not sent either, and the
+ * words are back in the box to send again.
+ */
+export function messageNotSaved(e: unknown): string {
+  return `Your message wasn't saved, so it wasn't sent. It's still in the box. ${outOfSpace(e) ? OUT_OF_SPACE : "Try sending it again in a moment."}`;
+}
+
+/** What the notebook says when a note could not be saved. `title` names it, since the learner may have moved on. */
+export function noteNotSaved(title: string, e: unknown): string {
+  const name = title.trim() ? `Your note “${title.trim()}”` : "Your note";
+  return `${name} wasn't saved. ${outOfSpace(e) ? OUT_OF_SPACE : "Keep it open and try again in a moment."}`;
+}
+
 /** True when an embed failed because the embedding model isn't on this computer. */
 export function embeddingModelMissing(e: unknown): boolean {
   return EMBEDDER_MISSING.test(e instanceof Error ? e.message : String(e ?? ""));
@@ -184,6 +209,7 @@ export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
     const m = re.exec(raw);
     if (m) return m[0];
   }
+  if (DISK_FULL.test(raw)) return OUT_OF_SPACE;
   // llm.ts friendlyHttpError: the cloud key and plan cases are already sentences with a next step.
   if (/^(Invalid API key|Rate limit hit|Access denied) \(/.test(raw) || /is having server issues \(\d+\)/.test(raw)) return raw;
   if (/^Model not found \(/.test(raw)) {
