@@ -371,7 +371,7 @@ export default function App() {
                     <span className="w-2 h-2 rounded-full bg-phosphor animate-pulse shrink-0" />
                     <span>Level up! Advanced to <strong>Level {promotionBanner}</strong> — keep going.</span>
                   </span>
-                  <button onClick={() => setPromotionBanner(null)} className="text-phosphor-bright hover:text-phosphor text-lg leading-none">✕</button>
+                  <button onClick={() => setPromotionBanner(null)} aria-label="Dismiss" className="text-phosphor-bright hover:text-phosphor text-lg leading-none">✕</button>
                 </div>
               )}
 

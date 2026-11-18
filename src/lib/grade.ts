@@ -3,10 +3,11 @@
 //
 // Stored in learners.grade (migration 15) as an integer: 0 = kindergarten, 1-12 = that grade, NULL =
 // not set. Everything a grade changes is decided here from its band, by code, with no model call:
-// the reading-level line and child-safety rules in the tutor's system prompt, the chat text size, and
-// whether replies read themselves aloud by default. With no grade set none of it applies, and the
-// system prompt is byte-identical to the one before grades existed (systemPrompt-master.test.ts pins
-// that), except on a safety-disclosure turn, which gets the child-safety rules (gradePromptLayer).
+// the reading-level line and child-safety rules in the tutor's system prompt, the text size in chat,
+// lessons, quizzes and level tests, and whether replies read themselves aloud by default. With no
+// grade set none of it applies, and the system prompt is byte-identical to the one before grades
+// existed (systemPrompt-master.test.ts pins that), except on a safety-disclosure turn, which gets the
+// child-safety rules (gradePromptLayer).
 
 import { CHILD_SAFETY_RULES, isSafetyDisclosure } from "./child-safety";
 
@@ -38,7 +39,7 @@ export function gradeBand(grade: Grade | null): GradeBand | null {
   return "9-12";
 }
 
-/** K-2: the learners who get larger chat text and replies read aloud by default. */
+/** K-2: the learners who get larger text (chat, lessons, quizzes, level tests) and replies read aloud by default. */
 export function isEarlyReader(grade: Grade | null): boolean {
   return gradeBand(grade) === "K-2";
 }
