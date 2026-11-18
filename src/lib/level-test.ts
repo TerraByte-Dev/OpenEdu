@@ -66,6 +66,16 @@ export function levelTestResult(answers: ReadonlyArray<TestAnswer>): LevelTestRe
 export const RETAKE_WAIT_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Whether a finished level test starts the retake wait: not passed (`passed` 0), or before migration 18
+ * (`passed` NULL) a score under the bar. The test screen (PromotionTestFullScreen checkCooldown) and the
+ * next step (next-step.ts) read it the same way. A test waiting for its written answers to be marked also
+ * has `passed` NULL: ask level-test-checks.ts pendingLevelTestFor first.
+ */
+export function levelTestFailed(attempt: { passed?: number | null; score: number | null }): boolean {
+  return attempt.passed === 0 || (attempt.passed == null && attempt.score != null && attempt.score < PASS_OVERALL);
+}
+
+/**
  * The wait left before a failed level test can be taken again, as "5h 12m" or "12m", or "" when it is
  * over. `completedAt` is the attempt's completed_at, SQLite's datetime('now'): UTC with no zone
  * ("2026-11-18 14:00:00"), read as UTC. Read as local time it ran the wait 24 h plus the UTC offset.

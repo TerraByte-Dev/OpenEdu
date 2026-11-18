@@ -76,6 +76,55 @@ describe("rankNextSteps", () => {
     }
   });
 
+  // Ported from TerraTutor #234: after a failed level test the step never says "ready to move up" while
+  // the retake wait runs (the test screen would only show the wait).
+  describe("after a level test at this level", () => {
+    const ready = syllabus([sub("a", { mastered: true, review_needed: true }), sub("b", { mastered: true }), sub("c", { practiced: true })]);
+    // Stored as SQLite's datetime('now'): UTC with no zone.
+    const test = (over: Partial<QuizAttempt> = {}) => attempt({
+      id: "t1", quiz_type: "promotion", score: 70, started_at: "2026-06-03 09:00:00", completed_at: "2026-06-03 09:30:00", passed: 0, ...over,
+    });
+    const at = (iso: string) => new Date(iso).getTime();
+
+    it("failed and inside the retake wait: no 'ready to move up', but when it opens again and a practice quiz", () => {
+      const steps = rankNextSteps(base({ currentSyllabus: ready, attempts: [test(), attempt({ score: 90 })], now: at("2026-06-03T14:00:00Z") }));
+      const keys = steps.map((s) => s.key);
+      expect(keys).not.toContain("promotion");
+      expect(steps.some((s) => /ready to move up/i.test(s.title))).toBe(false);
+      expect(steps[0]).toEqual(expect.objectContaining({ key: "retake-wait", action: { kind: "tab", tab: "quiz" } }));
+      expect(steps[0].blurb).toContain("19h 30m");
+      expect(keys).toContain("review-a");
+      // Home's Continue takes the same step.
+      expect(continueStep(steps)?.key).toBe("retake-wait");
+    });
+
+    it("failed, once the wait is over: ready again", () => {
+      const steps = rankNextSteps(base({ currentSyllabus: ready, attempts: [test(), attempt({ score: 90 })], now: at("2026-06-04T09:31:00Z") }));
+      expect(steps[0].key).toBe("promotion");
+    });
+
+    it("from before migration 18 (passed NULL): under the bar starts the wait, as the test screen reads it", () => {
+      const now = at("2026-06-03T14:00:00Z");
+      expect(rankNextSteps(base({ currentSyllabus: ready, attempts: [test({ passed: null, score: 70 }), attempt()], now }))[0].key).toBe("retake-wait");
+      expect(rankNextSteps(base({ currentSyllabus: ready, attempts: [test({ passed: null, score: 90 }), attempt()], now }))[0].key).toBe("promotion");
+    });
+
+    it("waiting for its written answers to be marked: says so, never 'ready to move up'", () => {
+      const steps = rankNextSteps(base({
+        currentSyllabus: ready, attempts: [test({ passed: null }), attempt({ score: 90 })], testWaitingForMarks: true, now: at("2026-06-03T14:00:00Z"),
+      }));
+      expect(steps[0]).toEqual(expect.objectContaining({ key: "test-marking", action: { kind: "promotion" } }));
+      expect(steps.map((s) => s.key)).not.toContain("promotion");
+      expect(steps.map((s) => s.key)).not.toContain("retake-wait");
+    });
+
+    it("a stopped test (never finished) or one at another level changes nothing", () => {
+      const now = at("2026-06-03T14:00:00Z");
+      expect(rankNextSteps(base({ currentSyllabus: ready, attempts: [test({ completed_at: null, passed: null }), attempt()], now }))[0].key).toBe("promotion");
+      expect(rankNextSteps(base({ currentSyllabus: ready, attempts: [test({ level: 2 }), attempt()], now }))[0].key).toBe("promotion");
+    });
+  });
+
   it("a topic flagged for review points at the tutor with that topic seeded", () => {
     const steps = rankNextSteps(base({
       currentSyllabus: syllabus([sub("a", { mastered: true, review_needed: true }), sub("b", { practiced: true })]),

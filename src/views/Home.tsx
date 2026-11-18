@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Course, Syllabus } from "../types";
 import { getSyllabus, getQuizAttempts } from "../lib/db";
+import { pendingLevelTest } from "../lib/level-test-checks";
 import { getLevelMeaning } from "../lib/curriculum";
 import { rankNextSteps, continueStep, type NextStep, type NextStepAction } from "../lib/next-step";
 import {
@@ -71,10 +72,11 @@ export default function Home({
       setGlances(map);
       if (recent && !needsBuilding(recent)) {
         const attempts = await getQuizAttempts(recent.id).catch(() => []);
+        const testWaitingForMarks = (await pendingLevelTest(recent.id, recent.current_level).catch(() => null)) !== null;
         if (!alive) return;
         const steps = rankNextSteps({
           course: recent, level: recent.current_level, currentSyllabus: map[recent.id]?.syllabus ?? null,
-          attempts, canRegenerate: false, canPromote: recent.status === "active",
+          attempts, canRegenerate: false, canPromote: recent.status === "active", testWaitingForMarks,
         });
         setNextStep(continueStep(steps));
       } else {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Course, Syllabus, QuizAttempt } from "../types";
 import { getQuizAttempts } from "../lib/db";
+import { pendingLevelTest } from "../lib/level-test-checks";
 import { rankNextSteps, type NextStep, type NextStepAction } from "../lib/next-step";
 import type { SwitchTabOpts, Tab } from "../views/CourseView";
 
@@ -34,17 +35,20 @@ export default function NextStepCard({
   onOpenPromotionTest,
 }: NextStepCardProps) {
   const [attempts, setAttempts] = useState<QuizAttempt[] | null>(null);
+  // The level's last level test waits for its written answers to be marked (next-step.ts Rule 3).
+  const [testWaitingForMarks, setTestWaitingForMarks] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const a = await getQuizAttempts(courseId);
-      if (!cancelled) setAttempts(a);
+      const marking = (await pendingLevelTest(courseId, level).catch(() => null)) !== null;
+      if (!cancelled) { setAttempts(a); setTestWaitingForMarks(marking); }
     })();
     return () => {
       cancelled = true;
     };
-  }, [courseId]);
+  }, [courseId, level]);
 
   const suggestions = useMemo<Suggestion[]>(() => {
     const run = (a: NextStepAction): (() => void) | undefined => {
@@ -59,9 +63,10 @@ export default function NextStepCard({
       attempts: attempts ?? [],
       canRegenerate: !!onRegenerate,
       canPromote: !!onOpenPromotionTest,
+      testWaitingForMarks,
     });
     return steps.map((s) => ({ key: s.key, title: s.title, blurb: s.blurb, actionLabel: s.actionLabel, action: s.action ? run(s.action) : undefined }));
-  }, [course, level, currentSyllabus, attempts, switchTab, onRegenerate, onOpenPromotionTest]);
+  }, [course, level, currentSyllabus, attempts, testWaitingForMarks, switchTab, onRegenerate, onOpenPromotionTest]);
 
   if (attempts === null) {
     return (

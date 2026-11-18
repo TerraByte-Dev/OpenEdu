@@ -28,12 +28,16 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 
 import {
   setActiveLearnerId, createPromotionAttempt, saveQuizQuestion, updateQuizQuestionGrade, markLevelTestHandedIn,
-  getHandedInLevelTest, getLastPromotionAttempt,
+  getHandedInLevelTest, getLastPromotionAttempt, createQuizAttempt, completeQuizAttempt, getQuizAttempts,
 } from "./db";
 import { saveLevelTestResult, pendingLevelTest, settleLevelTest, finishHandedInLevelTest, handInLevelTest, type WrittenAnswerGrader } from "./level-test-checks";
 import { DEFAULT_LEARNER_ID } from "./learners";
 import { retakeWaitLeft, type TestAnswer, type TestSection } from "./level-test";
 import type { GradedBy, GradeOutcome } from "./quiz-grading";
+import { continueStep, rankNextSteps } from "./next-step";
+import type { Course, Syllabus } from "../types";
+import homeSource from "../views/Home.tsx?raw";
+import nextStepCardSource from "../components/NextStepCard.tsx?raw";
 
 function migrations(): Map<number, string> {
   const out = new Map<number, string>();
@@ -362,5 +366,65 @@ describe("a level test handed in while the app closed during grading", () => {
     await finishHandedInLevelTest(id, grader(() => true).grade);
     const done = Date.parse(`${attemptRow(id).completed_at!.replace(" ", "T")}Z`);
     expect(Math.abs(done - Date.now())).toBeLessThan(60_000);
+  });
+});
+
+// Home's Continue and the Next step card read the stored attempts (getQuizAttempts) and whether the level's
+// last test waits for marks (pendingLevelTest), then rank the steps (next-step.ts). After a level test they
+// never say "ready to move up" while the test screen would only show the retake wait or the marking. Ported
+// from TerraTutor #234.
+describe("the next step after a level test, from the database", () => {
+  beforeEach(async () => {
+    await openDb();
+    setActiveLearnerId(null);
+    migrate(20);
+    sqlite.exec(`INSERT INTO courses (id, title, topic, current_level, learner_id) VALUES ('c1', 'Algebra', 'algebra', 2, '${DEFAULT_LEARNER_ID}');`);
+    const quiz = await createQuizAttempt("c1", "quiz", 2, 5);
+    await completeQuizAttempt(quiz.id, 90, 4, 300);
+  });
+
+  const course: Course = { id: "c1", title: "Algebra", topic: "algebra", current_level: 2, status: "active", generation_state: null, created_at: "", updated_at: "" };
+  const syllabus = {
+    id: "s2", course_id: "c1", level: 2, title: "Level 2", description: "", learning_objectives: [], assessment_criteria: [], estimated_hours: 1, generated_at: "",
+    subtopics: ["a", "b", "c"].map((id, i) => ({ id, title: `Topic ${id}`, key_concepts: [], practice_type: "problems", mastered: i < 2, practiced: true })),
+  } as Syllabus;
+  // As Home and NextStepCard do it.
+  const stepsNow = async (now = Date.now()) => rankNextSteps({
+    course, level: 2, currentSyllabus: syllabus, attempts: await getQuizAttempts("c1"), canRegenerate: false, canPromote: true,
+    testWaitingForMarks: (await pendingLevelTest("c1", 2)) !== null, now,
+  });
+
+  it("before any test: ready to move up", async () => {
+    expect((await stepsNow())[0].key).toBe("promotion");
+  });
+
+  it("failed: the retake wait and a practice quiz, not 'ready to move up', until the wait is over", async () => {
+    await takeTest(2, [...many(10, R), ...many(10, W)]);
+    const steps = await stepsNow();
+    expect(steps.some((s) => /ready to move up/i.test(s.title))).toBe(false);
+    expect(continueStep(steps)).toEqual(expect.objectContaining({ key: "retake-wait", action: { kind: "tab", tab: "quiz" } }));
+    expect(steps[0].blurb).toMatch(/You can take it again in 2[34]h/);
+    expect((await stepsNow(Date.now() + 25 * 60 * 60 * 1000))[0].key).toBe("promotion");
+  });
+
+  it("waiting for its written answers to be marked: says so and opens the test", async () => {
+    await takeTest(2, [...many(16, R), U, U, W, W]);
+    const steps = await stepsNow();
+    expect(steps[0]).toEqual(expect.objectContaining({ key: "test-marking", action: { kind: "promotion" } }));
+    expect(steps.map((s) => s.key)).not.toContain("promotion");
+  });
+
+  it("an old test from before migration 18 (passed NULL, no answer waiting) is not 'waiting to be marked'", async () => {
+    const attempt = await createPromotionAttempt("c1", 2, 2, 2700);
+    sqlite.exec(`UPDATE quiz_attempts SET completed_at = '2026-01-05 10:00:00', score = 50, passed = NULL WHERE id = '${attempt.id}'`);
+    await saveQuizQuestion({ attempt_id: attempt.id, question_text: "Q", question_type: "multiple_choice", options: null, correct_answer: "k", user_answer: "a", is_correct: false, difficulty_level: 1, explanation: "" }, null);
+    expect((await stepsNow())[0].key).toBe("promotion");
+  });
+
+  it("Home and the Next step card both ask whether the level's test waits for marks", () => {
+    expect(homeSource).toMatch(/const testWaitingForMarks = \(await pendingLevelTest\(recent\.id, recent\.current_level\)/);
+    expect(homeSource).toMatch(/canPromote: recent\.status === "active", testWaitingForMarks,/);
+    expect(nextStepCardSource).toMatch(/const marking = \(await pendingLevelTest\(courseId, level\)/);
+    expect(nextStepCardSource).toMatch(/canPromote: !!onOpenPromotionTest,\s+testWaitingForMarks,/);
   });
 });

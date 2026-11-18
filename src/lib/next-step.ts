@@ -6,6 +6,7 @@
 import type { Course, Syllabus, QuizAttempt } from "../types";
 import type { SwitchTabOpts, Tab } from "../views/CourseView";
 import { describeGenerationState } from "./plain-language";
+import { levelTestFailed, retakeWaitLeft } from "./level-test";
 
 export type NextStepAction =
   | { kind: "tab"; tab: Tab; opts?: SwitchTabOpts }
@@ -31,6 +32,11 @@ export interface NextStepInput {
   /** Whether the caller can open the level test (viewing the course's current level). A finished
       course never offers it, whatever this says. */
   canPromote: boolean;
+  /** The level's newest finished level test waits for its written answers to be marked
+      (level-test-checks.ts pendingLevelTest). */
+  testWaitingForMarks?: boolean;
+  /** The clock the retake wait is read against (ms); Date.now() when left out. */
+  now?: number;
 }
 
 export const PROMOTION_READY_PCT = 80;
@@ -80,6 +86,10 @@ export function rankNextSteps(input: NextStepInput): NextStep[] {
   const lastQuizPct = lastAttempt?.score ?? null;
 
   // Rule 3 — Ready for the level test. Never on a finished course: its last level test is passed.
+  // Not while the level's last test waits for its written answers to be marked, or failed and its
+  // retake wait is not over (the test screen would only show that, PromotionTestFullScreen
+  // checkCooldown): it says so instead. A failed test leaves mastered topics mastered, so nothing else
+  // would clear "ready to move up".
   const finished = course.status === "completed" || course.status === "archived";
   if (
     canPromote &&
@@ -89,13 +99,33 @@ export function rankNextSteps(input: NextStepInput): NextStep[] {
     lastQuizPct !== null &&
     lastQuizPct >= PROMOTION_READY_PCT
   ) {
-    out.push({
-      key: "promotion",
-      title: "You look ready to move up a level",
-      blurb: `You've learned ${masteredCount} of ${total} topics and scored ${Math.round(lastQuizPct)}% on your last quiz.`,
-      action: { kind: "promotion" },
-      actionLabel: "Take the test",
-    });
+    const lastTest = attempts.find((a) => a.level === level && a.quiz_type === "promotion" && a.completed_at !== null);
+    const waitLeft = lastTest?.completed_at && levelTestFailed(lastTest) ? retakeWaitLeft(lastTest.completed_at, input.now ?? Date.now()) : "";
+    if (input.testWaitingForMarks) {
+      out.push({
+        key: "test-marking",
+        title: "Your level test is waiting to be marked",
+        blurb: "Some written answers still need marking. Once they are, you'll see whether you moved up.",
+        action: { kind: "promotion" },
+        actionLabel: "See the test",
+      });
+    } else if (waitLeft) {
+      out.push({
+        key: "retake-wait",
+        title: "Practice before you take the level test again",
+        blurb: `You can take it again in ${waitLeft}. A practice quiz shows what to work on.`,
+        action: { kind: "tab", tab: "quiz" },
+        actionLabel: "Start quiz",
+      });
+    } else {
+      out.push({
+        key: "promotion",
+        title: "You look ready to move up a level",
+        blurb: `You've learned ${masteredCount} of ${total} topics and scored ${Math.round(lastQuizPct)}% on your last quiz.`,
+        action: { kind: "promotion" },
+        actionLabel: "Take the test",
+      });
+    }
   }
 
   // Rule 4 — No quiz attempts at this level

@@ -12,7 +12,7 @@ import { log } from "../lib/llm";
 import { getChatTurnConfig, getRetrievalMode, getReadAloudAuto } from "../lib/store";
 import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
 import { useReadAloud } from "../lib/useReadAloud";
-import { chatCardSpeech, speechAfterNotice, unreadText } from "../lib/speech";
+import { chatCardSpeech, turnNotice, unreadText } from "../lib/speech";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, personaIdentityLayer, suggestFollowUps, chipsBesideChoices, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote, type ReplyChoices } from "../lib/kernel";
@@ -367,6 +367,16 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // The chat closed, or another thread opened, while the message was being saved: it stays saved.
     if (turnOwnerRef.current !== owner) return;
 
+    // On a safety disclosure the notice under the learner's message, with its numbers, is read first,
+    // ahead of the first card or the reply (speech.ts turnNotice), and only once. For K-2 (autoRead) a
+    // turn that ends with neither spoken (the instructions unreadable, a failed or stopped turn) reads it
+    // on its own, so a child who cannot read it still hears it. Only while this turn is still the one here.
+    const notice = turnNotice(autoRead && isSafetyDisclosure(userText, grade) ? SAFETY_NOTICE : "");
+    const readNoticeLeft = () => {
+      const left = notice.left();
+      if (left && turnOwnerRef.current === owner && shown()) readAloud.speak(`safety:${userMsg.id}`, left);
+    };
+
     // Build system prompt — with fallback if instructions not yet generated. The kernel appends
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     let instructions: Awaited<ReturnType<typeof getTutorInstructions>>;
@@ -377,6 +387,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     } catch (e) {
       log.error("ChatTab", "reading the tutor's instructions failed", e);
       if (turnOwnerRef.current === owner) {
+        readNoticeLeft();
         turnOwnerRef.current = null;
         setChatError(friendlyError(e));
       }
@@ -436,15 +447,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // A card holds the turn open, so the reply is not saved (or auto-read) until it is answered. For K-2
     // (autoRead) each card is read as it appears, with the text streamed before it that was not read
     // yet; the saved reply then reads on from where the cards left off (speech.ts unreadText).
-    // On a safety disclosure the notice under the learner's message, with its numbers, is read first,
-    // ahead of the first card or the reply (speech.ts speechAfterNotice), and only once.
+    // The safety notice, if any, goes first (`notice` above).
     let shownText = "";
     let readText = "";
-    let noticeUnread = autoRead && isSafetyDisclosure(userText, grade) ? SAFETY_NOTICE : "";
-    const speakTurn = (id: string, text: string) => {
-      readAloud.speak(id, speechAfterNotice(noticeUnread, text));
-      noticeUnread = "";
-    };
+    const speakTurn = (id: string, text: string) => readAloud.speak(id, notice.withText(text));
     const readCard = (id: string, question: string, choices: string[]) => {
       if (!autoRead || turnOwnerRef.current !== owner) return;
       speakTurn(id, chatCardSpeech(unreadText(shownText, readText), question, choices));
@@ -579,6 +585,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       // Only a turn still here resets the shared state: a switch already reset it (cancelStream), and
       // a newer turn may be streaming by the time this one unwinds.
       if (turnOwnerRef.current === owner) {
+        readNoticeLeft();
         turnOwnerRef.current = null;
         setStreamingText("");
         setStreaming(false);

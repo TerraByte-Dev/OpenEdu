@@ -383,6 +383,20 @@ export function speechAfterNotice(notice: string, text: string): string {
 }
 
 /**
+ * The K-2 auto-read of a safety notice over one chat turn (ChatTab runTurn). `notice` is SAFETY_NOTICE on a
+ * K-2 turn whose message is a disclosure, else "". It is read once: ahead of the turn's first card or its
+ * reply (`withText`), or, when the turn ends with neither spoken (the tutor's instructions unreadable, a
+ * failed or stopped turn, an empty reply), on its own (`left`, which gives "" once it was read).
+ */
+export function turnNotice(notice: string): { withText: (text: string) => string; left: () => string } {
+  let unread = notice;
+  return {
+    withText: (text) => { const spoken = speechAfterNotice(unread, text); unread = ""; return spoken; },
+    left: () => { const rest = unread; unread = ""; return rest; },
+  };
+}
+
+/**
  * What of `text` is not read yet when `spoken` (an earlier state of the same streamed reply) was read
  * with a card: the rest after it, or all of `text` when it no longer starts with it (the saved reply was
  * changed after it streamed, e.g. a picture claim taken out).

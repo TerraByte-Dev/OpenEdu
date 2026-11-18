@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { speakableText, texWords, pickVoice, questionSpeech, resultSpeech, chatCardSpeech, speechAfterNotice, unreadText, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
+import { speakableText, texWords, pickVoice, questionSpeech, resultSpeech, chatCardSpeech, speechAfterNotice, turnNotice, unreadText, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
 import { confirmCardQuestion, CONFIRM_CHOICES } from "./plain-language";
 import { repeatsQuestion } from "./kernel/askCard";
 import type { Grade } from "./grade";
@@ -300,9 +300,34 @@ You are not alone.`;
   });
 
   it("ChatTab reads the turn's first card and its reply through it, from the message's own check with the grade", () => {
-    expect(chatTabSource).toMatch(/let noticeUnread = autoRead && isSafetyDisclosure\(userText, grade\) \? SAFETY_NOTICE : "";/);
-    expect(chatTabSource).toMatch(/readAloud\.speak\(id, speechAfterNotice\(noticeUnread, text\)\)/);
+    expect(chatTabSource).toMatch(/const notice = turnNotice\(autoRead && isSafetyDisclosure\(userText, grade\) \? SAFETY_NOTICE : ""\);/);
+    expect(chatTabSource).toMatch(/readAloud\.speak\(id, notice\.withText\(text\)\)/);
     expect(chatTabSource).toMatch(/speakTurn\(id, chatCardSpeech\(/);
     expect(chatTabSource).toMatch(/if \(landing\.speak\) speakTurn\(assistantMsg\.id, /);
+  });
+});
+
+// A K-2 turn on a disclosure that ends with no card or reply spoken still reads the notice (ported from
+// TerraTutor #234): the tutor's instructions unreadable, the turn failing, stopped or stalled. The rendered
+// ChatTab path is chat-notice-read.test.ts.
+describe("turnNotice: the safety notice is read once per turn, with or without a reply", () => {
+  it("goes before the first text, and not again", () => {
+    const n = turnNotice(SAFETY_NOTICE);
+    expect(n.withText("A card.")).toBe(`${SAFETY_NOTICE}
+
+A card.`);
+    expect(n.withText("The reply.")).toBe("The reply.");
+    expect(n.left()).toBe("");
+  });
+
+  it("is left to read on its own when nothing was spoken, once", () => {
+    const n = turnNotice(SAFETY_NOTICE);
+    expect(n.left()).toBe(SAFETY_NOTICE);
+    expect(n.left()).toBe("");
+    expect(n.withText("Late reply.")).toBe("Late reply.");
+  });
+
+  it("leaves nothing on a turn with no notice", () => {
+    expect(turnNotice("").left()).toBe("");
   });
 });
