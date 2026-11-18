@@ -348,7 +348,7 @@ export async function ground(
   // model at all, so on the install a school actually ends up with — chat model only, no embedder —
   // grounding still fires.
   const [notes, library] = await Promise.allSettled([
-    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }) : NONE,
+    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: question, topK: 6, grade: ctx.grade }) : NONE,
     sources.library ? groundFromLibrary(question) : NONE,
   ]);
 
@@ -393,9 +393,9 @@ async function groundWithGloss(
   question: string, gloss: string, ctx: ToolContext, budget: Budget, sources: { notes: boolean; library: boolean },
 ): Promise<Grounding> {
   const [notes, library, glossNotes, glossLibrary] = await Promise.allSettled([
-    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: question, topK: 6 }) : NONE,
+    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: question, topK: 6, grade: ctx.grade }) : NONE,
     sources.library ? groundFromLibrary(question) : NONE,
-    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: gloss, topK: 6 }) : NONE,
+    sources.notes ? searchNotebook({ courseId: ctx.courseId, query: gloss, topK: 6, grade: ctx.grade }) : NONE,
     sources.library ? groundFromLibrary(gloss) : NONE,
   ]);
 

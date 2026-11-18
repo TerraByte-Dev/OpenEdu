@@ -17,7 +17,8 @@ import { friendlyError, noteNotSaved } from "../lib/plain-language";
 import { createNoteSaver, type NoteDraft } from "../lib/note-autosave";
 import QuickSwitcher from "./QuickSwitcher";
 import NotesAssistant from "./NotesAssistant";
-import { anchorAnnotations, appendSummary, type AnchoredAnnotation } from "../lib/notebook-assistant";
+import SafetyNotice from "./SafetyNotice";
+import { anchorAnnotations, appendSummary, noteIsDisclosure, type AnchoredAnnotation } from "../lib/notebook-assistant";
 import {
   extractTags, resolveWikiLink, linkKey,
   buildVaultGraph, buildTagIndex,
@@ -221,7 +222,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
 
   const indexWaiting = () => {
     for (const d of waitingToIndex.values()) {
-      queueIndex(() => indexNote({ courseId: d.courseId, noteId: d.id, title: d.title, text: d.content }));
+      queueIndex(() => indexNote({ courseId: d.courseId, noteId: d.id, title: d.title, text: d.content, grade }));
     }
     waitingToIndex.clear();
   };
@@ -268,7 +269,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     loadAll();
     // Catch-up: notes that couldn't be indexed when they were imported or saved (no embedding model
     // yet, Ollama not running) join search now, without anyone having to edit them.
-    queueIndex(() => reindexCourseNotes(courseId));
+    queueIndex(() => reindexCourseNotes(courseId, grade));
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [courseId]);
 
@@ -476,7 +477,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
       try {
         const text = await f.text();
         const sourceType = /\.(md|markdown)$/i.test(f.name) ? "md" : "text";
-        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target, origin: "import" });
+        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target, origin: "import", grade });
         imported++;
         if (!res.embedded) { pending++; reason ??= res.indexError; }
       } catch {
@@ -510,7 +511,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     const q = query.trim();
     if (!q) { setDocResults(null); return; }
     setSearching(true);
-    try { setDocResults(await searchNotebook({ courseId, query: q, topK: 5 })); }
+    try { setDocResults(await searchNotebook({ courseId, query: q, topK: 5, grade })); }
     catch (e) { log.error("NotesTab", "search failed", e); setIngestError(friendlyError(e)); }
     finally { setSearching(false); }
   };
@@ -529,6 +530,10 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     () => notes.filter((n) => n.id !== selectedNote?.id && n.title.trim()).map((n) => n.title),
     [notes, selectedNote],
   );
+  // A note whose title or text reads as a safety disclosure (notebook-assistant.ts noteIsDisclosure, with the
+  // learner's grade as the chat reads it): the safety notice shows above the editor as it is typed. Code-matched,
+  // never a model call; the note is still saved, and no model reads it (notebook.ts indexNote, searchNotebook).
+  const noteDisclosed = useMemo(() => noteIsDisclosure(editTitle, editContent, grade), [editTitle, editContent, grade]);
 
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -968,6 +973,8 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
                   <button onClick={() => setPendingLink(null)} className="px-2 py-1 rounded bg-lcd text-[var(--ink-faint)] hover:text-ink text-[11px] shrink-0">Dismiss</button>
                 </div>
               )}
+
+              {noteDisclosed && <SafetyNotice className="mx-4 my-2 shrink-0" />}
 
               <div className="flex-1 flex min-h-0">
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[var(--ink-faint)] text-sm">Loading editor…</div>}>

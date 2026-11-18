@@ -13,8 +13,8 @@ import { friendlyError } from "../lib/plain-language";
 import { getChatConfig } from "../lib/store";
 import { listChatThreads, getChatMessages } from "../lib/db";
 import {
-  finishReview, validateReview,
-  buildReviewMessages, buildSummaryMessages, formatTranscript, finishSummary,
+  finishReview, validateReview, prepareReview, NOTE_REVIEW_WITHHELD,
+  buildSummaryMessages, formatTranscript, finishSummary,
   REVIEW_SCHEMA, SUMMARY_SCHEMA,
   type Annotation, type AnchoredAnnotation, type AnnotationKind,
 } from "../lib/notebook-assistant";
@@ -52,14 +52,19 @@ export default function NotesAssistant({
   const [summary, setSummary] = useState<string | null>(null);
   // A summary that read as a safety disclosure: the safety notice in its place (finishSummary).
   const [safety, setSafety] = useState(false);
+  // A note that reads as a safety disclosure: not sent for review (prepareReview); the notice and why instead.
+  const [withheld, setWithheld] = useState(false);
 
   const runReview = async () => {
     if (!noteContent.trim()) { setError("Nothing to review yet — write something first."); return; }
-    setBusy("review"); setError(null); setSummary(null); setSafety(false); setDropped(0);
+    setError(null); setSummary(null); setSafety(false); setWithheld(false); setDropped(0);
+    const prepared = prepareReview(noteTitle, noteContent, grade);
+    if ("withheld" in prepared) { onAnnotations([]); setSafety(true); setWithheld(true); return; }
+    setBusy("review");
     try {
       const cfg = await getChatConfig();
       const { annotations: raw } = await callLLMStructured<{ annotations: Annotation[] }>(
-        buildReviewMessages(noteTitle, noteContent),
+        prepared.messages,
         cfg,
         {
           schema: REVIEW_SCHEMA,
@@ -88,7 +93,7 @@ export default function NotesAssistant({
   };
 
   const runSummary = async () => {
-    setBusy("summary"); setError(null); setSummary(null); setSafety(false);
+    setBusy("summary"); setError(null); setSummary(null); setSafety(false); setWithheld(false);
     try {
       const threads = await listChatThreads(courseId, level);
       if (!threads.length) { setError("No conversation on this level yet."); return; }
@@ -152,6 +157,7 @@ export default function NotesAssistant({
         )}
 
         {safety && <SafetyNotice className="m-3" />}
+        {withheld && <p className="mx-3 mb-3 text-sm leading-snug text-[var(--ink-dim)]">{NOTE_REVIEW_WITHHELD}</p>}
 
         {/* ── Review marks ── */}
         {annotations.length > 0 && (
