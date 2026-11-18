@@ -132,7 +132,17 @@ written: they came from a once-a-minute timer whose only reader was the learning
   near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
   one call on a local model for the rest; see Content review › Grading and the study plan stay local).
-  The `-grading` / `-review` helpers are pure and unit-tested.
+  The `-grading` / `-review` helpers are pure and unit-tested. A multiple-choice key is set to the option
+  it names as that option is written (`quiz-grading.ts alignKeyToOption`: a letter key, a key without the
+  option's label, or one in other letter case, "mitochondria" for "B) Mitochondria"; a key whose own
+  text starts like a label, "C. S. Lewis", is tried as written too), because the quiz marks the picked
+  option right only when it is the key string; a key no single option matches is rejected. The study
+  quiz's review pool (`db.ts getReviewPoolQuestions`, about a fifth of a quiz) is the course's missed
+  questions, newest first; a miss leaves it once the same question (trimmed, any ASCII letter case) is
+  answered right after it in that course, by the key, the model or the learner's own mark, and a later
+  miss puts it back. In Review, a flashcard graded Again is due at once and comes back at the end of the
+  same session (`srs.ts requeueIfDue`), and when a grade or a delete empties the queue the due cards are
+  read again, so "Nothing is due right now" shows only when nothing is.
 - **`content-review.ts`** — the content review of generated lessons and questions. See below.
 - **`notebook.ts` / `notebook-links.ts`** — the notebook layer (retrieval + linking). See below.
 - **`kernel/`, `tools/`, `skills/`, `permissions/`** — the tutoring runtime. See below.
@@ -450,7 +460,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   asks for the unit; a bare count other than the key on a question that names what it counts ("How
   many fourths", "in thirds"; "3" for 3/4 there is right); the right value in another form than the
   question asks ("0.45" on "Write 9/20 as a percent", "75/100" for simplest form, "30 × 10^3" for
-  scientific notation, "1500 m" on "in kilometers?"); a ratio; and any other clock time. Measured in
+  scientific notation, "1500 m" on "in kilometers?"); the amount a conversion gives, given back in its
+  own unit ("3 feet" on "Convert 3 feet to inches" or "3 feet = ___ inches", "250 cents" on "How many
+  dollars is 250 cents?": `givesBackAmount`, only when the question also names the key's unit, so "1 hour"
+  for 60 minutes on "How long is one hour?" stays right); a ratio; and any other clock time. Measured in
   `src/lib/eval/results/2026-11-16-grade-dev-numbers.md`. The table also reads decades, centuries,
   millennia, fortnights and months ("5 decades" for 50 years, "a fortnight" for 14 days, "1.5 years"
   for 18 months), but only to accept: an amount in one of these is never marked wrong ("4 decades" for

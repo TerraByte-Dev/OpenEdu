@@ -163,3 +163,64 @@ describe("migration 18 writes", () => {
     expect(rows<{ learner_id: string }>("SELECT learner_id FROM learner_days").map((r) => r.learner_id)).toEqual([DEFAULT_LEARNER_ID]);
   });
 });
+
+// TerraTutor #200 (audit 5 #8): the quiz review pool took every missed row, so a question answered right
+// since kept coming back in every quiz. A miss now leaves the pool once the same question is answered
+// right after it.
+describe("the quiz review pool", () => {
+  beforeEach(async () => {
+    await openDb();
+    migrate(22);
+    setActiveLearnerId(DEFAULT_LEARNER_ID);
+  });
+  const pool = async (courseId: string) => (await getReviewPoolQuestions(courseId, 6)).map((q) => q.question_text);
+
+  it("drops a missed question once a later quiz answers it right, and takes it back on a later miss", async () => {
+    const course = await createCourse("Biology", "biology");
+    const first = await createQuizAttempt(course.id, "quiz", 1, 2);
+    await saveQuizQuestion(question(first.id, { question_text: "What makes energy?", is_correct: false }), "key");
+    await saveQuizQuestion(question(first.id, { question_text: "What holds DNA?", is_correct: false }), "key");
+    expect((await pool(course.id)).sort()).toEqual(["What holds DNA?", "What makes energy?"]);
+
+    const second = await createQuizAttempt(course.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(second.id, { question_text: " what makes energy? ", is_correct: true }), "key");
+    expect(await pool(course.id)).toEqual(["What holds DNA?"]);
+
+    const third = await createQuizAttempt(course.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(third.id, { question_text: "What makes energy?", is_correct: false }), "key");
+    expect((await pool(course.id)).sort()).toEqual(["What holds DNA?", "What makes energy?"]);
+  });
+
+  it("counts a right mark made after the finish, and keeps a right answer before the miss from hiding it", async () => {
+    const course = await createCourse("Biology", "biology");
+    const early = await createQuizAttempt(course.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(early.id, { question_text: "What holds DNA?", is_correct: true }), "key");
+    const later = await createQuizAttempt(course.id, "quiz", 1, 2);
+    await saveQuizQuestion(question(later.id, { question_text: "What holds DNA?", is_correct: false }), "key");
+    expect(await pool(course.id)).toEqual(["What holds DNA?"]);
+
+    const redo = await createQuizAttempt(course.id, "promotion", 1, 1);
+    const id = await saveQuizQuestion(question(redo.id, { question_text: "What holds DNA?", is_correct: false }), "model");
+    await updateQuizQuestionGrade(id, true, "self");
+    expect(await pool(course.id)).toEqual([]);
+  });
+
+  it("matches a right answer whose text has a tab or line break at either end, as the dedup does", async () => {
+    const course = await createCourse("Biology", "biology");
+    const missed = await createQuizAttempt(course.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(missed.id, { question_text: "What makes energy?\n", is_correct: false }), "key");
+    const right = await createQuizAttempt(course.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(right.id, { question_text: "\tWhat makes energy?\r\n", is_correct: true }), "key");
+    expect(await pool(course.id)).toEqual([]);
+  });
+
+  it("is per course: a right answer in another course does not drop the miss", async () => {
+    const a = await createCourse("Biology", "biology");
+    const b = await createCourse("Chemistry", "chemistry");
+    const missed = await createQuizAttempt(a.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(missed.id, { question_text: "What is an atom?", is_correct: false }), "key");
+    const other = await createQuizAttempt(b.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(other.id, { question_text: "What is an atom?", is_correct: true }), "key");
+    expect(await pool(a.id)).toEqual(["What is an atom?"]);
+  });
+});

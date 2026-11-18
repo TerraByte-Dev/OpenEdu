@@ -5,7 +5,7 @@ import {
   checkAnswerConsistency, shouldRejectNumericReasoning, runsVerifyPass,
   buildBatchGradePrompt, parseBatchGradeResults, batchGradeSchema,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
-  planSlotSubtopics, summarizeForLedger, resolveLetterKey,
+  planSlotSubtopics, summarizeForLedger, alignKeyToOption,
   hasSelfCorrection, duplicateOptionPair, rewriteLetterRefs, isNearDuplicate,
   type GradeOutcome, type BatchGradeReply,
 } from "./quiz-grading";
@@ -114,7 +114,7 @@ export function validateQuizBatch(
   const stripPrefix = (s: string) => s.replace(/^[A-D]\)\s*/i, "").trim().toLowerCase();
 
   questions.forEach((raw, i) => {
-    const q = resolveLetterKey(raw);
+    const q = alignKeyToOption(raw);
     const at = `question[${i}]`;
     const type = String(q.question_type ?? "");
     const stem = String(q.question_text ?? "");
@@ -139,7 +139,9 @@ export function validateQuizBatch(
       if (set.size === 2 && set.has("true") && set.has("false")) {
         issues.push(`${at}: multiple_choice options are just True/False — use question_type "true_false" instead, or provide 4 substantive options.`);
       }
-      if (opts.length > 0 && !set.has(stripPrefix(String(q.correct_answer ?? "")))) {
+      // alignKeyToOption has set a key that names one option (in any letter case) to that option, and
+      // grading compares the exact option string: a key that is still not an option has no right answer.
+      if (opts.length > 0 && !opts.includes(String(q.correct_answer ?? ""))) {
         issues.push(`${at}: multiple_choice correct_answer ("${q.correct_answer}") must exactly match one of the options.`);
       }
       // Grading compares the exact option string, so a child who picks the twin of the key is marked wrong.
@@ -202,8 +204,8 @@ function shuffleMultipleChoiceOptions(
     return q;
   }
 
-  // Strip letter prefix to get raw text
-  const stripPrefix = (s: string) => s.replace(/^[A-D]\)\s*/, "").trim();
+  // Strip letter prefix to get raw text ("b) " too; alignKeyToOption has set the key to its option as written)
+  const stripPrefix = (s: string) => s.replace(/^[A-D]\)\s*/i, "").trim();
   const correctText = stripPrefix(q.correct_answer);
 
   // Shuffle the raw option texts
@@ -264,7 +266,7 @@ function buildParsedQuestion(q: Record<string, unknown>, question_type: QuizQues
 // Map a validated structured question into the final GenQuestion shape: coerce sentinel empties to
 // null (downstream/renderer expects null), normalize true_false, shuffle multiple_choice options.
 function finalizeQuestion(raw: GeneratedQuestion): GenQuestion {
-  const g = resolveLetterKey(raw);
+  const g = alignKeyToOption(raw);
   const type: QuizQuestion["question_type"] = VALID_QUESTION_TYPES.has(g.question_type)
     ? (g.question_type as QuizQuestion["question_type"])
     : "multiple_choice";
@@ -674,12 +676,13 @@ export async function generateQuizQuestions(
   config.modelTier = tier;
 
   // Re-posed review questions bypass generation-time validation, so a stored question with a bad answer
-  // would recur FOREVER: it's always graded wrong → never leaves the is_correct=0 pool → re-served every
-  // quiz. Run each through the SAME validator (answer↔explanation consistency + structural shape) and
-  // drop the broken ones, so a poisoned question can't keep popping up (issue #83). allowedIds is empty
+  // would recur FOREVER: it's always graded wrong → never leaves the pool (a miss leaves it only once the
+  // question is answered right, db.ts getReviewPoolQuestions) → re-served every quiz. Run each through
+  // the SAME validator (answer↔explanation consistency + structural shape) and drop the broken ones, so
+  // a poisoned question can't keep popping up (issue #83). allowedIds is empty
   // (we don't re-check subtopic membership for re-posed items).
   const validReviewPool = reviewPool
-    .map((q) => resolveLetterKey(storedToGenQuestion(q)))
+    .map((q) => alignKeyToOption(storedToGenQuestion(q)))
     .filter((q) => validateQuizBatch([q as unknown as GeneratedQuestion], new Set<string>(), { tier }).length === 0);
   const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
   let reviewQs = pickReview(validReviewPool, review);
