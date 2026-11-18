@@ -61,6 +61,12 @@ export function endsMidSentence(body: string): boolean {
 
   const last = lines[lines.length - 1];
   if (unclosedBracket(last)) return true;
+  // A numbered list that stops at its next marker ("2. Add them.\n3."): that step and what follows are gone.
+  const marker = /^(\d+)[.)]$/.exec(last);
+  const prev = marker ? Number(marker[1]) - 1 : 0;
+  // The earlier marker must be one too: "1.5 kg ..." at a line's start is a decimal, not item 1.
+  const prevMarker = new RegExp(`^${prev}[.)](\\s|$)`);
+  if (prev > 0 && lines.slice(0, -1).some((l) => prevMarker.test(l))) return true;
   // "**C) the governor**" is a list line in bold; "[6x - 15 + 4x]" is a bracketed formula line.
   const unbold = last.replace(/^[*_]+(?=\S)/, "");
   if (LIST_OR_TABLE_LINE.test(unbold) || LABEL_LINE.test(last) || /^\[.*\]$/.test(last)) return false;

@@ -154,6 +154,10 @@ describe("trimToLimit", () => {
     expect(trimToLimit(t, 70)).toBe("The U.S. flag has 50 stars. Each stands for a state, e.g. Ohio.");
     expect(trimToLimit("Pi is about 3.14 and more digits follow forever after that point.", 30)).toBe("Pi is about 3.14 and more…");
   });
+  it("never ends on a numbered list's marker", () => {
+    const t = "Do it in steps.\n1. Count the bags.\n2. Find one bag's mass.\n3. Multiply the bags by the mass to get 12 kg.";
+    expect(trimToLimit(t, t.indexOf("\n3.") + 8)).toBe("Do it in steps.\n1. Count the bags.\n2. Find one bag's mass.");
+  });
   it("falls back to whole words when the first sentence is under the field's minimum", () => {
     const t = "Ra. The sun god Ra crossed the sky each day in a boat and sailed the underworld each night";
     const out = trimToLimit(t, 50, 20)!;

@@ -60,7 +60,8 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
       setError(`Couldn't make that lesson. ${friendlyError(e)}`);
       return null;
     } finally {
-      setGeneratingId(null);
+      // Only this write's "Writing…": another may have started since.
+      setGeneratingId((g) => (g === sub.id ? null : g));
     }
   }, [courseId, level, topic]);
 

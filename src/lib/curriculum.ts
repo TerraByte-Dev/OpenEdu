@@ -853,6 +853,9 @@ export async function generateLesson(
       // A section cut off mid-sentence passes the schema (the tiny tier needs only one section), so it
       // is a validation issue and gets the repair retry.
       validate: lessonIssues,
+      // A section past its cap is written again shorter, never cut: a cut at the last sentence that fits
+      // drops a worked example's last steps and its answer, and the lesson is kept for good.
+      trimOverlong: false,
     },
   );
 
@@ -908,13 +911,26 @@ export async function lessonHelpFor(
 ): Promise<LessonHelp | null> {
   const stored = parseLessonHelp(lesson.help_json);
   if (stored) return stored;
-  const { config, review } = await configs();
-  const tier = config.modelTier ?? await detectModelTier(config);
-  config.modelTier = tier;
-  const help = await writeLessonHelp(topic, subtopic, lesson.content, config, tier, review);
-  if (help) await saveLessonHelp(lesson.id, JSON.stringify(help));
-  return help;
+  // Raise hand closed and opened again while help is being written (the panel keeps a result only once
+  // it is back) joins the running write instead of starting a second one behind it.
+  const running = helpBeingWritten.get(lesson.id);
+  if (running) return running;
+  const run = (async () => {
+    const { config, review } = await configs();
+    const tier = config.modelTier ?? await detectModelTier(config);
+    config.modelTier = tier;
+    const help = await writeLessonHelp(topic, subtopic, lesson.content, config, tier, review);
+    if (help) await saveLessonHelp(lesson.id, JSON.stringify(help));
+    return help;
+  })();
+  helpBeingWritten.set(lesson.id, run);
+  void run.catch(() => {}).finally(() => helpBeingWritten.delete(lesson.id));
+  return run;
 }
+
+// lessonHelpFor's writes in progress, by lesson id. Module-wide: the Raise hand panel that started one
+// can close, and the Lessons tab and Review both call it.
+const helpBeingWritten = new Map<string, Promise<LessonHelp | null>>();
 
 // Raise hand from practice, where the learner may not have opened the subtopic's lesson: the saved
 // lesson for that subtopic, or a new one (written with its stuck points, as on the Lessons tab).

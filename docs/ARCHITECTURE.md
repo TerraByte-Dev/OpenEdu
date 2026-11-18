@@ -211,8 +211,12 @@ exam assembled directly from the outline with zero LLM calls**. The pipeline is
    (`trimOverlongStrings` / `trimToLimit` in `llm.ts`): cut at the last sentence end that fits, or at the
    last whole word plus "…" when no sentence of the field's `minLength` fits, never inside a word; the
    result must pass the schema and the caller's `validate`, else the repair prompt runs as before, and
-   each trim is logged with its path and lengths. Quiz and test questions opt out (`trimOverlong: false`):
-   a word problem cut at a sentence end can lose the sentence that asks it, so they are repaired instead. Ollama and Anthropic do not enforce `maxLength` while
+   each trim is logged with its path and lengths. A numbered list's marker at the start of a line ("3.") is
+   not a sentence end. Quiz and test questions opt out (`trimOverlong: false`): a word problem cut at a
+   sentence end can lose the sentence that asks it, so they are repaired instead. So do lessons
+   (`generateLesson`) and Raise hand's stuck points (`writeLessonHelp`): a section or worked example cut
+   to fit loses its last steps and its answer, and a lesson is kept for good. A section that ends on the
+   next marker of its numbered list (a last line "3." after a "2." step) counts as cut off (`endsMidSentence`). Ollama and Anthropic do not enforce `maxLength` while
    the model writes: Ollama's grammar leaves it out, Anthropic's structured outputs reject it (it goes as
    words in the description), and the forced `tool_use` used before got it in `input_schema` but did not
    hold to it (probe 2026-11-14: `claude-haiku-5-5` wrote 156-195 characters into a 120-character field,
@@ -968,7 +972,8 @@ filled in for that subtopic. Buttons are 56 px tall and the labels are a few sho
   labels, short labels, no cut-off help). With a Checking model the help is fact-checked like the lesson
   (`helpAsLesson` → `reviewLesson`) and a stuck point with a flagged part is dropped. A failure saves the
   lesson without help. A lesson written before this has none: the first Raise hand writes them the same
-  way (`curriculum.ts lessonHelpFor`) and saves them. In Review, a card's subtopic with no lesson yet
+  way (`curriculum.ts lessonHelpFor`) and saves them; raising the hand again while that write runs (the
+  panel closed and opened, or the same lesson from Review) joins it rather than starting a second. In Review, a card's subtopic with no lesson yet
   gets its lesson written first, with its stuck points (`lessonWithHelp`), so it then shows on the
   Lessons tab too.
 - **What goes in.** The course topic, the syllabus subtopic's title and key concepts, and the lesson

@@ -10,6 +10,7 @@ vi.mock("./db", async (importOriginal) => ({
 }));
 
 import { generateLesson } from "./curriculum";
+import { createLesson } from "./db";
 import { endsMidSentence, lessonIssues, type LessonContent } from "./lesson-format";
 import type { LLMConfig } from "../types";
 
@@ -62,6 +63,59 @@ describe("generateLesson rejects a section cut off mid-sentence", () => {
   });
 });
 
+// A worked example whose last steps and answer sit past the 1200-character cap. A cut at the last
+// sentence end that fits would keep it, without them; "3." on its own line used to count as one.
+const PREAMBLE = "Mass tells you how much matter is in an object. A bowling ball and a beach ball can be the same size, " +
+  "but the bowling ball has far more matter packed inside it, so its mass is greater. ";
+const LONG_EXAMPLE = PREAMBLE.repeat(5) +
+  "Worked example: a box holds 3 bags and each bag has 4 kg of sand, and the empty box itself has no mass worth counting.\n" +
+  "1. Count the bags in the box: there are 3 of them.\n2. Find the mass of one bag: it is 4 kg.\n" +
+  "3. Multiply the number of bags by the mass of one bag: 3 × 4 = 12.\nThe answer is 12 kg.";
+const SHORT_EXAMPLE = "A box holds 3 bags of 4 kg each.\n1. Count the bags: 3.\n2. Multiply: 3 × 4 = 12.\nThe answer is 12 kg.";
+
+function fakeOllama(replies: unknown[], chats: unknown[]) {
+  globalThis.fetch = ((url: string, init?: { body?: string }) => {
+    if (!String(url).endsWith("/api/chat")) return Promise.resolve(new Response("{}", { status: 404 }));
+    chats.push(JSON.parse(String(init?.body)));
+    const next = replies.shift()!;
+    return Promise.resolve(Response.json({ message: { content: JSON.stringify(next) }, done: true, done_reason: "stop" }));
+  }) as unknown as typeof fetch;
+}
+
+describe("a lesson section or worked example past its cap is written again shorter, never cut", () => {
+  const withBody = (body: string): LessonContent => ({ ...WHOLE, sections: [{ heading: "Mass", body }] });
+
+  it("a lesson section: the repair names the length, and the saved lesson keeps its answer", async () => {
+    // Step 3 starts inside the cap; its working and the answer end past it.
+    expect(LONG_EXAMPLE.indexOf("\n3. Multiply")).toBeLessThan(1200);
+    expect(LONG_EXAMPLE.indexOf("= 12.")).toBeGreaterThan(1195);
+    const chats: unknown[] = [];
+    fakeOllama([withBody(LONG_EXAMPLE), withBody(SHORT_EXAMPLE), HELP], chats);
+
+    const lesson = await generateLesson("c1", 1, { id: "s1", title: "Mass", key_concepts: ["mass"] }, "Science", { ...LOCAL });
+
+    expect(chats).toHaveLength(3); // the long lesson, its repair, then the stuck points
+    expect(JSON.stringify(chats[1])).toContain("string too long");
+    expect(lesson.content).toContain("The answer is 12 kg.");
+    expect(lesson.content).not.toMatch(/\n3\.\s*$/m);
+  });
+
+  it("a Raise-hand worked example: the stuck points are asked for again, not saved without the answer", async () => {
+    const longHelp = { stuck_points: HELP.stuck_points.map((p, i) => (i === 0 ? { ...p, example: LONG_EXAMPLE.slice(0, 900) + " The answer is 12 kg." } : p)) };
+    const chats: unknown[] = [];
+    fakeOllama([WHOLE, longHelp, HELP], chats);
+
+    const lesson = await generateLesson("c1", 1, { id: "s1", title: "Matter", key_concepts: ["mass"] }, "Science", { ...LOCAL });
+
+    expect(chats).toHaveLength(3); // the lesson, the long stuck points, their repair
+    expect(JSON.stringify(chats[2])).toContain("string too long");
+    expect(lesson.content).toContain("anything that has mass and takes up space.");
+    const saves = vi.mocked(createLesson).mock.calls;
+    const savedHelp = saves[saves.length - 1][5];
+    expect(JSON.parse(savedHelp!).stuck_points[0].example).toBe(HELP.stuck_points[0].example);
+  });
+});
+
 describe("endsMidSentence", () => {
   it.each([
     ["the run's cut-off section", CUT.sections[0].body],
@@ -72,6 +126,8 @@ describe("endsMidSentence", () => {
     ["an unclosed bracket in a list item", "Remember:\n- Matter has mass (it has"],
     ["a dangling bold label", "Here is the rule.\n\n**Example**"],
     ["a long line cut after a colon", "Example: if you have 3 apples and your friend gives you 2 more, then you"],
+    ["a numbered list cut at its next marker", "Steps:\n1. Count the bags.\n2. Find one bag's mass.\n3."],
+    ["a numbered list cut at its next marker, with parens", "Steps:\n1) Count the bags.\n2)"],
   ])("rejects %s", (_name, body) => {
     expect(endsMidSentence(body)).toBe(true);
   });
@@ -106,6 +162,8 @@ describe("endsMidSentence", () => {
     ["a trailing rule", "Keep the constant term unchanged.\n\n---"],
     ["a bracketed formula line", "Combine like terms:\n[6x - 15 + 4x]"],
     ["a sentence and an aside", "It turned out the opposite of what was expected. (Correct)"],
+    ["a number on its own line that is no list's next marker", "So the answer is:\n\n12."],
+    ["a decimal at a line's start before a lone number", "1.5 kg is the mass of the bag.\nThe answer is:\n2."],
   ])("accepts %s", (_name, body) => {
     expect(endsMidSentence(body)).toBe(false);
   });
