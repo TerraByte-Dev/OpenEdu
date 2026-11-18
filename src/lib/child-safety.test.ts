@@ -98,6 +98,8 @@ describe("isSafetyDisclosure", () => {
       "he took off his shirt in front of us to show the scar",
       // A negative below plus "unless": SHARE_PICS_RE with THREAT_RE.
       "my teacher will post my pictures on the bulletin board unless my mom says no",
+      // TerraTutor #223: a stranger's kindness told in the first person (TOUCHED_BY with a stranger as AGENT).
+      "i was touched by a stranger who gave me food",
     ]) expect(isSafetyDisclosure(m), m).toBe(true);
   });
 
@@ -219,6 +221,97 @@ describe("isSafetyDisclosure", () => {
       "i was touched by my teacher's words", "i was touched by my mom's letter", "i was touched by her kindness",
       "my teacher was touched by my card",
     ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+  });
+
+  // Ported from TerraTutor #223 (its #221, from the review of #372), each list verbatim. TerraTutor's check takes
+  // no grade; OpenEdu's harm half does not read one, so each sentence is checked with no grade and at every grade.
+  it("does not fire on the schoolwork TerraTutor #221 lists, at every grade", () => {
+    for (const m of [
+      // "private" before a noun is the adjective, not the body.
+      "she kept her private feelings to herself", "he went to his private quarters",
+      "she wrote in her private notebook every night", "he had his private reasons for leaving",
+      "the paparazzi take pictures of their private lives", "she shared her private thoughts",
+      "he went to his private office", "the private parts of the castle were locked", "he led his privates into battle",
+      "he kept his private and public life separate", "she went to her private place in the garden to read",
+      "he hid the map in his private spot",
+      // Touching him, her or them after people, kids, a woman or a boy, or in a story.
+      "sea anemones sting people who touch them", "mimosa leaves fold up when people touch them",
+      "pill bugs roll up when kids touch them", "the woman reached out and touched him",
+      "in the story, the old woman touched him on the shoulder", "in the story the boy touched her and she turned to gold",
+      "his mother touched his face", "her grandma touched her cheek", "her teacher touched her shoulder",
+      "the knight touched her with his sword", "his mother touched him when he cried",
+      "in the story his grandma touched him and he felt better",
+      // "get touched" with no one doing it, and "touched by" said of someone else, which is a feeling.
+      "a venus flytrap closes when its hairs get touched twice", "the leaves of the mimosa fold when they get touched",
+      "he gets touched by the story every time", "the old woman was touched by a stranger who gave her food",
+      "she was touched by them",
+      // Touching the children with no grown-up doing it, or a grown-up's poem or speech doing it.
+      "her kindness touched the children", "the movie touched children all over the world",
+      "jesus touched the children and blessed them", "he touched the children and blessed them",
+      "the soldiers touched the children's hearts", "the man's story touched the children",
+      "my mom said her kindness touched the children", "the teacher read a poem which touched the children",
+      "the coach gave a speech that really touched the kids",
+      // Touched by someone's words: the apostrophe is not a person.
+      "i was touched by my teacher's words", "i was touched by my mom's letter", "i was touched by her kindness",
+      "my teacher was touched by my card",
+      // A thing that moved the child, with an adverb or a clause before the verb; static electricity.
+      "the story about the old man really touched me", "the poem my teacher read today really touched me",
+      "my grandma's letter really touched me", "she said the movie deeply touched me",
+      "the ending where the boy finds his dog really touched me",
+      "when a person touches me after walking on carpet i get a shock",
+      // Touching down is landing; "her down there" is where she is.
+      "the lunar module had to touch down there safely", "apollo 11 touched down there in 1969",
+      "the plane will touch down there at noon", "the rabbit hole was so deep that nobody could see her down there",
+      "we saw her down there by the river",
+      // Fingers on a wrist or neck, a thing on a desk.
+      "the nurse put her fingers on my wrist to feel my pulse", "to find my pulse she put her fingers on my neck",
+      "he left his thing on my desk",
+      // A threat to send an army or show force.
+      "the king threatened to send his army", "britain threatened to send more troops to boston",
+      "the president threatened to show force",
+      // Getting hurt at home in a health lesson.
+      "many kids get hurt at home from falls", "keep medicine locked up so little kids don't get hurt at home",
+      "most people get hurt at home in the kitchen",
+      // A remedy rubbed on.
+      "my mom rubs my chest with vapor rub when i am sick",
+      // Someone else's suicide stated as history or a story's plot.
+      "in the story the character commits suicide", "Romeo and Juliet both commit suicide", "suicide rates rose after the war",
+      // A thing that touched the child, given or not, and a plant's "get touched" (TerraTutor #223's reviews).
+      "i got touched by the story", "i've been touched by your kindness", "its hairs get touched", "they get touched",
+      "my teacher gave me a book that really touched me", "my teacher read us a story which touched me",
+      "she gave me a letter that touched me", "when its hairs get touched twice",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+  });
+
+  it("still fires on the disclosure forms TerraTutor #221 and #223 kept, at every grade", () => {
+    for (const m of [
+      // The forms the narrowing kept: the child, or a named family member or grown-up doing it to them.
+      "he touched my private", "my uncle touches my private and says it's a secret", "he touches my private, it hurts",
+      "he showed me his private", "he made me touch his private parts", "he touched my privates",
+      "my brother showed me his privates", "my dad touches my private with his hand", "his coach touched him",
+      "their uncle touches them at night", "i was touched by him", "i was touched by her at the sleepover",
+      "i got touched by a stranger", "i got touched by a man at the park", "i was touched by my uncle's friend",
+      "i was touched by my mom's boyfriend", "i've been touched by him", "my sister got touched by our uncle",
+      "the man touches kids at the park", "my coach touches the boys", "a stranger touched me",
+      "a person at the park touched me", "when he touches me i feel scared", "when we play he touches me",
+      "my uncle read me a story and then touched me", "during the movie the man next to me touched me",
+      "after the movie a man touched me", "he touched her down there", "he put his thing on my butt",
+      "he put his fingers on me", "my uncle rubs my chest", "he threatened to post my pictures",
+      "he has my pics and threatened to post them", "i keep getting hurt at home", "im getting hurt at home",
+      "i think about suicide", "my brother committed suicide", "the character commits suicide and i want to too",
+      // First-person forms the first narrowing missed: no one named, the subject dropped, a gift before the
+      // touching (grooming), the child's own family member touching a brother or sister.
+      "i got touched", "i got touched at school", "i get touched at night", "we got touched", "I Got Touched",
+      "i've been touched", "i keep getting touched",
+      "got touched by my uncle", "got touched by my coach last year", "we went to the park and got touched by a man",
+      "the man who gave me gifts touched me", "my coach who sends me messages touches me",
+      "my teacher who writes me letters touched me", "the man who gave me a gift touched me",
+      "my stepdad touches her at night", "my stepdad touches them at night", "my stepdad touches him",
+      "got touched at school", "got touched last night", "and then got touched", "i went home and got touched",
+      "getting touched at night", "Got touched at school.",
+      "the man who gave me a gift that i liked touched me", "my coach who wrote me a letter that was nice touched me",
+      "my uncle who sends me videos which are funny touched me",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
   });
 
   // TerraTutor #125's curious questions and school wording about sex, sexuality and gender (parent-topics.test.ts

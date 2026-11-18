@@ -81,6 +81,8 @@ describe("gradeAnswersBatch: a disclosure typed as an answer is not marked", () 
     const schoolwork = [
       "mimosa leaves fold up when people touch them", "a venus flytrap closes when its hairs get touched twice",
       "sea anemones sting people who touch them", "she kept her private feelings to herself",
+      // TerraTutor #223's list.
+      "apollo 11 touched down there in 1969", "many kids get hurt at home from falls", "Romeo and Juliet both commit suicide",
     ];
     for (const grade of [null, GRADE]) {
       vi.mocked(callLLMStructured).mockReset();
