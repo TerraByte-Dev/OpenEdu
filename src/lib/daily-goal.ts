@@ -1,6 +1,6 @@
 // The daily goal on the learner's Home: minutes a day, chosen once, with today's progress.
 // Pure. "Today" is the learner's LOCAL day — a kid studying at 7 pm is still on today, whatever UTC
-// says (computeStreak in analytics.ts is UTC-based and separate). Minutes are counted by App, one per
+// says (computeStreak in analytics.ts keys local days too, from stored quiz times). Minutes are counted by App, one per
 // minute the window is visible with a learner in on one of the learner's own screens
 // (countsTowardGoal), and persisted per learner in the plugin store (store.ts).
 

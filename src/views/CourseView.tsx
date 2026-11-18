@@ -317,7 +317,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
             regenStatus={regenStatus}
             switchTab={switchTab}
             onOpenPromotionTest={
-              viewingSyllabus && isCurrentLevel
+              viewingSyllabus && isCurrentLevel && !isComplete
                 ? () =>
                     onOpenPromotionTest({
                       courseId,
@@ -347,6 +347,9 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
             threadId={threadId}
             onThreadCreated={(id) => { setThreadId(id); void refreshThreads(); }}
             onThreadActivity={() => { void refreshThreads(); }}
+            // The tutor saved a mark: reload so the Overview and Next step show it, and the next
+            // turn's prompt is built from the saved syllabus rather than the one this view opened with.
+            onProgressChanged={() => { void loadCourseData(); }}
             learnerId={learnerId}
             grade={grade}
           />

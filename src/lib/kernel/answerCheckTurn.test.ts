@@ -51,7 +51,8 @@ vi.mock("../progress", async (importOriginal) => ({
 }));
 vi.mock("../db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../db")>()),
-  getSyllabus: vi.fn(async () => null),
+  // The saved row the mark tool reads before it writes (MarkMasteredTool.ts).
+  getSyllabus: vi.fn(async () => SYLLABUS),
 }));
 
 import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";

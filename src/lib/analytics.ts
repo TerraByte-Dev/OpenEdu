@@ -1,30 +1,33 @@
 // Pure analytics for the progress dashboard (slice B3). No model calls — derives trends from data
 // already written (quiz_attempts, quiz_questions). `now` is injected so the streak math is testable.
 
-// UTC day key (YYYY-MM-DD) for an ISO timestamp.
-export function dayKey(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10);
+import { localDayKey } from "./daily-goal";
+
+// The learner's LOCAL day (YYYY-MM-DD) of a stored time. SQLite's datetime('now') is UTC with no zone
+// ("YYYY-MM-DD HH:MM:SS"), which new Date() would read as local time, so it is read as UTC here.
+export function dayKey(stamp: string): string {
+  return localDayKey(new Date(stamp.includes("T") ? stamp : stamp.replace(" ", "T") + "Z"));
 }
 
 // Consecutive-day activity streak ending today — or yesterday, so the streak doesn't read as broken
-// earlier in the day before you've studied. `isoTimestamps` are activity instants (e.g. quiz starts).
-export function computeStreak(isoTimestamps: string[], now: Date): number {
-  const days = new Set(isoTimestamps.filter(Boolean).map(dayKey));
+// earlier in the day before you've studied. `stamps` are activity times (e.g. quiz starts), SQLite or
+// ISO; days are the learner's local days.
+export function computeStreak(stamps: string[], now: Date): number {
+  const days = new Set(stamps.filter(Boolean).map(dayKey));
   if (days.size === 0) return 0;
 
-  const startOfUTCDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const key = (d: Date) => d.toISOString().slice(0, 10);
-
-  let cursor = startOfUTCDay(now);
-  if (!days.has(key(cursor))) {
-    cursor = new Date(cursor.getTime() - 86_400_000); // allow the streak to anchor on yesterday
-    if (!days.has(key(cursor))) return 0;
+  // Local midnight, stepped back by calendar day (not 24 h) so a DST change never skips or repeats one.
+  const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const back = () => cursor.setDate(cursor.getDate() - 1);
+  if (!days.has(localDayKey(cursor))) {
+    back(); // allow the streak to anchor on yesterday
+    if (!days.has(localDayKey(cursor))) return 0;
   }
 
   let streak = 0;
-  while (days.has(key(cursor))) {
+  while (days.has(localDayKey(cursor))) {
     streak++;
-    cursor = new Date(cursor.getTime() - 86_400_000);
+    back();
   }
   return streak;
 }

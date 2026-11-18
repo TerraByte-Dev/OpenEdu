@@ -74,7 +74,7 @@ export default function Home({
         if (!alive) return;
         const steps = rankNextSteps({
           course: recent, level: recent.current_level, currentSyllabus: map[recent.id]?.syllabus ?? null,
-          attempts, canRegenerate: false, canPromote: true,
+          attempts, canRegenerate: false, canPromote: recent.status === "active",
         });
         setNextStep(continueStep(steps));
       } else {
