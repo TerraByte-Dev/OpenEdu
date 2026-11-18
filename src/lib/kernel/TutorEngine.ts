@@ -56,6 +56,12 @@ export const MASTERY_REFUSED_DISCLOSURE =
 /** What the model is told when the claim filter left nothing of an ask_user.question card to show. */
 export const CARD_REFUSED =
   "Not shown: this question said something about the student's answer or mastery that the app's check does not show. Ask again without saying whether the answer is right, or that anything is mastered.";
+// A call whose result the chat draws as the answer in the reply's place (ChatTab ToolActivity): a typeset
+// math card, a diagram, or the flashcard the app made because the student asked for one. Every other tool
+// shows only a chip ("✓ Looked it up in the library"), which answers nothing, so a turn that ran only
+// those and wrote nothing is a blank turn.
+const ANSWER_CARD_TOOLS = new Set(["math.render", "diagram.render"]);
+const showsAnswerCard = (c: { name: string; ok: boolean; byApp?: true }) => c.ok && (ANSWER_CARD_TOOLS.has(c.name) || !!c.byApp);
 const marksMastered = (args: unknown) => !!args && typeof args === "object" && (args as { status?: unknown }).status === "mastered";
 // The id of the flashcard.create call the app makes itself (flashcard stage). It never reaches a
 // provider: the model sees a note, not a tool call, so no tool_use id rules apply.
@@ -461,6 +467,10 @@ ${lastUser.content}` };
     // 5 of 8 headless runs, and every retry WITHOUT tools was empty too, so the request is repeated as
     // it was); a second empty one gets AFTER_ANSWER_REPLY below.
     let replyOwed = false;
+    // The same for a tool round that drew no answer card (showsAnswerCard) while nothing was shown yet
+    // this turn: a lookup's chip is not a reply, so an empty model call after it is made once more too.
+    // A second empty one gets MIXED_UP_REPLY below.
+    let answerOwed = false;
     let retriedEmpty = false;
     // Set when the child typed a safety disclosure into a card (TutorTurnResult.cardMessage).
     let cardMessage: string | null = null;
@@ -501,7 +511,7 @@ ${lastUser.content}` };
       const tail = claims.push(filter.end()) + claims.flush();
       iterationText += tail;
       show(tail);
-      if (iterationText.trim()) replyOwed = false;
+      if (iterationText.trim()) { replyOwed = false; answerOwed = false; }
       // A tool call written as text, when the provider returned none: run the first one whose tool was
       // offered (the filter stopped the text there) through the same dispatch as a native call.
       if (pendingCalls.length === 0 && filter.stoppedAtCall) {
@@ -513,7 +523,7 @@ ${lastUser.content}` };
       // the model may have emitted valid tool calls before running out of room, and dropping them
       // would lose work AND skip the forced final answer below, leaving the student with nothing.
       if (interrupted && interrupted !== "length") break;
-      if (pendingCalls.length === 0 && replyOwed && !iterationText.trim() && !interrupted && !retriedEmpty) { retriedEmpty = true; continue; }
+      if (pendingCalls.length === 0 && (replyOwed || answerOwed) && !iterationText.trim() && !interrupted && !retriedEmpty) { retriedEmpty = true; continue; }
       if (pendingCalls.length === 0) { endedNaturally = true; break; }
 
       // A card whose buttons do not answer its question is repaired first, by code (askCard.ts); the
@@ -602,6 +612,7 @@ ${lastUser.content}` };
       }
       // No further model call, and no fallback line: the child's own message is next.
       if (cardMessage !== null && !ctx.abort.aborted) { endedNaturally = true; break; }
+      if (!streamedText.trim() && !toolCalls.some(showsAnswerCard)) answerOwed = true;
       if (ctx.abort.aborted) interrupted = interrupted ?? "aborted";
       if (interrupted && interrupted !== "length") break;
 
@@ -651,9 +662,11 @@ ${lastUser.content}` };
     }
 
     // Never a blank turn: a reply that ended with nothing to show (the model wrote nothing, or only a
-    // tool call the filter removed) and ran no tool says so in one plain line, which is shown and saved
-    // like any reply. A turn the student stopped, or one that stalled, keeps its own handling.
-    if (!streamedText.trim() && toolCalls.length === 0 && stopReason !== "aborted" && stopReason !== "stalled") {
+    // tool call the filter removed) and drew no answer card says so in one plain line, which is shown and
+    // saved like any reply. A tool that ran and left only a chip does not count: the chip is gone when the
+    // thread is reopened, and it answers nothing. A turn the student stopped, or one that stalled, keeps
+    // its own handling.
+    if (!streamedText.trim() && !toolCalls.some(showsAnswerCard) && stopReason !== "aborted" && stopReason !== "stalled") {
       show(MIXED_UP_REPLY);
     }
 

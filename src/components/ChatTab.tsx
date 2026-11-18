@@ -81,6 +81,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  // The turn's reply is saved and in the transcript, so the streaming bubble stops showing it while the
+  // turn finishes (chips, notices). Without it the reply showed twice for a moment.
+  const [replyLanded, setReplyLanded] = useState(false);
   const [chatError, setChatError] = useState("");
   // The teaching mode for the NEXT turn. Set by tapping a chip that carries one; reset to the neutral
   // default after every send. There is no mode bar any more — asking the student to classify their
@@ -140,6 +143,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setReplyChoices(null);
     setGroundingNote(null);
     setToolEvents([]);
+    // An error belongs to the conversation it happened in: opening another one, or a new one, clears it.
+    setChatError("");
   });
   const transcript = transcriptRef.current;
 
@@ -198,8 +203,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Aborting the controller does not settle it, so navigating away with a card on screen left the
   // generator awaiting forever — a leaked turn holding its whole message array. The explicit Stop
   // handler already did this; unmount did not.
+  //
+  // Releasing the turn is not optional either: a turn still setting up (saving the message, probing the
+  // model) has no controller yet, so the abort above misses it. With the owner gone it stops at its next
+  // check instead of running a reply nobody sees.
   useEffect(() => {
     return () => {
+      turnOwnerRef.current = null;
       abortRef.current?.abort();
       askResolverRef.current?.("");
       askResolverRef.current = null;
@@ -324,6 +334,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     if (shown()) setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});
     onThreadActivity();
+    // The chat closed, or another thread opened, while the message was being saved: it stays saved.
+    if (turnOwnerRef.current !== owner) return;
 
     // Build system prompt — with fallback if instructions not yet generated. The kernel appends
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
@@ -373,6 +385,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     if (settingUpRef.current === setupToken) settingUpRef.current = null;
     setStreaming(true);
     setStreamingText("");
+    setReplyLanded(false);
     setToolEvents([]);
     setGroundingNote(null);
     setSuggestions([]);
@@ -400,13 +413,17 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       activeSkill,
       domainSkill,
       supportsTools: profile.supportsTools,
+      // A turn no longer here (the chat closed, or another thread opened) gets no card: nobody could
+      // answer it, and the turn would wait forever. It unwinds as if Stop was pressed.
       askUser: (question, choices) =>
         new Promise<string>((resolve) => {
+          if (turnOwnerRef.current !== owner || controller.signal.aborted) { resolve(""); return; }
           askResolverRef.current = resolve;
           setAskPending({ question, choices });
         }),
       confirmTool: (toolName, summary) =>
         new Promise<boolean>((resolve) => {
+          if (turnOwnerRef.current !== owner || controller.signal.aborted) { resolve(false); return; }
           confirmResolverRef.current = resolve;
           setConfirmPending({ toolName, summary });
         }),
@@ -434,7 +451,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           interrupted: abandoned || controller.signal.aborted,
           autoRead,
         });
-        if (landing.show) setMessages((prev) => appendUnique(prev, assistantMsg));
+        if (landing.show) {
+          setMessages((prev) => appendUnique(prev, assistantMsg));
+          if (turnOwnerRef.current === owner) setReplyLanded(true);
+        }
         if (landing.speak) readAloud.speak(assistantMsg.id, persisted);
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
@@ -491,6 +511,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         turnOwnerRef.current = null;
         setStreamingText("");
         setStreaming(false);
+        setReplyLanded(false);
         abortRef.current = null;
         setAskPending(null);
         askResolverRef.current = null;
@@ -619,7 +640,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           );
         })}
         {/* No empty "Thinking..." bubble above a question card: the card is what the tutor is saying. */}
-        {streaming && !(askPending && !streamingText) && (
+        {streaming && !replyLanded && !(askPending && !streamingText) && (
           <div className="flex gap-3">
             <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
               AI

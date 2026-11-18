@@ -354,6 +354,31 @@ describe("never a blank turn", () => {
     expect(r.result.toolCalls).toMatchObject([{ name: "math.render", ok: true }]);
     expect(r.result.text).toBe("");
   });
+
+  // A lookup leaves only a chip ("✓ Looked through your notes"), which is not saved and answers nothing.
+  const LOOKUP = "notebook.search{query:<|\"|>cats<|\"|>}";
+
+  it("a lookup and then an empty reply asks the model once more, with the same request", async () => {
+    const r = await run("explain", [LOOKUP, "", "Cats purr when they are happy."]);
+    expect(r.result.toolCalls).toMatchObject([{ name: "notebook.search" }]);
+    expect(chat).toHaveLength(3);
+    expect(chat[2].messages).toEqual(chat[1].messages);
+    expect(r.result.text).toBe("Cats purr when they are happy.");
+  });
+
+  it("a lookup and then two empty replies shows and saves the plain line, never a blank turn", async () => {
+    const r = await run("explain", [LOOKUP, "", ""]);
+    expect(chat).toHaveLength(3);
+    expect(r.result.text).toBe(MIXED_UP_REPLY);
+    expect(r.result.stopReason).toBe("complete");
+  });
+
+  it("a reply already shown before the lookup is not asked for again", async () => {
+    const r = await run("explain", [`Cats purr when they are happy.\n${LOOKUP}`, ""]);
+    expect(chat).toHaveLength(2);
+    expect(r.result.text).not.toContain(MIXED_UP_REPLY);
+    expect(r.result.text).toContain("Cats purr when they are happy.");
+  });
 });
 
 describe("text that only looks like machinery is kept", () => {

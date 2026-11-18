@@ -766,12 +766,18 @@ writes runs only when gemma4's own `<|tool_call>` or `<tool_call|>` token frames
 `name{...}` text can be an echoed note; a read-only tool may run from bare text. Every other call is
 only removed. Saved replies are shown through the same filter (`displayReplyText`), so a reply saved
 before it existed shows clean too.
-A turn that ends with nothing to show and ran no tool (the model wrote nothing, or only a call the
-filter removed) is never left blank: the kernel shows and saves `MIXED_UP_REPLY` from
-`plain-language.ts` ("Sorry, I got mixed up. Can you ask that again?"). A turn that ran a tool may end
-with no text of its own (a drawing can be the whole answer), except after the child answers a question
-card: that always gets a reply (Question cards, above). A turn the student stopped, or one that
-stalled, keeps its own handling.
+A turn that ends with nothing to show and drew no answer card (the model wrote nothing, or only a
+call the filter removed) is never left blank: the kernel shows and saves `MIXED_UP_REPLY` from
+`plain-language.ts` ("Sorry, I got mixed up. Can you ask that again?"). Only a `math.render` or
+`diagram.render` card that drew, or the flashcard the app made because the child asked for one, may be
+the whole answer (`TutorEngine.ts showsAnswerCard`). Any other tool leaves only a chip, which is not
+saved and answers nothing: when such a tool round ran with nothing shown yet this turn, an empty model
+call after it is made once more with the same request, and a second empty one gets `MIXED_UP_REPLY`.
+After the child answers a question card the turn always gets a reply too (Question cards, above). A turn
+the student stopped, or one that stalled, keeps its own handling. A stall includes Ollama ending the
+reply with an `{"error": …}` line after part of it was shown (its model runner crashed or ran out of
+memory while the server stayed up), exactly as when the stream breaks off: what was shown is saved
+with its marker (`persistedReply`).
 
 In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
 `diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model

@@ -9,8 +9,10 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 // <parameter>"), or with an {"error": ...} line in a 200 stream when something had. Promised here:
 //   - that failure, with tools declared and nothing streamed, is answered by ONE call without tools
 //     and without the tools manifest, and the turn records it (toolCallRecovery);
-//   - any other 500, a failure after text reached the student, a request without tools, or a second
-//     failure on the no-tools call fails the turn as before: one ERROR row with the real message;
+//   - any other 500, a request without tools, or a second failure on the no-tools call fails the turn
+//     as before: one ERROR row with the real message;
+//   - a failure after text reached the student is not retried either: the turn ends as stalled with
+//     what was shown (llm.ts), as when the stream breaks off;
 //   - an ERROR row keeps the grounding trace the turn really had, so the vault check does not abort
 //     the run with "NO note candidates" when the vault is fine.
 // The note and questions are written for this test and are not from any eval set.
@@ -174,10 +176,11 @@ describe("Ollama cannot parse the model's tool call", () => {
     expect(row.retrievedTitles).toContain("Pond Survey");
   }, 60_000);
 
-  it("a parse failure after text reached the student is not retried", async () => {
+  it("a parse failure after text reached the student is not retried: the turn ends stalled with that text", async () => {
     const report = await run([() => ndjson({ message: { role: "assistant", content: "Let me check. " } }, { error: PARSE_ERROR })]);
     expect(chat).toHaveLength(1);
-    expect(report.rows[0].error).toBe(`Ollama error: ${PARSE_ERROR}`);
+    expect(report.rows[0].error).toBeNull();
+    expect(report.rows[0].answer).toBe("Let me check. ");
     expect(report.rows[0].toolCallRecovery).toBeNull();
   }, 60_000);
 
