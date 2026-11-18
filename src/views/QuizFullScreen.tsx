@@ -9,7 +9,7 @@ import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/stor
 import { saveFinishEffects } from "../lib/finish-effects";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
 import MarkAgain from "../components/quiz/MarkAgain";
-import { MARK_AGAIN } from "../lib/level-test";
+import { MARK_AGAIN, MAKING } from "../lib/level-test";
 import { canMarkAgain, markAgain } from "../lib/written-answer-checks";
 import { IconXmark } from "../components/icons";
 import SafetyNotice from "../components/SafetyNotice";
@@ -70,6 +70,8 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
   // question 1 with a different question set/count — while two pipelines fight over the single local
   // Ollama instance and inflate timeouts. (Prod builds don't double-invoke; the guard is correct regardless.)
   const generatedRef = useRef(false);
+  // Stops the questions being made when the learner leaves the "making" screen (quiz.ts stopIfAborted).
+  const genAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (generatedRef.current) return;
@@ -81,6 +83,8 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
     setState("generating");
     setError("");
     setGenProgress(null);
+    const stop = new AbortController();
+    genAbortRef.current = stop;
     try {
       const cfg = await getLLMConfig();
       setConfig(cfg);
@@ -88,7 +92,9 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
       const reviewPool = await getReviewPoolQuestions(courseId, 6);
       // The pool's verify pass runs on a local model only (lane 1): it is data about this learner.
       const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }),
-        await getReviewConfig(cfg, "questions"), reviewPool.length ? await getLocalVerifyConfig(cfg) : null);
+        await getReviewConfig(cfg, "questions"), reviewPool.length ? await getLocalVerifyConfig(cfg) : null, stop.signal);
+      // Stopped while it was being made: no attempt is created, so there is no half-made quiz.
+      if (stop.signal.aborted) return;
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
       setAttemptId(attempt.id);
       startedAtRef.current = Date.now();
@@ -97,6 +103,7 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
       setScore(null);
       setState("in_progress");
     } catch (e) {
+      if (stop.signal.aborted) return; // the learner stopped it and has left this screen
       log.error("quiz", "quiz generation failed", e);
       setError(`Couldn't make the quiz. ${friendlyError(e)}`);
     }
@@ -227,11 +234,17 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
     setScore({ correct: done.correct, total: Math.max(questions.length, done.rows.length) });
   };
 
+  // Leaving the "making" screen stops the model calls, and no attempt is ever created.
+  const stopMaking = () => {
+    genAbortRef.current?.abort();
+    onClose();
+  };
+
   const question = questions[currentIndex];
 
   if (state === "generating") {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col items-center justify-center">
         <div className="text-center">
           {error ? (
             <>
@@ -247,6 +260,10 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
               {genProgress && (
                 <p className="text-phosphor-bright text-sm mt-2 font-mono">{genProgress.done} / {genProgress.total} questions</p>
               )}
+              <p className="text-sm text-[var(--ink-faint)] mt-2">{MAKING.waitNote}</p>
+              <button onClick={stopMaking} className="mt-6 px-5 py-2 rounded-lg bg-panel-lite text-[var(--ink-dim)] text-sm hover:bg-lcd transition-colors">
+                {MAKING.stop}
+              </button>
             </>
           )}
         </div>
@@ -256,7 +273,7 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
 
   if (state === "grading") {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-4" />
           <p className="text-[var(--ink-faint)]">Grading your answers…</p>
@@ -269,7 +286,7 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
     const uncheckedLine = uncheckedSummary(questions.filter((q) => answerMark(q) === "unchecked").length);
     const pct = score ? (score.correct / score.total) * 100 : 0;
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
           <div>
             <h1 className="text-base font-semibold text-ink">{course.title}</h1>
@@ -345,7 +362,7 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
   const isLastQuestion = currentIndex === questions.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+    <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-3 border-b border-[var(--rule)] shrink-0">
         <div className="flex-1 min-w-0">

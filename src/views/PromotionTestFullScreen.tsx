@@ -6,7 +6,10 @@ import {
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
 import { answerMark, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
-import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft } from "../lib/level-test";
+import {
+  testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft,
+  STOP_TEST, stopTestBody, MAKING, testMakingNote,
+} from "../lib/level-test";
 import { saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, type PendingLevelTest, type SettledLevelTest } from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
 import MarkAgain from "../components/quiz/MarkAgain";
@@ -110,6 +113,12 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   const [uncheckedLeft, setUncheckedLeft] = useState(0);
   // The attempt the results screen shows (the test just taken, or a waiting one decided later).
   const [resultsAttempt, setResultsAttempt] = useState<string | null>(null);
+  // The retake check failed: say so, with the way back (the screen never sits on "Checking" for good).
+  const [checkError, setCheckError] = useState("");
+  // "Stop the test" asks once before leaving a begun test (level-test.ts STOP_TEST).
+  const [confirmStop, setConfirmStop] = useState(false);
+  // Stops the questions being made when the learner leaves the "making" screen (quiz.ts stopIfAborted).
+  const genAbortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Synchronous single-flight guard for finishTest — blocks a double-click (or a click racing the
   // timeout) from grading + persisting twice (issue #83 review).
@@ -131,7 +140,14 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   }, []);
 
   const checkCooldown = async () => {
-    const last = await getLastPromotionAttempt(courseId, currentLevel);
+    let last: QuizAttempt | null;
+    try {
+      last = await getLastPromotionAttempt(courseId, currentLevel);
+    } catch (e) {
+      log.error("promotion-test", "retake check failed", e);
+      setCheckError(`Couldn't check this test. ${friendlyError(e)}`);
+      return;
+    }
     // A finished test still waiting for its written answers to be marked comes back here, not a new test.
     const waiting = await pendingLevelTestFor(last).catch(() => null);
     if (waiting) {
@@ -157,6 +173,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     setGenPhase("current");
     setGenProgress(null);
     setGenError("");
+    const stop = new AbortController();
+    genAbortRef.current = stop;
 
     try {
       const cfg = await getGenerationConfig();
@@ -167,7 +185,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
         currentSyllabus, previousSyllabuses, cfg,
         (done, total, phase) => { setGenPhase(phase); setGenProgress({ done, total }); },
         await getReviewConfig(cfg, "questions"),
+        stop.signal,
       );
+      // Stopped while it was being made: no attempt is created, so nothing is taken or counted.
+      if (stop.signal.aborted) return;
       setGenPhase("done");
 
       // Too few questions, or no review section when the course has earlier levels: the test is not
@@ -205,10 +226,25 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
         });
       }, 1000);
     } catch (e) {
+      if (stop.signal.aborted) return; // the learner stopped it and has left this screen
       log.error("promotion-test", "test generation failed", e);
       setGenError(`Couldn't make the test. ${friendlyError(e)}`);
       setTestState("ready");
     }
+  };
+
+  // Leaving the "making" screen stops the model calls, and no attempt is ever created.
+  const stopMaking = () => {
+    genAbortRef.current?.abort();
+    onClose();
+  };
+
+  // Leaving a begun test: it stays unfinished, so it is never scored and sets no retake wait
+  // (level-test.ts STOP_TEST says so to the learner first).
+  const stopTest = () => {
+    if (finishingRef.current) return;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    onClose();
   };
 
   // isCorrect is null for free-text answers — recorded now, graded together at finish (issue #83).
@@ -465,8 +501,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   // ── Checking ──
   if (testState === "checking") {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex items-center justify-center">
-        <p className="text-[var(--ink-faint)]">Checking eligibility...</p>
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col items-center justify-center p-8 text-center">
+        {checkError
+          ? <p className="text-danger text-sm mb-4">{checkError}</p>
+          : <p className="text-[var(--ink-faint)] mb-4">Checking eligibility...</p>}
+        <button onClick={onClose} className="px-5 py-2 rounded-lg bg-panel-lite text-[var(--ink-dim)] text-sm hover:bg-lcd transition-colors">
+          Back to Course
+        </button>
       </div>
     );
   }
@@ -474,7 +515,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   // ── Cooldown ──
   if (testState === "cooldown") {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center p-8 text-center">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col items-center justify-center p-8 text-center">
         <div className="text-5xl mb-4">⏳</div>
         <h2 className="text-xl font-bold text-ink mb-2">Cooldown Active</h2>
         <p className="text-[var(--ink-faint)] mb-1">You need to wait before retaking this test.</p>
@@ -490,7 +531,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   // ── Ready ──
   if (testState === "ready") {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
           <div>
             <h1 className="text-base font-semibold text-ink">{course.title}</h1>
@@ -531,6 +572,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
               <p className="text-[var(--ink-faint)]">• 85% overall and 60% on review questions required to pass</p>
               <p className="text-[var(--ink-faint)]">• Fail = 24-hour cooldown + personalized study plan</p>
               <p className="text-[var(--ink-faint)]">• A written answer no model on this computer can check counts only after you mark it against the answer key</p>
+              <p className="text-[var(--ink-faint)]">• {MAKING.canStop}</p>
             </div>
 
             {genError && (
@@ -545,6 +587,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
             >
               Begin Test
             </button>
+            <p className="text-sm text-[var(--ink-faint)] mt-3">{testMakingNote(TEST_TOTAL_TARGET)}</p>
           </div>
         </div>
       </div>
@@ -560,7 +603,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
       : "Finalizing...";
     const phaseStep = genPhase === "current" ? 1 : genPhase === "review" ? 2 : 3;
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center p-8">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col items-center justify-center p-8">
         <div className="w-full max-w-sm text-center">
           <div className="w-12 h-12 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-6" />
           <h2 className="text-lg font-semibold text-ink mb-1">Preparing Your Test</h2>
@@ -584,10 +627,13 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
               {genProgress.done} / {genProgress.total} {genPhase === "review" ? "review " : ""}questions
             </p>
           )}
-          <p className="text-xs text-[var(--ink-faint)]">~{TEST_TOTAL_TARGET} questions — do not close this window</p>
+          <p className="text-sm text-[var(--ink-faint)]">~{TEST_TOTAL_TARGET} questions. {MAKING.waitNote}</p>
           {genError && (
             <div className="mt-4 p-3 rounded-lg bg-danger-tint border border-danger/30 text-sm text-danger">{genError}</div>
           )}
+          <button onClick={stopMaking} className="mt-6 px-5 py-2 rounded-lg bg-panel-lite text-[var(--ink-dim)] text-sm hover:bg-lcd transition-colors">
+            {MAKING.stop}
+          </button>
         </div>
       </div>
     );
@@ -596,7 +642,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   // ── Grading (deferred free-text grading at finish, issue #83) ──
   if (testState === "grading") {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center p-8">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col items-center justify-center p-8">
         <div className="w-full max-w-sm text-center">
           <div className="w-12 h-12 rounded-full border-2 border-phosphor border-t-transparent animate-spin mx-auto mb-6" />
           <h2 className="text-lg font-semibold text-ink mb-1">Grading Your Test</h2>
@@ -609,7 +655,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   // ── In Progress ──
   if (testState === "in_progress" && question) {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
         {/* Header with timer */}
         <div className="flex items-center gap-4 px-6 py-3 border-b border-[var(--rule)] shrink-0">
           <div className="flex-1">
@@ -626,7 +672,33 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           <div className={`text-xl font-mono font-bold shrink-0 ${timeLeft < 300 ? "text-danger animate-pulse" : "text-ink"}`}>
             {formatTime(timeLeft)}
           </div>
+          {!finishing && (
+            <button
+              onClick={() => setConfirmStop(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-faint)] hover:text-ink text-xs transition-colors shrink-0"
+            >
+              <IconXmark size={14} />
+              {STOP_TEST.button}
+            </button>
+          )}
         </div>
+
+        {confirmStop && !finishing && (
+          <div className="px-6 py-4 border-b border-[var(--rule)] bg-panel shrink-0" role="alertdialog" aria-labelledby="stop-test-title">
+            <div className="max-w-2xl mx-auto">
+              <p id="stop-test-title" className="text-sm font-semibold text-ink mb-1">{STOP_TEST.title}</p>
+              <p className="text-sm text-[var(--ink-dim)] mb-3">{stopTestBody(questions.filter((q) => q.user_answer !== null).length)}</p>
+              <div className="flex gap-3">
+                <button onClick={stopTest} className="px-4 py-2 rounded-lg bg-panel-lite hover:bg-lcd text-ink text-sm font-medium transition-colors">
+                  {STOP_TEST.stop}
+                </button>
+                <button onClick={() => setConfirmStop(false)} className="px-4 py-2 rounded-lg btn-primary text-sm font-medium transition-colors">
+                  {STOP_TEST.keep}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {questions.length < TEST_TOTAL_TARGET && (
           <div className="px-6 py-1.5 text-[11px] border-b shrink-0 text-warning bg-warning-tint border-warning/20">
@@ -685,7 +757,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   // ── Pending: the learner marks the written answers no model checked, then the test counts ──
   if (testState === "pending" && pendingTest) {
     return (
-      <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+      <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
           <div>
             <h1 className="text-base font-semibold text-ink">{SELF_CHECK.title}</h1>
@@ -723,7 +795,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   // ── Results ──
   const uncheckedLine = testUncheckedSummary(uncheckedLeft);
   return (
-    <div className="fixed inset-0 z-50 bg-bg flex flex-col">
+    <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
       <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--rule)] shrink-0">
         <div>
           <h1 className="text-base font-semibold text-ink">{passed ? "Test Passed!" : "Test Failed"}</h1>

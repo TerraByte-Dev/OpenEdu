@@ -388,16 +388,17 @@ export function reviewChunkSize(tier: ModelTier): number {
 }
 
 // Reviews `questions` in chunks and returns findings indexed into `questions`.
-export async function reviewQuestions(topic: string, questions: ReviewableQuestion[], review: LLMConfig): Promise<ReviewFinding[]> {
+export async function reviewQuestions(topic: string, questions: ReviewableQuestion[], review: LLMConfig, signal?: AbortSignal): Promise<ReviewFinding[]> {
   const tier = await tierOf(review);
   const size = reviewChunkSize(tier);
   const out: ReviewFinding[] = [];
   for (let start = 0; start < questions.length; start += size) {
+    if (signal?.aborted) break; // the learner left the making screen; the caller stops (quiz.ts stopIfAborted)
     const chunk = questions.slice(start, start + size);
     try {
       const reply = await callLLMStructured<ReviewReply>(
         buildQuestionReviewMessages(topic, chunk), review,
-        { schema: reviewSchema(QUESTION_VERDICTS), toolName: "emit_question_review", tier },
+        { schema: reviewSchema(QUESTION_VERDICTS), toolName: "emit_question_review", tier, signal },
       );
       for (const f of parseReviewFindings(reply, chunk.map(questionText), QUESTION_VERDICTS)) out.push({ ...f, index: start + f.index });
     } catch (e) {

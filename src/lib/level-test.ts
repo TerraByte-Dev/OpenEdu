@@ -119,3 +119,39 @@ export const MARK_AGAIN = {
   /** Under an answer the learner marked against the key. */
   marked: "You marked this against the answer key.",
 } as const;
+
+/**
+ * Leaving a level test once it has begun. No learner is kept in a test: a stopped test is an unfinished
+ * attempt, never scored and never moving the level, with no retake wait (db.ts getLastPromotionAttempt
+ * reads finished tests only). The answers already given stay saved, so a missed one can come back in a
+ * quiz (db.ts getReviewPoolQuestions).
+ */
+export const STOP_TEST = {
+  button: "Stop the test",
+  title: "Stop the test?",
+  stop: "Stop the test",
+  keep: "Keep going",
+} as const;
+
+/** What stopping a begun level test does, for the confirm. `answered` = questions answered so far. */
+export function stopTestBody(answered: number): string {
+  const what = "It will not be scored and will not change your level. There is no wait: you can take it again whenever you are ready.";
+  return answered > 0 ? `${what} The answers you gave are kept, and ones you missed may come back in a quiz for practice.` : what;
+}
+
+/** The ready screen and the "making" screens of a quiz and a level test. */
+export const MAKING = {
+  /** Stops the questions being made and goes back; nothing is saved (quiz.ts stopIfAborted). */
+  stop: "Stop and go back",
+  /** On the ready screen: a stopped test has no wait. */
+  canStop: "You can stop at any time. A stopped test is not scored and has no wait.",
+  /** Under the "making" spinner. */
+  waitNote: "You can stop and come back later. Nothing counts until the questions appear.",
+} as const;
+
+/** Under Begin Test: how long making the test can take. On Ollama each question is one model call
+ * (quiz.ts generatePerQuestion), so on a computer with no graphics card it is slow. No timing has been
+ * measured on one, so the line gives none. */
+export function testMakingNote(questions: number): string {
+  return `First this computer writes about ${questions} questions, one at a time. On a slower computer that can take a long time, many minutes. You can stop while it works, and nothing counts until the questions appear.`;
+}

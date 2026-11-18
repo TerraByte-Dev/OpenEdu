@@ -118,6 +118,9 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
 ## Tauri specifics
 
 - Window is frameless (`decorations: false` in `tauri.conf.json`), background `#FBFAF6` (the light `--bg`). Drag region is `data-tauri-drag-region` on the Titlebar center div.
+  The Titlebar holds the only window controls, so it stays on screen over the full-screen quiz and level
+  test (which sit below it, `top-8`), there without Settings or the learner menu: a learner can always
+  close the window. Never hide it.
 - Window controls (min / max / close) call `getCurrentWindow()` from `@tauri-apps/api/window`.
 - API keys / model config persist via `@tauri-apps/plugin-store`.
 - Capabilities in `src-tauri/capabilities/default.json` are `core`, `sql`, `dialog`, `store`, `updater`, `process`,
