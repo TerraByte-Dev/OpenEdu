@@ -708,7 +708,9 @@ export async function updateQuizQuestionSelfExplanation(id: string, text: string
 // The spaced "review pool": previously-missed questions for a course (most-recent first, deduped by
 // question text). Re-posed alongside fresh questions in study quizzes for retrieval practice.
 // A miss leaves the pool once the same question (trimmed, any letter case) is answered right after it in
-// the course, by the key, the model or the learner's own mark; a later miss puts it back. "After" is the row
+// the course, by the key, the model or the learner's own mark; a later miss puts it back. An answer nothing
+// checked ('fallback': no local model, the grader failed, or a safety disclosure) is not "right" here
+// (TerraTutor #215). "After" is the row
 // order (rowid): quiz_questions rows are only ever inserted as answered, so a future import or merge path
 // must insert them in the order they were answered. SQLite's LOWER folds ASCII letters only, so a
 // question that differs in a non-ASCII letter's case counts as another question. The NOT EXISTS has no
@@ -723,7 +725,7 @@ export async function getReviewPoolQuestions(courseId: string, limit: number): P
         AND NOT EXISTS (
           SELECT 1 FROM quiz_questions later
             JOIN quiz_attempts la ON later.attempt_id = la.id
-           WHERE la.course_id = qa.course_id AND later.is_correct = 1 AND later.rowid > qq.rowid
+           WHERE la.course_id = qa.course_id AND later.is_correct = 1 AND later.graded_by IS NOT 'fallback' AND later.rowid > qq.rowid
              AND LOWER(TRIM(later.question_text, char(32, 9, 10, 13)))
                = LOWER(TRIM(qq.question_text, char(32, 9, 10, 13))))
       ORDER BY qa.started_at DESC
