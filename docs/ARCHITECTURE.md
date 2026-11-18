@@ -63,6 +63,9 @@ or school mode with a teacher PIN). Those installs keep every learner and every 
 `App.tsx` runs `learners.ts autoPickLearner`: one learner with no PIN goes straight in; anything else
 shows the picker (`LearnerPicker.tsx`), which lists every learner whatever their old group, and a learner
 with a PIN (`needsPin`) is entered only after `PinScreen` verifies it (PBKDF2-SHA256, `learner-pin.ts`).
+On the keyboard, digits and Backspace type on the pad and Enter opens, except that Enter on a focused
+button (a pad key, C, Delete, Back, Open) is only that button's press (`pin-pad.ts`). A click or tap on a
+pad key does not move focus onto it, so Enter after clicking the digits still opens.
 That keeps learners out of each other's courses; it does not protect the database file. The titlebar
 chip opens the signed-in learner's menu; `learners.ts learnerMenuActions` decides what it offers. Every
 learner can switch, rename themselves, and change or remove a PIN they already have (typing it first).
