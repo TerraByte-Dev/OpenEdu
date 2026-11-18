@@ -30,7 +30,7 @@ export const searchTool = defineTool({
     yield { kind: "progress", message: `searching the notebook for "${input.query}"…` };
     // Default 3, not 5. The kernel caps the reinjected payload anyway, so a larger k just meant
     // paying to retrieve passages that would be truncated away before the model ever saw them.
-    const results = await searchNotebook({ courseId: ctx.courseId, query: input.query, topK: input.top_k ?? 3 });
+    const results = await searchNotebook({ courseId: ctx.courseId, query: input.query, topK: input.top_k ?? 3, grade: ctx.grade });
     yield { kind: "result", value: { results } };
   },
 

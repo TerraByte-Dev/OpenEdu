@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import chatTab from "../components/ChatTab.tsx?raw";
+import app from "../App.tsx?raw";
 
 // A full disk, through the REAL migrations and the REAL db.ts on an in-memory SQLite whose size is capped
 // (PRAGMA max_page_count), so the write fails with SQLite's own SQLITE_FULL. The stand-in for
@@ -32,8 +33,9 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 }));
 
 import { migrations } from "./eval/headless/shims/plugin-sql";
-import { createChatThread, createCourse, createLesson, createNote, saveChatMessage, saveTutorInstruction, setActiveLearnerId, updateNote } from "./db";
+import { createChatThread, createCourse, createLesson, createNote, getNotes, saveChatMessage, saveTutorInstruction, setActiveLearnerId, updateNote } from "./db";
 import { DEFAULT_LEARNER_ID } from "./learners";
+import { createNoteSaver } from "./note-autosave";
 import { friendlyError, messageNotSaved, noteNotSaved, OUT_OF_SPACE } from "./plain-language";
 
 let courseId = "";
@@ -78,7 +80,26 @@ describe("a full disk", () => {
     fillDisk();
     const e = await caught(() => updateNote(note.id, "Halves", BIG));
 
-    expect(noteNotSaved("Halves", e)).toBe(`Your note “Halves” wasn't saved. ${OUT_OF_SPACE}`);
+    expect(noteNotSaved("Halves", e)).toBe(`Your note “Halves” wasn't saved. Your words are still here. ${OUT_OF_SPACE}`);
+  });
+
+  it("a note through NotesTab's saver: the words are kept, and Save again writes them once there is room", async () => {
+    const note = await createNote(courseId, "Halves", "", 1);
+    const saver = createNoteSaver((d) => updateNote(d.id, d.title, d.content)); // NotesTab's write
+    const words = `Half of 4 is 2. ${BIG}`;
+    fillDisk();
+    saver.edit({ id: note.id, courseId, title: "Halves", content: words }, note);
+
+    expect(await saver.flush()).toEqual(new Set([note.id]));
+    expect(saver.newest(note.id)?.content).toBe(words);
+    const failure = saver.failure(note.id)!;
+    expect(noteNotSaved(failure.title, failure.error)).toBe(`Your note “Halves” wasn't saved. Your words are still here. ${OUT_OF_SPACE}`);
+    expect((await getNotes(courseId)).find((n) => n.id === note.id)?.content).toBe("");
+
+    sqlite.exec("PRAGMA max_page_count = 1073741823"); // files deleted
+    expect(await saver.flush()).toEqual(new Set());
+    expect((await getNotes(courseId)).find((n) => n.id === note.id)?.content).toBe(words);
+    expect(saver.failure(note.id)).toBeUndefined();
   });
 
   it("a course build, a lesson or a tutor reply: says the computer is out of space, not 'try again in a moment'", async () => {
@@ -99,13 +120,16 @@ describe("a full disk", () => {
     expect(messageNotSaved("error returned from database: (code: 5) database is locked")).toBe(
       "Your message wasn't saved, so it wasn't sent. It's still in the box. Try sending it again in a moment.",
     );
-    expect(noteNotSaved("  ", "database is locked")).toBe("Your note wasn't saved. Keep it open and try again in a moment.");
+    expect(noteNotSaved("  ", "database is locked")).toBe("Your note wasn't saved. Your words are still here. Press Save again in a moment.");
   });
 });
 
-describe("the chat's wiring (a live click test covers the rest)", () => {
+describe("the screens' wiring (a live click test covers the rest)", () => {
   const lf = (s: string) => s.replace(/\r\n?/g, "\n");
   it("ChatTab puts the words back in the box and says so", () => {
     expect(lf(chatTab)).toContain("setInput((cur) => (cur.trim() ? cur : userText));\n        setChatError(messageNotSaved(e));");
+  });
+  it("closing the window saves the notes first", () => {
+    expect(lf(app)).toContain("onCloseRequested(async () => { await savePendingEdits(); await unloadOllamaModels(); })");
   });
 });

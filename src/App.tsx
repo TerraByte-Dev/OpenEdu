@@ -17,6 +17,7 @@ import type { NextStepAction } from "./lib/next-step";
 import { opensWhenBuilt, readyNotice, readyNoticeAfter } from "./lib/course-ready";
 import { probeEnvironment, showsSetupGate, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
 import { log, unloadOllamaModels } from "./lib/llm";
+import { savePendingEdits } from "./lib/note-autosave";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import SetupGate from "./components/SetupGate";
 import DataDamagedBanner from "./components/DataDamagedBanner";
@@ -226,13 +227,14 @@ export default function App() {
     void checkDatabaseHealth().then(setDbHealth);
   }, []);
 
-  // Closing the app unloads the models it used, so 4–5 GB is not held for the rest of keep_alive
-  // (llm.ts OLLAMA_KEEP_ALIVE, 30 minutes) on an 8 GB computer. The window closes once this resolves,
-  // at most OLLAMA_UNLOAD_TIMEOUT_MS later.
+  // Closing the app first saves any Notebook note still waiting for its autosave (Alt+F4 closes with no
+  // blur; note-autosave.ts, at most 3 s), then unloads the models it used, so 4–5 GB is not held for the
+  // rest of keep_alive (llm.ts OLLAMA_KEEP_ALIVE, 30 minutes) on an 8 GB computer. The window closes once
+  // this resolves, at most OLLAMA_UNLOAD_TIMEOUT_MS after the save.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let gone = false;
-    getCurrentWindow().onCloseRequested(() => unloadOllamaModels())
+    getCurrentWindow().onCloseRequested(async () => { await savePendingEdits(); await unloadOllamaModels(); })
       .then((u) => { if (gone) u(); else unlisten = u; })
       .catch((e) => log.warn("App", "could not watch for the window closing", e));
     return () => { gone = true; unlisten?.(); };

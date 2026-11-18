@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense, type CSSProperties, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense, type CSSProperties, type ReactNode } from "react";
 // Heavy, view-gated components are lazy-loaded so they leave the eager main bundle: ForceGraph2D
 // (react-force-graph-2d) mounts only in the vault-graph view; MarkdownEditor (CodeMirror) only when
 // a note is open. Both are code-split into their own chunks fetched on first use.
@@ -14,9 +14,11 @@ import { indexNote, importTextAsNote, reindexCourseNotes, searchNotebook } from 
 import { ingestResultSummary } from "../lib/ingest-format";
 import { log } from "../lib/llm";
 import { friendlyError, noteNotSaved } from "../lib/plain-language";
+import { createNoteSaver, type NoteDraft } from "../lib/note-autosave";
 import QuickSwitcher from "./QuickSwitcher";
 import NotesAssistant from "./NotesAssistant";
-import { anchorAnnotations, appendSummary, type AnchoredAnnotation } from "../lib/notebook-assistant";
+import SafetyNotice from "./SafetyNotice";
+import { anchorAnnotations, appendSummary, noteIsDisclosure, type AnchoredAnnotation } from "../lib/notebook-assistant";
 import {
   extractTags, resolveWikiLink, linkKey,
   buildVaultGraph, buildTagIndex,
@@ -63,6 +65,15 @@ function nodeRadius(gn: { kind: GraphNodeKind; degree: number }): number {
 // a catch-up pass can outlive it). The catch-up pass and embed-on-save would otherwise index the same
 // note at once and leave it two index entries; a deleted note's clean-up waits its turn as well.
 let indexChain: Promise<unknown> = Promise.resolve();
+
+// Every note save goes through this one saver (lib/note-autosave.ts): a save a few seconds after the last
+// keystroke, and on every way out (blur, another note, leaving the tab, App's window close). Module-level,
+// like indexChain, so a save that failed keeps its words after NotesTab unmounts and they come back when
+// the note is reopened.
+const noteSaver = createNoteSaver((d) => updateNote(d.id, d.title, d.content));
+// Saved notes waiting to be re-indexed. Indexing waits until the learner leaves the note (blur, switch, tab),
+// not every autosave: each index re-embeds the whole note, and an autosave comes at every pause in typing.
+const waitingToIndex = new Map<string, NoteDraft>();
 
 // Visibility of the context panel, remembered across mounts. Mirrors the `oe-` prefix theme.ts uses.
 const CONTEXT_PANEL_KEY = "oe-notes-context";
@@ -209,11 +220,56 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     });
   };
 
+  const indexWaiting = () => {
+    for (const d of waitingToIndex.values()) {
+      queueIndex(() => indexNote({ courseId: d.courseId, noteId: d.id, title: d.title, text: d.content, grade }));
+    }
+    waitingToIndex.clear();
+  };
+
+  // Saves whatever is unsaved now (the open note's words, and any earlier save that failed), then indexes
+  // what was saved. Resolves to whether the open note's words are safely on disk.
+  const saveNow = async (): Promise<boolean> => {
+    const openId = selectedNote?.id;
+    const failed = await noteSaver.flush();
+    indexWaiting();
+    return !openId || !failed.has(openId);
+  };
+
+  // The open note's words changed: show them and hand them to the saver, which saves them a few seconds
+  // after the last change.
+  const edit = (title: string, content: string) => {
+    setEditTitle(title);
+    setEditContent(content);
+    if (selectedNote) {
+      noteSaver.edit({ id: selectedNote.id, courseId: selectedNote.course_id, title, content }, selectedNote);
+    }
+  };
+
+  useEffect(() => {
+    const stop = noteSaver.listen({
+      saving: setSaving,
+      saved: (d) => {
+        setSaveError((cur) => (cur?.noteId === d.id ? null : cur));
+        setNotes((prev) => prev.map((n) => (n.id === d.id ? { ...n, title: d.title, content: d.content } : n)));
+        setSelectedNote((cur) => (cur?.id === d.id ? { ...cur, title: d.title, content: d.content } : cur));
+        waitingToIndex.set(d.id, d);
+      },
+      failed: (d, e) => {
+        log.error("NotesTab", "note save failed", e);
+        setSaveError({ noteId: d.id, text: noteNotSaved(d.title, e) });
+      },
+    });
+    // Leaving the Notes tab: save now (removing a focused editor fires no blur), then index.
+    return () => { void noteSaver.flush().finally(() => { indexWaiting(); stop(); }); };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
+
   useEffect(() => {
     loadAll();
     // Catch-up: notes that couldn't be indexed when they were imported or saved (no embedding model
     // yet, Ollama not running) join search now, without anyone having to edit them.
-    queueIndex(() => reindexCourseNotes(courseId));
+    queueIndex(() => reindexCourseNotes(courseId, grade));
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [courseId]);
 
@@ -262,15 +318,22 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   // ── Note selection / editing ──
   // `focus`: a [[link]] click in the editor, where the learner was typing, so the new note's editor takes
   // the focus the old one had.
-  const selectNote = (note: Note, focus = false) => {
+  const selectNote = async (note: Note, focus = false) => {
     // Already open (a [[link]] to itself, its own backlink): keep the editor as it is. Reloading from
-    // `notes` would put back the last saved text over unsaved typing, and the next blur would save that.
+    // `notes` would put back the last saved text over unsaved typing.
     if (note.id === selectedNote?.id) { setPendingLink(null); setPanelView("note"); return; }
-    saveIfDirty();
+    // The open note's words are saved before another note replaces them in the editor. When that save
+    // fails they exist only in this editor, so stay on the note: its banner says so and offers Save again.
+    if (!(await saveNow())) { setPendingLink(null); setPanelView("note"); return; }
+    // The saver's words win over the notes list: they may be newer (saved after the list was loaded), or
+    // unsaved from a save that failed after the Notes tab was left.
+    const words = noteSaver.newest(note.id) ?? note;
+    const failure = noteSaver.failure(note.id);
+    if (failure) setSaveError({ noteId: note.id, text: noteNotSaved(failure.title, failure.error) });
     setFocusEditor(focus);
     setSelectedNote(note);
-    setEditTitle(note.title);
-    setEditContent(note.content);
+    setEditTitle(words.title);
+    setEditContent(words.content);
     setPendingLink(null);
     setReveal(null); // the new note's editor would otherwise jump to the last note's outline click
     setPanelView("note");
@@ -281,7 +344,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   // the reader.
   const openNoteById = (id: string) => {
     const target = notes.find((n) => n.id === id);
-    if (target) selectNote(target);
+    if (target) void selectNote(target);
   };
 
   // Ctrl/Cmd+O opens the quick switcher, matching Obsidian. A window listener rather than a handler on
@@ -301,7 +364,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
 
   // Open the note-free tag view: every note carrying #tag, listed (never creates a note).
   const openTagView = (tag: string) => {
-    saveIfDirty();
+    void saveNow();
     setPendingLink(null);
     setActiveTag(tag);
     setPanelView("tag");
@@ -311,38 +374,6 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   const clearTag = () => {
     setActiveTag(null);
     if (panelView === "tag") setPanelView("note");
-  };
-
-  const saveIfDirty = useCallback(() => {
-    if (!selectedNote) return;
-    if (editTitle !== selectedNote.title || editContent !== selectedNote.content) {
-      handleSave({ ...selectedNote, title: editTitle, content: editContent });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNote, editTitle, editContent]);
-
-  // Saves exactly the note it is handed, and never puts it back as the open note after its await: by
-  // then the learner may have moved on (a [[link]] click saves and switches in one go). Doing that left
-  // the app with the old note open while the editor showed the new one, and the next save wrote the
-  // new note's title and text over the old note.
-  // A save that fails (a full disk, the database busy past its wait) says so and names the note; the
-  // edit stays in the editor while the note is open, and the next save tries again.
-  const handleSave = async (note: Note) => {
-    setSaving(true);
-    try {
-      await updateNote(note.id, note.title, note.content);
-    } catch (e) {
-      log.error("NotesTab", "note save failed", e);
-      setSaveError({ noteId: note.id, text: noteNotSaved(note.title, e) });
-      return;
-    } finally {
-      setSaving(false);
-    }
-    setSaveError((cur) => (cur?.noteId === note.id ? null : cur));
-    setNotes((prev) => prev.map((n) => (n.id === note.id ? note : n)));
-    setSelectedNote((cur) => (cur?.id === note.id ? note : cur));
-    // Embed-on-save: re-index so the note is searchable. sha-skips internally when unchanged.
-    queueIndex(() => indexNote({ courseId, noteId: note.id, title: note.title, text: note.content }));
   };
 
   // The editor reads `focusEditor` once, as it is built (its effect runs before this one). Clear it, so a
@@ -358,6 +389,8 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     if (!selectedNote) return;
     const id = selectedNote.id;
     setDeleteArmed(false);
+    noteSaver.discard(id);
+    waitingToIndex.delete(id);
     setSaveError((cur) => (cur?.noteId === id ? null : cur));
     await deleteNote(id);
     setNotes((prev) => prev.filter((n) => n.id !== id));
@@ -367,13 +400,13 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     queueIndex(() => deleteNotebookDocumentByNote(id));
   };
 
-  const handleBlur = () => saveIfDirty();
+  const handleBlur = () => { void saveNow(); };
 
   // Clicking a [[wikilink]] in the editor: open the note if it exists; if it's missing, surface an
   // explicit "create note" affordance instead of silently materializing a phantom note (Obsidian-like).
   const handleWikiLinkNav = (title: string) => {
     const found = resolveWikiLink(title, notes);
-    if (found) { selectNote(found, true); return; }
+    if (found) { void selectNote(found, true); return; }
     setPendingLink(title);
   };
 
@@ -381,9 +414,10 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   const createPendingNote = async () => {
     const title = pendingLink;
     if (!title) return;
+    if (!(await saveNow())) return; // the open note's words couldn't be saved: it stays open
     const n = await createNote(courseId, title, "", level, selectedNote?.folder_id ?? null, "learner");
     setNotes((prev) => [...prev, n]);
-    selectNote(n);
+    await selectNote(n);
   };
 
   // ── Folder ops ──
@@ -411,10 +445,11 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   };
 
   const handleNewNote = async (folderId: string | null) => {
+    if (!(await saveNow())) { setPanelView("note"); return; } // the open note's words couldn't be saved: it stays open
     const n = await createNote(courseId, "Untitled Note", "", level, folderId, "learner");
     await loadNotes();
     if (folderId) setExpanded((s) => new Set(s).add(folderId));
-    selectNote(n);
+    await selectNote(n);
   };
 
   // ── Import (files → notes) ──
@@ -442,7 +477,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
       try {
         const text = await f.text();
         const sourceType = /\.(md|markdown)$/i.test(f.name) ? "md" : "text";
-        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target, origin: "import" });
+        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target, origin: "import", grade });
         imported++;
         if (!res.embedded) { pending++; reason ??= res.indexError; }
       } catch {
@@ -476,7 +511,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     const q = query.trim();
     if (!q) { setDocResults(null); return; }
     setSearching(true);
-    try { setDocResults(await searchNotebook({ courseId, query: q, topK: 5 })); }
+    try { setDocResults(await searchNotebook({ courseId, query: q, topK: 5, grade })); }
     catch (e) { log.error("NotesTab", "search failed", e); setIngestError(friendlyError(e)); }
     finally { setSearching(false); }
   };
@@ -495,6 +530,10 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     () => notes.filter((n) => n.id !== selectedNote?.id && n.title.trim()).map((n) => n.title),
     [notes, selectedNote],
   );
+  // A note whose title or text reads as a safety disclosure (notebook-assistant.ts noteIsDisclosure, with the
+  // learner's grade as the chat reads it): the safety notice shows above the editor as it is typed. Code-matched,
+  // never a model call; the note is still saved, and no model reads it (notebook.ts indexNote, searchNotebook).
+  const noteDisclosed = useMemo(() => noteIsDisclosure(editTitle, editContent, grade), [editTitle, editContent, grade]);
 
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -652,7 +691,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
             <IconUpload4 size={14} className={ingesting ? "animate-pulse" : ""} />
           </button>
           <button
-            onClick={() => { saveIfDirty(); setPendingLink(null); setPanelView(panelView === "graph" ? "note" : "graph"); }}
+            onClick={() => { void saveNow(); setPendingLink(null); setPanelView(panelView === "graph" ? "note" : "graph"); }}
             title="Toggle graph view"
             aria-pressed={panelView === "graph"}
             className={`${GHOST_ICON} ${panelView === "graph" ? "!text-phosphor-bright bg-[rgb(var(--phosphor-rgb)/0.13)]" : ""}`}
@@ -873,7 +912,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
           {selectedNote ? (
             <>
               <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--rule)] shrink-0">
-                <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleBlur} className="flex-1 bg-transparent text-ink font-semibold focus:outline-none min-w-0" placeholder="Note title..." />
+                <input type="text" value={editTitle} onChange={(e) => edit(e.target.value, editContent)} onBlur={handleBlur} className="flex-1 bg-transparent text-ink font-semibold focus:outline-none min-w-0" placeholder="Note title..." />
                 {saving && <span className="text-[10px] text-[var(--ink-faint)] shrink-0">Saving…</span>}
                 {indexing && !saving && <span className="text-[10px] text-[var(--ink-faint)] shrink-0">Indexing…</span>}
                 <button
@@ -897,9 +936,13 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
                 </button>
               </div>
 
-              {saveError && (
-                <div role="alert" className="px-4 py-2 border-b border-[var(--rule)] bg-danger-tint text-sm text-danger shrink-0">
-                  {saveError.text}
+              {/* Only over the note that wasn't saved, which stays open with its words until a save works. */}
+              {saveError?.noteId === selectedNote.id && (
+                <div role="alert" className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-[var(--rule)] bg-danger-tint text-sm text-danger shrink-0">
+                  <span className="flex-1 min-w-0">{saveError.text}</span>
+                  <button type="button" className="btn shrink-0" style={CONFIRM_BTN} disabled={saving} onClick={() => { void saveNow(); }}>
+                    Save again
+                  </button>
                 </div>
               )}
 
@@ -931,13 +974,15 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
                 </div>
               )}
 
+              {noteDisclosed && <SafetyNotice className="mx-4 my-2 shrink-0" />}
+
               <div className="flex-1 flex min-h-0">
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[var(--ink-faint)] text-sm">Loading editor…</div>}>
                   <MarkdownEditor
                     key={selectedNote.id}
                     autoFocus={focusEditor}
                     doc={editContent}
-                    onChange={setEditContent}
+                    onChange={(content) => edit(editTitle, content)}
                     onBlur={handleBlur}
                     onWikiLinkClick={handleWikiLinkNav}
                     onTagClick={openTagView}
@@ -983,9 +1028,8 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
                         onInsertSummary={(md) => {
                           // Saved straight away: the click was in the rail, so no editor blur follows
                           // to save it, and leaving the Notes tab would otherwise drop it.
-                          const content = appendSummary(editContent, md);
-                          setEditContent(content);
-                          handleSave({ ...selectedNote, title: editTitle, content });
+                          edit(editTitle, appendSummary(editContent, md));
+                          void saveNow();
                         }}
                         onRevealOffset={(offset) => setReveal({
                           line: editContent.slice(0, offset).split("\n").length - 1,

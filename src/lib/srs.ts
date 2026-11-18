@@ -6,6 +6,9 @@
 // the card resets to relearning and comes due immediately. This is intentionally simple and
 // transparent; FSRS can later replace it behind the same `review()` signature.
 
+import { isSafetyDisclosure } from "./child-safety";
+import type { Grade } from "./grade";
+
 export type FlashcardGrade = "again" | "hard" | "good" | "easy";
 
 // The mutable scheduling state carried on each card.
@@ -76,3 +79,17 @@ export function requeueIfDue<C extends SrsSchedule>(queue: C[], idx: number, nex
   if (!card || !isDue(next.due_at, now)) return queue;
   return [...queue, { ...card, ...next }];
 }
+
+/**
+ * A card whose front or back reads as a safety disclosure (child-safety.ts isSafetyDisclosure, with the
+ * learner's grade as the chat reads it): the learner's own words, typed into Review's "+ New card". It is
+ * never drilled back: db.ts getDueFlashcards and countDueFlashcards leave it out, so neither Review nor
+ * flashcard.review_due (which hands the due fronts to the tutor model) ever has it. Review does not save
+ * one: it shows the safety notice and CARD_NOT_SAVED_DISCLOSURE. Ported from TerraTutor #236.
+ */
+export function cardIsDisclosure(card: { front: string; back: string }, grade: Grade | null = null): boolean {
+  return isSafetyDisclosure(card.front, grade) || isSafetyDisclosure(card.back, grade);
+}
+
+/** Said in plain text under the safety notice when "+ New card" will not save a card (cardIsDisclosure). */
+export const CARD_NOT_SAVED_DISCLOSURE = "This can't be made into a card. If it is for school, try other words.";

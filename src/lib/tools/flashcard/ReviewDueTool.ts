@@ -26,7 +26,7 @@ export const flashcardReviewDueTool = defineTool({
     // Keep payloads lean on small local models (mirrors library.search's tier cap).
     const cap = ctx.modelTier === "tiny" || ctx.modelTier === "small" ? 6 : 10;
     const limit = Math.min(input.limit ?? cap, cap);
-    const due = await getDueFlashcards(ctx.courseId, new Date().toISOString(), limit);
+    const due = await getDueFlashcards(ctx.courseId, new Date().toISOString(), limit, ctx.grade ?? null);
     yield {
       kind: "result",
       value: { count: due.length, cards: due.map((c) => ({ front: c.front, subtopic_id: c.subtopic_id })) },

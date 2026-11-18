@@ -62,9 +62,21 @@ full`, or the OS's own words) is said plainly: `plain-language.ts friendlyError`
 of space…" for a course build, a lesson or a saved tutor reply, instead of "try again in a moment". The
 learner's chat message is saved before anything is sent, so one that can't be saved is not sent: its words
 go back in the box and the chat says so (`messageNotSaved`). A note that can't be saved says so under its
-title and names it (`noteNotSaved`); the edit stays in the editor while the note is open. Tested on a real
-SQLite capped at its size (`disk-full.test.ts`, and `notes-save-error.test.ts` in the real Notebook). Ported
-from TerraTutor #232.
+title, names it (`noteNotSaved`) and offers Save again; its words stay in the editor, and the app won't open
+another note over them until a save works (`note-autosave.ts`, below). Tested on a real SQLite capped at its
+size (`disk-full.test.ts`, and `notes-save-error.test.ts` in the real Notebook). Ported from TerraTutor #232
+and #235.
+
+**Notebook saves.** A note saves itself about 2 seconds after the learner stops typing
+(`note-autosave.ts AUTOSAVE_DELAY_MS`), and again when the editor loses focus, another note opens, the
+Notes tab is left (removing a focused editor fires no blur) and the window closes (`App.tsx`
+`onCloseRequested` awaits `savePendingEdits`, at most 3 s, before unloading models). So Alt+F4, a crash or
+a power cut loses at most the last few seconds of typing. One write runs at a time, the same words are
+never written twice, and words typed while a save is on its way are saved after it. A save that fails keeps
+its words in the saver for the app session, so reopening the note brings them back. A note is re-indexed
+for search when the learner leaves it, not on every autosave (each index re-embeds the whole note). Tested
+in `note-autosave.test.ts`, on a full SQLite in `disk-full.test.ts`, and in the real Notebook in
+`notes-save-error.test.ts`. Ported from TerraTutor #235.
 
 **A migration that fails.** tauri-plugin-sql 2.3.2 (`commands.rs load`) takes the database's migration
 list out before it migrates and does not put it back when migrating fails, so a second `Database.load` in
@@ -820,6 +832,23 @@ So the verdict on the child's answer is the app's, not the reply's:
   `isSafetyDisclosure` with the active learner's grade (CourseView → NotesTab → NotesAssistant), as the
   chat's notice does, so with a K-12 grade a strong pregnancy self-disclosure is left out there too, and with
   no grade it is not. `src/components/notes-summary-grade.test.ts` clicks the real panel to pin it.
+  **Notebook notes and hand-made flashcards** (ported from TerraTutor #236). A note whose title, markdown or
+  plain text reads as a disclosure (`notebook-assistant.ts noteIsDisclosure`) gets `SafetyNotice` above the
+  editor as it is typed (`NotesTab`); it is still saved. "Review this note" never sends it
+  (`notebook-assistant.ts prepareReview`): the panel shows the notice and `NOTE_REVIEW_WITHHELD` in plain
+  text, and no mark is drawn. No other model reads it either: `notebook.ts indexNote` never embeds one (and
+  drops the index of a note that becomes one), the word search skips it, and `searchNotebook` drops any
+  passage that reads as one (an index from before this change), so neither the grounding stage's
+  `[STUDENT NOTE: …]` block nor `notebook.search` carries it to a later, unrelated turn. The Notebook's own
+  search does not find it either; the note stays in the list. A flashcard whose front or back reads as one
+  (`srs.ts cardIsDisclosure`) is never due: `db.ts getDueFlashcards` and `countDueFlashcards` leave it out,
+  so Review never drills it back (nor reads it aloud) and `flashcard.review_due` never hands its front to
+  the model. Review's "+ New card" shows the notice under the form as it is typed and
+  `CARD_NOT_SAVED_DISCLOSURE` in plain text, and Add card saves nothing. Every one of these reads with the
+  learner's grade, as the chat does: the UI passes it, and the kernel's grounding and tools read
+  `ToolContext.grade`, which ChatTab sets. `src/lib/notes-cards-disclosures.test.ts` (real db, notebook,
+  `ground()` and tools; only the embedder stubbed) and `src/components/notes-cards-safety.test.ts` (the real
+  Notebook, its assistant and Review tab) pin it.
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model
@@ -1219,9 +1248,10 @@ A note that couldn't be embedded when it was imported or saved (no embedding mod
 picked up by `reindexCourseNotes`, which `NotesTab` runs each time it opens a course's notes: it skips
 notes whose entry is current, stops when the embedder itself can't run (model missing, Ollama down, no
 OpenAI key or connection) and skips past a note that fails on its own. `NotesTab` runs every index job
-(that pass, embed-on-save, a deleted note's clean-up) one at a time, so one note never gets two entries. Each
+(that pass, the re-index when the learner leaves a saved note, a deleted note's clean-up) one at a time, so one note never gets two entries. Each
 note gets its own editor (`MarkdownEditor` keyed on the note id), so undo history never crosses notes;
-a save writes the note it was handed and never re-selects it, and the trash button only asks: "Delete this
+a save writes the note it was handed and never re-selects it (every save goes through
+`note-autosave.ts`, "Notebook saves" above), and the trash button only asks: "Delete this
 note?" opens on its own row below the header, with Delete and Keep it (focused), so a double-click on the
 trash can't delete the note.
 

@@ -41,6 +41,12 @@ The section for each release is also what the app shows when you press Check for
   itself reads as one is not offered for Insert: the safety notice shows instead.
   When nothing is left to make notes from, the panel no longer names the chat, whose title is the
   learner's first message.
+- **A safety disclosure in a note or a flashcard gets the safety notice and stays away from the tutor.** A
+  Notebook note whose title or text reads as a safety disclosure shows the safety notice above the editor;
+  "Review this note" no longer sends it to the tutor to mark up, and says so; and the tutor never reads it
+  on later turns (it is not indexed for search, and notebook search leaves it out). A new flashcard whose
+  front or back reads as one shows the notice and is not saved, and a card like that saved before this
+  change never comes up in Review or reaches the tutor.
 - **Clearing "why is that the answer?" clears it.** On a study quiz, emptying the box now empties what is
   saved, so words the learner erased, a safety disclosure included, no longer stay in the database and
   its backups.
