@@ -11,7 +11,7 @@
 import { Marked, type Token } from "marked";
 import { chatMathExtension } from "./chat-math";
 import { fenceBareMermaid } from "./mermaid-source";
-import { showsAnswerAndKey, showsSafetyNotice, type GradedBy } from "./quiz-grading";
+import { answerShown, keyShown, showsAnswerAndKey, showsSafetyNotice, type GradedBy } from "./quiz-grading";
 import type { Grade } from "./grade";
 
 /** What a fenced or indented code block is read as. */
@@ -329,6 +329,8 @@ export function questionSpeech(q: {
 /** Said before the learner's answer and the answer key on a results row, as the row shows them. */
 export const YOUR_ANSWER_SPOKEN = "Your answer:";
 export const CORRECT_SPOKEN = "Correct answer:";
+/** What joins the two sides of a match when it is read aloud (on screen, quiz-grading.ts MATCH_LINK). */
+export const MATCH_SPOKEN = " goes with ";
 
 /**
  * A quiz or level-test results row as the markdown its speaker button reads: the question, then the
@@ -339,8 +341,10 @@ export const CORRECT_SPOKEN = "Correct answer:";
  */
 export function resultSpeech(q: {
   question_text: string;
+  question_type?: string;
   user_answer?: string | null;
   correct_answer?: string | null;
+  matching_pairs?: ReadonlyArray<{ left: string; right: string }> | null;
   explanation?: string | null;
   is_correct: boolean | null;
   graded_by?: GradedBy | null;
@@ -348,7 +352,8 @@ export function resultSpeech(q: {
 }, grade: Grade | null): string {
   const parts = [q.question_text];
   if (!showsSafetyNotice(q, grade)) {
-    if (showsAnswerAndKey(q, grade)) parts.push(`${YOUR_ANSWER_SPOKEN} ${q.user_answer}`, `${CORRECT_SPOKEN} ${q.correct_answer ?? ""}`);
+    // A match is read as "Frog goes with Amphibian", never as JSON or an arrow (quiz-grading.ts answerShown).
+    if (showsAnswerAndKey(q, grade)) parts.push(`${YOUR_ANSWER_SPOKEN} ${answerShown(q, MATCH_SPOKEN)}`, `${CORRECT_SPOKEN} ${keyShown(q, MATCH_SPOKEN)}`);
     if (q.explanation) parts.push(q.explanation);
   }
   return parts.map((p) => p.replace(/_{2,}/g, ` ${BLANK_SPOKEN} `)).join("\n\n");

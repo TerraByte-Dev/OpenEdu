@@ -209,6 +209,15 @@ describe("resultSpeech: a quiz or level-test results row read aloud", () => {
       .toBe("A cat says blank. Your answer: woof. Correct answer: meow.");
   });
 
+  it("reads a wrong drag-to-match answer and its key as pairs, never JSON or the placeholder key", () => {
+    const text = read({
+      question_text: "Match each animal to its group.", question_type: "drag_to_match", correct_answer: "See matching_pairs",
+      matching_pairs: [{ left: "Frog", right: "Amphibian" }, { left: "Dog", right: "Mammal" }],
+      user_answer: JSON.stringify({ Dog: "Amphibian", Frog: "Mammal" }), is_correct: false, graded_by: "key",
+    });
+    expect(text).toBe("Match each animal to its group. Your answer: Frog goes with Mammal, Dog goes with Amphibian. Correct answer: Frog goes with Amphibian, Dog goes with Mammal.");
+  });
+
   it("never reads out an answer that reads as a safety disclosure", () => {
     const text = read({ question_text: "Why do leaves fall?", user_answer: "i want to kill myself", correct_answer: "autumn", explanation: "Trees drop leaves.", is_correct: false, graded_by: "key" });
     expect(text).toBe("Why do leaves fall?");

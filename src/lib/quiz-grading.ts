@@ -695,6 +695,45 @@ export function showsAnswerAndKey(q: { is_correct: boolean | null; graded_by?: G
   return answerMark(q) !== "right" || q.graded_by === "self";
 }
 
+/** What joins the two sides of a match on screen ("Frog → Amphibian"); read aloud as " goes with ". */
+export const MATCH_LINK = " → ";
+
+interface ShownAnswerLike {
+  question_type?: string;
+  user_answer?: string | null;
+  correct_answer?: string | null;
+  matching_pairs?: ReadonlyArray<{ left: string; right: string }> | null;
+}
+
+/**
+ * The learner's answer as a question, a results row and its read-aloud show it. A drag-to-match answer
+ * is stored as JSON (left → right, QuestionRenderer); it shows as "Frog → Amphibian, Dog → Mammal", in
+ * the question's own left order. Anything else, or JSON that is not a match, shows as stored.
+ */
+export function answerShown(q: ShownAnswerLike, link: string = MATCH_LINK): string {
+  const raw = q.user_answer ?? "";
+  if (q.question_type !== "drag_to_match") return raw;
+  let picked: unknown;
+  try { picked = JSON.parse(raw); } catch { return raw; }
+  if (!picked || typeof picked !== "object" || Array.isArray(picked)) return raw;
+  const chosen = picked as Record<string, unknown>;
+  const order = (q.matching_pairs ?? []).map((p) => p.left).filter((left) => left in chosen);
+  const lefts = [...order, ...Object.keys(chosen).filter((left) => !order.includes(left))];
+  return lefts.map((left) => `${left}${link}${String(chosen[left])}`).join(", ");
+}
+
+/**
+ * The answer key as a question, a results row and its read-aloud show it. A drag-to-match key is the
+ * question's pairs ("Frog → Amphibian, Dog → Mammal"); its stored correct_answer is only the generation
+ * prompt's "See matching_pairs" placeholder (quiz.ts), which is never shown.
+ */
+export function keyShown(q: ShownAnswerLike, link: string = MATCH_LINK): string {
+  if (q.question_type === "drag_to_match" && q.matching_pairs?.length) {
+    return q.matching_pairs.map((p) => `${p.left}${link}${p.right}`).join(", ");
+  }
+  return q.correct_answer ?? "";
+}
+
 /**
  * Whether a question shows the chat's SAFETY_NOTICE (child-safety.ts): its typed answer or its "why is
  * that the answer?" text reads as a self-harm or abuse disclosure, or with a K-12 grade set a pregnancy

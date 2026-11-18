@@ -1,7 +1,7 @@
 ﻿import { useState, useMemo } from "react";
 import type { QuizQuestion } from "../../types";
 import { isEarlyReader, type Grade } from "../../lib/grade";
-import { showsSafetyNotice } from "../../lib/quiz-grading";
+import { answerShown, keyShown, showsSafetyNotice } from "../../lib/quiz-grading";
 import SafetyNotice from "../SafetyNotice";
 
 interface QuestionRendererProps {
@@ -93,7 +93,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
         {pending ? (
           <div className={`p-4 rounded-xl border ${sm} border-phosphor/30 bg-[rgb(var(--phosphor-rgb)/0.08)]`}>
             <div className="font-medium mb-1 text-phosphor-bright">✎ Answer recorded</div>
-            <p className={`text-[var(--ink-faint)] ${xs}`}>Your answer: {question.question_type === "drag_to_match" ? matchesText(question.user_answer) : question.user_answer}</p>
+            <p className={`text-[var(--ink-faint)] ${xs}`}>Your answer: {answerShown(question)}</p>
             <p className={`text-[var(--ink-faint)] ${xs} mt-1`}>It will be graded when you finish.</p>
           </div>
         ) : (
@@ -103,9 +103,9 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             </div>
             {!question.is_correct && (
               <p className={`text-danger ${xs} mb-1`}>
-                Your answer: {question.user_answer}
+                Your answer: {answerShown(question)}
                 <br />
-                Correct answer: {question.correct_answer}
+                Correct answer: {keyShown(question)}
               </p>
             )}
             {question.explanation && <p className={`text-[var(--ink-faint)] ${xs}`}>{question.explanation}</p>}
@@ -295,15 +295,5 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
 
     default:
       return <p className={`text-[var(--ink-faint)] ${sm}`}>Unknown question type.</p>;
-  }
-}
-
-// A matching answer (stored as JSON, left -> right) as "a → b, c → d"; anything else as it is.
-function matchesText(answer: string): string {
-  try {
-    const pairs = JSON.parse(answer) as Record<string, string>;
-    return Object.entries(pairs).map(([left, right]) => `${left} → ${right}`).join(", ");
-  } catch {
-    return answer;
   }
 }
