@@ -13,7 +13,7 @@ import {
 import { indexNote, importTextAsNote, reindexCourseNotes, searchNotebook } from "../lib/notebook";
 import { ingestResultSummary } from "../lib/ingest-format";
 import { log } from "../lib/llm";
-import { friendlyError } from "../lib/plain-language";
+import { friendlyError, noteNotSaved } from "../lib/plain-language";
 import QuickSwitcher from "./QuickSwitcher";
 import NotesAssistant from "./NotesAssistant";
 import { anchorAnnotations, appendSummary, type AnchoredAnnotation } from "../lib/notebook-assistant";
@@ -140,6 +140,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<{ noteId: string; text: string } | null>(null);
   const [indexing, setIndexing] = useState(false);
   // The trash button's first click only arms it; the second deletes. A note has no undo or bin.
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -324,12 +325,22 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   // then the learner may have moved on (a [[link]] click saves and switches in one go). Doing that left
   // the app with the old note open while the editor showed the new one, and the next save wrote the
   // new note's title and text over the old note.
+  // A save that fails (a full disk, the database busy past its wait) says so and names the note; the
+  // edit stays in the editor while the note is open, and the next save tries again.
   const handleSave = async (note: Note) => {
     setSaving(true);
-    await updateNote(note.id, note.title, note.content);
+    try {
+      await updateNote(note.id, note.title, note.content);
+    } catch (e) {
+      log.error("NotesTab", "note save failed", e);
+      setSaveError({ noteId: note.id, text: noteNotSaved(note.title, e) });
+      return;
+    } finally {
+      setSaving(false);
+    }
+    setSaveError((cur) => (cur?.noteId === note.id ? null : cur));
     setNotes((prev) => prev.map((n) => (n.id === note.id ? note : n)));
     setSelectedNote((cur) => (cur?.id === note.id ? note : cur));
-    setSaving(false);
     // Embed-on-save: re-index so the note is searchable. sha-skips internally when unchanged.
     queueIndex(() => indexNote({ courseId, noteId: note.id, title: note.title, text: note.content }));
   };
@@ -347,6 +358,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     if (!selectedNote) return;
     const id = selectedNote.id;
     setDeleteArmed(false);
+    setSaveError((cur) => (cur?.noteId === id ? null : cur));
     await deleteNote(id);
     setNotes((prev) => prev.filter((n) => n.id !== id));
     setSelectedNote((cur) => (cur?.id === id ? null : cur));
@@ -884,6 +896,12 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
                   <IconTrash size={15} />
                 </button>
               </div>
+
+              {saveError && (
+                <div role="alert" className="px-4 py-2 border-b border-[var(--rule)] bg-danger-tint text-sm text-danger shrink-0">
+                  {saveError.text}
+                </div>
+              )}
 
               {deleteArmed && (
                 <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2 border-b border-[var(--rule)] bg-danger-tint shrink-0" role="group" aria-label="Delete this note?">

@@ -442,7 +442,7 @@ describe("ChatTab wiring", () => {
     expect(chatTabSource).toContain("if (handedBack) { setCardMessage(handedBack); return; }");
     // The effect only asks for the reply: runTurn takes the saved message and does not save it again.
     expect(chatTabSource).toContain("if (cardMessage.thread === threadId) void sendMessage(cardMessage.saved.content, cardMessage.saved);");
-    expect(chatTabSource).toContain('const userMsg = saved ?? await saveChatMessage(courseId, "user", userText, level, activeThread);');
+    expect(chatTabSource).toContain('userMsg = saved ?? await saveChatMessage(courseId, "user", userText, level, activeThread);');
     expect(chatTabSource).toContain("const history = saved ? messages.filter((m) => m.id !== saved.id) : messages;");
   });
 });
