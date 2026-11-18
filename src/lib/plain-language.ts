@@ -35,7 +35,7 @@ export function describeToolRequest(toolName: string): string {
     case "library":    return "Your tutor wants to look something up in the library.";
     case "web":        return "Your tutor wants to look something up on the internet.";
     case "flashcard":  return "Your tutor wants to make you a flashcard.";
-    case "progress":   return "Your tutor wants to mark a topic as learned.";
+    case "progress":   return "Your tutor wants to save your progress on a topic.";
     case "knowledge":  return "Your tutor wants to update its notes about how you learn.";
     case "code":       return "Your tutor wants to run a small piece of code.";
     case "math":       return "Your tutor wants to work out some math.";
@@ -98,8 +98,9 @@ export function describeToolDone(toolName: string): string {
 
 // The line under "Is that okay?": what exactly will be saved or searched, from the call's own
 // arguments. A tool's description is written for the model ("Plain text only — no LaTeX"), so it is
-// never shown. Empty when the arguments hold nothing a learner would recognise.
-export function describeToolCall(toolName: string, args: unknown): string {
+// never shown. Empty when the arguments hold nothing a learner would recognise. `subtopics` is the
+// level's syllabus, so a progress mark names the topic by its title, as the model may send the id.
+export function describeToolCall(toolName: string, args: unknown, subtopics: ReadonlyArray<{ id: string; title: string }> = []): string {
   const a = (args && typeof args === "object" ? args : {}) as Record<string, unknown>;
   const text = (k: string) => (typeof a[k] === "string" ? (a[k] as string).trim() : "");
   const clip = (s: string) => (s.length > 120 ? `${s.slice(0, 120)}…` : s);
@@ -108,6 +109,12 @@ export function describeToolCall(toolName: string, args: unknown): string {
     case "notebook.ingest":  return text("title") ? `The note: “${clip(text("title"))}”` : "";
     case "web.search":       return text("query") ? `Searching for: “${clip(text("query"))}”` : "";
     case "web.fetch":        return text("url") ? `The page: ${clip(text("url"))}` : "";
+    case "progress.mark_mastered": {
+      const ref = text("subtopic_id");
+      if (!ref) return "";
+      const topic = subtopics.find((t) => t.id === ref) ?? subtopics.find((t) => t.title.trim().toLowerCase() === ref.toLowerCase());
+      return `Mark “${clip(topic?.title ?? ref)}” as ${a.status === "practiced" ? "practiced" : "learned"}`;
+    }
     default:                 return "";
   }
 }
