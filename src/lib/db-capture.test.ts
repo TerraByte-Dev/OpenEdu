@@ -27,6 +27,7 @@ import {
   setActiveLearnerId, deleteLearner, createCourse, deleteCourse, createNote, createFlashcard,
   updateFlashcardAfterReview, createQuizAttempt, saveQuizQuestion, updateQuizQuestionGrade, setPromotionResult,
   recordSubtopicEvents, deleteFlashcard, getReviewPoolQuestions, getSubtopicAccuracy,
+  updateQuizQuestionSelfExplanation,
 } from "./db";
 import { DEFAULT_LEARNER_ID } from "./learners";
 import type { QuizQuestion } from "../types";
@@ -243,5 +244,37 @@ describe("the quiz review pool", () => {
     const other = await createQuizAttempt(b.id, "quiz", 1, 1);
     await saveQuizQuestion(question(other.id, { question_text: "What is an atom?", is_correct: true }), "key");
     expect(await pool(a.id)).toEqual(["What is an atom?"]);
+  });
+});
+
+// Ported from TerraTutor #226: the study quiz saves "why is that the answer?" on blur (QuizFullScreen
+// handleSelfExplain), a cleared box included (safety-written-answers.test.ts pins that wiring), so the row
+// holds only what the learner left in the box.
+describe("a self-explanation the learner erased", () => {
+  let questionId: string;
+  const stored = () => rows<{ self_explanation: string | null }>("SELECT self_explanation FROM quiz_questions WHERE id = ?", questionId)[0].self_explanation;
+
+  beforeEach(async () => {
+    await openDb();
+    migrate(20);
+    setActiveLearnerId(DEFAULT_LEARNER_ID);
+    const course = await createCourse("Times tables", "multiplication");
+    const attempt = await createQuizAttempt(course.id, "quiz", 1, 1);
+    questionId = await saveQuizQuestion(question(attempt.id, { is_correct: true }), "key");
+  });
+
+  it("is stored as nothing, the erased words and an erased disclosure included", async () => {
+    await updateQuizQuestionSelfExplanation(questionId, "I just guessed, this is stupid");
+    expect(stored()).toBe("I just guessed, this is stupid");
+    await updateQuizQuestionSelfExplanation(questionId, "");
+    expect(stored()).toBeNull();
+    await updateQuizQuestionSelfExplanation(questionId, "my uncle touches me at night");
+    await updateQuizQuestionSelfExplanation(questionId, "   ");
+    expect(stored()).toBeNull();
+  });
+
+  it("keeps what is left in the box, trimmed", async () => {
+    await updateQuizQuestionSelfExplanation(questionId, "  two and two make four  ");
+    expect(stored()).toBe("two and two make four");
   });
 });
