@@ -3,7 +3,8 @@ import type { SectionProps } from "../types";
 import { INPUT_CLS, Section, SettingRow, Toggle, useSettings } from "../primitives";
 import { GradeSelect } from "../../../components/GradeSelect";
 import { isEarlyReader, autoReadAloud, type Grade } from "../../../lib/grade";
-import { validateLearnerName, LEARNER_NAME_MAX } from "../../../lib/learners";
+import { validateLearnerName, LEARNER_NAME_MAX, LEARNER_NAME_DISCLOSURE } from "../../../lib/learners";
+import SafetyNotice from "../../../components/SafetyNotice";
 import { getReadAloudAuto, setReadAloudAuto } from "../../../lib/store";
 
 // The signed-in learner: their name, and their grade (#243), which sets how the tutor writes for them
@@ -66,7 +67,10 @@ export default function LearnerSection({ learner }: SectionProps) {
               onKeyDown={(e) => { if (e.key === "Enter") void commitName(); }}
               className={INPUT_CLS}
             />
-            {nameError && <p className="text-sm text-danger">{nameError}</p>}
+            {/* A name that reads as a safety disclosure: the notice, and the line in plain text (as the learner menu's Change my name). */}
+            {nameError === LEARNER_NAME_DISCLOSURE
+              ? <><SafetyNotice /><p className="text-sm text-ink">{nameError}</p></>
+              : nameError && <p className="text-sm text-danger">{nameError}</p>}
           </div>
         </SettingRow>
       </Section>

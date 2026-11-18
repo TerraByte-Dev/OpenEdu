@@ -11,7 +11,8 @@ import type { Grade } from "../lib/grade";
 // as the chat reads it, typed into the Notebook's search box shows the notice and never reaches searchNotebook
 // (so never the embedder); one typed as a folder name shows the notice and is never saved; a file import whose
 // name or text is one shows the notice at import (the note is still made); and one typed as the learner's new
-// name shows the notice and is never saved. Only the notebook's search and import, the editor and the graph
+// name, in the learner menu's Change my name or in Settings › Learner › Your name (the real section, saving
+// through renameLearner as App wires it), shows the notice and is never saved. Only the notebook's search and import, the editor and the graph
 // are stand-ins.
 
 type Sqlite = {
@@ -52,7 +53,8 @@ vi.mock("react-force-graph-2d", () => ({ default: () => null }));
 
 const { default: NotesTab } = await import("./NotesTab");
 const { default: LearnerMenu } = await import("./LearnerMenu");
-const { setActiveLearnerId, createCourse, createFolder, getFolders, listLearners } = await import("../lib/db");
+const { default: LearnerSection } = await import("../views/settings/sections/Learner");
+const { setActiveLearnerId, createCourse, createFolder, getFolders, listLearners, renameLearner } = await import("../lib/db");
 const { DEFAULT_LEARNER_ID, LEARNER_NAME_DISCLOSURE } = await import("../lib/learners");
 const { SAFETY_NOTICE } = await import("../lib/child-safety");
 const { FOLDER_NAME_DISCLOSURE } = await import("../lib/plain-language");
@@ -257,5 +259,53 @@ describe("the learner menu › Change my name", () => {
     await renameTo("Cleo");
     expect(notices()).toHaveLength(0);
     await vi.waitFor(async () => expect((await listLearners()).find((l) => l.id === DEFAULT_LEARNER_ID)!.name).toBe("Cleo"));
+  });
+});
+
+describe("Settings › Learner › Your name", () => {
+  // App.tsx passes the section a rename that runs renameLearner on the real db; this does the same.
+  async function openSection(): Promise<HTMLInputElement> {
+    const learners = await listLearners();
+    const me = learners.find((l) => l.id === DEFAULT_LEARNER_ID)!;
+    await act(async () => {
+      root.render(createElement(LearnerSection, {
+        learner: {
+          id: me.id, name: me.name, learners, grade: null,
+          setGrade: async () => {},
+          rename: (name: string) => renameLearner(me.id, name),
+        },
+      }));
+    });
+    return host.querySelector<HTMLInputElement>('input[aria-label="Your name"]')!;
+  }
+  const savedName = async () => (await listLearners()).find((l) => l.id === DEFAULT_LEARNER_ID)!.name;
+
+  it("a name that reads as a disclosure shows the notice and the plain line on Enter, and is not saved", async () => {
+    const before = await savedName();
+    const box = await openSection();
+    await type(box, "i want to kill myself");
+    await key(box, "Enter");
+    expect(notices()).toHaveLength(1);
+    expect(host.textContent).toContain(LEARNER_NAME_DISCLOSURE);
+    expect(host.querySelector(".text-danger")).toBeNull(); // plain text, not the red error line
+    expect(await savedName()).toBe(before);
+  });
+
+  it("so does one committed by leaving the box", async () => {
+    const before = await savedName();
+    const box = await openSection();
+    await type(box, "nobody would care if i died");
+    await act(async () => { box.dispatchEvent(new FocusEvent("focusout", { bubbles: true })); });
+    expect(notices()).toHaveLength(1);
+    expect(host.textContent).toContain(LEARNER_NAME_DISCLOSURE);
+    expect(await savedName()).toBe(before);
+  });
+
+  it("an ordinary name is saved, with no notice", async () => {
+    const box = await openSection();
+    await type(box, "Cleo");
+    await key(box, "Enter");
+    expect(notices()).toHaveLength(0);
+    await vi.waitFor(async () => expect(await savedName()).toBe("Cleo"));
   });
 });
