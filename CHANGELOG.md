@@ -46,6 +46,11 @@ The section for each release is also what the app shows when you press Check for
   its backups.
 
 ### Changed
+- **Small fixes in the learning flow.** After a failed level test, Home's Continue and the Next step card
+  stop saying "ready to move up" during the 24-hour wait: they say when the test opens again and offer a
+  practice quiz (or say the test is waiting to be marked). "Exit Quiz" asks first once a question is
+  answered. A double-click on a Review grade button grades the card once and never shows the next card's
+  answer early.
 - **Settings › Context window says what it changes.** Tutor chat and the notes assistant use the size you
   pick; lessons, quizzes, level tests and course building never go below 8k, which they need. Choosing 2k
   or 4k now says so in a warning: it changes chat only, does not make OpenEdu faster, and makes the model
@@ -112,7 +117,7 @@ The section for each release is also what the app shows when you press Check for
   as learned".
 - **The safety notice is read aloud.** When replies read themselves aloud (K-2 by default), a message
   that shows the safety notice now has the notice, with 911 and the hotline numbers, read before the
-  tutor's reply.
+  tutor's reply, or on its own when no reply comes (the turn fails or is stopped).
 - **One "still working" sign at a time.** While an Allow / Don't allow card waits for a tap, the empty
   "Thinking..." bubble above it no longer shows.
 

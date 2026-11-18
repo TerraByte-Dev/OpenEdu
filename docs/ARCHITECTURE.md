@@ -143,7 +143,9 @@ saved reply then reads on from where the cards left off (`unreadText`), or whole
 streamed. When the learner's message is a safety disclosure (`isSafetyDisclosure` with the learner's
 grade), the notice shown under it (`SAFETY_NOTICE`, with 911 and the hotline numbers) is read first, in
 the same utterance as the turn's first card or its reply, so the reply starting never cuts it off
-(`speech.ts speechAfterNotice`; ported from TerraTutor #227).
+(`speech.ts turnNotice`, `speechAfterNotice`; ported from TerraTutor #227). A turn that ends with neither
+spoken (the tutor's instructions unreadable, the turn failing, stopped or stalled) reads the notice on its
+own, once (TerraTutor #234; `components/chat-notice-read.test.ts`).
 
 **Tables kept from removed features.** The family, class and school features (usage modes, the teacher
 view and its CSV, learner groups, the K-1 early-learner screens and the learning record) now live only
@@ -409,7 +411,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   moves the course up after a pass. A waiting test blocks a new attempt at that level, and a test not
   passed (`passed` 0) now starts the 24-hour wait even when only the review section fell short. The
   wait is counted from `completed_at` read as UTC (`level-test.ts` `retakeWaitLeft`); read as local
-  time it ran 24 hours plus the UTC offset.
+  time it ran 24 hours plus the UTC offset. While that wait runs (`levelTestFailed`, the rule the test
+  screen uses), or the level's last test waits for its marks (`pendingLevelTest`), Home's Continue and the
+  Next step card (`next-step.ts rankNextSteps`) never say "ready to move up": they say when the test opens
+  again and offer a practice quiz, or that the test is waiting to be marked.
 - **A level test that came out short is not given.** `quiz.ts` `levelTestShortfall` refuses a
   generated test under `TEST_FLOOR` (30) questions, or one whose review section came back empty
   although the course has earlier levels (`reviewWanted`): no attempt is created, so the test is not
@@ -435,7 +440,10 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   screens so it can be closed. The stop can skip the wait only because a level test marks nothing
   before Finish: every answer shows as recorded, never ✓ or ✗ or the key (`QuestionRenderer`
   `marksAtFinish`), so a learner cannot watch a run go badly and stop it to dodge a failed test's
-  24-hour wait. The marks appear on the results screen.
+  24-hour wait. The marks appear on the results screen. A practice quiz's "Exit Quiz" asks first, inline,
+  once a question is answered (`quiz-grading.ts LEAVE_QUIZ`, `leaveQuizBody`): the quiz stays unfinished,
+  with no score, and the Quiz tab makes a new one next time; its saved answers still count as practice
+  (per-topic accuracy and the review pool; `views/quiz-exit-confirm.test.ts`).
 - **A handed-in level test survives the app closing while it is graded.** Grading a test's written
   answers is one batch call on the local model after Finish, and on a slow computer it can take minutes
   (a cold model load on top). Finish first stores a timed-out test's unanswered questions as wrong, each
