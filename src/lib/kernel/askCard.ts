@@ -142,3 +142,14 @@ export function answeredCard(before: string, question: string, answer: { text: s
   const line = `*${answer.typed ? "You answered" : "You picked"}: ${said}*`;
   return repeatsQuestion(before, question) ? `${sep}${line}\n\n` : `${sep}${question}\n\n${line}\n\n`;
 }
+
+/**
+ * The text the turn shows for a card the child did not answer, because what they typed there is sent as
+ * their own message instead (TutorEngine, `cardMessage`): the question, unless the text before it already
+ * ended on it, so the thread still says what was asked. Their words are never echoed into the reply.
+ */
+export function askedCard(before: string, question: string): string {
+  if (repeatsQuestion(before, question)) return "";
+  const sep = !before.trim() ? "" : before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  return `${sep}${question}`;
+}

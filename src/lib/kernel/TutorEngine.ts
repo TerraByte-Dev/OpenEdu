@@ -35,12 +35,14 @@ import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
 import { ReplyTextFilter } from "./textToolCalls";
 import { MIXED_UP_REPLY, AFTER_ANSWER_REPLY } from "../plain-language";
 import { choicesInReply, type ReplyChoices } from "./replyChoices";
-import { repairAskCard, answeredCard, type AskCard } from "./askCard";
+import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard";
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
+import { isSafetyDisclosure } from "../child-safety";
+import type { Grade } from "../grade";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 const ASK_USER_TOOL = "ask_user.question";
@@ -48,6 +50,9 @@ const MARK_MASTERED_TOOL = "progress.mark_mastered";
 /** What the model is told when it tries to mark mastered on an answer code did not find correct. */
 export const MASTERY_REFUSED =
   "Not saved: the app checked the student's answer and did not find it correct, so this subtopic can't be marked mastered now.";
+/** What the model is told when it tries to mark mastered on a turn whose newest message is a safety disclosure. */
+export const MASTERY_REFUSED_DISCLOSURE =
+  "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
 /** What the model is told when the claim filter left nothing of an ask_user.question card to show. */
 export const CARD_REFUSED =
   "Not shown: this question said something about the student's answer or mastery that the app's check does not show. Ask again without saying whether the answer is right, or that anything is mastered.";
@@ -85,6 +90,10 @@ export interface TutorTurn {
   // paired baseline. The reply filter for claims (replyClaims.ts) still runs. Default "on"; the app
   // never sets it.
   answerCheck?: "on" | "off";
+  // The learner's grade (grade.ts), as ChatTab passes it to isSafetyDisclosure for the safety notice: a
+  // strong pregnancy self-disclosure is a safety disclosure only with a K-12 grade set. Omitted or null =
+  // not set. The kernel reads it only to tell a safety disclosure from an answer (child-safety.ts).
+  grade?: Grade | null;
 }
 
 export interface TutorTurnResult {
@@ -147,6 +156,12 @@ export interface TutorTurnResult {
   // Sentences the reply filter (replyClaims.ts) took out or trimmed: mastery claims with no mastery
   // saved, and claims against the answer check's verdict. As the model wrote them.
   removedClaims: Array<{ kind: "mastery" | "verdict"; text: string }>;
+  // What the child typed into an ask_user.question card when it reads as a safety disclosure
+  // (isSafetyDisclosure, with TutorTurn.grade). It is not taken as the card's answer: the turn ends at the
+  // card with its question shown, and nothing is graded, echoed or sent to the model. The caller sends this
+  // text as the student's own next message, so it gets exactly what a typed chat message gets: the safety
+  // notice under it, the safety rules in the system prompt, no grading. Null on every other turn.
+  cardMessage: string | null;
 }
 
 /**
@@ -230,8 +245,11 @@ export class TutorEngine {
     // check gets a verdict from code (a blind key, a code compare, a structured grading call) before
     // the reply is written. Started here, awaited after retrieval; it never throws. On a turn it gives a
     // verdict, its note replaces the check-before-praise note: the verdict is a fact, not a request to
-    // check.
-    const answerCheckRun = turn.answerCheck !== "off" && !firstTurnHold && !asked && isAssessAnswerTurn(conversation, ctx.activeSkill?.name)
+    // check. Neither runs when the newest message is a safety disclosure (`disclosure`, the same check
+    // ChatTab's notice makes): "this is too hard i wanna die" typed in a quiz is not a wrong answer, and
+    // no note may send the child back to the work (CHILD_SAFETY_RULES).
+    const disclosure = newest?.role === "user" && isSafetyDisclosure(newest.content, turn.grade ?? null);
+    const answerCheckRun = !disclosure && turn.answerCheck !== "off" && !firstTurnHold && !asked && isAssessAnswerTurn(conversation, ctx.activeSkill?.name)
       ? checkAnswer(conversation[conversation.length - 2].content, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort })
       : Promise.resolve(null);
 
@@ -326,7 +344,7 @@ ${lastUser.content}` };
       // Same place as the hold note: after the grounding block and the student's text.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withAnswerCheckNote(messages[idx].content, answerCheck) };
-    } else if (checkBeforePraiseTurn) {
+    } else if (checkBeforePraiseTurn && !disclosure) {
       // Same place as the hold note: after the grounding block and the student's text.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withCheckBeforePraise(messages[idx].content) };
@@ -349,7 +367,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: turn.answerCheck !== "off", answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -374,8 +392,11 @@ ${lastUser.content}` };
       dictionaryNote: string | null;
       dictionaryShown: DictionaryShown | null;
       answerCheck: AnswerCheck | null;
-      /** False when the caller turned the answer check off (TutorTurn.answerCheck). */
+      /** False when the caller turned the answer check off (TutorTurn.answerCheck), or the newest message is
+       *  a safety disclosure: nothing on that turn is graded, a card's answer included. */
       checkAnswers: boolean;
+      /** The newest message is a safety disclosure: a "mastered" mark on this turn is refused. */
+      disclosureTurn: boolean;
       /** The student's newest message as they typed it. */
       answered: string;
       masteryCheck: boolean;
@@ -439,6 +460,8 @@ ${lastUser.content}` };
     // it was); a second empty one gets AFTER_ANSWER_REPLY below.
     let replyOwed = false;
     let retriedEmpty = false;
+    // Set when the child typed a safety disclosure into a card (TutorTurnResult.cardMessage).
+    let cardMessage: string | null = null;
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
@@ -516,10 +539,11 @@ ${lastUser.content}` };
         if (ctx.abort.aborted) { interrupted = "aborted"; break; }
         // A "mastered" mark on an answer the check did not find correct is refused by code: the
         // verdict is the app's, not the model's. Nothing runs and nothing is shown; the model is told.
-        const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) &&
-          [answerCheck, ...cardChecks].some((c) => !!c && c.verdict !== "correct");
+        // Nor on a safety-disclosure turn, where nothing is graded: what the child said is not an answer.
+        const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && (prepared.disclosureTurn ||
+          [answerCheck, ...cardChecks].some((c) => !!c && c.verdict !== "correct"));
         let result: ToolDispatchResult;
-        if (refused) result = { name: call.name, ok: false, error: MASTERY_REFUSED };
+        if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : MASTERY_REFUSED };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
         else result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
@@ -532,6 +556,18 @@ ${lastUser.content}` };
         if (call.name === ASK_USER_TOOL && result.ok && !ctx.abort.aborted) {
           const answer = result.value as QuestionResult;
           const card = call.args as AskCard;
+          // Words the child typed into the card that read as a safety disclosure are not an answer to it.
+          // Checked only here, on the turn's newest input: the turn's system prompt was built from the
+          // message before the card, so the turn ends now, at the card's question, with the words never
+          // echoed, graded or sent to the model, and the caller sends them as the child's own message
+          // (TutorTurnResult.cardMessage). The same check, with the same grade, as a typed chat message.
+          if (answer.typed && isSafetyDisclosure(answer.answer, turn.grade ?? null)) {
+            show(askedCard(streamedText, card.question));
+            cardMessage = answer.answer;
+            // An earlier card's answer this turn left a reply owed; the turn now ends at this card instead.
+            replyOwed = false;
+            break;
+          }
           show(answeredCard(streamedText, card.question, { text: answer.answer, typed: answer.typed }));
           replyOwed = true;
           retriedEmpty = false;
@@ -562,6 +598,8 @@ ${lastUser.content}` };
           content: capText(payload, toolResultCap),
         });
       }
+      // No further model call, and no fallback line: the child's own message is next.
+      if (cardMessage !== null && !ctx.abort.aborted) { endedNaturally = true; break; }
       if (ctx.abort.aborted) interrupted = interrupted ?? "aborted";
       if (interrupted && interrupted !== "length") break;
 
@@ -606,7 +644,7 @@ ${lastUser.content}` };
 
     // An answer the check gave a verdict on always gets one: a reply the claim filter emptied (or the
     // model left empty) says the verdict in one plain line.
-    if (verdictCheck && !streamedText.trim() && stopReason !== "aborted" && stopReason !== "stalled") {
+    if (verdictCheck && cardMessage === null && !streamedText.trim() && stopReason !== "aborted" && stopReason !== "stalled") {
       show(VERDICT_FALLBACK[verdictCheck.verdict]);
     }
 
@@ -661,6 +699,7 @@ ${lastUser.content}` };
       answerCheck,
       cardChecks,
       removedClaims: [...earlierRemoved, ...claims.removed],
+      cardMessage,
     };
   }
 }

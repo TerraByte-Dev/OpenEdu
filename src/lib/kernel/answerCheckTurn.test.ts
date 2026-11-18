@@ -54,11 +54,13 @@ vi.mock("../db", async (importOriginal) => ({
   getSyllabus: vi.fn(async () => null),
 }));
 
-import { tutorEngine, MASTERY_REFUSED, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
+import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
 import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION } from "./answerCheck";
 import { ASSESS_MESSAGE } from "./suggestions";
-import { CHECK_BEFORE_PRAISE_NOTE } from "./checkBeforePraise";
+import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
+import { isSafetyDisclosure } from "../child-safety";
+import type { Grade } from "../grade";
 import { registerBuiltinTools } from "../tools";
 import type { LLMConfig, Syllabus } from "../../types";
 import type { AskChoice } from "../tools/EduTool";
@@ -88,7 +90,8 @@ const askCall = (question: string, labels: string[], before = ""): TurnEvent[] =
 
 interface Run { result: TutorTurnResult; shown: string[]; confirms: string[]; cards: Array<{ question: string; choices: AskChoice[] }> }
 
-async function answer(history: Sent, text: string, mode = "explain"): Promise<Run> {
+// `grade` is the learner's grade as ChatTab passes it (TutorTurn.grade): null when not set.
+async function answer(history: Sent, text: string, mode = "explain", grade: Grade | null = null): Promise<Run> {
   const { activeSkill, domainSkill } = chatTurnSkills(mode, "Arithmetic", "tiny", true);
   const shown: string[] = [];
   const confirms: string[] = [];
@@ -97,7 +100,7 @@ async function answer(history: Sent, text: string, mode = "explain"): Promise<Ru
   const result = await tutorEngine.run(
     {
       messages: [{ role: "system", content: SYSTEM }, ...history, student(text)],
-      config: CONFIG, retrieval: "off",
+      config: CONFIG, retrieval: "off", grade,
       onText: (chunk) => { streamed += chunk; shown.push(streamed); },
     },
     {
@@ -816,5 +819,174 @@ describe("a pick on a question card in a mastery check", () => {
     const result = await headless(ASSESS_MESSAGE, { answerCheck: "off" }, "assess");
     expect(result.cardChecks).toEqual([]);
     expect(structured).toEqual([]);
+  });
+});
+
+// ── A safety disclosure is never an answer ──────────────────────────────────────────────────────
+// Ported from TerraTutor #165 (its readiness audit, items 16 and 17). A child who types "this is too hard i
+// wanna die" in a quiz was graded "incorrect" and told "That's not right yet."; the same words typed into a
+// question card got no safety notice and no safety rules, because they never became a chat message. Now
+// neither is graded: a disclosure in the newest message (isSafetyDisclosure with the learner's grade, as
+// ChatTab's notice reads it) turns the answer check, the check-before-praise note and card checks off for
+// the turn, and a disclosure typed into a card ends the turn at the card and is handed back (cardMessage)
+// for ChatTab to send as the child's own message.
+
+describe("a safety disclosure in a mastery check", () => {
+  const Q_FRACTIONS = "Here is your first question. What is 3/4 + 1/8?";
+  const QUIZ = [student("quiz me on fractions"), tutor(Q_FRACTIONS)];
+  const KIND = "You did the right thing telling me. Please talk to a grown-up you trust, like a parent or teacher, right away.";
+
+  it.each([
+    ["this is too hard i wanna die", null],
+    ["my dad hits me when i get them wrong", null],
+    ["im 14 and pregnant", 8],
+  ] as Array<[string, Grade | null]>)(
+    "%j (grade %s) is not graded, gets no verdict note, and the reply is not told it is wrong",
+    async (text, grade) => {
+      expect(isSafetyDisclosure(text, grade)).toBe(true);
+      gradeOut = { student_answer: text, verdict: "incorrect" };
+      for (const mode of ["explain", "assess"]) {
+        replies.length = 0;
+        structured.length = 0;
+        script = [reply(KIND)];
+        const { result } = await answer(QUIZ, text, mode, grade);
+        expect(structured).toEqual([]);
+        expect(result.answerCheck).toBeNull();
+        expect(lastUser(replies[0])).toBe(text);
+        expect(result.text).toBe(KIND);
+        expect(result.text).not.toMatch(/not right yet/i);
+      }
+    },
+  );
+
+  it("a pregnancy message with no grade set is not a disclosure (child-safety.ts), so it is graded as before", async () => {
+    const text = "im 14 and pregnant";
+    expect(isSafetyDisclosure(text, null)).toBe(false);
+    keyOut = { question: "What is 3/4 + 1/8?", working: "6/8 + 1/8 = 7/8", answer: "7/8" };
+    gradeOut = { student_answer: text, verdict: "incorrect" };
+    const { result } = await answer(QUIZ, text);
+    expect(result.answerCheck?.verdict).toBe("incorrect");
+  });
+
+  it("an ordinary wrong answer in the same quiz is still graded", async () => {
+    keyOut = { question: "What is 3/4 + 1/8?", working: "6/8 + 1/8 = 7/8", answer: "7/8" };
+    gradeOut = { student_answer: "4/12", verdict: "incorrect" };
+    const { result } = await answer(QUIZ, "4/12", "explain", 8);
+    expect(result.answerCheck?.verdict).toBe("incorrect");
+    expect(result.text).toMatch(/^That's not right yet\./);
+  });
+
+  it("a \"mastered\" mark on a disclosure turn is refused by code; nothing is saved and the model is told", async () => {
+    const text = "this is too hard i wanna die";
+    script = [markCall("mastered"), reply(KIND)];
+    const { result, confirms } = await answer(QUIZ, text, "assess");
+    expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_DISCLOSURE}`);
+  });
+
+  it("a try at a worked problem that is also a disclosure gets no check-before-praise note", async () => {
+    const worked = [student("Teach me adding."), tutor("3 + 4 = 7. Now you try: what is 5 + 6?")];
+    const text = "its 11 but i want to kill myself";
+    expect(isSafetyDisclosure(text)).toBe(true);
+    expect(isCheckBeforePraiseTurn([...worked, student(text)])).toBe(true);
+    script = [reply(KIND)];
+    await answer(worked, text);
+    expect(lastUser(replies[0])).toBe(text);
+    expect(lastUser(replies[0])).not.toContain(CHECK_BEFORE_PRAISE_NOTE);
+  });
+});
+
+describe("words typed into a question card that are a safety disclosure", () => {
+  const OPEN = [student("Teach me times tables."), tutor("Times tables are groups of the same number.")];
+  const Q_CARD = "What is 7 x 9?";
+
+  it.each([
+    ["i want to kill myself", null],
+    ["my uncle hurts me", null],
+    ["this is too hard i wanna die", null],
+    ["im 14 and pregnant", 8],
+  ] as Array<[string, Grade | null]>)(
+    "%j (grade %s) ends the turn at the card: not graded, not echoed, not sent to the model, handed back as the child's message",
+    async (typed, grade) => {
+      expect(isSafetyDisclosure(typed, grade)).toBe(true);
+      pick = () => typed;
+      gradeOut = { student_answer: typed, verdict: "incorrect" };
+      script = [askCall(Q_CARD, ["63", "72"]), reply("That's not right yet. Try again!")];
+      const { result, cards } = await answer(OPEN, ASSESS_MESSAGE, "assess", grade);
+      expect(cards).toHaveLength(1);
+      expect(replies).toHaveLength(1);
+      expect(structured).toEqual([]);
+      expect(result.cardChecks).toEqual([]);
+      expect(result.cardMessage).toBe(typed);
+      expect(result.stopReason).toBe("complete");
+      expect(result.text).toBe(Q_CARD);
+      expect(result.text).not.toContain(typed);
+    },
+  );
+
+  it("the handed-back message then gets an ordinary disclosure turn: not graded, and not told it is wrong", async () => {
+    const typed = "this is too hard i wanna die";
+    pick = () => typed;
+    script = [askCall(Q_CARD, ["63", "72"])];
+    const first = (await answer(OPEN, ASSESS_MESSAGE, "assess")).result;
+    expect(first.cardMessage).toBe(typed);
+
+    // What ChatTab sends next: the saved reply, then the words as the child's own message.
+    replies.length = 0;
+    gradeOut = { student_answer: typed, verdict: "incorrect" };
+    script = [reply("You did the right thing telling me. Please talk to a grown-up you trust.")];
+    const { result } = await answer([...OPEN, student(ASSESS_MESSAGE), tutor(first.text)], first.cardMessage!);
+    expect(structured).toEqual([]);
+    expect(result.answerCheck).toBeNull();
+    expect(result.cardMessage).toBeNull();
+    expect(result.text).toBe("You did the right thing telling me. Please talk to a grown-up you trust.");
+  });
+
+  it("a pregnancy message typed into a card with no grade set is the card's answer, as before (child-safety.ts)", async () => {
+    pick = () => "im 14 and pregnant";
+    script = [askCall(Q_CARD, ["63", "72"]), reply("Okay.")];
+    const { result } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(result.cardMessage).toBeNull();
+    expect(result.text).toMatch(/\*You answered: im 14 and pregnant\*/);
+  });
+
+  it("keeps the text before the card and says the question once", async () => {
+    pick = () => "i want to kill myself";
+    script = [askCall(Q_CARD, ["63", "72"], "Let's see. What is 7 x 9?")];
+    const { result } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(result.text).toBe("Let's see. What is 7 x 9?");
+    expect(result.cardMessage).toBe("i want to kill myself");
+  });
+
+  it("a disclosure typed into a second card, after a wrong pick on the first, ends at that card with no fallback line", async () => {
+    // Review of TerraTutor #165: the first card's graded pick left a reply owed, and the turn added
+    // "That's not right yet. Want to try again?" after the card the disclosure was typed into.
+    const typed = "i want to kill myself";
+    const answers = [pickLabel("72"), () => typed];
+    pick = (choices) => answers.shift()!(choices);
+    gradeOut = { student_answer: "72", verdict: "incorrect" };
+    script = [askCall(Q_CARD, ["63", "72"]), askCall("What is 6 x 6?", ["36", "32"]), reply("Try again!")];
+    const { result, cards } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+    expect(cards).toHaveLength(2);
+    expect(replies).toHaveLength(2);
+    expect(result.cardChecks).toEqual([expect.objectContaining({ verdict: "incorrect" })]);
+    expect(result.cardMessage).toBe(typed);
+    expect(result.text).toMatch(/^What is 7 x 9\?\n\n\*You picked: 72\*\n\n/);
+    expect(result.text).toMatch(/What is 6 x 6\?$/);
+    expect(result.text).not.toMatch(/try again|AFTER_ANSWER/i);
+    expect(result.text).not.toContain(typed);
+  });
+
+  it("an ordinary typed answer, a request and a pick are not handed back", async () => {
+    gradeOut = { student_answer: "72", verdict: "incorrect" };
+    for (const p of [() => "72", () => "I don't know", pickLabel("63")]) {
+      pick = p;
+      script = [askCall(Q_CARD, ["63", "72"]), reply("Okay.")];
+      const { result } = await answer(OPEN, ASSESS_MESSAGE, "assess");
+      expect(result.cardMessage).toBeNull();
+      expect(result.text).toMatch(/\*You (?:answered|picked): /);
+    }
   });
 });
