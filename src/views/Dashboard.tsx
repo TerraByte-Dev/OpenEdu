@@ -11,6 +11,9 @@ import { friendlyError, preflightMessage, type ErrorContext } from "../lib/plain
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { APP_NAME } from "../lib/product";
 import { IconCheck12 } from "../components/icons";
+import { isSafetyDisclosure } from "../lib/child-safety";
+import type { Grade } from "../lib/grade";
+import SafetyNotice from "../components/SafetyNotice";
 
 // The new-course flow (View "create"). The learner's landing screen is views/Home.tsx; this view is
 // reached from its "Start a new course" button, and stays mounted (hidden) while a build runs so the
@@ -23,6 +26,8 @@ interface DashboardProps {
   // When set (via App's pendingResumeCourse plumbing), Dashboard auto-launches a resume on mount.
   resumeCourse?: Course | null;
   onResumeConsumed?: () => void;
+  // The learner's grade: a safety disclosure typed as the topic is read as the chat reads it.
+  grade: Grade | null;
 }
 
 type StepStatus = "pending" | "active" | "done" | "error";
@@ -77,8 +82,10 @@ function StepIcon({ status }: { status: StepStatus }) {
   );
 }
 
-export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, onCreationEnd, resumeCourse, onResumeConsumed }: DashboardProps) {
+export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, onCreationEnd, resumeCourse, onResumeConsumed, grade }: DashboardProps) {
   const [topic, setTopic] = useState("");
+  // The topic the chat's safety notice was shown for (handleCreate), or null.
+  const [safetyTopic, setSafetyTopic] = useState<string | null>(null);
   // Phase 4b: chosen persona for the new course (SAGE default → skippable picker).
   const [selectedSprite, setSelectedSprite] = useState<string>(DEFAULT_SPRITE_ID);
   const [creating, setCreating] = useState(false);
@@ -222,7 +229,15 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
     }
   };
 
-  const handleCreate = () => runPipelineFor(null);
+  const handleCreate = () => {
+    const t = topic.trim();
+    // A self-harm or abuse disclosure (or, with a K-12 grade set, a pregnancy one) typed as the topic
+    // (child-safety.ts isSafetyDisclosure, the chat's check with the same grade) gets the chat's safety
+    // notice, and this click builds and sends nothing. A notice, never a block: Create again with the same
+    // topic goes on as usual, so a false positive ("suicide prevention", a novel's plot) costs one click.
+    if (isSafetyDisclosure(t, grade) && safetyTopic !== t) { setSafetyTopic(t); return; }
+    return runPipelineFor(null);
+  };
 
   // Auto-launch resume when App passes a resumeCourse prop. Consumed once.
   useEffect(() => {
@@ -291,6 +306,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                       {HEALTH_NOTICE}
                     </div>
                   )}
+                  {safetyTopic !== null && safetyTopic === topic.trim() && <SafetyNotice className="mb-4" />}
                   {/* Persona picker (Phase 4b) — SAGE default; the ★ suggestion is a non-binding hint. */}
                   <div className="mb-4">
                     <div className="text-sm text-[var(--ink-dim)] mb-2">Pick a tutor (you can change this later)</div>
@@ -326,7 +342,7 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                     <button onClick={handleCreate} disabled={!topic.trim()} className="btn btn-primary disabled:opacity-40">
                       Create course
                     </button>
-                    <button onClick={() => { setTopic(""); setSelectedSprite(DEFAULT_SPRITE_ID); setError(""); onCancel(); }} className="btn">
+                    <button onClick={() => { setTopic(""); setSelectedSprite(DEFAULT_SPRITE_ID); setError(""); setSafetyTopic(null); onCancel(); }} className="btn">
                       Cancel
                     </button>
                   </div>

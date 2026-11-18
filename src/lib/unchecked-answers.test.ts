@@ -42,7 +42,7 @@ describe("showsAnswerAndKey", () => {
   for (const [name, raw] of [["QuizFullScreen", quizScreen], ["PromotionTestFullScreen", testScreen]] as const) {
     it(`${name} draws the answer and key lines from showsAnswerAndKey`, () => {
       const s = raw.replace(/\r\n?/g, "\n");
-      expect(s).toMatch(/\{showsAnswerAndKey\(q\) && \(/);
+      expect(s).toMatch(/\{showsAnswerAndKey\(q, grade\) && \(/);
       expect(s).not.toMatch(/mark !== "right" && q\.user_answer/);
     });
   }

@@ -5,7 +5,7 @@ import {
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
-import { answerMark, showsAnswerAndKey, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft } from "../lib/level-test";
 import { saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, type PendingLevelTest, type SettledLevelTest } from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
@@ -19,6 +19,9 @@ import { saveFinishEffects } from "../lib/finish-effects";
 import { addStudyPlanToLog } from "../lib/knowledge";
 import QuestionRenderer from "../components/quiz/QuestionRenderer";
 import CompletionCapstone from "../components/CompletionCapstone";
+import SafetyNotice from "../components/SafetyNotice";
+import { SAFETY_NOTICE } from "../lib/child-safety";
+import type { Grade } from "../lib/grade";
 import { IconXmark } from "../components/icons";
 
 function getTimeLimitSeconds(level: number): number {
@@ -77,9 +80,11 @@ interface Props {
   onClose: () => void;
   // nextLevel = the level just advanced to; null = course completed (L6 mastery passed).
   onPassed: (nextLevel: number | null) => void;
+  // The learner's grade: a safety disclosure typed as an answer is read as the chat reads it.
+  grade: Grade | null;
 }
 
-export default function PromotionTestFullScreen({ context, onClose, onPassed }: Props) {
+export default function PromotionTestFullScreen({ context, onClose, onPassed, grade }: Props) {
   const { courseId, course, syllabus: currentSyllabus, allSyllabuses } = context;
   const currentLevel = course.current_level;
 
@@ -269,6 +274,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
           student: q.user_answer ?? "", type: q.question_type,
         })),
         await getLocalVerifyConfig(cfg).catch(() => null),
+        grade,
       );
       gradedQuestions = finalQuestions.map((q, i) => {
         const o = outcomes.get(i);
@@ -639,6 +645,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
                 question={question}
                 onAnswer={handleAnswer}
                 disabled={answeredCurrent}
+                grade={grade}
               />
             )}
 
@@ -691,7 +698,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto">
             <p className="text-warning text-base mb-4">{selfCheckIntro(pendingTest.unchecked.length)}</p>
-            <CheckAnswers key={pendingTest.unchecked.map((r) => r.id).join()} answers={pendingTest.unchecked} copy={SELF_CHECK} onSave={saveMarks} />
+            <CheckAnswers key={pendingTest.unchecked.map((r) => r.id).join()} answers={pendingTest.unchecked} copy={SELF_CHECK} onSave={saveMarks}
+              noteFor={(a) => (showsSafetyNotice(a, grade) ? SAFETY_NOTICE : null)} />
           </div>
         </div>
       </div>
@@ -778,14 +786,18 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
             {questions.map((q, i) => {
               const mark = answerMark(q);
               const style = MARK_STYLE[mark];
+              // A safety disclosure typed as the answer: the chat's notice in place of the not-checked
+              // note (the answer was never marked; quiz.ts gradeAnswersBatch).
+              const safety = showsSafetyNotice(q, grade);
               return (
               <div key={i} className={`p-3 rounded-xl border text-sm ${style.row}`}>
                 <div className="flex items-start gap-2">
                   <span className={`font-bold shrink-0 ${style.text}`}>{style.sign}</span>
                   <div className="min-w-0">
                     <p className="text-ink">{q.question_text}</p>
-                    {mark === "unchecked" && <p className="text-xs text-warning mt-0.5">{TEST_UNCHECKED_NOTE}</p>}
-                    {showsAnswerAndKey(q) && (
+                    {safety && <SafetyNotice className="mt-1" />}
+                    {mark === "unchecked" && !safety && <p className="text-xs text-warning mt-0.5">{TEST_UNCHECKED_NOTE}</p>}
+                    {showsAnswerAndKey(q, grade) && (
                       <p className={`text-xs mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
                     {q.graded_by === "self"
