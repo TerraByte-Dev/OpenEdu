@@ -950,16 +950,19 @@ grown-up with no other subject in between and before the end, a joining or time 
 noun ("my uncle touches her when she sleeps", not "in the book my dad touches her hand"), and after anyone
 else's only before the end, a place or a time ("her dad touches her at night", not "sea anemones sting
 people who touch them" or "his mother touched him when he cried"), so "my mom touches her when she cries"
-fires, a known and accepted false positive; "touched by" needs the child (or their brother or sister)
+fires, a known and accepted false positive; "touched her down there", "made me touch him" and "touched by
+him" are their own patterns; "touched by" needs the child (or their brother or sister)
 as the one touched and a person, with no apostrophe, as the one touching ("i got touched by my uncle", not
 "touched by my teacher's words" or "the old woman was touched by a stranger"), while the child getting
 touched with no one named still counts ("i got touched at school"); a thing earlier in the clause blocks the
 touching (`NO_THING_BEFORE`: "the story about the old man really touched me"), unless it was given to the
-child ("the man who gave me gifts touched me"); touching the children needs a grown-up or family member;
+child ("the man who gave me gifts touched me"); kids, children, boys or girls touched need a named
+grown-up, family member, man or stranger ("a man touches the boys", not "jesus touched the children");
 "touch down there" needs "me" or "my" ("apollo 11 touched down there"); a threat to share needs the child's
 own things ("threatened to send his army" does not count); "hurt at home" needs the first person; and a
-third-person statement of a suicide with no first-person word in the sentence does not count
-(`thirdPersonSuicide`: "Romeo and Juliet both commit suicide", "suicide rates rose").
+third-person present form of suicide ("commits", "both / all / each commit") or "suicide rate(s)" does not
+count, but only in a sentence with no first-person word (`thirdPersonSuicide`: "Romeo and Juliet both commit
+suicide", "suicide rates rose"); "hemingway committed suicide" and "my brother committed suicide" still do.
 TerraTutor's parents'-topics screen is not ported, so a third-person report ("his dad makes him watch
 porn") or wording the lists do not know ("my babysitter shows me sexy videos") gets no notice here, where
 TerraTutor gives its parents'-topics reply. A false positive costs more than a line of text: it refuses a
