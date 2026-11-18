@@ -83,7 +83,10 @@ checksums file that doesn't list the model file is refused.
    are checked against the manifest when the folder is picked; a damaged one drops that model with a
    message. A GGUF kit without `checksums.sha256` imports with a warning, and the check step shows
    "Not checked" instead of a pass.
-5. The model becomes the tutor model, and the setup check runs again.
+5. The model becomes the tutor model, and the setup check runs again. The screen then says you're
+   ready to go; **Start learning** opens Home. A kit without the notebook search model
+   (`nomic-embed-text`) doesn't bring the setup screen back on later launches: notes are searched by
+   their words until that model is added (`setup-check.ts` `showsSetupGate`).
 
 An import never replaces a model: a name Ollama already has is refused before anything is sent. If the
 computer already has the model under its own name, the screen offers to use that one instead.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  describeToolActivity, describeToolCall, describeToolDone,
+  describeToolActivity, describeToolCall, describeToolDone, describeToolRequest,
   friendlyDownloadError, friendlyError, preflightMessage, tutorStatusLabel,
 } from "./plain-language";
 
@@ -32,6 +32,16 @@ describe("describeToolCall", () => {
   it("is empty when the arguments hold nothing a learner would recognise", () => {
     expect(describeToolCall("knowledge.update_map", { note: "x" })).toBe("");
     expect(describeToolCall("flashcard.create", undefined)).toBe("");
+  });
+
+  it("names the topic a progress mark is for, and whether it is learned or practiced", () => {
+    const subtopics = [{ id: "1.1", title: "Adding fractions" }];
+    expect(describeToolCall("progress.mark_mastered", { subtopic_id: "1.1", status: "mastered" }, subtopics)).toBe("Mark “Adding fractions” as learned");
+    expect(describeToolCall("progress.mark_mastered", { subtopic_id: "1.1", status: "practiced" }, subtopics)).toBe("Mark “Adding fractions” as practiced");
+    // Not in the syllabus it has: the model's own words, never an empty line.
+    expect(describeToolCall("progress.mark_mastered", { subtopic_id: "Long division", status: "mastered" })).toBe("Mark “Long division” as learned");
+    // The request line above it doesn't say "learned" for a practiced mark.
+    expect(describeToolRequest("progress.mark_mastered")).not.toMatch(/learned/);
   });
 
   it("clips a long card", () => {

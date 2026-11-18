@@ -41,7 +41,7 @@ vi.mock("../lib/store", async (importOriginal) => ({
 const { default: LessonsTab } = await import("./LessonsTab");
 const { callLLMStructured } = await import("../lib/llm");
 const { getLessonConfigs } = await import("../lib/store");
-const { setActiveLearnerId, createCourse, saveSyllabus, getLessons } = await import("../lib/db");
+const { setActiveLearnerId, createCourse, saveSyllabus, getLessons, createLesson } = await import("../lib/db");
 const { lessonWithHelp } = await import("../lib/curriculum");
 const { DEFAULT_LEARNER_ID } = await import("../lib/learners");
 import type { Syllabus } from "../types";
@@ -173,5 +173,39 @@ describe("a lesson being written survives the Lessons tab remounting", () => {
     await act(async () => button("2.3").click());
     await vi.waitFor(async () => expect(await rows(2, "2.3")).toHaveLength(1));
     expect(lessonCalls).toBe(2);
+  });
+});
+
+describe("a lesson that finishes writing while another is open", () => {
+  const OTHER = "Thirds are three equal parts of one whole.";
+  const reading = () => host.textContent ?? "";
+
+  beforeEach(async () => {
+    levels[4] = syllabus(courseId, 4, ["4.1", "4.2"]);
+    await saveSyllabus(levels[4]);
+    await createLesson(courseId, 4, "Subtopic 4.2", OTHER, "4.2");
+  });
+
+  it("does not replace the lesson the learner opened while it was being written", async () => {
+    await show(4);
+    await act(async () => button("4.1").click());
+    await vi.waitFor(() => expect(lessonCalls).toBe(1));
+    expect(button("4.2").textContent).toBe("Open");
+    await act(async () => button("4.2").click());
+    await vi.waitFor(() => expect(reading()).toContain(OTHER));
+
+    await act(async () => { release(); });
+    await vi.waitFor(async () => expect(await rows(4, "4.1")).toHaveLength(1));
+    await act(async () => {});
+    expect(reading()).toContain(OTHER);
+    expect(reading()).not.toContain(LESSON.summary);
+  });
+
+  it("opens the lesson it wrote when nothing else was opened meanwhile", async () => {
+    await show(4);
+    await act(async () => button("4.1").click());
+    await vi.waitFor(() => expect(lessonCalls).toBe(1));
+    await act(async () => { release(); });
+    await vi.waitFor(() => expect(reading()).toContain(LESSON.summary));
   });
 });

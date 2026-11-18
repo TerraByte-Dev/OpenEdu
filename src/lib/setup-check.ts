@@ -172,6 +172,25 @@ export function evaluateSetup(facts: {
   };
 }
 
+/**
+ * Whether the setup screen stands in front of the learner's Home. Anything blocking always shows it. A
+ * missing optional piece shows it until "Start learning" dismisses it for this launch, except notebook
+ * search: a one-model offline kit (docs/OFFLINE-KIT.md) has no embedder, so counting it would open every
+ * launch of that install on this screen, offering a download that can't work offline. Notes are still
+ * searched by their words, and the Notes tab says so when an import can't be searched by meaning
+ * (ingest-format.ts). The embedder row is still listed here when the screen shows for something else.
+ *
+ * `wasNeeded`: something blocked earlier in this launch. The screen then stays until "Start learning",
+ * so the grown-up who just finished setup sees "You're ready to go" rather than the screen vanishing
+ * under the import's own result.
+ */
+export function showsSetupGate(status: SetupStatus | null, dismissed: boolean, wasNeeded = false): boolean {
+  if (!status) return false; // a failed probe must never gate the app
+  if (!status.ready) return true;
+  if (dismissed) return false;
+  return wasNeeded || status.checks.some((c) => c.severity === "optional" && c.id !== "embed-model");
+}
+
 /** The I/O half: gather the facts, then hand them to the pure evaluator. */
 export async function probeEnvironment(): Promise<SetupStatus> {
   const base = await getLLMProvider();

@@ -15,7 +15,7 @@ import { tickBreakClock, NEW_BREAK_CLOCK } from "./lib/break-reminder";
 import { breakReminder } from "./lib/ai-notice";
 import type { NextStepAction } from "./lib/next-step";
 import { opensWhenBuilt, readyNotice, readyNoticeAfter } from "./lib/course-ready";
-import { probeEnvironment, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
+import { probeEnvironment, showsSetupGate, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
 import { log, unloadOllamaModels } from "./lib/llm";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import SetupGate from "./components/SetupGate";
@@ -71,11 +71,13 @@ export default function App() {
   const [promotionBanner, setPromotionBanner] = useState<number | null>(null);
   // Course whose generation needs to resume — Dashboard consumes this once on mount.
   const [pendingResumeCourse, setPendingResumeCourse] = useState<Course | null>(null);
-  // First-run (#92). `null` = not probed yet; the gate renders only when something BLOCKS use, so a
-  // working install never sees it. `setupDismissed` covers the ready-but-incomplete case, where the
-  // user has been told the embedder is missing and chosen to carry on.
+  // First-run (#92). `null` = not probed yet; setup-check.ts showsSetupGate decides when the gate stands
+  // in front of Home. `setupDismissed` covers a missing optional piece the user was told about and chose
+  // to carry on without (a missing notebook embedder never shows the gate on its own).
   const [setup, setSetup] = useState<SetupStatus | null>(null);
   const [setupDismissed, setSetupDismissed] = useState(false);
+  // Something blocked use earlier in this launch: the gate stays to say "You're ready to go" once fixed.
+  const [setupWasNeeded, setSetupWasNeeded] = useState(false);
   const [ollamaUrl, setOllamaUrl] = useState("http://127.0.0.1:11434");
   const [tourStep, setTourStep] = useState<number | null>(null);
   // Boot-time integrity check (power cuts are routine where OpenEdu runs). Only "damaged" shows a warning.
@@ -213,6 +215,7 @@ export default function App() {
     try { status = await probeEnvironment(); }
     catch { setSetup(null); return; } // a failed probe must never gate the app; that would be the old lie inverted
     setSetup(status);
+    if (!status.ready) setSetupWasNeeded(true);
     void warmTutorInBackground(status); // load the model now, so Create course doesn't wait for it
   };
 
@@ -423,7 +426,7 @@ export default function App() {
                 </div>
               )}
 
-              {currentView === "dashboard" && setup && (!setup.ready || (!setup.complete && !setupDismissed)) && (
+              {currentView === "dashboard" && setup && showsSetupGate(setup, setupDismissed, setupWasNeeded) && (
                 <SetupGate
                   status={setup}
                   ollamaUrl={ollamaUrl}
@@ -433,7 +436,7 @@ export default function App() {
                 />
               )}
 
-              {currentView === "dashboard" && !(setup && (!setup.ready || (!setup.complete && !setupDismissed))) && (
+              {currentView === "dashboard" && !showsSetupGate(setup, setupDismissed, setupWasNeeded) && (
                 <Home
                   learnerName={activeLearner.name}
                   courses={courses}

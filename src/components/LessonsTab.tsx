@@ -92,7 +92,8 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
       return;
     }
     const made = await generate(sub);
-    if (made) setOpenLesson(made);
+    // Opens the lesson the learner asked for, unless they opened another one while it was being written.
+    if (made) setOpenLesson((open) => open ?? made);
   }, [lessonFor, generate]);
 
   useEffect(() => {
