@@ -10,7 +10,12 @@
 //    TerraTutor #125), and, for a learner with a K-12 grade set, a strong self-disclosure of a pregnancy
 //    (strongPregnancy, below). A match shows SAFETY_NOTICE under that message. A notice, never a block: the tutor
 //    turn still runs, always with CHILD_SAFETY_RULES, so the child is not met with silence. Like health-notice.ts, a deterministic list is auditable and costs nothing on a CPU box.
-//    A false positive costs one kind line of text; a miss means no notice, never a block. English only.
+//    A miss means no notice, never a block. A false positive in the chat costs one kind line of text, but
+//    the same check also refuses a new-course topic (Dashboard.tsx, SAFETY_TOPIC_COURSE_LINE), passes a
+//    quiz or level-test written answer as not checked with no mark (quiz.ts gradeAnswersBatch) and skips
+//    the mastery-check verdict and the dictionary note on that chat turn (TutorEngine.ts). So a pattern
+//    that fires on ordinary schoolwork costs a learner a course or a free mark: the patterns below need a
+//    person, the child's own body or a first-person object, never a topic word on its own. English only.
 
 import type { Grade } from "./grade";
 
@@ -85,10 +90,14 @@ const PHRASES = [
 // he/she/they/someone), which keeps "the poem touched me" and "a wave hits me" out. Only "beat" takes a
 // games exclusion (see BEAT); "kicked me off the team" and "kicked us out" are dropped for every verb.
 // Known, accepted miss the other way: "he hit me with a great idea" fires.
-const WHO =
-  "(?:(?:(?:my|our) )?(?:step[ -]?|foster )?(?:dad|daddy|papa|father|mom|mommy|mama|mum|mother|parents?|uncle|aunt|grandpa|" +
+// KIN is the person nouns; WHO adds "my"/"our", the pronouns and a trailing "'s"/"'re".
+const KIN =
+  "(?:step[ -]?|foster )?(?:dad|daddy|papa|father|mom|mommy|mama|mum|mother|parents?|uncle|aunt|grandpa|" +
   "grandma|grandfather|grandmother|brother|sister|cousin|teacher|coach|babysitter|neighbou?r|boyfriend|girlfriend)" +
-  "(?:'s (?:boyfriend|girlfriend|friend))?|he|she|they|someone|somebody|a grown-?up|an adult)(?:'s|'re)?";
+  "(?:'s (?:boyfriend|girlfriend|friend))?";
+// WHO with no trailing "'s": for the agent after "touched by", where "my teacher's words" is not a person.
+const WHO_BARE = "(?:(?:(?:my|our) )?" + KIN + "|he|she|they|someone|somebody|a grown-?up|an adult)";
+const WHO = WHO_BARE + "(?:'s|'re)?";
 const FILL = "(?: (?:always|often|keeps?|sometimes|just|is|was|are|were|has|have|had|been|would|will|used to)){0,3}";
 const OBJ = "(?:me|us|my (?:(?:little|big|baby|older|younger) )?(?:mom|mum|mother|dad|father|sister|brother|private\\w*|genital\\w*|penis|vagina|vulva))";
 const ACT =
@@ -107,37 +116,62 @@ const ABUSE_RE = new RegExp(
 // penis", "someone sent me a picture of his penis", "he makes me suck his penis", "he showed me his
 // genitals". The subject is WHO, so "a male frog's penis" stays out; "how does he use his penis" said of
 // an animal shows the safety notice, which is the cheap side of the trade.
-// "private" said of the body: privates, private part(s) / area(s) / spot(s), or plain "private" not
-// followed by a school or everyday word ("his private school", "a private message").
+// "private" said of the body: privates, private part(s) / area(s) / spot(s) / place(s) / bits (not "of the
+// ..."), or plain "private" with no noun after it ("he touches my private", "his private and"). "private"
+// before any other word is the adjective and never counts: TerraTutor #125 listed the nouns to leave out
+// ("his private school"), and every noun not on its list fired ("her private feelings", "his private
+// quarters", "their private lives"; review of OpenEdu #372). "privates" is also the army rank: not with a war
+// word within four words after it ("he led his privates into battle", "ordered his privates to march").
 const PRIVATE =
-  "(?:privates|private (?:parts?|areas?|spots?|places?|bits)|private(?! (?:schools?|lessons?|tutors?|teachers?|jets?|" +
-  "islands?|rooms?|office|property|company|sector|eye|investigator|number|messages?|chats?|accounts?|browser|life|" +
-  "beach|pools?|practice|matters?|info\\p{L}*|keys?|class\\p{L}*|time|label|game|server|citizens?|business\\p{L}*|" +
-  "land|owner\\p{L}*|first|second|soldier|road|parts? of (?:the|a)|conversations?|thoughts?|journal|diary)))";
+  "(?:privates(?!(?: [\\p{L}']+){0,3} (?:battle|war|army|soldiers?|front|march\\p{L}*|drill\\p{L}*|salut\\p{L}*)(?![\\p{L}\\p{N}]))|private (?:parts?|areas?|spots?|places?|bits)(?! of (?:the|a|an|this|that|his|her|their|our)(?![\\p{L}\\p{N}]))|" +
+  "private(?=\\s*(?:$|[^\\p{L}\\p{N}\\s']|(?:and|again|too|with|when|while|every)(?![\\p{L}\\p{N}']))))";
 const BODY = "(?:penis\\p{L}*|genital\\p{L}*|" + PRIVATE + "|vagina\\p{L}*|vulva\\p{L}*)";
 const BODY_RE = new RegExp("(?<![\\p{L}\\p{N}])" + WHO + "(?: [\\p{L}']+){1,6}? (?:his|her|their) " + BODY + END, "u");
 
 // TerraTutor #125's cycle-6 review: common ways a child tells that the lists above missed. Each one is a pattern of its
 // own, kept to disclosure wording so schoolwork does not trip it (child-safety.test.ts pins both sides).
-// A person, then within eight words of the same sentence, "touch(es|ed|ing)" and me, us, a part of the
-// body, or him / her / them: "my stepdad comes into my room at night and touches me", "my coach said it's
-// our secret and touched me", "her dad touches her at night". Not after a thing ("my mom said the story
-// touched me"). The person may also be a boy, girl, kid, man, woman, guy, lady, stranger or people.
+// A person, then within eight words of the same sentence, "touch(es|ed|ing)" and me, us or a part of the
+// child's body: "my stepdad comes into my room at night and touches me", "my coach said it's our secret and
+// touched me". Not after a thing ("my mom said the story touched me"). The person may also be a boy, girl,
+// kid, man, woman, guy, lady, stranger or people.
 const TOUCHER =
   "(?:" + WHO + "|(?:the |some |a |an |this |that |these |those )?(?:older |big |bigger |other |strange )?" +
   "(?:boys?|girls?|kids?|man|men|guys?|lady|ladies|woman|women|strangers?|person|people))";
-const THIRD_OBJ = "(?:him|them|her(?= ?(?:$|[^\\p{L}\\p{N}\\s]|and|again|there|too|down|when|while|at|in|every|all)(?![\\p{L}\\p{N}])))";
+// Him, her or them as the one touched, with nothing after it but the end, punctuation or a joining or time
+// word ("touches her at night", "touch him down there"; not "touched him on the shoulder", "her shoulder").
+const OBJ_END = "(?= ?(?:$|[^\\p{L}\\p{N}\\s]|and|again|there|too|down|when|while|at|in|every|all)(?![\\p{L}\\p{N}]))";
+const THIRD_OBJ = "(?:him|them|her)" + OBJ_END;
+// Touching him, her or them counts only after someone's family member or grown-up ("her dad touches her at
+// night", "his coach touched him"). People, kids, a woman or a pronoun as the toucher of a third person is
+// how science and stories talk ("sea anemones sting people who touch them", "the woman reached out and
+// touched him", "the boy touched her and she turned to gold"; review of OpenEdu #372).
+const THEIR_KIN = "(?:his|her|their) " + KIN;
+// A named grown-up, family member or stranger (no bare pronoun, no possessive): "a teacher at school touches
+// kids". Not "jesus touched the children", "her kindness touched the children", "he touched the children
+// and blessed them" (a Bible story).
+const GROWN_UP =
+  "(?:(?:(?:my|our|his|her|their|a|an|the|some|this|that) )?" + KIN + "|(?:a |an |the |some |this |that )?" +
+  "(?:older |big |bigger |strange |grown )?(?:man|men|guys?|strangers?|grown-?ups?|adults?))";
+// Who did the touching, after "touched by": a person, him / them / her (not "her kindness"), or a man, guy or
+// stranger. Never followed by an apostrophe: "my teacher's words", "my mom's letter" and "a stranger's
+// kindness" are things (WHO's own "'s" used to take the apostrophe first; review of OpenEdu #372).
+const AGENT =
+  "(?:" + WHO_BARE + "|him|them|her" + OBJ_END + "|(?:a |an |some |this |that )?(?:older |big |bigger |strange |grown )?" +
+  "(?:man|men|guys?|strangers?))(?!')";
 const BODY_PART = "(?:body|butt|bum|bottom|chest|boobs?|breasts?|" + PRIVATE + "|genital\\p{L}*|penis|vagina|vulva)";
-const NOT_A_THING = "(?<!(?:poem|story|song|movie|film|book|speech|letter|music|it|that|this|word|words|show|video|scene|ending|art|painting|picture|play|lyrics) )";
+const NOT_A_THING = "(?<!(?:poem|story|song|movie|film|book|speech|letter|music|it|that|this|word|words|show|video|scene|ending|art|painting|picture|play|lyrics|kindness|love|gift|message|smile|generosity|faith) )";
 const NOT_ME = "(?<!(?:^|[^\\p{L}\\p{N}'])(?:i|i'll|ill|i'm|im|we|you) )";
 const CLOTHES = "(?:pants|shirt|underwear|undies|panties|skirt|shorts|clothes|bra|dress|pajamas|pyjamas|swimsuit)";
 const PICS = "(?:pictures?|pics?|photos?|videos?|selfies?)";
 const NAKED = "(?:naked|nude|without (?:my |any |a |his |her )?(?:clothes|shirt|pants)|with no clothes(?: on)?|in (?:my |their )?underwear|in the (?:shower|bath))";
 const DISCLOSURE_RES = [
-  TOUCHER + "(?:,? [\\p{L}']+){0,8}? " + NOT_A_THING + "(?:touch|touches|touched|touching) (?:me|us|my " + BODY_PART + "|" + THIRD_OBJ + ")",
-  "(?:got|get|gets|getting) touched",
-  "(?:was|got|been|being) touched by " + WHO + "(?!')",
-  "(?:touch|touches|touched|touching) (?:the |other |younger |little )?(?:kids|children|boys|girls)",
+  TOUCHER + "(?:,? [\\p{L}']+){0,8}? " + NOT_A_THING + "(?:touch|touches|touched|touching) (?:me|us|my " + BODY_PART + ")",
+  THEIR_KIN + "(?:,? [\\p{L}']+){0,8}? " + NOT_A_THING + "(?:touch|touches|touched|touching) " + THIRD_OBJ,
+  // Touched by someone ("i got touched by my uncle", "i was touched by a man at the park"). "get touched"
+  // with no one doing it is a plant or a feeling ("when its hairs get touched", "he gets touched by the story").
+  "(?:was|were|got|get|gets|getting|been|being) touched by " + AGENT,
+  GROWN_UP + "(?:,? [\\p{L}']+){0,8}? " + NOT_A_THING +
+    "(?:touch|touches|touched|touching) (?:the |other |younger |little )?(?:kids|children|boys|girls)(?!')",
   WHO + "(?:,? [\\p{L}']+){0,8}? (?:rub|rubs|rubbed|rubbing|lick|licks|licked|licking|grab|grabs|grabbed|grabbing) my " + BODY_PART,
   // "touches my butt", "grabbed my boobs", "rubs my private area", with or without a named person.
   "(?:touch|touches|touched|touching|rub|rubs|rubbed|rubbing|lick|licks|licked|licking|grab|grabs|grabbed|grabbing|squeez\\p{L}*) " +

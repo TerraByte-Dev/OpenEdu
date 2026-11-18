@@ -108,4 +108,13 @@ describe("a safety disclosure typed as a new course's topic", () => {
     expect(host.textContent).not.toContain(SAFETY_NOTICE);
     expect(host.textContent).not.toContain(SAFETY_TOPIC_COURSE_LINE);
   });
+
+  // The review of #372: a science topic that tripped the touching patterns as first ported.
+  it("a science topic about plants that fold when people touch them is not refused", async () => {
+    await type("why mimosa leaves fold up when people touch them");
+    await clickCreate();
+    await vi.waitFor(() => expect(preflightStructuredOutput).toHaveBeenCalledTimes(1));
+    expect(host.textContent).not.toContain(SAFETY_NOTICE);
+    expect(host.textContent).not.toContain(SAFETY_TOPIC_COURSE_LINE);
+  });
 });

@@ -75,6 +75,24 @@ describe("gradeAnswersBatch: a disclosure typed as an answer is not marked", () 
     for (const t of ported) expect(prompt).not.toContain(t);
   });
 
+  // The review of #372: a science answer that only looks like the ported patterns is marked as usual, so a
+  // wrong one gets no free credit.
+  it("marks schoolwork answers that tripped the patterns as first ported, with or without a grade", async () => {
+    const schoolwork = [
+      "mimosa leaves fold up when people touch them", "a venus flytrap closes when its hairs get touched twice",
+      "sea anemones sting people who touch them", "she kept her private feelings to herself",
+    ];
+    for (const grade of [null, GRADE]) {
+      vi.mocked(callLLMStructured).mockReset();
+      vi.mocked(callLLMStructured).mockResolvedValue(Object.fromEntries(
+        schoolwork.map((_, i) => [`answer_${i + 1}`, { feedback: "no", correct: false }])));
+      const out = await gradeAnswersBatch(schoolwork.map((t, i) => item(i, t)), config, grade);
+      for (let i = 0; i < schoolwork.length; i++) expect(out.get(i), schoolwork[i]).toMatchObject({ isCorrect: false, by: "model" });
+      const prompt = JSON.stringify(vi.mocked(callLLMStructured).mock.calls[0][0]);
+      for (const t of schoolwork) expect(prompt).toContain(t);
+    }
+  });
+
   it("calls no model at all when every answer is one", async () => {
     const out = await gradeAnswersBatch([item(0, HARM), item(1, ABUSE)], config, null);
     expect(callLLMStructured).not.toHaveBeenCalled();

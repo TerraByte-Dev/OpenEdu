@@ -88,8 +88,16 @@ describe("isSafetyDisclosure", () => {
       "women were raped during the war", "what does molest mean",
       "he hit me in dodgeball", "my brother hit me", "my teacher hit us with a pop quiz",
       "what would happen if i died my hair blue", "how does the author end it all",
-      // TerraTutor #125's "sextort*" is a bare topic word like "suicid*".
-      "what does sextortion mean",
+      // TerraTutor #125's "sextort*" and "sexual assault*" are bare topic words like "suicid*" (review of #372).
+      "what does sextortion mean", "the article was about sexual assault on campus",
+      "the me too movement fought sexual assault",
+      // Everyday, not schoolwork, wordings of the ported patterns (review of #372): the cheap side of the trade.
+      "the doctor told me to take my shirt off", "mom told me to get undressed for my bath",
+      "my mom took pictures of me in the bath when i was a baby", "i got hurt at home when i fell off my bike",
+      "i don't feel safe in my room when there is a storm", "my little brother pulled down my pants",
+      "he took off his shirt in front of us to show the scar",
+      // A negative below plus "unless": SHARE_PICS_RE with THREAT_RE.
+      "my teacher will post my pictures on the bulletin board unless my mom says no",
     ]) expect(isSafetyDisclosure(m), m).toBe(true);
   });
 
@@ -155,6 +163,14 @@ describe("isSafetyDisclosure", () => {
       "i don't feel safe at my dad's house", "i get hurt at home",
       // The audit's four (2026-11-18): each showed no notice before the port.
       "someone online keeps asking for my nudes", "he'll post my pics unless i send more",
+      // The narrowed patterns of the review of #372 still fire on each disclosure form they kept.
+      "he touched my private", "my uncle touches my private and says it's a secret", "he touches my private, it hurts",
+      "he showed me his private", "he made me touch his private parts", "he touched my privates",
+      "my brother showed me his privates", "my dad touches my private with his hand", "his coach touched him",
+      "their uncle touches them at night", "i was touched by him", "i was touched by her at the sleepover",
+      "i got touched by a stranger", "i got touched by a man at the park", "i was touched by my uncle's friend",
+      "i was touched by my mom's boyfriend", "the man touches kids at the park", "my coach touches the boys",
+      "a stranger touched me",
     ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
   });
 
@@ -173,6 +189,35 @@ describe("isSafetyDisclosure", () => {
       "blackmail is a crime in the story we read", "the hump of a camel stores fat", "my teacher touched on that topic",
       "i was touched by the ending of the book", "my mom said the story touched me", "the fish live down there",
       "we took pictures of the sunset", "my sister touched her toes",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+  });
+
+  // The review of #372: TerraTutor #125's patterns as ported fired on each of these (TerraTutor still does). In
+  // OpenEdu a hit also passes a written answer with no mark and refuses a course topic, so each is pinned.
+  it("does not fire on schoolwork that tripped the patterns as first ported", () => {
+    for (const m of [
+      // "private" before a noun is the adjective, not the body.
+      "she kept her private feelings to herself", "he went to his private quarters",
+      "she wrote in her private notebook every night", "he had his private reasons for leaving",
+      "the paparazzi take pictures of their private lives", "she shared her private thoughts",
+      "he went to his private office", "the private parts of the castle were locked", "he led his privates into battle",
+      // Touching him, her or them after people, kids, a woman or a boy.
+      "sea anemones sting people who touch them", "mimosa leaves fold up when people touch them",
+      "pill bugs roll up when kids touch them", "the woman reached out and touched him",
+      "in the story, the old woman touched him on the shoulder", "in the story the boy touched her and she turned to gold",
+      "his mother touched his face", "her grandma touched her cheek", "her teacher touched her shoulder",
+      "the knight touched her with his sword",
+      // "get touched" with no one doing it.
+      "a venus flytrap closes when its hairs get touched twice", "the leaves of the mimosa fold when they get touched",
+      "he gets touched by the story every time",
+      // Touching the children with no grown-up doing it.
+      "her kindness touched the children", "the movie touched children all over the world",
+      "jesus touched the children and blessed them", "he touched the children and blessed them",
+      "the soldiers touched the children's hearts", "the man's story touched the children",
+      "my mom said her kindness touched the children",
+      // Touched by someone's words: the apostrophe is not a person.
+      "i was touched by my teacher's words", "i was touched by my mom's letter", "i was touched by her kindness",
+      "my teacher was touched by my card",
     ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
   });
 
@@ -200,6 +245,9 @@ describe("isSafetyDisclosure", () => {
       "a man showed me his penis", "he does bad stuff to me and says it's sexy", "someone keeps asking me about sex",
       "they made me watch them have sex", "his dad makes him watch porn", "her uncle had sex with her",
       "a girl at church says the pastor touches her vagina", "THE BUS DRIVER MADE US WATCH PORN",
+      // First-person wordings the lists do not know (review of #372); open vocabulary, left to a follow-up.
+      "my babysitter shows me sexy videos", "a man at the park showed me his genitals",
+      "my neighbor talks about sex to me", "i saw my uncle's porn", "he says we are going to have sex",
     ]) expect(isSafetyDisclosure(m), m).toBe(false);
   });
 
