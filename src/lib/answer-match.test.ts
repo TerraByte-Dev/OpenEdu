@@ -600,6 +600,19 @@ describe("settleByCode: a misspelling two edits off", () => {
 });
 
 describe("settleByCode: a misspelling one edit off", () => {
+  it("never takes the key's word with a negating prefix added or taken off, a contrast affix swapped, or a function word (#328)", () => {
+    const cases: Array<[string, string, string]> = [
+      ["Living things in an ecosystem are called ___ factors.", "Biotic", "abiotic"],
+      ["What are the living parts of an ecosystem called?", "Biotic factors", "abiotic factors"],
+      ["What is a person who lacks courage called?", "Coward", "toward"],
+      ["Which word means not typical?", "Atypical", "typical"],
+      ["What do we call a reaction that gives out heat?", "Endothermic", "exothermic"],
+    ];
+    for (const [q, key, a] of cases) {
+      // The most a dictionary could allow: only the key's own words are real.
+      expect(settleByCode(ask(q, key, a), keyOnly(key))).toBeNull();
+    }
+  });
   it("the app's path: every word the rule asks the dictionary about is in the candidates", () => {
     // gradeAnswersBatch counts a word it did not look up as real; here the dictionary has the key word
     // and no other candidate.

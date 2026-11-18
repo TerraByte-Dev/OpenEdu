@@ -4,9 +4,9 @@ import {
   createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt,
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
-import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, TEST_TOTAL_TARGET, TEST_FLOOR } from "../lib/quiz";
+import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
 import { answerMark, showsAnswerAndKey, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
-import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN } from "../lib/level-test";
+import { testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft } from "../lib/level-test";
 import { saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, type PendingLevelTest, type SettledLevelTest } from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
 import MarkAgain from "../components/quiz/MarkAgain";
@@ -32,16 +32,6 @@ function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function formatCooldown(completedAt: string): string {
-  const failedMs = new Date(completedAt).getTime();
-  const cooldownEnd = failedMs + 24 * 60 * 60 * 1000;
-  const remaining = Math.max(0, Math.ceil((cooldownEnd - Date.now()) / 1000));
-  if (remaining <= 0) return "";
-  const h = Math.floor(remaining / 3600);
-  const m = Math.floor((remaining % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 // "pending": the test is over, but written answers no model checked must be marked before it counts
@@ -147,7 +137,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
     // Not passed (passed = 0), or before migration 18 a score under the bar.
     const failed = last?.passed === 0 || (last?.passed == null && last?.score != null && last.score < 85);
     if (last && failed && last.completed_at) {
-      const remaining = formatCooldown(last.completed_at);
+      const remaining = retakeWaitLeft(last.completed_at);
       if (remaining) {
         setCooldownStr(remaining);
         setTestState("cooldown");
@@ -168,19 +158,26 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
       setConfig(cfg);
       const previousSyllabuses = allSyllabuses.filter((s) => s.level < currentLevel);
 
-      const { current, review } = await generatePromotionTestQuestions(
+      const generated = await generatePromotionTestQuestions(
         currentSyllabus, previousSyllabuses, cfg,
         (done, total, phase) => { setGenPhase(phase); setGenProgress({ done, total }); },
         await getReviewConfig(cfg, "questions"),
       );
       setGenPhase("done");
 
+      // Too few questions, or no review section when the course has earlier levels: the test is not
+      // started, so it is not taken and cannot promote (quiz.ts levelTestShortfall).
+      const shortfall = levelTestShortfall(generated);
+      if (shortfall) {
+        setGenError(`Couldn't make the test. ${shortfall}`);
+        setTestState("ready");
+        return;
+      }
+      const { current, review } = generated;
       const allQ: ActiveQuestion[] = [
         ...current.map((q) => ({ ...q, user_answer: null, is_correct: null, section: "current" as const })),
         ...review.map((q) => ({ ...q, user_answer: null, is_correct: null, section: "review" as const })),
       ];
-
-      if (allQ.length === 0) throw new Error("No questions were generated. Try a more capable model.");
 
       const limit = getTimeLimitSeconds(currentLevel);
       const attempt = await createPromotionAttempt(courseId, currentLevel, allQ.length, limit);
@@ -626,10 +623,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed }: 
         </div>
 
         {questions.length < TEST_TOTAL_TARGET && (
-          <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < TEST_FLOOR ? "text-danger bg-danger-tint border-danger/20" : "text-warning bg-warning-tint border-warning/20"}`}>
-            {questions.length < TEST_FLOOR
-              ? `Only ${questions.length} of ${TEST_TOTAL_TARGET} questions generated — your model is struggling. A more capable model will give a fuller test.`
-              : `Generated ${questions.length} of ${TEST_TOTAL_TARGET} questions — your model produced fewer than usual this run.`}
+          <div className="px-6 py-1.5 text-[11px] border-b shrink-0 text-warning bg-warning-tint border-warning/20">
+            {`Generated ${questions.length} of ${TEST_TOTAL_TARGET} questions — your model produced fewer than usual this run.`}
           </div>
         )}
 

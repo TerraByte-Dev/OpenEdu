@@ -294,7 +294,15 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   one with the answer key and Right / Not yet (`components/quiz/CheckAnswers.tsx`). The marks are stored
   as `graded_by` `'self'` and the test is decided by `level-test-checks.ts` `settleLevelTest`, which
   moves the course up after a pass. A waiting test blocks a new attempt at that level, and a test not
-  passed (`passed` 0) now starts the 24-hour wait even when only the review section fell short.
+  passed (`passed` 0) now starts the 24-hour wait even when only the review section fell short. The
+  wait is counted from `completed_at` read as UTC (`level-test.ts` `retakeWaitLeft`); read as local
+  time it ran 24 hours plus the UTC offset.
+- **A level test that came out short is not given.** `quiz.ts` `levelTestShortfall` refuses a
+  generated test under `TEST_FLOOR` (30) questions, or one whose review section came back empty
+  although the course has earlier levels (`reviewWanted`): no attempt is created, so the test is not
+  taken and cannot promote, and the intro says why and to try again. The pass rule counts an empty
+  review section as passed, which is right only on a level 1 test. A test between the floor and 45
+  questions is given with a note.
 - **Code settles an answer that is the key in another form.** Before the batch goes to the model,
   `answer-match.ts` `settleByCode` puts the answer and the key in one form (case, punctuation, a leading
   "it's" or article, number words as digits, plurals) and accepts the answer when it is the key or one
@@ -331,7 +339,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   "when did/was", never one about a count or a size ("How many books", "number of"), a clock time, a
   choice of years ("1215 or 1512?"), one that says the key, or one that asks for a form;
   and a one-edit misspelling of a key word of 6 letters or more when the answer's word is not
-  itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model). Never two edits
+  itself a word in the bundled dictionary ("neuron" for "neutron" goes to the model), nor the key's
+  word with a negating prefix added or taken off ("abiotic" for Biotic), a contrasting affix swapped,
+  or a function word WordNet lacks ("toward" for Coward): the misspelling note's guards (#328). Never two edits
   ("omnivour" goes to the model: "glucogan" is as close to glycogen as to glucagon). No
   misspelling counts when another dictionary word is one edit from the answer's word ("slovania"),
   when a word the question offers is as close, or when the key word is not in the dictionary (it has

@@ -62,6 +62,23 @@ export function levelTestResult(answers: ReadonlyArray<TestAnswer>): LevelTestRe
   };
 }
 
+/** How long after a failed level test it can be taken again. */
+export const RETAKE_WAIT_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The wait left before a failed level test can be taken again, as "5h 12m" or "12m", or "" when it is
+ * over. `completedAt` is the attempt's completed_at, SQLite's datetime('now'): UTC with no zone
+ * ("2026-11-18 14:00:00"), read as UTC. Read as local time it ran the wait 24 h plus the UTC offset.
+ */
+export function retakeWaitLeft(completedAt: string, now: number = Date.now()): string {
+  const failedMs = new Date(`${completedAt.replace(" ", "T")}Z`).getTime();
+  const remaining = Math.max(0, Math.ceil((failedMs + RETAKE_WAIT_MS - now) / 1000));
+  if (remaining <= 0) return "";
+  const h = Math.floor(remaining / 3600);
+  const m = Math.floor((remaining % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
 /** A results row on a decided level test whose written answer nothing checked. */
 export const TEST_UNCHECKED_NOTE = "Not checked. No model on this computer could check this written answer, so it does not count toward this test.";
 
