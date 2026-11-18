@@ -141,7 +141,7 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   Rust-side traffic is loopback-only by construction and does not go through the `http` allow-list. Pure
   halves: `src/lib/model-kit.ts`, `src/lib/ollama-guide.ts`. No command writes a file; the webview never
   names a path.
-  The Rust side is migrations, six `.plugin()` calls, and those commands. There is no general folder-read
+  The Rust side is migrations, seven `.plugin()` calls (one is the navigation guard, `nav_guard.rs`), and those commands. There is no general folder-read
   command (the unused `corpus_*` commands, which trusted any path the webview sent to `corpus_grant`, were
   removed), so the only way a file's content enters is the notebook import (file picker or drag-and-drop),
   filtered to `.md,.markdown,.txt` and read via `File.text()` (`NotesTab.tsx`: `ingestFiles`, fed by the hidden file `<input>` and `handleDropOn`). Folder access
@@ -156,11 +156,23 @@ on `qwen3.5:0.8b` (see the top of this file). The lessons that stuck:
   in the output may load from another host (#284): a `src`/`poster`/`background`, a non-link
   `href`/`xlink:href`, or a CSS `url()` in a style attribute, SVG attribute or card `<style>` that is not
   `data:`, `blob:` or same-origin is removed (the `<style>` whole); `srcset`, `image-set()`, `src()` and
-  `@import` always are. `<a href>` stays: that is a navigation, not a load.
+  `@import` always are. `<a href>` stays: that is a navigation, not a load, and the next bullet keeps it in the app.
   Strict mode does not stop Mermaid loading from another host while it draws, so `drawableMermaid`
   (`src/lib/mermaid-source.ts`, `withoutRemoteLoads`) first takes that syntax out of the diagram source:
   directives and front-matter config, image shapes' `img`, sequence `properties`/`details`, label HTML
   tags that load, and lines whose CSS loads.
+- A link never navigates the window away (the app's Titlebar, the only window controls, would go with it).
+  `src/lib/link-guard.ts installLinkGuard`, mounted once at the app root by `components/OutsideLinkNote.tsx`,
+  cancels any click or middle-click on an `<a>` (HTML or SVG, so diagrams too) whose target is not a same-page
+  `#anchor` or the page's own protocol + host, and shows the address in one line with a Copy button for a
+  grown-up to open in a browser. A link to the app's own origin is cancelled too, with no note (`linkMayFollow`:
+  the app has no pages, so it would only reload and lose the learner's place); only a same-page `#anchor` and an
+  `<a download>` to one of the page's own `blob:` URLs (Settings › About's "Download .json") go through. The
+  app opens no browser (no opener or shell capability). The backstop is
+  `src-tauri/src/nav_guard.rs`, a plugin whose `on_navigation` cancels every top-level navigation that is not
+  the app's origin (`tauri://localhost`, `http(s)://tauri.localhost`, and in a dev build only the `devUrl`).
+  New windows (target=_blank, ctrl/shift/middle-click, `window.open`) never open: no `on_new_window` handler
+  is set, and wry then marks WebView2's request handled with no window.
 
 ---
 

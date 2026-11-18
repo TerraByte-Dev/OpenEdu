@@ -19,7 +19,8 @@
 // can carry words from the conversation. So every URL that loads something (src, poster, background,
 // href on anything but a link, CSS url()/image-set()/@import in style attributes, SVG paint attributes
 // and card <style>) must be data:, blob: or same-origin; otherwise the attribute (or <style>) is
-// removed. srcset is always removed. <a href> is a navigation, not a load, and stays (#284 item 1).
+// removed. srcset is always removed. <a href> is a navigation, not a load, and stays: a click on one that
+// leaves the app is cancelled and its address shown instead (link-guard.ts, src-tauri/src/nav_guard.rs).
 import DOMPurify, { type DOMPurify as Purifier } from "dompurify";
 import { cssLoadsRemote, isLocalUrl } from "./remote-url";
 
