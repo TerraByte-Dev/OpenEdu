@@ -1,3 +1,4 @@
+mod backup;
 mod model_import;
 mod nav_guard;
 mod ollama_setup;
@@ -538,12 +539,13 @@ pub fn run() {
         )
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        // Folder/file pickers: model_import.rs opens its folder picker from Rust; LearnerData's export
-        // uses the save dialog from JS.
+        // Folder/file pickers: model_import.rs opens its folder picker and backup.rs the backup's Save
+        // dialog, both from Rust.
         .plugin(tauri_plugin_dialog::init())
         // The window never leaves the app: a clicked link to another site is cancelled (nav_guard.rs).
         .plugin(nav_guard::init())
         .manage(model_import::ImportState::default())
+        .manage(backup::BackupState::default())
         .invoke_handler(tauri::generate_handler![
             system::system_memory_bytes,
             // Offline setup (#275): read-only, Rust opens the picker, network to loopback Ollama only.
@@ -552,6 +554,11 @@ pub fn run() {
             model_import::model_import_pick,
             model_import::model_import_start,
             model_import::model_import_cancel,
+            // The learner-data backup (backup.rs): Rust opens the Save dialog, VACUUM INTO writes `<picked>.partial`,
+            // and only a whole, flushed copy is renamed to the picked name. No path from the webview.
+            backup::backup_pick,
+            backup::backup_finish,
+            backup::backup_abandon,
         ]);
 
     // Updater is desktop-only.

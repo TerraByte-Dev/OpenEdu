@@ -145,7 +145,8 @@ Your courses, chats, notes, quizzes and progress live in that one `openedu.db` f
 can damage it, so keep a copy somewhere else.
 
 **Back up:** open **Settings → Learner data → Back up all learner data** and save the file, for example to
-a USB stick. The default name is `openedu-backup-YYYY-MM-DD-HHMM.db`. You can keep using the app while it saves.
+a USB stick. The default name is `openedu-backup-YYYY-MM-DD-HHMM.db`. You can keep using the app while it saves, but wait for
+"Backup saved" before you shut down or unplug the USB stick.
 
 **Restore:** OpenEdu checks the file each time it starts and shows a warning if it finds damage. To restore:
 

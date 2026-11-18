@@ -38,7 +38,14 @@ keeps each commit durable in WAL mode. Per-connection PRAGMAs sent from JS are n
 sqlx pool holds up to 10 connections and recycles them. At boot `checkDatabaseHealth()` runs
 `PRAGMA quick_check` and the app shows a plain-words warning if it reports damage. **Settings → Learner
 data** writes a full copy with `VACUUM INTO` through the sql plugin (no `fs` capability) and explains how to
-restore it by hand. The logic is in `src/lib/db-resilience.ts` (pure, tested).
+restore it by hand. `VACUUM INTO` writes straight to the path it is given and does not flush it, so a
+shutdown or power cut part way used to leave a cut-short file under the newest backup's name. Now Rust
+opens the Save dialog (`src-tauri/src/backup.rs backup_pick`) and gives the webview only `<picked>.partial`
+to copy into; `backup_finish` flushes it, checks the SQLite header's page count and page size against the
+file's length, and only then renames it to the picked name (replacing a file there, which the dialog
+already asked about); a failed copy is removed (`backup_abandon`). A cut-short copy keeps the `.partial`
+name, which never ends in `.db`. Settings asks the user to wait for "Backup saved" before shutting down or
+unplugging the stick. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 
 **A migration that fails.** tauri-plugin-sql 2.3.2 (`commands.rs load`) takes the database's migration
 list out before it migrates and does not put it back when migrating fails, so a second `Database.load` in
@@ -383,7 +390,22 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   (`getLastPromotionAttempt` reads finished tests only). The answers already given stay saved, so a
   missed one can come back in a quiz (`getReviewPoolQuestions`), and the confirm says so when there is
   one (`db-level-test-stop.test.ts`). Closing the window does the same; the Titlebar stays over both
-  screens so it can be closed. "Checking eligibility" has a Back button and says when the check failed.
+  screens so it can be closed.
+- **A handed-in level test survives the app closing while it is graded.** Grading a test's written
+  answers is one batch call on the local model after Finish, and on a slow computer it can take minutes
+  (a cold model load on top). Finish first writes the time taken (`db.ts markLevelTestHandedIn`); the
+  answers are already stored. An attempt with a time and no `completed_at` was handed in and never
+  graded, which a stopped test or a window closed mid-test never is. Opening that level's test again
+  finds it before anything else (`getHandedInLevelTest`) and finishes it from the database
+  (`level-test-checks.ts finishHandedInLevelTest`): only answers still unmarked are graded, with the same
+  grader; `completed_at` and the result are saved as at the finish; a pass moves the course up once
+  (`advanceCourseAfterPass`); a test whose written answers no model checked waits for its marks as usual;
+  then the screen runs the finish's other saves, a fail's study plan included. `completed_at` is written
+  only while it is unset (`db.ts completeHandedInLevelTest`), and only the finish that wrote it counts
+  anything, so an attempt is never finished twice, not even by two opens at once (React StrictMode in
+  dev); a fail starts the 24-hour wait like any other. The grading screen says the answers are kept
+  (`level-test.ts GRADING`) only once the hand-in write worked. Quizzes are not covered yet. "Checking
+  eligibility" has a Back button and says when the check failed.
 - **Ollama stopped is not a weak model.** A question call or verify pass that fails because Ollama can't
   be reached, or doesn't have the model (`plain-language.ts` `ollamaUnavailable`, matching the sentences
   `llm.ts` writes), stops making the quiz or test at that call instead of skipping the question. No

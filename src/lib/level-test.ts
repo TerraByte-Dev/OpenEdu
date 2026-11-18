@@ -139,6 +139,19 @@ export function stopTestBody(answered: number): string {
   return answered > 0 ? `${what} The answers you gave are kept, and ones you missed may come back in a quiz for practice.` : what;
 }
 
+/**
+ * "Grading your test". The answers are on disk before grading starts (db.ts markLevelTestHandedIn), so
+ * closing the window or a power cut here loses nothing: the test is graded when it is opened again
+ * (level-test-checks.ts finishHandedInLevelTest), and counts once.
+ */
+export const GRADING = {
+  title: "Grading Your Test",
+  body: "Scoring your written answers…",
+  kept: "Your answers are saved. If this window closes or the power goes off, the scoring finishes when you open this test again.",
+  /** Opened again after the app closed mid-grading. */
+  resumed: "You handed this test in before the app closed. Scoring it now.",
+} as const;
+
 /** The ready screen and the "making" screens of a quiz and a level test. */
 export const MAKING = {
   /** Stops the questions being made and goes back; nothing is saved (quiz.ts stopIfAborted). */

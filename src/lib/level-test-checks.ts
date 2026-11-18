@@ -4,10 +4,12 @@
 
 import {
   completeQuizAttempt, setPromotionResult, updateQuizQuestionGrade, updateLevelTestScore, getQuizAttempt,
-  getLevelTestRows, getLastPromotionAttempt, advanceCourseAfterPass, type LevelTestRow,
+  getLevelTestRows, getLastPromotionAttempt, advanceCourseAfterPass, completeHandedInLevelTest, type LevelTestRow,
 } from "./db";
 import { levelTestResult, type LevelTestResult, type TestAnswer } from "./level-test";
 import { recountAfterMarks } from "./finish-effects";
+import { questionWithSentence, type GradeOutcome } from "./quiz-grading";
+import type { AnswerToGrade } from "./quiz";
 import type { QuizAttempt } from "../types";
 
 /** Who marked an unchecked answer by hand. OpenEdu has one learner, so only the learner. */
@@ -52,6 +54,46 @@ export async function pendingLevelTestFor(attempt: QuizAttempt | null): Promise<
   const unchecked = rows.filter((r) => r.graded_by === "fallback");
   if (unchecked.length === 0 || levelTestResult(answersOf(attempt, rows)).status !== "pending") return null;
   return { attempt, rows, unchecked };
+}
+
+/** Grades written answers the way the finish does: quiz.ts gradeAnswersBatch on a local model, or none. */
+export type WrittenAnswerGrader = (items: AnswerToGrade[]) => Promise<Map<number, GradeOutcome>>;
+
+/**
+ * Finish a level test that was handed in but whose grading never ended (db.ts markLevelTestHandedIn: the
+ * app was closed or lost power on "Grading your test"), from what is on disk. The written answers still
+ * unmarked are graded as at the finish (an outcome missing from the grader is 'fallback', as there), then
+ * the result is saved as saveLevelTestResult saves it, and a pass moves the course up. Its other saves
+ * (mastery, cards, the study log) are the screen's, as at the finish. Counts once: an attempt that has
+ * completed_at, or was never handed in, returns null and changes nothing. completed_at is written before
+ * anything is counted, only while it is still unset (completeHandedInLevelTest), so of two finishes running
+ * at once (React StrictMode runs the screen's mount twice in dev) the second returns null; both may grade the
+ * answers, which writes the same marks again. A failure to write it throws, so the next open tries again.
+ */
+export async function finishHandedInLevelTest(attemptId: string, grade: WrittenAnswerGrader): Promise<SettledLevelTest | null> {
+  const attempt = await getQuizAttempt(attemptId);
+  if (!attempt || attempt.quiz_type !== "promotion" || attempt.completed_at !== null || attempt.time_taken_seconds == null) return null;
+  const rows = await getLevelTestRows(attemptId);
+  const open = rows.filter((r) => r.user_answer !== null && r.is_correct === null);
+  if (open.length > 0) {
+    const outcomes = await grade(open.map((r, index) => ({
+      index, question: questionWithSentence(r), expected: r.correct_answer, student: r.user_answer ?? "", type: r.question_type,
+    })));
+    for (const [i, r] of open.entries()) {
+      const o = outcomes.get(i) ?? { isCorrect: true, feedback: "", by: "fallback" as const };
+      await updateQuizQuestionGrade(r.id, o.isCorrect, o.by);
+      r.is_correct = o.isCorrect;
+      r.graded_by = o.by;
+    }
+  }
+  const result = levelTestResult(answersOf(attempt, rows));
+  if (!(await completeHandedInLevelTest(attemptId, result.overall, result.correct))) return null;
+  let nextLevel: number | null = null;
+  if (result.status !== "pending") {
+    await setPromotionResult(attemptId, result.status === "passed", result.reviewPct);
+    if (result.status === "passed") nextLevel = await advanceCourseAfterPass(attempt.course_id, attempt.level);
+  }
+  return { ...result, attemptId, courseId: attempt.course_id, level: attempt.level, nextLevel, rows };
 }
 
 /** The course level's latest test, if it is waiting for its written answers to be marked. */

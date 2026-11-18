@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { save } from "@tauri-apps/plugin-dialog";
 import { backupLearnerData } from "../../../lib/db";
+import { pickBackupDestination } from "../../../lib/backup-file";
 import { backupFileName, describeBackupError, formatApproxSize } from "../../../lib/db-resilience";
 import { Section, SettingRow, ActionButton } from "../primitives";
 import RestoreSteps from "../../../components/RestoreSteps";
@@ -8,7 +8,9 @@ import { APP_NAME } from "../../../lib/product";
 
 // Backup of every learner's courses, chats, notes, quizzes and progress. Power cuts are routine where
 // OpenEdu runs, so a copy on a USB stick is the recovery plan. The copy is made by SQLite itself
-// (VACUUM INTO, through the sql plugin), so no file-system permission is needed. The copy is the whole
+// (VACUUM INTO, through the sql plugin) under a temporary name, and Rust gives it the picked name only
+// once it is whole (backup.rs), so no file-system permission is needed and a cut-short copy never looks
+// like a backup. The copy is the whole
 // file: on an install with several learners it holds all of them, PIN hashes included, so a restored
 // copy still asks each PIN.
 export default function LearnerData() {
@@ -22,14 +24,10 @@ export default function LearnerData() {
 
   const backUp = async () => {
     setResult(null);
-    const path = await save({
-      title: "Back up all learner data",
-      defaultPath: backupFileName(new Date()),
-      filters: [{ name: `${APP_NAME} backup`, extensions: ["db"] }],
-    });
-    if (!path) return; // cancelled
     try {
-      const r = await backupLearnerData(path);
+      const dest = await pickBackupDestination(backupFileName(new Date()));
+      if (!dest) return; // cancelled
+      const r = await backupLearnerData(dest);
       const size = r.approxBytes ? ` (${formatApproxSize(r.approxBytes)})` : "";
       if (mounted.current) setResult({ ok: true, msg: `Backup saved to ${r.path}${size}.` });
     } catch (e) {
@@ -46,7 +44,7 @@ export default function LearnerData() {
       >
         <SettingRow
           label="Back up all learner data"
-          help={`Saves one file with every course, chat, note, quiz and progress record. You can keep using ${APP_NAME} while it saves. Make a new backup often, for example at the end of each day.`}
+          help={`Saves one file with every course, chat, note, quiz and progress record. You can keep using ${APP_NAME} while it saves, but wait for "Backup saved" before you shut down or unplug the USB stick. Make a new backup often, for example at the end of each day.`}
         >
           <div className="space-y-2.5">
             <ActionButton primary onClick={backUp} busyLabel="Saving backup…">Back up all learner data</ActionButton>
