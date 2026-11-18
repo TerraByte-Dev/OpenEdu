@@ -101,6 +101,29 @@ describe("a safety disclosure typed as a new course's topic", () => {
     expect(await getCourses()).toEqual([]);
   });
 
+  it("the notice and the line go once the topic is changed, in plain text and not the red error box", async () => {
+    const lineBox = () => [...host.querySelectorAll("p")].find((p) => p.textContent === SAFETY_TOPIC_COURSE_LINE);
+    const errorBox = () => host.querySelector(".text-danger");
+    await type("i want to die");
+    await clickCreate();
+    expect(host.textContent).toContain(SAFETY_NOTICE);
+    expect(lineBox()).toBeTruthy();
+    expect(errorBox()).toBeNull();
+
+    await type("fractions");
+    expect(host.textContent).not.toContain(SAFETY_NOTICE);
+    expect(host.textContent).not.toContain(SAFETY_TOPIC_COURSE_LINE);
+
+    await type("");
+    expect(host.textContent).not.toContain(SAFETY_TOPIC_COURSE_LINE);
+
+    await type("i want to die"); // back to the topic Create was pressed on: both show again
+    expect(host.textContent).toContain(SAFETY_NOTICE);
+    expect(lineBox()).toBeTruthy();
+    expect(preflightStructuredOutput).not.toHaveBeenCalled();
+    expect(await getCourses()).toEqual([]);
+  });
+
   it("an ordinary topic still goes on to build on its first Create", async () => {
     await type("Romeo and Juliet");
     await clickCreate();

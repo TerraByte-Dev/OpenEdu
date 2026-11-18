@@ -110,7 +110,7 @@ export async function dispatchToolCall(
   if (decision === "ask" && ctx.confirmTool) {
     // The card shows what the call will do, from its own arguments. tool.description is written for
     // the model ("Plain text only — no LaTeX") and must never reach the learner.
-    const approved = await ctx.confirmTool(call.name, describeToolCall(call.name, parsed.data));
+    const approved = await ctx.confirmTool(call.name, describeToolCall(call.name, parsed.data, ctx.syllabus?.subtopics));
     if (!approved) {
       const error = `The student declined to let ${call.name} run.`;
       onUIEvent?.({ kind: "error", id: call.id, name: call.name, error });

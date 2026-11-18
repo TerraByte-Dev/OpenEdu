@@ -8,6 +8,8 @@ import type { PermissionRules } from "../permissions/rules";
 import type { Skill } from "../dsl/skill";
 import type { LLMConfig } from "../../types";
 import { flashcardCreateTool } from "../tools/flashcard/CreateTool";
+import { markMasteredTool } from "../tools/progress/MarkMasteredTool";
+import type { Syllabus } from "../../types";
 
 // The real store imports @tauri-apps/plugin-store and caches rules at module level. Each test
 // injects its own rule set instead.
@@ -225,6 +227,19 @@ describe("dispatchToolCall", () => {
     expect(confirmTool).toHaveBeenCalledWith("flashcard.create", "The card: “What is 7 x 8?”");
     const [, summary] = confirmTool.mock.calls[0] as unknown as [string, string];
     expect(summary).not.toMatch(/LaTeX|markdown|spaced-repetition/);
+  });
+
+  it("names the topic and the mark on a progress card, by title even when the model sends the id", async () => {
+    toolRegistry.register(markMasteredTool);
+    setRules({ "progress.mark_mastered": { default: "ask", study: "allow", exam: "allow" } });
+    const syllabus = { subtopics: [{ id: "1.2", title: "Adding fractions" }] } as unknown as Syllabus;
+    const confirmTool = vi.fn(async () => false);
+    await run("progress.mark_mastered", { subtopic_id: "1.2", status: "mastered" }, ctx({ confirmTool, syllabus }));
+    await run("progress.mark_mastered", { subtopic_id: "adding fractions", status: "practiced" }, ctx({ confirmTool, syllabus }));
+    expect(confirmTool.mock.calls).toEqual([
+      ["progress.mark_mastered", "Mark “Adding fractions” as learned"],
+      ["progress.mark_mastered", "Mark “Adding fractions” as practiced"],
+    ]);
   });
 
   it("proceeds on an ask when there is no confirmTool (headless)", async () => {

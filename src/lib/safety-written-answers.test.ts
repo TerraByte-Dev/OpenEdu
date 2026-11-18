@@ -171,7 +171,8 @@ describe("the screens draw the notice from these checks, with the learner's grad
   });
   it("the new-course topic shows it, and no click builds or sends it (dashboard-topic.test.ts clicks it)", () => {
     const s = src(dashboard);
-    expect(s).toContain("if (isSafetyDisclosure(t, grade)) { setSafetyTopic(t); setError(SAFETY_TOPIC_COURSE_LINE); return; }");
-    expect(s).toMatch(/\{safetyTopic !== null && safetyTopic === topic\.trim\(\) && <SafetyNotice /);
+    expect(s).toContain("if (isSafetyDisclosure(t, grade)) { setSafetyTopic(t); return; }");
+    expect(s).toMatch(/\{safetyTopic !== null && safetyTopic === topic\.trim\(\) && \(\s*<div className="mb-4">\s*<SafetyNotice className="mb-2" \/>\s*<p [^>]*>\{SAFETY_TOPIC_COURSE_LINE\}<\/p>/);
+    expect(s).not.toMatch(/setError\(SAFETY_TOPIC_COURSE_LINE\)/);
   });
 });
