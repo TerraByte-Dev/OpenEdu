@@ -753,6 +753,24 @@ export function uncheckedSummary(n: number): string | null {
   return n === 1 ? "1 written answer was not checked. It counts as right." : `${n} written answers were not checked. They count as right.`;
 }
 
+/**
+ * Leaving a practice quiz with answers in it (QuizFullScreen's Exit Quiz asks first, as the level test's
+ * STOP_TEST does). The quiz stays unfinished: no score, no results and no mastery change, and the Quiz tab
+ * makes a new one next time. Each answer was saved as it was given, so it still counts as practice (db.ts
+ * getSubtopicAccuracy, getReviewPoolQuestions). With no answer yet it leaves without asking.
+ */
+export const LEAVE_QUIZ = {
+  title: "Leave this quiz?",
+  leave: "Leave the quiz",
+  keep: "Keep going",
+} as const;
+
+/** What leaving a practice quiz does, for the confirm. `answered` = questions answered so far. */
+export function leaveQuizBody(answered: number): string {
+  const kept = answered === 1 ? "The answer you gave still counts as practice." : `The ${answered} answers you gave still count as practice.`;
+  return `It won't get a score, and next time the Quiz tab makes a new quiz. ${kept}`;
+}
+
 // One verdict per answer, named answer_1..answer_N in the order of `items` (the caller's own indices
 // can be anything, so the model never has to copy them). A list of any length let gemma4:e2b close it
 // after the first entry in 3 of 5 batches (B10 round 3: 8 of 20 typed answers marked); with every key

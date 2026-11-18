@@ -2,7 +2,7 @@
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
 import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
 import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
-import { answerMark, answerShown, keyShown, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
+import { answerMark, answerShown, keyShown, leaveQuizBody, LEAVE_QUIZ, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getLLMConfig, getLocalVerifyConfig, getReviewConfig } from "../lib/store";
@@ -64,6 +64,8 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
   const [config, setConfig] = useState<LLMConfig | null>(null);
   const [genProgress, setGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
+  // Exit Quiz asks first once a question is answered (quiz-grading.ts LEAVE_QUIZ), inline, never a browser dialog.
+  const [confirmLeave, setConfirmLeave] = useState(false);
   // Synchronous single-flight guard — a fast double-click can fire handleFinish twice before the
   // `finishing` state re-renders, which would double-grade and double-persist (issue #83 review).
   const finishingRef = useRef(false);
@@ -370,6 +372,7 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
   const answeredCurrent = question?.user_answer !== null;
   const allAnswered = questions.every((q) => q.user_answer !== null);
   const isLastQuestion = currentIndex === questions.length - 1;
+  const answeredCount = questions.filter((q) => q.user_answer !== null).length;
 
   return (
     <div className="fixed inset-x-0 top-8 bottom-0 z-50 bg-bg flex flex-col">
@@ -385,13 +388,31 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
           </div>
         </div>
         <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-faint)] hover:text-ink text-xs transition-colors shrink-0"
+          onClick={() => (answeredCount > 0 ? setConfirmLeave(true) : onClose())}
+          disabled={finishing}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-panel-lite hover:bg-lcd text-[var(--ink-faint)] hover:text-ink text-xs transition-colors shrink-0 disabled:opacity-40"
         >
           <IconXmark size={14} />
           Exit Quiz
         </button>
       </div>
+
+      {confirmLeave && !finishing && (
+        <div className="px-6 py-4 border-b border-[var(--rule)] bg-panel shrink-0" role="alertdialog" aria-labelledby="leave-quiz-title">
+          <div className="max-w-2xl mx-auto">
+            <p id="leave-quiz-title" className={`${sm} font-semibold text-ink mb-1`}>{LEAVE_QUIZ.title}</p>
+            <p className={`${sm} text-[var(--ink-dim)] mb-3`}>{leaveQuizBody(answeredCount)}</p>
+            <div className="flex gap-3">
+              <button onClick={onClose} className="px-4 py-2 rounded-lg bg-panel-lite hover:bg-lcd text-ink text-sm font-medium transition-colors">
+                {LEAVE_QUIZ.leave}
+              </button>
+              <button onClick={() => setConfirmLeave(false)} className="px-4 py-2 rounded-lg btn-primary text-sm font-medium transition-colors">
+                {LEAVE_QUIZ.keep}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {questions.length < QUIZ_TARGET && (
         <div className={`px-6 py-1.5 text-[11px] border-b shrink-0 ${questions.length < QUIZ_FLOOR ? "text-danger bg-danger-tint border-danger/20" : "text-warning bg-warning-tint border-warning/20"}`}>
