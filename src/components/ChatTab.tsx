@@ -64,6 +64,8 @@ interface ChatTabProps {
   onThreadCreated: (threadId: string) => void;
   // Bumps the thread's updated_at so the rail can re-sort by real activity.
   onThreadActivity: () => void;
+  // The tutor saved a progress mark this turn (progress.mark_mastered), so the course view reloads.
+  onProgressChanged?: () => void;
   // The active learner's grade (#243): the reading-level line in the system prompt, larger text for
   // K-2, and whether replies read themselves aloud. null = not set: none of it applies.
   learnerId: string;
@@ -74,7 +76,7 @@ interface ChatTabProps {
 // saved as the child's own message (`saved`) in the thread they belong to, and still owed a reply.
 interface CardMessage { thread: string; saved: ChatMessage }
 
-export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview, threadId, onThreadCreated, onThreadActivity, learnerId, grade }: ChatTabProps) {
+export default function ChatTab({ courseId, course, level, currentSyllabus, seedTopic, onSeedConsumed, onOpenResource, onOpenReview, threadId, onThreadCreated, onThreadActivity, onProgressChanged, learnerId, grade }: ChatTabProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -412,6 +414,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
 
     try {
       const result = await tutorEngine.run(turn, ctx);
+      // The mark is saved whatever happens to the reply, so reload even after a thread switch.
+      if (result.toolCalls.some((c) => c.name === "progress.mark_mastered" && c.ok)) onProgressChanged?.();
       // Three different things, previously collapsed into one flag. "abandoned" means the student
       // stopped it or the stream died; "truncated" means the model ran out of room mid-sentence but
       // what it did say is usable. Only the first should suppress follow-ups.

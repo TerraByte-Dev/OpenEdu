@@ -48,7 +48,7 @@ vi.mock("../llm", async (importOriginal) => ({
 import { tutorEngine, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
 import { registerBuiltinTools } from "../tools";
-import type { LLMConfig, Subtopic } from "../../types";
+import type { LLMConfig, Subtopic, Syllabus } from "../../types";
 
 registerBuiltinTools();
 
@@ -76,13 +76,19 @@ function seedCourse(): void {
   sqlite.prepare(`INSERT INTO syllabuses (id, course_id, level, title, subtopics) VALUES ('s1', 'c1', 1, 'Level 1', ?1)`).run(JSON.stringify(SUBTOPICS));
 }
 
-const markCall = (status: "mastered" | "practiced"): TurnEvent[] => [
-  { type: "tool_call", id: "call_0", name: "progress.mark_mastered", args: { subtopic_id: "Equal Groups", status } },
+const markCall = (status: "mastered" | "practiced", subtopic = "Equal Groups"): TurnEvent[] => [
+  { type: "tool_call", id: "call_0", name: "progress.mark_mastered", args: { subtopic_id: subtopic, status } },
   { type: "done", finishReason: "tool_calls" },
 ];
 const reply = (text: string): TurnEvent[] => [{ type: "text", delta: text }, { type: "done", finishReason: "stop" }];
 
-async function assessTurn(): Promise<TutorTurnResult> {
+// What the course view loaded when it opened (ChatTab passes it as ctx.syllabus): nothing mastered yet.
+const OPENED_WITH: Syllabus = {
+  id: "s1", course_id: "c1", level: 1, title: "Level 1", description: "", learning_objectives: [],
+  subtopics: SUBTOPICS, assessment_criteria: [], estimated_hours: 1, generated_at: "2026-11-18 10:00:00",
+};
+
+async function assessTurn(syllabus: Syllabus | null = null): Promise<TutorTurnResult> {
   const { activeSkill, domainSkill } = chatTurnSkills("assess", "Multiplication", "tiny", true);
   return tutorEngine.run(
     {
@@ -95,7 +101,7 @@ async function assessTurn(): Promise<TutorTurnResult> {
       config: CONFIG, retrieval: "off", onText: () => {},
     },
     {
-      courseId: "c1", level: 1, syllabus: null, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+      courseId: "c1", level: 1, syllabus, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
       abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async () => true,
     },
   );
@@ -150,6 +156,21 @@ describe("progress.mark_mastered on a course with no completed quiz", () => {
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: true });
     expect(result.toolCalls[0].ok).toBe(true);
     expect(toolResultSeen()).not.toMatch(/^ERROR/);
+  });
+
+  it("a second mark in the same visit keeps the first, though the view's syllabus predates both", async () => {
+    script = [markCall("mastered"), reply("Saved."), markCall("mastered", "Sharing Fairly"), reply("Saved.")];
+    await assessTurn(OPENED_WITH);
+    await assessTurn(OPENED_WITH);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered])).toEqual([["1.1", true], ["1.2", true]]);
+  });
+
+  it("a mark keeps a quiz's mastery saved after the view opened", async () => {
+    const quizzed = SUBTOPICS.map((s) => (s.id === "1.2" ? { ...s, mastered: true, practiced: true } : s));
+    sqlite.prepare("UPDATE syllabuses SET subtopics = ?1 WHERE id = 's1'").run(JSON.stringify(quizzed));
+    script = [markCall("practiced"), reply("Saved.")];
+    await assessTurn(OPENED_WITH);
+    expect(subtopicsInDb().map((s) => [s.id, s.mastered, s.practiced])).toEqual([["1.1", false, true], ["1.2", true, true]]);
   });
 
   it("quotes the real average once a quiz is completed", async () => {

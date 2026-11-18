@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterAll } from "vitest";
 import { computeStreak, dayKey, accuracyPct, minutesFromSeconds } from "./analytics";
+
+// Pin a zone west of Greenwich (UTC-6 in November, UTC-5 in June), so a test fails if anything keys
+// by UTC day or reads a stored SQLite time as local, whatever zone the machine running the suite is in.
+vi.stubEnv("TZ", "America/Chicago");
+afterAll(() => { vi.unstubAllEnvs(); });
 
 const NOW = new Date("2026-06-05T15:00:00.000Z");
 const at = (day: string, time = "10:00:00") => `${day}T${time}.000Z`;
@@ -28,11 +33,29 @@ describe("computeStreak", () => {
   it("returns 0 for no activity", () => {
     expect(computeStreak([], NOW)).toBe(0);
   });
+
+  // quiz_attempts.started_at is SQLite's datetime('now'): UTC, "YYYY-MM-DD HH:MM:SS", no zone.
+  it("counts a quiz taken at 1 pm Central right after it, from the stored SQLite time", () => {
+    expect(computeStreak(["2026-11-18 19:00:00"], new Date("2026-11-18T19:05:00Z"))).toBe(1);
+  });
+
+  it("keys days by the learner's local day: an evening and the next morning are two days", () => {
+    // 9 pm Central on the 17th (03:00 UTC on the 18th), then 9 am Central on the 18th.
+    expect(computeStreak(["2026-11-18 03:00:00", "2026-11-18 15:00:00"], new Date("2026-11-18T20:00:00Z"))).toBe(2);
+  });
+
+  it("steps back over a DST change without skipping a day", () => {
+    // US clocks fell back on 1 Nov 2026: noon Central on Oct 31, Nov 1 and Nov 2.
+    expect(computeStreak(["2026-10-31 17:00:00", "2026-11-01 18:00:00", "2026-11-02 18:00:00"], new Date("2026-11-02T20:00:00Z"))).toBe(3);
+  });
 });
 
 describe("dayKey / accuracyPct / minutesFromSeconds", () => {
-  it("dayKey strips to YYYY-MM-DD", () => {
+  it("dayKey gives the local YYYY-MM-DD of an ISO or SQLite UTC time", () => {
     expect(dayKey("2026-06-05T23:59:00.000Z")).toBe("2026-06-05");
+    expect(dayKey("2026-06-06T03:00:00.000Z")).toBe("2026-06-05");
+    expect(dayKey("2026-11-18 03:00:00")).toBe("2026-11-17");
+    expect(dayKey("2026-11-18 19:00:00")).toBe("2026-11-18");
   });
   it("accuracyPct rounds, null when empty", () => {
     expect(accuracyPct({ correct: 3, total: 4 })).toBe(75);
