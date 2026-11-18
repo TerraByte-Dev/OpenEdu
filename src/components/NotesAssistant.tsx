@@ -101,8 +101,8 @@ export default function NotesAssistant({
       const transcript = formatTranscript(messages, grade);
       if (!transcript.trim()) {
         // Every exchange may have been left out (formatTranscript), which is not the same as none at all.
-        // The title is the learner's first message (ChatTab deriveThreadTitle), which may be the disclosure
-        // that was left out, so this line doesn't repeat it.
+        // The title is the learner's first message (ChatTab deriveThreadTitle). A chat started before titles
+        // were screened may be titled with the disclosure that was left out, so this line doesn't repeat it.
         setError(messages.length
           ? "There's nothing in the last chat to make notes from."
           : `“${threads[0].title || "Untitled"}” has no messages yet.`);

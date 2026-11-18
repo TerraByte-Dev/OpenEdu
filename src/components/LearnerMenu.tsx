@@ -3,8 +3,9 @@ import { renameLearner, setLearnerPin, deleteLearner } from "../lib/db";
 import { clearLearnerStore } from "../lib/store";
 import {
   learnerMenuActions, validateLearnerName, deleteConfirmMatches,
-  LEARNER_NAME_MAX, type LearnerRow,
+  LEARNER_NAME_MAX, LEARNER_NAME_DISCLOSURE, type LearnerRow,
 } from "../lib/learners";
+import SafetyNotice from "./SafetyNotice";
 import { hashPin, verifyPin, isValidPin } from "../lib/learner-pin";
 import { PIN_BACKUP_NOTE } from "../lib/db-resilience";
 import { Initial, BIG_BTN } from "./LearnerPicker";
@@ -116,6 +117,8 @@ function Actions({ onBack, submitLabel, busy, danger }: { onBack: () => void; su
 }
 
 function ErrorLine({ msg }: { msg: string | null }) {
+  // A name that reads as a safety disclosure (validateLearnerName): the notice, and the line in plain text.
+  if (msg === LEARNER_NAME_DISCLOSURE) return <><SafetyNotice /><p className="text-base text-ink">{msg}</p></>;
   return msg ? <p className="text-base text-danger">{msg}</p> : null;
 }
 

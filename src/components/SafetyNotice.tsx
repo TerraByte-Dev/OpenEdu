@@ -4,9 +4,11 @@ import { IconMediaStop, IconVolumeUp } from "./icons";
 
 // The chat's fixed SAFETY_NOTICE (child-safety.ts), with a speaker button so a learner who cannot read it can
 // hear it, as under a chat message. Shown where a learner's typed words outside the chat read as a safety
-// disclosure: a quiz or level-test written answer, "why is that the answer?", and the new-course topic.
-// Code-matched by the caller (isSafetyDisclosure with the learner's grade), never a model call. A notice,
-// never a block. Ported from TerraTutor #175.
+// disclosure: a quiz or level-test written answer, "why is that the answer?", the new-course topic, a Notebook
+// note, search, folder name or import, a new card and a learner's name.
+// Code-matched by the caller (isSafetyDisclosure with the learner's grade), never a model call. Ported from
+// TerraTutor #175. The notice itself never blocks: the caller decides whether the words are also refused (a
+// learner's name, a folder name, a search, a card) or kept (TerraTutor #237).
 
 // `large`: K-2 (grade.ts isEarlyReader) reads it at the chat's larger size (.chat-text-large, 1.25rem), as the
 // same notice reads in the chat, instead of 14px beside a text-xl quiz (ported from TerraTutor #231).
