@@ -63,7 +63,7 @@ wrapper are **not type-linked**; keep them in sync by hand.
   `src/components/question-renderer.test.ts`, which renders an answered question as the level test and the quiz show it,
   `src/components/notes-delete.test.ts`, which double-clicks the real Notebook's trash button,
   `src/components/review-confirm.test.ts`, which reveals and deletes a card on the real Review tab,
-  `src/components/notes-save-error.test.ts`, which saves a note in the real Notebook on a full disk,
+  `src/components/notes-save-error.test.ts`, which saves a note in the real Notebook on a full disk, by autosave, on leaving the tab and on close,
   `src/components/notes-summary-grade.test.ts`, which clicks the real Notes from last chat with a learner's grade, and
   `src/components/notes-cards-safety.test.ts`, which types a safety disclosure into the real Notebook, Review this note and Review's + New card.
 - Rust logic gets `#[cfg(test)]` tests in the same file. Test against temp dirs, never the user's disk.

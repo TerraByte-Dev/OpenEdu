@@ -62,9 +62,21 @@ full`, or the OS's own words) is said plainly: `plain-language.ts friendlyError`
 of space…" for a course build, a lesson or a saved tutor reply, instead of "try again in a moment". The
 learner's chat message is saved before anything is sent, so one that can't be saved is not sent: its words
 go back in the box and the chat says so (`messageNotSaved`). A note that can't be saved says so under its
-title and names it (`noteNotSaved`); the edit stays in the editor while the note is open. Tested on a real
-SQLite capped at its size (`disk-full.test.ts`, and `notes-save-error.test.ts` in the real Notebook). Ported
-from TerraTutor #232.
+title, names it (`noteNotSaved`) and offers Save again; its words stay in the editor, and the app won't open
+another note over them until a save works (`note-autosave.ts`, below). Tested on a real SQLite capped at its
+size (`disk-full.test.ts`, and `notes-save-error.test.ts` in the real Notebook). Ported from TerraTutor #232
+and #235.
+
+**Notebook saves.** A note saves itself about 2 seconds after the learner stops typing
+(`note-autosave.ts AUTOSAVE_DELAY_MS`), and again when the editor loses focus, another note opens, the
+Notes tab is left (removing a focused editor fires no blur) and the window closes (`App.tsx`
+`onCloseRequested` awaits `savePendingEdits`, at most 3 s, before unloading models). So Alt+F4, a crash or
+a power cut loses at most the last few seconds of typing. One write runs at a time, the same words are
+never written twice, and words typed while a save is on its way are saved after it. A save that fails keeps
+its words in the saver for the app session, so reopening the note brings them back. A note is re-indexed
+for search when the learner leaves it, not on every autosave (each index re-embeds the whole note). Tested
+in `note-autosave.test.ts`, on a full SQLite in `disk-full.test.ts`, and in the real Notebook in
+`notes-save-error.test.ts`. Ported from TerraTutor #235.
 
 **A migration that fails.** tauri-plugin-sql 2.3.2 (`commands.rs load`) takes the database's migration
 list out before it migrates and does not put it back when migrating fails, so a second `Database.load` in
@@ -1228,9 +1240,10 @@ A note that couldn't be embedded when it was imported or saved (no embedding mod
 picked up by `reindexCourseNotes`, which `NotesTab` runs each time it opens a course's notes: it skips
 notes whose entry is current, stops when the embedder itself can't run (model missing, Ollama down, no
 OpenAI key or connection) and skips past a note that fails on its own. `NotesTab` runs every index job
-(that pass, embed-on-save, a deleted note's clean-up) one at a time, so one note never gets two entries. Each
+(that pass, the re-index when the learner leaves a saved note, a deleted note's clean-up) one at a time, so one note never gets two entries. Each
 note gets its own editor (`MarkdownEditor` keyed on the note id), so undo history never crosses notes;
-a save writes the note it was handed and never re-selects it, and the trash button only asks: "Delete this
+a save writes the note it was handed and never re-selects it (every save goes through
+`note-autosave.ts`, "Notebook saves" above), and the trash button only asks: "Delete this
 note?" opens on its own row below the header, with Delete and Keep it (focused), so a double-click on the
 trash can't delete the note.
 
