@@ -459,6 +459,7 @@ export default function App() {
                   key={selectedCourseId}
                   courseId={selectedCourseId}
                   initialAction={courseInitialAction}
+                  onInitialActionConsumed={() => setCourseInitialAction(undefined)}
                   onBack={() => setCurrentView("dashboard")}
                   onOpenQuiz={openQuiz}
                   onOpenPromotionTest={openPromotionTest}
