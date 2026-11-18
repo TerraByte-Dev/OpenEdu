@@ -18,7 +18,7 @@ import { lookupWord, type Shard } from "../../dictionary";
 import { newlyReachable, reachableTsv } from "./newly-reachable-lib";
 import { REVIEWED_UNSAFE_SENSES, REVIEWED_UNSAFE_EXAMPLES, REVIEWED_SENSE_KEEPS } from "../../kernel/senseReview";
 import {
-  askedWord, dictionaryNote, selectSenses, childSafeSense, childSafeExample,
+  askedWord, dictionaryNote, selectSenses, childSafeSense, childSafeExample, lookupDictionary,
   NEUTRAL_PHRASE, ALLOWED_WORDS, DRUG_NAME,
 } from "../../kernel/defineWord";
 
@@ -53,6 +53,19 @@ const BROAD: Record<string, RegExp> = {
     "(?:induced by|under the influence of|high on) drugs", "drug (?:users?|addicts?|abuse|dealers?|pushers?|habit|trips?)",
   ]), "i"),
 };
+// Examples only (2026-11-18 audit, TerraTutor #191): violence against a person, suicide, an overdose, abuse,
+// and an unwanted or adult touch. Definitions are not checked against it: "murder" and "lynch" keep their meanings.
+const VIOLENT_EXAMPLE_BROAD = new RegExp(words([
+  "(?:slit|slits|slitting|cut|cuts|cutting|slash\\w*) (?:\\w+ )?throats?", "throats? (?:was |were |is |are )?(?:slit|cut)",
+  "murder\\w*", "slaughter\\w*", "lynch\\w*", "behead\\w*", "decapitat\\w*", "massacr\\w*", "tortur\\w*", "mutilat\\w*",
+  "dismember\\w*", "strangl\\w*", "stab(?:s|bed|bing|bings)?", "suicid\\w*", "overdos\\w*", "corpses?", "dead bod(?:y|ies)",
+  "bled to death", "found dead", "(?:hang|hangs|hanged|hanging) (?:him|her|them)sel(?:f|ves)", "shot (?:him|her|them) dead",
+  "kill(?:s|ed|ing)? (?:him|her|them|himself|herself|themselves|yourself|myself|his wife|her husband)",
+  "(?:physical|sexual|spousal|child|domestic) abuse", "abused (?:wife|husband|child\\w*)",
+  "(?:beat|beats|beating) (?:his|her|their) (?:wife|husband|child\\w*|kids?)",
+  "goos(?:ed|es|ing)", "buttocks?", "seduc\\w*", "unfaithful\\w*", "adulter(?:y|ous|er|ers|ess)", "mistress(?:es)?",
+  "grop(?:e|ed|es|ing) (?:her|him)", "fondl\\w*", "necking", "(?:slept|sleeping) with (?:him|her)", "love affairs?",
+]), "i");
 // A bare "narcotic" in a definition (not "medicine or narcotic", which defines "drug" itself).
 const NARCOTIC = /(?<!medicine or )\bnarcotics?\b/i;
 const PROFANE = /fuck|(?<!cu)shit(?!t(?:ah|im))|cunt|bitch|^twat|^wank(?!el)|whore|slut|dildo|^clit(?:s|oris\w*|oral\w*)?$|blowjob|porn/;
@@ -69,6 +82,10 @@ function broadHit(headword: string, raw: string, kind: "definition" | "example")
     if (m) return m[0];
   }
   if (kind === "definition" && !DRUG_NAME.test(headword) && NARCOTIC.test(text)) return "narcotic";
+  if (kind === "example") {
+    const m = VIOLENT_EXAMPLE_BROAD.exec(text);
+    if (m) return m[0];
+  }
   return null;
 }
 
@@ -191,6 +208,38 @@ describe("child-safety filter on the shipped dictionary", () => {
     expect(await note("mongoloid")).toBe("");
   });
 
+  // 2026-11-18 audit (TerraTutor #191): violent and unwanted-touch examples on everyday words, through the
+  // kernel's path (askedWord, lookupDictionary with its context), which is what the note and the card are built from.
+  const shownFor = async (message: string) => {
+    const asked = askedWord(message)!;
+    return (await lookupDictionary(asked.word, lookupWord, 60_000, undefined, asked.context))?.shown ?? null;
+  };
+  const texts = (shown: Awaited<ReturnType<typeof shownFor>>) =>
+    (shown?.entries ?? []).flatMap((e) => e.senses.flatMap((s) => [s.definition, s.example])).join("\n");
+
+  it("violent and sexual examples never reach a child; the word keeps its senses", async () => {
+    for (const [w, gone] of [
+      ["slice", /throat/i], ["geese", /goosed|buttocks/i], ["goose", /goosed|buttocks/i], ["falsely", /seduc/i],
+      ["collect", /unfaithful/i], ["overdose", /found dead|rock star/i], ["flinch", /slaughter/i],
+      ["lynch", /blood-thirsty|lynched/i], ["suicide", /crime to commit/i],
+    ] as const) {
+      const shown = await shownFor(`what does ${w} mean?`);
+      expect(shown, w).not.toBeNull();
+      expect(texts(shown), w).not.toMatch(gone);
+    }
+    expect(texts(await shownFor("what does slice mean?"))).toMatch(/make a clean cut through/);
+  });
+
+  it("a quoted sense the filter removed is not answered with unrelated senses: no note", async () => {
+    for (const m of ["what does virgin mean in 'the virgin Mary'?", "what does virgin mean?", "what does chaste mean in 'Mary was chaste and holy'?"]) {
+      expect(await shownFor(m), m).toBeNull();
+    }
+    // Where a kept sense fits the sentence, or a removed sense is not the first one, the note stays.
+    expect(texts(await shownFor("what does chaste mean in 'a chaste design'?"))).toMatch(/pure and simple in design/);
+    expect(texts(await shownFor("what does trip mean in 'we went on a trip to the zoo'?"))).toMatch(/a journey for some purpose/);
+    expect(await shownFor("what does chaste mean?")).not.toBeNull();
+  });
+
   it("whole-dictionary sweep: every sense and example the filter keeps passes the broad check, and the removal counts are pinned", async () => {
     const meta = await (await fetch("/dictionary/meta.json")).json() as { shardKeys: string[] };
     const shards = await Promise.all(meta.shardKeys.map(async (k) => (await (await fetch(`/dictionary/${k}.json`)).json()) as Shard));
@@ -225,8 +274,12 @@ describe("child-safety filter on the shipped dictionary", () => {
     // Pinned (docs/BENCHMARKS.md lever 18): a change to the filter or the data shows here. The filter
     // before 2026-11-12 removed 681 senses and 29 examples and left 383 headwords with no note, and the
     // shown note of 1,124 headwords matched BROAD.
+    // 2026-11-18 audit (TerraTutor #191): VIOLENT_EXAMPLE drops 245 more examples (251 -> 496: "slit her throat"
+    // under slice, "he goosed the unsuspecting girl", the suicide, overdose, lynching and slaughter examples);
+    // goose's "pinch in the buttocks" joins the reviewed senses, and virgin and virginal are blocked headwords,
+    // so 1,979 -> 1,984 removed and both give no note (1,191 -> 1,193).
     expect({ headwords: heads.length, senses, removed, examplesDropped, withNote, filteredToNothing }).toEqual({
-      headwords: 127_311, senses: 185_129, removed: 1_979, examplesDropped: 251, withNote: 127_109, filteredToNothing: 1_191,
+      headwords: 127_311, senses: 185_129, removed: 1_984, examplesDropped: 496, withNote: 127_109, filteredToNothing: 1_193,
     });
   }, 300_000);
 });
@@ -268,7 +321,7 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
     expect(removedShown).toEqual([]);
     expect([...reviewedShown]).toEqual([]);
     expect(shown).toEqual([]);
-    expect({ senses, ranked, removed, examplesDropped }).toEqual({ senses: 185_129, ranked: 185_129, removed: 1_979, examplesDropped: 251 });
+    expect({ senses, ranked, removed, examplesDropped }).toEqual({ senses: 185_129, ranked: 185_129, removed: 1_984, examplesDropped: 496 });
   }, 600_000);
 
   it("(b) the newly reachable senses: counted and pinned, with the review's known examples among them", async () => {
@@ -278,7 +331,10 @@ describe("lever 19: the child-safety filter under sense ranking", () => {
     // The review counted 14,223 by distinct part of speech and definition; this counts every stored sense,
     // so 21 senses whose definition repeats one already shown for the headword (their example can differ)
     // are in the list too.
-    expect({ senses: rows.length, headwords: new Set(rows.map((r) => r.headword)).size }).toEqual({ senses: 14_204, headwords: 4_313 });
+    // 2026-11-18 (TerraTutor #191): a headword typed beside one of its irregular forms ("fell" beside fall,
+    // "lay" beside lie) now stops at 5 of its own senses to leave room for the base's, so 17 senses that were
+    // the 6th in stored order (already shown, so not new text to a child) are listed here now (14,204 / 4,313 before).
+    expect({ senses: rows.length, headwords: new Set(rows.map((r) => r.headword)).size }).toEqual({ senses: 14_221, headwords: 4_316 });
     const has = (h: string, ref: string, re: RegExp) => expect(rows.find((r) => r.headword === h && r.ref === ref)?.definition, `${h} #${ref}`).toMatch(re);
     has("flow", "14v", /menstruation/);
     // dish #4n and skirt #4n were removed by the R1(b) read (senseReview.ts), so they are no longer reachable.

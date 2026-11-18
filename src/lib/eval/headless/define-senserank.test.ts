@@ -28,10 +28,13 @@ async function noteFor(ask: string, rank: boolean): Promise<string | null> {
 const lines = (note: string | null) => entryOf(note ?? "").split("\n").filter((l) => /^\d+\. /.test(l));
 
 // lever 18's frozen hash of the 184 shown entries (define-entries.test.ts), here read through S's path.
-const FROZEN_ENTRIES_SHA256 = "407656a10a9aff8a07453aa9388248f63ae22de8de10bc28dfc0ce86980f8241";
+// 2026-11-18: the violent-example screen dropped "the murderer is present in this room" from sense-35-05
+// (was 407656a1…; see define-entries.test.ts).
+const FROZEN_ENTRIES_SHA256 = "d4ba0cfb0f9b5733ea2aa399b14ff9dafd06e177c44b19ba4b862ac41d6245c1";
 // B8's 32 sense items, ranked (R), entry blocks joined in item order. Pinned when senseRank.ts was
-// committed; any change to the ranker, the sentence rule, the caps or the data moves it.
-const RANKED_SENSE_ENTRIES_SHA256 = "66c01a14e7ac5f8945b6c9fd4bbc73f6746c4b42d33568692fb9c10de7a8dd29";
+// committed; any change to the ranker, the sentence rule, the caps or the data moves it. 2026-11-18: the
+// same dropped example in sense-35-05, and nothing else (was 66c01a14…).
+const RANKED_SENSE_ENTRIES_SHA256 = "3869e5f4865c29cf2fcd21f22017ff7b10736b781ab8f338b5e83656585b2ee2";
 
 /** Messages whose context has no sentence containing the word (R3): frozen; R must equal S on each. */
 export const NO_SENTENCE_MESSAGES = [

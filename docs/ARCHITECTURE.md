@@ -659,7 +659,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   with the learner's grade, `TutorTurn.grade`; ported from TerraTutor #165): "this is too hard i wanna die"
   or "my dad hits me when i get them wrong" is not a wrong answer, so that turn gets no answer check, no
   check-before-praise note, no verdict line ("That's not right yet.") and no check on a card answered
-  during it, and a "mastered" mark on it is refused (`MASTERY_REFUSED_DISCLOSURE`).
+  during it, and a "mastered" mark on it is refused (`MASTERY_REFUSED_DISCLOSURE`). Nor a dictionary note
+  or card (ported from TerraTutor #191): "I want to die. what does suicide mean?" was given the entry, its
+  example and "explain it with one everyday example"; the turn takes the safety path only.
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model

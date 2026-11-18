@@ -20,6 +20,8 @@ export const REVIEWED_UNSAFE_SENSES: ReadonlyArray<readonly [string, string]> = 
   ["dish", "a very attractive or seductive looking woman"],
   ["drop", "a predetermined hiding place for the deposit and distribution of illicit goods (such as drugs or stolen property)"],
   ["familiarity", "an act of undue intimacy"],
+  // 2026-11-18 (audit): an unwanted touch, with "he goosed the unsuspecting girl" as its example.
+  ["goose", "pinch in the buttocks"],
   ["habit", "excessive use of drugs"],
   ["head", "a user of (usually soft) drugs"],
   ["honor", "a woman's virtue or chastity"],

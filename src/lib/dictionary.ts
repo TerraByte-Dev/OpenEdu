@@ -33,6 +33,10 @@ export interface DictionaryEntry {
   /** "exact" when the query itself is the headword, "form" when it is an inflected or irregular form. */
   via: "exact" | "form";
   senses: Sense[];
+  /** Only on a form reached through WordNet's irregular-form lists ("lay" -> "lie", "fell" -> "fall",
+   *  "geese" -> "goose"): the parts of speech the query is a form in. The query is not a form of the
+   *  headword's other parts of speech ("lay" is not the noun "lie"). */
+  inflects?: Pos[];
 }
 
 export const POS_NAMES: Record<Pos, string> = { n: "noun", v: "verb", a: "adjective", r: "adverb" };
@@ -81,6 +85,8 @@ export function normalizeQuery(raw: string): string {
 export interface Candidate {
   word: string;
   pos: Pos | null;
+  /** True when an irregular-form list (exceptions.json) named it, not a suffix rule. */
+  irregular?: true;
 }
 
 /** Candidate headwords for a normalized query, most direct first, before checking the dictionary: the
@@ -89,27 +95,27 @@ export interface Candidate {
  *  ("looked up") the same steps also run on its first word, keeping the rest. */
 export function candidateHeadwords(word: string, exc: Exceptions, opts: { trailingDot?: boolean } = {}): Candidate[] {
   const out: Candidate[] = [];
-  const add = (w: string, pos: Pos | null) => {
-    if (w && !out.some((c) => c.word === w && c.pos === pos)) out.push({ word: w, pos });
+  const add = (w: string, pos: Pos | null, irregular = false) => {
+    if (w && !out.some((c) => c.word === w && c.pos === pos)) out.push(irregular ? { word: w, pos, irregular } : { word: w, pos });
   };
-  const bases = (w: string): Array<[string, Pos]> => {
-    const found: Array<[string, Pos]> = [];
-    for (const pos of POS_ORDER) for (const lemma of own(exc[pos], w) ? exc[pos][w] : []) found.push([lemma, pos]);
+  const bases = (w: string): Array<[string, Pos, boolean]> => {
+    const found: Array<[string, Pos, boolean]> = [];
+    for (const pos of POS_ORDER) for (const lemma of own(exc[pos], w) ? exc[pos][w] : []) found.push([lemma, pos, true]);
     for (const pos of ["n", "v", "a"] as const) {
       for (const [suffix, ending] of RULES[pos]) {
-        if (w.length > suffix.length && w.endsWith(suffix)) found.push([w.slice(0, w.length - suffix.length) + ending, pos]);
+        if (w.length > suffix.length && w.endsWith(suffix)) found.push([w.slice(0, w.length - suffix.length) + ending, pos, false]);
       }
     }
     return found;
   };
   add(word, null);
   if (!word.endsWith(".") && (opts.trailingDot || /\p{L}\.\p{L}/u.test(word))) add(`${word}.`, null);
-  for (const [b, pos] of bases(word)) add(b, pos);
+  for (const [b, pos, irregular] of bases(word)) add(b, pos, irregular);
   const space = word.indexOf(" ");
   if (space > 0) {
     const head = word.slice(0, space);
     const rest = word.slice(space);
-    for (const [b, pos] of bases(head)) add(b + rest, pos);
+    for (const [b, pos, irregular] of bases(head)) add(b + rest, pos, irregular);
   }
   return out;
 }
@@ -130,17 +136,24 @@ export function resolveEntries(
   if (!word) return [];
   const entries: DictionaryEntry[] = [];
   for (const cand of candidateHeadwords(word, exc, opts)) {
-    if (entries.some((e) => e.headword === cand.word)) continue;
     const shard = getShard(shardKey(cand.word));
     const rows = shard && own(shard, cand.word) ? shard[cand.word] : undefined;
     if (!rows || rows.length === 0) continue;
     if (cand.pos !== null && !rows.some((r) => r[1] === cand.pos)) continue;
+    const seen = entries.find((e) => e.headword === cand.word);
+    if (seen) {
+      // A headword an irregular form reached is a form in every part of speech a candidate names
+      // ("leaves": exceptions and rules can both name one headword).
+      if (seen.inflects && cand.pos !== null && !seen.inflects.includes(cand.pos)) seen.inflects.push(cand.pos);
+      continue;
+    }
+    if (entries.length >= MAX_HEADWORDS) continue;
     entries.push({
       headword: cand.word,
       via: cand.pos === null ? "exact" : "form",
       senses: rows.map(([form, pos, definition, example, synonyms]) => ({ form, pos, definition, example, synonyms })),
+      ...(cand.irregular && cand.pos !== null ? { inflects: [cand.pos] } : {}),
     });
-    if (entries.length >= MAX_HEADWORDS) break;
   }
   return entries;
 }
