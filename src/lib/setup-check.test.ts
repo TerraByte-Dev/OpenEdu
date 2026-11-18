@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { evaluateSetup, modelIsInstalled } from "./setup-check";
+import { evaluateSetup, modelIsInstalled, showsSetupGate } from "./setup-check";
+import appSource from "../App.tsx?raw";
 
 const facts = (over: Partial<Parameters<typeof evaluateSetup>[0]> = {}) => ({
   provider: "ollama",
@@ -93,6 +94,30 @@ describe("evaluateSetup", () => {
     expect(s.ready).toBe(true);      // usable
     expect(s.complete).toBe(false);  // but honestly incomplete
     expect(embed.detail).toMatch(/still works/i);
+  });
+
+  // A one-model offline kit (docs/OFFLINE-KIT.md) has no embedder: it must not open each launch on setup.
+  it("never shows the setup screen for a missing embedder alone", () => {
+    const kit = evaluateSetup(facts({ installed: ["gemma3:1b"] }));
+    expect(kit.complete).toBe(false);
+    expect(showsSetupGate(kit, false)).toBe(false);
+    expect(showsSetupGate(evaluateSetup(facts()), false)).toBe(false);
+    expect(showsSetupGate(null, false)).toBe(false);
+
+    // Something blocking always shows it, dismissed or not.
+    const noModel = evaluateSetup(facts({ installed: [] }));
+    expect(showsSetupGate(noModel, false)).toBe(true);
+    expect(showsSetupGate(noModel, true)).toBe(true);
+    // Fixed in this launch (the kit import): it stays to say "You're ready to go" until Start learning,
+    // and the embedder row is listed then.
+    expect(showsSetupGate(kit, false, true)).toBe(true);
+    expect(showsSetupGate(kit, true, true)).toBe(false);
+    expect(kit.checks.some((c) => c.id === "embed-model" && c.severity === "optional")).toBe(true);
+  });
+
+  it("App decides the setup screen and Home with it", () => {
+    expect(appSource.match(/showsSetupGate\(setup, setupDismissed, setupWasNeeded\)/g)).toHaveLength(2);
+    expect(appSource).toMatch(/if \(!status\.ready\) setSetupWasNeeded\(true\)/);
   });
 
   it("skips the embedder check when embeddings are not local", () => {
