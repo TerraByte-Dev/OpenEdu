@@ -105,11 +105,12 @@ async function notesFromLastChat(grade: Grade | null): Promise<void> {
 const insert = () => [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Insert into note"));
 
 describe("Notes from last chat reads disclosures with the learner's grade", () => {
-  it("with a K-12 grade, a strong pregnancy self-disclosure and its reply never reach the summariser", async () => {
+  // Nor does anything after it (TerraTutor #238): the tutor still reads the disclosure on later turns.
+  it("with a K-12 grade, a strong pregnancy self-disclosure and everything after it never reach the summariser", async () => {
     await notesFromLastChat(7);
     expect(sent).toHaveLength(1);
     expect(sent[0]).toContain("Student: what is 7 x 8");
-    expect(sent[0]).toContain("Student: and 6 x 7?");
+    expect(sent[0]).not.toContain("and 6 x 7?");
     expect(sent[0]).not.toMatch(/pregnant|grown-up/);
     expect(insert()).toBeTruthy();
   });

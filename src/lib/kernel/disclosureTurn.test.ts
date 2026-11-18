@@ -69,11 +69,11 @@ const toolCall = (name: string, args: unknown): TurnEvent[] => [
 
 interface Run { result: TutorTurnResult; chips: string[] }
 
-async function turn(text: string, grade: Grade | null = null): Promise<Run> {
+async function turn(text: string, grade: Grade | null = null, before: Sent = []): Promise<Run> {
   const chips: string[] = [];
   const result = await tutorEngine.run(
     {
-      messages: [{ role: "system", content: "You are a tutor." }, { role: "user", content: text }],
+      messages: [{ role: "system", content: "You are a tutor." }, ...before, { role: "user", content: text }],
       config: CONFIG, retrieval: "off", grade,
       onText: () => {},
       onToolEvent: (ev) => { chips.push(`${ev.kind}:${ev.name}`); },
@@ -174,6 +174,65 @@ describe("the app's flashcard stage does not run on a disclosure turn", () => {
     await turn("make me a flashcard for 7 x 8");
     expect(structuredCalls).toBe(1);
     expect(cards).toEqual([{ front: "What is 7 x 8?", back: "56" }]);
+  });
+});
+
+// Ported from TerraTutor #238: "my uncle touches me at night", then "what should i do". The second message is
+// no disclosure, but the model still reads the first and answers about it, so the turn keeps nothing either
+// (TutorEngine turnInDisclosedThread: every student message the thread sends, read with the learner's grade).
+describe("disclosure, then what should i do", () => {
+  const UNCLE = "my uncle touches me at night";
+  const thread: Sent = [
+    { role: "user", content: "what is 7 x 8" }, { role: "assistant", content: "7 x 8 = 56." },
+    { role: "user", content: UNCLE }, { role: "assistant", content: "Thank you for telling me. Please tell a grown-up you trust." },
+  ];
+
+  it("the follow-up is no disclosure itself", () => {
+    expect(isSafetyDisclosure(UNCLE)).toBe(true);
+    expect(isSafetyDisclosure("what should i do")).toBe(false);
+  });
+
+  it("the model answers it as usual, and the result says nothing is kept, so ChatTab runs no reflection", async () => {
+    script = [reply("I'm so sorry your uncle has been touching you. Please tell a grown-up you trust.")];
+    const { result } = await turn("what should i do", null, thread);
+    expect(result.text).toBe("I'm so sorry your uncle has been touching you. Please tell a grown-up you trust.");
+    expect(result.disclosure).toBe(true);
+    // The model still read the whole thread: only keeping changes.
+    expect(requests[0].filter((m) => m.role === "user").map((m) => m.content)).toEqual(["what is 7 x 8", UNCLE, "what should i do"]);
+  });
+
+  for (const [name, args, written] of [
+    ["knowledge.update_map", { content: "Student's uncle touches them at night." }, () => instructions],
+    ["notebook.ingest", { title: "What to do", text: "My uncle touches me. Tell a grown-up." }, () => notes],
+    ["flashcard.create", { front: "What should I do?", back: "Tell a grown-up about my uncle." }, () => cards],
+  ] as Array<[string, unknown, () => unknown[]]>) {
+    it(`refuses ${name} on the follow-up`, async () => {
+      script = [toolCall(name, args), reply("Please tell a grown-up you trust.")];
+      const { result, chips } = await turn("what should i do", null, thread);
+      expect(written()).toEqual([]);
+      expect(chips.filter((c) => c.endsWith(name))).toEqual([]);
+      expect(toolResult()).toBe(`ERROR: ${NOT_SAVED_DISCLOSURE}`);
+      expect(result.toolCalls).toEqual([{ name, args, ok: false }]);
+    });
+  }
+
+  it("runs no flashcard stage later in the thread", async () => {
+    await turn("make me a flashcard for 7 x 8", null, thread);
+    expect(structuredCalls).toBe(0);
+    expect(cards).toEqual([]);
+  });
+
+  it("a thread whose earlier messages hold no disclosure keeps as before", async () => {
+    await turn("make me a flashcard for 7 x 8", null, thread.slice(0, 2));
+    expect(cards).toEqual([{ front: "What is 7 x 8?", back: "56" }]);
+    const { result } = await turn("what should i do", null, thread.slice(0, 2));
+    expect(result.disclosure).toBe(false);
+  });
+
+  it("reads earlier messages with the learner's grade: a pregnancy disclosure counts with a K-12 grade only", async () => {
+    const pregnant: Sent = [{ role: "user", content: "im 14 and pregnant" }, { role: "assistant", content: "Please talk to a grown-up." }];
+    expect((await turn("what should i do", 8, pregnant)).result.disclosure).toBe(true);
+    expect((await turn("what should i do", null, pregnant)).result.disclosure).toBe(false);
   });
 });
 

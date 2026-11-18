@@ -251,22 +251,16 @@ Write markdown the student would have written if they had been taking good notes
 Output only the markdown body. No preamble, no "here are your notes".`;
 
 /**
- * The conversation without each student message that reads as a safety disclosure (isSafetyDisclosure) and
- * the tutor's reply to it (everything up to the student's next message). A disclosure never goes into a note,
- * as the kernel keeps it out of the course's memory, notes and flashcards (TutorEngine `disclosure`). It is
- * read with the learner's grade, as the chat's notice is, so with a K-12 grade a strong pregnancy
+ * The conversation before the first student message that reads as a safety disclosure (isSafetyDisclosure):
+ * that message and everything after it are left out. A disclosure never goes into a note, nor a later reply
+ * that may repeat it ("what should i do" next), as the kernel keeps nothing from those turns in the course's
+ * memory, notes and flashcards (TutorEngine turnInDisclosedThread, the same window; ported from TerraTutor
+ * #238). It is read with the learner's grade, as the chat's notice is, so with a K-12 grade a strong pregnancy
  * self-disclosure is left out too.
  */
 function withoutDisclosureExchanges<M extends { role: string; content: string }>(messages: readonly M[], grade: Grade | null): M[] {
-  const out: M[] = [];
-  for (let i = 0; i < messages.length; i++) {
-    if (messages[i].role === "user" && isSafetyDisclosure(messages[i].content, grade)) {
-      while (i + 1 < messages.length && messages[i + 1].role !== "user") i++;
-      continue;
-    }
-    out.push(messages[i]);
-  }
-  return out;
+  const first = messages.findIndex((m) => m.role === "user" && isSafetyDisclosure(m.content, grade));
+  return first < 0 ? [...messages] : messages.slice(0, first);
 }
 
 /**
@@ -278,7 +272,7 @@ export function formatTranscript(
   grade: Grade | null,
   maxTokens = MAX_TRANSCRIPT_TOKENS,
 ): string {
-  // An exchange that opens with a safety disclosure is left out (child-safety.ts).
+  // Everything from the first safety disclosure on is left out (child-safety.ts).
   const lines = withoutDisclosureExchanges(messages, grade)
     .filter((m) => (m.role === "user" || m.role === "assistant") && m.content.trim())
     .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content.trim()}`);
