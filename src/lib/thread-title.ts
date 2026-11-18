@@ -8,6 +8,9 @@
 //
 // Pure and Tauri-free.
 
+import { isSafetyDisclosure } from "./child-safety";
+import type { Grade } from "./grade";
+
 /** Leading scaffolding that carries no topic. Ordered longest-first so the greedy strip works. */
 const LEAD_INS = [
   "can you please help me understand",
@@ -57,8 +60,13 @@ const MAX_TITLE_CHARS = 44;
  *
  * Falls back to "New chat" rather than to a truncated fragment — a title that is one dangling word is
  * worse than an honest placeholder, because it looks like the feature broke.
+ *
+ * A first message that is a safety disclosure (child-safety.ts isSafetyDisclosure, with the learner's grade as
+ * the chat reads it) is "New chat" too: the title is saved and listed in the sidebar on every visit, where no
+ * safety notice is beside it (ported from TerraTutor #237).
  */
-export function deriveThreadTitle(firstMessage: string): string {
+export function deriveThreadTitle(firstMessage: string, grade: Grade | null = null): string {
+  if (isSafetyDisclosure(firstMessage, grade)) return "New chat";
   let text = firstMessage.replace(/\s+/g, " ").trim();
   // Punctuation comes off BEFORE the lead-in pass, not after: otherwise a message that is nothing but
   // scaffolding ("please?") fails the prefix test on its trailing "?" and survives as a title.

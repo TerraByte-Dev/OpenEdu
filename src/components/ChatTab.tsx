@@ -333,7 +333,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     let userMsg: ChatMessage;
     try {
       if (!activeThread) {
-        const t = await createChatThread(courseId, level, deriveThreadTitle(userText));
+        const t = await createChatThread(courseId, level, deriveThreadTitle(userText, grade));
         activeThread = t.id;
         // Record it BEFORE the rail opens it, so opening it does not count as a switch away.
         owner.thread = t.id;

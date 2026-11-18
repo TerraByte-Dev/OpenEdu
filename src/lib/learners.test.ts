@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   needsPicker, needsPin, autoPickLearner, canAccessCourse, learnerMenuActions, wasClassOrSchool, canDeleteLearner,
-  validateLearnerName, deleteConfirmMatches, DEFAULT_LEARNER_ID, LEARNER_NAME_MAX,
+  validateLearnerName, deleteConfirmMatches, DEFAULT_LEARNER_ID, LEARNER_NAME_MAX, LEARNER_NAME_DISCLOSURE,
 } from "./learners";
 
 const L = (id: string, name: string, pin_hash: string | null = null) => ({
@@ -91,6 +91,17 @@ describe("learner management rules", () => {
     expect(validateLearnerName("x".repeat(LEARNER_NAME_MAX + 1), all)).not.toBeNull();
     expect(validateLearnerName(" amina ", all)).not.toBeNull();
     expect(validateLearnerName("Chidi", all)).toBeNull();
+  });
+
+  it("refuses a name that reads as a safety disclosure; ordinary names, nicknames and \"Learner 1\" pass", () => {
+    const all = [L("a", "Amina")];
+    for (const n of ["i want to kill myself", "i want to die", "nobody would care if i died", "my uncle touches me"]) {
+      expect(validateLearnerName(n, all)).toBe(LEARNER_NAME_DISCLOSURE);
+      expect(validateLearnerName(n, all, "a")).toBe(LEARNER_NAME_DISCLOSURE); // a rename too
+    }
+    for (const n of ["Will", "Hope", "Grace", "Learner 1", "Mary-Kate", "Bo", "Killian", "Diego"]) {
+      expect(validateLearnerName(n, all)).toBeNull();
+    }
   });
 
   it("renaming to your own name (or its case) is fine", () => {

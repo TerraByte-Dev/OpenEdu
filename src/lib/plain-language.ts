@@ -190,6 +190,13 @@ export function noteNotSaved(title: string, e: unknown): string {
   return `${name} wasn't saved. Your words are still here. ${outOfSpace(e) ? OUT_OF_SPACE : "Press Save again in a moment."}`;
 }
 
+/**
+ * Said under the safety notice while a Notebook folder's new name reads as a safety disclosure
+ * (child-safety.ts isSafetyDisclosure, with the learner's grade). The name isn't saved: the box stays open with
+ * the folder's old name kept (ported from TerraTutor #237).
+ */
+export const FOLDER_NAME_DISCLOSURE = "This can't be a folder name. Try other words.";
+
 /** True when an embed failed because the embedding model isn't on this computer. */
 export function embeddingModelMissing(e: unknown): boolean {
   return EMBEDDER_MISSING.test(e instanceof Error ? e.message : String(e ?? ""));

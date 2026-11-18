@@ -858,6 +858,24 @@ So the verdict on the child's answer is the app's, not the reply's:
   `ToolContext.grade`, which ChatTab sets. `src/lib/notes-cards-disclosures.test.ts` (real db, notebook,
   `ground()` and tools; only the embedder stubbed) and `src/components/notes-cards-safety.test.ts` (the real
   Notebook, its assistant and Review tab) pin it.
+  **Chat titles, the learner's name, folders, Notebook search and imports** (ported from TerraTutor #237). The
+  same test reads them, with the learner's grade wherever the screen has it. A chat's first message that is
+  one titles the thread "New chat" (`thread-title.ts deriveThreadTitle(text, grade)`), so it is never listed
+  in the sidebar as the title; a thread titled before this change keeps its title. A learner's name that is
+  one is refused by `learners.ts validateLearnerName` (`LEARNER_NAME_DISCLOSURE`, read with no grade), which
+  the learner menu's Change my name and Settings › Learner › Your name (`views/settings/sections/Learner.tsx`,
+  the only rename on a one-learner install with no PIN, where the titlebar shows no learner menu) both run; each
+  shows `SafetyNotice` with that line in plain text (not the red error line), and nothing is saved. In the Notebook, a folder name being typed that is one shows the notice
+  and `FOLDER_NAME_DISCLOSURE`, and Enter or leaving the box saves nothing (the box stays open, the old name
+  kept); a search box that reads as one shows the notice, and Enter never calls `searchNotebook`, so the
+  words never reach the embedder (only that semantic search is held back: the note list's local title and text
+  filter still runs on the words, with no model involved); and an import (`NotesTab ingestFiles`) whose file name or text is one
+  (`noteIsDisclosure`) shows the notice under the import's status line, while the note is still made and
+  kept from every model as above. The file name is read with its `_`, `-`, `.` and camelCase as spaces
+  (`importTitle`: "i_want_to_die", "IWantToDie"), and a name that is one only read that way becomes the
+  note's title in that spaced form, so the title check above catches it too; any other name is kept as
+  written. `thread-title.test.ts`, `learners.test.ts` and `src/components/names-folders-search-safety.test.ts`
+  (the real Notebook, learner menu and Settings › Learner section on the real db) pin it.
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model

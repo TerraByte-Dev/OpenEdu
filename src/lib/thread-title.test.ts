@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { deriveThreadTitle } from "./thread-title";
+import chatTabSource from "../components/ChatTab.tsx?raw";
 
 describe("deriveThreadTitle", () => {
   it("strips politeness scaffolding to leave the subject", () => {
@@ -47,5 +48,30 @@ describe("deriveThreadTitle", () => {
     for (const s of ["?", "!!!", "how do", "explain", "...", "can you help"]) {
       expect(deriveThreadTitle(s).length).toBeGreaterThan(0);
     }
+  });
+
+  // ChatTab titles every new thread from its first message, with the learner's grade
+  // (createChatThread(..., deriveThreadTitle(userText, grade))), and the title is listed in the sidebar with no
+  // notice beside it (ported from TerraTutor #237).
+  it("titles a first message that is a safety disclosure \"New chat\", not the message", () => {
+    for (const s of [
+      "I want to kill myself",
+      "nobody would care if i died",
+      "my uncle touches me and says not to tell",
+      "my dad hits me every night",
+    ]) {
+      expect(deriveThreadTitle(s)).toBe("New chat");
+    }
+    expect(chatTabSource).toContain("createChatThread(courseId, level, deriveThreadTitle(userText, grade))");
+  });
+
+  it("reads with the learner's grade: a pregnancy disclosure is \"New chat\" with a K-12 grade only, as the chat's notice is", () => {
+    expect(deriveThreadTitle("i think im pregnant", 7)).toBe("New chat");
+    expect(deriveThreadTitle("i think im pregnant", null)).not.toBe("New chat");
+  });
+
+  it("still titles an ordinary first message by its subject", () => {
+    expect(deriveThreadTitle("What is photosynthesis?")).toBe("Photosynthesis");
+    expect(deriveThreadTitle("Can you explain the Battle of Gettysburg")).toBe("The Battle of Gettysburg");
   });
 });

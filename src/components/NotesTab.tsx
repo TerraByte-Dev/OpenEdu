@@ -13,7 +13,8 @@ import {
 import { indexNote, importTextAsNote, reindexCourseNotes, searchNotebook } from "../lib/notebook";
 import { ingestResultSummary } from "../lib/ingest-format";
 import { log } from "../lib/llm";
-import { friendlyError, noteNotSaved } from "../lib/plain-language";
+import { friendlyError, noteNotSaved, FOLDER_NAME_DISCLOSURE } from "../lib/plain-language";
+import { isSafetyDisclosure } from "../lib/child-safety";
 import { createNoteSaver, type NoteDraft } from "../lib/note-autosave";
 import QuickSwitcher from "./QuickSwitcher";
 import NotesAssistant from "./NotesAssistant";
@@ -52,6 +53,20 @@ const CONFIRM_BTN: CSSProperties = { fontSize: "0.9rem", padding: "6px 14px" };
 // A one-line plain-text preview of a note's body for the tag-view cards (strips light markdown).
 const snippet = (content: string) =>
   content.replace(/^#{1,6}\s+/gm, "").replace(/[#>*`_~[\]]/g, "").replace(/\s+/g, " ").trim().slice(0, 140);
+
+// An imported file's name as its note's title, extension dropped. A name that reads as a safety disclosure once
+// its separators and camelCase are spaces ("i_want_to_die", "i-want-to-die", "IWantToDie") is saved in that
+// spaced form, so the import shows the notice and noteIsDisclosure keeps the note from every model by its title
+// too. Any other name is kept as written (ported from TerraTutor #237).
+function importTitle(fileName: string, grade: Grade | null): string {
+  const name = fileName.replace(/\.(md|markdown|txt)$/i, "");
+  const spaced = name
+    .replace(/[_\-.]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+    .trim();
+  return noteIsDisclosure(spaced, null, grade) ? spaced : name;
+}
 
 // Graph node radius (world units) — small, with a gentle degree-driven bump so hubs read bigger
 // without dominating. Shared by the canvas painter and the collision spacing so they agree.
@@ -201,6 +216,8 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
 
   const [ingesting, setIngesting] = useState(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
+  // The last import held a file whose name or text reads as a safety disclosure: the notice shows under its status.
+  const [importDisclosed, setImportDisclosed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const graphContainerRef = useRef<HTMLDivElement>(null);
@@ -434,6 +451,9 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
 
   const commitRename = async () => {
     if (!renamingId) return;
+    // A name that reads as a safety disclosure is not saved: the box stays open, with the notice under it, and
+    // the folder keeps its old name.
+    if (isSafetyDisclosure(renameValue, grade)) return;
     await renameFolder(renamingId, renameValue.trim() || "Untitled");
     setRenamingId(null);
     await loadFolders();
@@ -463,6 +483,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
 
   const ingestFiles = async (files: File[], folderId: string | null) => {
     const accepted = files.filter((f) => /\.(md|markdown|txt)$/i.test(f.name));
+    setImportDisclosed(false); // before the early return, so a drop of only unsupported files clears an old notice
     if (accepted.length === 0) { setIngestError("Only .md, .markdown, and .txt files are supported."); return; }
     setIngesting(true);
     setIngestError(null);
@@ -473,11 +494,15 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     let pending = 0; // created but not embedded (embedder missing / offline) — the catch-up on the next open retries
     let failed = 0;  // couldn't even create the note
     let reason: string | undefined; // why the first one couldn't be embedded
+    let disclosed = false;
     for (const f of accepted) {
       try {
         const text = await f.text();
+        const title = importTitle(f.name, grade);
+        // The note is still made, as a typed one is (never embedded or searched); the notice shows at import.
+        if (noteIsDisclosure(title, text, grade)) disclosed = true;
         const sourceType = /\.(md|markdown)$/i.test(f.name) ? "md" : "text";
-        const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target, origin: "import", grade });
+        const res = await importTextAsNote({ courseId, title, text, sourceType, folderId: target, origin: "import", grade });
         imported++;
         if (!res.embedded) { pending++; reason ??= res.indexError; }
       } catch {
@@ -487,6 +512,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
     if (target) setExpanded((s) => new Set(s).add(target));
     await loadAll();
     setIngesting(false);
+    setImportDisclosed(disclosed);
     setIngestError(ingestResultSummary({ imported, pending, failed, reason }).message);
   };
 
@@ -509,7 +535,8 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
 
   const handleSemanticSearch = async () => {
     const q = query.trim();
-    if (!q) { setDocResults(null); return; }
+    // A search that reads as a safety disclosure shows the notice (queryDisclosed) and is never sent to the embedder.
+    if (!q || isSafetyDisclosure(q, grade)) { setDocResults(null); return; }
     setSearching(true);
     try { setDocResults(await searchNotebook({ courseId, query: q, topK: 5, grade })); }
     catch (e) { log.error("NotesTab", "search failed", e); setIngestError(friendlyError(e)); }
@@ -534,6 +561,9 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   // learner's grade as the chat reads it): the safety notice shows above the editor as it is typed. Code-matched,
   // never a model call; the note is still saved, and no model reads it (notebook.ts indexNote, searchNotebook).
   const noteDisclosed = useMemo(() => noteIsDisclosure(editTitle, editContent, grade), [editTitle, editContent, grade]);
+  // The same for what is typed in the search box, and in a folder's name box while it is open.
+  const queryDisclosed = useMemo(() => isSafetyDisclosure(query, grade), [query, grade]);
+  const renameDisclosed = renamingId !== null && isSafetyDisclosure(renameValue, grade);
 
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -651,6 +681,12 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
             </button>
           </span>
         </div>
+        {renamingId === folder.id && renameDisclosed && (
+          <div className="px-2 pb-1.5" style={{ paddingLeft: 5 + depth * 14 }}>
+            <SafetyNotice />
+            <p className="text-xs text-ink mt-1.5">{FOLDER_NAME_DISCLOSURE}</p>
+          </div>
+        )}
         {isOpen && (
           /* Indent guide — one hairline per nesting level. Without it the varying left padding reads
              as arbitrary rather than as depth. */
@@ -722,6 +758,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
               </button>
             )}
           </div>
+          {queryDisclosed && <SafetyNotice className="mt-2" />}
           {allTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {allTags.map((t) => {
@@ -775,6 +812,7 @@ export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
             </div>
           )}
           {ingestError && <div className="px-3 py-1.5 text-[10px] text-danger">{ingestError}</div>}
+          {importDisclosed && <SafetyNotice className="mx-2 my-1.5" />}
         </div>
       </div>
 

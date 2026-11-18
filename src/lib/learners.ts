@@ -12,6 +12,8 @@
 // learner (courses.learner_id, migration 13). Filter the course list and refuse a foreign course, and
 // everything below a course (chats, notes, quizzes, flashcards, the misconception profile) follows.
 
+import { isSafetyDisclosure } from "./child-safety";
+
 /** The learner migration 13 creates and assigns every pre-existing course to. Must match lib.rs. */
 export const DEFAULT_LEARNER_ID = "default";
 
@@ -101,8 +103,17 @@ export function canDeleteLearner(learners: ReadonlyArray<unknown>): boolean {
 }
 
 /**
+ * Said, under the safety notice, for a name that reads as a safety disclosure (child-safety.ts
+ * isSafetyDisclosure). It is not saved: a name is shown on the picker, the titlebar chip and the learner
+ * menu on every visit (ported from TerraTutor #237).
+ */
+export const LEARNER_NAME_DISCLOSURE = "This can't be saved as a name. Please type a first name.";
+
+/**
  * Validate a learner name for create/rename. Names must be unique (case-insensitive) because the
  * picker identifies people by name alone. Returns an error message, or null when the name is fine.
+ * The learner menu's Change my name and Settings › Learner › Your name run this, and each shows
+ * SafetyNotice when it returns LEARNER_NAME_DISCLOSURE.
  */
 export function validateLearnerName(
   raw: string,
@@ -112,6 +123,7 @@ export function validateLearnerName(
   const name = raw.trim();
   if (!name) return "Type a name.";
   if (name.length > LEARNER_NAME_MAX) return `Keep it under ${LEARNER_NAME_MAX} letters.`;
+  if (isSafetyDisclosure(name)) return LEARNER_NAME_DISCLOSURE;
   const key = name.toLocaleLowerCase();
   if (existing.some((l) => l.id !== selfId && l.name.trim().toLocaleLowerCase() === key)) {
     return "Someone already has that name.";
