@@ -205,6 +205,27 @@ describe("the quiz review pool", () => {
     expect(await pool(course.id)).toEqual([]);
   });
 
+  // TerraTutor #215 (audit 8 #5): an answer nothing checked is stored right ('fallback': no local model, the
+  // grader failed, or a safety disclosure typed as the answer), whatever was written. It never takes a miss
+  // out of the pool; the learner's own Right mark on a level test does.
+  it("keeps a miss whose later answer nothing checked, and drops it once the learner marks that answer right", async () => {
+    const course = await createCourse("Biology", "biology");
+    const missed = await createQuizAttempt(course.id, "quiz", 1, 1);
+    await saveQuizQuestion(question(missed.id, { question_text: "What holds DNA?", is_correct: false }), "model");
+    for (const answer of ["no idea", "i dont want to live anymore"]) {
+      const redo = await createQuizAttempt(course.id, "quiz", 1, 1);
+      const id = await saveQuizQuestion(question(redo.id, { question_text: "What holds DNA?", user_answer: answer, is_correct: null }));
+      await updateQuizQuestionGrade(id, true, "fallback"); // QuizFullScreen's save of an unchecked answer
+      expect(await pool(course.id)).toEqual(["What holds DNA?"]);
+    }
+    const test = await createQuizAttempt(course.id, "promotion", 1, 1);
+    const id = await saveQuizQuestion(question(test.id, { question_text: "What holds DNA?", user_answer: "the nucleus", is_correct: null }));
+    await updateQuizQuestionGrade(id, true, "fallback");
+    expect(await pool(course.id)).toEqual(["What holds DNA?"]);
+    await updateQuizQuestionGrade(id, true, "self"); // level-test-checks.ts settleLevelTest's mark
+    expect(await pool(course.id)).toEqual([]);
+  });
+
   it("matches a right answer whose text has a tab or line break at either end, as the dedup does", async () => {
     const course = await createCourse("Biology", "biology");
     const missed = await createQuizAttempt(course.id, "quiz", 1, 1);
