@@ -342,3 +342,18 @@ export function buildVaultGraph(notes: readonly Note[], folders: readonly Notebo
   for (const nd of nodes) nd.degree = degree.get(nd.id) ?? 0;
   return { nodes, links, adjacency };
 }
+
+// ── Editor sync ───────────────────────────────────────────────────────────────
+// The smallest single edit that turns `cur` into `next`: the shared prefix and suffix stay put and
+// only the span between them is replaced. MarkdownEditor uses it when the note's text changes from
+// outside the editor (the assistant's "Insert into note"), so the change lands where it belongs and
+// the cursor, scroll and undo history around it are untouched. null when the two are the same.
+export function replaceSpan(cur: string, next: string): { from: number; to: number; insert: string } | null {
+  if (cur === next) return null;
+  let start = 0;
+  const max = Math.min(cur.length, next.length);
+  while (start < max && cur.charCodeAt(start) === next.charCodeAt(start)) start++;
+  let end = 0;
+  while (end < max - start && cur.charCodeAt(cur.length - 1 - end) === next.charCodeAt(next.length - 1 - end)) end++;
+  return { from: start, to: cur.length - end, insert: next.slice(start, next.length - end) };
+}

@@ -7,10 +7,10 @@ const MarkdownEditor = lazy(() => import("./MarkdownEditor"));
 import { forceCollide } from "d3-force";
 import type { Note, NotebookFolder, NotebookSearchResult } from "../types";
 import {
-  getNotes, createNote, updateNote, deleteNote,
+  getNotes, createNote, updateNote, deleteNote, deleteNotebookDocumentByNote,
   getFolders, createFolder, renameFolder, deleteFolder, moveNoteToFolder,
 } from "../lib/db";
-import { indexNote, importTextAsNote, searchNotebook } from "../lib/notebook";
+import { indexNote, importTextAsNote, reindexCourseNotes, searchNotebook } from "../lib/notebook";
 import { ingestResultSummary } from "../lib/ingest-format";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
@@ -54,6 +54,11 @@ function nodeRadius(gn: { kind: GraphNodeKind; degree: number }): number {
   const cap = gn.kind === "folder" ? 7 : gn.kind === "tag" ? 6 : 4;
   return base + Math.min(gn.degree, cap) * 0.6;
 }
+
+// Search indexing runs one job at a time, across mounts too (NotesTab unmounts on every tab switch, and
+// a catch-up pass can outlive it). The catch-up pass and embed-on-save would otherwise index the same
+// note at once and leave it two index entries; a deleted note's clean-up waits its turn as well.
+let indexChain: Promise<unknown> = Promise.resolve();
 
 // Visibility of the context panel, remembered across mounts. Mirrors the `oe-` prefix theme.ts uses.
 const CONTEXT_PANEL_KEY = "oe-notes-context";
@@ -116,7 +121,8 @@ function MentionGroup({ mention, onOpen }: { mention: Mention; onOpen: (id: stri
 
 // ── Component ─────────────────────────────────────────────────────────────────
 // Course-wide Obsidian-like vault (Phase 3): one note tree per course, organized into nested
-// folders. Every note is searchable — imported files become notes, and notes re-index on save.
+// folders. Every note is searchable — imported files become notes, notes re-index on save, and opening
+// the notes indexes any note that couldn't be indexed before (reindexCourseNotes).
 interface NotesTabProps { courseId: string; level: number }
 type PanelView = "note" | "graph" | "tag";
 
@@ -131,6 +137,9 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [indexing, setIndexing] = useState(false);
+  // The trash button's first click only arms it; the second deletes. A note has no undo or bin.
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [focusEditor, setFocusEditor] = useState(false); // the next note's editor takes focus as it opens
   const [panelView, setPanelView] = useState<PanelView>("note");
 
   const [query, setQuery] = useState("");
@@ -185,7 +194,23 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const fgRef = useRef<any>(null);        // react-force-graph instance (imperative handle)
   const didFitRef = useRef(false);        // zoom-to-fit only once per time the graph opens
 
-  useEffect(() => { loadAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [courseId]);
+  const indexJobs = useRef(0);
+  const queueIndex = (job: () => Promise<unknown>) => {
+    indexJobs.current++;
+    setIndexing(true);
+    // Best-effort: a missing or offline embedder must never block notes. The next catch-up retries.
+    indexChain = indexChain.then(job).catch(() => {}).finally(() => {
+      if (--indexJobs.current === 0) setIndexing(false);
+    });
+  };
+
+  useEffect(() => {
+    loadAll();
+    // Catch-up: notes that couldn't be indexed when they were imported or saved (no embedding model
+    // yet, Ollama not running) join search now, without anyone having to edit them.
+    queueIndex(() => reindexCourseNotes(courseId));
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [courseId]);
 
   useEffect(() => {
     if (!graphContainerRef.current) return;
@@ -230,12 +255,19 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   const loadFolders = async () => setFolders(await getFolders(courseId));
 
   // ── Note selection / editing ──
-  const selectNote = (note: Note) => {
+  // `focus`: a [[link]] click in the editor, where the learner was typing, so the new note's editor takes
+  // the focus the old one had.
+  const selectNote = (note: Note, focus = false) => {
+    // Already open (a [[link]] to itself, its own backlink): keep the editor as it is. Reloading from
+    // `notes` would put back the last saved text over unsaved typing, and the next blur would save that.
+    if (note.id === selectedNote?.id) { setPendingLink(null); setPanelView("note"); return; }
     saveIfDirty();
+    setFocusEditor(focus);
     setSelectedNote(note);
     setEditTitle(note.title);
     setEditContent(note.content);
     setPendingLink(null);
+    setReveal(null); // the new note's editor would otherwise jump to the last note's outline click
     setPanelView("note");
   };
 
@@ -278,31 +310,49 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
 
   const saveIfDirty = useCallback(() => {
     if (!selectedNote) return;
-    if (editTitle !== selectedNote.title || editContent !== selectedNote.content) handleSave();
+    if (editTitle !== selectedNote.title || editContent !== selectedNote.content) {
+      handleSave({ ...selectedNote, title: editTitle, content: editContent });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNote, editTitle, editContent]);
 
-  const handleSave = async () => {
-    if (!selectedNote) return;
+  // Saves exactly the note it is handed, and never puts it back as the open note after its await: by
+  // then the learner may have moved on (a [[link]] click saves and switches in one go). Doing that left
+  // the app with the old note open while the editor showed the new one, and the next save wrote the
+  // new note's title and text over the old note.
+  const handleSave = async (note: Note) => {
     setSaving(true);
-    await updateNote(selectedNote.id, editTitle, editContent);
-    const updated = { ...selectedNote, title: editTitle, content: editContent };
-    setNotes((prev) => prev.map((n) => (n.id === selectedNote.id ? updated : n)));
-    setSelectedNote(updated);
+    await updateNote(note.id, note.title, note.content);
+    setNotes((prev) => prev.map((n) => (n.id === note.id ? note : n)));
+    setSelectedNote((cur) => (cur?.id === note.id ? note : cur));
     setSaving(false);
-    // Embed-on-save: re-index so the note is searchable. Best-effort + background — a missing/offline
-    // embedder must never block saving (errors swallowed). sha-skips internally when unchanged.
-    setIndexing(true);
-    indexNote({ courseId, noteId: selectedNote.id, title: editTitle, text: editContent })
-      .catch(() => {})
-      .finally(() => setIndexing(false));
+    // Embed-on-save: re-index so the note is searchable. sha-skips internally when unchanged.
+    queueIndex(() => indexNote({ courseId, noteId: note.id, title: note.title, text: note.content }));
   };
+
+  // The editor reads `focusEditor` once, as it is built (its effect runs before this one). Clear it, so a
+  // later rebuild (back from the graph) doesn't take the focus.
+  useEffect(() => { if (focusEditor) setFocusEditor(false); }, [focusEditor]);
+
+  // Disarm when the note changes, and after a few seconds so an armed button doesn't wait for a stray click.
+  useEffect(() => { setDeleteArmed(false); }, [selectedNote?.id]);
+  useEffect(() => {
+    if (!deleteArmed) return;
+    const t = setTimeout(() => setDeleteArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [deleteArmed]);
 
   const handleDeleteNote = async () => {
     if (!selectedNote) return;
-    await deleteNote(selectedNote.id);
-    setNotes((prev) => prev.filter((n) => n.id !== selectedNote.id));
-    setSelectedNote(null);
+    if (!deleteArmed) { setDeleteArmed(true); return; }
+    const id = selectedNote.id;
+    setDeleteArmed(false);
+    await deleteNote(id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    setSelectedNote((cur) => (cur?.id === id ? null : cur));
+    // An index job already queued for this note (its last save) would write a fresh entry for a note
+    // that no longer exists. Clear it once those jobs have run.
+    queueIndex(() => deleteNotebookDocumentByNote(id));
   };
 
   const handleBlur = () => saveIfDirty();
@@ -311,7 +361,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   // explicit "create note" affordance instead of silently materializing a phantom note (Obsidian-like).
   const handleWikiLinkNav = (title: string) => {
     const found = resolveWikiLink(title, notes);
-    if (found) { selectNote(found); return; }
+    if (found) { selectNote(found, true); return; }
     setPendingLink(title);
   };
 
@@ -373,15 +423,16 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     // always created (embedding is best-effort); we tally and report honestly.
     const target = folderId ?? (await ensureImportedFolder());
     let imported = 0;
-    let pending = 0; // created but not embedded (embedder offline) — embed-on-save will retry
+    let pending = 0; // created but not embedded (embedder missing / offline) — the catch-up on the next open retries
     let failed = 0;  // couldn't even create the note
+    let reason: string | undefined; // why the first one couldn't be embedded
     for (const f of accepted) {
       try {
         const text = await f.text();
         const sourceType = /\.(md|markdown)$/i.test(f.name) ? "md" : "text";
         const res = await importTextAsNote({ courseId, title: f.name.replace(/\.(md|markdown|txt)$/i, ""), text, sourceType, folderId: target, origin: "import" });
         imported++;
-        if (!res.embedded) pending++;
+        if (!res.embedded) { pending++; reason ??= res.indexError; }
       } catch {
         failed++;
       }
@@ -389,7 +440,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
     if (target) setExpanded((s) => new Set(s).add(target));
     await loadAll();
     setIngesting(false);
-    setIngestError(ingestResultSummary({ imported, pending, failed }).message);
+    setIngestError(ingestResultSummary({ imported, pending, failed, reason }).message);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -821,8 +872,16 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                 >
                   <IconSidebarRight size={15} />
                 </button>
-                <button onClick={handleDeleteNote} className="p-1.5 rounded hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger transition-colors shrink-0" title="Delete note">
+                <button
+                  onClick={handleDeleteNote}
+                  className={`p-1.5 rounded transition-colors shrink-0 inline-flex items-center gap-1 ${
+                    deleteArmed ? "bg-danger-tint text-danger" : "hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger"
+                  }`}
+                  title={deleteArmed ? "Click again to delete this note" : "Delete note"}
+                  aria-label={deleteArmed ? "Click again to delete this note" : "Delete note"}
+                >
                   <IconTrash size={15} />
+                  {deleteArmed && <span className="text-[11px] font-medium">Click again to delete</span>}
                 </button>
               </div>
 
@@ -844,8 +903,9 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
               <div className="flex-1 flex min-h-0">
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center text-[var(--ink-faint)] text-sm">Loading editor…</div>}>
                   <MarkdownEditor
+                    key={selectedNote.id}
+                    autoFocus={focusEditor}
                     doc={editContent}
-                    noteId={selectedNote.id}
                     onChange={setEditContent}
                     onBlur={handleBlur}
                     onWikiLinkClick={handleWikiLinkNav}
@@ -888,7 +948,13 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                         noteContent={editContent}
                         annotations={anchoredAnnotations}
                         onAnnotations={setAnnotations}
-                        onInsertSummary={(md) => setEditContent((c) => appendSummary(c, md))}
+                        onInsertSummary={(md) => {
+                          // Saved straight away: the click was in the rail, so no editor blur follows
+                          // to save it, and leaving the Notes tab would otherwise drop it.
+                          const content = appendSummary(editContent, md);
+                          setEditContent(content);
+                          handleSave({ ...selectedNote, title: editTitle, content });
+                        }}
                         onRevealOffset={(offset) => setReveal({
                           line: editContent.slice(0, offset).split("\n").length - 1,
                           nonce: Date.now(),

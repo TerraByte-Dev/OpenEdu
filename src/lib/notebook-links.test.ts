@@ -14,7 +14,9 @@ import {
   findUnlinkedMentions,
   extractOutline,
   wikiLinkPrefix,
+  replaceSpan,
 } from "./notebook-links";
+import { appendSummary } from "./notebook-assistant";
 import type { Note, NotebookFolder } from "../types";
 
 // ── Test fixtures ───────────────────────────────────────────────────────────
@@ -366,5 +368,35 @@ describe("WIKI_LINK_RE does not span lines", () => {
     const b = note({ id: "nb", title: "Beta", content: "" });
     const g = buildVaultGraph([a, b], []);
     expect(g.links).toEqual([{ source: "na", target: "nb" }]);
+  });
+});
+
+describe("replaceSpan", () => {
+  const apply = (cur: string, next: string) => {
+    const c = replaceSpan(cur, next);
+    return c ? cur.slice(0, c.from) + c.insert + cur.slice(c.to) : cur;
+  };
+
+  it("is null when nothing changed", () => {
+    expect(replaceSpan("same", "same")).toBeNull();
+  });
+
+  it("turns 'Insert into note' into an insertion at the end, leaving the learner's text alone", () => {
+    const cur = "# Plants\n\nPlants make food from light.";
+    const next = appendSummary(cur, "- Leaves catch sunlight.");
+    const c = replaceSpan(cur, next)!;
+    expect(c.from).toBe(cur.length);
+    expect(c.to).toBe(cur.length);
+    expect(apply(cur, next)).toBe(next);
+  });
+
+  it("replaces only the middle when both ends match", () => {
+    expect(replaceSpan("abcXYZdef", "abc12def")).toEqual({ from: 3, to: 6, insert: "12" });
+  });
+
+  it("handles repeated characters where prefix and suffix could overlap", () => {
+    for (const [a, b] of [["aaa", "aaaa"], ["aaaa", "aa"], ["", "x"], ["x", ""], ["abab", "ab"]]) {
+      expect(apply(a, b)).toBe(b);
+    }
   });
 });

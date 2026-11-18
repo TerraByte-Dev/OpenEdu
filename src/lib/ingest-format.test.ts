@@ -7,11 +7,23 @@ describe("ingestResultSummary", () => {
   });
 
   it("warns (not errors) when notes import but can't be embedded — the embedder-offline case", () => {
-    const s = ingestResultSummary({ imported: 3, pending: 3, failed: 0 });
+    const s = ingestResultSummary({ imported: 3, pending: 3, failed: 0, reason: "Ollama, the program that runs the tutor, isn't running on this computer. Start Ollama, then try again." });
     expect(s.kind).toBe("warn");
-    expect(s.message).toMatch(/couldn't be embedded/i);
-    expect(s.message).toMatch(/Ollama/);
-    expect(s.message).toMatch(/re-index/i);
+    expect(s.message).toBe(
+      "Imported 3 notes, but 3 notes couldn't be added to notebook search yet. OpenEdu tries again each time you open Notes.",
+    );
+  });
+
+  it("names the missing embedding model's fix, and never promises an open-and-save that does nothing", () => {
+    const s = ingestResultSummary({
+      imported: 2, pending: 2, failed: 0,
+      reason: 'Ollama embedding model "nomic-embed-text" not found — run: ollama pull nomic-embed-text',
+    });
+    expect(s.message).toBe(
+      "Imported 2 notes, but 2 notes couldn't be added to notebook search yet. Notebook search isn't set up on " +
+      "this computer yet. Add the embedding model in Settings › Provider & Models. OpenEdu tries again each " +
+      "time you open Notes.",
+    );
   });
 
   it("errors only when nothing imported at all", () => {
