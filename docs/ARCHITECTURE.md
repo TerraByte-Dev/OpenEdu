@@ -331,6 +331,16 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   missed one can come back in a quiz (`getReviewPoolQuestions`), and the confirm says so when there is
   one (`db-level-test-stop.test.ts`). Closing the window does the same; the Titlebar stays over both
   screens so it can be closed. "Checking eligibility" has a Back button and says when the check failed.
+- **Ollama stopped is not a weak model.** A question call or verify pass that fails because Ollama can't
+  be reached, or doesn't have the model (`plain-language.ts` `ollamaUnavailable`, matching the sentences
+  `llm.ts` writes), stops making the quiz or test at that call instead of skipping the question. No
+  attempt is created (so no short review-only quiz starts from the missed-question pool), and the screen
+  shows `friendlyError`'s Ollama sentence, never "pick a more capable model". The course build does the
+  same for a subtopic expansion: the level fails unsaved, so resuming rebuilds it, instead of saving a
+  placeholder subtopic. A chat reply whose stream breaks after text reached the learner ends as
+  `stalled` and is saved with its marker; with no text yet, the error names Ollama. A failed
+  `getOllamaVersion` probe is not cached, so structured calls get the schema format again once Ollama is
+  back (`ollama-down.test.ts`).
 - **Code settles an answer that is the key in another form.** Before the batch goes to the model,
   `answer-match.ts` `settleByCode` puts the answer and the key in one form (case, punctuation, a leading
   "it's" or article, number words as digits, plurals) and accepts the answer when it is the key or one

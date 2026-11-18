@@ -6,6 +6,7 @@ import { initKnowledgeFiles } from "./knowledge";
 import { MATH_FORMATTING_RULES, MATH_FORMATTING_RULES_PROSE } from "./formatting";
 import { assembleLessonMarkdown, lessonIssues, type LessonContent } from "./lesson-format";
 import { reviewLessonIfRan, cloudCheckedBy, withoutFlaggedParts, correctionsNote } from "./content-review";
+import { ollamaUnavailable } from "./plain-language";
 import type { LLMConfig, ModelTier, Syllabus, Subtopic, Lesson, CourseOutline, OutlineLevel, ConceptLedger, LevelLedgerEntry } from "../types";
 
 // ─── JSON Schemas for structured pipeline stages ──────────────────────────────
@@ -1056,6 +1057,9 @@ async function expandSubtopics(
   let failures = 0;
 
   const handleFailure = (idx: number, sub: { id: string; title: string }, reason: unknown): SubtopicExpansion => {
+    // Ollama stopped or the model is gone: not a model that wrote a bad answer. The level fails unsaved,
+    // so resuming the build writes this subtopic for real instead of keeping a placeholder for good.
+    if (ollamaUnavailable(reason)) throw reason;
     failures++;
     if (failures === 1) {
       onChunk?.(`[L${level}] ⚠ Subtopic ${idx + 1}/${topicList.length} "${sub.title}" used safe defaults (model failed). Reason: ${reason instanceof Error ? reason.message : String(reason)}\n`);

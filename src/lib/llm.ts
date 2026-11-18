@@ -537,6 +537,9 @@ export async function callLLM(
 }
 
 // ─── Ollama version probe (cached per baseUrl) ────────────────────────────────
+// Only an answer is cached. A failed probe (Ollama not started yet, or stopped for a moment) is asked
+// again next call: cached, it would send every structured call after Ollama came back with the loose
+// "json" format instead of the schema, until the app restarted.
 const ollamaVersionCache = new Map<string, string | null>();
 
 export async function getOllamaVersion(ollamaUrl: string): Promise<string | null> {
@@ -547,7 +550,7 @@ export async function getOllamaVersion(ollamaUrl: string): Promise<string | null
       method: "GET",
       headers: { "Accept": "application/json", "Origin": "" },
     });
-    if (!response.ok) { ollamaVersionCache.set(base, null); return null; }
+    if (!response.ok) return null;
     const json = await response.json();
     const version = (typeof json.version === "string" ? json.version : null);
     ollamaVersionCache.set(base, version);
@@ -555,7 +558,6 @@ export async function getOllamaVersion(ollamaUrl: string): Promise<string | null
     return version;
   } catch (e) {
     log.warn("getOllamaVersion", "probe failed", e);
-    ollamaVersionCache.set(base, null);
     return null;
   }
 }
@@ -2175,7 +2177,17 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
     let callIdx = 0;
     let doneReason: string | undefined;
     while (true) {
-      const chunk = await readChunk(reader, signal);
+      let chunk: Awaited<ReturnType<typeof readChunk>>;
+      try {
+        chunk = await readChunk(reader, signal);
+      } catch (e) {
+        // The reply broke off mid-stream with no Stop: Ollama quit, crashed or restarted. What the
+        // student already saw ends the turn as a stalled one, so it is saved with its marker
+        // (persistedReply) instead of vanishing; with nothing shown yet, the turn names Ollama.
+        log.error("streamOllamaTurn", "Ollama stream broke off", e);
+        if (yielded) { yield { type: "done", finishReason: "stalled" }; return; }
+        throw new Error(ollamaUnreachable(baseUrl));
+      }
       if (chunk.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
       if (chunk.done) break;
       bump(); // bytes arrived — the stream is alive, restart the silence clock

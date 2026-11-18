@@ -11,6 +11,7 @@ import {
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
 import { isLocalModel } from "./privacy";
+import { ollamaUnavailable } from "./plain-language";
 import { settleByCode, misspellingCandidates, misspeltNameCandidates, personNameWords, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup, type WordSenses } from "./answer-match";
 import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
 import { inWordList } from "./wordlist";
@@ -435,6 +436,9 @@ async function generateOneQuestion(ctx: BatchContext, priorSummaries: string[]):
     return q ? finalizeQuestion(q) : null;
   } catch (e) {
     stopIfAborted(ctx.signal);
+    // Ollama stopped or the model is gone: every later question fails the same way, so the quiz or test
+    // stops here and the screen says to start Ollama (friendlyError), not that the model struggled.
+    if (ollamaUnavailable(e)) throw e;
     log.warn("generateOneQuestion", `failed for ${ctx.levelLabel} [${[...allowedIds].join(",")}]`, e instanceof Error ? e.message : String(e));
     return null;
   }
@@ -579,8 +583,9 @@ async function generateToTarget(
 // structured call re-solves the checkable questions and flags any whose stored answer it disagrees
 // with; those are dropped and top-up refills.
 // The output is tiny (verdicts, not full questions), so it's cheap even on the floor model. Best-effort:
-// any failure returns the batch untouched, and a drop only happens on an explicit disagreement, so a
-// confused verifier can't silently drain the question count.
+// any failure returns the batch untouched (but Ollama stopped or missing the model, which stops the
+// quiz or test), and a drop only happens on an explicit disagreement, so a confused verifier can't
+// silently drain the question count.
 const VERIFIABLE_TYPES = new Set(["multiple_choice", "true_false", "fill_in_blank", "short_answer", "word_problem"]);
 const VERIFY_SCHEMA = {
   type: "object",
@@ -625,6 +630,7 @@ async function verifyAndFilter(
     return questions.filter((_, i) => !drop.has(i));
   } catch (e) {
     stopIfAborted(signal);
+    if (ollamaUnavailable(e)) throw e;
     log.warn("quiz", `${label}: verify pass failed — keeping batch as-is`, e instanceof Error ? e.message : String(e));
     return questions;
   }
