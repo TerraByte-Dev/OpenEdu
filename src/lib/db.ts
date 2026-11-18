@@ -776,12 +776,17 @@ export async function markLevelTestHandedIn(attemptId: string, timeTaken: number
 }
 
 // Finish a handed-in level test (finishHandedInLevelTest): its score and completed_at, keeping the time
-// Finish wrote. Writes only while completed_at is still unset, and says whether it did, so of two finishes
-// running at once only one goes on to count it.
+// Finish wrote. completed_at is when it was handed in, not when it was opened again: started_at plus the
+// time taken (the timer starts as the attempt is created), never later than now. So the test is dated on
+// the day it was taken, and a fail's 24-hour wait runs from the hand-in, as at a normal finish. Writes
+// only while completed_at is still unset, and says whether it did, so of two finishes running at once
+// only one goes on to count it.
 export async function completeHandedInLevelTest(attemptId: string, score: number, correctCount: number): Promise<boolean> {
   const d = await getDb();
   const r = await d.execute(
-    "UPDATE quiz_attempts SET score = $1, correct_count = $2, completed_at = datetime('now') WHERE id = $3 AND completed_at IS NULL",
+    `UPDATE quiz_attempts SET score = $1, correct_count = $2,
+            completed_at = MIN(datetime('now'), COALESCE(datetime(started_at, '+' || time_taken_seconds || ' seconds'), datetime('now')))
+      WHERE id = $3 AND completed_at IS NULL`,
     [score, correctCount, attemptId]
   );
   return r.rowsAffected > 0;

@@ -4,13 +4,14 @@
 
 import {
   completeQuizAttempt, setPromotionResult, updateQuizQuestionGrade, updateLevelTestScore, getQuizAttempt,
-  getLevelTestRows, getLastPromotionAttempt, advanceCourseAfterPass, completeHandedInLevelTest, type LevelTestRow,
+  getLevelTestRows, getLastPromotionAttempt, advanceCourseAfterPass, completeHandedInLevelTest, markLevelTestHandedIn,
+  saveQuizQuestion, type LevelTestRow,
 } from "./db";
-import { levelTestResult, type LevelTestResult, type TestAnswer } from "./level-test";
+import { levelTestResult, type LevelTestResult, type TestAnswer, type TestSection } from "./level-test";
 import { recountAfterMarks } from "./finish-effects";
 import { questionWithSentence, type GradeOutcome } from "./quiz-grading";
 import type { AnswerToGrade } from "./quiz";
-import type { QuizAttempt } from "../types";
+import type { QuizAttempt, QuizQuestion } from "../types";
 
 /** Who marked an unchecked answer by hand. OpenEdu has one learner, so only the learner. */
 export type HandChecker = "self";
@@ -22,6 +23,35 @@ const asAnswer = (r: LevelTestRow): TestAnswer => ({ section: r.test_section ?? 
 export function answersOf(attempt: QuizAttempt, rows: ReadonlyArray<LevelTestRow>): TestAnswer[] {
   const missing = Math.max(0, attempt.total_questions - rows.length);
   return [...rows.map(asAnswer), ...Array.from({ length: missing }, (): TestAnswer => ({ section: "current", is_correct: false, graded_by: "unanswered" }))];
+}
+
+/** A question a timed-out test never answered, as the screen holds it. */
+export type UnansweredQuestion = Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct"> & { section: TestSection };
+
+/**
+ * Hand a level test in at Finish, before its written answers are graded. A timed-out test's unanswered
+ * questions are stored first, as wrong ('unanswered') with their section, so a test graded later from
+ * the database (finishHandedInLevelTest, after the app closed on "Grading your test") scores them as the
+ * finish does: a missing review question counted as a current one could pass the review bar. Then the
+ * time taken, which marks it handed in (db.ts markLevelTestHandedIn). A row that fails to save is logged
+ * and the hand-in goes on (answersOf counts it as wrong); a failed hand-in write throws.
+ */
+export async function handInLevelTest(attemptId: string, timeTakenSeconds: number, unanswered: ReadonlyArray<UnansweredQuestion>): Promise<void> {
+  await Promise.all(unanswered.map((q) => saveQuizQuestion({
+    attempt_id: attemptId,
+    question_text: q.question_text,
+    question_type: q.question_type,
+    options: q.options,
+    correct_answer: q.correct_answer,
+    user_answer: null,
+    is_correct: false,
+    difficulty_level: q.difficulty_level,
+    explanation: q.explanation,
+    subtopic_id: q.subtopic_id,
+    matching_pairs: q.matching_pairs,
+    blank_position: q.blank_position,
+  }, "unanswered", q.section).catch((e) => console.error("saving an unanswered question failed", e))));
+  await markLevelTestHandedIn(attemptId, timeTakenSeconds);
 }
 
 /**
@@ -63,8 +93,8 @@ export type WrittenAnswerGrader = (items: AnswerToGrade[]) => Promise<Map<number
  * Finish a level test that was handed in but whose grading never ended (db.ts markLevelTestHandedIn: the
  * app was closed or lost power on "Grading your test"), from what is on disk. The written answers still
  * unmarked are graded as at the finish (an outcome missing from the grader is 'fallback', as there), then
- * the result is saved as saveLevelTestResult saves it, and a pass moves the course up. Its other saves
- * (mastery, cards, the study log) are the screen's, as at the finish. Counts once: an attempt that has
+ * the result is saved as saveLevelTestResult saves it, dated when it was handed in (completeHandedInLevelTest),
+ * and a pass moves the course up. Its other saves (mastery, cards, the study log) are the screen's, as at the finish. Counts once: an attempt that has
  * completed_at, or was never handed in, returns null and changes nothing. completed_at is written before
  * anything is counted, only while it is still unset (completeHandedInLevelTest), so of two finishes running
  * at once (React StrictMode runs the screen's mount twice in dev) the second returns null; both may grade the

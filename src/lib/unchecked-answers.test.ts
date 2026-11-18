@@ -87,7 +87,9 @@ describe("the level test decides with level-test.ts, never on its own", () => {
   });
   it("stores each answer's section, and opens on the marking screen when the last test is waiting", () => {
     expect(s).toMatch(/"key", question\.section\)/);
-    expect(s).toMatch(/"unanswered", q\.section\)/);
+    // A timed-out test's unanswered questions go in with the hand-in, before grading (level-test-checks.test.ts).
+    expect(s).toContain("await handInLevelTest(aid, timeTaken, unanswered)");
+    expect(s.indexOf("handInLevelTest(aid")).toBeLessThan(s.indexOf("await gradeAnswersBatch("));
     expect(s).toContain("pendingLevelTestFor(last)");
     expect(s).toContain("settleLevelTest(pendingTest.attempt.id, marks, \"self\")");
   });

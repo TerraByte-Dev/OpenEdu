@@ -393,15 +393,22 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   (`getLastPromotionAttempt` reads finished tests only). The answers already given stay saved, so a
   missed one can come back in a quiz (`getReviewPoolQuestions`), and the confirm says so when there is
   one (`db-level-test-stop.test.ts`). Closing the window does the same; the Titlebar stays over both
-  screens so it can be closed.
+  screens so it can be closed. The stop can skip the wait only because a level test marks nothing
+  before Finish: every answer shows as recorded, never ✓ or ✗ or the key (`QuestionRenderer`
+  `marksAtFinish`), so a learner cannot watch a run go badly and stop it to dodge a failed test's
+  24-hour wait. The marks appear on the results screen.
 - **A handed-in level test survives the app closing while it is graded.** Grading a test's written
   answers is one batch call on the local model after Finish, and on a slow computer it can take minutes
-  (a cold model load on top). Finish first writes the time taken (`db.ts markLevelTestHandedIn`); the
-  answers are already stored. An attempt with a time and no `completed_at` was handed in and never
+  (a cold model load on top). Finish first stores a timed-out test's unanswered questions as wrong, each
+  with its section, then writes the time taken (`level-test-checks.ts handInLevelTest`,
+  `db.ts markLevelTestHandedIn`); the other answers are already stored, so a test graded later scores
+  the same questions in the same sections as the finish. An attempt with a time and no `completed_at` was handed in and never
   graded, which a stopped test or a window closed mid-test never is. Opening that level's test again
   finds it before anything else (`getHandedInLevelTest`) and finishes it from the database
   (`level-test-checks.ts finishHandedInLevelTest`): only answers still unmarked are graded, with the same
-  grader; `completed_at` and the result are saved as at the finish; a pass moves the course up once
+  grader; `completed_at` and the result are saved as at the finish, `completed_at` dated at the hand-in
+  (`started_at` plus the time taken, never later than now), so the test's time and result are on the
+  day it was taken and a fail's wait runs from then; a pass moves the course up once
   (`advanceCourseAfterPass`); a test whose written answers no model checked waits for its marks as usual;
   then the screen runs the finish's other saves, a fail's study plan included. `completed_at` is written
   only while it is unset (`db.ts completeHandedInLevelTest`), and only the finish that wrote it counts

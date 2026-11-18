@@ -30,9 +30,9 @@ import {
   setActiveLearnerId, createPromotionAttempt, saveQuizQuestion, updateQuizQuestionGrade, markLevelTestHandedIn,
   getHandedInLevelTest, getLastPromotionAttempt,
 } from "./db";
-import { saveLevelTestResult, pendingLevelTest, settleLevelTest, finishHandedInLevelTest, type WrittenAnswerGrader } from "./level-test-checks";
+import { saveLevelTestResult, pendingLevelTest, settleLevelTest, finishHandedInLevelTest, handInLevelTest, type WrittenAnswerGrader } from "./level-test-checks";
 import { DEFAULT_LEARNER_ID } from "./learners";
-import type { TestAnswer, TestSection } from "./level-test";
+import { retakeWaitLeft, type TestAnswer, type TestSection } from "./level-test";
 import type { GradedBy, GradeOutcome } from "./quiz-grading";
 
 function migrations(): Map<number, string> {
@@ -316,5 +316,51 @@ describe("a level test handed in while the app closed during grading", () => {
     await markLevelTestHandedIn(attemptId, 99);
     expect(await getHandedInLevelTest("c1", 2)).toBeNull();
     expect(await finishHandedInLevelTest(attemptId, grader(() => true).grade)).toBeNull();
+  });
+
+  it("a timed-out test's unanswered review questions are stored at the hand-in, so a later grading fails it as the finish would", async () => {
+    // 35 current right, 8 review answered (5 right), 2 review unanswered when time ran out: 40/45 overall,
+    // review 5/10 = 50%, a fail. Scored without the 2 rows the review section would be 5/8 = 62.5%, a pass.
+    const attempt = await createPromotionAttempt("c1", 2, 45, 2700);
+    const answer = async (i: number, section: TestSection, right: boolean) => saveQuizQuestion({
+      attempt_id: attempt.id, question_text: `Q${i}`, question_type: "multiple_choice", options: null, correct_answer: `key ${i}`,
+      user_answer: right ? `key ${i}` : "other", is_correct: right, difficulty_level: 1, explanation: "", subtopic_id: "1.1",
+    }, "key", section);
+    for (let i = 0; i < 35; i++) await answer(i, "current", true);
+    for (let i = 35; i < 43; i++) await answer(i, "review", i < 40);
+    const unanswered = [43, 44].map((i) => ({
+      question_text: `Q${i}`, question_type: "multiple_choice" as const, options: null, correct_answer: `key ${i}`,
+      difficulty_level: 1, explanation: "", subtopic_id: "1.1", section: "review" as const,
+    }));
+    await handInLevelTest(attempt.id, 2700, unanswered);
+    expect(rows<{ test_section: string; graded_by: string; is_correct: number; user_answer: string | null }>(
+      "SELECT test_section, graded_by, is_correct, user_answer FROM quiz_questions WHERE question_text IN ('Q43', 'Q44')"))
+      .toEqual([1, 2].map(() => ({ test_section: "review", graded_by: "unanswered", is_correct: 0, user_answer: null })));
+    expect((await getHandedInLevelTest("c1", 2))?.id).toBe(attempt.id);
+
+    // The app closed on "Grading your test"; opened again, it is graded from the database.
+    const settled = await finishHandedInLevelTest(attempt.id, grader(() => true).grade);
+    expect(settled).toMatchObject({ status: "failed", correct: 40, total: 45, reviewPct: 50 });
+    expect(attemptRow(attempt.id)).toMatchObject({ passed: 0, review_score: 50 });
+    expect(courseRow().current_level).toBe(2);
+  });
+
+  it("a test finished after a reopen is dated when it was handed in, and its wait runs from then", async () => {
+    const id = await handIn(12, 8);
+    sqlite.prepare("UPDATE quiz_attempts SET started_at = '2026-10-30 10:00:00' WHERE id = ?1").run(id);
+    await finishHandedInLevelTest(id, grader(() => false).grade);
+    // started_at plus the 1234 s Finish wrote, not the day it was opened again.
+    expect(attemptRow(id).completed_at).toBe("2026-10-30 10:20:34");
+    const last = await getLastPromotionAttempt("c1", 2);
+    expect(last?.completed_at).toBe("2026-10-30 10:20:34");
+    expect(retakeWaitLeft(last!.completed_at!, Date.UTC(2026, 9, 31, 10, 0, 0))).toBe("20m");
+  });
+
+  it("a hand-in time past now (a clock moved back) is dated now", async () => {
+    const id = await handIn(16, 4);
+    sqlite.prepare("UPDATE quiz_attempts SET started_at = datetime('now', '+2 days') WHERE id = ?1").run(id);
+    await finishHandedInLevelTest(id, grader(() => true).grade);
+    const done = Date.parse(`${attemptRow(id).completed_at!.replace(" ", "T")}Z`);
+    expect(Math.abs(done - Date.now())).toBeLessThan(60_000);
   });
 });
