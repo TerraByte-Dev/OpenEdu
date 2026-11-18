@@ -234,11 +234,14 @@ export class TutorEngine {
     const checkBeforePraiseTurn = isCheckBeforePraiseTurn(conversation);
     // The dictionary note (defineWord.ts): an explicit "what does X mean" in the student's newest
     // message, looked up in the bundled dictionary. Never on a hold or check-before-praise turn: those
-    // notes govern a problem turn, and one note per turn keeps each lever's effect its own. The lookup
-    // starts here and is awaited after retrieval; it never throws, and a miss leaves the turn unchanged.
+    // notes govern a problem turn, and one note per turn keeps each lever's effect its own. Never on a
+    // safety-disclosure turn (`disclosure`, below) either: "I want to die. what does suicide mean?" takes
+    // the safety path, with no entry, example or "explain it" note beside it, and no dictionary card. The
+    // lookup starts here and is awaited after retrieval; it never throws, and a miss leaves the turn unchanged.
     const newest = messages[messages.length - 1];
     const asked = newest?.role === "user" ? askedWord(newest.content) : null;
-    const dictionaryLookup = asked && !firstTurnHold && !checkBeforePraiseTurn && turn.dictionary !== "off"
+    const disclosure = newest?.role === "user" && isSafetyDisclosure(newest.content, turn.grade ?? null);
+    const dictionaryLookup = asked && !disclosure && !firstTurnHold && !checkBeforePraiseTurn && turn.dictionary !== "off"
       ? lookupDictionary(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
       : Promise.resolve(null);
     // The answer check (answerCheck.ts): the student's answer to the tutor's question in a mastery
@@ -248,7 +251,6 @@ export class TutorEngine {
     // check. Neither runs when the newest message is a safety disclosure (`disclosure`, the same check
     // ChatTab's notice makes): "this is too hard i wanna die" typed in a quiz is not a wrong answer, and
     // no note may send the child back to the work (CHILD_SAFETY_RULES).
-    const disclosure = newest?.role === "user" && isSafetyDisclosure(newest.content, turn.grade ?? null);
     const answerCheckRun = !disclosure && turn.answerCheck !== "off" && !firstTurnHold && !asked && isAssessAnswerTurn(conversation, ctx.activeSkill?.name)
       ? checkAnswer(conversation[conversation.length - 2].content, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort })
       : Promise.resolve(null);

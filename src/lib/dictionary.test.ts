@@ -61,7 +61,7 @@ describe("candidateHeadwords", () => {
   const words = (w: string, opts = {}) => candidateHeadwords(w, exc, opts).map((c) => c.word);
 
   it("puts the word first, then irregular bases, then suffix-rule bases, each with the POS that made it", () => {
-    expect(candidateHeadwords("mice", exc).slice(0, 2)).toEqual([{ word: "mice", pos: null }, { word: "mouse", pos: "n" }]);
+    expect(candidateHeadwords("mice", exc).slice(0, 2)).toEqual([{ word: "mice", pos: null }, { word: "mouse", pos: "n", irregular: true }]);
     expect(candidateHeadwords("jumped", exc)).toEqual(expect.arrayContaining([{ word: "jump", pos: "v" }]));
   });
 
@@ -92,6 +92,22 @@ describe("resolveEntries", () => {
     const got = resolveEntries("saw", exc, (k) => shards[k]);
     expect(got.map((e) => [e.headword, e.via])).toEqual([["saw", "exact"], ["see", "form"]]);
     expect(got[1].senses[0]).toEqual({ form: "see", pos: "v", definition: "perceive by sight", example: "", synonyms: ["view"] });
+    // An irregular form records the parts of speech it is a form in; the exact headword carries none.
+    expect(got.map((e) => e.inflects)).toEqual([undefined, ["v"]]);
+  });
+
+  it("an irregular form's parts of speech: every one an exception list or a suffix rule names for that headword", () => {
+    const lexc: Exceptions = { n: {}, v: { lay: ["lie"], leaves: ["leave"] }, a: {}, r: {} };
+    const lshards: Record<string, Shard> = {
+      la: { lay: [["lay", "v", "put down", "", []]] },
+      li: { lie: [["lie", "n", "a statement that is not true", "", []], ["lie", "v", "be in a flat position", "", []]] },
+      le: { leave: [["leave", "n", "permission", "", []], ["leave", "v", "go away", "", []]] },
+    };
+    expect(resolveEntries("lay", lexc, (k) => lshards[k]).map((e) => [e.headword, e.via, e.inflects])).toEqual([["lay", "exact", undefined], ["lie", "form", ["v"]]]);
+    // "leaves": the verb list names "leave", and the noun rule ("s" -> "") names it too.
+    expect(resolveEntries("leaves", lexc, (k) => lshards[k]).map((e) => [e.headword, e.inflects])).toEqual([["leave", ["v", "n"]]]);
+    // A suffix-rule form carries none: its senses are shown as before.
+    expect(resolveEntries("lies", lexc, (k) => lshards[k]).map((e) => [e.headword, e.inflects])).toEqual([["lie", undefined]]);
   });
 
   it("returns nothing for an unknown word or a blank query", () => {

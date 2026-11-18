@@ -379,3 +379,68 @@ describe("lookupDictionaryNote with the student's context (lever 19)", () => {
     }
   });
 });
+
+// 2026-11-18 audit. Made-up entries again; the real-dictionary cases are in eval/headless/define-entries
+// and define-safety.
+describe("selectSenses: irregular forms", () => {
+  const plain = (h: string, n: number) => entry(h, Array.from({ length: n }, (_, i) => def(i < 3 ? "n" : i < 5 ? "a" : "v", `${h} own sense ${i}`, "", h)));
+  const base: DictionaryEntry = {
+    headword: "zorpa", via: "form", inflects: ["v"],
+    senses: [def("n", "a zorpa falsehood", "", "zorpa"), def("v", "zorpa verb 1", "", "zorpa"), def("v", "zorpa verb 2", "", "zorpa"), def("v", "zorpa verb 3", "", "zorpa"), def("v", "zorpa verb 4", "", "zorpa")],
+  };
+
+  it("an irregular form shows only the parts of speech it is a form in", () => {
+    const picked = selectSenses([base], "zorped");
+    expect(picked[0].senses.map((s) => s.definition)).toEqual(["zorpa verb 1", "zorpa verb 2", "zorpa verb 3"]);
+    // A suffix-rule form (no inflects) keeps every part of speech, as before.
+    const { inflects: _drop, ...rule } = base;
+    expect(selectSenses([rule], "zorpas")[0].senses.map((s) => s.pos)).toContain("n");
+  });
+
+  it("beside an exact headword, the exact one leaves room for the base's senses", () => {
+    const picked = selectSenses([plain("zorped", 7), base], "zorped");
+    expect(picked.map((p) => [p.entry.headword, p.senses.length])).toEqual([
+      ["zorped", DICTIONARY_MAX_SENSES - DICTIONARY_SENSES_PER_POS], ["zorpa", DICTIONARY_SENSES_PER_POS],
+    ]);
+    // Without an irregular form the exact headword keeps its full cap.
+    const { inflects: _drop, ...rule } = base;
+    expect(selectSenses([plain("zorped", 7), rule], "zorped")[0].senses).toHaveLength(DICTIONARY_SENSES_PER_HEADWORD);
+  });
+});
+
+describe("selectSenses: a quoted sense the filter removed", () => {
+  const z = entry("zorp", [def("a", "obscene slang for a made-up act", "a holy zorp"), def("a", "plain in design or style", "a zorp border")]);
+
+  it("leaves the headword out when its first sense was removed and no kept sense shares a word with the sentence", () => {
+    expect(selectSenses([z], "zorp", true, "the saint was zorp and holy")).toEqual([]);
+    expect(dictionaryNote("zorp", [z], "the saint was zorp and holy")).toBeNull();
+  });
+
+  it("keeps it when a kept sense fits the sentence, with no sentence, or when the removed sense is not the first", () => {
+    expect(selectSenses([z], "zorp", true, "a zorp design")[0].senses.map((s) => s.definition)).toEqual(["plain in design or style"]);
+    expect(selectSenses([z], "zorp")[0].senses).toHaveLength(1);
+    const later = entry("zorp", [def("n", "a journey", "a zorp to the shore"), def("n", "vulgar slang for a made-up thing")]);
+    expect(selectSenses([later], "zorp", true, "we went on a zorp to the zoo")[0].senses.map((s) => s.definition)).toEqual(["a journey"]);
+  });
+});
+
+describe("childSafeExample: violence and unwanted touch", () => {
+  it("drops the example, not the sense", () => {
+    for (const ex of ["slit her throat", "he goosed the unsuspecting girl", "it is a crime to commit suicide",
+      "The rock star overdosed and was found dead in his hotel room", "she flinched when they showed the slaughtering of the calf",
+      "The blood-thirsty mob lynched the alleged killer of the child", "I am accumulating evidence for the man's unfaithfulness to his wife",
+      "a seduction on my part", "Her husband poisoned her drink in order to kill her", "the child showed signs of physical abuse"]) {
+      expect(childSafeExample("zorp", ex), ex).toBe(false);
+    }
+    for (const ex of ["Slice the salami, please", "the goose honked", "he cleared his throat", "kill the engine", "a stable table",
+      "three passengers were killed in the collision", "the party was quite an affair"]) {
+      expect(childSafeExample("zorp", ex), ex).toBe(true);
+    }
+    const shown = selectSenses([entry("zorp", [def("v", "make a clean cut through", "slit her throat")])], "zorp")[0].senses;
+    expect(shown).toEqual([{ form: "zorp", pos: "v", definition: "make a clean cut through", example: "" }]);
+  });
+
+  it("virgin and virginal give no note", () => {
+    for (const w of ["virgin", "virgins", "virginal"]) expect(blockedWord(w), w).toBe(true);
+  });
+});

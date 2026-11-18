@@ -43,10 +43,10 @@
 //     "... in English" still fires: it asks for the meaning in plain words;
 //   - "what is a X": a question about a thing, not a word. That is a separate, later arm (#251).
 
-import type { DictionaryEntry, Pos } from "../dictionary";
+import type { DictionaryEntry, Pos, Sense } from "../dictionary";
 import { POS_NAMES } from "../dictionary";
 import { estTokens } from "./budget";
-import { excludedStems, rankSenses } from "./senseRank";
+import { contentStems, excludedStems, rankSenses, senseOverlap } from "./senseRank";
 import { reviewedUnsafeExample, reviewedUnsafeSense } from "./senseReview";
 
 export interface AskedWord {
@@ -307,8 +307,10 @@ export const BLOCKED_HEADWORDS: ReadonlySet<string> = new Set(
     "bugger molest dildo clit camgirl prickteaser " +
     "negro negroes negroid nigra mongoloid faggot faggots fagot fagots spic spick spik wop " +
     // Words whose only remaining senses would mislead a child who asked about the adult one ("rape"
-    // would be explained as the plant): no note, so the model answers on its own.
-    "rape rapes raped raping rapist rapists hooker hookers stripper strippers dyke dykes fag fags homo homos").split(" ").concat("jerk off"),
+    // would be explained as the plant, "virgin" as wool and astrology): no note, so the model answers
+    // on its own.
+    "rape rapes raped raping rapist rapists hooker hookers stripper strippers dyke dykes fag fags homo homos " +
+    "virgin virgins virginal").split(" ").concat("jerk off"),
 );
 
 const tokens = (text: string) => text.toLowerCase().split(/[^a-z]+/).filter((t) => t !== "");
@@ -330,12 +332,34 @@ export function childSafeSense(headword: string, definition: string): boolean {
  *  it is a blocked headword ("feeling horny", "kinky sex"). */
 export function childSafeExample(headword: string, example: string): boolean {
   return safeText(headword, example, DRUG_EXAMPLE) && !tokens(example).some((t) => BLOCKED_HEADWORDS.has(t)) && !ADULT_EXAMPLE.test(example)
-    && !reviewedUnsafeExample(headword, example);
+    && !VIOLENT_EXAMPLE.test(example) && !reviewedUnsafeExample(headword, example);
 }
 
 // Example sentences that are fine as definitions elsewhere but not as a quoted example for a child
 // ("her exposed breast", "on drugs"). Only the example is dropped; the sense stays.
 const ADULT_EXAMPLE = /\b(?:breasts?|nude|naked|massage parlou?r|on drugs|traffic(?:ked|king)? drugs)\b/i;
+
+/** Examples that show violence against a person, suicide, an overdose, abuse or an unwanted or adult
+ *  touch ("slit her throat" under "slice", "he goosed the unsuspecting girl", "it is a crime to commit
+ *  suicide", "The rock star overdosed and was found dead"). The child-safety rules tell the tutor never
+ *  to describe violence in graphic detail, so the card must not quote it either. Only the example is
+ *  dropped; the sense stays ("murder" and "lynch" keep their definitions). Ordinary news and history
+ *  words (war, gun, bomb, blood, wound, killed in a crash) are left alone. 2026-11-18. */
+export const VIOLENT_EXAMPLE = new RegExp(
+  [
+    "\\b(?:slit|slits|slitting|cut|cuts|cutting|slash\\w*)\\s+(?:\\w+\\s+)?throats?\\b", "\\bthroats? (?:was |were |is |are )?(?:slit|cut)\\b",
+    "\\bmurder\\w*", "\\bslaughter\\w*", "\\blynch\\w*", "\\bbehead\\w*", "\\bdecapitat\\w*", "\\bmassacr\\w*", "\\btortur\\w*",
+    "\\bmutilat\\w*", "\\bdismember\\w*", "\\bstrangl\\w*", "\\bstab(?:s|bed|bing|bings)?\\b", "\\bsuicid\\w*", "\\boverdos\\w*",
+    "\\bcorpses?\\b", "\\bdead bod(?:y|ies)\\b", "\\bbled to death\\b", "\\bfound dead\\b",
+    "\\bkill(?:s|ed|ing)? (?:him|her|them|himself|herself|themselves|yourself|myself|me|you|his \\w+|her \\w+|their \\w+)\\b",
+    "\\b(?:physical|sexual|spousal|child|domestic) abuse\\b", "\\babused (?:wife|husband|child\\w*|his|her)\\b",
+    "\\b(?:beat|beats|beating|hit|hits|hitting|punch\\w*|slap\\w*) (?:his|her|their) (?:wife|husband|child\\w*|kids?|son|daughter)\\b",
+    "\\bgoos(?:ed|es|ing)\\b", "\\bbuttocks?\\b", "\\bseduc\\w*", "\\bunfaithful\\w*", "\\badulter(?:y|ies|ous|er|ers|ess|esses)\\b",
+    "\\bmistress(?:es)?\\b", "\\bgrop(?:e|ed|es|ing) (?:her|him|them)\\b", "\\bfondl\\w*", "\\bnecking\\b",
+    "\\b(?:slept|sleeps|sleeping|sleep|went to bed) with (?:him|her|his|another)\\b", "\\b(?:love|extramarital|illicit) affairs?\\b",
+  ].join("|"),
+  "i",
+);
 
 function safeText(headword: string, raw: string, drug: RegExp): boolean {
   if (blockedWord(headword)) return false;
@@ -362,7 +386,12 @@ function safeText(headword: string, raw: string, drug: RegExp): boolean {
  *     to "gas"); without one it stays ("went" -> "go", "ads" -> "ad");
  *   - when the student typed a two-letter word in lower case, a sense whose stored form has a capital
  *     ("Mx", "Dy", "XY", "AC"): a symbol or abbreviation, not the word asked about ("tv" keeps "tv",
- *     "cm" keeps "cm"). Longer words keep their capitalised senses ("welsh", "may", "thanksgiving"). */
+ *     "cm" keeps "cm"). Longer words keep their capitalised senses ("welsh", "may", "thanksgiving");
+ *   - on a headword reached through an irregular-form list (`inflects`), a sense in another part of
+ *     speech ("lay" is never the noun "lie"); beside such a form the exact headword stops
+ *     DICTIONARY_SENSES_PER_POS short of the total, so the base's senses fit ("fell" and fall);
+ *   - with a sentence, a headword whose first sense the filter removed and none of whose kept senses
+ *     shares a word with the sentence (quotesRemovedSense). */
 export function selectSenses(
   entries: readonly DictionaryEntry[],
   typed = "",
@@ -376,16 +405,27 @@ export function selectSenses(
   const lowerTwoLetter = typed.length === 2 && typed === typed.toLowerCase();
   const hasExact = entries.some((e) => e.via === "exact");
   if (childSafe && blockedWord(typed)) return out;
+  const skipped = (entry: DictionaryEntry) => (childSafe && blockedWord(entry.headword))
+    || (entry.via === "form" && (entry.headword.length === 1 || (entry.headword.length === 2 && hasExact)));
+  // An irregular form beside an exact headword ("fell": fell, and the past of fall) keeps room for the
+  // base's senses: the exact headword stops DICTIONARY_SENSES_PER_POS short of the total.
+  const exactCap = entries.some((e) => e.inflects && !skipped(e))
+    ? Math.min(DICTIONARY_SENSES_PER_HEADWORD, DICTIONARY_MAX_SENSES - DICTIONARY_SENSES_PER_POS)
+    : DICTIONARY_SENSES_PER_HEADWORD;
   for (const entry of entries) {
-    if (childSafe && blockedWord(entry.headword)) continue;
-    if (entry.via === "form" && (entry.headword.length === 1 || (entry.headword.length === 2 && hasExact))) continue;
+    if (skipped(entry)) continue;
     if (total >= DICTIONARY_MAX_SENSES) break;
+    // An irregular form is a form only in the parts of speech its list names: "lay" is the verb "lie",
+    // never the noun ("a statement that deviates from or perverts the truth").
+    const own = entry.inflects ? entry.senses.filter((s) => entry.inflects!.includes(s.pos)) : entry.senses;
+    if (childSafe && sentence && quotesRemovedSense(entry.headword, own, sentence, excludedStems(typed, entry.headword))) continue;
+    const cap = entry.via === "exact" ? exactCap : DICTIONARY_SENSES_PER_HEADWORD;
     const perPos = new Map<Pos, number>();
     const senses: Shown[] = [];
     // Lever 19: reorder, then the same loop (caps, form rules and the child-safety filter) as before.
-    const ordered = sentence ? rankSenses(entry.senses, sentence, excludedStems(typed, entry.headword)) : entry.senses;
+    const ordered = sentence ? rankSenses(own, sentence, excludedStems(typed, entry.headword)) : own;
     for (const s of ordered) {
-      if (senses.length >= DICTIONARY_SENSES_PER_HEADWORD || total >= DICTIONARY_MAX_SENSES) break;
+      if (senses.length >= cap || total >= DICTIONARY_MAX_SENSES) break;
       if (lowerTwoLetter && s.form !== s.form.toLowerCase()) continue;
       if (childSafe && !childSafeSense(entry.headword, s.definition)) continue;
       const n = perPos.get(s.pos) ?? 0;
@@ -399,6 +439,18 @@ export function selectSenses(
     if (senses.length) out.push({ entry, senses });
   }
   return out;
+}
+
+/** True when the child-safety filter removed the headword's first (most used) sense and no sense it
+ *  keeps shares a word with the student's sentence: the sentence most likely uses the removed sense
+ *  ("what does chaste mean in 'Mary was chaste and holy'"), and the kept ones would answer a question
+ *  that was not asked. The headword is then left out (prefer no note over a wrong one). A removed sense
+ *  further down the list does not count: "trip" in "we went on a trip to the zoo" keeps its note. */
+function quotesRemovedSense(headword: string, senses: readonly Sense[], sentence: string, exclude: ReadonlySet<string>): boolean {
+  if (!senses.length || childSafeSense(headword, senses[0].definition)) return false;
+  const kept = senses.filter((s) => childSafeSense(headword, s.definition));
+  const stems = contentStems(sentence, exclude);
+  return !kept.some((s) => senseOverlap(stems, s, exclude) > 0);
 }
 
 function renderEntry(shown: DictionaryShown): string {

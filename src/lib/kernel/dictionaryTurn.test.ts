@@ -28,9 +28,10 @@ import { tutorEngine, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnSkills } from "./chatSkills";
 import { DICTIONARY_NOTE, dictionaryNote } from "./defineWord";
 import { FIRST_TURN_HOLD_NOTE } from "./attemptFirst";
+import { isSafetyDisclosure } from "../child-safety";
 import { CHECK_BEFORE_PRAISE_NOTE } from "./checkBeforePraise";
 import { buildSystemPrompt } from "../curriculum";
-import { gradePromptLayer } from "../grade";
+import { gradePromptLayer, type Grade } from "../grade";
 import { resetDictionaryCache, lookupWord, DICTIONARY_FETCH_TIMEOUT_MS, type Shard } from "../dictionary";
 import { dictionaryCard, cardSpeech, cardToggleLabel, CARD_SOURCE } from "../dictionary-card";
 import type { LLMConfig } from "../../types";
@@ -89,12 +90,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 // ChatTab's prompt for a grade-4 learner in an English course, then tutorEngine.run.
-async function run(history: Sent, userText: string, dictionary?: "on" | "off"): Promise<{ req: Sent; result: TutorTurnResult }> {
+async function run(history: Sent, userText: string, dictionary?: "on" | "off", grade?: Grade | null): Promise<{ req: Sent; result: TutorTurnResult }> {
   const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills("explain", "English Language Arts", "tiny", false);
   const system = buildSystemPrompt({}, null, 1, "English Language Arts", skillSuffix, undefined, undefined, gradePromptLayer(4));
   sent.length = 0;
   const result = await tutorEngine.run(
-    { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {}, ...(dictionary ? { dictionary } : {}) },
+    { messages: [{ role: "system", content: system }, ...history, { role: "user", content: userText }], config: CONFIG, retrieval: "off", onText: () => {}, ...(dictionary ? { dictionary } : {}), ...(grade !== undefined ? { grade } : {}) },
     {
       courseId: "c-1", level: 1, syllabus: null, modelTier: "tiny", contextTokens: 8192, permissionMode: "default",
       config: CONFIG, abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: false,
@@ -225,6 +226,26 @@ describe("dictionary note: request through the kernel", () => {
     const { req, result } = await run(history, text);
     expect(req[req.length - 1].content).toBe(`${text}\n\n${CHECK_BEFORE_PRAISE_NOTE}`);
     expect(result).toMatchObject({ askedWord: "zorp", dictionaryNote: null });
+  });
+
+  // 2026-11-18 audit: "I want to die. what does suicide mean?" got the entry, its example and "explain it
+  // with one everyday example", and the card under the reply (TerraTutor #191). A disclosure turn takes the
+  // safety path only. The check is ChatTab's: isSafetyDisclosure with the learner's grade, so a pregnancy
+  // disclosure counts only with a K-12 grade set.
+  it("a safety-disclosure turn gets no note and no card, and looks nothing up", async () => {
+    for (const text of [
+      "I want to die. what does zorp mean?",
+      "i want to kill myself. what does zorp mean in 'the zorp hummed all night'?",
+      "i think i'm pregnant. what does zorp mean?",
+    ]) {
+      expect(isSafetyDisclosure(text, 4), text).toBe(true);
+      fetched = [];
+      const { req, result } = await run([], text, undefined, 4);
+      expect(result, text).toMatchObject({ askedWord: "zorp", dictionaryNote: null, dictionaryShown: null });
+      expect(req[req.length - 1].content, text).not.toContain("<dictionary_entry");
+      expect(req[req.length - 1].content, text).not.toContain("<tutor_note>");
+      expect(fetched, text).toEqual([]);
+    }
   });
 
   it("the off switch sends no note and looks nothing up, but still reports the asked word", async () => {
