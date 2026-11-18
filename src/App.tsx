@@ -316,7 +316,8 @@ export default function App() {
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* A link that leaves the app never navigates the window; its address is shown to copy instead. */}
-      <OutsideLinkNote />
+      {/* Keyed by learner: a link one learner clicked is never left on screen for the next (Switch learner). */}
+      <OutsideLinkNote key={activeLearner?.id ?? "none"} />
 
       {/* Boot sequence — unmounts after splash */}
       {!booted && <BootSequence onComplete={handleBootComplete} />}

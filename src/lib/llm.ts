@@ -390,7 +390,8 @@ async function fetchWithRetry(
     try {
       response = await fetch(url, options);
     } catch (e) {
-      if (attempt === maxRetries) throw e;
+      // An aborted call is not a network error: sending it again would only fail again after the back-off.
+      if (attempt === maxRetries || options?.signal?.aborted) throw e;
       log.warn("fetchWithRetry", `Network error on attempt ${attempt + 1}, retrying...`, e);
       await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
       continue;
@@ -421,10 +422,16 @@ export function callLLMStreaming(
 }
 
 // ─── Public: non-streaming (for curriculum/quiz generation) ──────────────────
+/**
+ * `signal` stops the call (the post-turn knowledge reflection is stopped when the learner's next turn
+ * starts). `numPredict` caps an Ollama reply below the window (ollamaMaxPredict); unset, Ollama decides.
+ */
 export async function callLLM(
   messages: Array<{ role: string; content: string }>,
   config: LLMConfig,
+  opts: { signal?: AbortSignal; numPredict?: number } = {},
 ): Promise<string> {
+  const { signal, numPredict } = opts;
   log.info("callLLM", `provider=${config.provider} model=${config.model}`);
 
   if (config.provider === "ollama") {
@@ -442,16 +449,27 @@ export async function callLLM(
         // num_ctx must MATCH the chat turn's. Ollama keys its loaded runner on the option set, so a
         // second call with a different window unloads and reloads the model — on a CPU-only box that
         // is tens of seconds, twice per turn, for the post-turn knowledge reflection alone.
+        // num_predict, when given, is what bounds the work: an aborted request may leave Ollama
+        // generating with no client attached (see ollamaOptions).
         body: JSON.stringify({
           model: config.model,
           messages,
           stream: false,
           keep_alive: OLLAMA_KEEP_ALIVE,
           ...OLLAMA_THINK_OFF,
-          ...(config.contextTokens ? { options: { num_ctx: Math.floor(config.contextTokens) } } : {}),
+          ...(config.contextTokens || numPredict
+            ? {
+              options: {
+                ...(config.contextTokens ? { num_ctx: Math.floor(config.contextTokens) } : {}),
+                ...(numPredict ? { num_predict: Math.min(numPredict, ollamaMaxPredict(config)) } : {}),
+              },
+            }
+            : {}),
         }),
+        signal,
       });
     } catch (e) {
+      if (signal?.aborted) throw e;
       log.error("callLLM", "Ollama unreachable", e);
       throw new Error(ollamaUnreachable(baseUrl));
     }
@@ -480,8 +498,10 @@ export async function callLLM(
           "Origin": "",
         },
         body: JSON.stringify({ model: config.model, messages, ...openAIRequestFields(config.model) }),
+        signal,
       });
     } catch (e) {
+      if (signal?.aborted) throw e;
       throw new Error(`Network error connecting to OpenAI: ${networkAwareMessage(e)}`);
     }
     if (!response.ok) {
@@ -518,8 +538,10 @@ export async function callLLM(
           "Origin": "",
         },
         body: JSON.stringify(body),
+        signal,
       });
     } catch (e) {
+      if (signal?.aborted) throw e;
       throw new Error(`Network error connecting to Anthropic: ${networkAwareMessage(e)}`);
     }
     if (!response.ok) {

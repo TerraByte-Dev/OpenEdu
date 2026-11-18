@@ -175,18 +175,35 @@ export async function recordKnowledgeNote(courseId: string, note: string): Promi
   await saveTutorInstruction(courseId, "knowledge_map", merged.slice(-BUDGETS.knowledge_map));
 }
 
-// Background reflection: update knowledge files after a chat exchange. It is the tutor updating its
-// notes on its own, so it obeys the "Update knowledge map" permission: Deny writes nothing. It cannot
-// stop to ask after every reply, so Ask lets it run (Settings › Tutor Permissions says so on that row).
+/**
+ * How long the post-turn reflection may run before it is dropped. On a CPU-only PC Ollama answers one
+ * request at a time, so a reflection still running holds the learner's next reply behind it.
+ */
+export const REFLECTION_TIMEOUT_MS = 60_000;
+/**
+ * Most tokens the reflection may write: four values of under 400 characters (about 100 tokens each) and
+ * their keys. A reply cut here is not valid JSON and writes nothing. It is the bound that holds even when
+ * an aborted request leaves Ollama generating (llm.ts ollamaOptions).
+ */
+export const REFLECTION_MAX_TOKENS = 512;
+
+// Background reflection: update knowledge files after a chat exchange.
+// It never delays the learner: `signal` (ChatTab aborts it when the next turn starts or the chat closes),
+// REFLECTION_TIMEOUT_MS and REFLECTION_MAX_TOKENS bound it, and a stopped or failed one writes nothing.
+// It is the tutor updating its notes on its own, so it obeys the "Update knowledge map" permission: Deny
+// writes nothing. It cannot stop to ask after every reply, so Ask lets it run (Settings › Tutor Permissions says
+// so on that row).
 export async function updateKnowledgeFiles(
   courseId: string,
   userMessage: string,
   assistantResponse: string,
   config: LLMConfig,
   mode: PermissionMode = "default",
+  signal?: AbortSignal,
 ): Promise<void> {
   if (evaluatePermission(KNOWLEDGE_UPDATE, mode, await loadPermissionRules()) === "deny") return;
   const instructions = await getTutorInstructions(courseId);
+  if (signal?.aborted) return;
 
   const currentFiles = KNOWLEDGE_TYPES.map((type) => {
     const content = (instructions[type] ?? "").trim();
@@ -215,12 +232,24 @@ Rules:
 
 Respond with ONLY valid JSON.`;
 
+  // A plain controller and timer (as kernel/gloss.ts), not AbortSignal.any/timeout.
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  signal?.addEventListener("abort", stop, { once: true });
+  const timer = setTimeout(stop, REFLECTION_TIMEOUT_MS);
   let response: string;
   try {
-    response = await callLLM([{ role: "user", content: prompt }], config);
+    response = await callLLM([{ role: "user", content: prompt }], config, {
+      signal: controller.signal,
+      numPredict: REFLECTION_MAX_TOKENS,
+    });
   } catch {
     return; // knowledge file updates are best-effort
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", stop);
   }
+  if (controller.signal.aborted) return;
 
   // Arrays and objects become the file's text instead of being dropped (knowledge-reflect.ts).
   const files = parseReflection(response);

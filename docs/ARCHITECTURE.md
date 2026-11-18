@@ -153,7 +153,10 @@ written: they came from a once-a-minute timer whose only reader was the learning
 - **`db.ts`** — SQLite CRUD for every table, plus the WAL switch, boot health check and backup.
   `db-resilience.ts` holds their pure logic.
 - **`knowledge.ts` / `progress.ts`** — persistent per-course knowledge files and subtopic mastery tracking;
-  both feed context back into the tutor.
+  both feed context back into the tutor. The post-turn reflection (`updateKnowledgeFiles`) is capped at
+  `REFLECTION_MAX_TOKENS`, dropped after `REFLECTION_TIMEOUT_MS`, and stopped by ChatTab when the next turn
+  starts or the chat closes, so on a CPU-only PC, where Ollama answers one request at a time, it never holds
+  the learner's next reply; a stopped one writes nothing.
 - **`quiz.ts` / `quiz-grading.ts` / `quiz-review.ts`** — quiz & promotion-test generation (schema-enforced,
   topped up to a target count, with answer↔explanation self-consistency checks that also read clock
   times, money and fractions, read an equation option by its result and skip a method key ("Subtract 7 from

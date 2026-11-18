@@ -3,8 +3,9 @@ import { installLinkGuard, OUTSIDE_LINK_LINE } from "../lib/link-guard";
 
 /**
  * Keeps every link that leaves the app from navigating the window (lib/link-guard.ts) and shows the
- * clicked one's address as one calm line a grown-up can copy. Mounted once at the app root, so it covers
+ * clicked one's address as one calm line a grown-up can copy. Mounted at the app root, so it covers
  * chat, lessons, Raise hand, resources, notes and diagrams, over the full-screen quiz and level test too.
+ * App keys it by the active learner, so Switch learner clears an address one learner clicked.
  */
 export default function OutsideLinkNote() {
   const [address, setAddress] = useState<string | null>(null);
