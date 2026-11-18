@@ -2,7 +2,8 @@
 //
 // Pure-ish lib functions that the notebook.* EduTools and the NotebookTab UI both call:
 //   - indexNote / importTextAsNote: chunk → embed → store a note's content (re-index on save)
-//   - searchNotebook:  embed the query → brute-force cosine over the course's chunk vectors → top-k
+//   - searchNotebook:  embed the query → brute-force cosine over the course's chunk vectors → top-k;
+//     with no embedder on this computer, a word search over the course's note titles and text instead
 //
 // Vectors are stored as JSON-array TEXT (see db.ts / migration v7). Brute-force cosine is fine for a
 // single student's notebook (hundreds–low-thousands of chunks, sub-100ms); sqlite-vec is deferred
@@ -22,6 +23,8 @@ import {
   loadNotebookVectors, getChunkTexts, type NoteOrigin} from "./db";
 import type { Note, NotebookSearchResult, NotebookSourceType } from "../types";
 import { encodeVec, readVec, cosine } from "./vec-codec";
+import { contentWords } from "./kernel/contentWords";
+import { buildNoteWordIndex, rankNotePassages } from "./notebook-words";
 
 // ── Text utilities ───────────────────────────────────────────────────────────
 
@@ -188,6 +191,11 @@ export async function reindexCourseNotes(courseId: string): Promise<{ indexed: n
 
 // Embed the query and rank the course's chunks by cosine similarity. Only compares chunks embedded
 // with the current model (loadNotebookVectors filters by model), so dimensions always match.
+//
+// When the embedder can't run on this computer at all (no embedding model, Ollama not answering, the
+// OpenAI embedder with no key or no connection: plain-language.ts embedderUnavailable), the course's
+// notes are searched by their words instead (searchNotesByWords), so the tutor still reads them. Any
+// other failure throws.
 export async function searchNotebook(args: {
   courseId: string;
   query: string;
@@ -196,7 +204,15 @@ export async function searchNotebook(args: {
   const topK = args.topK ?? 5;
   const q = args.query.trim();
   if (!q) return [];
+  try {
+    return await searchByEmbedding(args.courseId, q, topK);
+  } catch (e) {
+    if (!embedderUnavailable(e)) throw e;
+    return searchNotesByWords(args.courseId, q, topK);
+  }
+}
 
+async function searchByEmbedding(courseId: string, q: string, topK: number): Promise<NotebookSearchResult[]> {
   const cfg = await getEmbeddingConfig();
   const [qvec] = await embed([q], cfg);
   if (!qvec) return [];
@@ -204,7 +220,7 @@ export async function searchNotebook(args: {
 
   // PHASE 1 — score. Vectors only: no chunk text, no document titles. The old query shipped the
   // whole course's prose across IPC to rank it and then discarded all but `topK` rows.
-  const rows = await loadNotebookVectors(args.courseId, cfg.model);
+  const rows = await loadNotebookVectors(courseId, cfg.model);
   const scored: Array<{ chunk_id: string; score: number }> = [];
   for (const row of rows) {
     const vec = readVec(row);
@@ -221,5 +237,29 @@ export async function searchNotebook(args: {
   return winners.flatMap((w) => {
     const t = byId.get(w.chunk_id);
     return t ? [{ ...t, score: w.score }] : [];
+  });
+}
+
+/**
+ * The course's notes searched by their words, with no model: each note is cut into passages the way
+ * indexNote cuts it, and the passages are ranked by notebook-words.ts. That keeps a floor: a passage must
+ * cover enough of the question's words, and one shared word is never enough unless it names the note (a
+ * word of its title) or is rare in these notes and is all the question asked. `score` is that coverage
+ * (0.4..1), not a cosine, and `by` says so; ground.ts places it on its own scale. Reads the notes as they
+ * are now, so a note saved a moment ago is found.
+ */
+export async function searchNotesByWords(courseId: string, query: string, topK: number): Promise<NotebookSearchResult[]> {
+  const asked = contentWords(query);
+  if (asked.length === 0) return [];
+  const passages = (await getNotes(courseId)).flatMap((n) =>
+    chunkText(n.content).map((text, ord) => ({ note: n, ord, text })));
+  if (passages.length === 0) return [];
+  const index = buildNoteWordIndex(passages.map((p) => ({ title: p.note.title, text: p.text })));
+  return rankNotePassages(asked, index, topK).map(({ i, coverage }) => {
+    const p = passages[i];
+    return {
+      chunk_id: `${p.note.id}:${p.ord}`, document_id: p.note.id, document_title: p.note.title,
+      ord: p.ord, text: p.text, score: coverage, by: "words" as const,
+    };
   });
 }

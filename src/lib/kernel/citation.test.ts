@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP } from "./citation";
+import { citationNote, quotedChipLabel, ungroundedChipLabel, QUOTED_CHIP_TOOLTIP } from "./citation";
 import { groundedIn, type GroundingHit } from "./ground";
 import { RAG_FIXTURE } from "../eval/rag-fixture";
 
@@ -93,7 +93,7 @@ const GROUNDED_ANSWERS: Array<{ id: string; note: string; retrieved: string[]; a
 
 const chipFor = (retrieved: string[], answer: string) => {
   const h = hits(retrieved);
-  return citationNote(h, groundedIn(answer, h));
+  return citationNote(h, groundedIn(answer, h), { notesSearched: true });
 };
 
 describe("citation chip on real gemma4:e4b answers", () => {
@@ -121,14 +121,31 @@ describe("citationNote states", () => {
   const [marlow] = hits(["Field Notes — Marlow Basin"]);
 
   it("nothing retrieved → no chip at all", () => {
-    expect(citationNote([], [])).toBeNull();
+    expect(citationNote([], [], { notesSearched: true })).toBeNull();
   });
 
-  it("retrieved but nothing reused → the honest 'general knowledge' state", () => {
-    expect(citationNote([marlow], [])).toEqual({ kind: "ungrounded" });
+  it("retrieved but nothing reused → the honest 'nothing quoted' state", () => {
+    expect(citationNote([marlow], [], { notesSearched: true })).toEqual({ kind: "ungrounded", label: "No passage quoted — your notes were searched" });
   });
 
   it("two chunks of one note → one chip", () => {
-    expect(citationNote([marlow, marlow], [marlow, marlow])).toEqual({ kind: "quoted", titles: ["Field Notes — Marlow Basin"] });
+    expect(citationNote([marlow, marlow], [marlow, marlow], { notesSearched: true })).toEqual({ kind: "quoted", titles: ["Field Notes — Marlow Basin"] });
+  });
+});
+
+describe("the 'nothing quoted' chip names only what was searched", () => {
+  const card: GroundingHit = { source: "library", title: "Fractions", text: "A fraction names part of a whole.", score: 0.5, ref: "lib:fractions" };
+
+  it("never claims the notes when their search did not run", () => {
+    // "Search your notebook" set to Deny in Tutor Permissions, or the notes search failed: a card was found.
+    expect(citationNote([card], [], { notesSearched: false })).toEqual({ kind: "ungrounded", label: "No passage quoted — the library was searched" });
+  });
+
+  it("names the notes when they were searched, even with no note passage among the hits", () => {
+    expect(ungroundedChipLabel([card], true)).toBe("No passage quoted — your notes and the library were searched");
+  });
+
+  it("never says the answer came from general knowledge", () => {
+    for (const searched of [true, false]) expect(ungroundedChipLabel([card], searched)).not.toMatch(/general knowledge/);
   });
 });

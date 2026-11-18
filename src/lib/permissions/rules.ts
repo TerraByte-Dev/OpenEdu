@@ -48,6 +48,17 @@ export const DEFAULT_PERMISSION_RULES: PermissionRules = {
 // and the defaults can't drift.
 export const PERMISSION_ROWS: string[] = Object.keys(DEFAULT_PERMISSION_RULES);
 
+// Rows whose tool the tutor also uses on its own, outside any tool call: the grounding stage searches
+// the notes and the library before every reply (kernel/ground.ts), and the post-turn reflection updates
+// the knowledge files after it (knowledge.ts updateKnowledgeFiles). Deny stops that too. Ask cannot: a
+// question before every reply is not a tutor, so there Ask runs like Allow, and the editor says so under
+// the row rather than letting "Ask" promise a question that never comes.
+export const AUTOMATIC_USE_NOTES: Readonly<Record<string, string>> = {
+  "notebook.search": "The tutor also searches your notes by itself before each reply. Allow and Ask let that run; only Deny stops it.",
+  "library.search": "The tutor also searches the library by itself before each reply. Allow and Ask let that run; only Deny stops it.",
+  "knowledge.update_map": "The tutor also updates its notes about you by itself after each reply. Allow and Ask let that run; only Deny stops it. Quiz and test results are still saved.",
+};
+
 // The modes shown as columns in the editor.
 //
 // ONLY "default" — because only "default" can actually happen. `permissionMode` is the literal string

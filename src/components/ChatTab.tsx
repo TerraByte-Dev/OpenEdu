@@ -502,7 +502,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
       // tutor ends up looking like it read your notes when it didn't.
-      setGroundingNote(citationNote(result.grounding.hits, result.usedHits));
+      setGroundingNote(citationNote(result.grounding.hits, result.usedHits, result.grounding.trace));
       // Follow-up chips. `countDueFlashcards` is a cheap indexed count and the only I/O here; if it
       // fails the chips just lose one option rather than the turn losing its suggestions.
       const due = await countDueFlashcards(courseId, new Date().toISOString()).catch(() => 0);
@@ -909,7 +909,8 @@ function SuggestionChips({ suggestions, onPick }: { suggestions: Suggestion[]; o
 //   quoted     — the answer demonstrably reused these passages (n-gram overlap, not the model's word).
 //                Worded as a quote, not a source: an honest "your notes don't say" that quotes the
 //                note lands here too (kernel/citation.ts has the evidence).
-//   ungrounded — passages WERE retrieved and the answer used none of them
+//   ungrounded — passages WERE retrieved and the answer used none of them; the chip names only what
+//                was searched (citation.ts ungroundedChipLabel)
 // The second is the one that keeps the product honest. A tutor that silently drops it looks like it
 // read the student's notes on every turn, which on a small model it very often did not.
 function GroundingNote({ note }: { note: CitationNote }) {
@@ -929,7 +930,7 @@ function GroundingNote({ note }: { note: CitationNote }) {
             title="Your material was searched, but this answer did not draw on it"
             className={`${base} bg-lcd border-[var(--rule)] text-[var(--ink-faint)]`}
           >
-            ○ Answered from general knowledge — not your notes
+            ○ {note.label}
           </span>
         )}
       </div>

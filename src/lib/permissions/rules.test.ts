@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { evaluatePermission } from "./evaluate";
-import { DEFAULT_PERMISSION_RULES } from "./rules";
+import { DEFAULT_PERMISSION_RULES, PERMISSION_ROWS, AUTOMATIC_USE_NOTES } from "./rules";
+import permissionsScreen from "../../views/settings/sections/Permissions.tsx?raw";
 
 // Slice A4 — exam-mode integrity guard.
 //
@@ -38,5 +39,27 @@ describe("exam-mode permission integrity", () => {
     // A tool with no rule falls back to the read/write default (writer → "ask"), NOT deny. So model-help
     // tools MUST carry an explicit exam:"deny" rule — which is exactly what the first test guards.
     expect(evaluatePermission(tool("some.unlisted_writer"), "exam", DEFAULT_PERMISSION_RULES)).toBe("ask");
+  });
+});
+
+// The grounding stage and the post-turn reflection use three rows' tools on their own. Deny stops them
+// (kernel/ground-permissions.test.ts, knowledge-permission.test.ts); Ask cannot, so the row says so.
+describe("rows the tutor also uses on its own say what Ask and Deny do there", () => {
+  it("notes exactly the notebook search, the library search and the knowledge map, all shown rows", () => {
+    expect(Object.keys(AUTOMATIC_USE_NOTES).sort()).toEqual(["knowledge.update_map", "library.search", "notebook.search"]);
+    for (const tool of Object.keys(AUTOMATIC_USE_NOTES)) {
+      expect(PERMISSION_ROWS, tool).toContain(tool);
+      expect(AUTOMATIC_USE_NOTES[tool], tool).toMatch(/Allow and Ask let that run; only Deny stops it\./);
+    }
+  });
+
+  it("keeps the defaults", () => {
+    expect(DEFAULT_PERMISSION_RULES["notebook.search"].default).toBe("allow");
+    expect(DEFAULT_PERMISSION_RULES["library.search"].default).toBe("allow");
+    expect(DEFAULT_PERMISSION_RULES["knowledge.update_map"].default).toBe("ask");
+  });
+
+  it("is drawn under the row in Settings › Tutor Permissions", () => {
+    expect(permissionsScreen).toContain("{AUTOMATIC_USE_NOTES[tool] && (");
   });
 });
