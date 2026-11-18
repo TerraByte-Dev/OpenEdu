@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Lesson, Syllabus, Subtopic } from "../types";
 import { getLessons, getLesson, lessonWasChecked } from "../lib/db";
-import { generateLesson, lessonHelpFor } from "../lib/curriculum";
+import { lessonHelpFor, lessonWritesFor, writeLessonOnce } from "../lib/curriculum";
 import { getLessonConfigs } from "../lib/store";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
@@ -47,13 +47,32 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
     [lessons],
   );
 
+  const saved = useCallback((lesson: Lesson) => {
+    setLessons((prev) => [lesson, ...prev.filter((l) => l.id !== lesson.id)]);
+  }, []);
+
+  // Lessons still being written from an earlier visit to this level or tab (CourseView remounts this tab
+  // per course level; curriculum.ts writeLessonOnce): shown as writing, and in the list once saved, so
+  // they are never offered to be written again. Not opened: the learner may be reading something else.
+  useEffect(() => {
+    let live = true;
+    for (const w of lessonWritesFor(courseId, level)) {
+      setGeneratingId(w.subtopicId);
+      w.run
+        .then((lesson) => { if (live) saved(lesson); })
+        .catch((e) => { if (live) setError(`Couldn't make that lesson. ${friendlyError(e)}`); })
+        .finally(() => { if (live) setGeneratingId((g) => (g === w.subtopicId ? null : g)); });
+    }
+    return () => { live = false; };
+  }, [courseId, level, saved]);
+
   const generate = useCallback(async (sub: Subtopic): Promise<Lesson | null> => {
     setError("");
     setGeneratingId(sub.id);
     try {
-      const { config: cfg, review } = await getLessonConfigs();
-      const lesson = await generateLesson(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, cfg, undefined, review);
-      setLessons((prev) => [lesson, ...prev.filter((l) => l.id !== lesson.id)]);
+      // Joins this subtopic's write when one is running, so a second tap never writes it twice.
+      const lesson = await writeLessonOnce(courseId, level, { id: sub.id, title: sub.title, key_concepts: sub.key_concepts }, topic, getLessonConfigs);
+      saved(lesson);
       return lesson;
     } catch (e) {
       log.error("LessonsTab", "lesson generation failed", e);
@@ -63,7 +82,7 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
       // Only this write's "Writing…": another may have started since.
       setGeneratingId((g) => (g === sub.id ? null : g));
     }
-  }, [courseId, level, topic]);
+  }, [courseId, level, topic, saved]);
 
   const openFor = useCallback(async (sub: Subtopic) => {
     const existing = lessonFor(sub.id);

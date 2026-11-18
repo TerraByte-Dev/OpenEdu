@@ -932,8 +932,44 @@ export async function lessonHelpFor(
 // can close, and the Lessons tab and Review both call it.
 const helpBeingWritten = new Map<string, Promise<LessonHelp | null>>();
 
+// Lessons being written, by course, level and subtopic. Module-wide: the Lessons tab is remounted when
+// the level or tab changes and a write outlives the tab that started it, and Review writes lessons too.
+export interface LessonWrite { subtopicId: string; run: Promise<Lesson> }
+const lessonsBeingWritten = new Map<string, LessonWrite & { courseId: string; level: number }>();
+
+/** The lessons being written for this course level, oldest first. */
+export function lessonWritesFor(courseId: string, level: number): LessonWrite[] {
+  return [...lessonsBeingWritten.values()].filter((w) => w.courseId === courseId && w.level === level);
+}
+
+// The lesson for this subtopic: the write already running for it, else the one saved (the Lessons tab's
+// list can be older than a write that finished while it was away), else a new write. The entry is set
+// before anything is awaited, so a second call, however quick, joins this one and no second lesson row
+// is saved.
+export function writeLessonOnce(
+  courseId: string,
+  level: number,
+  subtopic: { id: string; title: string; key_concepts: string[] },
+  topic: string,
+  configs: () => Promise<{ config: LLMConfig; review: LLMConfig | null }>,
+): Promise<Lesson> {
+  const key = `${courseId}:${level}:${subtopic.id}`;
+  const running = lessonsBeingWritten.get(key);
+  if (running) return running.run;
+  const run = (async () => {
+    const saved = (await getLessons(courseId, level)).find((l) => l.subtopic_id === subtopic.id);
+    if (saved) return saved;
+    const { config, review } = await configs();
+    return generateLesson(courseId, level, { id: subtopic.id, title: subtopic.title, key_concepts: subtopic.key_concepts }, topic, config, undefined, review);
+  })();
+  lessonsBeingWritten.set(key, { courseId, level, subtopicId: subtopic.id, run });
+  void run.catch(() => {}).finally(() => lessonsBeingWritten.delete(key));
+  return run;
+}
+
 // Raise hand from practice, where the learner may not have opened the subtopic's lesson: the saved
-// lesson for that subtopic, or a new one (written with its stuck points, as on the Lessons tab).
+// lesson for that subtopic, or a new one (written with its stuck points, as on the Lessons tab), joining
+// the Lessons tab's write when that one is running.
 export async function lessonWithHelp(
   courseId: string,
   level: number,
@@ -943,8 +979,7 @@ export async function lessonWithHelp(
 ): Promise<{ lesson: Lesson; help: LessonHelp | null }> {
   const saved = (await getLessons(courseId, level)).find((l) => l.subtopic_id === subtopic.id);
   if (saved) return { lesson: saved, help: await lessonHelpFor(saved, subtopic, topic, configs) };
-  const { config, review } = await configs();
-  const lesson = await generateLesson(courseId, level, subtopic, topic, config, undefined, review);
+  const lesson = await writeLessonOnce(courseId, level, subtopic, topic, configs);
   return { lesson, help: parseLessonHelp(lesson.help_json) };
 }
 

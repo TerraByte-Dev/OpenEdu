@@ -263,10 +263,11 @@ describe("where it shows", () => {
     expect(noteAt).toBeGreaterThan(row);
     expect(noteAt).toBeLessThan(providerModels.indexOf("<ReviewModelPicker", row));
     // The note reads the settings through store.ts getLessonsNoteInput, which takes the models from
-    // getLessonConfigs, the call the Lessons tab writes with; it draws its nudge line.
+    // getLessonConfigs, the call the Lessons tab writes with (through curriculum.ts writeLessonOnce); it
+    // draws its nudge line.
     expect(lessonsNoteTsx).toContain("getLessonsNoteInput()");
     expect(lessonsNoteTsx).toContain("lessonsNote(input)");
-    expect(lessonsTab).toContain("getLessonConfigs()");
+    expect(lessonsTab).toMatch(/writeLessonOnce\([^)]*, getLessonConfigs\)/);
     expect(lessonsNoteTsx).toContain("{note.nudge && ");
     // The note only says what is set: it saves no Checking model and confirms no notice.
     expect(lessonsNoteTsx).not.toMatch(/setReviewModel|markCloudNoticeSeen/);
