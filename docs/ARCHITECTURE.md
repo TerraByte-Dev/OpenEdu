@@ -357,7 +357,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
 - **A safety disclosure typed outside the chat is not marked** (ported from TerraTutor #175). The chat's
   own check (`child-safety.ts isSafetyDisclosure` with the learner's grade, nothing wider) reads what the
   learner types into a quiz or level-test written answer, the study quiz's "In your own words, why is that
-  the answer?" (once it is saved, on blur) and the new-course topic, and a hit shows `SAFETY_NOTICE` with a
+  the answer?" (once it is saved, on blur; a cleared box is saved too, as NULL, so erased words, a
+  disclosure included, don't stay in the database: `db.ts updateQuizQuestionSelfExplanation`, ported from
+  TerraTutor #226) and the new-course topic, and a hit shows `SAFETY_NOTICE` with a
   read-aloud button (`components/SafetyNotice.tsx`). On a question the notice shows as soon as the answer
   is recorded (`QuestionRenderer`, `quiz-grading.ts showsSafetyNotice`), and again on its results row in
   place of the answer, the key and the not-checked note (`showsAnswerAndKey` is false for it). The answer
@@ -770,7 +772,12 @@ So the verdict on the child's answer is the app's, not the reply's:
   `progress.mark_mastered` (nothing runs or is shown; the model is told `NOT_SAVED_DISCLOSURE`), and the
   result carries `disclosure`, on which ChatTab skips the post-turn knowledge reflection. Before, the
   reflection put the learner's words into the course's study log or learning profile, which every later
-  tutor prompt for the course reads. `kernel/disclosureTurn.test.ts` pins it.
+  tutor prompt for the course reads. `kernel/disclosureTurn.test.ts` pins it. The Notebook's "Notes from
+  last chat" keeps it out of a note too (ported from TerraTutor #226): `notebook-assistant.ts
+  formatTranscript` leaves out each student message that is a disclosure with the tutor's reply to it
+  (everything up to the student's next message), and `finishSummary` withholds a summary that itself reads
+  as one, so NotesAssistant shows `SAFETY_NOTICE` in its place and offers no Insert. Both call
+  `isSafetyDisclosure` with no grade, as TerraTutor does, so a pregnancy message is not left out there.
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model

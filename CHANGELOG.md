@@ -36,6 +36,14 @@ The section for each release is also what the app shows when you press Check for
 - Clicking a link in a tutor reply, a lesson, Raise hand help, a resource or a diagram no longer takes
   the OpenEdu window to that website, which left no way back. The link opens nothing; OpenEdu shows its
   address so a grown-up can copy it into a web browser. Links to a heading on the same page still work.
+- **Notes from last chat leaves a safety disclosure out.** In the Notebook, a chat message that reads as
+  a safety disclosure, and the tutor's reply to it, are no longer handed to the summary, and a summary that
+  itself reads as one is not offered for Insert: the safety notice shows instead.
+  When nothing is left to make notes from, the panel no longer names the chat, whose title is the
+  learner's first message.
+- **Clearing "why is that the answer?" clears it.** On a study quiz, emptying the box now empties what is
+  saved, so words the learner erased, a safety disclosure included, no longer stay in the database and
+  its backups.
 
 ### Changed
 - **The safety notice knows more ways a child tells.** A message about sexual abuse, unwanted touching,
