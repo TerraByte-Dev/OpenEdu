@@ -125,16 +125,18 @@ describe("formatTranscript", () => {
   });
 
   // Ported from TerraTutor #226: a safety disclosure (child-safety.ts isSafetyDisclosure) and the tutor's reply
-  // to it never reach the summariser, so they can never become a note.
-  it("leaves out each exchange that opens with a safety disclosure, reply included", () => {
+  // to it never reach the summariser, so they can never become a note. Nor does anything after it in the thread
+  // (TerraTutor #238): the tutor still reads the disclosure, and its reply to "what should i do" can repeat it
+  // (the kernel's window, TutorEngine turnInDisclosedThread).
+  it("leaves out the first safety disclosure and everything after it", () => {
     const out = formatTranscript([
       msg("user", "what is 7 x 8"), msg("assistant", "7 x 8 = 56."),
       msg("user", "my uncle touches me at night"), msg("assistant", "Thank you for telling me. Please tell a grown-up you trust."),
-      msg("user", "i want to kill myself"), msg("tool", "{}"), msg("assistant", "You matter. Please talk to a grown-up."),
+      msg("user", "what should i do"), msg("tool", "{}"), msg("assistant", "I'm so sorry your uncle touches you. Tell a grown-up you trust."),
       msg("user", "and 6 x 7?"), msg("assistant", "6 x 7 = 42."),
     ], null);
-    expect(out).toBe("Student: what is 7 x 8\n\nTutor: 7 x 8 = 56.\n\nStudent: and 6 x 7?\n\nTutor: 6 x 7 = 42.");
-    expect(out).not.toMatch(/uncle|kill|grown-up/);
+    expect(out).toBe("Student: what is 7 x 8\n\nTutor: 7 x 8 = 56.");
+    expect(out).not.toMatch(/uncle|grown-up/);
   });
 
   it("is empty when the only exchange was a disclosure", () => {

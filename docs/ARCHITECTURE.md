@@ -824,11 +824,20 @@ So the verdict on the child's answer is the app's, not the reply's:
   `progress.mark_mastered` (nothing runs or is shown; the model is told `NOT_SAVED_DISCLOSURE`), and the
   result carries `disclosure`, on which ChatTab skips the post-turn knowledge reflection. Before, the
   reflection put the learner's words into the course's study log or learning profile, which every later
-  tutor prompt for the course reads. `kernel/disclosureTurn.test.ts` pins it. The Notebook's "Notes from
-  last chat" keeps it out of a note too (ported from TerraTutor #226): `notebook-assistant.ts
-  formatTranscript` leaves out each student message that is a disclosure with the tutor's reply to it
-  (everything up to the student's next message), and `finishSummary` withholds a summary that itself reads
-  as one, so NotesAssistant shows `SAFETY_NOTICE` in its place and offers no Insert. Both call
+  tutor prompt for the course reads. The same holds for every later turn in a thread with a disclosure
+  among its student messages (ported from TerraTutor #238; `TutorEngine turnInDisclosedThread`, with the
+  learner's grade, which reads every message ChatTab sends: what `getChatMessages` loads, the thread's newest
+  `CHAT_HISTORY_LIMIT` (200) messages, so past 200 the window is those 200 and a tutor reply that repeated a
+  disclosure can outlive it there): the model still reads the disclosure, so its reply to "what should i
+  do" after "my uncle touches me at night" can repeat it. Such a turn is answered as usual (its reply,
+  answer check and dictionary note go by the newest message alone), but runs no flashcard stage, refuses
+  the three tools and carries `disclosure`. `kernel/disclosureTurn.test.ts` pins it. The Notebook's "Notes
+  from last chat" keeps it out of a note too (ported from TerraTutor #226): `notebook-assistant.ts
+  formatTranscript` leaves out the first student message that is a disclosure and everything after it (the
+  same window: NotesAssistant also loads the thread with `getChatMessages`, so past 200 messages a reply that
+  repeated a disclosure no longer in those 200 is kept; `finishSummary` is the backstop there), and
+  `finishSummary` withholds a summary that itself reads as one, so NotesAssistant shows `SAFETY_NOTICE` in
+  its place and offers no Insert. Both call
   `isSafetyDisclosure` with the active learner's grade (CourseView → NotesTab → NotesAssistant), as the
   chat's notice does, so with a K-12 grade a strong pregnancy self-disclosure is left out there too, and with
   no grade it is not. `src/components/notes-summary-grade.test.ts` clicks the real panel to pin it.

@@ -60,7 +60,7 @@ export const MASTERY_REFUSED_DISCLOSURE =
   "Not saved: the student's newest message is not an answer, so nothing can be marked mastered on this turn.";
 /** The tools that keep what a turn said: the course's knowledge files, the notebook, a flashcard. */
 const KEEPS_WORDS = new Set([KNOWLEDGE_UPDATE_TOOL, "notebook.ingest", FLASHCARD_TOOL]);
-/** What the model is told when it calls one of KEEPS_WORDS on a turn whose newest message is a safety disclosure. */
+/** What the model is told when it calls one of KEEPS_WORDS on a turn in a thread with a safety disclosure (keepsNothing). */
 export const NOT_SAVED_DISCLOSURE =
   "Not saved: nothing from this turn is kept in the student's knowledge files, notes or flashcards.";
 /** What the model is told when the claim filter left nothing of an ask_user.question card to show. */
@@ -178,10 +178,12 @@ export interface TutorTurnResult {
   // notice under it, the safety rules in the system prompt, no grading. Null on every other turn.
   cardMessage: string | null;
   // True when the student's newest message is a safety disclosure (isSafetyDisclosure, with
-  // TutorTurn.grade). Nothing from the turn is kept: the kernel runs no flashcard stage and refuses
+  // TutorTurn.grade), or any earlier student message in the thread the turn was sent (turnInDisclosedThread).
+  // Nothing from the turn is kept: the kernel runs no flashcard stage and refuses
   // knowledge.update_map, notebook.ingest and flashcard.create (KEEPS_WORDS), and the caller runs no
   // knowledge reflection, which would put the learner's words in the course's knowledge files and so into
-  // every later tutor prompt for that course.
+  // every later tutor prompt for that course. The model still reads the disclosure in its history after it
+  // ("what should i do" next), so its reply on a later turn can repeat it.
   disclosure: boolean;
 }
 
@@ -225,6 +227,19 @@ export function cardTutorMessage(before: string, card: AskCard): string {
   return [before.trim(), card.question.trim(), choices ? `Choices:\n${choices}` : ""].filter(Boolean).join("\n\n");
 }
 
+/**
+ * Whether any student message the turn was sent is a safety disclosure (isSafetyDisclosure, with the learner's
+ * grade): the window is the thread as the caller sends it. ChatTab sends what getChatMessages loads, the open
+ * thread's newest CHAT_HISTORY_LIMIT (200) messages, so past 200 the window is those 200: once the disclosure
+ * scrolls out, a tutor reply that repeated it can still be in what the model reads, and keeping starts again.
+ * A later turn in that thread keeps nothing either (TutorTurnResult.disclosure), since the model still reads
+ * the disclosure and may repeat it. Only keeping is widened: the turn's reply, its answer check and its
+ * dictionary note go by the newest message alone (ported from TerraTutor #238).
+ */
+export function turnInDisclosedThread(messages: ReadonlyArray<{ role: string; content: string }>, grade: Grade | null): boolean {
+  return messages.some((m) => m.role === "user" && isSafetyDisclosure(m.content, grade));
+}
+
 export class TutorEngine {
   async run(turn: TutorTurn, ctx: ToolContext): Promise<TutorTurnResult> {
     const messages: NeutralMessage[] = turn.messages.map((m) => ({
@@ -262,6 +277,8 @@ export class TutorEngine {
     const newest = messages[messages.length - 1];
     const asked = newest?.role === "user" ? askedWord(newest.content) : null;
     const disclosure = newest?.role === "user" && isSafetyDisclosure(newest.content, turn.grade ?? null);
+    // Nothing from the turn is kept (TutorTurnResult.disclosure): the newest message or an earlier one in the thread is a disclosure.
+    const keepsNothing = disclosure || turnInDisclosedThread(turn.messages, turn.grade ?? null);
     const dictionaryLookup = asked && !disclosure && !firstTurnHold && !checkBeforePraiseTurn && turn.dictionary !== "off"
       ? lookupDictionary(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
       : Promise.resolve(null);
@@ -286,11 +303,12 @@ export class TutorEngine {
     // is not offered the tool again this turn, so it cannot make a second card. A failed card call
     // clears the chip and the turn goes on as before. Never on a safety-disclosure turn (`disclosure`):
     // "i wanna die. make me a flashcard for 7 x 8" takes the safety path only, with no card call, no card
-    // made from the learner's words and no "it is saved" note sending them back to the work.
+    // made from the learner's words and no "it is saved" note sending them back to the work. Nor later in a
+    // thread with a disclosure in it (`keepsNothing`): "my uncle touches me", then "make me a flashcard" gets no card.
     let appCard: { call: TutorTurnResult["toolCalls"][number]; saved: Card | null } | null = null;
     const cardTool = toolRegistry.get(FLASHCARD_TOOL);
     if (
-      !disclosure && turn.flashcardStage !== "off" && cardTool && newest?.role === "user" && asksForFlashcard(newest.content) &&
+      !keepsNothing && turn.flashcardStage !== "off" && cardTool && newest?.role === "user" && asksForFlashcard(newest.content) &&
       evaluatePermission(cardTool, ctx.permissionMode, await loadPermissionRules()) !== "deny"
     ) {
       turn.onToolEvent?.({ kind: "progress", id: APP_FLASHCARD_CALL_ID, name: FLASHCARD_TOOL, message: "making a flashcard…" });
@@ -393,7 +411,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -421,9 +439,10 @@ ${lastUser.content}` };
       /** False when the caller turned the answer check off (TutorTurn.answerCheck), or the newest message is
        *  a safety disclosure: nothing on that turn is graded, a card's answer included. */
       checkAnswers: boolean;
-      /** The newest message is a safety disclosure: a "mastered" mark on this turn is refused, and so is
-       *  anything that keeps the learner's words (KEEPS_WORDS). */
+      /** The newest message is a safety disclosure: a "mastered" mark on this turn is refused. */
       disclosureTurn: boolean;
+      /** The newest message or an earlier one in the thread is a safety disclosure: KEEPS_WORDS are refused. */
+      keepsNothing: boolean;
       /** The newest message answers a mastery check's question (isAssessAnswerTurn), with the check on: a
        *  "mastered" mark on this turn needs a correct verdict, so one with no verdict at all is refused. */
       answerTurn: boolean;
@@ -609,9 +628,10 @@ ${lastUser.content}` };
         const unchecked = prepared.answerTurn && checked.length === 0;
         const refused = call.name === MARK_MASTERED_TOOL && marksMastered(call.args) && (prepared.disclosureTurn ||
           unchecked || checked.some((c) => c.verdict !== "correct"));
-        // On a safety-disclosure turn nothing the learner said is kept: the knowledge files, the notebook
-        // and a flashcard are refused the same way. Nothing runs and nothing is shown; the model is told.
-        const keepsWords = prepared.disclosureTurn && KEEPS_WORDS.has(call.name);
+        // On a safety-disclosure turn, and every later turn in its thread, nothing the learner said is kept:
+        // the knowledge files, the notebook and a flashcard are refused the same way. Nothing runs and
+        // nothing is shown; the model is told.
+        const keepsWords = prepared.keepsNothing && KEEPS_WORDS.has(call.name);
         let result: ToolDispatchResult;
         if (refused) result = { name: call.name, ok: false, error: prepared.disclosureTurn ? MASTERY_REFUSED_DISCLOSURE : unchecked ? MASTERY_REFUSED_UNCHECKED : MASTERY_REFUSED };
         else if (keepsWords) result = { name: call.name, ok: false, error: NOT_SAVED_DISCLOSURE };
@@ -787,7 +807,7 @@ ${lastUser.content}` };
       cardChecks,
       removedClaims: [...earlierRemoved, ...claims.removed],
       cardMessage,
-      disclosure: prepared.disclosureTurn,
+      disclosure: prepared.keepsNothing,
     };
   }
 }
