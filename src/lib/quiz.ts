@@ -19,9 +19,9 @@ import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
 // The generation-time question shape (no DB/runtime fields yet).
 type GenQuestion = Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct">;
 
-// Target / floor question counts (issue #83). Target = what we aim to generate; floor = the count
-// below which a degraded run surfaces an honest "your model may be struggling" note instead of
-// silently shipping a short test. Quizzes 10–20, promotion tests 30–45.
+// Target / floor question counts (issue #83). Target = what we aim to generate. A quiz under its floor
+// ships with an honest "your model may be struggling" note; a level test under TEST_FLOOR is not given
+// at all (levelTestShortfall). Quizzes 10–20, promotion tests 30–45.
 export const QUIZ_TARGET = 20;
 export const QUIZ_FLOOR = 10;
 export const TEST_CURRENT_TARGET = 35;
@@ -694,6 +694,25 @@ export async function generateQuizQuestions(
 export interface PromotionTestQuestions {
   current: GenQuestion[];
   review: GenQuestion[];
+  /** The course has earlier levels with subtopics, so the test must have a review section. */
+  reviewWanted: boolean;
+}
+
+/**
+ * Why a generated level test cannot be given, or null when it can. A test under TEST_FLOOR questions, or
+ * one whose review section came back empty although the course has earlier levels, is not started: it
+ * is not taken and cannot promote (the pass rule would skip an empty review section). The learner can
+ * try again.
+ */
+export function levelTestShortfall(t: PromotionTestQuestions): string | null {
+  const total = t.current.length + t.review.length;
+  if (total < TEST_FLOOR) {
+    return `Only ${total} of ${TEST_TOTAL_TARGET} questions were made, and a level test needs at least ${TEST_FLOOR}. The test was not started and does not count. Try again, or pick a more capable model in Settings.`;
+  }
+  if (t.reviewWanted && t.review.length === 0) {
+    return "No questions on the earlier levels were made, and a level test needs them. The test was not started and does not count. Try again.";
+  }
+  return null;
 }
 
 export async function generatePromotionTestQuestions(
@@ -747,7 +766,7 @@ export async function generatePromotionTestQuestions(
     );
   }
 
-  return { current, review };
+  return { current, review, reviewWanted: reviewSubs.length > 0 };
 }
 
 // ─── End-of-test grading (issue #83) ──────────────────────────────────────────
