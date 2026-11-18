@@ -334,17 +334,13 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
   // later rebuild (back from the graph) doesn't take the focus.
   useEffect(() => { if (focusEditor) setFocusEditor(false); }, [focusEditor]);
 
-  // Disarm when the note changes, and after a few seconds so an armed button doesn't wait for a stray click.
+  // The trash button only asks; the delete is a separate button on its own row below the header, so a
+  // double-click on the trash (the second click lands on the trash again) can't pass the question.
+  // Disarm when the note changes.
   useEffect(() => { setDeleteArmed(false); }, [selectedNote?.id]);
-  useEffect(() => {
-    if (!deleteArmed) return;
-    const t = setTimeout(() => setDeleteArmed(false), 4000);
-    return () => clearTimeout(t);
-  }, [deleteArmed]);
 
   const handleDeleteNote = async () => {
     if (!selectedNote) return;
-    if (!deleteArmed) { setDeleteArmed(true); return; }
     const id = selectedNote.id;
     setDeleteArmed(false);
     await deleteNote(id);
@@ -873,17 +869,29 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                   <IconSidebarRight size={15} />
                 </button>
                 <button
-                  onClick={handleDeleteNote}
-                  className={`p-1.5 rounded transition-colors shrink-0 inline-flex items-center gap-1 ${
+                  onClick={() => setDeleteArmed(true)}
+                  aria-expanded={deleteArmed}
+                  className={`p-1.5 rounded transition-colors shrink-0 ${
                     deleteArmed ? "bg-danger-tint text-danger" : "hover:bg-danger-tint text-[var(--ink-faint)] hover:text-danger"
                   }`}
-                  title={deleteArmed ? "Click again to delete this note" : "Delete note"}
-                  aria-label={deleteArmed ? "Click again to delete this note" : "Delete note"}
+                  title="Delete note"
+                  aria-label="Delete note"
                 >
                   <IconTrash size={15} />
-                  {deleteArmed && <span className="text-[11px] font-medium">Click again to delete</span>}
                 </button>
               </div>
+
+              {deleteArmed && (
+                <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2 border-b border-[var(--rule)] bg-danger-tint shrink-0" role="group" aria-label="Delete this note?">
+                  <span className="text-xs text-ink">Delete this note? It cannot be brought back.</span>
+                  <button type="button" className="px-2 py-1 rounded text-[11px] text-danger border border-[var(--danger)] hover:bg-panel-lite shrink-0" onClick={() => { void handleDeleteNote(); }}>
+                    Delete
+                  </button>
+                  <button type="button" autoFocus className="px-2 py-1 rounded text-[11px] text-[var(--ink-dim)] border border-[var(--rule)] hover:bg-panel-lite shrink-0" onClick={() => setDeleteArmed(false)}>
+                    Keep it
+                  </button>
+                </div>
+              )}
 
               {/* Explicit create affordance for a clicked [[link]] whose note doesn't exist — never auto-creates. */}
               {pendingLink && (

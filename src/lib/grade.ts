@@ -4,7 +4,7 @@
 // Stored in learners.grade (migration 15) as an integer: 0 = kindergarten, 1-12 = that grade, NULL =
 // not set. Everything a grade changes is decided here from its band, by code, with no model call:
 // the reading-level line and child-safety rules in the tutor's system prompt, the text size in chat,
-// lessons, quizzes and level tests, and whether replies read themselves aloud by default. With no
+// lessons, flashcards, quizzes, level tests and their results, and whether replies read themselves aloud by default. With no
 // grade set none of it applies, and the system prompt is byte-identical to the one before grades
 // existed (systemPrompt-master.test.ts pins that), except on a safety-disclosure turn, which gets the
 // child-safety rules (gradePromptLayer).

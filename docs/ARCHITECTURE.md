@@ -43,7 +43,12 @@ shutdown or power cut part way used to leave a cut-short file under the newest b
 opens the Save dialog (`src-tauri/src/backup.rs backup_pick`) and gives the webview only `<picked>.partial`
 to copy into; `backup_finish` flushes it, checks the SQLite header's page count and page size against the
 file's length, and only then renames it to the picked name (replacing a file there, which the dialog
-already asked about); a failed copy is removed (`backup_abandon`). A cut-short copy keeps the `.partial`
+already asked about); a failed copy is removed (`backup_abandon`). One backup runs at a time: Rust keeps
+one picked path, so a second `backup_pick` while a backup is being picked or saved (Settings left and come
+back to mid-copy) is refused before any dialog opens, and Settings says to wait for "Backup saved". The
+backup's progress and outcome are kept outside the section (`src/lib/backup-status.ts`), because Settings
+mounts only the open section: coming back mid-copy shows "Saving backup…" and then "Backup saved", and the
+button stays off until the copy is done. A cut-short copy keeps the `.partial`
 name, which never ends in `.db`. Settings asks the user to wait for "Backup saved" before shutting down or
 unplugging the stick. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 
@@ -103,10 +108,15 @@ plain words (the same marked + math tokenizer the chat renders with; LaTeX read 
 at a time, so it works offline with the Windows voices. Lessons, quizzes and level tests have the same
 speaker button for every learner (`components/ReadAloudButton.tsx`): the lesson reader's reads the lesson,
 a question's reads the question and, for multiple choice and true/false, its choices
-(`speech.ts questionSpeech`; a fill-in blank is read as "blank"), never the answer key. Nothing there reads
-itself. K-2 also gets the larger text there: the lesson at 1.25rem (`.lesson-text-large`), and the
-question at 1.5rem with its answers, inputs and feedback at 1.25rem and 1.125rem (`QuestionRenderer`,
-from the `grade` it already takes for the safety notice), from the learner's grade passed down from `App`.
+(`speech.ts questionSpeech`; a fill-in blank is read as "blank"), never the answer key. Each row of a
+quiz's or level test's results has one too, which reads the question, the answer and key when the row
+shows them, and the explanation (`speech.ts resultSpeech`; never the grader's feedback, and never the
+child's words on a row that shows the safety notice), and a flashcard in Review has one beside its front
+and, once shown, its back. Nothing there reads itself. K-2 also gets the larger text there: the lesson at
+1.25rem (`.lesson-text-large`), the question at 1.5rem with its answers, inputs and feedback at 1.25rem and
+1.125rem (`QuestionRenderer`, from the `grade` it already takes for the safety notice), the results rows
+at the same 1.25rem and 1.125rem, and a flashcard's front, back and grade buttons larger in Review, from
+the learner's grade passed down from `App`.
 
 In the chat, a question card (`ask_user.question`, and the buttons for choices a reply wrote as a list)
 and the Allow / Don't allow card before a tool that asks are `.chat-msg` too, so K-2 gets them at the
@@ -1095,8 +1105,9 @@ notes whose entry is current, stops when the embedder itself can't run (model mi
 OpenAI key or connection) and skips past a note that fails on its own. `NotesTab` runs every index job
 (that pass, embed-on-save, a deleted note's clean-up) one at a time, so one note never gets two entries. Each
 note gets its own editor (`MarkdownEditor` keyed on the note id), so undo history never crosses notes;
-a save writes the note it was handed and never re-selects it, and deleting a note takes a second click
-on the trash button.
+a save writes the note it was handed and never re-selects it, and the trash button only asks: "Delete this
+note?" opens on its own row below the header, with Delete and Keep it (focused), so a double-click on the
+trash can't delete the note.
 
 Linking is bidirectional. `buildBacklinkIndex` maps a note to everything holding a `[[link]]` that
 resolves to it, with the surrounding line as context; `findUnlinkedMentions` finds notes that say the

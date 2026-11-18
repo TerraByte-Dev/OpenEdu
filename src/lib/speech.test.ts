@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { speakableText, texWords, pickVoice, questionSpeech, chatCardSpeech, unreadText, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
+import { speakableText, texWords, pickVoice, questionSpeech, resultSpeech, chatCardSpeech, unreadText, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
 import { confirmCardQuestion, CONFIRM_CHOICES } from "./plain-language";
 import { repeatsQuestion } from "./kernel/askCard";
+import type { Grade } from "./grade";
 import { persistedReply } from "./kernel/persistedReply";
 
 // speakableText is what ChatTab's speaker button and the K-2 auto-read hand to speechSynthesis
@@ -185,6 +186,41 @@ describe("questionSpeech: a quiz question read aloud", () => {
     expect(read(q)).toBe("Why do leaves fall?");
     expect(read({ question_type: "drag_to_match", question_text: "Match each animal to its home." }))
       .toBe("Match each animal to its home.");
+  });
+});
+
+// A results row's speaker button (QuizFullScreen and PromotionTestFullScreen results) hands resultSpeech's
+// markdown to useReadAloud, which reads speakableText of it, as here.
+describe("resultSpeech: a quiz or level-test results row read aloud", () => {
+  const read = (q: Parameters<typeof resultSpeech>[0], grade: Grade | null = 1) => speakableText(resultSpeech(q, grade));
+
+  it("reads a wrong answer's question, the answer, the key and the explanation", () => {
+    expect(read({ question_text: "What is 2 + 3?", user_answer: "4", correct_answer: "5", explanation: "Two and three make five.", is_correct: false, graded_by: "key" }))
+      .toBe("What is 2 + 3? Your answer: 4. Correct answer: 5. Two and three make five.");
+  });
+
+  it("reads a right answer without the answer and key, as the row hides them", () => {
+    expect(read({ question_text: "What is 1 + 1?", user_answer: "2", correct_answer: "2", explanation: "One and one make two.", is_correct: true, graded_by: "key" }))
+      .toBe("What is 1 + 1? One and one make two.");
+  });
+
+  it("reads a fill-in blank as the word blank", () => {
+    expect(read({ question_text: "A cat says ___.", user_answer: "woof", correct_answer: "meow", is_correct: false, graded_by: "exact" }))
+      .toBe("A cat says blank. Your answer: woof. Correct answer: meow.");
+  });
+
+  it("never reads out an answer that reads as a safety disclosure", () => {
+    const text = read({ question_text: "Why do leaves fall?", user_answer: "i want to kill myself", correct_answer: "autumn", explanation: "Trees drop leaves.", is_correct: false, graded_by: "key" });
+    expect(text).toBe("Why do leaves fall?");
+    // Nor the rest of a row whose "why" text was one: the row shows the safety notice.
+    expect(read({ question_text: "What is 2 + 3?", user_answer: "4", correct_answer: "5", explanation: "Two and three make five.", is_correct: false, graded_by: "key", self_explanation: "I want to kill myself" }))
+      .toBe("What is 2 + 3?");
+  });
+
+  it("checks the answer with the learner's grade, as the row does (a pregnancy one only with a grade set)", () => {
+    const q = { question_text: "What do plants need?", user_answer: "im scared im pregnant", correct_answer: "sunlight", is_correct: false, graded_by: "key" as const };
+    expect(read(q, 1)).toBe("What do plants need?");
+    expect(read(q, null)).toBe("What do plants need? Your answer: im scared im pregnant. Correct answer: sunlight.");
   });
 });
 
