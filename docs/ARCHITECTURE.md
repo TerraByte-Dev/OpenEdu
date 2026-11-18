@@ -1058,7 +1058,8 @@ filled in for that subtopic. Buttons are 56 px tall and the labels are a few sho
   Lessons tab too. Both write a lesson through `writeLessonOnce`, which keeps the writes in progress by
   course, level and subtopic: a second request for the same lesson (a second tap, Review, or the Lessons
   tab opened again after a level or tab change, which shows it as "Writing…" again) joins the running
-  write, so a subtopic never gets two lessons.
+  write, so a subtopic never gets two lessons. A lesson the learner asked to be written opens when it is
+  done, unless they opened another one while it was being written.
 - **What goes in.** The course topic, the syllabus subtopic's title and key concepts, and the lesson
   text (`buildStuckPointsPrompt`). Never a card's text (a learner may have written it), a chat, a note, a
   grade, a name or a result. The same request for every learner, so in TerraTutor it may go to a cloud
