@@ -41,6 +41,7 @@ import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, t
 import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
+import { drawnCard } from "./drawnCards";
 import { isSafetyDisclosure } from "../child-safety";
 import type { Grade } from "../grade";
 
@@ -56,12 +57,11 @@ export const MASTERY_REFUSED_DISCLOSURE =
 /** What the model is told when the claim filter left nothing of an ask_user.question card to show. */
 export const CARD_REFUSED =
   "Not shown: this question said something about the student's answer or mastery that the app's check does not show. Ask again without saying whether the answer is right, or that anything is mastered.";
-// A call whose result the chat draws as the answer in the reply's place (ChatTab ToolActivity): a typeset
-// math card, a diagram, or the flashcard the app made because the student asked for one. Every other tool
-// shows only a chip ("✓ Looked it up in the library"), which answers nothing, so a turn that ran only
-// those and wrote nothing is a blank turn.
-const ANSWER_CARD_TOOLS = new Set(["math.render", "diagram.render"]);
-const showsAnswerCard = (c: { name: string; ok: boolean; byApp?: true }) => c.ok && (ANSWER_CARD_TOOLS.has(c.name) || !!c.byApp);
+// A call whose result the chat draws as the answer in the reply's place (ChatTab ToolActivity): the
+// flashcard the app made because the student asked for one. Every other tool shows only a chip ("✓ Looked
+// it up in the library"), which answers nothing, so a turn that ran only those and wrote nothing is a
+// blank turn. A math.render or diagram.render drawing is not here: it is reply text (drawnCards.ts).
+const showsAnswerCard = (c: { ok: boolean; byApp?: true }) => c.ok && !!c.byApp;
 const marksMastered = (args: unknown) => !!args && typeof args === "object" && (args as { status?: unknown }).status === "mastered";
 // The id of the flashcard.create call the app makes itself (flashcard stage). It never reaches a
 // provider: the model sees a note, not a tool call, so no tool_use id rules apply.
@@ -438,7 +438,22 @@ ${lastUser.content}` };
     // Every model call's text goes through a ReplyTextFilter before the student sees it or it is
     // saved: a tool call the model wrote as text never reaches either (textToolCalls.ts).
     const toolNames = [...toolRegistry.all().map((t) => t.name), ...offered];
-    const show = (text: string) => { if (text) { streamedText += text; turn.onText(text); } };
+    // A drawing a math.render or diagram.render call left in the reply (drawnCards.ts) ends on its own
+    // line; whatever is shown next starts a new paragraph after it.
+    let afterDrawing = false;
+    // Whether anything but a drawing was shown this turn. A drawing answers the turn (no MIXED_UP_REPLY)
+    // but says no verdict, so a checked answer whose reply was only a drawing still gets VERDICT_FALLBACK.
+    let proseShown = false;
+    const show = (text: string, drawing = false) => {
+      if (!text) return;
+      if (afterDrawing) {
+        text = (text.startsWith("\n\n") ? "" : text.startsWith("\n") ? "\n" : "\n\n") + text;
+        afterDrawing = false;
+      }
+      if (!drawing && text.trim()) proseShown = true;
+      streamedText += text;
+      turn.onText(text);
+    };
     // On a turn of a mastery check, every model call's text then goes through the claim filter
     // (replyClaims.ts): a mastery claim with no mastery saved this turn, and a claim against the answer
     // check's verdict, never reach the student or the transcript. It holds each sentence until it ends.
@@ -562,6 +577,12 @@ ${lastUser.content}` };
         toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}) });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         if (call.name === MARK_MASTERED_TOOL && result.ok && marksMastered(call.args)) masteryWritten = true;
+        // An equation or diagram is shown as reply text where the call ran, so it is saved with the reply
+        // and stays in the thread (drawnCards.ts), rather than living only in the turn's tool events.
+        if (result.ok) {
+          const drawing = drawnCard(streamedText, call.name, call.args);
+          if (drawing) { show(drawing, true); afterDrawing = true; }
+        }
         // The child answered a card: the question and their answer join the reply's text, so they are
         // shown in the stream and saved with the reply once the card is gone (askCard.ts answeredCard).
         let cardNote = "";
@@ -656,8 +677,8 @@ ${lastUser.content}` };
       interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally || toolCallRecovery ? "complete" : "max_iterations");
 
     // An answer the check gave a verdict on always gets one: a reply the claim filter emptied (or the
-    // model left empty) says the verdict in one plain line.
-    if (verdictCheck && cardMessage === null && !streamedText.trim() && stopReason !== "aborted" && stopReason !== "stalled") {
+    // model left empty, or left only a drawing) says the verdict in one plain line.
+    if (verdictCheck && cardMessage === null && !proseShown && stopReason !== "aborted" && stopReason !== "stalled") {
       show(VERDICT_FALLBACK[verdictCheck.verdict]);
     }
 

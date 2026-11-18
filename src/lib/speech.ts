@@ -324,6 +324,27 @@ export function questionSpeech(q: {
   return parts.map((p) => p.replace(/_{2,}/g, ` ${BLANK_SPOKEN} `)).join("\n\n");
 }
 
+/**
+ * A chat card (an ask_user.question card, or the Allow / Don't allow card before a tool that asks) as
+ * the markdown its speaker button and the K-2 auto-read read: `lead` (the turn's text streamed before
+ * the card and not read yet; markdown), the card's question as shown ("" when the text above already
+ * ends on it), then each button's label as its own sentence, in the order shown.
+ */
+export function chatCardSpeech(lead: string, question: string, choices: ReadonlyArray<string>): string {
+  const parts = [lead.trim(), question.trim()].filter(Boolean);
+  if (choices.length > 0) parts.push(CHOICES_SPOKEN, ...choices.map(choiceAsText));
+  return parts.join("\n\n");
+}
+
+/**
+ * What of `text` is not read yet when `spoken` (an earlier state of the same streamed reply) was read
+ * with a card: the rest after it, or all of `text` when it no longer starts with it (the saved reply was
+ * changed after it streamed, e.g. a picture claim taken out).
+ */
+export function unreadText(text: string, spoken: string): string {
+  return spoken && text.startsWith(spoken) ? text.slice(spoken.length) : text;
+}
+
 // ── Voice choice ─────────────────────────────────────────────────────────────────────────────────
 
 /** The fields of SpeechSynthesisVoice the choice reads. */
