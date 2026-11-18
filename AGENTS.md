@@ -55,7 +55,8 @@ wrapper are **not type-linked**; keep them in sync by hand.
 
 - Pure TS logic gets a `*.test.ts` beside it (vitest). No DOM, no Tauri imports in code under test —
   put the logic in a pure module and keep the Tauri/React shell thin. The exception is HTML
-  sanitizing (DOMPurify needs a DOM): those files opt in with `// @vitest-environment jsdom`.
+  sanitizing (DOMPurify needs a DOM): those files opt in with `// @vitest-environment jsdom`. So does
+  `src/components/outside-link.test.ts`, which clicks links in rendered prose under the real link guard.
 - Rust logic gets `#[cfg(test)]` tests in the same file. Test against temp dirs, never the user's disk.
 - **A test must go through the same code path production does.** A test of a helper the app doesn't
   call is not evidence. This repo has shipped a dead feature behind a green suite exactly that way.

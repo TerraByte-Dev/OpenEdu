@@ -27,6 +27,7 @@ import Titlebar from "./components/Titlebar";
 import LearnerPicker from "./components/LearnerPicker";
 import LearnerMenu from "./components/LearnerMenu";
 import StartupFailed from "./components/StartupFailed";
+import OutsideLinkNote from "./components/OutsideLinkNote";
 import Sidebar from "./components/Sidebar";
 import Home from "./views/Home";
 import Dashboard from "./views/Dashboard";
@@ -313,6 +314,9 @@ export default function App() {
       className="flex flex-col h-screen w-screen bg-bg overflow-hidden"
       onContextMenu={(e) => e.preventDefault()}
     >
+      {/* A link that leaves the app never navigates the window; its address is shown to copy instead. */}
+      <OutsideLinkNote />
+
       {/* Boot sequence — unmounts after splash */}
       {!booted && <BootSequence onComplete={handleBootComplete} />}
 

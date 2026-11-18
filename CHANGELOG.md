@@ -33,6 +33,9 @@ The section for each release is also what the app shows when you press Check for
 - A picture in a tutor reply, a lesson or a library card that links to another website is no longer
   loaded. Loading it told that website when the learner opened the message, and its address could
   carry words from the conversation. Pictures built into OpenEdu still show.
+- Clicking a link in a tutor reply, a lesson, Raise hand help, a resource or a diagram no longer takes
+  the OpenEdu window to that website, which left no way back. The link opens nothing; OpenEdu shows its
+  address so a grown-up can copy it into a web browser. Links to a heading on the same page still work.
 
 ### Changed
 - Importing a model no longer warns that Google's Gemma Terms of Use must travel with a Gemma 4 model. Gemma 4 is Apache 2.0; the reminder (on the import screen and in `scripts/export-model.mjs`) now covers only Gemma 1 to 3.
