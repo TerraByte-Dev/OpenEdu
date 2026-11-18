@@ -945,9 +945,12 @@ Sharing the child's pictures counts only with a threat in the same message (`SHA
 patterns equal TerraTutor's as of its PR #223: its PR #125's, narrowed in both apps where they fired on
 ordinary schoolwork (review of #372, TerraTutor #221 and #223). "private" counts as the body only as
 "privates", "private parts" and the like, or with no noun after it (not "her private feelings", "her private
-place in the garden"); touching him, her or them counts only after someone's family member or grown-up and
-before the end, a place or a time ("her dad touches her at night", not "sea anemones sting people who touch
-them" or "his mother touched him when he cried"); "touched by" needs the child (or their brother or sister)
+place in the garden"); touching him, her or them counts after the child's own ("my") family member or
+grown-up with no other subject in between and before the end, a joining or time word or an adverb, never a
+noun ("my uncle touches her when she sleeps", not "in the book my dad touches her hand"), and after anyone
+else's only before the end, a place or a time ("her dad touches her at night", not "sea anemones sting
+people who touch them" or "his mother touched him when he cried"), so "my mom touches her when she cries"
+fires, a known and accepted false positive; "touched by" needs the child (or their brother or sister)
 as the one touched and a person, with no apostrophe, as the one touching ("i got touched by my uncle", not
 "touched by my teacher's words" or "the old woman was touched by a stranger"), while the child getting
 touched with no one named still counts ("i got touched at school"); a thing earlier in the clause blocks the

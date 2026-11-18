@@ -47,7 +47,8 @@ The section for each release is also what the app shows when you press Check for
   there in 1969", "Romeo and Juliet both commit suicide") show nothing, are marked as usual and can be a
   course topic. Other schoolwork can still trip it: "sexual assault", "sextortion" and "suicide" count as
   words on their own ("the article was about sexual assault on campus", "why did Romeo commit suicide?"),
-  and so do a few everyday sentences ("the doctor told me to take my shirt off"). Each of those shows the
+  and so do a few everyday sentences ("the doctor told me to take my shirt off", "my mom touches her when
+  she cries"). Each of those shows the
   notice, is passed as not checked when typed as an answer, and is refused as a course topic.
 - Importing a model no longer warns that Google's Gemma Terms of Use must travel with a Gemma 4 model. Gemma 4 is Apache 2.0; the reminder (on the import screen and in `scripts/export-model.mjs`) now covers only Gemma 1 to 3.
 - **OpenEdu is now for one learner.** Class and school modes, the "Who uses this computer?"
