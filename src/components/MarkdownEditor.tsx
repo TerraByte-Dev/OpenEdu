@@ -5,7 +5,7 @@
 // are styled + clickable (open a note-free tag view). The document stays plain markdown, so the
 // notes table, graph, #tag parsing, and RAG indexing are all unchanged.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { EditorView, keymap, ViewPlugin, Decoration, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { EditorState, StateEffect, type Range } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -16,7 +16,7 @@ import {
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxTree, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { findWikiLinks, findTags, linkKey, wikiLinkPrefix } from "../lib/notebook-links";
+import { findWikiLinks, findTags, linkKey, replaceSpan, wikiLinkPrefix } from "../lib/notebook-links";
 import type { AnchoredAnnotation } from "../lib/notebook-assistant";
 
 // Dispatched when the set of existing note titles changes so missing/exists link styling refreshes.
@@ -204,9 +204,11 @@ const theme = EditorView.theme({
   ".cm-ink--correct": { textDecoration: "underline solid var(--success)" },
 });
 
+// One editor per note: NotesTab keys it on the note's id, so switching notes builds a fresh view. That
+// keeps undo history to the note it was made in (Ctrl+Z after a switch used to bring the last note's
+// text back into this one) and means the view never shows one note while the app has another open.
 interface Props {
   doc: string;
-  noteId: string;                       // resets the editor's content when the selected note changes
   onChange: (value: string) => void;
   onBlur?: () => void;
   onWikiLinkClick: (title: string) => void;
@@ -218,9 +220,11 @@ interface Props {
   annotations?: readonly AnchoredAnnotation[];
   /** Scroll a 0-based line to the top of the viewport. `nonce` re-fires the same line on a repeat click. */
   revealLine?: { line: number; nonce: number } | null;
+  /** Focus the editor when it is created (read once: the editor is built once per note). */
+  autoFocus?: boolean;
 }
 
-export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles, noteTitles, annotations, revealLine }: Props) {
+export default function MarkdownEditor({ doc, onChange, onBlur, onWikiLinkClick, onTagClick, existingTitles, noteTitles, annotations, revealLine, autoFocus }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   // Latest callbacks in a ref so the editor (created once) always calls the current ones.
@@ -280,6 +284,7 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
     });
     const v = new EditorView({ state, parent: host.current });
     view.current = v;
+    if (autoFocus) v.focus();
     return () => { v.destroy(); view.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -302,14 +307,17 @@ export default function MarkdownEditor({ doc, noteId, onChange, onBlur, onWikiLi
     v.focus();
   }, [revealLine]);
 
-  // Switching notes → swap the document (typing changes `doc` too, but noteId stays, so no churn).
-  useEffect(() => {
+  // `doc` changed from outside the editor (the assistant's "Insert into note"): put that change into the
+  // view, or it never shows and the next keystroke's onChange replaces it with the view's older text.
+  // Typing round-trips through onChange, so then the two already match and nothing is dispatched. A
+  // layout effect, so it runs in the same task as the render it belongs to: a passive effect can run
+  // after the next keystroke and would undo it with the older `doc`.
+  useLayoutEffect(() => {
     const v = view.current;
     if (!v) return;
-    const cur = v.state.doc.toString();
-    if (cur !== doc) v.dispatch({ changes: { from: 0, to: cur.length, insert: doc }, selection: { anchor: 0 } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noteId]);
+    const change = replaceSpan(v.state.doc.toString(), doc);
+    if (change) v.dispatch({ changes: change });
+  }, [doc]);
 
   return <div ref={host} className="flex-1 min-h-0 overflow-hidden" />;
 }

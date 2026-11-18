@@ -955,6 +955,15 @@ embedded on save, and searched by **brute-force cosine** over the course's vecto
 student's vault; vectors are stored as base64 f32 TEXT in `vec_b64`, with pre-migration-12 rows read back
 from JSON-array TEXT, schema kept `sqlite-vec`-compatible for later).
 
+A note that couldn't be embedded when it was imported or saved (no embedding model yet, Ollama down) is
+picked up by `reindexCourseNotes`, which `NotesTab` runs each time it opens a course's notes: it skips
+notes whose entry is current, stops when the embedder itself can't run (model missing, Ollama down, no
+OpenAI key or connection) and skips past a note that fails on its own. `NotesTab` runs every index job
+(that pass, embed-on-save, a deleted note's clean-up) one at a time, so one note never gets two entries. Each
+note gets its own editor (`MarkdownEditor` keyed on the note id), so undo history never crosses notes;
+a save writes the note it was handed and never re-selects it, and deleting a note takes a second click
+on the trash button.
+
 Linking is bidirectional. `buildBacklinkIndex` maps a note to everything holding a `[[link]]` that
 resolves to it, with the surrounding line as context; `findUnlinkedMentions` finds notes that say the
 title in prose without linking it. **These two are reported separately and must stay that way** — a

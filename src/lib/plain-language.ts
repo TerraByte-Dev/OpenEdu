@@ -138,6 +138,24 @@ export function ollamaUnavailable(e: unknown): boolean {
   return PLAIN_SENTENCES[0].test(raw) || PLAIN_SENTENCES[1].test(raw) || /Ollama model "[^"]+" not found/.test(raw);
 }
 
+// llm.ts embed(): Ollama answered 404 for the embedding model (Settings › Provider & Models).
+const EMBEDDER_MISSING = /embedding model "[^"]+" not found/i;
+
+/** True when an embed failed because the embedding model isn't on this computer. */
+export function embeddingModelMissing(e: unknown): boolean {
+  return EMBEDDER_MISSING.test(e instanceof Error ? e.message : String(e ?? ""));
+}
+
+/**
+ * True when an embed failed because notebook search can't run on this computer at all (no embedding
+ * model, Ollama not answering, or the OpenAI embedder with no key or no connection), so every other note
+ * would fail the same way. False for a failure that may be the one note's own.
+ */
+export function embedderUnavailable(e: unknown): boolean {
+  const raw = e instanceof Error ? e.message : String(e ?? "");
+  return ollamaUnavailable(raw) || EMBEDDER_MISSING.test(raw) || /OpenAI API key not set|Cannot reach OpenAI to embed/.test(raw);
+}
+
 export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
   const raw = (e instanceof Error ? e.message : String(e ?? "")).trim();
 
@@ -150,7 +168,7 @@ export function friendlyError(e: unknown, ctx: ErrorContext = {}): string {
   if (/^Model not found \(/.test(raw)) {
     return "The model picked in Settings isn't available any more. Open Settings and pick another one.";
   }
-  if (/embedding model "[^"]+" not found/i.test(raw)) {
+  if (EMBEDDER_MISSING.test(raw)) {
     return "Notebook search isn't set up on this computer yet, so your notes can't be searched. Open Settings to add it.";
   }
   const missing = /model "([^"]+)" not found/i.exec(raw);

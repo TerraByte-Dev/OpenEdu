@@ -11,8 +11,10 @@
 
 import { embed } from "./llm";
 import { getEmbeddingConfig } from "./store";
+import { embedderUnavailable } from "./plain-language";
 import {
   createNote,
+  getNotes,
   findNotebookDocumentByNote,
   deleteNotebookDocumentByNote,
   createNotebookDocument,
@@ -142,8 +144,9 @@ export async function importTextAsNote(args: {
   origin?: NoteOrigin;
 }): Promise<{ note: Note; chunkCount: number; embedded: boolean; indexError?: string }> {
   // Always create the visible note first. Indexing (embedding) is best-effort: if the embedder is
-  // offline or one file fails, the note is still saved and shows in the vault — embed-on-save retries
-  // later. This is what keeps a batch import from dropping the rest of the files on one bad embed.
+  // offline or one file fails, the note is still saved and shows in the vault — reindexCourseNotes
+  // retries it the next time the notes are opened. This is what keeps a batch import from dropping the
+  // rest of the files on one bad embed.
   const note = await createNote(args.courseId, args.title, args.text, 0, args.folderId ?? null, args.origin ?? "import");
   try {
     const res = await indexNote({
@@ -157,6 +160,28 @@ export async function importTextAsNote(args: {
   } catch (e) {
     return { note, chunkCount: 0, embedded: false, indexError: e instanceof Error ? e.message : String(e) };
   }
+}
+
+// Catch-up indexing. A note that couldn't be embedded when it was imported or saved (no embedding
+// model on this computer yet, Ollama not running) has no search entry, and embed-on-save only runs when
+// the note is edited. NotesTab runs this each time it opens a course's notes, so those notes join search
+// once the embedder works, without anyone editing each one. indexNote skips a note whose entry is
+// current, so an indexed vault costs a lookup per note and no embedding. Stops when the embedder itself
+// can't run (missing, Ollama down: every later note would fail the same way) and skips past a note that
+// fails on its own, so one bad note never keeps the rest out of search. `error` is the first failure.
+export async function reindexCourseNotes(courseId: string): Promise<{ indexed: number; error?: string }> {
+  let indexed = 0;
+  let error: string | undefined;
+  for (const n of await getNotes(courseId)) {
+    try {
+      const res = await indexNote({ courseId, noteId: n.id, title: n.title, text: n.content });
+      if (!res.skipped && res.documentId) indexed++;
+    } catch (e) {
+      error ??= e instanceof Error ? e.message : String(e);
+      if (embedderUnavailable(e)) break;
+    }
+  }
+  return error === undefined ? { indexed } : { indexed, error };
 }
 
 // ── Retrieval ────────────────────────────────────────────────────────────────
