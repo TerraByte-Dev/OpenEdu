@@ -160,7 +160,8 @@ a USB stick. The default name is `openedu-backup-YYYY-MM-DD-HHMM.db`. You can ke
    `openedu.db.db`, and OpenEdu would start with no data.
 5. Start OpenEdu.
 
-Anything done after the backup was made is not in it.
+Anything done after the backup was made is not in it. A learner's PIN comes back as it was on the backup's
+day, so use the PIN you had then. Settings, such as the model, are not in the backup and stay as they are.
 
 Deeper notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (how it's built) and
 [`CONTRIBUTING.md`](CONTRIBUTING.md) (dev workflow).

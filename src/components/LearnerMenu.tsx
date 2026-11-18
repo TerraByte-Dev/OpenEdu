@@ -6,6 +6,7 @@ import {
   LEARNER_NAME_MAX, type LearnerRow,
 } from "../lib/learners";
 import { hashPin, verifyPin, isValidPin } from "../lib/learner-pin";
+import { PIN_BACKUP_NOTE } from "../lib/db-resilience";
 import { Initial, BIG_BTN } from "./LearnerPicker";
 
 // The active learner's own controls, opened from the titlebar chip, which shows only when there is a
@@ -209,6 +210,7 @@ function PinPanel({ learner, onBack, onDone }: { learner: LearnerRow; onBack: ()
       <p className="text-base text-[var(--ink-dim)]">
         A PIN keeps other learners on this computer out of your courses. If you forget it, it cannot be recovered.
       </p>
+      <p className="text-base text-[var(--ink-dim)]">{PIN_BACKUP_NOTE}</p>
       {hasPin && (
         <Field label="Current PIN">
           <PinInput autoFocus value={current} onChange={(v) => { setCurrent(v); setError(null); }} />

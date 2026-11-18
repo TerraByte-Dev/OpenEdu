@@ -20,7 +20,10 @@ vi.mock("./llm", () => ({
   detectModelProfile: vi.fn(async () => ({ tier: "small", contextTokens: 131072, supportsTools: true })),
 }));
 
-import { getChatConfig, getGenerationConfig, setChatModel, setGenerationModel, setLLMProvider } from "./store";
+import { getChatConfig, getGenerationConfig, setChatModel, setGenerationModel, setLLMProvider, setMaxContextTokens, systemMemoryBytes, CONTEXT_TOKEN_CHOICES } from "./store";
+import { contextWindowNote, CONTEXT_WINDOW_HELP } from "./context-window";
+import { DEFAULT_CONTEXT_TOKENS } from "./kernel/budget";
+import providerModels from "../views/settings/sections/ProviderModels.tsx?raw";
 import { getOllamaModels } from "./llm";
 import { defaultChatModel, defaultGenerationModel, withStoredOption, GENERATION_MODELS, CHAT_MODELS, OLLAMA_CHAT_SUGGESTIONS } from "./models";
 import { suggestedName, type KitCandidate } from "./model-kit";
@@ -311,5 +314,60 @@ describe("an install from before per-provider keys keeps its models", () => {
     saved.set("chat_model", 42);
     expect((await getGenerationConfig()).model).toBe("gemma4:e2b");
     expect([...saved.keys()].filter((k) => k.includes("model"))).toEqual([]);
+  });
+});
+
+// Settings › Context window (context-window.ts) says what each choice changes. These run every choice
+// through the getters the app sends num_ctx from, so the words can't drift from what is sent.
+describe("Context window: what the setting says matches what is sent", () => {
+  beforeEach(() => {
+    saved.clear();
+    vi.mocked(getOllamaModels).mockReset();
+    vi.mocked(getOllamaModels).mockResolvedValue({ models: ["gemma4:e2b"] });
+  });
+
+  it("below 8k only chat follows it, so the note warns of a reload; from 8k up every call uses one size", async () => {
+    for (const n of CONTEXT_TOKEN_CHOICES) {
+      await setMaxContextTokens(n);
+      const chat = (await getChatConfig()).contextTokens;
+      const gen = (await getGenerationConfig()).contextTokens;
+      const note = contextWindowNote(n, null);
+      expect(chat, `${n}`).toBe(n);
+      if (n < DEFAULT_CONTEXT_TOKENS) {
+        expect(gen, `${n}`).toBe(DEFAULT_CONTEXT_TOKENS);
+        expect(note.warn).toBe(true);
+        expect(note.text).toContain("tutor chat only");
+        expect(note.text).toContain("model reloads");
+        expect(note.text).toContain("does not make OpenEdu faster");
+      } else {
+        expect(gen, `${n}`).toBe(n);
+        expect(note.text).toContain("lessons, quizzes, level tests and course building");
+        expect(note.text).not.toContain("reloads");
+      }
+    }
+  });
+
+  it("16k on this 8 GB computer (system_memory_bytes) warns that it does not fit, and 8k does not", async () => {
+    const ram = await systemMemoryBytes();
+    expect(ram).toBe(8 * GiB);
+    const big = contextWindowNote(16384, ram);
+    expect(big.warn).toBe(true);
+    expect(big.text).toContain("about 8 GB of memory");
+    expect(big.text).toContain("Choose 8k");
+    expect(contextWindowNote(8192, ram).warn).toBe(false);
+    expect(contextWindowNote(16384, 32 * GiB).warn).toBe(false);
+    expect(contextWindowNote(16384, null).warn).toBe(false);
+  });
+
+  it("the help no longer tells anyone to lower it when the app is slow or a model fails to load", () => {
+    expect(CONTEXT_WINDOW_HELP).not.toMatch(/sluggish|fails to load|one place to change/i);
+    expect(CONTEXT_WINDOW_HELP).toContain("Tutor chat and the notes assistant use exactly this size");
+    expect(CONTEXT_WINDOW_HELP).toContain("need at least 8k");
+  });
+
+  it("Settings draws this help and this note, with this computer's memory", () => {
+    expect(providerModels).toContain("help={CONTEXT_WINDOW_HELP}");
+    expect(providerModels).toContain("contextWindowNote(maxCtx, ramBytes)");
+    expect(providerModels).toContain("setRamBytes(await systemMemoryBytes())");
   });
 });

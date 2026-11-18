@@ -2,7 +2,13 @@ import { describe, it, expect } from "vitest";
 import {
   backupFileName, backupTo, describeBackupError, enableWal, formatApproxSize,
   interpretDbError, interpretQuickCheck, isMigrationError, runQuickCheck, type SqlDb, type BackupDestination,
+  RESTORE_PIN_NOTE, PIN_BACKUP_NOTE,
 } from "./db-resilience";
+import libRs from "../../src-tauri/src/lib.rs?raw";
+import storeTs from "./store.ts?raw";
+import restoreSteps from "../components/RestoreSteps.tsx?raw";
+import learnerData from "../views/settings/sections/LearnerData.tsx?raw";
+import learnerMenu from "../components/LearnerMenu.tsx?raw";
 
 // A stand-in for tauri-plugin-sql's Database: records every statement and answers from a script.
 function fakeDb(answer: (sql: string, args?: unknown[]) => unknown): SqlDb & { calls: Array<[string, unknown[] | undefined]> } {
@@ -156,5 +162,29 @@ describe("formatApproxSize", () => {
     expect(formatApproxSize(55_222_272)).toBe("about 55 MB");
     expect(formatApproxSize(1_500_000_000)).toBe("about 1.5 GB");
     expect(formatApproxSize(40_960)).toBe("about 41 KB");
+  });
+});
+
+// A backup is the whole database (backupTo: VACUUM INTO), and each learner's PIN hash is a column of
+// learners in it, so a restore brings back the PINs of the backup's day. Settings are in the plugin
+// store's file, which a restore does not touch.
+describe("backups and learner PINs", () => {
+  it("the PIN lives in the database a backup copies, and settings do not", () => {
+    expect(libRs).toMatch(/CREATE TABLE IF NOT EXISTS learners \([^;]*pin_hash TEXT/);
+    expect(storeTs).toContain("Store.load(STORE_FILE)");
+    expect(storeTs).not.toMatch(/from "\.\/db"/);
+  });
+
+  it("the restore steps and the restore help say the PIN comes back from the backup's day", () => {
+    expect(RESTORE_PIN_NOTE).toContain("brings back each learner's PIN from the day of the backup");
+    expect(RESTORE_PIN_NOTE).toContain("Settings, such as the model, are not in the backup");
+    expect(restoreSteps).toContain("{RESTORE_PIN_NOTE}");
+    expect(learnerData).toContain("${RESTORE_PIN_NOTE}");
+  });
+
+  it("setting, changing or removing a PIN suggests a new backup", () => {
+    expect(PIN_BACKUP_NOTE).toContain("make a new one after this in Settings › Learner data");
+    expect(learnerMenu).toContain("{PIN_BACKUP_NOTE}");
+    expect(learnerData).toContain("after a PIN is set, changed or removed");
   });
 });

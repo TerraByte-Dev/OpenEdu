@@ -5,6 +5,7 @@ import { Store } from "@tauri-apps/plugin-store";
 import type { LLMProvider, ModelTier } from "../../../types";
 import { getLLMProvider, getGenerationConfig, getChatConfig, systemMemoryBytes } from "../../../lib/store";
 import { detectModelTier, getOllamaModels, log, preflightStructuredOutput } from "../../../lib/llm";
+import { ollamaDiagnostics } from "../../../lib/ollama-status";
 import { friendlyError, preflightMessage } from "../../../lib/plain-language";
 import { getManifest } from "../../../lib/library";
 import { DEFAULT_PERMISSION_RULES, savePermissionRules } from "../../../lib/permissions";
@@ -61,7 +62,7 @@ export default function About({ onProviderChanged }: SectionProps) {
     let ollama = "n/a";
     if (base.provider === "ollama") {
       const r = await getOllamaModels(base.ollamaUrl);
-      ollama = r.models.length > 0 ? `connected · ${r.models.length} models` : `offline${r.error ? ` (${r.error})` : ""}`;
+      ollama = ollamaDiagnostics(r);
     }
     let library = "unavailable";
     try { const m = await getManifest(); library = m.length > 0 ? `${m.length} entries` : "empty"; } catch { /* ignore */ }

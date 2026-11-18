@@ -51,6 +51,11 @@ mounts only the open section: coming back mid-copy shows "Saving backup…" and 
 button stays off until the copy is done. A cut-short copy keeps the `.partial`
 name, which never ends in `.db`. Settings asks the user to wait for "Backup saved" before shutting down or
 unplugging the stick. The logic is in `src/lib/db-resilience.ts` (pure, tested).
+The backup is the whole database, so each learner's PIN hash (`learners.pin_hash`) is in it: restoring brings
+back the PINs of the backup's day. Settings are in the plugin store's own file, so a restore leaves them as
+they are. The restore steps and Settings › Learner data say so (`db-resilience.ts RESTORE_PIN_NOTE`), and the
+learner menu's PIN screen suggests a new backup (`PIN_BACKUP_NOTE`), because a forgotten PIN cannot be
+recovered.
 
 **A migration that fails.** tauri-plugin-sql 2.3.2 (`commands.rs load`) takes the database's migration
 list out before it migrates and does not put it back when migrating fails, so a second `Database.load` in
