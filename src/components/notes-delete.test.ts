@@ -66,7 +66,7 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  await act(async () => { root.render(createElement(NotesTab, { courseId, level: 1 })); });
+  await act(async () => { root.render(createElement(NotesTab, { courseId, level: 1, grade: null })); });
   // Open the note from the list.
   const item = await vi.waitFor(() => {
     const b = [...host.querySelectorAll("button")].find((x) => x.textContent?.includes("Halves"));

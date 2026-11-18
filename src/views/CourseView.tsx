@@ -362,7 +362,7 @@ export default function CourseView({ courseId, initialAction, onInitialActionCon
           />
         )}
         {activeTab === "notes" && (
-          <NotesTab courseId={courseId} level={effectiveViewingLevel} />
+          <NotesTab courseId={courseId} level={effectiveViewingLevel} grade={grade} />
         )}
         {activeTab === "lessons" && (
           <LessonsTab

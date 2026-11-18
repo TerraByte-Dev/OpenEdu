@@ -24,6 +24,7 @@ import {
   type GraphNode, type GraphNodeKind, type Mention,
 } from "../lib/notebook-links";
 import type { ThemeId } from "../lib/theme";
+import type { Grade } from "../lib/grade";
 import { useThemeState } from "../lib/useTheme";
 import { IconChevronRight12, IconFile, IconFolderPlus, IconNodes, IconPencil, IconPlus, IconSidebarRight, IconTrash, IconUpload4, IconXmark } from "./icons";
 
@@ -123,10 +124,10 @@ function MentionGroup({ mention, onOpen }: { mention: Mention; onOpen: (id: stri
 // Course-wide Obsidian-like vault (Phase 3): one note tree per course, organized into nested
 // folders. Every note is searchable — imported files become notes, notes re-index on save, and opening
 // the notes indexes any note that couldn't be indexed before (reindexCourseNotes).
-interface NotesTabProps { courseId: string; level: number }
+interface NotesTabProps { courseId: string; level: number; grade: Grade | null }
 type PanelView = "note" | "graph" | "tag";
 
-export default function NotesTab({ courseId, level }: NotesTabProps) {
+export default function NotesTab({ courseId, level, grade }: NotesTabProps) {
   const G = GRAPH_PALETTE[useThemeState().resolved];
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<NotebookFolder[]>([]);
@@ -952,6 +953,7 @@ export default function NotesTab({ courseId, level }: NotesTabProps) {
                       <NotesAssistant
                         courseId={courseId}
                         level={level}
+                        grade={grade}
                         noteTitle={editTitle}
                         noteContent={editContent}
                         annotations={anchoredAnnotations}

@@ -20,6 +20,7 @@ import {
 } from "../lib/notebook-assistant";
 import { IconCheck12, IconPlus12, IconQuestion12, IconXmark12, type IconComponent } from "./icons";
 import SafetyNotice from "./SafetyNotice";
+import type { Grade } from "../lib/grade";
 
 const KIND_META: Record<AnnotationKind, { label: string; color: string; Glyph: IconComponent }> = {
   error:    { label: "Wrong",   color: "var(--danger)", Glyph: IconXmark12 },
@@ -31,6 +32,8 @@ const KIND_META: Record<AnnotationKind, { label: string; color: string; Glyph: I
 export interface NotesAssistantProps {
   courseId: string;
   level: number;
+  /** The active learner's grade: Notes from last chat reads disclosures as the chat does (ChatTab). */
+  grade: Grade | null;
   noteTitle: string;
   noteContent: string;
   annotations: readonly AnchoredAnnotation[];
@@ -40,7 +43,7 @@ export interface NotesAssistantProps {
 }
 
 export default function NotesAssistant({
-  courseId, level, noteTitle, noteContent,
+  courseId, level, grade, noteTitle, noteContent,
   annotations, onAnnotations, onInsertSummary, onRevealOffset,
 }: NotesAssistantProps) {
   const [busy, setBusy] = useState<null | "review" | "summary">(null);
@@ -90,7 +93,7 @@ export default function NotesAssistant({
       const threads = await listChatThreads(courseId, level);
       if (!threads.length) { setError("No conversation on this level yet."); return; }
       const messages = await getChatMessages(threads[0].id);
-      const transcript = formatTranscript(messages);
+      const transcript = formatTranscript(messages, grade);
       if (!transcript.trim()) {
         // Every exchange may have been left out (formatTranscript), which is not the same as none at all.
         // The title is the learner's first message (ChatTab deriveThreadTitle), which may be the disclosure
@@ -106,7 +109,7 @@ export default function NotesAssistant({
         buildSummaryMessages(transcript), cfg,
         { schema: SUMMARY_SCHEMA, toolName: "SummariseConversation", temperature: 0.2 },
       );
-      const shown = finishSummary(markdown);
+      const shown = finishSummary(markdown, grade);
       if ("withheld" in shown) { setSafety(true); return; }
       setSummary(shown.markdown);
     } catch (e) {

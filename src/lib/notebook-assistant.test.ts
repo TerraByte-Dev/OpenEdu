@@ -100,28 +100,28 @@ describe("formatTranscript", () => {
   const msg = (role: string, content: string) => ({ role, content });
 
   it("labels speakers and drops non-conversational roles", () => {
-    const out = formatTranscript([msg("system", "ignore me"), msg("user", "hi"), msg("assistant", "hello")]);
+    const out = formatTranscript([msg("system", "ignore me"), msg("user", "hi"), msg("assistant", "hello")], null);
     expect(out).toBe("Student: hi\n\nTutor: hello");
   });
 
   it("skips empty messages", () => {
-    expect(formatTranscript([msg("user", "   "), msg("assistant", "ok")])).toBe("Tutor: ok");
+    expect(formatTranscript([msg("user", "   "), msg("assistant", "ok")], null)).toBe("Tutor: ok");
   });
 
   it("keeps the END of a long conversation, not the start", () => {
     const many = Array.from({ length: 400 }, (_, i) => msg(i % 2 ? "assistant" : "user", `turn ${i} ${"pad ".repeat(20)}`));
-    const out = formatTranscript(many, 200);
+    const out = formatTranscript(many, null, 200);
     expect(out).toContain("turn 399");
     expect(out).not.toContain("turn 0 ");
   });
 
   it("still returns something when a single message exceeds the budget", () => {
-    const out = formatTranscript([msg("user", "word ".repeat(5000))], 50);
+    const out = formatTranscript([msg("user", "word ".repeat(5000))], null, 50);
     expect(out.length).toBeGreaterThan(0);
   });
 
   it("returns an empty string for an empty conversation", () => {
-    expect(formatTranscript([])).toBe("");
+    expect(formatTranscript([], null)).toBe("");
   });
 
   // Ported from TerraTutor #226: a safety disclosure (child-safety.ts isSafetyDisclosure) and the tutor's reply
@@ -132,30 +132,49 @@ describe("formatTranscript", () => {
       msg("user", "my uncle touches me at night"), msg("assistant", "Thank you for telling me. Please tell a grown-up you trust."),
       msg("user", "i want to kill myself"), msg("tool", "{}"), msg("assistant", "You matter. Please talk to a grown-up."),
       msg("user", "and 6 x 7?"), msg("assistant", "6 x 7 = 42."),
-    ]);
+    ], null);
     expect(out).toBe("Student: what is 7 x 8\n\nTutor: 7 x 8 = 56.\n\nStudent: and 6 x 7?\n\nTutor: 6 x 7 = 42.");
     expect(out).not.toMatch(/uncle|kill|grown-up/);
   });
 
   it("is empty when the only exchange was a disclosure", () => {
-    expect(formatTranscript([msg("user", "my dad hits me"), msg("assistant", "I'm sorry. Please tell a grown-up.")])).toBe("");
+    expect(formatTranscript([msg("user", "my dad hits me"), msg("assistant", "I'm sorry. Please tell a grown-up.")], null)).toBe("");
+  });
+
+  // Read with the learner's grade, as the chat's notice is (ChatTab isSafetyDisclosure(msg.content, grade)):
+  // with a K-12 grade a strong pregnancy self-disclosure is a disclosure too; with no grade (an adult) it is not.
+  it("with a K-12 grade, also leaves out a strong pregnancy self-disclosure and its reply", () => {
+    const chat = [
+      msg("user", "what is 7 x 8"), msg("assistant", "7 x 8 = 56."),
+      msg("user", "i think im pregnant"), msg("assistant", "Thank you for telling me. Please talk to a grown-up."),
+    ];
+    expect(formatTranscript(chat, 0)).toBe("Student: what is 7 x 8\n\nTutor: 7 x 8 = 56.");
+    expect(formatTranscript(chat, 12)).toBe("Student: what is 7 x 8\n\nTutor: 7 x 8 = 56.");
+    expect(formatTranscript(chat, null)).toContain("Student: i think im pregnant");
   });
 });
 
 describe("finishSummary", () => {
   it("offers an ordinary summary as written", () => {
-    expect(finishSummary("## Times tables\n- 7 x 8 = 56")).toEqual({ markdown: "## Times tables\n- 7 x 8 = 56" });
+    expect(finishSummary("## Times tables\n- 7 x 8 = 56", 3)).toEqual({ markdown: "## Times tables\n- 7 x 8 = 56" });
   });
 
   it("withholds a summary that reads as a safety disclosure, for the safety notice", () => {
-    expect(finishSummary("## Today\n- My uncle touches me at night.")).toEqual({ withheld: "safety" });
-    expect(finishSummary("## Feelings\n- I want to kill myself.")).toEqual({ withheld: "safety" });
+    expect(finishSummary("## Today\n- My uncle touches me at night.", null)).toEqual({ withheld: "safety" });
+    expect(finishSummary("## Feelings\n- I want to kill myself.", null)).toEqual({ withheld: "safety" });
+  });
+
+  it("withholds a strong pregnancy self-disclosure for a K-12 learner only", () => {
+    expect(finishSummary("## Today\n- I think I'm pregnant.", 9)).toEqual({ withheld: "safety" });
+    expect(finishSummary("## Today\n- I think I'm pregnant.", null)).toEqual({ markdown: "## Today\n- I think I'm pregnant." });
   });
 
   // The panel acts on it (NotesAssistant runSummary): the notice, never an Insert-able summary.
+  // src/components/notes-summary-grade.test.ts clicks the real panel with a grade.
   it("NotesAssistant shows the safety notice for a withheld summary, and never names a chat it emptied", () => {
     const s = notesAssistant.replace(/\r\n?/g, "\n");
-    expect(s).toMatch(/const shown = finishSummary\(markdown\);\s*if \("withheld" in shown\) \{ setSafety\(true\); return; \}\s*setSummary\(shown\.markdown\);/);
+    expect(s).toMatch(/const transcript = formatTranscript\(messages, grade\);/);
+    expect(s).toMatch(/const shown = finishSummary\(markdown, grade\);\s*if \("withheld" in shown\) \{ setSafety\(true\); return; \}\s*setSummary\(shown\.markdown\);/);
     expect(s).not.toMatch(/setSummary\(markdown\)/);
     expect(s).toMatch(/\{safety && <SafetyNotice /);
     // The thread title is the learner's first message (ChatTab deriveThreadTitle), maybe the disclosure left out.
