@@ -11,7 +11,7 @@ import { friendlyError, preflightMessage, type ErrorContext } from "../lib/plain
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { APP_NAME } from "../lib/product";
 import { IconCheck12 } from "../components/icons";
-import { isSafetyDisclosure } from "../lib/child-safety";
+import { isSafetyDisclosure, SAFETY_TOPIC_COURSE_LINE } from "../lib/child-safety";
 import type { Grade } from "../lib/grade";
 import SafetyNotice from "../components/SafetyNotice";
 
@@ -233,9 +233,10 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
     const t = topic.trim();
     // A self-harm or abuse disclosure (or, with a K-12 grade set, a pregnancy one) typed as the topic
     // (child-safety.ts isSafetyDisclosure, the chat's check with the same grade) gets the chat's safety
-    // notice, and this click builds and sends nothing. A notice, never a block: Create again with the same
-    // topic goes on as usual, so a false positive ("suicide prevention", a novel's plot) costs one click.
-    if (isSafetyDisclosure(t, grade) && safetyTopic !== t) { setSafetyTopic(t); return; }
+    // notice, and no course is made from it, on this click or the next: the topic would be the course's
+    // title and go to the model and web search. A false positive ("suicide prevention") is asked for in
+    // other words (TerraTutor #215).
+    if (isSafetyDisclosure(t, grade)) { setSafetyTopic(t); setError(SAFETY_TOPIC_COURSE_LINE); return; }
     return runPipelineFor(null);
   };
 
