@@ -630,7 +630,8 @@ such a title still routes by its syllabus. Known and accepted: "Shapes in Art" i
 When Ollama cannot parse a tool call the model wrote, it fails the whole request (HTTP 500, or an error
 line in the stream). If nothing from that model call had reached the student yet, the kernel answers that turn with one call
 that offers no tools and drops the tools manifest from the system prompt, and records it in the turn
-result (`toolCallRecovery`). Any other provider error fails the turn as before.
+result (`toolCallRecovery`). Any other provider error fails the turn when nothing was shown yet; once
+something was, the turn ends as stalled and keeps what was shown (`persistedReply`, below).
 
 Two write actions do not wait for the model to choose a tool, because small models rarely do (on
 `gemma4:e2b`, `flashcard.create` 0/20 and `ask_user.question` 2/20 in TerraTutor's B9 readiness run):
@@ -865,7 +866,10 @@ After the child answers a question card the turn always gets a reply too (Questi
 the student stopped, or one that stalled, keeps its own handling. A stall includes Ollama ending the
 reply with an `{"error": …}` line after part of it was shown (its model runner crashed or ran out of
 memory while the server stayed up), exactly as when the stream breaks off: what was shown is saved
-with its marker (`persistedReply`).
+with its marker (`persistedReply`). So does a later model call of the turn that fails before its first
+byte (a 500, an error line, a refused connection) once an earlier call showed something: the text, any
+card's question and the student's answer to it are kept and the chat says `STALLED_TURN`. A failure with
+nothing shown yet still fails the turn.
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
