@@ -92,12 +92,21 @@ describe("Ollama failing partway", () => {
     expect(shown).not.toMatch(ENGINEERING);
   });
 
-  it("an error in the middle of the stream gets the plain sentence, not the fallback", async () => {
+  it("an error in the middle of the stream ends the turn as stalled, keeping what was shown", async () => {
     const body = [
       JSON.stringify({ message: { content: "Half of" }, done: false }),
       JSON.stringify({ error: "llama runner process has terminated: exit status 2" }),
     ].join("\n") + "\n";
     fakeOllama(() => new Response(body, { status: 200 }));
+    const events = [];
+    for await (const ev of callLLMTurn(USER, LOCAL)) events.push(ev);
+
+    // ChatTab saves "Half of" with its marker and shows STALLED_TURN (persistedReply, ollama-down.test.ts).
+    expect(events).toEqual([{ type: "text", delta: "Half of" }, { type: "done", finishReason: "stalled" }]);
+  });
+
+  it("an error line before any text gets the plain sentence, not the fallback", async () => {
+    fakeOllama(() => new Response(JSON.stringify({ error: "llama runner process has terminated: exit status 2" }) + "\n", { status: 200 }));
     const e = await turnError(LOCAL);
 
     expect(String(e)).toMatch(/^Error: Ollama error: /);

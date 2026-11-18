@@ -1,4 +1,5 @@
 mod model_import;
+mod nav_guard;
 mod ollama_setup;
 mod system;
 
@@ -540,6 +541,8 @@ pub fn run() {
         // Folder/file pickers: model_import.rs opens its folder picker from Rust; LearnerData's export
         // uses the save dialog from JS.
         .plugin(tauri_plugin_dialog::init())
+        // The window never leaves the app: a clicked link to another site is cancelled (nav_guard.rs).
+        .plugin(nav_guard::init())
         .manage(model_import::ImportState::default())
         .invoke_handler(tauri::generate_handler![
             system::system_memory_bytes,

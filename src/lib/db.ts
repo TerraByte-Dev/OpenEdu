@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, UserProgress, Lesson, Flashcard, NotebookDocument, NotebookFolder, NotebookChunkText, NotebookVecRow} from "../types";
-import { enableWal, runQuickCheck, backupTo, type DbHealth, type BackupResult } from "./db-resilience";
+import { enableWal, runQuickCheck, backupTo, isMigrationError, type DbHealth, type BackupResult } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
 import type { GradedBy } from "./quiz-grading";
@@ -15,7 +15,12 @@ let dbPromise: Promise<Database> | null = null;
 export function getDb(): Promise<Database> {
   if (!dbPromise) {
     dbPromise = openDb();
-    dbPromise.catch(() => { dbPromise = null; }); // a failed open is retried by the next caller
+    // A failed open is retried by the next caller, except a failed migration. tauri-plugin-sql 2.3.2
+    // (commands.rs load) takes this database's migration list out before it migrates and never puts it
+    // back, so a second Database.load in this process would open the old schema with nothing applied and
+    // the app would run on it for the session. That failure stays (the startup screen says to close and
+    // reopen); the next launch is a new process and migrates again.
+    dbPromise.catch((e) => { if (!isMigrationError(e)) dbPromise = null; });
   }
   return dbPromise;
 }
@@ -702,6 +707,12 @@ export async function updateQuizQuestionSelfExplanation(id: string, text: string
 
 // The spaced "review pool": previously-missed questions for a course (most-recent first, deduped by
 // question text). Re-posed alongside fresh questions in study quizzes for retrieval practice.
+// A miss leaves the pool once the same question (trimmed, any letter case) is answered right after it in
+// the course, by the key, the model or the learner's own mark; a later miss puts it back. "After" is the row
+// order (rowid): quiz_questions rows are only ever inserted as answered, so a future import or merge path
+// must insert them in the order they were answered. SQLite's LOWER folds ASCII letters only, so a
+// question that differs in a non-ASCII letter's case counts as another question. The NOT EXISTS has no
+// index on question_text (misses x course rows per quiz start): fine today, worth one for heavy users.
 export async function getReviewPoolQuestions(courseId: string, limit: number): Promise<QuizQuestion[]> {
   if (limit <= 0) return [];
   const d = await getDb();
@@ -709,6 +720,12 @@ export async function getReviewPoolQuestions(courseId: string, limit: number): P
     `SELECT qq.* FROM quiz_questions qq
        JOIN quiz_attempts qa ON qq.attempt_id = qa.id
       WHERE qa.course_id = $1 AND qq.is_correct = 0 AND qq.graded_by IS NOT 'unanswered'
+        AND NOT EXISTS (
+          SELECT 1 FROM quiz_questions later
+            JOIN quiz_attempts la ON later.attempt_id = la.id
+           WHERE la.course_id = qa.course_id AND later.is_correct = 1 AND later.rowid > qq.rowid
+             AND LOWER(TRIM(later.question_text, char(32, 9, 10, 13)))
+               = LOWER(TRIM(qq.question_text, char(32, 9, 10, 13))))
       ORDER BY qa.started_at DESC
       LIMIT $2`,
     [courseId, limit * 4] // overfetch so dedup can still reach `limit`

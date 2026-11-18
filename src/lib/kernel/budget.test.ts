@@ -101,7 +101,7 @@ describe("capText", () => {
 });
 
 describe("fitMessages", () => {
-  const budget: Budget = budgetFor(8192); // history allowance = history + unclaimed grounding
+  const budget: Budget = budgetFor(8192); // history allowance = total - reserve - pinned system
 
   it("keeps everything when it fits", () => {
     const input = [msg("system", 10), msg("user", 5), msg("assistant", 5)];
@@ -152,13 +152,6 @@ describe("fitMessages", () => {
     const r = fitMessages(input, budgetFor(4096));
     const firstNonPinned = r.messages.find((m) => m.role !== "system");
     expect(firstNonPinned?.role).not.toBe("tool");
-  });
-
-  it("lends the unclaimed grounding slice to history", () => {
-    const input = [msg("system", 10), ...Array.from({ length: 40 }, () => msg("user", 100))];
-    const withGrounding = fitMessages(input, budget, { groundingUsed: budget.grounding });
-    const withoutGrounding = fitMessages(input, budget, { groundingUsed: 0 });
-    expect(withoutGrounding.dropped).toBeLessThanOrEqual(withGrounding.dropped);
   });
 
   it("handles a conversation with no system message", () => {

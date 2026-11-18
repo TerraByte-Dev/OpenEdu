@@ -67,3 +67,12 @@ export function initialSchedule(now: Date): SrsSchedule {
 export function isDue(due_at: string, now: Date): boolean {
   return new Date(due_at).getTime() <= now.getTime();
 }
+
+// A review session's queue after the card at `idx` was graded with `next`: a card still due ("Again" is
+// due at once) goes back on at the end with its new schedule, so it comes back later in the same session
+// and the session never ends on "nothing is due" while that card waits. Other cards are left as they are.
+export function requeueIfDue<C extends SrsSchedule>(queue: C[], idx: number, next: SrsSchedule, now: Date): C[] {
+  const card = queue[idx];
+  if (!card || !isDue(next.due_at, now)) return queue;
+  return [...queue, { ...card, ...next }];
+}

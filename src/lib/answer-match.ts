@@ -1252,6 +1252,31 @@ function grossMiss(kv: number, av: number, kn: WrittenNumber, an: WrittenNumber,
   return Math.max(Math.abs(k), Math.abs(a)) / Math.min(Math.abs(k), Math.abs(a)) > 1.2 + 1e-9;
 }
 
+/**
+ * A conversion answered with the amount it gives: the question names the key's unit and states the
+ * answer's amount in the answer's own unit ("3 feet" on "Convert 3 feet to inches", "3 feet = ___
+ * inches", "250 cents" on "How many dollars is 250 cents?"). The same amount, but not converted, so the
+ * model decides. The question must name the key's unit: "1 hour" on "How long is one hour?" (60 minutes)
+ * is still right. A bare "in" is a word there, never inches.
+ */
+function givesBackAmount(question: string, k: Quantity, a: Quantity): boolean {
+  const { toks } = quantityTokens(question);
+  const moneyWords = k.f === 1 ? ["$", "dollar", "dollars"] : ["¢", "cent", "cents"];
+  const namesKeyUnit = toks.some((t, i) => {
+    if (k.kind === "money") return moneyWords.includes(t);
+    const u = t === "in" ? null : readUnits(toks, i);
+    return !!u && u.dims.join() === k.dims && sameAmount(u.f, k.f);
+  });
+  if (!namesKeyUnit) return false;
+  for (let i = 0; i < toks.length; i++) {
+    for (let j = i + 1; j <= Math.min(toks.length, i + 6); j++) {
+      const q = parseQuantity(toks.slice(i, j).join(" "));
+      if (q && q.kind === a.kind && q.dims === a.dims && sameAmount(q.f, a.f) && sameAmount(q.v, a.v)) return true;
+    }
+  }
+  return false;
+}
+
 /** Two amounts of one kind, in the same base units. */
 function compareAmounts(k: Quantity, a: Quantity, question: string): boolean | null {
   const diff = Math.abs(a.v - k.v);
@@ -1263,6 +1288,7 @@ function compareAmounts(k: Quantity, a: Quantity, question: string): boolean | n
       const asked = askedUnit(question);
       if (asked && asked.dims === k.dims && sameAmount(asked.f, k.f)) return null;
     }
+    if ((k.kind === "measure" || k.kind === "money") && !sameAmount(a.f, k.f) && givesBackAmount(question, k, a)) return null;
     return sameForm(k, a, question) ? true : null;
   }
   const mayReject = !a.approx && !a.guessed && !rough;

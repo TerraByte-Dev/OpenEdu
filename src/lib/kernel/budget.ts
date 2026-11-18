@@ -61,8 +61,9 @@ export const MIN_CONTEXT_TOKENS = 2048;
 
 // Fractions of the window. They sum to 1.0.
 //   system    — the assembled system prompt + the <tools> manifest
-//   grounding — retrieved passages injected before the model runs (Phase 1 uses this; today it is
-//               unclaimed and `fitMessages` lends it to history rather than wasting it)
+//   grounding — the cap on the retrieved-passage block (ground.ts formatGroundingBlock). The block is
+//               merged into the student's newest message, so `fitMessages` charges it there, once,
+//               and a turn with no block leaves the whole slice to history
 //   history   — prior turns
 //   reserve   — headroom for the model's own output, plus estimator error
 const SYSTEM_FRACTION = 0.25;
@@ -160,14 +161,10 @@ function elisionNote(dropped: number): FitMessage {
 //      turn that called it is a hard 400 on OpenAI and Anthropic, so the cut advances past any
 //      partial tool block.
 //
-// The grounding slice is lent to history when no retrieved block has claimed it, so a Phase-0 build
-// (no retrieval yet) uses the window it actually has instead of reserving 20% for nothing.
-export function fitMessages<T extends FitMessage>(
-  messages: T[],
-  budget: Budget,
-  opts: { groundingUsed?: number } = {},
-): FitResult<T> {
-  const groundingUsed = Math.max(0, opts.groundingUsed ?? 0);
+// A grounding block is not charged separately: the kernel merges it into the newest message, whose
+// full cost is charged below. Charging it again off the allowance dropped up to `budget.grounding`
+// tokens of history on every grounded turn.
+export function fitMessages<T extends FitMessage>(messages: T[], budget: Budget): FitResult<T> {
 
   // Leading system messages are pinned; everything after is candidate history. Any elision note left
   // by a previous fit is dropped first — otherwise each refit pins the last one into the unbounded
@@ -185,7 +182,7 @@ export function fitMessages<T extends FitMessage>(
   // prompt larger than its nominal slice (a full syllabus easily is) would otherwise push
   // system + history past num_ctx and put us right back where we started: the server truncating
   // from the front. `budget.system` is a target for warning on, not a cap that enforces itself.
-  const historyAllowance = Math.max(0, budget.total - budget.reserve - systemTokens - groundingUsed);
+  const historyAllowance = Math.max(0, budget.total - budget.reserve - systemTokens);
 
   if (rest.length === 0) {
     return { messages: [...head], dropped: 0, usage: { system: systemTokens, history: 0, total: systemTokens } };

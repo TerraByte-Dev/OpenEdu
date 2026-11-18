@@ -222,7 +222,8 @@ export function quoteMermaidLabels(code: string): string {
 //     its text kept. <a href> stays: a link is a navigation, not a load.
 //   - CSS that loads: a line whose CSS would fetch from another host (style, classDef, linkStyle, C4
 //     $bgColor, …) is dropped.
-// What stays, and why: click/link/links hrefs are navigations (#284 item 1, the navigation guard), and
+// What stays, and why: click/link/links hrefs are navigations, which link-guard.ts and nav_guard.rs keep
+// in the app (#284 item 1), and
 // strict mode already ignores click callbacks; icons (fa:, @{ icon }, architecture) come only from
 // icon packs the app registers, and it registers none. A diagram with none of the above comes back
 // byte for byte.

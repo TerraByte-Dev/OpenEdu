@@ -2199,9 +2199,16 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
         let json: OllamaTurnChunk;
         try { json = JSON.parse(line) as OllamaTurnChunk; } catch { continue; }
         if (json.error) {
-          // Typed only while nothing has reached the caller: once the student has seen part of a
-          // reply, a retried reply would follow it, so that case keeps the plain error.
-          if (tools && !yielded && isOllamaToolCallParseFailure(json.error)) {
+          // An error line after part of the reply reached the student (the model runner crashed or ran
+          // out of memory; the server stays up and ends the 200 with it) ends the turn as a stalled one,
+          // like the stream breaking off above: what was shown is saved with its marker.
+          if (yielded) {
+            log.error("streamOllamaTurn", "Ollama error mid-reply", json.error);
+            yield { type: "done", finishReason: "stalled" };
+            return;
+          }
+          // Typed only while nothing has reached the caller, so a retried reply never follows a shown one.
+          if (tools && isOllamaToolCallParseFailure(json.error)) {
             throw new OllamaToolCallParseError(`Ollama error: ${json.error}`, json.error);
           }
           throw new Error(`Ollama error: ${json.error}`);

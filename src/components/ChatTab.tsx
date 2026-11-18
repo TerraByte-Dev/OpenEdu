@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, memo, lazy, Suspense } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
 import {
   getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite, countDueFlashcards,
@@ -19,7 +19,7 @@ import { resolvePersona } from "../lib/skills";
 import { chatTurnSkills } from "../lib/kernel/chatSkills";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
-import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
+import { renderChatMarkdown, ensureChatKatex, isChatKatexReady } from "../lib/chat-markdown";
 import { splitReplyDiagrams } from "../lib/mermaid-source";
 import { displayReplyText } from "../lib/kernel/textToolCalls";
 import { repeatsQuestion } from "../lib/kernel/askCard";
@@ -81,6 +81,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  // The turn's reply is saved and in the transcript, so the streaming bubble stops showing it while the
+  // turn finishes (chips, notices). Without it the reply showed twice for a moment.
+  const [replyLanded, setReplyLanded] = useState(false);
   const [chatError, setChatError] = useState("");
   // The teaching mode for the NEXT turn. Set by tapping a chip that carries one; reset to the neutral
   // default after every send. There is no mode bar any more — asking the student to classify their
@@ -92,10 +95,11 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // immediately; written through to the DB on switch. resolvePersona maps it to a persona skill.
   const [spriteId, setSpriteId] = useState<string | null>(course.sprite_id ?? null);
   const [personaPickerOpen, setPersonaPickerOpen] = useState(false);
-  // KaTeX is lazy-loaded (chat-markdown). Kick it off on mount and re-render once ready so any inline
-  // math in already-rendered messages typesets (until then it shows as plain $…$ text).
-  const [, setKatexTick] = useState(0);
-  useEffect(() => { ensureChatKatex().then(() => setKatexTick((t) => t + 1)); }, []);
+  // KaTeX is lazy-loaded (chat-markdown). Kick it off on mount; once it is ready every reply's HTML is
+  // rebuilt (`katexReady` is a prop of the memoized bubbles) so any inline math in already-rendered
+  // messages typesets (until then it shows as plain $…$ text).
+  const [katexReady, setKatexReady] = useState(isChatKatexReady);
+  useEffect(() => { ensureChatKatex().then(() => setKatexReady(true)); }, []);
   // Live tool activity for the current/just-finished turn (session-only; not persisted).
   const [toolEvents, setToolEvents] = useState<ToolUIEvent[]>([]);
   // Which retrieved passages the LAST answer quoted. Derived from n-gram overlap (kernel `groundedIn`),
@@ -140,6 +144,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setReplyChoices(null);
     setGroundingNote(null);
     setToolEvents([]);
+    // An error belongs to the conversation it happened in: opening another one, or a new one, clears it.
+    setChatError("");
   });
   const transcript = transcriptRef.current;
 
@@ -198,8 +204,13 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Aborting the controller does not settle it, so navigating away with a card on screen left the
   // generator awaiting forever — a leaked turn holding its whole message array. The explicit Stop
   // handler already did this; unmount did not.
+  //
+  // Releasing the turn is not optional either: a turn still setting up (saving the message, probing the
+  // model) has no controller yet, so the abort above misses it. With the owner gone it stops at its next
+  // check instead of running a reply nobody sees.
   useEffect(() => {
     return () => {
+      turnOwnerRef.current = null;
       abortRef.current?.abort();
       askResolverRef.current?.("");
       askResolverRef.current = null;
@@ -324,6 +335,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     if (shown()) setMessages((prev) => appendUnique(prev, userMsg));
     void touchChatThread(activeThread).catch(() => {});
     onThreadActivity();
+    // The chat closed, or another thread opened, while the message was being saved: it stays saved.
+    if (turnOwnerRef.current !== owner) return;
 
     // Build system prompt — with fallback if instructions not yet generated. The kernel appends
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
@@ -373,6 +386,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     if (settingUpRef.current === setupToken) settingUpRef.current = null;
     setStreaming(true);
     setStreamingText("");
+    setReplyLanded(false);
     setToolEvents([]);
     setGroundingNote(null);
     setSuggestions([]);
@@ -400,13 +414,17 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       activeSkill,
       domainSkill,
       supportsTools: profile.supportsTools,
+      // A turn no longer here (the chat closed, or another thread opened) gets no card: nobody could
+      // answer it, and the turn would wait forever. It unwinds as if Stop was pressed.
       askUser: (question, choices) =>
         new Promise<string>((resolve) => {
+          if (turnOwnerRef.current !== owner || controller.signal.aborted) { resolve(""); return; }
           askResolverRef.current = resolve;
           setAskPending({ question, choices });
         }),
       confirmTool: (toolName, summary) =>
         new Promise<boolean>((resolve) => {
+          if (turnOwnerRef.current !== owner || controller.signal.aborted) { resolve(false); return; }
           confirmResolverRef.current = resolve;
           setConfirmPending({ toolName, summary });
         }),
@@ -434,7 +452,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           interrupted: abandoned || controller.signal.aborted,
           autoRead,
         });
-        if (landing.show) setMessages((prev) => appendUnique(prev, assistantMsg));
+        if (landing.show) {
+          setMessages((prev) => appendUnique(prev, assistantMsg));
+          if (turnOwnerRef.current === owner) setReplyLanded(true);
+        }
         if (landing.speak) readAloud.speak(assistantMsg.id, persisted);
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
@@ -491,6 +512,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         turnOwnerRef.current = null;
         setStreamingText("");
         setStreaming(false);
+        setReplyLanded(false);
         abortRef.current = null;
         setAskPending(null);
         askResolverRef.current = null;
@@ -580,7 +602,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               <MessageBubble
                 message={msg}
                 reading={readAloud.speakingId === msg.id}
-                onReadAloud={readAloud.supported ? () => readAloud.toggle(msg.id, msg.role === "assistant" ? displayReplyText(msg.content) : msg.content) : undefined}
+                katexReady={katexReady}
+                onReadAloud={readAloud.supported ? readAloud.toggle : undefined}
               />
               {/* A self-harm or abuse disclosure, or with a K-12 grade set a strong pregnancy self-disclosure, gets a
                   fixed notice under it, shown as soon as the message is;
@@ -619,7 +642,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           );
         })}
         {/* No empty "Thinking..." bubble above a question card: the card is what the tutor is saying. */}
-        {streaming && !(askPending && !streamingText) && (
+        {streaming && !replyLanded && !(askPending && !streamingText) && (
           <div className="flex gap-3">
             <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
               AI
@@ -627,7 +650,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             <div className="chat-msg flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
               {streamingText
                 ? (
-                  <ReplyProse text={streamingText} streaming>
+                  <ReplyProse text={streamingText} streaming katexReady={katexReady}>
                     <span className="inline-block w-1.5 h-4 bg-phosphor-ink animate-pulse ml-0.5 align-middle" />
                   </ReplyProse>
                 )
@@ -746,15 +769,22 @@ function appendUnique(prev: ChatMessage[], msg: ChatMessage): ChatMessage[] {
 // result is, instead of shown as code (mermaid-source.ts); a fence still streaming shows a placeholder.
 // A reply without one renders exactly as before. A saved reply is shown through displayReplyText, so
 // one saved before the kernel filtered tool-call text never shows it either.
-function ReplyProse({ text: raw, streaming = false, children }: { text: string; streaming?: boolean; children?: React.ReactNode }) {
+// The HTML (marked + KaTeX + DOMPurify) is built only when the text changes or KaTeX finishes loading,
+// so a re-render with the same reply reuses it.
+function ReplyProse({ text: raw, streaming = false, katexReady, children }: { text: string; streaming?: boolean; katexReady: boolean; children?: React.ReactNode }) {
   const text = useMemo(() => (streaming ? raw : displayReplyText(raw)), [raw, streaming]);
-  const segments = splitReplyDiagrams(text);
+  const segments = useMemo(() => splitReplyDiagrams(text), [text]);
+  // katexReady is read only as a dependency: renderChatMarkdown typesets math once KaTeX has loaded.
+  const html = useMemo(
+    () => segments.map((s) => (s.kind === "markdown" ? renderChatMarkdown(s.text) : "")),
+    [segments, katexReady],
+  );
   if (!streaming && segments.length === 1 && segments[0].kind === "markdown") {
     return (
       <div
         className="note-prose"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: renderChatMarkdown(text) }}
+        dangerouslySetInnerHTML={{ __html: html[0] }}
       />
     );
   }
@@ -762,7 +792,7 @@ function ReplyProse({ text: raw, streaming = false, children }: { text: string; 
     <div className="note-prose">
       {segments.map((s, i) => s.kind === "markdown"
         // eslint-disable-next-line react/no-danger
-        ? <div key={i} dangerouslySetInnerHTML={{ __html: renderChatMarkdown(s.text) }} />
+        ? <div key={i} dangerouslySetInnerHTML={{ __html: html[i] }} />
         : s.closed || !streaming
           ? <div key={i} className="my-2"><MermaidBlock code={s.code} /></div>
           : <div key={i} className="lcd rounded-lg px-3 py-2 my-2 text-sm text-[var(--ink-dim)]">drawing a diagram…</div>)}
@@ -773,7 +803,14 @@ function ReplyProse({ text: raw, streaming = false, children }: { text: string; 
 
 // `onReadAloud` is set when the webview can speak; tutor replies then get a speaker button that reads
 // the reply (speech.ts speakableText) and, pressed again, stops.
-function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage; reading: boolean; onReadAloud?: () => void }) {
+// Memoized, and every prop is stable between tokens (the message objects, readAloud.toggle), so a
+// streamed token re-renders only the streaming bubble, not every saved message in the thread.
+const MessageBubble = memo(function MessageBubble({ message, reading, katexReady, onReadAloud }: {
+  message: ChatMessage;
+  reading: boolean;
+  katexReady: boolean;
+  onReadAloud?: (id: string, text: string) => void;
+}) {
   const isUser = message.role === "user";
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -785,13 +822,13 @@ function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage
       <div className={`chat-msg max-w-[75%] p-3 rounded-xl text-sm leading-relaxed ${
         isUser ? "bg-[rgb(var(--phosphor-rgb)/0.10)] text-ink whitespace-pre-wrap" : "bg-panel text-ink"
       }`}>
-        {isUser ? message.content : <ReplyProse text={message.content} />}
+        {isUser ? message.content : <ReplyProse text={message.content} katexReady={katexReady} />}
       </div>
       {!isUser && onReadAloud && (
         <button
           type="button"
           className="speak-btn self-end"
-          onClick={onReadAloud}
+          onClick={() => onReadAloud(message.id, displayReplyText(message.content))}
           aria-label={reading ? "Stop reading" : "Read aloud"}
           aria-pressed={reading}
           title={reading ? "Stop reading" : "Read aloud"}
@@ -805,7 +842,7 @@ function MessageBubble({ message, reading, onReadAloud }: { message: ChatMessage
       )}
     </div>
   );
-}
+});
 
 // Follow-up chips. Tapping one PREFILLS the input rather than sending immediately — the student can
 // edit it first, and a mis-tap costs nothing. That is the difference between a suggestion and a
