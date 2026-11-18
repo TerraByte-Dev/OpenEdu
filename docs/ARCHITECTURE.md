@@ -901,6 +901,20 @@ by code, with no model call.
   late. The count belongs to one session: it starts at zero when a learner comes in (a switch resets
   it) and is not saved, so it also starts again after a restart.
 
+## What counts as a safety disclosure (`child-safety.ts isSafetyDisclosure`)
+
+One check, no model call, read by every place that shows `SAFETY_NOTICE` or withholds a mark (the chat, the
+question cards, written answers, the new-course topic, the dictionary note). Its harm half does not read the
+grade: suicide and self-harm wording (`PHRASES`, `KMS_RE`), a person hitting, hurting or touching the child
+(`ABUSE_RE`), a person and their own genitals (`BODY_RE`), sexual abuse in a child's words (`PHRASES`), and
+`DISCLOSURE_RES`: touching after a person within the sentence, hands in clothes, clothes pulled off, being
+made to touch, nude pictures, sextortion, being watched in the shower, and "i don't feel safe at home".
+Sharing the child's pictures counts only with a threat in the same message (`SHARE_PICS_RE` and
+`THREAT_RE`). The harm half is TerraTutor's code as of its PR #125, character for character apart from
+comments; TerraTutor's parents'-topics screen is not ported, so a third-person report ("his dad makes him
+watch porn") or wording the lists do not know gets no notice here, where TerraTutor gives its parents'-topics
+reply. `child-safety.test.ts` pins both sides, those misses included. The pregnancy half is below.
+
 ## The safety notice for a pregnancy (`child-safety.ts strongPregnancy`)
 
 With a K-12 grade set, a strong pregnancy self-disclosure in the learner's message ("am i pregnant", "im 14

@@ -88,7 +88,119 @@ describe("isSafetyDisclosure", () => {
       "women were raped during the war", "what does molest mean",
       "he hit me in dodgeball", "my brother hit me", "my teacher hit us with a pop quiz",
       "what would happen if i died my hair blue", "how does the author end it all",
+      // TerraTutor #125's "sextort*" is a bare topic word like "suicid*".
+      "what does sextortion mean",
     ]) expect(isSafetyDisclosure(m), m).toBe(true);
+  });
+
+  // Ported from TerraTutor #125 (its cycle-3 and cycle-5 reviews, parent-topics.test.ts there): sexual abuse in
+  // a child's words. Before the port OpenEdu showed no notice for any of these. With no grade and at every grade:
+  // the harm half does not read the grade.
+  it("fires on sexual abuse in a child's words, with or without a grade", () => {
+    for (const m of [
+      "my uncle touched my genitals", "he touches my private parts and talks about sex", "I was sexually abused",
+      "my uncle sexually assaulted me", "I was sexually assaulted", "he made me have sex with him",
+      "my stepdad makes me have sex", "someone did sexual things to me", "my cousin forced me to do sexual stuff",
+      "my coach sends me sexy pictures", "a man online asked me for sexy pics", "my babysitter showed me porn",
+      "someone online sent me a sext", "he sent me a sext",
+      "my uncle had sex with me", "my stepdad has sex with me", "my brother showed me his penis",
+      "my uncle makes me touch his penis", "he does sex stuff to me", "a stranger online sent me porn",
+      "he had sex with me", "my step brother has sex with me at night", "he wants to have sex with me",
+      "my coach asked me to have sex", "someone sent me a picture of his penis", "my stepdad does sex things to me",
+      "my cousin makes me do sex stuff", "he put his penis on me", "he makes me suck his penis",
+      "he rubs his penis on me", "he showed me his genitals",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+  });
+
+  // TerraTutor #125's cycle-6 review: common sexual-abuse, grooming and online-exploitation wordings that
+  // reached the model with no notice. Each pattern in DISCLOSURE_RES is pinned by at least one.
+  it("fires on the cycle-6 disclosure wordings, with or without a grade", () => {
+    for (const m of [
+      // A person, words between, then touches me (or a part of the body, or him / her / them).
+      "my stepdad comes into my room at night and touches me", "my stepdad sleeps in my bed and touches me",
+      "my coach said it's our secret and touched me", "my coach said it's our secret, and touched me",
+      "a big kid at school pulls down my pants and touches me", "the older boys at school touch me in the locker room",
+      "a kid in my class says her dad touches her at night", "i got touched by my uncle", "i was touched by my uncle",
+      "a teacher at school touches kids",
+      // Touches / rubs / grabs my body, butt, chest, boobs, private area, singular private.
+      "he touches my body", "my cousin touches my butt", "my friend's dad touched my boobs", "my uncle touches my chest",
+      "he rubs my private area", "my dad touches my private", "a man at the store grabbed my butt",
+      "he asked me to touch his private", "my uncle put his mouth on my private",
+      // Down there.
+      "my babysitter touches me down there", "he touched my down there",
+      // Hands in or down clothes; pants pulled down.
+      "he put his hand in my pants", "he put his hands down my shirt", "she put her hand up my shirt",
+      "he puts his hand in my underwear", "he pulled down my pants", "an older kid pulled my pants down in the bathroom",
+      "a guy at the park pulled down his pants in front of me",
+      // Made to touch or suck.
+      "he makes me touch him", "my cousin made me touch his thing", "my cousin made me touch him down there",
+      "he made me suck his thing", "he made me suck on his thing",
+      // Clothes off, naked.
+      "he made me take my clothes off", "she made me get naked", "my babysitter makes me take off my clothes",
+      "he told me to take my pants off", "my step dad took my clothes off", "she made me get undressed and took pictures",
+      // Nudes, pictures, video.
+      "he asked for nudes", "someone asked me for nudes", "a boy online sent me nudes", "someone dmed me a dick pic",
+      "a guy on snapchat sent me a dick pic", "he has pictures of me naked", "he wants naked pictures of me",
+      "he wants a picture with no clothes on", "he recorded me naked", "he wants pictures of myself without clothes",
+      "a stranger on roblox wants me to send pictures without clothes", "my coach asked me to send a pic without my shirt",
+      "a grown up online asked for pictures of me in my underwear", "a man sent me a picture of his private parts",
+      "my uncle showed me videos of people with no clothes", "someone online wants me to video chat with no clothes",
+      // Sextortion.
+      "he will share my pictures if i dont send more", "he is blackmailing me with my pictures",
+      "he threatened to share my nudes", "he says he'll post my pics unless i send more", "someone tried to sextort me",
+      // Humps, watches in the shower, fingers in me, his thing in my.
+      "he humps me", "he humped me", "my stepdad watches me in the shower", "my moms boyfriend watches me when i change",
+      "my cousin put his fingers in me", "he puts his fingers in me", "he stuck his thing in my butt",
+      // And the plainest ways to say home is not safe.
+      "i don't feel safe at my dad's house", "i get hurt at home",
+      // The audit's four (2026-11-18): each showed no notice before the port.
+      "someone online keeps asking for my nudes", "he'll post my pics unless i send more",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+  });
+
+  // The other side of the cycle-6 patterns (TerraTutor #125): school and everyday sentences with the same words.
+  it("does not fire on school and everyday sentences that use the cycle-6 words", () => {
+    for (const m of [
+      "my teacher touched my shoulder to wake me up", "the doctor touched my chest with the stethoscope",
+      "my brother kicked my butt at chess", "my teacher will post my pictures on the class bulletin board",
+      "can i send my pictures to the class page", "he showed me his thing he built in minecraft",
+      "my private school has uniforms", "i sent a private message to my friend", "my brother goes to his private school",
+      "the emperor had no clothes on in the story", "my mom told me to take my shoes off", "i took my shirt off because it was hot",
+      "my grandma's letter touched my heart", "she touched the hot stove and burned her finger",
+      "my sister touched my stuff without asking", "he grabbed my pencil", "my friend touched my arm in tag",
+      "the kids touched the snake at the zoo", "my dog licked my face", "the cat watches me when i eat",
+      "they filmed the play in the gym", "i feel safe at home", "i got hurt at recess",
+      "blackmail is a crime in the story we read", "the hump of a camel stores fat", "my teacher touched on that topic",
+      "i was touched by the ending of the book", "my mom said the story touched me", "the fish live down there",
+      "we took pictures of the sunset", "my sister touched her toes",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+  });
+
+  // TerraTutor #125's curious questions and school wording about sex, sexuality and gender (parent-topics.test.ts
+  // there): none is a safety disclosure. OpenEdu has no parents'-topics screen, so these reach the tutor as before.
+  it("does not fire on curious questions or school wording about sex", () => {
+    for (const m of [
+      "what does sexy mean, my friend said it", "my friend said a word, sex, what is it", "I think I'm trans",
+      "am i bi", "my sister says she is a lesbian, what does that mean", "can I ask what gay means",
+      "is my teacher trans?", "Make me a flashcard about transgender people",
+      "is the teacher trans?", "why are boys attracted to the opposite sex", "can a boy change sex when he grows up?",
+      "is her mom trans", "what does gay mean, they said it at school", "do girls like drag shows",
+      "what's sex?", "Mom, what's sex?", "what does gay mean", "is Sam trans?", "is there a drag show this weekend?",
+      "are you bi", "what does bi mean", "does the US census count people by sex?", "is it ok to be trans?",
+      "what is sex", "Like fish, can people change sex?", "what are sex cells?", "Can a clownfish change sex?",
+      "what is sexual selection", "Sex-linked traits", "Sexual reproduction in plants",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+  });
+
+  // Known misses. TerraTutor hands each of these to its parents'-topics reply, which names Childhelp; OpenEdu has
+  // no such screen, so they get no notice. Third-person reports and wording the lists do not know. Pinned so a
+  // widening is a deliberate change, with its own negatives.
+  it("misses these known disclosures that TerraTutor leaves to its parents'-topics reply", () => {
+    for (const m of [
+      "a man showed me his penis", "he does bad stuff to me and says it's sexy", "someone keeps asking me about sex",
+      "they made me watch them have sex", "his dad makes him watch porn", "her uncle had sex with her",
+      "a girl at church says the pastor touches her vagina", "THE BUS DRIVER MADE US WATCH PORN",
+    ]) expect(isSafetyDisclosure(m), m).toBe(false);
   });
 
   it("matches whole words only", () => {

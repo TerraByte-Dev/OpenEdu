@@ -38,6 +38,12 @@ The section for each release is also what the app shows when you press Check for
   address so a grown-up can copy it into a web browser. Links to a heading on the same page still work.
 
 ### Changed
+- **The safety notice knows more ways a child tells.** A message about sexual abuse, unwanted touching,
+  nude pictures or someone threatening to share them ("he made me have sex with him", "my stepdad comes
+  into my room at night and touches me", "he'll post my pics unless i send more") now shows the safety
+  notice with the 988 and Childhelp numbers, with or without a grade set, and is not marked as a quiz or
+  test answer. The same words in schoolwork ("my private school", "the doctor touched my chest") still
+  show nothing. Ported from TerraTutor.
 - Importing a model no longer warns that Google's Gemma Terms of Use must travel with a Gemma 4 model. Gemma 4 is Apache 2.0; the reminder (on the import screen and in `scripts/export-model.mjs`) now covers only Gemma 1 to 3.
 - **OpenEdu is now for one learner.** Class and school modes, the "Who uses this computer?"
   question, the teacher PIN, the teacher view and its spreadsheet export, and adding learners are

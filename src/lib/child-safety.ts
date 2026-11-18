@@ -6,7 +6,8 @@
 //    learner has a grade (K-12) set, and on any turn whose message trips isSafetyDisclosure, grade or
 //    not. Every other turn with no grade stays byte-identical (systemPrompt-master.test.ts pins that).
 // 2. isSafetyDisclosure, a check of a student's chat message for self-harm, suicide and abuse
-//    disclosures, and, for a learner with a K-12 grade set, a strong self-disclosure of a pregnancy
+//    disclosures (sexual abuse, unwanted touching, nude pictures and sextortion among them, ported from
+//    TerraTutor #125), and, for a learner with a K-12 grade set, a strong self-disclosure of a pregnancy
 //    (strongPregnancy, below). A match shows SAFETY_NOTICE under that message. A notice, never a block: the tutor
 //    turn still runs, always with CHILD_SAFETY_RULES, so the child is not met with silence. Like health-notice.ts, a deterministic list is auditable and costs nothing on a CPU box.
 //    A false positive costs one kind line of text; a miss means no notice, never a block. English only.
@@ -55,6 +56,20 @@ const PHRASES = [
   "beat me up", "beats me up", "abuses me", "abused me", "abusing me", "being abused", "molest*",
   "raped", "rape me", "rapes me", "sexually abused", "not safe at home", "scared to go home",
   "afraid to go home",
+  // Sexual abuse in a child's words (ported from TerraTutor #125, its cycle-3 review). Without these,
+  // "he made me have sex with him" got no safety notice.
+  "sexually assault*", "sexual assault*", "made me have sex", "makes me have sex", "make me have sex",
+  "making me have sex", "forced me to have sex", "forces me to have sex", "forced me to do sex*",
+  "forces me to do sex*", "me to do sexual", "me do sexual", "sexual things to me", "sexual stuff to me",
+  "sexual things with me", "sexual stuff with me", "sexy pic*", "sexy photo*", "naked pic*",
+  "naked photo*", "showed me porn", "shows me porn", "showing me porn", "made me watch porn",
+  "makes me watch porn", "sent me a sext", "sent me sexts", "sends me sexts", "sexted me", "sexting me",
+  // TerraTutor #125's cycle-5 review: "my uncle had sex with me", "he does sex stuff to me", "my coach asked me to have
+  // sex", "my cousin makes me do sex stuff", "a stranger online sent me porn". Someone showing or using
+  // their own body is BODY_RE's job below.
+  "sex with me", "sex with us", "sex stuff to me", "sex stuff with me", "sex things to me",
+  "sex things with me", "me do sex stuff", "me do sex things", "me to have sex", "sent me porn",
+  "sends me porn", "send me porn", "sending me porn", "porn to me",
 ];
 
 // A person doing something to the child, or to their family: "my dad hit me", "he touches my private
@@ -67,7 +82,7 @@ const WHO =
   "grandma|grandfather|grandmother|brother|sister|cousin|teacher|coach|babysitter|neighbou?r|boyfriend|girlfriend)" +
   "(?:'s (?:boyfriend|girlfriend|friend))?|he|she|they|someone|somebody|a grown-?up|an adult)(?:'s|'re)?";
 const FILL = "(?: (?:always|often|keeps?|sometimes|just|is|was|are|were|has|have|had|been|would|will|used to)){0,3}";
-const OBJ = "(?:me|us|my (?:(?:little|big|baby|older|younger) )?(?:mom|mum|mother|dad|father|sister|brother|private\\w*))";
+const OBJ = "(?:me|us|my (?:(?:little|big|baby|older|younger) )?(?:mom|mum|mother|dad|father|sister|brother|private\\w*|genital\\w*|penis|vagina|vulva))";
 const ACT =
   "(?:hit|hits|hitting|hurt|hurts|hurting|punch(?:es|ed|ing)?|slap(?:s|ped|ping)?|smack(?:s|ed|ing)?|" +
   "spank(?:s|ed|ing)?|kick(?:s|ed|ing)?|whip(?:s|ped|ping)?|chok(?:es|ed|ing)|touch(?:es|ed|ing)?|abus(?:es|ed|ing))";
@@ -80,6 +95,89 @@ const ABUSE_RE = new RegExp(
     BEAT + " " + OBJ + END + "(?! (?:at|in|by|to|again at|\\d)))",
   "u",
 );
+// A person and, within six words in the same sentence, their own genitals: "my brother showed me his
+// penis", "someone sent me a picture of his penis", "he makes me suck his penis", "he showed me his
+// genitals". The subject is WHO, so "a male frog's penis" stays out; "how does he use his penis" said of
+// an animal shows the safety notice, which is the cheap side of the trade.
+// "private" said of the body: privates, private part(s) / area(s) / spot(s), or plain "private" not
+// followed by a school or everyday word ("his private school", "a private message").
+const PRIVATE =
+  "(?:privates|private (?:parts?|areas?|spots?|places?|bits)|private(?! (?:schools?|lessons?|tutors?|teachers?|jets?|" +
+  "islands?|rooms?|office|property|company|sector|eye|investigator|number|messages?|chats?|accounts?|browser|life|" +
+  "beach|pools?|practice|matters?|info\\p{L}*|keys?|class\\p{L}*|time|label|game|server|citizens?|business\\p{L}*|" +
+  "land|owner\\p{L}*|first|second|soldier|road|parts? of (?:the|a)|conversations?|thoughts?|journal|diary)))";
+const BODY = "(?:penis\\p{L}*|genital\\p{L}*|" + PRIVATE + "|vagina\\p{L}*|vulva\\p{L}*)";
+const BODY_RE = new RegExp("(?<![\\p{L}\\p{N}])" + WHO + "(?: [\\p{L}']+){1,6}? (?:his|her|their) " + BODY + END, "u");
+
+// TerraTutor #125's cycle-6 review: common ways a child tells that the lists above missed. Each one is a pattern of its
+// own, kept to disclosure wording so schoolwork does not trip it (child-safety.test.ts pins both sides).
+// A person, then within eight words of the same sentence, "touch(es|ed|ing)" and me, us, a part of the
+// body, or him / her / them: "my stepdad comes into my room at night and touches me", "my coach said it's
+// our secret and touched me", "her dad touches her at night". Not after a thing ("my mom said the story
+// touched me"). The person may also be a boy, girl, kid, man, woman, guy, lady, stranger or people.
+const TOUCHER =
+  "(?:" + WHO + "|(?:the |some |a |an |this |that |these |those )?(?:older |big |bigger |other |strange )?" +
+  "(?:boys?|girls?|kids?|man|men|guys?|lady|ladies|woman|women|strangers?|person|people))";
+const THIRD_OBJ = "(?:him|them|her(?= ?(?:$|[^\\p{L}\\p{N}\\s]|and|again|there|too|down|when|while|at|in|every|all)(?![\\p{L}\\p{N}])))";
+const BODY_PART = "(?:body|butt|bum|bottom|chest|boobs?|breasts?|" + PRIVATE + "|genital\\p{L}*|penis|vagina|vulva)";
+const NOT_A_THING = "(?<!(?:poem|story|song|movie|film|book|speech|letter|music|it|that|this|word|words|show|video|scene|ending|art|painting|picture|play|lyrics) )";
+const NOT_ME = "(?<!(?:^|[^\\p{L}\\p{N}'])(?:i|i'll|ill|i'm|im|we|you) )";
+const CLOTHES = "(?:pants|shirt|underwear|undies|panties|skirt|shorts|clothes|bra|dress|pajamas|pyjamas|swimsuit)";
+const PICS = "(?:pictures?|pics?|photos?|videos?|selfies?)";
+const NAKED = "(?:naked|nude|without (?:my |any |a |his |her )?(?:clothes|shirt|pants)|with no clothes(?: on)?|in (?:my |their )?underwear|in the (?:shower|bath))";
+const DISCLOSURE_RES = [
+  TOUCHER + "(?:,? [\\p{L}']+){0,8}? " + NOT_A_THING + "(?:touch|touches|touched|touching) (?:me|us|my " + BODY_PART + "|" + THIRD_OBJ + ")",
+  "(?:got|get|gets|getting) touched",
+  "(?:was|got|been|being) touched by " + WHO + "(?!')",
+  "(?:touch|touches|touched|touching) (?:the |other |younger |little )?(?:kids|children|boys|girls)",
+  WHO + "(?:,? [\\p{L}']+){0,8}? (?:rub|rubs|rubbed|rubbing|lick|licks|licked|licking|grab|grabs|grabbed|grabbing) my " + BODY_PART,
+  // "touches my butt", "grabbed my boobs", "rubs my private area", with or without a named person.
+  "(?:touch|touches|touched|touching|rub|rubs|rubbed|rubbing|lick|licks|licked|licking|grab|grabs|grabbed|grabbing|squeez\\p{L}*) " +
+    "my (?:butt|bum|boobs?|breasts?|" + PRIVATE + "|genital\\p{L}*|penis|vagina|vulva)",
+  "(?:touch|touches|touched|touching|lick\\p{L}*|rub\\p{L}*|kiss\\p{L}*|grab\\p{L}*|feel\\p{L}*) (?:me |my )?down there",
+  "(?:my|his|her|their) down there",
+  // A hand in or down the child's clothes, or on their private parts.
+  "(?:hands?|fingers?|mouth|tongue|thing) (?:in|into|inside|down|up|under) my " + CLOTHES,
+  "(?:hands?|fingers?|mouth|tongue|thing) (?:on|in|inside|into|against) my (?:butt|bum|boobs?|breasts?|" + PRIVATE + ")",
+  "fingers? (?:in|inside|into) me",
+  "(?:his|her|their) (?:thing|fingers?|penis|dick|privates?) (?:in|inside|into|on) (?:me|my)",
+  // Clothes pulled down or taken off, by someone else.
+  NOT_ME + "(?:pull|pulls|pulled|pulling|yank\\p{L}*|take|takes|took|taking|taken) (?:down|off) my " + CLOTHES,
+  NOT_ME + "(?:pull|pulls|pulled|pulling|yank\\p{L}*) my " + CLOTHES + " (?:down|off)",
+  NOT_ME + "(?:take|takes|took|taking|taken) my clothes off",
+  "(?:me|us) (?:to )?(?:take|get|be|stay|go) (?:off my " + CLOTHES + "|my " + CLOTHES + " off|naked|nude|undressed)",
+  "(?:pull\\p{L}*|took|take\\p{L}*) (?:down |off )?(?:his|her|their) " + CLOTHES + "(?: down| off)? in front of (?:me|us)",
+  "undress(?:es|ed|ing)? (?:me|us)",
+  // Made to touch or suck.
+  "(?:make|makes|made|making|forc\\p{L}*|ask|asks|asked|want|wants|wanted|tell|tells|told) me (?:to )?touch " +
+    "(?:" + THIRD_OBJ + "|(?:his|her|their) (?:thing|stuff|body|" + PRIVATE + "|penis|dick|vagina|boobs?|breasts?|butt|bum))",
+  "(?:make|makes|made|making|forc\\p{L}*) me (?:to )?suck",
+  // Nudes, pictures and video.
+  "(?:for|send|sent|sends|sending) (?:me |him |her |them |you )?(?:my |some |a |any )?nudes",
+  "my nudes",
+  "nude (?:pic|pics|picture|pictures|photo|photos|selfie|selfies|video|videos)",
+  "dick ?pics?",
+  "naked (?:pictures?|videos?|selfies?)",
+  PICS + " of (?:me|myself|us)(?: [\\p{L}']+){0,2} " + NAKED,
+  PICS + " (?:naked|nude|without (?:my |any |a )?(?:clothes|shirt|pants)|with no clothes(?: on)?|in (?:my |your )?underwear)",
+  PICS + " of (?:his|her|their) " + BODY,
+  "(?:showed|shows|show|showing|sent|sends|send|sending) (?:me|us) " + PICS + " of(?: [\\p{L}']+){1,2} " + NAKED,
+  "(?:video ?chat\\p{L}*|facetime|cam|call) (?:me |us )?(?:naked|nude|without (?:my |any )?clothes|with no clothes(?: on)?)",
+  "(?:record\\p{L}*|film\\p{L}*|tap(?:es|ed|ing)) (?:me|us) " + NAKED,
+  // Sextortion. Sharing pictures counts only with a threat in the same message (handled below).
+  "sextort\\p{L}*",
+  "blackmail(?:s|ed|ing)? (?:me|us)",
+  "threat\\p{L}* to (?:share|post|send|show|leak)",
+  "hump(?:s|ed|ing)? (?:on )?(?:me|us)",
+  "(?:watch|watches|watched|watching|spies on|spied on|spying on|peeks? at|peeked at|peeking at) (?:me|us) " +
+    "(?:in the shower|in the bath|showering|bathing|naked|undress\\p{L}*)",
+  "(?:watch|watches|watched|watching) (?:me|us) (?:when|while) (?:i|we) (?:shower|bathe|change|undress|get dressed|take a (?:shower|bath))",
+  "(?:don't|dont|do not) feel safe (?:at|in) (?:home|my|our)",
+  "(?:get|gets|got|getting) hurt at home",
+].map((s) => new RegExp("(?<![\\p{L}\\p{N}])" + s + END, "u"));
+// "he'll post my pics unless i send more": sharing the child's pictures, with a threat in the message.
+const SHARE_PICS_RE = new RegExp("(?<![\\p{L}\\p{N}])(?:share|post|send|show|leak)(?:s|ed|ing)? (?:all )?my (?:naked |nude |private )?" + PICS + END, "u");
+const THREAT_RE = /(?<![\p{L}\p{N}])(?:unless|if i (?:don't|dont|do not|won't|wont|didn't|didnt)|or else|threat\p{L}*)(?![\p{L}\p{N}])/u;
 // "kms" is also kilometres ("5 kms", "miles to kms"): it counts only as the whole message (with chat
 // filler) or right after a first-person lead-in.
 const KMS_RE =
@@ -363,14 +461,16 @@ function endsWord(text: string, i: number): boolean {
 }
 
 /**
- * True when a student's message reads as a self-harm, suicide or abuse disclosure, or, when the learner
- * has a K-12 grade set, as a strong self-disclosure of a pregnancy (strongPregnancy). With no grade (an
- * adult, or a learner who never set one) only the first part applies.
+ * True when a student's message reads as a self-harm, suicide or abuse disclosure (sexual abuse,
+ * unwanted touching, nude pictures and sextortion included), or, when the learner has a K-12 grade set,
+ * as a strong self-disclosure of a pregnancy (strongPregnancy). With no grade (an adult, or a learner who
+ * never set one) only the first part applies.
  */
 export function isSafetyDisclosure(message: string, grade: Grade | null = null): boolean {
   const text = normalise(message);
   if (!text) return false;
-  if (ABUSE_RE.test(text) || KMS_RE.test(text)) return true;
+  if (ABUSE_RE.test(text) || BODY_RE.test(text) || KMS_RE.test(text)) return true;
+  if (DISCLOSURE_RES.some((re) => re.test(text)) || (SHARE_PICS_RE.test(text) && THREAT_RE.test(text))) return true;
   if (grade !== null && strongPregnancy(text)) return true;
   return PHRASES.some((entry) => {
     const stem = entry.endsWith("*");
