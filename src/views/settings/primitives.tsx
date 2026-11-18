@@ -276,18 +276,20 @@ export function Disclosure({
 
 // ── ActionButton: a labelled action with a transient done state ─────────────────────────────────────────
 export function ActionButton({
-  onClick, children, primary, busyLabel,
+  onClick, children, primary, busyLabel, disabled = false,
 }: {
   onClick: () => Promise<void> | void;
   children: ReactNode;
   primary?: boolean;
   busyLabel?: string;
+  /** Off from outside, as well as while its own click runs. */
+  disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   return (
     <button
       type="button"
-      disabled={busy}
+      disabled={busy || disabled}
       onClick={async () => { setBusy(true); try { await onClick(); } finally { setBusy(false); } }}
       className={`btn ${primary ? "btn-primary" : ""} disabled:opacity-50`}
     >

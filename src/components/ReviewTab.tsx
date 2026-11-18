@@ -5,6 +5,8 @@ import { review, requeueIfDue, type FlashcardGrade } from "../lib/srs";
 import { lessonWithHelp } from "../lib/curriculum";
 import { getLessonConfigs } from "../lib/store";
 import RaiseHand from "./RaiseHand";
+import ReadAloudButton from "./ReadAloudButton";
+import { isEarlyReader, type Grade } from "../lib/grade";
 
 interface ReviewTabProps {
   courseId: string;
@@ -13,6 +15,8 @@ interface ReviewTabProps {
   syllabuses: Syllabus[];
   /** Raise hand's "Try typing to your tutor": open the chat for this subtopic. */
   onTypeToTutor?: (subtopicTitle: string | null) => void;
+  /** The learner's grade: K-2 (grade.ts isEarlyReader) gets the card and grade buttons at the chat's larger size. */
+  grade?: Grade | null;
 }
 
 // What Raise hand can help with for a card: its own subtopic when the card names one the syllabus has,
@@ -34,7 +38,8 @@ const GRADES: { grade: FlashcardGrade; label: string; hint: string; cls: string 
   { grade: "easy", label: "Easy", hint: "too easy", cls: "border-success/40 text-success hover:bg-success-tint" },
 ];
 
-export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeToTutor }: ReviewTabProps) {
+export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeToTutor, grade: learnerGrade = null }: ReviewTabProps) {
+  const large = isEarlyReader(learnerGrade);
   const [queue, setQueue] = useState<Flashcard[]>([]);
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -185,13 +190,16 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
               <div className="h-full bg-[rgb(var(--phosphor-rgb)/0.5)] transition-all" style={{ width: `${(idx / queue.length) * 100}%` }} />
             </div>
             <div className="p-6">
-              <div className="min-h-[120px] flex items-center justify-center text-center">
-                <p className="text-lg text-ink leading-relaxed whitespace-pre-wrap">{card.front}</p>
+              {/* The chat's speaker button beside each side, as on a quiz question. */}
+              <div className="min-h-[120px] flex items-center justify-center gap-3 text-center">
+                <p className={`${large ? "text-2xl" : "text-lg"} text-ink leading-relaxed whitespace-pre-wrap`}>{card.front}</p>
+                <ReadAloudButton text={card.front} />
               </div>
 
               {revealed && (
-                <div className="mt-4 pt-4 border-t border-[var(--rule)] text-center">
-                  <p className="text-sm text-phosphor-ink leading-relaxed whitespace-pre-wrap">{card.back}</p>
+                <div className="mt-4 pt-4 border-t border-[var(--rule)] flex items-center justify-center gap-3 text-center">
+                  <p className={`${large ? "text-xl" : "text-sm"} text-phosphor-ink leading-relaxed whitespace-pre-wrap`}>{card.back}</p>
+                  <ReadAloudButton text={card.back} />
                 </div>
               )}
             </div>
@@ -210,10 +218,10 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
                     <button
                       key={g.grade}
                       onClick={() => grade(g.grade)}
-                      className={`flex flex-col items-center px-2 py-2.5 rounded-xl border text-sm font-medium transition-colors ${g.cls}`}
+                      className={`flex flex-col items-center px-2 py-2.5 rounded-xl border ${large ? "text-lg" : "text-sm"} font-medium transition-colors ${g.cls}`}
                     >
                       {g.label}
-                      <span className="text-[10px] opacity-70">{g.hint}</span>
+                      <span className={`${large ? "text-sm" : "text-[10px]"} opacity-70`}>{g.hint}</span>
                     </button>
                   ))}
                 </div>

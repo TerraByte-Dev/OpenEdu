@@ -149,9 +149,9 @@ describe("the screens draw the notice from these checks, with the learner's grad
   it("the level test shows it next to the answer in the learner's own marking list", () => {
     expect(src(testScreen)).toMatch(/noteFor=\{\(a\) => \(showsSafetyNotice\(a, grade\) \? SAFETY_NOTICE : null\)\}/);
   });
-  it("the new-course topic shows it, and that click builds and sends nothing", () => {
+  it("the new-course topic shows it, and no click builds or sends it (dashboard-topic.test.ts clicks it)", () => {
     const s = src(dashboard);
-    expect(s).toContain("if (isSafetyDisclosure(t, grade) && safetyTopic !== t) { setSafetyTopic(t); return; }");
+    expect(s).toContain("if (isSafetyDisclosure(t, grade)) { setSafetyTopic(t); setError(SAFETY_TOPIC_COURSE_LINE); return; }");
     expect(s).toMatch(/\{safetyTopic !== null && safetyTopic === topic\.trim\(\) && <SafetyNotice /);
   });
 });

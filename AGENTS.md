@@ -57,8 +57,11 @@ wrapper are **not type-linked**; keep them in sync by hand.
   put the logic in a pure module and keep the Tauri/React shell thin. The exception is HTML
   sanitizing (DOMPurify needs a DOM): those files opt in with `// @vitest-environment jsdom`. So do
   `src/components/pin-screen.test.ts`, which renders the real PIN pad to test focus and Enter,
-  `src/components/outside-link.test.ts`, which clicks links in rendered prose under the real link guard, and
-  `src/components/lessons-tab.test.ts`, which remounts the real Lessons tab while a lesson is being written.
+  `src/components/outside-link.test.ts`, which clicks links in rendered prose under the real link guard,
+  `src/components/lessons-tab.test.ts`, which remounts the real Lessons tab while a lesson is being written,
+  `src/views/dashboard-topic.test.ts`, which presses Create on the real new-course screen,
+  `src/components/question-renderer.test.ts`, which renders an answered question as the level test and the quiz show it, and
+  `src/components/notes-delete.test.ts`, which double-clicks the real Notebook's trash button.
 - Rust logic gets `#[cfg(test)]` tests in the same file. Test against temp dirs, never the user's disk.
 - **A test must go through the same code path production does.** A test of a helper the app doesn't
   call is not evidence. This repo has shipped a dead feature behind a green suite exactly that way.

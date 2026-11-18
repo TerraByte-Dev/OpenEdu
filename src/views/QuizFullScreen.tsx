@@ -15,7 +15,7 @@ import { IconXmark } from "../components/icons";
 import SafetyNotice from "../components/SafetyNotice";
 import { isEarlyReader, type Grade } from "../lib/grade";
 import ReadAloudButton from "../components/ReadAloudButton";
-import { questionSpeech } from "../lib/speech";
+import { questionSpeech, resultSpeech } from "../lib/speech";
 
 interface QuizFullScreenProps {
   context: QuizViewContext;
@@ -51,6 +51,9 @@ const QUIZ_SECONDS_PER_QUESTION = 120;
 
 export default function QuizFullScreen({ context, onClose, grade }: QuizFullScreenProps) {
   const large = isEarlyReader(grade);
+  // The results rows' sizes, as QuestionRenderer's: 14px / 12px, or for K-2 20px / 18px.
+  const sm = large ? "text-xl" : "text-sm";
+  const xs = large ? "text-lg" : "text-xs";
   const { courseId, course, syllabus } = context;
   const [state, setState] = useState<State>("generating");
   const [questions, setQuestions] = useState<ActiveQuestion[]>([]);
@@ -328,23 +331,25 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
                 return (
                 <div key={i} className={`p-4 rounded-xl border ${style.row}`}>
                   <div className="flex items-start gap-2 mb-2">
-                    <span className={`text-sm font-bold shrink-0 ${style.text}`}>
+                    <span className={`${sm} font-bold shrink-0 ${style.text}`}>
                       {style.sign}
                     </span>
-                    <p className="text-sm text-ink">{q.question_text}</p>
+                    <p className={`flex-1 ${sm} text-ink`}>{q.question_text}</p>
+                    {/* The question, the answer and key as shown, and the explanation (speech.ts resultSpeech). */}
+                    <ReadAloudButton text={resultSpeech(q, grade)} />
                   </div>
                   {safety && <SafetyNotice className="ml-5 mb-1" />}
-                  {mark === "unchecked" && !safety && <p className="ml-5 mb-1 text-xs text-warning">{UNCHECKED_NOTE}</p>}
+                  {mark === "unchecked" && !safety && <p className={`ml-5 mb-1 ${xs} text-warning`}>{UNCHECKED_NOTE}</p>}
                   {showsAnswerAndKey(q, grade) && (
-                    <div className="ml-5 text-xs space-y-0.5">
+                    <div className={`ml-5 ${xs} space-y-0.5`}>
                       <p className={mark === "wrong" ? "text-danger" : "text-ink"}>Your answer: {q.user_answer}</p>
                       <p className="text-success">Correct: {q.correct_answer}</p>
                     </div>
                   )}
                   {q.graded_by === "self"
-                    ? <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)]">{MARK_AGAIN.marked}</p>
-                    : q.feedback && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)] italic">{q.feedback}</p>}
-                  {q.explanation && <p className="ml-5 mt-1.5 text-xs text-[var(--ink-faint)]">{q.explanation}</p>}
+                    ? <p className={`ml-5 mt-1.5 ${xs} text-[var(--ink-faint)]`}>{MARK_AGAIN.marked}</p>
+                    : q.feedback && <p className={`ml-5 mt-1.5 ${xs} text-[var(--ink-faint)] italic`}>{q.feedback}</p>}
+                  {q.explanation && <p className={`ml-5 mt-1.5 ${xs} text-[var(--ink-faint)]`}>{q.explanation}</p>}
                   {q.subtopic_id && <p className="ml-5 mt-1 text-[10px] text-[var(--ink-faint)]">Subtopic: {q.subtopic_id}</p>}
                   {canMarkAgain(q) && q.saved_id && attemptId && (
                     <div className="ml-5"><MarkAgain copy={MARK_AGAIN} onMark={(right) => saveMarkAgain(i, right)} /></div>

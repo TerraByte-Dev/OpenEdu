@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 import type { QuizViewContext, QuizQuestion, QuizAttempt, LLMConfig } from "../types";
 import {
-  createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt, getHandedInLevelTest, markLevelTestHandedIn,
+  createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt, getHandedInLevelTest,
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
@@ -11,7 +11,7 @@ import {
   STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING,
 } from "../lib/level-test";
 import {
-  saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, finishHandedInLevelTest,
+  saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, finishHandedInLevelTest, handInLevelTest,
   type PendingLevelTest, type SettledLevelTest,
 } from "../lib/level-test-checks";
 import CheckAnswers from "../components/quiz/CheckAnswers";
@@ -29,7 +29,7 @@ import SafetyNotice from "../components/SafetyNotice";
 import { SAFETY_NOTICE } from "../lib/child-safety";
 import { isEarlyReader, type Grade } from "../lib/grade";
 import ReadAloudButton from "../components/ReadAloudButton";
-import { questionSpeech } from "../lib/speech";
+import { questionSpeech, resultSpeech } from "../lib/speech";
 import { IconXmark } from "../components/icons";
 
 function getTimeLimitSeconds(level: number): number {
@@ -95,6 +95,9 @@ interface Props {
 
 export default function PromotionTestFullScreen({ context, onClose, onPassed, grade }: Props) {
   const large = isEarlyReader(grade);
+  // The results rows' sizes, as QuestionRenderer's: 14px / 12px, or for K-2 20px / 18px.
+  const sm = large ? "text-xl" : "text-sm";
+  const xs = large ? "text-lg" : "text-xs";
   const { courseId, course, syllabus: currentSyllabus, allSyllabuses } = context;
   const currentLevel = course.current_level;
 
@@ -357,8 +360,15 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
 
     // Handed in: from here closing the app or a power cut never loses the test. Opened again, it is
     // graded then (finishHandedInLevelTest). A failed write only loses that, never the finish.
+    // A timed-out test scores its unanswered questions as wrong. They are stored as rows first, with their
+    // section (graded_by 'unanswered' keeps them out of the review pool), so the stored questions match
+    // what the app scored and a test graded later from the database scores them the same. A question whose
+    // answer was still being saved when time ran out already has its row, so it is skipped.
     const timeTaken = getTimeLimitSeconds(currentLevel) - timeLeft;
-    await markLevelTestHandedIn(aid, timeTaken)
+    const unanswered = timedOut
+      ? finalQuestions.filter((q, i) => q.user_answer === null && !q.saved_id && !savingRef.current.has(i))
+      : [];
+    await handInLevelTest(aid, timeTaken, unanswered)
       .then(() => setHandedIn(true))
       .catch((e) => console.error("marking the test handed in failed", e));
 
@@ -391,30 +401,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
       log.info("promotion", `graded ${pending.length} free-text answer(s) in ${Math.round(performance.now() - tGrade)}ms`);
     }
 
+    // A timed-out test scores its unanswered questions as wrong (stored as rows at the hand-in, above).
     const answered = timedOut
       ? gradedQuestions.map((q) => q.user_answer !== null ? q : { ...q, is_correct: false })
       : gradedQuestions;
-    // A timed-out test scores its unanswered questions as wrong. Store them as rows too, so the stored
-    // questions match what the app scored (graded_by 'unanswered' keeps them out of the review pool).
-    // Not awaited: nothing below reads these rows, and results must never wait on the database. A
-    // question whose answer was still being saved when time ran out already has its row, so it is skipped.
-    if (timedOut) {
-      void Promise.all(answered.filter((q, i) => q.user_answer === null && !q.saved_id && !savingRef.current.has(i)).map((q) =>
-        saveQuizQuestion({
-          attempt_id: aid,
-          question_text: q.question_text,
-          question_type: q.question_type,
-          options: q.options,
-          correct_answer: q.correct_answer,
-          user_answer: null,
-          is_correct: false,
-          difficulty_level: q.difficulty_level,
-          explanation: q.explanation,
-          subtopic_id: q.subtopic_id,
-          matching_pairs: q.matching_pairs,
-          blank_position: q.blank_position,
-        }, "unanswered", q.section).catch(console.error)));
-    }
 
     // The pass rule with unchecked written answers left out (level-test.ts): passed, failed, or waiting
     // for them to be marked. Its writes never throw, so the learner always reaches a results screen
@@ -789,6 +779,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
                 onAnswer={handleAnswer}
                 disabled={answeredCurrent}
                 grade={grade}
+                marksAtFinish
               />
             )}
 
@@ -933,24 +924,26 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
               // note (the answer was never marked; quiz.ts gradeAnswersBatch).
               const safety = showsSafetyNotice(q, grade);
               return (
-              <div key={i} className={`p-3 rounded-xl border text-sm ${style.row}`}>
+              <div key={i} className={`p-3 rounded-xl border ${sm} ${style.row}`}>
                 <div className="flex items-start gap-2">
                   <span className={`font-bold shrink-0 ${style.text}`}>{style.sign}</span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-ink">{q.question_text}</p>
                     {safety && <SafetyNotice className="mt-1" />}
-                    {mark === "unchecked" && !safety && <p className="text-xs text-warning mt-0.5">{TEST_UNCHECKED_NOTE}</p>}
+                    {mark === "unchecked" && !safety && <p className={`${xs} text-warning mt-0.5`}>{TEST_UNCHECKED_NOTE}</p>}
                     {showsAnswerAndKey(q, grade) && (
-                      <p className={`text-xs mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
+                      <p className={`${xs} mt-0.5 ${mark === "wrong" ? "text-danger" : "text-ink"}`}>Your: {q.user_answer} · Correct: {q.correct_answer}</p>
                     )}
                     {q.graded_by === "self"
-                      ? <p className="text-xs text-[var(--ink-faint)] mt-1">{MARK_AGAIN.marked}</p>
-                      : q.feedback && <p className="text-xs text-[var(--ink-faint)] italic mt-1">{q.feedback}</p>}
-                    {q.explanation && <p className="text-xs text-[var(--ink-faint)] mt-1">{q.explanation}</p>}
+                      ? <p className={`${xs} text-[var(--ink-faint)] mt-1`}>{MARK_AGAIN.marked}</p>
+                      : q.feedback && <p className={`${xs} text-[var(--ink-faint)] italic mt-1`}>{q.feedback}</p>}
+                    {q.explanation && <p className={`${xs} text-[var(--ink-faint)] mt-1`}>{q.explanation}</p>}
                     {canMarkAgain(q) && q.saved_id && resultsAttempt && (
                       <MarkAgain copy={MARK_AGAIN} onMark={(right) => saveMarkAgain(i, right)} />
                     )}
                   </div>
+                  {/* The question, the answer and key as shown, and the explanation (speech.ts resultSpeech). */}
+                  <ReadAloudButton text={resultSpeech(q, grade)} />
                 </div>
               </div>
               );

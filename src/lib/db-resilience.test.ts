@@ -145,6 +145,9 @@ describe("describeBackupError", () => {
     expect(describeBackupError("error returned from database: (code: 14) unable to open database: E:\\x.db")).toMatch(/could not write there/);
     expect(describeBackupError("error returned from database: (code: 11) database disk image is malformed")).toMatch(/damaged/);
     expect(describeBackupError(new Error("something odd"))).toBe("The backup did not finish: something odd");
+    // backup.rs BUSY, as backup_pick's invoke rejects with it: a second backup while one is saving.
+    expect(describeBackupError("A backup is already being saved. Wait until it finishes, then try again."))
+      .toBe('A backup is already being saved. Wait until this page says "Backup saved", then make another if you need one.');
   });
 });
 

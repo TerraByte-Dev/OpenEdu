@@ -15,7 +15,7 @@
 // unbounded message array with uncapped tool results and let the server decide what to drop — and
 // Ollama drops from the FRONT, taking the system prompt and the tools manifest with it.
 
-import { callLLMTurn, OllamaToolCallParseError, type NeutralMessage, type ProviderToolDef } from "../llm";
+import { callLLMTurn, log, OllamaToolCallParseError, type NeutralMessage, type ProviderToolDef } from "../llm";
 import type { LLMConfig } from "../../types";
 import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, type ToolUIEvent, type ToolDispatchResult } from "./toolDispatch";
@@ -489,6 +489,11 @@ ${lastUser.content}` };
     let retriedEmpty = false;
     // Set when the child typed a safety disclosure into a card (TutorTurnResult.cardMessage).
     let cardMessage: string | null = null;
+    // A model call that throws after this turn already showed something (text, or a card's question and
+    // the child's answer) ends the turn as stalled instead of failing it, so what was shown is saved with
+    // the stalled marker (persistedReply) and the chat says STALLED_TURN. Not when the student pressed
+    // Stop: that keeps its own handling.
+    const keepsShown = () => !ctx.abort.aborted && !!streamedText.trim();
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
@@ -517,11 +522,20 @@ ${lastUser.content}` };
         // reply. Tools are optional help; a reply without them beats a failed turn. So this turn is
         // answered by the no-tools call below, once. llm.ts only raises this error when nothing from
         // the request reached the student, and the no-tools call cannot raise it, so there is no loop.
-        // Every other error fails the turn as before.
-        if (!(e instanceof OllamaToolCallParseError)) throw e;
-        toolCallRecovery = { iteration, error: e.ollamaError };
-        if (import.meta.env?.DEV) console.info(`[turn] tool call unparseable at call ${iteration} (${e.ollamaError}); answering without tools`);
-        break;
+        // A later model call that fails (Ollama crashed, ran out of memory or refused the connection
+        // between calls of one turn) keeps what the child already saw this turn, a card's question and
+        // their answer included: the turn ends as stalled, as when a stream breaks off mid-reply.
+        // Every other error with nothing shown yet fails the turn as before. A kept turn is logged here,
+        // because ChatTab's "turn failed" line never sees it and llm.ts does not log the failure.
+        if (!(e instanceof OllamaToolCallParseError)) {
+          if (!keepsShown()) throw e;
+          log.error("TutorEngine", "later model call failed; turn kept as stalled", e);
+          interrupted = "stalled";
+        } else {
+          toolCallRecovery = { iteration, error: e.ollamaError };
+          if (import.meta.env?.DEV) console.info(`[turn] tool call unparseable at call ${iteration} (${e.ollamaError}); answering without tools`);
+          break;
+        }
       }
       const tail = claims.push(filter.end()) + claims.flush();
       iterationText += tail;
@@ -655,13 +669,20 @@ ${lastUser.content}` };
       const finalMessages = toolCallRecovery && manifest ? withoutManifest(messages, manifest) : messages;
       // No tools on this call, so a call written as text is only dropped.
       const filter = new ReplyTextFilter(toolNames);
-      for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
-        if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); if (text.trim()) replyOwed = false; show(text); }
-        else if (ev.type === "done") {
-          if (ev.finishReason === "aborted") interrupted = "aborted";
-          else if (ev.finishReason === "stalled") interrupted = "stalled";
-          else if (ev.finishReason === "length") interrupted = "length";
+      try {
+        for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
+          if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); if (text.trim()) replyOwed = false; show(text); }
+          else if (ev.type === "done") {
+            if (ev.finishReason === "aborted") interrupted = "aborted";
+            else if (ev.finishReason === "stalled") interrupted = "stalled";
+            else if (ev.finishReason === "length") interrupted = "length";
+          }
         }
+      } catch (e) {
+        // As in the loop above: what the child already saw this turn is kept, as a stalled turn.
+        if (!keepsShown()) throw e;
+        log.error("TutorEngine", "later model call failed; turn kept as stalled", e);
+        interrupted = "stalled";
       }
       const tail = claims.push(filter.end()) + claims.flush();
       if (tail.trim()) replyOwed = false;

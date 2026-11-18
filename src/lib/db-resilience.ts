@@ -137,6 +137,9 @@ export async function backupTo(db: SqlDb, dest: BackupDestination): Promise<Back
 /** Plain-words reason a backup failed, with what to do next. */
 export function describeBackupError(err: unknown): string {
   const msg = errorText(err);
+  // backup.rs BUSY: one backup at a time. Settings › Learner data shows the running backup's "Saving
+  // backup…" and then "Backup saved" even after the section was left and opened again (backup-status.ts).
+  if (/already being saved/i.test(msg)) return 'A backup is already being saved. Wait until this page says "Backup saved", then make another if you need one.';
   if (/already exists/i.test(msg)) return `${APP_NAME} could not use that name because a file is already there. Choose a new name, or delete the old file first.`;
   if (/disk is full|SQLITE_FULL|\(code: 13\)/i.test(msg)) return "The drive is full. Free some space, or save to another drive such as a USB stick.";
   if (/unable to open|SQLITE_CANTOPEN|\(code: 14\)|access is denied|permission/i.test(msg)) {

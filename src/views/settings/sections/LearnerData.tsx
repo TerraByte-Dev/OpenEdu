@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { backupLearnerData } from "../../../lib/db";
 import { pickBackupDestination } from "../../../lib/backup-file";
-import { backupFileName, describeBackupError, formatApproxSize } from "../../../lib/db-resilience";
+import { backupFileName } from "../../../lib/db-resilience";
+import { getBackupStatus, runBackup, subscribeBackupStatus } from "../../../lib/backup-status";
 import { Section, SettingRow, ActionButton } from "../primitives";
 import RestoreSteps from "../../../components/RestoreSteps";
 import { APP_NAME } from "../../../lib/product";
@@ -13,27 +14,17 @@ import { APP_NAME } from "../../../lib/product";
 // like a backup. The copy is the whole
 // file: on an install with several learners it holds all of them, PIN hashes included, so a restored
 // copy still asks each PIN.
+// The backup's progress and outcome live in backup-status.ts, not here: leaving this section unmounts it
+// while the copy keeps running, and coming back must still show "Saving backup…" and then "Backup saved".
 export default function LearnerData() {
-  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  const mounted = useRef(true);
-
+  const [status, setStatus] = useState(getBackupStatus);
   useEffect(() => {
-    mounted.current = true;
-    return () => { mounted.current = false; };
+    setStatus(getBackupStatus()); // a change between the first render and this subscription
+    return subscribeBackupStatus(setStatus);
   }, []);
 
-  const backUp = async () => {
-    setResult(null);
-    try {
-      const dest = await pickBackupDestination(backupFileName(new Date()));
-      if (!dest) return; // cancelled
-      const r = await backupLearnerData(dest);
-      const size = r.approxBytes ? ` (${formatApproxSize(r.approxBytes)})` : "";
-      if (mounted.current) setResult({ ok: true, msg: `Backup saved to ${r.path}${size}.` });
-    } catch (e) {
-      if (mounted.current) setResult({ ok: false, msg: describeBackupError(e) });
-    }
-  };
+  const backUp = () => runBackup(() => pickBackupDestination(backupFileName(new Date())), backupLearnerData);
+  const saving = status?.saving === true;
 
   return (
     <>
@@ -47,10 +38,13 @@ export default function LearnerData() {
           help={`Saves one file with every course, chat, note, quiz and progress record. You can keep using ${APP_NAME} while it saves, but wait for "Backup saved" before you shut down or unplug the USB stick. Make a new backup often, for example at the end of each day.`}
         >
           <div className="space-y-2.5">
-            <ActionButton primary onClick={backUp} busyLabel="Saving backup…">Back up all learner data</ActionButton>
-            {result && (
-              <p className={`text-xs break-all ${result.ok ? "text-success" : "text-danger"}`}>
-                {result.ok ? "✓ " : "✗ "}{result.msg}
+            <ActionButton primary disabled={saving} onClick={backUp} busyLabel="Saving backup…">Back up all learner data</ActionButton>
+            {saving && (
+              <p className="text-xs text-[var(--ink-dim)]">Saving backup… Wait for "Backup saved" before you shut down or unplug the USB stick.</p>
+            )}
+            {status && !status.saving && (
+              <p className={`text-xs break-all ${status.ok ? "text-success" : "text-danger"}`}>
+                {status.ok ? "✓ " : "✗ "}{status.msg}
               </p>
             )}
           </div>

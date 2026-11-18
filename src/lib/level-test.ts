@@ -124,7 +124,9 @@ export const MARK_AGAIN = {
  * Leaving a level test once it has begun. No learner is kept in a test: a stopped test is an unfinished
  * attempt, never scored and never moving the level, with no retake wait (db.ts getLastPromotionAttempt
  * reads finished tests only). The answers already given stay saved, so a missed one can come back in a
- * quiz (db.ts getReviewPoolQuestions).
+ * quiz (db.ts getReviewPoolQuestions). The wait can stay off because a level test marks nothing before
+ * Finish (QuestionRenderer marksAtFinish): a learner cannot see a run going badly and stop it to skip a
+ * failed test's 24-hour wait.
  */
 export const STOP_TEST = {
   button: "Stop the test",

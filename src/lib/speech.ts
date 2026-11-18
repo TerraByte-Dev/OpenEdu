@@ -11,6 +11,8 @@
 import { Marked, type Token } from "marked";
 import { chatMathExtension } from "./chat-math";
 import { fenceBareMermaid } from "./mermaid-source";
+import { showsAnswerAndKey, showsSafetyNotice, type GradedBy } from "./quiz-grading";
+import type { Grade } from "./grade";
 
 /** What a fenced or indented code block is read as. */
 export const CODE_SPOKEN = "Code";
@@ -321,6 +323,34 @@ export function questionSpeech(q: {
   if (q.question_type === "fill_in_blank" && q.blank_position && q.blank_position !== q.question_text) parts.push(q.blank_position);
   const choices = q.question_type === "true_false" ? ["True", "False"] : q.question_type === "multiple_choice" ? (q.options ?? []) : [];
   if (choices.length > 0) parts.push(CHOICES_SPOKEN, ...choices.map(choiceAsText));
+  return parts.map((p) => p.replace(/_{2,}/g, ` ${BLANK_SPOKEN} `)).join("\n\n");
+}
+
+/** Said before the learner's answer and the answer key on a results row, as the row shows them. */
+export const YOUR_ANSWER_SPOKEN = "Your answer:";
+export const CORRECT_SPOKEN = "Correct answer:";
+
+/**
+ * A quiz or level-test results row as the markdown its speaker button reads: the question, then the
+ * learner's answer and the key when the row shows them (quiz-grading.ts showsAnswerAndKey), then the
+ * explanation. A row whose answer reads as a safety disclosure (showsSafetyNotice, with the learner's
+ * grade as the row checks it) reads the question only: the child's words are never read out. The grader's
+ * feedback line is left out too: it is the model's reply to the child's answer and can quote it.
+ */
+export function resultSpeech(q: {
+  question_text: string;
+  user_answer?: string | null;
+  correct_answer?: string | null;
+  explanation?: string | null;
+  is_correct: boolean | null;
+  graded_by?: GradedBy | null;
+  self_explanation?: string | null;
+}, grade: Grade | null): string {
+  const parts = [q.question_text];
+  if (!showsSafetyNotice(q, grade)) {
+    if (showsAnswerAndKey(q, grade)) parts.push(`${YOUR_ANSWER_SPOKEN} ${q.user_answer}`, `${CORRECT_SPOKEN} ${q.correct_answer ?? ""}`);
+    if (q.explanation) parts.push(q.explanation);
+  }
   return parts.map((p) => p.replace(/_{2,}/g, ` ${BLANK_SPOKEN} `)).join("\n\n");
 }
 

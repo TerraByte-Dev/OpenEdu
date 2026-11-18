@@ -28,6 +28,14 @@ export const SAFETY_NOTICE =
   "US you can call or text 988 (Suicide & Crisis Lifeline), or call 1-800-422-4453 (Childhelp " +
   "National Child Abuse Hotline), any time, day or night.";
 
+/**
+ * Said under SAFETY_NOTICE for a new-course topic that trips isSafetyDisclosure (Dashboard.tsx). No course
+ * is made from it: the topic would be the course's title on every screen, and would go to the model and
+ * web search. Ported from TerraTutor #215.
+ */
+export const SAFETY_TOPIC_COURSE_LINE =
+  "This can't be made into a course. If it is for school, try the name of the book or the subject instead.";
+
 // Lower-case phrases, matched as whole words at both ends: "hurt myself" does not match inside a longer
 // word. A trailing "*" makes an entry a stem that matches at the start of a word: "suicid*" catches
 // suicide and suicidal.

@@ -43,7 +43,12 @@ shutdown or power cut part way used to leave a cut-short file under the newest b
 opens the Save dialog (`src-tauri/src/backup.rs backup_pick`) and gives the webview only `<picked>.partial`
 to copy into; `backup_finish` flushes it, checks the SQLite header's page count and page size against the
 file's length, and only then renames it to the picked name (replacing a file there, which the dialog
-already asked about); a failed copy is removed (`backup_abandon`). A cut-short copy keeps the `.partial`
+already asked about); a failed copy is removed (`backup_abandon`). One backup runs at a time: Rust keeps
+one picked path, so a second `backup_pick` while a backup is being picked or saved (Settings left and come
+back to mid-copy) is refused before any dialog opens, and Settings says to wait for "Backup saved". The
+backup's progress and outcome are kept outside the section (`src/lib/backup-status.ts`), because Settings
+mounts only the open section: coming back mid-copy shows "Saving backup…" and then "Backup saved", and the
+button stays off until the copy is done. A cut-short copy keeps the `.partial`
 name, which never ends in `.db`. Settings asks the user to wait for "Backup saved" before shutting down or
 unplugging the stick. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 
@@ -103,10 +108,15 @@ plain words (the same marked + math tokenizer the chat renders with; LaTeX read 
 at a time, so it works offline with the Windows voices. Lessons, quizzes and level tests have the same
 speaker button for every learner (`components/ReadAloudButton.tsx`): the lesson reader's reads the lesson,
 a question's reads the question and, for multiple choice and true/false, its choices
-(`speech.ts questionSpeech`; a fill-in blank is read as "blank"), never the answer key. Nothing there reads
-itself. K-2 also gets the larger text there: the lesson at 1.25rem (`.lesson-text-large`), and the
-question at 1.5rem with its answers, inputs and feedback at 1.25rem and 1.125rem (`QuestionRenderer`,
-from the `grade` it already takes for the safety notice), from the learner's grade passed down from `App`.
+(`speech.ts questionSpeech`; a fill-in blank is read as "blank"), never the answer key. Each row of a
+quiz's or level test's results has one too, which reads the question, the answer and key when the row
+shows them, and the explanation (`speech.ts resultSpeech`; never the grader's feedback, and never the
+child's words on a row that shows the safety notice), and a flashcard in Review has one beside its front
+and, once shown, its back. Nothing there reads itself. K-2 also gets the larger text there: the lesson at
+1.25rem (`.lesson-text-large`), the question at 1.5rem with its answers, inputs and feedback at 1.25rem and
+1.125rem (`QuestionRenderer`, from the `grade` it already takes for the safety notice), the results rows
+at the same 1.25rem and 1.125rem, and a flashcard's front, back and grade buttons larger in Review, from
+the learner's grade passed down from `App`.
 
 In the chat, a question card (`ask_user.question`, and the buttons for choices a reply wrote as a list)
 and the Allow / Don't allow card before a tool that asks are `.chat-msg` too, so K-2 gets them at the
@@ -171,8 +181,9 @@ written: they came from a once-a-minute timer whose only reader was the learning
   option right only when it is the key string; a key no single option matches is rejected. The study
   quiz's review pool (`db.ts getReviewPoolQuestions`, about a fifth of a quiz) is the course's missed
   questions, newest first; a miss leaves it once the same question (trimmed, any ASCII letter case) is
-  answered right after it in that course, by the key, the model or the learner's own mark, and a later
-  miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`),
+  answered right after it in that course, by the key, the model or the learner's own mark (never an
+  answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
+  later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`),
   is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A fill-in-the-blank question is
   shown to the learner as its `blank_position` sentence, and its `question_text` can be only "Fill in
@@ -353,10 +364,11 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   is not marked: `gradeAnswersBatch` never settles it by code or sends it to a model, and passes it as
   not checked (`graded_by 'fallback'`), so it is never a wrong mark and the answer stays in the attempt. On
   a level test it can make the test wait for the learner's own mark like any unchecked answer; the marking
-  list shows the notice above it. On the new-course topic, the first Create shows the notice and builds and
-  sends nothing; Create again with the same topic builds as usual, so a false hit ("suicide prevention")
-  costs one click, never a block. With no grade set a pregnancy message is none of these, as in the chat.
-  `safety-written-answers.test.ts` pins it.
+  list shows the notice above it. On the new-course topic, Create shows the notice and
+  `SAFETY_TOPIC_COURSE_LINE`, and no course is made from it, however often it is pressed (TerraTutor #215):
+  the topic would be the course's title on every screen, and would go to the model and web search. A false
+  hit ("suicide prevention") is asked for in other words. With no grade set a pregnancy message is none of
+  these, as in the chat. `safety-written-answers.test.ts` and `views/dashboard-topic.test.ts` pin it.
 - **A level test does not count an unchecked answer.** On a quiz a `fallback` answer still counts as
   right. On a level test it does not count toward passing until someone marks it (`level-test.ts`
   `levelTestResult`): the stored score leaves it out, and the result waits only when the unchecked
@@ -393,15 +405,22 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   (`getLastPromotionAttempt` reads finished tests only). The answers already given stay saved, so a
   missed one can come back in a quiz (`getReviewPoolQuestions`), and the confirm says so when there is
   one (`db-level-test-stop.test.ts`). Closing the window does the same; the Titlebar stays over both
-  screens so it can be closed.
+  screens so it can be closed. The stop can skip the wait only because a level test marks nothing
+  before Finish: every answer shows as recorded, never ✓ or ✗ or the key (`QuestionRenderer`
+  `marksAtFinish`), so a learner cannot watch a run go badly and stop it to dodge a failed test's
+  24-hour wait. The marks appear on the results screen.
 - **A handed-in level test survives the app closing while it is graded.** Grading a test's written
   answers is one batch call on the local model after Finish, and on a slow computer it can take minutes
-  (a cold model load on top). Finish first writes the time taken (`db.ts markLevelTestHandedIn`); the
-  answers are already stored. An attempt with a time and no `completed_at` was handed in and never
+  (a cold model load on top). Finish first stores a timed-out test's unanswered questions as wrong, each
+  with its section, then writes the time taken (`level-test-checks.ts handInLevelTest`,
+  `db.ts markLevelTestHandedIn`); the other answers are already stored, so a test graded later scores
+  the same questions in the same sections as the finish. An attempt with a time and no `completed_at` was handed in and never
   graded, which a stopped test or a window closed mid-test never is. Opening that level's test again
   finds it before anything else (`getHandedInLevelTest`) and finishes it from the database
   (`level-test-checks.ts finishHandedInLevelTest`): only answers still unmarked are graded, with the same
-  grader; `completed_at` and the result are saved as at the finish; a pass moves the course up once
+  grader; `completed_at` and the result are saved as at the finish, `completed_at` dated at the hand-in
+  (`started_at` plus the time taken, never later than now), so the test's time and result are on the
+  day it was taken and a fail's wait runs from then; a pass moves the course up once
   (`advanceCourseAfterPass`); a test whose written answers no model checked waits for its marks as usual;
   then the screen runs the finish's other saves, a fail's study plan included. `completed_at` is written
   only while it is unset (`db.ts completeHandedInLevelTest`), and only the finish that wrote it counts
@@ -628,7 +647,8 @@ such a title still routes by its syllabus. Known and accepted: "Shapes in Art" i
 When Ollama cannot parse a tool call the model wrote, it fails the whole request (HTTP 500, or an error
 line in the stream). If nothing from that model call had reached the student yet, the kernel answers that turn with one call
 that offers no tools and drops the tools manifest from the system prompt, and records it in the turn
-result (`toolCallRecovery`). Any other provider error fails the turn as before.
+result (`toolCallRecovery`). Any other provider error fails the turn when nothing was shown yet; once
+something was, the turn ends as stalled and keeps what was shown (`persistedReply`, below).
 
 Two write actions do not wait for the model to choose a tool, because small models rarely do (on
 `gemma4:e2b`, `flashcard.create` 0/20 and `ask_user.question` 2/20 in TerraTutor's B9 readiness run):
@@ -863,7 +883,10 @@ After the child answers a question card the turn always gets a reply too (Questi
 the student stopped, or one that stalled, keeps its own handling. A stall includes Ollama ending the
 reply with an `{"error": …}` line after part of it was shown (its model runner crashed or ran out of
 memory while the server stayed up), exactly as when the stream breaks off: what was shown is saved
-with its marker (`persistedReply`).
+with its marker (`persistedReply`). So does a later model call of the turn that fails before its first
+byte (a 500, an error line, a refused connection) once an earlier call showed something: the text, any
+card's question and the student's answer to it are kept and the chat says `STALLED_TURN`. A failure with
+nothing shown yet still fails the turn.
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
@@ -1109,8 +1132,9 @@ notes whose entry is current, stops when the embedder itself can't run (model mi
 OpenAI key or connection) and skips past a note that fails on its own. `NotesTab` runs every index job
 (that pass, embed-on-save, a deleted note's clean-up) one at a time, so one note never gets two entries. Each
 note gets its own editor (`MarkdownEditor` keyed on the note id), so undo history never crosses notes;
-a save writes the note it was handed and never re-selects it, and deleting a note takes a second click
-on the trash button.
+a save writes the note it was handed and never re-selects it, and the trash button only asks: "Delete this
+note?" opens on its own row below the header, with Delete and Keep it (focused), so a double-click on the
+trash can't delete the note.
 
 Linking is bidirectional. `buildBacklinkIndex` maps a note to everything holding a `[[link]]` that
 resolves to it, with the surrounding line as context; `findUnlinkedMentions` finds notes that say the

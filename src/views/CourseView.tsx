@@ -387,6 +387,7 @@ export default function CourseView({ courseId, initialAction, onInitialActionCon
             topic={course.topic}
             syllabuses={syllabuses}
             onTypeToTutor={(seedTopic) => switchTab("chat", seedTopic ? { seedTopic } : undefined)}
+            grade={grade}
           />
         )}
         {activeTab === "quiz" && (

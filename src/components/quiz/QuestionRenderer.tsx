@@ -19,9 +19,13 @@ interface QuestionRendererProps {
   // The learner's grade, for the safety notice (the chat's isSafetyDisclosure check) and, for K-2
   // (grade.ts isEarlyReader), the answers, feedback and inputs at the chat's larger text size.
   grade: Grade | null;
+  // A level test: no answer is marked right or wrong until Finish, so "Stop the test" (no score, no
+  // wait) can never be used after seeing a failing run (level-test.ts STOP_TEST). Every answer shows as
+  // recorded, as a written answer does.
+  marksAtFinish?: boolean;
 }
 
-export default function QuestionRenderer({ question, onAnswer, disabled, onSelfExplain, grade }: QuestionRendererProps) {
+export default function QuestionRenderer({ question, onAnswer, disabled, onSelfExplain, grade, marksAtFinish = false }: QuestionRendererProps) {
   // 14px / 12px, or for K-2 20px / 18px (the chat's .chat-text-large is 20px).
   const large = isEarlyReader(grade);
   const sm = large ? "text-xl" : "text-sm";
@@ -83,13 +87,13 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
   // Show answered feedback when revisiting an already-answered question. Free-text answers (is_correct
   // === null) are still pending grading until the test finishes — show a neutral "recorded" state.
   if (disabled && question.user_answer !== null) {
-    const pending = question.is_correct === null;
+    const pending = question.is_correct === null || marksAtFinish;
     return (
       <div className="space-y-3">
         {pending ? (
           <div className={`p-4 rounded-xl border ${sm} border-phosphor/30 bg-[rgb(var(--phosphor-rgb)/0.08)]`}>
             <div className="font-medium mb-1 text-phosphor-bright">✎ Answer recorded</div>
-            <p className={`text-[var(--ink-faint)] ${xs}`}>Your answer: {question.user_answer}</p>
+            <p className={`text-[var(--ink-faint)] ${xs}`}>Your answer: {question.question_type === "drag_to_match" ? matchesText(question.user_answer) : question.user_answer}</p>
             <p className={`text-[var(--ink-faint)] ${xs} mt-1`}>It will be graded when you finish.</p>
           </div>
         ) : (
@@ -280,7 +284,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
               Submit Matches
             </button>
           )}
-          {submitted && (
+          {submitted && !marksAtFinish && (
             <div className={`p-3 rounded-lg ${sm} ${question.is_correct ? "bg-success-tint text-success" : "bg-danger-tint text-danger"}`}>
               {question.is_correct ? "✓ All matches correct!" : "✗ Some matches were wrong."}
             </div>
@@ -291,5 +295,15 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
 
     default:
       return <p className={`text-[var(--ink-faint)] ${sm}`}>Unknown question type.</p>;
+  }
+}
+
+// A matching answer (stored as JSON, left -> right) as "a → b, c → d"; anything else as it is.
+function matchesText(answer: string): string {
+  try {
+    const pairs = JSON.parse(answer) as Record<string, string>;
+    return Object.entries(pairs).map(([left, right]) => `${left} → ${right}`).join(", ");
+  } catch {
+    return answer;
   }
 }
