@@ -7,7 +7,7 @@ import {
 import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
 import { answerMark, answerShown, keyShown, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import {
-  testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft,
+  testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft, levelTestFailed,
   STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING,
 } from "../lib/level-test";
 import {
@@ -181,8 +181,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
       return;
     }
     // Not passed (passed = 0), or before migration 18 a score under the bar.
-    const failed = last?.passed === 0 || (last?.passed == null && last?.score != null && last.score < 85);
-    if (last && failed && last.completed_at) {
+    if (last && levelTestFailed(last) && last.completed_at) {
       const remaining = retakeWaitLeft(last.completed_at);
       if (remaining) {
         setCooldownStr(remaining);
