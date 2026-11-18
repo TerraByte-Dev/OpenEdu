@@ -470,6 +470,9 @@ body {
    instead of staying 13px next to 20px text (#246). */
 .chat-text-large .chat-msg .note-prose code { font-size: 0.94em; }
 .chat-text-large .chat-msg .note-prose pre code { font-size: 0.93em; }
+/* The buttons on a question card and the Allow / Don't allow card (ChatTab), at the size a K-2 quiz's
+   feedback uses (QuestionRenderer `large`), not the 12px chip size. */
+.chat-text-large .chat-msg .chat-choice { font-size: 1.125rem; line-height: 1.4; }
 
 /* The same size for K-2 in the lesson reader (LessonReader.tsx). Headings stay larger than the text
    (.note-prose sets them in rem, 1.6rem at most); code and tables keep their ratio to the text. A quiz

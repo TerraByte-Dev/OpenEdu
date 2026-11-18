@@ -72,12 +72,14 @@ const askCall = (question: string, choices: AskChoice[], before = ""): TurnEvent
 const CLICK_TEST_Q = "Think about the fraction 1/5. Which number, 1 or 5, is the unit fraction part?";
 const CLICK_TEST_CHOICES = [{ label: "What is the denominator?", value: "denominator" }, { label: "What is the numerator?", value: "numerator" }];
 
-interface Run { result: TutorTurnResult; cards: Array<{ question: string; choices: AskChoice[] }> }
+interface Run { result: TutorTurnResult; cards: Array<{ question: string; choices: AskChoice[] }>; onScreen: string[] }
 
 /** One turn of "Check if I've got this." in assess mode; the student answers the card with `answer`. */
 async function check(answer: (choices: AskChoice[]) => string): Promise<Run> {
   const { activeSkill, domainSkill } = chatTurnSkills("assess", "Fractions", "tiny", true);
   const cards: Run["cards"] = [];
+  // What the child sees when each card shows (ChatTab reads the card aloud from it).
+  const onScreen: string[] = [];
   let streamed = "";
   const result = await tutorEngine.run(
     {
@@ -93,11 +95,11 @@ async function check(answer: (choices: AskChoice[]) => string): Promise<Run> {
     {
       courseId: "c-1", level: 1, syllabus: SYLLABUS, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
       abort: new AbortController().signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async () => true,
-      askUser: async (question, choices) => { cards.push({ question, choices }); return answer(choices); },
+      askUser: async (question, choices) => { cards.push({ question, choices }); onScreen.push(streamed); return answer(choices); },
     },
   );
   expect(streamed, "what streamed is what the turn returns").toBe(result.text);
-  return { result, cards };
+  return { result, cards, onScreen };
 }
 
 const toolResultSeen = (call = 1) => sent[call].find((m) => m.role === "tool")?.content ?? "";
@@ -158,6 +160,17 @@ describe("a card whose question the reply already said", () => {
     // The card itself is unchanged: the chat decides whether to show its question (repeatsQuestion).
     expect(cards[0].question).toBe("Which topic should we check first?");
     expect(result.text).toBe("Let's see. Which topic should we check first?\n\n*You picked: Equal parts*\n\nHere is one on unit fractions.");
+  });
+});
+
+describe("the text before a card", () => {
+  it("is on screen whole when the card shows, its last word too", async () => {
+    // The text filters hold back the end of the text until more arrives; a card waits on the child, so
+    // what is held is let out before it shows. ChatTab's K-2 auto-read reads the card with the text
+    // above it (readCard), so a word still held there would be left out of the reading.
+    script = [askCall("Which topic should we check first?", [{ label: "Unit fractions", value: "u" }, { label: "Equal parts", value: "e" }], "Let's see. Which topic should we check first?"), reply("Here is one on unit fractions.")];
+    const { onScreen } = await check((choices) => choices[1].value);
+    expect(onScreen).toEqual(["Let's see. Which topic should we check first?"]);
   });
 });
 

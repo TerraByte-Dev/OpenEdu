@@ -24,6 +24,7 @@ import { chatTurnSkills } from "./chatSkills";
 import { ReplyTextFilter, displayReplyText, HOLD_CAP } from "./textToolCalls";
 import { registerBuiltinTools, toolRegistry } from "../tools";
 import { MIXED_UP_REPLY } from "../plain-language";
+import { persistedReply } from "./persistedReply";
 import type { LLMConfig } from "../../types";
 
 const FC02 = "I will save a flashcard for you. This will help you remember important ideas.\n\nflashcard.create{front:<|\"|>What is the divisor in division?<|\"|>,back:<|\"|>The divisor is how many groups you are splitting things into.<|\"|>,subtopic_id:<|\"|>Division as Sharing<|\"|>}";
@@ -216,13 +217,13 @@ describe("which calls written as text run", () => {
     expect(r.confirms.map((c) => c.tool)).toEqual(["flashcard.create"]);
   });
 
-  it("a read-only tool runs from bare text: math.render draws, and the text after the call is not shown", async () => {
+  it("a read-only tool runs from bare text: math.render draws into the reply, and the text after the call is not shown", async () => {
     const r = await run("explain", ["The area of a circle is:\n\nmath.render{latex:<|\"|>A = \\pi r^2<|\"|>}\n\nThat is the formula.", "Here r is the radius."]);
     expectClean(r);
     expect(r.confirms).toEqual([]);
     expect(r.events).toEqual(["start:math.render", "result:math.render"]);
     expect(r.result.toolCalls).toEqual([{ name: "math.render", args: { latex: "A = \\pi r^2" }, ok: true, fromText: true }]);
-    expect(r.result.text).toBe("The area of a circle is:\n\nHere r is the radius.");
+    expect(r.result.text).toBe("The area of a circle is:\n\n$$\nA = \\pi r^2\n$$\n\nHere r is the radius.");
   });
 
   it("arguments the tool's schema rejects are refused, as a native call's are", async () => {
@@ -294,15 +295,18 @@ describe("text inside a call's string is never released", () => {
     expect(r.result.text).toBe("Look:\n\nWhat do you see?");
   });
 
-  it(`a valid diagram.render whose source is longer than ${HOLD_CAP} characters still runs, and none of it is shown`, async () => {
+  it(`a valid diagram.render whose source is longer than ${HOLD_CAP} characters still runs, and is shown only as the drawing`, async () => {
     const source = `graph TD\n${Array.from({ length: 150 }, (_, i) => `  N${i}[Step ${i}] --> N${i + 1}[Step ${i + 1}]`).join("\n")}`;
     expect(source.length).toBeGreaterThan(HOLD_CAP * 2);
     const r = await run("explain", [`Here is the whole process:\n\ndiagram.render{mermaid:<|"|>${source}<|"|>}`, "Each step leads to the next."]);
     expectClean(r);
-    expect(r.result.text).not.toContain("Step 1");
     expect(r.events).toEqual(["start:diagram.render", "result:diagram.render"]);
     expect(r.result.toolCalls).toEqual([{ name: "diagram.render", args: { mermaid: source }, ok: true, fromText: true }]);
-    expect(r.result.text).toBe("Here is the whole process:\n\nEach step leads to the next.");
+    // The source never streams as the call's text; it is shown once, as the fence the chat draws.
+    const drawn = r.shown.findIndex((state) => state.includes("```mermaid"));
+    expect(drawn).toBeGreaterThan(0);
+    for (const state of r.shown.slice(0, drawn)) expect(state).not.toContain("Step 1");
+    expect(r.result.text).toBe(`Here is the whole process:\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\nEach step leads to the next.`);
   });
 
   it("a call inside an open code fence is code the model is showing: kept, and nothing runs", async () => {
@@ -349,10 +353,11 @@ describe("never a blank turn", () => {
     expect(r.result.text).toBe(MIXED_UP_REPLY);
   });
 
-  it("a turn where a tool ran keeps its own (empty) text: the tool's card is the answer", async () => {
+  it("a turn whose only answer was a math.render card saves the card as the reply", async () => {
     const r = await run("explain", ["math.render{latex:<|\"|>x^2<|\"|>}", ""]);
     expect(r.result.toolCalls).toMatchObject([{ name: "math.render", ok: true }]);
-    expect(r.result.text).toBe("");
+    expect(r.result.text).toBe("$$\nx^2\n$$");
+    expect(persistedReply(r.result.text, r.result.stopReason)).toBe("$$\nx^2\n$$");
   });
 
   // A lookup leaves only a chip ("✓ Looked through your notes"), which is not saved and answers nothing.

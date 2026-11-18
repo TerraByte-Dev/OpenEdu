@@ -44,6 +44,13 @@ export function describeToolRequest(toolName: string): string {
   }
 }
 
+/** The Allow / Don't allow card's question, shown and read aloud (speech.ts chatCardSpeech). */
+export function confirmCardQuestion(toolName: string): string {
+  return `${describeToolRequest(toolName)} Is that okay?`;
+}
+/** The Allow / Don't allow card's two buttons, in the order shown and read aloud. */
+export const CONFIRM_CHOICES = { yes: "Yes, go ahead", no: "No, not now" } as const;
+
 // "knowledge.update_map" → "knowledge update map": the last-resort reading of an unknown id.
 function humanizeId(id: string): string {
   return id.replace(/[._]+/g, " ").trim();

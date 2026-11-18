@@ -60,6 +60,7 @@ import { chatTurnSkills } from "./chatSkills";
 import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION } from "./answerCheck";
 import { ASSESS_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
+import { VERDICT_FALLBACK } from "./replyClaims";
 import { isSafetyDisclosure } from "../child-safety";
 import type { Grade } from "../grade";
 import { registerBuiltinTools } from "../tools";
@@ -220,6 +221,24 @@ describe("a wrong answer in a mastery check", () => {
     gradeOut = { student_answer: "46", verdict: "incorrect" };
     script = [reply("Correct! Well done!")];
     expect((await answer(CHECK, "46")).result.text).toBe("That's not right yet.");
+  });
+
+  it("a reply that is only a drawing still gives the verdict: the worked answer never stands in for it", async () => {
+    // The model draws the worked answer (math.render), then its call after the tool round is empty, as
+    // small models often leave it. The drawing is reply text (drawnCards.ts), but it says nothing about
+    // the child's answer, so the verdict line still follows it.
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [[{ type: "tool_call", id: "call_0", name: "math.render", args: { latex: "6 x 8 = 48" } }, { type: "done", finishReason: "tool_calls" }], reply("")];
+    const { result } = await answer(CHECK, "46");
+    expect(result.toolCalls).toMatchObject([{ name: "math.render", ok: true }]);
+    expect(result.text).toBe(`$$\n6 x 8 = 48\n$$\n\n${VERDICT_FALLBACK.incorrect}`);
+  });
+
+  it("a drawing with a reply that says the verdict gets no second verdict line", async () => {
+    gradeOut = { student_answer: "46", verdict: "incorrect" };
+    script = [[{ type: "tool_call", id: "call_0", name: "math.render", args: { latex: "6 x 8 = 48" } }, { type: "done", finishReason: "tool_calls" }], reply("Not quite. 6 x 8 is 48.")];
+    const { result } = await answer(CHECK, "46");
+    expect(result.text).toBe("$$\n6 x 8 = 48\n$$\n\nNot quite. 6 x 8 is 48.");
   });
 
   it("a progress.mark_mastered \"mastered\" call is refused by code; nothing is saved and the model is told", async () => {

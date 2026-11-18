@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { speakableText, texWords, pickVoice, questionSpeech, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
+import { speakableText, texWords, pickVoice, questionSpeech, chatCardSpeech, unreadText, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
+import { confirmCardQuestion, CONFIRM_CHOICES } from "./plain-language";
+import { repeatsQuestion } from "./kernel/askCard";
 import { persistedReply } from "./kernel/persistedReply";
 
 // speakableText is what ChatTab's speaker button and the K-2 auto-read hand to speechSynthesis
@@ -183,5 +185,47 @@ describe("questionSpeech: a quiz question read aloud", () => {
     expect(read(q)).toBe("Why do leaves fall?");
     expect(read({ question_type: "drag_to_match", question_text: "Match each animal to its home." }))
       .toBe("Match each animal to its home.");
+  });
+});
+
+// The chat's question card and Allow / Don't allow card (ChatTab): what their speaker buttons and the K-2
+// auto-read hand to useReadAloud, which reads speakableText of it, as here. A card holds the turn open,
+// so the reply above it is not saved or read yet; the auto-read says the text streamed before the card
+// that was not read yet (unreadText), then the card.
+describe("chatCardSpeech: a chat card read aloud", () => {
+  const read = (lead: string, question: string, choices: string[]) => speakableText(chatCardSpeech(lead, question, choices));
+
+  it("reads the text before the card, the question and each button, in the order shown", () => {
+    expect(read("Nice work on the last one!", "Which is bigger, 1/2 or 1/3?", ["1/2", "1/3"]))
+      .toBe("Nice work on the last one! Which is bigger, 1/2 or 1/3? The choices are: 1/2. 1/3.");
+  });
+
+  it("reads the question once when the text above already ends on it, as the card shows it", () => {
+    const streamed = "Let's check.\n\nWhich is bigger, 1/2 or 1/3?";
+    const question = "Which is bigger, 1/2 or 1/3?";
+    const shown = repeatsQuestion(streamed, question) ? "" : question;
+    expect(read(streamed, shown, ["1/2", "1/3"])).toBe("Let's check. Which is bigger, 1/2 or 1/3? The choices are: 1/2. 1/3.");
+  });
+
+  it("reads the Allow / Don't allow card with its two buttons", () => {
+    expect(read("", [confirmCardQuestion("flashcard.create"), "Front: What is 2 + 2?"].join("\n\n"), [CONFIRM_CHOICES.yes, CONFIRM_CHOICES.no]))
+      .toBe("Your tutor wants to make you a flashcard. Is that okay? Front: What is 2 + 2? The choices are: Yes, go ahead. No, not now.");
+  });
+
+  it("reads a button that looks like markdown as the text shown", () => {
+    expect(read("", "Pick one.", ["- 3", "1. one"])).toBe("Pick one. The choices are: - 3. 1. one.");
+  });
+});
+
+describe("unreadText: the saved reply reads on from where the cards left off", () => {
+  it("is the rest of the reply after what was read with a card", () => {
+    const spoken = "Let's check. Which is bigger, 1/2 or 1/3?";
+    const saved = `${spoken}\n\n*You picked: 1/2*\n\nYes! One half is bigger.`;
+    expect(speakableText(unreadText(saved, spoken))).toBe("You picked: 1/2. Yes! One half is bigger.");
+  });
+
+  it("is the whole reply when nothing was read with a card, or the saved reply changed after it streamed", () => {
+    expect(unreadText("All of it.", "")).toBe("All of it.");
+    expect(unreadText("Want me to draw it? Here.", "Here is a picture.")).toBe("Want me to draw it? Here.");
   });
 });

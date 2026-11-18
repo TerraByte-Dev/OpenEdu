@@ -101,6 +101,16 @@ itself. K-2 also gets the larger text there: the lesson at 1.25rem (`.lesson-tex
 question at 1.5rem with its answers, inputs and feedback at 1.25rem and 1.125rem (`QuestionRenderer`,
 from the `grade` it already takes for the safety notice), from the learner's grade passed down from `App`.
 
+In the chat, a question card (`ask_user.question`, and the buttons for choices a reply wrote as a list)
+and the Allow / Don't allow card before a tool that asks are `.chat-msg` too, so K-2 gets them at the
+chat's size with their buttons at 1.125rem (`.chat-choice`), and each has a speaker button that reads
+the question and every button's label (`speech.ts chatCardSpeech`; the question card's button reads its
+question even when only the reply above shows it). A card holds the turn open, so the reply above it is
+not saved, or read, until the child answers. With auto read-aloud on, each card reads itself as it
+appears, after the text streamed before it that was not read yet, and stops when it is answered; the
+saved reply then reads on from where the cards left off (`unreadText`), or whole if it changed after it
+streamed.
+
 **Tables kept from removed features.** The family, class and school features (usage modes, the teacher
 view and its CSV, learner groups, the K-1 early-learner screens and the learning record) now live only
 in TerraTutor, a separate commercial edition by TerraByte Solutions. Their migrations stay exactly as
@@ -753,8 +763,8 @@ So the verdict on the child's answer is the app's, not the reply's:
   `incorrect`, "Your first answer is correct" praises part of it and is taken out. Praise for some of
   the answer ("You got some of the notes correct") is praise for a part. Doubt includes "Those notes are
   not correct.", "That is not the verb in that sentence." and "The word for 'cat' in Spanish is
-  different." A reply left empty says the verdict
-  (`VERDICT_FALLBACK`). An `ask_user.question` card is the tutor speaking too: its question and choice
+  different." A reply left empty, or holding only a drawing (`math.render` / `diagram.render`, below),
+  says the verdict (`VERDICT_FALLBACK`, after the drawing): a worked answer is not a verdict. An `ask_user.question` card is the tutor speaking too: its question and choice
   labels go through the same filter (a label gets no verdict line, and a bare "Yes!" stays); a card
   left with no question or under two choices is not shown, and the model is told (`CARD_REFUSED`).
 - **Mastery claims, in a mastery check.** "You have mastered…", "I will mark that as mastered" and the
@@ -793,10 +803,15 @@ only removed. Saved replies are shown through the same filter (`displayReplyText
 before it existed shows clean too.
 A turn that ends with nothing to show and drew no answer card (the model wrote nothing, or only a
 call the filter removed) is never left blank: the kernel shows and saves `MIXED_UP_REPLY` from
-`plain-language.ts` ("Sorry, I got mixed up. Can you ask that again?"). Only a `math.render` or
-`diagram.render` card that drew, or the flashcard the app made because the child asked for one, may be
-the whole answer (`TutorEngine.ts showsAnswerCard`). Any other tool leaves only a chip, which is not
-saved and answers nothing: when such a tool round ran with nothing shown yet this turn, an empty model
+`plain-language.ts` ("Sorry, I got mixed up. Can you ask that again?"). Only the flashcard the app made
+because the child asked for one may be the whole answer with no text (`TutorEngine.ts showsAnswerCard`).
+A `math.render` or `diagram.render` call that ran is reply text: the kernel shows it where the call ran,
+as a `$$` display block or a ```` ```mermaid ```` fence (`kernel/drawnCards.ts`), so it is streamed,
+saved with the reply, in the model's history, read aloud ("A drawing", the LaTeX as words), and still
+there at the child's next message and when the thread is reopened. Before, the chat drew it only from
+the turn's tool events, which are cleared at the next send and never saved, and a turn whose only
+answer was the card saved no reply. The math skill asks the tutor to refer to it as "this formula".
+Any other tool leaves only a chip, which is not saved and answers nothing: when such a tool round ran with nothing shown yet this turn, an empty model
 call after it is made once more with the same request, and a second empty one gets `MIXED_UP_REPLY`.
 After the child answers a question card the turn always gets a reply too (Question cards, above). A turn
 the student stopped, or one that stalled, keeps its own handling. A stall includes Ollama ending the
@@ -804,8 +819,8 @@ reply with an `{"error": …}` line after part of it was shown (its model runner
 memory while the server stayed up), exactly as when the stream breaks off: what was shown is saved
 with its marker (`persistedReply`).
 
-In the chat, a ```` ```mermaid ```` fence in a reply is drawn by the same `MermaidBlock` a
-`diagram.render` result uses (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
+In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
+for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
 wrote with no fence (a "mermaid" line and then `graph TD`, or a diagram's first line on its own) is
 fenced first (`fenceBareMermaid`) and treated the same way. Source Mermaid cannot parse is retried with
 its node labels quoted inside their shapes (a circle stays a circle), then, for a flowchart, without

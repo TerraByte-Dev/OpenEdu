@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, memo, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import type { Course, ChatMessage, Syllabus, NotebookSearchResult } from "../types";
 import {
   getChatMessages, saveChatMessage, getTutorInstructions, setCourseSprite, countDueFlashcards,
@@ -12,6 +12,7 @@ import { log } from "../lib/llm";
 import { getChatTurnConfig, getRetrievalMode, getReadAloudAuto } from "../lib/store";
 import { gradePromptLayer, isEarlyReader, autoReadAloud, type Grade } from "../lib/grade";
 import { useReadAloud } from "../lib/useReadAloud";
+import { chatCardSpeech, unreadText } from "../lib/speech";
 import { getKnowledgeSummary, updateKnowledgeFiles } from "../lib/knowledge";
 import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, personaIdentityLayer, suggestFollowUps, chipsBesideChoices, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote, type ReplyChoices } from "../lib/kernel";
@@ -25,10 +26,7 @@ import { displayReplyText } from "../lib/kernel/textToolCalls";
 import { repeatsQuestion } from "../lib/kernel/askCard";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
-import { describeToolActivity, describeToolDone, describeToolRequest, friendlyError, STALLED_TURN } from "../lib/plain-language";
-// MathBlock pulls KaTeX (~258 KB); lazy-load it so KaTeX leaves the eager bundle and only loads when
-// a math.render card actually mounts.
-const MathBlock = lazy(() => import("./MathBlock"));
+import { describeToolActivity, describeToolDone, confirmCardQuestion, CONFIRM_CHOICES, friendlyError, STALLED_TURN } from "../lib/plain-language";
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
 import { DictionaryCard } from "./DictionaryCard";
@@ -71,6 +69,13 @@ interface ChatTabProps {
   learnerId: string;
   grade: Grade | null;
 }
+
+// The read-aloud ids of the two cards that hold a turn open (a question card, the Allow / Don't allow
+// card), so answering a card stops it being read. The buttons for choices a reply wrote as a list
+// (replyChoices) share ASK_CARD_READ: they show only when no ask_user card is pending, so the two never
+// show at once.
+const ASK_CARD_READ = "card:ask";
+const CONFIRM_CARD_READ = "card:confirm";
 
 // Words typed into a question card that the kernel handed back (TutorTurnResult.cardMessage), already
 // saved as the child's own message (`saved`) in the thread they belong to, and still owed a reply.
@@ -224,6 +229,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   }, [messages, streamingText, toolEvents, askPending, confirmPending]);
 
   const cancelStream = () => {
+    if (readAloud.speakingId === ASK_CARD_READ || readAloud.speakingId === CONFIRM_CARD_READ) readAloud.stop();
     abortRef.current?.abort();
     abortRef.current = null;
     // Unblock any pending ask_user so the suspended turn can unwind and stop.
@@ -247,6 +253,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps -- cancelStream only touches refs and setters
 
   const handleAskChoice = (value: string) => {
+    if (readAloud.speakingId === ASK_CARD_READ) readAloud.stop();
     setAskPending(null);
     const resolve = askResolverRef.current;
     askResolverRef.current = null;
@@ -254,6 +261,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   };
 
   const handleConfirm = (ok: boolean) => {
+    if (readAloud.speakingId === CONFIRM_CARD_READ) readAloud.stop();
     setConfirmPending(null);
     const resolve = confirmResolverRef.current;
     confirmResolverRef.current = null;
@@ -392,13 +400,24 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     setSuggestions([]);
     setPendingMode(null); // consumed by this turn
 
+    // A card holds the turn open, so the reply is not saved (or auto-read) until it is answered. For K-2
+    // (autoRead) each card is read as it appears, with the text streamed before it that was not read
+    // yet; the saved reply then reads on from where the cards left off (speech.ts unreadText).
+    let shownText = "";
+    let readText = "";
+    const readCard = (id: string, question: string, choices: string[]) => {
+      if (!autoRead || turnOwnerRef.current !== owner) return;
+      readAloud.speak(id, chatCardSpeech(unreadText(shownText, readText), question, choices));
+      readText = shownText;
+    };
+
     const turn: TutorTurn = {
       messages: llmMessages,
       config,
       retrieval: await getRetrievalMode(),
       // What tells a safety disclosure from an answer in the kernel: the same grade as the notice below.
       grade,
-      onText: (chunk) => { if (turnOwnerRef.current === owner) setStreamingText((prev) => prev + chunk); },
+      onText: (chunk) => { shownText += chunk; if (turnOwnerRef.current === owner) setStreamingText((prev) => prev + chunk); },
       onToolEvent: (ev) => { if (turnOwnerRef.current === owner) setToolEvents((prev) => [...prev.filter((e) => e.id !== ev.id), ev]); },
     };
 
@@ -421,12 +440,15 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           if (turnOwnerRef.current !== owner || controller.signal.aborted) { resolve(""); return; }
           askResolverRef.current = resolve;
           setAskPending({ question, choices });
+          // The question as the card shows it: none when the text above already ends on it.
+          readCard(ASK_CARD_READ, repeatsQuestion(shownText, question) ? "" : question, choices.map((c) => c.label));
         }),
       confirmTool: (toolName, summary) =>
         new Promise<boolean>((resolve) => {
           if (turnOwnerRef.current !== owner || controller.signal.aborted) { resolve(false); return; }
           confirmResolverRef.current = resolve;
           setConfirmPending({ toolName, summary });
+          readCard(CONFIRM_CARD_READ, [confirmCardQuestion(toolName), summary].join("\n\n"), [CONFIRM_CHOICES.yes, CONFIRM_CHOICES.no]);
         }),
     };
 
@@ -456,7 +478,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           setMessages((prev) => appendUnique(prev, assistantMsg));
           if (turnOwnerRef.current === owner) setReplyLanded(true);
         }
-        if (landing.speak) readAloud.speak(assistantMsg.id, persisted);
+        if (landing.speak) readAloud.speak(assistantMsg.id, unreadText(persisted, readText));
         // Post-turn knowledge reflection — non-blocking, best-effort. Skipped when
         // knowledge.update_map already wrote this turn so there's exactly one writer, and skipped on
         // a partial turn: reflecting over a truncated fragment writes bad knowledge permanently.
@@ -675,6 +697,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
             choices={askPending.choices}
             onPick={handleAskChoice}
             onTypeOwn={() => inputRef.current?.focus()}
+            reading={readAloud.speakingId === ASK_CARD_READ}
+            // The button always reads the question, even when only the text above shows it.
+            onReadAloud={readAloud.supported ? () => readAloud.toggle(ASK_CARD_READ, chatCardSpeech("", askPending.question, askPending.choices.map((c) => c.label))) : undefined}
           />
         )}
         {!streaming && !askPending && !confirmPending && replyChoices && (
@@ -683,6 +708,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               question={repeatsQuestion(messages[messages.length - 1]?.role === "assistant" ? messages[messages.length - 1].content : "", replyChoices.question) ? "" : replyChoices.question}
               choices={replyChoices.choices}
               onPick={(value) => void sendMessage(value)}
+              reading={readAloud.speakingId === ASK_CARD_READ}
+              onReadAloud={readAloud.supported ? () => readAloud.toggle(ASK_CARD_READ, chatCardSpeech("", replyChoices.question, replyChoices.choices.map((c) => c.label))) : undefined}
             />
             {/* Beside the buttons, only the stuck chips and due cards (chipsBesideChoices). */}
             {chipsBesideChoices(suggestions).length > 0 && (
@@ -691,7 +718,15 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           </>
         )}
         {confirmPending && (
-          <ConfirmToolCard toolName={confirmPending.toolName} summary={confirmPending.summary} onChoose={handleConfirm} />
+          <ConfirmToolCard
+            toolName={confirmPending.toolName}
+            summary={confirmPending.summary}
+            onChoose={handleConfirm}
+            reading={readAloud.speakingId === CONFIRM_CARD_READ}
+            onReadAloud={readAloud.supported
+              ? () => readAloud.toggle(CONFIRM_CARD_READ, chatCardSpeech("", [confirmCardQuestion(confirmPending.toolName), confirmPending.summary].join("\n\n"), [CONFIRM_CHOICES.yes, CONFIRM_CHOICES.no]))
+              : undefined}
+          />
         )}
         {chatError && (
           <div className="mx-2 p-3 rounded-lg bg-danger-tint border border-danger/30 text-sm text-danger">
@@ -765,8 +800,9 @@ function appendUnique(prev: ChatMessage[], msg: ChatMessage): ChatMessage[] {
   return prev.some((m) => m.id === msg.id) ? prev : [...prev, msg];
 }
 
-// A tutor reply's prose. A ```mermaid fence in it is drawn through MermaidBlock, as a diagram.render
-// result is, instead of shown as code (mermaid-source.ts); a fence still streaming shows a placeholder.
+// A tutor reply's prose. A ```mermaid fence in it (one the model wrote, or the one the kernel shows for a
+// diagram.render call, kernel/drawnCards.ts) is drawn through MermaidBlock instead of shown as code
+// (mermaid-source.ts); a fence still streaming shows a placeholder.
 // A reply without one renders exactly as before. A saved reply is shown through displayReplyText, so
 // one saved before the kernel filtered tool-call text never shows it either.
 // The HTML (marked + KaTeX + DOMPurify) is built only when the text changes or KaTeX finishes loading,
@@ -1026,16 +1062,9 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
         </div>
       );
     }
-    // math.render → a typeset KaTeX card; diagram.render → a Mermaid card (the §6.4 render tools).
-    // The source rode in the tool-call args, never a chat string. Render the card directly (no chip).
-    if (ev.name === "math.render") {
-      const latex = (ev.value as { latex?: string } | undefined)?.latex ?? "";
-      return latex ? <Suspense fallback={null}><MathBlock latex={latex} /></Suspense> : null;
-    }
-    if (ev.name === "diagram.render") {
-      const code = (ev.value as { mermaid?: string } | undefined)?.mermaid ?? "";
-      return code ? <MermaidBlock code={code} /> : null;
-    }
+    // math.render / diagram.render → nothing: the kernel put the drawing in the reply's text, as a $$
+    // block or a ```mermaid fence, where ReplyProse draws it and it is saved (kernel/drawnCards.ts).
+    if (ev.name === "math.render" || ev.name === "diagram.render") return null;
     return <div className={`${base} bg-[rgb(var(--phosphor-rgb)/0.08)] border-phosphor/30 text-phosphor-ink`}>✓ {describeToolDone(ev.name)}</div>;
   }
   return (
@@ -1046,32 +1075,52 @@ function ToolChip({ ev, onOpenResource, onOpenReview }: { ev: ToolUIEvent; onOpe
   );
 }
 
+// The speaker button beside a chat card (the question card, the Allow / Don't allow card): reads the
+// card and, pressed again, stops. Shown only when the webview can speak.
+function CardSpeaker({ reading, onReadAloud }: { reading: boolean; onReadAloud?: () => void }) {
+  if (!onReadAloud) return null;
+  const label = reading ? "Stop reading" : "Read aloud";
+  return (
+    <button type="button" className="speak-btn self-end" onClick={onReadAloud} aria-label={label} aria-pressed={reading} title={label}>
+      {reading ? <IconMediaStop size={16} className="scale-[0.65]" /> : <IconVolumeUp size={18} />}
+    </button>
+  );
+}
+
 // Permission "ask" (V2 §7) — Allow / Don't allow buttons that resolve the suspended turn. Reuses
 // the ask_user choice-card look; declining feeds the model a "student declined" tool result.
-function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; summary: string; onChoose: (ok: boolean) => void }) {
+// A .chat-msg, so K-2's larger chat text applies to it and to its buttons (.chat-choice).
+function ConfirmToolCard({ toolName, summary, onChoose, reading = false, onReadAloud }: {
+  toolName: string;
+  summary: string;
+  onChoose: (ok: boolean) => void;
+  reading?: boolean;
+  onReadAloud?: () => void;
+}) {
   return (
     <div className="flex gap-3">
       <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
         AI
       </span>
-      <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
-        <p className="mb-1">{describeToolRequest(toolName)} Is that okay?</p>
-        {summary && <p className="mb-2.5 text-[var(--ink-dim)] text-sm">{summary}</p>}
+      <div className="chat-msg flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
+        <p className="mb-1">{confirmCardQuestion(toolName)}</p>
+        {summary && <p className="mb-2.5 text-[var(--ink-dim)]">{summary}</p>}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => onChoose(true)}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+            className="chat-choice px-3 py-1.5 rounded-lg text-sm font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
           >
-            Yes, go ahead
+            {CONFIRM_CHOICES.yes}
           </button>
           <button
             onClick={() => onChoose(false)}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-danger hover:border-danger/30 transition-colors"
+            className="chat-choice px-3 py-1.5 rounded-lg text-sm font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-danger hover:border-danger/30 transition-colors"
           >
-            No, not now
+            {CONFIRM_CHOICES.no}
           </button>
         </div>
       </div>
+      <CardSpeaker reading={reading} onReadAloud={onReadAloud} />
     </div>
   );
 }
@@ -1079,20 +1128,28 @@ function ConfirmToolCard({ toolName, summary, onChoose }: { toolName: string; su
 // ask_user.question — choice buttons that resolve the suspended turn on click. An empty `question` is
 // one the reply above already ends on (repeatsQuestion), so only the buttons show. `onTypeOwn` adds a
 // "Type my own answer" button that puts the cursor in the chat box, which answers the card.
-function AskUserChoices({ question, choices, onPick, onTypeOwn }: { question: string; choices: AskChoice[]; onPick: (value: string) => void; onTypeOwn?: () => void }) {
+// A .chat-msg, so K-2's larger chat text applies to it and to its buttons (.chat-choice).
+function AskUserChoices({ question, choices, onPick, onTypeOwn, reading = false, onReadAloud }: {
+  question: string;
+  choices: AskChoice[];
+  onPick: (value: string) => void;
+  onTypeOwn?: () => void;
+  reading?: boolean;
+  onReadAloud?: () => void;
+}) {
   return (
     <div className="flex gap-3">
       <span className="w-8 h-8 rounded-lg bg-[rgb(var(--phosphor-rgb)/0.08)] text-phosphor-bright flex items-center justify-center text-xs font-bold shrink-0">
         AI
       </span>
-      <div className="flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
+      <div className="chat-msg flex-1 p-3 rounded-xl bg-panel text-sm text-ink">
         {question && <p className="mb-2.5">{question}</p>}
         <div className="flex flex-wrap gap-2">
           {choices.map((c) => (
             <button
               key={c.value}
               onClick={() => onPick(c.value)}
-              className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
+              className="chat-choice px-3 py-1.5 rounded-lg text-[12px] font-medium bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright border border-phosphor/40 hover:bg-[rgb(var(--phosphor-rgb)/0.24)] transition-colors"
             >
               {c.label}
             </button>
@@ -1100,13 +1157,14 @@ function AskUserChoices({ question, choices, onPick, onTypeOwn }: { question: st
           {onTypeOwn && (
             <button
               onClick={onTypeOwn}
-              className="px-3 py-1.5 rounded-lg text-[12px] font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-phosphor-bright hover:border-phosphor/40 transition-colors"
+              className="chat-choice px-3 py-1.5 rounded-lg text-[12px] font-medium bg-lcd text-[var(--ink-dim)] border border-[var(--rule)] hover:text-phosphor-bright hover:border-phosphor/40 transition-colors"
             >
               Type my own answer
             </button>
           )}
         </div>
       </div>
+      <CardSpeaker reading={reading} onReadAloud={onReadAloud} />
     </div>
   );
 }

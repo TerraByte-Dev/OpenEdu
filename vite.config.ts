@@ -10,9 +10,8 @@ export default defineConfig(async () => ({
   build: {
     rollupOptions: {
       output: {
-        // Dedupe KaTeX into ONE shared lazy chunk: both MathBlock (import katex) and
-        // chat-markdown (lazy import of katex) reach it, so without this it gets duplicated
-        // (~258 KB each). Grouping CodeMirror keeps the notes-editor chunk tidy too. We deliberately
+        // Keep KaTeX and mhchem, which chat-markdown lazy-imports together (ensureChatKatex), in ONE
+        // lazy chunk. Grouping CodeMirror keeps the notes-editor chunk tidy too. We deliberately
         // do NOT group mermaid/cytoscape — they rely on their own per-diagram-type code-splitting.
         manualChunks(id: string) {
           if (id.includes("node_modules")) {

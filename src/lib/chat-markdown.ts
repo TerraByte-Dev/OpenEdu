@@ -4,8 +4,8 @@
 // Math ($…$, $$…$$, \(…\), \[…\], and a few bare commands like \frac) is found by chatMathExtension
 // (chat-math.ts, which documents the pairing rules from issue #20) and typeset with KaTeX. Scoped to
 // chat ONLY: it must NOT touch NotesTab's global `marked`, where a stray "$" in a note shouldn't be
-// parsed as math. mhchem is registered on the shared KaTeX singleton so \ce{} reactions render; that
-// also covers MathBlock, which typesets math.render results against the same singleton.
+// parsed as math. mhchem is registered on the shared KaTeX singleton so \ce{} reactions render. A
+// math.render result is typeset here too: the kernel shows it as a $$ block of the reply (kernel/drawnCards.ts).
 import { Marked } from "marked";
 import { chatMathExtension, type TexRenderer } from "./chat-math";
 import { sanitizeHtml } from "./sanitize-html";

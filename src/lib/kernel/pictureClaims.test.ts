@@ -152,11 +152,11 @@ describe("the kernel takes out a picture claim with no picture", () => {
     expect((await turn()).text).toBe(text);
   });
 
-  it("keeps the claim when diagram.render ran this turn", async () => {
+  it("keeps the claim when diagram.render ran this turn, and the drawing is in the saved reply", async () => {
     script = [
       [{ type: "tool_call", id: "call_0", name: "diagram.render", args: { mermaid: "graph TD; A[Pizza] --> B[4 slices]" } }, { type: "done", finishReason: "tool_calls" }],
       reply(CLAIM),
     ];
-    expect((await turn()).text).toBe(CLAIM);
+    expect((await turn()).text).toBe(`\`\`\`mermaid\ngraph TD; A[Pizza] --> B[4 slices]\n\`\`\`\n\n${CLAIM}`);
   });
 });
