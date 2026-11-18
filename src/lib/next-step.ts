@@ -28,7 +28,8 @@ export interface NextStepInput {
   attempts: QuizAttempt[];
   /** Whether the caller can rebuild a missing level plan. */
   canRegenerate: boolean;
-  /** Whether the caller can open the level test (viewing the course's current level). */
+  /** Whether the caller can open the level test (viewing the course's current level). A finished
+      course never offers it, whatever this says. */
   canPromote: boolean;
 }
 
@@ -78,9 +79,11 @@ export function rankNextSteps(input: NextStepInput): NextStep[] {
   const lastAttempt = levelAttempts[0];
   const lastQuizPct = lastAttempt?.score ?? null;
 
-  // Rule 3 — Ready for the level test
+  // Rule 3 — Ready for the level test. Never on a finished course: its last level test is passed.
+  const finished = course.status === "completed" || course.status === "archived";
   if (
     canPromote &&
+    !finished &&
     total > 0 &&
     masteredCount >= total - 1 &&
     lastQuizPct !== null &&

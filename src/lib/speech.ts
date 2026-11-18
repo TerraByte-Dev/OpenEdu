@@ -291,6 +291,39 @@ export function speakableText(markdown: string): string {
   return parts.flatMap((p) => p.split(BREAK)).map(sentence).filter(Boolean).join(" ");
 }
 
+/** What a fill-in sentence's blank (a run of underscores) is read as. */
+export const BLANK_SPOKEN = "blank";
+/** Said before a question's choices. */
+export const CHOICES_SPOKEN = "The choices are:";
+
+/**
+ * A choice is drawn as plain text (QuestionRenderer), so a leading "- 3", "1. one", "# 2" or "> 4" is
+ * escaped rather than read as markdown list, heading or quote syntax ("- 3" must not become "3").
+ */
+function choiceAsText(choice: string): string {
+  return choice.trim()
+    .replace(/^(\d+)([.)])(?=\s|$)/, "$1\\$2")
+    .replace(/^([-+*#>=])/, "\\$1");
+}
+
+/**
+ * A quiz or level-test question as the markdown its speaker button reads (through speakableText, like
+ * a tutor reply): the question, the fill-in sentence when it differs, then for multiple choice and
+ * true/false each choice as its own sentence, in the order shown. Never the answer key or an answer.
+ */
+export function questionSpeech(q: {
+  question_type: string;
+  question_text: string;
+  options?: ReadonlyArray<string> | null;
+  blank_position?: string | null;
+}): string {
+  const parts = [q.question_text];
+  if (q.question_type === "fill_in_blank" && q.blank_position && q.blank_position !== q.question_text) parts.push(q.blank_position);
+  const choices = q.question_type === "true_false" ? ["True", "False"] : q.question_type === "multiple_choice" ? (q.options ?? []) : [];
+  if (choices.length > 0) parts.push(CHOICES_SPOKEN, ...choices.map(choiceAsText));
+  return parts.map((p) => p.replace(/_{2,}/g, ` ${BLANK_SPOKEN} `)).join("\n\n");
+}
+
 // ── Voice choice ─────────────────────────────────────────────────────────────────────────────────
 
 /** The fields of SpeechSynthesisVoice the choice reads. */

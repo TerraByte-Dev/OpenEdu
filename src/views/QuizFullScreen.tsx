@@ -13,12 +13,15 @@ import { MARK_AGAIN, MAKING } from "../lib/level-test";
 import { canMarkAgain, markAgain } from "../lib/written-answer-checks";
 import { IconXmark } from "../components/icons";
 import SafetyNotice from "../components/SafetyNotice";
-import type { Grade } from "../lib/grade";
+import { isEarlyReader, type Grade } from "../lib/grade";
+import ReadAloudButton from "../components/ReadAloudButton";
+import { questionSpeech } from "../lib/speech";
 
 interface QuizFullScreenProps {
   context: QuizViewContext;
   onClose: () => void;
-  // The learner's grade: a safety disclosure typed as an answer or a "why" is read as the chat reads it.
+  // The learner's grade: a safety disclosure typed as an answer or a "why" is read as the chat reads it,
+  // and K-2 (grade.ts isEarlyReader) gets the question and answers at the chat's larger size.
   grade: Grade | null;
 }
 
@@ -47,6 +50,7 @@ const MARK_STYLE: Record<AnswerMark, { row: string; text: string; sign: string }
 const QUIZ_SECONDS_PER_QUESTION = 120;
 
 export default function QuizFullScreen({ context, onClose, grade }: QuizFullScreenProps) {
+  const large = isEarlyReader(grade);
   const { courseId, course, syllabus } = context;
   const [state, setState] = useState<State>("generating");
   const [questions, setQuestions] = useState<ActiveQuestion[]>([]);
@@ -398,7 +402,11 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
             {question?.subtopic_id && (
               <span className="text-[10px] text-[var(--ink-faint)] mb-2 block">Subtopic: {question.subtopic_id}</span>
             )}
-            <h2 className="text-lg text-ink leading-relaxed">{question?.question_text}</h2>
+            {/* The chat's speaker button: the question and its choices (speech.ts questionSpeech), never the answer. */}
+            <div className="flex items-start gap-3">
+              <h2 className={`flex-1 ${large ? "text-2xl" : "text-lg"} text-ink leading-relaxed`}>{question?.question_text}</h2>
+              {question && <ReadAloudButton text={questionSpeech(question)} />}
+            </div>
           </div>
 
           {question && (

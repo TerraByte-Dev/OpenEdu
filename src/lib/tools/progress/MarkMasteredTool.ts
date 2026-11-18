@@ -26,7 +26,10 @@ export const markMasteredTool = defineTool({
   isReadOnly: false,
   isConcurrencySafe: false,
   async *call(input, ctx): AsyncGenerator<ToolEvent<{ subtopic_id: string; status: string; title: string }>> {
-    const syllabus = ctx.syllabus ?? (await getSyllabus(ctx.courseId, ctx.level));
+    // Always the saved row, never ctx.syllabus: that is the course view's snapshot from when it
+    // opened, and setSubtopicStatus writes back every subtopic, so marking from it would undo an
+    // earlier mark this visit (or a quiz's mastery saved since).
+    const syllabus = await getSyllabus(ctx.courseId, ctx.level);
     if (!syllabus) {
       yield { kind: "error", error: `No syllabus is loaded for level ${ctx.level}, so progress can't be updated.` };
       return;

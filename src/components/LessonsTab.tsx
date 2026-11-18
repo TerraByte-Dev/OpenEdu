@@ -7,7 +7,7 @@ import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import LessonReader from "./LessonReader";
 import { lessonStatusLine } from "../lib/ai-notice";
-import type { Grade } from "../lib/grade";
+import { isEarlyReader, type Grade } from "../lib/grade";
 import RaiseHand from "./RaiseHand";
 
 interface LessonsTabProps {
@@ -107,7 +107,7 @@ export default function LessonsTab({ courseId, level, topic, currentSyllabus, le
       />
     );
     const status = check?.id === lesson.id ? lessonStatusLine({ checked: check.checked, grade }) : null;
-    return <LessonReader lesson={lesson} onBack={() => setOpenLesson(null)} onRead={load} raiseHand={raiseHand} status={status} />;
+    return <LessonReader lesson={lesson} onBack={() => setOpenLesson(null)} onRead={load} raiseHand={raiseHand} status={status} largeText={isEarlyReader(grade)} />;
   }
 
   if (loading) {

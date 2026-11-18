@@ -24,7 +24,9 @@ import QuestionRenderer from "../components/quiz/QuestionRenderer";
 import CompletionCapstone from "../components/CompletionCapstone";
 import SafetyNotice from "../components/SafetyNotice";
 import { SAFETY_NOTICE } from "../lib/child-safety";
-import type { Grade } from "../lib/grade";
+import { isEarlyReader, type Grade } from "../lib/grade";
+import ReadAloudButton from "../components/ReadAloudButton";
+import { questionSpeech } from "../lib/speech";
 import { IconXmark } from "../components/icons";
 
 function getTimeLimitSeconds(level: number): number {
@@ -83,11 +85,13 @@ interface Props {
   onClose: () => void;
   // nextLevel = the level just advanced to; null = course completed (L6 mastery passed).
   onPassed: (nextLevel: number | null) => void;
-  // The learner's grade: a safety disclosure typed as an answer is read as the chat reads it.
+  // The learner's grade: a safety disclosure typed as an answer is read as the chat reads it, and K-2
+  // (grade.ts isEarlyReader) gets the question and answers at the chat's larger size.
   grade: Grade | null;
 }
 
 export default function PromotionTestFullScreen({ context, onClose, onPassed, grade }: Props) {
+  const large = isEarlyReader(grade);
   const { courseId, course, syllabus: currentSyllabus, allSyllabuses } = context;
   const currentLevel = course.current_level;
 
@@ -101,6 +105,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   const [genProgress, setGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [genError, setGenError] = useState("");
   const [passed, setPassed] = useState(false);
+  // The level a passed L1-L5 test advanced to. onPassed waits for the results screen's "Continue
+  // Learning", so a pass shows its score and breakdown as a fail does.
+  const [passedTo, setPassedTo] = useState<number | null>(null);
   const [overallScore, setOverallScore] = useState(0);
   const [reviewScore, setReviewScore] = useState<number | null>(null);
   const [studyPlan, setStudyPlan] = useState("");
@@ -396,8 +403,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
         // Course complete — hold the view on the capstone; onPassed(null) fires when the user finishes.
         setTestState("completion");
       } else {
+        setPassedTo(nextLevel ?? currentLevel);
         setTestState("results");
-        onPassed(nextLevel ?? currentLevel);
       }
       void persist(Promise.resolve(null));
       return;
@@ -420,7 +427,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     setPassed(false);
     setTestState("results");
     void persist(startStudyPlan(answered, cfg));
-  }, [timeLeft, currentLevel, courseId, currentSyllabus, onPassed]);
+  }, [timeLeft, currentLevel, courseId, currentSyllabus]);
 
   // After a failed test: the study plan for the missed questions, shown when ready.
   const startStudyPlan = (answers: ReadonlyArray<ActiveQuestion>, cfg: LLMConfig): Promise<string | null> => {
@@ -461,8 +468,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     setPassed(s.status === "passed");
     if (s.status === "passed") {
       if (currentLevel >= 6) { setTestState("completion"); return; }
+      setPassedTo(s.nextLevel ?? currentLevel);
       setTestState("results");
-      onPassed(s.nextLevel ?? currentLevel);
       return;
     }
     setTestState("results");
@@ -537,7 +544,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
             <h1 className="text-base font-semibold text-ink">{course.title}</h1>
             <p className="text-xs text-[var(--ink-faint)]">Promotion Test</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-panel-lite text-[var(--ink-faint)] hover:text-ink transition-colors">
+          <button onClick={onClose} aria-label="Close" title="Close" className="p-1.5 rounded-lg hover:bg-panel-lite text-[var(--ink-faint)] hover:text-ink transition-colors">
             <IconXmark size={18} />
           </button>
         </div>
@@ -709,7 +716,11 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
         {/* Question */}
         <div className="flex-1 overflow-y-auto flex items-start justify-center p-6">
           <div className="w-full max-w-2xl">
-            <h2 className="text-lg text-ink leading-relaxed mb-6">{question.question_text}</h2>
+            {/* The chat's speaker button: the question and its choices (speech.ts questionSpeech), never the answer. */}
+            <div className="flex items-start gap-3 mb-6">
+              <h2 className={`flex-1 ${large ? "text-2xl" : "text-lg"} text-ink leading-relaxed`}>{question.question_text}</h2>
+              <ReadAloudButton text={questionSpeech(question)} />
+            </div>
 
             {config && (
               <QuestionRenderer
@@ -802,7 +813,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           <p className="text-xs text-[var(--ink-faint)]">{course.title} — Level {currentLevel}</p>
         </div>
         <button
-          onClick={onClose}
+          onClick={passed && passedTo !== null ? () => onPassed(passedTo) : onClose}
           className="px-4 py-2 rounded-lg btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
         >
           {passed ? "Continue Learning" : "Back to Course"}

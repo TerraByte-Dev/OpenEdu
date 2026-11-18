@@ -65,6 +65,17 @@ describe("rankNextSteps", () => {
     expect(steps.map((s) => s.key)).not.toContain("promotion");
   });
 
+  it("never offers the level test on a finished course, even when the caller says it can", () => {
+    for (const status of ["completed", "archived"] as const) {
+      const steps = rankNextSteps(base({
+        course: course({ status, current_level: 6 }), level: 6,
+        currentSyllabus: syllabus([sub("a", { mastered: true }), sub("b", { mastered: true })]),
+        attempts: [attempt({ level: 6, score: 95 })],
+      }));
+      expect(steps.map((s) => s.key)).not.toContain("promotion");
+    }
+  });
+
   it("a topic flagged for review points at the tutor with that topic seeded", () => {
     const steps = rankNextSteps(base({
       currentSyllabus: syllabus([sub("a", { mastered: true, review_needed: true }), sub("b", { practiced: true })]),

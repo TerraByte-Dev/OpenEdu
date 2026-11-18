@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { speakableText, texWords, pickVoice, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
+import { speakableText, texWords, pickVoice, questionSpeech, CODE_SPOKEN, DRAWING_SPOKEN, MATH_PLACEHOLDER, type VoiceLike } from "./speech";
 import { persistedReply } from "./kernel/persistedReply";
 
 // speakableText is what ChatTab's speaker button and the K-2 auto-read hand to speechSynthesis
@@ -144,5 +144,44 @@ describe("pickVoice", () => {
 
   it("accepts underscores and odd case in language tags", () => {
     expect(pickVoice([v("EN_us", true, false, "x")], "en-US")?.name).toBe("x");
+  });
+});
+
+// A quiz or level-test question's speaker button (components/ReadAloudButton.tsx) hands
+// questionSpeech's markdown to useReadAloud, which reads speakableText of it, as here.
+describe("questionSpeech: a quiz question read aloud", () => {
+  const read = (q: Parameters<typeof questionSpeech>[0]) => speakableText(questionSpeech(q));
+
+  it("reads a multiple-choice question and each choice, in the order shown", () => {
+    expect(read({ question_type: "multiple_choice", question_text: "What is 2 + 3?", options: ["4", "5", "six"] }))
+      .toBe("What is 2 + 3? The choices are: 4. 5. six.");
+  });
+
+  it("reads a choice that looks like markdown as the text shown, not as a list or heading", () => {
+    expect(read({ question_type: "multiple_choice", question_text: "Pick one.", options: ["- 3", "1. one", "2) two", "+ 4", "# 5"] }))
+      .toBe("Pick one. The choices are: - 3. 1. one. 2) two. + 4. 5.");
+  });
+
+  it("reads True and False as the choices of a true/false question", () => {
+    expect(read({ question_type: "true_false", question_text: "The sun is a star." }))
+      .toBe("The sun is a star. The choices are: True. False.");
+  });
+
+  it("reads a fill-in blank as the word blank, never underscores", () => {
+    const text = read({ question_type: "fill_in_blank", question_text: "Fill in the blank.", blank_position: "A cat says ___." });
+    expect(text).toBe("Fill in the blank. A cat says blank.");
+    expect(text).not.toMatch(NO_SYNTAX);
+  });
+
+  it("reads the question once when the fill-in sentence is the question", () => {
+    expect(read({ question_type: "fill_in_blank", question_text: "2 + 2 = ___", blank_position: "2 + 2 = ___" }))
+      .toBe("2 + 2 = blank.");
+  });
+
+  it("reads only the question for written answers and matching, never the answer key", () => {
+    const q = { question_type: "short_answer", question_text: "Why do leaves fall?", options: null, correct_answer: "autumn" };
+    expect(read(q)).toBe("Why do leaves fall?");
+    expect(read({ question_type: "drag_to_match", question_text: "Match each animal to its home." }))
+      .toBe("Match each animal to its home.");
   });
 });

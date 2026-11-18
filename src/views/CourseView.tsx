@@ -36,6 +36,9 @@ interface CourseViewProps {
   /** Where to land on open — Home's Continue button passes the ranked next step. Tab intents are
       honored; anything else opens the Overview, where the Next step card offers it. */
   initialAction?: NextStepAction;
+  /** Called once on mount after initialAction was read, so App forgets it: coming back from a quiz or
+      level test (which unmount this view) opens the Overview, not Continue's tab again. */
+  onInitialActionConsumed?: () => void;
   onBack: () => void;
   onOpenQuiz: (ctx: QuizViewContext) => void;
   onOpenPromotionTest: (ctx: QuizViewContext) => void;
@@ -44,7 +47,7 @@ interface CourseViewProps {
   grade: Grade | null;
 }
 
-export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz, onOpenPromotionTest, learnerId, grade }: CourseViewProps) {
+export default function CourseView({ courseId, initialAction, onInitialActionConsumed, onBack, onOpenQuiz, onOpenPromotionTest, learnerId, grade }: CourseViewProps) {
   const [course, setCourse] = useState<Course | null>(null);
   const [syllabuses, setSyllabuses] = useState<Syllabus[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>(initialAction?.kind === "tab" ? initialAction.tab : "overview");
@@ -57,6 +60,8 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
   const [pendingLessonSubtopic, setPendingLessonSubtopic] = useState<string | undefined>(
     initialAction?.kind === "tab" && initialAction.tab === "lessons" ? initialAction.opts?.lessonSubtopicId : undefined,
   );
+  // Continue's step is used once: the initialisers above have read it.
+  useEffect(() => { if (initialAction) onInitialActionConsumed?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Resources tab (the curated Library). Shown only when the library is reachable + enabled, mirroring
   // the offline-first hiding everywhere else. `pendingResource` carries a deep-link from a chat chip.
   const [libReady, setLibReady] = useState(false);
@@ -213,6 +218,8 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
         {/* Left: back + title */}
         <button
           onClick={onBack}
+          aria-label="Back to Home"
+          title="Back to Home"
           className="p-1.5 rounded-lg hover:bg-lcd text-[var(--ink-faint)] hover:text-ink transition-colors shrink-0"
         >
           <IconArrowLeft size={18} />
@@ -317,7 +324,7 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
             regenStatus={regenStatus}
             switchTab={switchTab}
             onOpenPromotionTest={
-              viewingSyllabus && isCurrentLevel
+              viewingSyllabus && isCurrentLevel && !isComplete
                 ? () =>
                     onOpenPromotionTest({
                       courseId,
@@ -347,6 +354,9 @@ export default function CourseView({ courseId, initialAction, onBack, onOpenQuiz
             threadId={threadId}
             onThreadCreated={(id) => { setThreadId(id); void refreshThreads(); }}
             onThreadActivity={() => { void refreshThreads(); }}
+            // The tutor saved a mark: reload so the Overview and Next step show it, and the next
+            // turn's prompt is built from the saved syllabus rather than the one this view opened with.
+            onProgressChanged={() => { void loadCourseData(); }}
             learnerId={learnerId}
             grade={grade}
           />

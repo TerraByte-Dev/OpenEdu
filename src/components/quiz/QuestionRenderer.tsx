@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo } from "react";
 import type { QuizQuestion } from "../../types";
-import type { Grade } from "../../lib/grade";
+import { isEarlyReader, type Grade } from "../../lib/grade";
 import { showsSafetyNotice } from "../../lib/quiz-grading";
 import SafetyNotice from "../SafetyNotice";
 
@@ -16,11 +16,16 @@ interface QuestionRendererProps {
   // When provided (study quizzes only), an optional self-explanation prompt is shown after the
   // question is answered; the typed text is persisted via this callback (Chi 1989).
   onSelfExplain?: (text: string) => void;
-  // The learner's grade, for the safety notice (the chat's isSafetyDisclosure check).
+  // The learner's grade, for the safety notice (the chat's isSafetyDisclosure check) and, for K-2
+  // (grade.ts isEarlyReader), the answers, feedback and inputs at the chat's larger text size.
   grade: Grade | null;
 }
 
 export default function QuestionRenderer({ question, onAnswer, disabled, onSelfExplain, grade }: QuestionRendererProps) {
+  // 14px / 12px, or for K-2 20px / 18px (the chat's .chat-text-large is 20px).
+  const large = isEarlyReader(grade);
+  const sm = large ? "text-xl" : "text-sm";
+  const xs = large ? "text-lg" : "text-xs";
   const [selected, setSelected] = useState<string>("");
   const [matchPairs, setMatchPairs] = useState<Record<string, string>>({});
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
@@ -82,24 +87,24 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
     return (
       <div className="space-y-3">
         {pending ? (
-          <div className="p-4 rounded-xl border text-sm border-phosphor/30 bg-[rgb(var(--phosphor-rgb)/0.08)]">
+          <div className={`p-4 rounded-xl border ${sm} border-phosphor/30 bg-[rgb(var(--phosphor-rgb)/0.08)]`}>
             <div className="font-medium mb-1 text-phosphor-bright">✎ Answer recorded</div>
-            <p className="text-[var(--ink-faint)] text-xs">Your answer: {question.user_answer}</p>
-            <p className="text-[var(--ink-faint)] text-xs mt-1">It will be graded when you finish.</p>
+            <p className={`text-[var(--ink-faint)] ${xs}`}>Your answer: {question.user_answer}</p>
+            <p className={`text-[var(--ink-faint)] ${xs} mt-1`}>It will be graded when you finish.</p>
           </div>
         ) : (
-          <div className={`p-4 rounded-xl border text-sm ${question.is_correct ? "border-success/30 bg-success-tint" : "border-danger/30 bg-danger-tint"}`}>
+          <div className={`p-4 rounded-xl border ${sm} ${question.is_correct ? "border-success/30 bg-success-tint" : "border-danger/30 bg-danger-tint"}`}>
             <div className={`font-medium mb-1 ${question.is_correct ? "text-success" : "text-danger"}`}>
               {question.is_correct ? "✓ Correct" : "✗ Incorrect"}
             </div>
             {!question.is_correct && (
-              <p className="text-danger text-xs mb-1">
+              <p className={`text-danger ${xs} mb-1`}>
                 Your answer: {question.user_answer}
                 <br />
                 Correct answer: {question.correct_answer}
               </p>
             )}
-            {question.explanation && <p className="text-[var(--ink-faint)] text-xs">{question.explanation}</p>}
+            {question.explanation && <p className={`text-[var(--ink-faint)] ${xs}`}>{question.explanation}</p>}
           </div>
         )}
         {/* A safety disclosure typed as the answer, or as "why is that the answer?" once it is saved (on
@@ -107,7 +112,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
         {showsSafetyNotice(question, grade) && <SafetyNotice />}
         {onSelfExplain && (
           <div className="p-3 rounded-xl border border-[var(--rule)] bg-panel-lite/40">
-            <label className="block text-xs text-phosphor-ink mb-1.5">
+            <label className={`block ${xs} text-phosphor-ink mb-1.5`}>
               In your own words, why is that the answer? <span className="text-[var(--ink-faint)]">(optional — helps it stick)</span>
             </label>
             <textarea
@@ -116,7 +121,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
               onBlur={() => onSelfExplain(explain.trim())}
               placeholder="Explain your reasoning…"
               rows={2}
-              className="w-full px-3 py-2 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor resize-none"
+              className={`w-full px-3 py-2 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink ${sm} focus:outline-none focus:border-phosphor resize-none`}
             />
           </div>
         )}
@@ -142,7 +147,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
                 onAnswer(option, option === question.correct_answer);
               }}
               disabled={disabled || submitted}
-              className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
+              className={`w-full text-left px-4 py-3 rounded-xl border ${sm} transition-colors ${
                 selected === option
                   ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.14)] text-ink"
                   : "border-[var(--rule)] bg-panel-lite/50 text-[var(--ink-dim)] hover:border-phosphor/50 disabled:opacity-50"
@@ -160,7 +165,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
       const parts = sentence.split("___");
       return (
         <div className="space-y-4">
-          <p className="text-sm text-[var(--ink-dim)] leading-relaxed">
+          <p className={`${sm} text-[var(--ink-dim)] leading-relaxed`}>
             {parts[0]}
             <input
               type="text"
@@ -169,7 +174,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
               onKeyDown={(e) => { if (e.key === "Enter" && selected.trim() && !submitted) handleRecord(); }}
               disabled={disabled || submitted}
               placeholder="your answer"
-              className="inline-block mx-2 px-3 py-1.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor w-44"
+              className={`inline-block mx-2 px-3 py-1.5 rounded-lg bg-panel-lite border border-[var(--rule)] text-ink ${sm} focus:outline-none focus:border-phosphor w-44`}
             />
             {parts[1] ?? ""}
           </p>
@@ -177,7 +182,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             <button
               onClick={handleRecord}
               disabled={!selected.trim() || disabled}
-              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-50 transition-colors"
+              className={`px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] ${sm} font-medium disabled:opacity-50 transition-colors`}
             >
               Submit Answer
             </button>
@@ -197,13 +202,13 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
             disabled={disabled || submitted}
             placeholder="Write your answer here..."
             rows={4}
-            className="w-full px-4 py-3 rounded-xl bg-panel-lite border border-[var(--rule)] text-ink text-sm focus:outline-none focus:border-phosphor resize-none"
+            className={`w-full px-4 py-3 rounded-xl bg-panel-lite border border-[var(--rule)] text-ink ${sm} focus:outline-none focus:border-phosphor resize-none`}
           />
           {!submitted && (
             <button
               onClick={handleRecord}
               disabled={!selected.trim() || disabled}
-              className="px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium disabled:opacity-50 transition-colors"
+              className={`px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] ${sm} font-medium disabled:opacity-50 transition-colors`}
             >
               Submit Answer
             </button>
@@ -218,7 +223,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
       const allMatched = Object.keys(matchPairs).length === pairs.length;
       return (
         <div className="space-y-3">
-          <p className="text-xs text-[var(--ink-faint)] mb-2">Click a left item, then its match on the right. Click a paired item again to unmatch.</p>
+          <p className={`${xs} text-[var(--ink-faint)] mb-2`}>Click a left item, then its match on the right. Click a paired item again to unmatch.</p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               {leftItems.map((item) => {
@@ -229,7 +234,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
                     key={item}
                     onClick={() => handleMatchLeft(item)}
                     disabled={disabled || submitted}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border ${sm} transition-colors ${
                       isSelected
                         ? "border-phosphor bg-[rgb(var(--phosphor-rgb)/0.18)] text-ink"
                         : isPaired
@@ -239,7 +244,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
                   >
                     <span>{item}</span>
                     {isPaired && (
-                      <span className="ml-2 text-xs text-phosphor-bright">→ {matchPairs[item]}</span>
+                      <span className={`ml-2 ${xs} text-phosphor-bright`}>→ {matchPairs[item]}</span>
                     )}
                   </button>
                 );
@@ -253,7 +258,7 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
                     key={item}
                     onClick={() => handleMatchRight(item)}
                     disabled={disabled || submitted || selectedLeft === null}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border ${sm} transition-colors ${
                       isMatched
                         ? "border-phosphor-ink/40 bg-[rgb(var(--phosphor-rgb)/0.10)] text-[var(--ink-dim)]"
                         : selectedLeft !== null
@@ -270,13 +275,13 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
           {allMatched && !submitted && (
             <button
               onClick={handleSubmitMatch}
-              className="mt-2 px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
+              className={`mt-2 px-5 py-2 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] ${sm} font-medium transition-colors`}
             >
               Submit Matches
             </button>
           )}
           {submitted && (
-            <div className={`p-3 rounded-lg text-sm ${question.is_correct ? "bg-success-tint text-success" : "bg-danger-tint text-danger"}`}>
+            <div className={`p-3 rounded-lg ${sm} ${question.is_correct ? "bg-success-tint text-success" : "bg-danger-tint text-danger"}`}>
               {question.is_correct ? "✓ All matches correct!" : "✗ Some matches were wrong."}
             </div>
           )}
@@ -285,6 +290,6 @@ export default function QuestionRenderer({ question, onAnswer, disabled, onSelfE
     }
 
     default:
-      return <p className="text-[var(--ink-faint)] text-sm">Unknown question type.</p>;
+      return <p className={`text-[var(--ink-faint)] ${sm}`}>Unknown question type.</p>;
   }
 }

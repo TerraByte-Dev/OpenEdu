@@ -7,7 +7,7 @@ import { validateLearnerName, LEARNER_NAME_MAX } from "../../../lib/learners";
 import { getReadAloudAuto, setReadAloudAuto } from "../../../lib/store";
 
 // The signed-in learner: their name, and their grade (#243), which sets how the tutor writes for them
-// and, for K-2, larger chat text and replies that read themselves aloud (a choice, on by default).
+// and, for K-2, larger text (chat, lessons, quizzes and level tests) and replies that read themselves aloud (a choice, on by default).
 // There is no PIN here: OpenEdu is for one learner, and a PIN that cannot be reset would only lock
 // them out. An earlier version's PIN is changed or removed in the learner menu.
 export default function LearnerSection({ learner }: SectionProps) {
@@ -73,7 +73,7 @@ export default function LearnerSection({ learner }: SectionProps) {
 
       <Section
         title="Grade"
-        description="The tutor writes for this grade: shorter sentences and simpler words for younger learners. Kindergarten to grade 2 also get bigger chat text."
+        description="The tutor writes for this grade: shorter sentences and simpler words for younger learners. Kindergarten to grade 2 also get bigger text in chat, lessons, quizzes and level tests."
         keywords="grade school year reading level kindergarten text size read aloud speech voice speak"
       >
         <SettingRow label="Your grade" help="Leave it not set and the tutor writes as it always has.">
