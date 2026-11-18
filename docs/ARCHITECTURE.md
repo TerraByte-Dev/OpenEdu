@@ -364,8 +364,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   is not marked: `gradeAnswersBatch` never settles it by code or sends it to a model, and passes it as
   not checked (`graded_by 'fallback'`), so it is never a wrong mark and the answer stays in the attempt. On
   a level test it can make the test wait for the learner's own mark like any unchecked answer; the marking
-  list shows the notice above it. On the new-course topic, Create shows the notice and
-  `SAFETY_TOPIC_COURSE_LINE`, and no course is made from it, however often it is pressed (TerraTutor #215):
+  list shows the notice above it. On the new-course topic, Create shows the notice and, under it in plain
+  text (not the red error box), `SAFETY_TOPIC_COURSE_LINE`; both go once the topic is changed. No course is
+  made from it, however often it is pressed (TerraTutor #215):
   the topic would be the course's title on every screen, and would go to the model and web search. A false
   hit ("suicide prevention") is asked for in other words. With no grade set a pregnancy message is none of
   these, as in the chat. `safety-written-answers.test.ts` and `views/dashboard-topic.test.ts` pin it.

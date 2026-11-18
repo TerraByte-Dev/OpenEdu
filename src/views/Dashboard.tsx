@@ -235,8 +235,9 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
     // (child-safety.ts isSafetyDisclosure, the chat's check with the same grade) gets the chat's safety
     // notice, and no course is made from it, on this click or the next: the topic would be the course's
     // title and go to the model and web search. A false positive ("suicide prevention") is asked for in
-    // other words (TerraTutor #215).
-    if (isSafetyDisclosure(t, grade)) { setSafetyTopic(t); setError(SAFETY_TOPIC_COURSE_LINE); return; }
+    // other words (TerraTutor #215). The notice and SAFETY_TOPIC_COURSE_LINE under it both go once the topic
+    // is changed; the line is not the screen's error, which a changed topic would leave standing.
+    if (isSafetyDisclosure(t, grade)) { setSafetyTopic(t); return; }
     return runPipelineFor(null);
   };
 
@@ -307,7 +308,12 @@ export default function Dashboard({ onCancel, onCourseCreated, onCreationStart, 
                       {HEALTH_NOTICE}
                     </div>
                   )}
-                  {safetyTopic !== null && safetyTopic === topic.trim() && <SafetyNotice className="mb-4" />}
+                  {safetyTopic !== null && safetyTopic === topic.trim() && (
+                    <div className="mb-4">
+                      <SafetyNotice className="mb-2" />
+                      <p className="text-sm text-[var(--ink-dim)] leading-relaxed">{SAFETY_TOPIC_COURSE_LINE}</p>
+                    </div>
+                  )}
                   {/* Persona picker (Phase 4b) — SAGE default; the ★ suggestion is a non-binding hint. */}
                   <div className="mb-4">
                     <div className="text-sm text-[var(--ink-dim)] mb-2">Pick a tutor (you can change this later)</div>
