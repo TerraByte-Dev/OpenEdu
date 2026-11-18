@@ -1495,3 +1495,35 @@ describe("formsWithin", () => {
     expect(formsWithin(["skeleton"], "skelitin", 2)).toEqual([]);
   });
 });
+
+// TerraTutor #200 (audit 5 #9): "3 feet" on "Convert 3 feet to inches" was the same length as the key, so code marked it
+// right. Only the question's own amount given back is left to the model; real equivalents stay right.
+describe("a conversion answered with the amount it gives", () => {
+  it("is never accepted by code", () => {
+    expect(settle("Convert 3 feet to inches.", "36 inches", "3 feet")).toBeNull();
+    expect(settle("Convert 2 kilograms into grams.", "2000 grams", "2 kilograms")).toBeNull();
+    expect(settle("Change 4 meters to centimeters.", "400 cm", "4 m")).toBeNull();
+    expect(settle("Convert 5 liters to milliliters.", "5000 mL", "5 L")).toBeNull();
+    expect(settle("Convert 72 inches to feet.", "6 feet", "72 inches")).toBeNull();
+    expect(settle("How many dollars is 250 cents?", "$2.50", "250 cents")).toBeNull();
+    expect(settle("Sam has $3. How many cents is that?", "300 cents", "$3")).toBeNull();
+    expect(settle("3 feet = ___ inches", "36 inches", "3 feet")).toBeNull();
+    expect(settle("Convert three feet to inches.", "36 inches", "three feet")).toBeNull();
+  });
+  it("still accepts the converted amount and other real equivalents", () => {
+    expect(settle("Convert 3 feet to inches.", "36 inches", "36 in")).toBe(true);
+    expect(settle("Convert 3 feet to inches.", "36 inches", "1 yard")).toBe(true);
+    expect(settle("How many dollars is 250 cents?", "$2.50", "2.50 dollars")).toBe(true);
+    expect(settle("How long is one hour?", "60 minutes", "1 hour")).toBe(true);
+    expect(settle("A rope is 2 meters long. How long is the rope?", "200 cm", "2 m")).toBe(true);
+    expect(settle("A shelf is 66 inches tall. How tall is it in feet and inches?", "5 feet 6 inches", "5 feet 6 inches")).toBe(true);
+  });
+  it("still marks a gross miss wrong", () => {
+    expect(settle("Convert 3 feet to inches.", "36 inches", "3.6 inches")).toBe(false);
+  });
+  // The question only has to name the key's unit and the answer's amount, so a real equivalent that is
+  // also another given amount goes to the model too. Precision first: a model call, never a wrong mark.
+  it("leaves a real equivalent that the question also gives to the model", () => {
+    expect(settle("Ben has 200 cm of ribbon. Ann has 2 m of ribbon. How much ribbon does Ann have?", "2 m", "200 cm")).toBeNull();
+  });
+});

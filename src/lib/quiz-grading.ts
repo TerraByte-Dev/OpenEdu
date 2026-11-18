@@ -53,6 +53,30 @@ export function resolveLetterKey<Q extends QuestionLike>(q: Q): Q {
   return hit === undefined ? q : { ...q, correct_answer: hit };
 }
 
+/**
+ * A multiple-choice key set to the option it names, as that option is written. Grading compares the
+ * picked option string with the key, so a key in other letter case or without the option's label
+ * ("mitochondria" for "b) Mitochondria") marked every option wrong. A letter key is resolved first
+ * (resolveLetterKey). The match ignores the label, then exact text wins, then letter case; a match two
+ * options share leaves the key as it is, for validateQuizBatch to reject. The key is also tried as
+ * written, since its own text can start like a label: "C. S. Lewis" is the option "C) C. S. Lewis".
+ */
+export function alignKeyToOption<Q extends QuestionLike>(raw: Q): Q {
+  const q = resolveLetterKey(raw);
+  if (q.question_type !== "multiple_choice" || !Array.isArray(q.options) || q.options.length === 0) return q;
+  const key = String(q.correct_answer ?? "");
+  const opts = q.options.map((o) => String(o));
+  if (opts.includes(key)) return q;
+  const bare = (s: string) => s.replace(OPTION_LABEL_RE, "").trim();
+  for (const fold of [(s: string) => s, (s: string) => s.toLowerCase()]) {
+    const k = fold(key.trim()), kb = fold(bare(key));
+    const hits = opts.filter((o) => fold(bare(o)) === k || fold(bare(o)) === kb || fold(o.trim()) === k);
+    if (hits.length === 1) return { ...q, correct_answer: hits[0] };
+    if (hits.length > 1) return q;
+  }
+  return q;
+}
+
 // ─── Number / text extraction ─────────────────────────────────────────────────
 
 // Strip a leading multiple-choice option label like "A) " / "b. " so we compare the bare value.

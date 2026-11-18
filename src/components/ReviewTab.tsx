@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Flashcard, Syllabus, Subtopic } from "../types";
 import { getDueFlashcards, getFlashcards, updateFlashcardAfterReview, createFlashcard, deleteFlashcard } from "../lib/db";
-import { review, type FlashcardGrade } from "../lib/srs";
+import { review, requeueIfDue, type FlashcardGrade } from "../lib/srs";
 import { lessonWithHelp } from "../lib/curriculum";
 import { getLessonConfigs } from "../lib/store";
 import RaiseHand from "./RaiseHand";
@@ -68,16 +68,27 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
 
   const grade = async (g: FlashcardGrade) => {
     if (!card) return;
+    const now = new Date();
     const sched = review(
       { ease: card.ease, interval_days: card.interval_days, reps: card.reps, lapses: card.lapses },
       g,
-      new Date(),
+      now,
     );
     await updateFlashcardAfterReview(card.id, sched, g);
+    // "Again" is due at once: it comes back at the end of this session (srs.ts requeueIfDue).
+    let next = requeueIfDue(queue, idx, sched, now);
+    let nextIdx = idx + 1;
+    // The queue is capped at 50; when it runs out, any card still due starts a new round, so "Nothing is
+    // due right now" is shown only when nothing is.
+    if (nextIdx >= next.length) {
+      const due = await getDueFlashcards(courseId, new Date().toISOString(), 50);
+      if (due.length > 0) { next = due; nextIdx = 0; }
+    }
+    setQueue(next);
     setReviewedCount((n) => n + 1);
     setRevealed(false);
     setAskingDelete(false);
-    setIdx((i) => i + 1);
+    setIdx(nextIdx);
   };
 
   const addCard = async () => {
@@ -94,7 +105,10 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     setAskingDelete(false); // before the await: the buttons go, so a second click can't take the next card
     await deleteFlashcard(card.id);
     setRevealed(false);
-    setQueue((q) => q.filter((_, i) => i !== idx));
+    const rest = queue.filter((c, i) => i < idx || c.id !== card.id); // and its "Again" copy further on
+    // As in grade: deleting the last queued card starts a new round when cards past the 50-card cap are due.
+    const due = idx >= rest.length ? await getDueFlashcards(courseId, new Date().toISOString(), 50) : [];
+    if (due.length > 0) { setQueue(due); setIdx(0); } else setQueue(rest);
     setTotal((t) => Math.max(0, t - 1));
   };
 

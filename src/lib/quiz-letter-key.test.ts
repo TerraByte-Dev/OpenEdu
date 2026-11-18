@@ -14,7 +14,7 @@ vi.mock("./llm", () => ({
 }));
 
 import { generateQuizQuestions, validateQuizBatch } from "./quiz";
-import { resolveLetterKey } from "./quiz-grading";
+import { resolveLetterKey, alignKeyToOption } from "./quiz-grading";
 import { callLLMStructured } from "./llm";
 import type { LLMConfig, Syllabus } from "../types";
 
@@ -133,5 +133,113 @@ describe("generateQuizQuestions on a model that answers with the letter", () => 
     const review = qs.filter((q) => q.question_text.startsWith("Stored"));
     expect(review.length).toBeGreaterThan(0);
     keyIsOption(review);
+  });
+});
+
+// TerraTutor #200 (audit 5 #7): a key that differs from its option only in letter case ("mitochondria" for "Mitochondria")
+// passed the case-blind validator, but the shuffle looked for it case-sensitively and kept it as it was,
+// and the quiz compares the picked option string with the key: every option was marked wrong.
+describe("a multiple-choice key in other letter case than its option", () => {
+  const cell = (correct_answer: string, options = ["Nucleus", "Mitochondria", "Ribosome", "Cell wall"]) => ({
+    ...mc(correct_answer, options),
+    question_text: "Which part of the cell makes energy?",
+    explanation: "The mitochondria release energy from food.",
+  });
+
+  it("is set to the option as written, labelled or not", () => {
+    expect(alignKeyToOption(cell("mitochondria")).correct_answer).toBe("Mitochondria");
+    expect(alignKeyToOption(cell("MITOCHONDRIA ")).correct_answer).toBe("Mitochondria");
+    expect(alignKeyToOption(cell("mitochondria", ["a) Nucleus", "b) Mitochondria", "c) Ribosome", "d) Cell wall"])).correct_answer).toBe("b) Mitochondria");
+    expect(alignKeyToOption(cell("B) mitochondria", ["A) Nucleus", "B) Mitochondria", "C) Ribosome", "D) Cell wall"])).correct_answer).toBe("B) Mitochondria");
+  });
+
+  it("takes the exact option first, and leaves a key two options match only by case alone", () => {
+    const letters = (key: string) => alignKeyToOption({ ...mc(key, ["a", "A", "b", "c"]), question_text: "Which is a capital letter?" }).correct_answer;
+    expect(letters("A")).toBe("A");
+    expect(letters("a")).toBe("a");
+    const twins = alignKeyToOption(cell("mitochondria", ["Mitochondria", "MITOCHONDRIA", "Ribosome", "Cell wall"]));
+    expect(twins.correct_answer).toBe("mitochondria");
+    expect(validateQuizBatch([twins], new Set(["s1"]), { tier: "tiny" }).join(" ")).toContain("must exactly match one of the options");
+  });
+
+  it("generateQuizQuestions: the key is the shuffled option the child sees, so the right one can be picked", async () => {
+    let n = 0;
+    vi.mocked(callLLMStructured).mockReset();
+    vi.mocked(callLLMStructured).mockImplementation(async (_msgs, _cfg, opts) => {
+      if (opts.toolName === "emit_verdicts") return { verdicts: [] };
+      n += 1;
+      const stems = ["Which part of the cell makes energy?", "Name the cell's power plant.", "Where does a cell release energy from sugar?", "Which organelle has its own DNA and makes ATP?"];
+      const parsed = { ...cell("mitochondria", n % 2 ? undefined : ["a) Nucleus", "b) Mitochondria", "c) Ribosome", "d) Cell wall"]), question_text: stems[(n - 1) % 4] };
+      const issues = opts.validate ? opts.validate(parsed as never) : [];
+      if (issues.length) throw new Error(`Structured output failed after 3 attempts. Issues: ${issues.join("; ")}`);
+      return parsed;
+    });
+    const qs = await generateQuizQuestions(syllabus, 4, config);
+    expect(qs).toHaveLength(4);
+    for (const q of qs) {
+      expect(q.options).toContain(q.correct_answer);
+      expect(q.correct_answer).toMatch(/^[A-D]\) Mitochondria$/);
+    }
+  });
+
+  it("review pool: a stored question whose key differs only in case comes back answerable", async () => {
+    vi.mocked(callLLMStructured).mockReset();
+    vi.mocked(callLLMStructured).mockImplementation(async (_msgs, _cfg, opts) => {
+      if (opts.toolName === "emit_verdicts") return { verdicts: [] };
+      const parsed = { ...mc("D) hop and top"), question_text: `Fresh rhyme ${Math.random()}` };
+      return parsed;
+    });
+    const stored = [1, 2, 3, 4, 5].map((n) => ({
+      ...cell("mitochondria", ["A) Nucleus", "B) Mitochondria", "C) Ribosome", "D) Cell wall"]), id: `q${n}`, question_text: `Stored cell question ${n}`,
+    })) as unknown as Parameters<typeof generateQuizQuestions>[3];
+    const qs = await generateQuizQuestions(syllabus, 5, config, stored);
+    const review = qs.filter((q) => q.question_text.startsWith("Stored"));
+    expect(review.length).toBeGreaterThan(0);
+    for (const q of review) expect(q.correct_answer).toBe("B) Mitochondria");
+  });
+});
+
+// TerraTutor #200 review: a key whose own text starts like a label ("C. S. Lewis", "A. Lincoln") was read as
+// label + text, so it matched no option and the validator rejected a question master accepted.
+describe("a multiple-choice key whose text starts with an initial", () => {
+  const authors = ["A) J. K. Rowling", "B) Roald Dahl", "C) C. S. Lewis", "D) E. B. White"];
+  const narnia = (correct_answer: string, options = authors) => ({
+    ...mc(correct_answer, options),
+    question_text: "Who wrote The Lion, the Witch and the Wardrobe?",
+    explanation: "C. S. Lewis wrote the Narnia books.",
+  });
+
+  it("is set to the option whose text it is", () => {
+    expect(alignKeyToOption(narnia("C. S. Lewis")).correct_answer).toBe("C) C. S. Lewis");
+    expect(alignKeyToOption(narnia("c. s. lewis")).correct_answer).toBe("C) C. S. Lewis");
+    expect(alignKeyToOption(narnia("C) C. S. Lewis")).correct_answer).toBe("C) C. S. Lewis");
+    const lincoln = alignKeyToOption(narnia("A. Lincoln", ["A) G. Washington", "B) A. Lincoln", "C) T. Jefferson", "D) U. S. Grant"]));
+    expect(lincoln.correct_answer).toBe("B) A. Lincoln");
+    expect(alignKeyToOption(narnia("C. S. Lewis", ["J. K. Rowling", "Roald Dahl", "C. S. Lewis", "E. B. White"])).correct_answer).toBe("C. S. Lewis");
+  });
+
+  it("validateQuizBatch accepts it", () => {
+    expect(validateQuizBatch([narnia("C. S. Lewis")], new Set(["s1"]), { tier: "tiny" })).toEqual([]);
+    expect(validateQuizBatch([narnia("A. Lincoln", ["A) G. Washington", "B) A. Lincoln", "C) T. Jefferson", "D) U. S. Grant"])], new Set(["s1"]), { tier: "tiny" })).toEqual([]);
+  });
+
+  it("generateQuizQuestions: the key is the shuffled option the child sees", async () => {
+    let n = 0;
+    vi.mocked(callLLMStructured).mockReset();
+    vi.mocked(callLLMStructured).mockImplementation(async (_msgs, _cfg, opts) => {
+      if (opts.toolName === "emit_verdicts") return { verdicts: [] };
+      n += 1;
+      const stems = ["Who wrote The Lion, the Witch and the Wardrobe?", "Who wrote The Magician's Nephew?", "Which author created Narnia?"];
+      const parsed = { ...narnia("C. S. Lewis"), question_text: stems[(n - 1) % 3] };
+      const issues = opts.validate ? opts.validate(parsed as never) : [];
+      if (issues.length) throw new Error(`Structured output failed after 3 attempts. Issues: ${issues.join("; ")}`);
+      return parsed;
+    });
+    const qs = await generateQuizQuestions(syllabus, 3, config);
+    expect(qs).toHaveLength(3);
+    for (const q of qs) {
+      expect(q.options).toContain(q.correct_answer);
+      expect(q.correct_answer).toMatch(/^[A-D]\) C\. S\. Lewis$/);
+    }
   });
 });
