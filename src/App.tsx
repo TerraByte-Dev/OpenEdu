@@ -6,7 +6,7 @@ import {
 } from "./lib/db";
 import { autoPickLearner, needsPicker, type LearnerRow } from "./lib/learners";
 import { normalizeGrade } from "./lib/grade";
-import type { DbHealth } from "./lib/db-resilience";
+import { errorText, isMigrationError, type DbHealth } from "./lib/db-resilience";
 import {
   getLLMProvider, getTourSeen, setTourSeen, getDailyGoal, setDailyGoal, getActiveMinutes, setActiveMinutes,
 } from "./lib/store";
@@ -90,8 +90,9 @@ export default function App() {
   // own menu (learners.ts learnerMenuActions). OpenEdu never writes it.
   const [legacyUsageMode, setLegacyUsageMode] = useState<string | null>(null);
   // The learner list could not be read at launch (a damaged file, #171). Without this the app would sit
-  // blank with no picker and no way to the restore steps.
-  const [startupFailed, setStartupFailed] = useState(false);
+  // blank with no picker and no way to the restore steps. `migration` is the error text when the schema
+  // update itself failed (db.ts getDb keeps that failure for the session).
+  const [startupFailed, setStartupFailed] = useState<{ migration: string | null } | null>(null);
 
   const refreshCourses = async () => {
     const learnerId = getActiveLearnerId();
@@ -186,13 +187,13 @@ export default function App() {
   };
 
   const startUp = async () => {
-    setStartupFailed(false);
+    setStartupFailed(null);
     try {
       setLegacyUsageMode(await getLegacyUsageMode());
       await enterOrPick();
     } catch (e) {
       console.error("startup failed", e);
-      setStartupFailed(true);
+      setStartupFailed({ migration: isMigrationError(e) ? errorText(e) : null });
     }
   };
 
@@ -330,7 +331,7 @@ export default function App() {
             onOpenLearner={activeLearner && !isFullscreenView ? () => setLearnerMenuOpen(true) : undefined}
           />
 
-          {startupFailed && <StartupFailed onRetry={() => { void startUp(); }} />}
+          {startupFailed && <StartupFailed migrationError={startupFailed.migration} onRetry={() => { void startUp(); }} />}
 
           {!activeLearner && learners && (
             <LearnerPicker learners={learners} onEnter={(l) => { void enterLearner(l); void reloadLearners(); }} />

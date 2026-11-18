@@ -42,6 +42,17 @@ export function interpretQuickCheck(rows: unknown): DbHealth {
   return { status: "damaged", detail: lines.slice(0, 5).join("\n") };
 }
 
+// sqlx's MigrateError text (sqlx-core 0.8.6 migrate/error.rs), which tauri-plugin-sql 2.3.2 passes
+// through unchanged (its Error::Migration is #[error(transparent)]), e.g. "while executing migration 23:
+// error returned from database: (code: 1) no such table: x" or "migration 22 was previously applied but
+// has been modified".
+const MIGRATION_RE = /\bwhile (?:executing|resolving) migrations?\b|\bmigration \d+ (?:was previously applied|is not present|is older than|is newer than|is partially applied)/i;
+
+/** The database opened but its migrations failed (or did not match this build's). */
+export function isMigrationError(err: unknown): boolean {
+  return MIGRATION_RE.test(errorText(err));
+}
+
 /** A thrown error is damage only when SQLite says so. A busy or locked file is not damage. */
 export function interpretDbError(err: unknown): DbHealth {
   const detail = errorText(err);

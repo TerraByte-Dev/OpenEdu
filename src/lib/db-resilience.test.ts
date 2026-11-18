@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   backupFileName, backupTo, describeBackupError, enableWal, formatApproxSize,
-  interpretDbError, interpretQuickCheck, runQuickCheck, type SqlDb,
+  interpretDbError, interpretQuickCheck, isMigrationError, runQuickCheck, type SqlDb,
 } from "./db-resilience";
 
 // A stand-in for tauri-plugin-sql's Database: records every statement and answers from a script.
@@ -51,6 +51,22 @@ describe("interpretDbError", () => {
   });
   it("a busy file is not damage", () => {
     expect(interpretDbError("error returned from database: (code: 5) database is locked").status).toBe("unknown");
+  });
+});
+
+describe("isMigrationError", () => {
+  it("knows sqlx's migration errors, which tauri-plugin-sql passes through as text", () => {
+    expect(isMigrationError("while executing migration 23: error returned from database: (code: 1) no such table: x")).toBe(true);
+    expect(isMigrationError("while executing migrations: error returned from database: (code: 5) database is locked")).toBe(true);
+    expect(isMigrationError("while resolving migrations: bad")).toBe(true);
+    expect(isMigrationError("migration 22 was previously applied but has been modified")).toBe(true);
+    expect(isMigrationError("migration 22 is partially applied; fix and remove row from `_sqlx_migrations` table")).toBe(true);
+    expect(isMigrationError(new Error("migration 22 is not present in the migration source"))).toBe(true);
+  });
+  it("an open, lock or damage error is not one", () => {
+    expect(isMigrationError("error returned from database: (code: 14) unable to open database file")).toBe(false);
+    expect(isMigrationError("error returned from database: (code: 5) database is locked")).toBe(false);
+    expect(isMigrationError("error returned from database: (code: 11) database disk image is malformed")).toBe(false);
   });
 });
 
