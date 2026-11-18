@@ -77,15 +77,22 @@ export function describeToolActivity(toolName: string): string {
   }
 }
 
-// The finished chip for a tool that has no card of its own.
-export function describeToolDone(toolName: string): string {
+// The finished chip for a tool that has no card of its own. `value` is the tool's result: a progress
+// mark says what it saved, practiced or learned, in the words the "Is that okay?" card used.
+export function describeToolDone(toolName: string, value?: unknown): string {
+  if (toolName === "progress.mark_mastered") {
+    const v = (value && typeof value === "object" ? value : {}) as { status?: unknown; title?: unknown };
+    const title = typeof v.title === "string" && v.title.trim() ? v.title.trim() : "";
+    const topic = title ? `“${title.length > 120 ? `${title.slice(0, 120)}…` : title}”` : "a topic";
+    return `Marked ${topic} as ${v.status === "practiced" ? "practiced" : "learned"}`;
+  }
   const [family, action = ""] = toolName.split(".", 2);
   switch (family) {
     case "notebook":   return action === "ingest" ? "Saved to your notes" : "Looked through your notes";
     case "library":    return "Looked it up in the library";
     case "web":        return "Looked it up on the internet";
     case "flashcard":  return "Checked your flashcards";
-    case "progress":   return action === "mark_mastered" ? "Marked a topic as learned" : "Checked your progress";
+    case "progress":   return "Checked your progress";
     case "knowledge":  return action === "update_map" ? "Updated its notes about how you learn" : "Checked its notes about how you learn";
     case "study_plan": return "Checked your study plan";
     case "quiz":       return "Made a quiz";

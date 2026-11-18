@@ -94,6 +94,9 @@ export const SHOW_ANSWER_MESSAGE = "Show me the full worked answer.";
 // What the assess chip sends. The kernel reads it to know a mastery check is under way
 // (answerCheck.ts), since the chat resets the mode after every send.
 export const ASSESS_MESSAGE = "Check if I've got this.";
+// What the quiz chip sends. A quiz is not a mastery check's assess mode: its answers run as the
+// default mode (chatSkills.ts chatTurnMode).
+export const QUIZ_MESSAGE = "Quiz me on this.";
 
 // A message that asks for something rather than trying the problem: the chips, the deep-link prefill
 // ("Help me with Decimals."), and the ways students say they are stuck. Matched at the start so a chip
@@ -285,7 +288,7 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   if (allMastered || newLevel) push({ label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" });
   push({ label: "Worked example", message: "Show me a worked example." });
   push({ label: "Make me figure it out", message: "Let me work it out.", mode: "socratic" });
-  push({ label: "Quiz me on this", message: "Quiz me on this.", mode: "quiz" });
+  push({ label: "Quiz me on this", message: QUIZ_MESSAGE, mode: "quiz" });
   push({ label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" });
 
   return out;

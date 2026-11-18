@@ -86,9 +86,10 @@ export function asksForMasteryCheck(text: string): boolean {
  * True when this turn gets the answer check: the newest message is the student's answer to the tutor's
  * message just before it, and the conversation is a mastery check: the turn runs in assess mode, or
  * the student opened the check (the assess chip, or the same request typed) within their last
- * ASSESS_LOOKBACK messages. (The chat resets the mode after every send, so the answers to the check's
- * questions arrive in the default mode.) `conversation` is the user and assistant messages, ending
- * with the newest.
+ * ASSESS_LOOKBACK messages. (The chat resets the chip's mode after every send. ChatTab runs the answers
+ * to a check opened by the assess chip in assess again (chatSkills.ts chatTurnMode), but the answers to
+ * a typed request or the quiz chip, and a headless caller's, may arrive in another mode.) `conversation`
+ * is the user and assistant messages, ending with the newest.
  */
 export function isAssessAnswerTurn(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill?: string | null): boolean {
   const n = conversation.length;
