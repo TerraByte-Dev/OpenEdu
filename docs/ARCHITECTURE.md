@@ -620,7 +620,7 @@ markdown files with frontmatter that gate on subject/tier. A per-tool **permissi
 (allow / ask / deny, with Standard · Cautious · Trusting presets) governs what the tutor may do on its
 own. Three rows' tools also run with no tool call: the grounding stage searches the notes and the library
 before every reply (`ground.ts groundingSources`), and the post-turn reflection updates the knowledge
-files after it (`knowledge.ts updateKnowledgeFiles`). Deny on "Search your notebook", "Search the library"
+files after it, never after a safety disclosure (`knowledge.ts updateKnowledgeFiles`). Deny on "Search your notebook", "Search the library"
 or "Update knowledge map" stops that half too (TerraTutor #202, ported). Ask cannot stop to ask before
 every reply, so there it runs like Allow, and Settings › Tutor Permissions › Advanced says so under those
 rows (`permissions/rules.ts AUTOMATIC_USE_NOTES`). Quiz and test results are always written to the study
@@ -655,7 +655,7 @@ Two write actions do not wait for the model to choose a tool, because small mode
 - **A flashcard the student asks for** (`kernel/flashcardRequest.ts`). Code decides the message asks for
   one card (a request verb and a singular "flashcard" in one sentence, with no negation before the verb,
   no question opener such as what/how/"can you show", and no "for each"/"all of"). Unless the permission
-  rules deny `flashcard.create` (then nothing runs), a "Making a flashcard…" chip shows and one
+  rules deny `flashcard.create`, or the message is a safety disclosure (then nothing runs), a "Making a flashcard…" chip shows and one
   structured, validated call writes the two sides from the request and the tutor's last message (no
   repair attempt, 45 s deadline). The card goes through `flashcard.create`'s own dispatch (permission
   rules, the confirm card, the "Card minted" chip), in any mode; the reply call gets a note saying it is
@@ -762,7 +762,14 @@ So the verdict on the child's answer is the app's, not the reply's:
   check-before-praise note, no verdict line ("That's not right yet.") and no check on a card answered
   during it, and a "mastered" mark on it is refused (`MASTERY_REFUSED_DISCLOSURE`). Nor a dictionary note
   or card (ported from TerraTutor #191): "I want to die. what does suicide mean?" was given the entry, its
-  example and "explain it with one everyday example"; the turn takes the safety path only.
+  example and "explain it with one everyday example"; the turn takes the safety path only. Nothing from a
+  disclosure turn is kept either (ported from TerraTutor #220): the app's flashcard stage does not run ("i
+  wanna die. make me a flashcard for 7 x 8" gets no card call, no card and no "it is saved" note), the
+  model's `knowledge.update_map`, `notebook.ingest` and `flashcard.create` are refused like
+  `progress.mark_mastered` (nothing runs or is shown; the model is told `NOT_SAVED_DISCLOSURE`), and the
+  result carries `disclosure`, on which ChatTab skips the post-turn knowledge reflection. Before, the
+  reflection put the learner's words into the course's study log or learning profile, which every later
+  tutor prompt for the course reads. `kernel/disclosureTurn.test.ts` pins it.
 - **A pick on a question card is an answer too.** In the chat only assess mode offers
   `ask_user.question` (`src/skills/assess.md`), so every card a child answers there is in a mastery
   check, and a pick is the child's answer to the card's question. Until 2026-11-14 it reached the model
