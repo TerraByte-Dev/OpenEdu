@@ -393,9 +393,35 @@ describe("multiple-choice options must be distinct", () => {
     expect(ask("Which is greater: 0.5 or 0.50?", ["A) 0.5", "B) 0.50", "C) They are equal", "D) You can't tell"], "C) They are equal")).toEqual([]);
     expect(ask("Which is spelled correctly?", ["A) twenty-one", "B) twenty one", "C) twentyone", "D) twenty-won"], "A) twenty-one")).toEqual([]);
     expect(ask("Which is right?", ["A) a eighth", "B) an eighth", "C) an eight", "D) a eight"], "B) an eighth")).toEqual([]);
+    // A stem about hyphens or articles asks how it is written (review of the #252 port, 2026-11-19).
+    expect(ask("Which number uses a hyphen correctly?", ["A) twenty-one", "B) twenty one", "C) twentyone", "D) twenty-won"], "A) twenty-one")).toEqual([]);
+    expect(ask("Which uses the correct article?", ["A) a half", "B) half", "C) an half", "D) the half"], "A) a half")).toEqual([]);
     // A stem that names only one of them still gets the twins caught.
     expect(duplicateOptionPair(["A) 0.5", "B) 0.50", "C) 0.05", "D) 5"], "Is 0.5 more than 0.05?")).toEqual([0, 1]);
     expect(ask("What fraction of the pie is left?", ["A) one eighth", "B) 0.125", "C) one fourth", "D) one half"], "A) one eighth")).not.toEqual([]);
+  });
+
+  // Letter case (Fable's decision for TerraTutor #252, 2026-11-19): case-only twins stay apart only on a
+  // stem about capitals.
+  it("keeps options that differ only in case apart when the stem is about capitals, and nowhere else", () => {
+    const ask = (question_text: string, options: string[], key: string) =>
+      valid(mc({ question_text, options, correct_answer: key, explanation: `That one is right. Therefore the answer is ${key}` })).filter((i) => /same answer/.test(i));
+    for (const [question_text, options, key] of [
+      ["Which sentence uses a capital letter correctly?", ["A) Hello.", "B) hello.", "C) HELLO.", "D) hEllo."], "A) Hello."],
+      ["Which name is capitalized correctly?", ["A) Odessa", "B) odessa", "C) ODESSA", "D) oDessa"], "A) Odessa"],
+      ["Which word is a proper noun?", ["A) Texas", "B) texas", "C) state", "D) river"], "A) Texas"],
+      ["Which letter is uppercase?", ["A) B", "B) b", "C) d", "D) p"], "A) B"],
+      ["Which word should start with a capital?", ["A) Monday", "B) monday", "C) dog", "D) blue"], "A) Monday"],
+      ["Which shows correct capitalization?", ["A) New York", "B) new york", "C) NEW YORK", "D) New york"], "A) New York"],
+    ] as Array<[string, string[], string]>) {
+      expect(duplicateOptionPair(options, question_text), question_text).toBeNull();
+      expect(ask(question_text, options, key), question_text).toEqual([]);
+    }
+    expect(duplicateOptionPair(["A) The Normal Force.", "B) the normal  force", "C) Gravity", "D) Friction"], "Which force pushes up on a book on a table?")).toEqual([0, 1]);
+    expect(duplicateOptionPair(["A) Paris", "B) paris", "C) Rome", "D) Lyon"], "What is the capital of France?")).toEqual([0, 1]);
+    // "Capitalism" is not about capitals (review of the #252 port, 2026-11-19).
+    expect(duplicateOptionPair(["A) Capitalism", "B) capitalism", "C) Socialism", "D) Feudalism"], "What economic system is capitalism?")).toEqual([0, 1]);
+    expect(duplicateOptionPair(["A) Hello.", "B) Hello", "C) Bye.", "D) Hi."], "Which word needs a capital letter?")).toEqual([0, 1]);
   });
 
   it("keeps a fraction, number word or ordinal question whose options name the key's number another way", () => {
@@ -420,6 +446,15 @@ describe("multiple-choice options must be distinct", () => {
     }
     expect(valid(mc({ question_text: "What is 3 + 4?", options: ["A) 7", "B) seven", "C) 8", "D) 6"], correct_answer: "A) 7", explanation: "3 + 4 = 7. Therefore the answer is 7" })).join(" "))
       .toContain("is the same number as the correct answer");
+    // Review of TerraTutor #252, 2026-11-19: a hyphen, a space or a missing article is the same number on a
+    // math stem; only "a" against "an" (both there) is what an English question asks.
+    for (const [question_text, options, key] of [
+      ["What is 20 + 1?", ["A) twenty-one", "B) twenty one", "C) twelve", "D) nineteen"], "A) twenty-one"],
+      ["How much of the pizza is left?", ["A) a half", "B) half", "C) a third", "D) a quarter"], "A) a half"],
+    ] as Array<[string, string[], string]>) {
+      expect(valid(mc({ question_text, options, correct_answer: key, explanation: `That much. Therefore the answer is ${key}` })).join(" "), question_text)
+        .toContain("is the same number as the correct answer");
+    }
     // Two distractors that equal each other but not the key leave the child's mark right.
     expect(valid(half(["A) 1/3", "B) 2/4", "C) 0.5", "D) 1/4"], "A) 1/3"))).toEqual([]);
   });

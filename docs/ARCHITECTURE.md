@@ -205,15 +205,20 @@ written: they came from a once-a-minute timer whose only reader was the learning
   times, money and fractions, read an equation option by its result and skip a method key ("Subtract 7 from
   both sides"), rejection of explanations that correct themselves and of repeated options (the same
   option once case, a label, quotes, spacing and a closing period are set aside, so "Hello!"/"Hello.", "a
-  apple"/"an apple" and "ice-cream"/"ice cream" stay apart for English questions, or the same number
+  apple"/"an apple" and "ice-cream"/"ice cream" stay apart for English questions, and "Hello."/"hello."
+  when the stem is about capitals, "capital letter", "capitalized", "start with a capital", "uppercase",
+  "proper noun", `ABOUT_CAPITALS`; Fable's decision for TerraTutor #252: "The Normal Force."/"the normal
+  force" from a generation audit is still caught, so a capitals question whose stem doesn't say so is
+  sent back for a rewrite; or the same number
   written the same way, "0.5"/"0.50", "1,000"/"1000", `duplicateOptionPair`) and of an option that is the
   key's number written another way ("0.5", "one half", "2/4" or "50%" beside the key "1/2", "seven" beside
   "7"; `optionEqualToKey`); neither number check applies when the stem asks how a number is written ("as a
   decimal", "simplest form", "nearest hundredth", "with a comma", "denominator", "which word",
-  "ordinal", "spelled"), the first not when the stem names both options ("Which is greater: 0.5 or 0.50?"),
-  and the second not for an option that differs from the key only in "a"/"an", a hyphen or a space ("a
-  eighth"/"an eighth", "twenty one"/"twenty-one"), so a learner who picks the other right option is never marked wrong (ported from TerraTutor
-  #251; two options that state different true facts are left to the content review's "unanswerable"
+  "ordinal", "spelled", "hyphen", "article"), the first not when the stem names both options ("Which is greater: 0.5 or 0.50?"),
+  and the second not for an option that differs from the key only in "a" against "an" ("a
+  eighth"/"an eighth"; "twenty one" beside "twenty-one", or "half" beside "a half", is caught unless the
+  stem asks about spelling, writing, hyphens or articles), so a learner who picks the other right option is never marked wrong (ported from TerraTutor
+  #251 and #252; two options that state different true facts are left to the content review's "unanswerable"
   verdict), near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
   one call on a local model for the rest; see Content review › Grading and the study plan stay local).
@@ -1001,9 +1006,12 @@ So the verdict on the child's answer is the app's, not the reply's:
   answer the question yet. Here it is again:" and the tutor's question with its paragraph, from the lines
   before it up to a blank line or a choice, to the end, so a word problem keeps its setup ("Sam has 5
   apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
-  one:", "Here is your first question.") or praise joined to it by commas ("Correct, great job, now what
-  is 7 x 8?"), choices included (those listed before it are put after it), so the next try is checked
-  against it: the next turn keys this reply). In
+  one:", "Next:", "Here is your first question."), the last answer's feedback after praise ("Correct! The
+  answer is 56."), praise joined to it by commas before a filler or a question word ("Correct, great job,
+  now what is 7 x 8?"; "Yes, no, maybe, which of these is a question word?" is kept whole), or praise
+  joined by commas to a setup with a number in digits or words ("Yes, good job, Sam has five apples."
+  keeps "Sam has five apples."), choices included (those listed before it are put after it), so the next
+  try is checked against it: the next turn keys this reply). ChatTab's post-turn reflection still runs. In
   TerraTutor's click test 2026-11-19 part 3 a model told "not correct" still added "That is close." 2
   times in 5 (ported from TerraTutor #251). A typed answer only: a card's answer that answers nothing
   still gets the model's reply. A
@@ -1177,7 +1185,8 @@ saved; a turn it does not fire on is sent byte for byte as before (`arithmeticFa
   typed runs in explain mode. The student's own messages from that stretch are read the same way, so a
   word problem the student typed a message or more before the question ("Sam has 7 bags with 8 marbles
   in each. How many marbles?", the tutor's reply, then "what is 7 times 8?") is held as the student's
-  exercise (B4 G1). Asking one piece of the tutor's question is the student's own work and is answered
+  exercise (B4 G1). A student message that itself plainly asks a fact does not count, so the same fact
+  asked again after the tutor put it off is answered. Asking one piece of the tutor's question is the student's own work and is answered
   ("What is 7 × 8?" then "what is 7 times 4?"); so is a question asked more than five tutor messages
   back (after five hints). Not on a
   safety-disclosure turn, beside the first-turn hold, check-before-praise or a flashcard the app makes on
