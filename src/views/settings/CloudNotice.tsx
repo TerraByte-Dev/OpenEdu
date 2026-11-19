@@ -1,9 +1,12 @@
-import { cloudNotice, type CloudFeature } from "../../lib/privacy";
+import { cloudNotice, type CloudFeature, type CloudUse } from "../../lib/privacy";
 
 // The one-time confirm before a feature that sends the learner's chats to a company is turned on. Inline in
 // the section, not a pop-up: it reads as information, and Settings stays usable around it.
-export function CloudNoticePanel({ feature, onConfirm, onCancel }: { feature: CloudFeature; onConfirm: () => void; onCancel: () => void }) {
-  const n = cloudNotice(feature);
+// `use` "checking" is the Checking model's confirm: it says the chat and courses stay where they were.
+export function CloudNoticePanel({ feature, use, onConfirm, onCancel }: {
+  feature: CloudFeature; use?: CloudUse; onConfirm: () => void; onCancel: () => void;
+}) {
+  const n = cloudNotice(feature, use);
   const id = `cloud-notice-${feature}`;
   return (
     <div role="group" aria-labelledby={id} className="mt-4 max-w-prose rounded-[var(--radius-control)] border border-[var(--rule-strong)] bg-[var(--panel-tint)] p-4">

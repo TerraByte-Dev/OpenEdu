@@ -70,7 +70,8 @@ wrapper are **not type-linked**; keep them in sync by hand.
   `src/components/chat-notice-read.test.ts`, which sends a safety disclosure in the real chat when the turn fails,
   `src/components/review-grade-once.test.ts`, which double-clicks the real Review grade buttons,
   `src/views/settings/provider-models-recheck.test.ts`, which saves models and the Ollama URL in the real
-  Settings › Provider & Models and checks the setup check runs again, and
+  Settings › Provider & Models and checks the setup check runs again,
+  `src/views/settings/review-picker-notice.test.ts`, which picks a cloud model in the real Checking model picker, and
   `src/views/quiz-exit-confirm.test.ts`, which answers and leaves the real practice quiz.
 - Rust logic gets `#[cfg(test)]` tests in the same file. Test against temp dirs, never the user's disk.
 - **A test must go through the same code path production does.** A test of a helper the app doesn't

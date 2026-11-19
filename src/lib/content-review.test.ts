@@ -369,6 +369,13 @@ describe("resolveReviewConfig", () => {
       expect(resolveReviewConfig("anthropic:claude-haiku-5-5", gen, "tiny", ["anthropic"], "lesson", {})).toBeNull();
       expect(resolveReviewConfig("openai:gpt-6-luna", gen, "tiny", ["openai"], "lesson", creds)).toBeNull(); // no OpenAI key
     });
+    it("a cloud checker runs once only the Checking model's own confirm was accepted", () => {
+      expect(resolveReviewConfig("anthropic:claude-haiku-5-5", gen, "tiny", ["checking:anthropic"], "lesson", creds))
+        .toEqual({ provider: "anthropic", model: "claude-haiku-5-5", apiKey: "test-key" });
+      expect(resolveReviewConfig("anthropic:claude-haiku-5-5", gen, "tiny", ["checking:openai"], "lesson", creds)).toBeNull();
+      expect(resolveReviewConfig("gpt-oss:120b-cloud", gen, "small", ["checking:ollama-cloud"], "questions")?.model).toBe("gpt-oss:120b-cloud");
+      expect(resolveReviewConfig("ollama:gpt-oss:120b-cloud", gen, "small", ["checking:ollama-cloud"], "questions")?.model).toBe("gpt-oss:120b-cloud");
+    });
     it("a cloud writer with a local checker; an Ollama cloud model still needs its own notice", () => {
       const cloud = { provider: "anthropic", model: "claude-haiku-5-5", apiKey: "k" } as LLMConfig;
       expect(resolveReviewConfig("ollama:qwen3.5:9b", cloud, "large", [], "lesson", creds)).toEqual({ provider: "ollama", model: "qwen3.5:9b", ollamaUrl: "http://127.0.0.1:11434" });
@@ -415,6 +422,13 @@ describe("reviewChoiceNotice: the confirm a Checking model choice needs before i
     for (const v of ["", "off", "ollama:gemma4:e4b", "gemma4:e2b"]) expect(reviewChoiceNotice(v, []), v).toBeNull();
     expect(reviewChoiceNotice("anthropic:claude-sonnet-5-5", ["anthropic"])).toBeNull();
     expect(reviewChoiceNotice("ollama:gpt-oss:120b-cloud", ["ollama-cloud"])).toBeNull();
+  });
+
+  // Port of TerraTutor #243: the Checking model's own confirm leaves "checking:<feature>".
+  it("needs none once the Checking model's own confirm was accepted for that company", () => {
+    expect(reviewChoiceNotice("anthropic:claude-sonnet-5-5", ["checking:anthropic"])).toBeNull();
+    expect(reviewChoiceNotice("openai:gpt-6.1-sol", ["checking:anthropic"])).toBe("openai");
+    expect(reviewChoiceNotice("ollama:gpt-oss:120b-cloud", ["checking:ollama-cloud"])).toBeNull();
   });
 });
 

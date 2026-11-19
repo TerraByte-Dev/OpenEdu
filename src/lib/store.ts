@@ -11,7 +11,7 @@ import { resolveReviewConfig, type ProviderCredentials, type ReviewKind } from "
 import { DEFAULT_CONTEXT_TOKENS, MIN_CONTEXT_TOKENS, MAX_CONTEXT_TOKENS } from "./kernel/budget";
 import type { RetrievalMode } from "./kernel/ground";
 import { normalizeGoal, type ActiveMinutes } from "./daily-goal";
-import { isLocalModel, parseNoticesSeen, withNoticeSeen, type CloudFeature } from "./privacy";
+import { isLocalModel, parseNoticesSeen, withNoticeSeen, type NoticeMark } from "./privacy";
 import type { LessonsNoteInput } from "./ai-notice";
 
 let store: Store | null = null;
@@ -212,13 +212,14 @@ export async function setEmbeddingModel(model: string): Promise<void> {
 }
 
 // ── Privacy confirms (privacy.ts, #293) ──
-// The cloud choices whose one-time "this sends the learner's chats to <company>" confirm was accepted here.
+// The cloud choices whose one-time "this sends the learner's chats to <company>" confirm was accepted here,
+// and ("checking:<feature>") the Checking model's own confirm, which does not cover the chat.
 export async function getCloudNoticesSeen(): Promise<string[]> {
   const s = await getStore();
   return parseNoticesSeen(await s.get<unknown>(STORE_KEYS.cloudNoticesSeen));
 }
 
-export async function markCloudNoticeSeen(feature: CloudFeature): Promise<void> {
+export async function markCloudNoticeSeen(feature: NoticeMark): Promise<void> {
   const s = await getStore();
   await s.set(STORE_KEYS.cloudNoticesSeen, withNoticeSeen(parseNoticesSeen(await s.get<unknown>(STORE_KEYS.cloudNoticesSeen)), feature));
   await s.save();

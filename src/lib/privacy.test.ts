@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   cloudNotice, isOllamaCloudModel, needsCloudNotice, modelNeedsCloudNotice, withNoticeSeen, parseNoticesSeen,
+  needsCheckingNotice, checkingNoticeMark,
 } from "./privacy";
 import { ALLOWED_IMPORT_KEYS, STORE_KEYS } from "./store-keys";
 
@@ -80,5 +81,50 @@ describe("the one-time confirm", () => {
 
   it("can't be marked as read by importing someone else's settings file", () => {
     expect(ALLOWED_IMPORT_KEYS.has(STORE_KEYS.cloudNoticesSeen)).toBe(false);
+  });
+});
+
+// Port of TerraTutor #243 (its click test #186): picking a cloud Checking model showed the provider's
+// confirm, "Before you switch to Anthropic", which says the learner's chats are sent. Only the checking
+// goes there; the provider, and so the chat and the course model, stays as it was.
+describe("the Checking model's confirm", () => {
+  it("says what a cloud Checking model is sent, and that the chat and courses stay where they were", () => {
+    for (const [f, to] of [["openai", "OpenAI"], ["anthropic", "Anthropic"], ["ollama-cloud", "Ollama's servers"]] as const) {
+      const n = cloudNotice(f, "checking");
+      expect(n.title, f).toContain("check with");
+      expect(n.title, f).not.toContain("switch to");
+      expect(n.body, f).toContain("the course topic as the learner typed it and the text the course model wrote");
+      expect(n.body, f).toContain("each new lesson, its Raise hand help and each set of quiz or test questions");
+      expect(n.body, f).toContain("Courses and the tutor chat still use the models you picked above.");
+      expect(n.body, f).toContain(`What the learner types, quiz answers and notes are never sent to ${to} for this.`);
+      expect(n.body, f).toContain("not ours");
+      expect(n.body, f).toContain("rules about use by children");
+      expect(n.cancel, f).toBe("Not now");
+    }
+    expect(cloudNotice("anthropic", "checking").body).toContain("under your key");
+    expect(cloudNotice("anthropic", "checking").confirm).toBe("Check with Anthropic");
+    expect(cloudNotice("ollama-cloud", "checking").body).not.toContain("under your key");
+    expect(cloudNotice("ollama-cloud", "checking").confirm).toBe("Use this cloud model");
+    // The chat confirm keeps its own words.
+    expect(cloudNotice("anthropic", "chat")).toEqual(cloudNotice("anthropic"));
+    expect(cloudNotice("anthropic").title).toBe("Before you switch to Anthropic");
+  });
+
+  it("leaves its own mark, which never stands in for the chat confirm", () => {
+    expect(checkingNoticeMark("anthropic")).toBe("checking:anthropic");
+    const seen = withNoticeSeen([], checkingNoticeMark("anthropic"));
+    expect(needsCheckingNotice("anthropic", seen)).toBe(false);
+    // Picking Anthropic as the provider later still asks: that confirm says the chats are sent.
+    expect(needsCloudNotice("anthropic", seen)).toBe(true);
+    expect(needsCheckingNotice("openai", seen)).toBe(true);
+    const ollama = withNoticeSeen([], checkingNoticeMark("ollama-cloud"));
+    expect(needsCheckingNotice("ollama-cloud", ollama)).toBe(false);
+    expect(modelNeedsCloudNotice("ollama", "gpt-oss:120b-cloud", ollama)).toBe(true);
+  });
+
+  it("is not needed once the chat confirm, which covers more, was accepted", () => {
+    expect(needsCheckingNotice("anthropic", ["anthropic"])).toBe(false);
+    expect(needsCheckingNotice("ollama-cloud", ["ollama-cloud"])).toBe(false);
+    expect(needsCheckingNotice("anthropic", [])).toBe(true);
   });
 });

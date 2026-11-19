@@ -345,13 +345,18 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   or hand-edited; an Ollama tag such as `gemma4:e2b` is not a prefix) belongs to the provider
   `legacyModelOwner` gives it and is used only when that is the course model's provider; an Ollama tag
   named for a cloud provider (`anthropic:gemma4:e2b`) is ignored. A cloud reviewer is ignored, and the default applies, when
-  its privacy confirm was never accepted here (`needsCloudNotice` for OpenAI/Anthropic,
-  `modelNeedsCloudNotice` for an Ollama cloud model) or no key is saved for it.
+  its privacy confirm was never accepted here (`needsCheckingNotice`: that company's chat confirm, or the
+  Checking model's own, for OpenAI, Anthropic or an Ollama cloud model) or no key is saved for it.
 - **The Checking model setting** (Settings › Models, `ReviewModelPicker.tsx`) writes `review_model`:
   Same as the course model (unset), Off, an installed Ollama model, or a generation-catalog model of each
   cloud provider with a key saved here, all stored as `"<provider>:<model>"` (`reviewModelChoices`). A
   cloud choice is saved only after that company's one-time notice (`reviewChoiceNotice`, the same
-  `CloudNoticePanel` as the provider buttons; `privacy-screens.test.ts` holds the gate). `review_model`
+  `CloudNoticePanel` as the provider buttons with its own words, `use="checking"` /
+  `cloudNotice(feature, "checking")`: only the course topic and the course model's text are sent, and the
+  chat and courses stay on the models picked above; `privacy-screens.test.ts` holds the gate). Accepting
+  it stores `checking:<feature>` in `cloud_notices_seen`, not the company's own mark, so picking that
+  company as the provider later still shows the chat confirm; an accepted chat confirm covers the Checking
+  model too. `review_model`
   is importable like the other model settings; an imported cloud value does nothing until this PC's own
   notice was accepted (`cloud_notices_seen` is not importable) and a key is saved.
 - **Measured on `gemma4:e2b` as its own reviewer** (B9 rerun 2's saved output replayed, 2026-11-14, one
