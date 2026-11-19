@@ -174,6 +174,30 @@ export const MAKING = {
   waitNote: "You can stop and come back later. Nothing counts until the questions appear.",
 } as const;
 
+/**
+ * The ready screen's "What to expect" lines on the test's parts and its pass rule. A test with no review
+ * section (Level 1: no earlier levels, quiz.ts levelTestReviewLevels) is all this level's material and has
+ * only the overall bar, so it never mentions a review section or the review bar.
+ */
+export function levelTestExpectLines(hasReview: boolean): string[] {
+  return hasReview
+    ? ["~75% current level material + ~25% previous level review", `${PASS_OVERALL}% overall and ${PASS_REVIEW}% on review questions required to pass`]
+    : ["All questions are on this level's material. There are no earlier levels to review yet.", `${PASS_OVERALL}% overall required to pass`];
+}
+
+/** The failed test's result line: the bars of the test that was taken (a test with no review section has
+ *  only the overall bar) and the wait. */
+export function levelTestFailLine(hasReview: boolean): string {
+  const bars = hasReview ? `${PASS_OVERALL}% overall and ${PASS_REVIEW}% on the review section` : `${PASS_OVERALL}% overall`;
+  return `You need ${bars}. A 24-hour cooldown is now active.`;
+}
+
+/** The banner on a level test that was made with fewer questions than it aims for (`target`, quiz.ts
+ *  levelTestTarget: 45, or 35 with no review section), or null when it has them all. */
+export function fewerQuestionsLine(made: number, target: number): string | null {
+  return made < target ? `Generated ${made} of ${target} questions — your model produced fewer than usual this run.` : null;
+}
+
 /** Under Begin Test: how long making the test can take. On Ollama each question is one model call
  * (quiz.ts generatePerQuestion), so on a computer with no graphics card it is slow. No timing has been
  * measured on one, so the line gives none. */

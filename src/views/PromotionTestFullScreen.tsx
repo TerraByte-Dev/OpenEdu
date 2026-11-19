@@ -4,11 +4,11 @@ import {
   createPromotionAttempt, saveQuizQuestion, getLastPromotionAttempt, getHandedInLevelTest,
   updateCourseLevel, updateCourseStatus, updateQuizQuestionGrade, getQuizAttempt, type LevelTestRow,
 } from "../lib/db";
-import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestShortfall, TEST_TOTAL_TARGET } from "../lib/quiz";
+import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, levelTestReviewLevels, levelTestShortfall, levelTestTarget } from "../lib/quiz";
 import { answerMark, answerShown, keyShown, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import {
   testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft, levelTestFailed,
-  STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING,
+  STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING, levelTestExpectLines, levelTestFailLine, fewerQuestionsLine, PASS_REVIEW,
 } from "../lib/level-test";
 import {
   saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, finishHandedInLevelTest, handInLevelTest,
@@ -101,6 +101,10 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   const xs = large ? "text-lg" : "text-xs";
   const { courseId, course, syllabus: currentSyllabus, allSyllabuses } = context;
   const currentLevel = course.current_level;
+  // Level 1 has no earlier levels, so no review section: 35 questions, and only the overall bar.
+  const previousSyllabuses = allSyllabuses.filter((s) => s.level < currentLevel);
+  const hasReview = levelTestReviewLevels(previousSyllabuses).length > 0;
+  const target = levelTestTarget(hasReview);
 
   const [testState, setTestState] = useState<TestState>("checking");
   const [cooldownStr, setCooldownStr] = useState("");
@@ -203,7 +207,6 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
     try {
       const cfg = await getGenerationConfig();
       setConfig(cfg);
-      const previousSyllabuses = allSyllabuses.filter((s) => s.level < currentLevel);
 
       const generated = await generatePromotionTestQuestions(
         currentSyllabus, previousSyllabuses, cfg,
@@ -553,6 +556,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   const answeredCurrent = question?.user_answer !== null;
   const allAnswered = questions.every((q) => q.user_answer !== null);
   const isLastQuestion = currentIndex === questions.length - 1;
+  const fewerLine = fewerQuestionsLine(questions.length, target);
 
   // ── Checking ──
   if (testState === "checking") {
@@ -609,7 +613,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
 
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="p-4 rounded-xl bg-panel border border-[var(--rule)]">
-                <div className="text-2xl font-bold text-ink">~45</div>
+                <div className="text-2xl font-bold text-ink">~{target}</div>
                 <div className="text-xs text-[var(--ink-faint)] mt-0.5">Questions</div>
               </div>
               <div className="p-4 rounded-xl bg-panel border border-[var(--rule)]">
@@ -624,8 +628,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
 
             <div className="p-4 rounded-xl bg-panel border border-[var(--rule)] text-left mb-6 text-sm space-y-2">
               <p className="text-[var(--ink-dim)] font-medium">What to expect:</p>
-              <p className="text-[var(--ink-faint)]">• ~75% current level material + ~25% previous level review</p>
-              <p className="text-[var(--ink-faint)]">• 85% overall and 60% on review questions required to pass</p>
+              {levelTestExpectLines(hasReview).map((line) => <p key={line} className="text-[var(--ink-faint)]">• {line}</p>)}
               <p className="text-[var(--ink-faint)]">• Fail = 24-hour cooldown + personalized study plan</p>
               <p className="text-[var(--ink-faint)]">• A written answer no model on this computer can check counts only after you mark it against the answer key</p>
               <p className="text-[var(--ink-faint)]">• {MAKING.canStop}</p>
@@ -643,7 +646,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
             >
               Begin Test
             </button>
-            <p className="text-sm text-[var(--ink-faint)] mt-3">{testMakingNote(TEST_TOTAL_TARGET)}</p>
+            <p className="text-sm text-[var(--ink-faint)] mt-3">{testMakingNote(target)}</p>
           </div>
         </div>
       </div>
@@ -666,7 +669,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           <p className="text-sm text-[var(--ink-faint)] mb-6">{phaseLabel}</p>
           {/* Progress steps */}
           <div className="flex items-center justify-center gap-3 mb-4">
-            {[1, 2].map((step) => (
+            {(hasReview ? [1, 2] : [1]).map((step) => (
               <div key={step} className="flex items-center gap-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                   phaseStep > step ? "bg-[rgb(var(--phosphor-rgb)/0.14)] text-phosphor-bright" : phaseStep === step ? "bg-[rgb(var(--phosphor-rgb)/0.08)] border border-phosphor text-phosphor-bright animate-pulse" : "bg-panel-lite text-[var(--ink-faint)]"
@@ -674,7 +677,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
                   {phaseStep > step ? "✓" : step}
                 </div>
                 <span className="text-xs text-[var(--ink-faint)]">{step === 1 ? "Current level" : "Review"}</span>
-                {step < 2 && <div className="w-8 h-px bg-lcd mx-1" />}
+                {hasReview && step < 2 && <div className="w-8 h-px bg-lcd mx-1" />}
               </div>
             ))}
           </div>
@@ -683,7 +686,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
               {genProgress.done} / {genProgress.total} {genPhase === "review" ? "review " : ""}questions
             </p>
           )}
-          <p className="text-sm text-[var(--ink-faint)]">~{TEST_TOTAL_TARGET} questions. {MAKING.waitNote}</p>
+          <p className="text-sm text-[var(--ink-faint)]">~{target} questions. {MAKING.waitNote}</p>
           {genError && (
             <div className="mt-4 p-3 rounded-lg bg-danger-tint border border-danger/30 text-sm text-danger">{genError}</div>
           )}
@@ -757,9 +760,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           </div>
         )}
 
-        {questions.length < TEST_TOTAL_TARGET && (
+        {fewerLine && (
           <div className="px-6 py-1.5 text-[11px] border-b shrink-0 text-warning bg-warning-tint border-warning/20">
-            {`Generated ${questions.length} of ${TEST_TOTAL_TARGET} questions — your model produced fewer than usual this run.`}
+            {fewerLine}
           </div>
         )}
 
@@ -881,8 +884,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
               <p className="text-warning text-sm mt-2">{uncheckedLine}</p>
             )}
             {reviewScore !== null && (
-              <div className={`mt-2 text-sm ${reviewScore >= 60 ? "text-success" : "text-danger"}`}>
-                Review section: {Math.round(reviewScore)}% {reviewScore >= 60 ? "✓" : "✗ (need 60%)"}
+              <div className={`mt-2 text-sm ${reviewScore >= PASS_REVIEW ? "text-success" : "text-danger"}`}>
+                Review section: {Math.round(reviewScore)}% {reviewScore >= PASS_REVIEW ? "✓" : `✗ (need ${PASS_REVIEW}%)`}
               </div>
             )}
           </div>
@@ -899,7 +902,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           ) : (
             <div className="mb-6">
               <p className="text-[var(--ink-faint)] text-sm mb-4">
-                You need 85% overall and 60% on the review section. A 24-hour cooldown is now active.
+                {levelTestFailLine(reviewScore !== null)}
               </p>
               <div className="p-4 rounded-xl bg-panel border border-[var(--rule)]">
                 <h3 className="text-sm font-semibold text-ink mb-2 flex items-center gap-2">

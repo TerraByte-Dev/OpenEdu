@@ -440,10 +440,15 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   `TEST_REVIEW_FLOOR` (3) questions is refused the same way: with 1 or 2, one miss there is 0% or 50%,
   under the 60% review bar, and fails a test that is otherwise 97% right; from 3, one miss leaves 67%.
   The pass rule itself is unchanged, so stored tests replay as they were decided. A test between the
-  floor and 45 questions is given with a note.
+  floor and its target is given with a note (`level-test.ts fewerQuestionsLine`). The target is 45, or 35
+  for a test with no review section (Level 1: `quiz.ts levelTestReviewLevels` finds no earlier levels,
+  `levelTestTarget`), and the ready, making and result screens say so: such a test's "What to expect"
+  (`levelTestExpectLines`) and its failed result (`levelTestFailLine`) name no review section and no
+  review bar, and its making screen has no Review step.
 - **A learner can always leave a quiz or a level test.** On Ollama the questions are written one model
-  call each (20 for a quiz, 45 for a test, plus top-ups), which on a computer with no graphics card is
-  slow. Both "making" screens have "Stop and go back": it aborts the `AbortSignal` the screen passes to
+  call each (20 for a quiz, 45 for a test or 35 for one with no review section, plus top-ups), which
+  on a computer with no graphics card is slow. Both "making" screens have "Stop and go back": it
+  aborts the `AbortSignal` the screen passes to
   `generateQuizQuestions` / `generatePromotionTestQuestions`, which reaches every `callLLMStructured`
   (the model load too), the verify pass and the content review; `quiz.ts` `stopIfAborted` then rejects
   instead of returning a short set, so no attempt is created and nothing is taken or counted
