@@ -667,7 +667,8 @@ export interface GradeItem {
 // says which marks came from the answer key and which from the model. 'key': compared with
 // the answer key as the learner answered (multiple choice, true/false, matching). 'exact': code's
 // verdict on a written answer (answer-match.ts settleByCode): a string or number match, or, on a number
-// and unit, a different amount (wrong). 'model': the grader model's verdict. 'fallback': the
+// and unit, a different amount (wrong), or an answer that answers nothing ("xyz", non-answer.ts; wrong).
+// 'model': the grader model's verdict. 'fallback': the
 // grader failed or skipped the item and the answer was passed leniently. 'unanswered': a timed-out
 // level test's unanswered question, scored wrong. 'self': a level test's written answer no model
 // checked, which the learner then marked against the answer key (level-test.ts).

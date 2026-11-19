@@ -400,8 +400,34 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   it is stored (`quiz.ts feedbackForLearner`, TerraTutor click test 2026-11-19: a typed "xyz" got "The
   student did not provide an answer."): a wrong answer whose feedback says nothing was answered gets
   "That doesn't answer the question yet." (`NO_ANSWER_FEEDBACK`), and any other feedback about "the
-  student" gets "Correct." or `CODE_MISMATCH_FEEDBACK` for its mark. The mark itself is never changed, and
-  the prompt is unchanged.
+  student" gets "Correct." or `CODE_MISMATCH_FEEDBACK` for its mark. The prompt is unchanged. The mark
+  changes in one case, a backstop behind the gate below (ported from TerraTutor #245): a right mark whose
+  own feedback plainly says no answer was given ("The student did not provide an answer.", "No answer was
+  given.", "That is not an answer."; `SAYS_NOTHING_ANSWERED`) is marked wrong with `NO_ANSWER_FEEDBACK`.
+  Words that can be about the topic ("Yes, Jabberwocky is a nonsense poem.", "random letters and
+  numbers", "no response to touch", "unrelated to the question") only have the feedback rewritten, and a
+  line that also says but, though, right, correct or yes ("did not write the unit, but 12 is right")
+  keeps its mark.
+- **An answer that answers nothing is marked by code** (`non-answer.ts isNonAnswer`, ported from
+  TerraTutor #245; its click test 2026-11-19 part 2: in one fractions quiz `gemma4:e2b` marked 4 of 5
+  typed "xyz" answers right, and a re-grade of the same rows marked them wrong 3 of 3 times). Before any
+  model call, an answer code could not settle that is empty, has no letter or digit (unless the key has
+  none, ">", or the key or question names a sign the learner typed: ">" for "greater than", "?" for "a
+  question mark", "%" for "percent sign", `SIGN_NAMES`), or is one to four lower-case keyboard-mash tokens
+  ("xyz", "asdfgh", "sdf jkl": an alphabet run, unless the key is one letter or the question is about
+  letters; one letter over and over, "jjjj", or a mash with a stretched letter; five letters or more on
+  one keyboard row with no a/e/i/o/u, "qwrtp"; or three keys side by side on the middle or bottom row,
+  four on the top) that neither the dictionary nor the word list knows and that are nowhere near a word
+  of the key or question nor the key's initials ("jfk", "nyc"), is stored wrong as `'exact'` with
+  `NO_ANSWER_FEEDBACK`, with or without a local model, so the quiz score, the level test's result and
+  mastery progress count it wrong; "I think I was right" still applies to it. A digit, a capital, one
+  or two letters, a listed word ("qwerty", "hmm") or a sounded-out misspelling ("nepchune", "omnivour") is
+  never one, and no vowel or a run of consonants is never enough on its own: a K-2 spelling of a right
+  answer other than the key ("shrk", "trtl", "wtr", "dsk", "tre"), an abbreviation ("fdr", "jfk", "hcl",
+  "dhs", "cnn"), a sound word ("grrr", "shhh"), a name ("pittsburgh") or a German word ("tschuss") goes to
+  the model, or offline passes unchecked as before.
+  `non-answer.test.ts` runs every typed answer in the grading dev sets through it (none is one) and lists
+  those shapes, which the dev sets lack. The chat's answer check uses the same gate (below).
 - **A safety disclosure typed outside the chat is not marked** (ported from TerraTutor #175). The chat's
   own check (`child-safety.ts isSafetyDisclosure` with the learner's grade, nothing wider) reads what the
   learner types into a quiz or level-test written answer, the study quiz's "In your own words, why is that
@@ -944,7 +970,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   with one right answer ("which topic next?") gets no check, and the turn is as before.
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
-  of the student's own, the same lettered option or yes/no: **correct**, with no further call. A
+  of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
+  answer that answers nothing ("xyz", "?!", `non-answer.ts`, as for quiz answers): **incorrect**, with no
+  further call. A
   plain-number key that none of the student's own numbers equals (numbers the question holds don't
   count): **mismatch**. Fractions, percents, times, money, "half", ranges, place value ("5 tens"),
   another unit, a rounding, a "not", algebra ("2x"), a key that is a comparison ("more than 5"), the
@@ -983,12 +1011,14 @@ So the verdict on the child's answer is the app's, not the reply's:
   the answer ("You got some of the notes correct") is praise for a part. Doubt includes "Those notes are
   not correct.", "That is not the verb in that sentence." and "The word for 'cat' in Spanish is
   different." A reply left empty, or holding only a drawing (`math.render` / `diagram.render`, below),
-  says the verdict (`VERDICT_FALLBACK`, after the drawing): a worked answer is not a verdict. An `ask_user.question` card is the tutor speaking too: its question and choice
+  says the verdict (`VERDICT_FALLBACK`, after the drawing): a worked answer is not a verdict. So does a
+  reply that only announces a lookup ("I can look that up for you.", `kernel/lookupAnnouncement.ts`). An `ask_user.question` card is the tutor speaking too: its question and choice
   labels go through the same filter (a label gets no verdict line, and a bare "Yes!" stays); a card
   left with no question or under two choices is not shown, and the model is told (`CARD_REFUSED`).
 - **Mastery claims, in a mastery check.** "You have mastered…", "I will mark that as mastered" and the
   like are taken out unless a `progress.mark_mastered` call saved a `mastered` mark earlier in the same
-  turn. Rules about mastery ("A skill is marked as mastered after the quiz") are not claims. Outside a
+  turn. "Learned", the app's own word for it, counts the same ("I can mark that as learned for you!",
+  "You have successfully learned those concepts"; not "You have learned that 3 is the numerator"). Rules about mastery ("A skill is marked as mastered after the quiz") are not claims. Outside a
   check they stay: the system prompt asks the tutor to say which subtopics the record shows mastered
   (`curriculum.ts`), and a rule on every turn removed true sentences. On a checked answer whose
   verdict is not `correct`, a `mastered` mark is refused by code (`MASTERY_REFUSED`); `practiced`
@@ -1038,6 +1068,11 @@ the turn's tool events, which are cleared at the next send and never saved, and 
 answer was the card saved no reply. The math skill asks the tutor to refer to it as "this formula".
 Any other tool leaves only a chip, which is not saved and answers nothing: when such a tool round ran with nothing shown yet this turn, an empty model
 call after it is made once more with the same request, and a second empty one gets `MIXED_UP_REPLY`.
+A turn that has shown only an announcement of the lookup ("I can look that up for you.",
+`kernel/lookupAnnouncement.ts`, ported from TerraTutor #245; its click test 2026-11-19: "what is 7 times
+8?" ended there and never said 56) counts as having shown nothing: after a lookup the empty call is made
+once more, and a turn that ends on the announcement, with or without a lookup, gets `MIXED_UP_REPLY`
+after it (on a checked answer, the verdict line instead).
 After the child answers a question card the turn always gets a reply too (Question cards, above). A turn
 the student stopped, or one that stalled, keeps its own handling. A stall includes Ollama ending the
 reply with an `{"error": …}` line after part of it was shown (its model runner crashed or ran out of
