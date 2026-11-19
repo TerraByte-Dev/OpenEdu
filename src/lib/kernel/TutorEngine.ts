@@ -38,6 +38,7 @@ import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard";
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
+import { assessPickerCard } from "./assessPicker";
 import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
@@ -69,12 +70,16 @@ export const CARD_REFUSED =
 // A call whose result the chat draws as the answer in the reply's place (ChatTab ToolActivity): the
 // flashcard the app made because the student asked for one. Every other tool shows only a chip ("✓ Looked
 // it up in the library"), which answers nothing, so a turn that ran only those and wrote nothing is a
-// blank turn. A math.render or diagram.render drawing is not here: it is reply text (drawnCards.ts).
-const showsAnswerCard = (c: { ok: boolean; byApp?: true }) => c.ok && !!c.byApp;
+// blank turn. A math.render or diagram.render drawing is not here: it is reply text (drawnCards.ts). Nor is
+// the app's topic picker (assessPicker.ts): its question and the learner's answer are reply text (askCard.ts).
+const showsAnswerCard = (c: { name: string; ok: boolean; byApp?: true }) => c.ok && !!c.byApp && c.name === FLASHCARD_TOOL;
 const marksMastered = (args: unknown) => !!args && typeof args === "object" && (args as { status?: unknown }).status === "mastered";
 // The id of the flashcard.create call the app makes itself (flashcard stage). It never reaches a
 // provider: the model sees a note, not a tool call, so no tool_use id rules apply.
 const APP_FLASHCARD_CALL_ID = "app_flashcard";
+// The id of the ask_user.question call the app makes itself (the topic picker, assessPicker.ts). The model
+// reads it back as its own call, so it keeps to the ids every provider accepts.
+const APP_PICKER_CALL_ID = "app_picker";
 
 // A single tool result may claim at most this share of the grounding slice. A notebook.search hit
 // can be several thousand tokens of JSON; uncapped it evicts the entire conversation behind it.
@@ -114,7 +119,8 @@ export interface TutorTurn {
 export interface TutorTurnResult {
   text: string;
   // `byApp` marks a call the app made itself rather than the model (the flashcard stage,
-  // flashcardRequest.ts), so an eval can tell the model's tool choice from the app's. `fromText` marks a
+  // flashcardRequest.ts, and the topic picker, assessPicker.ts), so an eval can tell the model's tool
+  // choice from the app's. `fromText` marks a
   // call the model wrote as reply text and the kernel parsed (textToolCalls.ts) rather than a call the
   // provider returned.
   toolCalls: Array<{ name: string; args: unknown; ok: boolean; byApp?: true; fromText?: true }>;
@@ -326,6 +332,16 @@ export class TutorEngine {
     }
 
     const offered = new Set(eduTools.map((t) => t.name));
+
+    // The topic picker that opens a mastery check (assessPicker.ts): when the check starts and two or more
+    // of the level's subtopics are not mastered, the app shows the ask_user.question card itself, in place
+    // of the turn's first model call, instead of hoping the model calls it. Only where the model could
+    // have: the tool is offered (assess mode, tools on, not denied by the permission rules) and the
+    // caller can show a card. Never on a safety-disclosure turn (`disclosure`).
+    const picker = !disclosure && ctx.askUser && offered.has(ASK_USER_TOOL) && newest?.role === "user"
+      ? assessPickerCard(newest.content, ctx.activeSkill?.name, ctx.syllabus)
+      : null;
+    const appAsk = picker ? { id: APP_PICKER_CALL_ID, name: ASK_USER_TOOL, args: picker, byApp: true as const } : null;
     const toolDefs = eduTools.length ? buildProviderToolDefs(eduTools) : undefined;
 
     // Append the <tools> manifest to the system message so it matches the tools actually
@@ -411,7 +427,7 @@ ${lastUser.content}` };
     }
 
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -423,6 +439,8 @@ ${lastUser.content}` };
     ctx: ToolContext,
     prepared: {
       appCall: TutorTurnResult["toolCalls"][number] | null;
+      /** The app's topic picker (assessPicker.ts): run in place of the first model call. */
+      appAsk: { id: string; name: string; args: AskCard; byApp: true } | null;
       messages: NeutralMessage[];
       budget: Budget;
       toolResultCap: number;
@@ -533,17 +551,24 @@ ${lastUser.content}` };
     // A model call that throws after this turn already showed something (text, or a card's question and
     // the child's answer) ends the turn as stalled instead of failing it, so what was shown is saved with
     // the stalled marker (persistedReply) and the chat says STALLED_TURN. Not when the student pressed
-    // Stop: that keeps its own handling.
-    const keepsShown = () => !ctx.abort.aborted && !!streamedText.trim();
+    // Stop: that keeps its own handling. The app's own topic picker (assessPicker.ts) does not count: it
+    // runs with no model call, so with Ollama stopped the first model call fails after it, and keeping that
+    // card and pick would save a "reply" no model wrote and tell the learner to close programs instead of
+    // the plain Ollama line (friendlyError). That call fails the turn, as it did before the picker.
+    let appCardEnd = 0;
+    const keepsShown = () => !ctx.abort.aborted && !!streamedText.slice(appCardEnd).trim();
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
 
       let iterationText = ""; // text emitted before any tool call in THIS model turn
-      const pendingCalls: Array<{ id: string; name: string; args: unknown; fromText?: true }> = [];
+      const pendingCalls: Array<{ id: string; name: string; args: unknown; fromText?: true; byApp?: true }> = [];
       // A text call is run only for a tool offered on this request, exactly as a native one would be.
       const filter = new ReplyTextFilter(toolNames, (name) => !!toolDefs && offered.has(name));
-      try {
+      // The app's topic picker takes the first model call's place: it goes through the same steps as a
+      // card the model made (the claim filter, the model's record of the call, dispatch, a typed disclosure).
+      if (iteration === 0 && prepared.appAsk) pendingCalls.push({ ...prepared.appAsk });
+      else try {
         for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
           if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); iterationText += text; show(text); }
           else if (ev.type === "tool_call") {
@@ -638,7 +663,7 @@ ${lastUser.content}` };
         else if (refusedCards.has(call.id)) result = { name: call.name, ok: false, error: CARD_REFUSED };
         // eslint-disable-next-line no-await-in-loop -- tools run sequentially by design
         else result = await dispatchToolCall(call, ctx, turn.onToolEvent, offered);
-        toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}) });
+        toolCalls.push({ name: call.name, args: call.args, ok: result.ok, ...(call.fromText ? { fromText: true as const } : {}), ...(call.byApp ? { byApp: true as const } : {}) });
         if (call.name === KNOWLEDGE_UPDATE_TOOL && result.ok) usedKnowledgeUpdate = true;
         if (call.name === MARK_MASTERED_TOOL && result.ok && marksMastered(call.args)) masteryWritten = true;
         // An equation or diagram is shown as reply text where the call ran, so it is saved with the reply
@@ -666,12 +691,13 @@ ${lastUser.content}` };
             break;
           }
           show(answeredCard(streamedText, card.question, { text: answer.answer, typed: answer.typed }));
+          if (call.byApp) appCardEnd = streamedText.length;
           replyOwed = true;
           retriedEmpty = false;
           // A typed answer that asks for something ("I don't know", "can you help?") is not graded, as on
           // a typed turn (readsAsAnswer). A pick always is; a card that asks nothing with one right answer
-          // (a topic picker) gets no verdict from the key call.
-          if (checkCards && (!answer.typed || readsAsAnswer(answer.answer))) {
+          // (a topic picker) gets no verdict from the key call. The app's own picker is one, so it skips the call.
+          if (checkCards && !call.byApp && (!answer.typed || readsAsAnswer(answer.answer))) {
             // eslint-disable-next-line no-await-in-loop -- the reply after the pick needs the verdict
             const check = await checkAnswer(cardTutorMessage(iterationText, card), answer.answer, turn.config, { tier: ctx.modelTier, signal: ctx.abort });
             if (check && !ctx.abort.aborted) {
@@ -783,8 +809,9 @@ ${lastUser.content}` };
     const usedHits = groundedIn(streamedText, grounding.hits);
 
     // A list of choices the model wrote instead of calling ask_user.question becomes buttons anyway.
-    // Read from the finished text by code; never on a turn that asked through the tool.
-    const replyChoices = stopReason === "complete" && !toolCalls.some((c) => c.name === ASK_USER_TOOL)
+    // Read from the finished text by code; never on a turn where the model asked through the tool (the
+    // app's topic picker is answered before the reply is written, so it does not count).
+    const replyChoices = stopReason === "complete" && !toolCalls.some((c) => c.name === ASK_USER_TOOL && !c.byApp)
       ? choicesInReply(streamedText)
       : null;
 

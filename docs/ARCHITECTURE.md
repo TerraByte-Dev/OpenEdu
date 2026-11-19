@@ -703,7 +703,7 @@ that offers no tools and drops the tools manifest from the system prompt, and re
 result (`toolCallRecovery`). Any other provider error fails the turn when nothing was shown yet; once
 something was, the turn ends as stalled and keeps what was shown (`persistedReply`, below).
 
-Two write actions do not wait for the model to choose a tool, because small models rarely do (on
+Three things do not wait for the model to choose a tool, because small models rarely do (on
 `gemma4:e2b`, `flashcard.create` 0/20 and `ask_user.question` 2/20 in TerraTutor's B9 readiness run):
 - **A flashcard the student asks for** (`kernel/flashcardRequest.ts`). Code decides the message asks for
   one card (a request verb and a singular "flashcard" in one sentence, with no negation before the verb,
@@ -731,6 +731,24 @@ Two write actions do not wait for the model to choose a tool, because small mode
   (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
   The question is always a line of the reply, so the buttons show without it when the reply ends on it
   (`repeatsQuestion`, below).
+- **The topic picker that opens a mastery check** (`kernel/assessPicker.ts`, ported from TerraTutor #244).
+  `assess.md` asks the tutor to let the learner choose which subtopic to be checked on with
+  `ask_user.question` when more than one still needs checking; `gemma4:e2b` made that call in 2 of 20
+  turns (TerraTutor's B9), 3 of 20 (rerun 2) and 0 of 6 in TerraTutor's click test of 2026-11-19, so a
+  learner almost never saw a question card. Now, when an assess-mode turn's newest message opens the check
+  (`asksForMasteryCheck`), `ask_user.question` is offered, the caller can show a card, and two or more of
+  the level's subtopics are not mastered, the app makes the call itself in place of the turn's first
+  model call: "Which one should we check first?" with those subtopics' titles (syllabus order, at most
+  five). It runs through the same steps as a card the model made (claim filter, dispatch, the model's
+  record of the call as its own, a safety disclosure typed into it handed back as `cardMessage`), is
+  recorded with `byApp: true` (so the eval runners still count only the model's calls), gets no answer
+  check (a topic has no right answer), and does not stop `replyChoices` on the reply after the pick. Not
+  on a safety-disclosure turn. In the chat that means the assess chip only (or its text edited before
+  sending): a typed request ("quiz me", "can you check what I've mastered?") runs in explain mode
+  (`chatTurnMode`), so it gets the tutor's own question and no picker. The picker runs with no model, so
+  it is not something the turn keeps on its own: a model call that fails after the pick (Ollama stopped)
+  fails the turn as one with nothing shown, and the chat shows the plain error (`friendlyError`), saves
+  no reply and never says `STALLED_TURN`.
 
 **Question cards** (`kernel/askCard.ts`, `tools/ask_user/QuestionTool.ts`). Click test 2026-11-14 on
 `gemma4:e4b` (fractions L1, "Check if I've got this."): the card asked "Think about the fraction 1/5.
@@ -1016,7 +1034,8 @@ memory while the server stayed up), exactly as when the stream breaks off: what 
 with its marker (`persistedReply`). So does a later model call of the turn that fails before its first
 byte (a 500, an error line, a refused connection) once an earlier call showed something: the text, any
 card's question and the student's answer to it are kept and the chat says `STALLED_TURN`. A failure with
-nothing shown yet still fails the turn.
+nothing shown yet still fails the turn, and so does one where only the app's topic picker and its pick
+were shown (no model wrote anything yet, `kernel/assessPicker.ts`).
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
