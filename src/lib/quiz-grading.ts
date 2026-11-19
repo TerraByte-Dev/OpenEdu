@@ -451,14 +451,106 @@ export function normalizeOption(s: string): string {
     .trim();
 }
 
-// The first pair of options a learner can't tell apart, as their indices, or null.
-export function duplicateOptionPair(options: readonly string[]): [number, number] | null {
+const SMALL_NUMBERS: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11,
+  twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+};
+const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+const PARTS: Record<string, number> = {
+  half: 2, halves: 2, third: 3, thirds: 3, fourth: 4, fourths: 4, quarter: 4, quarters: 4, fifth: 5, fifths: 5,
+  sixth: 6, sixths: 6, seventh: 7, sevenths: 7, eighth: 8, eighths: 8, ninth: 9, ninths: 9, tenth: 10, tenths: 10,
+  twelfth: 12, twelfths: 12, hundredth: 100, hundredths: 100,
+};
+
+/** A whole number written in words, "seven" or "twenty-one" (0-99), else null. */
+function wordNumber(s: string): number | null {
+  if (s in SMALL_NUMBERS) return SMALL_NUMBERS[s];
+  const m = /^([a-z]+)(?:[\s-]+([a-z]+))?$/.exec(s);
+  if (!m || !(m[1] in TENS)) return null;
+  if (!m[2]) return TENS[m[1]];
+  const unit = SMALL_NUMBERS[m[2]];
+  return unit !== undefined && unit >= 1 && unit <= 9 ? TENS[m[1]] + unit : null;
+}
+
+/**
+ * The number a whole option is, and how it is written: "number" (7, 0.5, .5, 0.50, 1,000), "percent" (50%,
+ * 50 percent), "fraction" (1/2, 2/4, 1 1/2) or "words" (seven, one half, three quarters, half). Null for any
+ * other option: one with a unit, an expression ("2 + 3") or other words is never read as a number.
+ */
+export function optionNumber(option: string): { value: number; form: "number" | "percent" | "fraction" | "words" } | null {
+  const s = normalizeOption(option).replace(/[.!?]+$/, "").trim();
+  let m: RegExpExecArray | null;
+  if ((m = /^(-?)(\d{1,3}(?:,\d{3})+|\d+)?(?:\.(\d+))?$/.exec(s)) && (m[2] || m[3])) {
+    return { value: Number(`${m[1]}${(m[2] ?? "0").replace(/,/g, "")}.${m[3] ?? "0"}`), form: "number" };
+  }
+  if ((m = /^(-?\d+(?:\.\d+)?)\s*(?:%|percent|per cent)$/.exec(s))) return { value: Number(m[1]) / 100, form: "percent" };
+  if ((m = /^(-?)(?:(\d+)\s+)?(\d+)\s*\/\s*(\d+)$/.exec(s)) && Number(m[4]) !== 0) {
+    const v = Number(m[2] ?? 0) + Number(m[3]) / Number(m[4]);
+    return { value: m[1] ? -v : v, form: "fraction" };
+  }
+  const whole = wordNumber(s);
+  if (whole !== null) return { value: whole, form: "words" };
+  if ((m = /^(?:(a|an|\d+|[a-z]+)[\s-]+)?([a-z]+)$/.exec(s)) && m[2] in PARTS) {
+    const count = !m[1] || m[1] === "a" || m[1] === "an" ? 1 : /^\d+$/.test(m[1]) ? Number(m[1]) : wordNumber(m[1]);
+    if (count !== null) return { value: count / PARTS[m[2]], form: "words" };
+  }
+  return null;
+}
+
+const sameNumber = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+
+// A stem about how a number is written, where "1/2" and "0.5", or "0.5" and "0.50", are different answers:
+// "Which is a decimal?", "Write 2/4 in simplest form.", "Round 0.496 to the nearest hundredth.", "Which
+// shows one thousand with a comma?", "Which fraction has 8 as its denominator?", "What is the ordinal for 3?".
+const ABOUT_WRITTEN_FORM = /\b(?:decimals?|percents?|percentages?|fraction form|as an? (?:fraction|decimal|percent|whole number|mixed number)|simplest|lowest terms|simplif\w*|reduc\w*|written|write|writes|writing|notation|numerals?|words?|word form|standard form|expanded form|improper|mixed numbers?|unsimplified|numerators?|denominators?|ordinals?|commas?|digits?|places?|nearest|spell\w*)\b/i;
+
+// An option that the stem itself names, as a number ("Which is greater: 0.5 or 0.50?" with "They are equal").
+function stemNames(stem: string, option: string): boolean {
+  const o = normalizeOption(option).replace(/[.!?]+$/, "");
+  return o !== "" && new RegExp(`(?<![\\w.])${o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\w|\\.\\d)`).test(stem.toLowerCase());
+}
+
+// Two options that differ only in "a"/"an", a hyphen or a space ("a eighth" / "an eighth", "twenty-one" /
+// "twenty one"): what an English question asks about, so not the key's number written another way.
+const writingOnly = (s: string) => normalizeOption(s).replace(/^an?\s+/, "").replace(/[\s-]+/g, "");
+
+// The first pair of options a learner can't tell apart, as their indices, or null: the same option once a
+// label, case, quotes, spacing and a closing period are set aside (normalizeOption; "Hello!" and "Hello.",
+// "a apple" and "an apple", "ice-cream" and "ice cream" stay apart, since that is what an English question
+// asks), or the same number written the same way ("0.5" and "0.50", "1,000" and "1000", "50%" and "50
+// percent") unless the stem is about how a number is written (ABOUT_WRITTEN_FORM) or names both options
+// ("Which is greater: 0.5 or 0.50?").
+export function duplicateOptionPair(options: readonly string[], stem = ""): [number, number] | null {
   const seen = new Map<string, number>();
+  const numbers = ABOUT_WRITTEN_FORM.test(stem) ? options.map(() => null) : options.map(optionNumber);
   for (let i = 0; i < options.length; i++) {
     const k = normalizeOption(options[i]);
     const j = seen.get(k);
     if (j !== undefined) return [j, i];
     seen.set(k, i);
+    const a = numbers[i];
+    for (let h = 0; a && a.form !== "fraction" && a.form !== "words" && h < i; h++) {
+      const b = numbers[h];
+      if (b && b.form === a.form && sameNumber(a.value, b.value) && !(stemNames(stem, options[h]) && stemNames(stem, options[i]))) return [h, i];
+    }
+  }
+  return null;
+}
+
+/**
+ * The index of an option other than the key that is the key's number written another way ("0.5" for the
+ * key "1/2", "seven" for "7", "2/4" for "1/2", "50%" for "one half"), or null. A learner who picks it is
+ * right but would be marked wrong. Not when the stem asks about how a number is written (ABOUT_WRITTEN_FORM),
+ * nor for an option that differs from the key only in "a"/"an", a hyphen or a space (writingOnly).
+ */
+export function optionEqualToKey(options: readonly string[], key: string, stem: string): number | null {
+  const k = optionNumber(key);
+  if (!k || ABOUT_WRITTEN_FORM.test(stem)) return null;
+  const keyAt = options.indexOf(key);
+  for (let i = 0; i < options.length; i++) {
+    if (i === keyAt) continue;
+    const o = optionNumber(options[i]);
+    if (o && sameNumber(o.value, k.value) && writingOnly(options[i]) !== writingOnly(key)) return i;
   }
   return null;
 }
@@ -577,6 +669,26 @@ export function summarizeForLedger(q: { question_text: string; subtopic_id?: str
 }
 
 export const questionKey = (text: string): string => text.trim().toLowerCase();
+
+/** A question an earlier quiz asked, as db.ts getRecentQuizQuestions reads it (quiz.ts GenPlan.earlier). */
+export interface EarlierQuestion {
+  question_text: string; correct_answer: string; subtopic_id?: string | null;
+  question_type: string; blank_position?: string | null; matching_pairs?: Array<{ left: string; right: string }> | null;
+}
+
+/**
+ * What a question asks, to tell it from another: questionWithSentence, and a drag-to-match question's left
+ * items. A fill-in-the-blank's question_text can be only "Fill in the blank." and a matching one's "Match
+ * each word to its meaning.", so two different questions can share it word for word.
+ */
+export function askedText(q: {
+  question_text: string; question_type: string; blank_position?: string | null;
+  matching_pairs?: ReadonlyArray<{ left: string; right: string }> | null;
+}): string {
+  const text = questionWithSentence(q);
+  const lefts = q.question_type === "drag_to_match" ? (q.matching_pairs ?? []).map((p) => p.left).filter(Boolean) : [];
+  return lefts.length ? `${text}\nPairs: ${lefts.join(", ")}` : text;
+}
 
 // A stem's words and numbers as a set: lower case, punctuation dropped, "2:30" and "3/4" kept whole so
 // two clock questions that differ only in the time stay apart.

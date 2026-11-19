@@ -6,8 +6,8 @@ import {
   buildBatchGradePrompt, parseBatchGradeResults, batchGradeSchema,
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, alignKeyToOption,
-  hasSelfCorrection, duplicateOptionPair, rewriteLetterRefs, isNearDuplicate,
-  repeatedMatchSide, questionWithSentence, questionKey,
+  hasSelfCorrection, duplicateOptionPair, optionEqualToKey, rewriteLetterRefs, isNearDuplicate,
+  repeatedMatchSide, questionWithSentence, questionKey, askedText, type EarlierQuestion,
   type GradeOutcome, type BatchGradeReply,
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
@@ -29,6 +29,8 @@ type GenQuestion = Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_
 // at all (levelTestShortfall). Quizzes 10–20, promotion tests 30–45.
 export const QUIZ_TARGET = 20;
 export const QUIZ_FLOOR = 10;
+/** How many questions from the latest quizzes on a level a new quiz on it tries not to repeat (about two quizzes). */
+export const RECENT_QUESTIONS = 2 * QUIZ_TARGET;
 export const TEST_CURRENT_TARGET = 35;
 export const TEST_REVIEW_TARGET = 10;
 export const TEST_TOTAL_TARGET = TEST_CURRENT_TARGET + TEST_REVIEW_TARGET; // 45
@@ -151,9 +153,15 @@ export function validateQuizBatch(
         issues.push(`${at}: multiple_choice correct_answer ("${q.correct_answer}") must exactly match one of the options.`);
       }
       // Grading compares the exact option string, so a child who picks the twin of the key is marked wrong.
-      const twins = duplicateOptionPair(opts);
+      const twins = duplicateOptionPair(opts, stem);
       if (twins) {
         issues.push(`${at}: options ${twins.map((i) => `"${opts[i]}"`).join(" and ")} are the same answer. Give 4 different options with exactly one correct.`);
+      }
+      // The key's number written another way ("0.5" beside the key "1/2"): picking it is right, but it is
+      // not the key string, so it would be marked wrong (TerraTutor click test 2026-11-19 part 2, issue 5).
+      const equal = twins ? null : optionEqualToKey(opts, String(q.correct_answer ?? ""), stem);
+      if (equal !== null) {
+        issues.push(`${at}: option "${opts[equal]}" is the same number as the correct answer "${q.correct_answer}". Give 4 different options with exactly one correct.`);
       }
     } else if (type === "fill_in_blank") {
       if (!String(q.blank_position ?? "").includes("___")) {
@@ -305,6 +313,15 @@ interface BatchContext {
   config: LLMConfig;
   /** Stops the generation when the learner leaves the "making" screen (stopIfAborted). */
   signal?: AbortSignal;
+  /** Questions this learner's earlier quizzes on the level asked on these subtopics (ledger lines), to ask others. */
+  earlier?: string[];
+}
+
+/** The prompt lines that ask for questions other than the ones earlier quizzes asked ("" when none). */
+function earlierLines(ctx: BatchContext): string {
+  return ctx.earlier?.length
+    ? `\nEarlier quizzes on this level already asked these questions. Ask about something else, or ask it in a new way; do NOT repeat any of them:\n${ctx.earlier.map((x) => `- ${x}`).join("\n")}\n`
+    : "";
 }
 
 // The learner left the "making" screen: no more model calls, and the generator rejects instead of
@@ -345,7 +362,7 @@ function buildBatchPrompt(ctx: BatchContext): string {
 ${stakes}
 Cover ONLY the following subtopic(s); put the matching id in each question's subtopic_id:
 ${subtopicList}
-
+${earlierLines(ctx)}
 ${typeGuide}
 
 Rules for every question:
@@ -416,7 +433,7 @@ function buildOneQuestionPrompt(ctx: BatchContext, priorSummaries: string[]): st
   return `Generate ONE quiz question about "${ctx.topic}" — ${ctx.levelLabel}.
 ${stakes}Cover this subtopic and put its id in subtopic_id:
 - id="${s.id}" title="${s.title}": ${s.key_concepts.join(", ")}
-${avoid}
+${earlierLines(ctx)}${avoid}
 ${typeGuide}
 
 Rules:
@@ -478,12 +495,53 @@ interface GenPlan {
   /** Questions already in this quiz or test (the review pool's, the current section's): a fresh one that
    * repeats one of them, exactly or nearly (isNearDuplicate), is dropped and the top-up refills it. */
   avoid?: GenQuestion[];
+  /** Questions this learner's earlier quizzes on the level asked (db.ts getRecentQuizQuestions). The prompt
+   * asks for others, and a fresh one that repeats one of them, exactly or nearly, is set aside: it is
+   * used only when the quiz would otherwise come up short. */
+  earlier?: EarlierQuestion[];
 }
+
+// Compared on askedText, so two fill-in-the-blank questions that share "Fill in the blank." but ask
+// different sentences are not repeats.
+type Asked = Parameters<typeof askedText>[0] & { correct_answer?: string };
+const repeatsAny = (list: ReadonlyArray<Asked>, q: GenQuestion): boolean => {
+  const asked = (x: Asked) => ({ question_text: askedText(x), correct_answer: x.correct_answer });
+  const b = asked(q);
+  const k = questionKey(b.question_text);
+  return list.some((x) => { const a = asked(x); return questionKey(a.question_text) === k || isNearDuplicate(a, b); });
+};
 
 // A fresh question that repeats one already in the quiz or test (GenPlan.avoid).
 function repeatsAvoided(plan: GenPlan, q: GenQuestion): boolean {
-  const k = questionKey(q.question_text);
-  return (plan.avoid ?? []).some((a) => questionKey(a.question_text) === k || isNearDuplicate(a, q));
+  return repeatsAny(plan.avoid ?? [], q);
+}
+
+// A fresh question that repeats one an earlier quiz on the level asked (GenPlan.earlier).
+function repeatsEarlier(plan: GenPlan, q: GenQuestion): boolean {
+  return repeatsAny(plan.earlier ?? [], q);
+}
+
+/** The ledger lines for a subtopic's earlier questions, newest first, capped by tier like the quiz's own ledger.
+ *  None for a cloud model: what a learner was asked is about that learner (lane 1 of TerraTutor's
+ *  docs/CLOUD-PRIVACY.md), so there only the code check (repeatsEarlier) applies. */
+function earlierFor(plan: GenPlan, subtopicId: string): string[] {
+  if (!isLocalModel(plan.config)) return [];
+  const cap = plan.tier === "tiny" || plan.tier === "small" ? 6 : 12;
+  return (plan.earlier ?? []).filter((q) => !q.subtopic_id || q.subtopic_id === subtopicId).slice(0, cap)
+    .map((q) => summarizeForLedger({ question_text: askedText(q), subtopic_id: q.subtopic_id }));
+}
+
+/** Questions set aside as repeats of earlier quizzes, checked as fresh ones are, to fill a quiz that came up short. */
+async function fillFromRepeats(
+  plan: GenPlan, produced: GenQuestion[], spares: GenQuestion[], target: number, label: string,
+): Promise<GenQuestion[]> {
+  if (produced.length >= target || spares.length === 0) return produced;
+  let fill = dedupeByQuestionText(spares).filter((q) => !repeatsAny(produced, q));
+  const check = checkFresh(plan);
+  if (check && fill.length) fill = await check(fill, `${label} repeats`);
+  stopIfAborted(plan.signal);
+  log.info("quiz", `${label}: ${Math.min(fill.length, target - produced.length)} question(s) from earlier quizzes fill the gap`);
+  return [...produced, ...fill.slice(0, target - produced.length)];
 }
 
 // The check a round's freshly generated questions get before they count: the content review when a
@@ -500,7 +558,7 @@ function planSlotCtx(plan: GenPlan, subIdx: number): BatchContext {
   return {
     topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [plan.subtopics[subIdx]], count: 1,
     highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier: plan.tier, config: plan.config,
-    signal: plan.signal,
+    signal: plan.signal, earlier: earlierFor(plan, plan.subtopics[subIdx].id),
   };
 }
 
@@ -513,6 +571,7 @@ async function generatePerQuestion(
   const MAX_ROUNDS = 3;
 
   let produced: GenQuestion[] = [];
+  const spares: GenQuestion[] = [];
   const seen = new Set<string>();
   const keyOf = (q: GenQuestion) => q.question_text.trim().toLowerCase();
   const ledgerTail = () => produced.slice(-ledgerCap).map(summarizeForLedger);
@@ -520,6 +579,7 @@ async function generatePerQuestion(
     if (!q) return;
     const k = keyOf(q);
     if (!k || seen.has(k) || produced.some((p) => isNearDuplicate(p, q)) || repeatsAvoided(plan, q)) return;
+    if (repeatsEarlier(plan, q)) { spares.push(q); return; }
     seen.add(k); produced.push(q); onProgress?.(produced.length, target);
   };
 
@@ -546,6 +606,8 @@ async function generatePerQuestion(
     }
     if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
   }
+  produced = await fillFromRepeats(plan, produced, spares, target, label);
+  onProgress?.(Math.min(produced.length, target), target);
 
   if (produced.length < target) log.warn("quiz", `${label}: generated ${produced.length}/${target} — model may be struggling (short test)`);
   else log.info("quiz", `${label}: ${produced.length}/${target} questions ready`);
@@ -559,6 +621,7 @@ async function generateBatched(
   const check = checkFresh(plan);
   const MAX_ROUNDS = 3;
   let produced: GenQuestion[] = [];
+  const spares: GenQuestion[] = [];
 
   for (let round = 1; round <= MAX_ROUNDS && produced.length < target; round++) {
     const before = produced.length;
@@ -568,12 +631,15 @@ async function generateBatched(
       .map((s, i): BatchContext => ({
         topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [s], count: counts[i],
         highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier, config, signal: plan.signal,
+        earlier: earlierFor(plan, s.id),
       }))
       .filter((c) => c.count > 0);
     if (ctxs.length === 0) break;
 
     let batch = (await Promise.all(ctxs.map(generateQuestionBatch))).flat().map(finalizeQuestion)
       .filter((q) => !repeatsAvoided(plan, q));
+    spares.push(...batch.filter((q) => repeatsEarlier(plan, q)));
+    batch = batch.filter((q) => !repeatsEarlier(plan, q));
     if (check) batch = await check(batch, `${label} r${round}`);
     stopIfAborted(plan.signal);
 
@@ -585,6 +651,8 @@ async function generateBatched(
     }
     if (round > 1) log.info("quiz", `${label}: top-up round ${round} → ${produced.length}/${target}`);
   }
+  produced = await fillFromRepeats(plan, produced, spares, target, label);
+  onProgress?.(Math.min(produced.length, target), target);
 
   const final = produced.length > target ? produced.slice(0, target) : produced;
   if (final.length < target) log.warn("quiz", `${label}: generated ${final.length}/${target} — model may be struggling (short test)`);
@@ -684,6 +752,9 @@ async function reviewAndFilter(questions: GenQuestion[], topic: string, review: 
 // the computer, so that pass runs only on a local model (privacy.ts isLocalModel). Left out, it is the
 // generation model when that is local; with a cloud model, or null, the pass is skipped and the pool
 // keeps only the validator re-check below.
+// `earlier` (db.ts getRecentQuizQuestions) is what this learner's last quizzes on the level asked: fresh
+// questions are asked to differ from them, and one that repeats them is used only to fill a short quiz
+// (GenPlan.earlier; TerraTutor click test 2026-11-19 part 3).
 export async function generateQuizQuestions(
   syllabus: Syllabus,
   numQuestions: number,
@@ -693,6 +764,7 @@ export async function generateQuizQuestions(
   reviewer: LLMConfig | null = null,
   poolVerifier?: LLMConfig | null,
   signal?: AbortSignal,
+  earlier: EarlierQuestion[] = [],
 ): Promise<GenQuestion[]> {
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
@@ -737,6 +809,7 @@ export async function generateQuizQuestions(
       signal,
       // A missed question re-posed from the pool is not asked again fresh in the same quiz.
       avoid: reviewQs,
+      earlier,
     },
     fresh,
     `quiz L${syllabus.level}`,

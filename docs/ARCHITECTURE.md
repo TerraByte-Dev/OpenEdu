@@ -203,8 +203,18 @@ written: they came from a once-a-minute timer whose only reader was the learning
 - **`quiz.ts` / `quiz-grading.ts` / `quiz-review.ts`** — quiz & promotion-test generation (schema-enforced,
   topped up to a target count, with answer↔explanation self-consistency checks that also read clock
   times, money and fractions, read an equation option by its result and skip a method key ("Subtract 7 from
-  both sides"), rejection of explanations that correct themselves and of repeated options,
-  near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
+  both sides"), rejection of explanations that correct themselves and of repeated options (the same
+  option once case, a label, quotes, spacing and a closing period are set aside, so "Hello!"/"Hello.", "a
+  apple"/"an apple" and "ice-cream"/"ice cream" stay apart for English questions, or the same number
+  written the same way, "0.5"/"0.50", "1,000"/"1000", `duplicateOptionPair`) and of an option that is the
+  key's number written another way ("0.5", "one half", "2/4" or "50%" beside the key "1/2", "seven" beside
+  "7"; `optionEqualToKey`); neither number check applies when the stem asks how a number is written ("as a
+  decimal", "simplest form", "nearest hundredth", "with a comma", "denominator", "which word",
+  "ordinal", "spelled"), the first not when the stem names both options ("Which is greater: 0.5 or 0.50?"),
+  and the second not for an option that differs from the key only in "a"/"an", a hyphen or a space ("a
+  eighth"/"an eighth", "twenty one"/"twenty-one"), so a learner who picks the other right option is never marked wrong (ported from TerraTutor
+  #251; two options that state different true facts are left to the content review's "unanswerable"
+  verdict), near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
   one call on a local model for the rest; see Content review › Grading and the study plan stay local).
   The `-grading` / `-review` helpers are pure and unit-tested. A multiple-choice key is set to the option
@@ -218,7 +228,15 @@ written: they came from a once-a-minute timer whose only reader was the learning
   answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
   later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`),
   is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
-  review section is kept apart from its current section the same way. A fill-in-the-blank question is
+  review section is kept apart from its current section the same way. The re-posed missed questions
+  repeat across quizzes on purpose. Fresh ones are kept apart from the last quizzes on the level
+  (`db.ts getRecentQuizQuestions`, the newest `RECENT_QUESTIONS` answered rows, `GenPlan.earlier`; ported
+  from TerraTutor #251): a local model's prompt lists that subtopic's earlier questions to avoid (a cloud
+  model is sent none of them, lane 1), and a fresh question that repeats one, exactly or nearly, is set
+  aside and used only when the quiz would otherwise come up short. Both sides are read as what they ask
+  (`quiz-grading.ts askedText`: a fill-in-the-blank's sentence, a matching question's left items), so two
+  questions that share only "Fill in the blank." or "Match each word to its meaning." are not repeats. A
+  fill-in-the-blank question is
   shown to the learner as its `blank_position` sentence, and its `question_text` can be only "Fill in
   the blank.", so the content review, the verify pass and the grader get that sentence too
   (`quiz-grading.ts questionWithSentence`). A drag-to-match question with the same left or right item
@@ -413,7 +431,7 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   typed "xyz" answers right, and a re-grade of the same rows marked them wrong 3 of 3 times). Before any
   model call, an answer code could not settle that is empty, has no letter or digit (unless the key has
   none, ">", or the key or question names a sign the learner typed: ">" for "greater than", "?" for "a
-  question mark", "%" for "percent sign", `SIGN_NAMES`), or is one to four lower-case keyboard-mash tokens
+  question mark", "%" for "percent sign" or "modulo", "{}" for "curly braces", `SIGN_NAMES`), or is one to four lower-case keyboard-mash tokens
   ("xyz", "asdfgh", "sdf jkl": an alphabet run, unless the key is one letter or the question is about
   letters; one letter over and over, "jjjj", or a mash with a stretched letter; five letters or more on
   one keyboard row with no a/e/i/o/u, "qwrtp"; or three keys side by side on the middle or bottom row,
@@ -979,7 +997,16 @@ So the verdict on the child's answer is the app's, not the reply's:
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
   answer that answers nothing ("xyz", "?!", `non-answer.ts`, as for quiz answers): **incorrect**, with no
-  further call. A
+  further call, and code writes the whole reply too, with no reply call (`nonAnswerReply`: "That doesn't
+  answer the question yet. Here it is again:" and the tutor's question with its paragraph, from the lines
+  before it up to a blank line or a choice, to the end, so a word problem keeps its setup ("Sam has 5
+  apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
+  one:", "Here is your first question.") or praise joined to it by commas ("Correct, great job, now what
+  is 7 x 8?"), choices included (those listed before it are put after it), so the next try is checked
+  against it: the next turn keys this reply). In
+  TerraTutor's click test 2026-11-19 part 3 a model told "not correct" still added "That is close." 2
+  times in 5 (ported from TerraTutor #251). A typed answer only: a card's answer that answers nothing
+  still gets the model's reply. A
   plain-number key that none of the student's own numbers equals (numbers the question holds don't
   count): **mismatch**. Fractions, percents, times, money, "half", ranges, place value ("5 tens"),
   another unit, a rounding, a "not", algebra ("2x"), a key that is a comparison ("more than 5"), the

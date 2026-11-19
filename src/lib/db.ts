@@ -3,7 +3,7 @@ import type { Course, Syllabus, Note, ChatMessage, QuizAttempt, QuizQuestion, Us
 import { enableWal, runQuickCheck, backupTo, isMigrationError, type DbHealth, type BackupResult, type BackupDestination } from "./db-resilience";
 import { canAccessCourse, type LearnerRow } from "./learners";
 import { normalizeGrade, type Grade } from "./grade";
-import type { GradedBy } from "./quiz-grading";
+import type { EarlierQuestion, GradedBy } from "./quiz-grading";
 import type { TestSection } from "./level-test";
 import { cardIsDisclosure, type FlashcardGrade } from "./srs";
 import type { SubtopicEventKind } from "./mastery";
@@ -705,6 +705,23 @@ export async function updateQuizQuestionSelfExplanation(id: string, text: string
     "UPDATE quiz_questions SET self_explanation = $1 WHERE id = $2",
     [text.trim() || null, id]
   );
+}
+
+// The questions this course's latest study quizzes on `level` asked (answered rows, newest first), so a new
+// quiz asks others (quiz.ts generateQuizQuestions `earlier`). A course belongs to one learner.
+export async function getRecentQuizQuestions(courseId: string, level: number, limit: number): Promise<EarlierQuestion[]> {
+  if (limit <= 0) return [];
+  const d = await getDb();
+  const rows = await d.select<Array<Omit<EarlierQuestion, "matching_pairs"> & { matching_pairs: string | null }>>(
+    `SELECT qq.question_text, qq.correct_answer, qq.subtopic_id, qq.question_type, qq.blank_position, qq.matching_pairs
+       FROM quiz_questions qq
+       JOIN quiz_attempts qa ON qq.attempt_id = qa.id
+      WHERE qa.course_id = $1 AND qa.quiz_type = 'quiz' AND qa.level = $2
+      ORDER BY qa.started_at DESC, qq.rowid DESC
+      LIMIT $3`,
+    [courseId, level, limit],
+  );
+  return rows.map((r) => ({ ...r, matching_pairs: r.matching_pairs ? JSON.parse(r.matching_pairs) : null }));
 }
 
 // The spaced "review pool": previously-missed questions for a course (most-recent first, deduped by

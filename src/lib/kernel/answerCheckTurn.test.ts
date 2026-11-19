@@ -37,7 +37,8 @@ vi.mock("../llm", async (importOriginal) => ({
   }),
   callLLMStructured: vi.fn(async (messages: Sent, _config: unknown, opts: { toolName: string; validate?: (o: unknown) => string[] }) => {
     structured.push({ tool: opts.toolName, messages, opts });
-    const out = opts.toolName === "AnswerKey" ? keyOut : gradeOut;
+    // A key can be worked out from what the key call was sent (keyFrom), as a model works it out.
+    const out = opts.toolName === "AnswerKey" ? (typeof keyOut === "function" ? keyOut(messages) : keyOut) : gradeOut;
     if (out instanceof Error) throw out;
     return out;
   }),
@@ -62,6 +63,7 @@ import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION } from "./answerC
 import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
 import { VERDICT_FALLBACK } from "./replyClaims";
+import { NO_ANSWER_FEEDBACK } from "../quiz";
 import { DISCLOSURE_REPLY_NO_GRADE, DISCLOSURE_REPLY_OLDER, isSafetyDisclosure } from "../child-safety";
 import type { Grade } from "../grade";
 import { registerBuiltinTools } from "../tools";
@@ -1104,10 +1106,86 @@ describe("an answer that answers nothing in a mastery check", () => {
     gradeOut = { student_answer: text, verdict: "correct" };
     script = [reply(FALSE_PRAISE)];
     const { result, shown } = await answer(CHECK, text);
-    expect(result.answerCheck).toMatchObject({ key: "48", verdict: "incorrect", by: "code" });
+    expect(result.answerCheck).toMatchObject({ key: "48", verdict: "incorrect", by: "code", nonAnswer: true });
     expect(structured.map((c) => c.tool)).not.toContain("AnswerGrade");
     for (const s of shown) expect(s).not.toMatch(PRAISE);
-    expect(result.text).toMatch(/^That's not right yet\./);
+    expect(result.text).toMatch(/^That doesn't answer the question yet\./);
+  }, 30_000);
+
+  // TerraTutor click test 2026-11-19 part 3: "xyz" got "That's not right yet." and then, 2 times in 5, the
+  // model's "That is close." Code decided the verdict, so code writes the whole reply and no reply call is made.
+  it("gets code's reply with the question again, and no model reply at all", async () => {
+    script = [reply("That's not right yet. That is close! Good try.")];
+    const { result, shown } = await answer(CHECK, "xyz");
+    expect(replies).toEqual([]);
+    expect(result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWhat is 6 x 8?");
+    expect(result.text.startsWith(NO_ANSWER_FEEDBACK)).toBe(true);
+    for (const s of shown) expect(s).not.toMatch(/close|almost|good try|great|nice/i);
+    expect(result).toMatchObject({ stopReason: "complete", fixedReply: false, removedClaims: [], toolCalls: [] });
+  }, 30_000);
+
+  it("leaves the next try checked against the same question", async () => {
+    const first = await answer(CHECK, "xyz");
+    const { result } = await answer([...CHECK, student("xyz"), tutor(first.result.text)], "48");
+    expect(result.answerCheck).toMatchObject({ key: "48", verdict: "correct", by: "code" });
+  }, 30_000);
+
+  it("repeats a question the key call copied, and its choices", async () => {
+    keyOut = KEY_PLANTS;
+    const plants = await answer([student(ASSESS_MESSAGE), tutor(Q_PLANTS)], "qwrtp");
+    expect(plants.result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWhat gas do plants take in from the air to make their food?");
+    keyOut = KEY_MAMMAL;
+    const mammal = await answer([student(ASSESS_MESSAGE), tutor(Q_MAMMAL)], "?!");
+    expect(mammal.result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${Q_MAMMAL}`);
+    expect(replies).toEqual([]);
+  }, 30_000);
+
+  // Second review of TerraTutor #251, 2026-11-19: praise joined to the question by commas, and choices
+  // listed before it.
+  it("leaves out praise joined to the question by commas", async () => {
+    for (const asked of ["Correct, great job on that one, now what is 6 x 8?", "Yes, that's right, what is 6 x 8?"]) {
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+      expect(result.text, asked).toBe("That doesn't answer the question yet. Here it is again:\n\nWhat is 6 x 8?");
+    }
+  }, 30_000);
+
+  it("keeps choices listed before the question, so the next try's letter still maps", async () => {
+    keyOut = KEY_MAMMAL;
+    const asked = "Here are your choices:\nA) shark\nB) dolphin\nC) trout\nWhich of these animals is a mammal?";
+    const first = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(first.result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${Q_MAMMAL}`);
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked), student("xyz"), tutor(first.result.text)], "B");
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", by: "code" });
+  }, 30_000);
+
+  // Review of the #251 port, 2026-11-19: the repeat started at the question's own sentence, so a word
+  // problem lost its setup, and the next try's key call had no numbers to work from.
+  it.each([
+    ["Great job! Next one: Sam has 5 apples. He eats 2. How many apples are left?", "Sam has 5 apples. He eats 2. How many apples are left?", "Sam has 5 apples", "3"],
+    ["Good.\nRead this sentence: The cat sat on the mat. Which word is the noun?", "Read this sentence: The cat sat on the mat. Which word is the noun?", "The cat sat on the mat", "cat"],
+  ])("keeps a word problem's setup, so the next try is keyed against it: %j", async (asked, again, setup, right) => {
+    // The key a model works out: only when the message it was sent holds the setup.
+    keyOut = (sent: Sent) => {
+      const text = sent.map((m) => m.content).join("\n");
+      if (!text.includes(setup)) throw new Error("model returned no valid JSON");
+      return { question: again, working: "", answer: right };
+    };
+    const first = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(first.result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${again}`);
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked), student("xyz"), tutor(first.result.text)], right);
+    expect(result.answerCheck).toMatchObject({ key: right, verdict: "correct", by: "code" });
+  }, 30_000);
+
+  it.each([
+    ["There are 3 birds on a tree. 2 more birds come. How many birds are there now?", "There are 3 birds on a tree. 2 more birds come. How many birds are there now?", "5"],
+    ["Mr. Lee has 4 pens. Mrs. Tran gives him 3. How many does he have?", "Mr. Lee has 4 pens. Mrs. Tran gives him 3. How many does he have?", "7"],
+    ["Nice work!\nSam has 5 apples.\nHe eats 2.\nHow many are left?", "Sam has 5 apples.\nHe eats 2.\nHow many are left?", "3"],
+    ["Good, now Sam has 5 apples. How many are left if he eats 2?", "Sam has 5 apples. How many are left if he eats 2?", "3"],
+    ["Yes, no, maybe, which of these is a question word?", "Yes, no, maybe, which of these is a question word?", "maybe"],
+  ])("repeats %j with its setup and no praise", async (asked, again, key) => {
+    keyOut = { question: again, working: "", answer: key };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${again}`);
   }, 30_000);
 
   // A vowel-less spelling or an abbreviation is a real attempt (review of TerraTutor #245, 2026-11-19).

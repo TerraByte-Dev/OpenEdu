@@ -14,7 +14,7 @@
 //      key from code instead (keyFromArithmetic).
 //   2. Code compares the student's answer with the key (answerCompare.ts). A plain match is "correct"
 //      with no further call. An answer that answers nothing ("xyz", "?!", non-answer.ts) is "incorrect",
-//      with no further call either.
+//      with no further call either, and its reply is code's too (nonAnswerReply), not the model's.
 //   3. Otherwise one structured grading call reads the question, the key and the student's answer and
 //      returns the student's final answer in their words and a verdict. Code compares that extracted
 //      answer with the key too. "incorrect" needs code and the grader not to disagree; when they do
@@ -44,6 +44,8 @@ export interface AnswerCheck {
   by: "code" | "model" | "code+model" | "conflict" | "failed";
   /** What the grader read as the student's final answer, when it ran. */
   studentAnswer?: string;
+  /** True when code found the answer answers nothing (non-answer.ts): the reply is nonAnswerReply, with no model call. */
+  nonAnswer?: boolean;
 }
 
 // ── When it runs ────────────────────────────────────────────────────────────────────────────────
@@ -333,13 +335,80 @@ export async function checkAnswer(
   const raw = compareToKey(keyed.key, studentMessage, ctx);
   if (raw === "match") return { ...keyed, verdict: "correct", by: "code" };
   // An answer that answers nothing ("xyz", "?!", non-answer.ts) is not right, and no grader is asked.
-  if (await isNonAnswer(studentMessage, keyed.key, keyed.question)) return { ...keyed, verdict: "incorrect", by: "code" };
+  if (await isNonAnswer(studentMessage, keyed.key, keyed.question)) return { ...keyed, verdict: "incorrect", by: "code", nonAnswer: true };
   const graded = await gradeAgainstKey(keyed.question, keyed.key, studentMessage, config, opts);
   if (!graded) return { ...keyed, verdict: "unsure", by: "failed" };
   const extracted = graded.student_answer.trim() ? compareToKey(keyed.key, graded.student_answer, ctx) : "undecided";
   // Code's own reading of the whole message outranks its reading of the grader's copy of it.
   const code: KeyMatch = raw === "mismatch" || extracted === "mismatch" ? "mismatch" : extracted;
   return { ...keyed, ...combine(code, graded.verdict), studentAnswer: graded.student_answer.trim() };
+}
+
+// ── The reply to an answer that answers nothing ───────────────────────────────────────────────
+
+// TerraTutor click test 2026-11-19 part 3: in a check, "xyz" got the verdict line "That's not right yet."
+// and then, 2 times in 5, the model's "That is close." Code decided the verdict, so code writes the whole
+// reply: quiz.ts NO_ANSWER_FEEDBACK's words, then the tutor's question again. The question is repeated so
+// the learner's next try is checked against it (the next turn keys the message just before it, this one),
+// so a word problem's setup ("Sam has 5 apples. He eats 2.") comes with it: the key needs its numbers.
+
+// Praise joined to the question by commas: "Correct, great job on that one, now what is 7 x 8?". Only when
+// a filler or a question word follows, so "Yes, no, maybe, which of these is a question word?" is kept.
+const PRAISE_LEAD = /^(?:(?:correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b[^,?\n]*,\s*)+(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
+// A choice line ("A) 5", "**B.** 6").
+const CHOICE_LINE = /^[ \t]*(?:[-*•>][ \t]*)?(?:\*\*)?\(?[A-F](?:\)|\.|:)(?:\*\*)?[ \t]+\S/;
+// The first sentence of a paragraph, up to an end mark or a colon ("Mr." too: it is then kept).
+const FIRST_SENTENCE = /^[^.!?:]*[.!:]+(?=\s)/;
+// A first sentence that is praise for the last answer: "Good.", "Great job!", "Yes, that's it!". One with a
+// comma and a number is kept ("Good, now Sam has 5 apples."): it may hold the problem's setup.
+const PRAISE_WORD = /^\W*(?:correct|right|yes|yep|yeah|great|good|nice|awesome|perfect|excellent|exactly|well done|that(?:'|’)?s (?:right|correct)|that is (?:right|correct)|you got it)/i;
+function isPraise(sentence: string): boolean {
+  const m = PRAISE_WORD.exec(sentence);
+  if (!m) return false;
+  const rest = sentence.slice(m[0].length);
+  return /^[\s*_]*[.!:]/.test(rest) || /^\s+(?:job|work|thinking|try|answer|going|effort)\b/i.test(rest)
+    || (/^[\s*_]*,/.test(rest) && !/\d/.test(rest));
+}
+
+/** A first sentence that only leads in to the question: "Here is your first question.", "Next one:", "Okay.". */
+function isLeadIn(sentence: string): boolean {
+  const s = sentence.replace(/[*_]/g, "").trim();
+  if (/^(?:okay|ok|alright|all right|now|so|then)\W*$/i.test(s)) return true;
+  return s.split(/\s+/).length <= 6 && !/\d/.test(s)
+    && /^(?:here|next|now|okay|ok|alright|so|and|let(?:'|’)?s|try|on to|time for|ready|this)\b/i.test(s)
+    && /\b(?:question|problem|one|another)\b/i.test(s)
+    && !/\b(?:what|which|who|whom|whose|where|when|why|how)\b/i.test(s);
+}
+
+/**
+ * The tutor's question with its paragraph (the lines before it up to a blank line or a choice), from the
+ * end of any praise or lead-in before it to the end of the message, and its choices: those after it come
+ * with it, and those listed before it are put after it.
+ */
+export function questionAgain(tutorMessage: string, keyedQuestion: string): string {
+  const m = tutorMessage.trim();
+  const at = m.indexOf("?");
+  if (at < 0) return keyedQuestion.trim();
+  const lines = m.slice(0, at).split("\n");
+  let first = lines.length - 1;
+  while (first > 0 && lines[first - 1].trim() && !CHOICE_LINE.test(lines[first - 1])) first--;
+  const start = lines.slice(0, first).reduce((n, l) => n + l.length + 1, 0);
+  let question = m.slice(start).trim();
+  for (let s = FIRST_SENTENCE.exec(question); s && (isPraise(s[0]) || isLeadIn(s[0])); s = FIRST_SENTENCE.exec(question)) {
+    question = question.slice(s[0].length).trim();
+  }
+  question = question.replace(PRAISE_LEAD, "")
+    .replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: string, c: string) => pre + c.toUpperCase());
+  const choicesBefore = m.slice(0, start).split("\n").filter((l) => CHOICE_LINE.test(l)).map((l) => l.trim());
+  return choicesBefore.length >= 2 && !question.split("\n").some((l) => CHOICE_LINE.test(l))
+    ? `${question}\n${choicesBefore.join("\n")}`
+    : question;
+}
+
+/** The whole reply when code found the answer answers nothing: no model call (TutorEngine). */
+export function nonAnswerReply(tutorMessage: string, check: AnswerCheck): string {
+  const again = questionAgain(tutorMessage, check.question);
+  return again ? `That doesn't answer the question yet. Here it is again:\n\n${again}` : "That doesn't answer the question yet. Want to try again?";
 }
 
 // ── The note ────────────────────────────────────────────────────────────────────────────────────

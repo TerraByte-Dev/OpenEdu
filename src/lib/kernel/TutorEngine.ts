@@ -41,7 +41,7 @@ import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard"
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { assessPickerCard } from "./assessPicker";
-import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, type AnswerCheck } from "./answerCheck";
+import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
@@ -250,6 +250,11 @@ function fixedReplyResult(text: string, contextTokens: number): TutorTurnResult 
     disclosure: true,
     fixedReply: true,
   };
+}
+
+/** A mastery check's answer that code found answers nothing: code's reply, no model call (answerCheck.ts nonAnswerReply). */
+function nonAnswerResult(contextTokens: number, text: string, answerCheck: AnswerCheck, grounding: Grounding, disclosure: boolean): TutorTurnResult {
+  return { ...fixedReplyResult(text, contextTokens), grounding, answerCheck, disclosure, fixedReply: false };
 }
 
 // The system messages without the <tools> manifest the kernel appended (or inserted on its own).
@@ -498,6 +503,13 @@ ${lastUser.content}` };
       console.info(`[ground] ${t.skipped ? `skipped: ${t.skipped}` : `${t.hitTitles.length} hit(s) — ${t.hitTitles.join(", ")}`} · ${t.candidates} candidate(s) · top ${t.topScore.toFixed(2)} · ${t.blockTokens} tok${t.error ? ` · ${t.error}` : ""}`);
     }
 
+    if (answerCheck?.nonAnswer) {
+      // Code found the answer answers nothing ("xyz", "?!"), so code writes the reply too, with no model
+      // call: a model told "not correct" still added "That is close." (TerraTutor click test 2026-11-19 part 3).
+      const result = nonAnswerResult(budget.total, nonAnswerReply(conversation[conversation.length - 2].content, answerCheck), answerCheck, grounding, keepsNothing);
+      turn.onText(result.text);
+      return result;
+    }
     try {
       return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {

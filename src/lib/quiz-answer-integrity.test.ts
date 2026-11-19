@@ -339,6 +339,107 @@ describe("multiple-choice options must be distinct", () => {
     expect(valid(q).join(" ")).toContain("are the same answer");
     expect(valid(mc({}))).toEqual([]);
   });
+
+  // TerraTutor click test 2026-11-19 part 2, issue 5: a question with two right options marked the child
+  // wrong for the one that was not the key string. Code catches the cases it can read for sure.
+  // End marks, articles and hyphens are what K-2 English questions ask about, so options that differ
+  // only in them are different answers.
+  it("keeps options apart that differ in end marks, articles or hyphens", () => {
+    for (const [question_text, options, key] of [
+      ["Which sentence is a question?", ["A) I like cats.", "B) I like cats?", "C) I like cats!", "D) I like dogs."], "B) I like cats?"],
+      ["Which one asks something?", ["A) Is it red?", "B) Is it red.", "C) It is red.", "D) Red it is."], "A) Is it red?"],
+      ["Which greeting shows strong feeling?", ["A) Hello!", "B) Hello.", "C) Hello?", "D) Hello,"], "A) Hello!"],
+      ["Which is right?", ["A) a apple", "B) an apple", "C) the apples", "D) an apples"], "B) an apple"],
+      ["Which uses a definite article?", ["A) a cat", "B) the cat", "C) cats", "D) an cat"], "B) the cat"],
+      ["Which is spelled right?", ["A) ice-cream", "B) ice cream", "C) icecreem", "D) ise cream"], "B) ice cream"],
+      ["Which one needs a hyphen?", ["A) well-known", "B) well known", "C) wellknown", "D) wel known"], "A) well-known"],
+      ["Which word means to cover again?", ["A) re-cover", "B) re cover", "C) recover", "D) uncover"], "A) re-cover"],
+    ] as Array<[string, string[], string]>) {
+      expect(duplicateOptionPair(options, question_text), options.join(" | ")).toBeNull();
+      const q = mc({ question_text, options, correct_answer: key, explanation: `That one is right. Therefore the answer is ${key}` });
+      expect(valid(q).filter((i) => /same answer|same number/.test(i)), question_text).toEqual([]);
+    }
+  });
+
+  it("catches the same number written the same way", () => {
+    expect(duplicateOptionPair(["A) 0.5", "B) 0.50", "C) 0.05", "D) 5"])).toEqual([0, 1]);
+    expect(duplicateOptionPair(["A) .5", "B) 0.5", "C) 1.5", "D) 2"])).toEqual([0, 1]);
+    expect(duplicateOptionPair(["A) 1,000", "B) 100", "C) 1000", "D) 10"])).toEqual([0, 2]);
+    expect(duplicateOptionPair(["A) 50%", "B) 5%", "C) 50 percent", "D) 500%"])).toEqual([0, 2]);
+  });
+
+  it("leaves signs, negatives and different numbers alone", () => {
+    expect(duplicateOptionPair(["A) ?", "B) !", "C) .", "D) ,"])).toBeNull();
+    expect(duplicateOptionPair(["A) +", "B) -", "C) ×", "D) ÷"])).toBeNull();
+    expect(duplicateOptionPair(["A) -5", "B) 5", "C) - 5 + 1", "D) 0"])).toBeNull();
+    expect(duplicateOptionPair(["A) 1/2", "B) 2/4", "C) 0.5", "D) 50%"])).toBeNull(); // forms differ: optionEqualToKey's case
+  });
+
+  it("keeps the same number written two ways when the stem asks how it is written", () => {
+    for (const [stem, options] of [
+      ["Which shows 3 digits after the decimal point?", ["A) 0.5", "B) 0.50", "C) 0.500", "D) 5"]],
+      ["Round 0.496 to the nearest hundredth.", ["A) 0.5", "B) 0.50", "C) 0.49", "D) 0.4"]],
+      ["Which shows one thousand with a comma?", ["A) 1,000", "B) 1000", "C) 100", "D) 10,00"]],
+    ] as Array<[string, string[]]>) {
+      expect(duplicateOptionPair(options, stem), stem).toBeNull();
+    }
+    expect(duplicateOptionPair(["A) 0.5", "B) 0.50", "C) 0.49", "D) 0.4"], "How much of the cake is left?")).toEqual([0, 1]);
+  });
+
+  // Review of the OpenEdu port of TerraTutor #251, 2026-11-19: false rejections, each costing a regeneration.
+  it("keeps a misconception question that names both numbers, and options that differ in a/an or a hyphen", () => {
+    const ask = (question_text: string, options: string[], key: string) =>
+      valid(mc({ question_text, options, correct_answer: key, explanation: `That one is right. Therefore the answer is ${key}` })).filter((i) => /same answer|same number/.test(i));
+    expect(ask("Which is greater: 0.5 or 0.50?", ["A) 0.5", "B) 0.50", "C) They are equal", "D) You can't tell"], "C) They are equal")).toEqual([]);
+    expect(ask("Which is spelled correctly?", ["A) twenty-one", "B) twenty one", "C) twentyone", "D) twenty-won"], "A) twenty-one")).toEqual([]);
+    expect(ask("Which is right?", ["A) a eighth", "B) an eighth", "C) an eight", "D) a eight"], "B) an eighth")).toEqual([]);
+    // A stem that names only one of them still gets the twins caught.
+    expect(duplicateOptionPair(["A) 0.5", "B) 0.50", "C) 0.05", "D) 5"], "Is 0.5 more than 0.05?")).toEqual([0, 1]);
+    expect(ask("What fraction of the pie is left?", ["A) one eighth", "B) 0.125", "C) one fourth", "D) one half"], "A) one eighth")).not.toEqual([]);
+  });
+
+  it("keeps a fraction, number word or ordinal question whose options name the key's number another way", () => {
+    const ask = (question_text: string, options: string[], key: string) =>
+      valid(mc({ question_text, options, correct_answer: key, explanation: `That one is right. Therefore the answer is ${key}` })).filter((i) => /same number/.test(i));
+    expect(ask("Which fraction has 8 as its denominator?", ["A) 1/2", "B) 4/8", "C) 1/4", "D) 2/3"], "B) 4/8")).toEqual([]);
+    expect(ask("Which word is the number 4?", ["A) four", "B) 4", "C) for", "D) fore"], "A) four")).toEqual([]);
+    expect(ask("What is the ordinal for 3?", ["A) third", "B) 1/3", "C) three", "D) thirty"], "A) third")).toEqual([]);
+  });
+
+  it("validateQuizBatch rejects an option that is the key's number written another way", () => {
+    const half = (options: string[], key: string, question_text = "What fraction of the pizza is left?") =>
+      mc({ question_text, options, correct_answer: key, explanation: `Half of it is left. Therefore the answer is ${key}` });
+    for (const [options, key] of [
+      [["A) 1/2", "B) 0.5", "C) 1/3", "D) 1/4"], "A) 1/2"],
+      [["A) 1/3", "B) 1/2", "C) one half", "D) 1/4"], "B) 1/2"],
+      [["A) 2/4", "B) 1/3", "C) 1/2", "D) 3/4"], "C) 1/2"],
+      [["A) 50%", "B) 1/3", "C) 1/2", "D) 25%"], "C) 1/2"],
+      [["A) 3 quarters", "B) 3/4", "C) 1/2", "D) 1/4"], "B) 3/4"],
+    ] as Array<[string[], string]>) {
+      expect(valid(half(options, key)).join(" "), options.join(" | ")).toContain("is the same number as the correct answer");
+    }
+    expect(valid(mc({ question_text: "What is 3 + 4?", options: ["A) 7", "B) seven", "C) 8", "D) 6"], correct_answer: "A) 7", explanation: "3 + 4 = 7. Therefore the answer is 7" })).join(" "))
+      .toContain("is the same number as the correct answer");
+    // Two distractors that equal each other but not the key leave the child's mark right.
+    expect(valid(half(["A) 1/3", "B) 2/4", "C) 0.5", "D) 1/4"], "A) 1/3"))).toEqual([]);
+  });
+
+  it("keeps a question about how a number is written", () => {
+    for (const question_text of ["Which of these is written as a decimal?", "Which fraction is in simplest form?", "Write 2/4 in lowest terms.", "What is 0.5 as a fraction?", "Which shows one half as a percent?"]) {
+      const q = mc({ question_text, options: ["A) 1/2", "B) 0.5", "C) 2/4", "D) 50%"], correct_answer: "B) 0.5", explanation: "0.5 is the decimal. Therefore the answer is 0.5" });
+      expect(valid(q).filter((i) => /same number/.test(i)), question_text).toEqual([]);
+    }
+  });
+
+  it("through the real generator, a two-right-answers question is rewritten before it is shown", async () => {
+    scriptModel([
+      () => mc({ question_text: "What fraction of the pizza is left?", options: ["A) 1/2", "B) 0.5", "C) 1/3", "D) 1/4"], correct_answer: "A) 1/2", explanation: "Half is left. Therefore the answer is 1/2" }),
+      (n) => mc({ question_text: STEMS_200[Math.floor(n / 2) % 4] }),
+    ]);
+    const qs = await generateQuizQuestions(syllabus, 3, local);
+    expect(qs).toHaveLength(3);
+    expect(qs.some((q) => q.options?.some((o) => /0\.5/.test(o)))).toBe(false);
+  });
 });
 
 // ─── 4. Letters in explanations after the shuffle ─────────────────────────────
