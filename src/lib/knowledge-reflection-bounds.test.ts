@@ -88,6 +88,22 @@ describe("the post-turn reflection's bounds", () => {
   });
 });
 
+// TerraTutor's click test 2026-11-19: the study log gemma4:e2b wrote held a literal "[Current Date]".
+describe("the post-turn reflection's template blanks", () => {
+  it("writes the real date for a date blank, \"the student\" for a name blank, and drops an Insert blank", async () => {
+    const files = {
+      study_log: "[Current Date] Practised 6 x 7 with [Student Name].",
+      learning_profile: "[Insert learning style here] Likes short examples.",
+    };
+    globalThis.fetch = (async () => Response.json({ message: { content: JSON.stringify(files) } })) as unknown as typeof fetch;
+    await reflect();
+    const today = new Date().toLocaleDateString();
+    expect(saveTutorInstruction).toHaveBeenCalledWith("course-1", "study_log", `[${today}] Practised 6 x 7 with the student.`);
+    expect(saveTutorInstruction).toHaveBeenCalledWith("course-1", "learning_profile", "Likes short examples.");
+    for (const call of vi.mocked(saveTutorInstruction).mock.calls) expect(String(call[2])).not.toMatch(/\[(?:current date|student name|insert)/i);
+  });
+});
+
 // ChatTab is React over Tauri and has no render test here; this pins the wiring the tests above rely on.
 describe("ChatTab's reflection signal", () => {
   it("passes its own signal, and aborts it when the next turn starts and when the chat closes", () => {

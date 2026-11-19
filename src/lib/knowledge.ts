@@ -1,6 +1,6 @@
 import { getTutorInstructions, saveTutorInstruction } from "./db";
 import { callLLM } from "./llm";
-import { KNOWLEDGE_TYPES, appendStudyLog, parseReflection, tutorCorrectedLearner, type KnowledgeType } from "./knowledge-reflect";
+import { KNOWLEDGE_TYPES, appendStudyLog, parseReflection, tutorCorrectedLearner, withoutBlanks, type KnowledgeType } from "./knowledge-reflect";
 import type { LLMConfig } from "../types";
 import { evaluatePermission } from "./permissions/evaluate";
 import { loadPermissionRules } from "./permissions/store";
@@ -275,6 +275,12 @@ Respond with ONLY valid JSON.`;
   // shows the learner was wrong. On a confirmed answer the model invents one ("Corrected
   // misconception: ...") about as often as not.
   if (files.misconceptions && !tutorCorrectedLearner(assistantResponse)) delete files.misconceptions;
+  // A template blank the model copied in ("[Current Date]") gets the date the quiz lines use, or goes.
+  const today = new Date().toLocaleDateString();
+  for (const type of KNOWLEDGE_TYPES) {
+    const text = files[type];
+    if (text) files[type] = withoutBlanks(text, today) || undefined;
+  }
   // The study log is appended to, never replaced, so the quiz-score line survives.
   if (files.study_log) files.study_log = appendStudyLog(instructions["study_log"] ?? "", files.study_log);
 

@@ -89,6 +89,25 @@ export function appendStudyLog(current: string, added: string): string {
   return lines.slice(-STUDY_LOG_ENTRIES).join("\n");
 }
 
+// A template's blanks a small model copies into the file instead of filling: "[Current Date] Worked on
+// fractions." (gemma4:e2b, TerraTutor's click test 2026-11-19; it sees the quiz lines' "[11/19/2026] Quiz: ..."
+// and imitates their shape). A date blank gets the real date, a name blank "the student" (the files are
+// about one student, and never hold a name), a topic blank "this topic"; an "Insert ..." blank is dropped.
+const DATE_BLANK = /\[\s*(?:(?:current|today'?s|the|insert(?: the)?)\s+)?(?:date|day|today)(?:\s+here)?\s*\]/gi;
+const NAME_BLANK = /\[\s*(?:(?:student|learner|child)(?:'s)?\s+)?name\s*\]/gi;
+const TOPIC_BLANK = /\[\s*(?:topic|subject|concept)\s*\]/gi;
+const INSERT_BLANK = /\[\s*insert\b[^\]\n]{0,40}\]\s?/gi;
+
+/** A knowledge file's text with template blanks filled or removed: `[Current Date]` is `today`, as the quiz lines write it. */
+export function withoutBlanks(text: string, today: string): string {
+  return text
+    .replace(DATE_BLANK, `[${today}]`)
+    .replace(NAME_BLANK, "the student")
+    .replace(TOPIC_BLANK, "this topic")
+    .replace(INSERT_BLANK, "")
+    .trim();
+}
+
 /** Equal, or one contains the other (ignoring case) when the shorter is long enough to mean something. */
 function nearDuplicate(a: string, b: string): boolean {
   const x = a.toLowerCase(), y = b.toLowerCase();
