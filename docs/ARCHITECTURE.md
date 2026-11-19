@@ -412,16 +412,20 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   TerraTutor #245; its click test 2026-11-19 part 2: in one fractions quiz `gemma4:e2b` marked 4 of 5
   typed "xyz" answers right, and a re-grade of the same rows marked them wrong 3 of 3 times). Before any
   model call, an answer code could not settle that is empty, has no letter or digit (unless the key has
-  none: ">"), or is one to four lower-case keyboard-mash tokens ("xyz", "asdfgh", "sdf jkl": an alphabet
-  run, a letter three times running, or every letter on one keyboard row with no a/e/i/o/u or three keys
-  side by side) that neither the dictionary nor the word list knows and that are nowhere near a word of
-  the key or question nor the key's initials ("jfk", "nyc"), is stored wrong as `'exact'` with
-  `NO_ANSWER_FEEDBACK`, with or without a local model, so the quiz score, the level test's result and the
-  learning record all count it wrong; "I think I was right" still applies to it. A digit, a capital, one
+  none, ">", or the key or question names a sign the learner typed: ">" for "greater than", "?" for "a
+  question mark", "%" for "percent sign", `SIGN_NAMES`), or is one to four lower-case keyboard-mash tokens
+  ("xyz", "asdfgh", "sdf jkl": an alphabet run, unless the key is one letter or the question is about
+  letters; one letter over and over, "jjjj", or a mash with a stretched letter; five letters or more on
+  one keyboard row with no a/e/i/o/u, "qwrtp"; or three keys side by side on the middle or bottom row,
+  four on the top) that neither the dictionary nor the word list knows and that are nowhere near a word
+  of the key or question nor the key's initials ("jfk", "nyc"), is stored wrong as `'exact'` with
+  `NO_ANSWER_FEEDBACK`, with or without a local model, so the quiz score, the level test's result and
+  mastery progress count it wrong; "I think I was right" still applies to it. A digit, a capital, one
   or two letters, a listed word ("qwerty", "hmm") or a sounded-out misspelling ("nepchune", "omnivour") is
   never one, and no vowel or a run of consonants is never enough on its own: a K-2 spelling of a right
-  answer other than the key ("shrk", "trtl"), an abbreviation ("fdr", "jfk", "hcl"), a name
-  ("pittsburgh") or a German word ("tschuss") goes to the model, or offline passes unchecked as before.
+  answer other than the key ("shrk", "trtl", "wtr", "dsk", "tre"), an abbreviation ("fdr", "jfk", "hcl",
+  "dhs", "cnn"), a sound word ("grrr", "shhh"), a name ("pittsburgh") or a German word ("tschuss") goes to
+  the model, or offline passes unchecked as before.
   `non-answer.test.ts` runs every typed answer in the grading dev sets through it (none is one) and lists
   those shapes, which the dev sets lack. The chat's answer check uses the same gate (below).
 - **A safety disclosure typed outside the chat is not marked** (ported from TerraTutor #175). The chat's

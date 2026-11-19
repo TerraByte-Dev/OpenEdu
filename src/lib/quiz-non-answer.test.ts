@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vites
 
 // A typed answer that answers nothing, on the app's path: gradeAnswersBatch, which QuizFullScreen, the
 // level test's finish and a handed-in level test's finish (level-test-checks.ts finishHandedInLevelTest)
-// all call, and whose marks they store as the learning record reads them (updateQuizQuestionGrade).
+// all call, and whose marks they store (updateQuizQuestionGrade), as progress reads them.
 // TerraTutor click test 2026-11-19, gemma4:e2b: 4 of 5 typed "xyz" answers in a fractions quiz came back right and
 // counted in the score, shown "Correct.". The bundled dictionary is read from public/ as the webview
 // serves it; only the model call is stubbed.
@@ -102,6 +102,35 @@ describe("gradeAnswersBatch: a real answer with no vowel, or an abbreviation", (
   it("with no model on the computer is passed as unchecked, as before, not marked wrong", async () => {
     const out = await gradeAnswersBatch(items, null);
     for (const i of [0, 1, 2, 3]) expect(out.get(i)).toMatchObject({ isCorrect: true, by: "fallback" });
+  }, 30_000);
+});
+
+describe("gradeAnswersBatch: a sign that names the key, a sound word, a short spelling", () => {
+  beforeAll(() => { resetDictionaryCache(); resetWordListCache(); installAppOrigin(); });
+  afterAll(() => { globalThis.fetch = original; resetDictionaryCache(); resetWordListCache(); });
+  beforeEach(() => { vi.mocked(callLLMStructured).mockReset(); });
+
+  // Review of the OpenEdu port of TerraTutor #245, 2026-11-19: each was stored wrong as 'exact' with
+  // NO_ANSWER_FEEDBACK; on master it went to the model, or passed as unchecked with no model.
+  const items: AnswerToGrade[] = [
+    { index: 0, question: "Which sign means greater than?", expected: "greater than", student: ">", type: "short_answer" },
+    { index: 1, question: "What goes at the end of an asking sentence?", expected: "a question mark", student: "?", type: "short_answer" },
+    { index: 2, question: "Which sign means out of one hundred?", expected: "percent sign", student: "%", type: "short_answer" },
+    { index: 3, question: "What sound does an angry dog make?", expected: "woof", student: "grrr", type: "short_answer" },
+    { index: 4, question: "What do plants need to grow?", expected: "sunlight", student: "wtr", type: "short_answer" },
+    { index: 5, question: "Which president said \"Ask not what your country can do for you\"?", expected: "Kennedy", student: "jfk", type: "short_answer" },
+  ];
+
+  it("goes to the model", async () => {
+    vi.mocked(callLLMStructured).mockResolvedValue(Object.fromEntries(items.map((_, i) => [`answer_${i + 1}`, { feedback: "Yes.", correct: true }])));
+    const out = await gradeAnswersBatch(items, config());
+    for (const it of items) expect(out.get(it.index)?.by).toBe("model");
+    for (const s of ["grrr", "wtr", "jfk"]) expect(prompted()).toContain(s);
+  }, 30_000);
+
+  it("with no model on the computer is passed as unchecked, as before", async () => {
+    const out = await gradeAnswersBatch(items, null);
+    for (const it of items) expect(out.get(it.index)).toMatchObject({ isCorrect: true, by: "fallback" });
   }, 30_000);
 });
 

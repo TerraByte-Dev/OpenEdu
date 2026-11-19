@@ -19,7 +19,7 @@ describe("isNonAnswer", () => {
   beforeAll(() => { resetDictionaryCache(); resetWordListCache(); installAppOrigin(); });
   afterAll(() => { globalThis.fetch = original; resetDictionaryCache(); resetWordListCache(); });
 
-  it.each(["", "   ", "?", "...", "!!", "?!", "🙂", "xyz", "asdf", "asdfgh", "qwrtp", "jjjj", "sdf jkl", "asdf jkl", "lkjh", "  xyz  "])(
+  it.each(["", "   ", "?", "...", "!!", "?!", "🙂", "xyz", "asdf", "asdfgh", "qwrtp", "jjjj", "sdf jkl", "asdf jkl", "lkjh", "  xyz  ", "zxcv", "asdfff", "qwer"])(
     "%j answers nothing", async (text) => {
       expect(await isNonAnswer(text, "3/4", FRACTION_Q)).toBe(true);
     }, 30_000);
@@ -67,6 +67,49 @@ describe("isNonAnswer", () => {
     ["deutsch", "German", "What language is spoken in Austria?"],
     // A misspelling of the right word when the key is a number.
     ["eigths", "1/8", "Each part of a whole cut into 8 equal parts is one ____."],
+  ])("%j (key %j) is left to the model", async (text, key, question) => {
+    expect(await isNonAnswer(text, key, question)).toBe(false);
+  }, 30_000);
+
+  // Review of the OpenEdu port of TerraTutor #245, 2026-11-19: a sign typed for a key that names it, and real
+  // attempts the keyboard-row and repeated-letter rules took for a mash. Each was stored wrong as 'exact'.
+  it.each([
+    [">", "greater than", "Which sign means greater than?"],
+    ["<", "less than", "Which sign means less than?"],
+    ["=", "the equal sign", "What goes between 2 + 2 and 4?"],
+    ["+", "plus", "What sign do you use to add?"],
+    ["-", "minus", "What sign do you use to take away?"],
+    ["÷", "division sign", "Which sign means share equally?"],
+    ["?", "a question mark", "What goes at the end of an asking sentence?"],
+    [".", "a period", "What goes at the end of a telling sentence?"],
+    ["!", "an exclamation point", "What goes at the end of a sentence that shows strong feeling?"],
+    [",", "a comma", "What goes between the city and the state in an address?"],
+    ["$", "dollar sign", "Which sign goes in front of an amount of money?"],
+    ["%", "percent sign", "Which sign means out of one hundred?"],
+  ])("sign %j (key %j) is left to the model", async (text, key, question) => {
+    expect(await isNonAnswer(text, key, question)).toBe(false);
+  }, 30_000);
+
+  it.each([
+    // Abbreviations, including of a one-word key.
+    ["jfk", "Kennedy", "Which president said \"Ask not what your country can do for you\"?"],
+    ["dhs", "Homeland Security", "Which department guards the country's borders?"],
+    ["cnn", "a news channel", "Name a TV news channel."],
+    ["nbc", "a TV network", "Name a TV network."],
+    // K-2 spellings of a right answer.
+    ["wtr", "sunlight", "What do plants need to grow?"],
+    ["dsk", "a chair", "Name something in a classroom."],
+    ["sld", "skis", "What can you ride down a snowy hill?"],
+    ["hll", "a mountain", "What is a small mountain called?"],
+    ["prty", "a picnic", "Name a fun thing to have on a birthday."],
+    ["tre", "a flower", "Name a plant."],
+    // Sound words and a stretched word.
+    ["grrr", "woof", "What sound does an angry dog make?"],
+    ["shhh", "be quiet", "What do you say to ask for quiet?"],
+    ["yesss", "no", "Is the sun a planet?"],
+    // An alphabet run when the question is about letters.
+    ["lmnop", "L", "What letter comes after K?"],
+    ["efg", "e", "Which letter comes after d?"],
   ])("%j (key %j) is left to the model", async (text, key, question) => {
     expect(await isNonAnswer(text, key, question)).toBe(false);
   }, 30_000);
