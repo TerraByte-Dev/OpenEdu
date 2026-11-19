@@ -239,7 +239,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
           description="The local Ollama server URL. The tutor discovers installed models from here."
           keywords="ollama connection url localhost 11434 server offline local discover models refresh"
         >
-          <SettingRow label="Server URL" help="Default is http://127.0.0.1:11434. Change it if Ollama runs elsewhere, then Save & Check.">
+          <SettingRow label="Server URL" help={`Default is http://127.0.0.1:11434. ${APP_NAME} only talks to Ollama on this computer.`}>
             <div className="flex gap-2 items-center">
               <input
                 type="text"
