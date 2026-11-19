@@ -210,7 +210,9 @@ written: they came from a once-a-minute timer whose only reader was the learning
   key's number written another way ("0.5", "one half", "2/4" or "50%" beside the key "1/2", "seven" beside
   "7"; `optionEqualToKey`); neither number check applies when the stem asks how a number is written ("as a
   decimal", "simplest form", "nearest hundredth", "with a comma", "denominator", "which word",
-  "ordinal"), so a learner who picks the other right option is never marked wrong (ported from TerraTutor
+  "ordinal", "spelled"), the first not when the stem names both options ("Which is greater: 0.5 or 0.50?"),
+  and the second not for an option that differs from the key only in "a"/"an", a hyphen or a space ("a
+  eighth"/"an eighth", "twenty one"/"twenty-one"), so a learner who picks the other right option is never marked wrong (ported from TerraTutor
   #251; two options that state different true facts are left to the content review's "unanswerable"
   verdict), near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,
@@ -429,7 +431,7 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   typed "xyz" answers right, and a re-grade of the same rows marked them wrong 3 of 3 times). Before any
   model call, an answer code could not settle that is empty, has no letter or digit (unless the key has
   none, ">", or the key or question names a sign the learner typed: ">" for "greater than", "?" for "a
-  question mark", "%" for "percent sign", `SIGN_NAMES`), or is one to four lower-case keyboard-mash tokens
+  question mark", "%" for "percent sign" or "modulo", "{}" for "curly braces", `SIGN_NAMES`), or is one to four lower-case keyboard-mash tokens
   ("xyz", "asdfgh", "sdf jkl": an alphabet run, unless the key is one letter or the question is about
   letters; one letter over and over, "jjjj", or a mash with a stretched letter; five letters or more on
   one keyboard row with no a/e/i/o/u, "qwrtp"; or three keys side by side on the middle or bottom row,
@@ -996,9 +998,12 @@ So the verdict on the child's answer is the app's, not the reply's:
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
   answer that answers nothing ("xyz", "?!", `non-answer.ts`, as for quiz answers): **incorrect**, with no
   further call, and code writes the whole reply too, with no reply call (`nonAnswerReply`: "That doesn't
-  answer the question yet. Here it is again:" and the tutor's question from the sentence that asks it to
-  the end, without praise joined to it by commas ("Correct, great job, now what is 7 x 8?"), choices
-  included (those listed before it are put after it), so the next try is checked against it). In
+  answer the question yet. Here it is again:" and the tutor's question with its paragraph, from the lines
+  before it up to a blank line or a choice, to the end, so a word problem keeps its setup ("Sam has 5
+  apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
+  one:", "Here is your first question.") or praise joined to it by commas ("Correct, great job, now what
+  is 7 x 8?"), choices included (those listed before it are put after it), so the next try is checked
+  against it: the next turn keys this reply). In
   TerraTutor's click test 2026-11-19 part 3 a model told "not correct" still added "That is close." 2
   times in 5 (ported from TerraTutor #251). A typed answer only: a card's answer that answers nothing
   still gets the model's reply. A

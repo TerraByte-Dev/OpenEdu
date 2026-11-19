@@ -163,8 +163,9 @@ The section for each release is also what the app shows when you press Check for
   question again, so the tutor can't add "That is close."
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
-  "0.5" and "0.50". Choices that differ only in an end mark, "a"/"an" or a hyphen stay apart, since that
-  is what an English question asks about.
+  "0.5" and "0.50". Choices that differ only in an end mark, "a"/"an" or a hyphen stay apart ("an eighth"
+  and "a eighth", "twenty-one" and "twenty one" too), since that is what an English question asks about,
+  and so do "0.5" and "0.50" when the question names both ("Which is greater: 0.5 or 0.50?").
 - **No "learned" without a mark.** In a mastery check, "I can mark that as learned for you!" or "You have
   successfully learned those concepts" is taken out unless a mark was saved.
 - **A reply never stops at "I can look that up for you."** The tutor asks the model once more after the
