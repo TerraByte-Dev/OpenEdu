@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateSetup, modelIsInstalled, showsSetupGate } from "./setup-check";
+import { evaluateSetup, modelIsInstalled, showsSetupGate, tourMayShow } from "./setup-check";
 import appSource from "../App.tsx?raw";
 
 const facts = (over: Partial<Parameters<typeof evaluateSetup>[0]> = {}) => ({
@@ -180,5 +180,39 @@ describe("evaluateSetup", () => {
   it("offline, a missing course builder points at Settings instead of a download", () => {
     const s = evaluateSetup(facts({ installed: ["tutor-kit:latest"], chatModel: "tutor-kit", generationModel: "gemma4:e2b", online: false }));
     expect(s.checks.find((c) => c.id === "gen-model")?.fix).toEqual({ label: "Open Settings", kind: "open-settings" });
+  });
+});
+
+// Port of TerraTutor #243 (its click test, 2026-11-19): the tour's first bubble showed over the setup screen.
+describe("tourMayShow: the first-run tour waits until the setup screen is gone", () => {
+  const ready = evaluateSetup(facts());
+  const blocked = evaluateSetup(facts({ installed: [] }));
+  const noEmbedder = evaluateSetup(facts({ installed: ["gemma3:1b"] }));
+
+  it("never with setup blocked, unchecked or the probe failed", () => {
+    expect(tourMayShow(blocked, false)).toBe(false);
+    expect(tourMayShow(blocked, true)).toBe(false);
+    expect(tourMayShow(null, false)).toBe(false);
+  });
+
+  // Setup was blocked, then fixed (a download, a model picked in Settings): the screen stays with "You're
+  // ready to go" until "Start learning", and the tour waits for that.
+  it("not while the screen still says \"You're ready to go\"; then once it's gone", () => {
+    expect(ready.ready).toBe(true);
+    expect(showsSetupGate(ready, false, true)).toBe(true);
+    expect(tourMayShow(ready, false, true)).toBe(false);
+    expect(tourMayShow(ready, true, true)).toBe(true);
+    expect(tourMayShow(ready, false)).toBe(true);
+  });
+
+  it("not held back by a missing notebook embedder alone, which never shows the screen", () => {
+    expect(noEmbedder.ready).toBe(true);
+    expect(showsSetupGate(noEmbedder, false)).toBe(false);
+    expect(tourMayShow(noEmbedder, false)).toBe(true);
+  });
+
+  it("is what App asks before it shows the tour", () => {
+    expect(appSource).toMatch(/tourMayShow\(setup, setupDismissed, setupWasNeeded\) && \(\s*<TourOverlay/);
+    expect(appSource).not.toMatch(/setup\?\.ready && \(\s*<TourOverlay/);
   });
 });

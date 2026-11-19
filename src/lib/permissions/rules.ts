@@ -48,6 +48,29 @@ export const DEFAULT_PERMISSION_RULES: PermissionRules = {
 // and the defaults can't drift.
 export const PERMISSION_ROWS: string[] = Object.keys(DEFAULT_PERMISSION_RULES);
 
+// Plain-English names for the raw tool ids in Settings › Permissions › Advanced. Every row the grid shows
+// has one (rules.test.ts): "flashcard.create" once showed as its bare id.
+export const PERMISSION_TOOL_LABELS: Readonly<Record<string, string>> = {
+  "ask_user.question": "Ask you a question",
+  "notebook.search": "Search your notebook",
+  "library.search": "Search the library",
+  "library.lookup": "Look up a fact",
+  "knowledge.read": "Read course knowledge",
+  "progress.read": "Read your progress",
+  "study_plan.*": "Manage study plan",
+  "flashcard.review_due": "Review due flashcards",
+  "flashcard.create": "Make a flashcard",
+  "quiz.generate": "Generate a quiz",
+  "math.render": "Render math",
+  "diagram.render": "Render a diagram",
+  "knowledge.update_map": "Update knowledge map",
+  "progress.mark_mastered": "Mark a topic mastered",
+  "web.search": "Search the web",
+  "web.fetch": "Fetch a web page",
+  "code.run": "Run code",
+  "notebook.ingest": "Add files to notebook",
+};
+
 // Rows whose tool the tutor also uses on its own, outside any tool call: the grounding stage searches
 // the notes and the library before every reply (kernel/ground.ts), and the post-turn reflection updates
 // the knowledge files after it (knowledge.ts updateKnowledgeFiles). Deny stops that too. Ask cannot: a

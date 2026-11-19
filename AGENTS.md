@@ -68,7 +68,9 @@ wrapper are **not type-linked**; keep them in sync by hand.
   `src/components/notes-cards-safety.test.ts`, which types a safety disclosure into the real Notebook, Review this note and Review's + New card,
   `src/components/names-folders-search-safety.test.ts`, which types one into the real Notebook search, folder name box and import, the real learner menu's Change my name and the real Settings › Learner › Your name,
   `src/components/chat-notice-read.test.ts`, which sends a safety disclosure in the real chat when the turn fails,
-  `src/components/review-grade-once.test.ts`, which double-clicks the real Review grade buttons, and
+  `src/components/review-grade-once.test.ts`, which double-clicks the real Review grade buttons,
+  `src/views/settings/provider-models-recheck.test.ts`, which saves models and the Ollama URL in the real
+  Settings › Provider & Models and checks the setup check runs again, and
   `src/views/quiz-exit-confirm.test.ts`, which answers and leaves the real practice quiz.
 - Rust logic gets `#[cfg(test)]` tests in the same file. Test against temp dirs, never the user's disk.
 - **A test must go through the same code path production does.** A test of a helper the app doesn't

@@ -15,7 +15,7 @@ import { tickBreakClock, NEW_BREAK_CLOCK } from "./lib/break-reminder";
 import { breakReminder } from "./lib/ai-notice";
 import type { NextStepAction } from "./lib/next-step";
 import { opensWhenBuilt, readyNotice, readyNoticeAfter } from "./lib/course-ready";
-import { probeEnvironment, showsSetupGate, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
+import { probeEnvironment, showsSetupGate, tourMayShow, warmTutorInBackground, type SetupStatus } from "./lib/setup-check";
 import { log, unloadOllamaModels } from "./lib/llm";
 import { savePendingEdits } from "./lib/note-autosave";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -535,7 +535,7 @@ export default function App() {
             />
           )}
 
-          {tourStep !== null && activeLearner && !isFullscreenView && setup?.ready && (
+          {tourStep !== null && activeLearner && !isFullscreenView && tourMayShow(setup, setupDismissed, setupWasNeeded) && (
             <TourOverlay step={tourStep} onNext={advanceTour} onSkip={skipTour} />
           )}
         </>

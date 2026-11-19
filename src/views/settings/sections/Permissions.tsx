@@ -1,32 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   loadPermissionRules, savePermissionRules,
-  PERMISSION_ROWS, PERMISSION_EDITABLE_MODES, AUTOMATIC_USE_NOTES, PERMISSION_PRESETS, detectPreset,
+  PERMISSION_ROWS, PERMISSION_EDITABLE_MODES, AUTOMATIC_USE_NOTES, PERMISSION_TOOL_LABELS, PERMISSION_PRESETS, detectPreset,
   type PermissionRules, type PermissionDecision,
 } from "../../../lib/permissions";
 import type { PermissionMode } from "../../../lib/tools";
 import { Section, Disclosure, useSettings } from "../primitives";
-
-// Friendly labels for the raw tool ids in the Advanced grid.
-const TOOL_LABELS: Record<string, string> = {
-  "ask_user.question": "Ask you a question",
-  "notebook.search": "Search your notebook",
-  "library.search": "Search the library",
-  "library.lookup": "Look up a fact",
-  "knowledge.read": "Read course knowledge",
-  "progress.read": "Read your progress",
-  "study_plan.*": "Manage study plan",
-  "flashcard.review_due": "Review due flashcards",
-  "quiz.generate": "Generate a quiz",
-  "math.render": "Render math",
-  "diagram.render": "Render a diagram",
-  "knowledge.update_map": "Update knowledge map",
-  "progress.mark_mastered": "Mark a topic mastered",
-  "web.search": "Search the web",
-  "web.fetch": "Fetch a web page",
-  "code.run": "Run code",
-  "notebook.ingest": "Add files to notebook",
-};
 
 const DECISION_CLS: Record<PermissionDecision, string> = {
   allow: "text-success",
@@ -121,7 +100,7 @@ export default function Permissions() {
               {PERMISSION_ROWS.map((tool) => (
                 <tr key={tool} className="border-t border-[var(--rule)]">
                   <td className="px-3 py-2">
-                    <div className="text-[13px] text-ink leading-tight">{TOOL_LABELS[tool] ?? tool}</div>
+                    <div className="text-[13px] text-ink leading-tight">{PERMISSION_TOOL_LABELS[tool] ?? tool}</div>
                     <div className="font-lcd text-[10px] text-[var(--ink-faint)]">{tool}</div>
                     {AUTOMATIC_USE_NOTES[tool] && (
                       <p className="text-[11px] text-[var(--ink-faint)] leading-snug mt-1 max-w-md">{AUTOMATIC_USE_NOTES[tool]}</p>
