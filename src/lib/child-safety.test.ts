@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { isSafetyDisclosure, pregnancyShape, SAFETY_NOTICE, CHILD_SAFETY_RULES } from "./child-safety";
+import {
+  isSafetyDisclosure, pregnancyShape, SAFETY_NOTICE, CHILD_SAFETY_RULES,
+  disclosureReply, isHarmTopicQuestion, DISCLOSURE_REPLY_K2, DISCLOSURE_REPLY_3_5, DISCLOSURE_REPLY_OLDER, DISCLOSURE_REPLY_NO_GRADE,
+} from "./child-safety";
 import { GRADES } from "./grade";
 import { fs, path, cwd } from "./eval/headless/node-io";
 import {
@@ -79,8 +82,13 @@ describe("isSafetyDisclosure", () => {
   });
 
   // Known, accepted false positives: each shows the notice on an ordinary message. They stay because
-  // the matcher that would skip them would also skip real disclosures, and a wrong notice costs one
-  // kind line of text. Pinned here so a change to that trade is a deliberate one.
+  // the matcher that would skip them would also skip real disclosures. Since the port of TerraTutor #246 a harm
+  // hit in the chat gets the fixed disclosureReply instead of the model's answer, unless it is a question about
+  // someone else (isHarmTopicQuestion, Fable's decision as Tate's delegate, 2026-11-19), which keeps the old
+  // trade of one kind line of text: the Romeo, "molest" and "author" questions below still get their answer;
+  // "women were raped during the war", "what would happen if i died my hair blue", "he hit me in dodgeball"
+  // and the rest get the notice and the fixed reply, not an answer. Pinned here so a change to that trade is
+  // a deliberate one.
   it("fires on these known, accepted false positives", () => {
     for (const m of [
       "Why did Romeo commit suicide?", "he hit me with a great idea", "I cut myself on the paper",
@@ -373,6 +381,67 @@ describe("isSafetyDisclosure", () => {
     ]) expect(isSafetyDisclosure(m), m).toBe(false);
   });
 
+  // Ported from TerraTutor #246 (its click test of #227, 2026-11-19), each list verbatim: "someone at home hurts
+  // me" showed no notice, because the person and the verb had to be next to each other, and "i get hit at home"
+  // had no passive form. The fix: a place between the person and the verb, "a grown up" with a space, the
+  // first-person passive with a person after "by" or a home. The harm half reads no grade, so each is checked
+  // with no grade and at every grade.
+  it("fires on a person with a place before the verb, and on the child hit or hurt in the passive (TerraTutor #246)", () => {
+    for (const m of [
+      // The five the click test found.
+      "someone at home hurts me", "someone at home hits me", "someone at my house hurts me", "a grown up at home hurts me",
+      "i get hit at home",
+      // A place between the person and the verb.
+      "somebody at home hurts me", "someone at home is hurting me", "someone at school hits me", "someone in my house hits me",
+      "someone in my family hurts me", "my dad at home hits me", "a grown-up at my house hurts me", "a grownup at home hits me",
+      "someone at my dad's house hurts me", "someone at my mom's house hits me", "a person at home hurts me",
+      "a person at my house hits me", "someone at home beats me", "a grown up hurts me",
+      // The passive, with a home.
+      "i got hit at home", "i am being hit at home", "i was hit at home", "i keep getting hit at home", "im getting hit at home",
+      "i get hit a lot at home", "i get hit at my dad's house", "i get hit at my dad's", "i get beaten at home", "i get abused at home",
+      "we get hit at home", "I Get Hit At Home.",
+      // The passive, with a person after "by".
+      "i got hit by my dad", "i was hit by my stepdad", "i get hit by my mom", "i got hurt by my uncle", "i was beaten by my dad",
+      "i get beaten by my mom's boyfriend", "i got punched by my brother", "i was slapped by him", "i get kicked by my stepmom",
+      "i have been hit by my dad", "i got hit in the face by my dad", "i was hurt by someone", "i got hit by a grown up",
+      "i got hit by someone at home", "i got beaten up by my dad",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(true);
+  });
+
+  // Held out in TerraTutor #246: written before the patterns above, ordinary school, play and sport sentences
+  // with the same words.
+  it("does not fire on school, play and sport with those words (TerraTutor #246)", () => {
+    for (const m of [
+      "the ball hit me at recess so i lost", "at home my plant got hurt by frost", "in the story someone at home hurts the dog's feelings",
+      "i got hit by a ball in gym", "i got hit by a car once but i was fine", "i got hit with a snowball", "i got hurt playing soccer",
+      "we got beaten at home 3-0", "we got beat at home by the tigers", "i got beaten by my brother at chess",
+      "i got beaten at chess by my dad", "we got beaten by our rivals", "i got hit by a pitch in baseball", "our house got hit by lightning",
+      "we got hit at home by the storm", "i was hurt by her words", "i was hurt by my teacher's comment",
+      "i got hit in the head by a ball at home", "someone at school hurt my feelings", "someone at home ate my snack",
+      "my team got beaten at home", "i get hit by waves at the beach", "someone at school hit a home run",
+      "a grown up at the museum showed us fossils", "i was hit by an idea", "my mom at home helps me with math",
+      "i get hit with too much homework at home", "i was hit by the flu at home", "i got beat by my sister at checkers",
+      "the person at home base got hit by the ball", "in dodgeball i got hit by my friend", "someone in my class hits the ball really far",
+      "what do you do if someone at school hits you", "a grown up at home helps me read",
+      // TerraTutor's review of the branch: a team's home game, not the child beaten at home.
+      "we got beat at home", "we got beaten at home last night",
+      // A second round, written after the patterns, that the home guards were added for.
+      "i got hit at home plate", "i got hit at my dad's game", "my brother at home beats me at chess",
+      "someone at school beat me at tag", "i was beat at home by my brother in chess", "we were beaten at home 2 to 1",
+    ]) for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(m, g), `${g}: ${m}`).toBe(false);
+  });
+
+  // The cheap side of that trade, each the same shape as a false positive already accepted above ("he hit me in
+  // dodgeball", "my teacher hit us with a pop quiz", "i got hurt at home when i fell off my bike").
+  it("fires on these, known and accepted (TerraTutor #246)", () => {
+    for (const m of [
+      "someone at school hit me with a dodgeball", "someone in my class hit me by accident",
+      "my teacher at school hit us with a surprise quiz", "i got hurt in my house when i tripped",
+      "i was hurt at home when i burned my hand", "i get hurt at my grandma's house when i play on the swings",
+      "i got hit with homework at home", "i got hit by my brother in dodgeball",
+    ]) expect(isSafetyDisclosure(m), m).toBe(true);
+  });
+
   it("matches whole words only", () => {
     expect(isSafetyDisclosure("cut myselfie")).toBe(false);
     expect(isSafetyDisclosure("rapeseed oil")).toBe(false);
@@ -393,6 +462,96 @@ describe("SAFETY_NOTICE", () => {
   it("reads aloud in full, numbers included", () => {
     const spoken = speakableText(SAFETY_NOTICE);
     for (const w of ["911", "988", "1-800-422-4453", "grown-up you trust"]) expect(spoken, w).toContain(w);
+  });
+});
+
+// Ported from TerraTutor #246: the small model's own reply to a disclosure was cold ("Please stop. I am very
+// sorry...", "I cannot help with that kind of question. Please tell me if you have any questions about
+// fractions."), so code writes it (TutorEngine; kernel/disclosureTurn.test.ts runs it through the kernel).
+describe("disclosureReply", () => {
+  const ALL = [DISCLOSURE_REPLY_K2, DISCLOSURE_REPLY_3_5, DISCLOSURE_REPLY_OLDER, DISCLOSURE_REPLY_NO_GRADE];
+
+  it("picks the words by grade band; no grade takes the no-grade words", () => {
+    expect(disclosureReply("K-2")).toBe(DISCLOSURE_REPLY_K2);
+    expect(disclosureReply("3-5")).toBe(DISCLOSURE_REPLY_3_5);
+    expect(disclosureReply("6-8")).toBe(DISCLOSURE_REPLY_OLDER);
+    expect(disclosureReply("9-12")).toBe(DISCLOSURE_REPLY_OLDER);
+    expect(disclosureReply(null)).toBe(DISCLOSURE_REPLY_NO_GRADE);
+  });
+
+  it("thanks the learner, says they are not in trouble, and names someone they trust", () => {
+    for (const t of ALL) {
+      expect(t, t).toMatch(/^Thank you for telling me\./);
+      expect(t, t).toContain("you are not in trouble");
+      expect(t, t).toMatch(/(?:grown-up|someone) you trust right away/);
+    }
+  });
+
+  // Fable's decision as Tate's delegate (2026-11-19): with no grade set the learner may be an adult, so the
+  // no-grade words name no grown-up; the rest is the 6-12 text.
+  it("names no grown-up, parent or school with no grade set", () => {
+    expect(DISCLOSURE_REPLY_NO_GRADE).not.toMatch(/grown-?up|parent|school/i);
+    expect(DISCLOSURE_REPLY_NO_GRADE).toContain("someone you trust right away");
+  });
+
+  it("never says stop, never steers back to the lesson, never says a grown-up at home", () => {
+    for (const t of ALL) {
+      expect(t, t).not.toMatch(/\bstop\b|lesson|question|fraction|learn|homework|keep going|back to|let's|at home/i);
+      expect(t, t).not.toMatch(/sorry you (?:are|feel)|cannot help with that/i);
+    }
+  });
+
+  it("does not repeat the notice under the message, which is read before it for K-2", () => {
+    for (const t of ALL) {
+      expect(t, t).not.toContain(SAFETY_NOTICE);
+      expect(t, t).not.toMatch(/911|988|1-800/);
+    }
+    for (const t of [DISCLOSURE_REPLY_3_5, DISCLOSURE_REPLY_OLDER, DISCLOSURE_REPLY_NO_GRADE]) {
+      expect(t, t).toContain("The note under your message has numbers");
+    }
+    expect(DISCLOSURE_REPLY_K2).not.toContain("note");
+  });
+
+  it("is short and plain: the K-2 words are the shortest and use no word longer than eight letters", () => {
+    const words = (t: string) => t.split(/\s+/).length;
+    expect(words(DISCLOSURE_REPLY_K2)).toBeLessThanOrEqual(45);
+    for (const t of [DISCLOSURE_REPLY_3_5, DISCLOSURE_REPLY_OLDER, DISCLOSURE_REPLY_NO_GRADE]) {
+      expect(words(t), t).toBeLessThanOrEqual(65);
+    }
+    expect(words(DISCLOSURE_REPLY_K2)).toBeLessThan(words(DISCLOSURE_REPLY_3_5));
+    expect(DISCLOSURE_REPLY_K2.match(/\p{L}+/gu)!.every((w) => w.length <= 8)).toBe(true);
+  });
+
+  it("reads aloud as written, and is no safety disclosure itself", () => {
+    for (const t of ALL) {
+      expect(speakableText(t), t).toBe(t);
+      for (const g of [null, ...GRADES]) expect(isSafetyDisclosure(t, g), `${g}: ${t}`).toBe(false);
+    }
+  });
+
+  it("tells a K-2 child it is not their fault (TerraTutor #246, Fable's decision, 2026-11-19)", () => {
+    expect(DISCLOSURE_REPLY_K2).toContain("It is not your fault.");
+  });
+});
+
+// TerraTutor #246, Fable's decision as Tate's delegate (2026-11-19): which harm hits keep the model path in the
+// chat (TutorEngine; disclosureTurn.test.ts runs both sides through the real kernel). Ported verbatim.
+describe("isHarmTopicQuestion", () => {
+  it("is a what / why / how / did question about someone else", () => {
+    for (const m of [
+      "Why did Romeo commit suicide?", "why do the characters want to die in Romeo and Juliet", "what does molest mean",
+      "what does sextortion mean", "how does the author end it all", "Did Hemingway commit suicide?",
+    ]) expect(isHarmTopicQuestion(m), m).toBe(true);
+  });
+
+  it("is not a question with a first- or second-person word, kms, another opener, or no question at all", () => {
+    for (const m of [
+      "why does my dad hit me", "what if i want to die", "why did he touch me there", "how do we stop him hitting us",
+      "how do you kill yourself", "how do u kms", "why should ur dad hit you", "how do i kms",
+      "is self-harm bad", "is it bad to want to die?", "does anyone care if i die?", "do people who self-harm get better?",
+      "no reason to live", "he touched her down there", "got touched at school", "he asked for nudes",
+      "women were raped during the war", "the article was about sexual assault on campus", "", "   ",
+    ]) expect(isHarmTopicQuestion(m), m).toBe(false);
   });
 });
 

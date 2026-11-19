@@ -43,8 +43,8 @@ import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, a
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
-import { isSafetyDisclosure } from "../child-safety";
-import type { Grade } from "../grade";
+import { disclosureReply, isHarmTopicQuestion, isSafetyDisclosure } from "../child-safety";
+import { gradeBand, type Grade } from "../grade";
 
 const KNOWLEDGE_UPDATE_TOOL = "knowledge.update_map";
 const ASK_USER_TOOL = "ask_user.question";
@@ -112,7 +112,8 @@ export interface TutorTurn {
   answerCheck?: "on" | "off";
   // The learner's grade (grade.ts), as ChatTab passes it to isSafetyDisclosure for the safety notice: a
   // strong pregnancy self-disclosure is a safety disclosure only with a K-12 grade set. Omitted or null =
-  // not set. The kernel reads it only to tell a safety disclosure from an answer (child-safety.ts).
+  // not set. The kernel reads it to tell a safety disclosure from an answer (child-safety.ts), and to pick
+  // the words of the fixed reply to a harm disclosure by grade band (child-safety.ts disclosureReply).
   grade?: Grade | null;
 }
 
@@ -191,6 +192,11 @@ export interface TutorTurnResult {
   // every later tutor prompt for that course. The model still reads the disclosure in its history after it
   // ("what should i do" next), so its reply on a later turn can repeat it.
   disclosure: boolean;
+  // True when the turn's text is child-safety.ts disclosureReply: the newest message is a self-harm, suicide
+  // or abuse disclosure and not a question about someone else (isHarmTopicQuestion), so the turn made no
+  // model call, ran no tool and looked nothing up (ported from TerraTutor #246). The caller saves and reads
+  // it like any reply, and offers nothing after it: no citation note, follow-up chips or reply choices.
+  fixedReply: boolean;
 }
 
 /**
@@ -207,6 +213,33 @@ export class TutorTurnError extends Error {
     this.cause = cause;
     this.grounding = grounding;
   }
+}
+
+// The result of a turn answered by child-safety.ts disclosureReply (TutorTurnResult.fixedReply): no model
+// call, so nothing was sent, retrieved, checked or called, and nothing from the turn is kept (`disclosure`).
+function fixedReplyResult(text: string, contextTokens: number): TutorTurnResult {
+  return {
+    text,
+    toolCalls: [],
+    usedKnowledgeUpdate: false,
+    stopReason: "complete",
+    usage: { contextTokens, promptTokens: 0, droppedMessages: 0 },
+    grounding: EMPTY_GROUNDING,
+    usedHits: [],
+    workedAnswerRules: false,
+    firstTurnHold: false,
+    askedWord: null,
+    dictionaryNote: null,
+    dictionaryShown: null,
+    toolCallRecovery: null,
+    replyChoices: null,
+    answerCheck: null,
+    cardChecks: [],
+    removedClaims: [],
+    cardMessage: null,
+    disclosure: true,
+    fixedReply: true,
+  };
 }
 
 // The system messages without the <tools> manifest the kernel appended (or inserted on its own).
@@ -248,6 +281,21 @@ export function turnInDisclosedThread(messages: ReadonlyArray<{ role: string; co
 
 export class TutorEngine {
   async run(turn: TutorTurn, ctx: ToolContext): Promise<TutorTurnResult> {
+    // A self-harm, suicide or abuse disclosure in the newest message (isSafetyDisclosure with no grade: the
+    // harm half alone) is answered by code: disclosureReply for the learner's grade band, with no model call,
+    // no tools, no lookup and no card (ported from TerraTutor #246, whose click test found gemma4:e2b's own
+    // words cold: "Please stop. I am very sorry..." and "I cannot help with that kind of question. Please tell
+    // me if you have any questions about fractions."). The safety notice under the message is ChatTab's, as
+    // before, and nothing from the turn is kept. A harm hit that is a question about someone else
+    // (isHarmTopicQuestion: "why did romeo commit suicide?", "what does molest mean") keeps the model path
+    // below, so schoolwork the list cannot tell from a disclosure still gets its answer, and so does a strong
+    // self-disclosure of a pregnancy (with a K-12 grade set).
+    const newestIn = turn.messages[turn.messages.length - 1];
+    if (newestIn?.role === "user" && isSafetyDisclosure(newestIn.content) && !isHarmTopicQuestion(newestIn.content)) {
+      const text = disclosureReply(gradeBand(turn.grade ?? null));
+      turn.onText(text);
+      return fixedReplyResult(text, budgetFor(ctx.contextTokens ?? DEFAULT_CONTEXT_TOKENS).total);
+    }
     const messages: NeutralMessage[] = turn.messages.map((m) => ({
       role: m.role as NeutralMessage["role"],
       content: m.content,
@@ -835,6 +883,7 @@ ${lastUser.content}` };
       removedClaims: [...earlierRemoved, ...claims.removed],
       cardMessage,
       disclosure: prepared.keepsNothing,
+      fixedReply: false,
     };
   }
 }

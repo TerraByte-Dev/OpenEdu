@@ -62,7 +62,7 @@ import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION } from "./answerC
 import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
 import { VERDICT_FALLBACK } from "./replyClaims";
-import { isSafetyDisclosure } from "../child-safety";
+import { DISCLOSURE_REPLY_NO_GRADE, DISCLOSURE_REPLY_OLDER, isSafetyDisclosure } from "../child-safety";
 import type { Grade } from "../grade";
 import { registerBuiltinTools } from "../tools";
 import type { LLMConfig, Syllabus } from "../../types";
@@ -871,28 +871,49 @@ describe("a safety disclosure in a mastery check", () => {
   const QUIZ = [student("quiz me on fractions"), tutor(Q_FRACTIONS)];
   const KIND = "You did the right thing telling me. Please talk to a grown-up you trust, like a parent or teacher, right away.";
 
+  // Since the port of TerraTutor #246 a harm disclosure calls no model at all (child-safety.ts disclosureReply),
+  // so the gates that act on the model's turn are pinned on a pregnancy disclosure (with a K-12 grade set),
+  // which still calls it.
   it.each([
-    ["this is too hard i wanna die", null],
-    ["my dad hits me when i get them wrong", null],
-    ["im 14 and pregnant", 8],
-  ] as Array<[string, Grade | null]>)(
-    "%j (grade %s) is not graded, gets no verdict note, and the reply is not told it is wrong",
-    async (text, grade) => {
-      expect(isSafetyDisclosure(text, grade)).toBe(true);
+    ["this is too hard i wanna die", null, DISCLOSURE_REPLY_NO_GRADE],
+    ["my dad hits me when i get them wrong", null, DISCLOSURE_REPLY_NO_GRADE],
+    ["my dad hits me when i get them wrong", 8, DISCLOSURE_REPLY_OLDER],
+  ] as Array<[string, Grade | null, string]>)(
+    "%j (grade %s) is not graded, calls no model, and gets the fixed disclosure reply",
+    async (text, grade, fixed) => {
+      expect(isSafetyDisclosure(text, null)).toBe(true);
       gradeOut = { student_answer: text, verdict: "incorrect" };
       for (const mode of ["explain", "assess"]) {
         replies.length = 0;
         structured.length = 0;
-        script = [reply(KIND)];
+        script = [reply("Please stop. That's not right yet.")];
         const { result } = await answer(QUIZ, text, mode, grade);
         expect(structured).toEqual([]);
+        expect(replies).toEqual([]);
         expect(result.answerCheck).toBeNull();
-        expect(lastUser(replies[0])).toBe(text);
-        expect(result.text).toBe(KIND);
-        expect(result.text).not.toMatch(/not right yet/i);
+        expect(result.text).toBe(fixed);
+        expect(result.text).not.toMatch(/not right yet|stop/i);
       }
     },
   );
+
+  it("\"im 14 and pregnant\" (grade 8) is not graded, gets no verdict note, and the reply is not told it is wrong", async () => {
+    const text = "im 14 and pregnant";
+    expect(isSafetyDisclosure(text, 8)).toBe(true);
+    expect(isSafetyDisclosure(text, null)).toBe(false);
+    gradeOut = { student_answer: text, verdict: "incorrect" };
+    for (const mode of ["explain", "assess"]) {
+      replies.length = 0;
+      structured.length = 0;
+      script = [reply(KIND)];
+      const { result } = await answer(QUIZ, text, mode, 8);
+      expect(structured).toEqual([]);
+      expect(result.answerCheck).toBeNull();
+      expect(lastUser(replies[0])).toBe(text);
+      expect(result.text).toBe(KIND);
+      expect(result.text).not.toMatch(/not right yet/i);
+    }
+  });
 
   it("a pregnancy message with no grade set is not a disclosure (child-safety.ts), so it is graded as before", async () => {
     const text = "im 14 and pregnant";
@@ -912,9 +933,9 @@ describe("a safety disclosure in a mastery check", () => {
   });
 
   it("a \"mastered\" mark on a disclosure turn is refused by code; nothing is saved and the model is told", async () => {
-    const text = "this is too hard i wanna die";
+    const text = "im 14 and pregnant";
     script = [markCall("mastered"), reply(KIND)];
-    const { result, confirms } = await answer(QUIZ, text, "assess");
+    const { result, confirms } = await answer(QUIZ, text, "assess", 8);
     expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
     expect(confirms).toEqual([]);
     expect(marks).toEqual([]);
@@ -924,11 +945,11 @@ describe("a safety disclosure in a mastery check", () => {
   it("a card picked on a disclosure turn is not checked: no grading call, no verdict for the model or the child", async () => {
     // Follow-up to PR #346: nothing tested the card-check gate (checkAnswers off on a disclosure turn), so
     // removing it left the suite green. Without it this wrong pick is graded and the child told it is wrong.
-    const text = "this is too hard i wanna die";
+    const text = "im 14 and pregnant";
     pick = pickLabel("72");
     gradeOut = { student_answer: "72", verdict: "incorrect" };
     script = [askCall("What is 7 x 9?", ["63", "72"]), reply(KIND)];
-    const { result, cards } = await answer(QUIZ, text, "assess");
+    const { result, cards } = await answer(QUIZ, text, "assess", 8);
     expect(cards).toHaveLength(1);
     expect(structured).toEqual([]);
     expect(result.cardChecks).toEqual([]);
@@ -940,13 +961,24 @@ describe("a safety disclosure in a mastery check", () => {
 
   it("a try at a worked problem that is also a disclosure gets no check-before-praise note", async () => {
     const worked = [student("Teach me adding."), tutor("3 + 4 = 7. Now you try: what is 5 + 6?")];
+    const text = "its 11 but im 14 and pregnant";
+    expect(isSafetyDisclosure(text, 8)).toBe(true);
+    expect(isSafetyDisclosure(text, null)).toBe(false);
+    expect(isCheckBeforePraiseTurn([...worked, student(text)])).toBe(true);
+    script = [reply(KIND)];
+    await answer(worked, text, undefined, 8);
+    expect(lastUser(replies[0])).toBe(text);
+    expect(lastUser(replies[0])).not.toContain(CHECK_BEFORE_PRAISE_NOTE);
+  });
+
+  it("a try at a worked problem that is also a harm disclosure calls no model", async () => {
+    const worked = [student("Teach me adding."), tutor("3 + 4 = 7. Now you try: what is 5 + 6?")];
     const text = "its 11 but i want to kill myself";
     expect(isSafetyDisclosure(text)).toBe(true);
     expect(isCheckBeforePraiseTurn([...worked, student(text)])).toBe(true);
-    script = [reply(KIND)];
-    await answer(worked, text);
-    expect(lastUser(replies[0])).toBe(text);
-    expect(lastUser(replies[0])).not.toContain(CHECK_BEFORE_PRAISE_NOTE);
+    const { result } = await answer(worked, text);
+    expect(replies).toEqual([]);
+    expect(result.text).toBe(DISCLOSURE_REPLY_NO_GRADE);
   });
 });
 
@@ -978,7 +1010,7 @@ describe("words typed into a question card that are a safety disclosure", () => 
     },
   );
 
-  it("the handed-back message then gets an ordinary disclosure turn: not graded, and not told it is wrong", async () => {
+  it("the handed-back message then gets an ordinary disclosure turn: not graded, no model call, the fixed reply", async () => {
     const typed = "this is too hard i wanna die";
     pick = () => typed;
     script = [askCall(Q_CARD, ["63", "72"])];
@@ -988,12 +1020,13 @@ describe("words typed into a question card that are a safety disclosure", () => 
     // What ChatTab sends next: the saved reply, then the words as the child's own message.
     replies.length = 0;
     gradeOut = { student_answer: typed, verdict: "incorrect" };
-    script = [reply("You did the right thing telling me. Please talk to a grown-up you trust.")];
+    script = [reply("Please stop. That's not right yet.")];
     const { result } = await answer([...OPEN, student(ASSESS_MESSAGE), tutor(first.text)], first.cardMessage!);
     expect(structured).toEqual([]);
+    expect(replies).toEqual([]);
     expect(result.answerCheck).toBeNull();
     expect(result.cardMessage).toBeNull();
-    expect(result.text).toBe("You did the right thing telling me. Please talk to a grown-up you trust.");
+    expect(result.text).toBe(DISCLOSURE_REPLY_NO_GRADE);
   });
 
   it("a pregnancy message typed into a card with no grade set is the card's answer, as before (child-safety.ts)", async () => {

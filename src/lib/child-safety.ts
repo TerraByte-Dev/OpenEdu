@@ -7,10 +7,14 @@
 //    not. Every other turn with no grade stays byte-identical (systemPrompt-master.test.ts pins that).
 // 2. isSafetyDisclosure, a check of a student's chat message for self-harm, suicide and abuse
 //    disclosures (sexual abuse, unwanted touching, nude pictures and sextortion among them, ported from
-//    TerraTutor #125; the patterns equal TerraTutor's as of its PR #223), and, for a learner with a K-12 grade set, a strong self-disclosure of a pregnancy
-//    (strongPregnancy, below). A match shows SAFETY_NOTICE under that message. A notice, never a block: the tutor
-//    turn still runs, always with CHILD_SAFETY_RULES, so the child is not met with silence. Like health-notice.ts, a deterministic list is auditable and costs nothing on a CPU box.
-//    A miss means no notice, never a block. A false positive in the chat costs one kind line of text, but
+//    TerraTutor #125; the patterns equal TerraTutor's as of its PR #246), and, for a learner with a K-12 grade set, a strong self-disclosure of a pregnancy
+//    (strongPregnancy, below). A match shows SAFETY_NOTICE under that message. A notice, never a block: the
+//    learner always gets a reply, never silence. A self-harm, suicide or abuse disclosure (isSafetyDisclosure
+//    with no grade) gets disclosureReply, written by code, unless it is a question about someone else
+//    (isHarmTopicQuestion); that and a pregnancy one get the tutor under CHILD_SAFETY_RULES (TutorEngine.ts,
+//    ported from TerraTutor #246). Like health-notice.ts, a deterministic list is auditable and costs nothing on a CPU box.
+//    A miss means no notice, never a block. A false positive in the chat costs one kind line of text and, for
+//    a harm one that is not a question about someone else, the model's answer to that message; but
 //    the same check also refuses a new-course topic (Dashboard.tsx, SAFETY_TOPIC_COURSE_LINE), passes a
 //    quiz or level-test written answer as not checked with no mark (quiz.ts gradeAnswersBatch) and skips
 //    the mastery-check verdict and the dictionary note on that chat turn (TutorEngine.ts). So a pattern
@@ -18,7 +22,7 @@
 //    person, the child's own body or a first-person object. The only topic words that count on their own are
 //    "suicid*", "sextort*" and "sexual assault*" (accepted false positives, pinned in the tests). English only.
 
-import type { Grade } from "./grade";
+import type { Grade, GradeBand } from "./grade";
 
 /** The child-safety section of the tutor's system prompt. Plain and short, for small models. */
 export const CHILD_SAFETY_RULES =
@@ -41,6 +45,44 @@ export const SAFETY_NOTICE =
  */
 export const SAFETY_TOPIC_COURSE_LINE =
   "This can't be made into a course. If it is for school, try the name of the book or the subject instead.";
+
+/** disclosureReply's text for K-2: the fewest, plainest words, read aloud after SAFETY_NOTICE. */
+export const DISCLOSURE_REPLY_K2 =
+  "Thank you for telling me. You did the right thing, and you are not in trouble. It is not your fault. I am a " +
+  "computer, so I can't help with this the way a person can. Please tell a grown-up you trust right away.";
+/** disclosureReply's text for grades 3-5. */
+export const DISCLOSURE_REPLY_3_5 =
+  "Thank you for telling me. You did the right thing, and you are not in trouble. I am a computer, so I can't " +
+  "help with this the way a person can. Please tell a grown-up you trust right away, like a parent, teacher or " +
+  "school counselor. The note under your message has numbers you can call any time.";
+/** disclosureReply's text for grades 6-12. */
+export const DISCLOSURE_REPLY_OLDER =
+  "Thank you for telling me. I'm really glad you did, and you are not in trouble. I'm an AI, so I can't help " +
+  "with this the way a person can. Please talk to a grown-up you trust right away, like a parent, teacher or " +
+  "school counselor. The note under your message has numbers you can call or text any time, day or night.";
+/** disclosureReply's text with no grade set: an adult or a child who never set one, so it names no grown-up
+ *  (Fable's decision as Tate's delegate, 2026-11-19; TerraTutor gives no-grade the 6-12 words). */
+export const DISCLOSURE_REPLY_NO_GRADE =
+  "Thank you for telling me. I'm really glad you did, and you are not in trouble. I'm an AI, so I can't help " +
+  "with this the way a person can. Please talk to someone you trust right away, like a family member, friend, " +
+  "teacher or counselor. The note under your message has numbers you can call or text any time, day or night.";
+
+/**
+ * The tutor's whole reply on a turn whose newest message is a self-harm, suicide or abuse disclosure
+ * (isSafetyDisclosure with no grade) and not a question about someone else (isHarmTopicQuestion), written by
+ * code with no model call (TutorEngine; ported from TerraTutor #246, whose click test found the small model's
+ * own words cold: "Please stop. I am very sorry...", "I cannot help with that kind of question. Please tell me
+ * if you have any questions about fractions."). SAFETY_NOTICE is already under the message, with 911, 988 and
+ * Childhelp, and K-2 hears it read first, so this does not repeat it: it thanks the learner, says they are not
+ * in trouble (K-2 also "It is not your fault"), says plainly that the tutor is a computer, names someone they
+ * trust and points to the numbers in the note. Never "stop", never back to the lesson, never "a grown-up at
+ * home". By grade band; null (no grade set) takes DISCLOSURE_REPLY_NO_GRADE. A strong self-disclosure of a
+ * pregnancy keeps its model call.
+ */
+export function disclosureReply(band: GradeBand | null): string {
+  if (band === null) return DISCLOSURE_REPLY_NO_GRADE;
+  return band === "K-2" ? DISCLOSURE_REPLY_K2 : band === "3-5" ? DISCLOSURE_REPLY_3_5 : DISCLOSURE_REPLY_OLDER;
+}
 
 // Lower-case phrases, matched as whole words at both ends: "hurt myself" does not match inside a longer
 // word. A trailing "*" makes an entry a stem that matches at the start of a word: "suicid*" catches
@@ -98,8 +140,18 @@ const KIN =
   "grandma|grandfather|grandmother|brother|sister|cousin|teacher|coach|babysitter|neighbou?r|boyfriend|girlfriend)" +
   "(?:'s (?:boyfriend|girlfriend|friend))?";
 // WHO with no trailing "'s": for the agent after "touched by", where "my teacher's words" is not a person.
-const WHO_BARE = "(?:(?:(?:my|our) )?" + KIN + "|he|she|they|someone|somebody|a grown-?up|an adult)";
+// "a grown up" is also typed with a space (the click test of #227, 2026-11-19).
+const WHO_BARE = "(?:(?:(?:my|our) )?" + KIN + "|he|she|they|someone|somebody|a grown[- ]?up|an adult)";
 const WHO = WHO_BARE + "(?:'s|'re)?";
+// Where the person is, between them and the verb: "someone at home hurts me", "someone at my house hits me",
+// "someone in my family hurts me", "a grown up at my dad's house hurts me" (#227's own test phrase, which the
+// adjacent-only form missed). Only a place the child lives, learns or is looked after, so "someone at the park"
+// and "a grown up at the museum" need the verb right after the person as before. "A person" counts only with
+// such a place ("a person at home hurts me"): "when a person hits me with a ball" stays out.
+const PLACE =
+  " (?:at|in) (?:home|school|church|daycare|camp|(?:my|our) (?:house|home|school|family|room|apartment|class|church|daycare|camp)|" +
+  "(?:my|our) " + KIN + "'s(?: (?:house|home|place|apartment))?)";
+const SUBJECT = "(?:" + WHO + "(?:" + PLACE + ")?|a person" + PLACE + ")";
 const FILL = "(?: (?:always|often|keeps?|sometimes|just|is|was|are|were|has|have|had|been|would|will|used to)){0,3}";
 const OBJ = "(?:me|us|my (?:(?:little|big|baby|older|younger) )?(?:mom|mum|mother|dad|father|sister|brother|private\\w*|genital\\w*|penis|vagina|vulva))";
 const ACT =
@@ -109,9 +161,10 @@ const ACT =
 // it takes the follow-word exclusion. "hit me in the face" and "hits me at night" must fire.
 const BEAT = "(?:beat|beats|beating)";
 const END = "(?![\\p{L}\\p{N}])";
+const GAMES = "(?! (?:at|in|by|to|again at|\\d))";
 const ABUSE_RE = new RegExp(
-  "(?<![\\p{L}\\p{N}])" + WHO + FILL + " (?:" + ACT + " " + OBJ + END + "(?! (?:off|out) )|" +
-    BEAT + " " + OBJ + END + "(?! (?:at|in|by|to|again at|\\d)))",
+  "(?<![\\p{L}\\p{N}])" + SUBJECT + FILL + " (?:" + ACT + " " + OBJ + END + "(?! (?:off|out) )|" +
+    BEAT + " " + OBJ + END + GAMES + ")",
   "u",
 );
 // A person and, within six words in the same sentence, their own genitals: "my brother showed me his
@@ -238,7 +291,33 @@ const CLOTHES = "(?:pants|shirt|underwear|undies|panties|skirt|shorts|clothes|br
 const PICS = "(?:pictures?|pics?|photos?|videos?|selfies?)";
 const NAKED = "(?:naked|nude|without (?:my |any |a |his |her )?(?:clothes|shirt|pants)|with no clothes(?: on)?|in (?:my |their )?underwear|in the (?:shower|bath))";
 const SHARE = "threat\\p{L}* to (?:share|post|send|show|leak) ";
+// The child hit, hurt or beaten, said in the passive (the click test of #227, 2026-11-19: "i get hit at home"):
+// the first person, a passive helper ("get", "got", "keep getting", "was", "have been", "am being"), the verb,
+// then either a person after "by" ("i got hit by my dad", "i was slapped by him") or, within three words, a home
+// ("i get hit at home", "i get hit a lot at my dad's house"). With neither it is a playground or a sport: "i got
+// hit by a ball", "i got hurt at recess", "i got hit by a car once". A home followed by "by" and no person is
+// weather ("we got hit at home by the storm"). "beat" keeps the games rule: no gap before "by", nothing like "at
+// chess" or a score after ("i got beaten by my brother at chess", "i got beaten at home 3-0"), and beaten at home
+// is the child alone ("i got beat at home"): "we got beat at home" is a team's home game.
+const PASSIVE_HELPER =
+  "(?: (?:always|often|sometimes|still|just|also|really|usually|keep|kept|have|had|will|would|" +
+  "might|could|used to|am|are|was|were)){0,3} (?:get|gets|got|getting|gotten|been|being|am|are|was|were)";
+const PASSIVE_ME = "(?:i|we)(?:'m|m|'re|'ve|ve)?" + PASSIVE_HELPER;
+const PASSIVE_I = "i(?:'m|m|'ve|ve)?" + PASSIVE_HELPER;
+const HURT_PASSIVE = "(?:hit|hurt|punched|slapped|smacked|spanked|kicked|whipped|choked|abused)";
+const BEATEN = "(?:beat|beaten)";
+const PASSIVE_GAP = "(?: (?!by(?![\\p{L}\\p{N}]))[\\p{L}']+){0,3}?";
+// Not home plate or a home game, and "at my dad's" only with nothing after it but a house, the end or a joining
+// or time word ("i got hit at my dad's game" is a sports day).
+const HOME =
+  " (?:at|in) (?:home(?! (?:plate|base|run|game|team|field|court|stadium|page|screen)(?![\\p{L}\\p{N}]))|(?:my|our) (?:house|home|apartment)|" +
+  "(?:my|our) " + KIN + "'s(?: (?:house|home|place|apartment)|(?= ?(?:$|[^\\p{L}\\p{N}\\s']|and|when|while|every|all|too|again|a lot)(?![\\p{L}\\p{N}]))))" +
+  END + "(?! by (?!" + AGENT + "))";
 const DISCLOSURE_RES = [
+  PASSIVE_ME + " " + HURT_PASSIVE + PASSIVE_GAP + HOME,
+  PASSIVE_I + " " + BEATEN + PASSIVE_GAP + HOME + GAMES,
+  PASSIVE_ME + " " + HURT_PASSIVE + PASSIVE_GAP + " by " + AGENT,
+  PASSIVE_ME + " " + BEATEN + "(?: (?:up|really|badly|bad))? by " + AGENT + END + GAMES,
   TOUCHER + "(?:,? [\\p{L}']+){0,8}? " + TOUCH + " (?:me|us|my " + BODY_PART + ")",
   THEIR_KIN + "(?:,? [\\p{L}']+){0,8}? " + TOUCH + " " + KIN_OBJ,
   "my " + KIN + MY_KIN_GAP + " " + TOUCH + " " + MY_KIN_OBJ,
@@ -628,6 +707,25 @@ export function isSafetyDisclosure(message: string, grade: Grade | null = null):
 // (accepted false positives).
 const THIRD_PERSON_SUICIDE_RE = /(?<![\p{L}\p{N}])(?:(?:commits|(?:both|all|each) commit) suicide|suicide rates?)(?![\p{L}\p{N}])/gu;
 const FIRST_PERSON_RE = /(?<![\p{L}\p{N}'])(?:i|i'm|im|i've|ive|i'll|i'd|me|my|myself|mine|we|we're|we've|us|our|ours|ourselves)(?![\p{L}\p{N}'])/u;
+const NOT_ABOUT_OTHERS_RE = /(?<![\p{L}\p{N}'])(?:kms|you|your|yours|yourself|yourselves|u|ur)(?![\p{L}\p{N}'])/u;
+const QUESTION_LEAD_RE = /^(?:what|why|how|did)(?![\p{L}\p{N}'])/u;
+
+/**
+ * True when a student's message is a question about someone else: it opens with what / why / how / did and has
+ * no first-person word (FIRST_PERSON_RE: i, me, my, we, us, our, im, i'm ...), no "kms" and no second-person
+ * word (you, your, yourself, u, ur: "how do you kill yourself" is never one). On a self-harm, suicide or abuse
+ * disclosure TutorEngine sends such a message to the model, as before, and answers every other one with
+ * disclosureReply (TerraTutor #246, Fable's decision as Tate's delegate, 2026-11-19): "why did romeo commit
+ * suicide?", "what does molest mean" and "how does the author end it all" are schoolwork the harm list cannot
+ * tell from a disclosure, while "no reason to live", "he touched her down there" and "is self-harm bad" (a
+ * child asking it is likelier asking about themselves) keep the fixed reply. Ported verbatim.
+ */
+export function isHarmTopicQuestion(message: string): boolean {
+  const text = normalise(message);
+  if (!text || FIRST_PERSON_RE.test(text) || NOT_ABOUT_OTHERS_RE.test(text)) return false;
+  return QUESTION_LEAD_RE.test(text);
+}
+
 function thirdPersonSuicide(text: string, at: number): boolean {
   const from = Math.max(text.lastIndexOf(".", at), text.lastIndexOf("!", at), text.lastIndexOf("?", at), text.lastIndexOf(";", at)) + 1;
   const ends = [".", "!", "?", ";"].map((c) => text.indexOf(c, at)).filter((n) => n !== -1);
