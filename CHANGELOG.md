@@ -159,7 +159,12 @@ The section for each release is also what the app shows when you press Check for
   model. Real attempts with no vowel ("shrk", "wtr"), abbreviations ("fdr", "jfk", "cnn"), sound words
   ("grrr"), a sign typed for its name (">" for "greater than", "?" for "a question mark") and listed
   words ("qwerty", "hmm") still go to the model. A grader that marks an answer right while saying none was given is
-  overruled.
+  overruled. In a mastery check, OpenEdu now writes the reply to such an answer itself and asks the
+  question again, so the tutor can't add "That is close."
+- **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
+- **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
+  "0.5" and "0.50". Choices that differ only in an end mark, "a"/"an" or a hyphen stay apart, since that
+  is what an English question asks about.
 - **No "learned" without a mark.** In a mastery check, "I can mark that as learned for you!" or "You have
   successfully learned those concepts" is taken out unless a mark was saved.
 - **A reply never stops at "I can look that up for you."** The tutor asks the model once more after the
