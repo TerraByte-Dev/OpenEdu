@@ -1246,6 +1246,9 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Correct again, so let's see what you know about fractions. What is the top number of a fraction called?", "What is the top number of a fraction called?", "numerator"],
     ["Well done Sam, now let's check: what is 6 x 8?", "What is 6 x 8?", "48"],
     ["Nice one, now let's see how Sam shares his apples. How many does he give away if he keeps none?", "Let's see how Sam shares his apples. How many does he give away if he keeps none?", "all of them"],
+    // ... with a lead-in or praise after the announcement, which comes off too (review of the port).
+    ["Nice one, now let's check your understanding of nouns. Here is your first question. What is a noun?", "What is a noun?", "a naming word"],
+    ["Nice one, now let's check: great, what is 6 x 8?", "What is 6 x 8?", "48"],
     // Only a topic announcement comes off: a sentence that holds the question's setup, one with a clause word
     // after the topic, or one with no "?" left after it stays whole (review of TerraTutor #257).
     ...[

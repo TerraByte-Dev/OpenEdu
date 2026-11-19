@@ -502,22 +502,25 @@ export function questionAgain(tutorMessage: string, keyedQuestion: string): stri
   const start = lines.slice(0, first).reduce((n, l) => n + l.length + 1, 0);
   let question = m.slice(start).trim();
   // Praise, a lead-in, the check's announcement, the last answer's feedback after praise, or the praise
-  // before a setup comes off.
-  for (let praised = false; ;) {
-    const intro = checkIntro(question);
-    if (intro) { question = question.slice(intro[0].length).trim(); continue; }
-    const s = FIRST_SENTENCE.exec(question);
-    if (!s) break;
-    const lead: RegExpExecArray | null = isPraise(s[0]) || isLeadIn(s[0]) || (praised && LAST_ANSWER.test(s[0])) ? s : PRAISE_COMMAS.exec(question);
-    if (!lead) break;
-    praised ||= lead !== s || isPraise(s[0]);
-    question = question.slice(lead[0].length).trim();
+  // before a setup comes off. Again after the praise with a praise ending ("Nice one, now") that the loop
+  // cannot read past and withoutPraiseLead takes off, until nothing more comes off: the announcement after
+  // it ("let's check your understanding of nouns."), and a lead-in or praise after that ("Here is your first
+  // question.", "great,"), come off too (the port's own merge with #401; TerraTutor master keeps them).
+  let praised = false;
+  for (let before = ""; before !== question;) {
+    before = question;
+    for (;;) {
+      const intro = checkIntro(question);
+      if (intro) { question = question.slice(intro[0].length).trim(); continue; }
+      const s = FIRST_SENTENCE.exec(question);
+      if (!s) break;
+      const lead: RegExpExecArray | null = isPraise(s[0]) || isLeadIn(s[0]) || (praised && LAST_ANSWER.test(s[0])) ? s : PRAISE_COMMAS.exec(question);
+      if (!lead) break;
+      praised ||= lead !== s || isPraise(s[0]);
+      question = question.slice(lead[0].length).trim();
+    }
+    question = withoutPraiseLead(question);
   }
-  question = withoutPraiseLead(question);
-  // The announcement after praise with a praise ending: "Nice one, now let's check your understanding of
-  // nouns." (the loop above cannot read past "Nice one, now", and withoutPraiseLead runs after it).
-  const intro = checkIntro(question);
-  if (intro) question = question.slice(intro[0].length).trim();
   question = question
     .replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: string, c: string) => pre + c.toUpperCase());
   const choicesBefore = m.slice(0, start).split("\n").filter((l) => CHOICE_LINE.test(l)).map((l) => l.trim());
