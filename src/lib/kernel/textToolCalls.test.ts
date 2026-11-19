@@ -378,6 +378,30 @@ describe("never a blank turn", () => {
     expect(r.result.stopReason).toBe("complete");
   });
 
+  // TerraTutor click test 2026-11-19: "what is 7 times 8 in the times tables?" got "I can look that up for you.",
+  // the lookup chips, and nothing after them. An announcement alone answers nothing (lookupAnnouncement.ts).
+  it("only an announcement before the lookup, then an empty reply, asks the model once more", async () => {
+    const r = await run("explain", [`I can look that up for you.\n${LOOKUP}`, "", "7 x 8 is 56."]);
+    expect(chat).toHaveLength(3);
+    expect(chat[2].messages).toEqual(chat[1].messages);
+    expect(r.result.text).toBe("I can look that up for you.\n7 x 8 is 56.");
+  });
+
+  it("only an announcement and then two empty replies ends on the plain line, never on the announcement", async () => {
+    const r = await run("explain", [`I can look that up for you.\n${LOOKUP}`, "", ""]);
+    expect(chat).toHaveLength(3);
+    expect(r.result.text).toBe(`I can look that up for you.\n\n${MIXED_UP_REPLY}`);
+    expect(r.result.stopReason).toBe("complete");
+  });
+
+  it("only an announcement and no lookup at all ends on the plain line too", async () => {
+    const r = await run("explain", ["I can look that up for you."]);
+    expect(chat).toHaveLength(1);
+    expect(r.result.text).toBe(`I can look that up for you.
+
+${MIXED_UP_REPLY}`);
+  });
+
   it("a reply already shown before the lookup is not asked for again", async () => {
     const r = await run("explain", [`Cats purr when they are happy.\n${LOOKUP}`, ""]);
     expect(chat).toHaveLength(2);

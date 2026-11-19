@@ -221,15 +221,22 @@ export function statementOf(plain: string): string {
 
 // A mastery claim: the student has (just) mastered it, or the tutor has marked (or will mark) it
 // mastered. A rule about mastery ("A skill is marked as mastered after the quiz", "To mark a skill as
-// mastered, you need…") is not one.
-const ADVERBS = "(?:\\s+(?:now|already|really|truly|fully|officially|completely|clearly|definitely|totally))*";
+// mastered, you need…") is not one. "Learned" is the app's own word for a mastered skill (Overview's
+// "0/4 learned", the mark's chip), so a mark claimed in it is one too: "I can mark that as learned for
+// you!", "You have successfully learned those concepts." (TerraTutor click test 2026-11-19: no mark was saved).
+// Only with a pronoun or a skill word after it: "You have learned that 3 is the numerator." is a fact.
+const ADVERBS = "(?:\\s+(?:now|already|really|truly|fully|officially|completely|clearly|definitely|totally|successfully))*";
 const MASTERY: ReadonlyArray<RegExp> = [
   new RegExp(`\\byou(?:'ve|’ve|\\s+have)${ADVERBS}\\s+mastered\\b`, "i"),
   new RegExp(`\\byou${ADVERBS}\\s+mastered\\s+(?:it|this|that|these|them|the (?:topic|subtopic|skill|lesson|unit|level))\\b`, "i"),
-  /\b(?:i|i'll|i’ll|i will|i'm going to|i’m going to|i am going to|i've|i’ve|i have|i can|i'd|i would|let me|let's|let’s|we can|we'll|we’ll|we will)\s+(?:\w+\s+){0,3}?(?:mark|record|log|save|set|update)(?:ed|ing)?\b[^.!?]{0,60}?\bas\s+(?:being\s+)?mastered\b/i,
+  /\b(?:i|i'll|i’ll|i will|i'm going to|i’m going to|i am going to|i've|i’ve|i have|i can|i'd|i would|let me|let's|let’s|we can|we'll|we’ll|we will)\s+(?:\w+\s+){0,3}?(?:mark|record|log|save|set|update)(?:ed|ing)?\b[^.!?]{0,60}?\bas\s+(?:being\s+)?(?:mastered|learned|learnt)\b/i,
   // "is now mastered", "has been marked as mastered"; not "is mastered through practice" or "is marked as mastered after the quiz".
   /\b(?:has been|have been)\s+(?:officially\s+)?(?:marked\s+(?:as\s+)?)?mastered\b|\b(?:is|are)\s+now\s+(?:officially\s+)?(?:marked\s+(?:as\s+)?)?mastered\b/i,
   /\byou(?:'ve|’ve|\s+have)?\s+(?:\w+\s+)?(?:achieved|reached|shown|demonstrated|earned|got)\s+(?:\w+\s+){0,2}?mastery\b/i,
+  // "You have successfully learned those concepts", "You've learned it!"; not "You have learned that 3 is
+  // the numerator" or "You have learned about fractions".
+  new RegExp(String.raw`\byou(?:'ve|’ve|\s+have)${ADVERBS}\s+(?:learned|learnt)\s+(?:(?:it|this|them)(?![^\s.!?,;:]*\s+(?:is|are|means?)\b)\b|(?:(?:all|both)\s+(?:of\s+)?)?(?:these|those|this|that|the|your)\s+(?:\w+\s+)?(?:concepts?|skills?|topics?|subtopics?|lessons?|units?|levels?|ideas?)\b|that(?=[^\p{L}\p{N}]*$))`, "iu"),
+  /\b(?:has been|have been)\s+(?:marked\s+(?:as\s+)?)?(?:learned|learnt)\b|\b(?:is|are)\s+now\s+(?:marked\s+(?:as\s+)?)?(?:learned|learnt)\b/i,
 ];
 
 const any = (list: ReadonlyArray<[RegExp, { between?: number; other?: RegExp }]>, plain: string) => list.some(([re, o]) => claimAt(re, plain, o));

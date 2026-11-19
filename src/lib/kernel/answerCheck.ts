@@ -13,7 +13,8 @@
 //      (arithmetic-claims.ts), or the call is repaired once. A plain "what is a op b" question gets its
 //      key from code instead (keyFromArithmetic).
 //   2. Code compares the student's answer with the key (answerCompare.ts). A plain match is "correct"
-//      with no further call.
+//      with no further call. An answer that answers nothing ("xyz", "?!", non-answer.ts) is "incorrect",
+//      with no further call either.
 //   3. Otherwise one structured grading call reads the question, the key and the student's answer and
 //      returns the student's final answer in their words and a verdict. Code compares that extracted
 //      answer with the key too. "incorrect" needs code and the grader not to disagree; when they do
@@ -28,6 +29,7 @@ import { arithmeticClaims } from "../arithmetic-claims";
 import { isAttemptText } from "./checkBeforePraise";
 import { ASSESS_MESSAGE } from "./suggestions";
 import { compareToKey, numbersIn, optionsIn, type KeyMatch } from "./answerCompare";
+import { isNonAnswer } from "../non-answer";
 
 export type Verdict = "correct" | "partly" | "incorrect" | "unsure";
 
@@ -330,6 +332,8 @@ export async function checkAnswer(
   const ctx = { question: keyed.question, options: optionsIn(tutorMessage) };
   const raw = compareToKey(keyed.key, studentMessage, ctx);
   if (raw === "match") return { ...keyed, verdict: "correct", by: "code" };
+  // An answer that answers nothing ("xyz", "?!", non-answer.ts) is not right, and no grader is asked.
+  if (await isNonAnswer(studentMessage, keyed.key, keyed.question)) return { ...keyed, verdict: "incorrect", by: "code" };
   const graded = await gradeAgainstKey(keyed.question, keyed.key, studentMessage, config, opts);
   if (!graded) return { ...keyed, verdict: "unsure", by: "failed" };
   const extracted = graded.student_answer.trim() ? compareToKey(keyed.key, graded.student_answer, ctx) : "undecided";

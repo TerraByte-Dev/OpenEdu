@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 
 // The assess-mode answer check through the real kernel (tutorEngine.run, the function ChatTab calls):
 // the student's answer to the tutor's question in a mastery check gets a verdict from code before the
@@ -65,6 +65,9 @@ import { VERDICT_FALLBACK } from "./replyClaims";
 import { isSafetyDisclosure } from "../child-safety";
 import type { Grade } from "../grade";
 import { registerBuiltinTools } from "../tools";
+import { installAppOrigin } from "../eval/headless/origin";
+import { resetDictionaryCache } from "../dictionary";
+import { resetWordListCache } from "../wordlist";
 import type { LLMConfig, Syllabus } from "../../types";
 import type { AskChoice } from "../tools/EduTool";
 
@@ -236,6 +239,17 @@ describe("a wrong answer in a mastery check", () => {
     const { result } = await answer(QUIZ_CHIP_CHECK, "46");
     expect(result.toolCalls).toMatchObject([{ name: "math.render", ok: true }]);
     expect(result.text).toBe(`$$\n6 x 8 = 48\n$$\n\n${VERDICT_FALLBACK.incorrect}`);
+  });
+
+  // Review of TerraTutor #245, 2026-11-19: "I can look that up for you." is prose, so the verdict line was skipped
+  // and the turn ended on MIXED_UP_REPLY. It says no verdict (lookupAnnouncement.ts), so the verdict follows it.
+  it("a reply that only announces a lookup still gives the verdict", async () => {
+    script = [reply("I can look that up for you.")];
+    const { result } = await answer(CHECK, "48");
+    expect(result.answerCheck).toMatchObject({ verdict: "correct", by: "code" });
+    expect(result.text).toBe(`I can look that up for you.
+
+${VERDICT_FALLBACK.correct}`);
   });
 
   it("a drawing with a reply that says the verdict gets no second verdict line", async () => {
@@ -1040,5 +1054,51 @@ describe("words typed into a question card that are a safety disclosure", () => 
       expect(result.cardMessage).toBeNull();
       expect(result.text).toMatch(/\*You (?:answered|picked): /);
     }
+  });
+});
+
+// ── An answer that answers nothing ──────────────────────────────────────────────────────────────
+
+// TerraTutor click test 2026-11-19: a typed "xyz" was graded by the model, which marks such answers right at random.
+// Code calls it not right (non-answer.ts), with the bundled dictionary read from public/ as the webview
+// serves it, and the grader is never asked.
+describe("an answer that answers nothing in a mastery check", () => {
+  const original = globalThis.fetch;
+  beforeAll(() => { resetDictionaryCache(); resetWordListCache(); installAppOrigin(); });
+  afterAll(() => { globalThis.fetch = original; resetDictionaryCache(); resetWordListCache(); });
+
+  it.each(["xyz", "asdfgh", "?!"])("%j is not right, by code, and its praise never reaches the child", async (text) => {
+    gradeOut = { student_answer: text, verdict: "correct" };
+    script = [reply(FALSE_PRAISE)];
+    const { result, shown } = await answer(CHECK, text);
+    expect(result.answerCheck).toMatchObject({ key: "48", verdict: "incorrect", by: "code" });
+    expect(structured.map((c) => c.tool)).not.toContain("AnswerGrade");
+    for (const s of shown) expect(s).not.toMatch(PRAISE);
+    expect(result.text).toMatch(/^That's not right yet\./);
+  }, 30_000);
+
+  // A vowel-less spelling or an abbreviation is a real attempt (review of TerraTutor #245, 2026-11-19).
+  it.each(["about fifty", "fourty-ate", "Xyz", "frty ate", "shrk", "fdr"])("%j still goes to the grader", async (text) => {
+    gradeOut = { student_answer: text, verdict: "incorrect" };
+    const { result } = await answer(CHECK, text);
+    expect(structured.map((c) => c.tool)).toContain("AnswerGrade");
+    expect(result.answerCheck?.by).not.toBe("code");
+  }, 30_000);
+});
+
+// ── "Learned" claimed with no mark ──────────────────────────────────────────────────────────────
+
+// TerraTutor click test 2026-11-19: in a check, "Can you mark it as learned?" got "I can mark that as learned for
+// you! ... You have successfully learned those concepts", with no progress.mark_mastered call, and
+// Overview still read 0/4 learned.
+describe("a reply in a mastery check that says a skill is learned when no mark was saved", () => {
+  it("never reaches the child or the transcript", async () => {
+    const said = "I can mark that as learned for you! You have successfully learned those concepts. Want to try one more?";
+    script = [reply(said)];
+    const { result, shown } = await answer([...CHECK, student("48"), tutor("That's right. 6 x 8 is 48.")], "Can you mark it as learned?");
+    expect(marks).toEqual([]);
+    for (const s of shown) expect(s).not.toMatch(/learned/i);
+    expect(result.text).toBe("Want to try one more?");
+    expect(result.removedClaims.map((c) => c.kind)).toEqual(["mastery", "mastery"]);
   });
 });

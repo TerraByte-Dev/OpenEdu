@@ -34,6 +34,7 @@ import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, ty
 import { shouldGloss, glossQuestion, type GlossResult } from "./gloss";
 import { ReplyTextFilter } from "./textToolCalls";
 import { MIXED_UP_REPLY, AFTER_ANSWER_REPLY } from "../plain-language";
+import { onlyAnnouncesLookup } from "./lookupAnnouncement";
 import { choicesInReply, type ReplyChoices } from "./replyChoices";
 import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard";
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
@@ -723,7 +724,8 @@ ${lastUser.content}` };
       }
       // No further model call, and no fallback line: the child's own message is next.
       if (cardMessage !== null && !ctx.abort.aborted) { endedNaturally = true; break; }
-      if (!streamedText.trim() && !toolCalls.some(showsAnswerCard)) answerOwed = true;
+      // "I can look that up for you." before the lookup answers nothing either (lookupAnnouncement.ts).
+      if ((!streamedText.trim() || onlyAnnouncesLookup(streamedText)) && !toolCalls.some(showsAnswerCard)) answerOwed = true;
       if (ctx.abort.aborted) interrupted = interrupted ?? "aborted";
       if (interrupted && interrupted !== "length") break;
 
@@ -775,8 +777,11 @@ ${lastUser.content}` };
 
     // An answer the check gave a verdict on always gets one: a reply the claim filter emptied (or the
     // model left empty, or left only a drawing) says the verdict in one plain line.
-    if (verdictCheck && cardMessage === null && !proseShown && stopReason !== "aborted" && stopReason !== "stalled") {
-      show(VERDICT_FALLBACK[verdictCheck.verdict]);
+    // "I can look that up for you." alone says no verdict either (lookupAnnouncement.ts), tool round or not.
+    const announcedOnly = onlyAnnouncesLookup(streamedText);
+    const gapBefore = () => !streamedText.trim() || streamedText.endsWith("\n\n") ? "" : streamedText.endsWith("\n") ? "\n" : "\n\n";
+    if (verdictCheck && cardMessage === null && (!proseShown || announcedOnly) && stopReason !== "aborted" && stopReason !== "stalled") {
+      show(`${announcedOnly ? gapBefore() : ""}${VERDICT_FALLBACK[verdictCheck.verdict]}`);
     }
 
     // Never a blank turn: a reply that ended with nothing to show (the model wrote nothing, or only a
@@ -784,8 +789,11 @@ ${lastUser.content}` };
     // saved like any reply. A tool that ran and left only a chip does not count: the chip is gone when the
     // thread is reopened, and it answers nothing. A turn the student stopped, or one that stalled, keeps
     // its own handling.
-    if (!streamedText.trim() && !toolCalls.some(showsAnswerCard) && stopReason !== "aborted" && stopReason !== "stalled") {
-      show(MIXED_UP_REPLY);
+    // A turn that showed only "I can look that up for you." is one too, with or without a lookup after it
+    // (after one, an empty call was already made once more).
+    const blank = !streamedText.trim() || onlyAnnouncesLookup(streamedText);
+    if (blank && !toolCalls.some(showsAnswerCard) && stopReason !== "aborted" && stopReason !== "stalled") {
+      show(`${gapBefore()}${MIXED_UP_REPLY}`);
     }
 
     // Never a turn that ends on the child's answer to a card: that was the click test's dead end.
