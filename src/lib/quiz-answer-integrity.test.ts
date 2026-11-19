@@ -386,6 +386,18 @@ describe("multiple-choice options must be distinct", () => {
     expect(duplicateOptionPair(["A) 0.5", "B) 0.50", "C) 0.49", "D) 0.4"], "How much of the cake is left?")).toEqual([0, 1]);
   });
 
+  // Review of the OpenEdu port of TerraTutor #251, 2026-11-19: false rejections, each costing a regeneration.
+  it("keeps a misconception question that names both numbers, and options that differ in a/an or a hyphen", () => {
+    const ask = (question_text: string, options: string[], key: string) =>
+      valid(mc({ question_text, options, correct_answer: key, explanation: `That one is right. Therefore the answer is ${key}` })).filter((i) => /same answer|same number/.test(i));
+    expect(ask("Which is greater: 0.5 or 0.50?", ["A) 0.5", "B) 0.50", "C) They are equal", "D) You can't tell"], "C) They are equal")).toEqual([]);
+    expect(ask("Which is spelled correctly?", ["A) twenty-one", "B) twenty one", "C) twentyone", "D) twenty-won"], "A) twenty-one")).toEqual([]);
+    expect(ask("Which is right?", ["A) a eighth", "B) an eighth", "C) an eight", "D) a eight"], "B) an eighth")).toEqual([]);
+    // A stem that names only one of them still gets the twins caught.
+    expect(duplicateOptionPair(["A) 0.5", "B) 0.50", "C) 0.05", "D) 5"], "Is 0.5 more than 0.05?")).toEqual([0, 1]);
+    expect(ask("What fraction of the pie is left?", ["A) one eighth", "B) 0.125", "C) one fourth", "D) one half"], "A) one eighth")).not.toEqual([]);
+  });
+
   it("keeps a fraction, number word or ordinal question whose options name the key's number another way", () => {
     const ask = (question_text: string, options: string[], key: string) =>
       valid(mc({ question_text, options, correct_answer: key, explanation: `That one is right. Therefore the answer is ${key}` })).filter((i) => /same number/.test(i));

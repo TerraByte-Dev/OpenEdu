@@ -502,13 +502,24 @@ const sameNumber = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 // A stem about how a number is written, where "1/2" and "0.5", or "0.5" and "0.50", are different answers:
 // "Which is a decimal?", "Write 2/4 in simplest form.", "Round 0.496 to the nearest hundredth.", "Which
 // shows one thousand with a comma?", "Which fraction has 8 as its denominator?", "What is the ordinal for 3?".
-const ABOUT_WRITTEN_FORM = /\b(?:decimals?|percents?|percentages?|fraction form|as an? (?:fraction|decimal|percent|whole number|mixed number)|simplest|lowest terms|simplif\w*|reduc\w*|written|write|writes|writing|notation|numerals?|words?|word form|standard form|expanded form|improper|mixed numbers?|unsimplified|numerators?|denominators?|ordinals?|commas?|digits?|places?|nearest)\b/i;
+const ABOUT_WRITTEN_FORM = /\b(?:decimals?|percents?|percentages?|fraction form|as an? (?:fraction|decimal|percent|whole number|mixed number)|simplest|lowest terms|simplif\w*|reduc\w*|written|write|writes|writing|notation|numerals?|words?|word form|standard form|expanded form|improper|mixed numbers?|unsimplified|numerators?|denominators?|ordinals?|commas?|digits?|places?|nearest|spell\w*)\b/i;
+
+// An option that the stem itself names, as a number ("Which is greater: 0.5 or 0.50?" with "They are equal").
+function stemNames(stem: string, option: string): boolean {
+  const o = normalizeOption(option).replace(/[.!?]+$/, "");
+  return o !== "" && new RegExp(`(?<![\\w.])${o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\w|\\.\\d)`).test(stem.toLowerCase());
+}
+
+// Two options that differ only in "a"/"an", a hyphen or a space ("a eighth" / "an eighth", "twenty-one" /
+// "twenty one"): what an English question asks about, so not the key's number written another way.
+const writingOnly = (s: string) => normalizeOption(s).replace(/^an?\s+/, "").replace(/[\s-]+/g, "");
 
 // The first pair of options a learner can't tell apart, as their indices, or null: the same option once a
 // label, case, quotes, spacing and a closing period are set aside (normalizeOption; "Hello!" and "Hello.",
 // "a apple" and "an apple", "ice-cream" and "ice cream" stay apart, since that is what an English question
 // asks), or the same number written the same way ("0.5" and "0.50", "1,000" and "1000", "50%" and "50
-// percent") unless the stem is about how a number is written (ABOUT_WRITTEN_FORM).
+// percent") unless the stem is about how a number is written (ABOUT_WRITTEN_FORM) or names both options
+// ("Which is greater: 0.5 or 0.50?").
 export function duplicateOptionPair(options: readonly string[], stem = ""): [number, number] | null {
   const seen = new Map<string, number>();
   const numbers = ABOUT_WRITTEN_FORM.test(stem) ? options.map(() => null) : options.map(optionNumber);
@@ -520,7 +531,7 @@ export function duplicateOptionPair(options: readonly string[], stem = ""): [num
     const a = numbers[i];
     for (let h = 0; a && a.form !== "fraction" && a.form !== "words" && h < i; h++) {
       const b = numbers[h];
-      if (b && b.form === a.form && sameNumber(a.value, b.value)) return [h, i];
+      if (b && b.form === a.form && sameNumber(a.value, b.value) && !(stemNames(stem, options[h]) && stemNames(stem, options[i]))) return [h, i];
     }
   }
   return null;
@@ -529,7 +540,8 @@ export function duplicateOptionPair(options: readonly string[], stem = ""): [num
 /**
  * The index of an option other than the key that is the key's number written another way ("0.5" for the
  * key "1/2", "seven" for "7", "2/4" for "1/2", "50%" for "one half"), or null. A learner who picks it is
- * right but would be marked wrong. Not when the stem asks about how a number is written (ABOUT_WRITTEN_FORM).
+ * right but would be marked wrong. Not when the stem asks about how a number is written (ABOUT_WRITTEN_FORM),
+ * nor for an option that differs from the key only in "a"/"an", a hyphen or a space (writingOnly).
  */
 export function optionEqualToKey(options: readonly string[], key: string, stem: string): number | null {
   const k = optionNumber(key);
@@ -538,7 +550,7 @@ export function optionEqualToKey(options: readonly string[], key: string, stem: 
   for (let i = 0; i < options.length; i++) {
     if (i === keyAt) continue;
     const o = optionNumber(options[i]);
-    if (o && sameNumber(o.value, k.value)) return i;
+    if (o && sameNumber(o.value, k.value) && writingOnly(options[i]) !== writingOnly(key)) return i;
   }
   return null;
 }
