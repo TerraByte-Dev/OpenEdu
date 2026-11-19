@@ -61,6 +61,13 @@ describe("mastery claims", () => {
     "I think we can mark that as mastered.",
     "Equal Groups is now marked as mastered.",
     "You have shown mastery of division.",
+    // "Learned" is the app's word for a mastered skill (TerraTutor click test 2026-11-19: no mark was saved).
+    "I can mark that as learned for you!",
+    "I'll mark Equal Groups as learned.",
+    "You have successfully learned those concepts.",
+    "You've learned this skill!",
+    "You have now learned all of these ideas.",
+    "Equal Groups is now marked as learned.",
   ])("%j is taken out when nothing was saved, and kept when it was", (claim) => {
     const text = `Nice thinking. ${claim} Want another one?`;
     expect(run(text)).toBe("Nice thinking. Want another one?");
@@ -80,6 +87,10 @@ describe("mastery claims", () => {
 
   it("is never read in a question, a condition or a negation", () => {
     for (const s of ["Do you think you have mastered it?", "When you have mastered this, try the quiz.", "You have not mastered it yet.", "If you have mastered loops, take the test."]) {
+      expect(claimsMastery(s), s).toBe(false);
+    }
+    // "Learned" about a fact, a goal or a question is not a mark.
+    for (const s of ["You have learned that 3 is the numerator.", "You have learned about fractions today.", "You have learned it is the bottom number.", "Once you have learned these skills, try the quiz.", "Have you learned this skill?", "We learned that halves are equal parts."]) {
       expect(claimsMastery(s), s).toBe(false);
     }
   });
