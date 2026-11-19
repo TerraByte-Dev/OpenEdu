@@ -11,7 +11,7 @@ vi.mock("./llm", () => ({
   log: { info: vi.fn(), warn: vi.fn() },
 }));
 
-import { gradeAnswersBatch, CODE_MISMATCH_FEEDBACK } from "./quiz";
+import { gradeAnswersBatch, CODE_MISMATCH_FEEDBACK, NO_ANSWER_FEEDBACK } from "./quiz";
 import { callLLMStructured } from "./llm";
 import type { LLMConfig } from "../types";
 
@@ -64,5 +64,41 @@ describe("gradeAnswersBatch: how each answer was marked", () => {
     expect(out.get(0)).toMatchObject({ by: "exact" });
     expect(out.get(1)).toMatchObject({ isCorrect: true, by: "fallback" });
     expect(out.get(2)).toMatchObject({ isCorrect: true, by: "fallback" });
+  });
+});
+
+// The grader's feedback is shown to the learner on the results (TerraTutor click test 2026-11-19: a typed
+// "xyz" got "The student did not provide an answer."). The marks are the model's; only the words change.
+describe("gradeAnswersBatch: the feedback the learner reads", () => {
+  beforeEach(() => { vi.mocked(callLLMStructured).mockReset(); });
+
+  async function feedback(f1: string, c1: boolean, f2: string, c2: boolean) {
+    vi.mocked(callLLMStructured).mockResolvedValue({ answer_1: { feedback: f1, correct: c1 }, answer_2: { feedback: f2, correct: c2 } });
+    const out = await gradeAnswersBatch(items, config);
+    return [out.get(1), out.get(2)];
+  }
+
+  it("a wrong answer the grader says gives no answer is told it doesn't answer the question yet", async () => {
+    const [a, b] = await feedback("The student did not provide an answer.", false, "No amount is given.", false);
+    expect(a).toEqual({ isCorrect: false, feedback: NO_ANSWER_FEEDBACK, by: "model" });
+    expect(b).toEqual({ isCorrect: false, feedback: NO_ANSWER_FEEDBACK, by: "model" });
+  });
+
+  it("other feedback about the student becomes the plain line for its mark", async () => {
+    const [a, b] = await feedback("The student correctly says light scatters.", true, "The student wrote a different gas, not neon.", false);
+    expect(a).toEqual({ isCorrect: true, feedback: "Correct.", by: "model" });
+    expect(b).toEqual({ isCorrect: false, feedback: CODE_MISMATCH_FEEDBACK, by: "model" });
+  });
+
+  it("a partial answer the grader says leaves something out is not told it gave no answer", async () => {
+    const [a, b] = await feedback("The student does not include the unit.", false, "The student did not name the gas.", false);
+    expect(a).toEqual({ isCorrect: false, feedback: CODE_MISMATCH_FEEDBACK, by: "model" });
+    expect(b).toEqual({ isCorrect: false, feedback: CODE_MISMATCH_FEEDBACK, by: "model" });
+  });
+
+  it("feedback about the subject, or to the learner, is kept word for word", async () => {
+    const [a, b] = await feedback("Light scatters off the air, which is why the sky looks blue.", true, "You wrote argon, but the answer is neon.", false);
+    expect(a?.feedback).toBe("Light scatters off the air, which is why the sky looks blue.");
+    expect(b?.feedback).toBe("You wrote argon, but the answer is neon.");
   });
 });

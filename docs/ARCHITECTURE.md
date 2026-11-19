@@ -390,7 +390,13 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   3: 8 of 20 marked). The prompt compares the student's words with the key; it no longer asks for
   generous partial credit, under which e2b and e4b marked typed nonsense right. The results screens
   show a `fallback` answer as not checked (`answerMark`, `UNCHECKED_NOTE`, `uncheckedSummary`), never
-  with a right answer's tick; it still counts as right.
+  with a right answer's tick; it still counts as right. The grader's `feedback` is shown to the learner on
+  the results, and the prompt asks for a sentence "on what the student wrote", so code rewrites it before
+  it is stored (`quiz.ts feedbackForLearner`, TerraTutor click test 2026-11-19: a typed "xyz" got "The
+  student did not provide an answer."): a wrong answer whose feedback says nothing was answered gets
+  "That doesn't answer the question yet." (`NO_ANSWER_FEEDBACK`), and any other feedback about "the
+  student" gets "Correct." or `CODE_MISMATCH_FEEDBACK` for its mark. The mark itself is never changed, and
+  the prompt is unchanged.
 - **A safety disclosure typed outside the chat is not marked** (ported from TerraTutor #175). The chat's
   own check (`child-safety.ts isSafetyDisclosure` with the learner's grade, nothing wider) reads what the
   learner types into a quiz or level-test written answer, the study quiz's "In your own words, why is that
