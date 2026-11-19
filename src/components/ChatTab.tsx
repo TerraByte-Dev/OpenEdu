@@ -390,11 +390,21 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     let instructions: Awaited<ReturnType<typeof getTutorInstructions>>;
     let knowledgeSummary: string;
+    // The window this turn runs in (store.ts getOllamaNumCtx): the same num_ctx every Ollama call for
+    // this model sends, so a course build or quiz grading never reloads the model chat just used.
+    // Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and dropped the
+    // front of the prompt — the system message and the tools manifest — with no error.
+    let turnConfig: Awaited<ReturnType<typeof getChatTurnConfig>>;
+    let retrieval: Awaited<ReturnType<typeof getRetrievalMode>>;
+    // Read here, before the turn shows as streaming: a read that fails after that left the chat streaming
+    // with Stop showing and no error or note (review of the TerraTutor #257 port).
     try {
       instructions = await getTutorInstructions(courseId);
       knowledgeSummary = await getKnowledgeSummary(courseId);
+      turnConfig = await getChatTurnConfig();
+      retrieval = await getRetrievalMode();
     } catch (e) {
-      log.error("ChatTab", "reading the tutor's instructions failed", e);
+      log.error("ChatTab", "reading the tutor's instructions or settings failed", e);
       if (turnOwnerRef.current === owner) {
         readNoticeLeft();
         turnOwnerRef.current = null;
@@ -403,11 +413,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       }
       return;
     }
-    // The window this turn runs in (store.ts getOllamaNumCtx): the same num_ctx every Ollama call for
-    // this model sends, so a course build or quiz grading never reloads the model chat just used.
-    // Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and dropped the
-    // front of the prompt — the system message and the tools manifest — with no error.
-    const { config, profile } = await getChatTurnConfig();
+    const { config, profile } = turnConfig;
     const { contextTokens } = config;
     const modelTier = profile.tier;
     // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rules
@@ -471,7 +477,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const turn: TutorTurn = {
       messages: llmMessages,
       config,
-      retrieval: await getRetrievalMode(),
+      retrieval,
       // What tells a safety disclosure from an answer in the kernel: the same grade as the notice below.
       grade,
       onText: (chunk) => { shownText += chunk; if (turnOwnerRef.current === owner) setStreamingText((prev) => prev + chunk); },

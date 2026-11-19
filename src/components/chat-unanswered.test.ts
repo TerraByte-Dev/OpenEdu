@@ -49,6 +49,7 @@ const { setActiveLearnerId, createCourse, createChatThread, saveChatMessage, get
 const { DEFAULT_LEARNER_ID } = await import("../lib/learners");
 const { tutorEngine } = await import("../lib/kernel");
 const { getKnowledgeSummary } = await import("../lib/knowledge");
+const { getRetrievalMode } = await import("../lib/store");
 const { UNANSWERED_ASK_AGAIN, UNANSWERED_TURN } = await import("../lib/plain-language");
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -266,6 +267,27 @@ describe("Chat: a question left with no reply", () => {
     expect(run).toHaveBeenCalledTimes(1);
     expect(await saved()).toEqual([["user", "what is a cell?"], ["assistant", REPLY]]);
     expect(host.textContent).not.toContain(UNANSWERED_TURN);
+  });
+
+  // The same when a setting read fails (review of the port: the retrieval mode was read after the turn showed
+  // as streaming and outside its try, so the chat stayed streaming with Stop showing and no note).
+  it("a message whose settings could not be read says so at once, and is not left streaming", async () => {
+    const run = vi.spyOn(tutorEngine, "run").mockResolvedValue(result(REPLY));
+    vi.mocked(getRetrievalMode).mockRejectedValueOnce(new Error("store is locked"));
+    await openNew();
+
+    await type("what is a cell?");
+    await act(async () => { button("Send")!.click(); });
+    await vi.waitFor(() => { if (!askAgain()) throw new Error("turn not ended yet"); });
+    expect(run).not.toHaveBeenCalled();
+    expect(button("Stop generating")).toBeNull();
+    expect(await saved()).toEqual([["user", "what is a cell?"]]);
+    expect(host.textContent).toContain(UNANSWERED_TURN);
+
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(await saved()).toEqual([["user", "what is a cell?"], ["assistant", REPLY]]);
   });
 
   it("a message answered as usual shows no note", async () => {

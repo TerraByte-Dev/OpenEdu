@@ -1018,7 +1018,8 @@ So the verdict on the child's answer is the app's, not the reply's:
   apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
   one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice.", a sentence
   that announces the check: "I will check your understanding of "What is a Fraction? Whole and Parts."",
-  "Let's see what you know about fractions.", "Let's check:", also after praise such as "Nice one, now";
+  "Let's see what you know about fractions.", "Let's check:", also after praise such as "Nice one, now",
+  with any lead-in or praise after it ("Here is your first question.", "great,");
   only a topic announcement, so "Let's see if you can tell me the name of the biggest planet." and "Let's
   see what happens when we mix red and blue paint." stay, and it is kept when it holds a number or a
   clause word (when, if, where, ...), when the next sentence points back at it, or when no "?" is left
@@ -1155,7 +1156,7 @@ follows that message: it hides while the retry streams and comes back with the b
 #250; before, the click cleared it and the learner had no way to ask again until they reopened the
 conversation).
 A message sent in the open conversation that gets no reply (Stop before any text, a failed turn, a turn
-that could not start because the tutor's instructions could not be read) says the same at once, when its
+that could not start because the tutor's instructions or settings could not be read) says the same at once, when its
 turn ends (ported from TerraTutor #257; before, only on reopening the conversation).
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
