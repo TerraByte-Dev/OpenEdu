@@ -302,8 +302,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   };
 
   // The reply to a card's typed words, already saved as the child's message (so the safety notice shows
-  // under it), run as an ordinary turn (the safety rules in the system prompt, no grading). If the child
-  // opened another conversation first, the words stay saved in their own thread, with no reply.
+  // under it), run as an ordinary turn (the fixed disclosure reply, or the safety rules for a question about
+  // someone else, no grading). If the child opened another conversation first, the words stay saved in their
+  // own thread, with no reply.
   useEffect(() => {
     if (!cardMessage || streaming || settingUpRef.current) return;
     setCardMessage(null);

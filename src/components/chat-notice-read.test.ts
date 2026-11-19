@@ -10,7 +10,7 @@ import type { TutorTurnResult } from "../lib/kernel";
 // The real ChatTab on the real db.ts (the in-memory SQLite stand-in the db tests use) and the real read-aloud
 // hook over a recording speechSynthesis. A K-2 learner's safety disclosure has its notice, with the numbers,
 // read aloud even when the turn ends with no reply to read it before: the tutor's instructions can't be read,
-// the turn fails (Ollama not running), or the learner stops it. Only the tutor turn itself is a stand-in.
+// the turn fails, or the learner stops it. Only the tutor turn itself is a stand-in.
 // Ported from TerraTutor #234.
 
 type Sqlite = {
@@ -118,7 +118,7 @@ const result = (over: Partial<TutorTurnResult>): TutorTurnResult => ({
 } as unknown as TutorTurnResult);
 
 describe("a K-2 safety disclosure's notice is read aloud when no reply comes", () => {
-  it("the turn fails (Ollama not running): the notice alone, once", async () => {
+  it("the turn fails: the notice alone, once", async () => {
     vi.spyOn(tutorEngine, "run").mockRejectedValue(new Error("Failed to fetch"));
     await open(1);
     await send(DISCLOSURE);

@@ -1142,7 +1142,7 @@ with "I cannot help with that kind of question. Please tell me if you have any q
 with `disclosureReply` for the learner's grade band (`TutorTurn.grade`: K-2, 3-5, 6-12, or no grade) and calls
 no model: no tools, no lookup, no card, no answer check. It thanks the learner, says they are not in trouble
 (K-2 also "It is not your fault"), says plainly that the tutor is a computer, names someone they trust and,
-from grade 3, points to the numbers in the notice under the message; it never says stop, never turns back to
+except K-2, points to the numbers in the notice under the message; it never says stop, never turns back to
 the lesson and never says "a grown-up at home". With no grade set the learner may be an adult, so that
 wording names "someone you trust, like a family member, friend, teacher or counselor", not a grown-up (Fable's
 decision as Tate's delegate, 2026-11-19; TerraTutor gives no-grade the 6-12 words). The result carries

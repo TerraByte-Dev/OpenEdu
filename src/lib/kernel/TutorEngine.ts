@@ -182,7 +182,8 @@ export interface TutorTurnResult {
   // (isSafetyDisclosure, with TutorTurn.grade). It is not taken as the card's answer: the turn ends at the
   // card with its question shown, and nothing is graded, echoed or sent to the model. The caller sends this
   // text as the student's own next message, so it gets exactly what a typed chat message gets: the safety
-  // notice under it, the safety rules in the system prompt, no grading. Null on every other turn.
+  // notice under it, the fixed disclosureReply (or the model under the safety rules in the system prompt for a
+  // question about someone else or a pregnancy disclosure), no grading. Null on every other turn.
   cardMessage: string | null;
   // True when the student's newest message is a safety disclosure (isSafetyDisclosure, with
   // TutorTurn.grade), or any earlier student message in the thread the turn was sent (turnInDisclosedThread).
