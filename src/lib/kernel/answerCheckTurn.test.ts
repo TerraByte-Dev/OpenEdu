@@ -37,7 +37,8 @@ vi.mock("../llm", async (importOriginal) => ({
   }),
   callLLMStructured: vi.fn(async (messages: Sent, _config: unknown, opts: { toolName: string; validate?: (o: unknown) => string[] }) => {
     structured.push({ tool: opts.toolName, messages, opts });
-    const out = opts.toolName === "AnswerKey" ? keyOut : gradeOut;
+    // A key can be worked out from what the key call was sent (keyFrom), as a model works it out.
+    const out = opts.toolName === "AnswerKey" ? (typeof keyOut === "function" ? keyOut(messages) : keyOut) : gradeOut;
     if (out instanceof Error) throw out;
     return out;
   }),
@@ -1155,6 +1156,36 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(first.result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${Q_MAMMAL}`);
     const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked), student("xyz"), tutor(first.result.text)], "B");
     expect(result.answerCheck).toMatchObject({ verdict: "correct", by: "code" });
+  }, 30_000);
+
+  // Review of the #251 port, 2026-11-19: the repeat started at the question's own sentence, so a word
+  // problem lost its setup, and the next try's key call had no numbers to work from.
+  it.each([
+    ["Great job! Next one: Sam has 5 apples. He eats 2. How many apples are left?", "Sam has 5 apples. He eats 2. How many apples are left?", "Sam has 5 apples", "3"],
+    ["Good.\nRead this sentence: The cat sat on the mat. Which word is the noun?", "Read this sentence: The cat sat on the mat. Which word is the noun?", "The cat sat on the mat", "cat"],
+  ])("keeps a word problem's setup, so the next try is keyed against it: %j", async (asked, again, setup, right) => {
+    // The key a model works out: only when the message it was sent holds the setup.
+    keyOut = (sent: Sent) => {
+      const text = sent.map((m) => m.content).join("\n");
+      if (!text.includes(setup)) throw new Error("model returned no valid JSON");
+      return { question: again, working: "", answer: right };
+    };
+    const first = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(first.result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${again}`);
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked), student("xyz"), tutor(first.result.text)], right);
+    expect(result.answerCheck).toMatchObject({ key: right, verdict: "correct", by: "code" });
+  }, 30_000);
+
+  it.each([
+    ["There are 3 birds on a tree. 2 more birds come. How many birds are there now?", "There are 3 birds on a tree. 2 more birds come. How many birds are there now?", "5"],
+    ["Mr. Lee has 4 pens. Mrs. Tran gives him 3. How many does he have?", "Mr. Lee has 4 pens. Mrs. Tran gives him 3. How many does he have?", "7"],
+    ["Nice work!\nSam has 5 apples.\nHe eats 2.\nHow many are left?", "Sam has 5 apples.\nHe eats 2.\nHow many are left?", "3"],
+    ["Good, now Sam has 5 apples. How many are left if he eats 2?", "Sam has 5 apples. How many are left if he eats 2?", "3"],
+    ["Yes, no, maybe, which of these is a question word?", "Yes, no, maybe, which of these is a question word?", "maybe"],
+  ])("repeats %j with its setup and no praise", async (asked, again, key) => {
+    keyOut = { question: again, working: "", answer: key };
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${again}`);
   }, 30_000);
 
   // A vowel-less spelling or an abbreviation is a real attempt (review of TerraTutor #245, 2026-11-19).
