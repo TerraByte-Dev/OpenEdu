@@ -390,7 +390,13 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   3: 8 of 20 marked). The prompt compares the student's words with the key; it no longer asks for
   generous partial credit, under which e2b and e4b marked typed nonsense right. The results screens
   show a `fallback` answer as not checked (`answerMark`, `UNCHECKED_NOTE`, `uncheckedSummary`), never
-  with a right answer's tick; it still counts as right.
+  with a right answer's tick; it still counts as right. The grader's `feedback` is shown to the learner on
+  the results, and the prompt asks for a sentence "on what the student wrote", so code rewrites it before
+  it is stored (`quiz.ts feedbackForLearner`, TerraTutor click test 2026-11-19: a typed "xyz" got "The
+  student did not provide an answer."): a wrong answer whose feedback says nothing was answered gets
+  "That doesn't answer the question yet." (`NO_ANSWER_FEEDBACK`), and any other feedback about "the
+  student" gets "Correct." or `CODE_MISMATCH_FEEDBACK` for its mark. The mark itself is never changed, and
+  the prompt is unchanged.
 - **A safety disclosure typed outside the chat is not marked** (ported from TerraTutor #175). The chat's
   own check (`child-safety.ts isSafetyDisclosure` with the learner's grade, nothing wider) reads what the
   learner types into a quiz or level-test written answer, the study quiz's "In your own words, why is that
@@ -702,7 +708,7 @@ that offers no tools and drops the tools manifest from the system prompt, and re
 result (`toolCallRecovery`). Any other provider error fails the turn when nothing was shown yet; once
 something was, the turn ends as stalled and keeps what was shown (`persistedReply`, below).
 
-Two write actions do not wait for the model to choose a tool, because small models rarely do (on
+Three things do not wait for the model to choose a tool, because small models rarely do (on
 `gemma4:e2b`, `flashcard.create` 0/20 and `ask_user.question` 2/20 in TerraTutor's B9 readiness run):
 - **A flashcard the student asks for** (`kernel/flashcardRequest.ts`). Code decides the message asks for
   one card (a request verb and a singular "flashcard" in one sentence, with no negation before the verb,
@@ -718,9 +724,10 @@ Two write actions do not wait for the model to choose a tool, because small mode
   turn's prefix, so on a card turn the reply misses the prefix cache and re-prefills the system prompt
   and tools manifest once.
 - **Choices written as a list** (`kernel/replyChoices.ts`). A completed reply that made no
-  `ask_user.question` call and ends with a short numbered or lettered list next to a question that asks
-  for one pick (which / choose / pick, and not order, two of, all, each, why, explain, notice, another)
-  carries those choices in `replyChoices`. Labels with LaTeX, a blank (`__`) or a trailing `=` don't
+  `ask_user.question` call of its own (the app's topic picker does not count) and ends with a short
+  numbered or lettered list next to a question that asks for one pick (which / choose / pick, and not
+  order, two of, all, each, why, explain, notice, another) carries those choices in `replyChoices`.
+  Labels with LaTeX, a blank (`__`) or a trailing `=` don't
   count; a lettered list needs its question before it. A bulleted list (-, *, + or •, one style) counts
   only when its question also asks what the student wants (would you like, do you want, should we…),
   since bullets are also how a tutor lists facts it then asks about. Emoji after the question mark
@@ -730,6 +737,24 @@ Two write actions do not wait for the model to choose a tool, because small mode
   (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
   The question is always a line of the reply, so the buttons show without it when the reply ends on it
   (`repeatsQuestion`, below).
+- **The topic picker that opens a mastery check** (`kernel/assessPicker.ts`, ported from TerraTutor #244).
+  `assess.md` asks the tutor to let the learner choose which subtopic to be checked on with
+  `ask_user.question` when more than one still needs checking; `gemma4:e2b` made that call in 2 of 20
+  turns (TerraTutor's B9), 3 of 20 (rerun 2) and 0 of 6 in TerraTutor's click test of 2026-11-19, so a
+  learner almost never saw a question card. Now, when an assess-mode turn's newest message opens the check
+  (`asksForMasteryCheck`), `ask_user.question` is offered, the caller can show a card, and two or more of
+  the level's subtopics are not mastered, the app makes the call itself in place of the turn's first
+  model call: "Which one should we check first?" with those subtopics' titles (syllabus order, at most
+  five). It runs through the same steps as a card the model made (claim filter, dispatch, the model's
+  record of the call as its own, a safety disclosure typed into it handed back as `cardMessage`), is
+  recorded with `byApp: true` (so the eval runners still count only the model's calls), gets no answer
+  check (a topic has no right answer), and does not stop `replyChoices` on the reply after the pick. Not
+  on a safety-disclosure turn. In the chat that means the assess chip only (or its text edited before
+  sending): a typed request ("quiz me", "can you check what I've mastered?") runs in explain mode
+  (`chatTurnMode`), so it gets the tutor's own question and no picker. The picker runs with no model, so
+  it is not something the turn keeps on its own: a model call that fails after the pick (Ollama stopped)
+  fails the turn as one with nothing shown, and the chat shows the plain error (`friendlyError`), saves
+  no reply and never says `STALLED_TURN`.
 
 **Question cards** (`kernel/askCard.ts`, `tools/ask_user/QuestionTool.ts`). Click test 2026-11-14 on
 `gemma4:e4b` (fractions L1, "Check if I've got this."): the card asked "Think about the fraction 1/5.
@@ -800,7 +825,9 @@ So the verdict on the child's answer is the app's, not the reply's:
 
 - **When.** The newest message is the student's answer (not a request, a question back or a meaning
   question; a request includes asking for a picture or a change of plan: "Draw me…", "Let me pick…",
-  "Can we…", "I want…", "Teach me…", "Let's draw…") to the tutor's message just before it, in a
+  "Can we…", "I want…", "Teach me…", "Let's draw…", "Check me…", also after "ok", "so", "now", "well"
+  and the like: "ok check me. give me a question", TerraTutor click test 2026-11-19; "ok 46" is still an
+  answer) to the tutor's message just before it, in a
   mastery check: the turn runs in assess mode, or
   a request for one is among the student's last four messages: the assess chip's message
   (`ASSESS_MESSAGE`) or the same request typed (`asksForMasteryCheck`: "quiz me", "test me on
@@ -842,7 +869,10 @@ So the verdict on the child's answer is the app's, not the reply's:
   same window: NotesAssistant also loads the thread with `getChatMessages`, so past 200 messages a reply that
   repeated a disclosure no longer in those 200 is kept; `finishSummary` is the backstop there), and
   `finishSummary` withholds a summary that itself reads as one, so NotesAssistant shows `SAFETY_NOTICE` in
-  its place and offers no Insert. Both call
+  its place and offers no Insert. A chat with no tutor reply in what is kept (only the learner's question,
+  the reply failed) is not summarised at all (`summaryTranscript`, TerraTutor click test 2026-11-19): the
+  panel says "There's nothing in the last chat to make notes from." rather than letting the summariser
+  write notes nobody gave. Both call
   `isSafetyDisclosure` with the active learner's grade (CourseView → NotesTab → NotesAssistant), as the
   chat's notice does, so with a K-12 grade a strong pregnancy self-disclosure is left out there too, and with
   no grade it is not. `src/components/notes-summary-grade.test.ts` clicks the real panel to pin it.
@@ -1010,7 +1040,8 @@ memory while the server stayed up), exactly as when the stream breaks off: what 
 with its marker (`persistedReply`). So does a later model call of the turn that fails before its first
 byte (a 500, an error line, a refused connection) once an earlier call showed something: the text, any
 card's question and the student's answer to it are kept and the chat says `STALLED_TURN`. A failure with
-nothing shown yet still fails the turn.
+nothing shown yet still fails the turn, and so does one where only the app's topic picker and its pick
+were shown (no model wrote anything yet, `kernel/assessPicker.ts`).
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model

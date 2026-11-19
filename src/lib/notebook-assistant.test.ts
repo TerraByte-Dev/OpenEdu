@@ -175,7 +175,7 @@ describe("finishSummary", () => {
   // src/components/notes-summary-grade.test.ts clicks the real panel with a grade.
   it("NotesAssistant shows the safety notice for a withheld summary, and never names a chat it emptied", () => {
     const s = notesAssistant.replace(/\r\n?/g, "\n");
-    expect(s).toMatch(/const transcript = formatTranscript\(messages, grade\);/);
+    expect(s).toMatch(/const transcript = summaryTranscript\(messages, grade\);/);
     expect(s).toMatch(/const shown = finishSummary\(markdown, grade\);\s*if \("withheld" in shown\) \{ setSafety\(true\); return; \}\s*setSummary\(shown\.markdown\);/);
     expect(s).not.toMatch(/setSummary\(markdown\)/);
     expect(s).toMatch(/\{safety && <SafetyNotice /);

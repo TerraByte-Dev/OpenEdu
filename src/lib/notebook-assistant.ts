@@ -292,6 +292,17 @@ export function formatTranscript(
   return kept.join("\n\n");
 }
 
+/**
+ * What "Notes from last chat" summarises: formatTranscript's text, or "" when the tutor never answered in
+ * what it keeps. A chat holding only the learner's question (the reply failed: Ollama stopped, an error) has
+ * nothing to make notes from, and the summariser would write the notes itself (TerraTutor click test
+ * 2026-11-19).
+ */
+export function summaryTranscript(messages: readonly { role: string; content: string }[], grade: Grade | null): string {
+  const kept = withoutDisclosureExchanges(messages, grade);
+  return kept.some((m) => m.role === "assistant" && m.content.trim()) ? formatTranscript(messages, grade) : "";
+}
+
 export function buildSummaryMessages(transcript: string): Array<{ role: string; content: string }> {
   return [
     { role: "system", content: SUMMARY_SYSTEM },

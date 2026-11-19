@@ -136,3 +136,31 @@ describe("Notes from last chat reads disclosures with the learner's grade", () =
     expect(insert()).toBeTruthy();
   });
 });
+
+// TerraTutor click test 2026-11-19: with Ollama stopped the reply failed, so the last chat held only the
+// child's question, and the summariser wrote notes nobody gave.
+describe("Notes from last chat makes no notes from a chat the tutor never answered", () => {
+  async function newestChat(messages: ReadonlyArray<readonly ["user" | "assistant", string]>): Promise<void> {
+    const thread = await createChatThread(courseId, 1, "what is one half");
+    for (const [role, text] of messages) await saveChatMessage(courseId, role, text, 1, thread.id);
+  }
+
+  it("a chat with only the child's question (the reply failed) is not summarised; it says so", async () => {
+    await newestChat([["user", "what is one half"]]);
+    modelSummary = "## Fractions\n- A half is one of two equal parts.";
+    await notesFromLastChat(null);
+    expect(sent).toEqual([]);
+    expect(host.textContent).toContain("There's nothing in the last chat to make notes from.");
+    expect(host.textContent).not.toContain("A half is one of two equal parts.");
+    expect(insert()).toBeUndefined();
+  });
+
+  it("a chat the tutor answered is summarised as before", async () => {
+    await newestChat([["user", "what is one half"], ["assistant", "One half is one of two equal parts."]]);
+    modelSummary = "## Fractions\n- A half is one of two equal parts.";
+    await notesFromLastChat(null);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain("Tutor: One half is one of two equal parts.");
+    expect(host.textContent).toContain("A half is one of two equal parts.");
+  });
+});

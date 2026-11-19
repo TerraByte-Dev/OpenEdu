@@ -943,6 +943,30 @@ async function misspellingNotes(items: AnswerToGrade[]): Promise<Array<string | 
 // learner meant.
 export const CODE_MISMATCH_FEEDBACK = "This does not match the answer key.";
 
+// The grader's feedback is shown to the learner on the quiz and level-test results, but the prompt asks
+// for "1 short sentence on what the student wrote", so it talks about them: "The student did not provide
+// an answer." for a typed "xyz" (TerraTutor click test 2026-11-19), "The student wrote a code, not a
+// time.", "No amount is given.". Neither is said to a learner. Code rewrites only the feedback, never the
+// mark, and the prompt is unchanged (it was measured with this wording, feedback before verdict):
+//   - a wrong answer whose feedback says nothing was answered is told NO_ANSWER_FEEDBACK (they did type
+//     something; it just doesn't answer the question). Not "does not include / name / state": that is
+//     said of a partial answer ("The answer does not include the unit"), which did answer;
+//   - any other feedback about "the student" (or the learner, the child) becomes the line code uses for a
+//     settled answer: "Correct." or CODE_MISMATCH_FEEDBACK. The results row already shows the learner's
+//     answer beside the key when it was marked wrong.
+// Feedback that speaks to the learner or about the subject ("Five o'clock is 5:00.") is kept as it is.
+export const NO_ANSWER_FEEDBACK = "That doesn't answer the question yet.";
+const ABOUT_THE_LEARNER = /\b(?:student|learner|pupil)s?\b|\b(?:the|this|a)\s+(?:child|user)\b/i;
+const SAYS_NO_ANSWER = /\b(?:did|does|do|has|have)(?:\s+not|n['’]t)\s+(?:provide|give|write|enter|offer|answer|attempt|respond)\b|\bno\s+(?:answer|response|attempt)\b|\bno\s+\w+\s+(?:is|was)\s+(?:given|provided|written|stated)\b|\b(?:gibberish|nonsense)\b|\brandom\s+(?:letters|characters|text)\b/i;
+
+function feedbackForLearner(o: GradeOutcome): GradeOutcome {
+  if (!o.isCorrect && SAYS_NO_ANSWER.test(o.feedback)) return { ...o, feedback: NO_ANSWER_FEEDBACK };
+  if (ABOUT_THE_LEARNER.test(o.feedback) || SAYS_NO_ANSWER.test(o.feedback)) {
+    return { ...o, feedback: o.isCorrect ? "Correct." : CODE_MISMATCH_FEEDBACK };
+  }
+  return o;
+}
+
 export async function gradeAnswersBatch(
   items: AnswerToGrade[],
   config: LLMConfig | null,
@@ -998,7 +1022,8 @@ export async function gradeAnswersBatch(
         config,
         { schema: batchGradeSchema(needsLLM), toolName: "emit_grades", tier },
       );
-      for (const [idx, outcome] of parseBatchGradeResults(parsed, needsLLM)) out.set(idx, outcome);
+      // One about "the student", or one that says no answer was given, is said to the learner (feedbackForLearner).
+      for (const [idx, outcome] of parseBatchGradeResults(parsed, needsLLM)) out.set(idx, feedbackForLearner(outcome));
     } catch (e) {
       log.warn("quiz", `batch grade failed — marking ${needsLLM.length} answers correct (lenient)`, e instanceof Error ? e.message : String(e));
       for (const it of needsLLM) out.set(it.index, { isCorrect: true, feedback: "", by: "fallback" });
