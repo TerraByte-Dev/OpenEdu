@@ -795,7 +795,9 @@ So the verdict on the child's answer is the app's, not the reply's:
 
 - **When.** The newest message is the student's answer (not a request, a question back or a meaning
   question; a request includes asking for a picture or a change of plan: "Draw me…", "Let me pick…",
-  "Can we…", "I want…", "Teach me…", "Let's draw…") to the tutor's message just before it, in a
+  "Can we…", "I want…", "Teach me…", "Let's draw…", "Check me…", also after "ok", "so", "now", "well"
+  and the like: "ok check me. give me a question", TerraTutor click test 2026-11-19; "ok 46" is still an
+  answer) to the tutor's message just before it, in a
   mastery check: the turn runs in assess mode, or
   a request for one is among the student's last four messages: the assess chip's message
   (`ASSESS_MESSAGE`) or the same request typed (`asksForMasteryCheck`: "quiz me", "test me on

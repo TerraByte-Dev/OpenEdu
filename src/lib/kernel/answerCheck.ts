@@ -52,14 +52,23 @@ export const ASSESS_LOOKBACK = 4;
 // A message that asks for something rather than answering: help, a hint, a question back, a new topic,
 // a picture or a change of plan ("Draw me a diagram of a pizza cut into 4 slices", "Let me pick the
 // shape", "Can we use circles?"). Read as an answer, a request like that was graded against the open
-// question and the child was told "That's not right yet." (click-test 2026-11-14).
-const REQUEST = /^(?:give me|walk me|show me|help|explain|tell me|teach me|continue|more on|quiz me|review|check if|let me work|let me pick|let me choose|let['’]?s (?:do|try|use|go|learn|talk|draw|move|switch|start|play)|what do my notes|make me|make a|draw|write me|can you|could you|would you|will you|can we|could we|i want|i['’]?d like|i would like|please|i don'?t know|i do not know|idk|no idea|not sure|i'?m not sure|skip|pass|i give up|what|why|how|where|when|who|which|do |does |did |can i|could i|should i|is that|are you)\b/i;
+// question and the child was told "That's not right yet." (click-test 2026-11-14). "check me" too
+// (TerraTutor click test 2026-11-19: "ok check me. give me a question with buttons to pick" was told "That
+// is not the right answer.").
+const REQUEST = /^(?:check me|give me|walk me|show me|help|explain|tell me|teach me|continue|more on|quiz me|review|check if|let me work|let me pick|let me choose|let['’]?s (?:do|try|use|go|learn|talk|draw|move|switch|start|play)|what do my notes|make me|make a|draw|write me|can you|could you|would you|will you|can we|could we|i want|i['’]?d like|i would like|please|i don'?t know|i do not know|idk|no idea|not sure|i'?m not sure|skip|pass|i give up|what|why|how|where|when|who|which|do |does |did |can i|could i|should i|is that|are you)\b/i;
+
+// Words a child often puts before a request ("ok check me", "so can you explain it?", "now show me"). Only
+// these are skipped before REQUEST is tested; what follows them is still read as an answer unless it is
+// one ("ok 46", "so it's 46", "well, I think it's 46", "yes 46"). ASK_LEAD below skips the same words, and
+// "please", which REQUEST already reads as a request.
+const LEAD_WORDS = String.raw`ok(?:ay)?|alright|right|great|cool|now|so|and|then|hey|hi|yes|yeah|well|um+|hmm+`;
+const LEAD_FILLER = new RegExp(String.raw`^(?:(?:${LEAD_WORDS})\b[\s,!.]*)+`, "i");
 
 /** True when `text`, the student's newest message, reads as an answer rather than a request. */
 export function readsAsAnswer(text: string): boolean {
   const t = text.trim();
   if (!t || t.length > 600 || asksForMasteryCheck(t)) return false;
-  return !REQUEST.test(t) || isAttemptText(t);
+  return !REQUEST.test(t.replace(LEAD_FILLER, "")) || isAttemptText(t);
 }
 
 // A typed request to be checked on what the student knows: "quiz me", "test me on fractions", "can you
@@ -67,7 +76,7 @@ export function readsAsAnswer(text: string): boolean {
 // message or a clause of it, as a request ("Okay, can you quiz me?"), so "My teacher will quiz me
 // tomorrow" and "Don't quiz me yet" are not one; nor are "check my spelling", "can you check this
 // sentence" and "check if I got this right" (one answer, not what they know).
-const ASK_LEAD = String.raw`(?:^|[.!?,;:]\s+)[^\p{L}\p{N}]*(?:(?:ok(?:ay)?|now|alright|right|great|cool|so|and|then|hey|hi|yes|yeah|please|pls)\b[\s,!.]*)*(?:(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:now\s+)?|please\s+|i\s+(?:want|would like|['’]d like)\s+(?:you\s+)?to\s+|let['’]?s\s+)?`;
+const ASK_LEAD = String.raw`(?:^|[.!?,;:]\s+)[^\p{L}\p{N}]*(?:(?:${LEAD_WORDS}|please|pls)\b[\s,!.]*)*(?:(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:now\s+)?|please\s+|i\s+(?:want|would like|['’]d like)\s+(?:you\s+)?to\s+|let['’]?s\s+)?`;
 const MASTERY_CHECK_REQUEST = new RegExp(`${ASK_LEAD}(?:${[
   String.raw`(?:quiz|test)\s+me\b`,
   String.raw`give\s+me\s+a\s+(?:quick\s+|short\s+|little\s+)?(?:quiz|test)\b`,

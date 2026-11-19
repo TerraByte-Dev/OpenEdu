@@ -456,11 +456,22 @@ describe("failures and turns that get no check", () => {
     "Draw me a diagram of a pizza cut into 4 equal slices, and write three quarters as a math fraction.",
     "Let me pick which shape we use.", "Can we use circles instead?", "I want to do decimals now.",
     "Teach me unit fractions.", "Let's draw it.",
+    // A request after "ok", "so", "now"... (TerraTutor click test 2026-11-19: the first was told "That is not the right answer.").
+    "ok check me. give me a question with buttons to pick", "Okay, give me a hint.", "so can you explain it again?",
+    "Now show me another way.", "um, I don't know", "Check me on the 6s.", "Yeah, give me a hint", "yes can you explain it",
   ])(
     "%j is not an answer: no model call is added", async (text) => {
       await answer(CHECK, text);
       expect(structured).toEqual([]);
       expect(lastUser(replies[0])).not.toContain("The app checked");
+    },
+  );
+
+  // Near misses of the requests above: an answer after the same words is still graded.
+  it.each(["ok 46", "Okay, it's 46.", "so 46", "well, I think it's 46", "now 46?", "46", "yes 46", "Yeah, it's 46."])(
+    "%j is an answer: it gets the check", async (text) => {
+      const { result } = await answer(CHECK, text);
+      expect(result.answerCheck).not.toBeNull();
     },
   );
 
