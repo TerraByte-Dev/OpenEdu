@@ -71,6 +71,7 @@ wrapper are **not type-linked**; keep them in sync by hand.
   `src/components/review-grade-once.test.ts`, which double-clicks the real Review grade buttons and clicks the next card's Raise hand,
   `src/components/chat-unanswered.test.ts`, which opens the real chat on a question with no reply and presses Ask again,
   `src/components/chat-check-chip.test.ts`, which takes a hint inside a running check in the real chat,
+  `src/components/resources-tab-recommended.test.ts`, which opens the real Resources tab on a course with and without matching Library cards,
   `src/views/settings/provider-models-recheck.test.ts`, which saves models and the Ollama URL in the real
   Settings › Provider & Models and checks the setup check runs again,
   `src/views/settings/review-picker-notice.test.ts`, which picks a cloud model in the real Checking model picker, and
