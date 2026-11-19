@@ -441,8 +441,9 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   (`levelTestExpectLines`) and its failed result (`levelTestFailLine`) name no review section and no
   review bar, and its making screen has no Review step.
 - **A learner can always leave a quiz or a level test.** On Ollama the questions are written one model
-  call each (20 for a quiz, 45 for a test or 35 for one with no review section, plus top-ups), which on a computer with no graphics card is
-  slow. Both "making" screens have "Stop and go back": it aborts the `AbortSignal` the screen passes to
+  call each (20 for a quiz, 45 for a test or 35 for one with no review section, plus top-ups), which
+  on a computer with no graphics card is slow. Both "making" screens have "Stop and go back": it
+  aborts the `AbortSignal` the screen passes to
   `generateQuizQuestions` / `generatePromotionTestQuestions`, which reaches every `callLLMStructured`
   (the model load too), the verify pass and the content review; `quiz.ts` `stopIfAborted` then rejects
   instead of returning a short set, so no attempt is created and nothing is taken or counted

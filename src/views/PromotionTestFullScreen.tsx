@@ -8,7 +8,7 @@ import { generatePromotionTestQuestions, generateStudyPlan, gradeAnswersBatch, l
 import { answerMark, answerShown, keyShown, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import {
   testUncheckedSummary, TEST_UNCHECKED_NOTE, SELF_CHECK, selfCheckIntro, MARK_AGAIN, retakeWaitLeft, levelTestFailed,
-  STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING, levelTestExpectLines, levelTestFailLine, fewerQuestionsLine,
+  STOP_TEST, stopTestBody, MAKING, testMakingNote, GRADING, levelTestExpectLines, levelTestFailLine, fewerQuestionsLine, PASS_REVIEW,
 } from "../lib/level-test";
 import {
   saveLevelTestResult, pendingLevelTest, pendingLevelTestFor, settleLevelTest, finishHandedInLevelTest, handInLevelTest,
@@ -556,6 +556,7 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
   const answeredCurrent = question?.user_answer !== null;
   const allAnswered = questions.every((q) => q.user_answer !== null);
   const isLastQuestion = currentIndex === questions.length - 1;
+  const fewerLine = fewerQuestionsLine(questions.length, target);
 
   // ── Checking ──
   if (testState === "checking") {
@@ -759,9 +760,9 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
           </div>
         )}
 
-        {fewerQuestionsLine(questions.length, target) && (
+        {fewerLine && (
           <div className="px-6 py-1.5 text-[11px] border-b shrink-0 text-warning bg-warning-tint border-warning/20">
-            {fewerQuestionsLine(questions.length, target)}
+            {fewerLine}
           </div>
         )}
 
@@ -883,8 +884,8 @@ export default function PromotionTestFullScreen({ context, onClose, onPassed, gr
               <p className="text-warning text-sm mt-2">{uncheckedLine}</p>
             )}
             {reviewScore !== null && (
-              <div className={`mt-2 text-sm ${reviewScore >= 60 ? "text-success" : "text-danger"}`}>
-                Review section: {Math.round(reviewScore)}% {reviewScore >= 60 ? "✓" : "✗ (need 60%)"}
+              <div className={`mt-2 text-sm ${reviewScore >= PASS_REVIEW ? "text-success" : "text-danger"}`}>
+                Review section: {Math.round(reviewScore)}% {reviewScore >= PASS_REVIEW ? "✓" : `✗ (need ${PASS_REVIEW}%)`}
               </div>
             )}
           </div>

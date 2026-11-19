@@ -129,5 +129,7 @@ describe("a level test's copy follows whether it has a review section", () => {
     expect(s).toContain("(hasReview ? [1, 2] : [1])");
     expect(s).toContain("{levelTestFailLine(reviewScore !== null)}");
     expect(s).not.toMatch(/TEST_TOTAL_TARGET|~45|60% on (the )?review|85% overall/);
+    // The result screen's review line reads the bar from PASS_REVIEW too.
+    expect(s).not.toMatch(/reviewScore >= 60|need 60%/);
   });
 });
