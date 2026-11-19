@@ -86,6 +86,19 @@ describe("isNonAnswer", () => {
     [",", "a comma", "What goes between the city and the state in an address?"],
     ["$", "dollar sign", "Which sign goes in front of an amount of money?"],
     ["%", "percent sign", "Which sign means out of one hundred?"],
+    // Second review, 2026-11-19.
+    ["≥", "greater than or equal to", "Which sign means greater than or equal to?"],
+    ["≤", "less than or equal to", "Which sign means less than or equal to?"],
+    ["≠", "not equal to", "Which sign means not equal to?"],
+    ["°", "degrees", "What sign goes after 30 in 30 degrees?"],
+    ["#", "sharp", "Which sign raises a note by a half step in music?"],
+    ["£", "pound sign", "Which sign goes in front of an amount of British money?"],
+    ["€", "euro sign", "Which sign shows money in France?"],
+    ["@", "the at sign", "What goes between the name and the website in an email address?"],
+    ["()", "parentheses", "What do you put around 2 + 3 to do it first?"],
+    ["[ ]", "square brackets", "What marks go around a word you add to a quote?"],
+    ["–", "a dash", "What mark goes between 1990 and 2000 in 1990–2000?"],
+    ["—", "a dash", "What long mark can show a break in a sentence?"],
   ])("sign %j (key %j) is left to the model", async (text, key, question) => {
     expect(await isNonAnswer(text, key, question)).toBe(false);
   }, 30_000);

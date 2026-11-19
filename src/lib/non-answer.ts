@@ -88,7 +88,20 @@ const SIGN_NAMES: Record<string, RegExp> = {
   "%": /\bpercent/,
   "¢": /\bcent/,
   "&": /\b(ampersand|and)\b/,
-  "#": /\b(number sign|hash|pound)/,
+  "#": /\b(number sign|hash|pound|sharp)/,
+  "≥": /\b(greater|more|at least)/,
+  "≤": /\b(less|fewer|at most)/,
+  "≠": /\b(not equal|unequal|different)/,
+  "°": /\bdegree/,
+  "@": /\bat\b/,
+  "£": /\bpound/,
+  "€": /\beuro/,
+  "(": /\b(parenthes|bracket)/,
+  ")": /\b(parenthes|bracket)/,
+  "[": /\bbracket/,
+  "]": /\bbracket/,
+  "–": /\b(dash|hyphen|minus)/,
+  "—": /\b(dash|hyphen)/,
 };
 
 /** A sign the learner typed is named in the key or the question. */
