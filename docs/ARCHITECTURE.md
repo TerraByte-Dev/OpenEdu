@@ -1018,9 +1018,12 @@ So the verdict on the child's answer is the app's, not the reply's:
   apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
   one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice."), the last
   answer's feedback after praise ("Correct! The answer is 56."), praise joined to it by commas before a
-  filler or a question word ("Correct, great job, now what is 7 x 8?", "Nice one, now what is 7 x 8?";
-  "Yes, no, maybe, which of these is a question word?" and "Right triangles have one 90-degree angle, so
-  which ...?" are kept whole), or praise joined by commas to a setup with a number in digits or words
+  filler or a question word ("Correct, great job, now what is 7 x 8?", "Nice one, now what is 7 x 8?",
+  "Well done Sam, now what is 7 x 8?"; after the praise word only a praise noun and its words, a short
+  praise ending such as "again", "right" or "start", and then a learner's name, one capitalised word, may
+  come before the comma, and any other words keep the sentence whole: "Yes, no, maybe, which of these is a
+  question word?", "Right triangles have one 90-degree angle, so which ...?" and "Good readers, now which
+  word ...?" are kept whole), or praise joined by commas to a setup with a number in digits or words
   ("Yes, good job, Sam has five apples." and "Good job, Sam has five apples." keep "Sam has five
   apples."), choices included (those listed before it are put after it), so the next
   try is checked against it: the next turn keys this reply). ChatTab's post-turn reflection still runs. In

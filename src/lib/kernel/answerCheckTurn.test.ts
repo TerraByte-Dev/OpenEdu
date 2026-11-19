@@ -1194,7 +1194,7 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Perfect squares, such as 9, come from a number times itself. Which is a perfect square, 8 or 16?", "Perfect squares, such as 9, come from a number times itself. Which is a perfect square, 8 or 16?", "16"],
     ["Good habits, like reading daily, help you learn. Which habit helps you learn?", "Good habits, like reading daily, help you learn. Which habit helps you learn?", "reading daily"],
     ["Great Britain, an island nation, has 4 countries. How many countries are in Great Britain?", "Great Britain, an island nation, has 4 countries. How many countries are in Great Britain?", "4"],
-    // ... and so is one joined to the question by ", so" or ", now" (TerraTutor #255).
+    // ... and so is one joined to the question by ", so" or ", now" (TerraTutor #255; master took the setup off both).
     ["Right triangles have one 90-degree angle, so which of these is a right triangle?", "Right triangles have one 90-degree angle, so which of these is a right triangle?", "the one with a square corner"],
     ["Good readers, now which word is a noun: run or cat?", "Good readers, now which word is a noun: run or cat?", "cat"],
     // "One more" and "two more to go" are praise's words, not a setup's number.
@@ -1213,6 +1213,14 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Yes exactly, now what is 7 x 8?", "What is 7 x 8?", "56"],
     ["Yes that's right, now what is 7 x 8?", "What is 7 x 8?", "56"],
     ["That's right again, so what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Exactly right, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Yes you're right, so what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Yes that's correct, what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Great start, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Great pick of topic, what is 7 x 8?", "What is 7 x 8?", "56"],
+    // ... and a learner's name after it: one capitalised word ("Good readers, now ..." above is kept).
+    ["Well done Sam, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Correct Maya, now what is 7 x 8?", "What is 7 x 8?", "56"],
     // "Good job," before a setup with a number is praise before the setup, not the whole sentence (same review).
     ["Good job, Sam has five apples. How many if he eats two?", "Sam has five apples. How many if he eats two?", "3"],
     ["Good job on that, Sam has 5 apples. How many if he eats 2?", "Sam has 5 apples. How many if he eats 2?", "3"],

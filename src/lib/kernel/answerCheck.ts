@@ -399,10 +399,24 @@ export async function checkAnswer(
 
 // Praise joined to the question by commas: "Correct, great job on that one, now what is 7 x 8?". Only when
 // a filler or a question word follows, so "Yes, no, maybe, which of these is a question word?" is kept.
-// More words after the praise word only after a praise noun ("great job on that one") or as one of a few
-// praise endings ("Nice one,", "Correct again,", "Yes exactly,", "Yes that's right,"), so a setup that
-// opens with one is kept: "Right triangles have one 90-degree angle, so which ..." (TerraTutor #255).
-const PRAISE_LEAD = /^(?:(?:correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+(?:(?:job|work|thinking|try|answer|going|effort)\b[^,?\n]*|(?:one|again|exactly|indeed|that(?:'|’)?s (?:right|it)|that is right|you got it|well done)\b))?[ \t]*,\s*)+(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
+// After the praise word, only a praise noun and its words ("great job on that one", "Great pick of topic"),
+// one of a few praise endings ("Nice one,", "Correct again,", "Exactly right,", "Great start,", "Yes you're
+// right,") and then a learner's name ("Well done Sam,": one capitalised word) may come before the comma;
+// any other words keep the sentence whole: "Right triangles have one 90-degree angle, so which ...", "Good
+// readers, now which word ..." (TerraTutor #255 and its review).
+const PRAISE_ITEM = /^(?:correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+(?:(?:job|work|thinking|try|answer|going|effort|pick|choice)\b[^,?\n]*|(?:one|again|exactly|indeed|right|correct|start|you(?:'|’)?re right|that(?:'|’)?s (?:right|correct|it)|that is right|you got it|well done)\b))?(?:[ \t]+([A-Za-z'’-]+))?[ \t]*,\s*/i;
+const AFTER_PRAISE = /^(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
+// The name, matched case-sensitively: PRAISE_ITEM is case-insensitive.
+const NAME = /^[A-Z][a-z'’-]*$/;
+function withoutPraiseLead(question: string): string {
+  let cut = 0;
+  for (let at = 0, m = PRAISE_ITEM.exec(question); m && (!m[1] || NAME.test(m[1])); m = PRAISE_ITEM.exec(question.slice(at))) {
+    at += m[0].length;
+    const next = AFTER_PRAISE.exec(question.slice(at));
+    if (next) cut = at + next[0].length;
+  }
+  return question.slice(cut);
+}
 // A choice line ("A) 5", "**B.** 6").
 const CHOICE_LINE = /^[ \t]*(?:[-*•>][ \t]*)?(?:\*\*)?\(?[A-F](?:\)|\.|:)(?:\*\*)?[ \t]+\S/;
 // The first sentence of a paragraph, up to an end mark or a colon ("Mr." too: it is then kept).
@@ -468,7 +482,7 @@ export function questionAgain(tutorMessage: string, keyedQuestion: string): stri
     praised ||= lead !== s || isPraise(s[0]);
     question = question.slice(lead[0].length).trim();
   }
-  question = question.replace(PRAISE_LEAD, "")
+  question = withoutPraiseLead(question)
     .replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: string, c: string) => pre + c.toUpperCase());
   const choicesBefore = m.slice(0, start).split("\n").filter((l) => CHOICE_LINE.test(l)).map((l) => l.trim());
   return choicesBefore.length >= 2 && !question.split("\n").some((l) => CHOICE_LINE.test(l))
