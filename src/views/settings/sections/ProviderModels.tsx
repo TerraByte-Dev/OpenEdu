@@ -9,7 +9,7 @@ import {
 } from "../../../lib/store";
 import { CONTEXT_WINDOW_HELP, contextWindowNote, contextLabel } from "../../../lib/context-window";
 import { ollamaState, ollamaStatusLabel, OLLAMA_NO_MODELS_HINT, type OllamaState } from "../../../lib/ollama-status";
-import { OLLAMA_ADDRESS_NOT_ALLOWED } from "../../../lib/ollama-guide";
+import { OLLAMA_ADDRESS_NOT_ALLOWED, OLLAMA_ADDRESS_NOT_ALLOWED_HERE } from "../../../lib/ollama-guide";
 import { needsCloudNotice, modelNeedsCloudNotice, withNoticeSeen } from "../../../lib/privacy";
 import { CloudNoticePanel } from "../CloudNotice";
 import ReviewModelPicker from "../ReviewModelPicker";
@@ -275,9 +275,10 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
             )}
             {ollamaStatus === "offline" && (
               <div className="mt-2.5 space-y-1">
-                {/* The address refusal is a plain sentence, not raw error text, so it isn't in the error box. */}
+                {/* The address refusal is a plain sentence, not raw error text, so it isn't in the error box; here it
+                    points at the box above rather than at this screen (OLLAMA_ADDRESS_NOT_ALLOWED_HERE). */}
                 {ollamaError === OLLAMA_ADDRESS_NOT_ALLOWED
-                  ? <p className="text-xs text-danger">{ollamaError}</p>
+                  ? <p className="text-xs text-danger">{OLLAMA_ADDRESS_NOT_ALLOWED_HERE}</p>
                   : ollamaError && <p className="text-xs text-danger font-mono bg-panel-lite px-2 py-1.5 rounded">{ollamaError}</p>}
                 {/* A wrong address is fixed above; installing Ollama would not help (ollama-guide.ts ollamaAddressAllowed). */}
                 {ollamaError !== OLLAMA_ADDRESS_NOT_ALLOWED && (
