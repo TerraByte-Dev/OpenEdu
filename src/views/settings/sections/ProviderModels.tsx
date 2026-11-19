@@ -48,6 +48,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   // before a click on the confirm's buttons, and an async check there could reopen a confirm just answered.
   const seen = useRef<string[]>([]);
   const saved = useRef<Record<ModelJob, string>>({ gen: "", chat: "" });
+  const savedEmbedding = useRef("");
 
   // Initial load probes Ollama exactly once with the persisted URL; the effect below re-probes only when the
   // PROVIDER changes — NOT on every keystroke in the URL field (that fired a network probe per character and
@@ -73,7 +74,9 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
       const chat = (await getChatConfig()).model;
       saved.current.chat = chat;
       if (current()) setChatModelState(chat);
-      setEmbeddingModelState((await getEmbeddingConfig()).model);
+      const embedding = (await getEmbeddingConfig()).model;
+      savedEmbedding.current = embedding;
+      setEmbeddingModelState(embedding);
       setMaxCtx(await getMaxContextTokens());
       setRamBytes(await systemMemoryBytes());
       if (base.provider !== "ollama") {
@@ -184,7 +187,16 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
   const commitGen = (m: string) => commitModel("gen", m);
   const commitChat = (m: string) => commitModel("chat", m);
-  const commitEmbedding = async () => { await setEmbeddingModel(embeddingModel.trim() || "nomic-embed-text"); markSaved(); onProviderChanged?.(); };
+  // Like commitModel, an unchanged name is not saved again: the setup check after a save can load models,
+  // so a blur or Enter with nothing changed must not run it.
+  const commitEmbedding = async () => {
+    const m = embeddingModel.trim() || "nomic-embed-text";
+    if (m === savedEmbedding.current) return;
+    savedEmbedding.current = m;
+    await setEmbeddingModel(m);
+    markSaved();
+    onProviderChanged?.();
+  };
 
   const verifyKey = async (key: string) => {
     // The catalog's chat default, so a retired id here can never fail a good key with "Model not found".

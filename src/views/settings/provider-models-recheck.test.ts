@@ -71,6 +71,13 @@ const click = (el: Element) => el.dispatchEvent(new MouseEvent("click", { bubble
 // A SettingRow is its label's div, inside a div, inside the row (primitives.tsx).
 const rowOf = (label: string) => [...host.querySelectorAll("div.text-sm.font-medium")].find((e) => e.textContent === label)!.parentElement!.parentElement!;
 const chip = (label: string) => [...rowOf(label).querySelectorAll("button")].find((b) => b.textContent === "gemma4:e2b")!;
+const embeddingBox = () => rowOf("Embedding model (Notebook)").querySelector("input")!;
+// React tracks a controlled input's value, so set it through the native setter before the input event.
+const type = (box: HTMLInputElement, text: string) => {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(box, text);
+  box.dispatchEvent(new Event("input", { bubbles: true }));
+};
+const blur = (box: HTMLInputElement) => box.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
 
 describe("saving in Provider & Models runs the setup check again", () => {
   it("after the tutor chat model is saved", async () => {
@@ -87,11 +94,23 @@ describe("saving in Provider & Models runs the setup check again", () => {
     expect(order).toEqual(["save", "recheck"]);
   });
 
-  it("after the notebook's embedding model is saved", async () => {
-    const box = rowOf("Embedding model (Notebook)").querySelector("input")!;
+  it("after the notebook's embedding model is saved, once for Enter and the blur after it", async () => {
+    const box = embeddingBox();
+    await act(async () => { type(box, "all-minilm"); });
     await act(async () => { box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
-    expect(store.setEmbeddingModel).toHaveBeenCalledWith("nomic-embed-text");
+    await act(async () => { blur(box); });
+    expect(store.setEmbeddingModel).toHaveBeenCalledTimes(1);
+    expect(store.setEmbeddingModel).toHaveBeenCalledWith("all-minilm");
     expect(order).toEqual(["save", "recheck"]);
+  });
+
+  it("not when the embedding box loses focus with its name unchanged", async () => {
+    const box = embeddingBox();
+    await act(async () => { blur(box); });
+    await act(async () => { type(box, "  nomic-embed-text "); });
+    await act(async () => { blur(box); });
+    expect(store.setEmbeddingModel).not.toHaveBeenCalled();
+    expect(recheck).not.toHaveBeenCalled();
   });
 
   it("after Save & Check on the Ollama URL", async () => {
