@@ -77,6 +77,18 @@ describe("arithmetic-fact note: request through the kernel", () => {
     expect(result.arithmeticFact?.answer).toBe("42");
   });
 
+  // Review of TerraTutor #252, 2026-11-19: the student's own earlier messages are read for a word problem,
+  // but their first plain ask is not one, so the same fact asked again after the tutor put it off is given.
+  it("(a) on the same fact asked again after the tutor put it off", async () => {
+    const history: Sent = [
+      { role: "user", content: "what is 7 times 8?" },
+      { role: "assistant", content: "Great question! Let's think about it together. What do you know about groups?" },
+    ];
+    const { req, result } = await run(history, "what is 7 times 8?");
+    expect(req[req.length - 1].content).toBe(`what is 7 times 8?\n\n${arithmeticFactNote(askedArithmetic("what is 7 times 8?")!)}`);
+    expect(result.arithmeticFact?.answer).toBe("56");
+  });
+
   it.each([
     "what is a fraction?",
     "what is 7 times 8 apples?",

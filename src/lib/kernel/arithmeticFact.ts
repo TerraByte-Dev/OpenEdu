@@ -64,7 +64,9 @@
 //     ("What is half of 16?" then "what is 16 / 2"). This also covers a check's question asked past
 //     inMasteryCheck's window. The student's own messages from that stretch are read the same way, so a
 //     word problem typed one message before the question ("Sam has 7 bags with 8 marbles in each. How
-//     many marbles?", the tutor's reply, then "what is 7 times 8?") is held too. Asking one piece of the
+//     many marbles?", the tutor's reply, then "what is 7 times 8?") is held too; a student message that
+//     itself plainly asks a fact does not count, so the same fact asked again after the tutor put it off
+//     is answered. Asking one piece of the
 //     tutor's question is the student's own work and is answered ("What is 7 × 8?" then "what is 7 times
 //     4?"), and so is a question more than TUTOR_LOOKBACK tutor messages back;
 //   - (TutorEngine) a safety-disclosure turn, a first-turn hold or check-before-praise turn, a meaning
@@ -196,7 +198,8 @@ function mentions(text: string, digits: string): boolean {
  * the student's last ASSESS_LOOKBACK + 1 messages; this is the same five, on the tutor's side. The
  * student's own messages from that stretch are read too: a word problem the student typed one message
  * before the question ("Sam has 7 bags with 8 marbles in each...", the tutor's reply, then "what is 7
- * times 8?") is the student's own exercise, held by the attempt-first policy (B4 G1).
+ * times 8?") is the student's own exercise, held by the attempt-first policy (B4 G1). A student message
+ * that itself plainly asks a fact (askedArithmetic) is not read: a re-ask after the tutor put it off is answered.
  */
 export const TUTOR_LOOKBACK = 5;
 
@@ -232,7 +235,10 @@ export function arithmeticFactTurn(
   if (!newest || newest.role !== "user") return null;
   const fact = askedArithmetic(newest.content);
   if (!fact || inMasteryCheck(conversation, activeSkill)) return null;
-  return recentMessages(conversation).some((m) => mayHaveAsked(m.content, fact)) ? null : fact;
+  // A student message that itself plainly asks a fact is not their word problem: asked again after the
+  // tutor put it off ("what is 7 times 8?", "Let's think about it...", "what is 7 times 8?"), it is answered.
+  return recentMessages(conversation)
+    .some((m) => (m.role !== "user" || askedArithmetic(m.content) === null) && mayHaveAsked(m.content, fact)) ? null : fact;
 }
 
 /** The note after the student's text. Prompt-wording iteration 1 of at most 3. */
