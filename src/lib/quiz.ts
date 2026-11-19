@@ -16,6 +16,7 @@ import { ollamaUnavailable } from "./plain-language";
 import { settleByCode, misspellingCandidates, misspeltNameCandidates, personNameWords, misspeltKeyWords, misspellingNote, wordsWithin, formsWithin, singular, type SpellingLookup, type WordSenses } from "./answer-match";
 import { lookupWord, oneWordHeadwords, type DictionaryEntry } from "./dictionary";
 import { inWordList } from "./wordlist";
+import { isNonAnswer } from "./non-answer";
 import { isSafetyDisclosure } from "./child-safety";
 import type { Grade } from "./grade";
 import type { LLMConfig, ModelTier, Syllabus, QuizQuestion } from "../types";
@@ -946,8 +947,17 @@ export const CODE_MISMATCH_FEEDBACK = "This does not match the answer key.";
 // The grader's feedback is shown to the learner on the quiz and level-test results, but the prompt asks
 // for "1 short sentence on what the student wrote", so it talks about them: "The student did not provide
 // an answer." for a typed "xyz" (TerraTutor click test 2026-11-19), "The student wrote a code, not a
-// time.", "No amount is given.". Neither is said to a learner. Code rewrites only the feedback, never the
-// mark, and the prompt is unchanged (it was measured with this wording, feedback before verdict):
+// time.", "No amount is given.". Neither is said to a learner. The prompt is unchanged (it was measured
+// with this wording, feedback before verdict); code rewrites the feedback, and changes the mark in one
+// case only:
+//   - a RIGHT mark whose feedback plainly says no answer was given (SAYS_NOTHING_ANSWERED: "The student
+//     did not provide an answer.", "No answer was given.", "That is not an answer.") contradicts itself,
+//     so it is marked wrong and told NO_ANSWER_FEEDBACK (TerraTutor click test 2026-11-19 part 2: typed
+//     "xyz" answers came back right and were shown "Correct."; non-answer.ts now stops those before the
+//     model, so this is a backstop). Narrower than SAYS_NO_ANSWER on purpose: words that can be about the
+//     topic ("Yes, Jabberwocky is a nonsense poem.", "random letters and numbers", "no response to
+//     touch") only have their feedback rewritten, and a line that also says but, though, right, correct
+//     or yes ("did not write the unit, but 12 is right") keeps its mark;
 //   - a wrong answer whose feedback says nothing was answered is told NO_ANSWER_FEEDBACK (they did type
 //     something; it just doesn't answer the question). Not "does not include / name / state": that is
 //     said of a partial answer ("The answer does not include the unit"), which did answer;
@@ -955,11 +965,25 @@ export const CODE_MISMATCH_FEEDBACK = "This does not match the answer key.";
 //     settled answer: "Correct." or CODE_MISMATCH_FEEDBACK. The results row already shows the learner's
 //     answer beside the key when it was marked wrong.
 // Feedback that speaks to the learner or about the subject ("Five o'clock is 5:00.") is kept as it is.
+// A typed answer code can see answers nothing ("xyz", "?!": non-answer.ts) never reaches the model.
 export const NO_ANSWER_FEEDBACK = "That doesn't answer the question yet.";
 const ABOUT_THE_LEARNER = /\b(?:student|learner|pupil)s?\b|\b(?:the|this|a)\s+(?:child|user)\b/i;
-const SAYS_NO_ANSWER = /\b(?:did|does|do|has|have)(?:\s+not|n['’]t)\s+(?:provide|give|write|enter|offer|answer|attempt|respond)\b|\bno\s+(?:answer|response|attempt)\b|\bno\s+\w+\s+(?:is|was)\s+(?:given|provided|written|stated)\b|\b(?:gibberish|nonsense)\b|\brandom\s+(?:letters|characters|text)\b/i;
+const SAYS_NO_ANSWER = /\b(?:did|does|do|has|have)(?:\s+not|n['’]t)\s+(?:provide|give|write|enter|offer|answer|attempt|respond)\b|\bno\s+(?:answer|response|attempt)\b|\bno\s+\w+\s+(?:is|was)\s+(?:given|provided|written|stated)\b|\b(?:gibberish|nonsense)\b|\brandom\s+(?:letters|characters|text|words)\b|\b(?:unrelated|not\s+related)\s+to\s+the\s+question\b/i;
+// Only what is said of the answer itself: that none was given. Topic words ("a nonsense poem", "random
+// letters and numbers", "no response to touch") are left to the feedback rewrite, and a line that also
+// says the answer is right ("but 12 is right") never changes the mark.
+const NOT = String.raw`(?:did|does|do|has|have)(?:\s+not|n['’]t)`;
+const SAYS_NOTHING_ANSWERED = new RegExp([
+  String.raw`\b${NOT}\s+(?:provide|give|write|enter|offer|make)\s+(?:an?\s+|any\s+)?(?:answer|response)\b`,
+  String.raw`\bno\s+answer\s+(?:is|was|has\s+been)\s+(?:given|provided|written|entered)\b`,
+  String.raw`\b(?:is|was)(?:\s+not|n['’]t)\s+an\s+answer(?:\s+to\s+(?:the|this)\s+question)?\s*(?:[.!]|$)`,
+].join("|"), "i");
+const SAYS_RIGHT_TOO = /\b(?:but|though|although|right|correct|yes)\b/i;
 
 function feedbackForLearner(o: GradeOutcome): GradeOutcome {
+  if (o.isCorrect && SAYS_NOTHING_ANSWERED.test(o.feedback) && !SAYS_RIGHT_TOO.test(o.feedback)) {
+    return { ...o, isCorrect: false, feedback: NO_ANSWER_FEEDBACK };
+  }
   if (!o.isCorrect && SAYS_NO_ANSWER.test(o.feedback)) return { ...o, feedback: NO_ANSWER_FEEDBACK };
   if (ABOUT_THE_LEARNER.test(o.feedback) || SAYS_NO_ANSWER.test(o.feedback)) {
     return { ...o, feedback: o.isCorrect ? "Correct." : CODE_MISMATCH_FEEDBACK };
@@ -995,12 +1019,21 @@ export async function gradeAnswersBatch(
   const listed = await wordListHas(answers.flatMap(misspeltNameCandidates));
   // A key that names a place or a thing ("Soviet Union") is not taken for a person's name.
   const senses = await dictionarySenses(answers.flatMap(personNameWords));
+  // settleByCode returns false only when the key and the answer are each one quantity and code is
+  // sure the amounts differ ("4.5%" for 45%); anything it is unsure of is null and goes to the model.
+  // A code rejection is stored as 'exact' like a code accept, and can be marked again by hand.
+  const byCode = new Map(answers.map((it) => [it.index, settleByCode(it, isWord, listed, senses)]));
+  // Of the rest, an answer that answers nothing ("xyz", "?!", non-answer.ts) is marked wrong by code too,
+  // with or without a model: gemma4:e2b marked typed "xyz" right in 4 of 5 rows (TerraTutor click test 2026-11-19).
+  const nothing = new Set<number>();
+  await Promise.all(answers.filter((it) => byCode.get(it.index) === null).map(async (it) => {
+    if (await isNonAnswer(it.student, it.expected, it.question)) nothing.add(it.index);
+  }));
   for (const it of answers) {
-    // settleByCode returns false only when the key and the answer are each one quantity and code is
-    // sure the amounts differ ("4.5%" for 45%); anything it is unsure of is null and goes to the model.
-    // A code rejection is stored as 'exact' like a code accept, and can be marked again by hand.
-    const settled = settleByCode(it, isWord, listed, senses);
-    if (settled === true) {
+    const settled = byCode.get(it.index);
+    if (nothing.has(it.index)) {
+      out.set(it.index, { isCorrect: false, feedback: NO_ANSWER_FEEDBACK, by: "exact" });
+    } else if (settled === true) {
       out.set(it.index, { isCorrect: true, feedback: "Correct.", by: "exact" });
     } else if (settled === false) {
       out.set(it.index, { isCorrect: false, feedback: CODE_MISMATCH_FEEDBACK, by: "exact" });

@@ -141,6 +141,18 @@ The section for each release is also what the app shows when you press Check for
   sent (the course topic and the text the course model wrote, never the chat) instead of the "switch to"
   confirm for the tutor's chat. Accepting it does not skip the chat confirm if you later pick that
   company for the tutor.
+- **Typed nonsense is marked wrong.** A written quiz or level-test answer, or an answer to the tutor's
+  question in a mastery check, that is empty, only signs ("?!") or a keyboard mash ("xyz", "asdfgh") is
+  marked wrong with "That doesn't answer the question yet." before any model reads it, with or without a
+  model. Real attempts with no vowel ("shrk", "wtr"), abbreviations ("fdr", "jfk", "cnn"), sound words
+  ("grrr"), a sign typed for its name (">" for "greater than", "?" for "a question mark") and listed
+  words ("qwerty", "hmm") still go to the model. A grader that marks an answer right while saying none was given is
+  overruled.
+- **No "learned" without a mark.** In a mastery check, "I can mark that as learned for you!" or "You have
+  successfully learned those concepts" is taken out unless a mark was saved.
+- **A reply never stops at "I can look that up for you."** The tutor asks the model once more after the
+  lookup, and the turn ends on the plain "mixed up" line (or the answer check's verdict) if it still says
+  nothing.
 
 ## [0.4.0] - 2026-11-10
 
