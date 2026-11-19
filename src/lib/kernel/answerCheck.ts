@@ -361,9 +361,11 @@ const CHOICE_LINE = /^[ \t]*(?:[-*•>][ \t]*)?(?:\*\*)?\(?[A-F](?:\)|\.|:)(?:\*
 const FIRST_SENTENCE = /^[^.!?:]*[.!:]+(?=\s)/;
 // A first sentence that is praise for the last answer: "Good.", "Great job!", "Yes, that's it!". One with a
 // comma and a number, in digits or words, is kept ("Good, now Sam has five apples."): it may hold the
-// problem's setup, and only its praise is taken off (PRAISE_COMMAS). "That one" is not a number.
+// problem's setup, and only its praise is taken off (PRAISE_COMMAS). "That one", "two more" and "one down"
+// are not a number.
 const PRAISE_WORD = /^\W*(?:correct|right|yes|yep|yeah|great|good|nice|awesome|perfect|excellent|exactly|well done|that(?:'|’)?s (?:right|correct)|that is (?:right|correct)|you got it)/i;
-const holdsNumber = (text: string) => numbersIn(text.replace(/\b(?:that|this|the|next|another|each|every|which) one\b/gi, "")).length > 0;
+const holdsNumber = (text: string) =>
+  numbersIn(text.replace(/\b(?:that|this|the|next|another|each|every|which|last) one\b|\b(?:one|two|three) more\b|\bone down\b/gi, "")).length > 0;
 function isPraise(sentence: string): boolean {
   const m = PRAISE_WORD.exec(sentence);
   if (!m) return false;
@@ -372,8 +374,10 @@ function isPraise(sentence: string): boolean {
     || (/^[\s*_]*,/.test(rest) && !holdsNumber(rest));
 }
 // The praise before a setup in the same sentence: "Yes, good job, " in "Yes, good job, Sam has five apples.".
-// A praise word and at most four more words, then a comma ("Right now Sam has five apples, ..." is kept).
-const PRAISE_PHRASE = String.raw`${PRAISE_WORD.source.slice(1)}\b(?:[ \t]+[A-Za-z'’]+){0,4}[ \t]*,\s*`;
+// A praise word, or one with a praise noun and at most three more words ("Good job on that,"), then a comma.
+// A praise word that is a word of the setup is kept: "Right angles, the corners of a square, ...", "Great
+// Britain, an island nation, ...", "Right now Sam has five apples, ..." (review of the #252 port).
+const PRAISE_PHRASE = String.raw`${PRAISE_WORD.source.slice(1)}\b(?:[ \t]+(?:job|work|thinking|try|answer|going|effort)\b(?:[ \t]+[A-Za-z'’]+){0,3})?[ \t]*,\s*`;
 const PRAISE_COMMAS = new RegExp(String.raw`^(?:${PRAISE_PHRASE})+(?:(?:now|so|then|next|and|okay|ok)\b,?\s*)?`, "i");
 // The last answer's feedback after praise: "The answer is 56.", "7 x 8 = 56.".
 const LAST_ANSWER = /^\W*(?:the (?:right |correct )?answer (?:is|was)\b|\d+\s*[x×*+−÷/-]\s*\d+\s*=\s*\d+\W*$)/i;

@@ -1187,6 +1187,14 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Yes, good job, Sam has five apples. How many if he eats two?", "Sam has five apples. How many if he eats two?", "3"],
     ["Great, you got that one! What is 6 x 8?", "What is 6 x 8?", "48"],
     ["Right now Sam has five apples. He eats two. How many are left?", "Right now Sam has five apples. He eats two. How many are left?", "3"],
+    // A praise word that is a word of the setup, before a comma, is kept (review of the #252 port, 2026-11-19).
+    ["Right angles, the corners of a square, measure 90 degrees. How many right angles does a square have?", "Right angles, the corners of a square, measure 90 degrees. How many right angles does a square have?", "4"],
+    ["Perfect squares, such as 9, come from a number times itself. Which is a perfect square, 8 or 16?", "Perfect squares, such as 9, come from a number times itself. Which is a perfect square, 8 or 16?", "16"],
+    ["Good habits, like reading daily, help you learn. Which habit helps you learn?", "Good habits, like reading daily, help you learn. Which habit helps you learn?", "reading daily"],
+    ["Great Britain, an island nation, has 4 countries. How many countries are in Great Britain?", "Great Britain, an island nation, has 4 countries. How many countries are in Great Britain?", "4"],
+    // "One more" and "two more to go" are praise's words, not a setup's number.
+    ["Good, one more question: what is 6 x 8?", "What is 6 x 8?", "48"],
+    ["Great, two more to go! What is 6 x 8?", "What is 6 x 8?", "48"],
     // The last answer's feedback goes with the praise before it; a bare "Next:" is a lead-in.
     ["Correct! The answer is 56. Next question: what is 6 x 8?", "What is 6 x 8?", "48"],
     ["Correct, the answer is 56. What is 6 x 8?", "What is 6 x 8?", "48"],
