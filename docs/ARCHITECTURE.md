@@ -1134,8 +1134,8 @@ saved; a turn it does not fire on is sent byte for byte as before (`arithmeticFa
   lesson's own exercise. A test pins that no message the k12-flow or k12-flow-fr benchmarks send fires.
   Known gap: in a course that teaches addition or the times tables, "15 + 27" or "7 × 8" is the exercise
   itself, and the note still states it.
-- **What does not**: a word problem, typed before the question ("Sam has 5 apples and gets 3 more. What is
-  5 + 3?") or after E ("7 times 8 apples", "in binary"), a pasted list of questions, two operations,
+- **What does not**: a word problem, typed before the question in the same message ("Sam has 5 apples and
+  gets 3 more. What is 5 + 3?") or in an earlier one (below), or after E ("7 times 8 apples", "in binary"), a pasted list of questions, two operations,
   "times" in other senses, a lone fraction or date ("12/25", "9-11"), algebra ("2x + 3"), a try ("is 7 x 8
   56?", "is it 56? what is 7 times 8", "I think it's 54"), and any message that asks to be quizzed or to
   work it out ("quiz me", "ask me", "hint", "don't tell me", "let me try").
@@ -1143,9 +1143,16 @@ saved; a turn it does not fire on is sent byte for byte as before (`arithmeticFa
   the quiz chip, or "quiz me" / "test me" among the student's last messages), and not when one of the
   tutor's last five messages (`TUTOR_LOOKBACK`) holds every operand, as a number or a number word
   ("eight sevens"), or holds the answer and an operand ("What is 54 ÷ 6?" then "what's 6 times 9?"): it
-  may have asked that sum, or a word problem with those numbers. Five, not one, because a hint can sit
-  between the tutor's question and the student's ask, and a long quiz runs past `inMasteryCheck`'s window
-  (the student's last five messages), where a question typed runs in explain mode. Not on a
+  may have asked that sum, or a word problem with those numbers. "Half", "twice" and "double" count as 2,
+  "third" and "triple" as 3, "quarter" as 4 and "dozen" as 12 ("What is half of 16?" then "what is 16 /
+  2"). Five, not one, because a hint can sit between the tutor's question and the student's ask, and a
+  long quiz runs past `inMasteryCheck`'s window (the student's last five messages), where a question
+  typed runs in explain mode. The student's own messages from that stretch are read the same way, so a
+  word problem the student typed a message or more before the question ("Sam has 7 bags with 8 marbles
+  in each. How many marbles?", the tutor's reply, then "what is 7 times 8?") is held as the student's
+  exercise (B4 G1). Asking one piece of the tutor's question is the student's own work and is answered
+  ("What is 7 × 8?" then "what is 7 times 4?"); so is a question asked more than five tutor messages
+  back (after five hints). Not on a
   safety-disclosure turn, beside the first-turn hold, check-before-praise or a flashcard the app makes on
   that turn, or on a meaning question.
 

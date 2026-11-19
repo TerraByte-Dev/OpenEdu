@@ -59,8 +59,14 @@
 //     asked in a check or quiz is never given away;
 //   - (arithmeticFactTurn) a question that one of the tutor's last TUTOR_LOOKBACK messages may have
 //     asked: it holds every operand ("A baker has 7 trays of 8 buns..." then "hmm", a hint, then "what's
-//     7 times 8?"), or the answer and an operand ("What is 54 ÷ 6?" then "what's 6 times 9?"). This also
-//     covers a check's question asked past inMasteryCheck's window;
+//     7 times 8?"), or the answer and an operand ("What is 54 ÷ 6?" then "what's 6 times 9?"), counting
+//     "half", "twice" and "double" as 2, "third" and "triple" as 3, "quarter" as 4 and "dozen" as 12
+//     ("What is half of 16?" then "what is 16 / 2"). This also covers a check's question asked past
+//     inMasteryCheck's window. The student's own messages from that stretch are read the same way, so a
+//     word problem typed one message before the question ("Sam has 7 bags with 8 marbles in each. How
+//     many marbles?", the tutor's reply, then "what is 7 times 8?") is held too. Asking one piece of the
+//     tutor's question is the student's own work and is answered ("What is 7 × 8?" then "what is 7 times
+//     4?"), and so is a question more than TUTOR_LOOKBACK tutor messages back;
 //   - (TutorEngine) a safety-disclosure turn, a first-turn hold or check-before-praise turn, a meaning
 //     question, a turn the app makes a flashcard on, or the eval switch `arithmeticFacts: "off"`.
 
@@ -163,21 +169,50 @@ export function askedArithmetic(message: string): ArithmeticFact | null {
 
 // ── The turn ─────────────────────────────────────────────────────────────────
 
-/** True when the whole number `digits` is written in `text`, as digits or as a word ("seven", "sevens"). */
+// The other words HAS_NUMBER counts as numbers, by the number each stands for: "What is half of 16?"
+// asks 16 ÷ 2, and "a dozen times 3" asks 12 × 3.
+const NUMBER_SENSES: Record<number, string> = {
+  2: "half|halves|halve[ds]?|twice|double[ds]?",
+  3: "thirds?|triple[ds]?",
+  4: "quarters?",
+  12: "dozens?",
+};
+
+/**
+ * True when the whole number `digits` is written in `text`: as digits, as a word ("seven", "sevens"), or
+ * as a word that stands for it ("half" for 2, "dozen" for 12).
+ */
 function mentions(text: string, digits: string): boolean {
   if (new RegExp(String.raw`(?<![\d.])${digits}(?!\d|\.\d)`).test(text)) return true;
   const word = NUMBER_WORDS[Number(digits)];
-  return !!word && new RegExp(`\\b${word}(?:e?s)?\\b`, "i").test(text);
+  if (word && new RegExp(`\\b${word}(?:e?s)?\\b`, "i").test(text)) return true;
+  const sense = NUMBER_SENSES[Number(digits)];
+  return !!sense && new RegExp(`\\b(?:${sense})\\b`, "i").test(text);
 }
 
 /**
  * How many of the tutor's newest messages the echo check reads. A quiz question can sit behind a hint
  * or two ("hmm", a hint, then "what is 7 times 8"), and a long quiz runs past inMasteryCheck's window of
- * the student's last ASSESS_LOOKBACK + 1 messages; this is the same five, on the tutor's side.
+ * the student's last ASSESS_LOOKBACK + 1 messages; this is the same five, on the tutor's side. The
+ * student's own messages from that stretch are read too: a word problem the student typed one message
+ * before the question ("Sam has 7 bags with 8 marbles in each...", the tutor's reply, then "what is 7
+ * times 8?") is the student's own exercise, held by the attempt-first policy (B4 G1).
  */
 export const TUTOR_LOOKBACK = 5;
 
-/** True when the tutor's message may have asked this fact: it holds every operand, or the answer and one. */
+/**
+ * The messages before the newest that the echo check reads: the tutor's last TUTOR_LOOKBACK messages and
+ * every student message from the one just before the oldest of them up to the newest.
+ */
+function recentMessages<M extends { role: string }>(conversation: ReadonlyArray<M>): M[] {
+  const earlier = conversation.slice(0, -1);
+  let start = earlier.length;
+  for (let seen = 0; start > 0 && seen < TUTOR_LOOKBACK;) if (earlier[--start].role === "assistant") seen++;
+  while (start > 0 && earlier[start - 1].role === "user") start--;
+  return earlier.slice(start);
+}
+
+/** True when a message may have asked this fact: it holds every operand, or the answer and one. */
 function mayHaveAsked(text: string, fact: ArithmeticFact): boolean {
   return fact.operands.every((o) => mentions(text, o))
     || (mentions(text, fact.answer) && fact.operands.some((o) => mentions(text, o)));
@@ -186,8 +221,8 @@ function mayHaveAsked(text: string, fact: ArithmeticFact): boolean {
 /**
  * The fact this turn's note gives, or null: the newest message is the student's and plainly asks one
  * arithmetic fact (askedArithmetic), the conversation is not in a mastery check (inMasteryCheck), and
- * none of the tutor's last TUTOR_LOOKBACK messages may have asked it (mayHaveAsked).
- * `conversation` is the user and assistant messages, ending with the newest.
+ * no message in the tutor's last TUTOR_LOOKBACK, or the student's own from that stretch, may have asked
+ * it (mayHaveAsked). `conversation` is the user and assistant messages, ending with the newest.
  */
 export function arithmeticFactTurn(
   conversation: ReadonlyArray<{ role: string; content: string }>,
@@ -197,8 +232,7 @@ export function arithmeticFactTurn(
   if (!newest || newest.role !== "user") return null;
   const fact = askedArithmetic(newest.content);
   if (!fact || inMasteryCheck(conversation, activeSkill)) return null;
-  const replies = conversation.filter((m) => m.role === "assistant").slice(-TUTOR_LOOKBACK);
-  return replies.some((m) => mayHaveAsked(m.content, fact)) ? null : fact;
+  return recentMessages(conversation).some((m) => mayHaveAsked(m.content, fact)) ? null : fact;
 }
 
 /** The note after the student's text. Prompt-wording iteration 1 of at most 3. */

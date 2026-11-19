@@ -123,6 +123,23 @@ describe("arithmetic-fact note: request through the kernel", () => {
     expect(on.result.arithmeticFact).toBeNull();
   });
 
+  // "half" is 2 and "dozen" is 12; a word problem the student typed one message earlier is theirs (B4 G1).
+  it("(c) not on the tutor's question in words, or on the student's own word problem a message back", async () => {
+    const tutor = (q: string): Sent => [{ role: "user", content: "hi" }, { role: "assistant", content: q }];
+    const problem = (p: string): Sent => [{ role: "user", content: p }, { role: "assistant", content: "Good one! What operation do you think we need?" }];
+    for (const [history, text] of [
+      [tutor("What is half of 16?"), "what is 16 / 2"],
+      [tutor("What is a dozen times 3?"), "what is 12 times 3"],
+      [problem("Sam has 7 bags with 8 marbles in each. How many marbles?"), "what is 7 times 8?"],
+      [problem("Sam has seven bags with eight marbles in each. How many marbles?"), "what is seven times eight?"],
+    ] as Array<[Sent, string]>) {
+      const off = await run(history, text, "off");
+      const on = await run(history, text);
+      expect(on.req, text).toEqual(off.req);
+      expect(on.result.arithmeticFact, text).toBeNull();
+    }
+  });
+
   // A quiz runs past inMasteryCheck's window (the student's last ASSESS_LOOKBACK + 1 messages), and a
   // question typed in it runs in explain mode, so only the echo check over the tutor's last messages holds.
   it("(c) not on a long quiz's question with a hint in between, from either chip, or on practice", async () => {

@@ -231,6 +231,33 @@ describe("arithmeticFactTurn: the conversation", () => {
     expect(arithmeticFactTurn([u("hi"), a("What is 42 - 15?"), u("what is 15 + 27?")])).toBeNull();
   });
 
+  it("counts the words that stand for a number: half, twice, double, third, triple, quarter, dozen", () => {
+    expect(arithmeticFactTurn([u("hi"), a("What is half of 16?"), u("what is 16 / 2")])).toBeNull();
+    expect(arithmeticFactTurn([u("hi"), a("What is a dozen times 3?"), u("what is 12 times 3")])).toBeNull();
+    expect(arithmeticFactTurn([u("hi"), a("What is twice 9?"), u("what is 9 times 2")])).toBeNull();
+    expect(arithmeticFactTurn([u("hi"), a("What is a third of 12?"), u("what is 12 / 3")])).toBeNull();
+    expect(arithmeticFactTurn([u("hi"), a("How many quarters make 2 dollars?"), u("what is 2 times 4")])).toBeNull();
+    // "halfway" is not "half"
+    expect(arithmeticFactTurn([u("hi"), a("We are halfway through 16 pages."), u("what is 16 / 2")])?.answer).toBe("8");
+  });
+
+  it("not on the student's own word problem a message or a few back: it is their exercise (B4 G1)", () => {
+    const reply = a("Good one! What operation do you think we need?");
+    expect(arithmeticFactTurn([u("Sam has 7 bags with 8 marbles in each. How many marbles?"), reply, u("what is 7 times 8?")])).toBeNull();
+    expect(arithmeticFactTurn([u("Sam has seven bags with eight marbles in each. How many marbles?"), reply, u("what is seven times eight?")])).toBeNull();
+    expect(arithmeticFactTurn([u("Sam has 7 bags with 8 marbles in each."), u("How many marbles?"), reply, u("hmm"), a("Think about groups."), u("what's 7 times 8")])).toBeNull();
+    // one number of the student's is not the question
+    expect(arithmeticFactTurn([u("I am 8 years old"), a("Nice! What shall we learn?"), u("what is 7 times 8?")])?.answer).toBe("56");
+    // a problem older than the tutor's last TUTOR_LOOKBACK messages is out of the window
+    const older = [u("Sam has 7 bags with 8 marbles in each."), ...Array.from({ length: TUTOR_LOOKBACK + 1 }, () => [a("Let's look at fractions."), u("ok")]).flat()];
+    expect(arithmeticFactTurn([...older, u("what is 7 times 8?")])?.answer).toBe("56");
+  });
+
+  it("answers one piece of the tutor's question: that is the student's own work", () => {
+    expect(arithmeticFactTurn([u("hi"), a("What is 7 × 8?"), u("what is 7 times 4?")])?.answer).toBe("28");
+    expect(arithmeticFactTurn([u("hi"), a("What is 7 × 8?"), u("what is 8 times 8?")])).toBeNull();
+  });
+
   it("only on the student's newest message", () => {
     expect(arithmeticFactTurn([u("what is 7 times 8?"), a("7 × 8 = 56.")])).toBeNull();
     expect(arithmeticFactTurn([])).toBeNull();
