@@ -64,6 +64,11 @@ export function ollamaAddressAllowed(url: string): boolean {
 export const OLLAMA_ADDRESS_NOT_ALLOWED =
   `${APP_NAME} can only talk to Ollama on this computer, at http://127.0.0.1:11434. Check the Server URL in Settings › Provider & Models.`;
 
+/** The same refusal where it is shown under the Server URL box itself (Settings › Provider & Models), which it
+ *  would otherwise send you to while you are already there (port of TerraTutor #249). */
+export const OLLAMA_ADDRESS_NOT_ALLOWED_HERE =
+  `${APP_NAME} can only talk to Ollama on this computer. Set the Server URL above to http://127.0.0.1:11434, then press Save & Check.`;
+
 /** The importer talks to one place only: Ollama on this computer at its usual port. */
 export const IMPORT_TARGET = "http://127.0.0.1:11434";
 export function isImportTarget(url: string): boolean {

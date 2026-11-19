@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import type { Course, Syllabus, LibraryEntry } from "../types";
 import { getManifest, matchResources, fetchResource, fetchAsset } from "../lib/library";
 import { renderChatMarkdown, ensureChatKatex } from "../lib/chat-markdown";
+import { courseResources } from "../lib/course-resources";
 import { LIBRARY_NAME } from "../lib/product";
 import { IconArrowLeft, IconSquareChartLine } from "./icons";
 
@@ -84,17 +85,6 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
     return () => { alive = false; };
   }, []);
 
-  // Relevance query for the default view = this course's topic + the viewed level's subtopics.
-  const courseQuery = useMemo(() => {
-    const parts = [course.topic];
-    if (currentSyllabus) {
-      for (const s of currentSyllabus.subtopics) {
-        parts.push(s.title, ...s.key_concepts);
-      }
-    }
-    return parts.join(" ");
-  }, [course.topic, currentSyllabus]);
-
   // Subject buckets (the category chips), with counts, most-stocked first.
   const subjects = useMemo(() => {
     const counts = new Map<string, number>();
@@ -104,10 +94,11 @@ export default function ResourcesTab({ course, currentSyllabus, pendingResourceI
       .map(([id, count]) => ({ id, count, label: subjectLabel(id) }));
   }, [manifest]);
 
-  // Course-recommended shortlist (the default landing). Empty ⇒ the ★ chip hides and we fall to ALL.
+  // Course-recommended shortlist (the default landing): cards about this course's topic or the viewed
+  // level's subtopics (course-resources.ts). Empty ⇒ the whole library A–Z, never called "recommended".
   const recommended = useMemo(
-    () => (manifest.length ? matchResources(courseQuery, manifest, 36) : []),
-    [manifest, courseQuery],
+    () => (manifest.length ? courseResources(course.topic, currentSyllabus?.subtopics ?? [], manifest) : []),
+    [manifest, course.topic, currentSyllabus],
   );
 
   // The result set for the current mode + search — NOT capped to a handful, so it paginates.

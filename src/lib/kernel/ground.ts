@@ -90,7 +90,10 @@ export const MIN_NOTE_SCORE = 0.45;
  *
  *  6 is the first score that requires real evidence under `scoreEntry`: a title/alias substring match
  *  (+6), or two title tokens (3+3), or a title token plus two tags. A single incidental summary token
- *  scores 1 and no longer survives. */
+ *  scores 1 and no longer survives.
+ *
+ *  The Resources tab's "recommended for this course" uses the same floor (course-resources.ts), so
+ *  tuning it here moves that list too. */
 export const MIN_LIBRARY_SCORE = 6;
 
 /** At most this many chunks from any one document, so five hits cannot all be one note's ord 0..4. */
