@@ -764,8 +764,8 @@ Three things do not wait for the model to choose a tool, because small models ra
   since bullets are also how a tutor lists facts it then asks about. Emoji after the question mark
   ("Which one sounds best? 😊") don't stop a line counting as the question, here or in the chips'
   `endsWithQuestion` (`withoutTrailingEmoji`, click test 2026-11-14). Anything in doubt gets no buttons. The chat shows
-  them as the ask_user buttons, with only the stuck chips and "Review due cards" beside them
-  (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
+  them as the ask_user buttons, with only the stuck chips, "Review due cards" and "Check if I've got this"
+  beside them (`chipsBesideChoices`), and a pick is sent as the student's next message. The reply text is unchanged.
   The question is always a line of the reply, so the buttons show without it when the reply ends on it
   (`repeatsQuestion`, below).
 - **The topic picker that opens a mastery check** (`kernel/assessPicker.ts`, ported from TerraTutor #244).
@@ -846,9 +846,13 @@ model's praise alone never marks anything.
 
 ### The answer check in assess mode (`kernel/answerCheck.ts`, `answerCompare.ts`, `replyClaims.ts`)
 
-Assess mode (`src/skills/assess.md`, the "Check if I've got this" chip; under a reply that asks nothing
-it leads the mode chips on a new level, where no subtopic is mastered yet, and once every subtopic is)
-is a short mastery check: the
+Assess mode (`src/skills/assess.md`, the "Check if I've got this" chip, `suggestions.ts offersAssess`: under
+every reply that ends on a question on a level with subtopics, since gemma4:e2b ends almost every reply with
+one (TerraTutor's click test 2026-11-19, ported from TerraTutor #247), in the free third slot or in "Walk me
+through it"'s; under a reply that asks nothing it leads the mode chips only on a new level, where no subtopic
+is mastered yet, and once every subtopic is, so "Make me figure it out" stays reachable part-way through;
+never on any turn of a check already under way, a hint or a question inside it included (`answerCheck.ts
+inMasteryCheck`), nor under the reply to a safety disclosure) is a short mastery check: the
 tutor asks one or two questions it writes itself, so nothing in the app holds their answers. On
 TerraTutor's B9 rerun on `gemma4:e2b` the tutor told the child a wrong answer was correct in 11 of 20
 turns ("7 x 9 is 72" → "That is correct."), and replies said "you have mastered" with nothing recorded.
@@ -1082,6 +1086,11 @@ byte (a 500, an error line, a refused connection) once an earlier call showed so
 card's question and the student's answer to it are kept and the chat says `STALLED_TURN`. A failure with
 nothing shown yet still fails the turn, and so does one where only the app's topic picker and its pick
 were shown (no model wrote anything yet, `kernel/assessPicker.ts`).
+A conversation that opens on the student's own message with no reply saved after it (the chat closed
+while the reply was starting, which stops it, or Ollama was not running) says `UNANSWERED_TURN` under it
+with an "Ask again" button (`thread-transcript.ts unansweredAtOpen`, ported from TerraTutor #247), which
+runs the reply to that same saved message (ChatTab's `saved` path, as for a card's typed words), never
+saving it twice. On a saved "Check if I've got this." it runs in assess mode.
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model

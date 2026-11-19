@@ -4,6 +4,7 @@
 // module (no DOM, no Tauri) so the UI stays a thin shell and the copy is unit-tested.
 
 import { defaultOllamaModelForRam } from "./models";
+import { OLLAMA_ADDRESS_NOT_ALLOWED } from "./ollama-guide";
 
 // courses.generation_state → what is still being built. `null` and "completed" mean nothing is
 // pending; callers already branch on that, so they get a neutral sentence here.
@@ -145,6 +146,7 @@ export interface ErrorContext {
 const PLAIN_SENTENCES = [
   /Ollama, the program that runs the tutor, isn't running on this computer\. Start Ollama, then try again\./,
   /Ollama isn't answering at \S+\. Check that the computer running it is on and Ollama is started\./,
+  new RegExp(OLLAMA_ADDRESS_NOT_ALLOWED.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")),
   /Network error — check your internet connection and try again\./,
 ];
 
@@ -156,7 +158,7 @@ const PLAIN_SENTENCES = [
  */
 export function ollamaUnavailable(e: unknown): boolean {
   const raw = e instanceof Error ? e.message : String(e ?? "");
-  return PLAIN_SENTENCES[0].test(raw) || PLAIN_SENTENCES[1].test(raw) || /Ollama model "[^"]+" not found/.test(raw);
+  return PLAIN_SENTENCES.slice(0, 3).some((re) => re.test(raw)) || /Ollama model "[^"]+" not found/.test(raw);
 }
 
 // llm.ts embed(): Ollama answered 404 for the embedding model (Settings › Provider & Models).
@@ -273,6 +275,12 @@ export const TUTOR_WARMING_UP = "Loading the learning model. On this computer th
 // A model load that ran past llm.ts OLLAMA_LOAD_TIMEOUT_MS, wherever it surfaces (the check before a
 // course build, or any other call).
 export const MODEL_LOAD_TIMED_OUT = "The learning model took too long to load. Close other programs, then try again.";
+
+// Under a conversation that opens on the learner's own message with no reply saved after it: its reply
+// was stopped when the chat closed while it was starting, or Ollama was not running then. With an
+// "Ask again" button (UNANSWERED_ASK_AGAIN), which runs the reply to that same message.
+export const UNANSWERED_TURN = "The tutor didn't answer this one.";
+export const UNANSWERED_ASK_AGAIN = "Ask again";
 
 // A chat turn the model stopped partway through (no output for too long).
 export const STALLED_TURN = "The tutor stopped partway. Try again. If it keeps happening, close other programs or pick a smaller model in Settings.";

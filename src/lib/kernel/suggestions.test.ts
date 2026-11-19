@@ -59,7 +59,7 @@ describe("endsWithQuestion", () => {
       answer: "Here are a few ways we can practice fractions next. Which one sounds best for us to work on right now? 😊",
       syllabus: syllabus([{ title: "Unit fractions", mastered: false }]),
     })).map((s) => s.label);
-    expect(labels).toEqual(["Give me a hint", "Walk me through it"]);
+    expect(labels).toEqual(["Give me a hint", "Walk me through it", "Check if I've got this"]);
   });
 });
 
@@ -343,9 +343,14 @@ describe("assess chip is reachable (#146)", () => {
     expect(out.map((s) => s.mode)).toContain("assess");
   });
 
-  it("is not offered once some but not all subtopics are mastered, or with no syllabus", () => {
+  // Part-way through a level it doesn't lead under a reply that asks nothing, so "Make me figure it out"
+  // stays reachable; it shows under a reply that asks something instead (below).
+  it("is not led once some but not all subtopics are mastered, or offered with no syllabus", () => {
     const partial = syllabus([{ title: "Moles", mastered: true }, { title: "Balancing equations", mastered: false }]);
-    expect(suggestFollowUps(input({ syllabus: partial })).map((s) => s.mode)).not.toContain("assess");
+    expect(suggestFollowUps(input({ syllabus: partial })).map((s) => s.label))
+      .toEqual(["Balancing equations", "Worked example", "Make me figure it out"]);
+    expect(suggestFollowUps(input({ syllabus: partial, answer: `${ANSWER} Which balanced equation would you pick first?` })).map((s) => s.label))
+      .toEqual(["Give me a hint", "Walk me through it", "Check if I've got this"]);
     expect(suggestFollowUps(input()).map((s) => s.mode)).not.toContain("assess");
   });
 
@@ -368,22 +373,40 @@ describe("assess chip is reachable (#146)", () => {
     expect(out.map((s) => s.mode)).toContain("assess");
   });
 
-  it("still gives way to the stuck chips when the tutor asked something", () => {
-    const out = suggestFollowUps(input({ syllabus: fresh, answer: `${ANSWER} Which balanced equation would you pick first?` }));
-    expect(out.map((s) => s.mode)).not.toContain("assess");
+  // TerraTutor's click test 2026-11-19: gemma4:e2b ends almost every reply with a question, so a chip shown
+  // only under a reply that asked nothing took 3 or more turns to appear, and once 4 were not enough.
+  it("is offered under a reply that ends on a question too, after the answer and the hint", () => {
+    const asked = `${ANSWER} Which balanced equation would you pick first?`;
+    expect(suggestFollowUps(input({ syllabus: fresh, answer: asked })).map((s) => s.label))
+      .toEqual(["Give me a hint", "Walk me through it", "Check if I've got this"]);
+    expect(suggestFollowUps(input({ syllabus: fresh, answer: asked, studentAttempted: true })).map((s) => s.label))
+      .toEqual(["Show me the answer", "Give me a hint", "Check if I've got this"]);
+    // Cut off: Continue leads, and the check takes the walk-through's slot, never the hint's.
+    expect(suggestFollowUps(input({ syllabus: fresh, answer: asked, truncated: true })).map((s) => s.label))
+      .toEqual(["Continue", "Give me a hint", "Check if I've got this"]);
+    // Cut off after a try: no room left, so the hint stays and the check waits.
+    expect(suggestFollowUps(input({ syllabus: fresh, answer: asked, truncated: true, studentAttempted: true })).map((s) => s.label))
+      .toEqual(["Continue", "Show me the answer", "Give me a hint"]);
+  });
+
+  it("is not offered while a check is under way, or under the reply to a safety disclosure", () => {
+    for (const answer of [ANSWER, `${ANSWER} Which balanced equation would you pick first?`]) {
+      expect(suggestFollowUps(input({ syllabus: fresh, answer, checking: true })).map((s) => s.mode)).not.toContain("assess");
+      expect(suggestFollowUps(input({ syllabus: fresh, answer, disclosure: true })).map((s) => s.mode)).not.toContain("assess");
+    }
   });
 });
 
 describe("chipsBesideChoices", () => {
-  it("keeps the stuck chips and due cards beside reply-choice buttons, and drops the rest", () => {
+  it("keeps the stuck chips, due cards and the mastery check beside reply-choice buttons, and drops the rest", () => {
     // A tutor question: the stuck chips (answer / hint / walk-through) fill the three slots.
     const asked = suggestFollowUps(input({ answer: `${ANSWER} Which balanced equation would you pick first?`, studentAttempted: true }));
     expect(asked.length).toBeGreaterThan(0);
     expect(chipsBesideChoices(asked)).toEqual(asked.filter((s) => ["Show me the answer", "Give me a hint", "Walk me through it"].includes(s.label)));
     expect(chipsBesideChoices(asked).length).toBeGreaterThan(0);
-    // No question: due cards stay, the context and mode chips go.
+    // No question: due cards and the mastery check stay, the context and other mode chips go.
     const told = suggestFollowUps(input({ dueFlashcards: 2, syllabus: syllabus([{ title: "Limiting reagents", mastered: false }]) }));
     expect(told.map((s) => s.label)).toContain("Review due cards");
-    expect(chipsBesideChoices(told).map((s) => s.label)).toEqual(["Review due cards"]);
+    expect(chipsBesideChoices(told).map((s) => s.label)).toEqual(["Review due cards", "Check if I've got this"]);
   });
 });

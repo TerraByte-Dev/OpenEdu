@@ -55,12 +55,16 @@ describe("ollamaGuidance", () => {
     expect(g.body).toContain("192.168.1.20");
   });
 
-  // A custom port is still this computer: the install and start advice applies, and nothing calls it remote.
-  it("this computer on another port is still this computer", () => {
-    for (const url of ["http://localhost", "http://127.0.0.1:8080"]) {
-      const g = ollamaGuidance("not-running", { ...opts, ollamaUrl: url });
-      expect(g.title, url).toBe("Ollama is installed but not running");
-      expect(g.body, url).not.toMatch(/another computer/);
+  // The http allow-list refuses this computer on any other port, so the address is the fix there too, not
+  // installing or starting Ollama (TerraTutor's click test 2026-11-19, :11435).
+  it("this computer on another port gets the address to use, not install or start advice", () => {
+    for (const url of ["http://localhost", "http://127.0.0.1:8080", "http://127.0.0.1:11435"]) {
+      for (const state of ["not-installed", "not-running"] as const) {
+        const g = ollamaGuidance(state, { ...opts, ollamaUrl: url });
+        expect(g.title, url).toBe("Ollama's address needs changing");
+        expect(g.body, url).toContain(url);
+        expect(g.actions, url).toEqual(["recheck"]);
+      }
     }
   });
 

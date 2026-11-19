@@ -1,6 +1,7 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import type { LLMConfig, ModelTier } from "../types";
 import { repairLatexInValue, sanitizeJsonEscapes, tryParseJsonLenient } from "./json-lenient";
+import { OLLAMA_ADDRESS_NOT_ALLOWED } from "./ollama-guide";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // Strip trailing slashes so we never build double-slash paths like /api//tags
@@ -99,7 +100,7 @@ async function streamOllama(
     });
   } catch (e) {
     if (signal?.aborted) return;
-    const msg = ollamaUnreachable(baseUrl);
+    const msg = ollamaUnreachable(baseUrl, e);
     log.error("streamOllama", msg, e);
     onError(msg);
     return;
@@ -362,9 +363,18 @@ function friendlyHttpError(provider: string, status: number, body: string): Erro
   return new Error(`${provider} error ${status}: ${detail}`);
 }
 
+// tauri-plugin-http's refusal of an address its allow-list does not name (another port, another
+// computer): "url not allowed on the configured scope: http://127.0.0.1:11435/api/tags". The request is
+// never sent, so the address is what to fix (ollama-guide.ts ollamaAddressAllowed). Only the app's plugin
+// says it: the headless eval's shim has no allow-list.
+const SCOPE_REFUSED = /not allowed on the configured scope/i;
+const scopeRefused = (e: unknown) => SCOPE_REFUSED.test(e instanceof Error ? e.message : String(e ?? ""));
+
 // A throw from fetch to the Ollama URL always means Ollama can't be reached (HTTP errors come back
-// as !response.ok), so Ollama calls use this instead of guessing from the error text.
-function ollamaUnreachable(base: string): string {
+// as !response.ok), so Ollama calls use this instead of guessing from the error text, except for the
+// plugin's refusal of the address (`e`, scopeRefused).
+function ollamaUnreachable(base: string, e?: unknown): string {
+  if (scopeRefused(e)) return OLLAMA_ADDRESS_NOT_ALLOWED;
   return /^https?:\/\/(localhost|127\.|\[::1\])/i.test(base)
     ? "Ollama, the program that runs the tutor, isn't running on this computer. Start Ollama, then try again."
     : `Ollama isn't answering at ${base}. Check that the computer running it is on and Ollama is started.`;
@@ -471,7 +481,7 @@ export async function callLLM(
     } catch (e) {
       if (signal?.aborted) throw e;
       log.error("callLLM", "Ollama unreachable", e);
-      throw new Error(ollamaUnreachable(baseUrl));
+      throw new Error(ollamaUnreachable(baseUrl, e));
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -1316,7 +1326,7 @@ async function callOllamaStructured(
   } catch (e) {
     if (signal?.aborted) throw e;
     log.error("callOllamaStructured", "Ollama unreachable", e);
-    throw new Error(ollamaUnreachable(baseUrl));
+    throw new Error(ollamaUnreachable(baseUrl, e));
   }
 
   if (!response.ok) {
@@ -1761,7 +1771,7 @@ export async function embed(texts: string[], config: LLMConfig): Promise<number[
       });
     } catch (e) {
       log.error("embed", "Ollama unreachable", e);
-      throw new Error(ollamaUnreachable(baseUrl));
+      throw new Error(ollamaUnreachable(baseUrl, e));
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -2183,7 +2193,7 @@ async function* streamOllamaTurn(messages: NeutralMessage[], config: LLMConfig, 
       // AbortError — so ask the signal, which covers both Stop and the first-byte stall timer.
       if (signal.aborted) { yield { type: "done", finishReason: didStall() ? "stalled" : "aborted" }; return; }
       log.error("streamOllamaTurn", "Ollama unreachable", e);
-      throw new Error(ollamaUnreachable(baseUrl));
+      throw new Error(ollamaUnreachable(baseUrl, e));
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -2587,7 +2597,7 @@ export async function pullOllamaModel(
   } catch (e) {
     if (signal?.aborted) throw e;
     log.error("pullOllamaModel", "Ollama unreachable", e);
-    throw new Error(ollamaUnreachable(base));
+    throw new Error(ollamaUnreachable(base, e));
   }
   if (!response.ok) {
     const text = await response.text().catch(() => "");
@@ -2650,7 +2660,8 @@ export async function getOllamaModels(ollamaUrl: string): Promise<{ models: stri
     return { models };
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    const error = raw.includes("connect") || raw.includes("refused") || raw.includes("network") || raw.includes("fetch")
+    // The plugin's refusal of the address was shown word for word in Settings (TerraTutor's click test 2026-11-19).
+    const error = scopeRefused(e) ? OLLAMA_ADDRESS_NOT_ALLOWED : raw.includes("connect") || raw.includes("refused") || raw.includes("network") || raw.includes("fetch")
       ? `Connection refused — is Ollama running? Try: ollama serve`
       : raw.slice(0, 150);
     log.warn("getOllamaModels", "Connection failed", e);

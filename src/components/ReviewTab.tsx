@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
+import { useState, useEffect, useCallback, useRef, type CSSProperties, type MouseEvent } from "react";
 import type { Flashcard, Syllabus, Subtopic } from "../types";
 import { getDueFlashcards, getFlashcards, updateFlashcardAfterReview, createFlashcard, deleteFlashcard } from "../lib/db";
 import { review, requeueIfDue, cardIsDisclosure, CARD_NOT_SAVED_DISCLOSURE, type FlashcardGrade } from "../lib/srs";
@@ -39,9 +39,11 @@ const GRADES: { grade: FlashcardGrade; label: string; hint: string; cls: string 
   { grade: "easy", label: "Easy", hint: "too easy", cls: "border-success/40 text-success hover:bg-success-tint" },
 ];
 
-/** How long after a grade a "Show answer" click is ignored: the second click of a double-click on a grade
- * button lands there once the next card is up (Windows' default double-click time). */
-const SHOW_ANSWER_HOLD_MS = 500;
+/** How long after a grade every click on the Review screen is ignored: the second click of a double-click
+ * on a grade button lands on whatever the next card puts under the pointer, its "Show answer" or, once the
+ * card shrinks to its hidden side, its "Raise hand" (TerraTutor's click test 2026-11-19: that started a
+ * lesson write). Windows' default double-click time. */
+const AFTER_GRADE_HOLD_MS = 500;
 
 export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeToTutor, grade: learnerGrade = null }: ReviewTabProps) {
   const large = isEarlyReader(learnerGrade);
@@ -98,9 +100,9 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
     }
   };
 
-  const showAnswer = () => {
-    if (Date.now() - gradedAtRef.current < SHOW_ANSWER_HOLD_MS) return;
-    setRevealed(true);
+  // Capture phase, so the click never reaches the next card's buttons (Show answer, Raise hand, Delete card).
+  const holdAfterGrade = (e: MouseEvent) => {
+    if (Date.now() - gradedAtRef.current < AFTER_GRADE_HOLD_MS) { e.stopPropagation(); e.preventDefault(); }
   };
 
   const gradeCard = async (card: Flashcard, g: FlashcardGrade) => {
@@ -160,7 +162,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
   const targets = handTargets(card, syllabuses, level);
 
   return (
-    <div className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-6" onClickCapture={holdAfterGrade}>
       <div className="max-w-xl mx-auto">
         {/* Header / counts */}
         <div className="flex items-center justify-between mb-5">
@@ -248,7 +250,7 @@ export default function ReviewTab({ courseId, level, topic, syllabuses, onTypeTo
             <div className="px-6 pb-5">
               {!revealed ? (
                 <button
-                  onClick={showAnswer}
+                  onClick={() => setRevealed(true)}
                   className="w-full px-4 py-2.5 rounded-xl btn-primary hover:bg-[rgb(var(--phosphor-rgb)/0.24)] text-sm font-medium transition-colors"
                 >
                   Show answer

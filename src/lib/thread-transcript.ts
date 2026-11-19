@@ -43,3 +43,13 @@ export function transcriptLoader<M>(
     },
   };
 }
+
+/**
+ * The learner's message a conversation ends on when it is opened, or null when it ends on a reply. Its
+ * reply was stopped when the chat closed while it was starting, or never came (Ollama not running), so
+ * ChatTab says so under it and offers to ask again.
+ */
+export function unansweredAtOpen<M extends { role: string }>(messages: readonly M[]): M | null {
+  const last = messages[messages.length - 1];
+  return last?.role === "user" ? last : null;
+}

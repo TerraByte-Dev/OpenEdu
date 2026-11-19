@@ -7,7 +7,7 @@
 // Nothing here writes to a note on its own. A review is an overlay you can dismiss; a summary is a
 // preview with an explicit Insert.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { callLLMStructured, detectModelTier, log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
 import { getChatConfig } from "../lib/store";
@@ -20,6 +20,7 @@ import {
 } from "../lib/notebook-assistant";
 import { IconCheck12, IconPlus12, IconQuestion12, IconXmark12, type IconComponent } from "./icons";
 import SafetyNotice from "./SafetyNotice";
+import { ensureChatKatex, isChatKatexReady, renderChatMarkdown } from "../lib/chat-markdown";
 import type { Grade } from "../lib/grade";
 
 const KIND_META: Record<AnnotationKind, { label: string; color: string; Glyph: IconComponent }> = {
@@ -50,6 +51,9 @@ export default function NotesAssistant({
   const [error, setError] = useState<string | null>(null);
   const [dropped, setDropped] = useState(0);
   const [summary, setSummary] = useState<string | null>(null);
+  // The summary preview's math typesets once KaTeX has loaded (chat-markdown.ts); until then it shows as TeX.
+  const [katexReady, setKatexReady] = useState(isChatKatexReady);
+  useEffect(() => { if (summary && !katexReady) void ensureChatKatex().then(() => setKatexReady(true)); }, [summary, katexReady]);
   // A summary that read as a safety disclosure: the safety notice in its place (finishSummary).
   const [safety, setSafety] = useState(false);
   // A note that reads as a safety disclosure: not sent for review (prepareReview); the notice and why instead.
@@ -217,10 +221,10 @@ export default function NotesAssistant({
             <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-faint)] mb-2">
               From your last conversation
             </div>
-            <pre className="text-[11px] leading-relaxed text-[var(--ink-dim)] whitespace-pre-wrap font-sans
-                            bg-lcd border border-[var(--rule)] rounded-lg p-2.5 max-h-64 overflow-y-auto">
-              {summary}
-            </pre>
+            {/* Drawn, not shown as source: "##" and "**" read as clutter (TerraTutor's click test 2026-11-19). */}
+            <div className="note-prose text-[11px] leading-relaxed text-[var(--ink-dim)]
+                            bg-lcd border border-[var(--rule)] rounded-lg p-2.5 max-h-64 overflow-y-auto"
+                 dangerouslySetInnerHTML={{ __html: renderChatMarkdown(summary) }} />
             <div className="flex gap-2 mt-2">
               <button onClick={() => { onInsertSummary(summary); setSummary(null); }}
                       className="btn btn-primary flex-1 justify-center text-[11px]">

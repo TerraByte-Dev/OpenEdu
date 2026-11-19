@@ -64,11 +64,13 @@ wrapper are **not type-linked**; keep them in sync by hand.
   `src/components/notes-delete.test.ts`, which double-clicks the real Notebook's trash button,
   `src/components/review-confirm.test.ts`, which reveals and deletes a card on the real Review tab,
   `src/components/notes-save-error.test.ts`, which saves a note in the real Notebook on a full disk, by autosave, on leaving the tab and on close,
-  `src/components/notes-summary-grade.test.ts`, which clicks the real Notes from last chat with a learner's grade and after a reply that failed,
+  `src/components/notes-summary-grade.test.ts`, which clicks the real Notes from last chat with a learner's grade and after a reply that failed, and reads its drawn preview,
   `src/components/notes-cards-safety.test.ts`, which types a safety disclosure into the real Notebook, Review this note and Review's + New card,
   `src/components/names-folders-search-safety.test.ts`, which types one into the real Notebook search, folder name box and import, the real learner menu's Change my name and the real Settings › Learner › Your name,
   `src/components/chat-notice-read.test.ts`, which sends a safety disclosure in the real chat when the turn fails,
-  `src/components/review-grade-once.test.ts`, which double-clicks the real Review grade buttons,
+  `src/components/review-grade-once.test.ts`, which double-clicks the real Review grade buttons and clicks the next card's Raise hand,
+  `src/components/chat-unanswered.test.ts`, which opens the real chat on a question with no reply and presses Ask again,
+  `src/components/chat-check-chip.test.ts`, which takes a hint inside a running check in the real chat,
   `src/views/settings/provider-models-recheck.test.ts`, which saves models and the Ollama URL in the real
   Settings › Provider & Models and checks the setup check runs again,
   `src/views/settings/review-picker-notice.test.ts`, which picks a cloud model in the real Checking model picker, and

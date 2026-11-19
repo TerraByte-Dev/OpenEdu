@@ -164,3 +164,17 @@ describe("Notes from last chat makes no notes from a chat the tutor never answer
     expect(host.textContent).toContain("A half is one of two equal parts.");
   });
 });
+
+// TerraTutor's click test 2026-11-19 (ported from #247): the preview showed "## ..." and "**...**" as text.
+describe("Notes from last chat draws its preview", () => {
+  it("draws the summary's markdown in the preview instead of showing its marks", async () => {
+    modelSummary = "## Times tables\n- **7 x 8** is 56";
+    await notesFromLastChat(null);
+    const preview = host.querySelector(".note-prose")!;
+    expect(preview.querySelector("h2")?.textContent).toBe("Times tables");
+    expect(preview.querySelector("li")?.textContent).toBe("7 x 8 is 56");
+    expect(preview.querySelector("strong")?.textContent).toBe("7 x 8");
+    expect(preview.textContent).not.toMatch(/##|\*\*/);
+    expect(insert()).toBeTruthy();
+  });
+});

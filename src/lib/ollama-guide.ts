@@ -45,6 +45,25 @@ export function isLoopbackUrl(url: string): boolean {
   }
 }
 
+/**
+ * The only Ollama addresses the app may fetch: this computer as 127.0.0.1 or localhost, plain http, port
+ * 11434 (the http allow-list in src-tauri/capabilities/default.json; ollama-address.test.ts keeps the two
+ * equal). Any other address is refused by the plugin before it is sent ("url not allowed on the configured
+ * scope"), so it can never answer, whatever is running there.
+ */
+export function ollamaAddressAllowed(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" && ["127.0.0.1", "localhost"].includes(u.hostname) && effectivePort(u) === 11434;
+  } catch {
+    return false;
+  }
+}
+
+/** What every Ollama call and probe says for an address the app may not fetch (ollamaAddressAllowed). */
+export const OLLAMA_ADDRESS_NOT_ALLOWED =
+  `${APP_NAME} can only talk to Ollama on this computer, at http://127.0.0.1:11434. Check the Server URL in Settings › Provider & Models.`;
+
 /** The importer talks to one place only: Ollama on this computer at its usual port. */
 export const IMPORT_TARGET = "http://127.0.0.1:11434";
 export function isImportTarget(url: string): boolean {
@@ -79,12 +98,14 @@ const INSTALLER_NAME: Record<Platform, string> = {
 export function ollamaGuidance(state: GuideState, opts: { platform: Platform; ollamaUrl: string }): Guidance {
   const p = opts.platform;
 
-  if (!isLoopbackUrl(opts.ollamaUrl)) {
+  // Another computer, or this one on another port: the app can't reach it at all, so nothing about
+  // installing or starting Ollama helps. Only the address does (TerraTutor's click test 2026-11-19: :11435).
+  if (!ollamaAddressAllowed(opts.ollamaUrl)) {
     return {
       state: "not-running",
-      title: "Ollama isn't answering",
-      body: `${APP_NAME} is set to use Ollama at ${opts.ollamaUrl}, on another computer, and it isn't answering.`,
-      steps: ["Check that the other computer is on and Ollama is running there.", `Or open Settings and set the Ollama address back to ${IMPORT_TARGET}.`],
+      title: "Ollama's address needs changing",
+      body: `${APP_NAME} is set to use Ollama at ${opts.ollamaUrl}. It can only talk to Ollama on this computer, at ${IMPORT_TARGET}.`,
+      steps: [`Open Settings › Provider & Models, set the Server URL to ${IMPORT_TARGET} and press Save & Check.`, `Come back here and press "Check again".`],
       actions: ["recheck"],
     };
   }
