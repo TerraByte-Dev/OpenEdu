@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { words, wordLength, tokenize, normalizePhrase, matchResourcesScored } from "./library-rank";
+import { words, wordLength, tokenize, normalizePhrase, matchResourcesScored, normalizeManifest } from "./library-rank";
+import { MIN_LIBRARY_SCORE } from "./kernel/ground";
+import manifestJson from "../../public/library/index.json";
 import type { LibraryEntry } from "../types";
 
 // The splitter every lexical matcher in the app goes through: library ranking (tokenize /
@@ -250,5 +252,61 @@ describe("matchResourcesScored — the phrase bonus matches whole words only (#1
 
   it("an alias still scores as a word in a longer query", () => {
     expect(score("what is the ph of lemon juice", ph)).toBeGreaterThan(0);
+  });
+});
+
+describe("matchResourcesScored — Resources tab: one word inside a longer name needs the card's tags to agree (port of TerraTutor #253)", () => {
+  const entry = (over: Partial<LibraryEntry>): LibraryEntry => ({
+    id: "x", title: "", path: "x.md", aliases: [], tags: [], subject: "", summary: "", ...over,
+  });
+  const flow = entry({ id: "cs/flow", title: "Flowchart Symbols", aliases: ["flowchart shapes"], tags: ["computer science", "flowchart"] });
+  const land = entry({ id: "geo/land", title: "Landform Glossary", aliases: ["geography terms"], tags: ["geography", "landforms"] });
+  const logic = entry({ id: "cs/logic", title: "Logic Gates", aliases: ["boolean algebra rules"], tags: ["computer science"] });
+  const filler = entry({ id: "z/filler", title: "Unrelated card", aliases: ["nothing here"], tags: ["misc"] });
+  const manifest = [flow, land, logic, filler];
+  const score = (q: string, e: LibraryEntry, oneWordNeedsTag = true) =>
+    matchResourcesScored(q, manifest, 5, { oneWordNeedsTag }).find((r) => r.entry.id === e.id)?.score ?? 0;
+
+  it("a one-word query inside an alias gets no phrase bonus when the tags do not name it", () => {
+    // "shapes" is only the word "flowchart shapes" narrows: the token match is all that is left.
+    expect(score("shapes", flow)).toBeGreaterThan(0);
+    expect(score("shapes", flow)).toBeLessThan(MIN_LIBRARY_SCORE);
+  });
+
+  it("keeps the bonus when the card's tags name the word", () => {
+    expect(score("geography", land)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
+  });
+
+  it("a query of two words or more inside a name keeps the bonus as before", () => {
+    // "boolean algebra" is inside "boolean algebra rules", and the tags name neither word.
+    expect(score("boolean algebra", logic)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
+  });
+
+  it("counts words by content token, so a stopword does not make a one-word query two", () => {
+    expect(score("the shapes", flow)).toBeLessThan(MIN_LIBRARY_SCORE);
+  });
+
+  it("is off unless asked for: the default path keeps the one-word bonus", () => {
+    expect(score("shapes", flow, false)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
+  });
+});
+
+describe("matchResourcesScored — chat grounding's path keeps one-word keyword aliases (port of TerraTutor #253)", () => {
+  // ground.ts groundFromLibrary passes the learner's raw message here, takes the top card and keeps it at
+  // MIN_LIBRARY_SCORE. A young learner often types one bare word, and keyword-list aliases exist for that.
+  const shipped = normalizeManifest(manifestJson);
+  const top = (q: string) => matchResourcesScored(q, shipped, 1)[0];
+
+  it.each([
+    ["mitochondria", "biology/organelle-functions"],
+    ["igneous", "earth-space/rock-cycle"],
+  ])("a bare %s still grounds its card", (q, id) => {
+    expect(top(q)?.entry.id).toBe(id);
+    expect(top(q)?.score).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
+  });
+
+  it("a query of stopwords only gets no reverse-containment bonus", () => {
+    // "Is αβγ = γβα?" leaves only "is": it sits inside many aliases and names none of them.
+    expect(top("Is αβγ = γβα?")?.score ?? 0).toBeLessThan(MIN_LIBRARY_SCORE);
   });
 });

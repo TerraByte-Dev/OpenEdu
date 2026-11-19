@@ -11,6 +11,10 @@
 // PHRASE BONUS (12 exact / 6 containment) is unchanged and is deliberately NOT scaled by anything.
 // A query that equals or contains a curated title or alias is near-certain evidence, and that is
 // what makes "periodic table" and "table of elements" both land cleanly.
+// One exception, on the Resources tab only (TerraTutor #248, `oneWordNeedsTag`): a one-word query
+// inside a longer name counts only when the card's tags name that word too, so "algebra" does not
+// reach "boolean algebra" (scoreEntry). Chat grounding and library.search keep the bonus: a learner's
+// bare "mitochondria" must still reach Organelle Functions through its keyword alias.
 //
 // TOKEN OVERLAP is the weighted field sum (title 3 / aliases 3 / tags 2 / summary 1), with two
 // corrections applied to each field's contribution:
@@ -233,6 +237,8 @@ interface EntryTokens {
   all: Set<string>;
   /** normalizePhrase of the title and each alias, non-empty only — the phrase-bonus targets. */
   names: string[];
+  /** Each tag word in the forms a one-word query can take for it — see `tagForms`. */
+  tags: Set<string>;
 }
 const tokenCache = new WeakMap<object, EntryTokens>();
 
@@ -259,10 +265,27 @@ function tokensFor(e: LibraryEntry): EntryTokens {
     // Memoised with the tokens: the Unicode normalizePhrase is several regex passes, and scoreEntry
     // otherwise re-ran it on ~900 titles and aliases per query (0.57 -> ~1.9 ms/query, measured).
     const names = [e.title, ...e.aliases].map(normalizePhrase).filter(Boolean);
-    t = { fields, all, names };
+    t = { fields, all, names, tags: tagForms(e.tags) };
     tokenCache.set(e, t);
   }
   return t;
+}
+
+/**
+ * The tag words in every form a one-word query's token can take for them: the word as tokenize folds it,
+ * as written, and with "-es" or "-ies" undone (each also folded). `fold` only cuts a trailing "s", so the
+ * tag "gases" tokenizes to "gase" and "countries" to "countrie", which never equal a course called Gas or
+ * Country; "lenses" undone is "lens", which a query folds to "len".
+ */
+function tagForms(tags: string[]): Set<string> {
+  const out = new Set<string>();
+  for (const w of words(elide(tags.join(" ")))) {
+    const variants = [w];
+    if (w.length > 4 && w.endsWith("ies")) variants.push(w.slice(0, -3) + "y");
+    else if (w.length > 3 && w.endsWith("es")) variants.push(w.slice(0, -2));
+    for (const v of variants) out.add(v).add(fold(v));
+  }
+  return out;
 }
 
 /** Every token an entry contributes to document frequency — the same surfaces scoring reads. */
@@ -320,19 +343,43 @@ export function containsWords(hay: string, needle: string): boolean {
   return !!needle && ` ${hay} `.includes(` ${needle} `);
 }
 
+export interface ScoreOptions {
+  /**
+   * Resources tab only (TerraTutor #248): a one-word query inside a longer title or alias gets the
+   * phrase bonus only when the card's tags name that word too. Off for chat grounding and library.search.
+   */
+  oneWordNeedsTag?: boolean;
+}
+
 export function scoreEntry(
   qTokens: string[],
   qPhrase: string,
   entry: LibraryEntry,
   idx: DfIndex | null = null,
+  opts: ScoreOptions = {},
 ): number {
   let phrase = 0;
   // A curated title/alias the query contains (or vice-versa) is near-certain — never damped.
-  for (const n of tokensFor(entry).names) {
+  //
+  // The vice-versa needs a content word: a query of stopwords only ("Is αβγ = γβα?" leaves "is") is
+  // inside many aliases and named none of them.
+  //
+  // With `oneWordNeedsTag` (the Resources tab), a one-word query also needs the card's tags to name that
+  // word. One word inside a longer name is often the word the name narrows: "shapes" in "flowchart
+  // shapes", "algebra" in "boolean algebra", "reading" in "reading a label", "division" in "division of
+  // powers". Each got +6 and cleared the floor for a course called shapes, algebra, reading or division.
+  // Where the word is what the card is about, its tags say so ("geometry" on Geometry Formulas,
+  // "geography" on the Landform Glossary) and the bonus stays. Chat grounding leaves it off: a learner's
+  // bare "mitochondria" or "igneous" reaches its card through a keyword alias ("nucleus mitochondria
+  // ribosome") whose tags don't repeat the word.
+  const { names, tags } = tokensFor(entry);
+  const reverseOk =
+    qTokens.length > 0 && (!opts.oneWordNeedsTag || qTokens.length > 1 || tags.has(qTokens[0]));
+  for (const n of names) {
     if (qPhrase === n) phrase += 12;
     // Containment must be whole words: a raw substring test let the alias "ph" match inside
     // "paragraph" and "graph", which put "The pH Scale" on 15 k12 items that had nothing to do with it (#145).
-    else if (containsWords(qPhrase, n) || containsWords(n, qPhrase)) phrase += 6;
+    else if (containsWords(qPhrase, n) || (reverseOk && containsWords(n, qPhrase))) phrase += 6;
   }
 
   const matched = new Set<string>();
@@ -413,6 +460,7 @@ export function matchResourcesScored(
   query: string,
   manifest: LibraryEntry[],
   topN = 3,
+  opts: ScoreOptions = {},
 ): Array<{ entry: LibraryEntry; score: number }> {
   const idx = dfFor(manifest);
   const keep = (w: string) => LATIN_SIDE.test(w) || idx.vocab.has(w);
@@ -420,7 +468,7 @@ export function matchResourcesScored(
   const qPhrase = words(elide(query)).filter(keep).join(" ");
   if (qTokens.length === 0 && !qPhrase) return [];
   return manifest
-    .map((e) => ({ entry: e, score: scoreEntry(qTokens, qPhrase, e, idx) }))
+    .map((e) => ({ entry: e, score: scoreEntry(qTokens, qPhrase, e, idx, opts) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
