@@ -755,6 +755,18 @@ export interface PromotionTestQuestions {
   reviewWanted: boolean;
 }
 
+/** The earlier levels a level test reviews: the last four before it that have subtopics. A Level 1 test has
+ *  none, so it has no review section. */
+export function levelTestReviewLevels(previousSyllabuses: ReadonlyArray<Syllabus>): Syllabus[] {
+  return previousSyllabuses.slice(-4).filter((s) => s.subtopics && s.subtopics.length > 0);
+}
+
+/** How many questions a level test aims for: TEST_TOTAL_TARGET with a review section, TEST_CURRENT_TARGET
+ *  without one (Level 1), which is all a test with no review section can be made with. */
+export function levelTestTarget(hasReview: boolean): number {
+  return hasReview ? TEST_TOTAL_TARGET : TEST_CURRENT_TARGET;
+}
+
 /**
  * Why a generated level test cannot be given, or null when it can. A test under TEST_FLOOR questions, or
  * one whose review section came back empty although the course has earlier levels, is not started: it
@@ -765,7 +777,7 @@ export interface PromotionTestQuestions {
 export function levelTestShortfall(t: PromotionTestQuestions): string | null {
   const total = t.current.length + t.review.length;
   if (total < TEST_FLOOR) {
-    return `Only ${total} of ${TEST_TOTAL_TARGET} questions were made, and a level test needs at least ${TEST_FLOOR}. The test was not started and does not count. Try again, or pick a more capable model in Settings.`;
+    return `Only ${total} of ${levelTestTarget(t.reviewWanted)} questions were made, and a level test needs at least ${TEST_FLOOR}. The test was not started and does not count. Try again, or pick a more capable model in Settings.`;
   }
   if (t.reviewWanted && t.review.length === 0) {
     return "No questions on the earlier levels were made, and a level test needs them. The test was not started and does not count. Try again.";
@@ -808,7 +820,7 @@ export async function generatePromotionTestQuestions(
 
   // ── Review section: the last ≤4 prior levels' subtopics flattened, slightly easier. ──
   let review: GenQuestion[] = [];
-  const recents = previousSyllabuses.slice(-4).filter((s) => s.subtopics && s.subtopics.length > 0);
+  const recents = levelTestReviewLevels(previousSyllabuses);
   const reviewSubs = recents.flatMap((s) => s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })));
   if (reviewSubs.length > 0) {
     review = await generateToTarget(
