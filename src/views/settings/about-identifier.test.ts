@@ -54,6 +54,8 @@ describe("Settings › About: the Version row", () => {
   it("shows the shipped identifier when the runtime one can't be read", async () => {
     app.getIdentifier.mockRejectedValueOnce(new Error("no Tauri"));
     await act(async () => { root.render(createElement(About, {})); });
+    // The diagnostics take several awaits; once they show, the rejected identifier probe has settled.
+    await vi.waitFor(() => expect(host.textContent).toContain("Database"));
     expect(host.textContent).toContain("Identifier: com.terrabytesolutions.openedu");
     expect(host.textContent).not.toContain("openedu.dev");
   });
