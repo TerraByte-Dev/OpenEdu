@@ -14,7 +14,7 @@ import { getChatConfig } from "../lib/store";
 import { listChatThreads, getChatMessages } from "../lib/db";
 import {
   finishReview, validateReview, prepareReview, NOTE_REVIEW_WITHHELD,
-  buildSummaryMessages, formatTranscript, finishSummary,
+  buildSummaryMessages, summaryTranscript, finishSummary,
   REVIEW_SCHEMA, SUMMARY_SCHEMA,
   type Annotation, type AnchoredAnnotation, type AnnotationKind,
 } from "../lib/notebook-assistant";
@@ -98,9 +98,10 @@ export default function NotesAssistant({
       const threads = await listChatThreads(courseId, level);
       if (!threads.length) { setError("No conversation on this level yet."); return; }
       const messages = await getChatMessages(threads[0].id);
-      const transcript = formatTranscript(messages, grade);
+      const transcript = summaryTranscript(messages, grade);
       if (!transcript.trim()) {
-        // Every exchange may have been left out (formatTranscript), which is not the same as none at all.
+        // Every exchange may have been left out (formatTranscript), or the tutor never answered
+        // (summaryTranscript), which is not the same as none at all.
         // The title is the learner's first message (ChatTab deriveThreadTitle). A chat started before titles
         // were screened may be titled with the disclosure that was left out, so this line doesn't repeat it.
         setError(messages.length

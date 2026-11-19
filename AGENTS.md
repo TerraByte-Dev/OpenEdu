@@ -64,7 +64,7 @@ wrapper are **not type-linked**; keep them in sync by hand.
   `src/components/notes-delete.test.ts`, which double-clicks the real Notebook's trash button,
   `src/components/review-confirm.test.ts`, which reveals and deletes a card on the real Review tab,
   `src/components/notes-save-error.test.ts`, which saves a note in the real Notebook on a full disk, by autosave, on leaving the tab and on close,
-  `src/components/notes-summary-grade.test.ts`, which clicks the real Notes from last chat with a learner's grade,
+  `src/components/notes-summary-grade.test.ts`, which clicks the real Notes from last chat with a learner's grade and after a reply that failed,
   `src/components/notes-cards-safety.test.ts`, which types a safety disclosure into the real Notebook, Review this note and Review's + New card,
   `src/components/names-folders-search-safety.test.ts`, which types one into the real Notebook search, folder name box and import, the real learner menu's Change my name and the real Settings › Learner › Your name,
   `src/components/chat-notice-read.test.ts`, which sends a safety disclosure in the real chat when the turn fails,

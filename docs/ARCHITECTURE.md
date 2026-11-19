@@ -839,7 +839,10 @@ So the verdict on the child's answer is the app's, not the reply's:
   same window: NotesAssistant also loads the thread with `getChatMessages`, so past 200 messages a reply that
   repeated a disclosure no longer in those 200 is kept; `finishSummary` is the backstop there), and
   `finishSummary` withholds a summary that itself reads as one, so NotesAssistant shows `SAFETY_NOTICE` in
-  its place and offers no Insert. Both call
+  its place and offers no Insert. A chat with no tutor reply in what is kept (only the learner's question,
+  the reply failed) is not summarised at all (`summaryTranscript`, TerraTutor click test 2026-11-19): the
+  panel says "There's nothing in the last chat to make notes from." rather than letting the summariser
+  write notes nobody gave. Both call
   `isSafetyDisclosure` with the active learner's grade (CourseView → NotesTab → NotesAssistant), as the
   chat's notice does, so with a K-12 grade a strong pregnancy self-disclosure is left out there too, and with
   no grade it is not. `src/components/notes-summary-grade.test.ts` clicks the real panel to pin it.
