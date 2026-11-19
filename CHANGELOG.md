@@ -55,6 +55,18 @@ The section for each release is also what the app shows when you press Check for
   text reads as one shows the notice (the note is still made, and kept from the tutor as above). A file name
   counts with its hyphens, underscores, dots and camelCase read as spaces ("i_want_to_die.txt"), and such a
   note is titled in those words, so its title keeps it from the tutor too.
+- **More ways a learner tells get the safety notice, and the tutor's reply to them is a fixed, kind one.**
+  "Someone at home hurts me", "someone at my house hits me", "a grown up at home hurts me" and "i get hit at
+  home" showed no notice: a place between the person and what they do, "grown up" written with a space,
+  and "i get hit" / "i got hurt by my dad" now count. In the chat, the tutor's reply to a message about
+  self-harm, suicide or abuse is now a short fixed reply worded for the learner's grade (thank you for
+  telling me, you are not in trouble, I am a computer, please tell someone you trust right away), written by
+  OpenEdu, not the model, which had answered "Please stop..." and "Please tell me if you have any questions
+  about fractions." It never says stop or sends the learner back to the lesson, offers no follow-up
+  buttons, and comes even when Ollama is not running. A question about someone else ("Why did Romeo commit
+  suicide?", "what does molest mean") still gets the tutor's answer, with the notice; other schoolwork the
+  safety list reads as a disclosure ("women were raped during the war") now gets the fixed reply instead of
+  an answer.
 - **Clearing "why is that the answer?" clears it.** On a study quiz, emptying the box now empties what is
   saved, so words the learner erased, a safety disclosure included, no longer stay in the database and
   its backups.

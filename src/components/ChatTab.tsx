@@ -308,8 +308,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   };
 
   // The reply to a card's typed words, already saved as the child's message (so the safety notice shows
-  // under it), run as an ordinary turn (the safety rules in the system prompt, no grading). If the child
-  // opened another conversation first, the words stay saved in their own thread, with no reply.
+  // under it), run as an ordinary turn (the fixed disclosure reply, or the safety rules for a question about
+  // someone else, no grading). If the child opened another conversation first, the words stay saved in their
+  // own thread, with no reply.
   useEffect(() => {
     if (!cardMessage || streaming || settingUpRef.current) return;
     setCardMessage(null);
@@ -559,6 +560,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       }
       // Abandoned by a thread switch: its chips and notices belong to a thread no longer shown.
       if (turnOwnerRef.current !== owner) return;
+      // The fixed reply to a harm disclosure (child-safety.ts disclosureReply) offers nothing after it: no
+      // citation note, follow-up chips or reply choices, nothing that leads back to the lesson.
+      if (result.fixedReply) return;
       if (handedBack) { setCardMessage(handedBack); return; }
       // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
@@ -694,8 +698,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
                 onReadAloud={readAloud.supported ? readAloud.toggle : undefined}
               />
               {/* A self-harm or abuse disclosure, or with a K-12 grade set a strong pregnancy self-disclosure, gets a
-                  fixed notice under it, shown as soon as the message is;
-                  the tutor turn still runs (child-safety.ts). Code-matched, never a model call. A .chat-msg, so
+                  fixed notice under it, shown as soon as the message is; the turn's reply is still shown
+                  (TutorEngine: the fixed disclosureReply, or the model for a pregnancy one or a question about
+                  someone else; child-safety.ts). Code-matched, never a model call. A .chat-msg, so
                   K-2's larger chat text applies, with a speaker button so a child who cannot read it can hear it. */}
               {msg.role === "user" && isSafetyDisclosure(msg.content, grade) && (
                 <div role="note" className="chat-msg flex items-start gap-3 p-3 rounded-lg border border-warning/40 border-l-4 border-l-warning bg-warning-tint text-sm text-ink leading-relaxed">

@@ -233,17 +233,31 @@ describe("dictionary note: request through the kernel", () => {
   // safety path only. The check is ChatTab's: isSafetyDisclosure with the learner's grade, so a pregnancy
   // disclosure counts only with a K-12 grade set.
   it("a safety-disclosure turn gets no note and no card, and looks nothing up", async () => {
-    for (const text of [
-      "I want to die. what does zorp mean?",
-      "i want to kill myself. what does zorp mean in 'the zorp hummed all night'?",
-      "i think i'm pregnant. what does zorp mean?",
-    ]) {
-      expect(isSafetyDisclosure(text, 4), text).toBe(true);
+    const text = "i think i'm pregnant. what does zorp mean?";
+    expect(isSafetyDisclosure(text, 4)).toBe(true);
+    fetched = [];
+    const { req, result } = await run([], text, undefined, 4);
+    expect(result).toMatchObject({ askedWord: "zorp", dictionaryNote: null, dictionaryShown: null });
+    expect(req[req.length - 1].content).not.toContain("<dictionary_entry");
+    expect(req[req.length - 1].content).not.toContain("<tutor_note>");
+    expect(fetched).toEqual([]);
+  });
+
+  // Since the port of TerraTutor #246 a harm disclosure calls no model (child-safety.ts disclosureReply).
+  it("a harm-disclosure turn calls no model, looks nothing up and shows no card", async () => {
+    for (const text of ["I want to die. what does zorp mean?", "i want to kill myself. what does zorp mean in 'the zorp hummed all night'?"]) {
+      expect(isSafetyDisclosure(text), text).toBe(true);
       fetched = [];
-      const { req, result } = await run([], text, undefined, 4);
-      expect(result, text).toMatchObject({ askedWord: "zorp", dictionaryNote: null, dictionaryShown: null });
-      expect(req[req.length - 1].content, text).not.toContain("<dictionary_entry");
-      expect(req[req.length - 1].content, text).not.toContain("<tutor_note>");
+      sent.length = 0;
+      const result = await tutorEngine.run(
+        { messages: [{ role: "user", content: text }], config: CONFIG, retrieval: "off", grade: 4, onText: () => {} },
+        {
+          courseId: "c-1", level: 1, syllabus: null, modelTier: "tiny", contextTokens: 8192, permissionMode: "default",
+          config: CONFIG, abort: new AbortController().signal, activeSkill: null, domainSkill: null, supportsTools: false,
+        },
+      );
+      expect(sent, text).toEqual([]);
+      expect(result, text).toMatchObject({ dictionaryNote: null, dictionaryShown: null, fixedReply: true, disclosure: true });
       expect(fetched, text).toEqual([]);
     }
   });

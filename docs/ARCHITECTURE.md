@@ -884,7 +884,10 @@ So the verdict on the child's answer is the app's, not the reply's:
   check-before-praise note, no verdict line ("That's not right yet.") and no check on a card answered
   during it, and a "mastered" mark on it is refused (`MASTERY_REFUSED_DISCLOSURE`). Nor a dictionary note
   or card (ported from TerraTutor #191): "I want to die. what does suicide mean?" was given the entry, its
-  example and "explain it with one everyday example"; the turn takes the safety path only. Nothing from a
+  example and "explain it with one everyday example"; the turn takes the safety path only. (Since the port
+  of TerraTutor #246 a self-harm, suicide or abuse disclosure calls no model at all and gets the fixed
+  `disclosureReply`, unless it is a question about someone else: "What counts as a safety disclosure",
+  below. These gates hold for the turns that still reach the model.) Nothing from a
   disclosure turn is kept either (ported from TerraTutor #220): the app's flashcard stage does not run ("i
   wanna die. make me a flashcard for 7 x 8" gets no card call, no card and no "it is saved" note), the
   model's `knowledge.update_map`, `notebook.ingest` and `flashcard.create` are refused like
@@ -1138,8 +1141,15 @@ grade: suicide and self-harm wording (`PHRASES`, `KMS_RE`), a person hitting, hu
 made to touch, nude pictures, sextortion, being watched in the shower, and "i don't feel safe at home".
 Sharing the child's pictures counts only with a threat in the same message (`SHARE_PICS_RE` and
 `THREAT_RE`, or a threat to post "them" with pictures named: `SHARE_THEM_RE` and `PICS_RE`). The harm half's
-patterns equal TerraTutor's as of its PR #223: its PR #125's, narrowed in both apps where they fired on
-ordinary schoolwork (review of #372, TerraTutor #221 and #223). "private" counts as the body only as
+patterns equal TerraTutor's as of its PR #246: its PR #125's, narrowed in both apps where they fired on
+ordinary schoolwork (review of #372, TerraTutor #221 and #223), then widened by TerraTutor #246, whose click
+test (2026-11-19) found "someone at home hurts me" showed no notice because the person had to sit right before
+the verb. A place may now come between them ("at home", "at school", "at my house", "in my family", "at my
+dad's house"; "a person" only with such a place), "a grown up" counts with a space, and the child hit, hurt or
+beaten in the passive counts with a person after "by" ("i got hit by my dad") or a home within three words ("i
+get hit at home", not "home plate", not a home followed by "by" and no person, as in "we got hit at home by the
+storm"); "beat" keeps the games rule ("i got beaten by my brother at chess", "i got beaten at home 3-0" stay
+out), and beaten at home counts only for "i" ("we got beat at home" is a team's home game). "private" counts as the body only as
 "privates", "private parts" and the like, or with no noun after it (not "her private feelings", "her private
 place in the garden"); touching him, her or them counts after the child's own ("my") family member or
 grown-up with no other subject in between and before the end, a joining or time word or an adverb, never a
@@ -1163,9 +1173,38 @@ TerraTutor's parents'-topics screen is not ported, so a third-person report ("hi
 porn") or wording the lists do not know ("my babysitter shows me sexy videos") gets no notice here, where
 TerraTutor gives its parents'-topics reply. A false positive costs more than a line of text: it refuses a
 new-course topic (`SAFETY_TOPIC_COURSE_LINE`), passes a quiz or level-test written answer as not checked with
-no mark, and skips that chat turn's mastery-check verdict and dictionary note. `child-safety.test.ts` pins
-both sides, those misses and the accepted false positives (bare "sexual assault", "sextortion", "suicide";
-"the doctor told me to take my shirt off") included. The pregnancy half is below.
+no mark, and in the chat gets the fixed reply below instead of an answer (unless it is a question about
+someone else, which still skips that turn's mastery-check verdict and dictionary note). `child-safety.test.ts`
+pins both sides, those misses and the accepted false positives (bare "sexual assault", "sextortion", "suicide";
+"the doctor told me to take my shirt off", "someone at school hit me with a dodgeball", "i got hurt in my house
+when i tripped") included. The pregnancy half is below.
+
+**The reply to a harm disclosure is code's** (ported from TerraTutor #246, whose click test found
+`gemma4:e2b` answering "i want to kill myself" with "Please stop. I am very sorry..." and "my uncle touches me"
+with "I cannot help with that kind of question. Please tell me if you have any questions about fractions.").
+`TutorEngine` answers a turn whose newest message trips the harm half (`isSafetyDisclosure` with no grade)
+with `disclosureReply` for the learner's grade band (`TutorTurn.grade`: K-2, 3-5, 6-12, or no grade) and calls
+no model: no tools, no lookup, no card, no answer check. It thanks the learner, says they are not in trouble
+(K-2 also "It is not your fault"), says plainly that the tutor is a computer, names someone they trust and,
+except K-2, points to the numbers in the notice under the message; it never says stop, never turns back to
+the lesson and never says "a grown-up at home". With no grade set the learner may be an adult, so that
+wording names "someone you trust, like a family member, friend, teacher or counselor", not a grown-up (Fable's
+decision as Tate's delegate, 2026-11-19; TerraTutor gives no-grade the 6-12 words). The result carries
+`disclosure` (nothing kept) and `fixedReply`, on which ChatTab shows no citation note, follow-up chips or
+reply choices under it (Fable's decision, the same day). With no model call the reply comes even when
+Ollama is not running. The read-aloud reads the notice, then the reply.
+A strong self-disclosure of a pregnancy keeps its model call. **One exception** (TerraTutor #246, Fable's
+decision as Tate's delegate, 2026-11-19), because the harm list's accepted false positives are mostly
+schoolwork: a harm hit that is a question about someone else (`isHarmTopicQuestion`: it opens with what / why /
+how / did and has no first-person word, no "kms" and no you / your / yourself / u / ur) keeps the model call
+under the safety rules, as before. "Why did Romeo commit suicide?", "what does molest mean", "what does
+sextortion mean" and "how does the author end it all" get their answer. A question with is / does / do ("is
+self-harm bad", "is it bad to want to die?") is not one: a child asking it is likelier asking about
+themselves. A known gap: a third-person why / what question ("why do people want to die") reaches the model,
+with the notice. The cost: any other harm false positive in the chat ("women were raped during the war", "the
+article was about sexual assault on campus", "what would happen if i died my hair blue", "he hit me in
+dodgeball") gets the notice and the fixed reply instead of an answer. `kernel/disclosureTurn.test.ts` runs both
+sides through `tutorEngine.run`.
 
 ## The safety notice for a pregnancy (`child-safety.ts strongPregnancy`)
 
