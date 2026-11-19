@@ -41,7 +41,7 @@ vi.mock("../db", async (importOriginal) => ({
 import { tutorEngine, TutorTurnError, type TutorTurnResult } from "./TutorEngine";
 import { friendlyError } from "../plain-language";
 import { chatTurnSkills } from "./chatSkills";
-import { ASSESS_MESSAGE } from "./suggestions";
+import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { PICKER_QUESTION } from "./assessPicker";
 import { modelToolCalls } from "./modelToolCalls";
 import { registerBuiltinTools } from "../tools";
@@ -175,7 +175,8 @@ describe("the app's topic picker", () => {
     ["one subtopic left to check", { syllabus: syllabus(sub("1.1", "Unit fractions"), sub("1.2", "Equal parts", true)) }],
     ["every subtopic mastered", { syllabus: syllabus(sub("1.1", "Unit fractions", true), sub("1.2", "Equal parts", true)) }],
     ["a message that does not open a check", { message: "Give me a hint." }],
-    ["the quiz chip's check, which runs in the default mode", { mode: "explain" }],
+    ["the assess request typed in explain mode", { mode: "explain" }],
+    ["the quiz chip, which runs in quiz mode", { message: QUIZ_MESSAGE, mode: "quiz" }],
     ["a model with no tools", { supportsTools: false }],
   ] as const)("no picker with %s: the model is called as before", async (_name, opts) => {
     script = [reply("Here is a question: what is 1/2 of 4?")];

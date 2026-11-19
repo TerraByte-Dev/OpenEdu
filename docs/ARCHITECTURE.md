@@ -719,9 +719,10 @@ Three things do not wait for the model to choose a tool, because small models ra
   turn's prefix, so on a card turn the reply misses the prefix cache and re-prefills the system prompt
   and tools manifest once.
 - **Choices written as a list** (`kernel/replyChoices.ts`). A completed reply that made no
-  `ask_user.question` call and ends with a short numbered or lettered list next to a question that asks
-  for one pick (which / choose / pick, and not order, two of, all, each, why, explain, notice, another)
-  carries those choices in `replyChoices`. Labels with LaTeX, a blank (`__`) or a trailing `=` don't
+  `ask_user.question` call of its own (the app's topic picker does not count) and ends with a short
+  numbered or lettered list next to a question that asks for one pick (which / choose / pick, and not
+  order, two of, all, each, why, explain, notice, another) carries those choices in `replyChoices`.
+  Labels with LaTeX, a blank (`__`) or a trailing `=` don't
   count; a lettered list needs its question before it. A bulleted list (-, *, + or •, one style) counts
   only when its question also asks what the student wants (would you like, do you want, should we…),
   since bullets are also how a tutor lists facts it then asks about. Emoji after the question mark

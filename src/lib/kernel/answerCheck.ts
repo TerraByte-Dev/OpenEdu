@@ -57,7 +57,7 @@ export const ASSESS_LOOKBACK = 4;
 // is not the right answer.").
 const REQUEST = /^(?:check me|give me|walk me|show me|help|explain|tell me|teach me|continue|more on|quiz me|review|check if|let me work|let me pick|let me choose|let['’]?s (?:do|try|use|go|learn|talk|draw|move|switch|start|play)|what do my notes|make me|make a|draw|write me|can you|could you|would you|will you|can we|could we|i want|i['’]?d like|i would like|please|i don'?t know|i do not know|idk|no idea|not sure|i'?m not sure|skip|pass|i give up|what|why|how|where|when|who|which|do |does |did |can i|could i|should i|is that|are you)\b/i;
 
-// Words a child often puts before a request ("ok check me", "so can you explain it?", "now show me"). Only
+// Words a learner often puts before a request ("ok check me", "so can you explain it?", "now show me"). Only
 // these are skipped before REQUEST is tested; what follows them is still read as an answer unless it is
 // one ("ok 46", "so it's 46", "well, I think it's 46", "yes 46"). ASK_LEAD below skips the same words, and
 // "please", which REQUEST already reads as a request.
