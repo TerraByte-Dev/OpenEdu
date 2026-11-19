@@ -13,7 +13,7 @@ vi.mock("./llm", () => ({
 }));
 
 import { callLLMStructured } from "./llm";
-import { generatePromotionTestQuestions, levelTestShortfall, TEST_FLOOR } from "./quiz";
+import { generatePromotionTestQuestions, levelTestReviewLevels, levelTestShortfall, levelTestTarget, TEST_FLOOR } from "./quiz";
 import type { LLMConfig, Syllabus } from "../types";
 
 const GEN = { provider: "ollama", model: "gemma4:e4b", modelTier: "small" } as LLMConfig;
@@ -75,7 +75,24 @@ describe("levelTestShortfall on generatePromotionTestQuestions' output", () => {
     const t = await generatePromotionTestQuestions(syllabus(1), [], { ...GEN });
     expect(t.reviewWanted).toBe(false);
     expect(levelTestShortfall(t)).toBeNull();
+    // 35 is all a test with no review section is made with: the screen's target says so.
+    expect(t.current.length + t.review.length).toBe(levelTestTarget(false));
+    expect(levelTestTarget(false)).toBe(35);
   }, 30_000);
+
+  it("says a short level 1 test fell short of 35, not 45", async () => {
+    model(6, false);
+    const t = await generatePromotionTestQuestions(syllabus(1), [], { ...GEN });
+    expect(levelTestShortfall(t)).toMatch(/^Only 6 of 35 questions were made/);
+  }, 30_000);
+
+  it("reviews the same levels the screen counts on: the last four earlier levels with subtopics", () => {
+    const bare = { ...syllabus(1), subtopics: [] } as Syllabus;
+    expect(levelTestReviewLevels([])).toEqual([]);
+    expect(levelTestReviewLevels([bare])).toEqual([]);
+    expect(levelTestReviewLevels([syllabus(1), syllabus(2), syllabus(3), syllabus(4), bare]).map((s) => s.level)).toEqual([2, 3, 4]);
+    expect(levelTestTarget(true)).toBe(45);
+  });
 
   it("refuses a test under the floor, as the 6-question run on an 8 GB machine", async () => {
     model(6, true);
