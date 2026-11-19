@@ -4,11 +4,13 @@ import { createElement } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import libRs from "../../src-tauri/src/lib.rs?raw";
+import type { Syllabus } from "../types";
 
 // The real Review tab on the real db.ts, over the in-memory SQLite stand-in the db tests use. A double-click
 // on a grade button grades the card once (one flashcard_reviews row, the schedule moved once), and its second
-// click never lands on the next card's "Show answer", whether it comes while the grade saves or just after the
-// next card is up. Ported from TerraTutor #234.
+// click never lands on the next card's "Show answer" or "Raise hand", whether it comes while the grade saves or
+// just after the next card is up. Ported from TerraTutor #234 and #247; only the lesson writer Raise hand
+// calls is a stand-in.
 
 type Sqlite = {
   exec(sql: string): void;
@@ -32,6 +34,11 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
 }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
 vi.mock("@tauri-apps/plugin-store", () => ({ Store: { load: vi.fn() } }));
+const lessons = vi.hoisted(() => ({ lessonWithHelp: vi.fn() }));
+vi.mock("../lib/curriculum", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../lib/curriculum")>(),
+  lessonWithHelp: lessons.lessonWithHelp,
+}));
 
 const { default: ReviewTab } = await import("./ReviewTab");
 const { setActiveLearnerId, createCourse, createFlashcard } = await import("../lib/db");
@@ -51,7 +58,7 @@ async function openDb(): Promise<void> {
 let root: Root;
 let host: HTMLDivElement;
 
-async function open(): Promise<void> {
+async function open(syllabuses: Syllabus[] = []): Promise<void> {
   await openDb();
   setActiveLearnerId(DEFAULT_LEARNER_ID);
   const courseId = (await createCourse("Animals", "Animals")).id;
@@ -59,12 +66,13 @@ async function open(): Promise<void> {
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  await act(async () => { root.render(createElement(ReviewTab, { courseId, level: 1, topic: "Animals", syllabuses: [] })); });
+  await act(async () => { root.render(createElement(ReviewTab, { courseId, level: 1, topic: "Animals", syllabuses })); });
   await vi.waitFor(() => { if (!button("Show answer")) throw new Error("card not shown yet"); });
 }
 
 afterEach(async () => {
   gate = null;
+  lessons.lessonWithHelp.mockReset();
   vi.useRealTimers();
   await act(async () => root.unmount());
   host.remove();
@@ -109,5 +117,28 @@ describe("Review grades a card once", () => {
     vi.useFakeTimers({ now: Date.now() + 600, toFake: ["Date"] });
     await act(async () => { click(button("Show answer")!); });
     expect(backShown()).toBe(true);
+  });
+});
+
+describe("Review's Raise hand after a grade", () => {
+  // TerraTutor's click test 2026-11-19: the next card's hidden side is shorter, so its "Raise hand" moves up
+  // under the pointer, and the second click of a double-click on a grade opened it and started a lesson write.
+  const syllabus = { level: 1, subtopics: [{ id: "1.1", title: "Animal homes", key_concepts: [], practice_type: "", mastered: false }] } as unknown as Syllabus;
+
+  it("ignores a click on the next card's Raise hand just after a grade, and opens it on a later click", async () => {
+    await open([syllabus]);
+    const first = front()!;
+    await act(async () => { click(button("Show answer")!); });
+    await act(async () => { click(button("Good")!); });
+    await vi.waitFor(() => { if (front() === first) throw new Error("next card not up yet"); });
+    const hand = () => [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Raise hand")) ?? null;
+    await act(async () => { click(hand()!); });
+    expect(hand()).not.toBeNull(); // still the closed button: the panel did not open
+    expect(lessons.lessonWithHelp).not.toHaveBeenCalled();
+
+    vi.useFakeTimers({ now: Date.now() + 600, toFake: ["Date"] });
+    lessons.lessonWithHelp.mockResolvedValue({ help: null });
+    await act(async () => { click(hand()!); });
+    expect(lessons.lessonWithHelp).toHaveBeenCalledTimes(1);
   });
 });
