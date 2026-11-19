@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createElement } from "react";
+import { createElement, useState } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import libRs from "../../src-tauri/src/lib.rs?raw";
@@ -37,16 +37,19 @@ vi.mock("../lib/store", async (importOriginal) => ({
   getRetrievalMode: vi.fn(async () => "off"),
   getReadAloudAuto: vi.fn(async () => null),
 }));
-vi.mock("../lib/knowledge", async (importOriginal) => ({
-  ...await importOriginal<typeof import("../lib/knowledge")>(),
-  updateKnowledgeFiles: vi.fn(async () => {}),
-}));
+vi.mock("../lib/knowledge", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../lib/knowledge")>();
+  // The real summary read, which a test makes fail once: the turn cannot start.
+  return { ...real, getKnowledgeSummary: vi.fn(real.getKnowledgeSummary), updateKnowledgeFiles: vi.fn(async () => {}) };
+});
 Element.prototype.scrollIntoView = () => {}; // jsdom has no layout
 
 const { default: ChatTab } = await import("./ChatTab");
 const { setActiveLearnerId, createCourse, createChatThread, saveChatMessage, getChatMessages } = await import("../lib/db");
 const { DEFAULT_LEARNER_ID } = await import("../lib/learners");
 const { tutorEngine } = await import("../lib/kernel");
+const { getKnowledgeSummary } = await import("../lib/knowledge");
+const { getRetrievalMode } = await import("../lib/store");
 const { UNANSWERED_ASK_AGAIN, UNANSWERED_TURN } = await import("../lib/plain-language");
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -91,6 +94,36 @@ async function open(messages: ReadonlyArray<readonly ["user" | "assistant", stri
     }));
   });
   await vi.waitFor(() => { if (!host.textContent?.includes(messages[0][1])) throw new Error("transcript not loaded yet"); });
+}
+
+// A new conversation: no thread until the first send, and the rail opens the one the send creates.
+function NewChat() {
+  const [id, setId] = useState<string | null>(null);
+  const course = { id: courseId, title: "Cells", topic: "cells", current_level: 1, status: "active" as const, generation_state: null, created_at: "", updated_at: "" };
+  return createElement(ChatTab, {
+    courseId, course, level: 1, currentSyllabus: null, threadId: id,
+    onThreadCreated: setId, onThreadActivity: () => {}, learnerId: DEFAULT_LEARNER_ID, grade: null,
+  });
+}
+async function openNew(): Promise<void> {
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+  await act(async () => { root.render(createElement(NewChat)); });
+}
+const button = (label: string) => [...host.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === label) ?? null;
+async function type(text: string): Promise<void> {
+  const box = host.querySelector<HTMLInputElement>('input[aria-label="Message to your tutor"]')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(box, text);
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+// The learner's messages and replies saved in the one conversation the send created.
+async function saved(): Promise<string[][]> {
+  const rows = sqlite.prepare("SELECT id FROM chat_threads WHERE id != ?1").all(threadId) as { id: string }[];
+  expect(rows).toHaveLength(1);
+  return (await getChatMessages(rows[0].id)).map((m) => [m.role, m.content]);
 }
 
 const askAgain = () => [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === UNANSWERED_ASK_AGAIN) ?? null;
@@ -183,5 +216,87 @@ describe("Chat: a question left with no reply", () => {
     await act(async () => { askAgain()!.click(); });
     await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
     expect(host.textContent).toContain("No passage quoted — your notes were searched");
+  });
+
+  // Ported from TerraTutor #257 (its click test 2026-11-19 part 5, issue 2): a new conversation's first message
+  // stopped before any text sat with no note and no Ask again until the learner opened another conversation
+  // and came back.
+  it("a first message stopped before any text says so at once, and Ask again answers it", async () => {
+    const run = vi.spyOn(tutorEngine, "run")
+      .mockImplementationOnce((_turn, ctx) => new Promise((resolve) => {
+        ctx.abort!.addEventListener("abort", () => resolve({ ...result(""), stopReason: "aborted" }));
+      }))
+      .mockResolvedValueOnce(result(REPLY));
+    await openNew();
+
+    await type("what is a cell?");
+    await act(async () => { button("Send")!.click(); });
+    await vi.waitFor(() => { if (!button("Stop generating")) throw new Error("turn not started yet"); });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(host.textContent).not.toContain(UNANSWERED_TURN);
+    await act(async () => { button("Stop generating")!.click(); });
+    await vi.waitFor(() => { if (!askAgain()) throw new Error("turn not ended yet"); });
+
+    expect(await saved()).toEqual([["user", "what is a cell?"]]);
+    expect(host.textContent).toContain("what is a cell?");
+    expect(host.textContent).toContain(UNANSWERED_TURN);
+
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls[1][0].messages.filter((m) => m.role === "user")).toEqual([{ role: "user", content: "what is a cell?" }]);
+    expect(await saved()).toEqual([["user", "what is a cell?"], ["assistant", REPLY]]);
+    expect(host.textContent).not.toContain(UNANSWERED_TURN);
+  });
+
+  // The same when the turn fails before the model is called (reading the tutor's instructions failed).
+  it("a message whose turn could not start says so at once, and Ask again answers it", async () => {
+    const run = vi.spyOn(tutorEngine, "run").mockResolvedValue(result(REPLY));
+    vi.mocked(getKnowledgeSummary).mockRejectedValueOnce(new Error("database is locked"));
+    await openNew();
+
+    await type("what is a cell?");
+    await act(async () => { button("Send")!.click(); });
+    await vi.waitFor(() => { if (!askAgain()) throw new Error("turn not ended yet"); });
+    expect(run).not.toHaveBeenCalled();
+    expect(await saved()).toEqual([["user", "what is a cell?"]]);
+    expect(host.textContent).toContain(UNANSWERED_TURN);
+
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(await saved()).toEqual([["user", "what is a cell?"], ["assistant", REPLY]]);
+    expect(host.textContent).not.toContain(UNANSWERED_TURN);
+  });
+
+  // The same when a setting read fails (review of the port: the retrieval mode was read after the turn showed
+  // as streaming and outside its try, so the chat stayed streaming with Stop showing and no note).
+  it("a message whose settings could not be read says so at once, and is not left streaming", async () => {
+    const run = vi.spyOn(tutorEngine, "run").mockResolvedValue(result(REPLY));
+    vi.mocked(getRetrievalMode).mockRejectedValueOnce(new Error("store is locked"));
+    await openNew();
+
+    await type("what is a cell?");
+    await act(async () => { button("Send")!.click(); });
+    await vi.waitFor(() => { if (!askAgain()) throw new Error("turn not ended yet"); });
+    expect(run).not.toHaveBeenCalled();
+    expect(button("Stop generating")).toBeNull();
+    expect(await saved()).toEqual([["user", "what is a cell?"]]);
+    expect(host.textContent).toContain(UNANSWERED_TURN);
+
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(await saved()).toEqual([["user", "what is a cell?"], ["assistant", REPLY]]);
+  });
+
+  it("a message answered as usual shows no note", async () => {
+    vi.spyOn(tutorEngine, "run").mockResolvedValue(result(REPLY));
+    await openNew();
+    await type("what is a cell?");
+    await act(async () => { button("Send")!.click(); });
+    await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
+    expect(host.textContent).not.toContain(UNANSWERED_TURN);
+    expect(askAgain()).toBeNull();
   });
 });

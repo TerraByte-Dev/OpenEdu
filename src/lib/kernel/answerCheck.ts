@@ -461,6 +461,32 @@ function isLeadIn(sentence: string): boolean {
     && !/\b(?:what|which|who|whom|whose|where|when|why|how)\b/i.test(s);
 }
 
+// A sentence that announces the check: "I will check your understanding of "What is a Fraction? Whole and
+// Parts."", "Let's see what you know about fractions.", "Let's check:" (TerraTutor click test 2026-11-19
+// part 5, issue 3; ported from TerraTutor #257). It names the topic, not a setup, so it comes off. Only a
+// topic announcement is: the bare verb, or the verb with "your understanding", "your knowledge", "what you
+// know / remember / learned", "how much / how well you" or "you on" after it. "Let's see if you can tell me
+// the name of the biggest planet.", "Let's see what happens when we mix red and blue paint." and "I'll quiz
+// you on the story where ..." hold the question's setup and stay (review of TerraTutor #257: dropping them
+// left "Can you?"). It also stays when it holds a number or a clause word outside quotes ("... about the
+// water cycle when the sun heats a lake."), when the sentence after it points back at it ("Let's see how
+// Sam shares his apples. How many does he give away?"), or when no "?" is left after it (`Let's quiz you
+// on "Who wrote Charlotte's Web?" Take your time!`). A quoted title may hold its own "?" and end mark,
+// which FIRST_SENTENCE cannot read past, so the sentence ends at the first end mark outside quotes, or at a
+// quote that closes on one.
+const CHECK_INTRO = /^[*_\s]*(?:(?:now|so|okay|ok|alright|all right|next),?\s+)?(?:I(?:'|’)ll|I will|I(?:'|’)m going to|I am going to|let(?:'|’)?s|let us|let me|we(?:'|’)ll|we will|we(?:'|’)re going to|we are going to|time to)\s+(?:quickly\s+|now\s+|first\s+)?(?:check|see|test|find out|quiz|review)(?:\s+(?:your (?:understanding|knowledge)|what you(?:(?:'|’)ve| have)? (?:know|remember|learned|learnt|understand)|how (?:much|well) you|you on)\b(?:"[^"\n]*"|“[^”\n]*”|[^.!?:"“”\n])*?)?\s*(?:[.!:]+["”]?|(?<=[.!]["”]))[*_]*(?=\s)/i;
+// A word that ties the topic to a setup: "... the water cycle when the sun heats a lake.".
+const CLAUSE_WORD = /\b(?:when|if|whether|because|after|before|where)\b/i;
+// A word that points back at something named before it.
+const POINTS_BACK = /\b(?:it|its|this|these|those|they|them|their|he|she|him|his|her)\b/i;
+function checkIntro(question: string): RegExpExecArray | null {
+  const intro = CHECK_INTRO.exec(question);
+  if (!intro || holdsNumber(intro[0]) || CLAUSE_WORD.test(intro[0].replace(/"[^"\n]*"|“[^”\n]*”/g, ""))) return null;
+  const rest = question.slice(intro[0].length).trim();
+  if (!rest.includes("?")) return null;
+  return POINTS_BACK.test(rest.split(/(?<=[.!?])\s/)[0]) ? null : intro;
+}
+
 /**
  * The tutor's question with its paragraph (the lines before it up to a blank line or a choice), from the
  * end of any praise or lead-in before it to the end of the message, and its choices: those after it come
@@ -475,14 +501,27 @@ export function questionAgain(tutorMessage: string, keyedQuestion: string): stri
   while (first > 0 && lines[first - 1].trim() && !CHOICE_LINE.test(lines[first - 1])) first--;
   const start = lines.slice(0, first).reduce((n, l) => n + l.length + 1, 0);
   let question = m.slice(start).trim();
-  // Praise, a lead-in, the last answer's feedback after praise, or the praise before a setup comes off.
-  for (let s = FIRST_SENTENCE.exec(question), praised = false; s; s = FIRST_SENTENCE.exec(question)) {
-    const lead: RegExpExecArray | null = isPraise(s[0]) || isLeadIn(s[0]) || (praised && LAST_ANSWER.test(s[0])) ? s : PRAISE_COMMAS.exec(question);
-    if (!lead) break;
-    praised ||= lead !== s || isPraise(s[0]);
-    question = question.slice(lead[0].length).trim();
+  // Praise, a lead-in, the check's announcement, the last answer's feedback after praise, or the praise
+  // before a setup comes off. Again after the praise with a praise ending ("Nice one, now") that the loop
+  // cannot read past and withoutPraiseLead takes off, until nothing more comes off: the announcement after
+  // it ("let's check your understanding of nouns."), and a lead-in or praise after that ("Here is your first
+  // question.", "great,"), come off too (the port's own merge with #401; TerraTutor master keeps them).
+  let praised = false;
+  for (let before = ""; before !== question;) {
+    before = question;
+    for (;;) {
+      const intro = checkIntro(question);
+      if (intro) { question = question.slice(intro[0].length).trim(); continue; }
+      const s = FIRST_SENTENCE.exec(question);
+      if (!s) break;
+      const lead: RegExpExecArray | null = isPraise(s[0]) || isLeadIn(s[0]) || (praised && LAST_ANSWER.test(s[0])) ? s : PRAISE_COMMAS.exec(question);
+      if (!lead) break;
+      praised ||= lead !== s || isPraise(s[0]);
+      question = question.slice(lead[0].length).trim();
+    }
+    question = withoutPraiseLead(question);
   }
-  question = withoutPraiseLead(question)
+  question = question
     .replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: string, c: string) => pre + c.toUpperCase());
   const choicesBefore = m.slice(0, start).split("\n").filter((l) => CHOICE_LINE.test(l)).map((l) => l.trim());
   return choicesBefore.length >= 2 && !question.split("\n").some((l) => CHOICE_LINE.test(l))

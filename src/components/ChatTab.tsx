@@ -129,7 +129,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Shown as the same buttons; a pick is sent as the student's next message. Cleared on send.
   const [replyChoices, setReplyChoices] = useState<ReplyChoices | null>(null);
   // The id of the learner's message the conversation ended on when it was opened, with no reply after it
-  // (thread-transcript.ts unansweredAtOpen). Shown with UNANSWERED_TURN while it is still the last message.
+  // (thread-transcript.ts unansweredAtOpen), or the message of the last turn that ended here. Shown with
+  // UNANSWERED_TURN while it is still the last message: a turn stopped before any text, or one that failed,
+  // saved no reply after it (ported from TerraTutor #257: until then the note came only on reopening).
   const [unanswered, setUnanswered] = useState<string | null>(null);
   // A pending permission "ask" — renders an Allow / Don't allow card and suspends until the choice.
   const [confirmPending, setConfirmPending] = useState<{ toolName: string; summary: string } | null>(null);
@@ -388,23 +390,30 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     // the <tools> manifest to this when it offers tools; a no-tool turn leaves it untouched.
     let instructions: Awaited<ReturnType<typeof getTutorInstructions>>;
     let knowledgeSummary: string;
-    try {
-      instructions = await getTutorInstructions(courseId);
-      knowledgeSummary = await getKnowledgeSummary(courseId);
-    } catch (e) {
-      log.error("ChatTab", "reading the tutor's instructions failed", e);
-      if (turnOwnerRef.current === owner) {
-        readNoticeLeft();
-        turnOwnerRef.current = null;
-        setChatError(friendlyError(e));
-      }
-      return;
-    }
     // The window this turn runs in (store.ts getOllamaNumCtx): the same num_ctx every Ollama call for
     // this model sends, so a course build or quiz grading never reloads the model chat just used.
     // Before #86 nothing sent num_ctx at all, so Ollama silently used its own default and dropped the
     // front of the prompt — the system message and the tools manifest — with no error.
-    const { config, profile } = await getChatTurnConfig();
+    let turnConfig: Awaited<ReturnType<typeof getChatTurnConfig>>;
+    let retrieval: Awaited<ReturnType<typeof getRetrievalMode>>;
+    // Read here, before the turn shows as streaming: a read that fails after that left the chat streaming
+    // with Stop showing and no error or note (review of the TerraTutor #257 port).
+    try {
+      instructions = await getTutorInstructions(courseId);
+      knowledgeSummary = await getKnowledgeSummary(courseId);
+      turnConfig = await getChatTurnConfig();
+      retrieval = await getRetrievalMode();
+    } catch (e) {
+      log.error("ChatTab", "reading the tutor's instructions or settings failed", e);
+      if (turnOwnerRef.current === owner) {
+        readNoticeLeft();
+        turnOwnerRef.current = null;
+        setUnanswered(userMsg.id);
+        setChatError(friendlyError(e));
+      }
+      return;
+    }
+    const { config, profile } = turnConfig;
     const { contextTokens } = config;
     const modelTier = profile.tier;
     // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rules
@@ -468,7 +477,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const turn: TutorTurn = {
       messages: llmMessages,
       config,
-      retrieval: await getRetrievalMode(),
+      retrieval,
       // What tells a safety disclosure from an answer in the kernel: the same grade as the notice below.
       grade,
       onText: (chunk) => { shownText += chunk; if (turnOwnerRef.current === owner) setStreamingText((prev) => prev + chunk); },
@@ -603,6 +612,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       if (turnOwnerRef.current === owner) {
         readNoticeLeft();
         turnOwnerRef.current = null;
+        // Shown only while it is still the last message: a reply, or card words handed back, follow it.
+        setUnanswered(userMsg.id);
         setStreamingText("");
         setStreaming(false);
         setReplyLanded(false);

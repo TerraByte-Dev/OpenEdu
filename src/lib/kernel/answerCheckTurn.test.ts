@@ -1225,6 +1225,44 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Good job, Sam has five apples. How many if he eats two?", "Sam has five apples. How many if he eats two?", "3"],
     ["Good job on that, Sam has 5 apples. How many if he eats 2?", "Sam has 5 apples. How many if he eats 2?", "3"],
     ["Great job, keep going! What is 6 x 8?", "What is 6 x 8?", "48"],
+    // A sentence that announces the check names the topic, not a setup (TerraTutor click test 2026-11-19
+    // part 5, issue 3; TerraTutor #257), even with a quoted title that holds its own "?".
+    ['I will check your understanding of "What is a Fraction? Whole and Parts." Can you tell me what a fraction is?', "Can you tell me what a fraction is?", "a part of a whole"],
+    ["I will check your understanding of “Equal Parts.” Can you tell me what equal parts are?", "Can you tell me what equal parts are?", "parts of the same size"],
+    ["Let's see what you know about fractions. What is the top number of a fraction called?", "What is the top number of a fraction called?", "numerator"],
+    ["I'm going to check your understanding of multiplication. What is 6 x 8?", "What is 6 x 8?", "48"],
+    ["Great! Now let's check: Sam has five apples. He eats two. How many are left?", "Sam has five apples. He eats two. How many are left?", "3"],
+    ["I will check your understanding of subtraction. Sam has 5 apples. He eats 2. How many are left?", "Sam has 5 apples. He eats 2. How many are left?", "3"],
+    // ... kept when it holds a number, or the next sentence points back at it.
+    ["Let's see how Sam shares his apples. How many does he give away if he keeps none?", "Let's see how Sam shares his apples. How many does he give away if he keeps none?", "all of them"],
+    ["Let's check what you know about the 3 states of matter. Which one is steam?", "Let's check what you know about the 3 states of matter. Which one is steam?", "gas"],
+    ["I will check your understanding of photosynthesis. What does it need besides light?", "I will check your understanding of photosynthesis. What does it need besides light?", "water and carbon dioxide"],
+    // ... and in bold, or as "Let us".
+    ["**Let's check your understanding of nouns.** What is a noun?", "What is a noun?", "a naming word"],
+    ["Let us check what you have learned about plants. What do plants need to grow?", "What do plants need to grow?", "water and light"],
+    // ... and after praise with a praise ending or a name, which withoutPraiseLead takes off after the loop
+    // (the port's own merge with #401: TerraTutor master keeps "Let's check your understanding of nouns.").
+    ["Nice one, now let's check your understanding of nouns. What is a noun?", "What is a noun?", "a naming word"],
+    ["Correct again, so let's see what you know about fractions. What is the top number of a fraction called?", "What is the top number of a fraction called?", "numerator"],
+    ["Well done Sam, now let's check: what is 6 x 8?", "What is 6 x 8?", "48"],
+    ["Nice one, now let's see how Sam shares his apples. How many does he give away if he keeps none?", "Let's see how Sam shares his apples. How many does he give away if he keeps none?", "all of them"],
+    // ... with a lead-in or praise after the announcement, which comes off too (review of the port).
+    ["Nice one, now let's check your understanding of nouns. Here is your first question. What is a noun?", "What is a noun?", "a naming word"],
+    ["Nice one, now let's check: great, what is 6 x 8?", "What is 6 x 8?", "48"],
+    // Only a topic announcement comes off: a sentence that holds the question's setup, one with a clause word
+    // after the topic, or one with no "?" left after it stays whole (review of TerraTutor #257).
+    ...[
+      "Let's see if you can tell me the name of the biggest planet. Can you?",
+      "Let's see if you know which planet is closest to the sun. Do you know?",
+      `Let's see if you can answer "Who wrote Charlotte's Web?" in your own words. Take your time!`,
+      `Let's quiz you on "Who wrote Charlotte's Web?" Take your time!`,
+      "Let's see what happens when we mix red and blue paint. What color do we get?",
+      "We will see if you can spell the word cat. How do you spell the word?",
+      "Let's check what happens if a plant gets no sunlight for a week. What would happen to the plant?",
+      "Time to test what you know about the water cycle when the sun heats a lake. What happens to the water?",
+      "I'll quiz you on the story where a girl named Goldilocks visits a house of bears. Whose porridge was just right?",
+      "Let's find out what Nell packed for her picnic: a sandwich, an apple and juice. Which one is a fruit?",
+    ].map((asked) => [asked, asked, "a key"]),
   ])("repeats %j with its setup and no praise", async (asked, again, key) => {
     keyOut = { question: again, working: "", answer: key };
     const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
@@ -1245,6 +1283,9 @@ describe("an answer that answers nothing in a mastery check", () => {
     [`Great pick! ${EQUAL}`, EQUAL],
     [`Good choice. Here is your first question. ${EQUAL}`, EQUAL],
     [`That is a good choice, halves are fun. ${EQUAL}`, EQUAL],
+    // TerraTutor click test 2026-11-19 part 5, issue 3 (TerraTutor #257): the check's announcement stayed on
+    // the question's line.
+    [`That is a good choice. I will check your understanding of "What is a Fraction? Whole and Parts." ${EQUAL}`, EQUAL],
   ])("after the topic picker, repeats only the check's question: %j", async (reply, again) => {
     keyOut = KEY_EQUAL;
     const asked = picked(reply);
