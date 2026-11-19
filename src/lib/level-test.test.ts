@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { levelTestResult, testUncheckedSummary, selfCheckIntro, TEST_UNCHECKED_NOTE, stopTestBody, testMakingNote, MAKING, type TestAnswer } from "./level-test";
+import { levelTestResult, testUncheckedSummary, selfCheckIntro, TEST_UNCHECKED_NOTE, stopTestBody, testMakingNote, MAKING, levelTestExpectLines, levelTestFailLine, fewerQuestionsLine, type TestAnswer } from "./level-test";
+import { levelTestTarget } from "./quiz";
+import testScreen from "../views/PromotionTestFullScreen.tsx?raw";
 
 // A written answer no model checked must not count toward passing a level test until someone marks it.
 // The result waits for the marks only when they could change it.
@@ -89,5 +91,45 @@ describe("level-test wording", () => {
     expect(testMakingNote(45)).toMatch(/can stop/);
     expect(testMakingNote(45)).not.toMatch(/\d+\s*(min|hour|second)/);
     expect(MAKING.canStop).toMatch(/no wait/);
+  });
+});
+
+// A Level 1 test (no earlier levels, so no review section) said "~25% previous level review",
+// "60% on review questions", "~45" questions, and "fewer than usual" at 35 of 45, the most it can make.
+// Port of TerraByte-Dev/TerraTutor#242.
+describe("a level test's copy follows whether it has a review section", () => {
+  it("with a review section: the parts and both bars", () => {
+    const lines = levelTestExpectLines(true).join("\n");
+    expect(lines).toMatch(/previous level review/);
+    expect(lines).toMatch(/85% overall and 60% on review questions/);
+  });
+  it("with none (Level 1): no review section and no review bar", () => {
+    const lines = levelTestExpectLines(false).join("\n");
+    expect(lines).not.toMatch(/review questions|60%|25%/);
+    expect(lines).toMatch(/All questions are on this level's material/);
+    expect(lines).toMatch(/85% overall required to pass/);
+  });
+  it("a failed test names only the bars of the test that was taken", () => {
+    expect(levelTestFailLine(true)).toBe("You need 85% overall and 60% on the review section. A 24-hour cooldown is now active.");
+    expect(levelTestFailLine(false)).toBe("You need 85% overall. A 24-hour cooldown is now active.");
+  });
+  it("says fewer than usual only below the test's own target", () => {
+    expect(fewerQuestionsLine(35, levelTestTarget(false))).toBeNull();
+    expect(fewerQuestionsLine(34, levelTestTarget(false))).toBe("Generated 34 of 35 questions — your model produced fewer than usual this run.");
+    expect(fewerQuestionsLine(35, levelTestTarget(true))).toBe("Generated 35 of 45 questions — your model produced fewer than usual this run.");
+    expect(fewerQuestionsLine(45, levelTestTarget(true))).toBeNull();
+  });
+  it("PromotionTestFullScreen draws them from the level's own target, never a fixed 45 or fixed review lines", () => {
+    const s = testScreen.replace(/\r\n?/g, "\n");
+    expect(s).toContain("const hasReview = levelTestReviewLevels(previousSyllabuses).length > 0;");
+    expect(s).toContain("const target = levelTestTarget(hasReview);");
+    expect(s).toContain("levelTestExpectLines(hasReview)");
+    expect(s).toContain("fewerQuestionsLine(questions.length, target)");
+    expect(s).toContain("testMakingNote(target)");
+    expect(s).toContain("(hasReview ? [1, 2] : [1])");
+    expect(s).toContain("{levelTestFailLine(reviewScore !== null)}");
+    expect(s).not.toMatch(/TEST_TOTAL_TARGET|~45|60% on (the )?review|85% overall/);
+    // The result screen's review line reads the bar from PASS_REVIEW too.
+    expect(s).not.toMatch(/reviewScore >= 60|need 60%/);
   });
 });
