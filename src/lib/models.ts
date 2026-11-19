@@ -225,3 +225,14 @@ export function defaultEmbeddingModel(provider: LLMProvider): string {
   // Embedding is local-first (Anthropic has no embeddings endpoint) — only OpenAI gets a cloud default.
   return provider === "openai" ? OPENAI_EMBEDDING_DEFAULT : OLLAMA_EMBEDDING_DEFAULT;
 }
+
+/**
+ * Whether `model` is one OpenEdu offers for Ollama (the generation and chat suggestions, and the
+ * embedding default), so the setup screen may offer to download it by name. A mistyped name
+ * ("nosuch-model:1", TerraTutor's click test 2026-11-19) would get a Download button that can only fail.
+ * ":latest" counts as no tag; case and spaces are ignored.
+ */
+export function isKnownOllamaModel(model: string): boolean {
+  const m = model.trim().toLowerCase().replace(/:latest$/, "");
+  return [...OLLAMA_GEN_SUGGESTIONS, ...OLLAMA_CHAT_SUGGESTIONS, OLLAMA_EMBEDDING_DEFAULT].includes(m);
+}

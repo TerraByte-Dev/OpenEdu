@@ -16,8 +16,9 @@
 import { getOllamaModels, log, warmOllamaModel } from "./llm";
 import { getChatConfig, getEmbeddingConfig, getGenerationConfig, getLLMProvider } from "./store";
 import { ollamaInstalled } from "./model-import";
-import { ollamaState, type OllamaState } from "./ollama-guide";
+import { OLLAMA_ADDRESS_NOT_ALLOWED, ollamaState, type OllamaState } from "./ollama-guide";
 import { APP_NAME } from "./product";
+import { isKnownOllamaModel } from "./models";
 
 export type CheckId = "provider" | "ollama" | "chat-model" | "gen-model" | "embed-model";
 export type Severity = "ok" | "blocking" | "optional";
@@ -77,10 +78,16 @@ export function evaluateSetup(facts: {
   online?: boolean;
 }): SetupStatus {
   const offline = facts.online === false;
-  // Offline, a Download button can only fail, so it is not offered; the detail says why instead.
+  // Offline, a Download button can only fail, so it is not offered; the detail says why instead. Nor for a
+  // name OpenEdu doesn't offer, a real Ollama tag outside the catalog included (models.ts isKnownOllamaModel):
+  // a typo such as "nosuch-model:1" got a "Download nosuch-model:1" button that could only fail (TerraTutor's
+  // click test 2026-11-19).
   const download = (model: string): CheckResult["fix"] =>
-    offline ? undefined : { label: `Download ${model}`, kind: "download-model", arg: model };
-  const needsInternet = offline ? " Downloading it needs the internet." : "";
+    offline || !isKnownOllamaModel(model) ? undefined : { label: `Download ${model}`, kind: "download-model", arg: model };
+  const notKnown = (model: string) =>
+    ` ${model} isn't one ${APP_NAME} offers, so it can't download it. Check the name in Settings › Provider & Models.`;
+  const needsInternet = (model: string) =>
+    !isKnownOllamaModel(model) ? notKnown(model) : offline ? " Downloading it needs the internet." : "";
   const checks: CheckResult[] = [];
 
   // A cloud provider sidesteps every local check — its own key is validated in Settings.
@@ -103,12 +110,18 @@ export function evaluateSetup(facts: {
           severity: "blocking",
           // Naming the actual error beats "something went wrong" — a wrong URL and a stopped service
           // are different problems with different fixes, and the message should let them be told apart.
-          detail: facts.ollamaInstalled === false
-            ? `Not installed on this computer yet. ${APP_NAME} needs it to think.`
-            : facts.ollamaError
-              ? `Not reachable: ${facts.ollamaError}`
-              : `Not running. ${APP_NAME} needs it to think.`,
-          fix: { label: "How to start Ollama", kind: "external", arg: "https://ollama.com/download" },
+          // An address the app may not fetch (llm.ts getOllamaModels) is fixed in Settings, not by
+          // installing or starting Ollama.
+          ...(facts.ollamaError === OLLAMA_ADDRESS_NOT_ALLOWED
+            ? { detail: OLLAMA_ADDRESS_NOT_ALLOWED, fix: { label: "Open Settings", kind: "open-settings" as const } }
+            : {
+                detail: facts.ollamaInstalled === false
+                  ? `Not installed on this computer yet. ${APP_NAME} needs it to think.`
+                  : facts.ollamaError
+                    ? `Not reachable: ${facts.ollamaError}`
+                    : `Not running. ${APP_NAME} needs it to think.`,
+                fix: { label: "How to start Ollama", kind: "external" as const, arg: "https://ollama.com/download" },
+              }),
         },
   );
 
@@ -121,7 +134,7 @@ export function evaluateSetup(facts: {
             id: "chat-model",
             label: "Tutor model",
             severity: "blocking",
-            detail: `${facts.chatModel} is not installed. Without a model there is nothing to tutor with.${offline ? " Downloading it needs the internet, so import it from a USB stick below." : ""}`,
+            detail: `${facts.chatModel} is not installed. Without a model there is nothing to tutor with.${!isKnownOllamaModel(facts.chatModel) ? notKnown(facts.chatModel) : offline ? " Downloading it needs the internet, so import it from a USB stick below." : ""}`,
             fix: download(facts.chatModel),
           },
     );
@@ -134,7 +147,7 @@ export function evaluateSetup(facts: {
         id: "gen-model",
         label: "Course builder",
         severity: "blocking",
-        detail: `${gen} builds new courses and is not installed. ${offline ? "Downloading it needs the internet, so open" : "Download it, or open"} Settings and pick ${facts.chatModel} for building courses too.`,
+        detail: `${gen} builds new courses and is not installed. ${!isKnownOllamaModel(gen) ? `${gen} isn't one ${APP_NAME} offers, so open` : offline ? "Downloading it needs the internet, so open" : "Download it, or open"} Settings and pick ${facts.chatModel} for building courses too.`,
         fix: download(gen) ?? { label: "Open Settings", kind: "open-settings" },
       });
     }
@@ -152,7 +165,7 @@ export function evaluateSetup(facts: {
               id: "embed-model",
               label: "Notebook search",
               severity: "optional",
-              detail: `${facts.embedModel} is not installed. The tutor still works; it just cannot search your notes.${needsInternet}`,
+              detail: `${facts.embedModel} is not installed. The tutor still works; it just cannot search your notes.${needsInternet(facts.embedModel)}`,
               fix: download(facts.embedModel),
             },
       );

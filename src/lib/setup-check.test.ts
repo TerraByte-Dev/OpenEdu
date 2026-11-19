@@ -78,11 +78,32 @@ describe("evaluateSetup", () => {
   });
 
   it("blocks on a missing chat model and offers to download it", () => {
-    const s = evaluateSetup(facts({ installed: ["nomic-embed-text:latest"] }));
+    const s = evaluateSetup(facts({ installed: ["nomic-embed-text:latest"], chatModel: "gemma4:e2b" }));
     const chat = s.checks.find((c) => c.id === "chat-model")!;
     expect(chat.severity).toBe("blocking");
     expect(s.ready).toBe(false);
-    expect(chat.fix).toEqual({ label: "Download gemma3:1b", kind: "download-model", arg: "gemma3:1b" });
+    expect(chat.fix).toEqual({ label: "Download gemma4:e2b", kind: "download-model", arg: "gemma4:e2b" });
+  });
+
+  // TerraTutor's click test 2026-11-19: a mistyped tutor model got a "Download nosuch-model:1" button that
+  // could only fail.
+  it("offers a download only for a model OpenEdu offers, and says a name it doesn't know is unknown", () => {
+    for (const chatModel of ["nosuch-model:1", "gemma3:1b"]) {
+      const chat = evaluateSetup(facts({ installed: ["nomic-embed-text:latest"], chatModel })).checks.find((c) => c.id === "chat-model")!;
+      expect(chat.severity, chatModel).toBe("blocking");
+      expect(chat.fix, chatModel).toBeUndefined();
+      expect(chat.detail, chatModel).toContain(`${chatModel} isn't one OpenEdu offers, so it can't download it.`);
+    }
+    for (const chatModel of ["gemma4:e2b", "GEMMA4:E4B ", "qwen3.5:0.8b"]) {
+      expect(evaluateSetup(facts({ installed: [], chatModel })).checks.find((c) => c.id === "chat-model")!.fix?.kind, chatModel).toBe("download-model");
+    }
+    const gen = evaluateSetup(facts({ generationModel: "nosuch-model:1" })).checks.find((c) => c.id === "gen-model")!;
+    expect(gen.fix).toEqual({ label: "Open Settings", kind: "open-settings" });
+    expect(gen.detail).toContain("nosuch-model:1 isn't one OpenEdu offers, so open Settings");
+    const embed = evaluateSetup(facts({ embedModel: "nosuch-embed:1" })).checks.find((c) => c.id === "embed-model")!;
+    expect(embed.fix).toBeUndefined();
+    expect(embed.detail).toContain("nosuch-embed:1 isn't one OpenEdu offers");
+    expect(evaluateSetup(facts({ installed: ["gemma3:1b"], embedModel: "nomic-embed-text:latest" })).checks.find((c) => c.id === "embed-model")!.fix?.kind).toBe("download-model");
   });
 
   // The judgement call: a missing embedder degrades grounding, it does not stop tutoring. Blocking
@@ -168,13 +189,13 @@ describe("evaluateSetup", () => {
   });
 
   it("offers no Download button with no network, and says a download needs the internet", () => {
-    const s = evaluateSetup(facts({ installed: [], online: false }));
+    const s = evaluateSetup(facts({ installed: [], chatModel: "gemma4:e2b", online: false }));
     for (const c of s.checks.filter((c) => c.severity !== "ok")) {
       expect(c.fix?.kind, c.id).not.toBe("download-model");
       expect(c.detail, c.id).toMatch(/needs the internet/);
     }
     // Online (or unknown), the downloads are offered as before.
-    expect(evaluateSetup(facts({ installed: [] })).checks.find((c) => c.id === "chat-model")?.fix?.kind).toBe("download-model");
+    expect(evaluateSetup(facts({ installed: [], chatModel: "gemma4:e2b" })).checks.find((c) => c.id === "chat-model")?.fix?.kind).toBe("download-model");
   });
 
   it("offline, a missing course builder points at Settings instead of a download", () => {
