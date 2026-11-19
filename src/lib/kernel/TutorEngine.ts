@@ -28,6 +28,7 @@ import { turnSystemPrompt, WORKED_ANSWER_RULES } from "./outputRules";
 import { isFirstTurnHold, withFirstTurnHold } from "./attemptFirst";
 import { isCheckBeforePraiseTurn, withCheckBeforePraise } from "./checkBeforePraise";
 import { askedWord, lookupDictionary, withDictionaryNote, type DictionaryShown } from "./defineWord";
+import { arithmeticFactTurn, withArithmeticFactNote, type ArithmeticFact } from "./arithmeticFact";
 import { lookupWord } from "../dictionary";
 import { budgetFor, fitMessages, capText, formatBudgetUsage, DEFAULT_CONTEXT_TOKENS, type Budget } from "./budget";
 import { ground, groundedIn, shouldRetrieve, EMPTY_GROUNDING, type Grounding, type RetrievalMode } from "./ground";
@@ -100,6 +101,9 @@ export interface TutorTurn {
   // baseline at the same commit (EVAL_DICTIONARY=off). The asked word is still detected and reported.
   // Default "on"; the app never sets it.
   dictionary?: "on" | "off";
+  // "off" sends no arithmetic-fact note on this turn (arithmeticFact.ts), so an eval can run its paired
+  // baseline at the same commit. Default "on"; the app never sets it.
+  arithmeticFacts?: "on" | "off";
   // "off" keeps the dictionary senses in stored order (lever 18 as shipped), so the define eval can run
   // lever 19's paired baseline at the same commit (EVAL_SENSE_RANK=off). Default "on"; the app never
   // sets it.
@@ -159,6 +163,9 @@ export interface TutorTurnResult {
   // The entry that note was built from, exactly the senses in it (defineWord.ts shownEntry), for the
   // chat's dictionary card; null whenever dictionaryNote is null. Not part of the request.
   dictionaryShown: DictionaryShown | null;
+  // The arithmetic fact this turn's note gave the model (arithmeticFact.ts), or null for none (not a plain
+  // arithmetic question, a mastery check, the tutor's own question, another note's turn, or "off").
+  arithmeticFact: ArithmeticFact | null;
   // Set when Ollama could not parse a tool call the model wrote (OllamaToolCallParseError in llm.ts)
   // and the kernel answered the turn with one call without tools instead of failing it. `iteration`
   // is the model call that failed (0 = the first); `error` is Ollama's own error text. Null on every
@@ -233,6 +240,7 @@ function fixedReplyResult(text: string, contextTokens: number): TutorTurnResult 
     askedWord: null,
     dictionaryNote: null,
     dictionaryShown: null,
+    arithmeticFact: null,
     toolCallRecovery: null,
     replyChoices: null,
     answerCheck: null,
@@ -343,6 +351,14 @@ export class TutorEngine {
     const dictionaryLookup = asked && !disclosure && !firstTurnHold && !checkBeforePraiseTurn && turn.dictionary !== "off"
       ? lookupDictionary(asked.word, lookupWord, undefined, ctx.abort, turn.senseRank === "off" ? undefined : asked.context)
       : Promise.resolve(null);
+    // The arithmetic-fact note (arithmeticFact.ts, ported from TerraTutor #250): the student's newest
+    // message plainly asks one simple arithmetic fact ("what is 7 times 8?"), worked out exactly by code.
+    // Not in a mastery check or on the tutor's own question (arithmeticFactTurn), and never beside another
+    // note: a safety disclosure, the first-turn hold, check-before-praise, a meaning question, or the card
+    // the app makes below (`arithmeticFact`, after the flashcard stage). Any other turn is sent as before.
+    const asksFact = !disclosure && !firstTurnHold && !checkBeforePraiseTurn && !asked && turn.arithmeticFacts !== "off"
+      ? arithmeticFactTurn(conversation, ctx.activeSkill?.name)
+      : null;
     // The answer check (answerCheck.ts): the student's answer to the tutor's question in a mastery
     // check gets a verdict from code (a blind key, a code compare, a structured grading call) before
     // the reply is written. Started here, awaited after retrieval; it never throws. On a turn it gives a
@@ -385,6 +401,7 @@ export class TutorEngine {
         turn.onToolEvent?.({ kind: "error", id: APP_FLASHCARD_CALL_ID, name: FLASHCARD_TOOL, error: "no card was made" });
       }
     }
+    const arithmeticFact = appCard ? null : asksFact;
 
     const offered = new Set(eduTools.map((t) => t.name));
 
@@ -471,6 +488,11 @@ ${lastUser.content}` };
       const idx = messages.map((m) => m.role).lastIndexOf("user");
       messages[idx] = { ...messages[idx], content: withDictionaryNote(messages[idx].content, dictionaryNote) };
     }
+    if (arithmeticFact) {
+      // Same place as the other notes: after the grounding block and the student's text.
+      const idx = messages.map((m) => m.role).lastIndexOf("user");
+      messages[idx] = { ...messages[idx], content: withArithmeticFactNote(messages[idx].content, arithmeticFact) };
+    }
     if (appCard) {
       // Same place as the other notes: after the grounding block and the student's text.
       const idx = messages.map((m) => m.role).lastIndexOf("user");
@@ -489,7 +511,7 @@ ${lastUser.content}` };
       return result;
     }
     try {
-      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
+      return await this.respond(turn, ctx, { appCall: appCard?.call ?? null, appAsk, messages, budget, toolResultCap, toolDefs, offered, manifest, grounding, workedAnswerRules, firstTurnHold, askedWord: asked?.word ?? null, dictionaryNote, dictionaryShown: dictionary?.shown ?? null, arithmeticFact, answerCheck, checkAnswers: !disclosure && turn.answerCheck !== "off", disclosureTurn: disclosure, keepsNothing, answerTurn, answered: newest?.content ?? "", masteryCheck: inMasteryCheck(conversation, ctx.activeSkill?.name) });
     } catch (e) {
       throw new TutorTurnError(e, grounding);
     }
@@ -515,6 +537,7 @@ ${lastUser.content}` };
       askedWord: string | null;
       dictionaryNote: string | null;
       dictionaryShown: DictionaryShown | null;
+      arithmeticFact: ArithmeticFact | null;
       answerCheck: AnswerCheck | null;
       /** False when the caller turned the answer check off (TutorTurn.answerCheck), or the newest message is
        *  a safety disclosure: nothing on that turn is graded, a card's answer included. */
@@ -897,6 +920,7 @@ ${lastUser.content}` };
       askedWord: prepared.askedWord,
       dictionaryNote,
       dictionaryShown: prepared.dictionaryShown,
+      arithmeticFact: prepared.arithmeticFact,
       toolCallRecovery,
       replyChoices,
       answerCheck,

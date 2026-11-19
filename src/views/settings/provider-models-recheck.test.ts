@@ -35,6 +35,8 @@ vi.mock("./LessonsNote", () => ({ default: () => null }));
 vi.mock("../../components/ModelImport", () => ({ default: () => null }));
 
 import ProviderModels from "./sections/ProviderModels";
+import { getOllamaModels } from "../../lib/llm";
+import { OLLAMA_ADDRESS_NOT_ALLOWED, OLLAMA_ADDRESS_NOT_ALLOWED_HERE } from "../../lib/ollama-guide";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -122,5 +124,17 @@ describe("saving in Provider & Models runs the setup check again", () => {
 
   it("not when nothing was saved", () => {
     expect(recheck).not.toHaveBeenCalled();
+  });
+});
+
+describe("an Ollama address the app may not use, shown under the Server URL box", () => {
+  it("points at the box above, never at the screen you are already on (port of TerraTutor #249)", async () => {
+    vi.mocked(getOllamaModels).mockResolvedValueOnce({ models: [], error: OLLAMA_ADDRESS_NOT_ALLOWED });
+    const save = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Save & Check")!;
+    await act(async () => { click(save); });
+    const text = host.textContent ?? "";
+    expect(text).toContain(OLLAMA_ADDRESS_NOT_ALLOWED_HERE);
+    expect(text).not.toContain("Check the Server URL in Settings › Provider & Models");
+    expect(text).not.toContain("Install from");
   });
 });
