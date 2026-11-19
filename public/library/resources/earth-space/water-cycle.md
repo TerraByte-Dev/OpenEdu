@@ -2,7 +2,7 @@
 id: earth-space/water-cycle
 title: The Water Cycle
 aliases: [water cycle, hydrologic cycle, evaporation condensation precipitation, how rain forms]
-tags: [earth science, water cycle, weather, hydrology, evaporation]
+tags: [earth science, water cycle, weather, hydrology, evaporation, condensation, precipitation]
 subject: earth-space
 summary: The continuous movement of water through evaporation, condensation, precipitation, and collection.
 asset: assets/earth-space/water-cycle.svg

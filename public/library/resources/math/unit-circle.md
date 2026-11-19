@@ -2,7 +2,7 @@
 id: math/unit-circle
 title: Unit Circle
 aliases: [unit circle, trig circle, trigonometric circle]
-tags: [math, trigonometry, sine, cosine, tangent, radians, degrees]
+tags: [math, trigonometry, sine, cosine, tangent, radians, degrees, trig]
 subject: math
 summary: Common angles on the unit circle with their radian measure and exact sin/cos/tan values.
 asset: assets/math/unit-circle.svg

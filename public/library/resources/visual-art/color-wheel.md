@@ -2,7 +2,7 @@
 id: visual-art/color-wheel
 title: Color Wheel
 aliases: [color wheel, colour wheel, primary secondary colors, complementary colors, analogous colors, color theory]
-tags: [visual art, color, color theory, primary, secondary, complementary]
+tags: [visual art, color, color theory, primary, secondary, complementary, colour]
 subject: visual-art
 summary: The 12-hue artist's (RYB) color wheel with primary, secondary, tertiary, and color relationships.
 asset: assets/visual-art/color-wheel.svg

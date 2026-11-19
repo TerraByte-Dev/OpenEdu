@@ -286,6 +286,28 @@ describe("matchResourcesScored — Resources tab: one word inside a longer name 
     expect(score("the shapes", flow)).toBeLessThan(MIN_LIBRARY_SCORE);
   });
 
+  it("counts a one-letter word as a word and a number as none (port of TerraTutor #254)", () => {
+    // tokenize drops "x" for length, so counting tokens made "x axis" one word: a course called X Axis lost the
+    // Coordinate Plane, whose alias "x axis y axis" its tags never repeat. A number names no card, so "1 to 10"
+    // stays one word and does not reach the Bill of Rights through "amendments 1 to 10".
+    const plane = entry({ id: "math/plane", title: "The Coordinate Plane", aliases: ["x axis y axis"], tags: ["math", "graphing"] });
+    const bill = entry({ id: "civ/bill", title: "Bill of Rights", aliases: ["amendments 1 to 10"], tags: ["civics", "constitution"] });
+    const s = (q: string, e: LibraryEntry) =>
+      matchResourcesScored(q, [plane, bill, filler], 5, { oneWordNeedsTag: true }).find((r) => r.entry.id === e.id)?.score ?? 0;
+    expect(s("x axis", plane)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
+    expect(s("1 to 10", bill)).toBeLessThan(MIN_LIBRARY_SCORE);
+  });
+
+  it("reads the tags for the query's one word, not for a number before it", () => {
+    // "10 frames" is one word. Its first token is "10", which no tag names; "frames" is the word the tags hold,
+    // so the check keeps the bonus the default path gives. (Shipped Library: "10 amendments" lost the bonus
+    // on the Bill of Rights, whose alias holds "first 10 amendments", and fell below Constitutional Amendments.)
+    const frames = entry({ id: "math/frames", title: "Ten Frames", aliases: ["counting with 10 frames"], tags: ["math", "frames"] });
+    const s = (q: string, oneWordNeedsTag: boolean) =>
+      matchResourcesScored(q, [frames, filler], 5, { oneWordNeedsTag }).find((r) => r.entry.id === frames.id)?.score ?? 0;
+    expect(s("10 frames", true)).toBe(s("10 frames", false));
+  });
+
   it("is off unless asked for: the default path keeps the one-word bonus", () => {
     expect(score("shapes", flow, false)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
   });

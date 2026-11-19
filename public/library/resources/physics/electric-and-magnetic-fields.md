@@ -2,7 +2,7 @@
 id: physics/electric-and-magnetic-fields
 title: Electric & Magnetic Fields
 aliases: [electric field, magnetic field, coulombs law, electromagnetism, lorentz force, right hand rule]
-tags: [physics, electricity, magnetism, fields, coulombs law]
+tags: [physics, electricity, magnetism, fields, coulombs law, electric]
 subject: physics
 summary: Coulomb's law, electric field and force, and the magnetic force on charges and wires.
 asset: assets/physics/electric-and-magnetic-fields.svg

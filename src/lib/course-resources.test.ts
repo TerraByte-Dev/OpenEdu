@@ -112,4 +112,32 @@ describe("courseResources: the Resources tab's cards for a course", () => {
   ])("keeps %s's card when a tag names the word as an -es or -ies plural", (topic, id) => {
     expect(courseResources(topic, [], manifest).map((e) => e.id)).toContain(id);
   });
+
+  // Port of TerraTutor #254. The #253 port dropped these: the card named the word only in a keyword alias
+  // ("nucleus mitochondria ribosome"). Each card now carries the word as a tag.
+  it.each([
+    ["Mitochondria", "biology/organelle-functions"],
+    ["Igneous", "earth-space/rock-cycle"],
+    ["Greek", "ela/greek-latin-roots"],
+    ["Latin", "ela/greek-latin-roots"],
+    ["Spectrum", "physics/electromagnetic-spectrum"],
+    ["Precipitation", "earth-space/water-cycle"],
+    ["Condensation", "earth-space/water-cycle"],
+    ["Trig", "math/unit-circle"],
+    ["Trig", "math/trig-identities"],
+    ["Electric", "physics/electric-and-magnetic-fields"],
+    ["Colour", "visual-art/color-wheel"],
+    ["Sun", "earth-space/solar-system-planets"],
+    ["The Sun", "earth-space/solar-system-planets"],
+  ])("keeps %s's card now that the card's tags name the word (%s)", (topic, id) => {
+    expect(courseResources(topic, [], manifest).map((e) => e.id)).toContain(id);
+  });
+
+  // "X Axis" has one token ("x" is too short) and lost the Coordinate Plane, whose alias "x axis y axis" its
+  // tags don't repeat. A one-letter word counts as a word; a number does not.
+  it("keeps the Coordinate Plane for X Axis and Y Axis, and gives 1 to 10 no Bill of Rights", () => {
+    expect(courseResources("X Axis", [], manifest).map((e) => e.id)).toContain("math/coordinate-plane");
+    expect(courseResources("Y Axis", [], manifest).map((e) => e.id)).toContain("math/coordinate-plane");
+    expect(courseResources("1 to 10", [], manifest).map((e) => e.id)).not.toContain("us-history-civics/bill-of-rights");
+  });
 });

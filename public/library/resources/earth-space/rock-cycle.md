@@ -2,7 +2,7 @@
 id: earth-space/rock-cycle
 title: The Rock Cycle
 aliases: [rock cycle, igneous sedimentary metamorphic, how rocks form, rock types]
-tags: [earth science, geology, rocks, rock cycle, minerals]
+tags: [earth science, geology, rocks, rock cycle, minerals, igneous]
 subject: earth-space
 summary: How igneous, sedimentary, and metamorphic rocks transform into one another.
 asset: assets/earth-space/rock-cycle.svg
