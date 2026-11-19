@@ -1103,6 +1103,48 @@ its node labels quoted inside their shapes (a circle stays a circle), then, for 
 `}`s at its end that close nothing; if that fails too, the child sees a plain sentence and the
 diagram's labels, never the source.
 
+### Arithmetic facts the student asks for (`kernel/arithmeticFact.ts`)
+
+Ported from TerraTutor #250. TerraTutor's click test 2026-11-19: "what is 7 times 8 in the times tables?"
+in a Fractions course got 56 from `gemma4:e2b` in 1 of 5 replies; the rest put it off ("a topic for
+later", "find the row for 7 and the column for 8, what number do you find?"). Code owns that fact now, as
+the dictionary owns a word's meaning (`docs/BENCHMARKS.md` lever 20). When the student's newest message
+plainly asks one arithmetic fact, code works it out and appends it after the student's text, in the same
+place as the other notes: an `<arithmetic_fact>` line ("7 × 8 = 56") and a `<tutor_note>` that says to
+give it in the first sentence, not to ask the student to work it out or put it off, and then, if it helps,
+to link it back to the work. No model call is added, the system prompt is unchanged and the note is not
+saved; a turn it does not fire on is sent byte for byte as before (`arithmeticFactTurn.test.ts`), and
+`TutorTurnResult.arithmeticFact` says what was given.
+
+- **What fires** (`askedArithmetic`, on the message's last sentence): "what is / what's / how much is E",
+  "what does E equal / make", "(can you) tell me / I forgot / I don't know what E is", "E = ?", with only
+  "in the times tables", "again", "please" and the like after it, and no number (digits or a number word)
+  in any sentence before it. E is one operation (+, −, ×, ÷ as symbols or words, or "double") on whole
+  numbers, digits or number words.
+- **Facts, not exercises** (Fable's decision for TerraTutor, 2026-11-19, as the maintainer's delegate):
+  + with both numbers 0-100; − with both 0-100 and no negative result; × with both 0-12; ÷ by 1-12 that
+  comes out even with a quotient up to 12; double a number up to 100. No fractions, no decimals, and no
+  "half / a third / a quarter of N" (a fraction of a set is a Fractions course's own exercise, as a
+  fraction sum is). A problem the student types is held by the attempt-first policy (B4 G1 on
+  k12-flow-fr, whose "what's 407 + 285?" a wider version answered), and a fraction or decimal sum is a
+  lesson's own exercise. A test pins that no message the k12-flow or k12-flow-fr benchmarks send fires.
+  Known gap: in a course that teaches addition or the times tables, "15 + 27" or "7 × 8" is the exercise
+  itself, and the note still states it.
+- **What does not**: a word problem, typed before the question ("Sam has 5 apples and gets 3 more. What is
+  5 + 3?") or after E ("7 times 8 apples", "in binary"), a pasted list of questions, two operations,
+  "times" in other senses, a lone fraction or date ("12/25", "9-11"), algebra ("2x + 3"), a try ("is 7 x 8
+  56?", "is it 56? what is 7 times 8", "I think it's 54"), and any message that asks to be quizzed or to
+  work it out ("quiz me", "ask me", "hint", "don't tell me", "let me try").
+- **Never a question the tutor asked**: not on any turn of a mastery check (`inMasteryCheck`: assess mode,
+  the quiz chip, or "quiz me" / "test me" among the student's last messages), and not when one of the
+  tutor's last five messages (`TUTOR_LOOKBACK`) holds every operand, as a number or a number word
+  ("eight sevens"), or holds the answer and an operand ("What is 54 ÷ 6?" then "what's 6 times 9?"): it
+  may have asked that sum, or a word problem with those numbers. Five, not one, because a hint can sit
+  between the tutor's question and the student's ask, and a long quiz runs past `inMasteryCheck`'s window
+  (the student's last five messages), where a question typed runs in explain mode. Not on a
+  safety-disclosure turn, beside the first-turn hold, check-before-praise or a flashcard the app makes on
+  that turn, or on a meaning question.
+
 ## AI disclosure and the break reminder (`ai-notice.ts`, `break-reminder.ts`)
 
 California SB 243 (in effect since 2026-01-01) describes, for a companion chatbot a minor uses, a
