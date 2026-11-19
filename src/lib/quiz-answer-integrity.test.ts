@@ -393,6 +393,9 @@ describe("multiple-choice options must be distinct", () => {
     expect(ask("Which is greater: 0.5 or 0.50?", ["A) 0.5", "B) 0.50", "C) They are equal", "D) You can't tell"], "C) They are equal")).toEqual([]);
     expect(ask("Which is spelled correctly?", ["A) twenty-one", "B) twenty one", "C) twentyone", "D) twenty-won"], "A) twenty-one")).toEqual([]);
     expect(ask("Which is right?", ["A) a eighth", "B) an eighth", "C) an eight", "D) a eight"], "B) an eighth")).toEqual([]);
+    // A stem about hyphens or articles asks how it is written (review of the #252 port, 2026-11-19).
+    expect(ask("Which number uses a hyphen correctly?", ["A) twenty-one", "B) twenty one", "C) twentyone", "D) twenty-won"], "A) twenty-one")).toEqual([]);
+    expect(ask("Which uses the correct article?", ["A) a half", "B) half", "C) an half", "D) the half"], "A) a half")).toEqual([]);
     // A stem that names only one of them still gets the twins caught.
     expect(duplicateOptionPair(["A) 0.5", "B) 0.50", "C) 0.05", "D) 5"], "Is 0.5 more than 0.05?")).toEqual([0, 1]);
     expect(ask("What fraction of the pie is left?", ["A) one eighth", "B) 0.125", "C) one fourth", "D) one half"], "A) one eighth")).not.toEqual([]);
@@ -409,12 +412,15 @@ describe("multiple-choice options must be distinct", () => {
       ["Which word is a proper noun?", ["A) Texas", "B) texas", "C) state", "D) river"], "A) Texas"],
       ["Which letter is uppercase?", ["A) B", "B) b", "C) d", "D) p"], "A) B"],
       ["Which word should start with a capital?", ["A) Monday", "B) monday", "C) dog", "D) blue"], "A) Monday"],
+      ["Which shows correct capitalization?", ["A) New York", "B) new york", "C) NEW YORK", "D) New york"], "A) New York"],
     ] as Array<[string, string[], string]>) {
       expect(duplicateOptionPair(options, question_text), question_text).toBeNull();
       expect(ask(question_text, options, key), question_text).toEqual([]);
     }
     expect(duplicateOptionPair(["A) The Normal Force.", "B) the normal  force", "C) Gravity", "D) Friction"], "Which force pushes up on a book on a table?")).toEqual([0, 1]);
     expect(duplicateOptionPair(["A) Paris", "B) paris", "C) Rome", "D) Lyon"], "What is the capital of France?")).toEqual([0, 1]);
+    // "Capitalism" is not about capitals (review of the #252 port, 2026-11-19).
+    expect(duplicateOptionPair(["A) Capitalism", "B) capitalism", "C) Socialism", "D) Feudalism"], "What economic system is capitalism?")).toEqual([0, 1]);
     expect(duplicateOptionPair(["A) Hello.", "B) Hello", "C) Bye.", "D) Hi."], "Which word needs a capital letter?")).toEqual([0, 1]);
   });
 

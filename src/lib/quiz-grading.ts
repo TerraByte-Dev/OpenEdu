@@ -502,8 +502,9 @@ const sameNumber = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 // A stem about how a number is written, where "1/2" and "0.5", or "0.5" and "0.50", are different answers:
 // "Which is a decimal?", "Write 2/4 in simplest form.", "Round 0.496 to the nearest hundredth.", "Which
-// shows one thousand with a comma?", "Which fraction has 8 as its denominator?", "What is the ordinal for 3?".
-const ABOUT_WRITTEN_FORM = /\b(?:decimals?|percents?|percentages?|fraction form|as an? (?:fraction|decimal|percent|whole number|mixed number)|simplest|lowest terms|simplif\w*|reduc\w*|written|write|writes|writing|notation|numerals?|words?|word form|standard form|expanded form|improper|mixed numbers?|unsimplified|numerators?|denominators?|ordinals?|commas?|digits?|places?|nearest|spell\w*)\b/i;
+// shows one thousand with a comma?", "Which fraction has 8 as its denominator?", "What is the ordinal for 3?",
+// "Which number uses a hyphen correctly?", "Which uses the correct article?".
+const ABOUT_WRITTEN_FORM = /\b(?:decimals?|percents?|percentages?|fraction form|as an? (?:fraction|decimal|percent|whole number|mixed number)|simplest|lowest terms|simplif\w*|reduc\w*|written|write|writes|writing|notation|numerals?|words?|word form|standard form|expanded form|improper|mixed numbers?|unsimplified|numerators?|denominators?|ordinals?|commas?|digits?|places?|nearest|spell\w*|hyphen\w*|articles?)\b/i;
 
 // An option that the stem itself names, as a number ("Which is greater: 0.5 or 0.50?" with "They are equal").
 function stemNames(stem: string, option: string): boolean {
@@ -523,11 +524,12 @@ function articleOnly(a: string, b: string): boolean {
 
 // A stem about capital letters, where "Hello." and "hello." are different answers: "Which word needs a
 // capital letter?", "Which is capitalized correctly?", "Which is a proper noun?". Not a bare "capital"
-// ("What is the capital of France?" with "Paris" and "paris" is still caught). Fable's decision for
+// ("What is the capital of France?" with "Paris" and "paris" is still caught), nor "capitalism" ("Capitalism"
+// and "capitalism" are one answer; review of the #252 port). Fable's decision for
 // TerraTutor #252, 2026-11-19, as the maintainer's delegate: a case-only twin from a generation audit ("The
 // Normal Force." / "the normal force") marks a learner wrong, a capitals question whose stem doesn't say so
 // only costs a rewrite.
-const ABOUT_CAPITALS = /capitali[sz]|capital letter|(?:start|begin)s? with an? capital|upper[ -]?case|lower[ -]?case|proper noun/i;
+const ABOUT_CAPITALS = /capitali[sz](?:e|ed|es|ing|ation)\b|capital letter|(?:start|begin)s? with an? capital|upper[ -]?case|lower[ -]?case|proper noun/i;
 
 // The first pair of options a learner can't tell apart, as their indices, or null: the same option once a
 // label, case, quotes, spacing and a closing period are set aside (normalizeOption; "Hello!" and "Hello.",

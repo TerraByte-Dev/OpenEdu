@@ -214,10 +214,10 @@ written: they came from a once-a-minute timer whose only reader was the learning
   key's number written another way ("0.5", "one half", "2/4" or "50%" beside the key "1/2", "seven" beside
   "7"; `optionEqualToKey`); neither number check applies when the stem asks how a number is written ("as a
   decimal", "simplest form", "nearest hundredth", "with a comma", "denominator", "which word",
-  "ordinal", "spelled"), the first not when the stem names both options ("Which is greater: 0.5 or 0.50?"),
+  "ordinal", "spelled", "hyphen", "article"), the first not when the stem names both options ("Which is greater: 0.5 or 0.50?"),
   and the second not for an option that differs from the key only in "a" against "an" ("a
   eighth"/"an eighth"; "twenty one" beside "twenty-one", or "half" beside "a half", is caught unless the
-  stem asks about spelling or writing), so a learner who picks the other right option is never marked wrong (ported from TerraTutor
+  stem asks about spelling, writing, hyphens or articles), so a learner who picks the other right option is never marked wrong (ported from TerraTutor
   #251 and #252; two options that state different true facts are left to the content review's "unanswerable"
   verdict), near-duplicate dedupe, letter references in explanations renamed after the option shuffle, and an
   independent verify pass on capable tiers) and the end-of-test batched grader (deterministic match first,

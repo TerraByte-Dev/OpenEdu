@@ -167,7 +167,7 @@ The section for each release is also what the app shows when you press Check for
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
   "0.5" and "0.50". Choices that differ only in an end mark or "a"/"an" stay apart, since that is what an
   English question asks about ("an eighth" and "a eighth"), and so do a hyphen or a space in a question
-  about spelling ("twenty-one" and "twenty one"), "Hello." and "hello." in a question about capital
+  about spelling or hyphens ("twenty-one" and "twenty one"), "Hello." and "hello." in a question about capital
   letters, and "0.5" and "0.50" when the question names both ("Which is greater: 0.5 or 0.50?").
 - **No "learned" without a mark.** In a mastery check, "I can mark that as learned for you!" or "You have
   successfully learned those concepts" is taken out unless a mark was saved.
