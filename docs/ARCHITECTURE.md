@@ -1148,6 +1148,9 @@ follows that message: it hides while the retry streams and comes back with the b
 (Ollama still down), is stopped before any reply, or never starts (#393's follow-up, ported from TerraTutor
 #250; before, the click cleared it and the learner had no way to ask again until they reopened the
 conversation).
+A message sent in the open conversation that gets no reply (Stop before any text, a failed turn, a turn
+that could not start because the tutor's instructions could not be read) says the same at once, when its
+turn ends (ported from TerraTutor #257; before, only on reopening the conversation).
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model

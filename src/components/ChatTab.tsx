@@ -129,7 +129,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Shown as the same buttons; a pick is sent as the student's next message. Cleared on send.
   const [replyChoices, setReplyChoices] = useState<ReplyChoices | null>(null);
   // The id of the learner's message the conversation ended on when it was opened, with no reply after it
-  // (thread-transcript.ts unansweredAtOpen). Shown with UNANSWERED_TURN while it is still the last message.
+  // (thread-transcript.ts unansweredAtOpen), or the message of the last turn that ended here. Shown with
+  // UNANSWERED_TURN while it is still the last message: a turn stopped before any text, or one that failed,
+  // saved no reply after it (ported from TerraTutor #257: until then the note came only on reopening).
   const [unanswered, setUnanswered] = useState<string | null>(null);
   // A pending permission "ask" — renders an Allow / Don't allow card and suspends until the choice.
   const [confirmPending, setConfirmPending] = useState<{ toolName: string; summary: string } | null>(null);
@@ -396,6 +398,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       if (turnOwnerRef.current === owner) {
         readNoticeLeft();
         turnOwnerRef.current = null;
+        setUnanswered(userMsg.id);
         setChatError(friendlyError(e));
       }
       return;
@@ -603,6 +606,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       if (turnOwnerRef.current === owner) {
         readNoticeLeft();
         turnOwnerRef.current = null;
+        // Shown only while it is still the last message: a reply, or card words handed back, follow it.
+        setUnanswered(userMsg.id);
         setStreamingText("");
         setStreaming(false);
         setReplyLanded(false);
