@@ -191,6 +191,16 @@ export function showsSetupGate(status: SetupStatus | null, dismissed: boolean, w
   return wasNeeded || status.checks.some((c) => c.severity === "optional" && c.id !== "embed-model");
 }
 
+/**
+ * Whether the first-run tour may show: once nothing blocks the tutor and the setup screen is gone. The
+ * screen can stay after setup is ready ("You're ready to go", an optional piece), and the tour over it
+ * pointed at a course list that wasn't on screen. It waits, not marked seen, and starts once the screen
+ * is gone.
+ */
+export function tourMayShow(status: SetupStatus | null, dismissed: boolean, wasNeeded = false): boolean {
+  return !!status?.ready && !showsSetupGate(status, dismissed, wasNeeded);
+}
+
 /** The I/O half: gather the facts, then hand them to the pure evaluator. */
 export async function probeEnvironment(): Promise<SetupStatus> {
   const base = await getLLMProvider();

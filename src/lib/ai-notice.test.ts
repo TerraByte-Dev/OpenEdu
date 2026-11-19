@@ -130,8 +130,9 @@ describe("About the lessons: the grown-up note", () => {
   });
 
   it("a local course model with a cloud provider set up (its key saved and its notice confirmed): the local nudge under either body", () => {
-    for (const p of ["openai", "anthropic"] as const) {
-      const ready = { cloudKeys: { [p]: true }, noticesSeen: [p] };
+    // The Checking model's own confirm (privacy.ts checkingNoticeMark) counts too: the nudge is about checking.
+    for (const [p, mark] of [["openai", "openai"], ["anthropic", "anthropic"], ["anthropic", "checking:anthropic"]] as const) {
+      const ready = { cloudKeys: { [p]: true }, noticesSeen: [mark] };
       expect(note(e2b, null, ready)).toEqual({ checked: false, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_UNCHECKED_E2B, nudge: LESSONS_NOTE_NUDGE_LOCAL });
       expect(note(e4b, qwen27, ready)).toEqual({ checked: false, title: LESSONS_NOTE_TITLE, body: LESSONS_NOTE_UNCHECKED, nudge: LESSONS_NOTE_NUDGE_LOCAL });
     }
@@ -142,6 +143,7 @@ describe("About the lessons: the grown-up note", () => {
       { cloudKeys: { openai: true }, noticesSeen: [] },
       { cloudKeys: { openai: false, anthropic: false }, noticesSeen: ["openai", "anthropic"] },
       { cloudKeys: { openai: true }, noticesSeen: ["anthropic"] },
+      { cloudKeys: { openai: true }, noticesSeen: ["checking:anthropic"] },
       { cloudKeys: {}, noticesSeen: ["ollama-cloud"] },
     ]) {
       expect(note(e2b, null, cloud).nudge).toBeNull();

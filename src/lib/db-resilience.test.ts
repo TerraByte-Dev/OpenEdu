@@ -175,11 +175,14 @@ describe("backups and learner PINs", () => {
     expect(storeTs).not.toMatch(/from "\.\/db"/);
   });
 
-  it("the restore steps and the restore help say the PIN comes back from the backup's day", () => {
+  it("the restore steps say the PIN comes back from the backup's day, once", () => {
     expect(RESTORE_PIN_NOTE).toContain("brings back each learner's PIN from the day of the backup");
     expect(RESTORE_PIN_NOTE).toContain("Settings, such as the model, are not in the backup");
     expect(restoreSteps).toContain("{RESTORE_PIN_NOTE}");
-    expect(learnerData).toContain("${RESTORE_PIN_NOTE}");
+    // Once, in the steps: Settings › Learner data also printed it in the row's help (port of TerraTutor #243).
+    expect(restoreSteps.split("RESTORE_PIN_NOTE").length - 1).toBe(2); // the import and the one use
+    expect(learnerData).toContain("<RestoreSteps />");
+    expect(learnerData).not.toContain("RESTORE_PIN_NOTE");
   });
 
   it("setting, changing or removing a PIN suggests a new backup", () => {

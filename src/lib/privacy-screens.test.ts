@@ -151,11 +151,14 @@ describe("Settings › Checking model saves a cloud review model only through th
     expect(choose.text.indexOf("reviewChoiceNotice(")).toBeLessThan(choose.text.indexOf("save("));
     expect(confirm.text.indexOf("markCloudNoticeSeen(")).toBeGreaterThan(-1);
     expect(confirm.text.indexOf("markCloudNoticeSeen(")).toBeLessThan(confirm.text.indexOf("save("));
+    // Its own mark (port of TerraTutor #243): the Checking confirm says the chat is not sent, so it must
+    // never stand in for the provider's confirm.
+    expect(confirm.text).toContain("markCloudNoticeSeen(checkingNoticeMark(feature))");
   });
 
   it("has every choice call choose, and is shown in the Models section", () => {
     expect(rp).toContain("onClick={() => choose(c.value)}");
-    expect(rp).toContain("<CloudNoticePanel feature={pending.feature} onConfirm={confirm} onCancel={() => setPending(null)} />");
+    expect(rp).toContain("<CloudNoticePanel feature={pending.feature} use=\"checking\" onConfirm={confirm} onCancel={() => setPending(null)} />");
     expect(pm).toContain("<ReviewModelPicker");
   });
 });

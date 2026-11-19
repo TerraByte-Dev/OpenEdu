@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { backupLearnerData } from "../../../lib/db";
 import { pickBackupDestination } from "../../../lib/backup-file";
-import { backupFileName, RESTORE_PIN_NOTE } from "../../../lib/db-resilience";
+import { backupFileName } from "../../../lib/db-resilience";
 import { getBackupStatus, runBackup, subscribeBackupStatus } from "../../../lib/backup-status";
 import { Section, SettingRow, ActionButton } from "../primitives";
 import RestoreSteps from "../../../components/RestoreSteps";
@@ -56,7 +56,7 @@ export default function LearnerData() {
         description={`Use a backup if ${APP_NAME} warns that learner data is damaged, or if work has gone missing.`}
         keywords="restore backup damaged recover replace file power cut"
       >
-        <SettingRow label="How to restore a backup" help={`Restoring replaces all current learner data with the data in the backup. Anything done after that backup was made will be lost. ${RESTORE_PIN_NOTE}`}>
+        <SettingRow label="How to restore a backup" help="Restoring replaces all current learner data with the data in the backup. Anything done after that backup was made will be lost.">
           <RestoreSteps />
         </SettingRow>
       </Section>

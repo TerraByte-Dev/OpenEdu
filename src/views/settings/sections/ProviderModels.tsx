@@ -48,6 +48,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
   // before a click on the confirm's buttons, and an async check there could reopen a confirm just answered.
   const seen = useRef<string[]>([]);
   const saved = useRef<Record<ModelJob, string>>({ gen: "", chat: "" });
+  const savedEmbedding = useRef("");
 
   // Initial load probes Ollama exactly once with the persisted URL; the effect below re-probes only when the
   // PROVIDER changes — NOT on every keystroke in the URL field (that fired a network probe per character and
@@ -73,7 +74,9 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
       const chat = (await getChatConfig()).model;
       saved.current.chat = chat;
       if (current()) setChatModelState(chat);
-      setEmbeddingModelState((await getEmbeddingConfig()).model);
+      const embedding = (await getEmbeddingConfig()).model;
+      savedEmbedding.current = embedding;
+      setEmbeddingModelState(embedding);
       setMaxCtx(await getMaxContextTokens());
       setRamBytes(await systemMemoryBytes());
       if (base.provider !== "ollama") {
@@ -104,9 +107,11 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
   // Persist the typed Ollama URL, then probe it. The green/red status only updates here (and on
   // provider/mount), so a connected dot always reflects a URL that was actually saved.
+  // App's setup check (onProviderChanged) runs again too, so a fixed URL clears "Tutor not running" at once.
   const saveAndCheckOllama = async () => {
     await setOllamaUrl(ollamaUrlValue);
     markSaved();
+    onProviderChanged?.();
     void checkOllama(ollamaUrlValue);
   };
 
@@ -150,6 +155,8 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
     if (job === "gen") { setGenModel(m); await setGenerationModel(m, provider); }
     else { setChatModelState(m); await setChatModel(m, provider); }
     markSaved();
+    // The setup check runs again, so a model fixed here clears "Tutor model missing" without a relaunch.
+    onProviderChanged?.();
   };
   const showModel = (job: ModelJob, m: string) => (job === "gen" ? setGenModel : setChatModelState)(m);
 
@@ -180,7 +187,16 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
   const commitGen = (m: string) => commitModel("gen", m);
   const commitChat = (m: string) => commitModel("chat", m);
-  const commitEmbedding = async () => { await setEmbeddingModel(embeddingModel.trim() || "nomic-embed-text"); markSaved(); };
+  // Like commitModel, an unchanged name is not saved again: the setup check after a save can load models,
+  // so a blur or Enter with nothing changed must not run it.
+  const commitEmbedding = async () => {
+    const m = embeddingModel.trim() || "nomic-embed-text";
+    if (m === savedEmbedding.current) return;
+    savedEmbedding.current = m;
+    await setEmbeddingModel(m);
+    markSaved();
+    onProviderChanged?.();
+  };
 
   const verifyKey = async (key: string) => {
     // The catalog's chat default, so a retired id here can never fail a good key with "Model not found".
@@ -311,7 +327,7 @@ export default function ProviderModels({ onProviderChanged }: SectionProps) {
 
         <SettingRow
           label="Checking model"
-          help="Reads each new lesson and set of quiz or test questions for false facts and wrong answer keys before the learner sees them. It is sent the course topic as the learner typed it and the text the course model wrote, and nothing else. Same as the course model is the default; a cloud model here asks for the same one-time confirm as choosing that company above."
+          help="Reads each new lesson and set of quiz or test questions for false facts and wrong answer keys before the learner sees them. It is sent the course topic as the learner typed it and the text the course model wrote, and nothing else. The default, Same as the course model, is the course model reading its own work, which is not counted as a second check. With a small course model, like gemma4:e2b or gemma4:e4b, the default reads only quiz and test questions, not lessons. A cloud model here asks for a one-time confirm first, like choosing that company above."
           keywords="checking review reviewer check verify false facts answer key content review_model"
         >
           <LessonsNote refresh={noteRefresh} />

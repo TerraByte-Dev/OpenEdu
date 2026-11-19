@@ -47,7 +47,8 @@ export const STORE_KEYS = {
   // autoReadAloud). Unset = the default, on. Per learner; not importable, like the daily goal.
   readAloudAuto: "read_aloud_auto",
   // The cloud choices (openai, anthropic, ollama-cloud) whose one-time privacy confirm has been
-  // accepted on this PC (privacy.ts, #293). Not importable: a settings file from another machine must
+  // accepted on this PC (privacy.ts, #293), plus checking:<feature> for the Checking model's own
+  // confirm (privacy.ts NoticeMark), which never counts as the chat confirm. Not importable: a settings file from another machine must
   // not count as the person here having read the notice.
   cloudNoticesSeen: "cloud_notices_seen",
   // The content review model, "Checking model" in Settings › Models (content-review.ts

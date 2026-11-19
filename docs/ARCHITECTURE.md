@@ -53,7 +53,7 @@ name, which never ends in `.db`. Settings asks the user to wait for "Backup save
 unplugging the stick. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 The backup is the whole database, so each learner's PIN hash (`learners.pin_hash`) is in it: restoring brings
 back the PINs of the backup's day. Settings are in the plugin store's own file, so a restore leaves them as
-they are. The restore steps and Settings › Learner data say so (`db-resilience.ts RESTORE_PIN_NOTE`), and the
+they are. The restore steps (shown in Settings › Learner data) say so (`db-resilience.ts RESTORE_PIN_NOTE`), and the
 learner menu's PIN screen suggests a new backup (`PIN_BACKUP_NOTE`), because a forgotten PIN cannot be
 recovered.
 
@@ -345,13 +345,18 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   or hand-edited; an Ollama tag such as `gemma4:e2b` is not a prefix) belongs to the provider
   `legacyModelOwner` gives it and is used only when that is the course model's provider; an Ollama tag
   named for a cloud provider (`anthropic:gemma4:e2b`) is ignored. A cloud reviewer is ignored, and the default applies, when
-  its privacy confirm was never accepted here (`needsCloudNotice` for OpenAI/Anthropic,
-  `modelNeedsCloudNotice` for an Ollama cloud model) or no key is saved for it.
+  its privacy confirm was never accepted here (`needsCheckingNotice`: that company's chat confirm, or the
+  Checking model's own, for OpenAI, Anthropic or an Ollama cloud model) or no key is saved for it.
 - **The Checking model setting** (Settings › Models, `ReviewModelPicker.tsx`) writes `review_model`:
   Same as the course model (unset), Off, an installed Ollama model, or a generation-catalog model of each
   cloud provider with a key saved here, all stored as `"<provider>:<model>"` (`reviewModelChoices`). A
   cloud choice is saved only after that company's one-time notice (`reviewChoiceNotice`, the same
-  `CloudNoticePanel` as the provider buttons; `privacy-screens.test.ts` holds the gate). `review_model`
+  `CloudNoticePanel` as the provider buttons with its own words, `use="checking"` /
+  `cloudNotice(feature, "checking")`: only the course topic and the course model's text are sent, and the
+  chat and courses stay on the models picked above; `privacy-screens.test.ts` holds the gate). Accepting
+  it stores `checking:<feature>` in `cloud_notices_seen`, not the company's own mark, so picking that
+  company as the provider later still shows the chat confirm; an accepted chat confirm covers the Checking
+  model too. `review_model`
   is importable like the other model settings; an imported cloud value does nothing until this PC's own
   notice was accepted (`cloud_notices_seen` is not importable) and a key is saved.
 - **Measured on `gemma4:e2b` as its own reviewer** (B9 rerun 2's saved output replayed, 2026-11-14, one
@@ -1191,7 +1196,8 @@ it names no person where a sentence works without one, and says "the learner" wh
   `LESSONS_NOTE_NUDGE_DIFFERENT` ("A different cloud model can check new lessons…"), since the default
   Checking model is the self-review. In states 4 and 5, `LESSONS_NOTE_NUDGE_LOCAL` ("You have a cloud model
   set up. It can check new lessons…", Fable's decision), only when a cloud provider is already set up here:
-  an OpenAI or Anthropic key is saved and that same company's one-time notice was confirmed. Without that it
+  an OpenAI or Anthropic key is saved and that same company's chat confirm or Checking confirm was accepted
+  (`needsCheckingNotice`). Without that it
   never shows: for anyone who has not chosen cloud use it would be an upsell. State 1 has no extra line.
   Both nudges say exactly what a lesson review is sent (`buildLessonReviewMessages`: "the course topic as
   the learner typed it and the lesson text, and nothing else"), never "nothing about the learner", which

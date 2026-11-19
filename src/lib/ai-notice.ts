@@ -5,7 +5,7 @@
 
 import { APP_NAME } from "./product";
 import { isEarlyReader, type Grade } from "./grade";
-import { isLocalModel, needsCloudNotice } from "./privacy";
+import { isLocalModel, needsCheckingNotice } from "./privacy";
 import type { LLMProvider } from "../types";
 
 /** Always on screen in a course chat: in its header, next to the tutor's name, from the first message on. */
@@ -143,7 +143,7 @@ export function lessonsNote(input: LessonsNoteInput): LessonsNote {
   if (!isLocalModel(courseModel)) return { ...base, checked: false, body: LESSONS_NOTE_UNCHECKED_CLOUD, nudge: LESSONS_NOTE_NUDGE_DIFFERENT };
   const measured = courseModel.model.trim().toLowerCase() === MEASURED_COURSE_MODEL;
   const cloudReady = (["openai", "anthropic"] as const)
-    .some((p) => input.cloudKeys[p] === true && !needsCloudNotice(p, input.noticesSeen));
+    .some((p) => input.cloudKeys[p] === true && !needsCheckingNotice(p, input.noticesSeen));
   return {
     ...base, checked: false,
     body: measured ? LESSONS_NOTE_UNCHECKED_E2B : LESSONS_NOTE_UNCHECKED,

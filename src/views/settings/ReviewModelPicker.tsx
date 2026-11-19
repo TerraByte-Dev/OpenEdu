@@ -3,7 +3,7 @@ import type { LLMProvider } from "../../types";
 import { getApiKey, getCloudNoticesSeen, getLLMProvider, getReviewModel, markCloudNoticeSeen, setReviewModel } from "../../lib/store";
 import { getOllamaModels } from "../../lib/llm";
 import { reviewChoiceNotice, reviewModelChoices, type ReviewChoice } from "../../lib/content-review";
-import type { CloudFeature } from "../../lib/privacy";
+import { checkingNoticeMark, type CloudFeature } from "../../lib/privacy";
 import { CloudNoticePanel } from "./CloudNotice";
 import { useSettings } from "./primitives";
 
@@ -54,7 +54,8 @@ export default function ReviewModelPicker({ provider, discovered, onSaved }: { p
     if (!pending) return;
     const { value: v, feature } = pending;
     setPending(null);
-    await markCloudNoticeSeen(feature);
+    // Its own mark: this confirm says the chat is not sent, so it must not stand in for the provider's.
+    await markCloudNoticeSeen(checkingNoticeMark(feature));
     await save(v);
   };
 
@@ -84,7 +85,7 @@ export default function ReviewModelPicker({ provider, discovered, onSaved }: { p
       {!cloudKeys.openai && !cloudKeys.anthropic && (
         <p className="text-xs text-[var(--ink-faint)]">To check with a cloud model, save an OpenAI or Anthropic key first (pick that provider above).</p>
       )}
-      {pending && <CloudNoticePanel feature={pending.feature} onConfirm={confirm} onCancel={() => setPending(null)} />}
+      {pending && <CloudNoticePanel feature={pending.feature} use="checking" onConfirm={confirm} onCancel={() => setPending(null)} />}
     </div>
   );
 }

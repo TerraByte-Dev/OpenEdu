@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { evaluatePermission } from "./evaluate";
-import { DEFAULT_PERMISSION_RULES, PERMISSION_ROWS, AUTOMATIC_USE_NOTES } from "./rules";
+import { DEFAULT_PERMISSION_RULES, PERMISSION_ROWS, AUTOMATIC_USE_NOTES, PERMISSION_TOOL_LABELS } from "./rules";
 import permissionsScreen from "../../views/settings/sections/Permissions.tsx?raw";
 
 // Slice A4 — exam-mode integrity guard.
@@ -61,5 +61,15 @@ describe("rows the tutor also uses on its own say what Ask and Deny do there", (
 
   it("is drawn under the row in Settings › Tutor Permissions", () => {
     expect(permissionsScreen).toContain("{AUTOMATIC_USE_NOTES[tool] && (");
+  });
+});
+
+// Port of TerraTutor #243 (its click test, 2026-11-19): the grid showed "flashcard.create" with no label.
+describe("the Permissions grid names every row in plain English", () => {
+  it("gives every row it shows a label, and the screen shows it", () => {
+    for (const tool of PERMISSION_ROWS) expect(PERMISSION_TOOL_LABELS[tool], tool).toMatch(/^[A-Z][a-z ]+$/);
+    expect(PERMISSION_TOOL_LABELS["flashcard.create"]).toBe("Make a flashcard");
+    expect(permissionsScreen).toContain("{PERMISSION_ROWS.map((tool) => (");
+    expect(permissionsScreen).toContain("{PERMISSION_TOOL_LABELS[tool] ?? tool}");
   });
 });

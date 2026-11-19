@@ -12,7 +12,7 @@
 import { callLLMStructured, detectModelTier, log } from "./llm";
 import type { LessonContent } from "./lesson-format";
 import type { LLMConfig, LLMProvider, ModelTier } from "../types";
-import { isOllamaCloudModel, modelNeedsCloudNotice, needsCloudNotice, type CloudFeature } from "./privacy";
+import { isOllamaCloudModel, needsCheckingNotice, type CloudFeature } from "./privacy";
 import { lessonCheckCounts } from "./ai-notice";
 import { GENERATION_MODELS, isOllamaTag, legacyModelOwner } from "./models";
 import { questionWithSentence } from "./quiz-grading";
@@ -77,15 +77,16 @@ export function parseReviewModel(value: string): { provider: LLMProvider | null;
 
 // A review model on a provider other than the generation one ("local model writes, cloud model
 // checks"), or null when it cannot be used: no key saved for that cloud provider, its one-time privacy
-// confirm never accepted here (needsCloudNotice), or an Ollama cloud model never confirmed.
+// confirm never accepted here (needsCheckingNotice: the chat confirm or the Checking model's own), or an
+// Ollama cloud model never confirmed.
 function otherProviderReview(provider: LLMProvider, model: string, creds: ProviderCredentials, seen: readonly string[]): LLMConfig | null {
   if (!model) return null;
   if (provider === "ollama") {
-    if (modelNeedsCloudNotice("ollama", model, seen)) return null;
+    if (ollamaReviewNeedsNotice(model, seen)) return null;
     return { provider, model, ollamaUrl: creds.ollama?.ollamaUrl };
   }
   const apiKey = creds[provider]?.apiKey;
-  if (!apiKey || needsCloudNotice(provider, seen)) return null;
+  if (!apiKey || needsCheckingNotice(provider, seen)) return null;
   return { provider, model, apiKey };
 }
 
@@ -106,7 +107,7 @@ export function resolveReviewConfig(
     if (provider !== gen.provider) {
       const other = named.provider ? otherProviderReview(provider, named.model, creds, noticesSeen) : null;
       if (other) return other;
-    } else if (!modelNeedsCloudNotice(gen.provider, named.model, noticesSeen)) {
+    } else if (!(gen.provider === "ollama" && ollamaReviewNeedsNotice(named.model, noticesSeen))) {
       return named.model === gen.model ? { ...gen, modelTier: genTier } : { ...gen, model: named.model, modelTier: undefined };
     }
   }
@@ -148,9 +149,14 @@ export function reviewModelChoices(opts: {
 // it anyway; asking at the pick is what makes the choice take effect.
 export function reviewChoiceNotice(value: string, seen: readonly string[]): CloudFeature | null {
   const { provider, model } = parseReviewModel(value.trim());
-  if (provider === "openai" || provider === "anthropic") return needsCloudNotice(provider, seen) ? provider : null;
-  if (provider === "ollama" && isOllamaCloudModel(model)) return needsCloudNotice("ollama-cloud", seen) ? "ollama-cloud" : null;
+  if (provider === "openai" || provider === "anthropic") return needsCheckingNotice(provider, seen) ? provider : null;
+  if (provider === "ollama" && ollamaReviewNeedsNotice(model, seen)) return "ollama-cloud";
   return null;
+}
+
+/** An Ollama model whose name ends in cloud, as the Checking model, with neither Ollama cloud confirm accepted here. */
+function ollamaReviewNeedsNotice(model: string, seen: readonly string[]): boolean {
+  return isOllamaCloudModel(model) && needsCheckingNotice("ollama-cloud", seen);
 }
 
 // ─── Payloads (pure; the privacy test calls these through the production path) ──
