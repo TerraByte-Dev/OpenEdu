@@ -68,6 +68,8 @@ import { DISCLOSURE_REPLY_NO_GRADE, DISCLOSURE_REPLY_OLDER, isSafetyDisclosure }
 import type { Grade } from "../grade";
 import { registerBuiltinTools } from "../tools";
 import { installAppOrigin } from "../eval/headless/origin";
+import { answeredCard } from "./askCard";
+import { PICKER_QUESTION } from "./assessPicker";
 import { resetDictionaryCache } from "../dictionary";
 import { resetWordListCache } from "../wordlist";
 import type { LLMConfig, Syllabus } from "../../types";
@@ -1192,19 +1194,130 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Perfect squares, such as 9, come from a number times itself. Which is a perfect square, 8 or 16?", "Perfect squares, such as 9, come from a number times itself. Which is a perfect square, 8 or 16?", "16"],
     ["Good habits, like reading daily, help you learn. Which habit helps you learn?", "Good habits, like reading daily, help you learn. Which habit helps you learn?", "reading daily"],
     ["Great Britain, an island nation, has 4 countries. How many countries are in Great Britain?", "Great Britain, an island nation, has 4 countries. How many countries are in Great Britain?", "4"],
+    // ... and so is one joined to the question by ", so" or ", now" (TerraTutor #255).
+    ["Right triangles have one 90-degree angle, so which of these is a right triangle?", "Right triangles have one 90-degree angle, so which of these is a right triangle?", "the one with a square corner"],
+    ["Good readers, now which word is a noun: run or cat?", "Good readers, now which word is a noun: run or cat?", "cat"],
     // "One more" and "two more to go" are praise's words, not a setup's number.
     ["Good, one more question: what is 6 x 8?", "What is 6 x 8?", "48"],
     ["Great, two more to go! What is 6 x 8?", "What is 6 x 8?", "48"],
+    ["Great, last one! What is 6 x 8?", "What is 6 x 8?", "48"],
     // The last answer's feedback goes with the praise before it; a bare "Next:" is a lead-in.
     ["Correct! The answer is 56. Next question: what is 6 x 8?", "What is 6 x 8?", "48"],
     ["Correct, the answer is 56. What is 6 x 8?", "What is 6 x 8?", "48"],
     ["Next: Mr. Lee has 4 pens. How many?", "Mr. Lee has 4 pens. How many?", "4"],
     ["Here is your first question. What is 6 x 8?", "What is 6 x 8?", "48"],
     ["Yes, no, maybe, which of these is a question word?", "Yes, no, maybe, which of these is a question word?", "maybe"],
+    // Praise with a praise ending before the comma (review of TerraTutor #255, 2026-11-19: master took these off).
+    ["Nice one, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Correct again, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Yes exactly, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["Yes that's right, now what is 7 x 8?", "What is 7 x 8?", "56"],
+    ["That's right again, so what is 7 x 8?", "What is 7 x 8?", "56"],
+    // "Good job," before a setup with a number is praise before the setup, not the whole sentence (same review).
+    ["Good job, Sam has five apples. How many if he eats two?", "Sam has five apples. How many if he eats two?", "3"],
+    ["Good job on that, Sam has 5 apples. How many if he eats 2?", "Sam has 5 apples. How many if he eats 2?", "3"],
+    ["Great job, keep going! What is 6 x 8?", "What is 6 x 8?", "48"],
   ])("repeats %j with its setup and no praise", async (asked, again, key) => {
     keyOut = { question: again, working: "", answer: key };
     const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
     expect(result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${again}`);
+  }, 30_000);
+
+  // TerraTutor click test 2026-11-19 (TerraTutor #255), issue 1, 5 of 5: in a check opened from the topic
+  // picker, "xyz" got "Here it is again: Which one should we check first? *You picked: Defining Equal Parts*
+  // That is a good choice. ..." The saved reply holds the picker's question and the pick before the check's
+  // question (TutorEngine, as assessPickerTurn.test.ts pins it).
+  const picked = (reply: string) => `${answeredCard("", PICKER_QUESTION, { text: "Defining Equal Parts", typed: false })}${reply}`;
+  const EQUAL = "Look at a pizza cut into 4 pieces that are all the same size. Is it cut into equal parts?";
+  const KEY_EQUAL = { question: "Is it cut into equal parts?", working: "All 4 pieces are the same size.", answer: "yes" };
+
+  it.each([
+    [`That is a good choice. ${EQUAL}`, EQUAL],
+    [`That's a great choice!\n\n${EQUAL}`, EQUAL],
+    [`Great pick! ${EQUAL}`, EQUAL],
+    [`Good choice. Here is your first question. ${EQUAL}`, EQUAL],
+    [`That is a good choice, halves are fun. ${EQUAL}`, EQUAL],
+  ])("after the topic picker, repeats only the check's question: %j", async (reply, again) => {
+    keyOut = KEY_EQUAL;
+    const asked = picked(reply);
+    expect(asked.startsWith(`${PICKER_QUESTION}\n\n*You picked: Defining Equal Parts*\n\n`)).toBe(true);
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${again}`);
+    // The key call reads the check's question, not the picker's.
+    const keySent = structured.find((c) => c.tool === "AnswerKey")!.messages.map((m) => m.content).join("\n");
+    expect(keySent).not.toContain(PICKER_QUESTION);
+    expect(keySent).toContain(EQUAL);
+  }, 30_000);
+
+  it("after the topic picker, a plain operation is keyed by code and the next try checked against it", async () => {
+    const asked = picked("Great choice! What is 6 x 8?");
+    const first = await answer([student(ASSESS_MESSAGE), tutor(asked)], "xyz");
+    expect(first.result.text).toBe("That doesn't answer the question yet. Here it is again:\n\nWhat is 6 x 8?");
+    // One question left once the picker's is set aside, so code keys it with no key call.
+    expect(structured.map((c) => c.tool)).not.toContain("AnswerKey");
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "48");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "correct", by: "code" });
+  }, 30_000);
+
+  // Issue 6: after a hint inside the check, "xyz" got the hint's "Try counting the pieces. Are they the same
+  // size?" again. The check grades its own question; the hint only nudges toward it.
+  const HINT = "Try counting the pieces. Are they the same size?";
+  const keyFromSent = (sent: Sent) => {
+    const text = sent.map((m) => m.content).join("\n");
+    return text.includes("pizza") ? KEY_EQUAL : { question: "Are they the same size?", working: "", answer: "yes" };
+  };
+
+  it.each([
+    ["the hint chip", [student("Give me a hint."), tutor(HINT)]],
+    ["a typed request", [student("ok can I have a hint please?"), tutor(HINT)]],
+    ["a bare \"hint\"", [student("hint"), tutor(HINT)]],
+    ["\"hint please\"", [student("hint please"), tutor(HINT)]],
+    ["\"I need a hint\"", [student("I need a hint"), tutor(HINT)]],
+    ["two hints", [student("Give me a hint."), tutor("Count the pieces."), student("Give me a hint."), tutor(HINT)]],
+  ] as Array<[string, Sent]>)("after %s inside a check, repeats the check's question, not the hint's", async (_, hints) => {
+    keyOut = keyFromSent;
+    const history = [student(ASSESS_MESSAGE), tutor(picked(`That is a good choice. ${EQUAL}`)), ...hints];
+    const { result } = await answer(history, "xyz");
+    expect(result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${EQUAL}`);
+    expect(result.answerCheck).toMatchObject({ question: KEY_EQUAL.question, key: "yes", nonAnswer: true });
+  }, 30_000);
+
+  it("after a hint, the next try is checked against the check's question", async () => {
+    const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor("Count by 8s. What is 8 + 8?")];
+    const { result } = await answer(history, "48");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "correct", by: "code" });
+  }, 30_000);
+
+  // Review of TerraTutor #255, 2026-11-19: hint mode often ends in a question, and a learner answers it.
+  // Graded only against the check's key, "16" was "not right yet", and the reply's true "16 is right" was
+  // taken out.
+  it("after a hint, an answer to the hint's own question is right, against that question", async () => {
+    const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor("Count by 8s. What is 8 + 8?")];
+    script = [reply("Good try! 16 is right for 8 + 8. Now what is 6 x 8?")];
+    const { result } = await answer(history, "16");
+    expect(result.answerCheck).toMatchObject({ question: "What is 8 + 8?", key: "16", verdict: "correct", by: "code" });
+    expect(result.text).toContain("16 is right");
+    // Both keys are code's: no key call, and no grader.
+    expect(structured).toEqual([]);
+  }, 30_000);
+
+  it("after a hint, an answer to neither question is graded against the check's question", async () => {
+    gradeOut = { student_answer: "40", verdict: "incorrect" };
+    const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor("Count by 8s. What is 8 + 8?")];
+    const { result } = await answer(history, "40");
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "incorrect" });
+  }, 30_000);
+
+  it.each(["hint", "hint please", "I need a hint", "ok another hint"])("%j typed in a check is a request, not an answer", async (text) => {
+    const { result } = await answer(CHECK, text);
+    expect(result.answerCheck ?? null).toBeNull();
+    expect(structured.map((c) => c.tool)).not.toContain("AnswerKey");
+  }, 30_000);
+
+  it("a reply to anything but a hint request is still the question answered", async () => {
+    const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Can you explain it again?"), tutor("6 x 8 means 6 groups of 8. What is 8 + 8?")];
+    const { result } = await answer(history, "16");
+    expect(result.answerCheck).toMatchObject({ question: "What is 8 + 8?", key: "16", verdict: "correct", by: "code" });
   }, 30_000);
 
   // A vowel-less spelling or an abbreviation is a real attempt (review of TerraTutor #245, 2026-11-19).

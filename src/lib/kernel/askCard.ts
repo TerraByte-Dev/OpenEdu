@@ -131,6 +131,9 @@ export function pickedAnswer(choices: AskChoice[], value: string): { text: strin
   return picked ? { text: picked.label, typed: false } : { text: value.trim(), typed: true };
 }
 
+/** How answeredCard's line starts. afterAnsweredCard finds the line by these words. */
+export const ANSWER_ECHO_WORDS = { typed: "You answered", picked: "You picked" } as const;
+
 /**
  * The text the turn shows once the child has answered a card: the question (unless the text before it
  * already ended on it) and the answer, set apart from what came before. Saved with the reply, so the
@@ -139,8 +142,20 @@ export function pickedAnswer(choices: AskChoice[], value: string): { text: strin
 export function answeredCard(before: string, question: string, answer: { text: string; typed: boolean }): string {
   const sep = !before.trim() ? "" : before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
   const said = answer.text.replace(/\s+/g, " ").trim().replace(/[*_`]/g, "\\$&");
-  const line = `*${answer.typed ? "You answered" : "You picked"}: ${said}*`;
+  const line = `*${answer.typed ? ANSWER_ECHO_WORDS.typed : ANSWER_ECHO_WORDS.picked}: ${said}*`;
   return repeatsQuestion(before, question) ? `${sep}${line}\n\n` : `${sep}${question}\n\n${line}\n\n`;
+}
+
+/**
+ * What a saved reply says after the last card answered in it (answeredCard's line): the card's question
+ * and the child's answer to it are settled, so what the child answers next is asked after them. The whole
+ * reply when no card was answered in it, or nothing follows the line.
+ */
+export function afterAnsweredCard(reply: string): string {
+  const line = new RegExp(String.raw`^\*(?:${ANSWER_ECHO_WORDS.typed}|${ANSWER_ECHO_WORDS.picked}): [^\n]*\*[ \t]*\r?$`, "gm");
+  const last = [...reply.matchAll(line)].pop();
+  const after = last ? reply.slice(last.index + last[0].length).trim() : "";
+  return after || reply;
 }
 
 /**

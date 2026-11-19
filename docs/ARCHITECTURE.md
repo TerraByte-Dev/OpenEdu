@@ -901,7 +901,7 @@ So the verdict on the child's answer is the app's, not the reply's:
   this.", `QUIZ_MESSAGE`), sent as is or edited, and its answers. Those get the answer check and offer no
   mark; they keep the course's domain skill (assess drops its drawing tools) and get their quiz on a
   course whose subtopics are all mastered (`assess.md` ends the check there). A request for help during a
-  check ("Give me a hint.") is not an answer and runs in the default mode too. Never when the newest message is a safety disclosure (`isSafetyDisclosure`
+  check ("Give me a hint.", "hint", "I need a hint") is not an answer and runs in the default mode too. Never when the newest message is a safety disclosure (`isSafetyDisclosure`
   with the learner's grade, `TutorTurn.grade`; ported from TerraTutor #165): "this is too hard i wanna die"
   or "my dad hits me when i get them wrong" is not a wrong answer, so that turn gets no answer check, no
   check-before-praise note, no verdict line ("That's not right yet.") and no check on a card answered
@@ -997,7 +997,17 @@ So the verdict on the child's answer is the app's, not the reply's:
   one plain operation ("What is 6 x 8?", not "What is 5 + 3 and then double it?") is keyed by code
   with no call, and a model key for one ("Calculate 6 x 8.") is replaced by code's when they disagree.
   Two questions in one message are keyed together by the model ("63; 72"). A message that asks nothing
-  with one right answer ("which topic next?") gets no check, and the turn is as before.
+  with one right answer ("which topic next?") gets no check, and the turn is as before. The tutor's
+  message is the one the answer follows (`checkedMessage`), from after the last question card answered
+  in it (`askCard.ts afterAnsweredCard`: the topic picker's "Which one should we check first?" and the
+  pick are settled, so a check opened from the picker keys only its own question); when that message
+  answered the student's request for a hint ("Give me a hint."), the message the hint was asked on is
+  keyed instead, through any number of hints: the check grades its question, not the hint's nudge. A
+  hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a learner answers it: an
+  answer that is neither right for the check's question nor a non-answer is compared by code with the
+  key of the last hint's question too (code's for a plain operation, else one more key call), and a
+  match is **correct**, against the hint's question ("16" is right for "What is 8 + 8?"). Anything else
+  is graded against the check's question as below (ported from TerraTutor #255).
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
@@ -1006,11 +1016,13 @@ So the verdict on the child's answer is the app's, not the reply's:
   answer the question yet. Here it is again:" and the tutor's question with its paragraph, from the lines
   before it up to a blank line or a choice, to the end, so a word problem keeps its setup ("Sam has 5
   apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
-  one:", "Next:", "Here is your first question."), the last answer's feedback after praise ("Correct! The
-  answer is 56."), praise joined to it by commas before a filler or a question word ("Correct, great job,
-  now what is 7 x 8?"; "Yes, no, maybe, which of these is a question word?" is kept whole), or praise
-  joined by commas to a setup with a number in digits or words ("Yes, good job, Sam has five apples."
-  keeps "Sam has five apples."), choices included (those listed before it are put after it), so the next
+  one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice."), the last
+  answer's feedback after praise ("Correct! The answer is 56."), praise joined to it by commas before a
+  filler or a question word ("Correct, great job, now what is 7 x 8?", "Nice one, now what is 7 x 8?";
+  "Yes, no, maybe, which of these is a question word?" and "Right triangles have one 90-degree angle, so
+  which ...?" are kept whole), or praise joined by commas to a setup with a number in digits or words
+  ("Yes, good job, Sam has five apples." and "Good job, Sam has five apples." keep "Sam has five
+  apples."), choices included (those listed before it are put after it), so the next
   try is checked against it: the next turn keys this reply). ChatTab's post-turn reflection still runs. In
   TerraTutor's click test 2026-11-19 part 3 a model told "not correct" still added "That is close." 2
   times in 5 (ported from TerraTutor #251). A typed answer only: a card's answer that answers nothing

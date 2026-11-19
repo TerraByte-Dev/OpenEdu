@@ -41,7 +41,7 @@ import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard"
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { assessPickerCard } from "./assessPicker";
-import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, type AnswerCheck } from "./answerCheck";
+import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
@@ -367,8 +367,9 @@ export class TutorEngine {
     // ChatTab's notice makes): "this is too hard i wanna die" typed in a quiz is not a wrong answer, and
     // no note may send the child back to the work (CHILD_SAFETY_RULES).
     const answerTurn = !disclosure && turn.answerCheck !== "off" && isAssessAnswerTurn(conversation, ctx.activeSkill?.name);
+    const checked = checkedMessage(conversation);
     const answerCheckRun = answerTurn && !firstTurnHold && !asked
-      ? checkAnswer(conversation[conversation.length - 2].content, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort })
+      ? checkAnswer(checked.message, newest.content, turn.config, { tier: ctx.modelTier, signal: ctx.abort }, checked.hint)
       : Promise.resolve(null);
 
     let eduTools = await selectTools(ctx);
@@ -506,7 +507,7 @@ ${lastUser.content}` };
     if (answerCheck?.nonAnswer) {
       // Code found the answer answers nothing ("xyz", "?!"), so code writes the reply too, with no reply
       // call (ChatTab's post-turn reflection still runs): a model told "not correct" still added "That is close." (TerraTutor click test 2026-11-19 part 3).
-      const result = nonAnswerResult(budget.total, nonAnswerReply(conversation[conversation.length - 2].content, answerCheck), answerCheck, grounding, keepsNothing);
+      const result = nonAnswerResult(budget.total, nonAnswerReply(checked.message, answerCheck), answerCheck, grounding, keepsNothing);
       turn.onText(result.text);
       return result;
     }

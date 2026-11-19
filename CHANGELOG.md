@@ -162,7 +162,12 @@ The section for each release is also what the app shows when you press Check for
   that marks an answer right while saying none was given is overruled. In a mastery check, OpenEdu now
   writes the reply to such an answer itself and asks the question again, so the tutor can't add "That
   is close." A word problem asked again keeps its setup ("Sam has five apples. He eats two."), without
-  the praise or the last answer before it, so the next try is checked against the whole problem.
+  the praise or the last answer before it, so the next try is checked against the whole problem. In a
+  check opened from "Which one should we check first?", it asks only the check's question again, not the
+  topic picker and the pick; after a hint, it asks the check's question again, not the hint's, and the
+  next answer is checked against the check's question, or, when it answers the hint's own question ("16"
+  for "What is 8 + 8?"), counted right for that one. Typing "hint" or "I need a hint" in a check asks for
+  a hint instead of being marked as a wrong answer.
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
   "0.5" and "0.50". Choices that differ only in an end mark or "a"/"an" stay apart, since that is what an

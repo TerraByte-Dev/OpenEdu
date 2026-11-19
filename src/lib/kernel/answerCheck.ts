@@ -30,6 +30,7 @@ import { isAttemptText } from "./checkBeforePraise";
 import { ASSESS_MESSAGE } from "./suggestions";
 import { compareToKey, numbersIn, optionsIn, type KeyMatch } from "./answerCompare";
 import { isNonAnswer } from "../non-answer";
+import { afterAnsweredCard } from "./askCard";
 
 export type Verdict = "correct" | "partly" | "incorrect" | "unsure";
 
@@ -68,11 +69,17 @@ const REQUEST = /^(?:check me|give me|walk me|show me|help|explain|tell me|teach
 const LEAD_WORDS = String.raw`ok(?:ay)?|alright|right|great|cool|now|so|and|then|hey|hi|yes|yeah|well|um+|hmm+`;
 const LEAD_FILLER = new RegExp(String.raw`^(?:(?:${LEAD_WORDS})\b[\s,!.]*)+`, "i");
 
+// A typed request for a hint with no request word before it: "hint", "hint please", "I need a hint",
+// "another hint" (review of TerraTutor #255, 2026-11-19: these were graded as answers to the check).
+const HINT_ASK = /^\W*(?:(?:i need|need|another|one more|a|more)\s+)?(?:a\s+)?hints?\b(?:\s+(?:please|pls))?\W*$/i;
+
 /** True when `text`, the student's newest message, reads as an answer rather than a request. */
 export function readsAsAnswer(text: string): boolean {
   const t = text.trim();
   if (!t || t.length > 600 || asksForMasteryCheck(t)) return false;
-  return !REQUEST.test(t.replace(LEAD_FILLER, "")) || isAttemptText(t);
+  const rest = t.replace(LEAD_FILLER, "");
+  if (HINT_ASK.test(rest)) return false;
+  return !REQUEST.test(rest) || isAttemptText(t);
 }
 
 // A typed request to be checked on what the student knows: "quiz me", "test me on fractions", "can you
@@ -123,6 +130,29 @@ export function isAssessAnswerTurn(conversation: ReadonlyArray<{ role: string; c
 export function inMasteryCheck(conversation: ReadonlyArray<{ role: string; content: string }>, activeSkill?: string | null): boolean {
   if (activeSkill === "assess") return true;
   return conversation.filter((m) => m.role === "user").slice(-(ASSESS_LOOKBACK + 1)).some((m) => asksForMasteryCheck(m.content));
+}
+
+// A request for a hint ("Give me a hint.", "can I have a hint?"): its reply nudges toward the question, it
+// does not ask a new one.
+const isHintRequest = (text: string) => /\bhints?\b/i.test(text) && !readsAsAnswer(text);
+
+/**
+ * The tutor's message the newest message answers, as the check keys it and repeats it (nonAnswerReply):
+ * the one just before it, from after a question card answered in it (askCard.ts afterAnsweredCard).
+ * TerraTutor click test 2026-11-19 (TerraTutor #255), issue 1: after the topic picker, "xyz" was given
+ * "Which one should we check first? *You picked: ...* That is a good choice." with the question. When that
+ * message answered the student's request for a hint, the message the hint was asked on is taken instead,
+ * through any number of hints: the check grades its question, not the hint's nudge (issue 6: after "Give
+ * me a hint.", "xyz" was given the hint's "Are they the same size?"). The last hint's reply comes with it
+ * (`hint`, else null): a hint often ends in a question of its own ("Count by 8s. What is 8 + 8?"), and a
+ * learner who answers that one ("16") is right (checkAnswer). `conversation` ends with the newest message.
+ */
+export function checkedMessage(conversation: ReadonlyArray<{ role: string; content: string }>): { message: string; hint: string | null } {
+  const last = conversation.length - 2;
+  let i = last;
+  while (i >= 2 && conversation[i - 1].role === "user" && isHintRequest(conversation[i - 1].content)
+    && conversation[i - 2].role === "assistant" && conversation[i - 2].content.trim()) i -= 2;
+  return { message: afterAnsweredCard(conversation[i]?.content ?? ""), hint: i < last ? afterAnsweredCard(conversation[last].content) : null };
 }
 
 // ── Step 1: the key, blind ──────────────────────────────────────────────────────────────────────
@@ -319,13 +349,16 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
 
 /**
  * The verdict on the student's answer to the tutor's message, or null when that message asks nothing
- * with one right answer. Never throws: a failed call gives "unsure".
+ * with one right answer. Never throws: a failed call gives "unsure". `hintReply` is the reply to a hint
+ * asked on that message (checkedMessage): an answer that matches its question's key is right, against
+ * that question.
  */
 export async function checkAnswer(
   tutorMessage: string,
   studentMessage: string,
   config: LLMConfig,
   opts: CallOpts,
+  hintReply: string | null = null,
 ): Promise<AnswerCheck | null> {
   const keyed = await answerKey(tutorMessage, config, opts);
   if (keyed === "none") return null;
@@ -336,6 +369,18 @@ export async function checkAnswer(
   if (raw === "match") return { ...keyed, verdict: "correct", by: "code" };
   // An answer that answers nothing ("xyz", "?!", non-answer.ts) is not right, and no grader is asked.
   if (await isNonAnswer(studentMessage, keyed.key, keyed.question)) return { ...keyed, verdict: "incorrect", by: "code", nonAnswer: true };
+  // After a hint, the learner may have answered the hint's own question ("Count by 8s. What is 8 + 8?" →
+  // "16"): graded against the check's key, that was "not right yet" (review of TerraTutor #255,
+  // 2026-11-19). Code compares the answer with the hint's key too (a plain operation is keyed by code,
+  // with no call), and a match is right, against the hint's question. Anything else is graded as before;
+  // a hint that asks nothing ("Try counting by 8s.") is not keyed.
+  if (hintReply?.includes("?")) {
+    const hinted = await answerKey(hintReply, config, opts);
+    if (hinted && hinted !== "none"
+      && compareToKey(hinted.key, studentMessage, { question: hinted.question, options: optionsIn(hintReply) }) === "match") {
+      return { ...hinted, verdict: "correct", by: "code" };
+    }
+  }
   const graded = await gradeAgainstKey(keyed.question, keyed.key, studentMessage, config, opts);
   if (!graded) return { ...keyed, verdict: "unsure", by: "failed" };
   const extracted = graded.student_answer.trim() ? compareToKey(keyed.key, graded.student_answer, ctx) : "undecided";
@@ -354,7 +399,10 @@ export async function checkAnswer(
 
 // Praise joined to the question by commas: "Correct, great job on that one, now what is 7 x 8?". Only when
 // a filler or a question word follows, so "Yes, no, maybe, which of these is a question word?" is kept.
-const PRAISE_LEAD = /^(?:(?:correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b[^,?\n]*,\s*)+(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
+// More words after the praise word only after a praise noun ("great job on that one") or as one of a few
+// praise endings ("Nice one,", "Correct again,", "Yes exactly,", "Yes that's right,"), so a setup that
+// opens with one is kept: "Right triangles have one 90-degree angle, so which ..." (TerraTutor #255).
+const PRAISE_LEAD = /^(?:(?:correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+(?:(?:job|work|thinking|try|answer|going|effort)\b[^,?\n]*|(?:one|again|exactly|indeed|that(?:'|’)?s (?:right|it)|that is right|you got it|well done)\b))?[ \t]*,\s*)+(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
 // A choice line ("A) 5", "**B.** 6").
 const CHOICE_LINE = /^[ \t]*(?:[-*•>][ \t]*)?(?:\*\*)?\(?[A-F](?:\)|\.|:)(?:\*\*)?[ \t]+\S/;
 // The first sentence of a paragraph, up to an end mark or a colon ("Mr." too: it is then kept).
@@ -366,12 +414,19 @@ const FIRST_SENTENCE = /^[^.!?:]*[.!:]+(?=\s)/;
 const PRAISE_WORD = /^\W*(?:correct|right|yes|yep|yeah|great|good|nice|awesome|perfect|excellent|exactly|well done|that(?:'|’)?s (?:right|correct)|that is (?:right|correct)|you got it)/i;
 const holdsNumber = (text: string) =>
   numbersIn(text.replace(/\b(?:that|this|the|next|another|each|every|which|last) one\b|\b(?:one|two|three) more\b|\bone down\b/gi, "")).length > 0;
+// Praise for a pick on a question card: "That is a good choice.", "Great pick!", "That is a good choice,
+// halves are fun." (TerraTutor click test 2026-11-19, issue 1: the reply after the topic picker's pick).
+const PICK_PRAISE = /^\W*(?:(?:that(?:'|’)?s|that is|what) an? )?(?:really |very )?(?:good|great|nice|fine|smart|excellent|perfect|awesome|wonderful) (?:choice|pick)\b/i;
+// A praise noun and the words after it, up to a comma or the sentence's end: " job on that one".
+const PRAISE_NOUN = /^\s+(?:job|work|thinking|try|answer|going|effort)\b[^,.!:]*/i;
 function isPraise(sentence: string): boolean {
-  const m = PRAISE_WORD.exec(sentence);
-  if (!m) return false;
-  const rest = sentence.slice(m[0].length);
-  return /^[\s*_]*[.!:]/.test(rest) || /^\s+(?:job|work|thinking|try|answer|going|effort)\b/i.test(rest)
-    || (/^[\s*_]*,/.test(rest) && !holdsNumber(rest));
+  const pick = PICK_PRAISE.exec(sentence);
+  const word = pick ? null : PRAISE_WORD.exec(sentence);
+  if (!pick && !word) return false;
+  const rest = pick ? sentence.slice(pick[0].length) : sentence.slice(word![0].length).replace(PRAISE_NOUN, "");
+  // Praise ends the sentence, or a comma follows it and what comes after holds no number: "Good job, Sam
+  // has five apples." may be a setup, and only its praise is taken off (PRAISE_COMMAS).
+  return /^[\s*_]*[.!:]/.test(rest) || (/^[\s*_]*,/.test(rest) && !holdsNumber(rest));
 }
 // The praise before a setup in the same sentence: "Yes, good job, " in "Yes, good job, Sam has five apples.".
 // A praise word, or one with a praise noun and at most three more words ("Good job on that,"), then a comma.
