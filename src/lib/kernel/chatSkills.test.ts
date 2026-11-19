@@ -74,7 +74,8 @@ describe("chatTurnMode", () => {
   const ASK = "Check if I've got this.";
 
   it("ChatTab derives the mode from the chip and the conversation it sends", () => {
-    expect(chatTabSource).toMatch(/const mode = chatTurnMode\(pendingMode, \[\.\.\.history, \{ role: "user", content: userText \}\]\);/);
+    // With no chip, "Ask again" on a saved "Check if I've got this." still opens the check (chat-check-chip.test.ts).
+    expect(chatTabSource).toMatch(/const mode = chatTurnMode\(pendingMode \?\? \(saved\?\.content\.trim\(\) === ASSESS_MESSAGE \? "assess" : null\), \[\.\.\.history, \{ role: "user", content: userText \}\]\);/);
   });
 
   it("a chip's mode wins", () => {

@@ -82,6 +82,11 @@ export interface SuggestionInput {
   truncated?: boolean;
   /** The student has tried the question the tutor has open (see `hasTriedOpenQuestion`). */
   studentAttempted?: boolean;
+  /** A mastery check is under way (answerCheck.ts inMasteryCheck), whatever mode this turn ran in: a hint
+   *  or a question inside the check is still part of it. */
+  checking?: boolean;
+  /** The student's message was a safety disclosure (child-safety.ts isSafetyDisclosure). */
+  disclosure?: boolean;
 }
 
 // What the stuck chips send. A tap on one of these is a request for help, not a try at the problem.
@@ -202,6 +207,20 @@ export function endsWithQuestion(answer: string): boolean {
   return /\?["'*`)\]]*$/.test(trimmed);
 }
 
+const ASSESS_CHIP: Suggestion = { label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" };
+
+/**
+ * Whether "Check if I've got this" may be offered: the level has subtopics to check, no check is under way
+ * already (answerCheck.ts inMasteryCheck, so a hint inside a check doesn't offer a second one) and the
+ * student's message was not a safety disclosure. Under a reply that ends on a question it always shows
+ * (gemma4:e2b ends almost every reply with one, and with the chip only under a reply that asked nothing it
+ * took 3 or more turns to show: TerraTutor's click test 2026-11-19, once 4 were not enough). Under one that
+ * asks nothing it leads only on a new level or a fully mastered one, so "Make me figure it out" stays reachable.
+ */
+function offersAssess(input: SuggestionInput): boolean {
+  return !input.checking && !input.disclosure && !!input.syllabus?.subtopics.length;
+}
+
 export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // Abandoned and truncated are NOT the same thing, and conflating them was a real bug: every
   // length-capped reply suppressed its own chips, so the turns most in need of an obvious next action
@@ -229,6 +248,13 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
     if (offersShowAnswer(input)) push({ label: "Show me the answer", message: SHOW_ANSWER_MESSAGE });
     push({ label: "Give me a hint", message: HINT_MESSAGE, mode: "hint" });
     push({ label: "Walk me through it", message: WALK_MESSAGE });
+    // The mastery check shows under a question too (offersAssess): in a free slot, or in the walk-through's.
+    // With no room for either (cut off after a try: Continue, answer, hint), it waits for the next reply.
+    if (offersAssess(input)) {
+      const walk = out.findIndex((s) => s.message === WALK_MESSAGE);
+      if (out.length < MAX_SUGGESTIONS) out.push(ASSESS_CHIP);
+      else if (walk >= 0) out.splice(walk, 1, ASSESS_CHIP);
+    }
     return out; // any Continue chip pushed above is kept — it was the more urgent signal
 
   }
@@ -281,11 +307,12 @@ export function suggestFollowUps(input: SuggestionInput): Suggestion[] {
   // and Assess mode was unreachable from the UI (#146).
   // And on a new level, where nothing is mastered yet: a learner who already knows the level can say so
   // (click test 2026-11-14; until then the chip never showed there). In the usual turn it takes the slot
-  // "Make me figure it out" had; it disappears again once some, not all, subtopics are mastered.
+  // "Make me figure it out" had; it disappears again once some, not all, subtopics are mastered, so
+  // socratic mode stays reachable. On such a level the chip shows under a reply that asks a question.
   const subtopics = input.syllabus?.subtopics ?? [];
   const allMastered = !!subtopics.length && subtopics.every((s) => s.mastered);
   const newLevel = !!subtopics.length && subtopics.every((s) => !s.mastered);
-  if (allMastered || newLevel) push({ label: "Check if I've got this", message: ASSESS_MESSAGE, mode: "assess" });
+  if (offersAssess(input) && (allMastered || newLevel)) push(ASSESS_CHIP);
   push({ label: "Worked example", message: "Show me a worked example." });
   push({ label: "Make me figure it out", message: "Let me work it out.", mode: "socratic" });
   push({ label: "Quiz me on this", message: QUIZ_MESSAGE, mode: "quiz" });
@@ -301,9 +328,9 @@ function short(title: string, max = 22): string {
 }
 
 /** The chips that stay on screen beside reply-choice buttons (replyChoices.ts): the ways out for a stuck
- *  student (show the answer, a hint, walk me through it) and due cards. The rest would turn the buttons
- *  and chips into one long menu. */
-const BESIDE_CHOICES = new Set([SHOW_ANSWER_MESSAGE, HINT_MESSAGE, WALK_MESSAGE, REVIEW_DUE_MESSAGE]);
+ *  student (show the answer, a hint, walk me through it), due cards and the mastery check, which a reply
+ *  ending in choices would otherwise hide. The rest would turn the buttons and chips into one long menu. */
+const BESIDE_CHOICES = new Set([SHOW_ANSWER_MESSAGE, HINT_MESSAGE, WALK_MESSAGE, REVIEW_DUE_MESSAGE, ASSESS_MESSAGE]);
 
 export function chipsBesideChoices(suggestions: Suggestion[]): Suggestion[] {
   return suggestions.filter((s) => BESIDE_CHOICES.has(s.message));

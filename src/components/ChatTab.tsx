@@ -6,7 +6,7 @@ import {
 } from "../lib/db";
 import { deriveThreadTitle } from "../lib/thread-title";
 import { threadSwitchAbortsTurn, turnIsShown, turnLanding } from "../lib/turn-thread";
-import { transcriptLoader, type TranscriptLoader } from "../lib/thread-transcript";
+import { transcriptLoader, unansweredAtOpen, type TranscriptLoader } from "../lib/thread-transcript";
 import { buildSystemPrompt } from "../lib/curriculum";
 import { log } from "../lib/llm";
 import { getChatTurnConfig, getRetrievalMode, getReadAloudAuto } from "../lib/store";
@@ -18,6 +18,8 @@ import { TUTOR_MODES, type TutorModeId } from "../lib/tutor-modes";
 import { tutorEngine, personaIdentityLayer, suggestFollowUps, chipsBesideChoices, hasTriedOpenQuestion, citationNote, quotedChipLabel, QUOTED_CHIP_TOOLTIP, persistedReply, type TutorTurn, type ToolUIEvent, type Suggestion, type CitationNote, type ReplyChoices } from "../lib/kernel";
 import { resolvePersona } from "../lib/skills";
 import { chatTurnMode, chatTurnSkills } from "../lib/kernel/chatSkills";
+import { inMasteryCheck } from "../lib/kernel/answerCheck";
+import { ASSESS_MESSAGE } from "../lib/kernel/suggestions";
 import { SPRITE_PERSONAS, getSpritePersona } from "../lib/sprites/registry";
 import type { ToolContext, AskChoice } from "../lib/tools";
 import { renderChatMarkdown, ensureChatKatex, isChatKatexReady } from "../lib/chat-markdown";
@@ -26,7 +28,7 @@ import { displayReplyText } from "../lib/kernel/textToolCalls";
 import { repeatsQuestion } from "../lib/kernel/askCard";
 import { isHealthTopic, HEALTH_NOTICE } from "../lib/health-notice";
 import { isSafetyDisclosure, SAFETY_NOTICE } from "../lib/child-safety";
-import { describeToolActivity, describeToolDone, confirmCardQuestion, CONFIRM_CHOICES, friendlyError, messageNotSaved, STALLED_TURN } from "../lib/plain-language";
+import { describeToolActivity, describeToolDone, confirmCardQuestion, CONFIRM_CHOICES, friendlyError, messageNotSaved, STALLED_TURN, UNANSWERED_ASK_AGAIN, UNANSWERED_TURN } from "../lib/plain-language";
 import MermaidBlock from "./MermaidBlock";
 import { CompanionSprite } from "./CompanionSprite";
 import { DictionaryCard } from "./DictionaryCard";
@@ -126,6 +128,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   // Choices the last reply wrote as a list instead of calling ask_user.question (kernel replyChoices.ts).
   // Shown as the same buttons; a pick is sent as the student's next message. Cleared on send.
   const [replyChoices, setReplyChoices] = useState<ReplyChoices | null>(null);
+  // The id of the learner's message the conversation ended on when it was opened, with no reply after it
+  // (thread-transcript.ts unansweredAtOpen). Shown with UNANSWERED_TURN while it is still the last message.
+  const [unanswered, setUnanswered] = useState<string | null>(null);
   // A pending permission "ask" — renders an Allow / Don't allow card and suspends until the choice.
   const [confirmPending, setConfirmPending] = useState<{ toolName: string; summary: string } | null>(null);
   const confirmResolverRef = useRef<((ok: boolean) => void) | null>(null);
@@ -149,6 +154,7 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
   const transcriptRef = useRef<TranscriptLoader | null>(null);
   transcriptRef.current ??= transcriptLoader(getChatMessages, (msgs) => {
     setMessages(msgs);
+    setUnanswered(unansweredAtOpen(msgs)?.id ?? null);
     setSuggestions([]);
     setReplyChoices(null);
     setGroundingNote(null);
@@ -402,7 +408,8 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
     const modelTier = profile.tier;
     // The mode skill and the course's domain skill, and the <skill_bundle> text they add. The rules
     // live in kernel/chatSkills.ts so the k12-flow eval and the tests build the turn the same way.
-    const mode = chatTurnMode(pendingMode, [...history, { role: "user", content: userText }]);
+    // "Ask again" on a saved "Check if I've got this." (no chip mode left to carry) still opens the check.
+    const mode = chatTurnMode(pendingMode ?? (saved?.content.trim() === ASSESS_MESSAGE ? "assess" : null), [...history, { role: "user", content: userText }]);
     const { activeSkill, domainSkill, skillSuffix } = chatTurnSkills(mode, course.topic, modelTier, profile.supportsTools, currentSyllabus);
     if (import.meta.env.DEV && !profile.supportsTools && !toolsSuppressedLogged.has(config.model)) {
       toolsSuppressedLogged.add(config.model);
@@ -569,6 +576,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
         abandoned,
         truncated,
         studentAttempted,
+        // Any turn of a check, not only those in assess mode: a hint or a question inside it runs as hint or
+        // explain, and the chip would open the topic picker in the middle of the check.
+        checking: inMasteryCheck([...history, { role: "user", content: userText }], mode),
+        disclosure: isSafetyDisclosure(userText, grade),
       }));
       setReplyChoices(result.replyChoices);
 
@@ -783,6 +794,24 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               ? () => readAloud.toggle(CONFIRM_CARD_READ, chatCardSpeech("", [confirmCardQuestion(confirmPending.toolName), confirmPending.summary].join("\n\n"), [CONFIRM_CHOICES.yes, CONFIRM_CHOICES.no]))
               : undefined}
           />
+        )}
+        {/* The reply to this message was stopped when the chat closed, or never came: said, with a way to ask
+            again that runs the reply to the same saved message (sendMessage's `saved`). */}
+        {!streaming && unanswered !== null && messages[messages.length - 1]?.id === unanswered && (
+          <div role="status" className="chat-msg mx-2 flex flex-wrap items-center gap-3 text-sm text-[var(--ink-dim)]">
+            <span>{UNANSWERED_TURN}</span>
+            <button
+              type="button"
+              className="btn text-sm"
+              onClick={() => {
+                const last = messages[messages.length - 1];
+                setUnanswered(null);
+                void sendMessage(last.content, last);
+              }}
+            >
+              {UNANSWERED_ASK_AGAIN}
+            </button>
+          </div>
         )}
         {chatError && (
           <div className="mx-2 p-3 rounded-lg bg-danger-tint border border-danger/30 text-sm text-danger">
