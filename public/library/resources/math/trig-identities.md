@@ -2,7 +2,7 @@
 id: math/trig-identities
 title: Trigonometric Identities
 aliases: [trig identities, trigonometric identities, pythagorean identity, double angle, sum and difference]
-tags: [math, trigonometry, identities, precalculus, sine cosine tangent]
+tags: [math, trigonometry, identities, precalculus, sine cosine tangent, trig]
 subject: math
 summary: Pythagorean, reciprocal, quotient, even/odd, sum/difference, and double-angle identities.
 asset: assets/math/trig-identities.svg

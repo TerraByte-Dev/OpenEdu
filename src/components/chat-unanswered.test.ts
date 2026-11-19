@@ -160,4 +160,28 @@ describe("Chat: a question left with no reply", () => {
     expect((await getChatMessages(threadId)).map((m) => m.role)).toEqual(["user"]);
     expect(host.textContent).toContain(UNANSWERED_TURN);
   });
+
+  // Port of TerraTutor #256 (its click test 2026-11-19, issue 2): notes were searched before Stop, and the
+  // "No passage quoted" chip showed under the question though no reply existed.
+  const searched = {
+    grounding: { hits: [{ source: "note", title: "Cell notes", text: "Cells have a membrane.", score: 0.7, ref: "n1" }], trace: { notesSearched: true } },
+  };
+
+  it("a retry stopped before any reply shows no citation chip, even when notes were searched", async () => {
+    const run = vi.spyOn(tutorEngine, "run").mockResolvedValue({ ...result(""), stopReason: "aborted", ...searched } as TutorTurnResult);
+    await open([["user", "what is a cell?"]]);
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (run.mock.calls.length < 1 || !askAgain()) throw new Error("retry not finished yet"); });
+    expect((await getChatMessages(threadId)).map((m) => m.role)).toEqual(["user"]);
+    expect(host.textContent).toContain(UNANSWERED_TURN);
+    expect(host.textContent).not.toContain("No passage quoted");
+  });
+
+  it("the same search under a reply that came still shows the chip", async () => {
+    vi.spyOn(tutorEngine, "run").mockResolvedValue({ ...result(REPLY), ...searched } as TutorTurnResult);
+    await open([["user", "what is a cell?"]]);
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
+    expect(host.textContent).toContain("No passage quoted — your notes were searched");
+  });
 });

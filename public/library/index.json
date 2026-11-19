@@ -297,7 +297,8 @@
       "cells",
       "organelles",
       "cell biology",
-      "eukaryotic"
+      "eukaryotic",
+      "mitochondria"
     ],
     "subject": "biology",
     "summary": "Each cell organelle with its one-line function and which cells have it.",
@@ -756,7 +757,8 @@
       "geology",
       "rocks",
       "rock cycle",
-      "minerals"
+      "minerals",
+      "igneous"
     ],
     "subject": "earth-space",
     "summary": "How igneous, sedimentary, and metamorphic rocks transform into one another.",
@@ -779,7 +781,8 @@
       "astronomy",
       "planets",
       "solar system",
-      "space"
+      "space",
+      "sun"
     ],
     "subject": "earth-space",
     "summary": "The 8 planets in order from the Sun with distance, year length, and type.",
@@ -825,7 +828,9 @@
       "water cycle",
       "weather",
       "hydrology",
-      "evaporation"
+      "evaporation",
+      "condensation",
+      "precipitation"
     ],
     "subject": "earth-space",
     "summary": "The continuous movement of water through evaporation, condensation, precipitation, and collection.",
@@ -1059,7 +1064,9 @@
       "vocabulary",
       "roots",
       "prefixes",
-      "suffixes"
+      "suffixes",
+      "greek",
+      "latin"
     ],
     "subject": "ela",
     "summary": "High-frequency Greek/Latin roots plus common prefixes and suffixes with meanings.",
@@ -2123,7 +2130,8 @@
       "trigonometry",
       "identities",
       "precalculus",
-      "sine cosine tangent"
+      "sine cosine tangent",
+      "trig"
     ],
     "subject": "math",
     "summary": "Pythagorean, reciprocal, quotient, even/odd, sum/difference, and double-angle identities.",
@@ -2146,7 +2154,8 @@
       "cosine",
       "tangent",
       "radians",
-      "degrees"
+      "degrees",
+      "trig"
     ],
     "subject": "math",
     "summary": "Common angles on the unit circle with their radian measure and exact sin/cos/tan values.",
@@ -2392,7 +2401,8 @@
       "electricity",
       "magnetism",
       "fields",
-      "coulombs law"
+      "coulombs law",
+      "electric"
     ],
     "subject": "physics",
     "summary": "Coulomb's law, electric field and force, and the magnetic force on charges and wires.",
@@ -2415,7 +2425,8 @@
       "waves",
       "light",
       "electromagnetic",
-      "radiation"
+      "radiation",
+      "spectrum"
     ],
     "subject": "physics",
     "summary": "The bands of EM radiation from radio to gamma, ordered by wavelength and frequency.",
@@ -3362,7 +3373,8 @@
       "color theory",
       "primary",
       "secondary",
-      "complementary"
+      "complementary",
+      "colour"
     ],
     "subject": "visual-art",
     "summary": "The 12-hue artist's (RYB) color wheel with primary, secondary, tertiary, and color relationships.",

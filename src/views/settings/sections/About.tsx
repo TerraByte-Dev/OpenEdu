@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
+import { getIdentifier, getVersion } from "@tauri-apps/api/app";
 import { appDataDir } from "@tauri-apps/api/path";
 import { Store } from "@tauri-apps/plugin-store";
 import type { LLMProvider, ModelTier } from "../../../types";
@@ -38,6 +38,8 @@ type UpdateState = { kind: "idle" | "checking" | "current" | "available" | "inst
 export default function About({ onProviderChanged }: SectionProps) {
   const { markSaved } = useSettings();
   const [version, setVersion] = useState("…");
+  // The identifier this build runs under (a dev build started with another identifier); the shipped one until it is read.
+  const [identifier, setIdentifier] = useState(APP_IDENTIFIER);
   const [update, setUpdate] = useState<UpdateState>({ kind: "idle" });
   const [diag, setDiag] = useState<Diag | null>(null);
   const [selfCheck, setSelfCheck] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -50,6 +52,7 @@ export default function About({ onProviderChanged }: SectionProps) {
   useEffect(() => {
     mounted.current = true;
     getVersion().then((v) => { if (mounted.current) setVersion(v); }).catch(() => { if (mounted.current) setVersion("0.1.0"); });
+    getIdentifier().then((id) => { if (mounted.current) setIdentifier(id); }).catch(() => {});
     void loadDiag();
     return () => { mounted.current = false; };
   }, []);
@@ -162,7 +165,7 @@ export default function About({ onProviderChanged }: SectionProps) {
   return (
     <>
       <Section title={APP_NAME} description="AI-powered personalized tutoring — bring-your-own-key, offline-first." keywords="about version build update release github">
-        <SettingRow label="Version" help={`Identifier: ${APP_IDENTIFIER}`}>
+        <SettingRow label="Version" help={`Identifier: ${identifier}`}>
           <div className="flex items-center gap-3 flex-wrap">
             <span className="lcd px-3 py-1.5 rounded-md text-sm">v{version}</span>
             {(update.kind === "idle" || update.kind === "current" || update.kind === "error") && (

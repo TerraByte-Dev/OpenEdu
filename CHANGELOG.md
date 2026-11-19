@@ -146,6 +146,8 @@ The section for each release is also what the app shows when you press Check for
   tutor's reply, or on its own when no reply comes (the turn fails or is stopped).
 - **One "still working" sign at a time.** While an Allow / Don't allow card waits for a tap, the empty
   "Thinking..." bubble above it no longer shows.
+- **No citation chip under an unanswered question.** A reply stopped before it wrote anything (Ask again,
+  then Stop) no longer leaves a "No passage quoted" chip under the learner's question.
 - **A fix in Settings › Models shows at once.** Saving the tutor chat or course model, the embedding
   model or the Ollama address now runs the setup check again, so "Tutor model missing" or "Tutor not
   running" clears without restarting OpenEdu. The welcome tour now waits until the setup screen is gone.
@@ -181,9 +183,10 @@ The section for each release is also what the app shows when you press Check for
   Logic, Nutrition Facts Label, Federalism or the NATO Phonetic Alphabet: on the Resources tab, a one-word
   topic that is only part of a card's longer alias ("boolean algebra") no longer counts as naming that card
   unless the card's tags name the word (a tag in the plural counts, so Gas keeps Gas Laws and Country keeps
-  Countries and Capitals). A one-word course whose card names the word only in an alias loses that card on
-  the tab: Mitochondria, Igneous, Latin, Greek, Spectrum, Precipitation, Condensation and Landforms. The
-  tutor chat is unchanged: a learner who types a bare "mitochondria" or "igneous" still gets that card.
+  Countries and Capitals). Library cards now carry tags for Mitochondria, Igneous, Greek, Latin, Spectrum,
+  Precipitation, Condensation, Trig, Electric, Colour and Sun, so those courses keep their cards too, and a
+  course called X Axis keeps The Coordinate Plane. The tutor chat is unchanged: a learner who types a bare
+  "mitochondria" or "igneous" still gets that card.
   Only a message whose only words are common words like "is" or "the", or single letters and digits, no
   longer pulls in a card ("Is αβγ = γβα?" got Countries and Capitals).
 - On Settings › Provider & Models, an Ollama address OpenEdu can't use now says to fix the Server URL

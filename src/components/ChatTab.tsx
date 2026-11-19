@@ -566,8 +566,9 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
       if (handedBack) { setCardMessage(handedBack); return; }
       // The honesty surface (#90, and Tate's Q2). Three distinct states, and the middle one is the
       // whole point: retrieval fired and the answer did NOT use it. Hiding that case is exactly how a
-      // tutor ends up looking like it read your notes when it didn't.
-      setGroundingNote(citationNote(result.grounding.hits, result.usedHits, result.grounding.trace));
+      // tutor ends up looking like it read your notes when it didn't. Only under a reply: a turn stopped
+      // before any text saved none, and the chip would sit under the learner's unanswered question.
+      if (persisted !== null) setGroundingNote(citationNote(result.grounding.hits, result.usedHits, result.grounding.trace));
       // Follow-up chips. `countDueFlashcards` is a cheap indexed read of the due cards and the only I/O here; if it
       // fails the chips just lose one option rather than the turn losing its suggestions.
       const due = await countDueFlashcards(courseId, new Date().toISOString(), grade).catch(() => 0);

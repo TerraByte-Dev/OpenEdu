@@ -123,13 +123,17 @@ export function resourceUrl(base: string, entry: LibraryEntry): string {
   return `${base}/${entry.path.replace(/^\/+/, "")}`;
 }
 
-// Fetch a resource body, strip frontmatter, hard-cap the length to protect a small model's context.
+/** A card file as the model reads it: frontmatter stripped, hard-capped to protect a small model's context. */
+export function resourceText(raw: string, maxChars: number): string {
+  const text = stripFrontmatter(raw).trim();
+  return text.length > maxChars ? text.slice(0, maxChars).trimEnd() + "\n\n…(truncated — ask for more if needed)" : text;
+}
+
+// Fetch a resource body as resourceText shapes it.
 export async function fetchResource(entry: LibraryEntry, maxChars = 2500): Promise<{ text: string; url: string }> {
   const { base, remote } = await resolveSource();
   const url = resourceUrl(base, entry);
-  let text = stripFrontmatter(await fetchLibText(url, remote)).trim();
-  if (text.length > maxChars) text = text.slice(0, maxChars).trimEnd() + "\n\n…(truncated — ask for more if needed)";
-  return { text, url };
+  return { text: resourceText(await fetchLibText(url, remote), maxChars), url };
 }
 
 export function assetUrl(base: string, asset: string): string {

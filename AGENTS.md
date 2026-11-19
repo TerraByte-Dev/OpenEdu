@@ -74,7 +74,8 @@ wrapper are **not type-linked**; keep them in sync by hand.
   `src/components/resources-tab-recommended.test.ts`, which opens the real Resources tab on a course with and without matching Library cards,
   `src/views/settings/provider-models-recheck.test.ts`, which saves models and the Ollama URL in the real
   Settings › Provider & Models and checks the setup check runs again,
-  `src/views/settings/review-picker-notice.test.ts`, which picks a cloud model in the real Checking model picker, and
+  `src/views/settings/review-picker-notice.test.ts`, which picks a cloud model in the real Checking model picker,
+  `src/views/settings/about-identifier.test.ts`, which reads the identifier on the real Settings › About, and
   `src/views/quiz-exit-confirm.test.ts`, which answers and leaves the real practice quiz.
 - Rust logic gets `#[cfg(test)]` tests in the same file. Test against temp dirs, never the user's disk.
 - **A test must go through the same code path production does.** A test of a helper the app doesn't

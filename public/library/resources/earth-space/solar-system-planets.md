@@ -2,7 +2,7 @@
 id: earth-space/solar-system-planets
 title: The Solar System & Planet Data
 aliases: [solar system, planets, planet order, planet data, planets from the sun]
-tags: [earth-space, astronomy, planets, solar system, space]
+tags: [earth-space, astronomy, planets, solar system, space, sun]
 subject: earth-space
 summary: The 8 planets in order from the Sun with distance, year length, and type.
 asset: assets/earth-space/solar-system-planets.svg

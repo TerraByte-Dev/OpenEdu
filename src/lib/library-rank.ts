@@ -275,7 +275,10 @@ function tokensFor(e: LibraryEntry): EntryTokens {
  * The tag words in every form a one-word query's token can take for them: the word as tokenize folds it,
  * as written, and with "-es" or "-ies" undone (each also folded). `fold` only cuts a trailing "s", so the
  * tag "gases" tokenizes to "gase" and "countries" to "countrie", which never equal a course called Gas or
- * Country; "lenses" undone is "lens", which a query folds to "len".
+ * Country; "lenses" undone is "lens", which a query folds to "len". Only the Resources tab's one-word check
+ * reads these forms: token scoring and the df index keep `tokenize`, so chat grounding's scores are unchanged.
+ * The cut makes non-words too ("bases" gives "bas", "calories" gives "calory"). They match nothing: the check
+ * reads a tag only for a query that the card's own title or an alias already holds as whole words.
  */
 function tagForms(tags: string[]): Set<string> {
   const out = new Set<string>();
@@ -372,9 +375,18 @@ export function scoreEntry(
   // "geography" on the Landform Glossary) and the bonus stays. Chat grounding leaves it off: a learner's
   // bare "mitochondria" or "igneous" reaches its card through a keyword alias ("nucleus mitochondria
   // ribosome") whose tags don't repeat the word.
+  //
+  // A query is one word when one word with a letter is left after the stopwords (port of TerraTutor #254).
+  // "The shapes" is one word, and so is "1 to 10" (numbers name no card: the Bill of Rights' "amendments 1
+  // to 10" would give it to a course called 1 to 10). "X axis" is two, though tokenize drops the "x" for
+  // length, so the alias "x axis y axis" keeps the Coordinate Plane for a course called X Axis. The tags are
+  // read for the folded form of the word that was counted, not the first token: in "10 amendments" the first
+  // is the number, and in "this shapes" it is "thi" ("this" is a stopword, its fold is not).
   const { names, tags } = tokensFor(entry);
+  const counted = qPhrase.split(" ").filter((w) => /\p{L}/u.test(w) && !STOPWORDS.has(w));
+  const oneWord = counted.length < 2;
   const reverseOk =
-    qTokens.length > 0 && (!opts.oneWordNeedsTag || qTokens.length > 1 || tags.has(qTokens[0]));
+    qTokens.length > 0 && (!opts.oneWordNeedsTag || !oneWord || tags.has(fold(counted[0] ?? "")));
   for (const n of names) {
     if (qPhrase === n) phrase += 12;
     // Containment must be whole words: a raw substring test let the alias "ph" match inside

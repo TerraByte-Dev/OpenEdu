@@ -2,7 +2,7 @@
 id: physics/electromagnetic-spectrum
 title: The Electromagnetic Spectrum
 aliases: [em spectrum, electromagnetic spectrum, light spectrum, radio to gamma, wavelength frequency]
-tags: [physics, waves, light, electromagnetic, radiation]
+tags: [physics, waves, light, electromagnetic, radiation, spectrum]
 subject: physics
 summary: The bands of EM radiation from radio to gamma, ordered by wavelength and frequency.
 asset: assets/physics/electromagnetic-spectrum.svg

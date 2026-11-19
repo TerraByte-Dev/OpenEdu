@@ -2,7 +2,7 @@
 id: ela/greek-latin-roots
 title: Greek and Latin Roots
 aliases: [greek and latin roots, word roots, prefixes and suffixes, root words, etymology]
-tags: [ela, vocabulary, roots, prefixes, suffixes]
+tags: [ela, vocabulary, roots, prefixes, suffixes, greek, latin]
 subject: ela
 summary: High-frequency Greek/Latin roots plus common prefixes and suffixes with meanings.
 asset: assets/ela/greek-latin-roots.svg

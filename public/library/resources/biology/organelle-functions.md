@@ -2,7 +2,7 @@
 id: biology/organelle-functions
 title: Organelle Functions
 aliases: [organelle functions, cell organelles, what organelles do, nucleus mitochondria ribosome]
-tags: [biology, cells, organelles, cell biology, eukaryotic]
+tags: [biology, cells, organelles, cell biology, eukaryotic, mitochondria]
 subject: biology
 summary: Each cell organelle with its one-line function and which cells have it.
 asset: assets/biology/organelle-functions.svg
