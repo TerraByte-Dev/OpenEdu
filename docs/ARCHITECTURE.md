@@ -1016,7 +1016,13 @@ So the verdict on the child's answer is the app's, not the reply's:
   answer the question yet. Here it is again:" and the tutor's question with its paragraph, from the lines
   before it up to a blank line or a choice, to the end, so a word problem keeps its setup ("Sam has 5
   apples. He eats 2. How many are left?"); without leading praise or a lead-in ("Great job!", "Next
-  one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice."), the last
+  one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice.", a sentence
+  that announces the check: "I will check your understanding of "What is a Fraction? Whole and Parts."",
+  "Let's see what you know about fractions.", "Let's check:", also after praise such as "Nice one, now";
+  only a topic announcement, so "Let's see if you can tell me the name of the biggest planet." and "Let's
+  see what happens when we mix red and blue paint." stay, and it is kept when it holds a number or a
+  clause word (when, if, where, ...), when the next sentence points back at it, or when no "?" is left
+  after it; ported from TerraTutor #257), the last
   answer's feedback after praise ("Correct! The answer is 56."), praise joined to it by commas before a
   filler or a question word ("Correct, great job, now what is 7 x 8?", "Nice one, now what is 7 x 8?",
   "Well done Sam, now what is 7 x 8?"; after the praise word only a praise noun and its words, a short
