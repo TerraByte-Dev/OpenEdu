@@ -590,7 +590,7 @@ describe("ChatTab wiring", () => {
 
   // Ported from TerraTutor #165. The kernel side runs through tutorEngine.run in answerCheckTurn.test.ts.
   it("gives the kernel the same grade, and sends a disclosure typed into a card as the child's own message", () => {
-    expect(chatTabSource).toMatch(/retrieval: await getRetrievalMode\(\),[^}]*\sgrade,\s+onText:/);
+    expect(chatTabSource).toMatch(/\sretrieval,[^}]*\sgrade,\s+onText:/);
     // Saved as the child's own message straight after the turn's reply, before the thread-switch return and
     // before the effect that runs the reply: closing the chat (tab, course or level) loses that state, never the words.
     const at = (code: string) => { const i = chatTabSource.indexOf(code); expect(i, code).toBeGreaterThan(0); return i; };
