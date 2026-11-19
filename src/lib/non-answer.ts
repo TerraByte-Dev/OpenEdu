@@ -63,8 +63,8 @@ function mashShaped(w: string, alphabetRuns: boolean): boolean {
 
 // What a typed sign is called, so a sign-only answer to a question about that sign goes to the model.
 const SIGN_NAMES: Record<string, RegExp> = {
-  ">": /\b(greater|more|bigger|larger)\b/,
-  "<": /\b(less|smaller|fewer)\b/,
+  ">": /\b(greater|more|bigger|larger|angle)\b/,
+  "<": /\b(less|smaller|fewer|angle)\b/,
   "=": /\b(equal|equals|same)\b/,
   "+": /\b(plus|add|addition|sum)/,
   "-": /\b(minus|subtract|take away|negative|hyphen|dash)/,
@@ -75,17 +75,17 @@ const SIGN_NAMES: Record<string, RegExp> = {
   "/": /\b(slash|divi)/,
   "?": /\bquestion mark/,
   ".": /\b(period|full stop|decimal|dot)/,
-  "!": /\bexclamation/,
+  "!": /\b(exclamation|not|bang)\b/,
   ",": /\bcomma/,
   ":": /\bcolon/,
   ";": /\bsemicolon/,
-  "'": /\bapostrophe/,
+  "'": /\b(apostrophe|quot)/,
   "’": /\bapostrophe/,
   "\"": /\bquot/,
   "“": /\bquot/,
   "”": /\bquot/,
   "$": /\bdollar/,
-  "%": /\bpercent/,
+  "%": /\b(percent|modulo|mod|remainder)/,
   "¢": /\bcent/,
   "&": /\b(ampersand|and)\b/,
   "#": /\b(number sign|hash|pound|sharp)/,
@@ -102,6 +102,13 @@ const SIGN_NAMES: Record<string, RegExp> = {
   "]": /\bbracket/,
   "–": /\b(dash|hyphen|minus)/,
   "—": /\b(dash|hyphen)/,
+  "{": /\b(brace|curly)/,
+  "}": /\b(brace|curly)/,
+  "|": /\b(pipe|vertical bar|or)\b/,
+  "^": /\b(caret|power|exponent)/,
+  "~": /\btilde/,
+  "\\": /\bbackslash/,
+  "√": /\b(root|radical)/,
 };
 
 /** A sign the learner typed is named in the key or the question. */
