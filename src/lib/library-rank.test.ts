@@ -308,6 +308,15 @@ describe("matchResourcesScored — Resources tab: one word inside a longer name 
     expect(s("10 frames", true)).toBe(s("10 frames", false));
   });
 
+  it("reads the tags for the counted word, not for a folded stopword before it", () => {
+    // "this" is a stopword, so "this map" is one word, but tokenize folds first: "this" becomes "thi" and stays
+    // a token. Reading the first token looked for a tag "thi"; the word that was counted is "map".
+    const maps = entry({ id: "geo/maps", title: "Map Reading", aliases: ["how to read this map"], tags: ["geography", "maps"] });
+    const s = (q: string, oneWordNeedsTag: boolean) =>
+      matchResourcesScored(q, [maps, filler], 5, { oneWordNeedsTag }).find((r) => r.entry.id === maps.id)?.score ?? 0;
+    expect(s("this map", true)).toBe(s("this map", false));
+  });
+
   it("is off unless asked for: the default path keeps the one-word bonus", () => {
     expect(score("shapes", flow, false)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
   });

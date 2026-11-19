@@ -380,12 +380,13 @@ export function scoreEntry(
   // "The shapes" is one word, and so is "1 to 10" (numbers name no card: the Bill of Rights' "amendments 1
   // to 10" would give it to a course called 1 to 10). "X axis" is two, though tokenize drops the "x" for
   // length, so the alias "x axis y axis" keeps the Coordinate Plane for a course called X Axis. The tags are
-  // read for that one word's token, not the first token: in "10 amendments" the first is the number.
+  // read for the folded form of the word that was counted, not the first token: in "10 amendments" the first
+  // is the number, and in "this shapes" it is "thi" ("this" is a stopword, its fold is not).
   const { names, tags } = tokensFor(entry);
-  const oneWord = qPhrase.split(" ").filter((w) => /\p{L}/u.test(w) && !STOPWORDS.has(w)).length < 2;
-  const wordToken = qTokens.find((t) => /\p{L}/u.test(t));
+  const counted = qPhrase.split(" ").filter((w) => /\p{L}/u.test(w) && !STOPWORDS.has(w));
+  const oneWord = counted.length < 2;
   const reverseOk =
-    qTokens.length > 0 && (!opts.oneWordNeedsTag || !oneWord || (wordToken !== undefined && tags.has(wordToken)));
+    qTokens.length > 0 && (!opts.oneWordNeedsTag || !oneWord || tags.has(fold(counted[0] ?? "")));
   for (const n of names) {
     if (qPhrase === n) phrase += 12;
     // Containment must be whole words: a raw substring test let the alias "ph" match inside
