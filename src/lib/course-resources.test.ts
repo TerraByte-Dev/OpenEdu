@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import manifestJson from "../../public/library/index.json";
 import { normalizeManifest, matchResources } from "./library-rank";
 import { courseResources } from "./course-resources";
+import { RESOURCE_TOPICS, RIGHT_CARDS, WRONG_CARDS } from "./course-resources-topics";
 
 // The Resources tab's "recommended for this course", over the Library the app ships and syllabuses as the
 // course model wrote them in TerraTutor's 2026-11-19 click test (gemma4:e2b; port of TerraTutor #249).
@@ -73,5 +74,42 @@ describe("courseResources: the Resources tab's cards for a course", () => {
     ];
     expect(titles("gravity", gravity)).toEqual([]);
     expect(titles("Newton's Laws of Motion", [])).toEqual(["Newton's Laws & Forces"]);
+  });
+
+  // Port of TerraTutor #253: measured over 139 topics and subtopic titles (course-resources-topics.ts).
+  // Before the fix the tab recommended 51 cards for them, 45 right and 6 wrong; now 45, all right.
+  it("recommends exactly the hand-judged cards for each of the 139 topics and titles", () => {
+    expect(RESOURCE_TOPICS).toHaveLength(139);
+    const shown = Object.fromEntries(
+      RESOURCE_TOPICS.map((t) => [t, courseResources(t, [], manifest).map((e) => e.id)] as const).filter(([, ids]) => ids.length),
+    );
+    expect(shown).toEqual(RIGHT_CARDS);
+    expect(Object.values(shown).flat()).toHaveLength(45);
+  });
+
+  it("never recommends a card a one-word topic only names inside a longer alias", () => {
+    for (const [topic, id] of WRONG_CARDS) {
+      expect(manifest.some((e) => e.id === id), id).toBe(true);
+      expect(courseResources(topic, [], manifest).map((e) => e.id), topic).not.toContain(id);
+    }
+  });
+
+  it("keeps a one-word topic's card when the card's tags name it", () => {
+    // "geography terms" is an alias of the Landform Glossary and "geography" one of its tags.
+    expect(titles("Geography", [])).toEqual(["Landform Glossary"]);
+    expect(titles("Geometry", [])).toEqual(["Geometry Formulas"]);
+  });
+
+  // Review of the #253 port: tokenize folds a plural by cutting one "s", so the tag "gases" became "gase" and
+  // never matched a course called Gas. The tag check reads "-es" and "-ies" plurals as their singular.
+  it.each([
+    ["Gas", "chemistry/gas-laws"],
+    ["Prefix", "ela/prefixes"],
+    ["Suffix", "ela/suffixes"],
+    ["Country", "geography/countries-capitals"],
+    ["Tornado", "earth-space/storm-scales"],
+    ["Lens", "physics/optics"],
+  ])("keeps %s's card when a tag names the word as an -es or -ies plural", (topic, id) => {
+    expect(courseResources(topic, [], manifest).map((e) => e.id)).toContain(id);
   });
 });

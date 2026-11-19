@@ -10,6 +10,10 @@
 // from an anchor, or from a key concept while also sharing a word with an anchor. A key concept is a long
 // sentence, and one word in it can name an unrelated card ("Chromatin Remodeling Dynamics" reached the
 // music card "Dynamics"). With no card about the course, the list is empty, never the least-bad cards.
+//
+// A one-word text inside a longer card name counts only when the card's tags name that word
+// (`oneWordNeedsTag`, port of TerraTutor #253): a course called Shapes no longer gets Flowchart Symbols
+// through its alias "flowchart shapes".
 
 import { matchResourcesScored } from "./library-rank";
 import { MIN_LIBRARY_SCORE } from "./kernel/ground";
@@ -24,7 +28,7 @@ export function courseResources(
   const best = (texts: string[]) => {
     const out = new Map<LibraryEntry, number>();
     for (const text of texts) {
-      for (const { entry, score } of matchResourcesScored(text, manifest, manifest.length)) {
+      for (const { entry, score } of matchResourcesScored(text, manifest, manifest.length, { oneWordNeedsTag: true })) {
         out.set(entry, Math.max(out.get(entry) ?? 0, score));
       }
     }

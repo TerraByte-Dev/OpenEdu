@@ -174,6 +174,15 @@ The section for each release is also what the app shows when you press Check for
 - **A course's Resources tab recommends only cards about the course.** A fractions course was shown
   Parts of Speech, music and physics cards; with no Library card about a course, the tab now lists the
   whole library A to Z instead of calling unrelated cards "recommended".
+  A course called Shapes, Algebra, Reading, Division or Spelling no longer gets Flowchart Symbols, Boolean
+  Logic, Nutrition Facts Label, Federalism or the NATO Phonetic Alphabet: on the Resources tab, a one-word
+  topic that is only part of a card's longer alias ("boolean algebra") no longer counts as naming that card
+  unless the card's tags name the word (a tag in the plural counts, so Gas keeps Gas Laws and Country keeps
+  Countries and Capitals). A one-word course whose card names the word only in an alias loses that card on
+  the tab: Mitochondria, Igneous, Latin, Greek, Spectrum, Precipitation, Condensation and Landforms. The
+  tutor chat is unchanged: a learner who types a bare "mitochondria" or "igneous" still gets that card.
+  Only a message whose only words are common words like "is" or "the", or single letters and digits, no
+  longer pulls in a card ("Is αβγ = γβα?" got Countries and Capitals).
 - On Settings › Provider & Models, an Ollama address OpenEdu can't use now says to fix the Server URL
   box above, instead of sending you to the screen you are already on.
 

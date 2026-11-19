@@ -2,7 +2,7 @@
 id: reference/nato-phonetic-alphabet
 title: NATO Phonetic Alphabet
 aliases: [nato phonetic alphabet, phonetic alphabet, military alphabet, spelling alphabet, alfa bravo charlie]
-tags: [reference, alphabet, communication, spelling, radio]
+tags: [reference, alphabet, communication, radio]
 subject: reference
 summary: The NATO/ICAO spelling alphabet — code word for each letter A–Z plus digits.
 asset: assets/reference/nato-phonetic-alphabet.svg
