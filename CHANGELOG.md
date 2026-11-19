@@ -165,6 +165,11 @@ The section for each release is also what the app shows when you press Check for
 - **A reply never stops at "I can look that up for you."** The tutor asks the model once more after the
   lookup, and the turn ends on the plain "mixed up" line (or the answer check's verdict) if it still says
   nothing.
+- **A course's Resources tab recommends only cards about the course.** A fractions course was shown
+  Parts of Speech, music and physics cards; with no Library card about a course, the tab now lists the
+  whole library A to Z instead of calling unrelated cards "recommended".
+- On Settings › Provider & Models, an Ollama address OpenEdu can't use now says to fix the Server URL
+  box above, instead of sending you to the screen you are already on.
 
 ## [0.4.0] - 2026-11-10
 
