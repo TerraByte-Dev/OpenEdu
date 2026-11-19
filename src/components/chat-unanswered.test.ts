@@ -127,4 +127,37 @@ describe("Chat: a question left with no reply", () => {
     expect((await getChatMessages(threadId)).map((m) => [m.role, m.content])).toEqual([["user", "what is a cell?"], ["assistant", REPLY]]);
     expect(host.textContent).not.toContain(UNANSWERED_TURN);
   });
+
+  // Ported from TerraTutor #250 (this repo's #393 follow-up): Ask again cleared its note before sending, so a
+  // retry that failed (Ollama still down) left the question with no reply, the error, and no way to ask
+  // again until the conversation was reopened.
+  it("a retry that fails keeps the note and Ask again, and asking again then works", async () => {
+    const run = vi.spyOn(tutorEngine, "run")
+      .mockRejectedValueOnce(new Error("Ollama unreachable"))
+      .mockResolvedValueOnce(result(REPLY));
+    await open([["user", "what is a cell?"]]);
+
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (run.mock.calls.length < 1 || !askAgain()) throw new Error("retry not finished yet"); });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect((await getChatMessages(threadId)).map((m) => m.role)).toEqual(["user"]);
+    expect(host.textContent).toContain(UNANSWERED_TURN);
+
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (!host.textContent?.includes(REPLY)) throw new Error("reply not shown yet"); });
+    expect(run).toHaveBeenCalledTimes(2);
+    const sent = run.mock.calls[1][0].messages;
+    expect(sent.filter((m) => m.role === "user")).toEqual([{ role: "user", content: "what is a cell?" }]);
+    expect((await getChatMessages(threadId)).map((m) => [m.role, m.content])).toEqual([["user", "what is a cell?"], ["assistant", REPLY]]);
+    expect(host.textContent).not.toContain(UNANSWERED_TURN);
+  });
+
+  it("a retry stopped before any reply keeps the note and Ask again", async () => {
+    const run = vi.spyOn(tutorEngine, "run").mockResolvedValue({ ...result(""), stopReason: "aborted" });
+    await open([["user", "what is a cell?"]]);
+    await act(async () => { askAgain()!.click(); });
+    await vi.waitFor(() => { if (run.mock.calls.length < 1 || !askAgain()) throw new Error("retry not finished yet"); });
+    expect((await getChatMessages(threadId)).map((m) => m.role)).toEqual(["user"]);
+    expect(host.textContent).toContain(UNANSWERED_TURN);
+  });
 });

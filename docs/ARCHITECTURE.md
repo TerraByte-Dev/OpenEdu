@@ -1093,7 +1093,11 @@ A conversation that opens on the student's own message with no reply saved after
 while the reply was starting, which stops it, or Ollama was not running) says `UNANSWERED_TURN` under it
 with an "Ask again" button (`thread-transcript.ts unansweredAtOpen`, ported from TerraTutor #247), which
 runs the reply to that same saved message (ChatTab's `saved` path, as for a card's typed words), never
-saving it twice. On a saved "Check if I've got this." it runs in assess mode.
+saving it twice. On a saved "Check if I've got this." it runs in assess mode. The note stays until a reply
+follows that message: it hides while the retry streams and comes back with the button when the retry fails
+(Ollama still down), is stopped before any reply, or never starts (#393's follow-up, ported from TerraTutor
+#250; before, the click cleared it and the learner had no way to ask again until they reopened the
+conversation).
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model

@@ -801,7 +801,10 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
           />
         )}
         {/* The reply to this message was stopped when the chat closed, or never came: said, with a way to ask
-            again that runs the reply to the same saved message (sendMessage's `saved`). */}
+            again that runs the reply to the same saved message (sendMessage's `saved`). Ask again leaves
+            `unanswered` set: the note hides while the reply streams and goes once a reply follows the message,
+            and comes back if the retry fails, is stopped before any reply, or never starts (a send still
+            setting up). Clearing it on the click lost the way to ask again until the thread was reopened. */}
         {!streaming && unanswered !== null && messages[messages.length - 1]?.id === unanswered && (
           <div role="status" className="chat-msg mx-2 flex flex-wrap items-center gap-3 text-sm text-[var(--ink-dim)]">
             <span>{UNANSWERED_TURN}</span>
@@ -810,7 +813,6 @@ export default function ChatTab({ courseId, course, level, currentSyllabus, seed
               className="btn text-sm"
               onClick={() => {
                 const last = messages[messages.length - 1];
-                setUnanswered(null);
                 void sendMessage(last.content, last);
               }}
             >
