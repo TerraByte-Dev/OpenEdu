@@ -44,7 +44,7 @@ export interface AnswerCheck {
   by: "code" | "model" | "code+model" | "conflict" | "failed";
   /** What the grader read as the student's final answer, when it ran. */
   studentAnswer?: string;
-  /** True when code found the answer answers nothing (non-answer.ts): the reply is nonAnswerReply, with no model call. */
+  /** True when code found the answer answers nothing (non-answer.ts): the reply is nonAnswerReply, with no reply call (the post-turn reflection still runs). */
   nonAnswer?: boolean;
 }
 
@@ -360,20 +360,28 @@ const CHOICE_LINE = /^[ \t]*(?:[-*•>][ \t]*)?(?:\*\*)?\(?[A-F](?:\)|\.|:)(?:\*
 // The first sentence of a paragraph, up to an end mark or a colon ("Mr." too: it is then kept).
 const FIRST_SENTENCE = /^[^.!?:]*[.!:]+(?=\s)/;
 // A first sentence that is praise for the last answer: "Good.", "Great job!", "Yes, that's it!". One with a
-// comma and a number is kept ("Good, now Sam has 5 apples."): it may hold the problem's setup.
+// comma and a number, in digits or words, is kept ("Good, now Sam has five apples."): it may hold the
+// problem's setup, and only its praise is taken off (PRAISE_COMMAS). "That one" is not a number.
 const PRAISE_WORD = /^\W*(?:correct|right|yes|yep|yeah|great|good|nice|awesome|perfect|excellent|exactly|well done|that(?:'|’)?s (?:right|correct)|that is (?:right|correct)|you got it)/i;
+const holdsNumber = (text: string) => numbersIn(text.replace(/\b(?:that|this|the|next|another|each|every|which) one\b/gi, "")).length > 0;
 function isPraise(sentence: string): boolean {
   const m = PRAISE_WORD.exec(sentence);
   if (!m) return false;
   const rest = sentence.slice(m[0].length);
   return /^[\s*_]*[.!:]/.test(rest) || /^\s+(?:job|work|thinking|try|answer|going|effort)\b/i.test(rest)
-    || (/^[\s*_]*,/.test(rest) && !/\d/.test(rest));
+    || (/^[\s*_]*,/.test(rest) && !holdsNumber(rest));
 }
+// The praise before a setup in the same sentence: "Yes, good job, " in "Yes, good job, Sam has five apples.".
+// A praise word and at most four more words, then a comma ("Right now Sam has five apples, ..." is kept).
+const PRAISE_PHRASE = String.raw`${PRAISE_WORD.source.slice(1)}\b(?:[ \t]+[A-Za-z'’]+){0,4}[ \t]*,\s*`;
+const PRAISE_COMMAS = new RegExp(String.raw`^(?:${PRAISE_PHRASE})+(?:(?:now|so|then|next|and|okay|ok)\b,?\s*)?`, "i");
+// The last answer's feedback after praise: "The answer is 56.", "7 x 8 = 56.".
+const LAST_ANSWER = /^\W*(?:the (?:right |correct )?answer (?:is|was)\b|\d+\s*[x×*+−÷/-]\s*\d+\s*=\s*\d+\W*$)/i;
 
 /** A first sentence that only leads in to the question: "Here is your first question.", "Next one:", "Okay.". */
 function isLeadIn(sentence: string): boolean {
   const s = sentence.replace(/[*_]/g, "").trim();
-  if (/^(?:okay|ok|alright|all right|now|so|then)\W*$/i.test(s)) return true;
+  if (/^(?:okay|ok|alright|all right|now|so|then|next)\W*$/i.test(s)) return true;
   return s.split(/\s+/).length <= 6 && !/\d/.test(s)
     && /^(?:here|next|now|okay|ok|alright|so|and|let(?:'|’)?s|try|on to|time for|ready|this)\b/i.test(s)
     && /\b(?:question|problem|one|another)\b/i.test(s)
@@ -394,8 +402,12 @@ export function questionAgain(tutorMessage: string, keyedQuestion: string): stri
   while (first > 0 && lines[first - 1].trim() && !CHOICE_LINE.test(lines[first - 1])) first--;
   const start = lines.slice(0, first).reduce((n, l) => n + l.length + 1, 0);
   let question = m.slice(start).trim();
-  for (let s = FIRST_SENTENCE.exec(question); s && (isPraise(s[0]) || isLeadIn(s[0])); s = FIRST_SENTENCE.exec(question)) {
-    question = question.slice(s[0].length).trim();
+  // Praise, a lead-in, the last answer's feedback after praise, or the praise before a setup comes off.
+  for (let s = FIRST_SENTENCE.exec(question), praised = false; s; s = FIRST_SENTENCE.exec(question)) {
+    const lead: RegExpExecArray | null = isPraise(s[0]) || isLeadIn(s[0]) || (praised && LAST_ANSWER.test(s[0])) ? s : PRAISE_COMMAS.exec(question);
+    if (!lead) break;
+    praised ||= lead !== s || isPraise(s[0]);
+    question = question.slice(lead[0].length).trim();
   }
   question = question.replace(PRAISE_LEAD, "")
     .replace(/^([*_\s"“]*)(\p{Ll})/u, (_, pre: string, c: string) => pre + c.toUpperCase());
@@ -405,7 +417,7 @@ export function questionAgain(tutorMessage: string, keyedQuestion: string): stri
     : question;
 }
 
-/** The whole reply when code found the answer answers nothing: no model call (TutorEngine). */
+/** The whole reply when code found the answer answers nothing: no reply call (TutorEngine). */
 export function nonAnswerReply(tutorMessage: string, check: AnswerCheck): string {
   const again = questionAgain(tutorMessage, check.question);
   return again ? `That doesn't answer the question yet. Here it is again:\n\n${again}` : "That doesn't answer the question yet. Want to try again?";

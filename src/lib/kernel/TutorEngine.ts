@@ -252,7 +252,7 @@ function fixedReplyResult(text: string, contextTokens: number): TutorTurnResult 
   };
 }
 
-/** A mastery check's answer that code found answers nothing: code's reply, no model call (answerCheck.ts nonAnswerReply). */
+/** A mastery check's answer that code found answers nothing: code's reply, no reply call (answerCheck.ts nonAnswerReply). */
 function nonAnswerResult(contextTokens: number, text: string, answerCheck: AnswerCheck, grounding: Grounding, disclosure: boolean): TutorTurnResult {
   return { ...fixedReplyResult(text, contextTokens), grounding, answerCheck, disclosure, fixedReply: false };
 }
@@ -504,8 +504,8 @@ ${lastUser.content}` };
     }
 
     if (answerCheck?.nonAnswer) {
-      // Code found the answer answers nothing ("xyz", "?!"), so code writes the reply too, with no model
-      // call: a model told "not correct" still added "That is close." (TerraTutor click test 2026-11-19 part 3).
+      // Code found the answer answers nothing ("xyz", "?!"), so code writes the reply too, with no reply
+      // call (ChatTab's post-turn reflection still runs): a model told "not correct" still added "That is close." (TerraTutor click test 2026-11-19 part 3).
       const result = nonAnswerResult(budget.total, nonAnswerReply(conversation[conversation.length - 2].content, answerCheck), answerCheck, grounding, keepsNothing);
       turn.onText(result.text);
       return result;

@@ -1181,6 +1181,17 @@ describe("an answer that answers nothing in a mastery check", () => {
     ["Mr. Lee has 4 pens. Mrs. Tran gives him 3. How many does he have?", "Mr. Lee has 4 pens. Mrs. Tran gives him 3. How many does he have?", "7"],
     ["Nice work!\nSam has 5 apples.\nHe eats 2.\nHow many are left?", "Sam has 5 apples.\nHe eats 2.\nHow many are left?", "3"],
     ["Good, now Sam has 5 apples. How many are left if he eats 2?", "Sam has 5 apples. How many are left if he eats 2?", "3"],
+    // Number words are a setup too (review of TerraTutor #252, 2026-11-19).
+    ["Good, now Sam has five apples. He eats two. How many are left?", "Sam has five apples. He eats two. How many are left?", "3"],
+    ["Great, a farmer has three cows. Two more come. How many cows now?", "A farmer has three cows. Two more come. How many cows now?", "5"],
+    ["Yes, good job, Sam has five apples. How many if he eats two?", "Sam has five apples. How many if he eats two?", "3"],
+    ["Great, you got that one! What is 6 x 8?", "What is 6 x 8?", "48"],
+    ["Right now Sam has five apples. He eats two. How many are left?", "Right now Sam has five apples. He eats two. How many are left?", "3"],
+    // The last answer's feedback goes with the praise before it; a bare "Next:" is a lead-in.
+    ["Correct! The answer is 56. Next question: what is 6 x 8?", "What is 6 x 8?", "48"],
+    ["Correct, the answer is 56. What is 6 x 8?", "What is 6 x 8?", "48"],
+    ["Next: Mr. Lee has 4 pens. How many?", "Mr. Lee has 4 pens. How many?", "4"],
+    ["Here is your first question. What is 6 x 8?", "What is 6 x 8?", "48"],
     ["Yes, no, maybe, which of these is a question word?", "Yes, no, maybe, which of these is a question word?", "maybe"],
   ])("repeats %j with its setup and no praise", async (asked, again, key) => {
     keyOut = { question: again, working: "", answer: key };
