@@ -439,12 +439,13 @@ export function hasSelfCorrection(explanation: string): boolean {
 
 // An option as a learner reads it: no "A) " label, case, curly or straight quote style, or spacing.
 // print('Hello World') and print("Hello World") are the same option to a child, and grading compares
-// the exact labelled string, so a child who picks the twin is marked wrong.
-export function normalizeOption(s: string): string {
-  return String(s ?? "")
+// the exact labelled string, so a child who picks the twin is marked wrong. `keepCase` keeps letter case
+// (duplicateOptionPair on a stem about capitals, where "Hello." and "hello." are different answers).
+export function normalizeOption(s: string, keepCase = false): string {
+  const unlabelled = String(s ?? "")
     .normalize("NFKC")
-    .replace(/^\s*\(?[A-Da-d]\s*[).:]\s*/, "")
-    .toLowerCase()
+    .replace(/^\s*\(?[A-Da-d]\s*[).:]\s*/, "");
+  return (keepCase ? unlabelled : unlabelled.toLowerCase())
     .replace(/[‘’‚‛′`"“”„‟″]/g, "'")
     .replace(/\s+/g, " ")
     .replace(/[.]+$/, "")
@@ -510,21 +511,37 @@ function stemNames(stem: string, option: string): boolean {
   return o !== "" && new RegExp(`(?<![\\w.])${o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\w|\\.\\d)`).test(stem.toLowerCase());
 }
 
-// Two options that differ only in "a"/"an", a hyphen or a space ("a eighth" / "an eighth", "twenty-one" /
-// "twenty one"): what an English question asks about, so not the key's number written another way.
-const writingOnly = (s: string) => normalizeOption(s).replace(/^an?\s+/, "").replace(/[\s-]+/g, "");
+// Two options that both start with an article and differ only in it ("a eighth" / "an eighth"): what an
+// English question asks about, so not the key's number written another way. A hyphen or a space
+// ("twenty-one" / "twenty one") is still the key's number unless the stem asks how it is written ("Which is
+// spelled correctly?", ABOUT_WRITTEN_FORM): on a math stem a learner who picks it is right.
+function articleOnly(a: string, b: string): boolean {
+  const x = /^(an?) (.*)$/.exec(normalizeOption(a));
+  const y = /^(an?) (.*)$/.exec(normalizeOption(b));
+  return !!x && !!y && x[1] !== y[1] && x[2] === y[2];
+}
+
+// A stem about capital letters, where "Hello." and "hello." are different answers: "Which word needs a
+// capital letter?", "Which is capitalized correctly?", "Which is a proper noun?". Not a bare "capital"
+// ("What is the capital of France?" with "Paris" and "paris" is still caught). Fable's decision for
+// TerraTutor #252, 2026-11-19, as the maintainer's delegate: a case-only twin from a generation audit ("The
+// Normal Force." / "the normal force") marks a learner wrong, a capitals question whose stem doesn't say so
+// only costs a rewrite.
+const ABOUT_CAPITALS = /capitali[sz]|capital letter|(?:start|begin)s? with an? capital|upper[ -]?case|lower[ -]?case|proper noun/i;
 
 // The first pair of options a learner can't tell apart, as their indices, or null: the same option once a
 // label, case, quotes, spacing and a closing period are set aside (normalizeOption; "Hello!" and "Hello.",
 // "a apple" and "an apple", "ice-cream" and "ice cream" stay apart, since that is what an English question
-// asks), or the same number written the same way ("0.5" and "0.50", "1,000" and "1000", "50%" and "50
-// percent") unless the stem is about how a number is written (ABOUT_WRITTEN_FORM) or names both options
-// ("Which is greater: 0.5 or 0.50?").
+// asks, and so do "Hello." and "hello." when the stem is about capitals, ABOUT_CAPITALS), or the same
+// number written the same way ("0.5" and "0.50", "1,000" and "1000", "50%" and "50 percent") unless the
+// stem is about how a number is written (ABOUT_WRITTEN_FORM) or names both options ("Which is greater:
+// 0.5 or 0.50?").
 export function duplicateOptionPair(options: readonly string[], stem = ""): [number, number] | null {
   const seen = new Map<string, number>();
   const numbers = ABOUT_WRITTEN_FORM.test(stem) ? options.map(() => null) : options.map(optionNumber);
+  const keepCase = ABOUT_CAPITALS.test(stem);
   for (let i = 0; i < options.length; i++) {
-    const k = normalizeOption(options[i]);
+    const k = normalizeOption(options[i], keepCase);
     const j = seen.get(k);
     if (j !== undefined) return [j, i];
     seen.set(k, i);
@@ -541,7 +558,7 @@ export function duplicateOptionPair(options: readonly string[], stem = ""): [num
  * The index of an option other than the key that is the key's number written another way ("0.5" for the
  * key "1/2", "seven" for "7", "2/4" for "1/2", "50%" for "one half"), or null. A learner who picks it is
  * right but would be marked wrong. Not when the stem asks about how a number is written (ABOUT_WRITTEN_FORM),
- * nor for an option that differs from the key only in "a"/"an", a hyphen or a space (writingOnly).
+ * nor for an option that differs from the key only in "a" against "an" (articleOnly).
  */
 export function optionEqualToKey(options: readonly string[], key: string, stem: string): number | null {
   const k = optionNumber(key);
@@ -550,7 +567,7 @@ export function optionEqualToKey(options: readonly string[], key: string, stem: 
   for (let i = 0; i < options.length; i++) {
     if (i === keyAt) continue;
     const o = optionNumber(options[i]);
-    if (o && sameNumber(o.value, k.value) && writingOnly(options[i]) !== writingOnly(key)) return i;
+    if (o && sameNumber(o.value, k.value) && !articleOnly(options[i], key)) return i;
   }
   return null;
 }
