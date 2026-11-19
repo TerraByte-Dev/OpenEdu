@@ -9,7 +9,7 @@ import type { Syllabus } from "../types";
 
 // The real ChatTab on the real db.ts (the in-memory SQLite stand-in the db tests use): "Check if I've got
 // this" is not offered on any turn of a check that is already running, a hint or a question inside it
-// included (in TerraTutor the chip opened the topic picker in the middle of a check), nor under the reply to
+// included (the chip opened the topic picker in the middle of a check), nor under the reply to
 // a safety disclosure, and "Ask again" on a saved "Check if I've got this." opens the check. Only the tutor
 // turn itself is a stand-in. Ported from TerraTutor #247.
 

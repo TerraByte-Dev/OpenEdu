@@ -2660,7 +2660,7 @@ export async function getOllamaModels(ollamaUrl: string): Promise<{ models: stri
     return { models };
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    // The plugin's refusal of the address was shown to a grown-up word for word (TerraTutor's click test 2026-11-19).
+    // The plugin's refusal of the address was shown word for word in Settings (TerraTutor's click test 2026-11-19).
     const error = scopeRefused(e) ? OLLAMA_ADDRESS_NOT_ALLOWED : raw.includes("connect") || raw.includes("refused") || raw.includes("network") || raw.includes("fetch")
       ? `Connection refused — is Ollama running? Try: ollama serve`
       : raw.slice(0, 150);
