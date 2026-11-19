@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import type { QuizViewContext, QuizQuestion, LLMConfig } from "../types";
-import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getReviewPoolQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
-import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR } from "../lib/quiz";
+import { createQuizAttempt, saveQuizQuestion, completeQuizAttempt, getReviewPoolQuestions, getRecentQuizQuestions, updateQuizQuestionSelfExplanation, updateQuizQuestionGrade } from "../lib/db";
+import { generateQuizQuestions, gradeAnswersBatch, QUIZ_TARGET, QUIZ_FLOOR, RECENT_QUESTIONS } from "../lib/quiz";
 import { answerMark, answerShown, keyShown, leaveQuizBody, LEAVE_QUIZ, questionWithSentence, showsAnswerAndKey, showsSafetyNotice, uncheckedSummary, UNCHECKED_NOTE, type AnswerMark, type GradedBy } from "../lib/quiz-grading";
 import { log } from "../lib/llm";
 import { friendlyError } from "../lib/plain-language";
@@ -99,9 +99,11 @@ export default function QuizFullScreen({ context, onClose, grade }: QuizFullScre
       setConfig(cfg);
       // Pull the spaced "review pool" (prior misses) so ~20% of the quiz is retrieval practice.
       const reviewPool = await getReviewPoolQuestions(courseId, 6);
+      // What the last quizzes on this level asked, so this one asks other questions where it can.
+      const earlier = await getRecentQuizQuestions(courseId, syllabus.level, RECENT_QUESTIONS);
       // The pool's verify pass runs on a local model only (lane 1): it is data about this learner.
       const generated = await generateQuizQuestions(syllabus, QUIZ_TARGET, cfg, reviewPool, (done, total) => setGenProgress({ done, total }),
-        await getReviewConfig(cfg, "questions"), reviewPool.length ? await getLocalVerifyConfig(cfg) : null, stop.signal);
+        await getReviewConfig(cfg, "questions"), reviewPool.length ? await getLocalVerifyConfig(cfg) : null, stop.signal, earlier);
       // Stopped while it was being made: no attempt is created, so there is no half-made quiz.
       if (stop.signal.aborted) return;
       const attempt = await createQuizAttempt(courseId, "quiz", syllabus.level, generated.length);
