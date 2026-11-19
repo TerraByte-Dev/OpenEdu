@@ -2,7 +2,8 @@
 //
 // It used to score the whole syllabus joined into one query and keep anything above zero. The joined text
 // repeats its words ("part" fifteen times in a fractions level), every repeat counted again, so Parts of
-// Speech led a fractions course and Music, Physics and Spanish filled the rest (TerraTutor click test 2026-11-19; port of TerraTutor #249).
+// Speech led a fractions course and Music, Physics and Spanish filled the rest (TerraTutor click test 2026-11-19).
+// Port of TerraTutor #249.
 //
 // Now each text is scored on its own: the course topic, each subtopic title (the anchors) and each key
 // concept. A card is recommended when it reaches the grounding floor (kernel/ground.ts MIN_LIBRARY_SCORE)
