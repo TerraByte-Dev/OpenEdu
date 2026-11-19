@@ -1093,7 +1093,11 @@ A conversation that opens on the student's own message with no reply saved after
 while the reply was starting, which stops it, or Ollama was not running) says `UNANSWERED_TURN` under it
 with an "Ask again" button (`thread-transcript.ts unansweredAtOpen`, ported from TerraTutor #247), which
 runs the reply to that same saved message (ChatTab's `saved` path, as for a card's typed words), never
-saving it twice. On a saved "Check if I've got this." it runs in assess mode.
+saving it twice. On a saved "Check if I've got this." it runs in assess mode. The note stays until a reply
+follows that message: it hides while the retry streams and comes back with the button when the retry fails
+(Ollama still down), is stopped before any reply, or never starts (#393's follow-up, ported from TerraTutor
+#250; before, the click cleared it and the learner had no way to ask again until they reopened the
+conversation).
 
 In the chat, a ```` ```mermaid ```` fence in a reply (one the model wrote, or the one the kernel shows
 for a `diagram.render` call) is drawn by `MermaidBlock` (`mermaid-source.ts`), and read aloud as "A drawing". Mermaid the model
@@ -1102,6 +1106,55 @@ fenced first (`fenceBareMermaid`) and treated the same way. Source Mermaid canno
 its node labels quoted inside their shapes (a circle stays a circle), then, for a flowchart, without
 `}`s at its end that close nothing; if that fails too, the child sees a plain sentence and the
 diagram's labels, never the source.
+
+### Arithmetic facts the student asks for (`kernel/arithmeticFact.ts`)
+
+Ported from TerraTutor #250. TerraTutor's click test 2026-11-19: "what is 7 times 8 in the times tables?"
+in a Fractions course got 56 from `gemma4:e2b` in 1 of 5 replies; the rest put it off ("a topic for
+later", "find the row for 7 and the column for 8, what number do you find?"). Code owns that fact now, as
+the dictionary owns a word's meaning (`docs/BENCHMARKS.md` lever 20). When the student's newest message
+plainly asks one arithmetic fact, code works it out and appends it after the student's text, in the same
+place as the other notes: an `<arithmetic_fact>` line ("7 × 8 = 56") and a `<tutor_note>` that says to
+give it in the first sentence, not to ask the student to work it out or put it off, and then, if it helps,
+to link it back to the work. No model call is added, the system prompt is unchanged and the note is not
+saved; a turn it does not fire on is sent byte for byte as before (`arithmeticFactTurn.test.ts`), and
+`TutorTurnResult.arithmeticFact` says what was given.
+
+- **What fires** (`askedArithmetic`, on the message's last sentence): "what is / what's / how much is E",
+  "what does E equal / make", "(can you) tell me / I forgot / I don't know what E is", "E = ?", with only
+  "in the times tables", "again", "please" and the like after it, and no number (digits or a number word)
+  in any sentence before it. E is one operation (+, −, ×, ÷ as symbols or words, or "double") on whole
+  numbers, digits or number words.
+- **Facts, not exercises** (Fable's decision for TerraTutor, 2026-11-19, as the maintainer's delegate):
+  + with both numbers 0-100; − with both 0-100 and no negative result; × with both 0-12; ÷ by 1-12 that
+  comes out even with a quotient up to 12; double a number up to 100. No fractions, no decimals, and no
+  "half / a third / a quarter of N" (a fraction of a set is a Fractions course's own exercise, as a
+  fraction sum is). A problem the student types is held by the attempt-first policy (B4 G1 on
+  k12-flow-fr, whose "what's 407 + 285?" a wider version answered), and a fraction or decimal sum is a
+  lesson's own exercise. A test pins that no message the k12-flow or k12-flow-fr benchmarks send fires.
+  Known gap: in a course that teaches addition or the times tables, "15 + 27" or "7 × 8" is the exercise
+  itself, and the note still states it.
+- **What does not**: a word problem, typed before the question in the same message ("Sam has 5 apples and
+  gets 3 more. What is 5 + 3?") or in an earlier one (below), or after E ("7 times 8 apples", "in binary"), a pasted list of questions, two operations,
+  "times" in other senses, a lone fraction or date ("12/25", "9-11"), algebra ("2x + 3"), a try ("is 7 x 8
+  56?", "is it 56? what is 7 times 8", "I think it's 54"), and any message that asks to be quizzed or to
+  work it out ("quiz me", "ask me", "hint", "don't tell me", "let me try").
+- **Never a question the tutor asked**: not on any turn of a mastery check (`inMasteryCheck`: assess mode,
+  the quiz chip, or "quiz me" / "test me" among the student's last messages), and not when one of the
+  tutor's last five messages (`TUTOR_LOOKBACK`) holds every operand, as a number or a number word
+  ("eight sevens"), or holds the answer and an operand ("What is 54 ÷ 6?" then "what's 6 times 9?"): it
+  may have asked that sum, or a word problem with those numbers. "Half", "twice" and "double" count as 2,
+  "third" and "triple" as 3, "quarter" as 4 and "dozen" as 12 ("What is half of 16?" then "what is 16 /
+  2"). Five, not one, because a hint can sit between the tutor's question and the student's ask, and a
+  long quiz runs past `inMasteryCheck`'s window (the student's last five messages), where a question
+  typed runs in explain mode. The student's own messages from that stretch are read the same way, so a
+  word problem the student typed a message or more before the question ("Sam has 7 bags with 8 marbles
+  in each. How many marbles?", the tutor's reply, then "what is 7 times 8?") is held as the student's
+  exercise (B4 G1). Asking one piece of the tutor's question is the student's own work and is answered
+  ("What is 7 × 8?" then "what is 7 times 4?"); so is a question asked more than five tutor messages
+  back (after five hints). Not on a
+  safety-disclosure turn, beside the first-turn hold, check-before-praise or a flashcard the app makes on
+  that turn, or on a meaning question.
 
 ## AI disclosure and the break reminder (`ai-notice.ts`, `break-reminder.ts`)
 

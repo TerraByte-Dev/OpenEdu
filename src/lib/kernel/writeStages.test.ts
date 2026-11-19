@@ -172,6 +172,14 @@ describe("the flashcard stage through tutorEngine.run", () => {
     expect(result.toolCalls[0]).toMatchObject({ name: "flashcard.create", ok: true, byApp: true });
   });
 
+  it("a card request that also asks a fact gets the card note only, never the arithmetic-fact note beside it", async () => {
+    const text = "Make me a flashcard. what is 7 x 8?";
+    card = { front: "What is 7 x 8?", back: "56" };
+    const { result } = await run("explain", [{ role: "user", content: text }], { confirmTool: async () => true });
+    expect(last(sent[0].messages).content).toBe(`${text}\n\n${flashcardNote(card as typeof CARD)}`);
+    expect(result.arithmeticFact).toBeNull();
+  });
+
   it("saves nothing when the learner declines, and says so to the model", async () => {
     card = CARD;
     const { result } = await run("review", [{ role: "user", content: REQUEST }], { confirmTool: async () => false });
