@@ -134,6 +134,13 @@ The section for each release is also what the app shows when you press Check for
   tutor's reply, or on its own when no reply comes (the turn fails or is stopped).
 - **One "still working" sign at a time.** While an Allow / Don't allow card waits for a tap, the empty
   "Thinking..." bubble above it no longer shows.
+- **A fix in Settings › Models shows at once.** Saving the tutor chat or course model, the embedding
+  model or the Ollama address now runs the setup check again, so "Tutor model missing" or "Tutor not
+  running" clears without restarting OpenEdu. The welcome tour now waits until the setup screen is gone.
+- **The Checking model has its own cloud confirm.** Picking a cloud Checking model now says what it is
+  sent (the course topic and the text the course model wrote, never the chat) instead of the "switch to"
+  confirm for the tutor's chat. Accepting it does not skip the chat confirm if you later pick that
+  company for the tutor.
 
 ## [0.4.0] - 2026-11-10
 

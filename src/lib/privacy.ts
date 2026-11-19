@@ -6,6 +6,7 @@ import type { LLMProvider } from "../types";
 /**
  * The choices that send the learner's chats off this computer, each with its own one-time confirm.
  * "ollama-cloud" is an Ollama model whose name ends in cloud: Ollama forwards it to Ollama's servers.
+ * The Checking model's confirm for the same company is stored apart, as `checking:<feature>` (NoticeMark).
  */
 export type CloudFeature = "openai" | "anthropic" | "ollama-cloud";
 
@@ -121,7 +122,7 @@ export function withNoticeSeen(seen: readonly string[], feature: NoticeMark): st
   return seen.includes(feature) ? [...seen] : [...seen, feature];
 }
 
-/** The stored value as a list of confirmed features; anything else counts as nothing confirmed. */
+/** The stored value as a list of confirm marks (NoticeMark); anything else counts as nothing confirmed. */
 export function parseNoticesSeen(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
 }

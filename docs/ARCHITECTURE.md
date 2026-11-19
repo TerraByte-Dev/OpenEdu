@@ -53,7 +53,7 @@ name, which never ends in `.db`. Settings asks the user to wait for "Backup save
 unplugging the stick. The logic is in `src/lib/db-resilience.ts` (pure, tested).
 The backup is the whole database, so each learner's PIN hash (`learners.pin_hash`) is in it: restoring brings
 back the PINs of the backup's day. Settings are in the plugin store's own file, so a restore leaves them as
-they are. The restore steps and Settings › Learner data say so (`db-resilience.ts RESTORE_PIN_NOTE`), and the
+they are. The restore steps (shown in Settings › Learner data) say so (`db-resilience.ts RESTORE_PIN_NOTE`), and the
 learner menu's PIN screen suggests a new backup (`PIN_BACKUP_NOTE`), because a forgotten PIN cannot be
 recovered.
 
@@ -1160,7 +1160,8 @@ it names no person where a sentence works without one, and says "the learner" wh
   `LESSONS_NOTE_NUDGE_DIFFERENT` ("A different cloud model can check new lessons…"), since the default
   Checking model is the self-review. In states 4 and 5, `LESSONS_NOTE_NUDGE_LOCAL` ("You have a cloud model
   set up. It can check new lessons…", Fable's decision), only when a cloud provider is already set up here:
-  an OpenAI or Anthropic key is saved and that same company's one-time notice was confirmed. Without that it
+  an OpenAI or Anthropic key is saved and that same company's chat confirm or Checking confirm was accepted
+  (`needsCheckingNotice`). Without that it
   never shows: for anyone who has not chosen cloud use it would be an upsell. State 1 has no extra line.
   Both nudges say exactly what a lesson review is sent (`buildLessonReviewMessages`: "the course topic as
   the learner typed it and the lesson text, and nothing else"), never "nothing about the learner", which

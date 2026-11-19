@@ -7,7 +7,7 @@ export function CloudNoticePanel({ feature, use, onConfirm, onCancel }: {
   feature: CloudFeature; use?: CloudUse; onConfirm: () => void; onCancel: () => void;
 }) {
   const n = cloudNotice(feature, use);
-  const id = `cloud-notice-${feature}`;
+  const id = `cloud-notice-${use ?? "chat"}-${feature}`;
   return (
     <div role="group" aria-labelledby={id} className="mt-4 max-w-prose rounded-[var(--radius-control)] border border-[var(--rule-strong)] bg-[var(--panel-tint)] p-4">
       <p id={id} className="text-sm font-semibold text-ink">{n.title}</p>
