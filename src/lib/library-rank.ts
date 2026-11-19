@@ -237,7 +237,7 @@ interface EntryTokens {
   all: Set<string>;
   /** normalizePhrase of the title and each alias, non-empty only — the phrase-bonus targets. */
   names: string[];
-  /** Tag tokens: what the curator says the card is about. */
+  /** Each tag word in the forms a one-word query can take for it — see `tagForms`. */
   tags: Set<string>;
 }
 const tokenCache = new WeakMap<object, EntryTokens>();
@@ -265,10 +265,27 @@ function tokensFor(e: LibraryEntry): EntryTokens {
     // Memoised with the tokens: the Unicode normalizePhrase is several regex passes, and scoreEntry
     // otherwise re-ran it on ~900 titles and aliases per query (0.57 -> ~1.9 ms/query, measured).
     const names = [e.title, ...e.aliases].map(normalizePhrase).filter(Boolean);
-    t = { fields, all, names, tags: new Set(tokenize(e.tags.join(" "))) };
+    t = { fields, all, names, tags: tagForms(e.tags) };
     tokenCache.set(e, t);
   }
   return t;
+}
+
+/**
+ * The tag words in every form a one-word query's token can take for them: the word as tokenize folds it,
+ * as written, and with "-es" or "-ies" undone (each also folded). `fold` only cuts a trailing "s", so the
+ * tag "gases" tokenizes to "gase" and "countries" to "countrie", which never equal a course called Gas or
+ * Country; "lenses" undone is "lens", which a query folds to "len".
+ */
+function tagForms(tags: string[]): Set<string> {
+  const out = new Set<string>();
+  for (const w of words(elide(tags.join(" ")))) {
+    const variants = [w];
+    if (w.length > 4 && w.endsWith("ies")) variants.push(w.slice(0, -3) + "y");
+    else if (w.length > 3 && w.endsWith("es")) variants.push(w.slice(0, -2));
+    for (const v of variants) out.add(v).add(fold(v));
+  }
+  return out;
 }
 
 /** Every token an entry contributes to document frequency — the same surfaces scoring reads. */
@@ -357,7 +374,7 @@ export function scoreEntry(
   // ribosome") whose tags don't repeat the word.
   const { names, tags } = tokensFor(entry);
   const reverseOk =
-    qTokens.length > 0 && (!opts.oneWordNeedsTag || qPhrase.includes(" ") || qTokens.every((t) => tags.has(t)));
+    qTokens.length > 0 && (!opts.oneWordNeedsTag || qTokens.length > 1 || tags.has(qTokens[0]));
   for (const n of names) {
     if (qPhrase === n) phrase += 12;
     // Containment must be whole words: a raw substring test let the alias "ph" match inside

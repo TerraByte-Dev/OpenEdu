@@ -282,6 +282,10 @@ describe("matchResourcesScored — Resources tab: one word inside a longer name 
     expect(score("boolean algebra", logic)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
   });
 
+  it("counts words by content token, so a stopword does not make a one-word query two", () => {
+    expect(score("the shapes", flow)).toBeLessThan(MIN_LIBRARY_SCORE);
+  });
+
   it("is off unless asked for: the default path keeps the one-word bonus", () => {
     expect(score("shapes", flow, false)).toBeGreaterThanOrEqual(MIN_LIBRARY_SCORE);
   });

@@ -99,4 +99,17 @@ describe("courseResources: the Resources tab's cards for a course", () => {
     expect(titles("Geography", [])).toEqual(["Landform Glossary"]);
     expect(titles("Geometry", [])).toEqual(["Geometry Formulas"]);
   });
+
+  // Review of the #253 port: tokenize folds a plural by cutting one "s", so the tag "gases" became "gase" and
+  // never matched a course called Gas. The tag check reads "-es" and "-ies" plurals as their singular.
+  it.each([
+    ["Gas", "chemistry/gas-laws"],
+    ["Prefix", "ela/prefixes"],
+    ["Suffix", "ela/suffixes"],
+    ["Country", "geography/countries-capitals"],
+    ["Tornado", "earth-space/storm-scales"],
+    ["Lens", "physics/optics"],
+  ])("keeps %s's card when a tag names the word as an -es or -ies plural", (topic, id) => {
+    expect(courseResources(topic, [], manifest).map((e) => e.id)).toContain(id);
+  });
 });
