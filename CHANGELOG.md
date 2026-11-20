@@ -227,7 +227,8 @@ The section for each release is also what the app shows when you press Check for
   question again (only when the two really ask the same thing: "12 times 2" after "12 times 3", "the
   letter B" after "the letter A", "What does a mammal have?" after "What is a mammal?", "What does the
   nucleus do?" after "What is the nucleus?", "What are leaves for?" after "What are leaves?", "How do bees
-  make honey?" after "Do bees make honey?" or "Is the earth bigger than the sun?" after "Is the sun bigger
+  make honey?" after "Do bees make honey?", "What makes a volcano?" after "What does a volcano make?" or
+  "Is the earth bigger than the sun?" after "Is the sun bigger
   than the earth?" are two questions, while "What is the job of the heart?" after "What does the heart
   do?" is one; and a verdict given this way never marks the skill learned); and the tutor's own "Let's go
   back to my last question." no longer comes right before the app's "Now back to the question:".

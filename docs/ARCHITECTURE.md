@@ -1189,7 +1189,9 @@ So the verdict on the child's answer is the app's, not the reply's:
   verdict. When the newest question is the first one asked again in other words (`rewordsQuestion`: the
   same words, numbers and single letters included, less stopwords and framing words such as "think" and
   "remember", but with the stopwords that say what is asked kept: "have", "get", "give", "make", "show",
-  "list" (each as one form, "has" / "have"), "in", "on", "how", a "for", "of", "about", "with" or "to" that
+  "list" (each as one form, "has" / "have", and as another word when it comes after "what", "who" or "which"
+  with only dropped words between, so "What makes a volcano?" is not "What does a volcano make?" while
+  "What made ...?" and "What makes ...?" are one), "in", "on", "how", a "for", "of", "about", "with" or "to" that
   ends the question ("What are leaves for?"), and "do" where it is the verb, last or before a word such as
   "for", "to" or "so" ("What does the nucleus do?", not the "do" of "What do you think ..."); "job", "role"
   and "function" read as "do" ("What is the job of the heart?" / "What does the heart do?"); the same
