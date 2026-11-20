@@ -1114,9 +1114,10 @@ So the verdict on the child's answer is the app's, not the reply's:
   you want to try another example, or would you like to check another part of ...?", TerraTutor live test
   2026-11-20 part 12, step 3, keyed "2/6", a statement before it; "Is a whale a fish or a mammal?", "Is 3/4
   bigger or smaller than 1/2?" and "Do you want to add or subtract ...?" are keyed, and so is an offer with
-  a question inside it: a question word, "whether" or "if", a ":", or "tell", "name", "find", "guess" or
-  "answer", as in "Do you want to tell me what the nucleus does, or would you like a hint?"; ported from
-  TerraTutor #273), with no key call when it is the message's one question, and a key whose answer is no
+  a question inside it: a question word, "whether" or "if", a ":", a digit, or "tell", "name", "find",
+  "guess" or "answer", as in "Do you want to tell me what the nucleus does, or would you like a hint?" or "Do you
+  want to try 6 × 7, or would you like an easier one?"; ported from TerraTutor #273, the digit from this
+  repo's review of that port), with no key call when it is the message's one question, and a key whose answer is no
   answer: a
   request for input, a refusal or a note about the message (`isMetaKey`: "Please provide a topic", "There
   is no question in this message.", "Answers will vary."; it must open the answer, so "No", "None" and
@@ -1226,9 +1227,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   numbers in the same order; the same negations; and, when either has an order word ("than", "or", "before", "after", "between", "from ... to"), the same words in the same
   order; "Can you tell me what the cell membrane does?" / "So, what job does the membrane do for the
   cell?"), and the two keys give one answer (`keysAgree`: the same once case, punctuation and plurals are
-  set aside, or the same numbers in the same order with nothing else that differs: "4" / "4 pieces", not "4
-  pieces" / "4 blocks", "3/4" / "4/3" or "4" / "not 4"; ported from TerraTutor #273, which replaced
-  `keysContradict`), the two are one question: one verdict, the better one, given on the newest question
+  set aside, or the same numbers in the same order with the same symbols beside them in the same order,
+  the same negations and yes or no, and every other word of one key in the other: "4" / "4 pieces", not "4
+  pieces" / "4 blocks", "3/4" / "4/3", "4" / "not 4", "4 cm" / "4 cm²", "3 × 4" / "3 + 4" ("3 x 4" is "3 ×
+  4"), "50%" / "50" or "$4" / "4 cents"; ported from TerraTutor #273, which replaced `keysContradict`; the
+  symbols are this repo's review of that port, MUST-FIX 1), the two are one question: one verdict, the better one, given on the newest question
   with its own key, with nothing asked again (this repo's take-back 2026-11-20-0752 of the #268 port:
   "That's partly right." and then the same question again). Keys that do not give one answer are two
   answers, however alike the questions' words: "What does a frog eat?" / "What eats a frog?", keyed
@@ -1237,12 +1240,15 @@ So the verdict on the child's answer is the app's, not the reply's:
   may say one idea in other words are graded apart too: code cannot tell them from two answers, so the
   newest question is asked again. The same holds, nothing asked again, when the newest question is another
   question whose key gives the first one's answer (`keysAgree`), the answer was right for the first one
-  and states the key's numbers, and every word the newest key adds is in the newest question or the answer
-  (TerraTutor live test 2026-11-20 part 12, issue 1: "The denominator would be 4." was right for "what
-  number would be the denominator?", keyed "4", and code then asked "how many pieces do we have in
-  total?", keyed "4 pieces", again; "4" for "What digit is in the tens place of 345?" does not answer "What
-  is the value of the 4 in 345?", keyed "4 tens"); a partly right answer, or keys that differ in any way,
-  keep the two questions apart. Anything else is two questions, graded apart as above (`on: "earlier"`): a
+  and states the key's numbers, and every word one key has and the other does not is counted by a "how
+  many" or "how much" in the newest question (`countsKeyWords`: "pieces" in "how many pieces ...?"), or,
+  for a word only the newest key has, is in the answer (TerraTutor live test 2026-11-20 part 12, issue 1:
+  "The denominator would be 4." was right for "what number would be the denominator?", keyed "4", and code
+  then asked "how many pieces do we have in total?", keyed "4 pieces", again; "4" for "What digit is in the
+  tens place of 345?" does not answer "What is the value of the 4 in 345?", keyed "4 tens"; "16 cm", right
+  for a 4 cm square's perimeter, does not answer "What is the area ...?", keyed "16 square cm", nor "16
+  square cm" a perimeter question keyed "16 cm"). A partly right answer, keys that do not give one answer,
+  or a key word the newest question does not count keep the two questions apart. Anything else is two questions, graded apart as above (`on: "earlier"`): a
   question that
   adds a word ("... keep out of the cell?"), another verb or preposition ("What does a mammal have?" after
   "What is a mammal?", "What does the nucleus do?" / "What is the nucleus?", "on" after "in", "What are

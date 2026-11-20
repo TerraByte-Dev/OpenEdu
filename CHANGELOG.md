@@ -234,7 +234,9 @@ The section for each release is also what the app shows when you press Check for
   back to my last question." no longer comes right before the app's "Now back to the question:". Nor does
   its "Now, let's try another one.". When the tutor's newest question has the same answer as the first one
   ("4" and "4 pieces") and the learner answered the first one right, the app no longer asks the newest one
-  again; two questions with the same words but different answers ("What does a frog eat?" / "What eats a
+  again. Keys with the same number but another symbol or unit ("16 cm" and "16 cm²" or "16 square cm" for a
+  square's perimeter and area, "3 × 4" and "3 + 4") are two answers, and the newest question is still asked;
+  two questions with the same words but different answers ("What does a frog eat?" / "What eats a
   frog?") are checked apart, and "What are leaves for, do you think?" is no longer read as "What are
   leaves?". A question asked again in other words whose answers are written as two different sentences
   is now checked apart too, and asked again (ported from TerraTutor #273).
@@ -242,7 +244,8 @@ The section for each release is also what the app shows when you press Check for
   "Answers will vary.", a question that asks what the learner thinks is most important or likes best, and
   one that offers a choice of what to do next ("Do you want to try another example, or would you like to
   check another part?"), no longer get a "right" or "not right yet". An offer with a question inside it
-  ("Do you want to tell me what the nucleus does, or would you like a hint?") is still checked.
+  ("Do you want to tell me what the nucleus does, or would you like a hint?"), or with a number in it ("Do
+  you want to try 6 × 7, or would you like an easier one?"), is still checked.
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A question asked again in other words counts as a repeat** when its answer is written in words, too:
   the same cake question with "take" and then "eat", keyed "the number of parts taken" and "the number
