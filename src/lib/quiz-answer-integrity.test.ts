@@ -739,6 +739,28 @@ describe("near-duplicate questions in one quiz or test", () => {
     )).toBe(false);
   });
 
+  // Review of OpenEdu's port of TerraTutor #263: dropping every non-letter turned "<", ">", "=", "+" and "-"
+  // into "" and "Na+" into "na", so a mirror question (the same stem words) was dropped as a repeat.
+  it("keeps a symbol in a key: a comparison or sign question and its mirror are two questions", () => {
+    const fb = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "fill_in_blank", options: [] as string[] });
+    const sa = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "short_answer", options: [] as string[] });
+    const pairs: Array<[ReturnType<typeof fb>, ReturnType<typeof fb>]> = [
+      [fb("Which symbol makes this true: 34 ___ 43?", "<"), fb("Which symbol makes this true: 43 ___ 34?", ">")],
+      [fb("Which symbol makes this true: 34 ___ 34?", "="), fb("Which symbol makes this true: 34 ___ 43?", "<")],
+      [fb("Which sign makes 6 _ 2 = 8 true?", "+"), fb("Which sign makes 6 _ 2 = 4 true?", "-")],
+      [sa("What is the symbol for a sodium ion?", "Na+"), sa("What is the symbol for sodium?", "Na")],
+    ];
+    for (const [x, y] of pairs) {
+      expect(keyForm(x.correct_answer), `${x.correct_answer} / ${y.correct_answer}`).not.toBe(keyForm(y.correct_answer));
+      expect(isNearDuplicate(x, y), `${x.question_text} / ${y.question_text}`).toBe(false);
+      expect(dedupeByQuestionText([x, y])).toHaveLength(2);
+    }
+    // A key that is only punctuation is never blank, so it cannot match every other such key.
+    expect(keyForm("?")).not.toBe("");
+    // Punctuation still goes: the live cell-membrane keys stay one key.
+    expect(keyForm("Cell-membrane!")).toBe("cell membrane");
+  });
+
   it("does not count a classification's pick toward the same-key cap", () => {
     const sa = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "short_answer", options: [] as string[] });
     expect(sameKeyForm(sa("Is 8 even or odd?", "Even"))).toBeNull();

@@ -722,11 +722,14 @@ export const NEAR_DUPLICATE_OVERLAP = 0.85;
 // leading "the", "a" or "an" and without punctuation, so "The Cell Membrane" and "cell membrane." are one
 // key (TerraTutor live test part 8 issue 2). The apostrophe stays: "it's" / "its", "we'll" / "well" and "can't" /
 // "cant" are the pairs a grammar question contrasts. A key with a digit is left as normalizeOption reads
-// it: "-3" and "3", "$5" and "5" are different answers. Only for telling repeats apart; grading never reads it.
+// it: "-3" and "3", "$5" and "5" are different answers. Symbols stay too ("<" / ">", "+" / "-", "Na+" / "Na"
+// are different answers), and a key that is only punctuation is left as normalizeOption reads it, so
+// it never becomes "" and matches every other such key. Only for telling repeats apart; grading never reads it.
 export function keyForm(s: string): string {
   const k = normalizeOption(s);
   if (/\p{N}/u.test(k)) return k;
-  return k.replace(/[^\p{L}\p{M}'\s]+/gu, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|an?) (?=\S)/, "");
+  const stripped = k.replace(/[^\p{L}\p{M}\p{S}'\s]+/gu, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|an?) (?=\S)/, "");
+  return stripped || k;
 }
 
 // Keys that many different questions share as a matter of course: true / false, a matching question's
