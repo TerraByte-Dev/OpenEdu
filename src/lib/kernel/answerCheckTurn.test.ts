@@ -1436,24 +1436,31 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(marks).toEqual([]);
   }, 30_000);
 
-  // TerraTutor click test 2026-11-19 part 7, issue 2 (ported from TerraTutor #260): after a hint that ends in its own
-  // question, an answer code does not find right for the check's question is the hint's answer. Graded
-  // against the check's question, it was (this test, before) "not right yet" for 6 x 8.
-  it("after a hint that asks a question, an answer to neither is graded against the hint's question, and the check's is asked again", async () => {
+  // TerraTutor click test 2026-11-19 part 8, issue 1 (TerraTutor decision, check first; ported from #262): after a hint that ends in its own
+  // question, the answer is graded against the check's question first, then the hint's. One right for neither
+  // keeps the check's verdict, untagged. Before (part 7, issue 2), it took the hint's verdict, tagged, and the
+  // check's question was asked again.
+  it("after a hint that asks a question, an answer to neither is graded against both questions, check first, and the check's verdict stands", async () => {
     gradeOut = { student_answer: "40", verdict: "incorrect" };
-    script = [markCall("mastered"), reply("Not quite: 8 + 8 is 16.")];
+    script = [markCall("mastered"), reply("Not quite: 6 x 8 is more than 40.")];
     const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor("Count by 8s. What is 8 + 8?")];
     const { result } = await answer(history, "40");
-    expect(result.answerCheck).toMatchObject({ question: "What is 8 + 8?", key: "16", verdict: "incorrect", on: "hint", checkQuestion: "What is 6 x 8?" });
-    // The grader reads the hint's question and key, never the check's.
-    const graded = structured.find((c) => c.tool === "AnswerGrade")!.messages.map((m) => m.content).join("\n");
-    expect(graded).toContain("Question: What is 8 + 8?\nAnswer key: 16");
-    expect(result.text).toBe(`Not quite: 8 + 8 is 16.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", key: "48", verdict: "incorrect" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    // The grader reads the check's question and key, then the hint's.
+    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
+    expect(graded).toHaveLength(2);
+    expect(graded[0]).toContain("Question: What is 6 x 8?\nAnswer key: 48");
+    expect(graded[1]).toContain("Question: What is 8 + 8?\nAnswer key: 16");
+    expect(result.text).toBe("Not quite: 6 x 8 is more than 40.");
     expect(marks).toEqual([]);
   }, 30_000);
 
-  it("after a hint that asks nothing at its end, or asks the check's question again, the answer is the check's", async () => {
+  it("after a hint whose own question the answer does not match, or that asks the check's question again, the answer is the check's", async () => {
     gradeOut = { student_answer: "40", verdict: "incorrect" };
+    // "Is it more than 40?" is keyed ("yes": its question is not the hint's last sentence); "40" misses it.
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("more than 40")
+      ? { question: "Is it more than 40?", working: "", answer: "yes" } : KEY_MULT);
     for (const hint of ["Is it more than 40? Count by 8s.", "Count by 8s. So, what is 6 x 8?"]) {
       const history = [student(ASSESS_MESSAGE), tutor(Q_MULT), student("Give me a hint."), tutor(hint)];
       const { result } = await answer(history, "40");
@@ -1463,7 +1470,7 @@ describe("an answer that answers nothing in a mastery check", () => {
     }
   }, 30_000);
 
-  // Review of OpenEdu's port of TerraTutor #260, 2026-11-19: small models often end a hint with a line after
+  // Review of OpenEdu's port of TerraTutor #260, 2026-11-19 (#404): small models often end a hint with a line after
   // its question. Keyed only when the question was the hint's last sentence, "16" was "not right yet" again.
   it("after a hint whose question is not its last sentence, an answer to that question is right for the hint, by code", async () => {
     for (const hint of ["What is 8 + 8? Try it!", "What is 8 + 8? 😊", "Count by 8s. What is 8 + 8? You can do it."]) {
@@ -1478,35 +1485,25 @@ describe("an answer that answers nothing in a mastery check", () => {
     }
   }, 30_000);
 
-  // TerraTutor click test 2026-11-19 part 7, issue 2: "break it into equal pieces", the answer to the hint's chocolate-bar
-  // question, was graded correct for the check's "what a fraction is, using a real-life example", with no
-  // "Now back to the question:".
-  const Q_FRACTION = "Can you tell me what a fraction is, using a real-life example?";
-  const KEY_FRACTION = { question: Q_FRACTION, working: "", answer: "a part of a whole, like one slice of a pizza" };
-  const CHOCOLATE = "Imagine you have a chocolate bar. How could you share it equally?";
-  const KEY_CHOCOLATE = { question: "How could you share it equally?", working: "", answer: "cut it into pieces that are all the same size" };
-  const keyFraction = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("chocolate") ? KEY_CHOCOLATE : KEY_FRACTION);
-
-  it("an answer to the hint's chocolate-bar question is graded against that question, never passes the check, and the check's question comes back", async () => {
-    keyOut = keyFraction;
-    gradeOut = { student_answer: "break it into equal pieces", verdict: "correct" };
-    script = [markCall("mastered"), reply("Yes! Breaking it into equal pieces shares it fairly.")];
-    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(CHOCOLATE)];
-    const { result, confirms } = await answer(history, "break it into equal pieces");
-    expect(result.answerCheck).toMatchObject({ question: KEY_CHOCOLATE.question, key: KEY_CHOCOLATE.answer, verdict: "correct", on: "hint", checkQuestion: Q_FRACTION });
-    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
-    expect(graded).toHaveLength(1);
-    expect(graded[0]).toContain(`Question: ${KEY_CHOCOLATE.question}`);
-    expect(graded[0]).not.toContain("fraction");
-    // The model is told it was the hint's question, the mark is refused, and code asks the check's question again.
-    expect(lastUser(replies[0])).toContain(`The check's question is still open: ${Q_FRACTION}`);
-    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
-    expect(confirms).toEqual([]);
-    expect(marks).toEqual([]);
-    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`)).toBe(true);
+  // Review of TerraTutor's take-back of OpenEdu #404 (TerraTutor #261, 2026-11-19): a hint that asks the check's question again with a
+  // line after it was keyed apart, in other words ("a person, place or thing" for "a naming word"), so the
+  // child's right answer to the check matched the hint's key, was tagged, and the mark was refused.
+  it("after a hint that asks the check's question again with a line after it, a right answer is the check's and passes", async () => {
+    const Q_NOUN = "What is a noun?";
+    keyOut = (sent: Sent) => ({ question: Q_NOUN, working: "",
+      answer: sent.map((m) => m.content).join("\n").includes("people and places") ? "a person, place or thing" : "a naming word" });
+    gradeOut = { student_answer: "a person, place or thing", verdict: "correct" };
+    script = [markCall("mastered"), reply("Yes! A noun names a person, place or thing.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_NOUN), student("Give me a hint."),
+      tutor("Think of words for people and places. What is a noun? You can do it!")];
+    const { result } = await answer(history, "a person, place or thing");
+    expect(result.answerCheck).toMatchObject({ question: Q_NOUN, key: "a naming word", verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
   }, 30_000);
 
-  // Review of the check-stays-open fix (2026-11-19), MUST-FIX 1: a right answer to the check that code cannot
+  // Review of TerraTutor #260 (2026-11-19), MUST-FIX 1: a right answer to the check that code cannot
   // match, typed straight after a hint that asks a question, was graded only against the hint's question and
   // told "not right yet". The grader now reads it against the check's question too.
   const gradeByQuestion = (right: string) => (sent: Sent) => {
@@ -1516,6 +1513,90 @@ describe("an answer that answers nothing in a mastery check", () => {
       : { student_answer: lastUser(sent), verdict: "incorrect" };
   };
 
+  // TerraTutor click test 2026-11-19 part 7, issue 2: "break it into equal pieces", the answer to the hint's chocolate-bar
+  // question, was graded correct for the check's "what a fraction is, using a real-life example", with no
+  // "Now back to the question:".
+  const Q_FRACTION = "Can you tell me what a fraction is, using a real-life example?";
+  const KEY_FRACTION = { question: Q_FRACTION, working: "", answer: "a part of a whole, like one slice of a pizza" };
+  const CHOCOLATE = "Imagine you have a chocolate bar. How could you share it equally?";
+  const KEY_CHOCOLATE = { question: "How could you share it equally?", working: "", answer: "cut it into pieces that are all the same size" };
+  const keyFraction = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("chocolate") ? KEY_CHOCOLATE : KEY_FRACTION);
+
+  // TerraTutor decision on part 8 (check first): when the grader finds that answer right for the check's
+  // question, it is the check's and can pass. That is the grader's leniency, the same with no hint, and it
+  // is not special-cased; this test documents it.
+  it("an answer to the hint's chocolate-bar question that the grader finds right for the check's question is the check's", async () => {
+    keyOut = keyFraction;
+    gradeOut = { student_answer: "break it into equal pieces", verdict: "correct" };
+    script = [markCall("mastered"), reply("Yes! Breaking it into equal pieces shares it fairly.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(CHOCOLATE)];
+    const { result } = await answer(history, "break it into equal pieces");
+    expect(result.answerCheck).toMatchObject({ question: Q_FRACTION, key: KEY_FRACTION.answer, verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
+    expect(graded).toHaveLength(1);
+    expect(graded[0]).toContain(`Question: ${Q_FRACTION}`);
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 30_000);
+
+  it("an answer to the hint's chocolate-bar question, not right for the check's, is graded against the hint's, never passes the check, and the check's question comes back", async () => {
+    keyOut = keyFraction;
+    gradeOut = gradeByQuestion(KEY_CHOCOLATE.question);
+    script = [markCall("mastered"), reply("Yes! Breaking it into equal pieces shares it fairly.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(CHOCOLATE)];
+    const { result, confirms } = await answer(history, "break it into equal pieces");
+    expect(result.answerCheck).toMatchObject({ question: KEY_CHOCOLATE.question, key: KEY_CHOCOLATE.answer, verdict: "correct", on: "hint", checkQuestion: Q_FRACTION });
+    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
+    expect(graded).toHaveLength(2);
+    expect(graded[0]).toContain(`Question: ${Q_FRACTION}`);
+    expect(graded[1]).toContain(`Question: ${KEY_CHOCOLATE.question}`);
+    // The model is told it was the hint's question, the mark is refused, and code asks the check's question again.
+    expect(lastUser(replies[0])).toContain(`The check's question is still open: ${Q_FRACTION}`);
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`)).toBe(true);
+  }, 30_000);
+
+  // Review of TerraTutor #262, check first (2026-11-20), MUST-FIX 1: a hint that ends on a question with no one right
+  // answer, or whose key call failed, has nothing to grade the answer against. Falling through to the check's
+  // verdict told a child answering "What did you notice?" that it was "not right yet".
+  const NOTICE = "Think of a time you shared food. What did you notice?";
+  it.each([
+    ["a question with no one right answer", { question: "What did you notice?", working: "", answer: "" }, "model"],
+    ["a failed key call", new Error("model returned no valid JSON"), "failed"],
+  ])("after a hint that ends on %s, an answer not right for the check is \"unsure\", the hint's, and the check's question comes back", async (_, hintKey, by) => {
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("shared food") ? hintKey : KEY_FRACTION);
+    gradeOut = { student_answer: "the pieces were the same size", verdict: "incorrect" };
+    script = [markCall("mastered"), reply("Yes, the pieces were the same size.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(NOTICE)];
+    const { result, confirms } = await answer(history, "the pieces were the same size");
+    expect(result.answerCheck).toMatchObject({ question: "What did you notice?", key: "", verdict: "unsure", by, on: "hint", checkQuestion: Q_FRACTION });
+    // The check's question is graded first, once; the hint's has nothing to grade against.
+    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
+    expect(graded).toHaveLength(1);
+    expect(graded[0]).toContain(`Question: ${Q_FRACTION}`);
+    expect(result.text).not.toContain("not right yet");
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+    expect(confirms).toEqual([]);
+    expect(marks).toEqual([]);
+    // No verdict is said: the claim filter takes the reply's "Yes," off, and code asks the check's question.
+    expect(result.text).toBe(`The pieces were the same size.\n\n${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`);
+  }, 30_000);
+
+  it("after a hint that ends on a question with no one right answer, a right answer to the check is the check's and passes", async () => {
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("shared food") ? { question: "What did you notice?", working: "", answer: "" } : KEY_FRACTION);
+    gradeOut = gradeByQuestion(Q_FRACTION);
+    script = [markCall("mastered"), reply("Yes, that is what a fraction is.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(NOTICE)];
+    const { result } = await answer(history, "A fraction is a part of a whole, like one slice of a pizza.");
+    expect(result.answerCheck).toMatchObject({ question: Q_FRACTION, verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 30_000);
+
   it("a right answer to the open-ended check, typed after a hint that asks a question, is graded against the check's question and passes", async () => {
     const SLICES = "Think of a pizza cut into 8 equal slices. What do we call one of those slices?";
     const KEY_SLICES = { question: "What do we call one of those slices?", working: "", answer: "one eighth" };
@@ -1524,10 +1605,10 @@ describe("an answer that answers nothing in a mastery check", () => {
     script = [markCall("mastered"), reply("Yes, that is what a fraction is.")];
     const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(SLICES)];
     const { result } = await answer(history, "A fraction is a part of a whole, like one slice of a pizza.");
+    // Check first (part 8): right for the check's question, so the hint's is never graded.
     const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
-    expect(graded).toHaveLength(2);
-    expect(graded[0]).toContain(`Question: ${KEY_SLICES.question}`);
-    expect(graded[1]).toContain(`Question: ${Q_FRACTION}`);
+    expect(graded).toHaveLength(1);
+    expect(graded[0]).toContain(`Question: ${Q_FRACTION}`);
     expect(result.answerCheck).toMatchObject({ question: Q_FRACTION, verdict: "correct" });
     expect(result.answerCheck?.on).toBeUndefined();
     expect(result.text).not.toContain(HINT_ANSWER_BACK);
@@ -1544,12 +1625,13 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
   }, 30_000);
 
-  it("an answer the grader finds right for neither question keeps the hint's verdict, and the check's question comes back", async () => {
+  it("an answer the grader finds right for neither question keeps the check's verdict, with no repeat", async () => {
     gradeOut = gradeByQuestion("nothing asked");
     const { result } = await answer(HINTED, "it is 50 because 40 + 10 is 50");
-    expect(result.answerCheck).toMatchObject({ question: "What is 8 + 8?", verdict: "incorrect", on: "hint" });
+    expect(result.answerCheck).toMatchObject({ question: "What is 6 x 8?", verdict: "incorrect" });
+    expect(result.answerCheck?.on).toBeUndefined();
     expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(2);
-    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`)).toBe(true);
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
     expect(marks).toEqual([]);
   }, 30_000);
 
@@ -1587,6 +1669,156 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(right.result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: true });
     expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
   }, 60_000);
+
+  // TerraTutor click test 2026-11-19 part 8, issue 1 (TerraTutor decision: check first). Thread A: the hint asked its own
+  // question, and the right answer to the check's, in the child's words, was graded against the hint's first,
+  // found right there, tagged on: "hint", and the mark was refused.
+  const Q_WHOLE = "Can you tell me what the whole is when we talk about a fraction?";
+  const KEY_WHOLE = { question: Q_WHOLE, working: "", answer: "the complete object before it is cut into equal parts" };
+  const HINT_WHOLE = "Think of a pizza before anyone cuts it. What is that complete object called in our lesson?";
+  const KEY_HINT_WHOLE = { question: "What is that complete object called in our lesson?", working: "", answer: "the whole" };
+  const keyWhole = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("complete object called") ? KEY_HINT_WHOLE : KEY_WHOLE);
+  const RIGHT_WHOLE = "the whole is the complete thing, like a whole pizza, before you cut it into equal parts";
+
+  it("after a hint that asks its own question, a right answer to the check's question in words is graded against the check's first and passes", async () => {
+    keyOut = keyWhole;
+    gradeOut = gradeByQuestion(Q_WHOLE);
+    script = [markCall("mastered"), reply("Yes! The whole is the complete thing before it is cut.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_WHOLE), student("Give me a hint."), tutor(HINT_WHOLE)];
+    const { result } = await answer(history, RIGHT_WHOLE);
+    expect(result.answerCheck).toMatchObject({ question: Q_WHOLE, key: KEY_WHOLE.answer, verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    // One grader call, on the check's question: the hint's is never graded.
+    const graded = structured.filter((c) => c.tool === "AnswerGrade").map((c) => c.messages.map((m) => m.content).join("\n"));
+    expect(graded).toHaveLength(1);
+    expect(graded[0]).toContain(`Question: ${Q_WHOLE}`);
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: true });
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 30_000);
+
+  // Thread B: the hint's key was the check's own ("1/2" and "1/2"), so "one half" was the hint's answer.
+  it("after a hint whose key is the check's key, the answer is the check's, graded once and able to pass", async () => {
+    const Q_HALF = "Sam cut a pizza into 2 equal pieces and ate one. What fraction of the pizza did Sam eat?";
+    const HINT_HALF = "Count the pieces first. What fraction is one of two equal pieces?";
+    keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("Count the pieces")
+      ? { question: "What fraction is one of two equal pieces?", working: "", answer: "1/2." }
+      : { question: "What fraction of the pizza did Sam eat?", working: "", answer: "1/2" });
+    gradeOut = { student_answer: "one half", verdict: "correct" };
+    script = [markCall("mastered"), reply("Yes, Sam ate one half.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_HALF), student("Give me a hint."), tutor(HINT_HALF)];
+    const { result } = await answer(history, "one half");
+    expect(result.answerCheck).toMatchObject({ question: "What fraction of the pizza did Sam eat?", key: "1/2", verdict: "correct" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(1);
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 30_000);
+
+  // Part 8, step 1: the part-7 sequence on a check whose answer only the grader can read. The final right
+  // answer, typed after a hint that asked its own question, is graded against the check's question and marked.
+  it("hint, the hint's answer, a non-answer, another hint, then the right answer in words: graded against the check and marked", async () => {
+    keyOut = keyWhole;
+    gradeOut = (sent: Sent) => {
+      const asked = sent.map((m) => m.content).join("\n");
+      const said = lastUser(sent).split("Student's answer: ").pop()!;
+      if (asked.includes(`Question: ${Q_WHOLE}\n`)) return { student_answer: said, verdict: said.includes("before you cut") ? "correct" : "incorrect" };
+      return { student_answer: said, verdict: said === "the whole" ? "correct" : "incorrect" };
+    };
+    const turns: Sent = [student(ASSESS_MESSAGE), tutor(Q_WHOLE)];
+    const say = async (text: string, modelReply: TurnEvent[][]) => {
+      script = modelReply;
+      const run = await answer(turns, text);
+      turns.push(student(text), tutor(run.result.text));
+      return run;
+    };
+    await say("Give me a hint.", [reply(HINT_WHOLE)]);
+    const hintAnswer = await say("the whole", [reply("Yes, it is called the whole. Can you say what it means?")]);
+    expect(hintAnswer.result.answerCheck).toMatchObject({ on: "hint", verdict: "correct" });
+    // The reply's own question is dropped: code's repeat of the check's is the one open question.
+    expect(hintAnswer.result.text).toBe(`Yes, it is called the whole.\n\n${HINT_ANSWER_BACK}\n\n${Q_WHOLE}`);
+    const xyz = await say("xyz", []);
+    expect(xyz.result.text).toBe(`That doesn't answer the question yet. Here it is again:\n\n${Q_WHOLE}`);
+    await say("hint", [reply(HINT_WHOLE)]);
+    const right = await say(RIGHT_WHOLE, [markCall("mastered"), reply("Yes, that is the whole.")]);
+    expect(right.result.answerCheck).toMatchObject({ question: Q_WHOLE, verdict: "correct" });
+    expect(right.result.answerCheck?.on).toBeUndefined();
+    expect(right.result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: true });
+    expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+  }, 60_000);
+
+  // TerraTutor click test 2026-11-19 part 8, issue 4: after the hint's answer the reply ended with a question of its own
+  // ahead of code's "Now back to the question:" (two open questions), or asked the check's question itself
+  // (shown twice). The reply's trailing question is dropped; its feedback stays.
+  it.each([
+    ["its own new question", "Yes, 16 is right! What is 16 + 8?", "Yes, 16 is right!"],
+    ["the check's question, with a line after it", "Great, 8 + 8 = 16.\n\nNow, what is 6 x 8? Take your time! 😊", "Great, 8 + 8 = 16."],
+    ["a lead-in and a question with choices", "Yes, 16!\n\nHere is the next one:\nWhat is 6 x 8?\nA) 48\nB) 42", "Yes, 16!"],
+  ])("after the hint's answer, a reply that ends with %s keeps only its feedback before code's question", async (_, modelReply, kept) => {
+    script = [reply(modelReply)];
+    const { result, shown } = await answer(HINTED, "16");
+    expect(result.answerCheck).toMatchObject({ on: "hint", verdict: "correct" });
+    expect(result.text).toBe(`${kept}\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+    // The dropped question never reached the screen, even while the reply streamed.
+    expect(shown.filter((s) => s.includes("?")).every((s) => s.endsWith("What is 6 x 8?"))).toBe(true);
+  }, 30_000);
+
+  it("after the hint's answer, a reply that ends on its own question and a refused mark still loses the question", async () => {
+    script = [[...reply("Yes, 16 is right! What is 16 + 8?").slice(0, -1), ...markCall("mastered")], reply("")];
+    const { result } = await answer(HINTED, "16");
+    expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+    expect(result.text).toBe(`Yes, 16 is right!
+
+${HINT_ANSWER_BACK}
+
+What is 6 x 8?`);
+    // The model's own record of its message keeps what it wrote.
+    expect(replies[1].find((m) => m.role === "assistant" && m.content.includes("16 + 8"))).toBeTruthy();
+  }, 30_000);
+
+  // Review of TerraTutor #262, nits 1 and 2 (2026-11-20): the next model call's text was glued onto the held question ("What is
+  // 16 + 8?Keep going, you are doing great.") and dropped with it; after a card, it ran into the text before it.
+  it("after the hint's answer and a refused mark, the next call's text is kept, after a break, and the held question is not", async () => {
+    script = [[...reply("Yes, 16 is right! What is 16 + 8?").slice(0, -1), ...markCall("mastered")], reply("Keep going, you are doing great.")];
+    const { result } = await answer(HINTED, "16");
+    expect(result.text).toBe(`Yes, 16 is right!\n\nKeep going, you are doing great.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+  }, 30_000);
+
+  it("after the hint's answer, a question inside the reply's feedback stays", async () => {
+    script = [reply("Did you see the pattern? Adding 8 each time is how the 8s grow.")];
+    const { result } = await answer(HINTED, "16");
+    expect(result.text).toBe(`Did you see the pattern? Adding 8 each time is how the 8s grow.\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+  }, 30_000);
+
+  it("after the hint's answer, a reply that is only a question gets a short line in its place, with no question in it", async () => {
+    script = [reply("What is 6 x 8?")];
+    const right = await answer(HINTED, "16");
+    expect(right.result.text).toBe(`${VERDICT_FALLBACK.correct}\n\n${HINT_ANSWER_BACK}\n\nWhat is 6 x 8?`);
+    // Partly right for the hint's question: the line says so and asks nothing.
+    keyOut = keyFraction;
+    gradeOut = (sent: Sent) => ({ student_answer: lastUser(sent).split("Student's answer: ").pop()!, verdict: sent.map((m) => m.content).join("\n").includes(`Question: ${KEY_CHOCOLATE.question}`) ? "partly" : "incorrect" });
+    script = [reply("How many pieces would each person get?")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(CHOCOLATE)];
+    const partly = await answer(history, "cut it up");
+    expect(partly.result.answerCheck).toMatchObject({ on: "hint", verdict: "partly" });
+    expect(partly.result.text).toBe(`That's partly right.\n\n${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`);
+  }, 30_000);
+
+  it("a turn the student stops after the hint's answer keeps the reply's question as it came, with no repeat", async () => {
+    const stop = new AbortController();
+    script = [[...reply("Yes, 16 is right! What is 16 + 8?").slice(0, -1), { type: "done", finishReason: "stop" }]];
+    const { activeSkill, domainSkill } = chatTurnSkills(chatTurnMode(null, [...HINTED, student("16")]), "Arithmetic", "tiny", true);
+    let streamed = "";
+    const result = await tutorEngine.run(
+      { messages: [{ role: "system", content: SYSTEM }, ...HINTED, student("16")], config: CONFIG, retrieval: "off",
+        onText: (chunk) => { streamed += chunk; if (streamed.includes("Yes")) stop.abort(); } },
+      { courseId: "c-1", level: 1, syllabus: SYLLABUS, modelTier: "tiny", contextTokens: 8192, permissionMode: "default", config: CONFIG,
+        abort: stop.signal, activeSkill, domainSkill, supportsTools: true, confirmTool: async () => true, askUser: async (_q, c) => c[0].value },
+    );
+    expect(result.stopReason).toBe("aborted");
+    expect(result.text).toBe("Yes, 16 is right! What is 16 + 8?");
+    expect(result.text).not.toContain(HINT_ANSWER_BACK);
+  }, 30_000);
 
   it("a check still ends: after four graded answers, or after CHECK_MAX_MESSAGES messages of anything", async () => {
     const hints = (n: number): Sent => Array.from({ length: n }, () => [student("Give me a hint."), tutor("Count by 8s.")]).flat();
@@ -1683,7 +1915,8 @@ describe("an answer that answers nothing in a mastery check", () => {
     const asked = "Imagine you have a chocolate bar with 8 equal pieces. You eat 3 of them.\n\nCan you tell me what the \"whole\" is in this example?";
     keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("share")
       ? KEY_CHOCOLATE : { question: "Can you tell me what the \"whole\" is in this example?", working: "", answer: "the whole chocolate bar" });
-    gradeOut = { student_answer: "cut it into pieces that are all the same size", verdict: "correct" };
+    // Right for the hint's question only (check first, TerraTutor part 8): the check's question comes back.
+    gradeOut = gradeByQuestion(KEY_CHOCOLATE.question);
     const history = [student(ASSESS_MESSAGE), tutor(asked), student("Give me a hint."), tutor("Think about sharing. How could you share it equally?")];
     const { result } = await answer(history, "cut it into pieces that are all the same size");
     expect(result.answerCheck).toMatchObject({ on: "hint" });

@@ -282,6 +282,85 @@ export function hintAnswerBack(tutorMessage: string, check: AnswerCheck | null):
   return again ? `${HINT_ANSWER_BACK}\n\n${again}` : null;
 }
 
+// A line after a question that asks nothing new and gives no feedback: "Take your time!", "You can do it.".
+const AFTER_QUESTION = /^[\W_]*(?:take your time|you can do it|you(?:'|’)ve got this|give it a (?:try|go|shot)|try it|have a go|think about it|good luck|no rush)\b[^?]*$/i;
+// A sentence's end in streamed text: an end mark or a colon with any closing marks after it, then spaces; or
+// a line break. The spaces are the group.
+const SENTENCE_BREAK = /(?:[.!?:][*_"”')\]]*|(?=\n))(\s+)/;
+
+/**
+ * The reply to an answer to a hint's own question, as it streams, without its trailing question
+ * (TutorEngine, when hintAnswerBack adds the check's question after it): code asks the check's question
+ * next, so a question the model ends on ("What is 16 + 8?", or the check's own question) would leave two
+ * open questions on screen, or the same one twice (TerraTutor click test 2026-11-19 part 8, issue 4; ported from TerraTutor #262). A sentence
+ * with a "?" is held back, with a lead-in before it ("Here is another one:") and what follows it that is
+ * no feedback (a choice line, an emoji, "Take your time!"); feedback after it lets it all out, so a
+ * question inside the feedback stays. What is still held when the reply ends is dropped (end). The
+ * praise and feedback before it are kept as they came; a reply that was only a question shows nothing
+ * here, and the turn's verdict line takes its place (TutorEngine).
+ */
+export class TrailingQuestionHold {
+  private buf = "";
+  // Everything after the last sentence let out: the spaces before the held sentences, and those sentences.
+  private kept = "";
+  // A question is held: what follows it with no feedback in it is held with it.
+  private asked = false;
+
+  /** The text that may be shown now. */
+  push(text: string): string {
+    this.buf += text;
+    let out = "";
+    for (let m = SENTENCE_BREAK.exec(this.buf); m; m = SENTENCE_BREAK.exec(this.buf)) {
+      const spaces = m[1];
+      const end = m.index + m[0].length;
+      // The spaces run to the end of what came so far: more may follow, so the sentence waits.
+      if (end === this.buf.length) break;
+      out += this.sentence(this.buf.slice(0, end - spaces.length), spaces);
+      this.buf = this.buf.slice(end);
+    }
+    return out;
+  }
+
+  /** What is held back or not yet read, as it would be shown. */
+  get held(): string {
+    return this.kept + this.buf;
+  }
+
+  /** Lets out everything held: something follows it (a tool round), or nothing will be added after it. */
+  flush(): string {
+    const out = this.held;
+    this.buf = "";
+    this.kept = "";
+    this.asked = false;
+    return out;
+  }
+
+  /** The end of the reply: the last sentence is read, and a question still held there is dropped. */
+  end(): string {
+    const last = this.buf.replace(/\s+$/, "");
+    this.buf = "";
+    const out = last ? this.sentence(last, "") : "";
+    this.kept = "";
+    this.asked = false;
+    return out;
+  }
+
+  private sentence(text: string, spaces: string): string {
+    const s = text.trim();
+    const held = !s || s.includes("?") || /:[*_"”')\]]*$/.test(s)
+      || (this.asked && (!/[\p{L}\p{N}]/u.test(s) || CHOICE_LINE.test(s) || AFTER_QUESTION.test(s)));
+    if (held) {
+      if (s.includes("?")) this.asked = true;
+      this.kept += text + spaces;
+      return "";
+    }
+    const out = this.kept + text;
+    this.kept = spaces;
+    this.asked = false;
+    return out;
+  }
+}
+
 // ── Step 1: the key, blind ──────────────────────────────────────────────────────────────────────
 
 const MAX_MESSAGE_CHARS = 1500;
@@ -477,10 +556,11 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
 /**
  * The verdict on the student's answer to the tutor's message, or null when that message asks nothing
  * with one right answer. Never throws: a failed call gives "unsure". `hintReply` is the reply to a hint
- * asked on that message (checkedMessage): when it ends in a question, an answer code does not find right
- * for the check's question is graded against the hint's, tagged `on: "hint"`, unless that grade is not
- * right and the grader finds it right (or partly) for the check's question. When the hint asks a question
- * that is not its last sentence, only code's match with the hint's key is the hint's, tagged.
+ * asked on that message (checkedMessage): when it asks a question of its own, the answer is graded against
+ * the check's question first, and only an answer that is not right there can be the hint's, tagged
+ * `on: "hint"` (right or partly right for the hint's question; when the hint's question is not its last
+ * sentence, only code's match with the hint's key; "unsure" when the hint ends on a question with no key).
+ * Anything else keeps the check's verdict.
  */
 export async function checkAnswer(
   tutorMessage: string,
@@ -498,53 +578,65 @@ export async function checkAnswer(
   if (raw === "match") return { ...keyed, verdict: "correct", by: "code" };
   // An answer that answers nothing ("xyz", "?!", non-answer.ts) is not right, and no grader is asked.
   if (await isNonAnswer(studentMessage, keyed.key, keyed.question)) return { ...keyed, verdict: "incorrect", by: "code", nonAnswer: true };
-  // After a hint that ends in a question of its own ("Count by 8s. What is 8 + 8?"), the answer is to the
-  // hint's question, unless code found it right for the check's (above: "48" is the check's answer). Graded
-  // against the check's key, "16" was "not right yet" (review of the check-repeat fix, 2026-11-19), and the
-  // grader read "break it into equal pieces", the answer to "How could you share a chocolate bar equally?",
-  // as right for "what a fraction is, with a real-life example" (TerraTutor click test 2026-11-19 part 7, issue 2).
-  // So it is graded against the hint's question the same way (code first, a plain operation keyed by code
-  // with no call, then the grader), and tagged: it never counts toward mastery, and the check's question
-  // stays open (ported from TerraTutor #260). A hint that asks nothing ("Try counting by 8s.") or asks
-  // only the check's question again is not keyed. A hint question with no one right answer, or a failed key
-  // call, gives "unsure" and no second grade: the grader is not asked about the check's question then, as
-  // issue 2's "break it into equal pieces" was.
-  if (hintReply && endsWithQuestion(hintReply)) {
+  // After a hint that asks a question of its own ("Count by 8s. What is 8 + 8?"), a child may answer either
+  // question. The check's comes first (TerraTutor decision on its click test 2026-11-19 part 8, issue 1; ported from TerraTutor #262): graded
+  // against the hint's question first, "the whole is the complete thing, like a whole pizza, before you cut
+  // it into equal parts" was right for the hint's "What is that complete object called in our lesson?" and
+  // never reached the check's "what the whole is", "one half" was the hint's when both keys were "1/2", and
+  // the mark was refused. So: code's match with the check's key is the check's (above); a hint whose key is
+  // the check's, or that asks the check's question again ("Think of words for people and places. What is a
+  // noun? You can do it!"), is not keyed apart; otherwise the grader reads the answer against the check's
+  // question, and "correct" there is the check's answer, which can pass. Only an answer that is not right
+  // for the check's question is tried against the hint's: right or partly right there is the hint's, tagged
+  // `on: "hint"` (it never counts toward mastery, and code asks the check's question again, hintAnswerBack);
+  // else the check's verdict stands. The grader's leniency is not special-cased: "break it into equal
+  // pieces", the answer to the hint's chocolate-bar question, passes when the grader finds it right for
+  // "what a fraction is", as it would with no hint (part 7, issue 2). A hint whose question is not its last
+  // sentence ("What is 8 + 8? Try it!", "What is 8 + 8? 😊") is tried by code's match only, with no grader
+  // call on the hint's question (OpenEdu #404). A hint that ends on a question with no one right answer
+  // ("Think of a time you shared food. What did you notice?"), or whose key call failed, has nothing to grade
+  // the answer against: an answer right for the check's question is the check's; anything else is "unsure",
+  // tagged `on: "hint"`, so no verdict is said, the mark is refused and the check's question is asked again,
+  // as before check-first (review of TerraTutor #262, 2026-11-20: "the pieces were the same size" was "not right
+  // yet" for the check's question). At most two grader calls: the check's, then the hint's.
+  if (hintReply?.includes("?")) {
     const hinted = await answerKey(hintReply, config, opts);
-    const onHint = { on: "hint" as const, checkQuestion: keyed.question };
-    const sameQuestion = !!hinted && hinted !== "none"
-      && questionInMessage(hinted.question, keyed.question) && questionInMessage(keyed.question, hinted.question);
-    if (!sameQuestion) {
-      const asked = onlyQuestion(hintReply);
-      if (hinted === null) return { question: asked, key: "", verdict: "unsure", by: "failed", ...onHint };
-      // The hint's question has no one right answer: nothing to grade, and still not the check's answer.
-      if (hinted === "none") return { question: asked, key: "", verdict: "unsure", by: "model", ...onHint };
-      const hintCtx = { question: hinted.question, options: optionsIn(hintReply) };
-      const hintRaw = compareToKey(hinted.key, studentMessage, hintCtx);
-      if (hintRaw === "match") return { ...hinted, verdict: "correct", by: "code", ...onHint };
-      const onTheHint = { ...(await graded(hinted, hintCtx, hintRaw, studentMessage, config, opts)), ...onHint };
-      if (onTheHint.verdict === "correct" || onTheHint.verdict === "partly") return onTheHint;
-      // Not right for the hint's question: it may be right for the check's, in words code cannot match ("A
-      // fraction is a part of a whole, like one slice of a pizza.", "it is 48 because 40 + 8 is 48"). Graded
-      // only against the hint's, a right answer to the check was "not right yet" (review of the
-      // check-stays-open fix, 2026-11-19). So the grader reads it against the check's question too, and a
-      // right or partly right verdict there is the check's, untagged; else the hint's verdict stands.
+    const hintKey = hinted && hinted !== "none" && !sameKey(hinted.key, keyed.key) && !asksSameQuestion(hinted, keyed) ? hinted : null;
+    if (hintKey) {
+      const onHint = { on: "hint" as const, checkQuestion: keyed.question };
+      const hintCtx = { question: hintKey.question, options: optionsIn(hintReply) };
+      const hintRaw = compareToKey(hintKey.key, studentMessage, hintCtx);
+      // Code matched the hint's key and not the check's ("16" for 8 + 8, when the check's key is 48): the
+      // grader could not make it right for the check's question (combine), so it is not asked.
+      if (hintRaw === "match" && raw === "mismatch") return { ...hintKey, verdict: "correct", by: "code", ...onHint };
       const onTheCheck = await graded(keyed, ctx, raw, studentMessage, config, opts);
-      return onTheCheck.verdict === "correct" || onTheCheck.verdict === "partly" ? onTheCheck : onTheHint;
+      if (onTheCheck.verdict === "correct") return onTheCheck;
+      if (hintRaw === "match") return { ...hintKey, verdict: "correct", by: "code", ...onHint };
+      if (endsWithQuestion(hintReply)) {
+        const onTheHint = await graded(hintKey, hintCtx, hintRaw, studentMessage, config, opts);
+        if (onTheHint.verdict === "correct" || onTheHint.verdict === "partly") return { ...onTheHint, ...onHint };
+      }
+      return onTheCheck;
     }
-  } else if (hintReply?.includes("?")) {
-    // A hint whose question is not its last sentence ("What is 8 + 8? Try it!", "What is 8 + 8? 😊"): code
-    // alone compares the answer with the hint's key, as before the fix above, and a match is right for the
-    // hint, tagged. Without this, "16" was graded against the check's question and was "not right yet"
-    // again (review of OpenEdu's port of TerraTutor #260, 2026-11-19). Anything else is graded against the
-    // check's question, with no grader call on the hint's.
-    const hinted = await answerKey(hintReply, config, opts);
-    if (hinted && hinted !== "none"
-      && compareToKey(hinted.key, studentMessage, { question: hinted.question, options: optionsIn(hintReply) }) === "match") {
-      return { ...hinted, verdict: "correct", by: "code", on: "hint", checkQuestion: keyed.question };
+    const asked = onlyQuestion(hintReply);
+    if ((hinted === "none" || hinted === null) && endsWithQuestion(hintReply) && !(asked && asksSameQuestion({ question: asked }, keyed))) {
+      const onTheCheck = await graded(keyed, ctx, raw, studentMessage, config, opts);
+      if (onTheCheck.verdict === "correct") return onTheCheck;
+      return { question: asked, key: "", verdict: "unsure", by: hinted === null ? "failed" : "model", on: "hint", checkQuestion: keyed.question };
     }
   }
   return graded(keyed, ctx, raw, studentMessage, config, opts);
+}
+
+/** True when two keys are the same once case, punctuation, spacing and a leading article are set aside ("1/2", "1/2."). */
+function sameKey(a: string, b: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[*_`"“”'’.,!?;:()]/g, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|a|an) /, "");
+  return !!norm(a) && norm(a) === norm(b);
+}
+
+/** True when the hint's keyed question is the check's own, asked again: each is in the other, both ways. */
+function asksSameQuestion(hinted: { question: string }, keyed: { question: string }): boolean {
+  return questionInMessage(hinted.question, keyed.question) && questionInMessage(keyed.question, hinted.question);
 }
 
 /** True when the hint's reply ends in a question: its last sentence asks one ("What is 8 + 8?"). */

@@ -41,7 +41,7 @@ import { repairAskCard, answeredCard, askedCard, type AskCard } from "./askCard"
 import type { QuestionResult } from "../tools/ask_user/QuestionTool";
 import { asksForFlashcard, cardFromRequest, withFlashcardNote, FLASHCARD_TOOL, type Card } from "./flashcardRequest";
 import { assessPickerCard } from "./assessPicker";
-import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, type AnswerCheck } from "./answerCheck";
+import { isAssessAnswerTurn, inMasteryCheck, checkAnswer, withAnswerCheckNote, answerCheckNote, readsAsAnswer, nonAnswerReply, checkedMessage, hintAnswerBack, TrailingQuestionHold, type AnswerCheck } from "./answerCheck";
 import { ReplyClaimFilter, VERDICT_FALLBACK } from "./replyClaims";
 import { showsPicture, withoutPictureClaims } from "./pictureClaims";
 import { drawnCard } from "./drawnCards";
@@ -255,6 +255,17 @@ function fixedReplyResult(text: string, contextTokens: number): TutorTurnResult 
     fixedReply: true,
   };
 }
+
+// The verdict line on the reply to an answer to a hint's own question, when the model's reply showed nothing
+// (it was only a question, which TrailingQuestionHold drops): VERDICT_FALLBACK's, without its question, as
+// code asks the check's question right after it. An answer tagged `on: "hint"` is right, partly right or
+// "unsure" (a hint question with no key), never "incorrect": that entry is only there to fill the record.
+const HINT_LEAD: Record<AnswerCheck["verdict"], string> = {
+  correct: VERDICT_FALLBACK.correct,
+  partly: "That's partly right.",
+  incorrect: "That's not right yet.",
+  unsure: "Okay.",
+};
 
 /** A mastery check's answer that code found answers nothing: code's reply, no reply call (answerCheck.ts nonAnswerReply). */
 function nonAnswerResult(contextTokens: number, text: string, answerCheck: AnswerCheck, grounding: Grounding, disclosure: boolean): TutorTurnResult {
@@ -650,9 +661,24 @@ ${lastUser.content}` };
     // the plain Ollama line (friendlyError). That call fails the turn, as it did before the picker.
     let appCardEnd = 0;
     const keepsShown = () => !ctx.abort.aborted && !!streamedText.slice(appCardEnd).trim();
+    // When code asks the check's question again after the reply (hintBack), the reply's own trailing
+    // question is held back and dropped (answerCheck.ts TrailingQuestionHold, TerraTutor click test 2026-11-19 part 8,
+    // issue 4). Text still held counts as said for the empty-reply retries below; a tool round lets it out.
+    const hold = prepared.hintBack ? new TrailingQuestionHold() : null;
+    const held = (text: string) => (hold ? hold.push(text) : text);
+    // Before each later model call: a question the last call's text ended on, held across a refused mark, is
+    // dropped as at the reply's end, and the new call's text starts after a break. Glued on ("What is 16 + 8?Keep
+    // going, you are doing great."), it read as one sentence with a "?" and was dropped too, and after a card
+    // it ran into the text before it (review of TerraTutor #262, 2026-11-20, nits 1 and 2).
+    const nextCall = () => {
+      if (!hold) return;
+      show(hold.end());
+      if (streamedText.trim() && !streamedText.endsWith("\n")) hold.push("\n\n");
+    };
 
     for (let iteration = 0; ; iteration++) {
       if (shouldContinue(iteration, ctx).stop) break;
+      if (iteration > 0) nextCall();
 
       let iterationText = ""; // text emitted before any tool call in THIS model turn
       const pendingCalls: Array<{ id: string; name: string; args: unknown; fromText?: true; byApp?: true }> = [];
@@ -663,7 +689,7 @@ ${lastUser.content}` };
       if (iteration === 0 && prepared.appAsk) pendingCalls.push({ ...prepared.appAsk });
       else try {
         for await (const ev of callLLMTurn(messages, turn.config, { tools: toolDefs, tier: ctx.modelTier, signal: ctx.abort })) {
-          if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); iterationText += text; show(text); }
+          if (ev.type === "text") { const text = held(claims.push(filter.push(ev.delta))); iterationText += text; show(text); }
           else if (ev.type === "tool_call") {
             // Namespace the id with the iteration. Ollama restarts its counter on each generator, so
             // iteration 1 and 2 both emit "call_0" — and the chat surface keys tool chips by id, so the
@@ -696,10 +722,20 @@ ${lastUser.content}` };
           break;
         }
       }
-      const tail = claims.push(filter.end()) + claims.flush();
+      const tail = held(claims.push(filter.end()) + claims.flush());
       iterationText += tail;
       show(tail);
-      if (iterationText.trim()) { replyOwed = false; answerOwed = false; }
+      // A tool call follows the text: what it held is let out first, so a card or drawing sits under the whole
+      // text. Not for a "mastered" mark alone: on this turn code refuses it and nothing is shown, so the reply
+      // after it can still end on the held question.
+      const refusedOnly = pendingCalls.length > 0 && pendingCalls.every((c) => c.name === MARK_MASTERED_TOOL && marksMastered(c.args));
+      if (hold && (pendingCalls.length > 0 || filter.stoppedAtCall) && !refusedOnly) {
+        const released = hold.flush();
+        iterationText += released;
+        show(released);
+      }
+      const said = iterationText + (hold?.held ?? "");
+      if (said.trim()) { replyOwed = false; answerOwed = false; }
       // A tool call written as text, when the provider returned none: run the first one whose tool was
       // offered (the filter stopped the text there) through the same dispatch as a native call.
       if (pendingCalls.length === 0 && filter.stoppedAtCall) {
@@ -711,7 +747,7 @@ ${lastUser.content}` };
       // the model may have emitted valid tool calls before running out of room, and dropping them
       // would lose work AND skip the forced final answer below, leaving the student with nothing.
       if (interrupted && interrupted !== "length") break;
-      if (pendingCalls.length === 0 && (replyOwed || answerOwed) && !iterationText.trim() && !interrupted && !retriedEmpty) { retriedEmpty = true; continue; }
+      if (pendingCalls.length === 0 && (replyOwed || answerOwed) && !said.trim() && !interrupted && !retriedEmpty) { retriedEmpty = true; continue; }
       if (pendingCalls.length === 0) { endedNaturally = true; break; }
 
       // A card whose buttons do not answer its question is repaired first, by code (askCard.ts); the
@@ -732,7 +768,7 @@ ${lastUser.content}` };
       // Record the assistant's tool-call turn, then dispatch each call and reinject its result.
       messages.push({
         role: "assistant",
-        content: iterationText,
+        content: iterationText + (hold?.held ?? ""),
         tool_calls: pendingCalls.map((c) => ({ id: c.id, name: c.name, args: c.args })),
       });
       for (const call of pendingCalls) {
@@ -843,9 +879,10 @@ ${lastUser.content}` };
       const finalMessages = toolCallRecovery && manifest ? withoutManifest(messages, manifest) : messages;
       // No tools on this call, so a call written as text is only dropped.
       const filter = new ReplyTextFilter(toolNames);
+      nextCall();
       try {
         for await (const ev of callLLMTurn(finalMessages, turn.config, { tier: ctx.modelTier, signal: ctx.abort })) {
-          if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); if (text.trim()) replyOwed = false; show(text); }
+          if (ev.type === "text") { const text = claims.push(filter.push(ev.delta)); if (text.trim()) replyOwed = false; show(held(text)); }
           else if (ev.type === "done") {
             if (ev.finishReason === "aborted") interrupted = "aborted";
             else if (ev.finishReason === "stalled") interrupted = "stalled";
@@ -860,7 +897,7 @@ ${lastUser.content}` };
       }
       const tail = claims.push(filter.end()) + claims.flush();
       if (tail.trim()) replyOwed = false;
-      show(tail);
+      show(held(tail));
     }
 
     // The abort flag is authoritative. `interrupted` can miss a Stop that lands during or after the
@@ -871,13 +908,19 @@ ${lastUser.content}` };
     const stopReason: TutorTurnResult["stopReason"] =
       interrupted ?? (ctx.abort.aborted ? "aborted" : endedNaturally || toolCallRecovery ? "complete" : "max_iterations");
 
+    // The reply's end: a question still held is dropped, as code asks the check's question after it. On a
+    // turn the student stopped, code adds nothing, and what was held is let out as it came.
+    if (hold) show(stopReason === "aborted" ? hold.flush() : hold.end());
+
     // An answer the check gave a verdict on always gets one: a reply the claim filter emptied (or the
     // model left empty, or left only a drawing) says the verdict in one plain line.
     // "I can look that up for you." alone says no verdict either (lookupAnnouncement.ts), tool round or not.
     const announcedOnly = onlyAnnouncesLookup(streamedText);
     const gapBefore = () => !streamedText.trim() || streamedText.endsWith("\n\n") ? "" : streamedText.endsWith("\n") ? "\n" : "\n\n";
     if (verdictCheck && cardMessage === null && (!proseShown || announcedOnly) && stopReason !== "aborted" && stopReason !== "stalled") {
-      show(`${announcedOnly ? gapBefore() : ""}${VERDICT_FALLBACK[verdictCheck.verdict]}`);
+      // Before code's "Now back to the question:" the line asks nothing (HINT_LEAD): one open question only.
+      const line = prepared.hintBack && verdictCheck === answerCheck ? HINT_LEAD[verdictCheck.verdict] : VERDICT_FALLBACK[verdictCheck.verdict];
+      show(`${announcedOnly ? gapBefore() : ""}${line}`);
     }
 
     // Never a blank turn: a reply that ended with nothing to show (the model wrote nothing, or only a
