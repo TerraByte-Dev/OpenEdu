@@ -16,7 +16,7 @@
 // Ollama drops from the FRONT, taking the system prompt and the tools manifest with it.
 
 import { callLLMTurn, log, OllamaToolCallParseError, type NeutralMessage, type ProviderToolDef } from "../llm";
-import type { LLMConfig, Syllabus } from "../../types";
+import type { LLMConfig, ModelTier, Syllabus } from "../../types";
 import { getSyllabus } from "../db";
 import type { ToolContext } from "../tools/EduTool";
 import { selectTools, buildProviderToolDefs, dispatchToolCall, declinedError, type ToolUIEvent, type ToolDispatchResult } from "./toolDispatch";
@@ -103,7 +103,11 @@ const APP_MARK_CALL_ID = "app_mark";
  * don't know", a wrong answer) the tutor may have asked an easier question, and the answer is graded on
  * that one (review of the TerraTutor #266 port: "help", then "What is 4 + 4 + 4?" answered "12", marked
  * the check's skill). A turn graded only on cards marks only when its newest message opened the check (a
- * hint request answered with a card, in a caller that runs every turn in assess, does not).
+ * hint request answered with a card, in a caller that runs every turn in assess, does not). Only on a chat
+ * model that tiers "tiny" or "small" (llm.ts detectModelProfile: e2b, e4b, qwen3.5:0.8b), where the model's
+ * own tool call is unreliable; a "medium" or "large" model keeps its own judgement (assess.md asks for about
+ * 90% understanding, and one right answer would override a model holding off). The evidence is e2b only
+ * (ported from TerraTutor #267).
  * Not when the model's own progress.mark_mastered call ran this turn, whatever its status, or the learner
  * said no to it on the "Is that okay?" card (`modelMarked`); a model call that failed (a wrong id) or was
  * refused does not count. Not on a turn that was stopped or ended at a card. The subtopic is the one code
@@ -113,7 +117,8 @@ const APP_MARK_CALL_ID = "app_mark";
  * the first (so a second skill in the same check is left to the model's own call) and a closed check give
  * no mark.
  */
-async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ role: string; content: string }>, offered: ReadonlySet<string>, disclosureTurn: boolean, load: () => Promise<Syllabus | null>): Promise<{ subtopic_id: string; status: "mastered" } | null> {
+async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ role: string; content: string }>, tier: ModelTier, offered: ReadonlySet<string>, disclosureTurn: boolean, load: () => Promise<Syllabus | null>): Promise<{ subtopic_id: string; status: "mastered" } | null> {
+  if (tier !== "tiny" && tier !== "small") return null;
   if (disclosureTurn || !offered.has(MARK_MASTERED_TOOL)) return null;
   if (result.stopReason === "aborted" || result.stopReason === "stalled" || result.cardMessage !== null) return null;
   const { beforeCard, modelMarked } = result.markInput ?? { beforeCard: null, modelMarked: false };
@@ -589,7 +594,7 @@ ${lastUser.content}` };
     }
     // A correct check answer the model did not mark: code makes the mark, through the tool's own dispatch
     // (the "Is that okay?" card where it is set to Ask, the chip), under the reply (appMark).
-    const mark = ctx.abort.aborted ? null : await appMark(result, conversation, offered, disclosure, () => getSyllabus(ctx.courseId, ctx.level));
+    const mark = ctx.abort.aborted ? null : await appMark(result, conversation, ctx.modelTier, offered, disclosure, () => getSyllabus(ctx.courseId, ctx.level));
     if (mark) {
       const marked = await dispatchToolCall({ id: APP_MARK_CALL_ID, name: MARK_MASTERED_TOOL, args: mark }, ctx, turn.onToolEvent, offered);
       result = { ...result, toolCalls: [...result.toolCalls, { name: MARK_MASTERED_TOOL, args: mark, ok: marked.ok, byApp: true }] };
