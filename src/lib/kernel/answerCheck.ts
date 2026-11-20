@@ -569,8 +569,9 @@ const CHOICE_OFFER = new RegExp(String.raw`^[\W_]*(?:(?:now|okay|ok|so|alright|a
 // An offer asks nothing of its own (TerraTutor #273's review, MUST-FIX 3). A sentence with an embedded question
 // ("Do you want to tell me what the nucleus does, or would you like a hint?", "whether a tomato is a fruit"), a ":"
 // ("Would you like to try this one: what gas do plants take in, ...?") or a verb that asks for an answer ("... or
-// check the picture again to find the numerator?") asks for a fact, and is keyed as before.
-const ASKS_INSIDE = /:|\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b/i;
+// check the picture again to find the numerator?") asks for a fact, and is keyed as before. So does one with a digit in
+// it, which poses a problem ("Do you want to try 6 × 7, or would you like an easier one?", review of this port, NIT 1).
+const ASKS_INSIDE = /:|\d|\b(?:what|which|who|whom|whose|where|when|why|how|whether|if|(?:tell|name|find|guess|answer)(?:s|ed|ing)?)\b/i;
 
 /** True when every question asked in `question` asks for the learner's opinion (OPINION) or offers a choice of what to
  *  do next (CHOICE_OFFER), with no fact to key. */
@@ -785,16 +786,19 @@ export async function checkAnswer(
   // and the answer was right (TerraTutor live test 2026-11-20 part 12, issue 1: "The denominator would be 4." was
   // right for "what number would be the denominator?", keyed "4", and code then asked "how many pieces do we have
   // in total?", keyed "4 pieces", again): the keys must give one answer, the learner's message must state the key's
-  // numbers, and every word the newest key adds to the first one must be in the newest question or the learner's
-  // message ("pieces" is in "how many pieces ...?"; "tens" in "4 tens" for "What is the value of the 4 in 345?" is
-  // in neither, so "4" for "What digit is in the tens place of 345?" does not answer it, review MUST-FIX 2).
+  // numbers, and every word one key has and the other does not must be a word the newest question counts ("pieces"
+  // in "how many pieces ...?", countsKeyWords), or, for a word only the newest key has, in the learner's message.
+  // "tens" in "4 tens" for "What is the value of the 4 in 345?" is in neither, so "4" for "What digit is in the tens
+  // place of 345?" does not answer it (review MUST-FIX 2); "square" in "4 square cm" for an area question is not
+  // counted by it, so "4 cm", right for a perimeter, does not answer it either way round (review of this port,
+  // MUST-FIX 1).
   // Marked `reworded`: the verdict came from grading the opening question second, so it is not a first try, and
   // TutorEngine refuses the model's own mark on it (MASTERY_REFUSED_REWORDED), as it does after `on: "earlier"`.
   // Given with the newest question's key, so the model's note pairs the newest question with its own key.
   const agree = keysAgree(earlier.key, keyed.key);
   const reworded = agree && rewordsQuestion(earlier.question, keyed.question);
   const answersBoth = agree && onTheEarlier.verdict === "correct" && statesKeyNumbers(studentMessage, keyed.key)
-    && saysAddedKeyWords(earlier.key, keyed.key, `${keyed.question} ${studentMessage}`);
+    && countsKeyWords(earlier.key, keyed.key, keyed.question, studentMessage);
   if (reworded || answersBoth) return { ...onTheEarlier, question: keyed.question, key: keyed.key, reworded: true };
   return { ...onTheEarlier, on: "earlier", checkQuestion: keyed.question };
 }
@@ -928,11 +932,14 @@ function sameKey(a: string, b: string): boolean {
 /**
  * True when two keys give one answer: the same once case, punctuation and an article are set aside and plurals folded
  * as quiz-grading.ts sameAnswer folds them ("3 blocks" / "3 block"), or the same numbers in the same order (a
- * fraction's two numbers too: "3/8", "$\frac{3}{8}$") with nothing else that can differ: the same negations, no
- * yes/no on one side that the other contradicts, and every other word of one key in the other ("4" / "4 pieces", "3"
- * / "3 blocks"; not "4 pieces" / "4 blocks", "3/4" / "4/3", "4 cm" / "4 m", "4" / "not 4"). TerraTutor live test 2026-11-20 part
- * 12, issue 1: the move-on question's key "4 pieces" was not the first question's "4", and the move-on question the
- * learner had just answered was asked again. Exact on purpose: keys in other words are two answers here.
+ * fraction's two numbers too: "3/8", "$\frac{3}{8}$") with the same symbols beside them in the same order (keySymbols:
+ * not "4 cm" / "4 cm²", "3 × 4" / "3 + 4", "50%" / "50", "$4" / "4 cents", "4 > 3" / "4 < 3"), the same negations,
+ * no yes/no on one side that the other contradicts, and every other word of one key in the other ("4" / "4 pieces",
+ * "3" / "3 blocks", "4 cm" / "4 square cm"; not "4 pieces" / "4 blocks", "3/4" / "4/3", "4 cm" / "4 m", "4" / "not
+ * 4"). A word only one key has can still change what its number means ("4 cm" / "4 square cm"): checkAnswer merges
+ * two questions on such keys only when the newest question counts that word (countsKeyWords). TerraTutor live test
+ * 2026-11-20 part 12, issue 1: the move-on question's key "4 pieces" was not the first question's "4", and the move-on
+ * question the learner had just answered was asked again. Exact on purpose: keys in other words are two answers here.
  */
 export function keysAgree(a: string, b: string): boolean {
   if (sameKey(a, b) || (!!normKey(a) && sameAnswer(normKey(a), normKey(b)))) return true;
@@ -940,25 +947,64 @@ export function keysAgree(a: string, b: string): boolean {
   const nb = numbersIn(b).map((n) => n.value);
   if (!na.length || na.length !== nb.length || na.some((v, i) => Math.abs(v - nb[i]) > 1e-9)) return false;
   const negations = (k: string) => (k.toLowerCase().match(NEGATION) ?? []).sort().join(" ");
-  if (negations(a) !== negations(b) || yesNo(a) !== yesNo(b)) return false;
+  if (negations(a) !== negations(b) || yesNo(a) !== yesNo(b) || keySymbols(a) !== keySymbols(b)) return false;
   const [ra, rb] = [keyWords(a), keyWords(b)];
   const [fewer, more] = ra.size <= rb.size ? [ra, rb] : [rb, ra];
   return [...fewer].every((w) => more.has(w));
 }
 
-/** A key's words beside its numbers, single letters kept ("4 m"), stopwords and "frac" (LaTeX) left out, folded to the singular (foldPlural). */
-function keyWords(k: string): Set<string> {
-  let text = k;
-  for (const n of numbersIn(k).reverse()) text = `${text.slice(0, n.from)} ${text.slice(n.to)}`;
-  return new Set((text.toLowerCase().match(/\p{L}+/gu) ?? []).filter((w) => !CONTENT_STOPWORDS.has(w) && w !== "frac").map(foldPlural));
+/** A key read as plain text: LaTeX math as written out ("$\frac{3}{8}$" is "3/8", "\times" and "\cdot" "×", "\div"
+ *  "÷"), and an "x", "*" or "·" between two numbers is "×" ("3 x 4" is "3 × 4"). */
+function plainKey(k: string): string {
+  return k.replace(/\$([^$]*\\[^$]*)\$/g, "$1")
+    .replace(/\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}/g, "$1/$2")
+    .replace(/\\(?:times|cdot)\b/g, "×").replace(/\\div\b/g, "÷")
+    .replace(/(?<=\d\s*)[x*·](?=\s*\d)/gi, "×");
 }
 
-/** True when every word `newest` adds to `first` (keyWords) is in `text`, plurals folded: a word only the newest key
- *  has ("tens", "fewer", "times") can change what its number means, and is said or asked, or the keys are two answers. */
-function saysAddedKeyWords(first: string, newest: string, text: string): boolean {
-  const had = keyWords(first);
-  const said = new Set((text.toLowerCase().match(/\p{L}+/gu) ?? []).map(foldPlural));
-  return [...keyWords(newest)].every((w) => had.has(w) || said.has(w));
+/** A key's text, as plainKey reads it, with its numbers (numbersIn) taken out. */
+function keyBesideNumbers(k: string): string {
+  let text = plainKey(k);
+  for (const n of numbersIn(text).reverse()) text = `${text.slice(0, n.from)} ${text.slice(n.to)}`;
+  return text;
+}
+
+/** A key's words beside its numbers, single letters kept ("4 m"), stopwords and "frac" (LaTeX) left out, folded to the singular (foldPlural). */
+function keyWords(k: string): Set<string> {
+  return new Set((keyBesideNumbers(k).toLowerCase().match(/\p{L}+/gu) ?? []).filter((w) => !CONTENT_STOPWORDS.has(w) && w !== "frac").map(foldPlural));
+}
+
+/** A key's symbols beside its numbers, in order: every character that is not a letter, a space or punctuation
+ *  ("×", "+", "²", "%", "$", "<", "/", "°"; a "-" between two letters is a hyphen and left out). Each changes what
+ *  the numbers mean, so keys whose symbols differ are two answers (keysAgree). */
+function keySymbols(k: string): string {
+  return (keyBesideNumbers(k).replace(/(?<=\p{L})-(?=\p{L})/gu, " ").match(/[^\p{L}\s.,;:!?'"“”‘’()[\]{}\\]/gu) ?? []).join("");
+}
+
+/** The words a "how many" or "how much" in `question` counts: up to three words after it, to its first stopword,
+ *  folded to the singular ("pieces" in "how many pieces do we have?", "total" and "blocks" in "how many total blocks
+ *  do you have?"). A count names what it counts, so "4" and "4 pieces" answer it alike. */
+function countedWords(question: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of question.toLowerCase().matchAll(/\bhow\s+(?:many|much)\s+((?:\p{L}+\s*){1,3})/gu)) {
+    for (const w of m[1].split(/\s+/).filter(Boolean)) {
+      if (CONTENT_STOPWORDS.has(w)) break;
+      out.add(foldPlural(w));
+    }
+  }
+  return out;
+}
+
+/** True when every word one key has and the other does not (keyWords) is a word the newest question counts
+ *  (countedWords), or, for a word only the newest key has, is in the learner's message, plurals folded. Any other
+ *  such word can change what the number means ("tens" in "4 tens", "square" in "4 square cm"), and the keys are then
+ *  two answers: "4 cm", right for a square's perimeter, does not answer "What is the area ...?" keyed "4 square cm",
+ *  and "4 square cm" does not answer a perimeter question keyed "4 cm". */
+function countsKeyWords(first: string, newest: string, newestQuestion: string, student: string): boolean {
+  const [had, has] = [keyWords(first), keyWords(newest)];
+  const counted = countedWords(newestQuestion);
+  const said = new Set((student.toLowerCase().match(/\p{L}+/gu) ?? []).map(foldPlural));
+  return [...had].every((w) => has.has(w) || counted.has(w)) && [...has].every((w) => had.has(w) || counted.has(w) || said.has(w));
 }
 
 /** True when the student's message states every number in `key` (or the key has none). */

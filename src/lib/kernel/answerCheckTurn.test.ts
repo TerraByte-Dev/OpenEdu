@@ -2490,6 +2490,36 @@ describe("an answer to the check's first question after the tutor moved on", () 
       expect(marks).toEqual([]);
     }, 30_000);
 
+    // Review of this port, MUST-FIX 1: keys with the same number whose symbols differ ("16 cm" / "16 cm²", "3 × 4" /
+    // "3 + 4"), or where one key has a word the move-on question does not count ("square" in "16 square cm"), are two
+    // answers. A right answer to the first question is not right for the move-on one, which is asked again. A 4 cm
+    // square's perimeter and area are both 16: the textbook case.
+    const PERIMETER = "A square has sides of 4 cm. What is its perimeter?";
+    const AREA = "What is the area of a square with sides of 4 cm?";
+    const TIMES = "There are 3 bags with 4 apples each. What multiplication shows this?";
+    const PLUS = "There are 3 apples and 4 pears. What addition shows this?";
+    it.each([
+      ["perimeter, then area in cm²", PERIMETER, "16 cm", AREA, "16 cm²", "16 cm"],
+      ["perimeter, then area in square cm", PERIMETER, "16 cm", AREA, "16 square cm", "16 cm"],
+      ["area in square cm, then perimeter", AREA, "16 square cm", PERIMETER, "16 cm", "16 square cm"],
+      ["the review's perimeter, then area", "A square has sides of 1 cm. What is its perimeter?", "4 cm", "What is the area of a square with sides of 2 cm?", "4 cm²", "4 cm"],
+      ["multiplication, then addition", TIMES, "3 × 4", PLUS, "3 + 4", "3 × 4"],
+      ["multiplication with an x, then addition", TIMES, "3 x 4", PLUS, "3 + 4", "3 x 4"],
+    ])("%s, the same number in both keys: graded apart and asked again", async (_, first, firstKey, again, againKey, said) => {
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes(again)
+        ? { question: again, working: "", answer: againKey }
+        : { question: first, working: "", answer: firstKey });
+      gradeOut = gradeBy({ [first]: "correct" });
+      script = [markCall("mastered"), reply("Yes, that's right.")];
+      const { result, confirms } = await answer([student(ASSESS_MESSAGE), tutor(`Let's check. ${first}`), student("I don't know"), tutor(`Think about it. ${again}`)], said);
+      expect(result.answerCheck).toMatchObject({ question: first, key: firstKey, verdict: "correct", on: "earlier", checkQuestion: again });
+      expect(result.answerCheck?.reworded).toBeUndefined();
+      expect(result.text).toBe(`Yes, that's right.\n\n${HINT_ANSWER_BACK}\n\nThink about it. ${again}`);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
     it("thread A, partly right for the first question: tagged and asked again, as before", async () => {
       keyOut = keyA("4 pieces");
       gradeOut = gradeBy({ [A_FIRST]: "partly" });
@@ -2579,6 +2609,19 @@ describe("an answer to the check's first question after the tutor moved on", () 
     ["Yes, 4", "No, 4", false],
     ["4", "4; 3", false],
     ["insects", "snakes and birds", false],
+    // Review of this port, MUST-FIX 1: a symbol beside the numbers is part of the answer.
+    ["3 x 4", "3 × 4", true],
+    ["3 × 4", "$3 \\times 4$", true],
+    ["16 cm²", "16 cm².", true],
+    ["4 cm", "4 square cm", true],
+    ["4 cm", "4 cm²", false],
+    ["3 × 4", "3 + 4", false],
+    ["3 x 4", "3 + 4", false],
+    ["3 + 4 × 5", "3 × 4 + 5", false],
+    ["50%", "50", false],
+    ["$4", "4 cents", false],
+    ["4 > 3", "4 < 3", false],
+    ["2:30", "2/30", false],
     ["It controls what enters and leaves the cell", "It lets some things in and keeps others out", false],
   ])("keysAgree(%j, %j) is %s", (a, b, same) => {
     expect(keysAgree(a, b)).toBe(same);
@@ -2802,6 +2845,10 @@ describe("a question that offers a choice of what to do next", () => {
     ["Would you like to guess whether a tomato is a fruit, or do you think it is a vegetable?", false],
     ["Do you want to count the blocks or check the picture again to find the numerator?", false],
     ["Would you like to try to name the part that controls the cell, or try another example?", false],
+    // Review of this port, NIT 1: an offer that poses a problem with numbers asks for a fact, and is keyed as on master.
+    ["Do you want to try 6 × 7, or would you like an easier one?", false],
+    ["Would you like to solve 12 ÷ 3 next, or try a different one?", false],
+    ["Do you want to shade 3 of the 4 blocks, or try another way?", false],
   ])("asksOpinion(%j) is %s", (question, offer) => {
     expect(asksOpinion(question)).toBe(offer);
   });
