@@ -724,11 +724,13 @@ export const NEAR_DUPLICATE_OVERLAP = 0.85;
 // "cant" are the pairs a grammar question contrasts. A key with a digit is left as normalizeOption reads
 // it: "-3" and "3", "$5" and "5" are different answers. Symbols stay too ("<" / ">", "+" / "-", "Na+" / "Na"
 // are different answers), and a key that is only punctuation is left as normalizeOption reads it, so
-// it never becomes "" and matches every other such key. Only for telling repeats apart; grading never reads it.
+// it never becomes "" and matches every other such key. A hyphen that ends a word is a minus sign
+// ("Cl-" / "Cl", "OH-" / "OH"), so it is kept, as "−"; one inside a word ("Cell-membrane") or standing
+// alone between words still goes. Only for telling repeats apart; grading never reads it.
 export function keyForm(s: string): string {
   const k = normalizeOption(s);
   if (/\p{N}/u.test(k)) return k;
-  const stripped = k.replace(/[^\p{L}\p{M}\p{S}'\s]+/gu, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|an?) (?=\S)/, "");
+  const stripped = k.replace(/(?<=\S)-(?=\s|$)/g, "−").replace(/[^\p{L}\p{M}\p{S}'\s]+/gu, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|an?) (?=\S)/, "");
   return stripped || k;
 }
 

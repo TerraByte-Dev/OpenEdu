@@ -1597,6 +1597,64 @@ describe("an answer that answers nothing in a mastery check", () => {
     expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
   }, 30_000);
 
+  // OpenEdu #405's review note (ported back from TerraTutor #264): small models put a line after the hint's
+  // question (OpenEdu #404). Read as "not ending on a question", the hint's open question fell through to the
+  // check's verdict and the learner was told "not right yet" again. A line TrailingQuestionHold would hold
+  // leaves it the last.
+  const KEY_NOTICE = { question: "What did you notice?", working: "", answer: "" };
+  for (const tail of [" You can do it!", " 😊", "\n\nTake your time."]) {
+    const hint = `${NOTICE}${tail}`;
+    it(`after a hint that ends on a question with no one right answer and then ${JSON.stringify(tail)}, an answer not right for the check is "unsure" and the check's question comes back`, async () => {
+      keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("shared food") ? KEY_NOTICE : KEY_FRACTION);
+      gradeOut = { student_answer: "the pieces were the same size", verdict: "incorrect" };
+      script = [markCall("mastered"), reply("Yes, the pieces were the same size.")];
+      const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(hint)];
+      const { result, confirms } = await answer(history, "the pieces were the same size");
+      expect(result.answerCheck).toMatchObject({ question: "What did you notice?", key: "", verdict: "unsure", by: "model", on: "hint", checkQuestion: Q_FRACTION });
+      expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(1);
+      expect(result.text).not.toContain("not right yet");
+      expect(result.toolCalls.find((c) => c.name === "progress.mark_mastered")).toMatchObject({ ok: false });
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+      expect(result.text).toBe(`The pieces were the same size.\n\n${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`);
+    }, 30_000);
+
+    it(`after that hint and then ${JSON.stringify(tail)}, a right answer to the check is the check's and passes`, async () => {
+      keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("shared food") ? KEY_NOTICE : KEY_FRACTION);
+      gradeOut = gradeByQuestion(Q_FRACTION);
+      script = [markCall("mastered"), reply("Yes, that is what a fraction is.")];
+      const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(hint)];
+      const { result } = await answer(history, "A fraction is a part of a whole, like one slice of a pizza.");
+      expect(result.answerCheck).toMatchObject({ question: Q_FRACTION, verdict: "correct" });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.text).not.toContain(HINT_ANSWER_BACK);
+      expect(marks).toEqual([{ id: "1.1", status: "mastered" }]);
+    }, 30_000);
+  }
+
+  it("a hint question with a keyed answer and a line after it is still graded: the chocolate-bar answer is the hint's, never the check's", async () => {
+    keyOut = keyFraction;
+    gradeOut = gradeByQuestion(KEY_CHOCOLATE.question);
+    script = [markCall("mastered"), reply("Yes! Breaking it into equal pieces shares it fairly.")];
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(`${CHOCOLATE} Take your time!`)];
+    const { result } = await answer(history, "break it into equal pieces");
+    expect(result.answerCheck).toMatchObject({ question: KEY_CHOCOLATE.question, verdict: "correct", on: "hint", checkQuestion: Q_FRACTION });
+    expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(2);
+    expect(result.text).not.toContain("not right yet");
+    expect(marks).toEqual([]);
+    expect(result.text.endsWith(`${HINT_ANSWER_BACK}\n\n${Q_FRACTION}`)).toBe(true);
+  }, 30_000);
+
+  it("a hint question with feedback after it is not the one left open: an answer it does not match keeps the check's verdict, with one grader call", async () => {
+    keyOut = keyFraction;
+    gradeOut = gradeByQuestion(KEY_CHOCOLATE.question);
+    const history = [student(ASSESS_MESSAGE), tutor(Q_FRACTION), student("Give me a hint."), tutor(`${CHOCOLATE} Cut it so every piece is the same.`)];
+    const { result } = await answer(history, "break it into equal pieces");
+    expect(result.answerCheck).toMatchObject({ question: Q_FRACTION, verdict: "incorrect" });
+    expect(result.answerCheck?.on).toBeUndefined();
+    expect(structured.filter((c) => c.tool === "AnswerGrade")).toHaveLength(1);
+  }, 30_000);
+
   it("a right answer to the open-ended check, typed after a hint that asks a question, is graded against the check's question and passes", async () => {
     const SLICES = "Think of a pizza cut into 8 equal slices. What do we call one of those slices?";
     const KEY_SLICES = { question: "What do we call one of those slices?", working: "", answer: "one eighth" };

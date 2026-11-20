@@ -558,8 +558,8 @@ export function combine(code: KeyMatch, grader: GradeOut["verdict"]): { verdict:
  * with one right answer. Never throws: a failed call gives "unsure". `hintReply` is the reply to a hint
  * asked on that message (checkedMessage): when it asks a question of its own, the answer is graded against
  * the check's question first, and only an answer that is not right there can be the hint's, tagged
- * `on: "hint"` (right or partly right for the hint's question; when the hint's question is not its last
- * sentence, only code's match with the hint's key; "unsure" when the hint ends on a question with no key).
+ * `on: "hint"` (right or partly right for the hint's question; when feedback follows the hint's question,
+ * only code's match with the hint's key; "unsure" when the hint ends on a question with no key).
  * Anything else keeps the check's verdict.
  */
 export async function checkAnswer(
@@ -591,14 +591,16 @@ export async function checkAnswer(
   // `on: "hint"` (it never counts toward mastery, and code asks the check's question again, hintAnswerBack);
   // else the check's verdict stands. The grader's leniency is not special-cased: "break it into equal
   // pieces", the answer to the hint's chocolate-bar question, passes when the grader finds it right for
-  // "what a fraction is", as it would with no hint (part 7, issue 2). A hint whose question is not its last
-  // sentence ("What is 8 + 8? Try it!", "What is 8 + 8? 😊") is tried by code's match only, with no grader
-  // call on the hint's question (OpenEdu #404). A hint that ends on a question with no one right answer
-  // ("Think of a time you shared food. What did you notice?"), or whose key call failed, has nothing to grade
-  // the answer against: an answer right for the check's question is the check's; anything else is "unsure",
-  // tagged `on: "hint"`, so no verdict is said, the mark is refused and the check's question is asked again,
-  // as before check-first (review of TerraTutor #262, 2026-11-20: "the pieces were the same size" was "not right
-  // yet" for the check's question). At most two grader calls: the check's, then the hint's.
+  // "what a fraction is", as it would with no hint (part 7, issue 2). A hint "ends on" its question when
+  // nothing after it but what TrailingQuestionHold holds with a question ("What is 8 + 8? Try it!", "What is
+  // 8 + 8? 😊", endsOnQuestion); one with feedback after its question ("Is it more than 40? Count by 8s.") is
+  // tried by code's match only, with no grader call on the hint's question (OpenEdu #404). A hint that ends
+  // on a question with no one right answer ("Think of a time you shared food. What did you notice? You can
+  // do it!", OpenEdu #405's note), or whose key call failed, has nothing to grade the answer against: an
+  // answer right for the check's question is the check's; anything else is "unsure", tagged `on: "hint"`, so
+  // no verdict is said, the mark is refused and the check's question is asked again, as before check-first
+  // (review of TerraTutor #262, 2026-11-20: "the pieces were the same size" was "not right yet" for the
+  // check's question). At most two grader calls: the check's, then the hint's.
   if (hintReply?.includes("?")) {
     const hinted = await answerKey(hintReply, config, opts);
     const hintKey = hinted && hinted !== "none" && !sameKey(hinted.key, keyed.key) && !asksSameQuestion(hinted, keyed) ? hinted : null;
@@ -612,14 +614,14 @@ export async function checkAnswer(
       const onTheCheck = await graded(keyed, ctx, raw, studentMessage, config, opts);
       if (onTheCheck.verdict === "correct") return onTheCheck;
       if (hintRaw === "match") return { ...hintKey, verdict: "correct", by: "code", ...onHint };
-      if (endsWithQuestion(hintReply)) {
+      if (endsOnQuestion(hintReply)) {
         const onTheHint = await graded(hintKey, hintCtx, hintRaw, studentMessage, config, opts);
         if (onTheHint.verdict === "correct" || onTheHint.verdict === "partly") return { ...onTheHint, ...onHint };
       }
       return onTheCheck;
     }
     const asked = onlyQuestion(hintReply);
-    if ((hinted === "none" || hinted === null) && endsWithQuestion(hintReply) && !(asked && asksSameQuestion({ question: asked }, keyed))) {
+    if ((hinted === "none" || hinted === null) && endsOnQuestion(hintReply) && !(asked && asksSameQuestion({ question: asked }, keyed))) {
       const onTheCheck = await graded(keyed, ctx, raw, studentMessage, config, opts);
       if (onTheCheck.verdict === "correct") return onTheCheck;
       return { question: asked, key: "", verdict: "unsure", by: hinted === null ? "failed" : "model", on: "hint", checkQuestion: keyed.question };
@@ -639,10 +641,22 @@ function asksSameQuestion(hinted: { question: string }, keyed: { question: strin
   return questionInMessage(hinted.question, keyed.question) && questionInMessage(keyed.question, hinted.question);
 }
 
-/** True when the hint's reply ends in a question: its last sentence asks one ("What is 8 + 8?"). */
-function endsWithQuestion(text: string): boolean {
-  return /\?[\s*_"”')\]]*$/.test(replyFromPersisted(text).text);
+/**
+ * True when the hint's reply ends on its question: nothing after its last "?" but what TrailingQuestionHold
+ * holds with a question (a choice line, an emoji, "You can do it!", a lead-in), so the reply run through
+ * it drops that question ("What did you notice? You can do it!", "What is 8 + 8? 😊"). Feedback after it
+ * ("Is it more than 40? Count by 8s.") lets the question out: it is not the one left open (OpenEdu #404,
+ * #405's note). A line that opens with one of AFTER_QUESTION's phrases is held whatever follows it ("Try it
+ * with 4 friends and 1 pizza."), so such a hint ends on its question too; its verdict is the hint's, no mark.
+ */
+function endsOnQuestion(text: string): boolean {
+  const reply = replyFromPersisted(text).text;
+  const hold = new TrailingQuestionHold();
+  const shown = hold.push(reply) + hold.end();
+  return questionMarks(shown) < questionMarks(reply);
 }
+
+const questionMarks = (s: string) => s.split("?").length - 1;
 
 /** The grader's verdict on the answer against `keyed`, with code's reading of it (see the file comment). */
 async function graded(

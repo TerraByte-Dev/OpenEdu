@@ -176,13 +176,14 @@ The section for each release is also what the app shows when you press Check for
   it was checked against the hint's question first and never counted ("the whole is the complete thing,
   like a whole pizza" after "What is that complete object called?"). Only an answer that is not right for
   the check's question is checked against the hint's; one right for neither now gets the check's verdict.
-  A hint that ends on a question with no one right answer ("What did you notice?") does not get its answer
-  marked wrong: the app says no verdict and asks the check's question again. When the hint has another
-  line after that question ("... What did you notice? You can do it!"), the answer can still be marked
-  wrong for now. A hint that only asks the check's question again, with
+  A hint question with no one right answer ("What did you notice?") is not marked wrong when the hint
+  ends on it, or adds only a short line such as "You can do it!", "Take your time!" or an emoji: the app
+  says no verdict and asks the check's question again. After other lines ("What did you notice? Keep
+  going!") the answer can still be marked wrong for now. A hint that only asks the check's question again, with
   a line after it ("What is a noun? You can do it!"), no longer turns a right answer to the check into
   the hint's. And when the app asks the check's question again after the hint's answer, the tutor's own
-  question at the end of its reply is left out, so only one question is waiting on screen.
+  question at the end of its reply is left out, so usually only one question is waiting on screen (a
+  question the tutor follows with more help is kept, with that help).
 - **A check stays open while the learner asks for hints.** In "Check if I've got this", asking for a hint,
   answering the hint's question or typing something that answers nothing no longer uses up the check, so
   the right answer after them is still checked and can mark the skill learned. A check still ends after
@@ -199,7 +200,8 @@ The section for each release is also what the app shows when you press Check for
   stay apart, as do ones whose answers share no word ("numerator" and "denominator") and ones that ask
   something else at the end ("what does the numerator tell you?" and "the denominator", the job of the
   roots and of the leaves). Number, fraction, time, money, multiple-choice and word-problem answers still
-  count as a repeat only when they are the same. Keys that share only a pronoun, a reflexive one included
+  count as a repeat only when they are the same, and so do signs: "34 ___ 43" (<) and "43 ___ 34" (>) are
+  both asked, and so are "Cl-" and "Cl". Keys that share only a pronoun, a reflexive one included
   ("she herself is kind" and "she herself is rude"), stay apart.
 - **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
   now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
