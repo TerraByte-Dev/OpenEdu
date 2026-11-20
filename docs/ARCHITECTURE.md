@@ -1294,7 +1294,8 @@ So the verdict on the child's answer is the app's, not the reply's:
   word means, or a first-turn hold), and no card answered in the turn was checked. It is refused on any
   turn whose typed answer was to a hint's own question, whatever a card picked that turn
   (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258), or to the check's first question after the
-  tutor moved on (`MASTERY_REFUSED_EARLIER`, above; ported from TerraTutor #268). Before, nothing refused
+  tutor moved on (`MASTERY_REFUSED_EARLIER`, above; ported from TerraTutor #268), or graded on that question
+  asked again in other words (`MASTERY_REFUSED_REWORDED`, above; ported from TerraTutor #270). Before, nothing refused
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
