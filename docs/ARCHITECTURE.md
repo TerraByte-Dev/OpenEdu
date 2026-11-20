@@ -1030,7 +1030,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   praise ending such as "again", "right" or "start", and then a learner's name, one capitalised word, may
   come before the comma, and any other words keep the sentence whole: "Yes, no, maybe, which of these is a
   question word?", "Right triangles have one 90-degree angle, so which ...?" and "Good readers, now which
-  word ...?" are kept whole), or praise joined by commas to a setup with a number in digits or words
+  word ...?" are kept whole; a bare name only after a praise ending or after correct, yes, yep, yeah,
+  exactly, well done or that's right, never after a praise word that is also an adjective, so "Great
+  Lakes, which one is the largest?", "Great Britain, now which ...?", "Perfect Squares, which ...?",
+  "Right Angles, how many ...?" and "Good Friday, when is it?" are kept whole; ported from TerraTutor
+  #258), or praise joined by commas to a setup with a number in digits or words
   ("Yes, good job, Sam has five apples." and "Good job, Sam has five apples." keep "Sam has five
   apples."), choices included (those listed before it are put after it), so the next
   try is checked against it: the next turn keys this reply). ChatTab's post-turn reflection still runs. In

@@ -404,13 +404,19 @@ export async function checkAnswer(
 // right,") and then a learner's name ("Well done Sam,": one capitalised word) may come before the comma;
 // any other words keep the sentence whole: "Right triangles have one 90-degree angle, so which ...", "Good
 // readers, now which word ..." (TerraTutor #255 and its review).
-const PRAISE_ITEM = /^(?:correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+(?:(?:job|work|thinking|try|answer|going|effort|pick|choice)\b[^,?\n]*|(?:one|again|exactly|indeed|right|correct|start|you(?:'|’)?re right|that(?:'|’)?s (?:right|correct|it)|that is right|you got it|well done)\b))?(?:[ \t]+([A-Za-z'’-]+))?[ \t]*,\s*/i;
+// The name comes only after a praise ending ("Nice one Sam,") or after a praise word that is never an
+// adjective before a noun (NAME_HEAD): "Great Lakes, which ...", "Perfect Squares, which ...", "Right
+// Angles, how many ...", "Good Friday, when is it?" are kept whole (ported from TerraTutor #258).
+const PRAISE_ITEM = /^(correct|right|yes|yep|yeah|great|good|nice|well done|awesome|perfect|excellent|exactly|that(?:'|’)?s right|that is right)\b(?:[ \t]+((?:job|work|thinking|try|answer|going|effort|pick|choice)\b[^,?\n]*|(?:one|again|exactly|indeed|right|correct|start|you(?:'|’)?re right|that(?:'|’)?s (?:right|correct|it)|that is right|you got it|well done)\b))?(?:[ \t]+([A-Za-z'’-]+))?[ \t]*,\s*/i;
 const AFTER_PRAISE = /^(?:(?:now|so|then|next|and|okay|ok)\b,?\s*|(?=(?:what|which|who|whom|whose|where|when|why|how|can|could|is|are|was|were|do|does|did|will|would|should)\b))/i;
 // The name, matched case-sensitively: PRAISE_ITEM is case-insensitive.
 const NAME = /^[A-Z][a-z'’-]*$/;
+// The praise words a bare name may follow: none of them stands as an adjective in front of a noun.
+const NAME_HEAD = /^(?:correct|yes|yep|yeah|exactly|well done|that(?:'|’)?s right|that is right)$/i;
+const nameFits = (m: RegExpExecArray) => !m[3] || (NAME.test(m[3]) && (!!m[2] || NAME_HEAD.test(m[1])));
 function withoutPraiseLead(question: string): string {
   let cut = 0;
-  for (let at = 0, m = PRAISE_ITEM.exec(question); m && (!m[1] || NAME.test(m[1])); m = PRAISE_ITEM.exec(question.slice(at))) {
+  for (let at = 0, m = PRAISE_ITEM.exec(question); m && nameFits(m); m = PRAISE_ITEM.exec(question.slice(at))) {
     at += m[0].length;
     const next = AFTER_PRAISE.exec(question.slice(at));
     if (next) cut = at + next[0].length;
