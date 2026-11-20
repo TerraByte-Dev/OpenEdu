@@ -136,7 +136,10 @@ async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ ro
   const { beforeCard, modelMarked, firstCardChecked } = result.markInput ?? { beforeCard: null, modelMarked: false, firstCardChecked: false };
   if (modelMarked) return null;
   const checked = [result.answerCheck, ...result.cardChecks].filter((c): c is AnswerCheck => !!c);
-  if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer || c.on)) return null;
+  // A `reworded` verdict came from grading the opening question second: never a first try, whatever
+  // firstAttempt reads (OpenEdu #410's take-back, ported from TerraTutor #272; the opening's unanswered turn
+  // already makes it false today).
+  if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer || c.on || c.reworded)) return null;
   if (result.answerCheck ? !firstAttempt(conversation) : !(firstCardChecked && asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? ""))) return null;
   // A typed answer was graded on what came before the student's newest message, so a pick in this reply
   // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed

@@ -1,5 +1,5 @@
 {
- "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart. Live test part 10 added 6 repeats and 4 different pairs (a level test whose options were not saved and whose keys were cut at 80 characters, kept as saved), and the qualifier-in-a-new-\"and\"-tail pairs: the cactus stems of OpenEdu #408's review, keys written here, and 2 written fresh by Claude before the rule that keeps them apart, each also as multiple choice. The live test part 10 branch review added 3 different pairs written fresh by its reviewer (subject-verb agreement, and a reversed question with long keys), each also as multiple choice. Live test part 11 added 7 repeats and 6 different pairs from a cells quiz pair and a volcanoes level test (model text as the run saved it; quiz 2's and the level test's options were not saved). The live test part 11 branch review added 5 different pairs written fresh by its reviewer: an infinitive with and without \"to\" after \"made\" / \"wants\" (also as multiple choice) and after \"let\" / \"tell\", and two mirror questions with one key, one of them asking what is not true.",
+ "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart. Live test part 10 added 6 repeats and 4 different pairs (a level test whose options were not saved and whose keys were cut at 80 characters, kept as saved), and the qualifier-in-a-new-\"and\"-tail pairs: the cactus stems of OpenEdu #408's review, keys written here, and 2 written fresh by Claude before the rule that keeps them apart, each also as multiple choice. The live test part 10 branch review added 3 different pairs written fresh by its reviewer (subject-verb agreement, and a reversed question with long keys), each also as multiple choice. Live test part 11 added 7 repeats and 6 different pairs from a cells quiz pair and a volcanoes level test (model text as the run saved it; quiz 2's and the level test's options were not saved). The live test part 11 branch review added 5 different pairs written fresh by its reviewer: an infinitive with and without \"to\" after \"made\" / \"wants\" (also as multiple choice) and after \"let\" / \"tell\", and two mirror questions with one key, one of them asking what is not true. OpenEdu #410's take-back added 2 different pairs written fresh by Claude, keys that the same-key cap folded before the fix (a particle in a cause tail, \"giving off oxygen\" / \"giving off carbon dioxide\", and a number in a relative tail, \"which makes 2 cells\" / \"which makes 4 cells\"), each also as multiple choice.",
  "repeats": [
   {
    "a": {
@@ -3609,6 +3609,82 @@
      "D) Offspring vary a great deal"
     ],
     "correct_answer": "B) Offspring are genetically identical to the parent"
+   }
+  },
+  {
+   "note": "giving off oxygen / giving off carbon dioxide, a particle in a cause tail (written for OpenEdu #410's take-back)",
+   "a": {
+    "question_text": "Which process puts most of the oxygen into the air we breathe?",
+    "question_type": "short_answer",
+    "correct_answer": "Green plants giving off oxygen"
+   },
+   "b": {
+    "question_text": "Which process adds carbon dioxide to the air at night?",
+    "question_type": "short_answer",
+    "correct_answer": "Green plants giving off carbon dioxide"
+   }
+  },
+  {
+   "note": "giving off oxygen / giving off carbon dioxide, a particle in a cause tail (written for OpenEdu #410's take-back) (multiple choice)",
+   "a": {
+    "question_text": "Which process puts most of the oxygen into the air we breathe?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Animals breathing out",
+     "B) Green plants giving off oxygen",
+     "C) Rocks wearing down",
+     "D) Water evaporating"
+    ],
+    "correct_answer": "B) Green plants giving off oxygen"
+   },
+   "b": {
+    "question_text": "Which process adds carbon dioxide to the air at night?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Rain falling",
+     "B) Wind blowing",
+     "C) Green plants giving off carbon dioxide",
+     "D) Snow melting"
+    ],
+    "correct_answer": "C) Green plants giving off carbon dioxide"
+   }
+  },
+  {
+   "note": "makes 2 cells / makes 4 cells, a number in a relative tail (written for OpenEdu #410's take-back)",
+   "a": {
+    "question_text": "What happens in mitosis?",
+    "question_type": "short_answer",
+    "correct_answer": "Cell division, which makes 2 cells"
+   },
+   "b": {
+    "question_text": "What happens in meiosis?",
+    "question_type": "short_answer",
+    "correct_answer": "Cell division, which makes 4 cells"
+   }
+  },
+  {
+   "note": "makes 2 cells / makes 4 cells, a number in a relative tail (written for OpenEdu #410's take-back) (multiple choice)",
+   "a": {
+    "question_text": "What happens in mitosis?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Cell division, which makes 2 cells",
+     "B) Cell growth without division",
+     "C) Two cells joining",
+     "D) A cell making food"
+    ],
+    "correct_answer": "A) Cell division, which makes 2 cells"
+   },
+   "b": {
+    "question_text": "What happens in meiosis?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Cell growth without division",
+     "B) Two cells joining",
+     "C) A cell making food",
+     "D) Cell division, which makes 4 cells"
+    ],
+    "correct_answer": "D) Cell division, which makes 4 cells"
    }
   }
  ]

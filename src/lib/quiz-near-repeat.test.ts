@@ -414,7 +414,24 @@ describe("live test part 11: the review pool, key tails and the last quiz's rewo
       ["Cells that are not alive, which ...", "Cells that are alive, which ..."], ["Plates, which move", "Plates, which do not move"],
       ["Type 1 diabetes, where the body makes no insulin", "Type 2 diabetes, where the body resists insulin"],
       ["The pressure regime where gas expansion leads to a rapid drop in temperature", "The pressure regimes that drive explosive vs. effusive eruption styles."],
+      // OpenEdu #410's take-back (ported from TerraTutor #272): a particle shared by two cause tails ("off") is not
+      // a shared idea, and a number in a tail, in digits or words, is part of the answer.
+      ["Green plants giving off oxygen", "Green plants giving off carbon dioxide"],
+      ["Cell division, which makes 2 cells", "Cell division, which makes 4 cells"],
+      ["Cell division, which produces two identical cells", "Cell division, which produces four different cells"],
+      ["Cell division, which makes 2 cells", "Cell division, which makes four cells"],
     ]) expect(sameKeyHead(a, b), `${a} / ${b}`).toBe(false);
+    // The same tail in digits and in words is still one answer.
+    expect(sameKeyHead("Cell division, which makes 2 cells", "Cell division, which makes two new cells")).toBe(true);
+    // Review of the take-back, nit: a number only on one side, or a "one" that is no count, keeps the fold master had.
+    for (const [a, b] of [
+      ["Cell division", "Cell division, which makes two new cells"], ["Earth's tilt", "Earth's tilt, which causes 4 seasons"],
+      ["Light bending, which happens when it passes from one material to another", "Light bending, which happens at the boundary"],
+    ]) expect(sameKeyHead(a, b), `${a} / ${b}`).toBe(true);
+    // OpenEdu #410's take-back pairs in the fixture: the cap counts them as two keys.
+    const takeBack = (pairs.different as Pair[]).filter((p) => /OpenEdu #410's take-back/.test(p.note ?? ""));
+    expect(takeBack).toHaveLength(4);
+    for (const p of takeBack) expect(sameCapKey(p.a, p.b) || sameCapKey(p.b, p.a), label(p)).toBe(false);
     // No different pair in the fixture has keys the cap counts as one that keyForm and sameAnswer kept apart.
     const folded = (pairs.different as Pair[]).filter((p) => {
       const [ka, kb] = [sameKeyForm(p.a), sameKeyForm(p.b)];
@@ -442,6 +459,25 @@ describe("live test part 11: the review pool, key tails and the last quiz's rewo
     expect(current).toHaveLength(35);
     expect(current.filter((q) => /Joule-Thomson/.test(q.correct_answer))).toHaveLength(SAME_KEY_CAP);
     expect(vi.mocked(log.info).mock.calls.some((c) => /1 question\(s\) set aside past the 2-per-key cap/.test(String(c[1])))).toBe(true);
+  }, 30_000);
+
+  // OpenEdu #410's take-back (ported from TerraTutor #272): "giving off oxygen" / "giving off carbon dioxide" and
+  // "which makes 2 cells" / "which makes 4 cells" were one key to the cap, so a third question on either answer
+  // was set aside.
+  it(`quiz path: two answers whose tails differ only by a particle's object or a number are two keys to the ${SAME_KEY_CAP}-per-key cap`, async () => {
+    const others = ["A) Rain falling", "B) Wind blowing", "C) Snow melting"];
+    const script = [
+      mcq("Which process puts most of the oxygen into the air we breathe?", "D) Green plants giving off oxygen", others),
+      mcq("Which process adds carbon dioxide to the air at night?", "D) Green plants giving off carbon dioxide", others),
+      mcq("What do leaves do in sunlight that animals need?", "D) Green plants giving off oxygen", others),
+      mcq("What happens in mitosis?", "D) Cell division, which makes 2 cells", others),
+      mcq("What happens in meiosis?", "D) Cell division, which makes 4 cells", others),
+      mcq("How does a skin cell copy itself?", "D) Cell division, which makes 2 cells", others),
+    ];
+    model(script, "1.1");
+    const qs = await generateQuizQuestions(cells, 6, { ...medium }, [], undefined, null, null);
+    expect(qs.map((q) => q.question_text)).toEqual(script.map((q) => q.question_text));
+    expect(vi.mocked(log.info).mock.calls.some((c) => /set aside past the/.test(String(c[1])))).toBe(false);
   }, 30_000);
 
   it("reads keys that differ only by a leading \"to\" before 3 or more words as one only on a reworded stem", () => {

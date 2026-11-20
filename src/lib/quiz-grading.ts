@@ -994,8 +994,10 @@ function keyHead(key: string): { text: string; tail: string; cause: boolean; cut
 }
 
 // Words a tail shares without saying the same thing: the link after a cause word ("caused by", "resulting
-// from"), pronouns, and the tail words themselves.
-const TAIL_LINKS = new Set(["by", "from", "at", "as", "into", "onto", "upon", "through", "via", "than"]);
+// from"), a verb's particle ("giving off oxygen" / "giving off carbon dioxide", OpenEdu #410's take-back,
+// ported from TerraTutor #272), pronouns, and the tail words themselves.
+const TAIL_LINKS = new Set(["by", "from", "at", "as", "into", "onto", "upon", "through", "via", "than",
+  "off", "out", "up", "down", "away"]);
 const tailWords = (s: string) => new Set(contentWords(s)
   .filter((w) => !TAIL_LINKS.has(w) && !KEY_PRONOUNS.has(w) && !KEY_TAIL_CAUSES.has(w) && !KEY_TAIL_RELATIVES.has(w)).map(foldPlural));
 
@@ -1016,10 +1018,20 @@ const negationsIn = (s: string) => {
   return [...lower.split(/[^\p{L}\p{N}]+/u).filter((w) => NEGATIONS.has(w)), ...(lower.match(NEGATED_CONTRACTION) ?? []).map(() => "n't")].join(" ");
 };
 
+// A whole key's numbers in order, digits or a count word ("two" is "2"), for sameKeyHead. "2" / "two" read alike.
+// "one" is left out: it is as often a pronoun or "one ... to another" as a count.
+const keyNumbers = (key: string) => stemWords(normalizeOption(key)).filter((w) => w !== "one")
+  .map((w) => (COUNT_WORDS.includes(w) ? String(COUNT_WORDS.indexOf(w)) : w)).filter((w) => /\p{N}/u.test(w)).join(" ");
+
 /**
  * Whether two keys name one answer and differ only in the tail that explains it (keyHead): at least one has
  * a tail, and their heads have the same content words (each folded to its singular) in the same order, at
- * least 2 of them, with the same negations and numbers; and when both have a tail and either was cut on a
+ * least 2 of them, with the same negations and numbers, and, when both whole keys have numbers, tails too, the
+ * same ones, a count word read as its number (keyNumbers: "Cell division, which makes 2 cells" / "... 4 cells"
+ * and "... which produces two identical cells" / "... four different cells", OpenEdu #410's take-back, ported
+ * from TerraTutor #272: a relative tail is never compared word for word, so only its numbers keep such keys
+ * apart; a bare "Cell division" still folds with "Cell division, which makes two new cells"); and when both
+ * have a tail and either was cut on a
  * cause word, tails that share at least half their content words (sameTailIdea), since such a tail is
  * often the answer itself ("Soil erosion caused by wind" / "... by water"). TerraTutor live test part 11's
  * level test keyed one section "The Joule-Thomson effect", "The Joule-Thomson effect, where a gas expands
@@ -1038,7 +1050,8 @@ export function sameKeyHead(a: string, b: string): boolean {
   const [wa, wb] = [words(ha.text), words(hb.text)];
   if (wa !== wb || wa.split(" ").length < 2) return false;
   if (ha.cut && hb.cut && (ha.cause || hb.cause) && !sameTailIdea(ha.tail, hb.tail)) return false;
-  return negationsIn(ha.text) === negationsIn(hb.text) && sameStemNumbers(ha.text, hb.text);
+  const [na, nb] = [keyNumbers(a), keyNumbers(b)];
+  return negationsIn(ha.text) === negationsIn(hb.text) && sameStemNumbers(ha.text, hb.text) && (!na || !nb || na === nb);
 }
 
 /** A key's content words at least, for sameStatedAnswer: a statement, not a name ("Abraham Lincoln") or a term. */
