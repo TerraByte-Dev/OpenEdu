@@ -653,6 +653,15 @@ describe("near-duplicate questions in one quiz or test", () => {
     expect(isNearDuplicate(take, eat)).toBe(true);
   });
 
+  // Review of the port of TerraTutor #259: keys that share only a pronoun are not the same answer.
+  it("keeps apart free-text questions whose keys share only a pronoun", () => {
+    const sa = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "short_answer", options: [] as string[] });
+    const kind = sa("In the story, Ana shares her lunch with a new student. What does this tell you about Ana?", "she is kind");
+    const unkind = sa("In the story, Ana shouts at a new student. What does this tell you about Ana?", "she is unkind and rude");
+    expect(isNearDuplicate(kind, unkind)).toBe(false);
+    expect(dedupeByQuestionText([kind, unkind])).toHaveLength(2);
+  });
+
   it("keeps the equal-key rule for word problems, and for a bare fill-in-the-blank stem", () => {
     const wp = (question_text: string, correct_answer: string) => ({ question_text, correct_answer, question_type: "word_problem", options: [] as string[] });
     expect(isNearDuplicate(

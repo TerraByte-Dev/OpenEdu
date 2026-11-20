@@ -233,7 +233,7 @@ written: they came from a once-a-minute timer whose only reader was the learning
   answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
   later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
   stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
-  fill-in-the-blank keys in words that share a content word, with the same numbers in the same order and the
+  fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind"), with the same numbers in the same order and the
   same last clause word for word, so only the setup differs; TerraTutor #259), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. The re-posed missed questions
   repeat across quizzes on purpose. Fresh ones are kept apart from the last quizzes on the level

@@ -747,6 +747,11 @@ function hasFreeTextKey(q: NearDuplicateQ): boolean {
   return true;
 }
 
+// Pronouns are not a shared content word: "she is kind" / "she is unkind and rude" about the same story
+// character share only "she" (review of OpenEdu's port of TerraTutor #259).
+const KEY_PRONOUNS = new Set(["he", "she", "him", "her", "his", "hers", "they", "them", "their", "theirs",
+  "we", "us", "our", "ours", "your", "yours", "mine", "these", "those", "there"]);
+
 // Two questions a learner would see as the same one: a stem whose words are at least
 // NEAR_DUPLICATE_OVERLAP inside the other's (overlap coefficient: shared words over the shorter stem's,
 // so a restatement with a few extra words still counts), and either
@@ -770,7 +775,7 @@ export function isNearDuplicate(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
   const wb = stemWords(b.question_text);
   if (normalizeOption(a.correct_answer) !== normalizeOption(b.correct_answer)) {
     if (!hasFreeTextKey(a) || !hasFreeTextKey(b)) return false;
-    const keyWords = new Set(contentWords(a.correct_answer));
+    const keyWords = new Set(contentWords(a.correct_answer).filter((w) => !KEY_PRONOUNS.has(w)));
     if (!contentWords(b.correct_answer).some((w) => keyWords.has(w))) return false;
     const numbers = (w: string[]) => w.filter((t) => /\p{N}/u.test(t)).join(" ");
     if (numbers(wa) !== numbers(wb)) return false;
