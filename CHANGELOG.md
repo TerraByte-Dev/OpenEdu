@@ -176,8 +176,10 @@ The section for each release is also what the app shows when you press Check for
   it was checked against the hint's question first and never counted ("the whole is the complete thing,
   like a whole pizza" after "What is that complete object called?"). Only an answer that is not right for
   the check's question is checked against the hint's; one right for neither now gets the check's verdict.
-  A hint question with no one right answer ("What did you notice?") is never marked wrong: the app says
-  no verdict and asks the check's question again. A hint that only asks the check's question again, with
+  A hint that ends on a question with no one right answer ("What did you notice?") does not get its answer
+  marked wrong: the app says no verdict and asks the check's question again. When the hint has another
+  line after that question ("... What did you notice? You can do it!"), the answer can still be marked
+  wrong for now. A hint that only asks the check's question again, with
   a line after it ("What is a noun? You can do it!"), no longer turns a right answer to the check into
   the hint's. And when the app asks the check's question again after the hint's answer, the tutor's own
   question at the end of its reply is left out, so only one question is waiting on screen.

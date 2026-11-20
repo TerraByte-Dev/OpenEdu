@@ -1066,9 +1066,10 @@ So the verdict on the child's answer is the app's, not the reply's:
   own trailing question is dropped first, as it streams (`TrailingQuestionHold`: a sentence with a "?" is
   held, with a lead-in before it and a choice line, emoji or "Take your time!" after it; feedback after it
   lets it out; what is still held at the end is dropped; a question held when a refused mark ends the
-  model call is dropped there, and the next call's text starts after a break), so code's question is the
-  one open question on screen, never a second one or the same one twice (TerraTutor click test part 8,
-  issue 4). Its praise and feedback stay; a reply that was only a question gets a short verdict line that
+  model call is dropped there, and the next call's text starts after a break), so code's question is
+  usually the one open question on screen and never the same one twice (TerraTutor click test part 8,
+  issue 4). A model question followed by feedback ("What is 16 + 8? Try it with 6 x 8: ...") is let out
+  by design, so then the model's question and code's are both on screen. Its praise and feedback stay; a reply that was only a question gets a short verdict line that
   asks nothing ("That's right.", "That's partly right."). On a turn the learner stopped the held text is
   let out as it came. The next turn
   keys only what follows that line (without a stalled reply's saved marker), so the next try is graded
