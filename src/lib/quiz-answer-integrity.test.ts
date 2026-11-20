@@ -764,6 +764,19 @@ describe("near-duplicate questions in one quiz or test", () => {
     expect(keyForm("Cell-membrane!")).toBe("cell membrane");
   });
 
+  // Ported from TerraTutor #265.
+  it("reads a minus sign before punctuation or a quote too", () => {
+    expect(keyForm("Cl-, Na+")).not.toBe(keyForm("Cl, Na+"));
+    expect(keyForm("Cl-; Na+")).not.toBe(keyForm("Cl; Na+"));
+    expect(keyForm("(Cl-)")).not.toBe(keyForm("(Cl)"));
+    expect(keyForm("\"Cl-\"")).not.toBe(keyForm("\"Cl\""));
+    expect(keyForm("\"Cl-\"")).toContain("cl−");
+    expect(keyForm("Cl-/Na+")).not.toBe(keyForm("Cl/Na+"));
+    // A hyphen inside a word, or between words, still goes.
+    expect(keyForm("Cell-membrane, nucleus")).toBe("cell membrane nucleus");
+    expect(keyForm("cell - membrane")).toBe("cell membrane");
+  });
+
   it("local path: a K-2 compare question and its mirror both reach the quiz", async () => {
     const compare = { level: 1, title: "Comparing numbers", subtopics: [{ id: "s1", title: "Compare with <, >, =", key_concepts: ["less than"] }] } as unknown as Syllabus;
     const script = [
