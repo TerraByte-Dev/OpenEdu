@@ -233,8 +233,14 @@ written: they came from a once-a-minute timer whose only reader was the learning
   answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
   later miss puts it back. A pool question that asks what one already re-posed asks, in other words
   (`quiz-review.ts pickReview`, `isNearDuplicate` below, with the same numbers in the same order, so "is
-  3/8 more than 1/2?" and "is 1/8 more than 1/2?" are both re-posed), is skipped for the next one in the
-  pool (TerraTutor live test part 10 re-posed two such misses in one quiz; ported from TerraTutor #269). A
+  3/8 more than 1/2?" and "is 1/8 more than 1/2?" are both re-posed), or that asks for the same stated
+  answer (`sameStatedAnswer`: keys `sameAnswer` counts as one, each of at least 4 content words, stems
+  with the same numbers and negations sharing at least 2 asked words, so "true of mitosis" / "not true of
+  meiosis" with one key are both re-posed; TerraTutor live test part 11: "All cells arise from
+  pre-existing cells." / "Cells arise only from pre-existing cells." on stems sharing only "Cell
+  Theory"; a short key such as "Abraham Lincoln" answers many questions and never counts; ported from
+  TerraTutor #271), is skipped for the next one in the pool (TerraTutor live test part 10 re-posed two
+  such misses in one quiz; ported from TerraTutor #269). A
   fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
   stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
   fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind",
@@ -264,7 +270,12 @@ written: they came from a once-a-minute timer whose only reader was the learning
   so "-5 degrees at the summit" is not "5 degrees ..."), so "it's" / "its" stay apart, with symbols kept,
   so "<" / ">" and "Na+" / "Na" stay apart, a hyphen that ends a word, before a space, punctuation, a
   quote or the end, read as a minus sign, so "Cl-" / "Cl" and "Cl-, Na+" / "Cl, Na+" stay apart too, and
-  a key that is only punctuation is never blank; TerraTutor #263, #264, #265; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  a key that is only punctuation is never blank; TerraTutor #263, #264, #265; OpenEdu #405; two keys that
+  differ only by a leading "to" before 3 or more words are one only on stems with the same words but for
+  question framing, and as a reworded repeat, so "To separate the cell's interior ..." / "Separate ..."
+  after "The primary role / function of the cell membrane ..." is one, TerraTutor live test part 11, and
+  "My mom made me ___" / "My mom wants me ___", "Let her ___" / "Tell her ___" are two; TerraTutor #271),
+  is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A quiz, or one level-test section,
   takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
   counted (`GenPlan.sameQuiz`). Two keys of 2 or more words are one when they are the same words in the
@@ -272,7 +283,20 @@ written: they came from a once-a-minute timer whose only reader was the learning
   after the first word (`sameAnswer`: "All cells arise from pre-existing cells." / "Cells arise only from
   pre-existing cells.", TerraTutor live test part 10), so "inner core" / "outer core", "liquid water
   turning into water vapor" / "water vapor turning into liquid water", "Only plants" / "All plants" and
-  the one-word "sings" / "sing" stay two. A routine key is not counted: true/false, a matching question's, a number,
+  the one-word "sings" / "sing" stay two. Two keys that name one answer with different explaining tails
+  are one too (`sameKeyHead`, through `sameCapKey`; ported from TerraTutor #271): each key cut before a
+  cause word (`KEY_TAIL_CAUSES`, such as "resulting", "due", "caused", "leading"), or after a comma, ";",
+  ":" or dash followed by a relative word (`KEY_TAIL_RELATIVES`: "where", "which", "that", "when",
+  "while"), and the heads' content words the same, at least 2 of them, with the same negations and numbers
+  ("The Joule-Thomson effect" / "The Joule-Thomson effect, where a gas expands ...", TerraTutor live test
+  part 11); when both keys have a tail and one was cut on a cause word, the tails must also share half the
+  shorter one's content words, since such a tail is often the answer ("Soil erosion caused by wind" / "...
+  by water" stay two, "Decompression melting due to the reduction in pressure" / "... resulting from the
+  reduction ..." are one). A bracket or any other comma cuts nothing ("Cellular respiration (aerobic)" /
+  "(anaerobic)", "Plate boundaries, converging" / "diverging", "Igneous rock, metamorphic rock"), nor does
+  "that" without a comma, which narrows the name; a key that only contains or starts with a shorter one is
+  not folded ("Cell membrane" / "Cell wall before the cell membrane"). A routine key is not counted:
+  true/false, a matching question's, a number,
   fraction, time, money or expression (a number standing on its own with at most two words, "5 cm", "x =
   4"; not a key that only contains a digit, "The percentage of silica (SiO2) content", TerraTutor live
   test part 9 issue 1), and a classification's pick, which the stem names itself ("Is 8 *even* or

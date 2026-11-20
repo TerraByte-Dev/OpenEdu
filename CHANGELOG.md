@@ -258,15 +258,24 @@ The section for each release is also what the app shows when you press Check for
   ("What do cactus plants need to live?" / "... to live and grow without water in the desert?") stays a
   question of its own.
 - **A quiz's review re-poses a missed question once**, not twice in other words: of two missed questions
-  that ask the same thing, the review takes one and the next missed question instead.
+  that ask the same thing, the review takes one and the next missed question instead. That now includes
+  two misses whose answers state the same idea in other words on differently worded questions ("All cells
+  arise from pre-existing cells." / "Cells arise only from pre-existing cells."); two questions that only
+  share a short answer, a name such as "Abraham Lincoln", or where one asks what is not true, are both
+  still re-posed.
 - **A new quiz never asks the last quiz's questions again as new ones**, not even to fill a quiz that
   came up short; a missed question still comes back in review, as it was asked. A TerraTutor live quiz's
-  last question had been the one before's, word for word.
+  last question had been the one before's, word for word. An answer that only adds "To" ("To separate the
+  cell's interior ..." / "Separate the cell's interior ...") no longer hides such a rewording, while
+  grammar questions such as "My mom made me ___." / "My mom wants me ___." stay two.
 - **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
   now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
   one, and so do "All cells arise from pre-existing cells." and "Cells arise only from pre-existing
-  cells."), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
-  times in 19, and a level test had "Lava" as the answer 9 times in 31. Only when the model can't write
+  cells.", and "The Joule-Thomson effect" and "The Joule-Thomson effect, where a gas expands rapidly
+  upon throttling.": an answer followed by ", where", ", which" or a word such as "resulting" or "due
+  to" is the answer before it, unless that tail is the answer itself, as in "Soil erosion caused by
+  wind" / "... by water"), and asks the model for others instead; a TerraTutor live quiz had asked about
+  the cell membrane 7 times in 19, and a level test had "Lava" as the answer 9 times in 31. Only when the model can't write
   enough others for the quiz's or test's minimum (10 questions for a quiz, 30 for a level test) are the
   set-aside ones used, and then before any question an earlier quiz on the level already asked.
   True/false answers, numbers, fractions, times and money are not counted, nor is a pick the question

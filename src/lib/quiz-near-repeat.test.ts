@@ -16,7 +16,10 @@ vi.mock("./llm", () => ({
 }));
 
 import { generateQuizQuestions, generatePromotionTestQuestions, SAME_KEY_CAP } from "./quiz";
-import { isNearDuplicate, dedupeByQuestionText, keyForm, sameKeyForm, sameAnswer, foldPlural, type NearDuplicateQ } from "./quiz-grading";
+import {
+  isNearDuplicate, dedupeByQuestionText, keyForm, sameKeyForm, sameAnswer, foldPlural, sameCapKey, sameKeyHead, sameStatedAnswer,
+  type NearDuplicateQ, type EarlierQuestion,
+} from "./quiz-grading";
 import { callLLMStructured, log } from "./llm";
 import pairs from "./__fixtures__/near-repeat-pairs.json";
 import type { LLMConfig, Syllabus } from "../types";
@@ -78,13 +81,15 @@ describe("labelled near-repeat pairs (TerraTutor live tests 6-9)", () => {
     for (const p of pairs.different as Pair[]) expect(dedupeByQuestionText([p.a, p.b]), label(p)).toHaveLength(2);
   });
 
-  it("catches at least 29 of the 40 repeats in the saved quizzes and level tests", () => {
+  it("catches at least 30 of the 47 repeats in the saved quizzes and level tests", () => {
+    expect(pairs.repeats).toHaveLength(47);
     const caught = (pairs.repeats as Pair[]).filter((p) => isNearDuplicate(p.a, p.b) && isNearDuplicate(p.b, p.a));
-    // Measured 2026-11-20: 29 of 40 (28 of 40 before live test part 10's round). The 11 missed restate
+    // Measured 2026-11-20: 29 of 40 (28 of 40 before live test part 10's round); live test part 11 added
+    // 7 repeats, 30 of 47 (29 of 47 before isNearDuplicate read keys that differ only by a leading "to"). The 17 missed restate
     // the stem with other content words ("the role of the cell membrane" after a sentence on the Cell
     // Theory, "a lower silica content", "volcanic arcs" / "arc volcanism") or add words that are kept as a
     // qualifier ("in relation to the cell", "characterized by active seafloor spreading").
-    expect(caught.length).toBeGreaterThanOrEqual(29);
+    expect(caught.length).toBeGreaterThanOrEqual(30);
   });
 
   it("catches the live ones: quiz 2 #3, #6 and #8, and level test #13 and #35", () => {
@@ -332,4 +337,153 @@ describe("live test part 10: plurals, the review pool's near-twins and key wordi
     expect(qs.map((q) => q.question_text)).not.toContain(wordings[2].question_text);
     expect(vi.mocked(log.info).mock.calls.some((c) => /1 question\(s\) set aside past the 2-per-key cap/.test(String(c[1])))).toBe(true);
   });
+});
+
+describe("live test part 11: the review pool, key tails and the last quiz's rewordings", () => {
+  const q2 = (i: number) => fromFixture(`cells L1 quiz 2, live test part 11 (options not saved), #${i}`);
+  const q1 = (i: number) => fromFixture(`cells L1 quiz 1, live test part 11, #${i}`);
+  const mcq = (question_text: string, key: string, others: string[], subtopic_id = "1.1"): Raw =>
+    asRaw({ question_text, question_type: "multiple_choice", options: [key, ...others], correct_answer: key }, subtopic_id);
+  const missed = (q: Raw, id: number) => ({ ...q, id: String(id), attempt_id: "quiz-1", user_answer: "B) none", is_correct: false }) as never;
+  // Quiz 1's #6 and #8, model text with their options.
+  const ORIGIN = mcq("Which of the following is a fundamental concept that the Cell Theory supports regarding the origin of new cells?",
+    "D) All cells arise from pre-existing cells.", ["A) Cells only exist in multicellular organisms.", "B) Cells can spontaneously generate energy.", "C) Cells are the only structures capable of reproduction."]);
+  const TENET = mcq("Which of the following statements best represents one of the three main tenets of the Cell Theory?",
+    "C) Cells arise only from pre-existing cells.", ["A) All living things are made up of cells.", "B) Cells can only be found in multicellular organisms.", "D) Cells contain genetic material."]);
+
+  it("reads quiz 2's #9 / #13 as one stated answer, and never a short key two questions share", () => {
+    expect(isNearDuplicate(q2(9), q2(13))).toBe(false);
+    expect(sameStatedAnswer(q2(9), q2(13))).toBe(true);
+    expect(sameStatedAnswer(ORIGIN, TENET)).toBe(true);
+    // One key on mirror questions, one asking what is not true: two questions.
+    const mirrors = (pairs.different as Pair[]).filter((p) => /, one key \(written for the live test part 11 branch review\)/.test(p.note ?? ""));
+    expect(mirrors).toHaveLength(2);
+    for (const p of mirrors) expect(sameStatedAnswer(p.a, p.b), label(p)).toBe(false);
+    const merged = (pairs.different as Pair[]).filter((p) => sameStatedAnswer(p.a, p.b) || sameStatedAnswer(p.b, p.a)).map(label);
+    expect(merged).toEqual([]);
+  });
+
+  it("quiz path: the review pool re-poses one of the two wordings of one miss and takes the next miss instead", async () => {
+    const others = [filler("1.1"), filler("1.1"), filler("1.1")];
+    const pool = [missed(ORIGIN, 1), missed(TENET, 2), ...others.map((q, i) => missed(q, 3 + i))];
+    model([], "1.1");
+    const qs = await generateQuizQuestions(cells, 20, { ...medium }, pool, undefined, null, null);
+    expect(qs).toHaveLength(20);
+    const texts = qs.map((q) => q.question_text);
+    expect(texts).toContain(ORIGIN.question_text);
+    expect(texts).not.toContain(TENET.question_text);
+    for (const q of others) expect(texts).toContain(q.question_text);
+  }, 30_000);
+
+  it("quiz path: two missed questions that only share the answer \"Abraham Lincoln\" are both re-posed", async () => {
+    const pair = (pairs.different as Pair[]).find((p) => p.note === "#263 review: president / speech (multiple choice)")!;
+    const pool = [missed(asRaw(pair.a, "1.1"), 1), missed(asRaw(pair.b, "1.1"), 2)];
+    model([], "1.1");
+    const qs = await generateQuizQuestions(cells, 10, { ...medium }, pool, undefined, null, null);
+    const texts = qs.map((q) => q.question_text);
+    expect(texts).toContain(pair.a.question_text);
+    expect(texts).toContain(pair.b.question_text);
+  }, 30_000);
+
+  it("reads a key with an explaining tail as the key before it, and nothing else", () => {
+    expect(sameKeyHead("C) The Joule-Thomson effect", "A) The Joule-Thomson effect, where a gas expands rapidly upon throttling.")).toBe(true);
+    expect(sameKeyHead("B) The Joule-Thomson effect, where rapid depressurization causes a temperature drop leading to gas exsolution.",
+      "A) The Joule-Thomson effect, where a gas expands rapidly upon throttling.")).toBe(true);
+    expect(sameKeyHead("A) Buoyancy-driven acceleration due to gas expansion.",
+      "C) The buoyancy-driven acceleration resulting from density stratification of the gas mixture.")).toBe(true);
+    // Two tails cut on a cause word that say one thing (live test part 10's "Decompression melting" keys).
+    expect(sameKeyHead("Decompression melting resulting from the reduction in pressure", "Decompression melting due to the reduction in pressure")).toBe(true);
+    for (const [a, b] of [
+      // Containing or starting with a shorter key is not a tail (both pairs are in the fixture's different ones).
+      ["Cell membrane", "Cell wall before the cell membrane"], ["Water, sunlight and air", "Stored water, sunlight and air"],
+      ["Cell membrane", "Cell membrane proteins"], ["Andesitic or rhyolitic", "Andesitic or rhyolitic magma"],
+      // A list, and a "that" that narrows the name, cut nothing.
+      ["Igneous rock, metamorphic rock", "Igneous rock, sedimentary rock"], ["Plant cells that have chloroplasts", "Plant cells that lack chloroplasts"],
+      // A one-word head, another head, another negation or number.
+      ["Nucleus, which controls the cell", "Nucleus"], ["The inner core, which is solid", "The outer core, which is liquid"],
+      // A tail cut on a cause word that is the answer itself, and a bracket or an "-ing" / "-ed" word after a
+      // comma, which cut nothing (the live test part 11 branch review's pairs).
+      ["High viscosity, leading to explosive eruptions.", "High viscosity, making it flow slowly"],
+      ["Soil erosion caused by wind", "Soil erosion caused by water"], ["Cellular respiration (aerobic)", "Cellular respiration (anaerobic)"],
+      ["Atomic number (protons)", "Atomic number (neutrons)"], ["Increased temperature, decreased pressure", "Increased temperature, increased pressure"],
+      ["Plate boundaries, converging", "Plate boundaries, diverging"], ["Natural selection, favoring larger beaks", "Natural selection, favoring smaller beaks"],
+      ["Sea level rise due to thermal expansion", "Sea level rise due to melting glaciers"],
+      ["Mass extinction caused by an asteroid impact", "Mass extinction caused by volcanic activity"],
+      ["Chemical weathering caused by acid rain", "Chemical weathering caused by oxidation"],
+      ["Population growth, limited by food", "Population growth, unlimited by predators"],
+      ["Cells that are not alive, which ...", "Cells that are alive, which ..."], ["Plates, which move", "Plates, which do not move"],
+      ["Type 1 diabetes, where the body makes no insulin", "Type 2 diabetes, where the body resists insulin"],
+      ["The pressure regime where gas expansion leads to a rapid drop in temperature", "The pressure regimes that drive explosive vs. effusive eruption styles."],
+    ]) expect(sameKeyHead(a, b), `${a} / ${b}`).toBe(false);
+    // No different pair in the fixture has keys the cap counts as one that keyForm and sameAnswer kept apart.
+    const folded = (pairs.different as Pair[]).filter((p) => {
+      const [ka, kb] = [sameKeyForm(p.a), sameKeyForm(p.b)];
+      return ka !== null && kb !== null && !sameAnswer(ka, kb) && sameCapKey(p.a, p.b);
+    });
+    expect(folded.map(label)).toEqual([]);
+  });
+
+  it(`level test path: a section asks at most ${SAME_KEY_CAP} questions on "The Joule-Thomson effect" in any wording`, async () => {
+    const jt = (question_text: string, key: string, letter: string) => {
+      const others = ["Fractional crystallization", "Magma mixing", "Crustal assimilation"];
+      const options = ["A", "B", "C", "D"].map((l) => `${l}) ${l === letter ? key : others.shift()}`);
+      return asRaw({ question_text, question_type: "multiple_choice", options, correct_answer: `${letter}) ${key}` }, "2.1");
+    };
+    // Level test #1, #9 and #20, model text; options written here.
+    model([
+      jt("During a magma ascent, the solubility of volcanic gases in the magma is primarily governed by the relationship between magma temperature and pressure. Which phenomenon is the critical mechanism that allows dissolved volcanic gases to rapidly come out of solution and contribute to explosive eruption potential?",
+        "The Joule-Thomson effect, where rapid depressurization causes a temperature drop leading to gas exsolution.", "B"),
+      jt("Which physical principle is most directly responsible for driving a pressure-driven, explosive eruption regime when volatile gas expansion occurs near the critical point of the magma?",
+        "The Joule-Thomson effect", "C"),
+      jt("A magma body is subjected to increasing pressure, causing dissolved volcanic gases to come out of solution (exsolution). Which of the following physical phenomena is most directly responsible for the rapid pressure drop and subsequent explosive decompression that drives phreatomagmatic eruption mechanisms?",
+        "The Joule-Thomson effect, where a gas expands rapidly upon throttling.", "A"),
+    ], "2.1");
+    const { current } = await generatePromotionTestQuestions(volcanoes, [], { ...medium });
+    expect(current).toHaveLength(35);
+    expect(current.filter((q) => /Joule-Thomson/.test(q.correct_answer))).toHaveLength(SAME_KEY_CAP);
+    expect(vi.mocked(log.info).mock.calls.some((c) => /1 question\(s\) set aside past the 2-per-key cap/.test(String(c[1])))).toBe(true);
+  }, 30_000);
+
+  it("reads keys that differ only by a leading \"to\" before 3 or more words as one only on a reworded stem", () => {
+    expect(keyForm("C) To separate the cell's interior from the outside environment")).not.toBe(keyForm("A) Separate the cell's interior from the outside environment"));
+    expect(isNearDuplicate(q1(7), q2(20))).toBe(true);
+    expect(isNearDuplicate(q2(20), q1(7))).toBe(true);
+    // "made me" / "wants me", "Let her" / "Tell her": the stems share most words, but not the one that asks.
+    const grammar = (pairs.different as Pair[]).filter((p) => /an infinitive with and without "to"/.test(p.note ?? ""));
+    expect(grammar).toHaveLength(3);
+    for (const p of grammar) {
+      expect(isNearDuplicate(p.a, p.b), label(p)).toBe(false);
+      expect(dedupeByQuestionText([p.a, p.b]), label(p)).toHaveLength(2);
+    }
+    // A short key keeps its "to": "to go" / "go".
+    const go = (key: string) => asRaw({ question_text: "Which completes the sentence? 'Mom let the dog ___ outside.'", question_type: "multiple_choice", options: ["A) go", "B) to go"], correct_answer: key }, "1.1");
+    expect(isNearDuplicate(go("A) go"), go("B) to go"))).toBe(false);
+  });
+
+  // Quiz 2's #20 was a rewording of quiz 1's #7 and an older quiz's question; the older one set it aside,
+  // and the fill took it because the last-quiz check read its key "To separate ..." as another answer.
+  it("quiz path: a short quiz is not filled with a rewording of the last quiz's question", async () => {
+    const asEarlier = (q: NearDuplicateQ, attempt_id: string): EarlierQuestion => ({
+      question_text: q.question_text, correct_answer: String(q.correct_answer), subtopic_id: "1.1", question_type: "multiple_choice", attempt_id,
+    });
+    const older = fromFixture("cells L1 quiz 2, live test part 9, #6"); // "What is the primary role of the cell membrane in relation to the cytoplasm?"
+    const earlier = [asEarlier(q1(7), "quiz-1"), asEarlier(older, "quiz-0")];
+    const reworded = mcq("The primary role of the cell membrane in relation to the cytoplasm is to:",
+      "C) To separate the cell's interior from the outside environment", ["A) Store genetic material within the cell", "B) Produce energy for the cell", "D) Provide structural support for the internal organelles"]);
+    const fillers = [filler("1.1"), filler("1.1"), filler("1.1")];
+    let calls = 0;
+    vi.mocked(callLLMStructured).mockReset();
+    vi.mocked(callLLMStructured).mockImplementation(async (_msgs, _cfg, opts) => {
+      const { toolName, validate } = opts as { toolName: string; validate?: (p: unknown) => string[] };
+      if (toolName === "emit_verdicts") return { verdicts: [] } as never;
+      // Then the model only repeats itself, so the quiz comes up short.
+      const out = [reworded, ...fillers][calls++] ?? fillers[2];
+      const issues = validate ? validate(out) : [];
+      if (issues.length) throw new Error(`Structured output failed after 3 attempts: ${issues.join("; ")}`);
+      return out as never;
+    });
+    const qs = await generateQuizQuestions(cells, 4, { ...medium }, [], undefined, null, null, undefined, earlier);
+    expect(qs.map((q) => q.question_text)).toEqual(fillers.map((q) => q.question_text));
+    expect(vi.mocked(log.info).mock.calls.some((c) => /1 question\(s\) the last quiz asked are not asked again/.test(String(c[1])))).toBe(true);
+  }, 30_000);
 });

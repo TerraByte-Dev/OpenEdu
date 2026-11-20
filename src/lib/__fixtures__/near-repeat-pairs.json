@@ -1,5 +1,5 @@
 {
- "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart. Live test part 10 added 6 repeats and 4 different pairs (a level test whose options were not saved and whose keys were cut at 80 characters, kept as saved), and the qualifier-in-a-new-\"and\"-tail pairs: the cactus stems of OpenEdu #408's review, keys written here, and 2 written fresh by Claude before the rule that keeps them apart, each also as multiple choice. The live test part 10 branch review added 3 different pairs written fresh by its reviewer (subject-verb agreement, and a reversed question with long keys), each also as multiple choice.",
+ "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice. The qualifier pairs (a stem that adds one qualifier that changes the answer, keys that share words) are the 4 stems of OpenEdu #407's review, keys written here, and 6 written fresh by Claude for TerraTutor's take-back of it, before the rule that keeps them apart. Live test part 10 added 6 repeats and 4 different pairs (a level test whose options were not saved and whose keys were cut at 80 characters, kept as saved), and the qualifier-in-a-new-\"and\"-tail pairs: the cactus stems of OpenEdu #408's review, keys written here, and 2 written fresh by Claude before the rule that keeps them apart, each also as multiple choice. The live test part 10 branch review added 3 different pairs written fresh by its reviewer (subject-verb agreement, and a reversed question with long keys), each also as multiple choice. Live test part 11 added 7 repeats and 6 different pairs from a cells quiz pair and a volcanoes level test (model text as the run saved it; quiz 2's and the level test's options were not saved). The live test part 11 branch review added 5 different pairs written fresh by its reviewer: an infinitive with and without \"to\" after \"made\" / \"wants\" (also as multiple choice) and after \"let\" / \"tell\", and two mirror questions with one key, one of them asking what is not true.",
  "repeats": [
   {
    "a": {
@@ -979,6 +979,125 @@
      "D) Prokaryotic cells are always larger than eukaryotic cells."
     ],
     "correct_answer": "B) Eukaryotic cells have a complex internal structure with a nucleus, whereas prokaryotic cells do not."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 11, #7",
+    "question_text": "The primary function of the cell membrane in relation to the cytoplasm is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Separate the cell's interior from the outside environment",
+     "B) Store genetic material within the cell",
+     "C) Produce energy for the cell",
+     "D) Provide structural support for the internal organelles"
+    ],
+    "correct_answer": "A) Separate the cell's interior from the outside environment"
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 11 (options not saved), #20",
+    "question_text": "The primary role of the cell membrane in relation to the cytoplasm is to:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) To separate the cell's interior from the outside environment"
+   }
+  },
+  {
+   "note": "one stated answer, stems that share only \"Cell Theory\" (live test part 11)",
+   "a": {
+    "from": "cells L1 quiz 2, live test part 11 (options not saved), #9",
+    "question_text": "Which of the following is a fundamental concept that the Cell Theory supports regarding the origin of new cells?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) All cells arise from pre-existing cells."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 11 (options not saved), #13",
+    "question_text": "Which of the following statements best represents one of the three main tenets of the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) Cells arise only from pre-existing cells."
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #11",
+    "question_text": "In modeling the evolution of a viscous lava flow, the Reynolds number (Re) is a critical dimensionless parameter used to characterize the flow regime. A significantly higher Reynolds number in a lava flow simulation primarily indicates which of the following characteristics?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "B) The flow is characterized by inertial forces overcoming viscous forces, leading to turbulent flow."
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #34",
+    "question_text": "In modeling the evolution of a viscous lava flow, the Reynolds number (Re) is a critical dimensionless parameter used to characterize the flow regime. A significantly high Reynolds number typically indicates which of the following characteristics regarding the lava flow dynamics?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) The flow is highly inertial, suggesting turbulent mixing and greater flow path evolution."
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #6",
+    "question_text": "When differentiating between a lava flow hazard and a pyroclastic flow hazard, which physical parameter is most critical for distinguishing the two, particularly concerning the material's behavior upon impact?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) The density and temperature gradient profile"
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #29",
+    "question_text": "When differentiating between a fast-moving, high-temperature pyroclastic flow and a viscous, low-temperature lava flow, which physical parameter is most fundamentally used to distinguish their hazard profiles?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) The density and temperature gradient relationship"
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #7",
+    "question_text": "In the context of pyroclastic flow hazard assessment, the density stratification of the ejected material is critically important because it directly influences the flow's behavior. Which of the following physical phenomena is the *most* direct driver of the rapid acceleration and high-velocity characteristics observed in a dense pyroclastic flow?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) The buoyancy-driven acceleration resulting from the density contrast between the hot, less dense gas phase and the cooler, denser particulate phase."
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #30",
+    "question_text": "In the context of pyroclastic flow hazard assessment, the primary physical mechanism that dictates the rapid acceleration and high-velocity propagation of a dense, hot gas mixture is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) The buoyancy-driven acceleration resulting from density stratification of the gas mixture."
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #18",
+    "question_text": "Which physical principle is most fundamentally responsible for the rapid acceleration and high kinetic energy associated with the initiation and propagation of a dense, hot pyroclastic flow?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) Buoyancy-driven acceleration due to gas expansion."
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #30",
+    "question_text": "In the context of pyroclastic flow hazard assessment, the primary physical mechanism that dictates the rapid acceleration and high-velocity propagation of a dense, hot gas mixture is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) The buoyancy-driven acceleration resulting from density stratification of the gas mixture."
+   }
+  },
+  {
+   "note": "one question with contradictory keys (live test part 11)",
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #4",
+    "question_text": "Which gas composition signature is most indicative of a magma source that has undergone significant crustal assimilation or deep mantle interaction, as opposed to a purely volatile-rich shallow source?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "B) Elevated $\\text{SO2}$ coupled with significant $\\text{CO2}$ and potentially lower $\\text{H2S}$"
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #16",
+    "question_text": "Which gas composition signature, when analyzed via Mass Spectrometry, is most strongly indicative of a magma source that has undergone significant crustal assimilation or deep mantle interaction, often leading to higher concentrations of volatiles like H2S?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) Elevated $\\text{H2S}$ alongside moderate $\\text{SO2}$ and $\\text{CO2}$"
    }
   }
  ],
@@ -3275,6 +3394,221 @@
      "D) It is left in the dark"
     ],
     "correct_answer": "A) When it is cooled, its particles lose energy, slow down and settle into fixed positions"
+   }
+  },
+  {
+   "note": "separate the interior / a selective barrier (live test part 11)",
+   "a": {
+    "from": "cells L1 quiz 2, live test part 11 (options not saved), #3",
+    "question_text": "The primary role of the cell membrane in maintaining the structure of the cell is to:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) Separate the cell's interior from the external environment"
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 11 (options not saved), #8",
+    "question_text": "The primary role of the cell membrane in separating the cell's interior from the external environment is to:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "B) Act as a selective barrier controlling what enters and leaves the cell."
+   }
+  },
+  {
+   "note": "what the cell membrane is made of / how it relates to the cytoplasm (live test part 11)",
+   "a": {
+    "from": "cells L1 quiz 2, live test part 11 (options not saved), #11",
+    "question_text": "The primary structural difference between the cell membrane and the cytoplasm is that the cell membrane is primarily composed of:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "B) Proteins and lipids"
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 11 (options not saved), #15",
+    "question_text": "Which of the following best describes the relationship between the cell membrane and the cytoplasm?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) The cell membrane regulates what enters and leaves the cell, while the cytoplasm is the jelly-like substance filling the cell."
+   }
+  },
+  {
+   "note": "the factor / the dimensionless number for a PDC's transition (live test part 11)",
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #3",
+    "question_text": "In the context of pyroclastic flow hazard assessment, the primary factor dictating the transition from a dense, fast-moving pyroclastic density current (PDC) to a less dense, potentially more turbulent flow is:",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "B) The ratio of gas buoyancy to the material density."
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #22",
+    "question_text": "In modeling the evolution of a pyroclastic density current (PDC), the transition from a buoyant, gas-driven flow regime to a denser, gravity-driven flow regime is primarily governed by which dimensionless number?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) Froude Number"
+   }
+  },
+  {
+   "note": "which condition / which aspect, pressure regime keys (live test part 11)",
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #28",
+    "question_text": "During an eruption, the transition from a predominantly effusive lava flow regime to a highly explosive, gas-driven eruption style is primarily governed by which thermodynamic condition related to volcanic gas behavior?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) The pressure regime where gas expansion leads to a rapid drop in temperature (Joule-Thomson effect)."
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #35",
+    "question_text": "The Joule-Thomson effect, which describes the temperature change of a gas when it is expanded adiabatically, is fundamentally important in volcanic dynamics because it directly influences which aspect of eruption hazard assessment?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) The pressure regimes that drive explosive vs. effusive eruption styles."
+   }
+  },
+  {
+   "note": "high silica's effect / what silica determines, mirror (live test part 11)",
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #40",
+    "question_text": "Magma with a high percentage of silica (SiO2) tends to have which characteristic that influences its eruption style?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "C) High viscosity, leading to explosive eruptions."
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #43",
+    "question_text": "Which characteristic of magma is primarily determined by its silica content, which relates to how easily it flows?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) Magma viscosity"
+   }
+  },
+  {
+   "note": "what decides viscosity / what silica decides, mirror (live test part 11)",
+   "a": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #41",
+    "question_text": "Magma viscosity, which measures the resistance of magma to flow, is primarily determined by which chemical composition of the magma?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) The percentage of silica content"
+   },
+   "b": {
+    "from": "volcanoes L4 level test, live test part 11 (options not saved), #43",
+    "question_text": "Which characteristic of magma is primarily determined by its silica content, which relates to how easily it flows?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "A) Magma viscosity"
+   }
+  },
+  {
+   "note": "made me / wants me, an infinitive with and without \"to\" (written for the live test part 11 branch review)",
+   "a": {
+    "question_text": "Choose the words that complete the sentence: My mom made me ___.",
+    "question_type": "fill_in_blank",
+    "correct_answer": "wash the dirty dishes"
+   },
+   "b": {
+    "question_text": "Choose the words that complete the sentence: My mom wants me ___.",
+    "question_type": "fill_in_blank",
+    "correct_answer": "to wash the dirty dishes"
+   }
+  },
+  {
+   "note": "made me / wants me, an infinitive with and without \"to\" (written for the live test part 11 branch review) (multiple choice)",
+   "a": {
+    "question_text": "Choose the words that complete the sentence: My mom made me ___.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) wash the dirty dishes",
+     "B) to wash the dirty dishes",
+     "C) washing the dirty dishes",
+     "D) washed the dirty dishes"
+    ],
+    "correct_answer": "A) wash the dirty dishes"
+   },
+   "b": {
+    "question_text": "Choose the words that complete the sentence: My mom wants me ___.",
+    "question_type": "multiple_choice",
+    "options": [
+     "B) to wash the dirty dishes",
+     "A) wash the dirty dishes",
+     "C) washing the dirty dishes",
+     "D) washed the dirty dishes"
+    ],
+    "correct_answer": "B) to wash the dirty dishes"
+   }
+  },
+  {
+   "note": "let her / tell her, an infinitive with and without \"to\" (written for the live test part 11 branch review) (multiple choice)",
+   "a": {
+    "question_text": "Which completes the sentence correctly? 'Let her ___ before dinner.'",
+    "question_type": "multiple_choice",
+    "options": [
+     "B) finish her homework first",
+     "A) finishing her homework first",
+     "C) to finish her homework first",
+     "D) finished her homework first"
+    ],
+    "correct_answer": "B) finish her homework first"
+   },
+   "b": {
+    "question_text": "Which completes the sentence correctly? 'Tell her ___ before dinner.'",
+    "question_type": "multiple_choice",
+    "options": [
+     "C) to finish her homework first",
+     "A) finishing her homework first",
+     "B) finish her homework first",
+     "D) finished her homework first"
+    ],
+    "correct_answer": "C) to finish her homework first"
+   }
+  },
+  {
+   "note": "true of mitosis / not true of meiosis, one key (written for the live test part 11 branch review) (multiple choice)",
+   "a": {
+    "question_text": "Which statement is true of mitosis in body cells?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) It produces two genetically identical daughter cells",
+     "B) It produces four haploid cells",
+     "C) It only happens in sex cells",
+     "D) It includes crossing over"
+    ],
+    "correct_answer": "A) It produces two genetically identical daughter cells"
+   },
+   "b": {
+    "question_text": "Which statement is not true of meiosis in sex cells?",
+    "question_type": "multiple_choice",
+    "options": [
+     "C) It produces two genetically identical daughter cells",
+     "A) It produces four haploid cells",
+     "B) It includes crossing over",
+     "D) It halves the number of chromosomes"
+    ],
+    "correct_answer": "C) It produces two genetically identical daughter cells"
+   }
+  },
+  {
+   "note": "asexual in bacteria / NOT sexual in animals, one key (written for the live test part 11 branch review) (multiple choice)",
+   "a": {
+    "question_text": "Which of the following is a characteristic of asexual reproduction in bacteria?",
+    "question_type": "multiple_choice",
+    "options": [
+     "D) Offspring are genetically identical to the parent",
+     "A) Two parents are needed",
+     "B) Gametes fuse",
+     "C) Offspring vary a great deal"
+    ],
+    "correct_answer": "D) Offspring are genetically identical to the parent"
+   },
+   "b": {
+    "question_text": "Which of the following is NOT a characteristic of sexual reproduction in animals?",
+    "question_type": "multiple_choice",
+    "options": [
+     "B) Offspring are genetically identical to the parent",
+     "A) Two parents are needed",
+     "C) Gametes fuse",
+     "D) Offspring vary a great deal"
+    ],
+    "correct_answer": "B) Offspring are genetically identical to the parent"
    }
   }
  ]

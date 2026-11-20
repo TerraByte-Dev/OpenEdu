@@ -4,7 +4,7 @@
 // generator (quiz.ts) is handed the pool.
 
 import type { QuizQuestion } from "../types";
-import { askedText, isNearDuplicate, sameStemNumbers } from "./quiz-grading";
+import { askedText, isNearDuplicate, sameStatedAnswer, sameStemNumbers } from "./quiz-grading";
 
 // The generation-time question shape (mirrors quiz.ts) — no DB/runtime fields.
 export type GenQuestion = Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct">;
@@ -47,12 +47,15 @@ export function storedToGenQuestion(q: QuizQuestion): GenQuestion {
 // membrane's primary role in relation to the cytoplasm is to:" and "What is the primary role of the cell
 // membrane in relation to the cytoplasm?". The next one in the pool takes its place. Two stems with other
 // numbers are two questions whatever their overlap: "Is 3/8 more than 1/2?" / "Is 1/8 more than 1/2?",
-// both "False" (isNearDuplicate's same-key overlap does not read numbers). Pure.
+// both "False" (isNearDuplicate's same-key overlap does not read numbers). One that asks for the same stated
+// answer in other words is skipped too (sameStatedAnswer): TerraTutor live test part 11's quiz 2 re-posed two
+// misses keyed "All cells arise from pre-existing cells." and "Cells arise only from pre-existing cells." on
+// stems that share only "Cell Theory" (ported from TerraTutor #271). Pure.
 export function pickReview(pool: GenQuestion[], n: number): GenQuestion[] {
   const asked = (q: GenQuestion) => ({ question_text: askedText(q), correct_answer: q.correct_answer, question_type: q.question_type, options: q.options });
   const twins = (a: GenQuestion, b: GenQuestion) => {
     const [x, y] = [asked(a), asked(b)];
-    return sameStemNumbers(x.question_text, y.question_text) && isNearDuplicate(x, y);
+    return (sameStemNumbers(x.question_text, y.question_text) && isNearDuplicate(x, y)) || sameStatedAnswer(x, y);
   };
   const out: GenQuestion[] = [];
   for (const q of pool) {
