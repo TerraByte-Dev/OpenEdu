@@ -24,6 +24,20 @@ The section for each release is also what the app shows when you press Check for
 - Claude Opus 5.5, Sonnet 5.5 and Fable 5.2 can build courses. Anthropic's newest models refused the way
   OpenEdu asked for structured answers; it now uses structured outputs, which every current Claude model
   accepts.
+- **A right answer in "Check if I've got this" now marks the skill learned, even when the tutor doesn't.**
+  The default tutor model on computers under 16 GB never marked a skill after a right answer in a check
+  in TerraTutor's live tests, so a check never moved a skill. Now, when OpenEdu's answer check finds the
+  answer to the check's own question right and the tutor marks nothing, OpenEdu makes the same mark
+  itself, after the reply: the "Is that okay?" card asks first where marking a skill is set to Ask, and the
+  line under the reply says "Marked … as learned". It marks the skill the question was on: the one picked
+  from "Which one should we check first?" before the answer (a skill picked on a "which one next?" card
+  after it is not the one marked), or the level's one skill left. Only for the learner's first answer in
+  the check: never after a hint, a request for help, "I don't know" or a wrong answer (the tutor may then
+  have asked an easier question), so a second skill in the same check is left to the tutor. Never on a
+  partly right, unsure or wrong answer, or after the check has ended; never for a skill already marked
+  learned; and never a second time when the tutor marked the skill itself or after a "No" on the card. It
+  does this with every tutor model, cloud models included, not only the small default. One right answer
+  is enough, as it already was for the tutor's own mark; moving up a level still takes the level test.
 
 ### Security
 - With OpenAI or Anthropic chosen, written quiz and test answers are marked, and the study plan after a
@@ -72,18 +86,6 @@ The section for each release is also what the app shows when you press Check for
   its backups.
 
 ### Changed
-- **A right answer in "Check if I've got this" now marks the skill learned, even when the tutor doesn't.**
-  The default tutor model on computers under 16 GB never marked a skill after a right answer in a check
-  in TerraTutor's live tests, so a check never moved a skill. Now, when OpenEdu's answer check finds the
-  answer to the check's own question right and the tutor marks nothing, OpenEdu makes the same mark
-  itself, after the reply: the "Is that okay?" card asks first where marking a skill is set to Ask, and the
-  line under the reply says "Marked … as learned". It marks the skill the question was on: the one picked
-  from "Which one should we check first?" before the answer (a skill picked on a "which one next?" card
-  after it is not the one marked), or the level's one skill left. Never on a partly right, unsure or wrong
-  answer, an answer given right after a hint, a hint's own question, or after the check has ended; never
-  for a skill already marked; and never a second time when the tutor marked the skill itself or after a
-  "No" on the card. One right answer is enough, as it already was for the tutor's own mark; moving up a
-  level still takes the level test.
 - **Small fixes in the learning flow.** After a failed level test, Home's Continue and the Next step card
   stop saying "ready to move up" during the 24-hour wait: they say when the test opens again and offer a
   practice quiz (or say the test is waiting to be marked). "Exit Quiz" asks first once a question is

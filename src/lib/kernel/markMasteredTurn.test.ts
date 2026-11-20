@@ -484,6 +484,27 @@ describe("the mark code makes after a correct check answer", () => {
     expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
   });
 
+  // Review of the port: only a learner message with the word "hint" counted as a hint, so a help request or a
+  // wrong answer, then the tutor's easier question answered right, was graded on that question and marked.
+  // Code marks only on the learner's first message since the check opened.
+  it.each([
+    "I'm stuck. Can you help me?", "I don't get it", "help", "Give me a clue please", "I don't know", "10",
+  ])("makes none for a right answer to an easier question asked after %j", async (first) => {
+    keyOut = keyed({ "4 + 4 + 4": { question: "What is 4 + 4 + 4?", working: "4 + 4 + 4 = 12", answer: "12" } });
+    script = [reply("Yes, 4 + 4 + 4 is 12.")];
+    const result = await assessTurn(OPENED_WITH, [
+      { role: "user", content: "Check if I've got this." },
+      { role: "assistant", content: PICKED },
+      { role: "user", content: first },
+      { role: "assistant", content: "Let's make it smaller. What is 4 + 4 + 4?" },
+      { role: "user", content: "12" },
+    ]);
+    expect(result.answerCheck).toMatchObject({ question: "What is 4 + 4 + 4?", verdict: "correct" });
+    expect(result.toolCalls).toEqual([]);
+    expect(confirms).toEqual([]);
+    expect(subtopicsInDb().find((s) => s.id === "1.1")).toMatchObject({ mastered: false });
+  });
+
   it("makes none for a right pick on a card that answered a hint request", async () => {
     keyOut = keyed({ "4 + 4 + 4": { question: "What is 4 + 4 + 4?", working: "", answer: "12" } });
     script = [askCall("What is 4 + 4 + 4?", ["8", "12"]), reply("Yes, 12.")];

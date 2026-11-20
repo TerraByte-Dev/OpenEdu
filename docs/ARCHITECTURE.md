@@ -1208,10 +1208,14 @@ So the verdict on the child's answer is the app's, not the reply's:
   the rule is Ask, the chip ("Marked “Equal Groups” as learned"), and the saved mark with its
   `subtopic_events` row (source `tutor`). Only under the gate the model's mark passes: the tool is offered
   (assess mode), the newest message is not a safety disclosure, every answer checked this turn is
-  `correct` and the typed one was graded on the check's own question (not `on: "hint"`). Stricter than
-  that gate on hints: never for a typed answer given right after a hint (`checkedMessage`'s `hint`), even
-  when the hint's key is the check's, and a turn graded only on cards marks only when its newest message
-  opened the check (a hint request a caller ran in assess, answered with a card, does not). Not when the
+  `correct`. Stricter than that gate: a typed answer marks only when it is the learner's first message
+  since the request that opened the check (`firstAttempt`). After any other message (a hint or help
+  request, "I don't know", a wrong answer) the tutor may have asked an easier question, and the answer is
+  graded on that one: "help", then "What is 4 + 4 + 4?" answered "12", had marked the check's skill (review
+  of this port). So a second skill checked in the same check is left to the model's own call. A turn
+  graded only on cards marks only when its newest message opened the check (a hint request a caller ran
+  in assess, answered with a card, does not). It runs on every model, cloud ones included (`assess.md`
+  asks for about 90% understanding; one right first answer now marks even when a capable model held off). Not when the
   model's own `progress.mark_mastered` call ran that turn, `practiced` too, or the learner said no to it on
   the card (not asked again); a model call that failed (a wrong id) or was refused does not stop it. Nor
   on a turn the learner stopped, that stalled or that ended at a card. The subtopic is the one code knows

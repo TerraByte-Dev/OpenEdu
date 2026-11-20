@@ -98,32 +98,43 @@ const APP_MARK_CALL_ID = "app_mark";
  * mastery; OpenEdu runs the same assess.md on the same default model). It is
  * the mark the model's call would save, under the gate that call passes (respond): the tool is offered
  * (assess mode, tools on, not denied), the newest message is not a safety disclosure, every answer checked
- * this turn is "correct" and the typed one was graded on the check's own question, not a hint's (`on`).
- * Stricter than that gate on hints: never for a typed answer given right after a hint (`hinted`, even when
- * the hint's key is the check's), and a turn graded only on cards marks only when its newest message opened
- * the check (a hint request answered with a card, in a caller that runs every turn in assess, does not).
+ * this turn is "correct". Stricter than that gate: a typed answer marks only when it is the learner's first
+ * message since the check opened (`firstAttempt`). After any other message (a hint or help request, "I
+ * don't know", a wrong answer) the tutor may have asked an easier question, and the answer is graded on
+ * that one (review of the TerraTutor #266 port: "help", then "What is 4 + 4 + 4?" answered "12", marked
+ * the check's skill). A turn graded only on cards marks only when its newest message opened the check (a
+ * hint request answered with a card, in a caller that runs every turn in assess, does not).
  * Not when the model's own progress.mark_mastered call ran this turn, whatever its status, or the learner
  * said no to it on the "Is that okay?" card (`modelMarked`); a model call that failed (a wrong id) or was
  * refused does not count. Not on a turn that was stopped or ended at a card. The subtopic is the one code
  * knows the check is on, from what was shown before the graded answer (assessPicker.ts checkedSubtopic),
  * read with the saved syllabus (`load`, never ctx.syllabus, the course view's snapshot), and one already
- * mastered gets none. "partly", "incorrect", "unsure", an answer that answered nothing, an answer to a
- * hint's question and a closed check give no mark.
+ * mastered gets none. "partly", "incorrect", "unsure", an answer that answered nothing, any answer after
+ * the first (so a second skill in the same check is left to the model's own call) and a closed check give
+ * no mark.
  */
-async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ role: string; content: string }>, hinted: boolean, offered: ReadonlySet<string>, disclosureTurn: boolean, load: () => Promise<Syllabus | null>): Promise<{ subtopic_id: string; status: "mastered" } | null> {
+async function appMark(result: TutorTurnResult, conversation: ReadonlyArray<{ role: string; content: string }>, offered: ReadonlySet<string>, disclosureTurn: boolean, load: () => Promise<Syllabus | null>): Promise<{ subtopic_id: string; status: "mastered" } | null> {
   if (disclosureTurn || !offered.has(MARK_MASTERED_TOOL)) return null;
   if (result.stopReason === "aborted" || result.stopReason === "stalled" || result.cardMessage !== null) return null;
   const { beforeCard, modelMarked } = result.markInput ?? { beforeCard: null, modelMarked: false };
   if (modelMarked) return null;
   const checked = [result.answerCheck, ...result.cardChecks].filter((c): c is AnswerCheck => !!c);
   if (!checked.length || checked.some((c) => c.verdict !== "correct" || c.nonAnswer)) return null;
-  if (result.answerCheck ? result.answerCheck.on === "hint" || hinted : !asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? "")) return null;
+  if (result.answerCheck ? !firstAttempt(conversation) : !asksForMasteryCheck(conversation[conversation.length - 1]?.content ?? "")) return null;
   // A typed answer was graded on what came before the student's newest message, so a pick in this reply
   // (a "which one next?" card after it) says nothing about it; a card's answer, on what the reply showed
   // before that card.
   const syllabus = await load().catch(() => null);
   const sub = checkedSubtopic(conversation, result.answerCheck ? "" : beforeCard ?? "", syllabus);
   return sub && !sub.mastered ? { subtopic_id: sub.id, status: "mastered" } : null;
+}
+
+/** True when the learner's message before the newest is the request that opened the check: the newest is their first try. */
+function firstAttempt(conversation: ReadonlyArray<{ role: string; content: string }>): boolean {
+  for (let j = conversation.length - 2; j >= 0; j--) {
+    if (conversation[j].role === "user") return asksForMasteryCheck(conversation[j].content);
+  }
+  return false;
 }
 
 // A single tool result may claim at most this share of the grounding slice. A notebook.search hit
@@ -578,7 +589,7 @@ ${lastUser.content}` };
     }
     // A correct check answer the model did not mark: code makes the mark, through the tool's own dispatch
     // (the "Is that okay?" card where it is set to Ask, the chip), under the reply (appMark).
-    const mark = ctx.abort.aborted ? null : await appMark(result, conversation, checked.hint !== null, offered, disclosure, () => getSyllabus(ctx.courseId, ctx.level));
+    const mark = ctx.abort.aborted ? null : await appMark(result, conversation, offered, disclosure, () => getSyllabus(ctx.courseId, ctx.level));
     if (mark) {
       const marked = await dispatchToolCall({ id: APP_MARK_CALL_ID, name: MARK_MASTERED_TOOL, args: mark }, ctx, turn.onToolEvent, offered);
       result = { ...result, toolCalls: [...result.toolCalls, { name: MARK_MASTERED_TOOL, args: mark, ok: marked.ok, byApp: true }] };
