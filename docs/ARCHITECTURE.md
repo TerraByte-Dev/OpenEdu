@@ -274,8 +274,20 @@ written: they came from a once-a-minute timer whose only reader was the learning
   differ only by a leading "to" before 3 or more words are one only on stems with the same words but for
   question framing, and as a reworded repeat, so "To separate the cell's interior ..." / "Separate ..."
   after "The primary role / function of the cell membrane ..." is one, TerraTutor live test part 11, and
-  "My mom made me ___" / "My mom wants me ___", "Let her ___" / "Tell her ___" are two; TerraTutor #271),
-  is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  "My mom made me ___" / "My mom wants me ___", "Let her ___" / "Tell her ___" are two; TerraTutor #271;
+  or the same numeric key, a number or fraction standing on its own, read straight off both stems: every
+  number of the key is a number of each stem, with the same arithmetic, negations and words that ask for
+  the rest of a whole (`sameNumericKey`: "8 equal vertical strips ... 3 shaded" / "8 equal parts ... 3
+  shaded", both 3/8, and "a circle is divided into 12 equal sectors ... 5 shaded" / "a pizza is cut into 12
+  equal slices ... eats 5", both 5/12, TerraTutor live test part 12 issues 4 and 5, ported from TerraTutor
+  #274). Stems whose numbers are neither inside the other's (1/2 from "2 of 4" and from "1 of 2"), stems
+  that both name arithmetic and not the same, through one closed table of signs and words ("4 × 1" / "4 ÷
+  1", "4 x 1" / "4 / 1"; "divided" only in "divided by"), and a part and the rest of a half on numbers read
+  off both ("4 of 8 shaded, what fraction is shaded?" / "... uncolored?") stay two. Any other pair on one
+  numeric key goes on to the overlap rule, as before: a stem with no number, a key the stems do not name
+  ("2 + 2" / "2 plus 2", 4; a perimeter and an area, 16), a negation in one stem only. Numeric keys that
+  differ only in spacing ("2:45" / "2 : 45") are one key there too. It also decides the review pool's twins
+  and the last quiz's rewordings), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A quiz, or one level-test section,
   takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
   counted (`GenPlan.sameQuiz`). Two keys of 2 or more words are one when they are the same words in the
@@ -578,7 +590,13 @@ water and carbon dioxide") and promotion-test questions with wrong or unanswerab
   for a test with no review section (Level 1: `quiz.ts levelTestReviewLevels` finds no earlier levels,
   `levelTestTarget`), and the ready, making and result screens say so: such a test's "What to expect"
   (`levelTestExpectLines`) and its failed result (`levelTestFailLine`) name no review section and no
-  review bar, and its making screen has no Review step.
+  review bar, and its making screen has no Review step. The review section's slots go round the reviewed
+  levels, newest first, each level with its own next topic and a level with fewer topics starting its own
+  over (`quiz.ts levelTestReviewSubtopics`), so every level gets an even share whatever its topic count
+  (levels of 8, 6 and 1 topics: 3, 3 and 4 of 10) and the level just finished is never left out
+  (TerraTutor live test part 12 issue 6: taken oldest first, 10 questions over 17 topics gave it none;
+  ported from TerraTutor #274). The batch path (a cloud provider) asks once per subtopic for all its places
+  in that list (`generateBatched`).
 - **A learner can always leave a quiz or a level test.** On Ollama the questions are written one model
   call each (20 for a quiz, 45 for a test or 35 for one with no review section, plus top-ups), which
   on a computer with no graphics card is slow. Both "making" screens have "Stop and go back": it
@@ -1091,7 +1109,16 @@ So the verdict on the child's answer is the app's, not the reply's:
   with one right answer ("which topic next?") gets no check, and the turn is as before. So does one whose
   questions only ask what the learner thinks, likes or feels (`asksOpinion`: "which idea you think is the
   most important one?", "your favorite", "would you rather"; "What do you think 7 x 8 is?" still asks for
-  a fact), with no key call when it is the message's one question, and a key whose answer is no answer: a
+  a fact), or offer a choice of what to do next (an offer, "do you want", "would you like", "shall we",
+  "want to" or "are you ready", with another offer, another thing to do or another one after its "or": "Do
+  you want to try another example, or would you like to check another part of ...?", TerraTutor live test
+  2026-11-20 part 12, step 3, keyed "2/6", a statement before it; "Is a whale a fish or a mammal?", "Is 3/4
+  bigger or smaller than 1/2?" and "Do you want to add or subtract ...?" are keyed, and so is an offer with
+  a question inside it: a question word, "whether" or "if", a ":", a digit, or "tell", "name", "find",
+  "guess" or "answer", as in "Do you want to tell me what the nucleus does, or would you like a hint?" or "Do you
+  want to try 6 × 7, or would you like an easier one?"; ported from TerraTutor #273, the digit from this
+  repo's review of that port), with no key call when it is the message's one question, and a key whose answer is no
+  answer: a
   request for input, a refusal or a note about the message (`isMetaKey`: "Please provide a topic", "There
   is no question in this message.", "Answers will vary."; it must open the answer, so "No", "None" and
   "Not enough water" stay keys, and "please" needs a request for input after it, "I cannot" a refusal to
@@ -1192,15 +1219,37 @@ So the verdict on the child's answer is the app's, not the reply's:
   "list" (each as one form, "has" / "have", and as another word when it comes after "what", "who" or "which"
   with only dropped words between, so "What makes a volcano?" is not "What does a volcano make?" while
   "What made ...?" and "What makes ...?" are one), "in", "on", "how", a "for", "of", "about", "with" or "to" that
-  ends the question ("What are leaves for?"), and "do" where it is the verb, last or before a word such as
+  ends the question, framing words after it aside ("What are leaves for?", "What are leaves for, do you
+  think?"; TerraTutor take-back 2026-11-20-1103, item 2), and "do" where it is the verb, last or before a
+  word such as
   "for", "to" or "so" ("What does the nucleus do?", not the "do" of "What do you think ..."); "job", "role"
   and "function" read as "do" ("What is the job of the heart?" / "What does the heart do?"); the same
   numbers in the same order; the same negations; and, when either has an order word ("than", "or", "before", "after", "between", "from ... to"), the same words in the same
   order; "Can you tell me what the cell membrane does?" / "So, what job does the membrane do for the
-  cell?"), and the two keys do not contradict (`keysContradict`: different numbers, or a different yes/no),
-  the two are one question: one verdict, the better one, given on the newest question, with nothing asked
-  again (this repo's take-back 2026-11-20-0752 of the #268 port: "That's partly right." and then the same
-  question again). Anything else is two questions, graded apart as above (`on: "earlier"`): a question that
+  cell?"), and the two keys give one answer (`keysAgree`: the same once case, punctuation and plurals are
+  set aside, or the same numbers in the same order with the same symbols beside them in the same order,
+  the same negations and yes or no, and every other word of one key in the other: "4" / "4 pieces", not "4
+  pieces" / "4 blocks", "3/4" / "4/3", "4" / "not 4", "4 cm" / "4 cm²", "3 × 4" / "3 + 4" ("3 x 4" is "3 ×
+  4"), "50%" / "50" or "$4" / "4 cents"; ported from TerraTutor #273, which replaced `keysContradict`; the
+  symbols are this repo's review of that port, MUST-FIX 1), the two are one question: one verdict, the better one, given on the newest question
+  with its own key, with nothing asked again (this repo's take-back 2026-11-20-0752 of the #268 port:
+  "That's partly right." and then the same question again). Keys that do not give one answer are two
+  answers, however alike the questions' words: "What does a frog eat?" / "What eats a frog?", keyed
+  "insects" / "snakes and birds", or "Frogs eat insects like flies and crickets." / "Snakes, birds and
+  herons eat frogs." (TerraTutor take-back 2026-11-20-1103, item 3, and its review). Two statement keys that
+  may say one idea in other words are graded apart too: code cannot tell them from two answers, so the
+  newest question is asked again. The same holds, nothing asked again, when the newest question is another
+  question whose key gives the first one's answer (`keysAgree`), the answer was right for the first one
+  and states the key's numbers, and every word one key has and the other does not is counted by a "how
+  many" or "how much" in the newest question (`countsKeyWords`: "pieces" in "how many pieces ...?"), or,
+  for a word only the newest key has, is in the answer (TerraTutor live test 2026-11-20 part 12, issue 1:
+  "The denominator would be 4." was right for "what number would be the denominator?", keyed "4", and code
+  then asked "how many pieces do we have in total?", keyed "4 pieces", again; "4" for "What digit is in the
+  tens place of 345?" does not answer "What is the value of the 4 in 345?", keyed "4 tens"; "16 cm", right
+  for a 4 cm square's perimeter, does not answer "What is the area ...?", keyed "16 square cm", nor "16
+  square cm" a perimeter question keyed "16 cm"). A partly right answer, keys that do not give one answer,
+  or a key word the newest question does not count keep the two questions apart. Anything else is two questions, graded apart as above (`on: "earlier"`): a
+  question that
   adds a word ("... keep out of the cell?"), another verb or preposition ("What does a mammal have?" after
   "What is a mammal?", "What does the nucleus do?" / "What is the nucleus?", "on" after "in", "What are
   leaves for?" after "What are leaves?", "How do bees make honey?" after "Do bees make honey?"; this repo's
@@ -1214,9 +1263,11 @@ So the verdict on the child's answer is the app's, not the reply's:
   first wording second, so it is not a first try, code makes no mark and the model's own mark is refused
   (`MASTERY_REFUSED_REWORDED`). One more key call on such a turn (none when the first question is a plain
   operation code keys). When the reply to an answer like that ends on a sentence that only announces going
-  back ("Now, let's go back to my last question.", "Back to the question!"), it is held like a lead-in and
-  dropped before code's "Now back to the question:" (TerraTutor part 11, thread D: two lead-ins in a row);
-  one that says more ("... to the question about the nucleus.") or has feedback after it stays.
+  back ("Now, let's go back to my last question.", "Back to the question!") or only announces moving on
+  ("Now, let's try another one.", "Let's try a different one.", "Next question."), it is held like a
+  lead-in and dropped before code's "Now back to the question:" (TerraTutor part 11, thread D, and part
+  12, threads B and C: two lead-ins in a row); one that says more ("... to the question about the
+  nucleus.", "Let's try a different picture.") or has feedback after it stays.
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An

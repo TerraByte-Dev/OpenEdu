@@ -857,7 +857,9 @@ export function isNearDuplicate(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
   const wa = stemWords(a.question_text);
   const wb = stemWords(b.question_text);
   const [ka, kb] = [keyForm(a.correct_answer), keyForm(b.correct_answer)];
-  const sameKey = ka === kb;
+  const sameKey = ka === kb || sameNumericForm(ka, kb);
+  const numeric = sameNumericKey(a, b, ka, kb);
+  if (numeric !== null) return numeric;
   if (!sameKey && withoutTo(ka) === withoutTo(kb)) {
     return sameButFraming(a.question_text, b.question_text) && isRewordedRepeat(a, b, true);
   }
@@ -880,6 +882,81 @@ function freeTextRepeat(a: NearDuplicateQ, b: NearDuplicateQ, wa: string[], wb: 
 }
 
 const stemNumbers = (w: string[]) => w.filter((t) => /\p{N}/u.test(t)).join(" ");
+
+// A numeric key as sameNumericKey compares it: keyForm without spaces around "/" or ":" ("3 / 8" is
+// "3/8"). Written forms stay apart: "2/4" is not "1/2", and "three eighths" is not "3/8" (a missed repeat).
+const tightNumber = (key: string) => key.replace(/\s*([/:])\s*/g, "$1");
+// Two numeric keys that are one number however spaced ("2:45" / "2 : 45"), one key for the overlap rule too.
+const sameNumericForm = (ka: string, kb: string) => numericKey(ka) && numericKey(kb) && tightNumber(ka) === tightNumber(kb);
+// The numbers a text names, one by one ("2:30" is 2 and 30, "3/8" is 3 and 8), as a set.
+const numbersIn = (text: string) => new Set(String(text ?? "").normalize("NFKC").match(/\p{N}+(?:\.\p{N}+)?/gu) ?? []);
+const within = (a: ReadonlySet<string>, b: ReadonlySet<string>) => [...a].every((n) => b.has(n));
+// The arithmetic a stem names, as a set, read through one closed table: a sign between two numbers ("x"
+// and "/" only there, so "solve for x" and a word "and/or" name none) or an operation word. "divided"
+// counts only in "divided by": "divided into 8 equal parts" is a fraction stem, not a division.
+const OPERATION_OF = new Map<string, string>([
+  ["+", "add"], ["plus", "add"], ["add", "add"], ["added", "add"], ["sum", "add"],
+  ["-", "subtract"], ["−", "subtract"], ["–", "subtract"], ["minus", "subtract"], ["subtract", "subtract"],
+  ["subtracted", "subtract"], ["difference", "subtract"],
+  ["×", "multiply"], ["*", "multiply"], ["x", "multiply"], ["times", "multiply"], ["multiply", "multiply"],
+  ["multiplied", "multiply"], ["product", "multiply"],
+  ["÷", "divide"], ["/", "divide"], ["divided by", "divide"], ["quotient", "divide"],
+]);
+const operations = (text: string) => {
+  const out = new Set<string>();
+  const lower = String(text ?? "").normalize("NFKC").toLowerCase();
+  for (const m of lower.matchAll(/(?<=\p{N}\s*)([+\-−–×*÷/x])(?=\s*\p{N})|divided\s+by(?!\p{L})|\p{L}+/gu)) {
+    const t = m[1] ?? m[0].replace(/\s+/g, " ");
+    if (!m[1] && t === "x") continue;
+    const op = OPERATION_OF.get(t);
+    if (op) out.add(op);
+  }
+  return [...out].sort().join(" ");
+};
+// A word that asks for the rest of a whole, not the part named (a closed list): "3 of 8 eaten, what
+// fraction is left?" asks 5/8, and "4 of 8 eaten, what fraction did you eat?" / "... is left?", both 4/8,
+// are two questions.
+const COMPLEMENT_WORDS = new Set(["left", "remain", "remains", "remaining", "rest", "unshaded", "uncolored", "uneaten", "not"]);
+const asksComplement = (text: string) => String(text ?? "").toLowerCase().split(/[^\p{L}]+/u).some((w) => COMPLEMENT_WORDS.has(w));
+
+/**
+ * isNearDuplicate's rule for two questions with one numeric key (numericKey, read by tightNumber): true or
+ * false decides, null hands the pair on to the overlap rule as before. TerraTutor live test part 12, issues 4
+ * and 5:
+ * quiz 1 asked "A rectangle is divided into 8 equal vertical strips. If 3 of these strips are shaded, ..."
+ * and "A shape is divided into 8 equal parts. If 3 of these parts are shaded, ...", both keyed 3/8; the
+ * stems share too few words for the overlap rule and a numeric key is routine, so isRewordedRepeat never
+ * reads it, and quiz 2's review re-posed both. Quiz 2 also asked quiz 1's 11/15 and 5/9 again in other
+ * words, and "A circle is divided into 12 equal sectors. If 5 ... shaded" / "A pizza is cut into 12 equal
+ * slices. If a customer eats 5", both 5/12. So:
+ * - two questions (false) when neither stem's numbers (numbersIn) are all in the other's (1/2 from "2 of 4
+ *   shaded, in simplest form" and from "1 of 2 shaded"), or both stems name arithmetic and not the same
+ *   (operations: "What is 4 × 1?" / "What is 4 ÷ 1?", "4 x 1" / "4 / 1"; both merged before on the overlap),
+ *   or the key is read off both stems and one asks for the rest of the whole (asksComplement): "8 parts, 4
+ *   shaded, what fraction is shaded?" / "... uncolored?", and "4 of 8 eaten" / "... is left?", all 4/8, a
+ *   part and the rest of a half (master merged the first on the overlap);
+ * - one question (true) when every number of the key is a number of both stems, with the same arithmetic,
+ *   negations and complement words: the key is read straight off the stem ("8 parts, 3 shaded", 3/8);
+ * - otherwise null: a stem with no number, a key the stems do not name ("2 + 2" / "2 plus 2", 4; "the ones
+ *   place of 343" / "the hundreds place", 3; a perimeter and an area, 16), a negation in one stem only, a
+ *   complement word in one stem only on a key the stems do not name, or arithmetic named in one stem only.
+ * Another key keeps two questions apart as before: "3 of 8 shaded, what fraction is shaded?" (3/8) /
+ * "... unshaded?" (5/8), "4 parts, 2 shaded" (2/4) / "... in simplest form?" (1/2).
+ */
+function sameNumericKey(a: NearDuplicateQ, b: NearDuplicateQ, ka: string, kb: string): boolean | null {
+  if (!sameNumericForm(ka, kb)) return null;
+  const [ta, tb] = [a.question_text, b.question_text];
+  const [na, nb] = [numbersIn(ta), numbersIn(tb)];
+  if (na.size === 0 || nb.size === 0) return null;
+  if (!within(na, nb) && !within(nb, na)) return false;
+  const [oa, ob] = [operations(ta), operations(tb)];
+  if (oa && ob && oa !== ob) return false;
+  const key = numbersIn(tightNumber(ka));
+  const readOff = key.size > 0 && within(key, na) && within(key, nb);
+  if (asksComplement(ta) !== asksComplement(tb)) return readOff ? false : null;
+  if (oa !== ob || negationsIn(ta) !== negationsIn(tb)) return null;
+  return readOff ? true : null;
+}
 
 /** Whether two stems have the same numbers in the same order ("3/8 ... 1/2" is not "1/8 ... 1/2"). */
 export function sameStemNumbers(a: string, b: string): boolean {
@@ -1173,6 +1250,11 @@ function addsQualifier(short: ReadonlySet<string>, long: ReadonlySet<string>, lo
 // repeats still missed, 3 have keys sameCapKey counts as one, so the same-key cap still reads them as one
 // answer (the cells pair also through the review pool's sameStatedAnswer); the other 3 have keys in other
 // words (Reynolds number, "density and temperature gradient ...") or contradictory ones.
+// TerraTutor live test part 12 added 5 repeats and 5 different pairs, and 14 different pairs written fresh,
+// all on numeric keys (isNearDuplicate's sameNumericKey, not this rule), and TerraTutor #274's review 1
+// repeat ("divided into" / "cut into", 5/12): 36 of 53 caught and 0 of 146 merged; before it, 30 of 53 and
+// 4 of 146 (1/2 from "2 of 4" / "1 of 2" and "4 × 1" / "4 ÷ 1", each also as multiple choice, on the stem
+// overlap). Ported from TerraTutor #274.
 function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean): boolean {
   if (a.question_type === "fill_in_blank" || b.question_type === "fill_in_blank") return false;
   const ka = sameKeyForm(a);

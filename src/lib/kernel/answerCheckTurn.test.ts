@@ -59,7 +59,7 @@ vi.mock("../db", async (importOriginal) => ({
 
 import { tutorEngine, MASTERY_REFUSED, MASTERY_REFUSED_DISCLOSURE, MASTERY_REFUSED_EARLIER, MASTERY_REFUSED_HINT, MASTERY_REFUSED_REWORDED, CARD_REFUSED, type TutorTurnResult } from "./TutorEngine";
 import { chatTurnMode, chatTurnSkills } from "./chatSkills";
-import { answerCheckNote, asksForMasteryCheck, KEY_INSTRUCTION, HINT_ANSWER_BACK, CHECK_MAX_MESSAGES, rewordsQuestion } from "./answerCheck";
+import { answerCheckNote, asksForMasteryCheck, asksOpinion, KEY_INSTRUCTION, HINT_ANSWER_BACK, CHECK_MAX_MESSAGES, keysAgree, rewordsQuestion } from "./answerCheck";
 import { ASSESS_MESSAGE, QUIZ_MESSAGE } from "./suggestions";
 import { CHECK_BEFORE_PRAISE_NOTE, isCheckBeforePraiseTurn } from "./checkBeforePraise";
 import { VERDICT_FALLBACK } from "./replyClaims";
@@ -2215,44 +2215,74 @@ describe("an answer to the check's first question after the tutor moved on", () 
 
     beforeEach(() => { keyOut = keyEach; });
 
-    it("one verdict, the better one, on the newest question, and the question is not asked again", async () => {
+    // TerraTutor #273's review, MUST-FIX 1 (a deliberate change from the #268 port's merge): these two keys are
+    // statements in other words, which code cannot tell from two answers ("Frogs eat insects like flies and crickets."
+    // / "Snakes, birds and herons eat frogs."), so the two wordings are graded apart: the first one's verdict, tagged,
+    // and the newest asked again. Keys that give one answer still merge (below, and the spider rows).
+    it("statement keys in other words: graded apart, the first wording's verdict tagged, the newest asked again", async () => {
       gradeOut = gradeBy({ [Q_FIRST]: "partly" });
       script = [reply("You have part of it. A gate also keeps some things out.")];
       const { result } = await answer(REASKED, "it lets stuff in and out");
-      expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "partly" });
-      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.answerCheck).toMatchObject({ question: Q_FIRST, verdict: "partly", on: "earlier", checkQuestion: Q_AGAIN });
+      expect(result.answerCheck?.reworded).toBeUndefined();
       expect(gradedQuestions()).toEqual([Q_AGAIN, Q_FIRST]);
-      expect(result.text).toBe("You have part of it. A gate also keeps some things out.");
-      expect(result.text).not.toContain(HINT_ANSWER_BACK);
-      expect(lastUser(replies[0])).toContain(`The question was: ${Q_AGAIN}`);
-      expect(lastUser(replies[0])).not.toContain("still open");
+      expect(result.text.startsWith(`You have part of it. A gate also keeps some things out.\n\n${HINT_ANSWER_BACK}\n\n`)).toBe(true);
+      expect(result.text.endsWith(Q_AGAIN)).toBe(true);
+      expect(lastUser(replies[0])).toContain("Your last question is still open");
       expect(marks).toEqual([]);
     }, 30_000);
 
-    it("right on the first wording only: right, on the newest question, and still no mark (not a first try)", async () => {
-      gradeOut = gradeBy({ [Q_AGAIN]: "partly", [Q_FIRST]: "correct" });
-      script = [reply("Yes, that's right.")];
-      const { result } = await answer(REASKED, "it lets stuff in and out");
-      expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "correct" });
-      expect(result.answerCheck?.on).toBeUndefined();
-      expect(result.text).toBe("Yes, that's right.");
-      expect(marks).toEqual([]);
-    }, 30_000);
-
-    // TerraTutor #270's review, MUST-FIX (d): the merged verdict came from grading the first wording second, so the
-    // model's own mark is refused, as after `on: "earlier"`, and still nothing is asked again.
-    it("right on the first wording only: the model's own mark is refused too", async () => {
+    it("statement keys in other words, right on the first wording only: tagged, the model's own mark refused", async () => {
       gradeOut = gradeBy({ [Q_AGAIN]: "partly", [Q_FIRST]: "correct" });
       script = [markCall("mastered"), reply("Yes, that's right.")];
       const { result, confirms } = await answer(REASKED, "it lets stuff in and out");
-      expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "correct", reworded: true });
-      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.answerCheck).toMatchObject({ question: Q_FIRST, verdict: "correct", on: "earlier", checkQuestion: Q_AGAIN });
+      expect(result.answerCheck?.reworded).toBeUndefined();
       expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
-      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_REWORDED}`);
-      expect(result.text).toBe("Yes, that's right.");
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(result.text.startsWith(`Yes, that's right.\n\n${HINT_ANSWER_BACK}\n\n`)).toBe(true);
       expect(confirms).toEqual([]);
       expect(marks).toEqual([]);
     }, 30_000);
+
+    describe("with keys that give one answer", () => {
+      const KEY_FIRST = "It controls what goes in and out of the cell";
+      const KEY_AGAIN = "It controls what goes in and out of the cells";
+      beforeEach(() => {
+        keyOut = (sent: Sent) => (sent.map((m) => m.content).join("\n").includes("what job")
+          ? { question: Q_AGAIN, working: "", answer: KEY_AGAIN }
+          : { question: Q_FIRST, working: "", answer: KEY_FIRST });
+      });
+
+      it("one verdict, the better one, on the newest question with its own key, and the question is not asked again", async () => {
+        gradeOut = gradeBy({ [Q_FIRST]: "partly" });
+        script = [reply("You have part of it. A gate also keeps some things out.")];
+        const { result } = await answer(REASKED, "it lets stuff in and out");
+        expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, key: KEY_AGAIN, verdict: "partly", reworded: true });
+        expect(result.answerCheck?.on).toBeUndefined();
+        expect(gradedQuestions()).toEqual([Q_AGAIN, Q_FIRST]);
+        expect(result.text).toBe("You have part of it. A gate also keeps some things out.");
+        expect(result.text).not.toContain(HINT_ANSWER_BACK);
+        expect(lastUser(replies[0])).toContain(`The question was: ${Q_AGAIN}`);
+        expect(lastUser(replies[0])).not.toContain("still open");
+        expect(marks).toEqual([]);
+      }, 30_000);
+
+      // TerraTutor #270's review, MUST-FIX (d): the merged verdict came from grading the first wording second, so the
+      // model's own mark is refused, as after `on: "earlier"`, and still nothing is asked again.
+      it("right on the first wording only: right, on the newest question, and the model's own mark is refused", async () => {
+        gradeOut = gradeBy({ [Q_AGAIN]: "partly", [Q_FIRST]: "correct" });
+        script = [markCall("mastered"), reply("Yes, that's right.")];
+        const { result, confirms } = await answer(REASKED, "it lets stuff in and out");
+        expect(result.answerCheck).toMatchObject({ question: Q_AGAIN, verdict: "correct", reworded: true });
+        expect(result.answerCheck?.on).toBeUndefined();
+        expect(result.toolCalls).toEqual([{ name: "progress.mark_mastered", args: { subtopic_id: "1.1", status: "mastered" }, ok: false }]);
+        expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_REWORDED}`);
+        expect(result.text).toBe("Yes, that's right.");
+        expect(confirms).toEqual([]);
+        expect(marks).toEqual([]);
+      }, 30_000);
+    });
 
     it("wrong on both wordings is still the newest question's \"not right yet\"", async () => {
       gradeOut = gradeBy({});
@@ -2310,8 +2340,8 @@ describe("an answer to the check's first question after the tutor moved on", () 
 
     // OpenEdu #410's take-back (inbox 2026-11-20-1003, rewords-question-stopwords-merge; ported from TerraTutor #272): askedWords dropped "have",
     // "in", "on" and the verb "do" as stopwords, so each pair read as one question. The learner was told "right" on
-    // the newest question, answered only for the first one, and the newest was never asked again. Text keys never
-    // contradict (keysContradict), so only the asked words keep them apart.
+    // the newest question, answered only for the first one, and the newest was never asked again. (Text keys in
+    // other words no longer merge either, keysAgree; the asked words keep these pairs apart on their own.)
     it.each([
       ["what it is / what it has", "What is a mammal?", "A warm-blooded animal that feeds its young milk", "What does a mammal have?", "Hair or fur", "an animal that feeds its babies milk"],
       // ("What is in a cell?" / "What is on a cell?" share 4 of 5 words both ways, so asksSameQuestion takes them as
@@ -2340,6 +2370,262 @@ describe("an answer to the check's first question after the tutor moved on", () 
       expect(confirms).toEqual([]);
       expect(marks).toEqual([]);
     }, 30_000);
+
+    // TerraTutor take-back 2026-11-20-1103, item 3: the words read as one question (the same words, no order word), but the keys
+    // name different things, so the two are graded apart and "insects" is never "right" for "What eats a frog?".
+    it("the same words with keys that name different things are graded apart", async () => {
+      const first = "What does a frog eat?";
+      const again = "What eats a frog?";
+      keyOut = keyFor([[again, "snakes and birds"], [first, "insects"]]);
+      gradeOut = gradeBy({ [first]: "correct" });
+      script = [markCall("mastered"), reply("Yes, frogs eat insects.")];
+      const { result, confirms } = await answer([student(ASSESS_MESSAGE), tutor(`Let's check. ${first}`), student("I don't know"), tutor(`Think about the pond. ${again}`)], "insects");
+      expect(rewordsQuestion(first, again)).toBe(true);
+      expect(result.answerCheck).toMatchObject({ question: first, key: "insects", verdict: "correct", on: "earlier", checkQuestion: again });
+      expect(result.answerCheck?.reworded).toBeUndefined();
+      expect(result.text.startsWith(`Yes, frogs eat insects.\n\n${HINT_ANSWER_BACK}\n\n`)).toBe(true);
+      expect(result.text.endsWith(again)).toBe(true);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    // TerraTutor #273's review, MUST-FIX 1: the same pair keyed in sentences. Statement keys never merge.
+    it("the same words with sentence keys that name different things are graded apart", async () => {
+      const first = "What does a frog eat?";
+      const again = "What eats a frog?";
+      keyOut = keyFor([[again, "Snakes, birds and herons eat frogs."], [first, "Frogs eat insects like flies and crickets."]]);
+      gradeOut = gradeBy({ [first]: "correct" });
+      script = [markCall("mastered"), reply("Yes, frogs eat insects.")];
+      const { result, confirms } = await answer([student(ASSESS_MESSAGE), tutor(`Let's check. ${first}`), student("I don't know"), tutor(`Think about the pond. ${again}`)], "insects");
+      expect(result.answerCheck).toMatchObject({ question: first, verdict: "correct", on: "earlier", checkQuestion: again });
+      expect(result.answerCheck?.reworded).toBeUndefined();
+      expect(result.text.startsWith(`Yes, frogs eat insects.\n\n${HINT_ANSWER_BACK}\n\n`)).toBe(true);
+      expect(result.text.endsWith(again)).toBe(true);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it("the same question in other words with keys that give one answer is still one question", async () => {
+      const first = "Can you tell me how many legs a spider has?";
+      const again = "So, how many legs does a spider have?";
+      keyOut = keyFor([[again, "8 legs"], [first, "8"]]);
+      gradeOut = gradeBy({ [first]: "correct" });
+      script = [reply("Yes, that's right.")];
+      const { result } = await answer([student(ASSESS_MESSAGE), tutor(first), student("I don't know"), tutor(`Think of its body. ${again}`)], "as many as an octopus has arms");
+      expect(result.answerCheck).toMatchObject({ question: again, verdict: "correct", reworded: true });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.text).toBe("Yes, that's right.");
+      expect(marks).toEqual([]);
+    }, 30_000);
+  });
+
+  // TerraTutor live test 2026-11-20 part 12, issue 1 (gemma4:e2b, threads A and B): the learner answered the check's
+  // first question after the tutor moved on to another question with the same answer; the answer was credited on the
+  // first question and code then asked the move-on question, already answered, again under "Now back to the question:".
+  describe("a move-on question whose answer the learner already gave", () => {
+    const pickedArea = answeredCard("", PICKER_QUESTION, { text: "Modeling Fractions with Area Models", typed: false });
+    const A_FIRST = "If you divide a rectangle into 4 equal pieces, what number would be the denominator?";
+    const A_AGAIN = "If we divide the rectangle into 4 equal pieces, how many pieces do we have in total?";
+    const THREAD_A = [
+      student(ASSESS_MESSAGE), tutor(`${pickedArea}That is Modeling Fractions with Area Models. Let's try something with a rectangle. Imagine you have a rectangle. If you divide it into 4 equal pieces, what number would be the denominator?`),
+      student("I don't know"), tutor(`No problem. Think about the word "denominator." The denominator tells us the total number of equal parts the whole is divided into.\n\n${A_AGAIN}`),
+    ];
+    const keyA = (againKey: string) => (sent: Sent) => (sent[sent.length - 1].content.includes("how many pieces")
+      ? { question: A_AGAIN, working: "", answer: againKey }
+      : { question: A_FIRST, working: "", answer: "4" });
+
+    it("thread A: right for the first question, and the move-on question's key is the same number: one verdict, nothing asked again, no mark", async () => {
+      keyOut = keyA("4 pieces");
+      gradeOut = gradeBy({ [A_FIRST]: "correct" });
+      script = [markCall("mastered"), reply("That is correct! The denominator is 4.")];
+      const { result, confirms } = await answer(THREAD_A, "The denominator would be 4.");
+      expect(rewordsQuestion(A_FIRST, A_AGAIN)).toBe(false);
+      expect(result.answerCheck).toMatchObject({ question: A_AGAIN, verdict: "correct", reworded: true });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(gradedQuestions()).toEqual([A_AGAIN, A_FIRST]);
+      expect(lastUser(replies[0])).toContain(`The question was: ${A_AGAIN}`);
+      expect(lastUser(replies[0])).not.toContain("still open");
+      expect(result.text).toBe("That is correct! The denominator is 4.");
+      expect(result.text).not.toContain(HINT_ANSWER_BACK);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_REWORDED}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it.each([
+      ["another number", "8 pieces", "The denominator would be 4."],
+      ["the same number with another unit word beside the first key's", "4 rows", "The denominator would be 4."],
+    ])("thread A with %s in the move-on key: graded apart and asked again, as before", async (_, againKey, said) => {
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("how many pieces")
+        ? { question: A_AGAIN, working: "", answer: againKey }
+        : { question: A_FIRST, working: "", answer: "4 columns" });
+      gradeOut = gradeBy({ [A_FIRST]: "correct" });
+      script = [reply("That is correct! The denominator is 4.")];
+      const { result } = await answer(THREAD_A, said);
+      expect(result.answerCheck).toMatchObject({ question: A_FIRST, verdict: "correct", on: "earlier", checkQuestion: A_AGAIN });
+      expect(result.text).toBe(`That is correct! The denominator is 4.\n\n${HINT_ANSWER_BACK}\n\n${A_AGAIN}`);
+    }, 30_000);
+
+    // TerraTutor #273's review, MUST-FIX 2: "tens", a word only the move-on key has, changes what its number means, and is
+    // in neither the move-on question nor the answer: "4" never answered "What is the value of the 4 in 345?".
+    it.each([
+      ["right", "correct"],
+      ["partly right (code's exact match makes it right)", "partly"],
+    ] as const)("a move-on key that adds a word the answer and the question don't say, the first question %s: graded apart", async (_, firstVerdict) => {
+      const first = "What digit is in the tens place of 345?";
+      const again = "What is the value of the 4 in 345?";
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("the value of")
+        ? { question: again, working: "", answer: "4 tens" }
+        : { question: first, working: "", answer: "4" });
+      gradeOut = gradeBy({ [first]: firstVerdict });
+      script = [markCall("mastered"), reply("Yes, 4 is in the tens place.")];
+      const { result, confirms } = await answer([student(ASSESS_MESSAGE), tutor(`Let's check. ${first}`), student("I don't know"), tutor(`Look at each place. ${again}`)], "4");
+      expect(result.answerCheck).toMatchObject({ question: first, key: "4", verdict: "correct", on: "earlier", checkQuestion: again });
+      expect(result.answerCheck?.reworded).toBeUndefined();
+      expect(result.text).toBe(`Yes, 4 is in the tens place.\n\n${HINT_ANSWER_BACK}\n\nLook at each place. ${again}`);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    // Review of this port, MUST-FIX 1: keys with the same number whose symbols differ ("16 cm" / "16 cm²", "3 × 4" /
+    // "3 + 4"), or where one key has a word the move-on question does not count ("square" in "16 square cm"), are two
+    // answers. A right answer to the first question is not right for the move-on one, which is asked again. A 4 cm
+    // square's perimeter and area are both 16: the textbook case.
+    const PERIMETER = "A square has sides of 4 cm. What is its perimeter?";
+    const AREA = "What is the area of a square with sides of 4 cm?";
+    const TIMES = "There are 3 bags with 4 apples each. What multiplication shows this?";
+    const PLUS = "There are 3 apples and 4 pears. What addition shows this?";
+    it.each([
+      ["perimeter, then area in cm²", PERIMETER, "16 cm", AREA, "16 cm²", "16 cm"],
+      ["perimeter, then area in square cm", PERIMETER, "16 cm", AREA, "16 square cm", "16 cm"],
+      ["area in square cm, then perimeter", AREA, "16 square cm", PERIMETER, "16 cm", "16 square cm"],
+      ["the review's perimeter, then area", "A square has sides of 1 cm. What is its perimeter?", "4 cm", "What is the area of a square with sides of 2 cm?", "4 cm²", "4 cm"],
+      ["multiplication, then addition", TIMES, "3 × 4", PLUS, "3 + 4", "3 × 4"],
+      ["multiplication with an x, then addition", TIMES, "3 x 4", PLUS, "3 + 4", "3 x 4"],
+    ])("%s, the same number in both keys: graded apart and asked again", async (_, first, firstKey, again, againKey, said) => {
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes(again)
+        ? { question: again, working: "", answer: againKey }
+        : { question: first, working: "", answer: firstKey });
+      gradeOut = gradeBy({ [first]: "correct" });
+      script = [markCall("mastered"), reply("Yes, that's right.")];
+      const { result, confirms } = await answer([student(ASSESS_MESSAGE), tutor(`Let's check. ${first}`), student("I don't know"), tutor(`Think about it. ${again}`)], said);
+      expect(result.answerCheck).toMatchObject({ question: first, key: firstKey, verdict: "correct", on: "earlier", checkQuestion: again });
+      expect(result.answerCheck?.reworded).toBeUndefined();
+      expect(result.text).toBe(`Yes, that's right.\n\n${HINT_ANSWER_BACK}\n\nThink about it. ${again}`);
+      expect(replies[1].find((m) => m.role === "tool")!.content).toBe(`ERROR: ${MASTERY_REFUSED_EARLIER}`);
+      expect(confirms).toEqual([]);
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    it("thread A, partly right for the first question: tagged and asked again, as before", async () => {
+      keyOut = keyA("4 pieces");
+      gradeOut = gradeBy({ [A_FIRST]: "partly" });
+      script = [reply("Part of that is right.")];
+      const { result } = await answer(THREAD_A, "The denominator would be 4.");
+      expect(result.answerCheck).toMatchObject({ question: A_FIRST, verdict: "partly", on: "earlier" });
+      expect(result.text).toContain(HINT_ANSWER_BACK);
+    }, 30_000);
+
+    it("thread A, right for the first question in words the key's number is not in: tagged and asked again, as before", async () => {
+      keyOut = keyA("4 pieces");
+      gradeOut = gradeBy({ [A_FIRST]: "correct" });
+      script = [reply("That is correct!")];
+      const { result } = await answer(THREAD_A, "the number of equal pieces");
+      expect(result.answerCheck).toMatchObject({ question: A_FIRST, verdict: "correct", on: "earlier" });
+      expect(result.text).toContain(HINT_ANSWER_BACK);
+    }, 30_000);
+
+    const pickedSet = answeredCard("", PICKER_QUESTION, { text: "Modeling Fractions with Set Models", typed: false });
+    const B_FIRST = "Remember the set of 4 blocks. If we want to show $\\frac{3}{4}$, how many blocks should be shaded or selected?";
+    const B_AGAIN = "So, how many total blocks do you have? And the top number, the numerator, tells us how many parts we are looking at. How many parts are we looking at?";
+    // The live key call copied the whole move-on message as its question, "3/4" in it, so code cannot read the
+    // learner's "3" as an answer to it (answerCompare.ts: the question's own numbers are not the answer).
+    const B_HINT = "Think about the fraction $\\frac{3}{4}$. The bottom number, the denominator, tells us the total number of equal parts. In this case, the denominator is 4.";
+    const B_KEYED = `${B_HINT} ${B_AGAIN}`;
+    const THREAD_B = [
+      student(ASSESS_MESSAGE), tutor(`${pickedSet}A set model is like using real objects. We use collections of things to show a fraction. ${B_FIRST}`),
+      student("I don't know"), tutor(`${B_HINT}\n\n${B_AGAIN}`),
+    ];
+    const keyB = (againKey: string) => (sent: Sent) => (sent[sent.length - 1].content.includes("How many parts are we looking at")
+      ? { question: B_KEYED, working: "", answer: againKey }
+      : { question: B_FIRST, working: "", answer: "3 blocks" });
+
+    it("thread B: \"3 blocks\" right for the first question, the move-on question keyed \"3\": not asked again", async () => {
+      keyOut = keyB("3");
+      gradeOut = gradeBy({ [B_FIRST]: "correct" });
+      script = [reply("That is exactly right! You should shade 3 blocks out of the total 4 blocks.")];
+      const { result } = await answer(THREAD_B, "3 blocks should be shaded.");
+      expect(result.answerCheck).toMatchObject({ question: B_KEYED, verdict: "correct", reworded: true });
+      expect(result.answerCheck?.on).toBeUndefined();
+      expect(result.text).toBe("That is exactly right! You should shade 3 blocks out of the total 4 blocks.");
+      expect(marks).toEqual([]);
+    }, 30_000);
+
+    // TerraTutor live test part 12, item 2: the model's own move-on line ("Now, let's try a different one.") was left before code's lead-in.
+    it("thread B with both of the move-on message's answers in its key: asked again, with code's lead-in the only one", async () => {
+      keyOut = keyB("4 blocks; 3 parts");
+      gradeOut = gradeBy({ [B_FIRST]: "correct" });
+      script = [reply("That is exactly right! You should shade 3 blocks out of the total 4 blocks. Now, let's try a different one.")];
+      const { result } = await answer(THREAD_B, "3 blocks should be shaded.");
+      expect(result.answerCheck).toMatchObject({ question: B_FIRST, verdict: "correct", on: "earlier" });
+      expect(result.text).toBe(`That is exactly right! You should shade 3 blocks out of the total 4 blocks.\n\n${HINT_ANSWER_BACK}\n\n${B_AGAIN}`);
+    }, 30_000);
+
+    // Thread C: a different answer ("the first mark after 0" for "which slice is 1/4?"), so asked again; the model's
+    // "Now, let's try another one." is held and dropped before code's lead-in.
+    it("thread C: graded apart and asked again, with code's lead-in the only one", async () => {
+      const pickedLine = answeredCard("", PICKER_QUESTION, { text: "Connecting Fractions to the Number Line", typed: false });
+      const C_FIRST = "Can you tell me what $\\frac{1}{4}$ looks like on a number line? Remember, we divide the whole into equal parts.";
+      const C_AGAIN = "If we want to show $\\frac{1}{4}$ on a number line, we need to divide the whole into four equal parts. If you have a whole circle, and you divide it into four equal slices, which slice is $\\frac{1}{4}$?";
+      keyOut = (sent: Sent) => (sent[sent.length - 1].content.includes("which slice")
+        ? { question: "If you have a whole circle, and you divide it into four equal slices, which slice is $\\frac{1}{4}$?", working: "", answer: "Any one of the four slices" }
+        : { question: C_FIRST, working: "", answer: "The first mark after 0" });
+      gradeOut = gradeBy({ [C_FIRST]: "correct" });
+      script = [reply("That is exactly right. You split the space from 0 to 1 into 4 equal parts. $\\frac{1}{4}$ is the first mark after 0. Now, let's try another one.")];
+      const { result } = await answer([
+        student(ASSESS_MESSAGE), tutor(`${pickedLine}That is a great topic to check. We are working on "Connecting Fractions to the Number Line." ${C_FIRST}`),
+        student("help"), tutor(`I will help you. Let's try to imagine a whole.\n\n${C_AGAIN}`),
+      ], "On the number line you split the space from 0 to 1 into 4 equal parts, and 1/4 is the first mark after 0.");
+      expect(result.answerCheck).toMatchObject({ question: C_FIRST, verdict: "correct", on: "earlier" });
+      expect(result.text).toBe(`That is exactly right. You split the space from 0 to 1 into 4 equal parts. $\\frac{1}{4}$ is the first mark after 0.\n\n${HINT_ANSWER_BACK}\n\n${C_AGAIN}`);
+    }, 30_000);
+  });
+
+  it.each([
+    ["4", "4 pieces", true],
+    ["3 blocks", "3", true],
+    ["3 blocks", "3 block", true],
+    ["3/8", "$\\frac{3}{8}$", true],
+    ["4", "four", true],
+    ["Carbon dioxide", "carbon dioxide.", true],
+    ["4 pieces", "4 blocks", false],
+    ["3/4", "4/3", false],
+    ["2/6", "1/3", false],
+    ["4 cm", "4 m", false],
+    ["4", "not 4", false],
+    ["Yes, 4", "No, 4", false],
+    ["4", "4; 3", false],
+    ["insects", "snakes and birds", false],
+    // Review of this port, MUST-FIX 1: a symbol beside the numbers is part of the answer.
+    ["3 x 4", "3 × 4", true],
+    ["3 × 4", "$3 \\times 4$", true],
+    ["16 cm²", "16 cm².", true],
+    ["4 cm", "4 square cm", true],
+    ["4 cm", "4 cm²", false],
+    ["3 × 4", "3 + 4", false],
+    ["3 x 4", "3 + 4", false],
+    ["3 + 4 × 5", "3 × 4 + 5", false],
+    ["50%", "50", false],
+    ["$4", "4 cents", false],
+    ["4 > 3", "4 < 3", false],
+    ["2:30", "2/30", false],
+    ["It controls what enters and leaves the cell", "It lets some things in and keeps others out", false],
+  ])("keysAgree(%j, %j) is %s", (a, b, same) => {
+    expect(keysAgree(a, b)).toBe(same);
+    expect(keysAgree(b, a)).toBe(same);
   });
 
   it.each([
@@ -2381,6 +2667,10 @@ describe("an answer to the check's first question after the tutor moved on", () 
     ["What does a volcano make?", "So, what do you think makes a volcano?", false],
     ["What made the Grand Canyon?", "What makes the Grand Canyon?", true],
     ["Who made the first map?", "So, who do you think made the first map?", true],
+    // TerraTutor take-back 2026-11-20-1103, item 2: a last preposition with only framing words after it is still last.
+    ["What are leaves?", "What are leaves for, do you think?", false],
+    ["What is the story?", "What is the story about, do you think?", false],
+    ["What are leaves for?", "What are leaves for, do you think?", true],
     ["What do you think the nucleus does?", "What does the nucleus do?", true],
     ["Can you tell me how many legs a spider has?", "So, how many legs does a spider have?", true],
     ["What is a mammal?", "So, what do you think a mammal is?", true],
@@ -2417,6 +2707,16 @@ describe("an answer to the check's first question after the tutor moved on", () 
     ["Yes, that is it. Let's go back to the question about the cytoplasm.", "Yes, that is it. Let's go back to the question about the cytoplasm."],
     ["Yes, that is it. Now, let's go back to my last question. Remember, the membrane is like a wall.", "Yes, that is it. Now, let's go back to my last question. Remember, the membrane is like a wall."],
     ["Yes, that is it. Let's go back to the question of why cells divide.", "Yes, that is it. Let's go back to the question of why cells divide."],
+    // TerraTutor live test part 12, threads B and C: the model's own move-on line ("let's try another one") before code's lead-in.
+    ["Yes, that is it. Now, let's try another one.", "Yes, that is it."],
+    ["Yes, that is it. Now, let's try a different one. What does the cytoplasm do?", "Yes, that is it."],
+    ["Yes, that is it. Here is another question: what does the cytoplasm do?", "Yes, that is it."],
+    ["Yes, that is it. Let's do one more!", "Yes, that is it."],
+    ["Yes, that is it. Next question.", "Yes, that is it."],
+    // It says what comes next, or feedback follows it: kept.
+    ["Yes, that is it. Let's try another one with the nucleus.", "Yes, that is it. Let's try another one with the nucleus."],
+    ["Yes, that is it. Let's try a different picture.", "Yes, that is it. Let's try a different picture."],
+    ["Yes, that is it. Now, let's try another one. Remember, the membrane is like a wall.", "Yes, that is it. Now, let's try another one. Remember, the membrane is like a wall."],
   ])("after %j code's lead-in is the only one", async (modelReply, shown) => {
     gradeOut = gradeRightFor(Q_MEMBRANE);
     script = [reply(modelReply)];
@@ -2495,12 +2795,63 @@ describe("a key call that returns no answer key, and a question that asks for an
     ["What do you think is the first part of the cell theory?", "All living things are made of cells"],
     ["What is your favorite planet? And which planet is closest to the Sun?", "Mercury"],
     ["Which part do you think controls the cell?", "The nucleus"],
+    // Either/or questions about the content, not offers of what to do next (TerraTutor live test part 12, issue 3).
+    ["Is 3/4 bigger or smaller than 1/2?", "Bigger"],
+    ["Is a whale a fish or a mammal?", "A mammal"],
+    ["Do you want to add or subtract to find how many are left?", "Subtract"],
   ])("%j asks for a fact and is keyed", async (asked, key) => {
     keyOut = { question: asked, working: "", answer: key };
     gradeOut = { student_answer: "the mitochondria", verdict: "incorrect" };
     const { result } = await answer([student(ASSESS_MESSAGE), tutor(asked)], "the mitochondria");
     expect(result.answerCheck).toMatchObject({ key, verdict: "incorrect" });
   }, 30_000);
+});
+
+// TerraTutor live test 2026-11-20 part 12, step 3 (gemma4:e2b): the reply to the right answer in thread "Write a
+// fraction from a picture" ended on an offer of what to do next; the key call keyed "2/6", a statement before it, so
+// an answer to the offer inside an open check would have been graded wrong against it.
+describe("a question that offers a choice of what to do next", () => {
+  const OFFERED = "That is absolutely correct! The fraction is $\frac{2}{6}$. You correctly found the total number of equal parts, which is the denominator (6). And you correctly counted the shaded parts, which is the numerator (2). Do you want to try another example, or would you like to check another part of translating diagrams to fraction notation?";
+
+  it("gets no key call and no verdict: the live key call keyed \"2/6\"", async () => {
+    keyOut = { question: "The fraction is $\frac{2}{6}$.", working: "", answer: "2/6" };
+    gradeOut = { student_answer: "another example", verdict: "incorrect" };
+    script = [reply("Great! Let's try a different picture.")];
+    const { result } = await answer([student(ASSESS_MESSAGE), tutor(OFFERED)], "another example");
+    expect(result.answerCheck ?? null).toBeNull();
+    expect(structured).toHaveLength(0);
+    expect(result.text).toBe("Great! Let's try a different picture.");
+  }, 30_000);
+
+  it.each([
+    ["Do you want to try another example, or would you like to check another part of translating diagrams to fraction notation?", true],
+    ["Would you like to try another one or move on?", true],
+    ["Shall we do one more, or would you like to stop here?", true],
+    ["Great job! So, do you want to keep practicing or check another part?", true],
+    ["Is 3/4 bigger or smaller than 1/2?", false],
+    ["Is a whale a fish or a mammal?", false],
+    ["Do you want to add or subtract to find how many are left?", false],
+    ["Would you like to tell me if a whale is a fish or a mammal?", false],
+    ["Shall we count the blocks or the circles?", false],
+    ["Do you want to try another example? What is 3/4 of 8?", false],
+    // TerraTutor #273's review, NITS: more offers, with nothing asked inside them.
+    ["Do you want another example, or should I explain it differently?", true],
+    ["Would you like another example or a new topic?", true],
+    ["Want to try another one, or would you like to move on?", true],
+    ["Are you ready for another one, or would you like to review?", true],
+    // TerraTutor #273's review, MUST-FIX 3: an offer with a question inside it asks for a fact, and is keyed as before.
+    ["Do you want to tell me what the nucleus does, or would you like a hint?", false],
+    ["Would you like to try this one: what gas do plants take in, or do you want a hint first?", false],
+    ["Would you like to guess whether a tomato is a fruit, or do you think it is a vegetable?", false],
+    ["Do you want to count the blocks or check the picture again to find the numerator?", false],
+    ["Would you like to try to name the part that controls the cell, or try another example?", false],
+    // Review of this port, NIT 1: an offer that poses a problem with numbers asks for a fact, and is keyed as on master.
+    ["Do you want to try 6 × 7, or would you like an easier one?", false],
+    ["Would you like to solve 12 ÷ 3 next, or try a different one?", false],
+    ["Do you want to shade 3 of the 4 blocks, or try another way?", false],
+  ])("asksOpinion(%j) is %s", (question, offer) => {
+    expect(asksOpinion(question)).toBe(offer);
+  });
 });
 
 // ── "Learned" claimed with no mark ──────────────────────────────────────────────────────────────

@@ -539,7 +539,9 @@ function repeatsEarlier(plan: GenPlan, q: GenQuestion): boolean {
 // A fresh question that repeats one the learner's last quiz on the level asked (GenPlan.earlier is newest
 // first; its first row's attempt_id is that quiz). Never used, even to fill a short quiz: TerraTutor live
 // test part 9 issue 3 saw quiz 2's last question copy quiz 1's word for word as a new question. The
-// questions the learner missed come back through the review pool instead, as they were asked.
+// questions the learner missed come back through the review pool instead, as they were asked. A number
+// question asked again in other words is a repeat too (isNearDuplicate's sameNumericKey): TerraTutor live
+// test part 12's quiz 2 asked quiz 1's 11/15 and 5/9 again with other nouns (ported from TerraTutor #274).
 function repeatsLastQuiz(plan: GenPlan, q: GenQuestion): boolean {
   const last = plan.earlier?.[0]?.attempt_id;
   return !!last && repeatsAny((plan.earlier ?? []).filter((e) => e.attempt_id === last), q);
@@ -694,10 +696,15 @@ async function generateBatched(
   for (let round = 1; round <= MAX_ROUNDS && produced.length < target; round++) {
     const before = produced.length;
     // One batch call per subtopic — minimizes call count + repeated prompt tokens for a free-plan key.
+    // A subtopic listed more than once (a level test's review section, levelTestReviewSubtopics) is one call
+    // for all its places, so its questions are written together and not twice over in parallel.
     const counts = splitCount(target - produced.length, plan.subtopics.length);
+    const countOf = new Map<string, number>();
+    plan.subtopics.forEach((s, i) => countOf.set(s.id, (countOf.get(s.id) ?? 0) + counts[i]));
     const ctxs: BatchContext[] = plan.subtopics
-      .map((s, i): BatchContext => ({
-        topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [s], count: counts[i],
+      .filter((s, i) => plan.subtopics.findIndex((o) => o.id === s.id) === i)
+      .map((s): BatchContext => ({
+        topic: plan.topic, levelLabel: plan.levelLabel, subtopics: [s], count: countOf.get(s.id) ?? 0,
         highStakes: plan.highStakes, easier: plan.easier, difficulty: plan.difficulty, tier, config, signal: plan.signal,
         earlier: earlierFor(plan, s.id),
       }))
@@ -917,6 +924,26 @@ export function levelTestReviewLevels(previousSyllabuses: ReadonlyArray<Syllabus
   return previousSyllabuses.slice(-4).filter((s) => s.subtopics && s.subtopics.length > 0);
 }
 
+/** The review section's subtopics in the order its slots take them (planSlotSubtopics, round-robin; the
+ *  batch path's splitCount gives its remainder to the first ones too): the reviewed levels in turn, newest
+ *  first, each with its own next topic, a level with fewer topics starting its own over. So every level gets
+ *  an even share of the questions whatever its topic count (levels of 8, 6 and 1 topics, newest last: 4, 3
+ *  and 3 of 10, the newest first), and a level's topics repeat in the list only to fill its share. TerraTutor
+ *  live test part 12: the levels' topics were listed oldest first, so 10 questions over 17 topics gave the level just
+ *  finished none. */
+function levelTestReviewSubtopics(levels: ReadonlyArray<Syllabus>): Array<{ id: string; title: string; key_concepts: string[] }> {
+  const newestFirst = [...levels].reverse().filter((s) => s.subtopics.length > 0);
+  const most = Math.max(0, ...newestFirst.map((s) => s.subtopics.length));
+  const out: Array<{ id: string; title: string; key_concepts: string[] }> = [];
+  for (let i = 0; i < most; i++) {
+    for (const s of newestFirst) {
+      const t = s.subtopics[i % s.subtopics.length];
+      out.push({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] });
+    }
+  }
+  return out;
+}
+
 /** How many questions a level test aims for: TEST_TOTAL_TARGET with a review section, TEST_CURRENT_TARGET
  *  without one (Level 1), which is all a test with no review section can be made with. */
 export function levelTestTarget(hasReview: boolean): number {
@@ -955,8 +982,7 @@ export async function generatePromotionTestQuestions(
   const tier = config.modelTier ?? await detectModelTier(config);
   config.modelTier = tier;
 
-  const recents = levelTestReviewLevels(previousSyllabuses);
-  const reviewSubs = recents.flatMap((s) => s.subtopics.map((t) => ({ id: t.id, title: t.title, key_concepts: t.key_concepts ?? [] })));
+  const reviewSubs = levelTestReviewSubtopics(levelTestReviewLevels(previousSyllabuses));
 
   // ── Current section: the current level's subtopics, round-robin to TEST_CURRENT_TARGET. ──
   // Its minimum is what TEST_FLOOR leaves after a full review section; when the review section comes up
@@ -981,7 +1007,7 @@ export async function generatePromotionTestQuestions(
   );
   let current = cur.questions;
 
-  // ── Review section: the last ≤4 prior levels' subtopics flattened, slightly easier. ──
+  // ── Review section: the last ≤4 prior levels' subtopics, newest level first (levelTestReviewSubtopics), slightly easier. ──
   let review: GenQuestion[] = [];
   if (reviewSubs.length > 0) {
     ({ questions: review } = await generateToTarget(

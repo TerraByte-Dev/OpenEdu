@@ -81,15 +81,17 @@ describe("labelled near-repeat pairs (TerraTutor live tests 6-9)", () => {
     for (const p of pairs.different as Pair[]) expect(dedupeByQuestionText([p.a, p.b]), label(p)).toHaveLength(2);
   });
 
-  it("catches at least 30 of the 47 repeats in the saved quizzes and level tests", () => {
-    expect(pairs.repeats).toHaveLength(47);
+  it("catches at least 36 of the 53 repeats in the saved quizzes and level tests", () => {
+    expect(pairs.repeats).toHaveLength(53);
     const caught = (pairs.repeats as Pair[]).filter((p) => isNearDuplicate(p.a, p.b) && isNearDuplicate(p.b, p.a));
     // Measured 2026-11-20: 29 of 40 (28 of 40 before live test part 10's round); live test part 11 added
-    // 7 repeats, 30 of 47 (29 of 47 before isNearDuplicate read keys that differ only by a leading "to"). The 17 missed restate
+    // 7 repeats, 30 of 47 (29 of 47 before isNearDuplicate read keys that differ only by a leading "to");
+    // live test part 12 added 5 with numeric keys, 35 of 52 (30 of 52 before sameNumericKey), and its review 1
+    // more ("divided into" / "cut into", both 5/12), 36 of 53. The 17 missed restate
     // the stem with other content words ("the role of the cell membrane" after a sentence on the Cell
     // Theory, "a lower silica content", "volcanic arcs" / "arc volcanism") or add words that are kept as a
     // qualifier ("in relation to the cell", "characterized by active seafloor spreading").
-    expect(caught.length).toBeGreaterThanOrEqual(30);
+    expect(caught.length).toBeGreaterThanOrEqual(36);
   });
 
   it("catches the live ones: quiz 2 #3, #6 and #8, and level test #13 and #35", () => {
@@ -521,5 +523,92 @@ describe("live test part 11: the review pool, key tails and the last quiz's rewo
     const qs = await generateQuizQuestions(cells, 4, { ...medium }, [], undefined, null, null, undefined, earlier);
     expect(qs.map((q) => q.question_text)).toEqual(fillers.map((q) => q.question_text));
     expect(vi.mocked(log.info).mock.calls.some((c) => /1 question\(s\) the last quiz asked are not asked again/.test(String(c[1])))).toBe(true);
+  }, 30_000);
+});
+
+// TerraTutor live test part 12 (2026-11-20), issues 4 and 5: a fractions quiz asked "A rectangle is divided into 8
+// equal vertical strips. If 3 ..." and "A shape is divided into 8 equal parts. If 3 ...", both 3/8, and
+// quiz 2's review re-posed both; quiz 2 also asked quiz 1's 11/15 and 5/9 again in other words. A numeric
+// key is routine, so only the stem overlap read them, and their stems share too few words.
+describe("live test part 12: number questions asked again in other words", () => {
+  const q1 = (i: number) => fromFixture(`fractions L2 quiz 1, live test part 12, #${i}`);
+  const q2 = (i: number) => fromFixture(`fractions L2 quiz 2, live test part 12, #${i}`);
+  const missed = (q: Raw, id: number) => ({ ...q, id: String(id), attempt_id: "quiz-1", user_answer: "A) none", is_correct: false }) as never;
+  const part12 = (p: Pair) => /live test part 12/.test(p.note ?? "");
+
+  it("reads the part 12 repeats as one question, and its different pairs as two", () => {
+    const repeats = (pairs.repeats as Pair[]).filter(part12);
+    expect(repeats).toHaveLength(6);
+    expect(repeats.filter((p) => !isNearDuplicate(p.a, p.b) || !isNearDuplicate(p.b, p.a)).map(label)).toEqual([]);
+    const different = (pairs.different as Pair[]).filter(part12);
+    expect(different).toHaveLength(19);
+    expect(different.filter((p) => isNearDuplicate(p.a, p.b) || isNearDuplicate(p.b, p.a)).map(label)).toEqual([]);
+    // Keys written another way are one key; a fraction and its simplest form are not.
+    const sa = (question_text: string, correct_answer: string) => ({ question_text, question_type: "short_answer", correct_answer });
+    expect(isNearDuplicate(sa("A bar has 8 equal squares and 3 are eaten. What fraction is eaten?", "3 / 8"),
+      sa("A cake has 8 equal slices and 3 are eaten. What fraction of the cake is eaten?", "3/8"))).toBe(true);
+    expect(isNearDuplicate(sa("What time is 15 minutes after 2:30?", "2:45"), sa("What time is it 15 minutes after 2:30 in the afternoon?", "2 : 45"))).toBe(true);
+  });
+
+  // The branch review's probes, the same key on both sides of every pair. Master read the first five as one
+  // question and the rule must still; the others are different questions master kept apart (the last,
+  // a part and the rest of a half, master merged on the overlap).
+  it("keeps master's merges of one number question in other words, and keeps different ones apart", () => {
+    const sa = (question_text: string, correct_answer: string) => ({ question_text, question_type: "short_answer", correct_answer });
+    const one = (a: string, b: string, key: string) => isNearDuplicate(sa(a, key), sa(b, key)) && isNearDuplicate(sa(b, key), sa(a, key));
+    const two = (a: string, b: string, key: string) => !isNearDuplicate(sa(a, key), sa(b, key)) && !isNearDuplicate(sa(b, key), sa(a, key));
+    expect(one("What time is 15 minutes after 2:30?", "What time is fifteen minutes after 2:30?", "2:45")).toBe(true);
+    expect(one("A pizza has 8 slices and you eat 3. What fraction did you eat?", "A pizza has 8 slices and you eat 3 of the 8 slices. What fraction did you eat?", "3/8")).toBe(true);
+    expect(one("What is 2 + 2?", "What is 2 plus 2?", "4")).toBe(true);
+    expect(one("What is 4 × 3?", "What is 4 times 3?", "12")).toBe(true);
+    expect(one("A shape has 8 equal parts and 3 are shaded. How many parts are not shaded?", "A shape has 8 equal parts and 3 are shaded. How many parts are unshaded?", "5")).toBe(true);
+    expect(two("What is the perimeter of a square with 4 cm sides?", "A square's side is 4 cm. Find its area.", "16")).toBe(true);
+    expect(two("What digit is in the ones place of 343?", "In 343, which digit is in the hundreds place?", "3")).toBe(true);
+    expect(two("How many is 2 groups of 2?", "What is 2 more than 2?", "4")).toBe(true);
+    expect(two("What is 4 x 1?", "Find 4 / 1.", "4")).toBe(true);
+    expect(two("A pizza is cut into 8 equal slices. You eat 4 of them. What fraction of the pizza did you eat?",
+      "A chocolate bar has 8 equal squares and 4 squares are eaten. What fraction of the bar is left?", "4/8")).toBe(true);
+    expect(two("A shape has 8 equal parts and 4 are shaded. What fraction is shaded?", "A shape has 8 equal parts and 4 are shaded. What fraction is uncolored?", "4/8")).toBe(true);
+  });
+
+  it("quiz path: the review pool re-poses one of the two 3/8 wordings and takes the next miss instead", async () => {
+    const others = [filler("1.1"), filler("1.1"), filler("1.1")];
+    const pool = [missed(asRaw(q1(1), "1.1"), 1), missed(asRaw(q1(12), "1.1"), 2), ...others.map((q, i) => missed(q, 3 + i))];
+    model([], "1.1");
+    const qs = await generateQuizQuestions(cells, 20, { ...medium }, pool, undefined, null, null);
+    expect(qs).toHaveLength(20);
+    const texts = qs.map((q) => q.question_text);
+    expect(texts).toContain(q1(1).question_text);
+    expect(texts).not.toContain(q1(12).question_text);
+    for (const q of others) expect(texts).toContain(q.question_text);
+  }, 30_000);
+
+  it("quiz path: a new quiz does not ask the last quiz's 11/15 and 5/9 again in other words", async () => {
+    const asEarlier = (q: NearDuplicateQ): EarlierQuestion => ({
+      question_text: q.question_text, correct_answer: String(q.correct_answer), subtopic_id: "1.1", question_type: String(q.question_type), attempt_id: "quiz-1",
+    });
+    const earlier = [asEarlier(q1(17)), asEarlier(q1(8))];
+    // Quiz 2's #3 was a fill-in-the-blank; asked here as multiple choice on the same stem.
+    const elevenFifteenths = asRaw({ ...q2(3), options: ["A) 4/15", "B) 11/15", "C) 15/11", "D) 11/4"], correct_answer: "B) 11/15" }, "1.1");
+    const fiveNinths = asRaw(q2(6), "1.1");
+    model([elevenFifteenths, fiveNinths], "1.1");
+    const qs = await generateQuizQuestions(cells, 4, { ...medium }, [], undefined, null, null, undefined, earlier);
+    expect(qs).toHaveLength(4);
+    const texts = qs.map((q) => q.question_text);
+    expect(texts).not.toContain(elevenFifteenths.question_text);
+    expect(texts).not.toContain(fiveNinths.question_text);
+    expect(vi.mocked(log.info).mock.calls.some((c) => /2 question\(s\) the last quiz asked are not asked again/.test(String(c[1])))).toBe(true);
+  }, 30_000);
+
+  it("quiz path: the same numbers with another answer, and one answer from other numbers, are all asked", async () => {
+    const fresh = (note: string) => (pairs.different as Pair[]).find((p) => p.note === `${note} (written for live test part 12) (multiple choice)`)!;
+    const script = [
+      fresh("shaded / unshaded, same numbers").a, fresh("shaded / unshaded, same numbers").b,
+      fresh("2/4 / simplest form 1/2, same numbers").a, fresh("2/4 / simplest form 1/2, same numbers").b,
+      q1(7), q2(4), q1(5), q1(16), q1(9),
+    ].map((q) => asRaw(q, "1.1"));
+    model(script, "1.1");
+    const qs = await generateQuizQuestions(cells, script.length, { ...medium }, [], undefined, null, null);
+    expect(qs.map((q) => q.question_text).sort()).toEqual(script.map((q) => q.question_text).sort());
   }, 30_000);
 });

@@ -50,7 +50,10 @@ export function storedToGenQuestion(q: QuizQuestion): GenQuestion {
 // both "False" (isNearDuplicate's same-key overlap does not read numbers). One that asks for the same stated
 // answer in other words is skipped too (sameStatedAnswer): TerraTutor live test part 11's quiz 2 re-posed two
 // misses keyed "All cells arise from pre-existing cells." and "Cells arise only from pre-existing cells." on
-// stems that share only "Cell Theory" (ported from TerraTutor #271). Pure.
+// stems that share only "Cell Theory" (ported from TerraTutor #271). Two misses with one numeric key from the
+// same stem numbers are one question (isNearDuplicate's sameNumericKey): TerraTutor live test part 12's quiz 2
+// re-posed both "A rectangle is divided into 8 equal vertical strips. If 3 ..." and "A shape is divided into 8
+// equal parts. If 3 ...", both 3/8 (ported from TerraTutor #274). Pure.
 export function pickReview(pool: GenQuestion[], n: number): GenQuestion[] {
   const asked = (q: GenQuestion) => ({ question_text: askedText(q), correct_answer: q.correct_answer, question_type: q.question_type, options: q.options });
   const twins = (a: GenQuestion, b: GenQuestion) => {

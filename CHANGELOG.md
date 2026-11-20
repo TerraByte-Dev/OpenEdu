@@ -231,10 +231,21 @@ The section for each release is also what the app shows when you press Check for
   "Is the earth bigger than the sun?" after "Is the sun bigger
   than the earth?" are two questions, while "What is the job of the heart?" after "What does the heart
   do?" is one; and a verdict given this way never marks the skill learned); and the tutor's own "Let's go
-  back to my last question." no longer comes right before the app's "Now back to the question:".
+  back to my last question." no longer comes right before the app's "Now back to the question:". Nor does
+  its "Now, let's try another one.". When the tutor's newest question has the same answer as the first one
+  ("4" and "4 pieces") and the learner answered the first one right, the app no longer asks the newest one
+  again. Keys with the same number but another symbol or unit ("16 cm" and "16 cm²" or "16 square cm" for a
+  square's perimeter and area, "3 × 4" and "3 + 4") are two answers, and the newest question is still asked;
+  two questions with the same words but different answers ("What does a frog eat?" / "What eats a
+  frog?") are checked apart, and "What are leaves for, do you think?" is no longer read as "What are
+  leaves?". A question asked again in other words whose answers are written as two different sentences
+  is now checked apart too, and asked again (ported from TerraTutor #273).
 - **No verdict against an answer key that isn't one.** In a check, a key like "Please provide a topic" or
-  "Answers will vary.", and a question that asks what the learner thinks is most important or likes best,
-  no longer get a "right" or "not right yet".
+  "Answers will vary.", a question that asks what the learner thinks is most important or likes best, and
+  one that offers a choice of what to do next ("Do you want to try another example, or would you like to
+  check another part?"), no longer get a "right" or "not right yet". An offer with a question inside it
+  ("Do you want to tell me what the nucleus does, or would you like a hint?"), or with a number in it ("Do
+  you want to try 6 × 7, or would you like an easier one?"), is still checked.
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A question asked again in other words counts as a repeat** when its answer is written in words, too:
   the same cake question with "take" and then "eat", keyed "the number of parts taken" and "the number
@@ -271,6 +282,20 @@ The section for each release is also what the app shows when you press Check for
   last question had been the one before's, word for word. An answer that only adds "To" ("To separate the
   cell's interior ..." / "Separate the cell's interior ...") no longer hides such a rewording, while
   grammar questions such as "My mom made me ___." / "My mom wants me ___." stay two.
+- **A number question asked again in other words counts as a repeat.** Two questions with the same
+  number or fraction answer read straight off both stems ("A rectangle is divided into 8 equal vertical
+  strips. If 3 ..." / "A shape is divided into 8 equal parts. If 3 ...", both 3/8; "a circle is divided into
+  12 equal sectors" / "a pizza is cut into 12 equal slices", both 5/12) are one question: a quiz asks it
+  once, its review re-poses one of two such misses, and a new quiz no longer asks the last quiz's in other
+  words (a live TerraTutor quiz 2 re-posed both 3/8 wordings and asked 11/15 and 5/9 again). Other numbers
+  keep two questions apart (1/2 from 2 of 4 and from 1 of 2), and so do other operations on the same
+  numbers ("4 × 1" / "4 ÷ 1", "4 x 1" / "4 / 1") and a part and the rest of a half ("4 of 8 shaded" / "...
+  uncolored"). Pairs that were one question before still are ("2 + 2" / "2 plus 2"). Ported from
+  TerraTutor #274.
+- **A level test's review section covers the level just finished.** Its questions go round the earlier
+  levels, newest first, so each level gets an even share whatever its number of topics; a live TerraTutor
+  level 5 test had asked 10 review questions over 17 topics and none on level 4. Ported from TerraTutor
+  #274.
 - **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
   now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
   one, and so do "All cells arise from pre-existing cells." and "Cells arise only from pre-existing
