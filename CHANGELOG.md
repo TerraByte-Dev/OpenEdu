@@ -199,10 +199,20 @@ The section for each release is also what the app shows when you press Check for
   numbers differ, or come in another order ("what does 7 represent in 7/10" and "what does 10 represent"),
   stay apart, as do ones whose answers share no word ("numerator" and "denominator") and ones that ask
   something else at the end ("what does the numerator tell you?" and "the denominator", the job of the
-  roots and of the leaves). Number, fraction, time, money, multiple-choice and word-problem answers still
-  count as a repeat only when they are the same, and so do signs: "34 ___ 43" (<) and "43 ___ 34" (>) are
-  both asked, and so are "Cl-" and "Cl". Keys that share only a pronoun, a reflexive one included
-  ("she herself is kind" and "she herself is rude"), stay apart.
+  roots and of the leaves). Number, fraction, time, money and word-problem answers still count as a
+  repeat only when they are the same, and so do signs: "34 ___ 43" (<) and "43 ___ 34" (>) are both
+  asked, and so are "Cl-" and "Cl", and "Cl-, Na+" and "Cl, Na+". Keys that share only a pronoun, a
+  reflexive one included ("she herself is kind" and "she herself is rude"), stay apart.
+- **A multiple-choice question asked again in other words counts as a repeat too**, when the second
+  only adds to the first or swaps a framing word ("the main difference" / "the fundamental difference",
+  "the primary role" / "the primary function") and its answer is the first's in other words. A TerraTutor
+  live quiz had asked what the cell membrane does in relation to the cytoplasm 3 times, and a level test
+  asked about a low-silica magma's flow twice. A question that swaps what it asks about ("high silica" /
+  "low silica"), adds the one word that changes the answer ("a ball" / "a rolling ball": potential or
+  kinetic energy) or asks the opposite ("describes" / "doesn't describe") stays a question of its own.
+- **A new quiz never asks the last quiz's questions again as new ones**, not even to fill a quiz that
+  came up short; a missed question still comes back in review, as it was asked. A TerraTutor live quiz's
+  last question had been the one before's, word for word.
 - **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
   now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
   one), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
@@ -211,8 +221,9 @@ The section for each release is also what the app shows when you press Check for
   set-aside ones used, and then before any question an earlier quiz on the level already asked.
   True/false answers, numbers, fractions, times and money are not counted, nor is a pick the question
   names itself or offers from 3 or fewer choices ("Is 8 even or odd?", noun or verb, solid, liquid or
-  gas), so an "Even and odd" quiz stays full. Answers that differ only in an apostrophe ("its" and "it's",
-  "well" and "we'll") stay different answers.
+  gas), so an "Even and odd" quiz stays full. An answer with a digit in it counts unless it is a number
+  at heart: "The percentage of silica (SiO2) content" had been asked 3 times in one TerraTutor level test.
+  Answers that differ only in an apostrophe ("its" and "it's", "well" and "we'll") stay different answers.
 - **A quiz question can no longer have two right choices OpenEdu can read**, such as "1/2" and "0.5", or
   "0.5" and "0.50". Choices that differ only in an end mark or "a"/"an" stay apart, since that is what an
   English question asks about ("an eighth" and "a eighth"), and so do a hyphen or a space in a question

@@ -152,6 +152,34 @@ describe("a repeat quiz on a level", () => {
     expect(qs.map((q) => q.question_text)).toEqual([CAKE.question_text]);
   });
 
+  // TerraTutor live test part 9 issue 3: quiz 2's last question was quiz 1's, word for word, as a new question (quiz 2
+  // came up short and the fill-back took it). A repeat of the last quiz is never used; one of an older
+  // quiz still fills a short quiz.
+  it("never fills a short quiz with a question the last quiz asked; an older quiz's can", async () => {
+    const OLD = { ...CAKE, question_text: "A whole pie is cut into 8 equal slices. What does the 8 in 3/8 tell you?", correct_answer: "the number of equal slices in the pie", blank_position: "In 3/8, the 8 is ___.", explanation: "The bottom number counts the slices. Therefore the answer is the number of equal slices in the pie" };
+    const asked = (q: typeof CAKE, attempt_id: string): EarlierQuestion => ({
+      question_text: q.question_text, correct_answer: q.correct_answer, subtopic_id: "1.1", question_type: q.question_type, blank_position: q.blank_position, attempt_id,
+    });
+    const before = [asked(CAKE, "quiz-2"), asked(OLD, "quiz-1")];
+    let calls = 0;
+    model(() => { const c = ++calls; return c <= 2 ? fresh() : c % 2 ? { ...CAKE } : { ...OLD }; });
+    const qs = await generateQuizQuestions(syllabus, 5, { ...local }, [], undefined, null, null, undefined, before);
+    const texts = qs.map((q) => q.question_text);
+    expect(texts).not.toContain(CAKE.question_text);
+    expect(texts).toContain(OLD.question_text);
+    expect(qs).toHaveLength(3);
+    expect(vi.mocked(log.info).mock.calls.some((c) => /1 question\(s\) the last quiz asked are not asked again/.test(String(c[1])))).toBe(true);
+  });
+
+  it("asks a missed question of the last quiz again only through the review pool, as it was asked", async () => {
+    const missed = { ...CAKE, id: 1, attempt_id: "quiz-2", user_answer: "the top", is_correct: false } as never;
+    const before = [{ question_text: CAKE.question_text, correct_answer: CAKE.correct_answer, subtopic_id: "1.1", question_type: CAKE.question_type, blank_position: CAKE.blank_position, attempt_id: "quiz-2" }];
+    let calls = 0;
+    model(() => (++calls % 2 ? { ...CAKE, correct_answer: "the parts you took", explanation: "The top number counts the parts taken. Therefore the answer is the parts you took" } : fresh()));
+    const qs = await generateQuizQuestions(syllabus, 5, { ...local }, [missed], undefined, null, null, undefined, before);
+    expect(qs.filter((q) => q.question_text === CAKE.question_text).map((q) => q.correct_answer)).toEqual([CAKE.correct_answer]);
+  });
+
   it("sends a cloud model none of the learner's earlier questions, and still sets a repeat aside", async () => {
     let calls = 0;
     model(() => (++calls === 1 ? { ...CAKE } : fresh()));

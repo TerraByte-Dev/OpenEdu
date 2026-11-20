@@ -1,0 +1,2317 @@
+{
+ "about": "Labelled question pairs for quiz-grading.ts isNearDuplicate (live test part 9 issue 2). repeats: pairs a careful reader calls the same question, from model-written quizzes and level tests saved in the click and live tests (gemma4:e2b; no learner data). different: pairs that must stay apart, from those runs and from earlier reviews' negatives (mirror questions, the 8 pairs of the #263 review, symbol and ion keys), each also as multiple choice.",
+ "repeats": [
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #4",
+    "question_text": "Which of the following best describes the main difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells have a cell membrane, while eukaryotic cells do not.",
+     "B) Eukaryotic cells perform photosynthesis, while prokaryotic cells do not.",
+     "C) Prokaryotic cells are always larger than eukaryotic cells.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+   },
+   "b": {
+    "from": "cells L1 quiz 1, live test part 8, #5",
+    "question_text": "Which of the following statements best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not.",
+     "B) Prokaryotic cells are always larger than eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 8, #2",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #9",
+    "question_text": "Which of the following best describes the main difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells have a cell membrane, while eukaryotic cells do not.",
+     "B) Eukaryotic cells perform photosynthesis, while prokaryotic cells do not.",
+     "C) Prokaryotic cells are always larger than eukaryotic cells.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 8, #2",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #11",
+    "question_text": "Which of the following statements accurately describes the main structural difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells have a cell membrane, but prokaryotic cells do not.",
+     "B) The cytoplasm in prokaryotic cells is always denser than the cytoplasm in eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+    ],
+    "correct_answer": "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 8, #6",
+    "question_text": "Which of the following best describes the primary function of the cytoplasm within a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To serve as the site where most of the cell's metabolic reactions occur.",
+     "B) To store the cell's genetic material exclusively.",
+     "C) To provide the rigid structural framework for the cell.",
+     "D) To regulate the passage of substances into and out of the cell."
+    ],
+    "correct_answer": "A) To serve as the site where most of the cell's metabolic reactions occur."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #15",
+    "question_text": "Which of the following best describes the primary role of the cytoplasm in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To provide structural support and maintain cell shape.",
+     "B) To carry out most of the cell's metabolic activities.",
+     "C) To regulate the passage of substances into and out of the cell.",
+     "D) To store the cell's genetic material."
+    ],
+    "correct_answer": "B) To carry out most of the cell's metabolic activities."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 8, #9",
+    "question_text": "Which of the following best describes the main difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells have a cell membrane, while eukaryotic cells do not.",
+     "B) Eukaryotic cells perform photosynthesis, while prokaryotic cells do not.",
+     "C) Prokaryotic cells are always larger than eukaryotic cells.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #11",
+    "question_text": "Which of the following statements accurately describes the main structural difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells have a cell membrane, but prokaryotic cells do not.",
+     "B) The cytoplasm in prokaryotic cells is always denser than the cytoplasm in eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+    ],
+    "correct_answer": "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #9",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 1, live test part 9, #10",
+    "question_text": "Which of the following best describes the primary difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells possess a true nucleus and membrane-bound organelles, while prokaryotic cells do not.",
+     "D) Eukaryotic cells have a cell membrane, whereas prokaryotic cells do not."
+    ],
+    "correct_answer": "C) Eukaryotic cells possess a true nucleus and membrane-bound organelles, while prokaryotic cells do not."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #1",
+    "question_text": "Which of the following best describes the primary function of the cell membrane in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To regulate what enters and leaves the cell.",
+     "B) To provide structural support to the cytoplasm.",
+     "C) To store the cell's genetic material.",
+     "D) To generate energy for cellular activities."
+    ],
+    "correct_answer": "A) To regulate what enters and leaves the cell."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #17",
+    "question_text": "The Cell Theory states that all living things are made up of cells, and cells are the basic unit of life. Which of the following best describes the role of the cell membrane?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To store the genetic material of the organism.",
+     "B) To provide structural support for the cell's internal organelles.",
+     "C) To provide the internal environment and control what enters and leaves the cell.",
+     "D) To perform all metabolic reactions necessary for life."
+    ],
+    "correct_answer": "C) To provide the internal environment and control what enters and leaves the cell."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #3",
+    "question_text": "The cell membrane's primary role in relation to the cytoplasm is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To produce the energy needed for cell activities.",
+     "B) To provide structural support for the internal contents.",
+     "C) To act as a barrier separating the cell's interior from the outside environment.",
+     "D) To synthesize all the proteins found within the cytoplasm."
+    ],
+    "correct_answer": "C) To act as a barrier separating the cell's interior from the outside environment."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #6",
+    "question_text": "What is the primary role of the cell membrane in relation to the cytoplasm?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To provide structural support for the internal contents.",
+     "B) To synthesize all the cell's proteins.",
+     "C) To separate the cell's interior from the outside environment.",
+     "D) To produce energy for the cell."
+    ],
+    "correct_answer": "C) To separate the cell's interior from the outside environment."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #3",
+    "question_text": "The cell membrane's primary role in relation to the cytoplasm is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To produce the energy needed for cell activities.",
+     "B) To provide structural support for the internal contents.",
+     "C) To act as a barrier separating the cell's interior from the outside environment.",
+     "D) To synthesize all the proteins found within the cytoplasm."
+    ],
+    "correct_answer": "C) To act as a barrier separating the cell's interior from the outside environment."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #8",
+    "question_text": "The cell membrane's primary function in relation to the cytoplasm is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To synthesize all the cell's proteins.",
+     "B) To provide structural support for the internal contents.",
+     "C) To produce energy for the cell.",
+     "D) To separate the cell's interior from the outside environment."
+    ],
+    "correct_answer": "D) To separate the cell's interior from the outside environment."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #6",
+    "question_text": "What is the primary role of the cell membrane in relation to the cytoplasm?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To provide structural support for the internal contents.",
+     "B) To synthesize all the cell's proteins.",
+     "C) To separate the cell's interior from the outside environment.",
+     "D) To produce energy for the cell."
+    ],
+    "correct_answer": "C) To separate the cell's interior from the outside environment."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #8",
+    "question_text": "The cell membrane's primary function in relation to the cytoplasm is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To synthesize all the cell's proteins.",
+     "B) To provide structural support for the internal contents.",
+     "C) To produce energy for the cell.",
+     "D) To separate the cell's interior from the outside environment."
+    ],
+    "correct_answer": "D) To separate the cell's interior from the outside environment."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #10",
+    "question_text": "Which of the following is a fundamental tenet of the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) All living things are composed of one or more cells.",
+     "B) Cells can only reproduce asexually.",
+     "C) Cells are the only structures capable of performing life functions.",
+     "D) All cells are made of DNA."
+    ],
+    "correct_answer": "A) All living things are composed of one or more cells."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #14",
+    "question_text": "Which of the following is a key tenet of the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Cells contain DNA.",
+     "B) All living things are made up of cells.",
+     "C) Cells are the smallest unit of matter.",
+     "D) Cells can only reproduce asexually."
+    ],
+    "correct_answer": "B) All living things are made up of cells."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #11",
+    "question_text": "Which characteristic is a defining difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane.",
+     "C) Eukaryotic cells cannot perform metabolism.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #20",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "B) Prokaryotic cells are always larger than eukaryotic cells.",
+     "C) Eukaryotic cells have a complex internal structure with a membrane-bound nucleus, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a complex internal structure with a membrane-bound nucleus, whereas prokaryotic cells do not."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #12",
+    "question_text": "The primary function of the cytoplasm within a cell is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To serve as the site where most of the cell's metabolic reactions take place.",
+     "B) To provide the rigid outer boundary for the cell.",
+     "C) To control the entry and exit of substances into the cell.",
+     "D) To store the cell's genetic material exclusively."
+    ],
+    "correct_answer": "A) To serve as the site where most of the cell's metabolic reactions take place."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #15",
+    "question_text": "The primary role of the cytoplasm in a cell is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To act as the rigid outer boundary separating the cell from its surroundings.",
+     "B) To serve as the internal environment where most of the cell's metabolic life processes take place.",
+     "C) To synthesize energy exclusively through photosynthesis.",
+     "D) To provide the cell with its genetic instructions (DNA)."
+    ],
+    "correct_answer": "B) To serve as the internal environment where most of the cell's metabolic life processes take place."
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L1 level test, click test part 7 (options not saved), #6",
+    "question_text": "If molten rock is actively flowing and has erupted onto the Earth's surface, what is the correct geological term to describe this material?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) Lava"
+   },
+   "b": {
+    "from": "volcanoes L1 level test, click test part 7 (options not saved), #27",
+    "question_text": "Which term accurately describes molten rock that has erupted onto the Earth's surface?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) Lava"
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L1 level test, click test part 7 (options not saved), #12",
+    "question_text": "Which term is used to describe the small, fragmented pieces of rock and glass ejected during a volcanic eruption?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "D) Ash"
+   },
+   "b": {
+    "from": "volcanoes L1 level test, click test part 7 (options not saved), #24",
+    "question_text": "Which term describes the small, fragmented pieces of rock and glass that are ejected during a volcanic eruption?",
+    "question_type": "multiple_choice",
+    "options": [],
+    "correct_answer": "B) Ash"
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L2 level test, live test part 9, #13",
+    "question_text": "A magma with a relatively low silica content is expected to exhibit which characteristic regarding its flow behavior?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Slow flow rates due to strong internal resistance.",
+     "B) Rapid crystallization resulting in a glassy texture.",
+     "C) High viscosity, leading to highly explosive eruptions.",
+     "D) Low viscosity, allowing for easy, effusive lava flows."
+    ],
+    "correct_answer": "D) Low viscosity, allowing for easy, effusive lava flows."
+   },
+   "b": {
+    "from": "volcanoes L2 level test, live test part 9, #35",
+    "question_text": "A magma with a relatively low silica content is expected to exhibit which characteristic regarding its flow behavior and resulting eruption style?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Low viscosity, leading to effusive eruptions.",
+     "B) A transition zone between effusive and explosive behavior.",
+     "C) A tendency to solidify rapidly upon contact with surface water.",
+     "D) High viscosity, leading to highly explosive eruptions."
+    ],
+    "correct_answer": "A) Low viscosity, leading to effusive eruptions."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #4",
+    "question_text": "Which of the following best describes the main difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells have a cell membrane, while eukaryotic cells do not.",
+     "B) Eukaryotic cells perform photosynthesis, while prokaryotic cells do not.",
+     "C) Prokaryotic cells are always larger than eukaryotic cells.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #2",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #4",
+    "question_text": "Which of the following best describes the main difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells have a cell membrane, while eukaryotic cells do not.",
+     "B) Eukaryotic cells perform photosynthesis, while prokaryotic cells do not.",
+     "C) Prokaryotic cells are always larger than eukaryotic cells.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #11",
+    "question_text": "Which of the following statements accurately describes the main structural difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells have a cell membrane, but prokaryotic cells do not.",
+     "B) The cytoplasm in prokaryotic cells is always denser than the cytoplasm in eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+    ],
+    "correct_answer": "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #5",
+    "question_text": "Which of the following statements best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not.",
+     "B) Prokaryotic cells are always larger than eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #2",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #5",
+    "question_text": "Which of the following statements best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not.",
+     "B) Prokaryotic cells are always larger than eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #9",
+    "question_text": "Which of the following best describes the main difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells have a cell membrane, while eukaryotic cells do not.",
+     "B) Eukaryotic cells perform photosynthesis, while prokaryotic cells do not.",
+     "C) Prokaryotic cells are always larger than eukaryotic cells.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus, which prokaryotic cells lack."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #5",
+    "question_text": "Which of the following statements best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not.",
+     "B) Prokaryotic cells are always larger than eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "A) Eukaryotic cells possess a membrane-bound nucleus and other complex organelles, whereas prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #11",
+    "question_text": "Which of the following statements accurately describes the main structural difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Eukaryotic cells have a cell membrane, but prokaryotic cells do not.",
+     "B) The cytoplasm in prokaryotic cells is always denser than the cytoplasm in eukaryotic cells.",
+     "C) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+    ],
+    "correct_answer": "D) Prokaryotic cells lack a true nucleus and membrane-bound organelles, whereas eukaryotic cells possess both."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #18",
+    "question_text": "Which of the following best describes the primary function of the cell membrane?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To act as a boundary separating the cell from its surroundings.",
+     "B) To store the cell's genetic material.",
+     "C) To provide structural support to the cell.",
+     "D) To produce energy for the cell."
+    ],
+    "correct_answer": "A) To act as a boundary separating the cell from its surroundings."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #10",
+    "question_text": "The primary distinction between the cell membrane and the cytoplasm is that the cell membrane is primarily responsible for:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Storing the cell's genetic material.",
+     "B) Controlling the movement of water into the cell.",
+     "C) Separating the cell's interior from the external environment.",
+     "D) Providing the medium where metabolic reactions occur."
+    ],
+    "correct_answer": "C) Separating the cell's interior from the external environment."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #5",
+    "question_text": "The Cell Theory states that all living things are made up of cells, and cells are the basic unit of life. Which of the following best describes the role of the cell membrane?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To store the genetic material of the organism.",
+     "B) To provide structural support for the cell's internal organelles.",
+     "C) To provide the internal environment and control what enters and leaves the cell.",
+     "D) To perform all metabolic reactions necessary for life."
+    ],
+    "correct_answer": "C) To provide the internal environment and control what enters and leaves the cell."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #1",
+    "question_text": "Which of the following best describes the primary function of the cell membrane in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To regulate what enters and leaves the cell.",
+     "B) To provide structural support to the cytoplasm.",
+     "C) To store the cell's genetic material.",
+     "D) To generate energy for cellular activities."
+    ],
+    "correct_answer": "A) To regulate what enters and leaves the cell."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #9",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #11",
+    "question_text": "Which characteristic is a defining difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane.",
+     "C) Eukaryotic cells cannot perform metabolism.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #10",
+    "question_text": "Which of the following best describes the primary difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells possess a true nucleus and membrane-bound organelles, while prokaryotic cells do not.",
+     "D) Eukaryotic cells have a cell membrane, whereas prokaryotic cells do not."
+    ],
+    "correct_answer": "C) Eukaryotic cells possess a true nucleus and membrane-bound organelles, while prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #11",
+    "question_text": "Which characteristic is a defining difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane.",
+     "C) Eukaryotic cells cannot perform metabolism.",
+     "D) Eukaryotic cells possess a membrane-bound nucleus."
+    ],
+    "correct_answer": "D) Eukaryotic cells possess a membrane-bound nucleus."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #10",
+    "question_text": "Which of the following best describes the primary difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are always larger than eukaryotic cells.",
+     "B) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "C) Eukaryotic cells possess a true nucleus and membrane-bound organelles, while prokaryotic cells do not.",
+     "D) Eukaryotic cells have a cell membrane, whereas prokaryotic cells do not."
+    ],
+    "correct_answer": "C) Eukaryotic cells possess a true nucleus and membrane-bound organelles, while prokaryotic cells do not."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #20",
+    "question_text": "Which of the following best describes the fundamental difference between a prokaryotic cell and a eukaryotic cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells lack a cell membrane, while eukaryotic cells possess one.",
+     "B) Prokaryotic cells are always larger than eukaryotic cells.",
+     "C) Eukaryotic cells have a complex internal structure with a membrane-bound nucleus, whereas prokaryotic cells do not.",
+     "D) Eukaryotic cells reproduce asexually, while prokaryotic cells reproduce sexually."
+    ],
+    "correct_answer": "C) Eukaryotic cells have a complex internal structure with a membrane-bound nucleus, whereas prokaryotic cells do not."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #11",
+    "question_text": "Which of the following best describes the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The cytoplasm is the only essential part of a living organism.",
+     "B) Cells are only found in complex organisms like animals and plants.",
+     "C) All living things are made up of cells, and cells are the basic unit of life.",
+     "D) Cells can only be formed through division of existing cells."
+    ],
+    "correct_answer": "C) All living things are made up of cells, and cells are the basic unit of life."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #10",
+    "question_text": "Which of the following is a fundamental tenet of the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) All living things are composed of one or more cells.",
+     "B) Cells can only reproduce asexually.",
+     "C) Cells are the only structures capable of performing life functions.",
+     "D) All cells are made of DNA."
+    ],
+    "correct_answer": "A) All living things are composed of one or more cells."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #11",
+    "question_text": "Which of the following best describes the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The cytoplasm is the only essential part of a living organism.",
+     "B) Cells are only found in complex organisms like animals and plants.",
+     "C) All living things are made up of cells, and cells are the basic unit of life.",
+     "D) Cells can only be formed through division of existing cells."
+    ],
+    "correct_answer": "C) All living things are made up of cells, and cells are the basic unit of life."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #14",
+    "question_text": "Which of the following is a key tenet of the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Cells contain DNA.",
+     "B) All living things are made up of cells.",
+     "C) Cells are the smallest unit of matter.",
+     "D) Cells can only reproduce asexually."
+    ],
+    "correct_answer": "B) All living things are made up of cells."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #12",
+    "question_text": "What is the primary function of the cytoplasm within a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To serve as the site where most of the cell's essential life processes occur.",
+     "B) To provide the rigid outer boundary of the cell.",
+     "C) To store the cell's genetic material only.",
+     "D) To control the entry and exit of substances from the cell."
+    ],
+    "correct_answer": "A) To serve as the site where most of the cell's essential life processes occur."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #12",
+    "question_text": "The primary function of the cytoplasm within a cell is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To serve as the site where most of the cell's metabolic reactions take place.",
+     "B) To provide the rigid outer boundary for the cell.",
+     "C) To control the entry and exit of substances into the cell.",
+     "D) To store the cell's genetic material exclusively."
+    ],
+    "correct_answer": "A) To serve as the site where most of the cell's metabolic reactions take place."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #12",
+    "question_text": "What is the primary function of the cytoplasm within a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To serve as the site where most of the cell's essential life processes occur.",
+     "B) To provide the rigid outer boundary of the cell.",
+     "C) To store the cell's genetic material only.",
+     "D) To control the entry and exit of substances from the cell."
+    ],
+    "correct_answer": "A) To serve as the site where most of the cell's essential life processes occur."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #15",
+    "question_text": "The primary role of the cytoplasm in a cell is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To act as the rigid outer boundary separating the cell from its surroundings.",
+     "B) To serve as the internal environment where most of the cell's metabolic life processes take place.",
+     "C) To synthesize energy exclusively through photosynthesis.",
+     "D) To provide the cell with its genetic instructions (DNA)."
+    ],
+    "correct_answer": "B) To serve as the internal environment where most of the cell's metabolic life processes take place."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #15",
+    "question_text": "The cytoplasm of a cell is primarily responsible for:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Providing the rigid structural framework for the cell.",
+     "B) Controlling the exchange of materials between the cell and its surroundings.",
+     "C) Forming the outermost protective barrier of the cell.",
+     "D) Serving as the site where most of the cell's metabolic life processes take place."
+    ],
+    "correct_answer": "D) Serving as the site where most of the cell's metabolic life processes take place."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #15",
+    "question_text": "The primary role of the cytoplasm in a cell is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To act as the rigid outer boundary separating the cell from its surroundings.",
+     "B) To serve as the internal environment where most of the cell's metabolic life processes take place.",
+     "C) To synthesize energy exclusively through photosynthesis.",
+     "D) To provide the cell with its genetic instructions (DNA)."
+    ],
+    "correct_answer": "B) To serve as the internal environment where most of the cell's metabolic life processes take place."
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L2 level test, live test part 9, #5",
+    "question_text": "A magma with a relatively low silica content (SiO2) is generally characterized by which of the following properties?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) High viscosity and a tendency toward explosive eruptions.",
+     "B) A composition that favors the formation of dense, mafic rock structures.",
+     "C) Low viscosity and a tendency toward effusive eruptions.",
+     "D) A high melting potential requiring extreme pressure to erupt."
+    ],
+    "correct_answer": "C) Low viscosity and a tendency toward effusive eruptions."
+   },
+   "b": {
+    "from": "volcanoes L2 level test, live test part 9, #34",
+    "question_text": "Magma with a lower silica content (lower SiO2) is generally characterized by which of the following properties?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) A high resistance to gas escape during ascent",
+     "B) A high melting potential and mafic rock classification",
+     "C) High viscosity and propensity for explosive eruptions",
+     "D) Low viscosity and propensity for effusive eruptions"
+    ],
+    "correct_answer": "D) Low viscosity and propensity for effusive eruptions"
+   }
+  },
+  {
+   "a": {
+    "from": "volcanoes L2 level test, live test part 9, #8",
+    "question_text": "A magma with a relatively high silica content (SiO2) is most likely to be classified as which type of rock, and this composition directly influences its flow characteristics.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Felsic, resulting in high viscosity and often explosive eruptions.",
+     "B) Intermediate, resulting in moderate viscosity and intermediate eruptions.",
+     "C) Mafic, resulting in low viscosity and effusive eruptions.",
+     "D) Ultramafic, resulting in extremely high viscosity and highly explosive eruptions."
+    ],
+    "correct_answer": "A) Felsic, resulting in high viscosity and often explosive eruptions."
+   },
+   "b": {
+    "from": "volcanoes L2 level test, live test part 9, #20",
+    "question_text": "A magma with a relatively high silica content is most likely to be classified as which type of rock, and this composition directly influences its tendency to melt and flow characteristics?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Ultramafic rock, which has extremely high viscosity and is very resistant to melting.",
+     "B) Felsic rock, which has high viscosity and is more prone to explosive eruptions.",
+     "C) Intermediate rock, which has moderate viscosity and exhibits effusive behavior.",
+     "D) Mafic rock, which has low viscosity and flows easily."
+    ],
+    "correct_answer": "B) Felsic rock, which has high viscosity and is more prone to explosive eruptions."
+   }
+  },
+  {
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #11",
+    "question_text": "The Cell Theory states that all living things are composed of one or more cells, and that cells are the basic unit of life. Which of the following is a key concept related to the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Only multicellular organisms are considered living.",
+     "B) All living organisms are made up of cells.",
+     "C) All cells are identical in structure and function.",
+     "D) Cells can only be formed through division of existing cells."
+    ],
+    "correct_answer": "B) All living organisms are made up of cells."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #13",
+    "question_text": "The Cell Theory states that all living things are composed of cells, and that cells are the basic unit of life. Which of the following best represents the core concept of the Cell Theory?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cells are more complex than eukaryotic cells.",
+     "B) All living organisms are composed of one or more cells, and the cell is the basic unit of life.",
+     "C) Cells are only found in multicellular organisms.",
+     "D) Cells can only perform metabolic functions."
+    ],
+    "correct_answer": "B) All living organisms are composed of one or more cells, and the cell is the basic unit of life."
+   }
+  }
+ ],
+ "different": [
+  {
+   "note": "the membrane's job / a prokaryotic cell",
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #1",
+    "question_text": "Which of the following best describes the primary function of the cell membrane in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To regulate what enters and leaves the cell.",
+     "B) To provide structural support to the cytoplasm.",
+     "C) To store the cell's genetic material.",
+     "D) To generate energy for cellular activities."
+    ],
+    "correct_answer": "A) To regulate what enters and leaves the cell."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #4",
+    "question_text": "Which type of cell is characterized by the absence of a true nucleus and other membrane-bound organelles?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Prokaryotic cell",
+     "B) Plant cell",
+     "C) Eukaryotic cell",
+     "D) Animal cell"
+    ],
+    "correct_answer": "A) Prokaryotic cell"
+   }
+  },
+  {
+   "note": "the membrane / the cytoplasm",
+   "a": {
+    "from": "cells L1 quiz 2, live test part 9, #5",
+    "question_text": "Which of the following best describes the basic structural component that separates the cytoplasm from the outside environment in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Ribosome",
+     "B) Cell membrane",
+     "C) Nucleus",
+     "D) Cell wall"
+    ],
+    "correct_answer": "B) Cell membrane"
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #15",
+    "question_text": "The primary role of the cytoplasm in a cell is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To act as the rigid outer boundary separating the cell from its surroundings.",
+     "B) To serve as the internal environment where most of the cell's metabolic life processes take place.",
+     "C) To synthesize energy exclusively through photosynthesis.",
+     "D) To provide the cell with its genetic instructions (DNA)."
+    ],
+    "correct_answer": "B) To serve as the internal environment where most of the cell's metabolic life processes take place."
+   }
+  },
+  {
+   "note": "what the membrane does / what that job is called",
+   "a": {
+    "from": "cells L1 quiz 1, live test part 8, #18",
+    "question_text": "Which of the following best describes the primary function of the cell membrane?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To act as a boundary separating the cell from its surroundings.",
+     "B) To store the cell's genetic material.",
+     "C) To provide structural support to the cell.",
+     "D) To produce energy for the cell."
+    ],
+    "correct_answer": "A) To act as a boundary separating the cell from its surroundings."
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 8, #14",
+    "question_text": "The primary role of the cell membrane in separating the cell's interior from the outside environment is known as:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Waste disposal",
+     "B) Cell Boundary Function",
+     "C) Energy storage",
+     "D) Genetic storage"
+    ],
+    "correct_answer": "B) Cell Boundary Function"
+   }
+  },
+  {
+   "note": "the membrane / the cytoplasm",
+   "a": {
+    "from": "cells L1 quiz 1, live test part 9, #1",
+    "question_text": "Which of the following best describes the basic structural component that separates the cytoplasm from the outside environment in a cell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Ribosome",
+     "B) Cell membrane",
+     "C) Nucleus",
+     "D) Cell wall"
+    ],
+    "correct_answer": "B) Cell membrane"
+   },
+   "b": {
+    "from": "cells L1 quiz 2, live test part 9, #15",
+    "question_text": "The primary role of the cytoplasm in a cell is to:",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) To act as the rigid outer boundary separating the cell from its surroundings.",
+     "B) To serve as the internal environment where most of the cell's metabolic life processes take place.",
+     "C) To synthesize energy exclusively through photosynthesis.",
+     "D) To provide the cell with its genetic instructions (DNA)."
+    ],
+    "correct_answer": "B) To serve as the internal environment where most of the cell's metabolic life processes take place."
+   }
+  },
+  {
+   "note": "high silica / low silica",
+   "a": {
+    "from": "volcanoes L2 level test, live test part 9, #17",
+    "question_text": "A magma with a high silica content is expected to have which characteristic regarding its flow behavior?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) A low density, promoting rapid surface flow.",
+     "B) High viscosity, leading to more explosive eruptions.",
+     "C) Low viscosity, leading to effusive eruptions.",
+     "D) A tendency to gas escape easily, regardless of viscosity."
+    ],
+    "correct_answer": "B) High viscosity, leading to more explosive eruptions."
+   },
+   "b": {
+    "from": "volcanoes L2 level test, live test part 9, #35",
+    "question_text": "A magma with a relatively low silica content is expected to exhibit which characteristic regarding its flow behavior and resulting eruption style?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Low viscosity, leading to effusive eruptions.",
+     "B) A transition zone between effusive and explosive behavior.",
+     "C) A tendency to solidify rapidly upon contact with surface water.",
+     "D) High viscosity, leading to highly explosive eruptions."
+    ],
+    "correct_answer": "A) Low viscosity, leading to effusive eruptions."
+   }
+  },
+  {
+   "note": "low silica / high silica",
+   "a": {
+    "from": "volcanoes L2 level test, live test part 9, #13",
+    "question_text": "A magma with a relatively low silica content is expected to exhibit which characteristic regarding its flow behavior?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Slow flow rates due to strong internal resistance.",
+     "B) Rapid crystallization resulting in a glassy texture.",
+     "C) High viscosity, leading to highly explosive eruptions.",
+     "D) Low viscosity, allowing for easy, effusive lava flows."
+    ],
+    "correct_answer": "D) Low viscosity, allowing for easy, effusive lava flows."
+   },
+   "b": {
+    "from": "volcanoes L2 level test, live test part 9, #17",
+    "question_text": "A magma with a high silica content is expected to have which characteristic regarding its flow behavior?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) A low density, promoting rapid surface flow.",
+     "B) High viscosity, leading to more explosive eruptions.",
+     "C) Low viscosity, leading to effusive eruptions.",
+     "D) A tendency to gas escape easily, regardless of viscosity."
+    ],
+    "correct_answer": "B) High viscosity, leading to more explosive eruptions."
+   }
+  },
+  {
+   "note": "with gas exsolution / without",
+   "a": {
+    "from": "volcanoes L2 level test, live test part 9, #10",
+    "question_text": "Which of the following scenarios best illustrates the relationship between magma viscosity, gas exsolution, and eruption style?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) High viscosity magma traps dissolved gases, leading to high internal pressure and potentially explosive fragmentation.",
+     "B) Eruption style is determined solely by the temperature of the magma, irrespective of silica content.",
+     "C) Effusive eruptions occur only when the magma is entirely devoid of dissolved volatile gases.",
+     "D) Low viscosity magma allows gases to escape easily, leading to a highly explosive eruption."
+    ],
+    "correct_answer": "A) High viscosity magma traps dissolved gases, leading to high internal pressure and potentially explosive fragmentation."
+   },
+   "b": {
+    "from": "volcanoes L2 level test, live test part 9, #21",
+    "question_text": "Which of the following scenarios best illustrates the relationship between magma viscosity and eruption style?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) High viscosity magma results in effusive eruptions characterized by fluid lava flows.",
+     "B) Low viscosity magma leads to highly explosive, ash-dominated eruptions.",
+     "C) Low viscosity magma favors effusive eruptions, while high viscosity magma promotes more explosive eruptions.",
+     "D) Eruption style is determined solely by the total volume of dissolved volatiles, irrespective of viscosity."
+    ],
+    "correct_answer": "C) Low viscosity magma favors effusive eruptions, while high viscosity magma promotes more explosive eruptions."
+   }
+  },
+  {
+   "note": "the 7 in 7/10 / the 10 in 3/10",
+   "a": {
+    "from": "fractions L1 quiz 1, click test part 6, #9",
+    "question_text": "If a whole cake is divided into 10 equal slices, and you take 7 of those slices, what does the number 7 represent in the fraction 7/10?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "the number of parts taken"
+   },
+   "b": {
+    "from": "fractions L1 quiz 1, click test part 6, #16",
+    "question_text": "If a whole orange is divided into 10 equal slices, and you take 3 of those slices, what does the number 10 represent in the fraction 3/10?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "the total number of equal parts the whole is divided into"
+   }
+  },
+  {
+   "note": "numerator / denominator",
+   "a": {
+    "question_text": "In a fraction, what does the numerator tell you?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "how many parts are taken"
+   },
+   "b": {
+    "question_text": "In a fraction, what does the denominator tell you?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "how many equal parts the whole is divided into"
+   }
+  },
+  {
+   "note": "numerator / denominator (multiple choice)",
+   "a": {
+    "question_text": "In a fraction, what does the numerator tell you?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) how many parts are taken",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) how many parts are taken"
+   },
+   "b": {
+    "question_text": "In a fraction, what does the denominator tell you?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) how many equal parts the whole is divided into",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) how many equal parts the whole is divided into"
+   }
+  },
+  {
+   "note": "top / bottom number",
+   "a": {
+    "question_text": "A pizza is cut into 8 slices and you eat 3. In 3/8, what does the top number tell you?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "how many slices you ate"
+   },
+   "b": {
+    "question_text": "A pizza is cut into 8 slices and you eat 3. In 3/8, what does the bottom number tell you?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "how many slices the pizza was cut into"
+   }
+  },
+  {
+   "note": "top / bottom number (multiple choice)",
+   "a": {
+    "question_text": "A pizza is cut into 8 slices and you eat 3. In 3/8, what does the top number tell you?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) how many slices you ate",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) how many slices you ate"
+   },
+   "b": {
+    "question_text": "A pizza is cut into 8 slices and you eat 3. In 3/8, what does the bottom number tell you?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) how many slices the pizza was cut into",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) how many slices the pizza was cut into"
+   }
+  },
+  {
+   "note": "first / second paragraph",
+   "a": {
+    "question_text": "Read the story. What is the main idea of the first paragraph?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "the fox is hungry and looks for food"
+   },
+   "b": {
+    "question_text": "Read the story. What is the main idea of the second paragraph?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "the fox finds food near the river"
+   }
+  },
+  {
+   "note": "first / second paragraph (multiple choice)",
+   "a": {
+    "question_text": "Read the story. What is the main idea of the first paragraph?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) the fox is hungry and looks for food",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) the fox is hungry and looks for food"
+   },
+   "b": {
+    "question_text": "Read the story. What is the main idea of the second paragraph?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) the fox finds food near the river",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) the fox finds food near the river"
+   }
+  },
+  {
+   "note": "roots / leaves",
+   "a": {
+    "question_text": "Think about a plant. What is the job of the roots?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "to take in water from the soil"
+   },
+   "b": {
+    "question_text": "Think about a plant. What is the job of the leaves?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "to take in sunlight to make food"
+   }
+  },
+  {
+   "note": "roots / leaves (multiple choice)",
+   "a": {
+    "question_text": "Think about a plant. What is the job of the roots?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) to take in water from the soil",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) to take in water from the soil"
+   },
+   "b": {
+    "question_text": "Think about a plant. What is the job of the leaves?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) to take in sunlight to make food",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) to take in sunlight to make food"
+   }
+  },
+  {
+   "note": "evaporation / condensation",
+   "a": {
+    "question_text": "In the water cycle, what is evaporation?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "liquid water turning into water vapor"
+   },
+   "b": {
+    "question_text": "In the water cycle, what is condensation?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "water vapor turning into liquid water"
+   }
+  },
+  {
+   "note": "evaporation / condensation (multiple choice)",
+   "a": {
+    "question_text": "In the water cycle, what is evaporation?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) liquid water turning into water vapor",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) liquid water turning into water vapor"
+   },
+   "b": {
+    "question_text": "In the water cycle, what is condensation?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) water vapor turning into liquid water",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) water vapor turning into liquid water"
+   }
+  },
+  {
+   "note": "the 7 / the 10 in 7/10",
+   "a": {
+    "question_text": "If a whole cake is divided into 10 equal slices, and you take 7 of those slices, what does the number 7 represent in the fraction 7/10?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "the number of parts taken"
+   },
+   "b": {
+    "question_text": "If a whole cake is divided into 10 equal slices, and you take 7 of those slices, what does the number 10 represent in the fraction 7/10?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "the number of parts in the whole cake"
+   }
+  },
+  {
+   "note": "the 7 / the 10 in 7/10 (multiple choice)",
+   "a": {
+    "question_text": "If a whole cake is divided into 10 equal slices, and you take 7 of those slices, what does the number 7 represent in the fraction 7/10?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) the number of parts taken",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) the number of parts taken"
+   },
+   "b": {
+    "question_text": "If a whole cake is divided into 10 equal slices, and you take 7 of those slices, what does the number 10 represent in the fraction 7/10?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) the number of parts in the whole cake",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) the number of parts in the whole cake"
+   }
+  },
+  {
+   "note": "sodium ion / sodium",
+   "a": {
+    "question_text": "What is the symbol for a sodium ion?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Na+"
+   },
+   "b": {
+    "question_text": "What is the symbol for sodium?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Na"
+   }
+  },
+  {
+   "note": "sodium ion / sodium (multiple choice)",
+   "a": {
+    "question_text": "What is the symbol for a sodium ion?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Na+",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Na+"
+   },
+   "b": {
+    "question_text": "What is the symbol for sodium?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Na",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Na"
+   }
+  },
+  {
+   "note": "chlorine ion / atom",
+   "a": {
+    "question_text": "Write the symbol for a chlorine ion.",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Cl-"
+   },
+   "b": {
+    "question_text": "Write the symbol for a chlorine atom.",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Cl"
+   }
+  },
+  {
+   "note": "chlorine ion / atom (multiple choice)",
+   "a": {
+    "question_text": "Write the symbol for a chlorine ion.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Cl-",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Cl-"
+   },
+   "b": {
+    "question_text": "Write the symbol for a chlorine atom.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Cl",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Cl"
+   }
+  },
+  {
+   "note": "hydroxide ion / group",
+   "a": {
+    "question_text": "Write the formula for a hydroxide ion.",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "OH-"
+   },
+   "b": {
+    "question_text": "Write the formula for a hydroxide group.",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "OH"
+   }
+  },
+  {
+   "note": "hydroxide ion / group (multiple choice)",
+   "a": {
+    "question_text": "Write the formula for a hydroxide ion.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) OH-",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) OH-"
+   },
+   "b": {
+    "question_text": "Write the formula for a hydroxide group.",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) OH",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) OH"
+   }
+  },
+  {
+   "note": "< / >",
+   "a": {
+    "question_text": "Which symbol makes this true: 34 ___ 43?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "<"
+   },
+   "b": {
+    "question_text": "Which symbol makes this true: 43 ___ 34?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": ">"
+   }
+  },
+  {
+   "note": "< / > (multiple choice)",
+   "a": {
+    "question_text": "Which symbol makes this true: 34 ___ 43?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) <",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) <"
+   },
+   "b": {
+    "question_text": "Which symbol makes this true: 43 ___ 34?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) >",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) >"
+   }
+  },
+  {
+   "note": "+ / -",
+   "a": {
+    "question_text": "Which sign makes 6 _ 2 = 8 true?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "+"
+   },
+   "b": {
+    "question_text": "Which sign makes 6 _ 2 = 4 true?",
+    "question_type": "fill_in_blank",
+    "options": [],
+    "correct_answer": "-"
+   }
+  },
+  {
+   "note": "+ / - (multiple choice)",
+   "a": {
+    "question_text": "Which sign makes 6 _ 2 = 8 true?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) +",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) +"
+   },
+   "b": {
+    "question_text": "Which sign makes 6 _ 2 = 4 true?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) -",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) -"
+   }
+  },
+  {
+   "note": "kind / unkind",
+   "a": {
+    "question_text": "In the story, a girl shares her lunch with a new student. What does this tell you about her?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "she is kind"
+   },
+   "b": {
+    "question_text": "In the story, a girl shouts at a new student. What does this tell you about her?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "she is unkind and rude"
+   }
+  },
+  {
+   "note": "kind / unkind (multiple choice)",
+   "a": {
+    "question_text": "In the story, a girl shares her lunch with a new student. What does this tell you about her?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) she is kind",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) she is kind"
+   },
+   "b": {
+    "question_text": "In the story, a girl shouts at a new student. What does this tell you about her?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) she is unkind and rude",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) she is unkind and rude"
+   }
+  },
+  {
+   "note": "more / fewer",
+   "a": {
+    "question_text": "A farmer has 4 red apples and 2 green apples. Which color does the farmer have more of?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "red apples"
+   },
+   "b": {
+    "question_text": "A farmer has 4 red apples and 2 green apples. Which color does the farmer have fewer of?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "green apples"
+   }
+  },
+  {
+   "note": "more / fewer (multiple choice)",
+   "a": {
+    "question_text": "A farmer has 4 red apples and 2 green apples. Which color does the farmer have more of?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) red apples",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) red apples"
+   },
+   "b": {
+    "question_text": "A farmer has 4 red apples and 2 green apples. Which color does the farmer have fewer of?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) green apples",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) green apples"
+   }
+  },
+  {
+   "note": "it's / its",
+   "a": {
+    "question_text": "Which word is a contraction for 'it is'?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "it's"
+   },
+   "b": {
+    "question_text": "Which word shows that something belongs to 'it'?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "its"
+   }
+  },
+  {
+   "note": "it's / its (multiple choice)",
+   "a": {
+    "question_text": "Which word is a contraction for 'it is'?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) it's",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) it's"
+   },
+   "b": {
+    "question_text": "Which word shows that something belongs to 'it'?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) its",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) its"
+   }
+  },
+  {
+   "note": "#263 review: 8 / 12",
+   "a": {
+    "question_text": "Is 8 even or odd?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Even"
+   },
+   "b": {
+    "question_text": "Is 12 even or odd?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Even"
+   }
+  },
+  {
+   "note": "#263 review: 8 / 12 (multiple choice)",
+   "a": {
+    "question_text": "Is 8 even or odd?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Even",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Even"
+   },
+   "b": {
+    "question_text": "Is 12 even or odd?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Even",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Even"
+   }
+  },
+  {
+   "note": "#263 review: 7 / 13",
+   "a": {
+    "question_text": "Is 7 prime or composite?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "prime"
+   },
+   "b": {
+    "question_text": "Is 13 prime or composite?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "prime"
+   }
+  },
+  {
+   "note": "#263 review: 7 / 13 (multiple choice)",
+   "a": {
+    "question_text": "Is 7 prime or composite?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) prime",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) prime"
+   },
+   "b": {
+    "question_text": "Is 13 prime or composite?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) prime",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) prime"
+   }
+  },
+  {
+   "note": "#263 review: dog / rock",
+   "a": {
+    "question_text": "Is a dog living or nonliving?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "living"
+   },
+   "b": {
+    "question_text": "Is a rock living or nonliving?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "living"
+   }
+  },
+  {
+   "note": "#263 review: dog / rock (multiple choice)",
+   "a": {
+    "question_text": "Is a dog living or nonliving?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) living",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) living"
+   },
+   "b": {
+    "question_text": "Is a rock living or nonliving?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) living",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) living"
+   }
+  },
+  {
+   "note": "#263 review: dog / cat",
+   "a": {
+    "question_text": "Is 'dog' a noun or a verb?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "noun"
+   },
+   "b": {
+    "question_text": "Is 'cat' a noun or a verb?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "noun"
+   }
+  },
+  {
+   "note": "#263 review: dog / cat (multiple choice)",
+   "a": {
+    "question_text": "Is 'dog' a noun or a verb?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) noun",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) noun"
+   },
+   "b": {
+    "question_text": "Is 'cat' a noun or a verb?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) noun",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) noun"
+   }
+  },
+  {
+   "note": "#263 review: happy / glad",
+   "a": {
+    "question_text": "What is a synonym for happy?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "joyful"
+   },
+   "b": {
+    "question_text": "What is a synonym for glad?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "joyful"
+   }
+  },
+  {
+   "note": "#263 review: happy / glad (multiple choice)",
+   "a": {
+    "question_text": "What is a synonym for happy?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) joyful",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) joyful"
+   },
+   "b": {
+    "question_text": "What is a synonym for glad?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) joyful",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) joyful"
+   }
+  },
+  {
+   "note": "#263 review: ice / steam",
+   "a": {
+    "question_text": "Is ice solid, liquid or gas?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "solid"
+   },
+   "b": {
+    "question_text": "Is steam solid, liquid or gas?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "solid"
+   }
+  },
+  {
+   "note": "#263 review: ice / steam (multiple choice)",
+   "a": {
+    "question_text": "Is ice solid, liquid or gas?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) solid",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) solid"
+   },
+   "b": {
+    "question_text": "Is steam solid, liquid or gas?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) solid",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) solid"
+   }
+  },
+  {
+   "note": "#263 review: whale / dolphin",
+   "a": {
+    "question_text": "Is a whale a mammal or a fish?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "mammal"
+   },
+   "b": {
+    "question_text": "Is a dolphin a mammal or a fish?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "mammal"
+   }
+  },
+  {
+   "note": "#263 review: whale / dolphin (multiple choice)",
+   "a": {
+    "question_text": "Is a whale a mammal or a fish?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) mammal",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) mammal"
+   },
+   "b": {
+    "question_text": "Is a dolphin a mammal or a fish?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) mammal",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) mammal"
+   }
+  },
+  {
+   "note": "#263 review: president / speech",
+   "a": {
+    "question_text": "Who was president during the Civil War?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Abraham Lincoln"
+   },
+   "b": {
+    "question_text": "Who gave the Gettysburg Address during the Civil War?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Abraham Lincoln"
+   }
+  },
+  {
+   "note": "#263 review: president / speech (multiple choice)",
+   "a": {
+    "question_text": "Who was president during the Civil War?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Abraham Lincoln",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Abraham Lincoln"
+   },
+   "b": {
+    "question_text": "Who gave the Gettysburg Address during the Civil War?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Abraham Lincoln",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Abraham Lincoln"
+   }
+  },
+  {
+   "note": "temperature / rain",
+   "a": {
+    "question_text": "What tool is used to measure how hot or cold the air is?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Thermometer"
+   },
+   "b": {
+    "question_text": "What tool is used to measure how much rain fell?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Rain gauge"
+   }
+  },
+  {
+   "note": "temperature / rain (multiple choice)",
+   "a": {
+    "question_text": "What tool is used to measure how hot or cold the air is?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Thermometer",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Thermometer"
+   },
+   "b": {
+    "question_text": "What tool is used to measure how much rain fell?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Rain gauge",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Rain gauge"
+   }
+  },
+  {
+   "note": "a mammal / not a mammal",
+   "a": {
+    "question_text": "Which animal is a mammal?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "a whale"
+   },
+   "b": {
+    "question_text": "Which animal is not a mammal?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "a shark"
+   }
+  },
+  {
+   "note": "a mammal / not a mammal (multiple choice)",
+   "a": {
+    "question_text": "Which animal is a mammal?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) a whale",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) a whale"
+   },
+   "b": {
+    "question_text": "Which animal is not a mammal?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) a shark",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) a shark"
+   }
+  },
+  {
+   "note": "covalent / ionic bond",
+   "a": {
+    "question_text": "What type of bond forms between two atoms?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Covalent bond"
+   },
+   "b": {
+    "question_text": "What type of bond forms between two atoms that transfer electrons?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Ionic bond"
+   }
+  },
+  {
+   "note": "covalent / ionic bond (multiple choice)",
+   "a": {
+    "question_text": "What type of bond forms between two atoms?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Covalent bond",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Covalent bond"
+   },
+   "b": {
+    "question_text": "What type of bond forms between two atoms that transfer electrons?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Ionic bond",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Ionic bond"
+   }
+  },
+  {
+   "note": "inner / outer core",
+   "a": {
+    "question_text": "Which layer of the Earth is made of iron?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "The inner core"
+   },
+   "b": {
+    "question_text": "Which layer of the Earth is made of liquid iron?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "The outer core"
+   }
+  },
+  {
+   "note": "inner / outer core (multiple choice)",
+   "a": {
+    "question_text": "Which layer of the Earth is made of iron?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The inner core",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) The inner core"
+   },
+   "b": {
+    "question_text": "Which layer of the Earth is made of liquid iron?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) The outer core",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) The outer core"
+   }
+  },
+  {
+   "note": "shield / composite volcano",
+   "a": {
+    "question_text": "Which type of volcano is formed by lava flows?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Shield volcano"
+   },
+   "b": {
+    "question_text": "Which type of volcano is formed by lava flows and ash layers?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Composite volcano"
+   }
+  },
+  {
+   "note": "shield / composite volcano (multiple choice)",
+   "a": {
+    "question_text": "Which type of volcano is formed by lava flows?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Shield volcano",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Shield volcano"
+   },
+   "b": {
+    "question_text": "Which type of volcano is formed by lava flows and ash layers?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Composite volcano",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Composite volcano"
+   }
+  },
+  {
+   "note": "potential / kinetic energy",
+   "a": {
+    "question_text": "What type of energy does a ball have?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Potential energy"
+   },
+   "b": {
+    "question_text": "What type of energy does a rolling ball have?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Kinetic energy"
+   }
+  },
+  {
+   "note": "potential / kinetic energy (multiple choice)",
+   "a": {
+    "question_text": "What type of energy does a ball have?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Potential energy",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Potential energy"
+   },
+   "b": {
+    "question_text": "What type of energy does a rolling ball have?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Kinetic energy",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Kinetic energy"
+   }
+  },
+  {
+   "note": "effusive / explosive eruption",
+   "a": {
+    "question_text": "What kind of eruption does magma produce?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "An effusive eruption"
+   },
+   "b": {
+    "question_text": "What kind of eruption does gas-rich magma produce?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "An explosive eruption"
+   }
+  },
+  {
+   "note": "effusive / explosive eruption (multiple choice)",
+   "a": {
+    "question_text": "What kind of eruption does magma produce?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) An effusive eruption",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) An effusive eruption"
+   },
+   "b": {
+    "question_text": "What kind of eruption does gas-rich magma produce?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) An explosive eruption",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) An explosive eruption"
+   }
+  },
+  {
+   "note": "is / isn't true (low-silica magma)",
+   "a": {
+    "question_text": "Which statement about low-silica magma is true?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "It has low viscosity"
+   },
+   "b": {
+    "question_text": "Which statement about low-silica magma isn't true?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "It has high viscosity"
+   }
+  },
+  {
+   "note": "is / isn't true (low-silica magma) (multiple choice)",
+   "a": {
+    "question_text": "Which statement about low-silica magma is true?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) It has low viscosity",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) It has low viscosity"
+   },
+   "b": {
+    "question_text": "Which statement about low-silica magma isn't true?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) It has high viscosity",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) It has high viscosity"
+   }
+  },
+  {
+   "note": "describes / doesn't describe (basaltic lava)",
+   "a": {
+    "question_text": "Which of these describes basaltic lava?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Runny, low viscosity lava"
+   },
+   "b": {
+    "question_text": "Which of these doesn't describe basaltic lava?",
+    "question_type": "short_answer",
+    "options": [],
+    "correct_answer": "Sticky, high viscosity lava"
+   }
+  },
+  {
+   "note": "describes / doesn't describe (basaltic lava) (multiple choice)",
+   "a": {
+    "question_text": "Which of these describes basaltic lava?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Runny, low viscosity lava",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Runny, low viscosity lava"
+   },
+   "b": {
+    "question_text": "Which of these doesn't describe basaltic lava?",
+    "question_type": "multiple_choice",
+    "options": [
+     "A) Sticky, high viscosity lava",
+     "B) none of these",
+     "C) all of these",
+     "D) I am not sure"
+    ],
+    "correct_answer": "A) Sticky, high viscosity lava"
+   }
+  }
+ ]
+}

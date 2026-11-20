@@ -235,15 +235,27 @@ written: they came from a once-a-minute timer whose only reader was the learning
   stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
   fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind",
   "she herself is kind"), with the same numbers in the same order and the
-  same last clause word for word, so only the setup differs; TerraTutor #259; keys compared as `keyForm`
-  reads them, without a leading article or punctuation other than the apostrophe, so "it's" / "its" stay
-  apart, with symbols kept, so "<" / ">" and "Na+" / "Na" stay apart, a hyphen that ends a word read as a
-  minus sign, so "Cl-" / "Cl" stay apart too, and a key that is only punctuation is never blank;
-  TerraTutor #263, #264; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
+  same last clause word for word, so only the setup differs; TerraTutor #259; or the same question
+  reworded with its key reworded too, `isRewordedRepeat`: neither key routine nor a fill-in-the-blank's,
+  one stem's asked words, its content words less question framing such as "best describes", "main",
+  "primary role", all inside the other's and at least half the two shared, the same negations ("isn't"
+  and "doesn't" read as "not") and numbers, and keys that share half the shorter one's content words and
+  at least 2 of them, but not all of them in another order or with another symbol, so "high silica" /
+  "low silica", "ion" / "atom", "evaporation" / "condensation", "Covalent bond" / "Ionic bond" after a
+  stem that adds "that transfer electrons", and "describes" / "doesn't describe" stay apart; TerraTutor
+  live test part 9 issue 2, bars measured on `src/lib/__fixtures__/near-repeat-pairs.json`; keys compared
+  as `keyForm` reads them, without a leading article or punctuation other than the apostrophe (a numeric
+  key, below, loses only end punctuation; a longer key keeps a minus before a number and a decimal point,
+  so "-5 degrees at the summit" is not "5 degrees ..."), so "it's" / "its" stay apart, with symbols kept,
+  so "<" / ">" and "Na+" / "Na" stay apart, a hyphen that ends a word, before a space, punctuation, a
+  quote or the end, read as a minus sign, so "Cl-" / "Cl" and "Cl-, Na+" / "Cl, Na+" stay apart too, and
+  a key that is only punctuation is never blank; TerraTutor #263, #264, #265; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A quiz, or one level-test section,
   takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
   counted (`GenPlan.sameQuiz`). A routine key is not counted: true/false, a matching question's, a number,
-  fraction, time or money, and a classification's pick, which the stem names itself ("Is 8 *even* or
+  fraction, time, money or expression (a number standing on its own with at most two words, "5 cm", "x =
+  4"; not a key that only contains a digit, "The percentage of silica (SiO2) content", TerraTutor live
+  test part 9 issue 1), and a classification's pick, which the stem names itself ("Is 8 *even* or
   odd?") or a multiple-choice question offers from 3 or fewer options. More are set aside and the top-up
   asks again (TerraTutor live test part 8 issue 2, part 7 issue 3; ported from TerraTutor #263).
   `quiz.ts fillSetAside` uses them only below the section's minimum (the quiz's `QUIZ_FLOOR` less its
@@ -254,7 +266,10 @@ written: they came from a once-a-minute timer whose only reader was the learning
   (`db.ts getRecentQuizQuestions`, the newest `RECENT_QUESTIONS` answered rows, `GenPlan.earlier`; ported
   from TerraTutor #251): a local model's prompt lists that subtopic's earlier questions to avoid (a cloud
   model is sent none of them, lane 1), and a fresh question that repeats one, exactly or nearly, is set
-  aside and used only when the quiz would otherwise come up short. Both sides are read as what they ask
+  aside and used only when the quiz would otherwise come up short, never when it repeats the last quiz on
+  the level (`repeatsLastQuiz`, by the rows' `attempt_id`; TerraTutor live test part 9 issue 3: a short
+  quiz 2 was filled with quiz 1's question word for word); a missed one comes back through the review
+  pool instead, as it was asked. Both sides are read as what they ask
   (`quiz-grading.ts askedText`: a fill-in-the-blank's sentence, a matching question's left items), so two
   questions that share only "Fill in the blank." or "Match each word to its meaning." are not repeats. A
   fill-in-the-blank question is

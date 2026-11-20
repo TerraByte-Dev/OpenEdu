@@ -536,6 +536,15 @@ function repeatsEarlier(plan: GenPlan, q: GenQuestion): boolean {
   return repeatsAny(plan.earlier ?? [], q);
 }
 
+// A fresh question that repeats one the learner's last quiz on the level asked (GenPlan.earlier is newest
+// first; its first row's attempt_id is that quiz). Never used, even to fill a short quiz: TerraTutor live
+// test part 9 issue 3 saw quiz 2's last question copy quiz 1's word for word as a new question. The
+// questions the learner missed come back through the review pool instead, as they were asked.
+function repeatsLastQuiz(plan: GenPlan, q: GenQuestion): boolean {
+  const last = plan.earlier?.[0]?.attempt_id;
+  return !!last && repeatsAny((plan.earlier ?? []).filter((e) => e.attempt_id === last), q);
+}
+
 /** The ledger lines for a subtopic's earlier questions, newest first, capped by tier like the quiz's own ledger.
  *  None for a cloud model: what a learner was asked is about that learner (lane 1 of TerraTutor's
  *  docs/CLOUD-PRIVACY.md), so there only the code check (repeatsEarlier) applies. */
@@ -563,11 +572,15 @@ function overCap(plan: GenPlan, list: ReadonlyArray<GenQuestion>, q: GenQuestion
  *    that came up short takes it rather than a gap, by design (TerraTutor click test 2026-11-19 part 3; live test
  *    part 8 issue 3 saw one);
  * 3. below `floor`, the repeats left.
- * So below the minimum a question that does not repeat an earlier quiz goes first.
+ * So below the minimum a question that does not repeat an earlier quiz goes first. A repeat of the last
+ * quiz on the level (repeatsLastQuiz) is never used, so a short quiz stays short rather than ask it again.
  */
 async function fillSetAside(
-  plan: GenPlan, produced: GenQuestion[], capped: GenQuestion[], repeats: GenQuestion[], target: number, floor: number, label: string,
+  plan: GenPlan, produced: GenQuestion[], capped: GenQuestion[], repeatsAll: GenQuestion[], target: number, floor: number, label: string,
 ): Promise<GenResult> {
+  const repeats = repeatsAll.filter((q) => !repeatsLastQuiz(plan, q));
+  const fromLast = dedupeByQuestionText(repeatsAll.filter((q) => !repeats.includes(q))).length;
+  if (fromLast) log.info("quiz", `${label}: ${fromLast} question(s) the last quiz asked are not asked again`);
   if (capped.length + repeats.length === 0) return { questions: produced, setAside: [] };
   let pool = dedupeByQuestionText([...capped, ...repeats]).filter((q) => !repeatsAny(produced, q));
   const isRepeat = new Set(repeats);

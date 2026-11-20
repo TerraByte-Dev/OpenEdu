@@ -694,6 +694,8 @@ export const questionKey = (text: string): string => text.trim().toLowerCase();
 export interface EarlierQuestion {
   question_text: string; correct_answer: string; subtopic_id?: string | null;
   question_type: string; blank_position?: string | null; matching_pairs?: Array<{ left: string; right: string }> | null;
+  /** The quiz that asked it (quiz_questions.attempt_id): quiz.ts never asks the last quiz's questions again. */
+  attempt_id?: string | null;
 }
 
 /**
@@ -718,31 +720,48 @@ function stemWords(text: string): string[] {
 
 export const NEAR_DUPLICATE_OVERLAP = 0.85;
 
-// A key as the repeat checks compare it: normalizeOption, and for a key with no digit also without a
-// leading "the", "a" or "an" and without punctuation, so "The Cell Membrane" and "cell membrane." are one
-// key (TerraTutor live test part 8 issue 2). The apostrophe stays: "it's" / "its", "we'll" / "well" and "can't" /
-// "cant" are the pairs a grammar question contrasts. A key with a digit is left as normalizeOption reads
-// it: "-3" and "3", "$5" and "5" are different answers. Symbols stay too ("<" / ">", "+" / "-", "Na+" / "Na"
-// are different answers), and a key that is only punctuation is left as normalizeOption reads it, so
-// it never becomes "" and matches every other such key. A hyphen that ends a word is a minus sign
-// ("Cl-" / "Cl", "OH-" / "OH"), so it is kept, as "−"; one inside a word ("Cell-membrane") or standing
-// alone between words still goes. Only for telling repeats apart; grading never reads it.
+// A key that is a number at heart: a number standing on its own (not a formula's count, "SiO2", "H2O"),
+// with at most two words around it: "12", "-3", "$5", "3/4", "2:30 PM", "5 cm", "45 square meters",
+// "x = 4". TerraTutor live test part 9 issue 1: any key with a digit counted as a number, so "The percentage of
+// silica (SiO2) content" escaped the same-key cap and was asked 3 times in one level-test section.
+function numericKey(key: string): boolean {
+  if (!/(?:^|[^\p{L}\p{N}])[-+−$€£]?\p{N}/u.test(key)) return false;
+  return (key.match(/\p{L}+/gu) ?? []).length <= 2;
+}
+
+// A key as the repeat checks compare it: normalizeOption, and for a key that is not a number at heart
+// (numericKey) also without a leading "the", "a" or "an" and without punctuation, so "The Cell Membrane"
+// and "cell membrane." are one key (TerraTutor live test part 8 issue 2), and so are "The percentage of silica (SiO2)
+// content" and "percentage of silica (SiO2) content." (part 9 issue 1). The apostrophe stays: "it's" /
+// "its", "we'll" / "well" and "can't" / "cant" are the pairs a grammar question contrasts. A numeric key
+// loses only end punctuation ("12!" is "12"): "-3" and "3", "$5" and "5" are different answers. Symbols
+// stay too ("<" / ">", "+" / "-", "Na+" / "Na" are different answers), and a key that is only
+// punctuation is left as normalizeOption reads it, so it never becomes "" and matches every other such
+// key. A hyphen that ends a word, before a space, punctuation, a quote or the end, is a minus sign
+// ("Cl-" / "Cl", "OH-" / "OH", "Cl-, Na+" / "Cl, Na+", a quoted "Cl-"), so it is kept, as "−"; one inside
+// a word ("Cell-membrane") or standing alone between words still goes. A minus before a number keeps
+// its sign ("-5 degrees at the summit" is not "5 degrees ..."), and a decimal point between digits stays
+// ("pH 7.4 in blood" is not "pH 7 4 ..."). So a word prefix written with a
+// hyphen ("un-", "pre-") is another key than the bare prefix ("un", "pre"), and SAME_KEY_CAP can let 4
+// questions on one prefix through, 2 each way; rare. Only for telling repeats apart; grading never reads it.
 export function keyForm(s: string): string {
   const k = normalizeOption(s);
-  if (/\p{N}/u.test(k)) return k;
-  const stripped = k.replace(/(?<=\S)-(?=\s|$)/g, "−").replace(/[^\p{L}\p{M}\p{S}'\s]+/gu, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|an?) (?=\S)/, "");
+  if (numericKey(k)) return k.replace(/[.,;:!?]+$/, "").trim() || k;
+  const stripped = k.replace(/(?<=\S)-(?=[\s,;:!?.)\]'"/]|$)/g, "−").replace(/(?<![\p{L}\p{N}])-(?=\p{N})/gu, "−")
+    .replace(/(?:(?!(?<=\p{N})\.(?=\p{N}))[^\p{L}\p{M}\p{N}\p{S}'\s])+/gu, " ").replace(/\s+/g, " ").trim().replace(/^(?:the|an?) (?=\S)/, "");
   return stripped || k;
 }
 
 // Keys that many different questions share as a matter of course: true / false, a matching question's
-// "See matching_pairs", an option letter, a number, fraction, clock time or amount of money ("12",
-// "seven", "three quarters", "2:30", "two dimes"), and a classification's pick: a key the stem names
+// "See matching_pairs", an option letter, a number, fraction, clock time, amount of money or expression
+// ("12", "seven", "three quarters", "2:30", "two dimes", "5 cm", "x = 4"; numericKey, not any key with a
+// digit, so "SiO2" is counted), and a classification's pick: a key the stem names
 // itself ("Is 8 even or odd?", "Is ice a solid, liquid or gas?") or a multiple-choice question with 3 or
 // fewer options (even / odd, noun / verb, fact / opinion). K-1 content leans on these.
 function routineKey(q: NearDuplicateQ, key: string): boolean {
   if (q.question_type === "true_false" || q.question_type === "drag_to_match") return true;
   if (key === "true" || key === "false" || LETTER_KEY_RE.test(key)) return true;
-  if (/\p{N}/u.test(key) || optionNumber(key) !== null || quantityOf(key) !== null) return true;
+  if (numericKey(key) || optionNumber(key) !== null || quantityOf(key) !== null) return true;
   if (q.question_type === "multiple_choice" && (q.options?.length ?? 0) > 0 && (q.options?.length ?? 0) <= 3) return true;
   const kw = stemWords(key);
   const sw = stemWords(q.question_text);
@@ -764,7 +783,9 @@ function lastClause(text: string): string {
   return stemWords(parts[parts.length - 1] ?? "").join(" ");
 }
 
-/** What isNearDuplicate reads. Without question_type a question is only matched on an equal key. */
+/** What isNearDuplicate reads. Without question_type a question never takes the free-text rule
+ *  (hasFreeTextKey) or the 3-option classification pick, so it is matched on an equal key or as a
+ *  reworded repeat (isRewordedRepeat). */
 export interface NearDuplicateQ {
   question_text: string; correct_answer?: string; question_type?: string; options?: readonly string[] | null;
 }
@@ -808,27 +829,102 @@ const KEY_PRONOUNS = new Set(["he", "she", "him", "her", "his", "hers", "they", 
 //   evaporation / condensation, the main idea of the first / second paragraph.
 // Otherwise two different keys are never duplicates, however alike the stems ("15 minutes after 2:30"
 // vs "after 1:45"; a multiple-choice "B) Numerator" vs "C) Denominator").
-// Keys are compared as keyForm reads them ("The Cell Membrane" = "cell membrane"). Many questions with one
-// key and different stems are not caught here; quiz.ts SAME_KEY_CAP caps them instead.
+// Keys are compared as keyForm reads them ("The Cell Membrane" = "cell membrane"). A question asked again
+// in other words with its key reworded too is caught by isRewordedRepeat. Many questions with one key and
+// different stems are not caught here; quiz.ts SAME_KEY_CAP caps them instead.
 export function isNearDuplicate(a: NearDuplicateQ, b: NearDuplicateQ): boolean {
   if (a.correct_answer === undefined || b.correct_answer === undefined) return false;
   const wa = stemWords(a.question_text);
   const wb = stemWords(b.question_text);
   const sameKey = keyForm(a.correct_answer) === keyForm(b.correct_answer);
-  if (!sameKey) {
-    if (!hasFreeTextKey(a) || !hasFreeTextKey(b)) return false;
-    const keyWords = new Set(contentWords(a.correct_answer).filter((w) => !KEY_PRONOUNS.has(w)));
-    if (!contentWords(b.correct_answer).some((w) => keyWords.has(w))) return false;
-    const numbers = (w: string[]) => w.filter((t) => /\p{N}/u.test(t)).join(" ");
-    if (numbers(wa) !== numbers(wb)) return false;
-    if (lastClause(a.question_text) !== lastClause(b.question_text)) return false;
-  }
+  if (!sameKey && !freeTextRepeat(a, b, wa, wb)) return isRewordedRepeat(a, b, false);
   const ta = new Set(wa);
   const tb = new Set(wb);
   if (ta.size === 0 || tb.size === 0) return false;
   let shared = 0;
   for (const t of ta) if (tb.has(t)) shared++;
-  return shared / Math.min(ta.size, tb.size) >= NEAR_DUPLICATE_OVERLAP;
+  return shared / Math.min(ta.size, tb.size) >= NEAR_DUPLICATE_OVERLAP || isRewordedRepeat(a, b, sameKey);
+}
+
+// Two free-text keys in other words that may name the same answer (isNearDuplicate's second case).
+function freeTextRepeat(a: NearDuplicateQ, b: NearDuplicateQ, wa: string[], wb: string[]): boolean {
+  if (!hasFreeTextKey(a) || !hasFreeTextKey(b)) return false;
+  const keyWords = new Set(contentWords(String(a.correct_answer)).filter((w) => !KEY_PRONOUNS.has(w)));
+  if (!contentWords(String(b.correct_answer)).some((w) => keyWords.has(w))) return false;
+  if (stemNumbers(wa) !== stemNumbers(wb)) return false;
+  return lastClause(a.question_text) === lastClause(b.question_text);
+}
+
+const stemNumbers = (w: string[]) => w.filter((t) => /\p{N}/u.test(t)).join(" ");
+
+// Words that frame a question rather than say what it asks: "Which of the following best describes the
+// fundamental difference ..." and "... the main difference ..." ask one thing, as do "the primary role
+// of the cytoplasm" and "the primary function of the cytoplasm" (TerraTutor live test part 9 issue 2).
+const FRAMING_WORDS = new Set(["which", "following", "best", "describes", "describe", "described",
+  "statement", "statements", "accurately", "correctly", "primary", "primarily", "main", "mainly",
+  "fundamental", "fundamentally", "key", "basic", "core", "central", "major", "typically", "generally",
+  "usually", "specifically", "role", "function"]);
+// A contraction ("isn't", "doesn't", "can't") splits into no negation word, so isRewordedRepeat also
+// reads NEGATED_CONTRACTION ("Which of these describes basaltic lava?" / "... doesn't describe ...").
+const NEGATIONS = new Set(["not", "never", "except", "least", "no", "none", "incorrect", "untrue", "false", "cannot"]);
+const NEGATED_CONTRACTION = /n['’]t\b/gu;
+/** The share of the two stems' asked words both have, at least, for isRewordedRepeat (measured: 0.5). */
+const REWORDED_STEM_SHARE = 0.5;
+/** The share of the shorter key's content words the other key has, at least (measured: 0.5). */
+const REWORDED_KEY_SHARE = 0.5;
+/** And the content words the two keys share, at least: sharing only the head noun of a two-word key
+ *  ("Covalent bond" / "Ionic bond", "The inner core" / "The outer core") is a mirror question. */
+const REWORDED_KEY_MIN_SHARED = 2;
+
+// A question asked again in other words, with its key in other words too (TerraTutor live test part 9 issue 2: a
+// quiz asked "The cell membrane's primary role in relation to the cytoplasm is to:" and "What is the
+// primary role of the cell membrane in relation to the cytoplasm?", keyed "To act as a barrier separating
+// the cell's interior from the outside environment" and "To separate the cell's interior from the
+// outside environment"; a level test asked about a low-silica magma's flow, and again with "and
+// resulting eruption style" added, keyed "Low viscosity, allowing for easy, effusive lava flows" and
+// "Low viscosity, leading to effusive eruptions"). All of:
+// - neither key is routine (sameKeyForm): true / false, a number, a classification's pick;
+// - neither is a fill-in-the-blank question, whose question_text can be only "Fill in the blank.";
+// - one stem's asked words (content words less FRAMING_WORDS) all in the other's, and at least
+//   REWORDED_STEM_SHARE of the two together shared, so the longer stem only adds to the shorter: a
+//   question that swaps the word it asks about ("high silica" / "low silica", "numerator" /
+//   "denominator", "roots" / "leaves", "ion" / "atom") is two questions;
+// - the same negations ("Which is NOT ...", "... isn't ...") and the same numbers in the same order;
+// - an equal key (`sameKey`), or two keys that share at least REWORDED_KEY_SHARE of the shorter one's
+//   content words (not a pronoun), and at least REWORDED_KEY_MIN_SHARED of them, and do not have the
+//   same words: keys with the same words in another order or with another symbol ("liquid water turning
+//   into water vapor" / "water vapor turning into liquid water", "Na+" / "Na") are different answers, and
+//   so are two-word keys that share only their head noun, for a stem that adds the one qualifier that
+//   changes the answer ("... between two atoms?" Covalent bond / "... two atoms that transfer electrons?"
+//   Ionic bond; "made of iron" / "made of liquid iron"). Still merged, as borderline: "Igneous rock" /
+//   "Intrusive igneous rock" after a stem that adds "intrusive".
+// Bars measured on the labelled pairs in __fixtures__/near-repeat-pairs.json (quiz-near-repeat.test.ts): 28 of
+// the 34 repeats in the saved live quizzes and tests caught, 0 of the different pairs merged.
+function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean): boolean {
+  if (a.question_type === "fill_in_blank" || b.question_type === "fill_in_blank") return false;
+  const ka = sameKeyForm(a);
+  const kb = sameKeyForm(b);
+  if (ka === null || kb === null) return false;
+  const asked = (t: string) => {
+    const lower = String(t ?? "").toLowerCase();
+    const not = [...lower.split(/[^\p{L}\p{N}]+/u).filter((w) => NEGATIONS.has(w)), ...(lower.match(NEGATED_CONTRACTION) ?? []).map(() => "n't")];
+    return { words: new Set(contentWords(t).filter((w) => !FRAMING_WORDS.has(w))), not: not.join(" ") };
+  };
+  const sa = asked(a.question_text);
+  const sb = asked(b.question_text);
+  const [short, long] = sa.words.size <= sb.words.size ? [sa.words, sb.words] : [sb.words, sa.words];
+  if (short.size === 0 || [...short].some((w) => !long.has(w))) return false;
+  if (short.size / new Set([...short, ...long]).size < REWORDED_STEM_SHARE) return false;
+  if (sa.not !== sb.not || stemNumbers(stemWords(a.question_text)) !== stemNumbers(stemWords(b.question_text))) return false;
+  if (sameKey) return true;
+  const wa = new Set(contentWords(ka).filter((w) => !KEY_PRONOUNS.has(w)));
+  const wb = new Set(contentWords(kb).filter((w) => !KEY_PRONOUNS.has(w)));
+  if (wa.size === 0 || wb.size === 0) return false;
+  let shared = 0;
+  for (const w of wa) if (wb.has(w)) shared++;
+  if (shared === wa.size && shared === wb.size) return false;
+  if (shared < REWORDED_KEY_MIN_SHARED) return false;
+  return shared / Math.min(wa.size, wb.size) >= REWORDED_KEY_SHARE;
 }
 
 // Keep the first occurrence of each distinct question; drop blanks, exact repeats (by normalized text)

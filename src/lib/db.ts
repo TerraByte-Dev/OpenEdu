@@ -713,7 +713,7 @@ export async function getRecentQuizQuestions(courseId: string, level: number, li
   if (limit <= 0) return [];
   const d = await getDb();
   const rows = await d.select<Array<Omit<EarlierQuestion, "matching_pairs"> & { matching_pairs: string | null }>>(
-    `SELECT qq.question_text, qq.correct_answer, qq.subtopic_id, qq.question_type, qq.blank_position, qq.matching_pairs
+    `SELECT qq.question_text, qq.correct_answer, qq.subtopic_id, qq.question_type, qq.blank_position, qq.matching_pairs, qq.attempt_id
        FROM quiz_questions qq
        JOIN quiz_attempts qa ON qq.attempt_id = qa.id
       WHERE qa.course_id = $1 AND qa.quiz_type = 'quiz' AND qa.level = $2
