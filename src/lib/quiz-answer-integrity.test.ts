@@ -749,6 +749,9 @@ describe("near-duplicate questions in one quiz or test", () => {
       [fb("Which symbol makes this true: 34 ___ 34?", "="), fb("Which symbol makes this true: 34 ___ 43?", "<")],
       [fb("Which sign makes 6 _ 2 = 8 true?", "+"), fb("Which sign makes 6 _ 2 = 4 true?", "-")],
       [sa("What is the symbol for a sodium ion?", "Na+"), sa("What is the symbol for sodium?", "Na")],
+      // The minus sign typed as a hyphen at the end of the key (#405 review).
+      [sa("Write the symbol for a chlorine ion.", "Cl-"), sa("Write the symbol for a chlorine atom.", "Cl")],
+      [sa("Write the formula for a hydroxide ion.", "OH-"), sa("Write the formula for a hydroxide group.", "OH")],
     ];
     for (const [x, y] of pairs) {
       expect(keyForm(x.correct_answer), `${x.correct_answer} / ${y.correct_answer}`).not.toBe(keyForm(y.correct_answer));
