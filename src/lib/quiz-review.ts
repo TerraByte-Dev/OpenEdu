@@ -4,6 +4,7 @@
 // generator (quiz.ts) is handed the pool.
 
 import type { QuizQuestion } from "../types";
+import { askedText, isNearDuplicate, sameStemNumbers } from "./quiz-grading";
 
 // The generation-time question shape (mirrors quiz.ts) — no DB/runtime fields.
 export type GenQuestion = Omit<QuizQuestion, "id" | "attempt_id" | "user_answer" | "is_correct">;
@@ -40,9 +41,25 @@ export function storedToGenQuestion(q: QuizQuestion): GenQuestion {
   };
 }
 
-// Take the first `n` review items (caller supplies them newest-first, already deduped). Pure.
+// Take the first `n` review items (caller supplies them newest-first, deduped by exact text), skipping one
+// that asks what an item already taken asks in other words (isNearDuplicate, on askedText as quiz.ts
+// compares fresh questions): TerraTutor live test part 10's quiz 1 re-posed two misses from the pool, "The cell
+// membrane's primary role in relation to the cytoplasm is to:" and "What is the primary role of the cell
+// membrane in relation to the cytoplasm?". The next one in the pool takes its place. Two stems with other
+// numbers are two questions whatever their overlap: "Is 3/8 more than 1/2?" / "Is 1/8 more than 1/2?",
+// both "False" (isNearDuplicate's same-key overlap does not read numbers). Pure.
 export function pickReview(pool: GenQuestion[], n: number): GenQuestion[] {
-  return n <= 0 ? [] : pool.slice(0, n);
+  const asked = (q: GenQuestion) => ({ question_text: askedText(q), correct_answer: q.correct_answer, question_type: q.question_type, options: q.options });
+  const twins = (a: GenQuestion, b: GenQuestion) => {
+    const [x, y] = [asked(a), asked(b)];
+    return sameStemNumbers(x.question_text, y.question_text) && isNearDuplicate(x, y);
+  };
+  const out: GenQuestion[] = [];
+  for (const q of pool) {
+    if (out.length >= n) break;
+    if (!out.some((o) => twins(o, q))) out.push(q);
+  }
+  return out;
 }
 
 // Spread review items at roughly even positions through the fresh ones (so review questions aren't

@@ -242,12 +242,19 @@ The section for each release is also what the app shows when you press Check for
   tides", "a front" / "a cold front", "to make food" / "to make food without sunlight", "plants and
   animals need to live" / "... in the desert", and "igneous rock" / "intrusive igneous rock", which had
   counted as a repeat) or asks the opposite ("describes" / "doesn't describe") stays a question of its own.
+  A plural no longer hides a repeat ("the magma that fuels volcanic arcs" / "... the volcanic arc" in one
+  TerraTutor level test), and a question that adds where, when or under what condition after an "and"
+  ("What do cactus plants need to live?" / "... to live and grow without water in the desert?") stays a
+  question of its own.
+- **A quiz's review re-poses a missed question once**, not twice in other words: of two missed questions
+  that ask the same thing, the review takes one and the next missed question instead.
 - **A new quiz never asks the last quiz's questions again as new ones**, not even to fill a quiz that
   came up short; a missed question still comes back in review, as it was asked. A TerraTutor live quiz's
   last question had been the one before's, word for word.
 - **A quiz no longer asks about the same answer over and over.** A quiz, or each section of a level test,
   now asks at most 2 questions with the same answer ("The cell membrane" and "cell membrane." count as
-  one), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
+  one, and so do "All cells arise from pre-existing cells." and "Cells arise only from pre-existing
+  cells."), and asks the model for others instead; a TerraTutor live quiz had asked about the cell membrane 7
   times in 19, and a level test had "Lava" as the answer 9 times in 31. Only when the model can't write
   enough others for the quiz's or test's minimum (10 questions for a quiz, 30 for a level test) are the
   set-aside ones used, and then before any question an earlier quiz on the level already asked.

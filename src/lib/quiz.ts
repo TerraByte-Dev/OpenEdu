@@ -7,7 +7,7 @@ import {
   buildVerifyPrompt, parseVerifyDrops, splitCount, dedupeByQuestionText,
   planSlotSubtopics, summarizeForLedger, alignKeyToOption,
   hasSelfCorrection, duplicateOptionPair, optionEqualToKey, rewriteLetterRefs, isNearDuplicate,
-  repeatedMatchSide, questionWithSentence, questionKey, askedText, sameKeyForm, type EarlierQuestion,
+  repeatedMatchSide, questionWithSentence, questionKey, askedText, sameKeyForm, sameAnswer, type EarlierQuestion,
   type GradeOutcome, type BatchGradeReply,
 } from "./quiz-grading";
 import { reviewQuestions } from "./content-review";
@@ -555,12 +555,16 @@ function earlierFor(plan: GenPlan, subtopicId: string): string[] {
     .map((q) => summarizeForLedger({ question_text: askedText(q), subtopic_id: q.subtopic_id }));
 }
 
-// A question that would be one more than SAME_KEY_CAP with that key among `list` and the quiz's re-posed ones.
+// A question that would be one more than SAME_KEY_CAP with that key (or the same answer in other words,
+// sameAnswer) among `list` and the quiz's re-posed ones.
 function overCap(plan: GenPlan, list: ReadonlyArray<GenQuestion>, q: GenQuestion): boolean {
   const k = sameKeyForm(q);
   if (k === null) return false;
   let n = 0;
-  for (const x of [...(plan.sameQuiz ?? []), ...list]) if (sameKeyForm(x) === k && ++n >= SAME_KEY_CAP) return true;
+  for (const x of [...(plan.sameQuiz ?? []), ...list]) {
+    const kx = sameKeyForm(x);
+    if (kx !== null && sameAnswer(kx, k) && ++n >= SAME_KEY_CAP) return true;
+  }
   return false;
 }
 
@@ -852,8 +856,10 @@ export async function generateQuizQuestions(
   const validReviewPool = reviewPool
     .map((q) => alignKeyToOption(storedToGenQuestion(q)))
     .filter((q) => validateQuizBatch([q as unknown as GeneratedQuestion], new Set<string>(), { tier }).length === 0);
-  const { fresh, review } = splitNewVsReview(numQuestions, validReviewPool.length);
-  let reviewQs = pickReview(validReviewPool, review);
+  // Near-twins in the pool count once (pickReview), so the quiz's split is taken on the ones it can re-pose.
+  const reviewable = pickReview(validReviewPool, validReviewPool.length);
+  const { fresh, review } = splitNewVsReview(numQuestions, reviewable.length);
+  let reviewQs = reviewable.slice(0, review);
   // The review pool is the path that leaked the recurring bad question, so re-posed items also get the
   // independent verify pass (runsVerifyPass) — not just the consistency/structural re-check above —
   // but only on a model on this computer.

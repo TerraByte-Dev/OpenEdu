@@ -231,23 +231,33 @@ written: they came from a once-a-minute timer whose only reader was the learning
   questions, newest first; a miss leaves it once the same question (trimmed, any ASCII letter case) is
   answered right after it in that course, by the key, the model or the learner's own mark (never an
   answer nothing checked, `graded_by` `'fallback'`, a safety disclosure included; TerraTutor #215), and a
-  later miss puts it back. A fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
+  later miss puts it back. A pool question that asks what one already re-posed asks, in other words
+  (`quiz-review.ts pickReview`, `isNearDuplicate` below, with the same numbers in the same order, so "is
+  3/8 more than 1/2?" and "is 1/8 more than 1/2?" are both re-posed), is skipped for the next one in the
+  pool (TerraTutor live test part 10 re-posed two such misses in one quiz; ported from TerraTutor #269). A
+  fresh question that repeats a re-posed one, exactly or nearly (`isNearDuplicate`: a
   stem that overlaps the other's by `NEAR_DUPLICATE_OVERLAP` and the same key, or two short-answer or
   fill-in-the-blank keys in words that share a content word (not a pronoun: "she is kind" / "she is unkind",
   "she herself is kind"), with the same numbers in the same order and the
   same last clause word for word, so only the setup differs; TerraTutor #259; or the same question
   reworded with its key reworded too, `isRewordedRepeat`: neither key routine nor a fill-in-the-blank's,
   one stem's asked words, its content words less question framing such as "best describes", "main",
-  "primary role", all inside the other's and at least half the two shared, the same negations ("isn't"
-  and "doesn't" read as "not") and numbers, and keys that share half the shorter one's content words and
-  at least 2 of them, but not all of them in another order or with another symbol, so "high silica" /
+  "primary role", folded to the singular where that is safe (`foldPlural`: "volcanic arcs" / "the
+  volcanic arc", never "gas" or "process"; TerraTutor live test part 10), all inside the other's and at
+  least half the two shared, the same negations ("isn't" and "doesn't" read as "not") and numbers, and
+  keys that share half the shorter one's content words and at least 2 of them (or at least 4, whatever
+  the share, when neither stem adds an asked word to the other and both ask them in the same order, so "a
+  solid change into a liquid" / "a liquid change into a solid" stay apart), but not all of them in another order or with another symbol, so "high silica" /
   "low silica", "ion" / "atom", "evaporation" / "condensation", "Covalent bond" / "Ionic bond" after a
   stem that adds "that transfer electrons", and "describes" / "doesn't describe" stay apart; with keys
   that differ, the longer stem adds no qualifier (`addsQualifier`: every word it adds is
   `ADDED_FILLER_WORDS`, such as "within" or "defining", or in an "and ..." it ends with whose words the
-  shorter stem has none of), so "the tides" / "the highest tides", "a front" / "a cold front", "Igneous
-  rock" / "Intrusive igneous rock" (merged as borderline before) and "plants and animals need to live" /
-  "... in the desert" stay apart too (OpenEdu #407's review; ported from TerraTutor #267); TerraTutor
+  shorter stem has none of and that says no where, when or under what condition, `QUALIFIER_LINKS` such
+  as "in", "without", "during"), so "the tides" / "the highest tides", "a front" / "a cold front",
+  "Igneous rock" / "Intrusive igneous rock" (merged as borderline before), "plants and animals need to
+  live" / "... in the desert" (OpenEdu #407's review; ported from TerraTutor #267) and "cactus plants need
+  to live" / "... to live and grow without water in the desert" (OpenEdu #408's review; ported from
+  TerraTutor #269) stay apart too; TerraTutor
   live test part 9 issue 2, bars measured on `src/lib/__fixtures__/near-repeat-pairs.json`; keys compared
   as `keyForm` reads them, without a leading article or punctuation other than the apostrophe (a numeric
   key, below, loses only end punctuation; a longer key keeps a minus before a number and a decimal point,
@@ -257,7 +267,12 @@ written: they came from a once-a-minute timer whose only reader was the learning
   a key that is only punctuation is never blank; TerraTutor #263, #264, #265; OpenEdu #405), is dropped and topped up (`GenPlan.avoid`), so a quiz never asks the same thing twice; a level test's
   review section is kept apart from its current section the same way. A quiz, or one level-test section,
   takes at most `SAME_KEY_CAP` (2) questions with one `sameKeyForm` key, the quiz's re-posed ones
-  counted (`GenPlan.sameQuiz`). A routine key is not counted: true/false, a matching question's, a number,
+  counted (`GenPlan.sameQuiz`). Two keys of 2 or more words are one when they are the same words in the
+  same order once folded to the singular and, with at least 4 other words, without "all" or an "only"
+  after the first word (`sameAnswer`: "All cells arise from pre-existing cells." / "Cells arise only from
+  pre-existing cells.", TerraTutor live test part 10), so "inner core" / "outer core", "liquid water
+  turning into water vapor" / "water vapor turning into liquid water", "Only plants" / "All plants" and
+  the one-word "sings" / "sing" stay two. A routine key is not counted: true/false, a matching question's, a number,
   fraction, time, money or expression (a number standing on its own with at most two words, "5 cm", "x =
   4"; not a key that only contains a digit, "The percentage of silica (SiO2) content", TerraTutor live
   test part 9 issue 1), and a classification's pick, which the stem names itself ("Is 8 *even* or

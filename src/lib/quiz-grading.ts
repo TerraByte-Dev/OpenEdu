@@ -857,6 +857,11 @@ function freeTextRepeat(a: NearDuplicateQ, b: NearDuplicateQ, wa: string[], wb: 
 
 const stemNumbers = (w: string[]) => w.filter((t) => /\p{N}/u.test(t)).join(" ");
 
+/** Whether two stems have the same numbers in the same order ("3/8 ... 1/2" is not "1/8 ... 1/2"). */
+export function sameStemNumbers(a: string, b: string): boolean {
+  return stemNumbers(stemWords(a)) === stemNumbers(stemWords(b));
+}
+
 // Words that frame a question rather than say what it asks: "Which of the following best describes the
 // fundamental difference ..." and "... the main difference ..." ask one thing, as do "the primary role
 // of the cytoplasm" and "the primary function of the cytoplasm" (TerraTutor live test part 9 issue 2).
@@ -875,28 +880,90 @@ const REWORDED_KEY_SHARE = 0.5;
 /** And the content words the two keys share, at least: sharing only the head noun of a two-word key
  *  ("Covalent bond" / "Ionic bond", "The inner core" / "The outer core") is a mirror question. */
 const REWORDED_KEY_MIN_SHARED = 2;
+/** With the same asked words in both stems, in the same order, keys that share at least this many content
+ *  words are one answer below REWORDED_KEY_SHARE too: TerraTutor live test part 10's "... fuels volcanic arcs
+ *  is:" / "... fuels the volcanic arc is:", keyed "Flux melting of the mantle wedge above the subducting slab
+ *  ..." / "Flux melting of the overlying mantle wedge caused by ..." (4 of 9). The most a different pair with
+ *  one stem shares in the fixture is 2 ("number of parts taken" / "... in the whole cake"). */
+const REWORDED_SAME_STEM_MIN_SHARED = 4;
 /** Words a reworded stem adds without asking anything new, read from the labelled repeats ("within a
  *  cell", "a defining characteristic", "a key tenet of", "primarily responsible for", "the main
  *  structural difference"). Only for stems whose keys differ (addsQualifier). */
 const ADDED_FILLER_WORDS = new Set(["within", "characteristic", "defining", "tenet", "responsible", "structural"]);
 
+// Words whose final "s" is not a plural, or whose singular is another word ("news" / "new", "means" /
+// "mean", "goods" / "good", "besides" / "beside").
+const NOT_PLURALS = new Set(["news", "means", "goods", "series", "species", "always", "perhaps", "whereas",
+  "besides", "towards", "afterwards", "lens", "canvas", "atlas", "bias", "chaos"]);
+// Plurals of words that end in "ie", not "y": "movies" is "movie", never "movy".
+const IE_PLURALS = new Set(["movies", "cookies", "calories", "brownies", "zombies", "prairies", "rookies", "smoothies", "selfies", "goalies"]);
+
+/**
+ * A word's singular, folded only where that is safe (isRewordedRepeat, sameAnswer): "ies" to "y" in a
+ * word of 5 or more letters ("bodies" -> "body"), else a final "s" off a word of 4 or more letters that
+ * does not end in "ss", "us", "is" or "ics" ("arcs" -> "arc", "cells" -> "cell", "plates" -> "plate"). So
+ * "gas", "glass", "is", "its", "was", "process", "nucleus", "basis" and "physics" stay as they are. "gases"
+ * and "boxes" keep their "e" and stay apart from "gas" and "box": a missed repeat, never a merge.
+ * TerraTutor live test part 10: a level test asked "... the magma that fuels volcanic arcs is:" and "...
+ * fuels the volcanic arc is:". Not answer-match.ts `singular`, which also takes "es" off "boxes": that one
+ * is for spelling, this one only for the near-repeat check and the same-key cap (ported from TerraTutor
+ * #269, where it is named `singular`).
+ */
+export function foldPlural(w: string): string {
+  if (w.length < 4 || !w.endsWith("s") || /(?:ss|us|is|ics)$/u.test(w) || NOT_PLURALS.has(w)) return w;
+  return w.length >= 5 && w.endsWith("ies") && !IE_PLURALS.has(w) ? `${w.slice(0, -3)}y` : w.slice(0, -1);
+}
+
+/**
+ * Whether the same-key cap (quiz.ts SAME_KEY_CAP) counts two keys (sameKeyForm) as one answer: equal, or,
+ * for keys of 2 or more words, the same words in the same order once each is folded to its singular, and
+ * in a key with at least 4 other words also without "all" anywhere and "only" after its first word.
+ * TerraTutor live test part 10's quiz 2 keyed "All cells arise from pre-existing cells.", "Cells arise only
+ * from pre-existing cells." and "cells arise from pre-existing cells", and the cap counted three keys. Word
+ * for word, so another word ("inner core" / "outer core", "Ionic bond" / "Covalent bond"), another order
+ * ("liquid water turning into water vapor" / "water vapor turning into liquid water") or another symbol
+ * ("Na+" / "Na") is another answer. A one-word key is never folded ("sings" / "sing" is a subject-verb
+ * agreement pair, "genetics" / "genetic" two words), a short key keeps "all" and "only" ("Only plants" /
+ * "All plants"), and a leading "only" stays ("Only cells arise from ..." is another claim). No key in the
+ * fixture's different pairs shares one with its partner this way that did not already
+ * (quiz-near-repeat.test.ts). Ported from TerraTutor #269.
+ */
+export function sameAnswer(a: string, b: string): boolean {
+  const folded = (k: string) => {
+    const words = k.split(" ");
+    if (words.length < 2) return k;
+    const rest = words.filter((w, i) => w !== "all" && (w !== "only" || i === 0));
+    return (rest.length >= 4 ? rest : words).map(foldPlural).join(" ");
+  };
+  return a === b || folded(a) === folded(b);
+}
+
+// Words that start a qualifier: a place, a time or a condition ("... and grow without water in the
+// desert?"). An "and ..." tail with one of them narrows the question (addsQualifier).
+const QUALIFIER_LINKS = new Set(["in", "on", "at", "without", "with", "during", "under", "when", "where",
+  "while", "after", "before", "inside", "outside", "near", "if", "unless", "except", "only"]);
+
 /**
  * True when the longer stem adds an asked word to the shorter one (isRewordedRepeat, `long` holds all of
  * `short`) that is not ADDED_FILLER_WORDS and not in an "and ..." it ends with whose words are all new
- * (an "and" the shorter stem already has excuses nothing). A qualifier that narrows the question changes
- * its answer: "What causes the tides on Earth?" / "... the highest tides ...", "... to make food?" / "...
- * without sunlight?", "... a front ..." / "... a cold front ..." (OpenEdu #407's review of the #265 port:
- * all merged). An "and ..." at the end asks for more of the same answer ("... its flow behavior?" / "...
- * flow behavior and resulting eruption style?", TerraTutor live test part 9, level test #13 / #35).
- * Ported from TerraTutor #267.
+ * and that has no QUALIFIER_LINKS word (an "and" the shorter stem already has excuses nothing). A
+ * qualifier that narrows the question changes its answer: "What causes the tides on Earth?" / "... the
+ * highest tides ...", "... to make food?" / "... without sunlight?", "... a front ..." / "... a cold front
+ * ..." (OpenEdu #407's review of the #265 port: all merged). An "and ..." at the end asks for more of the
+ * same answer ("... its flow behavior?" / "... flow behavior and resulting eruption style?", TerraTutor
+ * live test part 9, level test #13 / #35), unless it says where, when or under what condition: "What do
+ * cactus plants need to live?" / "... to live and grow without water in the desert?" (OpenEdu #408's
+ * review). Ported from TerraTutor #267 and #269.
  */
 function addsQualifier(short: ReadonlySet<string>, long: ReadonlySet<string>, longText: string): boolean {
   const lower = String(longText ?? "").toLowerCase();
   const and = lower.lastIndexOf(" and ");
+  const after = and < 0 ? "" : lower.slice(and + 5);
   // Only an "and ..." the shorter stem has none of the words of: after an "and" both stems share ("plants
   // and animals need to live" / "... to live in the desert"), the words are a qualifier like any other.
-  const tailWords = and < 0 ? [] : contentWords(lower.slice(and + 5));
-  const tail = new Set(tailWords.some((w) => short.has(w)) ? [] : tailWords);
+  const tailWords = contentWords(after).map(foldPlural);
+  const linked = after.split(/[^\p{L}\p{N}']+/u).some((w) => QUALIFIER_LINKS.has(w));
+  const tail = new Set(linked || tailWords.some((w) => short.has(w)) ? [] : tailWords);
   return [...long].some((w) => !short.has(w) && !ADDED_FILLER_WORDS.has(w) && !tail.has(w));
 }
 
@@ -921,15 +988,26 @@ function addsQualifier(short: ReadonlySet<string>, long: ReadonlySet<string>, lo
 //   so are two-word keys that share only their head noun, for a stem that adds the one qualifier that
 //   changes the answer ("... between two atoms?" Covalent bond / "... two atoms that transfer electrons?"
 //   Ionic bond; "made of iron" / "made of liquid iron");
-// - with keys that differ, a longer stem that adds a qualifier (addsQualifier): "the highest tides" /
-//   "the tides", "a cold front" / "a front", "Intrusive igneous rock" / "Igneous rock" after a stem that
-//   adds "intrusive" are two questions.
+// - with keys that differ, the longer stem adds no qualifier (addsQualifier). A stem that adds one asks
+//   another question: "the highest tides" / "the tides", "a cold front" / "a front", "Intrusive igneous
+//   rock" / "Igneous rock" after a stem that adds "intrusive".
+// Words are compared folded to their singular (foldPlural): "volcanic arcs" / "the volcanic arc".
 // Bars measured on the labelled pairs in __fixtures__/near-repeat-pairs.json (quiz-near-repeat.test.ts): 28 of
 // the 34 repeats in the saved live quizzes and tests caught, 0 of the 96 different pairs merged, the 20
 // qualifier pairs (OpenEdu #407) and the 6 with a qualifier after a shared "and" (TerraTutor #267's review)
 // included. Before addsQualifier: 28 of 34 and 0 of 70, and all 20 qualifier pairs merged; with the "and"
 // tail excused even after a shared "and", all 6 of those merged. ADDED_FILLER_WORDS and the "and" tail
 // were read off those repeats, so 28 is in-sample.
+// TerraTutor live test part 10 added 6 repeats and 10 different pairs (6 with a qualifier in a new "and"
+// tail, OpenEdu #408's review): 29 of 40 caught and 0 of 106 merged; before foldPlural,
+// REWORDED_SAME_STEM_MIN_SHARED and QUALIFIER_LINKS, 28 of 40 and 6 of 106 (all 6 "and" tail pairs). The
+// one new catch (#1 / #31) is the pair those two rules were written for, so it is in-sample too. TerraTutor
+// #269's review then added 6 different pairs written fresh (the bird / the birds and the dog / the dogs,
+// keyed "sings" / "sing" and "runs" / "run", and a solid into a liquid / a liquid into a solid with long
+// keys, each also as multiple choice): all 6 merged while a folded plural key counted as the same key and
+// the same-stem rule read the asked words as a set; with neither, 29 of 40 and 0 of 112. Out of sample for
+// those two rules, not for foldPlural itself. Known gap: a plural that changes the meaning ("customs" /
+// "custom") with long keys sharing 4 of 9 words still merges; no key-share bar separates it from #1 / #31.
 function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean): boolean {
   if (a.question_type === "fill_in_blank" || b.question_type === "fill_in_blank") return false;
   const ka = sameKeyForm(a);
@@ -938,7 +1016,8 @@ function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean
   const asked = (t: string) => {
     const lower = String(t ?? "").toLowerCase();
     const not = [...lower.split(/[^\p{L}\p{N}]+/u).filter((w) => NEGATIONS.has(w)), ...(lower.match(NEGATED_CONTRACTION) ?? []).map(() => "n't")];
-    return { words: new Set(contentWords(t).filter((w) => !FRAMING_WORDS.has(w))), not: not.join(" ") };
+    const seq = contentWords(t).map(foldPlural).filter((w) => !FRAMING_WORDS.has(w));
+    return { words: new Set(seq), seq: seq.join(" "), not: not.join(" ") };
   };
   const sa = asked(a.question_text);
   const sb = asked(b.question_text);
@@ -948,13 +1027,16 @@ function isRewordedRepeat(a: NearDuplicateQ, b: NearDuplicateQ, sameKey: boolean
   if (sa.not !== sb.not || stemNumbers(stemWords(a.question_text)) !== stemNumbers(stemWords(b.question_text))) return false;
   if (sameKey) return true;
   if (addsQualifier(short, long, longText)) return false;
-  const wa = new Set(contentWords(ka).filter((w) => !KEY_PRONOUNS.has(w)));
-  const wb = new Set(contentWords(kb).filter((w) => !KEY_PRONOUNS.has(w)));
+  const wa = new Set(contentWords(ka).filter((w) => !KEY_PRONOUNS.has(w)).map(foldPlural));
+  const wb = new Set(contentWords(kb).filter((w) => !KEY_PRONOUNS.has(w)).map(foldPlural));
   if (wa.size === 0 || wb.size === 0) return false;
   let shared = 0;
   for (const w of wa) if (wb.has(w)) shared++;
   if (shared === wa.size && shared === wb.size) return false;
   if (shared < REWORDED_KEY_MIN_SHARED) return false;
+  // Same asked words in the same order: "How does a solid change into a liquid?" / "... a liquid change
+  // into a solid?" have one word set, and their long keys share 5 words.
+  if (sa.seq === sb.seq && shared >= REWORDED_SAME_STEM_MIN_SHARED) return true;
   return shared / Math.min(wa.size, wb.size) >= REWORDED_KEY_SHARE;
 }
 
