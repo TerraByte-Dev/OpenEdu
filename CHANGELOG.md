@@ -212,6 +212,15 @@ The section for each release is also what the app shows when you press Check for
   in a check on 6 x 8) never counts for the check, and the app then asks the check's question again; an
   answer that is right for the check's question still counts for the check. When the app asks a question
   again that points back ("what the "whole" is in this example?"), it keeps the example.
+- **A right answer to the check's first question is no longer "not right yet" after the tutor moved on.**
+  When the learner said "I don't know" (or asked for help) and the tutor went on to other questions, an
+  answer to the check's first question was checked against the tutor's newest question and called wrong
+  ("The cell membrane protects the cell ..." after a question about the cytoplasm, a TerraTutor live test).
+  Now an answer that is wrong for the newest question is also checked against the check's first question;
+  right there, the app says so and asks the newest question again. It never marks the skill learned: it
+  was not the first try. A first question the learner already answered, this way too, is not checked
+  again, and the question asked again leaves out the tutor's praise for the answer before it ("That is
+  exactly right."), so it never follows "That's partly right.".
 - **A new quiz on a level asks new questions** where it can, instead of the ones the last quizzes asked.
 - **A question asked again in other words counts as a repeat** when its answer is written in words, too:
   the same cake question with "take" and then "eat", keyed "the number of parts taken" and "the number

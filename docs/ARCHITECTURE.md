@@ -1109,6 +1109,25 @@ So the verdict on the child's answer is the app's, not the reply's:
   keys only what follows that line (without a stalled reply's saved marker), so the next try is graded
   against the check's question, whatever the reply asked before it (ported from TerraTutor #258). Anything
   else is graded against the check's question as below (ported from TerraTutor #255).
+- **An answer to the check's first question after the tutor moved on** (TerraTutor live test 2026-11-20
+  part 10, step 2: "Can you tell me what the cell membrane does?", "I don't know", an easier question
+  answered right, a new question about the cytoplasm, then the membrane question answered right, graded
+  against the cytoplasm one: "That's not right yet."; ported from TerraTutor #268). The answer is graded
+  against the message just before it, as always; only when that gives `incorrect`, no hint question is in
+  play, and the check's first question (the tutor's reply to the request that opened the check,
+  `checkedMessage`'s `opening`) was left unanswered, the answer is keyed and graded against that question
+  too: at most two grader calls, the newest question's first. Left unanswered: the learner's message after
+  it was not an answer ("I don't know", "help", a hint request) or got code's repeat (an answer that
+  answered nothing). One the learner answered, right or wrong, is not reopened, so "56" for the next
+  question after "56" passed "What is 7 x 8?" is still graded on the next question only; nor is one
+  answered this way: code's repeat of another question under "Now back to the question:" later in the
+  check closes it (a hint's answer on a later question does too, the safe side), so a later wrong answer
+  is graded on the newest question with one grader call. Right or partly right for the first question is
+  that question's verdict, tagged `on: "earlier"`: it never passes the check (`MASTERY_REFUSED_EARLIER`,
+  and code makes no mark: it is not the first try), the note says the tutor's last question is still open,
+  and code asks that question again after the reply under "Now back to the question:", as after a hint's
+  answer, so the next try is graded against it. Wrong for both keeps the newest question's verdict. One
+  more key call on such a turn (none when the first question is a plain operation code keys).
 - **Code compares** (`compareToKey`). The same words once cue phrases are off, the same number in any
   plain form ("48", "forty-eight", "it's 48", "negative 5", "48 cm", "6 x 8 = 48") and no other number
   of the student's own, the same lettered option or yes/no: **correct**, with no further call. An
@@ -1120,7 +1139,7 @@ So the verdict on the child's answer is the app's, not the reply's:
   before it ("this", "these", "it", "the picture", "that example": "Can you tell me what the "whole" is in
   this example?") keeps the nearest paragraph before it that holds more than praise, a lead-in or the
   check's announcement, up to two paragraphs up (TerraTutor click test 2026-11-19 part 7, issue 6: the
-  chocolate-bar example was lost; ported from TerraTutor #260); without leading praise or a lead-in ("Great job!", "Next
+  chocolate-bar example was lost; ported from TerraTutor #260); without leading praise or a lead-in ("Great job!", "That is exactly right.", "Next
   one:", "Next:", "Here is your first question.", praise for a pick: "That is a good choice.", a sentence
   that announces the check: "I will check your understanding of "What is a Fraction? Whole and Parts."",
   "Let's see what you know about fractions.", "Let's check:", also after praise such as "Nice one, now",
@@ -1200,7 +1219,8 @@ So the verdict on the child's answer is the app's, not the reply's:
   "none", or it failed on a tutor message with no "?"), or the check did not run (the learner asked what a
   word means, or a first-turn hold), and no card answered in the turn was checked. It is refused on any
   turn whose typed answer was to a hint's own question, whatever a card picked that turn
-  (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258). Before, nothing refused
+  (`MASTERY_REFUSED_HINT`, above; ported from TerraTutor #258), or to the check's first question after the
+  tutor moved on (`MASTERY_REFUSED_EARLIER`, above; ported from TerraTutor #268). Before, nothing refused
   the mark there, so a small model could mark a skill learned on a turn nothing checked. "Answer turn" is
   `isAssessAnswerTurn`, the test that decides whether the check runs, with the check on; every other turn
   keeps its rule (an eval's `answerCheck: "off"` baseline included), and `practiced` still runs.
